@@ -1,0 +1,15 @@
+name: Add new issues to project board
+
+on:
+  issues:
+    types:
+      - opened
+
+jobs:
+  add_issue_to_project:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/add-to-project@v0.4.0
+        with:
+          project-url: https://github.com/orgs/get10101/projects/3
+          github-token: ${{ secrets.ITCHY_PROJECT_AUTOMATION_TOKEN }}
