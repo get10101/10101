@@ -1,0 +1,7 @@
+# RV-000 Template
+
+```
+Author:
+Date: DD/MM/YYYY
+Status: Draft/Proposed/Adopted/Superseded
+```

@@ -1,0 +1,21 @@
+= Architecture Decisions
+
+The following list records the open or taken architecture decision records (ADR) in the course of designing 10101 and describes important, expensive, large scale or risky architecture decisions including rationales.
+
+see also https://docs.arc42.org/section-9/ for more details.
+
+
+[title="List of Architecture Decisions", id="Table-{counter:table-number}", options="header"]
+|===
+|ID | Title | Status | Last Updated
+// TODO: remove once the first architectural decision is added
+|ADR-000 | Architecture decision template | Proposed | 2023-01-17
+|===
+
+
+:leveloffset: +1
+
+// TODO: remove once the first architectural decision is added
+include::adr-000-template.adoc[]
+
+:leveloffset: -1

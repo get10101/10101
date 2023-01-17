@@ -1,0 +1,22 @@
+= Runtime View
+
+The following section describes key use cases or features based on the systems building blocks.
+
+see https://docs.arc42.org/section-6/ for more details.
+
+[title="List of Runtime Views", id="Table-{counter:table-number}", options="header"]
+|===
+|ID | Title | Status | Last Updated
+// TODO: remove once the first runtime view is added
+|RV-000 | Runtime view template | Proposed | 2023-01-17
+|===
+
+
+:leveloffset: +1
+
+// TODO: remove once the first runtime view is added
+include::rv-000-template.adoc[]
+
+// Examples: Fund trading wallet, Move funds between wallets, stabilise sats, open position
+
+:leveloffset: -1

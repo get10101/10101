@@ -1,0 +1,23 @@
+= ADR-000 Template
+
+```
+Author:
+Date: DD/MM/YYYY
+Status: Draft/Proposed/Adopted/Superseded
+```
+
+== Decision
+
+The decision that has been taken in a few sentences.
+
+== Context
+
+The forces and current contextual circumstances which have necessitated this decision.
+
+== Options considered
+
+Each option considered, described briefly, with pros and cons. (Typically the option proposed / adopted comes first in this list).
+
+== Consequences
+
+The ramifications of this decision, both positive and negative.

@@ -1,0 +1,13 @@
+= Building Block View
+
+The following section describes the building blocks based on the https://c4model.com/[C4 Model].
+
+see https://docs.arc42.org/section-5/ for more details.
+
+== L1 System Context
+
+see https://c4model.com/#SystemContextDiagram for more details.
+
+== L2 Container Diagram
+
+see https://c4model.com/#ContainerDiagram for more details.

@@ -1,0 +1,34 @@
+:title: 10101 Solution Architecture
+:author: Philipp Hönisch, Richard Holzeis, Daniel Karzel, Lucas Soriano
+:email: philipp@10101.finance, richard@10101.finance, daniel@10101.finance, lucas@10101.finance
+:revnumber: 0.1
+:docdate: 2023-17-01
+:doctype: book
+:icons: font
+:source-highlighter: coderay
+
+:figure-caption: Figure
+
+:sectnumlevels: 4
+:sectnums!:
+
+:toc: left
+:toclevels: 2
+
+= {title}
+
+:sectnums:
+
+10101 combines the power of a self-custodial on-chain and off-chain wallet with the vast world of trading. 10101 - a numeral palindrome and the binary representation of 21 - as in 21 million possible bitcoin. The vision of 10101 embodies what Bitcoin stands for: Decentralized and censorship resistant money.
+
+== Introduction
+
+This document describes the solution architecture for the 10101 solution and is aligned with the https://arc42.org/overview[ARC 42 template] with minor tailoring to adhere to the requirements of this project.
+
+include::principles.adoc[leveloffset=+1]
+include::building-block.adoc[leveloffset=+1]
+include::runtime/runtime.adoc[leveloffset=+1]
+include::deployment.adoc[leveloffset=+1]
+include::concepts/concepts.adoc[leveloffset=+1]
+include::nfr.adoc[leveloffset=+1]
+include::decision-records/decision-records.adoc[leveloffset=+1]

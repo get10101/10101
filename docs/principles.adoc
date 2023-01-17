@@ -1,0 +1,6 @@
+= Design Principles
+
+- **Self-Sovereign**: The user must be in control of the infrastructure and cryptographic material required to participate in trading. The user must always be able to decide without the involvement of a third party.
+- **Non-Custodial**: The user's money must remain in the custody of the user at all times.
+- **Interoperable**: The system must be interoperable with the BOLT standards and therefore with the larges lightning node implementations like LND, Eclair and c-lightning.
+- **Accessible**: The system must be truly inclusive, censorship-resistant and non-discriminatory.

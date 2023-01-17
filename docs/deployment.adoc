@@ -1,0 +1,5 @@
+= Deployment View
+
+The following section describes the operational view on the different technical environments to develop, build, test and run the solution.
+
+see https://docs.arc42.org/section-7/ for more details.

@@ -1,0 +1,8 @@
+= Non Functional Requirements
+
+This section describes non-functional requirement of the system.
+
+- **NFR-001**: The solution must support at least 100 parallel users.
+- **NFR-002**: The solution must support the latest Android and iOS versions.
+- **NFR-003**: The user must be able to back up his keys.
+- **NFR-004**: ...

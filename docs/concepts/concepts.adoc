@@ -1,0 +1,22 @@
+= Solution Concepts
+
+The following section describes cross-cutting solution concepts which are relevant multiple parts of the 10101 system.
+
+see https://docs.arc42.org/section-8/ for more details.
+
+[title="List of Solution Concepts", id="Table-{counter:table-number}", options="header"]
+|===
+|ID | Title | Status | Last Updated
+// TODO: remove once the first solution concept is added
+|SC-000 | Soluction concept template | Proposed | 2023-01-17
+|===
+
+
+:leveloffset: +1
+
+// TODO: remove once the first solution concept is added
+include::sc-000-template.adoc[]
+
+// Examples: Domain Model, Security, Internationalization, Devops Process, Persistency, Error Handling Logging, Configurability, e2e Testing, Backup and Restore
+
+:leveloffset: -1
