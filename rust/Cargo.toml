@@ -1,0 +1,12 @@
+[package]
+name = "tentenone"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "tentenone"
+crate-type = ["lib", "cdylib", "staticlib"] # Android needs cdylib, whereas iOS staticlib
+
+[dependencies]
+anyhow = { version = "1", features = ["backtrace"] }
+flutter_rust_bridge = "1.53.0"

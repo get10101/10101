@@ -48,3 +48,8 @@ app.*.map.json
 **/*.rs.bk
 
 **/target/
+
+# generated files by flutter-rust-bridge
+bridge_generated.h
+**/bridge_generated/
+!/rust/src/bridge_generated/mod.rs
