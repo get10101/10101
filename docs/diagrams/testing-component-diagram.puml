@@ -1,0 +1,46 @@
+@startuml
+
+package "Rust Common" {
+    [Orderbook]
+    [Execute]
+    [Rust Lightning]
+}
+
+node "App" {
+  FRB - [App Backend]
+  [App Frontend]
+
+  database "App Database" {
+    [App Sqlite]
+  }
+}
+
+node "Coordinator" {
+  HTTP - [Coordinator]
+}
+
+database "Coordinator Database" {
+  [Coordinator PostgreSQL]
+}
+
+node "Electrum Node" {
+   API - [Electrum]
+}
+
+[E2E Test 1 (dart test)] --> [FRB]
+[E2E Test ...n (dart test)] --> [FRB]
+
+[App Backend] --> [Orderbook]
+[App Backend] --> [Execute]
+[App Backend] --> [Rust Lightning]
+[App Frontend] -> [FRB]
+[App Backend] --> [App Sqlite]
+[App Backend] ..> [HTTP]
+
+[Coordinator] --> [Orderbook]
+[Coordinator] --> [Execute]
+[Coordinator] --> [Rust Lightning]
+[Coordinator] --> [Coordinator PostgreSQL]
+
+[Rust Lightning] ..> API
+@enduml
