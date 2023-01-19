@@ -34,7 +34,7 @@ Thanks to this we should be able to write system tests against the `app`'s API w
 
 This diagram does include some of the assumptions listed above:
 
-![Assumed component diagram](http://www.plantuml.com/plantuml/proxy?cache=no&src=)
+![Assumed component diagram](http://www.plantuml.com/plantuml/proxy?cache=no&src=https://raw.githubusercontent.com/get10101/10101/d7619613324df3ce5c0f0a35d97bf24323f9515b/docs/diagrams/testing-component-diagram.puml)
 
 ## Strategy
 
