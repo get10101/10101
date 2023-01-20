@@ -1,0 +1,74 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - "staging"
+      - "main"
+
+env:
+  CARGO_INCREMENTAL: 0
+  CARGO_TERM_COLOR: always
+
+jobs:
+  formatting:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dprint/check@v2.1
+
+  lint-commits:
+    runs-on: ubuntu-latest
+    if: github.event.ref != 'refs/heads/main'
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Get all commits on current main
+        run: git fetch origin main
+      - name: Log all commits we will analyze
+        run: git log --pretty=format:%s origin/main..HEAD
+      - name: Disallow fixup! commits
+        run: git log --pretty=format:%s origin/main..HEAD | grep -zv fixup!
+      - name: Disallow squash! commits
+        run: git log --pretty=format:%s origin/main..HEAD | grep -zv squash!
+
+  clippy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile/native
+    steps:
+      - uses: actions/checkout@v3
+      - uses: extractions/setup-just@v1
+      - name: Setup rust toolchain
+        run: rustup show
+      - uses: Swatinem/rust-cache@v2.2.0
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: "stable"
+      - name: Install FFI bindings
+        run: cargo install flutter_rust_bridge_codegen
+      - name: Generate FFI bindings
+        run: just gen
+      - uses: Swatinem/rust-cache@v2.0.1
+      - run: cargo clippy --all-targets -- -D warnings
+
+  lint-flutter:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v3
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: "stable"
+      - name: Install dependencies
+        run: flutter pub get
+      - name: Verify flutter formatting
+        run: flutter format --output=none --set-exit-if-changed --line-length 100 .
+      - name: Analyze flutter code
+        run: flutter analyze --fatal-infos
