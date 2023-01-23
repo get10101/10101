@@ -60,6 +60,7 @@ lint: lint-flutter clippy
 
 clippy:
     cd mobile/native && cargo clippy --all-targets -- -D warnings
+    cd coordinator && cargo clippy --all-targets -- -D warnings
 
 lint-flutter:
     cd mobile && flutter analyze --fatal-infos .
@@ -73,5 +74,9 @@ dprint:
 # Flutter lacks a dprint plugin, use its own formatter
 flutter-format:
     cd mobile && flutter format . --fix --line-length {{line_length}}
+
+alias c := coordinator
+coordinator:
+    cd coordinator && cargo run
 
 # vim:expandtab:sw=4:ts=4
