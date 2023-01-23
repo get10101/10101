@@ -67,7 +67,7 @@ How are state changes managed in 10101.
 
 The coordinator will have to expose an API along the p2p API for the lightning (including dlc) communication e.g. order book. **Assumption**: 10101 will not exclusively talk via the p2p protocol with the app. As DLCs should get integrated into upstream rust-lightning a more generalised approach would be beneficiary.  
 
-- **Option 1 *Restfull API***: Simple API to expose CRUD operations through an HTTP. Broadly used and well understood.
+- **Option 1 *RESTful API***: Simple API to expose CRUD operations through an HTTP. Broadly used and well understood.
 - **Option 2 *Websocket***: Only one API, exposing all sorts of data the client can subscribe to.
 
 A combination of both options seem to be reasonable as the approach in itchysats with only web sockets seemed artificial and introduced unneeded complexities. However using websockets to push updates to subscribed data objects (instead of polling) seems to be a good practice for multiple reasons (bandwidth, freshness, etc.).
