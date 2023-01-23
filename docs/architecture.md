@@ -51,8 +51,10 @@ However, this feature might not be important for the MVP.
 
 DLCs are not supported by the lightning channels outof the box and a custom extension needs to be implemented. Downwards compatibility should be granted though.
 
- - **Option 1: *Virtual Channels***:  see https://medium.com/crypto-garage/dlc-on-lightning-cb5d191f6e64
- - **Option 2: Extend commit transaction**: see https://10101.substack.com/p/noncustodial-trading-with-10101
+ - **Option 1: *Virtual Channels***: Create a dedicated DLC channel (virtual channel) through a split transaction (splitting the fund transaction into two separate outputs, one for the dlc and the other for regular lightning) see https://medium.com/crypto-garage/dlc-on-lightning-cb5d191f6e64
+   - **Advantage**: CETs do not have to be recompute (re-verified) on every changed commitment transaction.  
+ - **Option 2: *Extend commit transaction***: see https://10101.substack.com/p/noncustodial-trading-with-10101
+   - **Advantage**: Simple extension of the existing commit transaction, without loosing the ability to use dlc bound funds directly.
 
 ## State management
 
