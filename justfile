@@ -21,6 +21,9 @@ deps-ios:
 	rustup target add aarch64-apple-ios x86_64-apple-ios
 
 gen:
+    #!/usr/bin/env bash
+    set -euxo pipefail
+    cd mobile
     flutter pub get
     flutter_rust_bridge_codegen \
         --rust-input native/src/api.rs \
@@ -32,31 +35,34 @@ gen:
         --dart-format-line-length {{line_length}}
 
 native:
-    cd native && cargo build
+    cd mobile/native && cargo build
 
 # Build Rust library for Android native targets
 android:
-	cd native && cargo ndk -o ../android/app/src/main/jniLibs build
+	cd mobile/native && cargo ndk -o ../android/app/src/main/jniLibs build
 
 # ios: Build Rust library for iOS
 ios:
-	cd native && cargo lipo
-	cp native/target/universal/debug/libnative.a ios/Runner
+	cd mobile/native && cargo lipo
+	cp mobile/native/target/universal/debug/libnative.a mobile/ios/Runner
 
 run:
-    flutter run
+    cd mobile && flutter run
 
 clean:
+    #!/usr/bin/env bash
+    set -euxo pipefail
+    cd mobile
     flutter clean
     cd native && cargo clean
 
 lint: lint-flutter clippy
 
 clippy:
-    cd native && cargo clippy --all-targets -- -D warnings
+    cd mobile/native && cargo clippy --all-targets -- -D warnings
 
 lint-flutter:
-    flutter analyze --fatal-infos .
+    cd mobile && flutter analyze --fatal-infos .
 
 alias fmt := format
 format: dprint flutter-format
@@ -66,6 +72,6 @@ dprint:
 
 # Flutter lacks a dprint plugin, use its own formatter
 flutter-format:
-    flutter format . --fix --line-length {{line_length}}
+    cd mobile && flutter format . --fix --line-length {{line_length}}
 
 # vim:expandtab:sw=4:ts=4

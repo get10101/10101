@@ -23,7 +23,7 @@ echo "ANDROID_NDK=.." >> ~/.gradle/gradle.properties
 
 ## Dependencies
 
-A lot of complexity for building the app has been encapsulated in a [just](./mobile/justfile)-file.
+A lot of complexity for building the app has been encapsulated in a [just](justfile)-file.
 You can install `just` with `cargo install just`.
 To see the available commands, simply run `make --list`.
 
