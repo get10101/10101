@@ -52,7 +52,7 @@ However, this feature might not be important for the MVP.
 DLCs are not supported by the lightning channels outof the box and a custom extension needs to be implemented. Downwards compatibility should be granted though.
 
  - **Option 1: *Virtual Channels***: ..
- - **Option 2: ...**:
+ - **Option 2: Extend commit transaction**: see https://10101.substack.com/p/noncustodial-trading-with-10101
 
 ## State management
 
