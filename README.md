@@ -23,7 +23,7 @@ echo "ANDROID_NDK=.." >> ~/.gradle/gradle.properties
 
 ## Dependencies
 
-A lot of complexity for building the app has been encapsulated in a [just](./mobile/justfile)-file.
+A lot of complexity for building the app has been encapsulated in a [just](justfile)-file.
 You can install `just` with `cargo install just`.
 To see the available commands, simply run `make --list`.
 
@@ -33,7 +33,7 @@ To install necessary project dependencies for all targets, run the following:
 just deps
 ```
 
-### Run the app natively (on your Linux/MacOS/other OS)
+### Run the mobile-app natively (on your Linux/MacOS/other OS)
 
 ```bash
 just deps
@@ -49,7 +49,7 @@ just native
 just run
 ```
 
-### Run the app on the iOS simulator
+### Run the mobile-app on the iOS simulator
 
 Note: Ensure that the iOS simulator is running on your machine so it can be selected as target.
 
@@ -65,4 +65,14 @@ just ios
 
 ```bash
 just run
+```
+
+### Run the coordinator
+
+`bash just coordinator`
+
+or in short
+
+```bash
+just c
 ```
