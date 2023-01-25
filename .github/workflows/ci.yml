@@ -72,6 +72,6 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
       - name: Verify flutter formatting
-        run: flutter format --output=none --set-exit-if-changed --line-length 100 .
+        run: dart format --output=none --set-exit-if-changed --line-length 100 .
       - name: Analyze flutter code
         run: flutter analyze --fatal-infos
