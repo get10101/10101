@@ -1,0 +1,9 @@
+= 10101 Documents
+Philipp Hoenisch <philipp@10101.finance>
+:toc:
+:icons: font
+
+This is an overview of all documents related to 10101.
+
+== Architecture Decision Records (ADR)
+

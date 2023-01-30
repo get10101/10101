@@ -1,0 +1,107 @@
+= ADR 001 - Unit and Integration Testing CI Strategy
+Philipp Hoenisch <philipp@10101.finance>
+3.0, July 29, 2022: AsciiDoc article template
+:toc:
+:icons: font
+:attributes: 2023-01-17
+
+This document outlines the reasoning behind our CI strategy.
+
+== Decision
+
+* We have 3 stages of tests
+** Unit tests:
+In unit tests we stub all DB/io/networking/etc to achieve a sub *10 minute* runtime.
+Unit tests can run on every commit.
+** Integration tests:
+These are tests that depend on multiple components (perhaps across module boundaries).
+Additionally, this kind of tests usually involve mocked state.
+** System tests:
+These tests are on a system level and treat the application as a black box.
+They need a whole infrastructure to be set up to run.
+
+System tests run only occasionally and *only* if all unit tests have passed.
+We run integration tests only on `bors r+`.
+Once this branch builds, it is automatically merged into master.
+* We only run tests for what has been changed. E.g. If a user only does frontend changes, we only run tests for the frontend.
+
+== Context
+
+A continuous integration and continuous delivery platform (CI/CD) should help us to deliver high quality software to our users.
+In the past we have been heavily using https://github.com/features/actions[GitHub Actions] but we had our problems with performance and maintenance of the CI suite.
+Below is a short description on what we want to achieve and how.
+
+
+=== High Test Coverage and Assurance
+
+We want to have high test coverage due to obvious reason.
+A high coverage only makes sense if it is run frequently.
+To have viable tests run on the CI, they should run fast.
+Our role model Martin Fowler describes that tests on CI should not take more than https://martinfowler.com/articles/continuousIntegration.html#KeepTheBuildFast[10 minutes].
+
+[quote]
+For most projects, however, the XP guideline of a ten minute build is perfectly within reason. Most of our modern projects achieve this. It's worth putting in concentrated effort to make it happen, because every minute you reduce off the build time is a minute saved for each developer every time they commit. Since CI demands frequent commits, this adds up to a lot of time.
+
+He goes on with
+
+[quote]
+The trick is to balance the needs of bug finding and speed so that a good commit build is stable enough for other people to work on.
+Once the commit build is good then other people can work on the code with confidence. However, there are further, slower, tests that you can start to do. Additional machines can run further testing routines on the build that take longer to do.
+
+He proposes to make use of a two stage deployment pipeline:
+
+1. Stage 1: Run a build and unit tests with the database/io/network/etc completely stubbed out.
+2. Stage 2: Run larger scale system tests.
+
+The main goal of stage 1 is to achieve high certainty that others can start working on it.
+Only in stage 2 longer tests will run.
+
+The idea is to only run stage 2 tests on a regular interval and not on every commit.
+
+If we keep following our well-known `bors r+`-workflow, we can execute stage 2 tests only when merging into the `staging` branch, i.e. on or when `bors r+` is executed.
+
+The advantages of this two stage approach are:
+
+1. separation of test files: in order to be able to differentiate between unit tests and system tests, we will need to differentiate them on a file level as well. This will result in cleaner code and cleaner interfaces as system tests should only _know_ about external api.
+2. separation of test setup: we could theoretically easily deploy the system test runner onto a custom machine
+3. by-passing system tests: while not favorable, the advantage of this approach is that we can bypass the second stage if needed and merge directly into master without running the whole system test suite but at least the unit test suite.
+
+[IMPORTANT]
+.Tests should be executed locally first
+====
+It is important that developers don't use the CI to run tests.
+Before a PR is created, the test suite should be run locally on the dev's machine to not unnecessarily use CI resources.
+====
+
+Here is an example for how this can look like in action
+
+1. Dev wants to build feature x
+2. Dev creates a branch from `main`
+3. Dev implements feature x
+4. Dev runs full test suite locally on his machine
+5. Dev creates a pull request
+6. CI triggers unit tests to run
+7. Reviews are submitted
+8. After feedback is integrated, `bors r+` is entered
+9. CI triggers system tests
+
+=== Test only what was changed
+
+In the past we always started with a build-all-test-all CI approach and every single time it slowed us down the road.
+Instead, we should from the get-go only build files which were affected by the commits, e.g. if the user only did frontend changes, we should only run frontend tests.
+
+=== Options considered
+
+==== Option 1
+
+Make use of a two stage CI pipeline:
+
+1. Stage 1: Run a build and unit tests with the database/io/network/etc completely stubbed out.
+2. Stage 2: Run larger scale system tests.
+
+Stage 1 is run on the last commit of a PR.
+Stage 2 is only run when merging into `staging`, i.e. after running `bors r+`
+
+==== Option 2 (so far)
+
+So far we have run all tests on every commit. This is slow and cumbersome.
