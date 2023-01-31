@@ -1,0 +1,7 @@
+[package]
+name = "ln-dlc-node"
+version = "0.1.0"
+edition = "2021"
+description = "A common interface for using Lightning and DLC channels side-by-side."
+
+[dependencies]
