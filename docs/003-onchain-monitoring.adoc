@@ -1,0 +1,29 @@
+= ADR 003 - Onchain monitoring
+Richard Holzeis <richard@10101.finance>
+3.0, July 29, 2022: AsciiDoc article template
+:toc:
+:icons: font
+:attributes: 2023-01-31
+
+This document outlines the decision how onchain transactions are monitored.
+
+== Decision
+
+10101 will use a public electrum server to monitor onchain transactions. Electrum is broadly accepted and used. We will use public infrastructure as the trust model will have no impact to the user whether or not 10101 would run the infrastructure components or delegates that task to public infrastructure. A corresponding setting to the user to choose her infrastructural components will be added within the app to allow the user to be fully self-sovereign.
+
+== Context
+
+We need a way to monitor on chain transaction to firstly reflect the wallet balances correctly and secondly ensure that off-chain transactions have not been published malicously. 
+
+=== What standard should be used to monitor for onchain transactions
+
+- *Option 1 _Electrum_*: Not a standard, but broadly used and accepted. Indicies the UTXO set and exposes a simple API to be consumed by the app.
+- *Option 2 _Neutrino (BIP-157)_*: A bitcoin standard to run a lightweight node, connecting directly to a full node.
+- *Option 3 _Blockexplorer client_*: Not a standard, but the goto solution for most users to check for transactions is to go to mempool.space or blockchain.info. We could write a client going against these services.
+
+=== Where should these components run
+
+Both options require at the very least a full node to synchronize the latest blocks. While the synchronization can be run directly on the phone in the case of neutrino, the electrum server would be an additional component to be run.
+
+- *Option 1 _Use public infrastructure_*: While this option introduces a level of assumed trust, it is an highly scaleable option to bring a high quality of service directly to the user. The caveat of having to trust an node respectively electrum server operator can be mitigated by allowing the user to select her own infrastructure components.
+- *Option 2 _Run dedicated infrastructure components_*: This option provides the highest level of trust from a 10101 point of view. The trust model would not change for the user in comparison to option 1.
