@@ -1,0 +1,37 @@
+= ADR 002 - Database
+Richard Holzeis <richard@10101.finance>
+3.0, July 29, 2022: AsciiDoc article template
+:toc:
+:icons: font
+:attributes: 2023-01-31
+
+This document outlines the decision how data is managed within 10101.
+
+== Decision
+
+* Database: Mobile app, coordinator and orderbook use different databases best suited for their corresponding platform. e.g. while the mobile phone may use Sqlite the coordinator is free to use any unmanaged or managed database that is best fit to deal with a higher user load and back-up capability. 
+The chosen databases need to be open source and free to use.
+* Schema: 10101 will use a relational database for the mobile app as well as for the coordinator and order book. It is recommended to align the schemas as best as possible to keep maintenance efforts as low as possible.
+The development of either schema must not be blocked by either platforms constraints. Dedicated adaptors for the different databases will have to be implemented and separately maintained.
+
+== Context
+
+Both mobile app and coordinator need to persist data. This data is mostly the same kind of data and can be categorized in the following.
+
+- *Domain Data*: Trading data like Orders, Trades, Positions, etc.
+- *Reference Data*: Trading Pair, Currency, etc.
+- *Technical Data*: DLC and Lightning data.
+- *Confidential Data*: Private or secret keys.
+
+=== Should we use the same database / schemas for the mobile app and coordinator?
+
+* *Option 1: Use the _same database_*: The data relevant to be stored is structurally very similar for the app and the coordinator. In the poc (as well as in itchysats) we've used the same database abd schemas for both databases (taker and maker).
+** *Advantage*: Maintaining migrations as well as the data access layer code is simplified.
+
+* *Option 2: Use _separate databases_*: While using the same database makes sense from a maintenance point of view it might restrict us in the technology choices since a mobile app and backend service do have completely differnt constraints. It might as well hinder us from optimising our backend service as we have to consider mobile constraints.
+** *Advantage*: Databases can be optimised according to the platform specific needs.
+
+=== What kind of database should be used?
+
+- **Option 1: Use a *relational database***: In the past we have used relational databases, promoting a clear data structure and model. A lot of care has been taken to migrate old records to adhere to data model changes. No data redundancy.
+- **Option 2: Use a *no sql database***: A much more flexible option in terms of data model, with performance prioritised over data integrity. Data redundancy.
