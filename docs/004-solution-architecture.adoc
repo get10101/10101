@@ -1,0 +1,70 @@
+= ADR 004 - Solution Architecture
+Richard Holzeis <richard@10101.finance>
+3.0, July 29, 2022: AsciiDoc article template
+:toc:
+:icons: font
+:attributes: 2023-01-31
+
+This document outlines the 10101 solution components.
+
+== 10101 Container Diagram
+
+The following diagram depicts a high level overview of the architectural components employed in the 10101 solution.
+
+```mermaid
+C4Container
+
+Person(user, User, "A 10101 maker or taker")
+System_Ext(electrum_server, "Electrum Server", "UTXO Index")
+
+Container_Boundary(c1, "10101") {
+    
+    Boundary(b1, "Mobile", "boundary") {
+        Container_Ext(mobile_app, "Mobile App", "Rust, Dart, Lightning Node, Flutter", "Provides the lightning and onchain wallet as well as trading functionalities")
+        ContainerDb_Ext(mobile_db, "Database", "SqLite", "Manages the domain, reference, technical and sensible data for the phone")
+    }
+
+    Boundary(b2, "Coordinator", "boundary") {
+        Container(coordinator, "Coordinator", "Rust, Lightning Node", "Coordinates the dlc-channel management")
+        ContainerDb(coordinator_db, "Database", "PostgreSQL", "Manages the technical and sensible data for the coordiantor")
+    }
+
+    Boundary(b3, "Orderbook", "boundary") {
+        Container(orderbook, "Orderbook", "Rust", "Matches maker and taker orders")
+        ContainerDb(orderbook_db, "Database", "PostgreSQL", "Manages the domain and reference data for the oder book")
+    }
+}
+
+Rel(user, mobile_app, "Uses")
+Rel(mobile_app, "electrum_server", "Monitors onchain transactions using", "TCP/RPC")
+UpdateRelStyle(mobile_app, electrum_server, $offsetY="-60", $offsetX="-160")
+Rel(coordinator, "electrum_server", "Monitors onchain transactions using", "TCP/RPC")
+UpdateRelStyle(coordinator, electrum_server, $offsetY="-60")
+
+Rel(mobile_app, mobile_db, "Uses")
+Rel(mobile_app, orderbook, "Finds trades at", "HTTPS")
+UpdateRelStyle(mobile_app, orderbook, $offsetY="-20", $offsetX="30")
+Rel(mobile_app, coordinator, "Establishes dlc channels with", "TCP, P2P Lightning")
+UpdateRelStyle(mobile_app, coordinator, $offsetY="0", $offsetX="-40")
+
+Rel(coordinator, coordinator_db, "Uses")
+Rel(orderbook, orderbook_db, "Uses")
+```
+
+=== Mobile App
+
+The mobile app exposes the lightning and on-chain wallet combined with a self-custodial trading functionality to the user. Using the mobile app the user runs a full lightning node on her phone.
+
+The mobile app uses the order book to find trades and the coordinator to establish a "transient" dlc-channel with the maker respectively taker.
+
+=== Orderbook
+
+The orderbook is responsible for publishing orders and matching them accordingly. Once a match is found, the order book instructs the coordinator to establish the technical foundations to execute the trade between the matched trading parties.
+
+=== Coordinator
+
+The coordinator coordiantes the creation of the technical dlc channel and exposes an always-on endpoint for the user to interact with her trade / dlc.
+
+
+
+
