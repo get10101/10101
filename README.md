@@ -33,6 +33,12 @@ To install necessary project dependencies for all targets, run the following:
 just deps
 ```
 
+It is also important to run the following to generate the Flutter-Rust glue code:
+
+```sh
+just gen
+```
+
 ### Run the mobile-app natively (on your Linux/MacOS/other OS)
 
 ```bash
