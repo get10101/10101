@@ -46,10 +46,6 @@ jobs:
       - name: Setup rust toolchain
         run: rustup show
       - uses: Swatinem/rust-cache@v2.2.0
-        with:
-          workspaces: |
-            ./coordinator
-            ./mobile/native
       - uses: subosito/flutter-action@v2
         with:
           channel: "stable"

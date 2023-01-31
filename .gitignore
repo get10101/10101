@@ -2,9 +2,8 @@
 **/*.rs.bk
 
 
-# git ignores for mobile app
-mobile/target/
-mobile/native/target/
+# ignore artifacts for all members of Rust workspace
+/target/
 
 mobile/.dart_tool/
 # generated files, not meant to be checked in
@@ -19,4 +18,3 @@ mobile/ios/Runner/libnative.a
 
 #ignore keystores
 *.jks
-
