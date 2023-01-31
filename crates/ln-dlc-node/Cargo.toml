@@ -5,17 +5,29 @@ edition = "2021"
 description = "A common interface for using Lightning and DLC channels side-by-side."
 
 [dependencies]
+anyhow = { version = "1", features = ["backtrace"] }
+bdk = { version = "0.24.0", features = ["key-value-db"] }
+bdk-ldk = "0.1.0"
+bip39 = "1.0.1"
+bitcoin = "0.29"
+bitcoin-bech32 = "0.12"
 dlc-manager = { version = "0.3.0", features = ["use-serde"] }
 dlc-messages = { version = "0.3.0" }
 dlc-sled-storage-provider = { version = "0.1.0" }
-electrs-blockchain-provider = { version = "0.1.0" }
+futures = "0.3"
+hex = "0.3"
+hkdf = "0.12"
 lightning = { version = "0.0.113", features = ["max_level_trace"] }
 lightning-background-processor = { version = "0.0.113" }
 lightning-block-sync = { version = "0.0.113", features = ["rpc-client"] }
-lightning-invoice = { version = "0.20" }
+lightning-invoice = { version = "0.21" }
 lightning-net-tokio = { version = "0.0.113" }
 lightning-persister = { version = "0.0.113" }
 lightning-rapid-gossip-sync = { version = "0.0.113" }
-p2pd-oracle-client = { version = "0.1.0" }
-simple-wallet = { version = "0.1.0" }
-tokio = { version = "1", features = ["io-util", "macros", "rt", "rt-multi-thread", "sync", "net", "time"] }
+rand = "^0.6.0"
+reqwest = { version = "0.11", default-features = false, features = ["json"] }
+serde = "1.0.147"
+sha2 = "0.10"
+tokio = { version = "1", default-features = false, features = ["io-util", "macros", "rt", "rt-multi-thread", "sync", "net", "time"] }
+tracing = "0.1.37"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
