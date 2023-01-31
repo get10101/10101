@@ -5,6 +5,7 @@ edition = "2021"
 description = "A common interface for using Lightning and DLC channels side-by-side."
 
 [dependencies]
+bitcoin = "0.29"
 dlc-manager = { version = "0.3.0", features = ["use-serde"] }
 dlc-messages = { version = "0.3.0" }
 dlc-sled-storage-provider = { version = "0.1.0" }
@@ -17,5 +18,7 @@ lightning-net-tokio = { version = "0.0.113" }
 lightning-persister = { version = "0.0.113" }
 lightning-rapid-gossip-sync = { version = "0.0.113" }
 p2pd-oracle-client = { version = "0.1.0" }
+rand = "0.4"
 simple-wallet = { version = "0.1.0" }
 tokio = { version = "1", features = ["io-util", "macros", "rt", "rt-multi-thread", "sync", "net", "time"] }
+tracing = "0.1.37"
