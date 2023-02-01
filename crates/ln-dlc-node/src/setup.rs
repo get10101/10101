@@ -55,7 +55,7 @@ pub async fn start_ln_dlc_node(ln_listening_port: u32) {
     let logger = Arc::new(TracingLogger);
     let electrs_host = "http://localhost:30000/".to_string();
     let network = Network::Regtest;
-    let ldk_data_dir = "./".to_string();
+    let ldk_data_dir = "./.ldk-data".to_string();
 
     let electrs = tokio::task::spawn_blocking(move || {
         Arc::new(ElectrsBlockchainProvider::new(electrs_host, network))
@@ -213,13 +213,14 @@ pub async fn start_ln_dlc_node(ln_listening_port: u32) {
     );
 
     // TODO: Replace with BDK?
-    let wallet = Arc::new(SimpleWallet::new(electrs.clone(), storage, network));
+    let wallet = Arc::new(SimpleWallet::new(electrs.clone(), storage.clone(), network));
 
     let event_handler = {
         let channel_manager = channel_manager.clone();
         let electrs = electrs.clone();
-        let network_graph = network_graph;
+        let network_graph = network_graph.clone();
         let keys_manager = keys_manager.clone();
+        let wallet = wallet.clone();
 
         move |event: lightning::util::events::Event| {
             handle.block_on(handle_event(
@@ -322,7 +323,7 @@ pub async fn start_ln_dlc_node(ln_listening_port: u32) {
 
     let p2pdoracle = tokio::task::spawn_blocking(move || {
         Arc::new(
-            P2PDOracleClient::new("https://oracle.p2pderivatives.io/")
+            P2PDOracleClient::new("http://oracle.p2pderivatives.io/")
                 .expect("to be able to create the p2pd oracle"),
         )
     })

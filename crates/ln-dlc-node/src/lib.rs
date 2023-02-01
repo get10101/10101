@@ -3,15 +3,15 @@ use dlc_manager::custom_signer::CustomSigner;
 use dlc_messages::message_handler::MessageHandler as DlcMessageHandler;
 use dlc_sled_storage_provider::SledStorageProvider;
 use electrs_blockchain_provider::ElectrsBlockchainProvider;
+use lightning::chain;
 use lightning::chain::chainmonitor;
 use lightning::chain::Filter;
-use lightning::chain::{self};
 use lightning::ln::peer_handler::IgnoringMessageHandler;
 use lightning::ln::PaymentHash;
 use lightning::ln::PaymentPreimage;
 use lightning::ln::PaymentSecret;
+use lightning::routing::gossip;
 use lightning::routing::gossip::P2PGossipSync;
-use lightning::routing::gossip::{self};
 use lightning::routing::router::DefaultRouter;
 use lightning::routing::scoring::ProbabilisticScorer;
 use lightning::util::logger::Logger;
@@ -24,15 +24,16 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::Mutex;
 
+// TODO: Can we get rid of this?
 mod disk;
 mod ln;
 mod setup;
 mod util;
 
-pub use setup::start_ln_dlc_node;
-
 #[cfg(test)]
 mod tests;
+
+pub use setup::start_ln_dlc_node;
 
 type ChainMonitor = chainmonitor::ChainMonitor<
     CustomSigner,
