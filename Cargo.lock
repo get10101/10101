@@ -95,6 +95,12 @@ checksum = "b645a089122eccb6111b4f81cbc1a49f5900ac4666bb93ac027feaecf15607bf"
 
 [[package]]
 name = "bech32"
+version = "0.8.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cf9ff0bbfd639f15c74af777d81383cf53efb7c93613f6cab67c6c11e05bbf8b"
+
+[[package]]
+name = "bech32"
 version = "0.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d86b93f97252c47b41663388e6d155714a9d0c398b99f1005cbc5f978b29f445"
@@ -127,10 +133,19 @@ version = "0.29.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0694ea59225b0c5f3cb405ff3f670e4828358ed26aec49dc352f730f0cb1a8a3"
 dependencies = [
- "bech32",
+ "bech32 0.9.1",
  "bitcoin_hashes",
  "secp256k1",
  "serde",
+]
+
+[[package]]
+name = "bitcoin-bech32"
+version = "0.12.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "754eb4c7f35c031f33c95cc257b4c4192a5c9d3de637d3ee78ab052a3f35da57"
+dependencies = [
+ "bech32 0.8.1",
 ]
 
 [[package]]
@@ -797,6 +812,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "hex"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "805026a5d0141ffc30abb3be3173848ad46a1b1664fe632428479619a3644d77"
+
+[[package]]
 name = "hmac"
 version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1045,7 +1066,7 @@ version = "0.20.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0fc6ec960257cddce1b85d5ce258821a6138dcd0ae9fd9661b2c3061df588289"
 dependencies = [
- "bech32",
+ "bech32 0.9.1",
  "bitcoin_hashes",
  "lightning 0.0.112",
  "num-traits",
@@ -1096,10 +1117,12 @@ name = "ln-dlc-node"
 version = "0.1.0"
 dependencies = [
  "bitcoin",
+ "bitcoin-bech32",
  "dlc-manager",
  "dlc-messages",
  "dlc-sled-storage-provider",
  "electrs-blockchain-provider",
+ "hex",
  "lightning 0.0.113",
  "lightning-background-processor",
  "lightning-block-sync",

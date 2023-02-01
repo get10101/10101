@@ -1,13 +1,13 @@
 //! Do this one first.
 //! TODO: Might be called no-hop (hop[e]less).
 
-use super::start_ln_dlc_node;
+use crate::setup::start_ln_dlc_node;
 
 #[tokio::test]
 async fn given_sibling_channel_when_payment_then_can_be_claimed() {
     // 1. Set up two LN-DLC nodes.
-    let _alice = start_ln_dlc_node().await;
-    let _bob = start_ln_dlc_node().await;
+    let _alice = start_ln_dlc_node(8005).await;
+    let _bob = start_ln_dlc_node(8006).await;
 
     // 2. Connect the two nodes.
     todo!("Implement connection between both nodes");

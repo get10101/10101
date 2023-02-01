@@ -6,10 +6,12 @@ description = "A common interface for using Lightning and DLC channels side-by-s
 
 [dependencies]
 bitcoin = "0.29"
+bitcoin-bech32 = "0.12"
 dlc-manager = { version = "0.3.0", features = ["use-serde"] }
 dlc-messages = { version = "0.3.0" }
 dlc-sled-storage-provider = { version = "0.1.0" }
 electrs-blockchain-provider = { version = "0.1.0" }
+hex = "0.3"
 lightning = { version = "0.0.113", features = ["max_level_trace"] }
 lightning-background-processor = { version = "0.0.113" }
 lightning-block-sync = { version = "0.0.113", features = ["rpc-client"] }
