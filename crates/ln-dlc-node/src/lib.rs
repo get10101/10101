@@ -1,12 +1,3 @@
-mod disk;
-mod ln;
-mod setup;
-
-pub use setup::start_ln_dlc_node;
-
-#[cfg(test)]
-mod tests;
-
 use dlc_manager::custom_signer::CustomKeysManager;
 use dlc_manager::custom_signer::CustomSigner;
 use dlc_messages::message_handler::MessageHandler as DlcMessageHandler;
@@ -21,13 +12,27 @@ use lightning::ln::PaymentPreimage;
 use lightning::ln::PaymentSecret;
 use lightning::routing::gossip::P2PGossipSync;
 use lightning::routing::gossip::{self};
+use lightning::routing::router::DefaultRouter;
+use lightning::routing::scoring::ProbabilisticScorer;
 use lightning::util::logger::Logger;
 use lightning::util::logger::Record;
+use lightning_invoice::payment;
 use lightning_net_tokio::SocketDescriptor;
 use lightning_persister::FilesystemPersister;
+use lightning_rapid_gossip_sync::RapidGossipSync;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::Mutex;
+
+mod disk;
+mod ln;
+mod setup;
+mod util;
+
+pub use setup::start_ln_dlc_node;
+
+#[cfg(test)]
+mod tests;
 
 type ChainMonitor = chainmonitor::ChainMonitor<
     CustomSigner,
@@ -59,6 +64,18 @@ type ChannelManager = lightning::ln::channelmanager::ChannelManager<
     Arc<CustomKeysManager>,
     Arc<ElectrsBlockchainProvider>,
     Arc<TracingLogger>,
+>;
+
+pub(crate) type InvoicePayer<E> =
+    payment::InvoicePayer<Arc<ChannelManager>, Router, Arc<TracingLogger>, E>;
+
+type GossipSync<P, G, A, L> =
+    lightning_background_processor::GossipSync<P, Arc<RapidGossipSync<G, L>>, G, A, L>;
+
+type Router = DefaultRouter<
+    Arc<NetworkGraph>,
+    Arc<TracingLogger>,
+    Arc<Mutex<ProbabilisticScorer<Arc<NetworkGraph>, Arc<TracingLogger>>>>,
 >;
 
 type SimpleWallet =

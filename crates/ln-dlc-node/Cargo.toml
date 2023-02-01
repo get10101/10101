@@ -15,7 +15,7 @@ hex = "0.3"
 lightning = { version = "0.0.113", features = ["max_level_trace"] }
 lightning-background-processor = { version = "0.0.113" }
 lightning-block-sync = { version = "0.0.113", features = ["rpc-client"] }
-lightning-invoice = { version = "0.20" }
+lightning-invoice = { version = "0.21" }
 lightning-net-tokio = { version = "0.0.113" }
 lightning-persister = { version = "0.0.113" }
 lightning-rapid-gossip-sync = { version = "0.0.113" }
