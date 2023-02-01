@@ -32,7 +32,8 @@ gen:
         --rust-output native/src/bridge_generated/bridge_generated.rs \
         --dart-output lib/bridge_generated/bridge_generated.dart \
         --dart-decl-output lib/bridge_generated/bridge_definitions.dart \
-        --dart-format-line-length {{line_length}}
+        --dart-format-line-length {{line_length}} \
+        --wasm
 
 native:
     cd mobile/native && cargo build
