@@ -1,0 +1,40 @@
+= ADR 005 - Mobile App Routing
+Daniel Karzel <daniel@10101.finance>
+3.0, July 29, 2022: AsciiDoc article template
+:toc:
+:icons: font
+:attributes: 2023-02-01
+
+This document contains the reasoning for our flutter-app routing library.
+
+== Decision
+
+- We use the https://pub.dev/packages/go_router[`go_router`] flutter package for routing.
+- We can consider using type-safe routes which with https://pub.dev/documentation/go_router/latest/topics/Type-safe%20routes-topic.html[possible in `go_router`].
+- We accept that preserving the state in nested sub-routes is not supported in `go_router` at the time of writing this document, but is expected to be added in a future release.
+
+== Context
+
+There are various different routing libraries for flutter [out there](https://fluttergems.dev/routing/).
+
+Here are some routing features to consider:
+
+- Declarative routes: Page based routing, that can be configured using e.g. URL schema. This makes routes more explicit (one route always points to one page) than just using push/pop to add and remove routes from the routing stack.
+- Type-Safe routing: Generate the routes from pages (classes) rather than defining string keys for your routes. (involves code generation step)
+- Re-direction: Define conditional re-directions based on application state.
+- Nested navigation and multiple navigators: Allow multiple navigators within the application to depict parent-child screen relationships.
+    - Preserving state across nested routes: This means preserving state of e.g. a child screen of one tab when switching to another tab. Here is https://codewithandrea.com/articles/flutter-bottom-navigation-bar-nested-routes-gorouter-beamer/[an example].
+
+=== Options considered
+
+At the time of writing the most popular solutions in likes are:
+
+* https://pub.dev/packages/go_router[go_router] (2.2k likes)
+** Most activity development on GitHub; maintained by Flutter dev
+** Does *not* support preserving state of nested routes yet, planned for the next release, see https://github.com/flutter/packages/pull/2650[this PR] and https://github.com/flutter/flutter/issues/99124[this ticket]
+* https://pub.dev/packages/auto_route[auto_route] [2k likes)
+** GitHub repo has less activity than `go_router`
+* https://pub.dev/packages/beamer[beamer] (0.9k likes)
+** GitHub repo looks stale
+
+All three libraries offer similar functionality, only `beamer` and `auto_route` implement preserving state in nested routes so far.
