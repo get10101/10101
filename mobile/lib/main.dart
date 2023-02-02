@@ -4,7 +4,9 @@ import 'package:flutter/foundation.dart' as foundation;
 import 'package:flutter_rust_bridge/flutter_rust_bridge.dart';
 import 'package:get_10101/features/trade/settings_screen.dart';
 import 'package:get_10101/features/wallet/receive_screen.dart';
+import 'package:get_10101/features/wallet/scanner_screen.dart';
 import 'package:get_10101/features/wallet/settings_screen.dart';
+import 'package:get_10101/util/app_bar_wrapper.dart';
 import 'package:go_router/go_router.dart';
 import 'features/trade/trade_screen.dart';
 import 'features/wallet/wallet_screen.dart';
@@ -56,6 +58,13 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
                 },
               ),
               GoRoute(
+                path: ScannerScreen.subRouteName,
+                parentNavigatorKey: _rootNavigatorKey,
+                builder: (BuildContext context, GoRouterState state) {
+                  return const ScannerScreen();
+                },
+              ),
+              GoRoute(
                   path: WalletSettingsScreen.subRouteName,
                   parentNavigatorKey: _rootNavigatorKey,
                   builder: (BuildContext context, GoRouterState state) {
@@ -96,6 +105,7 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
         primarySwatch: Colors.blue,
       ),
       routerConfig: _router,
+      debugShowCheckedModeBanner: false,
     );
   }
 
@@ -138,6 +148,8 @@ class ScaffoldWithNavBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       body: child,
+      appBar: const PreferredSize(
+          preferredSize: Size.fromHeight(40), child: SafeArea(child: AppBarWrapper())),
       bottomNavigationBar: BottomNavigationBar(
         items: const <BottomNavigationBarItem>[
           BottomNavigationBarItem(

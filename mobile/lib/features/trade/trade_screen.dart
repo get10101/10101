@@ -18,15 +18,7 @@ class _TradeScreenState extends State<TradeScreen> {
     return Scaffold(
         body: ListView(
       padding: const EdgeInsets.only(left: 25, right: 25),
-      children: [
-        const Center(child: Text("Trade Screen")),
-        ElevatedButton(
-          onPressed: () {
-            context.go(TradeSettingsScreen.route);
-          },
-          child: const Text("Settings"),
-        )
-      ],
+      children: const [Center(child: Text("Trade Screen"))],
     ));
   }
 }

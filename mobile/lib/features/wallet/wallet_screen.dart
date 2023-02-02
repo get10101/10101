@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:get_10101/features/wallet/receive_screen.dart';
-import 'package:get_10101/features/wallet/settings_screen.dart';
 import 'package:go_router/go_router.dart';
 
 class WalletScreen extends StatefulWidget {
@@ -27,12 +26,6 @@ class _WalletScreenState extends State<WalletScreen> {
           },
           child: const Text("Fund Wallet"),
         ),
-        ElevatedButton(
-          onPressed: () {
-            context.go(WalletSettingsScreen.route);
-          },
-          child: const Text("Settings"),
-        )
       ],
     ));
   }
