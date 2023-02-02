@@ -2,12 +2,13 @@
 //! TODO: Might be called no-hop (hop[e]less).
 
 use crate::setup::start_ln_dlc_node;
+use crate::tests::MockOracle;
 
 #[tokio::test]
 async fn given_sibling_channel_when_payment_then_can_be_claimed() {
     // 1. Set up two LN-DLC nodes.
-    let _alice = start_ln_dlc_node(8005).await;
-    let _bob = start_ln_dlc_node(8006).await;
+    let _alice = start_ln_dlc_node(8005, MockOracle, "alice").await;
+    let _bob = start_ln_dlc_node(8006, MockOracle, "bob").await;
 
     // 2. Connect the two nodes.
     todo!("Implement connection between both nodes");

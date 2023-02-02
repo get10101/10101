@@ -51,11 +51,15 @@ use std::time::SystemTime;
 
 /// The pre-condition to calling this function is that the environment
 /// is set up. I was thinking of `nigiri` here.
-pub async fn start_ln_dlc_node(ln_listening_port: u32) {
+pub async fn start_ln_dlc_node(
+    ln_listening_port: u32,
+    oracle_client: impl Oracle + Send + Sync + 'static,
+    ldk_data_subdir: &str,
+) {
     let logger = Arc::new(TracingLogger);
     let electrs_host = "http://localhost:30000/".to_string();
     let network = Network::Regtest;
-    let ldk_data_dir = "./.ldk-data".to_string();
+    let ldk_data_dir = format!("./.ldk-data/{ldk_data_subdir}");
 
     let electrs = tokio::task::spawn_blocking(move || {
         Arc::new(ElectrsBlockchainProvider::new(electrs_host, network))
@@ -321,18 +325,13 @@ pub async fn start_ln_dlc_node(ln_listening_port: u32) {
 
     // TODO: Regularly reconnect to channel peers.
 
-    let p2pdoracle = tokio::task::spawn_blocking(move || {
-        Arc::new(
-            P2PDOracleClient::new("http://oracle.p2pderivatives.io/")
-                .expect("to be able to create the p2pd oracle"),
-        )
-    })
-    .await
-    .unwrap();
+    let oracle_client = tokio::task::spawn_blocking(move || Arc::new(oracle_client))
+        .await
+        .unwrap();
 
-    let oracle_pubkey = p2pdoracle.get_public_key();
+    let oracle_pubkey = oracle_client.get_public_key();
 
-    let oracles = HashMap::from([(oracle_pubkey, p2pdoracle.clone())]);
+    let oracles = HashMap::from([(oracle_pubkey, oracle_client.clone())]);
 
     let wallet_clone = wallet.clone();
     let electrs_clone = electrs.clone();
