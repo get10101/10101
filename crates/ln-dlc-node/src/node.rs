@@ -1,9 +1,12 @@
+use crate::bdk_wallet::BDKWallet;
 use crate::ChainMonitor;
 use crate::ChannelManager;
 use crate::NetworkGraph;
 use crate::PeerManager;
 use crate::TracingLogger;
 use anyhow::Result;
+use bdk::blockchain::ElectrumBlockchain;
+use bdk::electrum_client::Client;
 use bitcoin::blockdata::constants::genesis_block;
 use dlc_manager::custom_signer::CustomKeysManager;
 use dlc_messages::message_handler::MessageHandler as DlcMessageHandler;
@@ -19,6 +22,7 @@ use lightning::ln::peer_handler::MessageHandler;
 use lightning::routing::gossip::P2PGossipSync;
 use lightning::util::config::ChannelHandshakeLimits;
 use lightning_persister::FilesystemPersister;
+use std::path::Path;
 use std::sync::Arc;
 use std::time::SystemTime;
 
@@ -26,13 +30,15 @@ use std::time::SystemTime;
 pub struct Node {
     network: bitcoin::Network,
 
-    electrs_client: Arc<ElectrsBlockchainProvider>,
+    wallet: Arc<BdkLdkWallet>,
     peer_manager: Arc<PeerManager>,
 
     ln_listening_port: u16,
 
     data_dir: String,
 }
+
+pub(crate) type BdkLdkWallet = bdk_ldk::LightningWallet<ElectrumBlockchain, bdk::sled::Tree>;
 
 impl Node {
     // TODO: I'd like this to be synchronous
@@ -53,18 +59,20 @@ impl Node {
         // TODO: Might be better to use an in-memory persister for the tests.
         let persister = Arc::new(FilesystemPersister::new(data_dir.clone()));
 
-        // TODO: This spawns a long-running task which to me is unexpected in a constructor
-        let electrs_client = tokio::task::spawn_blocking(move || {
-            Arc::new(ElectrsBlockchainProvider::new(electrs_origin, network))
-        })
-        .await
-        .unwrap();
+        let client = Client::new(&electrs_origin.clone()).unwrap();
+        let blockchain = ElectrumBlockchain::from(client);
+        let path = Path::new(&data_dir);
+        let bdk_wallet = BDKWallet::new(path, network).unwrap();
+        let lightning_wallet = Arc::new(bdk_ldk::LightningWallet::new(
+            Box::new(blockchain),
+            bdk_wallet.inner,
+        ));
 
         let chain_monitor: Arc<ChainMonitor> = Arc::new(chainmonitor::ChainMonitor::new(
             None,
-            electrs_client.clone(),
+            lightning_wallet.clone(),
             logger.clone(),
-            electrs_client.clone(),
+            lightning_wallet.clone(),
             persister.clone(),
         ));
 
@@ -98,9 +106,9 @@ impl Node {
                 best_block: BestBlock::new(genesis_block_hash, 0),
             };
             Arc::new(ChannelManager::new(
-                electrs_client.clone(),
+                lightning_wallet.clone(),
                 chain_monitor.clone(),
-                electrs_client.clone(),
+                lightning_wallet.clone(),
                 logger.clone(),
                 keys_manager.clone(),
                 ldk_user_config,
@@ -138,7 +146,7 @@ impl Node {
 
         Self {
             network,
-            electrs_client,
+            wallet: lightning_wallet,
             peer_manager,
             ln_listening_port,
             data_dir,

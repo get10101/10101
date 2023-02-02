@@ -1,10 +1,13 @@
+use crate::node::BdkLdkWallet;
+use crate::bdk_wallet::BDKWallet;
 use crate::ChannelManager;
 use crate::HTLCStatus;
 use crate::MillisatAmount;
 use crate::NetworkGraph;
 use crate::PaymentInfo;
 use crate::PaymentInfoStorage;
-use crate::SimpleWallet;
+use bdk::wallet::AddressIndex;
+use bdk_ldk::LightningWallet;
 use bitcoin::secp256k1::Secp256k1;
 use bitcoin::Address;
 use bitcoin::PackedLockTime;
@@ -16,10 +19,7 @@ use bitcoin::TxOut;
 use bitcoin::Witness;
 use bitcoin_bech32::WitnessProgram;
 use dlc_manager::custom_signer::CustomKeysManager;
-use dlc_manager::Signer;
 use dlc_manager::Utxo;
-use dlc_manager::Wallet;
-use electrs_blockchain_provider::ElectrsBlockchainProvider;
 use lightning::chain::chaininterface::BroadcasterInterface;
 use lightning::chain::chaininterface::ConfirmationTarget;
 use lightning::chain::chaininterface::FeeEstimator;
@@ -28,6 +28,7 @@ use lightning::util::events::Event;
 use lightning::util::events::PaymentPurpose;
 use rand::thread_rng;
 use rand::Rng;
+use simple_wallet::SimpleWallet;
 use std::collections::hash_map::Entry;
 use std::io;
 use std::io::Write;
@@ -37,12 +38,11 @@ use std::time::Duration;
 #[allow(clippy::too_many_arguments)]
 pub(crate) async fn handle_event(
     channel_manager: &Arc<ChannelManager>,
-    electrs: &Arc<ElectrsBlockchainProvider>,
+    wallet: &Arc<BdkLdkWallet>,
     network_graph: &NetworkGraph,
     keys_manager: Arc<CustomKeysManager>,
     inbound_payments: &PaymentInfoStorage,
     outbound_payments: &PaymentInfoStorage,
-    wallet: &Arc<SimpleWallet>,
     event: &Event,
 ) {
     match event {
@@ -61,54 +61,39 @@ pub(crate) async fn handle_event(
             )
             .expect("Lightning funding tx should always be to a SegWit output")
             .to_address();
-            let address: Address = addr.parse().unwrap();
-            let mut tx = Transaction {
-                version: 2,
-                lock_time: PackedLockTime::ZERO,
-                input: vec![TxIn::default()],
-                output: vec![TxOut {
-                    value: *channel_value_satoshis,
-                    script_pubkey: address.script_pubkey(),
-                }],
-            };
 
-            let fee_rate = electrs.get_est_sat_per_1000_weight(ConfirmationTarget::Normal) as u64;
-            let fee = u64::max(
-                ((tx.weight() + tx.input.len() * 74) as u64) * fee_rate / 1000,
-                153,
+            let target_blocks = 2;
+
+            // Have wallet put the inputs into the transaction such that the output
+            // is satisfied and then sign the funding transaction
+            let funding_tx_result = wallet.construct_funding_transaction(
+                output_script,
+                *channel_value_satoshis,
+                target_blocks,
             );
 
-            let required_amount = *channel_value_satoshis + fee;
-
-            let utxos: Vec<Utxo> = wallet
-                .get_utxos_for_amount(required_amount, None, false)
-                .unwrap();
-
-            tx.input = Vec::new();
-
-            let change_address = wallet.get_new_address().unwrap();
-
-            tx.output.push(TxOut {
-                value: utxos.iter().map(|x| x.tx_out.value).sum::<u64>() - required_amount,
-                script_pubkey: change_address.script_pubkey(),
-            });
-
-            for (i, utxo) in utxos.iter().enumerate() {
-                tx.input.push(TxIn {
-                    previous_output: utxo.outpoint,
-                    script_sig: Script::default(),
-                    sequence: Sequence::MAX,
-                    witness: Witness::default(),
-                });
-                wallet
-                    .sign_tx_input(&mut tx, i, &utxo.tx_out, None)
-                    .unwrap();
-            }
+            let funding_tx = match funding_tx_result {
+                Ok(funding_tx) => funding_tx,
+                Err(e) => {
+                    tracing::error!(
+                        "Cannot open channel due to not being able to create funding tx {e:?}"
+                    );
+                    channel_manager
+                        .close_channel(temporary_channel_id, counterparty_node_id)
+                        .expect("To be able to close a channel we cannot open");
+                    return;
+                }
+            };
 
             // Give the funding transaction back to LDK for opening the channel.
-            channel_manager
-                .funding_transaction_generated(temporary_channel_id, counterparty_node_id, tx)
-                .unwrap();
+
+            if let Err(err) = channel_manager.funding_transaction_generated(
+                temporary_channel_id,
+                counterparty_node_id,
+                funding_tx,
+            ) {
+                tracing::error!("Channel went away before we could fund it. The peer disconnected or refused the channel. {err:?}");
+            }
         }
         Event::PaymentClaimed {
             payment_hash,
@@ -264,9 +249,9 @@ pub(crate) async fn handle_event(
             });
         }
         Event::SpendableOutputs { outputs } => {
-            let destination_address = wallet.get_new_address().unwrap();
+            let destination_address = wallet.get_unused_address().unwrap();
             let output_descriptors = &outputs.iter().collect::<Vec<_>>();
-            let tx_feerate = electrs.get_est_sat_per_1000_weight(ConfirmationTarget::Normal);
+            let tx_feerate = wallet.get_est_sat_per_1000_weight(ConfirmationTarget::Normal);
             let spending_tx = keys_manager
                 .spend_spendable_outputs(
                     output_descriptors,
@@ -276,7 +261,7 @@ pub(crate) async fn handle_event(
                     &Secp256k1::new(),
                 )
                 .unwrap();
-            electrs.broadcast_transaction(&spending_tx);
+            wallet.broadcast_transaction(&spending_tx);
         }
         Event::ChannelClosed {
             channel_id,
@@ -314,5 +299,6 @@ pub(crate) async fn handle_event(
             inbound_amount_msat: _,
             expected_outbound_amount_msat: _,
         } => todo!(),
+        _ => {}
     }
 }

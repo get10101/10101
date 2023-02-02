@@ -1,5 +1,8 @@
+use crate::bdk_ldk_wallet::BDKLDKWallet;
+use crate::bdk_wallet::BDKWallet;
 use crate::disk;
 use crate::ln::event_handler::handle_event;
+use crate::node::BdkLdkWallet;
 use crate::ChainMonitor;
 use crate::ChannelManager;
 use crate::GossipSync;
@@ -7,6 +10,10 @@ use crate::InvoicePayer;
 use crate::PaymentInfoStorage;
 use crate::PeerManager;
 use crate::TracingLogger;
+use bdk::blockchain::ElectrumBlockchain;
+use bdk::blockchain::GetBlockHash;
+use bdk::blockchain::GetHeight;
+use bdk::electrum_client::Client;
 use bitcoin::blockdata::constants::genesis_block;
 use bitcoin::secp256k1::Secp256k1;
 use bitcoin::Network;
@@ -39,7 +46,7 @@ use lightning_block_sync::BlockSource;
 use lightning_invoice::payment;
 use lightning_persister::FilesystemPersister;
 use rand::thread_rng;
-use rand::Rng;
+use rand::RngCore;
 use simple_wallet::SimpleWallet;
 use simple_wallet::WalletStorage;
 use std::collections::HashMap;
@@ -61,20 +68,24 @@ async fn start_ln_dlc_node(
     let network = Network::Regtest;
     let ldk_data_dir = format!("./.ldk-data/{ldk_data_subdir}");
 
-    let electrs = tokio::task::spawn_blocking(move || {
-        Arc::new(ElectrsBlockchainProvider::new(electrs_host, network))
-    })
-    .await
-    .unwrap();
+    let client = Client::new(&electrs_host.clone()).unwrap();
+    let blockchain = ElectrumBlockchain::from(client);
+
+    let path = Path::new(&ldk_data_dir);
+    let bdk_wallet = BDKWallet::new(path, network).unwrap();
+    let lightning_wallet = Arc::new(bdk_ldk::LightningWallet::new(
+        Box::new(blockchain),
+        bdk_wallet.inner,
+    ));
 
     // TODO: Might be better to use an in-memory persister for the tests.
     let persister = Arc::new(FilesystemPersister::new(ldk_data_dir.clone()));
 
     let chain_monitor: Arc<ChainMonitor> = Arc::new(chainmonitor::ChainMonitor::new(
         None,
-        electrs.clone(),
+        lightning_wallet.clone(),
         logger.clone(),
-        electrs.clone(),
+        lightning_wallet.clone(),
         persister.clone(),
     ));
 
@@ -111,16 +122,18 @@ async fn start_ln_dlc_node(
     };
 
     let (channel_manager_blockhash, channel_manager) = {
-        let (block_hash, block_height) = electrs.get_best_block().await.unwrap();
+        let chain_tip = lightning_wallet.get_tip().unwrap();
+        let block_height = chain_tip.0;
+        let block_hash = chain_tip.1.block_hash();
 
         let chain_params = ChainParameters {
             network,
-            best_block: BestBlock::new(block_hash, block_height.unwrap()),
+            best_block: BestBlock::new(block_hash, block_height),
         };
         let channel_manager = ChannelManager::new(
-            electrs.clone(),
+            lightning_wallet.clone(),
             chain_monitor.clone(),
-            electrs.clone(),
+            lightning_wallet.clone(),
             logger.clone(),
             keys_manager.clone(),
             ldk_user_config,
@@ -217,43 +230,41 @@ async fn start_ln_dlc_node(
         SledStorageProvider::new(&ldk_data_dir).expect("to be able to create sled storage"),
     );
 
-    // TODO: Replace with BDK?
-    let wallet = Arc::new(SimpleWallet::new(electrs.clone(), storage.clone(), network));
-
     let event_handler = {
         let channel_manager = channel_manager.clone();
-        let electrs = electrs.clone();
+        let wallet = lightning_wallet.clone();
         let network_graph = network_graph.clone();
         let keys_manager = keys_manager.clone();
-        let wallet = wallet.clone();
 
         move |event: lightning::util::events::Event| {
             handle.block_on(handle_event(
                 &channel_manager,
-                &electrs,
+                &wallet,
                 &network_graph,
                 keys_manager.clone(),
                 &inbound_payments,
                 &outbound_payments,
-                &wallet,
                 &event,
             ));
         }
     };
 
     // Step 14: Connect and Disconnect Blocks
+    /* TODO: we did not do this in the poc. However validating the latest block, seems to be a good idea? skipping for now as more thought is required here.
+
     let mut chain_tip: Option<poll::ValidatedBlockHeader> = None;
     if chain_tip.is_none() {
         chain_tip = Some(
-            init::validate_best_block_header(electrs.clone())
+            init::validate_best_block_header(blockchain.clone())
                 .await
                 .unwrap(),
         );
     }
+
     let chain_tip = chain_tip.unwrap();
     let channel_manager_listener = channel_manager.clone();
     let chain_monitor_listener = chain_monitor.clone();
-    let electrs_clone = electrs.clone();
+    let electrs_clone = lightning_wallet.clone();
     let peer_manager_clone = peer_manager.clone();
     let event_handler_clone = event_handler.clone();
     let logger_clone = logger.clone();
@@ -285,6 +296,8 @@ async fn start_ln_dlc_node(
             std::thread::sleep(Duration::from_secs(1));
         }
     });
+
+    */
 
     // Step 16: Initialize routing ProbabilisticScorer
     let scorer_path = format!("{}/scorer", ldk_data_dir.clone());
@@ -334,9 +347,6 @@ async fn start_ln_dlc_node(
 
     let oracles = HashMap::from([(oracle_pubkey, oracle_client.clone())]);
 
-    let wallet_clone = wallet.clone();
-    let electrs_clone = electrs.clone();
-
     let addresses = storage.get_addresses().unwrap();
     for address in addresses {
         println!("{}", address);
@@ -344,15 +354,26 @@ async fn start_ln_dlc_node(
 
     let store_clone = storage.clone();
 
+    let electrs = tokio::task::spawn_blocking(move || {
+        Arc::new(ElectrsBlockchainProvider::new(electrs_host, network))
+    })
+    .await
+    .unwrap();
+
+    let wallet = Arc::new(SimpleWallet::new(electrs.clone(), storage.clone(), network));
+
+    let wallet_clone = wallet.clone();
+    let lightning_wallet_clone = lightning_wallet.clone();
+    let electrs_clone = electrs.clone();
     let dlc_manager = tokio::task::spawn_blocking(move || {
         Arc::new(
             Manager::new(
-                wallet_clone,
-                electrs_clone.clone(),
+                wallet_clone,  // TODO: replace with bdk wallet
+                electrs_clone, // TODO: blockchain can not be cloned
                 store_clone,
                 oracles,
                 Arc::new(SystemTimeProvider {}),
-                electrs_clone,
+                lightning_wallet_clone,
             )
             .unwrap(),
         )
@@ -360,21 +381,21 @@ async fn start_ln_dlc_node(
     .await
     .unwrap();
 
-    let electrs_clone = electrs.clone();
-    let init_height =
-        tokio::task::spawn_blocking(move || electrs_clone.get_blockchain_height().unwrap())
-            .await
-            .unwrap();
+    let init_height = lightning_wallet.get_tip().unwrap().0;
+
+    let bdk_ldk_wallet = BDKLDKWallet {
+        inner: lightning_wallet.clone(),
+    };
 
     let sub_channel_manager = Arc::new(SubChannelManager::new(
         Secp256k1::new(),
-        wallet.clone(),
+        wallet.clone(), // TODO: replace with bdk wallet
         channel_manager.clone(),
         storage,
-        electrs.clone(),
+        electrs.clone(), // TODO: replace with blockchain
         dlc_manager.clone(),
-        electrs.clone(),
-        init_height,
+        lightning_wallet.clone(),
+        init_height as u64,
     ));
 
     peer_manager.disconnect_all_peers();

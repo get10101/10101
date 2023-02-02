@@ -3,7 +3,7 @@
 
 use bitcoin::Network;
 use rand::thread_rng;
-use rand::Rng;
+use rand::RngCore;
 
 use crate::node::Node;
 

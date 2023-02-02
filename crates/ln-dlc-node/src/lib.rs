@@ -1,3 +1,4 @@
+use bdk::blockchain::ElectrumBlockchain;
 use dlc_manager::custom_signer::CustomKeysManager;
 use dlc_manager::custom_signer::CustomSigner;
 use dlc_messages::message_handler::MessageHandler as DlcMessageHandler;
@@ -25,20 +26,25 @@ use std::sync::Arc;
 use std::sync::Mutex;
 
 // TODO: Can we get rid of this?
+mod bdk_ldk_wallet;
+mod bdk_wallet;
 mod disk;
 mod ln;
 mod node;
+mod seed;
 mod setup;
 mod util;
 
 #[cfg(test)]
 mod tests;
 
+pub(crate) type BdkLdkWallet = bdk_ldk::LightningWallet<ElectrumBlockchain, bdk::sled::Tree>;
+
 type ChainMonitor = chainmonitor::ChainMonitor<
     CustomSigner,
     Arc<dyn Filter + Send + Sync>,
-    Arc<ElectrsBlockchainProvider>,
-    Arc<ElectrsBlockchainProvider>,
+    Arc<BdkLdkWallet>,
+    Arc<BdkLdkWallet>,
     Arc<TracingLogger>,
     Arc<FilesystemPersister>,
 >;
@@ -48,7 +54,7 @@ type PeerManager = lightning::ln::peer_handler::PeerManager<
     Arc<ChannelManager>,
     Arc<
         P2PGossipSync<
-            Arc<lightning::routing::gossip::NetworkGraph<Arc<TracingLogger>>>,
+            Arc<gossip::NetworkGraph<Arc<TracingLogger>>>,
             Arc<dyn chain::Access + Send + Sync>,
             Arc<TracingLogger>,
         >,
@@ -60,9 +66,9 @@ type PeerManager = lightning::ln::peer_handler::PeerManager<
 
 type ChannelManager = lightning::ln::channelmanager::ChannelManager<
     Arc<ChainMonitor>,
-    Arc<ElectrsBlockchainProvider>,
+    Arc<BdkLdkWallet>,
     Arc<CustomKeysManager>,
-    Arc<ElectrsBlockchainProvider>,
+    Arc<BdkLdkWallet>,
     Arc<TracingLogger>,
 >;
 
@@ -77,9 +83,6 @@ type Router = DefaultRouter<
     Arc<TracingLogger>,
     Arc<Mutex<ProbabilisticScorer<Arc<NetworkGraph>, Arc<TracingLogger>>>>,
 >;
-
-type SimpleWallet =
-    simple_wallet::SimpleWallet<Arc<ElectrsBlockchainProvider>, Arc<SledStorageProvider>>;
 
 type NetworkGraph = gossip::NetworkGraph<Arc<TracingLogger>>;
 
