@@ -27,13 +27,12 @@ use std::sync::Mutex;
 // TODO: Can we get rid of this?
 mod disk;
 mod ln;
+mod node;
 mod setup;
 mod util;
 
 #[cfg(test)]
 mod tests;
-
-pub use setup::start_ln_dlc_node;
 
 type ChainMonitor = chainmonitor::ChainMonitor<
     CustomSigner,

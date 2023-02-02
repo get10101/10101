@@ -30,6 +30,7 @@ use lightning::ln::peer_handler::IgnoringMessageHandler;
 use lightning::ln::peer_handler::MessageHandler;
 use lightning::routing::gossip::P2PGossipSync;
 use lightning::routing::router::DefaultRouter;
+use lightning::util::config::ChannelHandshakeLimits;
 use lightning::util::events::EventsProvider;
 use lightning_background_processor::BackgroundProcessor;
 use lightning_block_sync::init;
@@ -37,7 +38,6 @@ use lightning_block_sync::poll;
 use lightning_block_sync::BlockSource;
 use lightning_invoice::payment;
 use lightning_persister::FilesystemPersister;
-use p2pd_oracle_client::P2PDOracleClient;
 use rand::thread_rng;
 use rand::Rng;
 use simple_wallet::SimpleWallet;
@@ -51,7 +51,7 @@ use std::time::SystemTime;
 
 /// The pre-condition to calling this function is that the environment
 /// is set up. I was thinking of `nigiri` here.
-pub async fn start_ln_dlc_node(
+async fn start_ln_dlc_node(
     ln_listening_port: u32,
     oracle_client: impl Oracle + Send + Sync + 'static,
     ldk_data_subdir: &str,
@@ -98,16 +98,17 @@ pub async fn start_ln_dlc_node(
         .read_channelmonitors(keys_manager.clone())
         .unwrap();
 
-    let mut ldk_user_config = lightning::util::config::UserConfig {
+    let ldk_user_config = lightning::util::config::UserConfig {
         channel_handshake_config: lightning::util::config::ChannelHandshakeConfig {
             max_inbound_htlc_value_in_flight_percent_of_channel: 50,
             ..Default::default()
         },
+        channel_handshake_limits: ChannelHandshakeLimits {
+            force_announced_channel_preference: false,
+            ..Default::default()
+        },
         ..Default::default()
     };
-    ldk_user_config
-        .channel_handshake_limits
-        .force_announced_channel_preference = false;
 
     let (channel_manager_blockhash, channel_manager) = {
         let (block_hash, block_height) = electrs.get_best_block().await.unwrap();

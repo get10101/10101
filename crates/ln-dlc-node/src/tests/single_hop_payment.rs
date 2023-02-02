@@ -1,17 +1,56 @@
 //! Do this one first.
 //! TODO: Might be called no-hop (hop[e]less).
 
-use crate::setup::start_ln_dlc_node;
-use crate::tests::MockOracle;
+use bitcoin::Network;
+use rand::thread_rng;
+use rand::Rng;
+
+use crate::node::Node;
 
 #[tokio::test]
 async fn given_sibling_channel_when_payment_then_can_be_claimed() {
     // 1. Set up two LN-DLC nodes.
-    let _alice = start_ln_dlc_node(8005, MockOracle, "alice").await;
-    let _bob = start_ln_dlc_node(8006, MockOracle, "bob").await;
+    let alice = {
+        let mut seed = [0; 32];
+        thread_rng().fill_bytes(&mut seed);
+
+        let mut ephemeral_randomness = [0; 32];
+        thread_rng().fill_bytes(&mut ephemeral_randomness);
+
+        Node::new(
+            Network::Regtest,
+            "./.ldk-data/alice/".to_string(),
+            8005,
+            "http://localhost:30000/".to_string(),
+            seed,
+            ephemeral_randomness,
+        )
+        .await
+    };
+    let bob = {
+        let mut seed = [0; 32];
+        thread_rng().fill_bytes(&mut seed);
+
+        let mut ephemeral_randomness = [0; 32];
+        thread_rng().fill_bytes(&mut ephemeral_randomness);
+
+        Node::new(
+            Network::Regtest,
+            "./.ldk-data/bob/".to_string(),
+            8006,
+            "http://localhost:30000/".to_string(),
+            seed,
+            ephemeral_randomness,
+        )
+        .await
+    };
+
+    alice.start().await.unwrap();
+    bob.start().await.unwrap();
 
     // 2. Connect the two nodes.
-    todo!("Implement connection between both nodes");
+
+    // alice.connect(bob.pubkey());
 
     // 3. Fund the Bitcoin wallet of one of the nodes (the payer).
     // 4. Create channel between them.
