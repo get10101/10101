@@ -9,6 +9,7 @@ use crate::NetworkGraph;
 use crate::PaymentInfoStorage;
 use crate::PeerManager;
 use crate::TracingLogger;
+use anyhow::anyhow;
 use anyhow::Result;
 use bdk::blockchain::ElectrumBlockchain;
 use bitcoin::blockdata::constants::genesis_block;
@@ -25,7 +26,9 @@ use lightning::ln::peer_handler::IgnoringMessageHandler;
 use lightning::ln::peer_handler::MessageHandler;
 use lightning::routing::gossip::P2PGossipSync;
 use lightning::routing::router::DefaultRouter;
+use lightning::util::config::ChannelHandshakeConfig;
 use lightning::util::config::ChannelHandshakeLimits;
+use lightning::util::config::UserConfig;
 use lightning_invoice::payment;
 use lightning_persister::FilesystemPersister;
 use std::collections::HashMap;
@@ -43,13 +46,14 @@ use std::time::SystemTime;
 pub struct Node {
     network: bitcoin::Network,
 
-    wallet: Arc<LnDlcWallet>,
+    pub wallet: Arc<LnDlcWallet>,
     peer_manager: Arc<PeerManager>,
     invoice_payer: Arc<InvoicePayer<EventHandler>>,
+    channel_manager: Arc<ChannelManager>,
 
     data_dir: String,
 
-    info: NodeInfo,
+    pub info: NodeInfo,
 }
 
 #[derive(Clone, Copy)]
@@ -219,6 +223,7 @@ impl Node {
             peer_manager,
             data_dir,
             invoice_payer,
+            channel_manager: channel_manager.clone(),
             info: NodeInfo {
                 pubkey: channel_manager.get_our_node_id(),
                 address,
@@ -257,17 +262,18 @@ impl Node {
         Ok(())
     }
 
-    pub async fn connect(&self, target: Node) -> Result<()> {
+    // todo: That might be better placed in a dedicated connection manager file.
+    pub async fn connect(&self, target: NodeInfo) -> Result<()> {
         match lightning_net_tokio::connect_outbound(
             self.peer_manager.clone(),
-            target.info.pubkey,
-            target.info.address,
+            target.pubkey,
+            target.address,
         )
         .await
         {
             Some(connection_closed_future) => {
                 let mut connection_closed_future = Box::pin(connection_closed_future);
-                while !Self::is_connected(&self.peer_manager, target.info.pubkey) {
+                while !Self::is_connected(&self.peer_manager, target.pubkey) {
                     if futures::poll!(&mut connection_closed_future).is_ready() {
                         tracing::warn!("Peer disconnected before we finished the handshake! Retrying in 5 seconds.");
                         tokio::time::sleep(Duration::from_secs(5)).await;
@@ -275,7 +281,7 @@ impl Node {
                     }
                     tokio::time::sleep(Duration::from_secs(5)).await;
                 }
-                tracing::info!("Successfully connected to {}", target.info);
+                tracing::info!("Successfully connected to {target}");
                 connection_closed_future.await;
                 tracing::warn!("Lost connection to maker, retrying immediately.")
             }
@@ -291,5 +297,46 @@ impl Node {
             .get_peer_node_ids()
             .iter()
             .any(|id| *id == pubkey)
+    }
+
+    pub async fn open_channel(
+        &self,
+        target: NodeInfo,
+        channel_amount_sat: u64,
+        initial_send_amount_sats: u64,
+    ) -> Result<()> {
+        let user_config = default_user_config();
+
+        let _temp_channel_id = self
+            .channel_manager
+            .create_channel(
+                target.pubkey,
+                channel_amount_sat,
+                initial_send_amount_sats * 1000,
+                0,
+                Some(user_config),
+            )
+            .map_err(|e| anyhow!("Could not create channel with {} due to {e:?}", target))?;
+
+        tracing::info!("Started channel creation with {}", target);
+        Ok(())
+    }
+}
+
+fn default_user_config() -> UserConfig {
+    UserConfig {
+        channel_handshake_limits: ChannelHandshakeLimits {
+            trust_own_funding_0conf: false,
+            ..Default::default()
+        },
+        channel_handshake_config: ChannelHandshakeConfig {
+            announced_channel: true,
+            minimum_depth: 1,
+            ..Default::default()
+        },
+        // By setting `manually_accept_inbound_channels` to `true` we need to manually confirm every
+        // inbound channel request.
+        manually_accept_inbound_channels: false,
+        ..Default::default()
     }
 }

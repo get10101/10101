@@ -2,6 +2,7 @@
 //! TODO: Might be called no-hop (hop[e]less).
 
 use bitcoin::Network;
+use dlc_manager::Wallet;
 use rand::thread_rng;
 use rand::RngCore;
 
@@ -11,8 +12,10 @@ use crate::node::Node;
 async fn given_sibling_channel_when_payment_then_can_be_claimed() {
     // 1. Set up two LN-DLC nodes.
     let alice = {
-        let mut seed = [0; 32];
-        thread_rng().fill_bytes(&mut seed);
+        let seed = [
+            137, 78, 181, 39, 89, 143, 9, 224, 92, 125, 51, 183, 87, 95, 206, 236, 135, 33, 54, 10,
+            237, 169, 132, 74, 230, 66, 244, 244, 89, 224, 23, 62,
+        ];
 
         let mut ephemeral_randomness = [0; 32];
         thread_rng().fill_bytes(&mut ephemeral_randomness);
@@ -32,6 +35,7 @@ async fn given_sibling_channel_when_payment_then_can_be_claimed() {
         )
         .await
     };
+
     let bob = {
         let mut seed = [0; 32];
         thread_rng().fill_bytes(&mut seed);
@@ -56,11 +60,17 @@ async fn given_sibling_channel_when_payment_then_can_be_claimed() {
     bob.start().await.unwrap();
 
     // 2. Connect the two nodes.
-
-    alice.connect(bob).await.unwrap();
+    alice.connect(bob.info).await.unwrap();
 
     // 3. Fund the Bitcoin wallet of one of the nodes (the payer).
+    // todo: unsure whats the best way of achieving that is, looks like we need to run nigiri faucet
+    // from here. or we are preparing (outside of this test) a wallet which has sufficient funding.
+    // To be faster I opted for the second approach, by setting a fixed seed and printing an address
+    // I can faucet to. `println!("{}", alice.wallet.get_new_address().unwrap().to_string());`
+
     // 4. Create channel between them.
+    alice.open_channel(bob.info, 30000, 0).await.unwrap();
+
     // 5. Generate an invoice from the payer to the payee.
     // 6. Pay the invoice.
     // 7. Claim the payment.
