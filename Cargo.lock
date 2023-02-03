@@ -396,7 +396,6 @@ dependencies = [
  "js-sys",
  "num-integer",
  "num-traits",
- "serde",
  "time 0.1.45",
  "wasm-bindgen",
  "winapi",
@@ -1256,10 +1255,8 @@ dependencies = [
  "lightning-net-tokio",
  "lightning-persister",
  "lightning-rapid-gossip-sync",
- "p2pd-oracle-client",
  "rand 0.6.5",
  "sha2",
- "simple-wallet",
  "tokio",
  "tracing",
 ]
@@ -1482,19 +1479,6 @@ dependencies = [
  "libc",
  "pkg-config",
  "vcpkg",
-]
-
-[[package]]
-name = "p2pd-oracle-client"
-version = "0.1.0"
-source = "git+https://github.com/get10101/rust-dlc?rev=3c57f779a1c6f10db19630af7e8d34a69d0e4c39#3c57f779a1c6f10db19630af7e8d34a69d0e4c39"
-dependencies = [
- "chrono",
- "dlc-manager",
- "dlc-messages",
- "reqwest",
- "secp256k1-zkp",
- "serde",
 ]
 
 [[package]]
