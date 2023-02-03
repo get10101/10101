@@ -12,6 +12,7 @@ use crate::TracingLogger;
 use anyhow::Result;
 use bdk::blockchain::ElectrumBlockchain;
 use bitcoin::blockdata::constants::genesis_block;
+use bitcoin::secp256k1::PublicKey;
 use dlc_manager::custom_signer::CustomKeysManager;
 use dlc_messages::message_handler::MessageHandler as DlcMessageHandler;
 use lightning::chain;
@@ -28,6 +29,10 @@ use lightning::util::config::ChannelHandshakeLimits;
 use lightning_invoice::payment;
 use lightning_persister::FilesystemPersister;
 use std::collections::HashMap;
+use std::fmt;
+use std::fmt::Display;
+use std::fmt::Formatter;
+use std::net::SocketAddr;
 use std::path::Path;
 use std::sync::Arc;
 use std::sync::Mutex;
@@ -42,9 +47,21 @@ pub struct Node {
     peer_manager: Arc<PeerManager>,
     invoice_payer: Arc<InvoicePayer<EventHandler>>,
 
-    ln_listening_port: u16,
-
     data_dir: String,
+
+    info: NodeInfo,
+}
+
+#[derive(Clone, Copy)]
+pub struct NodeInfo {
+    pub pubkey: PublicKey,
+    pub address: SocketAddr,
+}
+
+impl Display for NodeInfo {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        format!("{}@{}", self.pubkey, self.address).fmt(f)
+    }
 }
 
 impl Node {
@@ -54,7 +71,7 @@ impl Node {
     pub async fn new(
         network: bitcoin::Network,
         data_dir: String,
-        ln_listening_port: u16,
+        address: SocketAddr,
         electrs_origin: String, // "http://localhost:30000/".to_string()
         seed: [u8; 32],
         ephemeral_randomness: [u8; 32],
@@ -200,22 +217,25 @@ impl Node {
             network,
             wallet: ln_dlc_wallet,
             peer_manager,
-            ln_listening_port,
             data_dir,
             invoice_payer,
+            info: NodeInfo {
+                pubkey: channel_manager.get_our_node_id(),
+                address,
+            },
         }
     }
 
     pub async fn start(&self) -> Result<()> {
+        let address = self.info.address;
+
         // Connection manager
         tokio::spawn({
             let peer_manager = self.peer_manager.clone();
-            let ln_listening_port = self.ln_listening_port;
             async move {
-                let listener =
-                    tokio::net::TcpListener::bind(format!("0.0.0.0:{}", ln_listening_port))
-                        .await
-                        .expect("Failed to bind to listen port");
+                let listener = tokio::net::TcpListener::bind(address)
+                    .await
+                    .expect("Failed to bind to listen port");
                 loop {
                     let peer_manager = peer_manager.clone();
                     let (tcp_stream, _) = listener.accept().await.unwrap();
@@ -230,9 +250,46 @@ impl Node {
                 }
             }
         });
-
         // TODO: Call sync(?) in a loop
 
+        tracing::info!("Listening on {address}");
+
         Ok(())
+    }
+
+    pub async fn connect(&self, target: Node) -> Result<()> {
+        match lightning_net_tokio::connect_outbound(
+            self.peer_manager.clone(),
+            target.info.pubkey,
+            target.info.address,
+        )
+        .await
+        {
+            Some(connection_closed_future) => {
+                let mut connection_closed_future = Box::pin(connection_closed_future);
+                while !Self::is_connected(&self.peer_manager, target.info.pubkey) {
+                    if futures::poll!(&mut connection_closed_future).is_ready() {
+                        tracing::warn!("Peer disconnected before we finished the handshake! Retrying in 5 seconds.");
+                        tokio::time::sleep(Duration::from_secs(5)).await;
+                        continue;
+                    }
+                    tokio::time::sleep(Duration::from_secs(5)).await;
+                }
+                tracing::info!("Successfully connected to {}", target.info);
+                connection_closed_future.await;
+                tracing::warn!("Lost connection to maker, retrying immediately.")
+            }
+            None => {
+                tracing::warn!("Failed to connect to maker! Retrying.");
+            }
+        }
+        Ok(())
+    }
+
+    fn is_connected(peer_manager: &Arc<PeerManager>, pubkey: PublicKey) -> bool {
+        peer_manager
+            .get_peer_node_ids()
+            .iter()
+            .any(|id| *id == pubkey)
     }
 }
