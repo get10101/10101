@@ -6,12 +6,12 @@ use bdk::wallet::wallet_name_from_descriptor;
 use bdk::KeychainKind;
 use std::path::Path;
 
-pub struct BDKWallet {
+pub struct OnChainWallet {
     pub inner: bdk::Wallet<sled::Tree>,
 }
 
-impl BDKWallet {
-    pub fn new(data_dir: &Path, network: bitcoin::Network) -> Result<BDKWallet, anyhow::Error> {
+impl OnChainWallet {
+    pub fn new(data_dir: &Path, network: bitcoin::Network) -> Result<OnChainWallet, anyhow::Error> {
         tracing::info!(?network, "Creating the wallet");
 
         let data_dir = data_dir.join(&network.to_string());
@@ -31,7 +31,6 @@ impl BDKWallet {
         )?;
 
         // Create a database (using default sled type) to store wallet data
-        // Create a database (using default sled type) to store wallet data
         let db = bdk::sled::open(data_dir.join("wallet"))?;
         let db = db.open_tree(wallet_name)?;
 
@@ -42,6 +41,6 @@ impl BDKWallet {
             db,
         )?;
 
-        Ok(BDKWallet { inner: bdk_wallet })
+        Ok(OnChainWallet { inner: bdk_wallet })
     }
 }

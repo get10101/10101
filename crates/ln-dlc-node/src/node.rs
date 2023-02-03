@@ -1,16 +1,19 @@
-use crate::bdk_wallet::BDKWallet;
+use crate::disk;
+use crate::ln::event_handler::EventHandler;
+use crate::ln_dlc_wallet::LnDlcWallet;
+use crate::on_chain_wallet::OnChainWallet;
 use crate::ChainMonitor;
 use crate::ChannelManager;
+use crate::InvoicePayer;
 use crate::NetworkGraph;
+use crate::PaymentInfoStorage;
 use crate::PeerManager;
 use crate::TracingLogger;
 use anyhow::Result;
 use bdk::blockchain::ElectrumBlockchain;
-use bdk::electrum_client::Client;
 use bitcoin::blockdata::constants::genesis_block;
 use dlc_manager::custom_signer::CustomKeysManager;
 use dlc_messages::message_handler::MessageHandler as DlcMessageHandler;
-use electrs_blockchain_provider::ElectrsBlockchainProvider;
 use lightning::chain;
 use lightning::chain::chainmonitor;
 use lightning::chain::keysinterface::KeysInterface;
@@ -20,28 +23,34 @@ use lightning::ln::channelmanager::ChainParameters;
 use lightning::ln::peer_handler::IgnoringMessageHandler;
 use lightning::ln::peer_handler::MessageHandler;
 use lightning::routing::gossip::P2PGossipSync;
+use lightning::routing::router::DefaultRouter;
 use lightning::util::config::ChannelHandshakeLimits;
+use lightning_invoice::payment;
 use lightning_persister::FilesystemPersister;
+use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
+use std::sync::Mutex;
+use std::time::Duration;
 use std::time::SystemTime;
 
 /// An LN-DLC node.
 pub struct Node {
     network: bitcoin::Network,
 
-    wallet: Arc<BdkLdkWallet>,
+    wallet: Arc<LnDlcWallet>,
     peer_manager: Arc<PeerManager>,
+    invoice_payer: Arc<InvoicePayer<EventHandler>>,
 
     ln_listening_port: u16,
 
     data_dir: String,
 }
 
-pub(crate) type BdkLdkWallet = bdk_ldk::LightningWallet<ElectrumBlockchain, bdk::sled::Tree>;
-
 impl Node {
-    // TODO: I'd like this to be synchronous
+    // I'd like this to be a pure function and to be able to pass in anything that was loaded from
+    // the persistence layer. But we're not there yet because we're still copying convenient code
+    // from `ldk-sample` which involves IO.
     pub async fn new(
         network: bitcoin::Network,
         data_dir: String,
@@ -59,21 +68,25 @@ impl Node {
         // TODO: Might be better to use an in-memory persister for the tests.
         let persister = Arc::new(FilesystemPersister::new(data_dir.clone()));
 
-        let client = Client::new(&electrs_origin.clone()).unwrap();
-        let blockchain = ElectrumBlockchain::from(client);
-        let path = Path::new(&data_dir);
-        let bdk_wallet = BDKWallet::new(path, network).unwrap();
-        let lightning_wallet = Arc::new(bdk_ldk::LightningWallet::new(
-            Box::new(blockchain),
-            bdk_wallet.inner,
-        ));
+        let on_chain_wallet =
+            OnChainWallet::new(Path::new(&format!("{}/on_chain", data_dir)), network).unwrap();
+
+        let ln_dlc_wallet = {
+            let blockchain_client = ElectrumBlockchain::from(
+                bdk::electrum_client::Client::new(&electrs_origin).unwrap(),
+            );
+            Arc::new(LnDlcWallet::new(
+                Box::new(blockchain_client),
+                on_chain_wallet.inner,
+            ))
+        };
 
         let chain_monitor: Arc<ChainMonitor> = Arc::new(chainmonitor::ChainMonitor::new(
             None,
-            lightning_wallet.clone(),
+            ln_dlc_wallet.clone(),
             logger.clone(),
-            lightning_wallet.clone(),
-            persister.clone(),
+            ln_dlc_wallet.clone(),
+            persister,
         ));
 
         let keys_manager = {
@@ -106,9 +119,9 @@ impl Node {
                 best_block: BestBlock::new(genesis_block_hash, 0),
             };
             Arc::new(ChannelManager::new(
-                lightning_wallet.clone(),
+                ln_dlc_wallet.clone(),
                 chain_monitor.clone(),
-                lightning_wallet.clone(),
+                ln_dlc_wallet.clone(),
                 logger.clone(),
                 keys_manager.clone(),
                 ldk_user_config,
@@ -144,12 +157,52 @@ impl Node {
             dlc_message_handler,
         ));
 
+        let scorer = Arc::new(Mutex::new(disk::read_scorer(
+            Path::new(&format!("{}/scorer", data_dir)),
+            network_graph.clone(),
+            logger.clone(),
+        )));
+
+        let router = DefaultRouter::new(
+            network_graph.clone(),
+            logger.clone(),
+            keys_manager.get_secure_random_bytes(),
+            scorer,
+        );
+
+        let event_handler = {
+            let runtime_handle = tokio::runtime::Handle::current();
+
+            // TODO: Persist payment info to disk
+            let inbound_payments: PaymentInfoStorage = Arc::new(Mutex::new(HashMap::new()));
+            let outbound_payments: PaymentInfoStorage = Arc::new(Mutex::new(HashMap::new()));
+
+            EventHandler::new(
+                runtime_handle,
+                channel_manager.clone(),
+                ln_dlc_wallet.clone(),
+                network_graph,
+                keys_manager,
+                inbound_payments,
+                outbound_payments,
+            )
+        };
+
+        let invoice_payer = Arc::new(InvoicePayer::new(
+            channel_manager.clone(),
+            router,
+            logger,
+            event_handler,
+            payment::Retry::Timeout(Duration::from_secs(10)),
+        ));
+
         Self {
             network,
-            wallet: lightning_wallet,
+            wallet: ln_dlc_wallet,
             peer_manager,
             ln_listening_port,
             data_dir,
+            invoice_payer,
         }
     }
 
@@ -178,7 +231,7 @@ impl Node {
             }
         });
 
-        // TODO: Connect and disconnect blocks
+        // TODO: Call sync(?) in a loop
 
         Ok(())
     }

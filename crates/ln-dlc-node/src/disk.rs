@@ -65,7 +65,7 @@ pub(crate) fn read_scorer(
 ) -> ProbabilisticScorer<Arc<NetworkGraph>, Arc<TracingLogger>> {
     let params = ProbabilisticScoringParameters::default();
     if let Ok(file) = File::open(path) {
-        let args = (params.clone(), Arc::clone(&graph), Arc::clone(&logger));
+        let args = (params.clone(), graph.clone(), logger.clone());
         if let Ok(scorer) = ProbabilisticScorer::read(&mut BufReader::new(file), args) {
             return scorer;
         }

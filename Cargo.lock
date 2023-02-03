@@ -674,23 +674,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7fcaabb2fef8c910e7f4c7ce9f67a1283a1715879a7c230ca9d6d1ae31f16d91"
 
 [[package]]
-name = "electrs-blockchain-provider"
-version = "0.1.0"
-source = "git+https://github.com/get10101/rust-dlc?rev=3c57f779a1c6f10db19630af7e8d34a69d0e4c39#3c57f779a1c6f10db19630af7e8d34a69d0e4c39"
-dependencies = [
- "bitcoin",
- "bitcoin-test-utils",
- "dlc-manager",
- "lightning",
- "lightning-block-sync",
- "reqwest",
- "rust-bitcoin-coin-selection",
- "serde",
- "simple-wallet",
- "tokio",
-]
-
-[[package]]
 name = "electrum-client"
 version = "0.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1264,7 +1247,6 @@ dependencies = [
  "dlc-manager",
  "dlc-messages",
  "dlc-sled-storage-provider",
- "electrs-blockchain-provider",
  "hex",
  "hkdf",
  "lightning",
