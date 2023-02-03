@@ -9,15 +9,17 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  cupertino_icons: ^1.0.2
+  cupertino_icons: ^1.0.5
   ffi: ^2.0.1
   f_logs: ^2.0.1
   flutter_rust_bridge: ^1.61.1
   flutter_speed_dial: ^6.2.0
   meta: ^1.8.0
   go_router: ^6.0.2
+  flutter_native_splash: ^2.2.16
 
 dev_dependencies:
+  flutter_launcher_icons: "^0.11.0"
   flutter_test:
     sdk: flutter
   flutter_lints: ^2.0.0
@@ -25,7 +27,29 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/
   fonts:
     - family: SendReceiveIcons
       fonts:
         - asset: fonts/SendReceiveIcons.ttf
+
+flutter_native_splash:
+  color: "#FFFFFF"
+  image: assets/10101.finance_logo_1500x1500.png
+  android_12: null
+
+flutter_icons:
+  android: true
+  ios: true
+  image_path: assets/10101_logo.png
+  min_sdk_android: 21
+  remove_alpha_ios: true
+  web:
+    generate: false
+  macos:
+    generate: true
+    image_path: assets/10101_logo.png
+  windows:
+    generate: true
+    image_path: assets/10101_logo.png

@@ -1,6 +1,7 @@
 import 'package:f_logs/f_logs.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' as foundation;
+import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge.dart';
 import 'package:get_10101/features/trade/settings_screen.dart';
 import 'package:get_10101/features/wallet/receive_screen.dart';
@@ -17,6 +18,9 @@ final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>(de
 final GlobalKey<NavigatorState> _shellNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'shell');
 
 void main() {
+  WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
+  FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
+
   final config = FLog.getDefaultConfigurations();
   config.activeLogLevel = LogLevel.DEBUG;
 
@@ -108,6 +112,10 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
 
   @override
   Widget build(BuildContext context) {
+    if (ready) {
+      FlutterNativeSplash.remove();
+    }
+
     return MaterialApp.router(
       title: "10101",
       theme: ThemeData(
