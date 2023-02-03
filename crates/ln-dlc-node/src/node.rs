@@ -72,7 +72,7 @@ impl Node {
         network: bitcoin::Network,
         data_dir: String,
         address: SocketAddr,
-        electrs_origin: String, // "http://localhost:30000/".to_string()
+        electrs_origin: String, // "tcp://localhost:50000".to_string()
         seed: [u8; 32],
         ephemeral_randomness: [u8; 32],
     ) -> Self {

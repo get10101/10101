@@ -26,7 +26,7 @@ async fn given_sibling_channel_when_payment_then_can_be_claimed() {
             format!("127.0.0.1:8005")
                 .parse()
                 .expect("Hard-coded IP and port to be valid"),
-            "http://localhost:30000/".to_string(),
+            "tcp://localhost:50000".to_string(),
             seed,
             ephemeral_randomness,
         )
@@ -45,7 +45,7 @@ async fn given_sibling_channel_when_payment_then_can_be_claimed() {
             format!("127.0.0.1:8006")
                 .parse()
                 .expect("Hard-coded IP and port to be valid"),
-            "http://localhost:30000/".to_string(),
+            "tcp://localhost:50000".to_string(),
             seed,
             ephemeral_randomness,
         )
