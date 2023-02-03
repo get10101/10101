@@ -44,7 +44,7 @@ android:
 # ios: Build Rust library for iOS
 ios:
 	cd mobile/native && cargo lipo
-	cp mobile/native/target/universal/debug/libnative.a mobile/ios/Runner
+	cp target/universal/debug/libnative.a mobile/ios/Runner
 
 run:
     cd mobile && flutter run
