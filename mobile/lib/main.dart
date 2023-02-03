@@ -5,6 +5,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge.dart';
 import 'package:get_10101/features/trade/settings_screen.dart';
 import 'package:get_10101/features/wallet/receive_screen.dart';
 import 'package:get_10101/features/wallet/scanner_screen.dart';
+import 'package:get_10101/features/wallet/send_screen.dart';
 import 'package:get_10101/features/wallet/settings_screen.dart';
 import 'package:get_10101/util/app_bar_wrapper.dart';
 import 'package:go_router/go_router.dart';
@@ -49,6 +50,14 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
               return const WalletScreen();
             },
             routes: <RouteBase>[
+              GoRoute(
+                path: SendScreen.subRouteName,
+                // Use root navigator so the screen overlays the application shell
+                parentNavigatorKey: _rootNavigatorKey,
+                builder: (BuildContext context, GoRouterState state) {
+                  return const SendScreen();
+                },
+              ),
               GoRoute(
                 path: ReceiveScreen.subRouteName,
                 // Use root navigator so the screen overlays the application shell

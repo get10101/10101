@@ -13,6 +13,7 @@ dependencies:
   ffi: ^2.0.1
   f_logs: ^2.0.1
   flutter_rust_bridge: ^1.61.1
+  flutter_speed_dial: ^6.2.0
   meta: ^1.8.0
   go_router: ^6.0.2
 
@@ -24,3 +25,7 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  fonts:
+    - family: SendReceiveIcons
+      fonts:
+        - asset: fonts/SendReceiveIcons.ttf
