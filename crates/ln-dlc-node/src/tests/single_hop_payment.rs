@@ -1,6 +1,5 @@
 use crate::node::Node;
 use crate::tests::fund_and_mine;
-use crate::tests::Faucet;
 use bitcoin::Network;
 use dlc_manager::Wallet;
 use rand::thread_rng;
@@ -71,11 +70,7 @@ async fn given_sibling_channel_when_payment_then_can_be_claimed() {
 
     // 3. Fund the Bitcoin wallet of one of the nodes (the payer).
     let address = alice.wallet.get_new_address().unwrap().to_string();
-    fund_and_mine(&Faucet {
-        address,
-        amount: 0.1,
-    })
-    .await;
+    fund_and_mine(address, 0.1).await;
     alice.wallet.inner().sync(vec![]).unwrap();
     tracing::info!("{}", alice.wallet.inner().get_balance().unwrap());
 
