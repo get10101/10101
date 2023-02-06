@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_speed_dial/flutter_speed_dial.dart';
+import 'package:get_10101/ffi.dart';
 import 'package:get_10101/features/wallet/receive_screen.dart';
 import 'package:get_10101/features/wallet/send_screen.dart';
+import 'package:get_10101/features/wallet/wallet_change_notifier.dart';
 import 'package:get_10101/util/send_receive_icons.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 
 class WalletScreen extends StatefulWidget {
   static const route = "/wallet";
@@ -16,13 +19,61 @@ class WalletScreen extends StatefulWidget {
 }
 
 class _WalletScreenState extends State<WalletScreen> {
+  bool _isBalanceBreakdownOpen = false;
+
   @override
   Widget build(BuildContext context) {
+    WalletChangeNotifier walletChangeNotifier = context.watch<WalletChangeNotifier>();
+    WalletInfo wallet = walletChangeNotifier.walletInfo;
+
     return Scaffold(
       body: ListView(
         padding: const EdgeInsets.only(left: 25, right: 25),
         children: [
-          const Center(child: Text("Wallet Screen")),
+          ExpansionPanelList(
+            children: [
+              ExpansionPanel(
+                headerBuilder: (BuildContext context, bool isExpanded) {
+                  return Row(
+                    children: [
+                      // https://stackoverflow.com/a/70192038 - do not know if this is principled
+                      const SizedBox(width: 64), // ExpansionPanelList IconContainer size: end margin 8 + padding 16*2 + size 24),
+                      Expanded(
+                        child: Center(child:
+                          Text("${walletChangeNotifier.onChain() + walletChangeNotifier.lightning()} sats", style: TextStyle(fontSize: 18.0))
+                        ),
+                      )
+                    ],
+                  );
+                },
+                body: Padding(
+                  padding: const EdgeInsets.only(left: 8.0, right: 8.0, bottom: 8.0),
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          const Expanded(child: Text("Lightning")),
+                          Text("${walletChangeNotifier.lightning()} sats", style: TextStyle(fontWeight: FontWeight.bold)),
+                        ]
+                      ),
+                      Row(
+                          children: [
+                            const Expanded(child: Text("On-chain")),
+                            Text("${walletChangeNotifier.onChain()} sats", style: TextStyle(fontWeight: FontWeight.bold)),
+                          ]
+                      )
+                    ],
+                  ),
+                ),
+                isExpanded: _isBalanceBreakdownOpen,
+              )
+            ],
+            expansionCallback: (i, isOpen) =>
+              setState(() =>
+                _isBalanceBreakdownOpen = !isOpen
+              ),
+          ),
+          const Divider(color: Colors.black,),
           ElevatedButton(
             onPressed: () {
               context.go(ReceiveScreen.route);

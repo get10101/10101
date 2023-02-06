@@ -17,6 +17,9 @@ import 'package:get_10101/features/wallet/receive_screen.dart';
 import 'package:get_10101/features/wallet/scanner_screen.dart';
 import 'package:get_10101/features/wallet/send_screen.dart';
 import 'package:get_10101/features/wallet/settings_screen.dart';
+import 'package:get_10101/features/trade/trade_screen.dart';
+import 'package:get_10101/features/wallet/wallet_change_notifier.dart';
+import 'package:get_10101/features/wallet/wallet_screen.dart';
 import 'package:get_10101/common/app_bar_wrapper.dart';
 import 'package:get_10101/util/constants.dart';
 import 'package:go_router/go_router.dart';
@@ -54,7 +57,8 @@ void main() {
     ChangeNotifierProvider(create: (context) => AmountDenominationChangeNotifier()),
     ChangeNotifierProvider(create: (context) => SubmitOrderChangeNotifier(OrderService())),
     ChangeNotifierProvider(create: (context) => OrderChangeNotifier.create(OrderService())),
-    ChangeNotifierProvider(create: (context) => BalanceChangeNotifier())
+    ChangeNotifierProvider(create: (context) => BalanceChangeNotifier()),
+    ChangeNotifierProvider(create: (context) => WalletChangeNotifier()),
   ], child: const TenTenOneApp()));
 }
 
@@ -135,7 +139,7 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
   @override
   void initState() {
     super.initState();
-    init(context.read<OrderChangeNotifier>());
+    init(context.read<OrderChangeNotifier>(), context.read<WalletChangeNotifier>());
   }
 
   @override
@@ -153,7 +157,9 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
     );
   }
 
-  Future<void> init(OrderChangeNotifier orderChangeNotifier) async {
+  Future<void> init(OrderChangeNotifier orderChangeNotifier, WalletChangeNotifier walletChangeNotifier) async {
+    await walletChangeNotifier.refreshWalletInfo();
+
     try {
       setupRustLogging();
 

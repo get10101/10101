@@ -17,6 +17,60 @@ pub fn init_logging(sink: StreamSink<logger::LogEntry>) {
     logger::create_log_stream(sink)
 }
 
+pub struct WalletInfo {
+    pub balances: Balances,
+    pub history: Vec<Transaction>,
+}
+
+pub struct Balances {
+    pub on_chain: u64,
+    pub lightning: u64,
+}
+
+#[tokio::main(flavor = "current_thread")]
+pub async fn refresh_wallet_info() -> WalletInfo {
+    WalletInfo {
+        balances: Balances {
+            on_chain: 300,
+            lightning: 104,
+        },
+        history: vec![
+            Transaction {
+                address: "loremipsum".to_string(),
+                flow: Flow::Inbound,
+                amount_sats: 300,
+                wallet_type: WalletType::OnChain,
+            },
+            Transaction {
+                address: "dolorsitamet".to_string(),
+                flow: Flow::Inbound,
+                amount_sats: 104,
+                wallet_type: WalletType::Lightning,
+            },
+        ],
+    }
+}
+
+pub struct Transaction {
+    // TODO(Restioson): newtype?
+    pub address: String,
+    pub flow: Flow,
+    // TODO(Restioson): newtype?
+    pub amount_sats: u64,
+    pub wallet_type: WalletType,
+}
+
+pub enum WalletType {
+    OnChain,
+    Lightning,
+}
+
+#[allow(dead_code)] // used in dart
+pub enum Flow {
+    Inbound,
+    Outbound,
+}
+
 pub fn calculate_margin(price: f64, quantity: f64, leverage: f64) -> SyncReturn<u64> {
     SyncReturn(calculations::calculate_margin(price, quantity, leverage))
 }
