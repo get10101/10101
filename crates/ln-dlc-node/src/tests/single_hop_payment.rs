@@ -82,8 +82,8 @@ async fn given_sibling_channel_when_payment_then_can_be_claimed() {
     };
     tracing::info!("Bob: {}", bob.info);
 
-    alice.start().await.unwrap();
-    bob.start().await.unwrap();
+    let _alice_bg = alice.start().await.unwrap();
+    let _bob_bg = bob.start().await.unwrap();
 
     // 2. Connect the two nodes.
 

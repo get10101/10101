@@ -32,6 +32,8 @@ use lightning::routing::router::DefaultRouter;
 use lightning::util::config::ChannelHandshakeConfig;
 use lightning::util::config::ChannelHandshakeLimits;
 use lightning::util::config::UserConfig;
+use lightning_background_processor::BackgroundProcessor;
+use lightning_background_processor::GossipSync;
 use lightning_invoice::payment;
 use lightning_persister::FilesystemPersister;
 use std::collections::HashMap;
@@ -54,6 +56,10 @@ pub struct Node {
     peer_manager: Arc<PeerManager>,
     invoice_payer: Arc<InvoicePayer<EventHandler>>,
     channel_manager: Arc<ChannelManager>,
+    chain_monitor: Arc<ChainMonitor>,
+    persister: Arc<FilesystemPersister>,
+
+    logger: Arc<TracingLogger>,
 
     data_dir: String,
 
@@ -111,7 +117,7 @@ impl Node {
             ln_dlc_wallet.clone(),
             logger.clone(),
             ln_dlc_wallet.clone(),
-            persister,
+            persister.clone(),
         ));
 
         let keys_manager = {
@@ -216,7 +222,7 @@ impl Node {
         let invoice_payer = Arc::new(InvoicePayer::new(
             channel_manager.clone(),
             router,
-            logger,
+            logger.clone(),
             event_handler,
             payment::Retry::Timeout(Duration::from_secs(10)),
         ));
@@ -226,7 +232,10 @@ impl Node {
             wallet: ln_dlc_wallet,
             peer_manager,
             data_dir,
+            persister,
             invoice_payer,
+            chain_monitor,
+            logger,
             channel_manager: channel_manager.clone(),
             info: NodeInfo {
                 pubkey: channel_manager.get_our_node_id(),
@@ -235,7 +244,7 @@ impl Node {
         }
     }
 
-    pub async fn start(&self) -> Result<()> {
+    pub async fn start(&self) -> Result<BackgroundProcessor> {
         let address = self.info.address;
 
         // Connection manager
@@ -263,7 +272,47 @@ impl Node {
 
         tracing::info!("Listening on {address}");
 
-        Ok(())
+        tracing::info!("Starting background processor");
+
+        let genesis = genesis_block(self.network).header.block_hash();
+        let network_graph_path = format!("{}/network_graph", self.data_dir);
+        let network_graph = Arc::new(disk::read_network(
+            Path::new(&network_graph_path),
+            genesis,
+            self.logger.clone(),
+        ));
+
+        let gossip_sync = Arc::new(P2PGossipSync::new(
+            Arc::clone(&network_graph),
+            None::<Arc<dyn chain::Access + Send + Sync>>,
+            self.logger.clone(),
+        ));
+
+        // Step 17: Initialize routing ProbabilisticScorer
+        let scorer_path = format!("{}/scorer", self.data_dir);
+        let scorer = Arc::new(Mutex::new(disk::read_scorer(
+            Path::new(&scorer_path),
+            Arc::clone(&network_graph),
+            Arc::clone(&self.logger),
+        )));
+
+        let background_processor = BackgroundProcessor::start(
+            self.persister.clone(),
+            self.invoice_payer.clone(),
+            self.chain_monitor.clone(),
+            self.channel_manager.clone(),
+            GossipSync::p2p(gossip_sync.clone()),
+            self.peer_manager.clone(),
+            self.logger.clone(),
+            Some(scorer),
+        );
+
+        tracing::info!(
+            "Lightning node started with node ID {}@{}",
+            self.info.pubkey,
+            self.info.address
+        );
+        Ok(background_processor)
     }
 
     async fn connect(
