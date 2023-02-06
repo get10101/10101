@@ -1286,6 +1286,8 @@ dependencies = [
  "lightning-persister",
  "lightning-rapid-gossip-sync",
  "rand 0.6.5",
+ "reqwest",
+ "serde",
  "sha2",
  "tokio",
  "tracing",

@@ -3,10 +3,32 @@
 
 use crate::node::Node;
 use bitcoin::Network;
+use dlc_manager::Wallet;
 use rand::thread_rng;
 use rand::RngCore;
+use serde::Serialize;
 use std::time::Duration;
 use tracing_subscriber::util::SubscriberInitExt;
+
+#[derive(Debug, Clone, Serialize)]
+struct Faucet {
+    address: String,
+    amount: f32,
+}
+
+// TODO: this could be better wrapped.
+async fn fund_and_mine(faucet: &Faucet) {
+    let client = reqwest::Client::new();
+    // mines a block and spends the given amount from the coinbase transaction to the given address
+    let result = client
+        .post("http://localhost:3000/faucet")
+        .json(faucet)
+        .send()
+        .await
+        .unwrap();
+
+    assert!(result.status().is_success());
+}
 
 #[tokio::test]
 async fn given_sibling_channel_when_payment_then_can_be_claimed() {
@@ -37,6 +59,7 @@ async fn given_sibling_channel_when_payment_then_can_be_claimed() {
         )
         .await
     };
+    tracing::info!("Alice: {}", alice.info);
 
     let bob = {
         let mut seed = [0; 32];
@@ -57,6 +80,7 @@ async fn given_sibling_channel_when_payment_then_can_be_claimed() {
         )
         .await
     };
+    tracing::info!("Bob: {}", bob.info);
 
     alice.start().await.unwrap();
     bob.start().await.unwrap();
@@ -68,10 +92,14 @@ async fn given_sibling_channel_when_payment_then_can_be_claimed() {
     alice.keep_connected(bob.info).await.unwrap();
 
     // 3. Fund the Bitcoin wallet of one of the nodes (the payer).
-    // todo: unsure whats the best way of achieving that is, looks like we need to run nigiri faucet
-    // from here. or we are preparing (outside of this test) a wallet which has sufficient funding.
-    // To be faster I opted for the second approach, by setting a fixed seed and printing an address
-    // I can faucet to. `println!("{}", alice.wallet.get_new_address().unwrap().to_string());`
+    let address = alice.wallet.get_new_address().unwrap().to_string();
+    fund_and_mine(&Faucet {
+        address,
+        amount: 0.1,
+    })
+    .await;
+    alice.wallet.inner().sync(vec![]).unwrap();
+    tracing::info!("{}", alice.wallet.inner().get_balance().unwrap());
 
     tracing::info!("Opening channel");
 
