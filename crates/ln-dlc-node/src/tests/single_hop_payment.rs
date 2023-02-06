@@ -1,31 +1,12 @@
 use crate::node::Node;
+use crate::tests::fund_and_mine;
+use crate::tests::Faucet;
 use bitcoin::Network;
 use dlc_manager::Wallet;
 use rand::thread_rng;
 use rand::RngCore;
-use serde::Serialize;
 use std::time::Duration;
 use tracing_subscriber::util::SubscriberInitExt;
-
-#[derive(Debug, Clone, Serialize)]
-struct Faucet {
-    address: String,
-    amount: f32,
-}
-
-// TODO: this could be better wrapped.
-async fn fund_and_mine(faucet: &Faucet) {
-    let client = reqwest::Client::new();
-    // mines a block and spends the given amount from the coinbase transaction to the given address
-    let result = client
-        .post("http://localhost:3000/faucet")
-        .json(faucet)
-        .send()
-        .await
-        .unwrap();
-
-    assert!(result.status().is_success());
-}
 
 #[tokio::test]
 async fn given_sibling_channel_when_payment_then_can_be_claimed() {

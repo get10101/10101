@@ -1,4 +1,5 @@
 use dlc_manager::Oracle;
+use serde::Serialize;
 use std::str::FromStr;
 
 mod add_dlc;
@@ -30,4 +31,24 @@ impl Oracle for MockOracle {
     ) -> Result<dlc_messages::oracle_msgs::OracleAttestation, dlc_manager::error::Error> {
         todo!()
     }
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct Faucet {
+    address: String,
+    amount: f32,
+}
+
+// TODO: this could be better wrapped.
+async fn fund_and_mine(faucet: &Faucet) {
+    let client = reqwest::Client::new();
+    // mines a block and spends the given amount from the coinbase transaction to the given address
+    let result = client
+        .post("http://localhost:3000/faucet")
+        .json(faucet)
+        .send()
+        .await
+        .unwrap();
+
+    assert!(result.status().is_success());
 }
