@@ -1,4 +1,3 @@
-use bitcoin::Amount;
 use dlc_manager::Oracle;
 use serde::Serialize;
 use std::str::FromStr;
@@ -34,11 +33,12 @@ impl Oracle for MockOracle {
     }
 }
 
-async fn fund_and_mine(address: String, amount: f32) {
+async fn fund_and_mine(address: bitcoin::Address, amount: bitcoin::Amount) {
     #[derive(Serialize)]
     struct Payload {
-        address: String,
-        amount: f32,
+        address: bitcoin::Address,
+        #[serde(with = "bdk::bitcoin::util::amount::serde::as_btc")]
+        amount: bitcoin::Amount,
     }
 
     let client = reqwest::Client::new();

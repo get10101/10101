@@ -69,10 +69,19 @@ async fn given_sibling_channel_when_payment_then_can_be_claimed() {
     alice.keep_connected(bob.info).await.unwrap();
 
     // 3. Fund the Bitcoin wallet of one of the nodes (the payer).
-    let address = alice.wallet.get_new_address().unwrap().to_string();
-    fund_and_mine(address, 0.1).await;
-    alice.wallet.inner().sync(vec![]).unwrap();
-    tracing::info!("{}", alice.wallet.inner().get_balance().unwrap());
+    {
+        let balance = alice.wallet.inner().get_balance().unwrap();
+        tracing::info!(%balance, "Alice's wallet balance before calling the faucet");
+
+        let address = alice.wallet.get_new_address().unwrap();
+        let amount = bitcoin::Amount::from_btc(0.1).unwrap();
+
+        fund_and_mine(address, amount).await;
+        alice.wallet.inner().sync(vec![]).unwrap();
+
+        let balance = alice.wallet.inner().get_balance().unwrap();
+        tracing::info!(%balance, "Alice's wallet balance after calling the faucet");
+    }
 
     tracing::info!("Opening channel");
 
