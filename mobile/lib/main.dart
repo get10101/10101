@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart' as foundation;
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge.dart';
 import 'package:get_10101/features/trade/settings_screen.dart';
+import 'package:get_10101/features/trade/trade_theme.dart';
 import 'package:get_10101/features/wallet/receive_screen.dart';
 import 'package:get_10101/features/wallet/scanner_screen.dart';
 import 'package:get_10101/features/wallet/send_screen.dart';
@@ -120,6 +121,9 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
       title: "10101",
       theme: ThemeData(
         primarySwatch: Colors.blue,
+        extensions: const <ThemeExtension<dynamic>>[
+          TradeTheme(),
+        ],
       ),
       routerConfig: _router,
       debugShowCheckedModeBanner: false,

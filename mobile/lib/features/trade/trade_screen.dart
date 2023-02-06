@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:get_10101/features/trade/trade_theme.dart';
 
 class TradeScreen extends StatefulWidget {
   static const route = "/trade";
@@ -13,8 +14,15 @@ class TradeScreen extends StatefulWidget {
 class _TradeScreenState extends State<TradeScreen> {
   @override
   Widget build(BuildContext context) {
-    var fabShape = RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.0));
-    double fabWidth = 100.0;
+    TradeTheme tradeTheme = Theme.of(context).extension<TradeTheme>()!;
+
+    const RoundedRectangleBorder tradeButtonShape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.all(
+        Radius.circular(8),
+      ),
+    );
+
+    const double tradeButtonWidth = 100.0;
 
     return Scaffold(
         body: ListView(
@@ -28,7 +36,7 @@ class _TradeScreenState extends State<TradeScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: <Widget>[
               SizedBox(
-                  width: fabWidth,
+                  width: tradeButtonWidth,
                   child: FloatingActionButton.extended(
                     heroTag: "btnBuy",
                     onPressed: () {
@@ -53,12 +61,12 @@ class _TradeScreenState extends State<TradeScreen> {
                       );
                     },
                     label: const Text("Buy"),
-                    shape: fabShape,
-                    backgroundColor: Colors.green.shade600,
+                    shape: tradeButtonShape,
+                    backgroundColor: tradeTheme.buy,
                   )),
               const SizedBox(width: 20),
               SizedBox(
-                  width: fabWidth,
+                  width: tradeButtonWidth,
                   child: FloatingActionButton.extended(
                     heroTag: "btnSell",
                     onPressed: () {
@@ -83,8 +91,8 @@ class _TradeScreenState extends State<TradeScreen> {
                       );
                     },
                     label: const Text("Sell"),
-                    shape: fabShape,
-                    backgroundColor: Colors.red.shade600,
+                    shape: tradeButtonShape,
+                    backgroundColor: tradeTheme.sell,
                   )),
             ],
           ),
