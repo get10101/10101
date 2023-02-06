@@ -10,12 +10,15 @@ use crate::PaymentInfoStorage;
 use crate::PeerManager;
 use crate::TracingLogger;
 use anyhow::anyhow;
+use anyhow::bail;
+use anyhow::Context;
 use anyhow::Result;
 use bdk::blockchain::ElectrumBlockchain;
 use bitcoin::blockdata::constants::genesis_block;
 use bitcoin::secp256k1::PublicKey;
 use dlc_manager::custom_signer::CustomKeysManager;
 use dlc_messages::message_handler::MessageHandler as DlcMessageHandler;
+use futures::Future;
 use lightning::chain;
 use lightning::chain::chainmonitor;
 use lightning::chain::keysinterface::KeysInterface;
@@ -37,6 +40,7 @@ use std::fmt::Display;
 use std::fmt::Formatter;
 use std::net::SocketAddr;
 use std::path::Path;
+use std::pin::Pin;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::time::Duration;
@@ -56,7 +60,7 @@ pub struct Node {
     pub info: NodeInfo,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub struct NodeInfo {
     pub pubkey: PublicKey,
     pub address: SocketAddr,
@@ -262,33 +266,57 @@ impl Node {
         Ok(())
     }
 
-    // todo: That might be better placed in a dedicated connection manager file.
-    pub async fn connect(&self, target: NodeInfo) -> Result<()> {
-        match lightning_net_tokio::connect_outbound(
-            self.peer_manager.clone(),
-            target.pubkey,
-            target.address,
-        )
-        .await
-        {
-            Some(connection_closed_future) => {
-                let mut connection_closed_future = Box::pin(connection_closed_future);
-                while !Self::is_connected(&self.peer_manager, target.pubkey) {
-                    if futures::poll!(&mut connection_closed_future).is_ready() {
-                        tracing::warn!("Peer disconnected before we finished the handshake! Retrying in 5 seconds.");
-                        tokio::time::sleep(Duration::from_secs(5)).await;
-                        continue;
-                    }
-                    tokio::time::sleep(Duration::from_secs(5)).await;
-                }
-                tracing::info!("Successfully connected to {target}");
-                connection_closed_future.await;
-                tracing::warn!("Lost connection to maker, retrying immediately.")
+    async fn connect(
+        peer_manager: Arc<PeerManager>,
+        peer: NodeInfo,
+    ) -> Result<Pin<Box<impl Future<Output = ()>>>> {
+        let connection_closed_future =
+            lightning_net_tokio::connect_outbound(peer_manager.clone(), peer.pubkey, peer.address)
+                .await
+                .context("Failed to connect to counterparty")?;
+
+        let mut connection_closed_future = Box::pin(connection_closed_future);
+        while !Self::is_connected(&peer_manager, peer.pubkey) {
+            if futures::poll!(&mut connection_closed_future).is_ready() {
+                bail!("Peer disconnected before we finished the handshake");
             }
-            None => {
-                tracing::warn!("Failed to connect to maker! Retrying.");
-            }
+
+            tracing::debug!(%peer, "Waiting to establish connection");
+            tokio::time::sleep(Duration::from_secs(1)).await;
         }
+
+        tracing::info!(%peer, "Connection established");
+        Ok(connection_closed_future)
+    }
+
+    // todo: That might be better placed in a dedicated connection manager file.
+    pub async fn keep_connected(&self, peer: NodeInfo) -> Result<()> {
+        let connection_closed_future = Self::connect(self.peer_manager.clone(), peer).await?;
+
+        let peer_manager = self.peer_manager.clone();
+        tokio::spawn({
+            async move {
+                let mut connection_closed_future = connection_closed_future;
+
+                loop {
+                    tracing::debug!(%peer, "Keeping connection alive");
+
+                    connection_closed_future.await;
+                    tracing::debug!(%peer, "Connection lost");
+
+                    loop {
+                        match Self::connect(peer_manager.clone(), peer).await {
+                            Ok(fut) => {
+                                connection_closed_future = fut;
+                                break;
+                            }
+                            Err(_) => continue,
+                        }
+                    }
+                }
+            }
+        });
+
         Ok(())
     }
 
@@ -299,13 +327,15 @@ impl Node {
             .any(|id| *id == pubkey)
     }
 
-    pub async fn open_channel(
+    pub fn open_channel(
         &self,
         target: NodeInfo,
         channel_amount_sat: u64,
         initial_send_amount_sats: u64,
     ) -> Result<()> {
         let user_config = default_user_config();
+
+        tracing::info!("Creating channel");
 
         let _temp_channel_id = self
             .channel_manager

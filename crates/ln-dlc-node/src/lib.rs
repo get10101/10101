@@ -106,22 +106,22 @@ impl Logger for TracingLogger {
     fn log(&self, record: &Record) {
         match record.level {
             lightning::util::logger::Level::Gossip => {
-                tracing::trace!(msg = record.args.as_str())
+                tracing::trace!("{:?}", record.args.as_str())
             }
             lightning::util::logger::Level::Trace => {
-                tracing::trace!(msg = record.args.as_str())
+                tracing::trace!("{:?}", record.args.as_str())
             }
             lightning::util::logger::Level::Debug => {
-                tracing::debug!(msg = record.args.as_str())
+                tracing::debug!("{:?}", record.args.as_str())
             }
             lightning::util::logger::Level::Info => {
-                tracing::info!(msg = record.args.as_str())
+                tracing::info!("{:?}", record.args.as_str())
             }
             lightning::util::logger::Level::Warn => {
-                tracing::warn!(msg = record.args.as_str())
+                tracing::warn!("{:?}", record.args.as_str())
             }
             lightning::util::logger::Level::Error => {
-                tracing::error!(msg = record.args.as_str())
+                tracing::error!("{:?}", record.args.as_str())
             }
         };
     }

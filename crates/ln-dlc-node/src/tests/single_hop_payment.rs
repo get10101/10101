@@ -1,15 +1,17 @@
 //! Do this one first.
 //! TODO: Might be called no-hop (hop[e]less).
 
+use crate::node::Node;
 use bitcoin::Network;
-use dlc_manager::Wallet;
 use rand::thread_rng;
 use rand::RngCore;
-
-use crate::node::Node;
+use std::time::Duration;
+use tracing_subscriber::util::SubscriberInitExt;
 
 #[tokio::test]
 async fn given_sibling_channel_when_payment_then_can_be_claimed() {
+    let _guard = tracing_subscriber::fmt().with_test_writer().set_default();
+
     // 1. Set up two LN-DLC nodes.
     let alice = {
         let seed = [
@@ -60,7 +62,10 @@ async fn given_sibling_channel_when_payment_then_can_be_claimed() {
     bob.start().await.unwrap();
 
     // 2. Connect the two nodes.
-    alice.connect(bob.info).await.unwrap();
+
+    // TODO: Remove sleep by allowing the first connection attempt to be retried
+    tokio::time::sleep(Duration::from_secs(2)).await;
+    alice.keep_connected(bob.info).await.unwrap();
 
     // 3. Fund the Bitcoin wallet of one of the nodes (the payer).
     // todo: unsure whats the best way of achieving that is, looks like we need to run nigiri faucet
@@ -68,8 +73,10 @@ async fn given_sibling_channel_when_payment_then_can_be_claimed() {
     // To be faster I opted for the second approach, by setting a fixed seed and printing an address
     // I can faucet to. `println!("{}", alice.wallet.get_new_address().unwrap().to_string());`
 
+    tracing::info!("Opening channel");
+
     // 4. Create channel between them.
-    alice.open_channel(bob.info, 30000, 0).await.unwrap();
+    alice.open_channel(bob.info, 30000, 0).unwrap();
 
     // 5. Generate an invoice from the payer to the payee.
     // 6. Pay the invoice.

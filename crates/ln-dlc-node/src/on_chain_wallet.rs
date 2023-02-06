@@ -16,6 +16,7 @@ impl OnChainWallet {
 
         let data_dir = data_dir.join(&network.to_string());
         if !data_dir.exists() {
+            // TODO: Had to create the `on_chain` directory manually for this to work in the tests
             std::fs::create_dir(&data_dir)
                 .context(format!("Could not create data dir for {network}"))?;
         }
