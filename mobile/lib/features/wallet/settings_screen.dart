@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get_10101/features/wallet/wallet_screen.dart';
+import 'package:get_10101/common/settings_screen.dart';
 
 class WalletSettingsScreen extends StatelessWidget {
   static const route = "${WalletScreen.route}/$subRouteName";
@@ -9,9 +10,6 @@ class WalletSettingsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text("Wallet Settings")),
-      body: const SafeArea(child: Text("Settings")),
-    );
+    return const SettingsScreen(fromRoute: route);
   }
 }

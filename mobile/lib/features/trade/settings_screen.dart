@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get_10101/features/trade/trade_screen.dart';
 
+import '../../common/settings_screen.dart';
+
 class TradeSettingsScreen extends StatelessWidget {
   static const route = "${TradeScreen.route}/$subRouteName";
   static const subRouteName = "settings";
@@ -9,9 +11,6 @@ class TradeSettingsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text("Trade Settings")),
-      body: const SafeArea(child: Text("Settings")),
-    );
+    return const SettingsScreen(fromRoute: route);
   }
 }

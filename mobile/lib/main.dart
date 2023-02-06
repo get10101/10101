@@ -8,7 +8,7 @@ import 'package:get_10101/features/wallet/receive_screen.dart';
 import 'package:get_10101/features/wallet/scanner_screen.dart';
 import 'package:get_10101/features/wallet/send_screen.dart';
 import 'package:get_10101/features/wallet/settings_screen.dart';
-import 'package:get_10101/util/app_bar_wrapper.dart';
+import 'package:get_10101/common/app_bar_wrapper.dart';
 import 'package:go_router/go_router.dart';
 import 'features/trade/trade_screen.dart';
 import 'features/wallet/wallet_screen.dart';
