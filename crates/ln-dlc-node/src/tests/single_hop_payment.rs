@@ -1,6 +1,3 @@
-//! Do this one first.
-//! TODO: Might be called no-hop (hop[e]less).
-
 use crate::node::Node;
 use bitcoin::Network;
 use dlc_manager::Wallet;
