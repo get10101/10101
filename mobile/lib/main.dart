@@ -1,148 +1,208 @@
+import 'package:f_logs/f_logs.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' as foundation;
+import 'package:flutter_native_splash/flutter_native_splash.dart';
+import 'package:flutter_rust_bridge/flutter_rust_bridge.dart';
+import 'package:get_10101/features/trade/settings_screen.dart';
+import 'package:get_10101/features/wallet/receive_screen.dart';
+import 'package:get_10101/features/wallet/scanner_screen.dart';
+import 'package:get_10101/features/wallet/send_screen.dart';
+import 'package:get_10101/features/wallet/settings_screen.dart';
+import 'package:get_10101/common/app_bar_wrapper.dart';
+import 'package:go_router/go_router.dart';
+import 'features/trade/trade_screen.dart';
+import 'features/wallet/wallet_screen.dart';
 import 'ffi.dart';
 
+final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
+final GlobalKey<NavigatorState> _shellNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'shell');
+
 void main() {
-  runApp(const MyApp());
+  WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
+  FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
+
+  final config = FLog.getDefaultConfigurations();
+  config.activeLogLevel = LogLevel.DEBUG;
+
+  FLog.applyConfigurations(config);
+  runApp(const TenTenOneApp());
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({Key? key}) : super(key: key);
+class TenTenOneApp extends StatefulWidget {
+  const TenTenOneApp({Key? key}) : super(key: key);
 
-  // This widget is the root of your application.
   @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: '10101',
-      theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // Try running your application with "flutter run". You'll see the
-        // application has a blue toolbar. Then, without quitting the app, try
-        // changing the primarySwatch below to Colors.green and then invoke
-        // "hot reload" (press "r" in the console where you ran "flutter run",
-        // or simply save your changes to "hot reload" in a Flutter IDE).
-        // Notice that the counter didn't reset back to zero; the application
-        // is not restarted.
-        primarySwatch: Colors.blue,
+  State<TenTenOneApp> createState() => _TenTenOneAppState();
+}
+
+class _TenTenOneAppState extends State<TenTenOneApp> {
+  bool ready = false;
+
+  final GoRouter _router = GoRouter(
+    navigatorKey: _rootNavigatorKey,
+    initialLocation: WalletScreen.route,
+    routes: <RouteBase>[
+      ShellRoute(
+        navigatorKey: _shellNavigatorKey,
+        builder: (BuildContext context, GoRouterState state, Widget child) {
+          return ScaffoldWithNavBar(child: child);
+        },
+        routes: <RouteBase>[
+          GoRoute(
+            path: WalletScreen.route,
+            builder: (BuildContext context, GoRouterState state) {
+              return const WalletScreen();
+            },
+            routes: <RouteBase>[
+              GoRoute(
+                path: SendScreen.subRouteName,
+                // Use root navigator so the screen overlays the application shell
+                parentNavigatorKey: _rootNavigatorKey,
+                builder: (BuildContext context, GoRouterState state) {
+                  return const SendScreen();
+                },
+              ),
+              GoRoute(
+                path: ReceiveScreen.subRouteName,
+                // Use root navigator so the screen overlays the application shell
+                parentNavigatorKey: _rootNavigatorKey,
+                builder: (BuildContext context, GoRouterState state) {
+                  return const ReceiveScreen();
+                },
+              ),
+              GoRoute(
+                path: ScannerScreen.subRouteName,
+                parentNavigatorKey: _rootNavigatorKey,
+                builder: (BuildContext context, GoRouterState state) {
+                  return const ScannerScreen();
+                },
+              ),
+              GoRoute(
+                  path: WalletSettingsScreen.subRouteName,
+                  parentNavigatorKey: _rootNavigatorKey,
+                  builder: (BuildContext context, GoRouterState state) {
+                    return const WalletSettingsScreen();
+                  })
+            ],
+          ),
+          GoRoute(
+            path: TradeScreen.route,
+            builder: (BuildContext context, GoRouterState state) {
+              return const TradeScreen();
+            },
+            routes: <RouteBase>[
+              GoRoute(
+                  path: TradeSettingsScreen.subRouteName,
+                  parentNavigatorKey: _rootNavigatorKey,
+                  builder: (BuildContext context, GoRouterState state) {
+                    return const TradeSettingsScreen();
+                  })
+            ],
+          ),
+        ],
       ),
-      home: const MyHomePage(title: '10101'),
-    );
-  }
-}
-
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({Key? key, required this.title}) : super(key: key);
-
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
-  final String title;
-
-  @override
-  State<MyHomePage> createState() => _MyHomePageState();
-}
-
-class _MyHomePageState extends State<MyHomePage> {
-  // These futures belong to the state and are only initialized once,
-  // in the initState method.
-  late Future<Platform> platform;
-  late Future<bool> isRelease;
+    ],
+  );
 
   @override
   void initState() {
     super.initState();
-    platform = api.platform();
-    isRelease = api.rustReleaseMode();
+    init();
   }
 
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
-    return Scaffold(
-      appBar: AppBar(
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
+    if (ready) {
+      FlutterNativeSplash.remove();
+    }
+
+    return MaterialApp.router(
+      title: "10101",
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
       ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Invoke "debug painting" (press "p" in the console, choose the
-          // "Toggle Debug Paint" action from the Flutter Inspector in Android
-          // Studio, or the "Toggle Debug Paint" command in Visual Studio Code)
-          // to see the wireframe for each widget.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            const Text("You're running on"),
-            // To render the results of a Future, a FutureBuilder is used which
-            // turns a Future into an AsyncSnapshot, which can be used to
-            // extract the error state, the loading state and the data if
-            // available.
-            //
-            // Here, the generic type that the FutureBuilder manages is
-            // explicitly named, because if omitted the snapshot will have the
-            // type of AsyncSnapshot<Object?>.
-            FutureBuilder<List<dynamic>>(
-              // We await two unrelated futures here, so the type has to be
-              // List<dynamic>.
-              future: Future.wait([platform, isRelease]),
-              builder: (context, snap) {
-                final style = Theme.of(context).textTheme.headline4;
-                if (snap.error != null) {
-                  // An error has been encountered, so give an appropriate response and
-                  // pass the error details to an unobstructive tooltip.
-                  debugPrint(snap.error.toString());
-                  return Tooltip(
-                    message: snap.error.toString(),
-                    child: Text('Unknown OS', style: style),
-                  );
-                }
+      routerConfig: _router,
+      debugShowCheckedModeBanner: false,
+    );
+  }
 
-                // Guard return here, the data is not ready yet.
-                final data = snap.data;
-                if (data == null) return const CircularProgressIndicator();
+  Future<void> init() async {
+    try {
+      await setupRustLogging();
 
-                // Finally, retrieve the data expected in the same order provided
-                // to the FutureBuilder.future.
-                final Platform platform = data[0];
-                final release = data[1] ? 'Release' : 'Debug';
-                final text = const {
-                      Platform.Android: 'Android',
-                      Platform.Ios: 'iOS',
-                      Platform.MacApple: 'MacOS with Apple Silicon',
-                      Platform.MacIntel: 'MacOS',
-                      Platform.Windows: 'Windows',
-                      Platform.Unix: 'Unix',
-                      Platform.Wasm: 'the Web',
-                    }[platform] ??
-                    'Unknown OS';
-                return Text('$text ($release)', style: style);
-              },
-            )
-          ],
-        ),
+      setState(() {
+        FLog.info(text: "10101 is ready!");
+        ready = true;
+      });
+    } on FfiException catch (error) {
+      FLog.error(text: "Failed to initialise: Error: ${error.message}", exception: error);
+    } catch (error) {
+      FLog.error(text: "Failed to initialise: Unknown error");
+    }
+  }
+
+  Future<void> setupRustLogging() async {
+    api.initLogging().listen((event) {
+      // Only log to Dart file in release mode - in debug mode it's easier to
+      // use stdout
+      if (foundation.kReleaseMode) {
+        FLog.logThis(text: '${event.target}: ${event.msg}', type: LogLevel.DEBUG);
+      }
+    });
+  }
+}
+
+// Wrapper for the main application screens
+class ScaffoldWithNavBar extends StatelessWidget {
+  const ScaffoldWithNavBar({
+    required this.child,
+    Key? key,
+  }) : super(key: key);
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: child,
+      appBar: const PreferredSize(
+          preferredSize: Size.fromHeight(40), child: SafeArea(child: AppBarWrapper())),
+      bottomNavigationBar: BottomNavigationBar(
+        items: const <BottomNavigationBarItem>[
+          BottomNavigationBarItem(
+            icon: Icon(Icons.wallet),
+            label: WalletScreen.label,
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.bar_chart),
+            label: TradeScreen.label,
+          ),
+        ],
+        currentIndex: _calculateSelectedIndex(context),
+        onTap: (int idx) => _onItemTapped(idx, context),
       ),
     );
+  }
+
+  static int _calculateSelectedIndex(BuildContext context) {
+    final String location = GoRouterState.of(context).location;
+    if (location.startsWith(WalletScreen.route)) {
+      return 0;
+    }
+    if (location.startsWith(TradeScreen.route)) {
+      return 1;
+    }
+    return 0;
+  }
+
+  void _onItemTapped(int index, BuildContext context) {
+    switch (index) {
+      case 0:
+        GoRouter.of(context).go(WalletScreen.route);
+        break;
+      case 1:
+        GoRouter.of(context).go(TradeScreen.route);
+        break;
+    }
   }
 }

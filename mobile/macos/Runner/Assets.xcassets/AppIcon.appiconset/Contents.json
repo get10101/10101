@@ -1,4 +1,8 @@
 {
+  "info": {
+    "version": 1,
+    "author": "xcode"
+  },
   "images": [
     {
       "size": "16x16",
@@ -60,9 +64,5 @@
       "filename": "app_icon_1024.png",
       "scale": "2x"
     }
-  ],
-  "info": {
-    "version": 1,
-    "author": "xcode"
-  }
+  ]
 }
