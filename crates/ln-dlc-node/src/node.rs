@@ -408,14 +408,33 @@ impl Node {
         &self.channel_manager
     }
 
-    pub (crate) fn sync(&self){
-
+    pub(crate) fn sync(&self) {
         let confirmables = vec![
             &*self.channel_manager as &dyn chain::Confirm,
             &*self.chain_monitor as &dyn chain::Confirm,
         ];
 
         self.wallet.inner().sync(confirmables).unwrap();
+    }
+
+    pub fn create_invoice(&self) -> Result<Invoice> {
+        let currency = match self.network {
+            Network::Bitcoin => Currency::Bitcoin,
+            Network::Testnet => Currency::BitcoinTestnet,
+            Network::Regtest => Currency::Regtest,
+            Network::Signet => Currency::Signet,
+        };
+
+        lightning_invoice::utils::create_invoice_from_channelmanager(
+            &self.channel_manager,
+            self.keys_manager.clone(),
+            self.logger.clone(),
+            currency,
+            Some(5000),
+            "".to_string(),
+            180,
+        )
+        .map_err(|e| anyhow!(e))
     }
 }
 
