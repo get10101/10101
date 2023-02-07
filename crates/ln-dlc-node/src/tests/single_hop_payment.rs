@@ -126,7 +126,8 @@ async fn given_sibling_channel_when_payment_then_can_be_claimed() {
     tracing::info!("Channel open");
 
     // 5. Generate an invoice from the payer to the payee.
-    let invoice = bob.create_invoice(5000).unwrap();
+    let invoice_amount = 5000;
+    let invoice = bob.create_invoice(invoice_amount).unwrap();
     tracing::info!(?invoice);
 
     // 6. Pay the invoice.
@@ -141,4 +142,6 @@ async fn given_sibling_channel_when_payment_then_can_be_claimed() {
     bob.sync();
     let balance = bob.get_ldk_balance().unwrap();
     tracing::info!(?balance, "Bob's wallet balance");
+
+    assert_eq!(balance.available, invoice_amount)
 }

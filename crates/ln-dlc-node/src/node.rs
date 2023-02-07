@@ -17,13 +17,9 @@ use anyhow::Result;
 use bdk::blockchain::ElectrumBlockchain;
 use bitcoin::blockdata::constants::genesis_block;
 use bitcoin::secp256k1::PublicKey;
-use bitcoin::Block;
-use bitcoin::BlockHash;
 use bitcoin::Network;
-use bitcoin::Txid;
 use dlc_manager::custom_signer::CustomKeysManager;
 use dlc_messages::message_handler::MessageHandler as DlcMessageHandler;
-use futures::stream::iter;
 use futures::Future;
 use lightning::chain;
 use lightning::chain::chainmonitor;
@@ -56,7 +52,6 @@ use std::sync::Arc;
 use std::sync::Mutex;
 use std::time::Duration;
 use std::time::SystemTime;
-use tokio::task::JoinHandle;
 
 /// An LN-DLC node.
 pub struct Node {
