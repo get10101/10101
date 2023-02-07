@@ -88,7 +88,7 @@ impl lightning::util::events::EventHandler for EventHandler {
                 let funding_tx = match funding_tx_result {
                     Ok(funding_tx) => funding_tx,
                     Err(e) => {
-                        tracing::error!(
+                        eprintln!(
                             "Cannot open channel due to not being able to create funding tx {e:?}"
                         );
                         self.channel_manager
@@ -105,7 +105,7 @@ impl lightning::util::events::EventHandler for EventHandler {
                     &counterparty_node_id,
                     funding_tx,
                 ) {
-                    tracing::error!("Channel went away before we could fund it. The peer disconnected or refused the channel. {err:?}");
+                    eprintln!("Channel went away before we could fund it. The peer disconnected or refused the channel. {err:?}");
                 }
             }
             Event::PaymentClaimed {
