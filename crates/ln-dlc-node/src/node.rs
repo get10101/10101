@@ -47,6 +47,9 @@ use std::sync::Arc;
 use std::sync::Mutex;
 use std::time::Duration;
 use std::time::SystemTime;
+use bitcoin::{Block, BlockHash, Txid};
+use futures::stream::iter;
+use tokio::task::JoinHandle;
 
 /// An LN-DLC node.
 pub struct Node {
@@ -140,14 +143,15 @@ impl Node {
             ..Default::default()
         };
 
-        let genesis_block_hash = genesis_block(network).header.block_hash();
+        let (height, header) = ln_dlc_wallet.tip().unwrap();
+        let hash = header.block_hash();
 
         let channel_manager = {
             let chain_params = ChainParameters {
                 network,
                 // TODO: This needs to be fetched from electrs if the node is restarted. Also, I'm
                 // not sure if the genesis block with a block height of 0 is a valid `BestBlock`
-                best_block: BestBlock::new(genesis_block_hash, 0),
+                best_block: BestBlock::new(hash, height),
             };
             Arc::new(ChannelManager::new(
                 ln_dlc_wallet.clone(),
@@ -161,7 +165,7 @@ impl Node {
         };
 
         // TODO: Provide persisted one if restarting
-        let network_graph = Arc::new(NetworkGraph::new(genesis_block_hash, logger.clone()));
+        let network_graph = Arc::new(NetworkGraph::new(hash, logger.clone()));
 
         let gossip_sync = Arc::new(P2PGossipSync::new(
             network_graph.clone(),

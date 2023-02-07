@@ -3,7 +3,7 @@ use bdk::sled;
 use bdk::wallet::AddressIndex;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::secp256k1::SecretKey;
-use bitcoin::Address;
+use bitcoin::{Address, BlockHash, BlockHeader};
 use bitcoin::Script;
 use bitcoin::Transaction;
 use bitcoin::TxOut;
@@ -29,6 +29,11 @@ impl LnDlcWallet {
     // TODO: Better to keep this private and expose the necessary APIs instead.
     pub(crate) fn inner(&self) -> &bdk_ldk::LightningWallet<ElectrumBlockchain, sled::Tree> {
         &self.0
+    }
+
+    pub (crate) fn tip(&self) -> anyhow::Result<(u32, BlockHeader)> {
+        let (height,header) = self.0.get_tip()?;
+        Ok((height, header))
     }
 }
 
