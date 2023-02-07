@@ -83,6 +83,12 @@ pub struct NodeInfo {
     pub address: SocketAddr,
 }
 
+#[derive(Debug, Clone)]
+pub struct OffChain {
+    pub available: u64,
+    pub pending_close: u64,
+}
+
 impl Display for NodeInfo {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         format!("{}@{}", self.pubkey, self.address).fmt(f)
@@ -426,7 +432,7 @@ impl Node {
         self.wallet.inner().sync(confirmables).unwrap();
     }
 
-    pub fn create_invoice(&self) -> Result<Invoice> {
+    pub fn create_invoice(&self, amount_in_sats: u64) -> Result<Invoice> {
         let currency = match self.network {
             Network::Bitcoin => Currency::Bitcoin,
             Network::Testnet => Currency::BitcoinTestnet,
@@ -439,7 +445,7 @@ impl Node {
             self.keys_manager.clone(),
             self.logger.clone(),
             currency,
-            Some(5000),
+            Some(amount_in_sats * 1000),
             "".to_string(),
             180,
         )
@@ -470,6 +476,62 @@ impl Node {
             }
         };
         Ok(())
+    }
+
+    /// The LDK [`OffChain`] balance keeps track of:
+    ///
+    /// - The total sum of money in all open channels.
+    /// - The total sum of money in close transactions that do not yet pay to our on-chain wallet.
+    pub fn get_ldk_balance(&self) -> Result<OffChain> {
+        let open_channels = self.channel_manager.list_channels();
+
+        let claimable_channel_balances = {
+            let ignored_channels = open_channels.iter().collect::<Vec<_>>();
+            let ignored_channels = &ignored_channels.as_slice();
+            self.chain_monitor.get_claimable_balances(ignored_channels)
+        };
+
+        let pending_close = claimable_channel_balances.iter().fold(0, |acc, balance| {
+            tracing::trace!("Pending on-chain balance from channel closure: {balance:?}");
+
+            use ::lightning::chain::channelmonitor::Balance::*;
+            match balance {
+                ClaimableOnChannelClose {
+                    claimable_amount_satoshis,
+                }
+                | ClaimableAwaitingConfirmations {
+                    claimable_amount_satoshis,
+                    ..
+                }
+                | ContentiousClaimable {
+                    claimable_amount_satoshis,
+                    ..
+                }
+                | MaybeTimeoutClaimableHTLC {
+                    claimable_amount_satoshis,
+                    ..
+                }
+                | MaybePreimageClaimableHTLC {
+                    claimable_amount_satoshis,
+                    ..
+                }
+                | CounterpartyRevokedOutputClaimable {
+                    claimable_amount_satoshis,
+                } => acc + claimable_amount_satoshis,
+            }
+        });
+
+        let available = self
+            .channel_manager
+            .list_channels()
+            .iter()
+            .map(|details| details.balance_msat / 1000)
+            .sum();
+
+        Ok(OffChain {
+            available,
+            pending_close,
+        })
     }
 }
 

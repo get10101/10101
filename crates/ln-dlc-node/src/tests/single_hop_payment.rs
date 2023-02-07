@@ -126,11 +126,19 @@ async fn given_sibling_channel_when_payment_then_can_be_claimed() {
     tracing::info!("Channel open");
 
     // 5. Generate an invoice from the payer to the payee.
-    let invoice = bob.create_invoice().unwrap();
+    let invoice = bob.create_invoice(5000).unwrap();
     tracing::info!(?invoice);
 
     // 6. Pay the invoice.
     alice.send_payment(&invoice).unwrap();
 
-    // 7. Claim the payment.
+    tokio::time::sleep(Duration::from_secs(5)).await;
+
+    alice.sync();
+    let balance = alice.get_ldk_balance().unwrap();
+    tracing::info!(?balance, "Alice's wallet balance");
+
+    bob.sync();
+    let balance = bob.get_ldk_balance().unwrap();
+    tracing::info!(?balance, "Bob's wallet balance");
 }
