@@ -23,7 +23,6 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::Mutex;
 
-// TODO: Can we get rid of this?
 mod disk;
 mod ln;
 mod ln_dlc_wallet;

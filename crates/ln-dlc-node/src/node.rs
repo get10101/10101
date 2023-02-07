@@ -2,6 +2,7 @@ use crate::disk;
 use crate::ln::event_handler::EventHandler;
 use crate::ln_dlc_wallet::LnDlcWallet;
 use crate::on_chain_wallet::OnChainWallet;
+use crate::seed::Bip39Seed;
 use crate::ChainMonitor;
 use crate::ChannelManager;
 use crate::HTLCStatus;
@@ -17,24 +18,22 @@ use anyhow::Result;
 use bdk::blockchain::ElectrumBlockchain;
 use bitcoin::blockdata::constants::genesis_block;
 use bitcoin::secp256k1::PublicKey;
-use bitcoin::Block;
-use bitcoin::BlockHash;
 use bitcoin::Network;
-use bitcoin::Txid;
 use dlc_manager::custom_signer::CustomKeysManager;
 use dlc_messages::message_handler::MessageHandler as DlcMessageHandler;
-use futures::stream::iter;
 use futures::Future;
 use lightning::chain;
-use lightning::chain::chainmonitor;
 use lightning::chain::keysinterface::KeysInterface;
 use lightning::chain::keysinterface::KeysManager;
 use lightning::chain::BestBlock;
+use lightning::chain::{chainmonitor, Access};
 use lightning::ln::channelmanager::ChainParameters;
+use lightning::ln::msgs::NetAddress;
 use lightning::ln::peer_handler::IgnoringMessageHandler;
 use lightning::ln::peer_handler::MessageHandler;
 use lightning::routing::gossip::P2PGossipSync;
 use lightning::routing::router::DefaultRouter;
+use lightning::routing::scoring::ProbabilisticScorer;
 use lightning::util::config::ChannelHandshakeConfig;
 use lightning::util::config::ChannelHandshakeLimits;
 use lightning::util::config::UserConfig;
@@ -56,13 +55,13 @@ use std::sync::Arc;
 use std::sync::Mutex;
 use std::time::Duration;
 use std::time::SystemTime;
-use tokio::task::JoinHandle;
 
 /// An LN-DLC node.
 pub struct Node {
     network: bitcoin::Network,
 
     pub wallet: Arc<LnDlcWallet>,
+    alias: [u8; 32],
     peer_manager: Arc<PeerManager>,
     invoice_payer: Arc<InvoicePayer<EventHandler>>,
     channel_manager: Arc<ChannelManager>,
@@ -75,6 +74,9 @@ pub struct Node {
     data_dir: String,
 
     pub info: NodeInfo,
+    gossip_sync:
+        Arc<P2PGossipSync<Arc<NetworkGraph>, Arc<dyn Access + Send + Sync>, Arc<TracingLogger>>>,
+    scorer: Arc<Mutex<ProbabilisticScorer<Arc<NetworkGraph>, Arc<TracingLogger>>>>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -100,11 +102,12 @@ impl Node {
     // the persistence layer. But we're not there yet because we're still copying convenient code
     // from `ldk-sample` which involves IO.
     pub async fn new(
+        alias: String,
         network: bitcoin::Network,
         data_dir: String,
         address: SocketAddr,
         electrs_origin: String,
-        seed: [u8; 32],
+        seed: Bip39Seed,
         ephemeral_randomness: [u8; 32],
     ) -> Self {
         let time_since_unix_epoch = SystemTime::now()
@@ -116,8 +119,12 @@ impl Node {
         // TODO: Might be better to use an in-memory persister for the tests.
         let persister = Arc::new(FilesystemPersister::new(data_dir.clone()));
 
-        let on_chain_wallet =
-            OnChainWallet::new(Path::new(&format!("{}/on_chain", data_dir)), network).unwrap();
+        let on_chain_wallet = OnChainWallet::new(
+            Path::new(&format!("{}/on_chain", data_dir)),
+            network,
+            seed.wallet_seed(),
+        )
+        .unwrap();
 
         let ln_dlc_wallet = {
             let blockchain_client = ElectrumBlockchain::from(
@@ -139,23 +146,13 @@ impl Node {
 
         let keys_manager = {
             Arc::new(CustomKeysManager::new(KeysManager::new(
-                &seed,
+                &seed.lightning_seed(),
                 time_since_unix_epoch.as_secs() as u64,
                 time_since_unix_epoch.subsec_nanos() as u32,
             )))
         };
 
-        let ldk_user_config = lightning::util::config::UserConfig {
-            channel_handshake_config: lightning::util::config::ChannelHandshakeConfig {
-                max_inbound_htlc_value_in_flight_percent_of_channel: 50,
-                ..Default::default()
-            },
-            channel_handshake_limits: ChannelHandshakeLimits {
-                force_announced_channel_preference: false,
-                ..Default::default()
-            },
-            ..Default::default()
-        };
+        let ldk_user_config = default_user_config();
 
         let (height, header) = ln_dlc_wallet.tip().unwrap();
         let hash = header.block_hash();
@@ -216,7 +213,7 @@ impl Node {
             network_graph.clone(),
             logger.clone(),
             keys_manager.get_secure_random_bytes(),
-            scorer,
+            scorer.clone(),
         );
 
         let event_handler = {
@@ -245,13 +242,25 @@ impl Node {
             payment::Retry::Timeout(Duration::from_secs(10)),
         ));
 
+        let alias = {
+            if alias.len() > 32 {
+                panic!("Node Alias can not be longer than 32 bytes");
+            }
+            let mut bytes = [0; 32];
+            bytes[..alias.len()].copy_from_slice(alias.as_bytes());
+            bytes
+        };
+
         Self {
             network,
             wallet: ln_dlc_wallet,
+            alias,
             peer_manager,
             data_dir,
             persister,
             invoice_payer,
+            gossip_sync,
+            scorer,
             keys_manager,
             chain_monitor,
             logger,
@@ -293,38 +302,34 @@ impl Node {
 
         tracing::info!("Starting background processor");
 
-        let genesis = genesis_block(self.network).header.block_hash();
-        let network_graph_path = format!("{}/network_graph", self.data_dir);
-        let network_graph = Arc::new(disk::read_network(
-            Path::new(&network_graph_path),
-            genesis,
-            self.logger.clone(),
-        ));
-
-        let gossip_sync = Arc::new(P2PGossipSync::new(
-            Arc::clone(&network_graph),
-            None::<Arc<dyn chain::Access + Send + Sync>>,
-            self.logger.clone(),
-        ));
-
-        // Step 17: Initialize routing ProbabilisticScorer
-        let scorer_path = format!("{}/scorer", self.data_dir);
-        let scorer = Arc::new(Mutex::new(disk::read_scorer(
-            Path::new(&scorer_path),
-            Arc::clone(&network_graph),
-            Arc::clone(&self.logger),
-        )));
-
         let background_processor = BackgroundProcessor::start(
             self.persister.clone(),
             self.invoice_payer.clone(),
             self.chain_monitor.clone(),
             self.channel_manager.clone(),
-            GossipSync::p2p(gossip_sync.clone()),
+            GossipSync::p2p(self.gossip_sync.clone()),
             self.peer_manager.clone(),
             self.logger.clone(),
-            Some(scorer),
+            Some(self.scorer.clone()),
         );
+
+        let peer_man = Arc::clone(&self.peer_manager);
+
+        let alias = self.alias.clone();
+        tokio::spawn(async move {
+            let mut interval = tokio::time::interval(Duration::from_secs(60));
+            loop {
+                peer_man.broadcast_node_announcement(
+                    [0; 3],
+                    alias,
+                    vec![NetAddress::IPv4 {
+                        addr: [127, 0, 0, 1],
+                        port: address.port(),
+                    }],
+                );
+                interval.tick().await;
+            }
+        });
 
         tracing::info!(
             "Lightning node started with node ID {}@{}",
@@ -401,7 +406,6 @@ impl Node {
         channel_amount_sat: u64,
         initial_send_amount_sats: u64,
     ) -> Result<()> {
-        let user_config = default_user_config();
         let temp_channel_id = self
             .channel_manager
             .create_channel(
@@ -409,7 +413,7 @@ impl Node {
                 channel_amount_sat,
                 initial_send_amount_sats * 1000,
                 0,
-                Some(user_config),
+                None,
             )
             .map_err(|e| anyhow!("Could not create channel with {} due to {e:?}", peer))?;
 
@@ -537,13 +541,15 @@ impl Node {
 
 fn default_user_config() -> UserConfig {
     UserConfig {
-        channel_handshake_limits: ChannelHandshakeLimits {
-            trust_own_funding_0conf: false,
+        channel_handshake_config: ChannelHandshakeConfig {
+            max_inbound_htlc_value_in_flight_percent_of_channel: 50,
+            minimum_depth: 1,
             ..Default::default()
         },
-        channel_handshake_config: ChannelHandshakeConfig {
-            announced_channel: true,
-            minimum_depth: 1,
+        channel_handshake_limits: ChannelHandshakeLimits {
+            trust_own_funding_0conf: false,
+            force_announced_channel_preference: false,
+            max_minimum_depth: 1,
             ..Default::default()
         },
         // By setting `manually_accept_inbound_channels` to `true` we need to manually confirm every

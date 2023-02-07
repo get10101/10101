@@ -1,6 +1,11 @@
+use crate::node::Node;
+use anyhow::anyhow;
+use anyhow::Result;
 use dlc_manager::Oracle;
+use dlc_manager::Wallet;
 use serde::Serialize;
 use std::str::FromStr;
+use std::time::Duration;
 
 mod add_dlc;
 mod channel_less_payment;
@@ -37,6 +42,42 @@ impl Oracle for MockOracle {
     }
 }
 
+impl Node {
+    async fn fund(&self, amount: bitcoin::Amount) -> Result<()> {
+        let starting_balance = self.get_confirmed_balance()?;
+        let expected_balance = starting_balance + amount.to_sat();
+
+        let address = self
+            .wallet
+            .get_new_address()
+            .map_err(|_| anyhow!("Failed to get new address"))?;
+
+        fund_and_mine(address, amount).await;
+
+        while self.get_confirmed_balance()? < expected_balance {
+            let interval = Duration::from_millis(200);
+
+            self.sync();
+
+            tokio::time::sleep(interval).await;
+            tracing::debug!(
+                ?interval,
+                "Checking if wallet has been funded after interval"
+            )
+        }
+
+        Ok(())
+    }
+
+    fn get_confirmed_balance(&self) -> Result<u64> {
+        let balance = self.wallet.inner().get_balance()?;
+
+        Ok(balance.confirmed)
+    }
+}
+
+/// Instructs `nigiri-chopsticks` to mine a block and spend the given `amount` from the coinbase
+/// transaction to the given `address`.
 async fn fund_and_mine(address: bitcoin::Address, amount: bitcoin::Amount) {
     #[derive(Serialize)]
     struct Payload {
@@ -46,7 +87,7 @@ async fn fund_and_mine(address: bitcoin::Address, amount: bitcoin::Amount) {
     }
 
     let client = reqwest::Client::new();
-    // mines a block and spends the given amount from the coinbase transaction to the given address
+
     let result = client
         .post(format!("{CHOPSTICKS_FAUCET_ORIGIN}/faucet"))
         .json(&Payload { address, amount })

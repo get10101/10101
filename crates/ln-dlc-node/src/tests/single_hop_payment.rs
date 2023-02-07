@@ -1,4 +1,5 @@
 use crate::node::Node;
+use crate::seed::Bip39Seed;
 use crate::tests::fund_and_mine;
 use crate::tests::ELECTRS_ORIGIN;
 use bitcoin::Network;
@@ -17,10 +18,7 @@ async fn given_sibling_channel_when_payment_then_can_be_claimed() {
 
     // 1. Set up two LN-DLC nodes.
     let alice = {
-        let seed = [
-            137, 78, 181, 39, 89, 143, 9, 224, 92, 125, 51, 183, 87, 95, 206, 236, 135, 33, 54, 10,
-            237, 169, 132, 74, 230, 66, 244, 244, 89, 224, 23, 62,
-        ];
+        let seed = Bip39Seed::new().expect("A valid bip39 seed");
 
         let mut ephemeral_randomness = [0; 32];
         thread_rng().fill_bytes(&mut ephemeral_randomness);
@@ -29,6 +27,7 @@ async fn given_sibling_channel_when_payment_then_can_be_claimed() {
         // be created there. but the creation will fail if the .ldk-data/alice/on_chain has not been
         // created before.
         Node::new(
+            "Alice".to_string(),
             Network::Regtest,
             ".ldk-data/alice".to_string(),
             "127.0.0.1:8005"
@@ -43,13 +42,13 @@ async fn given_sibling_channel_when_payment_then_can_be_claimed() {
     tracing::info!("Alice: {}", alice.info);
 
     let bob = {
-        let mut seed = [0; 32];
-        thread_rng().fill_bytes(&mut seed);
+        let seed = Bip39Seed::new().expect("A valid bip39 seed");
 
         let mut ephemeral_randomness = [0; 32];
         thread_rng().fill_bytes(&mut ephemeral_randomness);
 
         Node::new(
+            "Bob".to_string(),
             Network::Regtest,
             ".ldk-data/bob".to_string(),
             "127.0.0.1:8006"
@@ -73,32 +72,24 @@ async fn given_sibling_channel_when_payment_then_can_be_claimed() {
     alice.keep_connected(bob.info).await.unwrap();
 
     // 3. Fund the Bitcoin wallet of one of the nodes (the payer).
-    {
-        let balance = alice.wallet.inner().get_balance().unwrap();
-        tracing::info!(%balance, "Alice's wallet balance before calling the faucet");
-
-        let address = alice.wallet.get_new_address().unwrap();
-        let amount = bitcoin::Amount::from_btc(0.1).unwrap();
-
-        fund_and_mine(address, amount).await;
-
-        alice.sync();
-        bob.sync();
-
-        let balance = alice.wallet.inner().get_balance().unwrap();
-        tracing::info!(%balance, "Alice's wallet balance after calling the faucet");
-    }
+    alice
+        .fund(bitcoin::Amount::from_btc(0.1).unwrap())
+        .await
+        .unwrap();
 
     tracing::info!("Opening channel");
 
     // 4. Create channel between them.
     alice.open_channel(bob.info, 30000, 0).unwrap();
 
+    tokio::time::sleep(Duration::from_secs(2)).await;
+
     // Add 6 confirmations required for the channel to get usable.
-    for _ in 1..7 {
-        let address = alice.wallet.get_new_address().unwrap();
-        fund_and_mine(address, bitcoin::Amount::from_sat(1000)).await;
-    }
+    let address = alice.wallet.get_new_address().unwrap();
+
+    fund_and_mine(address.clone(), bitcoin::Amount::from_sat(1000)).await;
+
+    tokio::time::sleep(Duration::from_secs(2)).await;
 
     // TODO: it would be nicer if we could hook that assertion to the corresponding event received
     // through the event handler.
@@ -126,7 +117,8 @@ async fn given_sibling_channel_when_payment_then_can_be_claimed() {
     tracing::info!("Channel open");
 
     // 5. Generate an invoice from the payer to the payee.
-    let invoice = bob.create_invoice(5000).unwrap();
+    let invoice_amount = 5000;
+    let invoice = bob.create_invoice(invoice_amount).unwrap();
     tracing::info!(?invoice);
 
     // 6. Pay the invoice.
@@ -141,4 +133,6 @@ async fn given_sibling_channel_when_payment_then_can_be_claimed() {
     bob.sync();
     let balance = bob.get_ldk_balance().unwrap();
     tracing::info!(?balance, "Bob's wallet balance");
+
+    assert_eq!(balance.available, invoice_amount)
 }

@@ -1,4 +1,4 @@
-use crate::seed::Bip39Seed;
+use crate::seed::WalletSeed;
 use anyhow::Context;
 use bdk::bitcoin::secp256k1::Secp256k1;
 use bdk::sled;
@@ -11,7 +11,11 @@ pub struct OnChainWallet {
 }
 
 impl OnChainWallet {
-    pub fn new(data_dir: &Path, network: bitcoin::Network) -> Result<OnChainWallet, anyhow::Error> {
+    pub fn new(
+        data_dir: &Path,
+        network: bitcoin::Network,
+        seed: WalletSeed,
+    ) -> Result<OnChainWallet, anyhow::Error> {
         tracing::info!(?network, "Creating the wallet");
 
         let data_dir = data_dir.join(&network.to_string());
@@ -20,8 +24,7 @@ impl OnChainWallet {
             std::fs::create_dir(&data_dir)
                 .context(format!("Could not create data dir for {network}"))?;
         }
-        let seed_path = data_dir.join("seed");
-        let seed = Bip39Seed::initialize(&seed_path)?;
+
         let ext_priv_key = seed.derive_extended_priv_key(network)?;
 
         let wallet_name = wallet_name_from_descriptor(
