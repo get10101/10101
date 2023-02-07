@@ -1,4 +1,5 @@
 use crate::ln_dlc_wallet::LnDlcWallet;
+use crate::util;
 use crate::ChannelManager;
 use crate::HTLCStatus;
 use crate::MillisatAmount;
@@ -57,6 +58,7 @@ impl EventHandler {
 
 impl lightning::util::events::EventHandler for EventHandler {
     fn handle_event(&self, event: Event) {
+        println!("Received event: {:?}", event);
         self.runtime_handle.block_on(async {
             match event {
             Event::FundingGenerationReady {
@@ -304,12 +306,21 @@ impl lightning::util::events::EventHandler for EventHandler {
             Event::HTLCHandlingFailed { .. } => {}
             Event::PaymentClaimable {
                 receiver_node_id: _,
-                payment_hash: _,
-                amount_msat: _,
-                purpose: _,
+                payment_hash,
+                amount_msat,
+                purpose,
                 via_channel_id: _,
                 via_user_channel_id: _,
-            } => todo!(),
+            } => {
+                println!("\nEVENT: received payment from payment hash {} of {} millisatoshis", util::hex_str(&payment_hash.0), amount_msat.to_string());
+                print!("> ");
+                io::stdout().flush().unwrap();
+                let payment_preimage = match purpose {
+                    PaymentPurpose::InvoicePayment { payment_preimage, .. } => payment_preimage,
+                    PaymentPurpose::SpontaneousPayment(preimage) => Some(preimage),
+                };
+                self.channel_manager.claim_funds(payment_preimage.unwrap());
+            }
             Event::HTLCIntercepted {
                 intercept_id: _,
                 requested_next_hop_scid: _,
