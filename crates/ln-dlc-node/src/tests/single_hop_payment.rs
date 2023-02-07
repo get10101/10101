@@ -130,5 +130,7 @@ async fn given_sibling_channel_when_payment_then_can_be_claimed() {
     tracing::info!(?invoice);
 
     // 6. Pay the invoice.
+    alice.send_payment(&invoice).unwrap();
+
     // 7. Claim the payment.
 }
