@@ -81,7 +81,9 @@ async fn given_sibling_channel_when_payment_then_can_be_claimed() {
         let amount = bitcoin::Amount::from_btc(0.1).unwrap();
 
         fund_and_mine(address, amount).await;
-        alice.wallet.inner().sync(vec![]).unwrap();
+
+        alice.sync();
+        bob.sync();
 
         let balance = alice.wallet.inner().get_balance().unwrap();
         tracing::info!(%balance, "Alice's wallet balance after calling the faucet");
@@ -92,10 +94,15 @@ async fn given_sibling_channel_when_payment_then_can_be_claimed() {
     // 4. Create channel between them.
     alice.open_channel(bob.info, 30000, 0).unwrap();
 
+    tokio::time::sleep(Duration::from_secs(5)).await;
+
+    alice.sync();
+    bob.sync();
+
     loop {
         tracing::debug!("Checking if channel is open yet");
 
-        if dbg!(alice.channel_manager().list_usable_channels())
+        if dbg!(alice.channel_manager().list_channels())
             .iter()
             .any(|channel| {
                 channel.counterparty.node_id == bob.channel_manager().get_our_node_id()
@@ -105,7 +112,9 @@ async fn given_sibling_channel_when_payment_then_can_be_claimed() {
             break;
         }
 
-        tokio::time::sleep(Duration::from_secs(1)).await;
+        tokio::time::sleep(Duration::from_secs(2)).await;
+        alice.sync();
+        bob.sync();
     }
 
     tracing::info!("Channel open");

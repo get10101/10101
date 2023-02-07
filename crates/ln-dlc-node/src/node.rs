@@ -407,6 +407,16 @@ impl Node {
     pub(crate) fn channel_manager(&self) -> &ChannelManager {
         &self.channel_manager
     }
+
+    pub (crate) fn sync(&self){
+
+        let confirmables = vec![
+            &*self.channel_manager as &dyn chain::Confirm,
+            &*self.chain_monitor as &dyn chain::Confirm,
+        ];
+
+        self.wallet.inner().sync(confirmables).unwrap();
+    }
 }
 
 fn default_user_config() -> UserConfig {
