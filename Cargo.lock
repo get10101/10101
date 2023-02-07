@@ -159,13 +159,13 @@ dependencies = [
 [[package]]
 name = "bdk-ldk"
 version = "0.1.0"
-source = "git+https://github.com/get10101/bdk-ldk?rev=9b5d237e9305e1ed1f39619bd7ed8056ff7cc6e7#9b5d237e9305e1ed1f39619bd7ed8056ff7cc6e7"
 dependencies = [
  "anyhow",
  "bdk",
  "lightning",
  "serde_json",
  "thiserror",
+ "tracing",
 ]
 
 [[package]]
