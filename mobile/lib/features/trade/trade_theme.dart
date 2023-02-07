@@ -11,10 +11,13 @@ class TradeTheme extends ThemeExtension<TradeTheme> {
   const TradeTheme({
     this.buy = green600,
     this.sell = red600,
+    this.tabColor = Colors.grey,
   });
 
   final Color buy;
   final Color sell;
+
+  final Color tabColor;
 
   @override
   TradeTheme copyWith({
@@ -22,10 +25,12 @@ class TradeTheme extends ThemeExtension<TradeTheme> {
     Color? sell,
     ShapeBorder? tradeButtonShape,
     double? tradeButtonWidth,
+    Color? tabColor,
   }) {
     return TradeTheme(
       buy: buy ?? this.buy,
       sell: sell ?? this.sell,
+      tabColor: tabColor ?? this.tabColor,
     );
   }
 
@@ -37,6 +42,7 @@ class TradeTheme extends ThemeExtension<TradeTheme> {
     return TradeTheme(
       buy: Color.lerp(buy, other.buy, t) ?? Colors.white,
       sell: Color.lerp(sell, other.sell, t) ?? Colors.white,
+      tabColor: Color.lerp(tabColor, other.tabColor, t) ?? Colors.white,
     );
   }
 
@@ -44,5 +50,6 @@ class TradeTheme extends ThemeExtension<TradeTheme> {
   String toString() => 'TradeTheme('
       'buy: $buy, '
       'sell: $sell, '
+      'tabColor: $tabColor, '
       ')';
 }
