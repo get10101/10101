@@ -95,10 +95,8 @@ async fn given_sibling_channel_when_payment_then_can_be_claimed() {
     alice.open_channel(bob.info, 30000, 0).unwrap();
 
     // Add 6 confirmations required for the channel to get usable.
-    for _ in 1..7 {
-        let address = alice.wallet.get_new_address().unwrap();
-        fund_and_mine(address, bitcoin::Amount::from_sat(1000)).await;
-    }
+    let address = alice.wallet.get_new_address().unwrap();
+    fund_and_mine(address, bitcoin::Amount::from_sat(1000)).await;
 
     // TODO: it would be nicer if we could hook that assertion to the corresponding event received
     // through the event handler.

@@ -143,10 +143,12 @@ impl Node {
         let ldk_user_config = lightning::util::config::UserConfig {
             channel_handshake_config: lightning::util::config::ChannelHandshakeConfig {
                 max_inbound_htlc_value_in_flight_percent_of_channel: 50,
+                minimum_depth: 1,
                 ..Default::default()
             },
             channel_handshake_limits: ChannelHandshakeLimits {
                 force_announced_channel_preference: false,
+                max_minimum_depth: 1,
                 ..Default::default()
             },
             ..Default::default()
