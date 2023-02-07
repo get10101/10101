@@ -116,7 +116,7 @@ impl Node {
         };
 
         let chain_monitor: Arc<ChainMonitor> = Arc::new(chainmonitor::ChainMonitor::new(
-            None,
+            Some(ln_dlc_wallet.clone()),
             ln_dlc_wallet.clone(),
             logger.clone(),
             ln_dlc_wallet.clone(),

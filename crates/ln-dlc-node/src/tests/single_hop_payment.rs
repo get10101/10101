@@ -26,7 +26,7 @@ async fn given_sibling_channel_when_payment_then_can_be_claimed() {
         thread_rng().fill_bytes(&mut ephemeral_randomness);
 
         // todo: the tests are executed in the crates/ln-dlc-node directory, hence the folder will
-        // be created their. but the creation will fail if the .ldk-data/alice/on_chain has not been
+        // be created there. but the creation will fail if the .ldk-data/alice/on_chain has not been
         // created before.
         Node::new(
             Network::Regtest,
@@ -94,15 +94,23 @@ async fn given_sibling_channel_when_payment_then_can_be_claimed() {
     // 4. Create channel between them.
     alice.open_channel(bob.info, 30000, 0).unwrap();
 
-    tokio::time::sleep(Duration::from_secs(5)).await;
+    // Add 6 confirmations required for the channel to get usable.
+    for _ in 1..7 {
+        let address = alice.wallet.get_new_address().unwrap();
+        fund_and_mine(address, bitcoin::Amount::from_sat(1000)).await;
+    }
 
-    alice.sync();
-    bob.sync();
-
+    // TODO: it would be nicer if we could hook that assertion to the corresponding event received
+    // through the event handler.
     loop {
+        alice.sync();
+        bob.sync();
+
         tracing::debug!("Checking if channel is open yet");
 
-        if dbg!(alice.channel_manager().list_channels())
+        if alice
+            .channel_manager()
+            .list_channels()
             .iter()
             .any(|channel| {
                 channel.counterparty.node_id == bob.channel_manager().get_our_node_id()
@@ -113,8 +121,6 @@ async fn given_sibling_channel_when_payment_then_can_be_claimed() {
         }
 
         tokio::time::sleep(Duration::from_secs(2)).await;
-        alice.sync();
-        bob.sync();
     }
 
     tracing::info!("Channel open");

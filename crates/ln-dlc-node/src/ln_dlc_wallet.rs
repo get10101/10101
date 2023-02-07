@@ -3,14 +3,18 @@ use bdk::sled;
 use bdk::wallet::AddressIndex;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::secp256k1::SecretKey;
-use bitcoin::{Address, BlockHash, BlockHeader};
+use bitcoin::Address;
+use bitcoin::BlockHeader;
 use bitcoin::Script;
 use bitcoin::Transaction;
 use bitcoin::TxOut;
+use bitcoin::Txid;
 use dlc_manager::error::Error;
 use dlc_manager::error::Error::WalletError;
 use dlc_manager::Signer;
 use dlc_manager::Utxo;
+use lightning::chain::Filter;
+use lightning::chain::WatchedOutput;
 
 /// This is a wrapper type introduced to be able to implement traits from `rust-dlc` on the
 /// `bdk_ldk::LightningWallet`.
@@ -31,9 +35,19 @@ impl LnDlcWallet {
         &self.0
     }
 
-    pub (crate) fn tip(&self) -> anyhow::Result<(u32, BlockHeader)> {
-        let (height,header) = self.0.get_tip()?;
+    pub(crate) fn tip(&self) -> anyhow::Result<(u32, BlockHeader)> {
+        let (height, header) = self.0.get_tip()?;
         Ok((height, header))
+    }
+}
+
+impl Filter for LnDlcWallet {
+    fn register_tx(&self, txid: &Txid, script_pubkey: &Script) {
+        self.inner().register_tx(txid, script_pubkey)
+    }
+
+    fn register_output(&self, output: WatchedOutput) {
+        self.inner().register_output(output);
     }
 }
 
