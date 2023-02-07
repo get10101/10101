@@ -378,27 +378,30 @@ impl Node {
 
     pub fn open_channel(
         &self,
-        target: NodeInfo,
+        peer: NodeInfo,
         channel_amount_sat: u64,
         initial_send_amount_sats: u64,
     ) -> Result<()> {
         let user_config = default_user_config();
-
-        tracing::info!("Creating channel");
-
-        let _temp_channel_id = self
+        let temp_channel_id = self
             .channel_manager
             .create_channel(
-                target.pubkey,
+                peer.pubkey,
                 channel_amount_sat,
                 initial_send_amount_sats * 1000,
                 0,
                 Some(user_config),
             )
-            .map_err(|e| anyhow!("Could not create channel with {} due to {e:?}", target))?;
+            .map_err(|e| anyhow!("Could not create channel with {} due to {e:?}", peer))?;
 
-        tracing::info!("Started channel creation with {}", target);
+        let temp_channel_id = hex::encode(temp_channel_id);
+        tracing::info!(%peer, %temp_channel_id, "Started channel creation");
+
         Ok(())
+    }
+
+    pub(crate) fn channel_manager(&self) -> &ChannelManager {
+        &self.channel_manager
     }
 }
 

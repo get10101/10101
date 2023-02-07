@@ -10,7 +10,10 @@ use tracing_subscriber::util::SubscriberInitExt;
 
 #[tokio::test]
 async fn given_sibling_channel_when_payment_then_can_be_claimed() {
-    let _guard = tracing_subscriber::fmt().with_test_writer().set_default();
+    let _guard = tracing_subscriber::fmt()
+        .with_env_filter("debug,hyper=warn,reqwest=warn,rustls=warn,bdk=info,ldk=debug,sled=info")
+        .with_test_writer()
+        .set_default();
 
     // 1. Set up two LN-DLC nodes.
     let alice = {
@@ -89,7 +92,26 @@ async fn given_sibling_channel_when_payment_then_can_be_claimed() {
     // 4. Create channel between them.
     alice.open_channel(bob.info, 30000, 0).unwrap();
 
+    loop {
+        tracing::debug!("Checking if channel is open yet");
+
+        if dbg!(alice.channel_manager().list_usable_channels())
+            .iter()
+            .any(|channel| {
+                channel.counterparty.node_id == bob.channel_manager().get_our_node_id()
+                    && channel.is_usable
+            })
+        {
+            break;
+        }
+
+        tokio::time::sleep(Duration::from_secs(1)).await;
+    }
+
+    tracing::info!("Channel open");
+
     // 5. Generate an invoice from the payer to the payee.
+
     // 6. Pay the invoice.
     // 7. Claim the payment.
 }
