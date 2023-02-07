@@ -4,6 +4,7 @@ use crate::ln_dlc_wallet::LnDlcWallet;
 use crate::on_chain_wallet::OnChainWallet;
 use crate::ChainMonitor;
 use crate::ChannelManager;
+use crate::HTLCStatus;
 use crate::InvoicePayer;
 use crate::NetworkGraph;
 use crate::PaymentInfoStorage;
@@ -16,8 +17,13 @@ use anyhow::Result;
 use bdk::blockchain::ElectrumBlockchain;
 use bitcoin::blockdata::constants::genesis_block;
 use bitcoin::secp256k1::PublicKey;
+use bitcoin::Block;
+use bitcoin::BlockHash;
+use bitcoin::Network;
+use bitcoin::Txid;
 use dlc_manager::custom_signer::CustomKeysManager;
 use dlc_messages::message_handler::MessageHandler as DlcMessageHandler;
+use futures::stream::iter;
 use futures::Future;
 use lightning::chain;
 use lightning::chain::chainmonitor;
@@ -35,6 +41,9 @@ use lightning::util::config::UserConfig;
 use lightning_background_processor::BackgroundProcessor;
 use lightning_background_processor::GossipSync;
 use lightning_invoice::payment;
+use lightning_invoice::payment::PaymentError;
+use lightning_invoice::Currency;
+use lightning_invoice::Invoice;
 use lightning_persister::FilesystemPersister;
 use std::collections::HashMap;
 use std::fmt;
@@ -47,8 +56,6 @@ use std::sync::Arc;
 use std::sync::Mutex;
 use std::time::Duration;
 use std::time::SystemTime;
-use bitcoin::{Block, BlockHash, Txid};
-use futures::stream::iter;
 use tokio::task::JoinHandle;
 
 /// An LN-DLC node.
@@ -61,6 +68,7 @@ pub struct Node {
     channel_manager: Arc<ChannelManager>,
     chain_monitor: Arc<ChainMonitor>,
     persister: Arc<FilesystemPersister>,
+    keys_manager: Arc<CustomKeysManager>,
 
     logger: Arc<TracingLogger>,
 
@@ -217,7 +225,7 @@ impl Node {
                 channel_manager.clone(),
                 ln_dlc_wallet.clone(),
                 network_graph,
-                keys_manager,
+                keys_manager.clone(),
                 inbound_payments,
                 outbound_payments,
             )
@@ -238,6 +246,7 @@ impl Node {
             data_dir,
             persister,
             invoice_payer,
+            keys_manager,
             chain_monitor,
             logger,
             channel_manager: channel_manager.clone(),
@@ -435,6 +444,32 @@ impl Node {
             180,
         )
         .map_err(|e| anyhow!(e))
+    }
+
+    pub fn send_payment(&self, invoice: &Invoice) -> Result<()> {
+        match self.invoice_payer.pay_invoice(invoice) {
+            Ok(_payment_id) => {
+                let payee_pubkey = invoice.recover_payee_pub_key();
+                let amt_msat = invoice
+                    .amount_milli_satoshis()
+                    .context("invalid msat amount in the invoice")?;
+                tracing::info!("EVENT: initiated sending {amt_msat} msats to {payee_pubkey}",);
+                HTLCStatus::Pending
+            }
+            Err(PaymentError::Invoice(e)) => {
+                tracing::error!("Invalid invoice: {e}");
+                anyhow::bail!(e);
+            }
+            Err(PaymentError::Routing(e)) => {
+                tracing::error!("Failed to find route: {e:?}");
+                anyhow::bail!("{:?}", e);
+            }
+            Err(PaymentError::Sending(e)) => {
+                tracing::error!("Failed to send payment: {e:?}");
+                HTLCStatus::Failed
+            }
+        };
+        Ok(())
     }
 }
 
