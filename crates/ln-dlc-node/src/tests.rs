@@ -8,6 +8,10 @@ mod dlc_collaborative_settlement;
 mod dlc_non_collaborative_settlement;
 mod single_hop_payment;
 
+const CHOPSTICKS_FAUCET_ORIGIN: &str = "http://localhost:3000";
+
+const ELECTRS_ORIGIN: &str = "tcp://localhost:50000";
+
 struct MockOracle;
 
 impl Oracle for MockOracle {
@@ -44,7 +48,7 @@ async fn fund_and_mine(address: bitcoin::Address, amount: bitcoin::Amount) {
     let client = reqwest::Client::new();
     // mines a block and spends the given amount from the coinbase transaction to the given address
     let result = client
-        .post("http://localhost:3000/faucet")
+        .post(format!("{CHOPSTICKS_FAUCET_ORIGIN}/faucet"))
         .json(&Payload { address, amount })
         .send()
         .await

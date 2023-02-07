@@ -1,5 +1,6 @@
 use crate::node::Node;
 use crate::tests::fund_and_mine;
+use crate::tests::ELECTRS_ORIGIN;
 use bitcoin::Network;
 use dlc_manager::Wallet;
 use rand::thread_rng;
@@ -27,10 +28,10 @@ async fn given_sibling_channel_when_payment_then_can_be_claimed() {
         Node::new(
             Network::Regtest,
             ".ldk-data/alice".to_string(),
-            format!("127.0.0.1:8005")
+            "127.0.0.1:8005"
                 .parse()
                 .expect("Hard-coded IP and port to be valid"),
-            "tcp://localhost:50000".to_string(),
+            ELECTRS_ORIGIN.to_string(),
             seed,
             ephemeral_randomness,
         )
@@ -48,10 +49,10 @@ async fn given_sibling_channel_when_payment_then_can_be_claimed() {
         Node::new(
             Network::Regtest,
             ".ldk-data/bob".to_string(),
-            format!("127.0.0.1:8006")
+            "127.0.0.1:8006"
                 .parse()
                 .expect("Hard-coded IP and port to be valid"),
-            "tcp://localhost:50000".to_string(),
+            ELECTRS_ORIGIN.to_string(),
             seed,
             ephemeral_randomness,
         )
