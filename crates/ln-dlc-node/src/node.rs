@@ -58,7 +58,7 @@ use std::time::SystemTime;
 
 /// An LN-DLC node.
 pub struct Node {
-    network: bitcoin::Network,
+    network: Network,
 
     pub wallet: Arc<LnDlcWallet>,
     alias: [u8; 32],
@@ -101,7 +101,7 @@ impl Node {
     // from `ldk-sample` which involves IO.
     pub async fn new(
         alias: String,
-        network: bitcoin::Network,
+        network: Network,
         data_dir: String,
         address: SocketAddr,
         electrs_origin: String,
