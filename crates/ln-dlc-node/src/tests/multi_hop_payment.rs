@@ -110,8 +110,13 @@ async fn multi_hop_payment() {
 
     // 3. Fund the Bitcoin wallets of the nodes who will open a channel.
     {
-        fund_wallet(&alice).await;
-        fund_wallet(&bob).await;
+        alice
+            .fund(bitcoin::Amount::from_sat(1_000_000))
+            .await
+            .unwrap();
+        bob.fund(bitcoin::Amount::from_sat(1_000_000))
+            .await
+            .unwrap();
 
         // we need to wait here for the wallet to sync properly
         tokio::time::sleep(Duration::from_secs(5)).await;
@@ -212,12 +217,6 @@ fn has_channel(source_node: &Node, target_node: &Node) -> bool {
             channel.counterparty.node_id == target_node.channel_manager().get_our_node_id()
                 && channel.is_usable
         })
-}
-
-async fn fund_wallet(node: &Node) {
-    let address = node.wallet.get_new_address().unwrap();
-    let amount = bitcoin::Amount::from_btc(0.1).unwrap();
-    fund_and_mine(address, amount).await;
 }
 
 fn log_channel_id(node: &Node, index: usize, pair: &str) {
