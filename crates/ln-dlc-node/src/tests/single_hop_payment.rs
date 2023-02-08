@@ -27,6 +27,7 @@ async fn given_sibling_channel_when_payment_then_can_be_claimed() {
         // be created there. but the creation will fail if the .ldk-data/alice/on_chain has not been
         // created before.
         Node::new(
+            "Alice".to_string(),
             Network::Regtest,
             ".ldk-data/alice".to_string(),
             "127.0.0.1:8005"
@@ -47,6 +48,7 @@ async fn given_sibling_channel_when_payment_then_can_be_claimed() {
         thread_rng().fill_bytes(&mut ephemeral_randomness);
 
         Node::new(
+            "Bob".to_string(),
             Network::Regtest,
             ".ldk-data/bob".to_string(),
             "127.0.0.1:8006"

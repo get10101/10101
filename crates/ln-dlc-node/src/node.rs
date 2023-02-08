@@ -28,6 +28,7 @@ use lightning::chain::keysinterface::KeysManager;
 use lightning::chain::BestBlock;
 use lightning::chain::{chainmonitor, Access};
 use lightning::ln::channelmanager::ChainParameters;
+use lightning::ln::msgs::NetAddress;
 use lightning::ln::peer_handler::IgnoringMessageHandler;
 use lightning::ln::peer_handler::MessageHandler;
 use lightning::routing::gossip::P2PGossipSync;
@@ -60,6 +61,7 @@ pub struct Node {
     network: bitcoin::Network,
 
     pub wallet: Arc<LnDlcWallet>,
+    alias: [u8; 32],
     peer_manager: Arc<PeerManager>,
     invoice_payer: Arc<InvoicePayer<EventHandler>>,
     channel_manager: Arc<ChannelManager>,
@@ -100,6 +102,7 @@ impl Node {
     // the persistence layer. But we're not there yet because we're still copying convenient code
     // from `ldk-sample` which involves IO.
     pub async fn new(
+        alias: String,
         network: bitcoin::Network,
         data_dir: String,
         address: SocketAddr,
@@ -239,9 +242,19 @@ impl Node {
             payment::Retry::Timeout(Duration::from_secs(10)),
         ));
 
+        let alias = {
+            if alias.len() > 32 {
+                panic!("Node Alias can not be longer than 32 bytes");
+            }
+            let mut bytes = [0; 32];
+            bytes[..alias.len()].copy_from_slice(alias.as_bytes());
+            bytes
+        };
+
         Self {
             network,
             wallet: ln_dlc_wallet,
+            alias,
             peer_manager,
             data_dir,
             persister,
@@ -299,6 +312,24 @@ impl Node {
             self.logger.clone(),
             Some(self.scorer.clone()),
         );
+
+        let peer_man = Arc::clone(&self.peer_manager);
+
+        let alias = self.alias.clone();
+        tokio::spawn(async move {
+            let mut interval = tokio::time::interval(Duration::from_secs(60));
+            loop {
+                peer_man.broadcast_node_announcement(
+                    [0; 3],
+                    alias,
+                    vec![NetAddress::IPv4 {
+                        addr: [127, 0, 0, 1],
+                        port: address.port(),
+                    }],
+                );
+                interval.tick().await;
+            }
+        });
 
         tracing::info!(
             "Lightning node started with node ID {}@{}",
