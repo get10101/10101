@@ -36,7 +36,7 @@ impl Bip39Seed {
         Ok(seed)
     }
 
-    pub fn seed(&self) -> [u8; 64] {
+    fn seed(&self) -> [u8; 64] {
         // passing an empty string here is the expected argument if the seed should not be
         // additionally password protected (according to https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki#from-mnemonic-to-seed)
         self.mnemonic.to_seed_normalized("")
