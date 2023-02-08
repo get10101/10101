@@ -32,8 +32,8 @@ async fn multi_hop_payment() {
         Node::new(
             "Alice".to_string(),
             Network::Regtest,
-            ".ldk-data/alice".to_string(),
-            "127.0.0.1:8005"
+            ".ldk-data/alice-multihop".to_string(),
+            "127.0.0.1:8010"
                 .parse()
                 .expect("Hard-coded IP and port to be valid"),
             ELECTRS_ORIGIN.to_string(),
@@ -57,8 +57,8 @@ async fn multi_hop_payment() {
         Node::new(
             "Bob".to_string(),
             Network::Regtest,
-            ".ldk-data/bob".to_string(),
-            "127.0.0.1:8006"
+            ".ldk-data/bob-multihop".to_string(),
+            "127.0.0.1:8011"
                 .parse()
                 .expect("Hard-coded IP and port to be valid"),
             ELECTRS_ORIGIN.to_string(),
@@ -82,8 +82,8 @@ async fn multi_hop_payment() {
         Node::new(
             "Claire".to_string(),
             Network::Regtest,
-            ".ldk-data/claire".to_string(),
-            "127.0.0.1:8007"
+            ".ldk-data/claire-multihop".to_string(),
+            "127.0.0.1:8012"
                 .parse()
                 .expect("Hard-coded IP and port to be valid"),
             ELECTRS_ORIGIN.to_string(),
