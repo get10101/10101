@@ -16,7 +16,6 @@ use lightning::routing::scoring::ProbabilisticScorer;
 use lightning_invoice::payment;
 use lightning_net_tokio::SocketDescriptor;
 use lightning_persister::FilesystemPersister;
-use lightning_rapid_gossip_sync::RapidGossipSync;
 use ln_dlc_wallet::LnDlcWallet;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -68,9 +67,6 @@ type ChannelManager = lightning::ln::channelmanager::ChannelManager<
 
 pub(crate) type InvoicePayer<E> =
     payment::InvoicePayer<Arc<ChannelManager>, Router, Arc<TracingLogger>, E>;
-
-type GossipSync<P, G, A, L> =
-    lightning_background_processor::GossipSync<P, Arc<RapidGossipSync<G, L>>, G, A, L>;
 
 type Router = DefaultRouter<
     Arc<NetworkGraph>,

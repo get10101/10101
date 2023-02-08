@@ -16,7 +16,6 @@ use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
 use bdk::blockchain::ElectrumBlockchain;
-use bitcoin::blockdata::constants::genesis_block;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::Network;
 use dlc_manager::custom_signer::CustomKeysManager;
@@ -56,7 +55,6 @@ use std::sync::Arc;
 use std::sync::Mutex;
 use std::time::Duration;
 use std::time::SystemTime;
-use tracing::instrument::WithSubscriber;
 
 /// An LN-DLC node.
 pub struct Node {
@@ -72,8 +70,6 @@ pub struct Node {
     keys_manager: Arc<CustomKeysManager>,
 
     logger: Arc<TracingLogger>,
-
-    data_dir: String,
 
     pub info: NodeInfo,
     gossip_sync:
@@ -258,7 +254,6 @@ impl Node {
             wallet: ln_dlc_wallet,
             alias,
             peer_manager,
-            data_dir,
             persister,
             invoice_payer,
             gossip_sync,
