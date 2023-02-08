@@ -114,7 +114,6 @@ impl Node {
 
         let logger = Arc::new(TracingLogger);
 
-        // TODO: Might be better to use an in-memory persister for the tests.
         let persister = Arc::new(FilesystemPersister::new(data_dir.clone()));
 
         let on_chain_wallet = OnChainWallet::new(
