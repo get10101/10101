@@ -124,6 +124,7 @@ class BuySellContents extends StatelessWidget {
     return Column(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       crossAxisAlignment: CrossAxisAlignment.center,
+      mainAxisSize: MainAxisSize.min,
       children: [
         Wrap(
           runSpacing: 15,
@@ -175,7 +176,6 @@ class BuySellContents extends StatelessWidget {
                 })
           ],
         ),
-        const Spacer(),
         Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
