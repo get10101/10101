@@ -12,8 +12,6 @@ use lightning::routing::gossip;
 use lightning::routing::gossip::P2PGossipSync;
 use lightning::routing::router::DefaultRouter;
 use lightning::routing::scoring::ProbabilisticScorer;
-use lightning::util::logger::Logger;
-use lightning::util::logger::Record;
 use lightning_invoice::payment;
 use lightning_net_tokio::SocketDescriptor;
 use lightning_persister::FilesystemPersister;
@@ -22,10 +20,12 @@ use ln_dlc_wallet::LnDlcWallet;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::Mutex;
+use crate::logger::TracingLogger;
 
 mod disk;
 mod ln;
 mod ln_dlc_wallet;
+mod logger;
 mod node;
 mod on_chain_wallet;
 mod seed;
@@ -97,31 +97,3 @@ enum HTLCStatus {
 
 #[derive(Debug)]
 struct MillisatAmount(Option<u64>);
-
-#[derive(Copy, Clone)]
-struct TracingLogger;
-
-impl Logger for TracingLogger {
-    fn log(&self, record: &Record) {
-        match record.level {
-            lightning::util::logger::Level::Gossip => {
-                println!("GOSSIP: {}", record.args.to_string());
-            }
-            lightning::util::logger::Level::Trace => {
-                println!("TRACE: {}", record.args.to_string());
-            }
-            lightning::util::logger::Level::Debug => {
-                println!("DEBUG: {}", record.args.to_string());
-            }
-            lightning::util::logger::Level::Info => {
-                println!("INFO: {}", record.args.to_string());
-            }
-            lightning::util::logger::Level::Warn => {
-                println!("WARN: {}", record.args.to_string());
-            }
-            lightning::util::logger::Level::Error => {
-                println!("ERROR: {}", record.args.to_string());
-            }
-        };
-    }
-}

@@ -1,6 +1,7 @@
 use crate::disk;
 use crate::ln::event_handler::EventHandler;
 use crate::ln_dlc_wallet::LnDlcWallet;
+use crate::logger::TracingLogger;
 use crate::on_chain_wallet::OnChainWallet;
 use crate::seed::Bip39Seed;
 use crate::ChainMonitor;
@@ -10,7 +11,6 @@ use crate::InvoicePayer;
 use crate::NetworkGraph;
 use crate::PaymentInfoStorage;
 use crate::PeerManager;
-use crate::TracingLogger;
 use anyhow::anyhow;
 use anyhow::bail;
 use anyhow::Context;
