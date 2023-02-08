@@ -413,7 +413,7 @@ impl Node {
                 channel_amount_sat,
                 initial_send_amount_sats * 1000,
                 0,
-                None,
+                Some(default_user_config()),
             )
             .map_err(|e| anyhow!("Could not create channel with {} due to {e:?}", peer))?;
 
@@ -542,19 +542,18 @@ impl Node {
 fn default_user_config() -> UserConfig {
     UserConfig {
         channel_handshake_config: ChannelHandshakeConfig {
-            max_inbound_htlc_value_in_flight_percent_of_channel: 50,
+            announced_channel: true,
             minimum_depth: 1,
             ..Default::default()
         },
         channel_handshake_limits: ChannelHandshakeLimits {
-            trust_own_funding_0conf: false,
-            force_announced_channel_preference: false,
             max_minimum_depth: 1,
+            force_announced_channel_preference: false,
+            // lnd's max to_self_delay is 2016, so we want to be compatible.
+            their_to_self_delay: 2016,
             ..Default::default()
         },
-        // By setting `manually_accept_inbound_channels` to `true` we need to manually confirm every
-        // inbound channel request.
-        manually_accept_inbound_channels: false,
+        accept_forwards_to_priv_channels: false,
         ..Default::default()
     }
 }
