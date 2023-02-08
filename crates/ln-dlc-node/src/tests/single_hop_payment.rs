@@ -79,6 +79,8 @@ async fn given_sibling_channel_when_payment_then_can_be_claimed() {
 
         fund_and_mine(address, amount).await;
 
+        tokio::time::sleep(Duration::from_secs(2)).await;
+
         alice.sync();
         bob.sync();
 
@@ -91,9 +93,14 @@ async fn given_sibling_channel_when_payment_then_can_be_claimed() {
     // 4. Create channel between them.
     alice.open_channel(bob.info, 30000, 0).unwrap();
 
+    tokio::time::sleep(Duration::from_secs(2)).await;
+
     // Add 6 confirmations required for the channel to get usable.
     let address = alice.wallet.get_new_address().unwrap();
-    fund_and_mine(address, bitcoin::Amount::from_sat(1000)).await;
+
+    fund_and_mine(address.clone(), bitcoin::Amount::from_sat(1000)).await;
+
+    tokio::time::sleep(Duration::from_secs(2)).await;
 
     // TODO: it would be nicer if we could hook that assertion to the corresponding event received
     // through the event handler.
