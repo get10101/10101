@@ -2,7 +2,6 @@ use crate::node::Node;
 use crate::seed::Bip39Seed;
 use crate::tests::fund_and_mine;
 use crate::tests::ELECTRS_ORIGIN;
-use bip39::Mnemonic;
 use bitcoin::Network;
 use dlc_manager::Wallet;
 use rand::thread_rng;
@@ -19,12 +18,7 @@ async fn given_sibling_channel_when_payment_then_can_be_claimed() {
 
     // 1. Set up two LN-DLC nodes.
     let alice = {
-        let seed = Bip39Seed::from(
-            Mnemonic::parse(
-                "tray lift outside jump romance whale bag snake gadget disease chunk erupt",
-            )
-            .expect("To be a valid mnemonic"),
-        );
+        let seed = Bip39Seed::new().expect("A valid bip39 seed");
 
         let mut ephemeral_randomness = [0; 32];
         thread_rng().fill_bytes(&mut ephemeral_randomness);
