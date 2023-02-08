@@ -1,20 +1,17 @@
 use crate::node::Node;
 use crate::seed::Bip39Seed;
 use crate::tests::fund_and_mine;
+use crate::tests::init_tracing;
 use crate::tests::ELECTRS_ORIGIN;
 use bitcoin::Network;
 use dlc_manager::Wallet;
 use rand::thread_rng;
 use rand::RngCore;
 use std::time::Duration;
-use tracing_subscriber::util::SubscriberInitExt;
 
 #[tokio::test]
 async fn given_sibling_channel_when_payment_then_can_be_claimed() {
-    let _guard = tracing_subscriber::fmt()
-        .with_env_filter("debug,hyper=warn,reqwest=warn,rustls=warn,bdk=info,ldk=debug,sled=info")
-        .with_test_writer()
-        .set_default();
+    init_tracing();
 
     // 1. Set up two LN-DLC nodes.
     let alice = {

@@ -1,3 +1,4 @@
+use crate::logger::TracingLogger;
 use dlc_manager::custom_signer::CustomKeysManager;
 use dlc_manager::custom_signer::CustomSigner;
 use dlc_messages::message_handler::MessageHandler as DlcMessageHandler;
@@ -12,8 +13,6 @@ use lightning::routing::gossip;
 use lightning::routing::gossip::P2PGossipSync;
 use lightning::routing::router::DefaultRouter;
 use lightning::routing::scoring::ProbabilisticScorer;
-use lightning::util::logger::Logger;
-use lightning::util::logger::Record;
 use lightning_invoice::payment;
 use lightning_net_tokio::SocketDescriptor;
 use lightning_persister::FilesystemPersister;
@@ -26,6 +25,7 @@ use std::sync::Mutex;
 mod disk;
 mod ln;
 mod ln_dlc_wallet;
+mod logger;
 mod node;
 mod on_chain_wallet;
 mod seed;
@@ -97,31 +97,3 @@ enum HTLCStatus {
 
 #[derive(Debug)]
 struct MillisatAmount(Option<u64>);
-
-#[derive(Copy, Clone)]
-struct TracingLogger;
-
-impl Logger for TracingLogger {
-    fn log(&self, record: &Record) {
-        match record.level {
-            lightning::util::logger::Level::Gossip => {
-                tracing::trace!(target: "ldk", "{}", record.args.to_string())
-            }
-            lightning::util::logger::Level::Trace => {
-                tracing::trace!(target: "ldk", "{}", record.args.to_string())
-            }
-            lightning::util::logger::Level::Debug => {
-                tracing::debug!(target: "ldk", "{}", record.args.to_string())
-            }
-            lightning::util::logger::Level::Info => {
-                tracing::info!(target: "ldk", "{}", record.args.to_string())
-            }
-            lightning::util::logger::Level::Warn => {
-                tracing::warn!(target: "ldk", "{}", record.args.to_string())
-            }
-            lightning::util::logger::Level::Error => {
-                tracing::error!(target: "ldk", "{}", record.args.to_string())
-            }
-        };
-    }
-}

@@ -18,8 +18,6 @@ use lightning::util::events::PaymentPurpose;
 use rand::thread_rng;
 use rand::Rng;
 use std::collections::hash_map::Entry;
-use std::io;
-use std::io::Write;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::runtime;
@@ -58,7 +56,8 @@ impl EventHandler {
 
 impl lightning::util::events::EventHandler for EventHandler {
     fn handle_event(&self, event: Event) {
-        println!("Received event: {:?}", event);
+        tracing::info!(?event, "Received event");
+
         self.runtime_handle.block_on(async {
             match event {
             Event::FundingGenerationReady {
@@ -89,9 +88,10 @@ impl lightning::util::events::EventHandler for EventHandler {
 
                 let funding_tx = match funding_tx_result {
                     Ok(funding_tx) => funding_tx,
-                    Err(e) => {
-                        eprintln!(
-                            "Cannot open channel due to not being able to create funding tx {e:?}"
+                    Err(err) => {
+                        tracing::error!(
+                            %err,
+                            "Cannot open channel due to not being able to create funding tx"
                         );
                         self.channel_manager
                             .close_channel(&temporary_channel_id, &counterparty_node_id)
@@ -107,7 +107,7 @@ impl lightning::util::events::EventHandler for EventHandler {
                     &counterparty_node_id,
                     funding_tx,
                 ) {
-                    eprintln!("Channel went away before we could fund it. The peer disconnected or refused the channel. {err:?}");
+                    tracing::error!(?err, "Channel went away before we could fund it. The peer disconnected or refused the channel");
                 }
             }
             Event::PaymentClaimed {
@@ -116,13 +116,12 @@ impl lightning::util::events::EventHandler for EventHandler {
                 amount_msat,
                 receiver_node_id: _,
             } => {
-                println!(
-                    "\nEVENT: claimed payment from payment hash {} of {} millisatoshis",
-                    hex::encode(&payment_hash.0),
-                    amount_msat,
+                tracing::info!(
+                    %amount_msat,
+                    payment_hash = %hex::encode(&payment_hash.0),
+                    "Claimed payment",
                 );
-                print!("> ");
-                io::stdout().flush().unwrap();
+
                 let (payment_preimage, payment_secret) = match purpose {
                     PaymentPurpose::InvoicePayment {
                         payment_preimage,
@@ -160,19 +159,15 @@ impl lightning::util::events::EventHandler for EventHandler {
                     if *hash == payment_hash {
                         payment.preimage = Some(payment_preimage);
                         payment.status = HTLCStatus::Succeeded;
-                        println!(
-                        "\nEVENT: successfully sent payment of {:?} millisatoshis{} from payment hash {:?} with preimage {:?}",
-                        payment.amt_msat,
-                        if let Some(fee) = fee_paid_msat {
-                            format!(" (fee {} msat)", fee)
-                        } else {
-                            "".to_string()
-                        },
-                        hex::encode(&payment_hash.0),
-                        hex::encode(&payment_preimage.0)
-                    );
-                        print!("> ");
-                        io::stdout().flush().unwrap();
+
+                        let preimage_hash = hex::encode(&payment_preimage.0);
+                        tracing::info!(
+                            amount_msat = ?payment.amt_msat.0,
+                            fee_paid_msat = ?fee_paid_msat,
+                            payment_hash = %hex::encode(&payment_hash.0),
+                            %preimage_hash,
+                            "\nSuccessfully sent payment",
+                        );
                     }
                 }
             }
@@ -183,8 +178,6 @@ impl lightning::util::events::EventHandler for EventHandler {
             Event::PaymentPathFailed { .. } => {}
             Event::PaymentFailed { payment_hash, .. } => {
                 print!("\nEVENT: Failed to send payment to payment hash {:?}: exhausted payment retry attempts", hex::encode(&payment_hash.0));
-                print!("> ");
-                io::stdout().flush().unwrap();
 
                 let mut payments = self.outbound_payments.lock().unwrap();
                 if payments.contains_key(&payment_hash) {
@@ -242,18 +235,16 @@ impl lightning::util::events::EventHandler for EventHandler {
                     "from HTLC fulfill message"
                 };
                 if let Some(fee_earned) = fee_earned_msat {
-                    println!(
-                        "\nEVENT: Forwarded payment{}{}, earning {} msat {}",
+                    tracing::info!(
+                        "Forwarded payment{}{}, earning {} msat {}",
                         from_prev_str, to_next_str, fee_earned, from_onchain_str
                     );
                 } else {
-                    println!(
-                        "\nEVENT: Forwarded payment{}{}, claiming onchain {}",
+                    tracing::info!(
+                        "Forwarded payment{}{}, claiming onchain {}",
                         from_prev_str, to_next_str, from_onchain_str
                     );
                 }
-                print!("> ");
-                io::stdout().flush().unwrap();
             }
             Event::PendingHTLCsForwardable { time_forwardable } => {
                 let forwarding_channel_manager = self.channel_manager.clone();
@@ -287,13 +278,12 @@ impl lightning::util::events::EventHandler for EventHandler {
                 reason,
                 user_channel_id: _,
             } => {
-                println!(
-                    "\nEVENT: Channel {} closed due to: {:?}",
-                    hex::encode(channel_id),
-                    reason
+                let channel = hex::encode(channel_id);
+                tracing::info!(
+                    %channel,
+                    ?reason,
+                    "\nChannel closed",
                 );
-                print!("> ");
-                io::stdout().flush().unwrap();
             }
             Event::DiscardFunding { .. } => {
                 // A "real" node should probably "lock" the UTXOs spent in funding transactions
@@ -312,9 +302,9 @@ impl lightning::util::events::EventHandler for EventHandler {
                 via_channel_id: _,
                 via_user_channel_id: _,
             } => {
-                println!("\nEVENT: received payment from payment hash {} of {} millisatoshis", util::hex_str(&payment_hash.0), amount_msat.to_string());
-                print!("> ");
-                io::stdout().flush().unwrap();
+                let payment_hash = util::hex_str(&payment_hash.0);
+                tracing::info!(%payment_hash, %amount_msat, "Received payment");
+
                 let payment_preimage = match purpose {
                     PaymentPurpose::InvoicePayment { payment_preimage, .. } => payment_preimage,
                     PaymentPurpose::SpontaneousPayment(preimage) => Some(preimage),
