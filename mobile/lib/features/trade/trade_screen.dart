@@ -87,7 +87,7 @@ class _TradeScreenState extends State<TradeScreen> {
                   child: FloatingActionButton.extended(
                     heroTag: "btnBuy",
                     onPressed: () {
-                      modelSheet(context: context, direction: Direction.buy);
+                      showBuySellSheet(context: context, direction: Direction.buy);
                     },
                     label: const Text("Buy"),
                     shape: tradeButtonShape,
@@ -99,25 +99,7 @@ class _TradeScreenState extends State<TradeScreen> {
                   child: FloatingActionButton.extended(
                     heroTag: "btnSell",
                     onPressed: () {
-                      showModalBottomSheet<void>(
-                        useRootNavigator: true,
-                        backgroundColor: Colors.red.shade50,
-                        context: context,
-                        builder: (BuildContext context) {
-                          return SizedBox(
-                            height: 200,
-                            child: Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                mainAxisSize: MainAxisSize.min,
-                                children: const <Widget>[
-                                  Text('Sell Sheet'),
-                                ],
-                              ),
-                            ),
-                          );
-                        },
-                      );
+                      showBuySellSheet(context: context, direction: Direction.sell);
                     },
                     label: const Text("Sell"),
                     shape: tradeButtonShape,
@@ -129,7 +111,7 @@ class _TradeScreenState extends State<TradeScreen> {
   }
 }
 
-modelSheet({required BuildContext context, required Direction direction}) {
+showBuySellSheet({required BuildContext context, required Direction direction}) {
   showModalBottomSheet<void>(
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(

@@ -8,16 +8,23 @@ class TradeTheme extends ThemeExtension<TradeTheme> {
   static const Color green600 = Color(0xFF43A047);
   static const Color red600 = Color(0xFFE53935);
 
-  const TradeTheme({
-    this.buy = green600,
-    this.sell = red600,
-    this.tabColor = Colors.grey,
-  });
+  const TradeTheme(
+      {this.buy = green600,
+      this.sell = red600,
+      this.tabColor = Colors.grey,
+      this.leveragePlusButtonColor = Colors.grey,
+      this.leverageMinusButtonColor = Colors.grey,
+      this.leverageInactiveSliderTrackColor = Colors.grey,
+      this.leverageInactiveTicksColor = Colors.grey});
 
   final Color buy;
   final Color sell;
 
   final Color tabColor;
+  final Color leveragePlusButtonColor;
+  final Color leverageMinusButtonColor;
+  final Color leverageInactiveSliderTrackColor;
+  final Color leverageInactiveTicksColor;
 
   @override
   TradeTheme copyWith({
