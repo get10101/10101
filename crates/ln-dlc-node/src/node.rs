@@ -23,15 +23,16 @@ use dlc_manager::custom_signer::CustomKeysManager;
 use dlc_messages::message_handler::MessageHandler as DlcMessageHandler;
 use futures::Future;
 use lightning::chain;
-use lightning::chain::chainmonitor;
 use lightning::chain::keysinterface::KeysInterface;
 use lightning::chain::keysinterface::KeysManager;
 use lightning::chain::BestBlock;
+use lightning::chain::{chainmonitor, Access};
 use lightning::ln::channelmanager::ChainParameters;
 use lightning::ln::peer_handler::IgnoringMessageHandler;
 use lightning::ln::peer_handler::MessageHandler;
 use lightning::routing::gossip::P2PGossipSync;
 use lightning::routing::router::DefaultRouter;
+use lightning::routing::scoring::ProbabilisticScorer;
 use lightning::util::config::ChannelHandshakeConfig;
 use lightning::util::config::ChannelHandshakeLimits;
 use lightning::util::config::UserConfig;
@@ -71,6 +72,9 @@ pub struct Node {
     data_dir: String,
 
     pub info: NodeInfo,
+    gossip_sync:
+        Arc<P2PGossipSync<Arc<NetworkGraph>, Arc<dyn Access + Send + Sync>, Arc<TracingLogger>>>,
+    scorer: Arc<Mutex<ProbabilisticScorer<Arc<NetworkGraph>, Arc<TracingLogger>>>>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -206,7 +210,7 @@ impl Node {
             network_graph.clone(),
             logger.clone(),
             keys_manager.get_secure_random_bytes(),
-            scorer,
+            scorer.clone(),
         );
 
         let event_handler = {
@@ -242,6 +246,8 @@ impl Node {
             data_dir,
             persister,
             invoice_payer,
+            gossip_sync,
+            scorer,
             keys_manager,
             chain_monitor,
             logger,
@@ -283,37 +289,15 @@ impl Node {
 
         tracing::info!("Starting background processor");
 
-        let genesis = genesis_block(self.network).header.block_hash();
-        let network_graph_path = format!("{}/network_graph", self.data_dir);
-        let network_graph = Arc::new(disk::read_network(
-            Path::new(&network_graph_path),
-            genesis,
-            self.logger.clone(),
-        ));
-
-        let gossip_sync = Arc::new(P2PGossipSync::new(
-            Arc::clone(&network_graph),
-            None::<Arc<dyn chain::Access + Send + Sync>>,
-            self.logger.clone(),
-        ));
-
-        // Step 17: Initialize routing ProbabilisticScorer
-        let scorer_path = format!("{}/scorer", self.data_dir);
-        let scorer = Arc::new(Mutex::new(disk::read_scorer(
-            Path::new(&scorer_path),
-            Arc::clone(&network_graph),
-            Arc::clone(&self.logger),
-        )));
-
         let background_processor = BackgroundProcessor::start(
             self.persister.clone(),
             self.invoice_payer.clone(),
             self.chain_monitor.clone(),
             self.channel_manager.clone(),
-            GossipSync::p2p(gossip_sync.clone()),
+            GossipSync::p2p(self.gossip_sync.clone()),
             self.peer_manager.clone(),
             self.logger.clone(),
-            Some(scorer),
+            Some(self.scorer.clone()),
         );
 
         tracing::info!(
