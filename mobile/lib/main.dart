@@ -36,8 +36,6 @@ class TenTenOneApp extends StatefulWidget {
 }
 
 class _TenTenOneAppState extends State<TenTenOneApp> {
-  bool ready = false;
-
   final GoRouter _router = GoRouter(
     navigatorKey: _rootNavigatorKey,
     initialLocation: WalletScreen.route,
@@ -112,10 +110,6 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
 
   @override
   Widget build(BuildContext context) {
-    if (ready) {
-      FlutterNativeSplash.remove();
-    }
-
     return MaterialApp.router(
       title: "10101",
       theme: ThemeData(
@@ -132,12 +126,13 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
 
       setState(() {
         FLog.info(text: "10101 is ready!");
-        ready = true;
       });
     } on FfiException catch (error) {
       FLog.error(text: "Failed to initialise: Error: ${error.message}", exception: error);
     } catch (error) {
       FLog.error(text: "Failed to initialise: Unknown error");
+    } finally {
+      FlutterNativeSplash.remove();
     }
   }
 
