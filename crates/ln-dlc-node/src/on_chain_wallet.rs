@@ -20,9 +20,9 @@ impl OnChainWallet {
 
         let data_dir = data_dir.join(&network.to_string());
         if !data_dir.exists() {
-            // TODO: Had to create the `on_chain` directory manually for this to work in the tests
-            std::fs::create_dir(&data_dir)
-                .context(format!("Could not create data dir for {network}"))?;
+            std::fs::create_dir_all(&data_dir).context(format!(
+                "Could not create data dir ({data_dir:?}) for {network}"
+            ))?;
         }
 
         let ext_priv_key = seed.derive_extended_priv_key(network)?;
