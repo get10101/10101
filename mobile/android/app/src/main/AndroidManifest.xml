@@ -1,5 +1,5 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="finance.10101">
+    package="finance.get10101">
    <application
         android:label="10101"
         android:name="${applicationName}"

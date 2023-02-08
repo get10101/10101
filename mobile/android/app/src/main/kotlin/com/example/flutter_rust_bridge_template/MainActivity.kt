@@ -1,4 +1,4 @@
-package finance.10101
+package finance.get10101
 
 import io.flutter.embedding.android.FlutterActivity
 
