@@ -1,5 +1,6 @@
 use crate::node::Node;
 use crate::seed::Bip39Seed;
+use crate::tests::create_tmp_dir;
 use crate::tests::fund_and_mine;
 use crate::tests::init_tracing;
 use crate::tests::ELECTRS_ORIGIN;
@@ -8,15 +9,18 @@ use bitcoin::Network;
 use dlc_manager::Wallet;
 use rand::thread_rng;
 use rand::RngCore;
-use std::path::Path;
 use std::time::Duration;
 
 #[tokio::test]
 async fn multi_hop_payment() {
     init_tracing();
 
+    let test_dir = create_tmp_dir("multi_hop_test");
+
     // 1. Set up two LN-DLC nodes.
     let alice = {
+        let data_dir = test_dir.join("alice");
+
         let seed = Bip39Seed::from(
             Mnemonic::parse(
                 "tray lift outside jump romance whale bag snake gadget disease chunk erupt",
@@ -33,7 +37,7 @@ async fn multi_hop_payment() {
         Node::new(
             "Alice".to_string(),
             Network::Regtest,
-            &Path::new(".ldk-data/alice-multihop"),
+            &data_dir.as_path(),
             "127.0.0.1:8010"
                 .parse()
                 .expect("Hard-coded IP and port to be valid"),
@@ -45,6 +49,8 @@ async fn multi_hop_payment() {
     };
 
     let bob = {
+        let data_dir = test_dir.join("bob");
+
         let seed = Bip39Seed::from(
             Mnemonic::parse(
                 "wish wealth video hello nose local ordinary nasty aisle behave casino fog",
@@ -58,7 +64,7 @@ async fn multi_hop_payment() {
         Node::new(
             "Bob".to_string(),
             Network::Regtest,
-            &Path::new(".ldk-data/bob-multihop"),
+            &data_dir.as_path(),
             "127.0.0.1:8011"
                 .parse()
                 .expect("Hard-coded IP and port to be valid"),
@@ -70,6 +76,8 @@ async fn multi_hop_payment() {
     };
 
     let claire = {
+        let data_dir = test_dir.join("claire");
+
         let seed = Bip39Seed::from(
             Mnemonic::parse(
                 "stay mistake gas defy bleak whisper empower elephant gate priority craft earth",
@@ -83,7 +91,7 @@ async fn multi_hop_payment() {
         Node::new(
             "Claire".to_string(),
             Network::Regtest,
-            &Path::new(".ldk-data/claire-multihop"),
+            &data_dir.as_path(),
             "127.0.0.1:8012"
                 .parse()
                 .expect("Hard-coded IP and port to be valid"),

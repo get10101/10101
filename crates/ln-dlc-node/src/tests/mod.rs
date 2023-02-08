@@ -4,6 +4,8 @@ use anyhow::Result;
 use dlc_manager::Oracle;
 use dlc_manager::Wallet;
 use serde::Serialize;
+use std::env::temp_dir;
+use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::Once;
 use std::time::Duration;
@@ -111,4 +113,13 @@ async fn fund_and_mine(address: bitcoin::Address, amount: bitcoin::Amount) {
         .unwrap();
 
     assert!(result.status().is_success());
+}
+
+pub fn create_tmp_dir(dir_name: &str) -> PathBuf {
+    let test_dir = temp_dir();
+    let test_dir = test_dir.join(dir_name);
+    let test_dir_str = test_dir.to_str().expect("To be a valid path");
+    // TODO: why can't we use tracing here?
+    println!("Current test dir location {test_dir_str}");
+    test_dir
 }

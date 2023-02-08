@@ -1,5 +1,6 @@
 use crate::node::Node;
 use crate::seed::Bip39Seed;
+use crate::tests::create_tmp_dir;
 use crate::tests::fund_and_mine;
 use crate::tests::init_tracing;
 use crate::tests::ELECTRS_ORIGIN;
@@ -7,15 +8,18 @@ use bitcoin::Network;
 use dlc_manager::Wallet;
 use rand::thread_rng;
 use rand::RngCore;
-use std::path::Path;
 use std::time::Duration;
 
 #[tokio::test]
 async fn given_sibling_channel_when_payment_then_can_be_claimed() {
     init_tracing();
 
+    let test_dir = create_tmp_dir("single_hop_test");
+
     // 1. Set up two LN-DLC nodes.
     let alice = {
+        let data_dir = test_dir.join("alice");
+
         let seed = Bip39Seed::new().expect("A valid bip39 seed");
 
         let mut ephemeral_randomness = [0; 32];
@@ -27,7 +31,7 @@ async fn given_sibling_channel_when_payment_then_can_be_claimed() {
         Node::new(
             "Alice".to_string(),
             Network::Regtest,
-            &Path::new(".ldk-data/alice"),
+            data_dir.as_path(),
             "127.0.0.1:8005"
                 .parse()
                 .expect("Hard-coded IP and port to be valid"),
@@ -40,6 +44,7 @@ async fn given_sibling_channel_when_payment_then_can_be_claimed() {
     tracing::info!("Alice: {}", alice.info);
 
     let bob = {
+        let data_dir = test_dir.join("bob");
         let seed = Bip39Seed::new().expect("A valid bip39 seed");
 
         let mut ephemeral_randomness = [0; 32];
@@ -48,7 +53,7 @@ async fn given_sibling_channel_when_payment_then_can_be_claimed() {
         Node::new(
             "Bob".to_string(),
             Network::Regtest,
-            &Path::new(".ldk-data/bob"),
+            data_dir.as_path(),
             "127.0.0.1:8006"
                 .parse()
                 .expect("Hard-coded IP and port to be valid"),
