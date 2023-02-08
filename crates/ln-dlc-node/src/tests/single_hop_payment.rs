@@ -83,7 +83,6 @@ async fn given_sibling_channel_when_payment_then_can_be_claimed() {
 
     // Add 6 confirmations required for the channel to get usable.
     let address = alice.wallet.get_new_address().unwrap();
-
     fund_and_mine(address.clone(), bitcoin::Amount::from_sat(1000)).await;
 
     tokio::time::sleep(Duration::from_secs(2)).await;
@@ -96,15 +95,10 @@ async fn given_sibling_channel_when_payment_then_can_be_claimed() {
 
         tracing::debug!("Checking if channel is open yet");
 
-        if alice
-            .channel_manager()
-            .list_channels()
-            .iter()
-            .any(|channel| {
-                channel.counterparty.node_id == bob.channel_manager().get_our_node_id()
-                    && channel.is_usable
-            })
-        {
+        if bob.channel_manager().list_channels().iter().any(|channel| {
+            channel.counterparty.node_id == alice.channel_manager().get_our_node_id()
+                && channel.is_usable
+        }) {
             break;
         }
 
@@ -114,7 +108,7 @@ async fn given_sibling_channel_when_payment_then_can_be_claimed() {
     tracing::info!("Channel open");
 
     // 5. Generate an invoice from the payer to the payee.
-    let invoice_amount = 5000;
+    let invoice_amount = 3000;
     let invoice = bob.create_invoice(invoice_amount).unwrap();
     tracing::info!(?invoice);
 

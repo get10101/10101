@@ -415,7 +415,7 @@ impl Node {
                 channel_amount_sat,
                 initial_send_amount_sats * 1000,
                 0,
-                Some(default_user_config()),
+                None,
             )
             .map_err(|e| anyhow!("Could not create channel with {} due to {e:?}", peer))?;
 
@@ -546,6 +546,9 @@ fn default_user_config() -> UserConfig {
         channel_handshake_config: ChannelHandshakeConfig {
             announced_channel: true,
             minimum_depth: 1,
+            // only 10% of the total channel value can be sent. e.g. with a volume of 30.000 sats
+            // only 3.000 sats can be sent.
+            max_inbound_htlc_value_in_flight_percent_of_channel: 10,
             ..Default::default()
         },
         channel_handshake_limits: ChannelHandshakeLimits {
