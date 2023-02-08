@@ -81,7 +81,7 @@ async fn given_sibling_channel_when_payment_then_can_be_claimed() {
 
     tokio::time::sleep(Duration::from_secs(2)).await;
 
-    // Add 6 confirmations required for the channel to get usable.
+    // Add 1 confirmations required for the channel to get usable.
     let address = alice.wallet.get_new_address().unwrap();
     fund_and_mine(address.clone(), bitcoin::Amount::from_sat(1000)).await;
 
