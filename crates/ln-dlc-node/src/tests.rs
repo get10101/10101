@@ -11,6 +11,7 @@ mod add_dlc;
 mod channel_less_payment;
 mod dlc_collaborative_settlement;
 mod dlc_non_collaborative_settlement;
+mod multi_hop_payment;
 mod single_hop_payment;
 
 const CHOPSTICKS_FAUCET_ORIGIN: &str = "http://localhost:3000";
