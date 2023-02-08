@@ -8,6 +8,7 @@ use bitcoin::Network;
 use dlc_manager::Wallet;
 use rand::thread_rng;
 use rand::RngCore;
+use std::path::Path;
 use std::time::Duration;
 
 #[tokio::test]
@@ -32,7 +33,7 @@ async fn multi_hop_payment() {
         Node::new(
             "Alice".to_string(),
             Network::Regtest,
-            ".ldk-data/alice-multihop".to_string(),
+            &Path::new(".ldk-data/alice-multihop"),
             "127.0.0.1:8010"
                 .parse()
                 .expect("Hard-coded IP and port to be valid"),
@@ -57,7 +58,7 @@ async fn multi_hop_payment() {
         Node::new(
             "Bob".to_string(),
             Network::Regtest,
-            ".ldk-data/bob-multihop".to_string(),
+            &Path::new(".ldk-data/bob-multihop"),
             "127.0.0.1:8011"
                 .parse()
                 .expect("Hard-coded IP and port to be valid"),
@@ -82,7 +83,7 @@ async fn multi_hop_payment() {
         Node::new(
             "Claire".to_string(),
             Network::Regtest,
-            ".ldk-data/claire-multihop".to_string(),
+            &Path::new(".ldk-data/claire-multihop"),
             "127.0.0.1:8012"
                 .parse()
                 .expect("Hard-coded IP and port to be valid"),

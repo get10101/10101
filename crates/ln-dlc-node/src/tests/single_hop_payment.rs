@@ -7,6 +7,7 @@ use bitcoin::Network;
 use dlc_manager::Wallet;
 use rand::thread_rng;
 use rand::RngCore;
+use std::path::Path;
 use std::time::Duration;
 
 #[tokio::test]
@@ -26,7 +27,7 @@ async fn given_sibling_channel_when_payment_then_can_be_claimed() {
         Node::new(
             "Alice".to_string(),
             Network::Regtest,
-            ".ldk-data/alice".to_string(),
+            &Path::new(".ldk-data/alice"),
             "127.0.0.1:8005"
                 .parse()
                 .expect("Hard-coded IP and port to be valid"),
@@ -47,7 +48,7 @@ async fn given_sibling_channel_when_payment_then_can_be_claimed() {
         Node::new(
             "Bob".to_string(),
             Network::Regtest,
-            ".ldk-data/bob".to_string(),
+            &Path::new(".ldk-data/bob"),
             "127.0.0.1:8006"
                 .parse()
                 .expect("Hard-coded IP and port to be valid"),

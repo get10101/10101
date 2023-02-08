@@ -102,7 +102,7 @@ impl Node {
     pub async fn new(
         alias: String,
         network: Network,
-        data_dir: String,
+        data_dir: &Path,
         address: SocketAddr,
         electrs_origin: String,
         seed: Bip39Seed,
@@ -114,14 +114,18 @@ impl Node {
 
         let logger = Arc::new(TracingLogger);
 
-        let persister = Arc::new(FilesystemPersister::new(data_dir.clone()));
+        if !data_dir.exists() {
+            std::fs::create_dir_all(&data_dir)
+                .context(format!("Could not create data dir ({data_dir:?})"))
+                .unwrap();
+        }
 
-        let on_chain_wallet = OnChainWallet::new(
-            Path::new(&format!("{}/on_chain", data_dir)),
-            network,
-            seed.wallet_seed(),
-        )
-        .unwrap();
+        let persister_path = data_dir.as_os_str().to_str().unwrap();
+        let persister = Arc::new(FilesystemPersister::new(persister_path.to_string()));
+
+        let on_chain_dir = data_dir.join("on_chain");
+        let on_chain_wallet =
+            OnChainWallet::new(on_chain_dir.as_path(), network, seed.wallet_seed()).unwrap();
 
         let ln_dlc_wallet = {
             let blockchain_client = ElectrumBlockchain::from(
@@ -200,8 +204,9 @@ impl Node {
             dlc_message_handler,
         ));
 
+        let scorer_path = data_dir.join("scorer");
         let scorer = Arc::new(Mutex::new(disk::read_scorer(
-            Path::new(&format!("{}/scorer", data_dir)),
+            scorer_path.as_path(),
             network_graph.clone(),
             logger.clone(),
         )));
