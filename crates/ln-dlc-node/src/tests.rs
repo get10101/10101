@@ -5,6 +5,7 @@ use dlc_manager::Oracle;
 use dlc_manager::Wallet;
 use serde::Serialize;
 use std::str::FromStr;
+use std::sync::Once;
 use std::time::Duration;
 
 mod add_dlc;
@@ -17,6 +18,19 @@ mod single_hop_payment;
 const CHOPSTICKS_FAUCET_ORIGIN: &str = "http://localhost:3000";
 
 const ELECTRS_ORIGIN: &str = "tcp://localhost:50000";
+
+fn init_tracing() {
+    static TRACING_TEST_SUBSCRIBER: Once = Once::new();
+
+    TRACING_TEST_SUBSCRIBER.call_once(|| {
+        tracing_subscriber::fmt()
+            .with_env_filter(
+                "debug,hyper=warn,reqwest=warn,rustls=warn,bdk=info,ldk=debug,sled=info",
+            )
+            .with_test_writer()
+            .init()
+    })
+}
 
 struct MockOracle;
 

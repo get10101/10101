@@ -1,8 +1,6 @@
 use lightning::util::logger::Level;
 use lightning::util::logger::Logger;
 use lightning::util::logger::Record as LnRecord;
-use tracing_log::log;
-use tracing_log::log::Metadata;
 
 #[derive(Copy, Clone)]
 pub(crate) struct TracingLogger;

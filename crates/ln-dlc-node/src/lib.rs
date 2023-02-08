@@ -1,3 +1,4 @@
+use crate::logger::TracingLogger;
 use dlc_manager::custom_signer::CustomKeysManager;
 use dlc_manager::custom_signer::CustomSigner;
 use dlc_messages::message_handler::MessageHandler as DlcMessageHandler;
@@ -20,7 +21,6 @@ use ln_dlc_wallet::LnDlcWallet;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::Mutex;
-use crate::logger::TracingLogger;
 
 mod disk;
 mod ln;

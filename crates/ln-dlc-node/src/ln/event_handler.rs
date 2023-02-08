@@ -58,7 +58,8 @@ impl EventHandler {
 
 impl lightning::util::events::EventHandler for EventHandler {
     fn handle_event(&self, event: Event) {
-        println!("Received event: {:?}", event);
+        tracing::info!(?event, "Received event");
+
         self.runtime_handle.block_on(async {
             match event {
             Event::FundingGenerationReady {
@@ -89,9 +90,10 @@ impl lightning::util::events::EventHandler for EventHandler {
 
                 let funding_tx = match funding_tx_result {
                     Ok(funding_tx) => funding_tx,
-                    Err(e) => {
-                        eprintln!(
-                            "Cannot open channel due to not being able to create funding tx {e:?}"
+                    Err(err) => {
+                        tracing::error!(
+                            %err,
+                            "Cannot open channel due to not being able to create funding tx"
                         );
                         self.channel_manager
                             .close_channel(&temporary_channel_id, &counterparty_node_id)
@@ -107,7 +109,7 @@ impl lightning::util::events::EventHandler for EventHandler {
                     &counterparty_node_id,
                     funding_tx,
                 ) {
-                    eprintln!("Channel went away before we could fund it. The peer disconnected or refused the channel. {err:?}");
+                    tracing::error!(?err, "Channel went away before we could fund it. The peer disconnected or refused the channel");
                 }
             }
             Event::PaymentClaimed {

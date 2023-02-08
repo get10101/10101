@@ -23,10 +23,11 @@ use dlc_manager::custom_signer::CustomKeysManager;
 use dlc_messages::message_handler::MessageHandler as DlcMessageHandler;
 use futures::Future;
 use lightning::chain;
+use lightning::chain::chainmonitor;
 use lightning::chain::keysinterface::KeysInterface;
 use lightning::chain::keysinterface::KeysManager;
+use lightning::chain::Access;
 use lightning::chain::BestBlock;
-use lightning::chain::{chainmonitor, Access};
 use lightning::ln::channelmanager::ChainParameters;
 use lightning::ln::msgs::NetAddress;
 use lightning::ln::peer_handler::IgnoringMessageHandler;
@@ -55,6 +56,7 @@ use std::sync::Arc;
 use std::sync::Mutex;
 use std::time::Duration;
 use std::time::SystemTime;
+use tracing::instrument::WithSubscriber;
 
 /// An LN-DLC node.
 pub struct Node {
@@ -466,16 +468,16 @@ impl Node {
                 tracing::info!("EVENT: initiated sending {amt_msat} msats to {payee_pubkey}",);
                 HTLCStatus::Pending
             }
-            Err(PaymentError::Invoice(e)) => {
-                tracing::error!("Invalid invoice: {e}");
-                anyhow::bail!(e);
+            Err(PaymentError::Invoice(err)) => {
+                tracing::error!(%err, "Invalid invoice");
+                anyhow::bail!(err);
             }
-            Err(PaymentError::Routing(e)) => {
-                tracing::error!("Failed to find route: {e:?}");
-                anyhow::bail!("{:?}", e);
+            Err(PaymentError::Routing(err)) => {
+                tracing::error!(?err, "Failed to find route");
+                anyhow::bail!("{:?}", err);
             }
-            Err(PaymentError::Sending(e)) => {
-                tracing::error!("Failed to send payment: {e:?}");
+            Err(PaymentError::Sending(err)) => {
+                tracing::error!(?err, "Failed to send payment");
                 HTLCStatus::Failed
             }
         };
