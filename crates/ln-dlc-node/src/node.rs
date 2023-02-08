@@ -542,7 +542,7 @@ impl Node {
 fn default_user_config() -> UserConfig {
     UserConfig {
         channel_handshake_config: ChannelHandshakeConfig {
-            announced_channel: false,
+            announced_channel: true,
             minimum_depth: 1,
             ..Default::default()
         },
@@ -553,7 +553,7 @@ fn default_user_config() -> UserConfig {
             their_to_self_delay: 2016,
             ..Default::default()
         },
-        accept_forwards_to_priv_channels: true,
+        accept_forwards_to_priv_channels: false,
         ..Default::default()
     }
 }

@@ -145,6 +145,12 @@ async fn multi_hop_payment() {
     let address = alice.wallet.get_new_address().unwrap();
     fund_and_mine(address, bitcoin::Amount::from_sat(1000)).await;
 
+    // Add 5 confirmations for the channel to get announced.
+    for _ in 1..6 {
+        let address = alice.wallet.get_new_address().unwrap();
+        fund_and_mine(address, bitcoin::Amount::from_sat(1000)).await;
+    }
+
     tokio::time::sleep(Duration::from_secs(2)).await;
 
     // TODO: it would be nicer if we could hook that assertion to the corresponding event received
