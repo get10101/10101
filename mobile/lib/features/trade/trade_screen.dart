@@ -118,11 +118,32 @@ showBuySellSheet({required BuildContext context, required Direction direction}) 
         top: Radius.circular(20),
       ),
     ),
-    clipBehavior: Clip.antiAliasWithSaveLayer,
+    clipBehavior: Clip.antiAlias,
+    isScrollControlled: true,
     useRootNavigator: true,
     context: context,
     builder: (BuildContext context) {
-      return BuySellBottomSheet(direction: direction);
+      return SafeArea(
+        child: Padding(
+          // padding: MediaQuery.of(context).viewInsets,
+          padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+          // the GestureDetector ensures that we can close the keyboard by tapping into the modal
+          child: GestureDetector(
+            onTap: () {
+              FocusScopeNode currentFocus = FocusScope.of(context);
+
+              if (!currentFocus.hasPrimaryFocus) {
+                currentFocus.unfocus();
+              }
+            },
+            child: SizedBox(
+                // TODO: Find a way to make height dynamic depending on the children size
+                // This is needed because otherwise the keyboard does not push the sheet up correctly
+                height: 400,
+                child: BuySellBottomSheet(direction: direction)),
+          ),
+        ),
+      );
     },
   );
 }
