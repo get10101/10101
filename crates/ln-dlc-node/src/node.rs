@@ -145,19 +145,7 @@ impl Node {
             )))
         };
 
-        let ldk_user_config = lightning::util::config::UserConfig {
-            channel_handshake_config: lightning::util::config::ChannelHandshakeConfig {
-                max_inbound_htlc_value_in_flight_percent_of_channel: 50,
-                minimum_depth: 1,
-                ..Default::default()
-            },
-            channel_handshake_limits: ChannelHandshakeLimits {
-                force_announced_channel_preference: false,
-                max_minimum_depth: 1,
-                ..Default::default()
-            },
-            ..Default::default()
-        };
+        let ldk_user_config = default_user_config();
 
         let (height, header) = ln_dlc_wallet.tip().unwrap();
         let hash = header.block_hash();
@@ -403,7 +391,6 @@ impl Node {
         channel_amount_sat: u64,
         initial_send_amount_sats: u64,
     ) -> Result<()> {
-        let user_config = default_user_config();
         let temp_channel_id = self
             .channel_manager
             .create_channel(
@@ -411,7 +398,7 @@ impl Node {
                 channel_amount_sat,
                 initial_send_amount_sats * 1000,
                 0,
-                Some(user_config),
+                None,
             )
             .map_err(|e| anyhow!("Could not create channel with {} due to {e:?}", peer))?;
 
@@ -539,13 +526,15 @@ impl Node {
 
 fn default_user_config() -> UserConfig {
     UserConfig {
-        channel_handshake_limits: ChannelHandshakeLimits {
-            trust_own_funding_0conf: false,
+        channel_handshake_config: ChannelHandshakeConfig {
+            max_inbound_htlc_value_in_flight_percent_of_channel: 50,
+            minimum_depth: 1,
             ..Default::default()
         },
-        channel_handshake_config: ChannelHandshakeConfig {
-            announced_channel: true,
-            minimum_depth: 1,
+        channel_handshake_limits: ChannelHandshakeLimits {
+            trust_own_funding_0conf: false,
+            force_announced_channel_preference: false,
+            max_minimum_depth: 1,
             ..Default::default()
         },
         // By setting `manually_accept_inbound_channels` to `true` we need to manually confirm every
