@@ -1,6 +1,7 @@
-use bdk::{
-    bitcoin, blockchain::ElectrumBlockchain, database::MemoryDatabase, electrum_client::Client,
-};
+use bdk::bitcoin;
+use bdk::blockchain::ElectrumBlockchain;
+use bdk::database::MemoryDatabase;
+use bdk::electrum_client::Client;
 use bdk_ldk::LightningWallet;
 
 #[test]

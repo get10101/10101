@@ -1,9 +1,11 @@
-use bdk::{
-    bitcoin::{BlockHeader, Script, Transaction, Txid},
-    blockchain::ElectrumBlockchain,
-    electrum_client::{self, ElectrumApi},
-    Error,
-};
+use bdk::bitcoin::BlockHeader;
+use bdk::bitcoin::Script;
+use bdk::bitcoin::Transaction;
+use bdk::bitcoin::Txid;
+use bdk::blockchain::ElectrumBlockchain;
+use bdk::electrum_client::ElectrumApi;
+use bdk::electrum_client::{self};
+use bdk::Error;
 
 /// The height and confirmation status of a transaction
 pub struct TxStatus {
