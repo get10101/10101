@@ -1285,12 +1285,14 @@ dependencies = [
  "lightning-net-tokio",
  "lightning-persister",
  "lightning-rapid-gossip-sync",
+ "log",
  "rand 0.6.5",
  "reqwest",
  "serde",
  "sha2",
  "tokio",
  "tracing",
+ "tracing-log",
  "tracing-subscriber",
 ]
 
