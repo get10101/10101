@@ -11,6 +11,7 @@ class TradeTabs extends StatelessWidget {
       this.tabBorderRadius = const BorderRadius.all(Radius.circular(50)),
       this.selectedIndex = 0,
       this.tabLabelTextOffset = 30,
+      this.topRightWidget,
       super.key});
 
   final List<String> tabs;
@@ -24,6 +25,8 @@ class TradeTabs extends StatelessWidget {
   final double tabSpacing;
   final BorderRadius tabBorderRadius;
   final int selectedIndex;
+
+  final Widget? topRightWidget;
 
   @override
   Widget build(BuildContext context) {
@@ -45,44 +48,51 @@ class TradeTabs extends StatelessWidget {
               padding: tabBarPadding,
               // Set an explicit width
               // width: appBarWidth,
-              child: TabBar(
-                  // This stops expanding the tab-bar to the right.
-                  // This lets us align the tab bar to wherever we want, because it's size is limited to the tabs that it contains.
-                  isScrollable: true,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  TabBar(
+                      // This stops expanding the tab-bar to the right.
+                      // This lets us align the tab bar to wherever we want, because it's size is limited to the tabs that it contains.
+                      isScrollable: true,
 
-                  // suppress overlay color (used for e.g. mouse-over) because it looks weird in this tab setup
-                  overlayColor: MaterialStateColor.resolveWith((states) => Colors.transparent),
+                      // suppress overlay color (used for e.g. mouse-over) because it looks weird in this tab setup
+                      overlayColor: MaterialStateColor.resolveWith((states) => Colors.transparent),
 
-                  // We don't have a bottom indicator; set to 0 to avoid it taking space when being unseleced.
-                  indicatorWeight: 0,
+                      // We don't have a bottom indicator; set to 0 to avoid it taking space when being unseleced.
+                      indicatorWeight: 0,
 
-                  // Defines the distance the tabs are apart; unfortunately there is no way to achieve this without padding; using a marin on the container breaks the dependency between the selected and unselected tab.
-                  // Padding for indicator and label have to be aligned otherwise we again break the alignment of selected and unselected tab.
-                  // We only use padding to right, otherwise the first tab is not aligned on the left.
-                  indicatorPadding: EdgeInsets.only(right: tabSpacing),
-                  labelPadding: EdgeInsets.only(right: tabSpacing),
+                      // Defines the distance the tabs are apart; unfortunately there is no way to achieve this without padding; using a marin on the container breaks the dependency between the selected and unselected tab.
+                      // Padding for indicator and label have to be aligned otherwise we again break the alignment of selected and unselected tab.
+                      // We only use padding to right, otherwise the first tab is not aligned on the left.
+                      indicatorPadding: EdgeInsets.only(right: tabSpacing),
+                      labelPadding: EdgeInsets.only(right: tabSpacing),
 
-                  // expands the pill to be the size of the tab to align with the padding
-                  indicatorSize: TabBarIndicatorSize.tab,
-                  unselectedLabelColor: tradeTheme.tabColor,
-                  indicator:
-                      BoxDecoration(borderRadius: tabBorderRadius, color: tradeTheme.tabColor),
-                  tabs: tabs
-                      .map((label) => Container(
-                            width: tabWidth,
-                            padding: tabLabelPadding,
-                            decoration: BoxDecoration(
-                                borderRadius: tabBorderRadius,
-                                border: Border.all(color: tradeTheme.tabColor, width: 1)),
-                            child: Align(
-                              alignment: Alignment.center,
-                              child: Text(
-                                label,
-                                style: textStyle,
-                              ),
-                            ),
-                          ))
-                      .toList()),
+                      // expands the pill to be the size of the tab to align with the padding
+                      indicatorSize: TabBarIndicatorSize.tab,
+                      unselectedLabelColor: tradeTheme.tabColor,
+                      indicator:
+                          BoxDecoration(borderRadius: tabBorderRadius, color: tradeTheme.tabColor),
+                      tabs: tabs
+                          .map((label) => Container(
+                                width: tabWidth,
+                                padding: tabLabelPadding,
+                                decoration: BoxDecoration(
+                                    borderRadius: tabBorderRadius,
+                                    border: Border.all(color: tradeTheme.tabColor, width: 1)),
+                                child: Align(
+                                  alignment: Alignment.center,
+                                  child: Text(
+                                    label,
+                                    style: textStyle,
+                                  ),
+                                ),
+                              ))
+                          .toList()),
+                  if (topRightWidget != null) topRightWidget!,
+                ],
+              ),
             ),
             Expanded(
               child: TabBarView(
