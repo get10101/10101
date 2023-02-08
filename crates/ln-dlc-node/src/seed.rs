@@ -43,7 +43,6 @@ impl Bip39Seed {
     }
 
     pub fn lightning_seed(&self) -> LightningSeed {
-        let x = self.mnemonic.to_seed_normalized("");
         let mut seed = [0u8; 32];
 
         Hkdf::<Sha256>::new(None, &self.seed())
