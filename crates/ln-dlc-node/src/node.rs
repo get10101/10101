@@ -2,6 +2,7 @@ use crate::disk;
 use crate::ln::event_handler::EventHandler;
 use crate::ln_dlc_wallet::LnDlcWallet;
 use crate::on_chain_wallet::OnChainWallet;
+use crate::seed::Bip39Seed;
 use crate::ChainMonitor;
 use crate::ChannelManager;
 use crate::HTLCStatus;
@@ -99,7 +100,7 @@ impl Node {
         data_dir: String,
         address: SocketAddr,
         electrs_origin: String,
-        seed: [u8; 32],
+        seed: Bip39Seed,
         ephemeral_randomness: [u8; 32],
     ) -> Self {
         let time_since_unix_epoch = SystemTime::now()
@@ -111,8 +112,12 @@ impl Node {
         // TODO: Might be better to use an in-memory persister for the tests.
         let persister = Arc::new(FilesystemPersister::new(data_dir.clone()));
 
-        let on_chain_wallet =
-            OnChainWallet::new(Path::new(&format!("{}/on_chain", data_dir)), network).unwrap();
+        let on_chain_wallet = OnChainWallet::new(
+            Path::new(&format!("{}/on_chain", data_dir)),
+            network,
+            seed.wallet_seed(),
+        )
+        .unwrap();
 
         let ln_dlc_wallet = {
             let blockchain_client = ElectrumBlockchain::from(
@@ -134,7 +139,7 @@ impl Node {
 
         let keys_manager = {
             Arc::new(CustomKeysManager::new(KeysManager::new(
-                &seed,
+                &seed.lightning_seed(),
                 time_since_unix_epoch.as_secs() as u64,
                 time_since_unix_epoch.subsec_nanos() as u32,
             )))

@@ -42,15 +42,26 @@ impl Bip39Seed {
         self.mnemonic.to_seed_normalized("")
     }
 
-    pub fn derive_extended_priv_key(&self, network: Network) -> Result<ExtendedPrivKey> {
+    pub fn lightning_seed(&self) -> LightningSeed {
+        let x = self.mnemonic.to_seed_normalized("");
+        let mut seed = [0u8; 32];
+
+        Hkdf::<Sha256>::new(None, &self.seed())
+            .expand(b"LIGHTNING_WALLET_SEED", &mut seed)
+            .expect("array is of correct length");
+        seed
+    }
+
+    pub fn wallet_seed(&self) -> WalletSeed {
         let mut ext_priv_key_seed = [0u8; 64];
 
         Hkdf::<Sha256>::new(None, &self.seed())
             .expand(b"BITCOIN_WALLET_SEED", &mut ext_priv_key_seed)
             .expect("array is of correct length");
 
-        let ext_priv_key = ExtendedPrivKey::new_master(network, &ext_priv_key_seed)?;
-        Ok(ext_priv_key)
+        WalletSeed {
+            seed: ext_priv_key_seed,
+        }
     }
 
     pub fn get_seed_phrase(&self) -> Vec<String> {
@@ -78,6 +89,17 @@ impl Bip39Seed {
     }
 }
 
+pub struct WalletSeed {
+    seed: [u8; 64],
+}
+
+impl WalletSeed {
+    pub fn derive_extended_priv_key(&self, network: Network) -> Result<ExtendedPrivKey> {
+        let ext_priv_key = ExtendedPrivKey::new_master(network, &self.seed)?;
+        Ok(ext_priv_key)
+    }
+}
+
 impl TryFrom<Vec<u8>> for Bip39Seed {
     type Error = anyhow::Error;
     fn try_from(bytes: Vec<u8>) -> Result<Self, Self::Error> {
@@ -86,8 +108,17 @@ impl TryFrom<Vec<u8>> for Bip39Seed {
     }
 }
 
+impl From<Mnemonic> for Bip39Seed {
+    fn from(mnemonic: Mnemonic) -> Self {
+        Bip39Seed { mnemonic }
+    }
+}
+
+pub type LightningSeed = [u8; 32];
+
 #[cfg(test)]
 mod tests {
+    use bip39::Mnemonic;
     use std::env::temp_dir;
 
     use crate::seed::Bip39Seed;
@@ -113,6 +144,23 @@ mod tests {
             seed_1.seed(),
             seed_2.seed(),
             "Seed derived from mnemonic should be the same"
+        );
+    }
+
+    #[test]
+    fn deterministic_seed() {
+        let mnemonic = Mnemonic::parse(
+            "rule segment glance broccoli glove seminar plunge element artist stock clown thank",
+        )
+        .unwrap();
+        let seed = Bip39Seed::from(mnemonic);
+
+        let wallet_seed = seed.seed();
+        let ln_seed = seed.lightning_seed();
+        assert_eq!(hex::encode(wallet_seed), "32ea66d60c979ec4392e6364ce3debc38823d33864dfdb31b8aef227ee60813b850be5af70a758d93e50faf9f8b9eecea0c7e928fad9a2edb6a2af1f8c1a2bfd");
+        assert_eq!(
+            hex::encode(ln_seed),
+            "1cf21ab62bf5a5ee40896158cbbc18b9ad75805e1824a252d8060c6c075b228f"
         );
     }
 }
