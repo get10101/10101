@@ -47,7 +47,25 @@ jobs:
         with:
           channel: "stable"
       - name: Install FFI bindings
+        run: cargo install flutter_rust_bridge_codegen --version 1.62.1
+      - name: Generate FFI bindings
+        run: just gen
+      - run: cargo clippy --all-targets --all-features -- -D warnings
+
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: extractions/setup-just@v1
+      - name: Setup rust toolchain
+        run: rustup show
+      - uses: Swatinem/rust-cache@v2.2.0
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: "stable"
+      - name: Install FFI bindings
         run: cargo install flutter_rust_bridge_codegen
       - name: Generate FFI bindings
         run: just gen
-      - run: cargo clippy --all-targets -- -D warnings
+      - name: Running cargo tests
+        run: cargo test

@@ -1,9 +1,9 @@
 use crate::node::Node;
 use crate::seed::Bip39Seed;
-use crate::tests::create_tmp_dir;
-use crate::tests::fund_and_mine;
-use crate::tests::init_tracing;
-use crate::tests::ELECTRS_ORIGIN;
+use crate::tests::system_tests::create_tmp_dir;
+use crate::tests::system_tests::fund_and_mine;
+use crate::tests::system_tests::init_tracing;
+use crate::tests::system_tests::ELECTRS_ORIGIN;
 use bitcoin::Network;
 use dlc_manager::Wallet;
 use rand::thread_rng;

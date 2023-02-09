@@ -8,7 +8,7 @@ crate-type = ["cdylib", "staticlib"]
 
 [dependencies]
 anyhow = "1"
-flutter_rust_bridge = "1"
+flutter_rust_bridge = "1.62.1"
 state = "0.5.3"
 tracing = "0.1.37"
 tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "env-filter", "time", "json"] }
