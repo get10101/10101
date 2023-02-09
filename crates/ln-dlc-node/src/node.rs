@@ -426,7 +426,8 @@ impl Node {
         Ok(())
     }
 
-    #[cfg(test)]
+    #[allow(dead_code)] // Clippy is in the wrong here, this code is being used in the system tests
+    #[cfg(feature = "system_tests")]
     pub(crate) fn channel_manager(&self) -> &ChannelManager {
         &self.channel_manager
     }
