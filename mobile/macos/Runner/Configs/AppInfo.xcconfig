@@ -8,7 +8,7 @@
 PRODUCT_NAME = 10101
 
 // The application's bundle identifier
-PRODUCT_BUNDLE_IDENTIFIER = finance.10101.app
+PRODUCT_BUNDLE_IDENTIFIER = finance.get10101.app
 
 // The copyright displayed in application information
 PRODUCT_COPYRIGHT = Copyright © 2022 com.example. All rights reserved.
