@@ -50,15 +50,15 @@ class _ReceiveScreenState extends State<ReceiveScreen> {
               child: const Text("Create Invoice")),
           SelectableText("Invoice: $invoice"),
           ElevatedButton(
-              onPressed: () async {
-                try {
-                  await api.openChannel();
-                  FLog.info(text: "Open Channel successfully started.");
-                } catch (error) {
-                  FLog.error(text: "Error: $error", exception: error);
-                }
-              },
-              child: const Text("Open Channel!"))
+            onPressed: () async {
+              try {
+                await api.openChannel();
+                FLog.info(text: "Open Channel successfully started.");
+              } catch (error) {
+                FLog.error(text: "Error: $error", exception: error);
+              }
+            },
+            child: const Text("Open Channel!"))
         ],
       )),
     );

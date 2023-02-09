@@ -21,6 +21,7 @@ import 'package:get_10101/features/trade/trade_screen.dart';
 import 'package:get_10101/features/wallet/wallet_change_notifier.dart';
 import 'package:get_10101/features/wallet/wallet_screen.dart';
 import 'package:get_10101/common/app_bar_wrapper.dart';
+import 'package:get_10101/features/wallet/wallet_theme.dart';
 import 'package:get_10101/util/constants.dart';
 import 'package:go_router/go_router.dart';
 import 'package:path_provider/path_provider.dart';
@@ -144,12 +145,16 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
 
   @override
   Widget build(BuildContext context) {
+    MaterialColor swatch = Colors.blue;
+
     return MaterialApp.router(
       title: "10101",
       theme: ThemeData(
-        primarySwatch: Colors.blue,
-        extensions: const <ThemeExtension<dynamic>>[
-          TradeTheme(),
+        primarySwatch: swatch,
+        useMaterial3: true,
+        extensions: <ThemeExtension<dynamic>>[
+          const TradeTheme(),
+          WalletTheme(colors: ColorScheme.fromSwatch(primarySwatch: swatch)),
         ],
       ),
       routerConfig: _router,

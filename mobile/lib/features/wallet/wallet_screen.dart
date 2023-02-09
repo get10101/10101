@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_speed_dial/flutter_speed_dial.dart';
-import 'package:get_10101/ffi.dart';
+import 'package:get_10101/common/amount_text.dart';
+import 'package:get_10101/common/domain/model.dart';
+import 'package:get_10101/features/wallet/balance_row.dart';
+import 'package:get_10101/features/wallet/wallet_theme.dart';
 import 'package:get_10101/features/wallet/receive_screen.dart';
 import 'package:get_10101/features/wallet/send_screen.dart';
 import 'package:get_10101/features/wallet/wallet_change_notifier.dart';
+import 'package:get_10101/ffi.dart';
 import 'package:get_10101/util/send_receive_icons.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -24,7 +28,7 @@ class _WalletScreenState extends State<WalletScreen> {
   @override
   Widget build(BuildContext context) {
     WalletChangeNotifier walletChangeNotifier = context.watch<WalletChangeNotifier>();
-    WalletInfo wallet = walletChangeNotifier.walletInfo;
+    WalletTheme theme = Theme.of(context).extension<WalletTheme>()!;
 
     return Scaffold(
       body: ListView(
@@ -40,7 +44,7 @@ class _WalletScreenState extends State<WalletScreen> {
                       const SizedBox(width: 64), // ExpansionPanelList IconContainer size: end margin 8 + padding 16*2 + size 24),
                       Expanded(
                         child: Center(child:
-                          Text("${walletChangeNotifier.onChain() + walletChangeNotifier.lightning()} sats", style: TextStyle(fontSize: 18.0))
+                          AmountText(amount: Amount(walletChangeNotifier.total()), textStyle: const TextStyle(fontSize: 20.0))
                         ),
                       )
                     ],
@@ -49,20 +53,12 @@ class _WalletScreenState extends State<WalletScreen> {
                 body: Padding(
                   padding: const EdgeInsets.only(left: 8.0, right: 8.0, bottom: 8.0),
                   child: Column(
-                    children: [
-                      Row(
-                        children: [
-                          const Expanded(child: Text("Lightning")),
-                          Text("${walletChangeNotifier.lightning()} sats", style: TextStyle(fontWeight: FontWeight.bold)),
-                        ]
-                      ),
-                      Row(
-                          children: [
-                            const Expanded(child: Text("On-chain")),
-                            Text("${walletChangeNotifier.onChain()} sats", style: TextStyle(fontWeight: FontWeight.bold)),
-                          ]
-                      )
-                    ],
+                    children: WalletType.values
+                      .map((type) => Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: BalanceRow(walletType: type),
+                      ))
+                      .toList(growable: false),
                   ),
                 ),
                 isExpanded: _isBalanceBreakdownOpen,
@@ -73,7 +69,7 @@ class _WalletScreenState extends State<WalletScreen> {
                 _isBalanceBreakdownOpen = !isOpen
               ),
           ),
-          const Divider(color: Colors.black,),
+          Divider(color: theme.dividerColor),
           ElevatedButton(
             onPressed: () {
               context.go(ReceiveScreen.route);
@@ -90,7 +86,7 @@ class _WalletScreenState extends State<WalletScreen> {
         visible: true,
         closeManually: false,
         curve: Curves.bounceIn,
-        overlayColor: Colors.black,
+        overlayColor: theme.dividerColor,
         overlayOpacity: 0.5,
         elevation: 8.0,
         shape: const CircleBorder(),

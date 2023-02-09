@@ -37,13 +37,13 @@ pub async fn refresh_wallet_info() -> WalletInfo {
         history: vec![
             Transaction {
                 address: "loremipsum".to_string(),
-                flow: Flow::Inbound,
+                flow: PaymentFlow::Inbound,
                 amount_sats: 300,
                 wallet_type: WalletType::OnChain,
             },
             Transaction {
                 address: "dolorsitamet".to_string(),
-                flow: Flow::Inbound,
+                flow: PaymentFlow::Inbound,
                 amount_sats: 104,
                 wallet_type: WalletType::Lightning,
             },
@@ -54,7 +54,7 @@ pub async fn refresh_wallet_info() -> WalletInfo {
 pub struct Transaction {
     // TODO(Restioson): newtype?
     pub address: String,
-    pub flow: Flow,
+    pub flow: PaymentFlow,
     // TODO(Restioson): newtype?
     pub amount_sats: u64,
     pub wallet_type: WalletType,
@@ -66,7 +66,7 @@ pub enum WalletType {
 }
 
 #[allow(dead_code)] // used in dart
-pub enum Flow {
+pub enum PaymentFlow {
     Inbound,
     Outbound,
 }

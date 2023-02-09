@@ -25,15 +25,11 @@ class WalletChangeNotifier extends ChangeNotifier {
       update(walletInfo);
       FLog.trace(text: 'Successfully refreshed wallet info');
     } catch (error) {
-      FLog.error(text: "Failed to get wallet info:" + error.toString());
+      FLog.error(text: "Failed to get wallet info: $error");
     }
   }
 
-  int onChain() {
-    return walletInfo.balances.onChain;
-  }
-
-  int lightning() {
-    return walletInfo.balances.lightning;
-  }
+  int total() => onChain() + lightning();
+  int onChain() => walletInfo.balances.onChain;
+  int lightning() => walletInfo.balances.lightning;
 }
