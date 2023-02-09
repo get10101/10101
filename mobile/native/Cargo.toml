@@ -8,7 +8,10 @@ crate-type = ["cdylib", "staticlib"]
 
 [dependencies]
 anyhow = "1"
+bdk = { version = "0.24.0", features = ["key-value-db"] }
 flutter_rust_bridge = "1.63.1"
+rust_decimal = { version = "1", features = ["serde-with-float"] }
+rust_decimal_macros = "1.26"
 state = "0.5.3"
 tracing = "0.1.37"
 tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "env-filter", "time", "json"] }

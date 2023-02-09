@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get_10101/features/trade/btc_usd_trading_pair_image.dart';
-import 'package:get_10101/features/trade/buy_sell_bottom_sheet.dart';
+import 'package:get_10101/features/trade/domain/direction.dart';
+import 'package:get_10101/features/trade/trade_bottom_sheet.dart';
 import 'package:get_10101/features/trade/candlestick_chart.dart';
 import 'package:get_10101/features/trade/trade_tabs.dart';
 import 'package:get_10101/features/trade/trade_theme.dart';
@@ -87,7 +88,7 @@ class _TradeScreenState extends State<TradeScreen> {
                   child: FloatingActionButton.extended(
                     heroTag: "btnBuy",
                     onPressed: () {
-                      showBuySellSheet(context: context, direction: Direction.buy);
+                      tradeBottomSheet(context: context, direction: Direction.buy);
                     },
                     label: const Text("Buy"),
                     shape: tradeButtonShape,
@@ -99,7 +100,7 @@ class _TradeScreenState extends State<TradeScreen> {
                   child: FloatingActionButton.extended(
                     heroTag: "btnSell",
                     onPressed: () {
-                      showBuySellSheet(context: context, direction: Direction.sell);
+                      tradeBottomSheet(context: context, direction: Direction.sell);
                     },
                     label: const Text("Sell"),
                     shape: tradeButtonShape,
@@ -109,41 +110,4 @@ class _TradeScreenState extends State<TradeScreen> {
           ),
         ));
   }
-}
-
-showBuySellSheet({required BuildContext context, required Direction direction}) {
-  showModalBottomSheet<void>(
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(
-        top: Radius.circular(20),
-      ),
-    ),
-    clipBehavior: Clip.antiAlias,
-    isScrollControlled: true,
-    useRootNavigator: true,
-    context: context,
-    builder: (BuildContext context) {
-      return SafeArea(
-        child: Padding(
-          // padding: MediaQuery.of(context).viewInsets,
-          padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
-          // the GestureDetector ensures that we can close the keyboard by tapping into the modal
-          child: GestureDetector(
-            onTap: () {
-              FocusScopeNode currentFocus = FocusScope.of(context);
-
-              if (!currentFocus.hasPrimaryFocus) {
-                currentFocus.unfocus();
-              }
-            },
-            child: SizedBox(
-                // TODO: Find a way to make height dynamic depending on the children size
-                // This is needed because otherwise the keyboard does not push the sheet up correctly
-                height: 400,
-                child: BuySellBottomSheet(direction: direction)),
-          ),
-        ),
-      );
-    },
-  );
 }

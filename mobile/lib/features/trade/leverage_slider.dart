@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-
 import 'package:get_10101/features/trade/trade_theme.dart';
 
 const gradientColors = <Color>[Colors.green, Colors.deepOrange];
@@ -7,10 +6,10 @@ const gradientColors = <Color>[Colors.green, Colors.deepOrange];
 const LinearGradient gradient = LinearGradient(colors: gradientColors);
 
 class LeverageSlider extends StatefulWidget {
-  const LeverageSlider({required this.onLeverageChanged, this.initialValue = 2, super.key});
-
   final double initialValue;
   final Function(double) onLeverageChanged;
+
+  const LeverageSlider({required this.onLeverageChanged, this.initialValue = 2, super.key});
 
   @override
   State<LeverageSlider> createState() => _LeverageSliderState();

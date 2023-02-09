@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' as foundation;
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge.dart';
+import 'package:get_10101/features/trade/trade_value_change_notifier.dart';
 import 'package:get_10101/features/trade/settings_screen.dart';
 import 'package:get_10101/features/trade/trade_theme.dart';
 import 'package:get_10101/features/wallet/receive_screen.dart';
@@ -11,6 +12,8 @@ import 'package:get_10101/features/wallet/send_screen.dart';
 import 'package:get_10101/features/wallet/settings_screen.dart';
 import 'package:get_10101/common/app_bar_wrapper.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+import 'common/amount_denomination_change_notifier.dart';
 import 'features/trade/trade_screen.dart';
 import 'features/wallet/wallet_screen.dart';
 import 'ffi.dart';
@@ -26,7 +29,10 @@ void main() {
   config.activeLogLevel = LogLevel.DEBUG;
 
   FLog.applyConfigurations(config);
-  runApp(const TenTenOneApp());
+  runApp(MultiProvider(providers: [
+    ChangeNotifierProvider(create: (context) => TradeValuesChangeNotifier()),
+    ChangeNotifierProvider(create: (context) => AmountDenominationChangeNotifier()),
+  ], child: const TenTenOneApp()));
 }
 
 class TenTenOneApp extends StatefulWidget {
