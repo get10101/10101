@@ -47,7 +47,7 @@ jobs:
         with:
           channel: "stable"
       - name: Install FFI bindings
-        run: cargo install flutter_rust_bridge_codegen
+        run: cargo install flutter_rust_bridge_codegen --version 1.62.1
       - name: Generate FFI bindings
         run: just gen
       - run: cargo clippy --all-targets --all-features -- -D warnings
