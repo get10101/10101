@@ -2,18 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:get_10101/features/trade/trade_theme.dart';
 
 class TradeTabs extends StatelessWidget {
-  const TradeTabs(
-      {required this.tabs,
-      required this.tabBarViewChildren,
-      this.tabLabelPadding = const EdgeInsets.symmetric(horizontal: 3.0, vertical: 3.0),
-      this.tabBarPadding = const EdgeInsets.symmetric(vertical: 10.0),
-      this.tabSpacing = 5.0,
-      this.tabBorderRadius = const BorderRadius.all(Radius.circular(50)),
-      this.selectedIndex = 0,
-      this.tabLabelTextOffset = 30,
-      this.topRightWidget,
-      super.key});
-
   final List<String> tabs;
   final List<Widget> tabBarViewChildren;
 
@@ -27,6 +15,18 @@ class TradeTabs extends StatelessWidget {
   final int selectedIndex;
 
   final Widget? topRightWidget;
+
+  const TradeTabs(
+      {required this.tabs,
+      required this.tabBarViewChildren,
+      this.tabLabelPadding = const EdgeInsets.symmetric(horizontal: 3.0, vertical: 3.0),
+      this.tabBarPadding = const EdgeInsets.symmetric(vertical: 10.0),
+      this.tabSpacing = 5.0,
+      this.tabBorderRadius = const BorderRadius.all(Radius.circular(50)),
+      this.selectedIndex = 0,
+      this.tabLabelTextOffset = 30,
+      this.topRightWidget,
+      super.key});
 
   @override
   Widget build(BuildContext context) {

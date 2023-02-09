@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get_10101/features/trade/trade_screen.dart';
 
-import '../../common/settings_screen.dart';
+import 'package:get_10101/common/settings_screen.dart';
 
 class TradeSettingsScreen extends StatelessWidget {
   static const route = "${TradeScreen.route}/$subRouteName";
