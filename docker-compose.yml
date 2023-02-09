@@ -1,0 +1,98 @@
+version: "3.8"
+services:
+  # RPC daemon
+  bitcoin:
+    image: ghcr.io/vulpemventures/bitcoin:latest
+    user: 1000:1000
+    container_name: bitcoin
+    command:
+      - -regtest=1
+      - -port=18444
+      - -rpcport=18443
+      - -txindex=1
+      - -rpcuser=admin1
+      - -rpcpassword=123
+      - -rpcallowip=0.0.0.0/0
+      - -rpcbind=0.0.0.0
+      - -fallbackfee=0.1
+    ports:
+      - 18443:18443
+      - 18444:18444
+      # ZMQ
+      - 28332:28332
+      - 28333:28333
+    volumes:
+      - bitcoin:/config
+    restart: unless-stopped
+
+  # Block explorer server
+  electrs:
+    image: ghcr.io/vulpemventures/electrs:latest
+    container_name: electrs
+    entrypoint:
+      - /build/electrs
+    command:
+      - -vvvv
+      - --network
+      - regtest
+      - --daemon-dir
+      - /config
+      - --daemon-rpc-addr
+      - bitcoin:18443
+      - --cookie
+      - admin1:123
+      - --http-addr
+      - 0.0.0.0:30000
+      - --electrum-rpc-addr
+      - 0.0.0.0:50000
+      - --cors
+      - "*"
+      - --jsonrpc-import
+    depends_on:
+      - bitcoin
+    ports:
+      - 50000:50000
+      - 30000:30000
+    volumes:
+      - bitcoin:/config
+    restart: unless-stopped
+
+  # Block explorer frontend
+  esplora:
+    image: ghcr.io/vulpemventures/esplora:latest
+    container_name: esplora
+    depends_on:
+      - chopsticks
+    environment:
+      API_URL: http://localhost:3000
+    ports:
+      - 5000:5000
+    restart: unless-stopped
+
+  # Chopsticks
+  chopsticks:
+    image: ghcr.io/vulpemventures/nigiri-chopsticks:latest
+    container_name: chopsticks
+    command:
+      - --use-faucet
+      - --use-mining
+      - --use-logger
+      - --rpc-addr
+      - bitcoin:18443
+      - --electrs-addr
+      - electrs:30000
+      - --addr
+      - 0.0.0.0:3000
+    depends_on:
+      - bitcoin
+      - electrs
+    ports:
+      - 3000:3000
+    restart: unless-stopped
+
+networks:
+  default:
+    name: nigiri
+
+volumes:
+  bitcoin:
