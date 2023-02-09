@@ -25,10 +25,11 @@ mod disk;
 mod ln;
 mod ln_dlc_wallet;
 mod logger;
-mod node;
 mod on_chain_wallet;
 mod seed;
 mod util;
+
+pub mod node;
 
 #[cfg(test)]
 mod tests;

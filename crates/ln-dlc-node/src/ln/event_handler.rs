@@ -118,7 +118,7 @@ impl lightning::util::events::EventHandler for EventHandler {
             } => {
                 tracing::info!(
                     %amount_msat,
-                    payment_hash = %hex::encode(&payment_hash.0),
+                    payment_hash = %hex::encode(payment_hash.0),
                     "Claimed payment",
                 );
 
@@ -160,11 +160,11 @@ impl lightning::util::events::EventHandler for EventHandler {
                         payment.preimage = Some(payment_preimage);
                         payment.status = HTLCStatus::Succeeded;
 
-                        let preimage_hash = hex::encode(&payment_preimage.0);
+                        let preimage_hash = hex::encode(payment_preimage.0);
                         tracing::info!(
                             amount_msat = ?payment.amt_msat.0,
                             fee_paid_msat = ?fee_paid_msat,
-                            payment_hash = %hex::encode(&payment_hash.0),
+                            payment_hash = %hex::encode(payment_hash.0),
                             %preimage_hash,
                             "\nSuccessfully sent payment",
                         );
@@ -177,7 +177,7 @@ impl lightning::util::events::EventHandler for EventHandler {
             Event::PaymentPathSuccessful { .. } => {}
             Event::PaymentPathFailed { .. } => {}
             Event::PaymentFailed { payment_hash, .. } => {
-                print!("\nEVENT: Failed to send payment to payment hash {:?}: exhausted payment retry attempts", hex::encode(&payment_hash.0));
+                print!("\nEVENT: Failed to send payment to payment hash {:?}: exhausted payment retry attempts", hex::encode(payment_hash.0));
 
                 let mut payments = self.outbound_payments.lock().unwrap();
                 if payments.contains_key(&payment_hash) {
@@ -215,7 +215,7 @@ impl lightning::util::events::EventHandler for EventHandler {
                 };
                 let channel_str = |channel_id: &Option<[u8; 32]>| {
                     channel_id
-                        .map(|channel_id| format!(" with channel {}", hex::encode(&channel_id)))
+                        .map(|channel_id| format!(" with channel {}", hex::encode(channel_id)))
                         .unwrap_or_default()
                 };
                 let from_prev_str = format!(
@@ -250,7 +250,7 @@ impl lightning::util::events::EventHandler for EventHandler {
                 let forwarding_channel_manager = self.channel_manager.clone();
                 let min = time_forwardable.as_millis() as u64;
                 tokio::spawn(async move {
-                    let millis_to_sleep = thread_rng().gen_range(min, min * 5) as u64;
+                    let millis_to_sleep = thread_rng().gen_range(min, min * 5);
                     tokio::time::sleep(Duration::from_millis(millis_to_sleep)).await;
                     forwarding_channel_manager.process_pending_htlc_forwards();
                 });

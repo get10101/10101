@@ -37,7 +37,7 @@ async fn multi_hop_payment() {
         Node::new(
             "Alice".to_string(),
             Network::Regtest,
-            &data_dir.as_path(),
+            data_dir.as_path(),
             "127.0.0.1:8010"
                 .parse()
                 .expect("Hard-coded IP and port to be valid"),
@@ -64,7 +64,7 @@ async fn multi_hop_payment() {
         Node::new(
             "Bob".to_string(),
             Network::Regtest,
-            &data_dir.as_path(),
+            data_dir.as_path(),
             "127.0.0.1:8011"
                 .parse()
                 .expect("Hard-coded IP and port to be valid"),
@@ -91,7 +91,7 @@ async fn multi_hop_payment() {
         Node::new(
             "Claire".to_string(),
             Network::Regtest,
-            &data_dir.as_path(),
+            data_dir.as_path(),
             "127.0.0.1:8012"
                 .parse()
                 .expect("Hard-coded IP and port to be valid"),

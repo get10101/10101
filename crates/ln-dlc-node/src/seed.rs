@@ -82,7 +82,7 @@ impl Bip39Seed {
             let path = path.display();
             bail!("Refusing to overwrite file at {path}")
         }
-        std::fs::write(path, &self.mnemonic.to_entropy())?;
+        std::fs::write(path, self.mnemonic.to_entropy())?;
 
         Ok(())
     }

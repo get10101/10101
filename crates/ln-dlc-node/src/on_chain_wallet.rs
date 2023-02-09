@@ -18,7 +18,7 @@ impl OnChainWallet {
     ) -> Result<OnChainWallet, anyhow::Error> {
         tracing::info!(?network, "Creating the wallet");
 
-        let data_dir = data_dir.join(&network.to_string());
+        let data_dir = data_dir.join(network.to_string());
         if !data_dir.exists() {
             std::fs::create_dir_all(&data_dir).context(format!(
                 "Could not create data dir ({data_dir:?}) for {network}"

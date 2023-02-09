@@ -56,6 +56,9 @@ use std::sync::Mutex;
 use std::time::Duration;
 use std::time::SystemTime;
 
+type TracingLoggerGossipSync =
+    Arc<P2PGossipSync<Arc<NetworkGraph>, Arc<dyn Access + Send + Sync>, Arc<TracingLogger>>>;
+
 /// An LN-DLC node.
 pub struct Node {
     network: Network,
@@ -72,8 +75,7 @@ pub struct Node {
     logger: Arc<TracingLogger>,
 
     pub info: NodeInfo,
-    gossip_sync:
-        Arc<P2PGossipSync<Arc<NetworkGraph>, Arc<dyn Access + Send + Sync>, Arc<TracingLogger>>>,
+    gossip_sync: TracingLoggerGossipSync,
     scorer: Arc<Mutex<ProbabilisticScorer<Arc<NetworkGraph>, Arc<TracingLogger>>>>,
 }
 
@@ -115,7 +117,7 @@ impl Node {
         let logger = Arc::new(TracingLogger);
 
         if !data_dir.exists() {
-            std::fs::create_dir_all(&data_dir)
+            std::fs::create_dir_all(data_dir)
                 .context(format!("Could not create data dir ({data_dir:?})"))
                 .unwrap();
         }
@@ -148,8 +150,8 @@ impl Node {
         let keys_manager = {
             Arc::new(CustomKeysManager::new(KeysManager::new(
                 &seed.lightning_seed(),
-                time_since_unix_epoch.as_secs() as u64,
-                time_since_unix_epoch.subsec_nanos() as u32,
+                time_since_unix_epoch.as_secs(),
+                time_since_unix_epoch.subsec_nanos(),
             )))
         };
 
@@ -316,7 +318,7 @@ impl Node {
 
         let peer_man = Arc::clone(&self.peer_manager);
 
-        let alias = self.alias.clone();
+        let alias = self.alias;
         tokio::spawn(async move {
             let mut interval = tokio::time::interval(Duration::from_secs(60));
             loop {
@@ -424,11 +426,12 @@ impl Node {
         Ok(())
     }
 
+    #[cfg(test)]
     pub(crate) fn channel_manager(&self) -> &ChannelManager {
         &self.channel_manager
     }
 
-    pub(crate) fn sync(&self) {
+    pub fn sync(&self) {
         let confirmables = vec![
             &*self.channel_manager as &dyn chain::Confirm,
             &*self.chain_monitor as &dyn chain::Confirm,

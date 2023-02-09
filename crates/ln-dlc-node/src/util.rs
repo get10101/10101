@@ -1,8 +1,10 @@
 #[inline]
 pub fn hex_str(value: &[u8]) -> String {
-    let mut res = String::with_capacity(64);
+    use std::fmt::Write as _; // import without risk of name clashing
+    let mut s = String::new();
+
     for v in value {
-        res += &format!("{:02x}", v);
+        let _ = write!(s, "0x{v:02x}");
     }
-    res
+    s
 }
