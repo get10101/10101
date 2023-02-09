@@ -25,7 +25,7 @@ jobs:
         run: cargo install flutter_rust_bridge_codegen --version 1.62.1
       - name: Start containers
         run: |
-          docker-compose up bitcoin electrs -d
+          docker-compose up -d chopsticks
           sleep 10 # We need to give docker a bit of time to startup
 
       - name: Test containers are up
