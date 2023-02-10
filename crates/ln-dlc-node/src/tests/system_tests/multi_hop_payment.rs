@@ -17,21 +17,18 @@ async fn multi_hop_payment() {
     let alice = setup_ln_node(
         &test_dir,
         "alice",
-        "127.0.0.1:8010",
         Bip39Seed::new().expect("A valid bip39 seed"),
     )
     .await;
     let bob = setup_ln_node(
         &test_dir,
         "bob",
-        "127.0.0.1:8011",
         Bip39Seed::new().expect("A valid bip39 seed"),
     )
     .await;
     let claire = setup_ln_node(
         &test_dir,
         "claire",
-        "127.0.0.1:8012",
         Bip39Seed::new().expect("A valid bip39 seed"),
     )
     .await;

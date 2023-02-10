@@ -9,6 +9,7 @@ use rand::thread_rng;
 use rand::RngCore;
 use serde::Serialize;
 use std::env::temp_dir;
+use std::net::TcpListener;
 use std::path::Path;
 use std::path::PathBuf;
 use std::str::FromStr;
@@ -124,16 +125,16 @@ pub fn create_tmp_dir(dir_name: &str) -> PathBuf {
     test_dir
 }
 
-pub(crate) async fn setup_ln_node(
-    test_dir: &Path,
-    node_name: &str,
-    address: &str,
-    seed: Bip39Seed,
-) -> Node {
+pub(crate) async fn setup_ln_node(test_dir: &Path, node_name: &str, seed: Bip39Seed) -> Node {
     let data_dir = test_dir.join(node_name);
 
     let mut ephemeral_randomness = [0; 32];
     thread_rng().fill_bytes(&mut ephemeral_randomness);
+
+    let address = {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        listener.local_addr().expect("To get a free local address")
+    };
 
     // todo: the tests are executed in the crates/ln-dlc-node directory, hence the folder will
     // be created there. but the creation will fail if the .ldk-data/alice/on_chain has not been
@@ -142,7 +143,7 @@ pub(crate) async fn setup_ln_node(
         node_name.to_string(),
         Network::Regtest,
         data_dir.as_path(),
-        address.parse().expect("Hard-coded IP and port to be valid"),
+        address,
         ELECTRS_ORIGIN.to_string(),
         seed,
         ephemeral_randomness,

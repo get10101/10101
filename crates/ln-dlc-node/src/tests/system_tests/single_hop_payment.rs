@@ -16,14 +16,12 @@ async fn given_sibling_channel_when_payment_then_can_be_claimed() {
     let alice = setup_ln_node(
         &test_dir,
         "alice",
-        "127.0.0.1:8005",
         Bip39Seed::new().expect("A valid bip39 seed"),
     )
     .await;
     let bob = setup_ln_node(
         &test_dir,
         "bob",
-        "127.0.0.1:8006",
         Bip39Seed::new().expect("A valid bip39 seed"),
     )
     .await;
