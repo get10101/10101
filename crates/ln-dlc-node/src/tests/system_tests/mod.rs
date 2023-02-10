@@ -1,10 +1,15 @@
 use crate::node::Node;
+use crate::seed::Bip39Seed;
 use anyhow::anyhow;
 use anyhow::Result;
+use bitcoin::Network;
 use dlc_manager::Oracle;
 use dlc_manager::Wallet;
+use rand::thread_rng;
+use rand::RngCore;
 use serde::Serialize;
 use std::env::temp_dir;
+use std::path::Path;
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::Once;
@@ -117,4 +122,30 @@ pub fn create_tmp_dir(dir_name: &str) -> PathBuf {
     // TODO: why can't we use tracing here?
     println!("Current test dir location {test_dir_str}");
     test_dir
+}
+
+pub(crate) async fn setup_ln_node(
+    test_dir: &Path,
+    node_name: &str,
+    address: &str,
+    seed: Bip39Seed,
+) -> Node {
+    let data_dir = test_dir.join(node_name);
+
+    let mut ephemeral_randomness = [0; 32];
+    thread_rng().fill_bytes(&mut ephemeral_randomness);
+
+    // todo: the tests are executed in the crates/ln-dlc-node directory, hence the folder will
+    // be created there. but the creation will fail if the .ldk-data/alice/on_chain has not been
+    // created before.
+    Node::new(
+        node_name.to_string(),
+        Network::Regtest,
+        data_dir.as_path(),
+        address.parse().expect("Hard-coded IP and port to be valid"),
+        ELECTRS_ORIGIN.to_string(),
+        seed,
+        ephemeral_randomness,
+    )
+    .await
 }

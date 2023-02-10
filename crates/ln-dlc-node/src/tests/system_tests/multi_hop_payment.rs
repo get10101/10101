@@ -3,12 +3,8 @@ use crate::seed::Bip39Seed;
 use crate::tests::system_tests::create_tmp_dir;
 use crate::tests::system_tests::fund_and_mine;
 use crate::tests::system_tests::init_tracing;
-use crate::tests::system_tests::ELECTRS_ORIGIN;
-use bip39::Mnemonic;
-use bitcoin::Network;
+use crate::tests::system_tests::setup_ln_node;
 use dlc_manager::Wallet;
-use rand::thread_rng;
-use rand::RngCore;
 use std::time::Duration;
 
 #[tokio::test]
@@ -17,90 +13,29 @@ async fn multi_hop_payment() {
 
     let test_dir = create_tmp_dir("multi_hop_test");
 
-    // 1. Set up two LN-DLC nodes.
-    let alice = {
-        let data_dir = test_dir.join("alice");
+    // 1. Set up three LN-DLC nodes.
+    let alice = setup_ln_node(
+        &test_dir,
+        "alice",
+        "127.0.0.1:8010",
+        Bip39Seed::new().expect("A valid bip39 seed"),
+    )
+    .await;
+    let bob = setup_ln_node(
+        &test_dir,
+        "bob",
+        "127.0.0.1:8011",
+        Bip39Seed::new().expect("A valid bip39 seed"),
+    )
+    .await;
+    let claire = setup_ln_node(
+        &test_dir,
+        "claire",
+        "127.0.0.1:8012",
+        Bip39Seed::new().expect("A valid bip39 seed"),
+    )
+    .await;
 
-        let seed = Bip39Seed::from(
-            Mnemonic::parse(
-                "tray lift outside jump romance whale bag snake gadget disease chunk erupt",
-            )
-            .expect("To be a valid mnemonic"),
-        );
-
-        let mut ephemeral_randomness = [0; 32];
-        thread_rng().fill_bytes(&mut ephemeral_randomness);
-
-        // todo: the tests are executed in the crates/ln-dlc-node directory, hence the folder will
-        // be created there. but the creation will fail if the .ldk-data/alice/on_chain has not been
-        // created before.
-        Node::new(
-            "Alice".to_string(),
-            Network::Regtest,
-            data_dir.as_path(),
-            "127.0.0.1:8010"
-                .parse()
-                .expect("Hard-coded IP and port to be valid"),
-            ELECTRS_ORIGIN.to_string(),
-            seed,
-            ephemeral_randomness,
-        )
-        .await
-    };
-
-    let bob = {
-        let data_dir = test_dir.join("bob");
-
-        let seed = Bip39Seed::from(
-            Mnemonic::parse(
-                "wish wealth video hello nose local ordinary nasty aisle behave casino fog",
-            )
-            .expect("To be a valid mnemonic"),
-        );
-
-        let mut ephemeral_randomness = [0; 32];
-        thread_rng().fill_bytes(&mut ephemeral_randomness);
-
-        Node::new(
-            "Bob".to_string(),
-            Network::Regtest,
-            data_dir.as_path(),
-            "127.0.0.1:8011"
-                .parse()
-                .expect("Hard-coded IP and port to be valid"),
-            ELECTRS_ORIGIN.to_string(),
-            seed,
-            ephemeral_randomness,
-        )
-        .await
-    };
-
-    let claire = {
-        let data_dir = test_dir.join("claire");
-
-        let seed = Bip39Seed::from(
-            Mnemonic::parse(
-                "stay mistake gas defy bleak whisper empower elephant gate priority craft earth",
-            )
-            .expect("To be a valid mnemonic"),
-        );
-
-        let mut ephemeral_randomness = [0; 32];
-        thread_rng().fill_bytes(&mut ephemeral_randomness);
-
-        Node::new(
-            "Claire".to_string(),
-            Network::Regtest,
-            data_dir.as_path(),
-            "127.0.0.1:8012"
-                .parse()
-                .expect("Hard-coded IP and port to be valid"),
-            ELECTRS_ORIGIN.to_string(),
-            seed,
-            ephemeral_randomness,
-        )
-        .await
-    };
     tracing::info!("Alice: {}", alice.info);
     tracing::info!("Bob: {}", bob.info);
     tracing::info!("Claire: {}", claire.info);

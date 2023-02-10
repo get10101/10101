@@ -1,13 +1,9 @@
-use crate::node::Node;
 use crate::seed::Bip39Seed;
 use crate::tests::system_tests::create_tmp_dir;
 use crate::tests::system_tests::fund_and_mine;
 use crate::tests::system_tests::init_tracing;
-use crate::tests::system_tests::ELECTRS_ORIGIN;
-use bitcoin::Network;
+use crate::tests::system_tests::setup_ln_node;
 use dlc_manager::Wallet;
-use rand::thread_rng;
-use rand::RngCore;
 use std::time::Duration;
 
 #[tokio::test]
@@ -17,53 +13,23 @@ async fn given_sibling_channel_when_payment_then_can_be_claimed() {
     let test_dir = create_tmp_dir("single_hop_test");
 
     // 1. Set up two LN-DLC nodes.
-    let alice = {
-        let data_dir = test_dir.join("alice");
+    let alice = setup_ln_node(
+        &test_dir,
+        "alice",
+        "127.0.0.1:8005",
+        Bip39Seed::new().expect("A valid bip39 seed"),
+    )
+    .await;
+    let bob = setup_ln_node(
+        &test_dir,
+        "bob",
+        "127.0.0.1:8006",
+        Bip39Seed::new().expect("A valid bip39 seed"),
+    )
+    .await;
 
-        let seed = Bip39Seed::new().expect("A valid bip39 seed");
-
-        let mut ephemeral_randomness = [0; 32];
-        thread_rng().fill_bytes(&mut ephemeral_randomness);
-
-        // todo: the tests are executed in the crates/ln-dlc-node directory, hence the folder will
-        // be created there. but the creation will fail if the .ldk-data/alice/on_chain has not been
-        // created before.
-        Node::new(
-            "Alice".to_string(),
-            Network::Regtest,
-            data_dir.as_path(),
-            "127.0.0.1:8005"
-                .parse()
-                .expect("Hard-coded IP and port to be valid"),
-            ELECTRS_ORIGIN.to_string(),
-            seed,
-            ephemeral_randomness,
-        )
-        .await
-    };
     tracing::info!("Alice: {}", alice.info);
-
-    let bob = {
-        let data_dir = test_dir.join("bob");
-        let seed = Bip39Seed::new().expect("A valid bip39 seed");
-
-        let mut ephemeral_randomness = [0; 32];
-        thread_rng().fill_bytes(&mut ephemeral_randomness);
-
-        Node::new(
-            "Bob".to_string(),
-            Network::Regtest,
-            data_dir.as_path(),
-            "127.0.0.1:8006"
-                .parse()
-                .expect("Hard-coded IP and port to be valid"),
-            ELECTRS_ORIGIN.to_string(),
-            seed,
-            ephemeral_randomness,
-        )
-        .await
-    };
-    tracing::info!("Bob: {}", bob.info);
+    tracing::info!("Bob: {}", alice.info);
 
     let _alice_bg = alice.start().await.unwrap();
     let _bob_bg = bob.start().await.unwrap();
