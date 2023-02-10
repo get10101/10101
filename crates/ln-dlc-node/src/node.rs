@@ -561,7 +561,7 @@ fn default_user_config() -> UserConfig {
             their_to_self_delay: 2016,
             ..Default::default()
         },
-        accept_forwards_to_priv_channels: false,
+        accept_forwards_to_priv_channels: true,
         ..Default::default()
     }
 }
