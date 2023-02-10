@@ -1,7 +1,8 @@
-use crate::node::Node;
 use crate::tests::system_tests::create_tmp_dir;
 use crate::tests::system_tests::fund_and_mine;
+use crate::tests::system_tests::has_channel;
 use crate::tests::system_tests::init_tracing;
+use crate::tests::system_tests::log_channel_id;
 use crate::tests::system_tests::setup_ln_node;
 use dlc_manager::Wallet;
 use std::time::Duration;
@@ -131,30 +132,4 @@ async fn multi_hop_payment() {
     tracing::info!(?balance, "Claire's wallet balance");
 
     assert_eq!(balance.available, invoice_amount)
-}
-
-fn has_channel(source_node: &Node, target_node: &Node) -> bool {
-    source_node
-        .channel_manager()
-        .list_channels()
-        .iter()
-        .any(|channel| {
-            channel.counterparty.node_id == target_node.channel_manager().get_our_node_id()
-                && channel.is_usable
-        })
-}
-
-fn log_channel_id(node: &Node, index: usize, pair: &str) {
-    let details = node
-        .channel_manager()
-        .list_channels()
-        .get(index)
-        .unwrap()
-        .clone();
-
-    let channel_id = hex::encode(details.channel_id);
-    let short_channel_id = details.short_channel_id.unwrap();
-    let is_ready = details.is_channel_ready;
-    let is_usable = details.is_usable;
-    tracing::info!(channel_id, short_channel_id, is_ready, is_usable, "{pair}");
 }

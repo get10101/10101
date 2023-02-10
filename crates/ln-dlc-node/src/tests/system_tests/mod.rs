@@ -152,3 +152,29 @@ pub(crate) async fn setup_ln_node(test_dir: &Path, node_name: &str) -> Node {
     )
     .await
 }
+
+pub(crate) fn has_channel(source_node: &Node, target_node: &Node) -> bool {
+    source_node
+        .channel_manager()
+        .list_channels()
+        .iter()
+        .any(|channel| {
+            channel.counterparty.node_id == target_node.channel_manager().get_our_node_id()
+                && channel.is_usable
+        })
+}
+
+pub(crate) fn log_channel_id(node: &Node, index: usize, pair: &str) {
+    let details = node
+        .channel_manager()
+        .list_channels()
+        .get(index)
+        .unwrap()
+        .clone();
+
+    let channel_id = hex::encode(details.channel_id);
+    let short_channel_id = details.short_channel_id.unwrap();
+    let is_ready = details.is_channel_ready;
+    let is_usable = details.is_usable;
+    tracing::info!(channel_id, short_channel_id, is_ready, is_usable, "{pair}");
+}
