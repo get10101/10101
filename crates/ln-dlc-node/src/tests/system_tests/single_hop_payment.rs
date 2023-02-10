@@ -1,4 +1,3 @@
-use crate::seed::Bip39Seed;
 use crate::tests::system_tests::create_tmp_dir;
 use crate::tests::system_tests::fund_and_mine;
 use crate::tests::system_tests::init_tracing;
@@ -13,18 +12,8 @@ async fn given_sibling_channel_when_payment_then_can_be_claimed() {
     let test_dir = create_tmp_dir("single_hop_test");
 
     // 1. Set up two LN-DLC nodes.
-    let alice = setup_ln_node(
-        &test_dir,
-        "alice",
-        Bip39Seed::new().expect("A valid bip39 seed"),
-    )
-    .await;
-    let bob = setup_ln_node(
-        &test_dir,
-        "bob",
-        Bip39Seed::new().expect("A valid bip39 seed"),
-    )
-    .await;
+    let alice = setup_ln_node(&test_dir, "alice").await;
+    let bob = setup_ln_node(&test_dir, "bob").await;
 
     tracing::info!("Alice: {}", alice.info);
     tracing::info!("Bob: {}", alice.info);

@@ -1,5 +1,4 @@
 use crate::node::Node;
-use crate::seed::Bip39Seed;
 use crate::tests::system_tests::create_tmp_dir;
 use crate::tests::system_tests::fund_and_mine;
 use crate::tests::system_tests::init_tracing;
@@ -14,24 +13,9 @@ async fn multi_hop_payment() {
     let test_dir = create_tmp_dir("multi_hop_test");
 
     // 1. Set up three LN-DLC nodes.
-    let alice = setup_ln_node(
-        &test_dir,
-        "alice",
-        Bip39Seed::new().expect("A valid bip39 seed"),
-    )
-    .await;
-    let bob = setup_ln_node(
-        &test_dir,
-        "bob",
-        Bip39Seed::new().expect("A valid bip39 seed"),
-    )
-    .await;
-    let claire = setup_ln_node(
-        &test_dir,
-        "claire",
-        Bip39Seed::new().expect("A valid bip39 seed"),
-    )
-    .await;
+    let alice = setup_ln_node(&test_dir, "alice").await;
+    let bob = setup_ln_node(&test_dir, "bob").await;
+    let claire = setup_ln_node(&test_dir, "claire").await;
 
     tracing::info!("Alice: {}", alice.info);
     tracing::info!("Bob: {}", bob.info);

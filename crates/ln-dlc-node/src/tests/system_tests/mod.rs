@@ -125,8 +125,10 @@ pub fn create_tmp_dir(dir_name: &str) -> PathBuf {
     test_dir
 }
 
-pub(crate) async fn setup_ln_node(test_dir: &Path, node_name: &str, seed: Bip39Seed) -> Node {
+pub(crate) async fn setup_ln_node(test_dir: &Path, node_name: &str) -> Node {
     let data_dir = test_dir.join(node_name);
+
+    let seed = Bip39Seed::new().expect("A valid bip39 seed");
 
     let mut ephemeral_randomness = [0; 32];
     thread_rng().fill_bytes(&mut ephemeral_randomness);
