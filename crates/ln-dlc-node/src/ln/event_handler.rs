@@ -52,14 +52,9 @@ impl EventHandler {
             outbound_payments,
         }
     }
-}
 
-impl lightning::util::events::EventHandler for EventHandler {
-    fn handle_event(&self, event: Event) {
-        tracing::info!(?event, "Received event");
-
-        self.runtime_handle.block_on(async {
-            match event {
+    fn match_event(&self, event: Event) {
+        match event {
             Event::FundingGenerationReady {
                 temporary_channel_id,
                 counterparty_node_id,
@@ -237,12 +232,17 @@ impl lightning::util::events::EventHandler for EventHandler {
                 if let Some(fee_earned) = fee_earned_msat {
                     tracing::info!(
                         "Forwarded payment{}{}, earning {} msat {}",
-                        from_prev_str, to_next_str, fee_earned, from_onchain_str
+                        from_prev_str,
+                        to_next_str,
+                        fee_earned,
+                        from_onchain_str
                     );
                 } else {
                     tracing::info!(
                         "Forwarded payment{}{}, claiming onchain {}",
-                        from_prev_str, to_next_str, from_onchain_str
+                        from_prev_str,
+                        to_next_str,
+                        from_onchain_str
                     );
                 }
             }
@@ -306,7 +306,9 @@ impl lightning::util::events::EventHandler for EventHandler {
                 tracing::info!(%payment_hash, %amount_msat, "Received payment");
 
                 let payment_preimage = match purpose {
-                    PaymentPurpose::InvoicePayment { payment_preimage, .. } => payment_preimage,
+                    PaymentPurpose::InvoicePayment {
+                        payment_preimage, ..
+                    } => payment_preimage,
                     PaymentPurpose::SpontaneousPayment(preimage) => Some(preimage),
                 };
                 self.channel_manager.claim_funds(payment_preimage.unwrap());
@@ -319,6 +321,14 @@ impl lightning::util::events::EventHandler for EventHandler {
                 expected_outbound_amount_msat: _,
             } => todo!(),
         }
-        })
+    }
+}
+
+impl lightning::util::events::EventHandler for EventHandler {
+    fn handle_event(&self, event: Event) {
+        tracing::info!(?event, "Received event");
+
+        self.runtime_handle
+            .block_on(async { self.match_event(event) })
     }
 }
