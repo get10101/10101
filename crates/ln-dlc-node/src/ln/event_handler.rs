@@ -166,8 +166,31 @@ impl EventHandler {
                     }
                 }
             }
-            Event::OpenChannelRequest { .. } => {
-                // Unreachable, we don't set manually_accept_inbound_channels
+            Event::OpenChannelRequest {
+                temporary_channel_id,
+                counterparty_node_id,
+                funding_satoshis,
+                push_msat,
+                ..
+            } => {
+                // TODO: only accept 0-conf from the coordinator.
+                // right now we are using the same conf for app and coordinator, meaning this will
+                // be called for both. We however do not want to accept 0-conf channels from someone
+                // outside of our domain.
+                let counterparty = counterparty_node_id.to_string();
+                tracing::info!(
+                    counterparty,
+                    funding_satoshis,
+                    push_msat,
+                    "Accepting 0-conf channel request"
+                );
+                self.channel_manager
+                    .accept_inbound_channel_from_trusted_peer_0conf(
+                        &temporary_channel_id,
+                        &counterparty_node_id,
+                        0,
+                    )
+                    .expect("To be able to accept a 0-conf channel");
             }
             Event::PaymentPathSuccessful { .. } => {}
             Event::PaymentPathFailed { .. } => {}

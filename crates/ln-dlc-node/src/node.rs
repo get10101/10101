@@ -556,12 +556,14 @@ fn default_user_config() -> UserConfig {
         },
         channel_handshake_limits: ChannelHandshakeLimits {
             max_minimum_depth: 1,
+            trust_own_funding_0conf: true,
             force_announced_channel_preference: false,
             // lnd's max to_self_delay is 2016, so we want to be compatible.
             their_to_self_delay: 2016,
             ..Default::default()
         },
         accept_forwards_to_priv_channels: true,
+        manually_accept_inbound_channels: true,
         ..Default::default()
     }
 }
