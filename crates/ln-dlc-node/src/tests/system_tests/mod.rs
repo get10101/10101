@@ -177,5 +177,15 @@ pub(crate) fn log_channel_id(node: &Node, index: usize, pair: &str) {
     let short_channel_id = details.short_channel_id.unwrap();
     let is_ready = details.is_channel_ready;
     let is_usable = details.is_usable;
-    tracing::info!(channel_id, short_channel_id, is_ready, is_usable, "{pair}");
+    let inbound = details.inbound_capacity_msat;
+    let outbound = details.outbound_capacity_msat;
+    tracing::info!(
+        channel_id,
+        short_channel_id,
+        is_ready,
+        is_usable,
+        inbound,
+        outbound,
+        "{pair}"
+    );
 }
