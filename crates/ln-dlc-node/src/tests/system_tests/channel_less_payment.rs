@@ -34,7 +34,6 @@ async fn given_no_channel_with_coordinator_when_invoice_generated_then_can_be_pa
     tokio::time::sleep(Duration::from_secs(2)).await;
     alice.keep_connected(coordinator.info).await.unwrap();
     bob.keep_connected(coordinator.info).await.unwrap();
-    alice.keep_connected(bob.info).await.unwrap();
 
     // 3. Fund the Bitcoin wallets of the nodes who will open a channel.
     {
