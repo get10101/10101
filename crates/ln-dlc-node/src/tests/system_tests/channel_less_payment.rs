@@ -70,10 +70,8 @@ async fn given_no_channel_with_coordinator_when_invoice_generated_then_can_be_pa
         .expect("To be a valid address");
     fund_and_mine(address.clone(), bitcoin::Amount::from_sat(1000)).await;
 
-    // Add 5 confirmations for the channel to get announced.
-    for _ in 1..6 {
-        fund_and_mine(address.clone(), bitcoin::Amount::from_sat(1000)).await;
-    }
+    // Add 1 confirmations for the channel to get announced.
+    fund_and_mine(address.clone(), bitcoin::Amount::from_sat(1000)).await;
 
     tokio::time::sleep(Duration::from_secs(2)).await;
 
