@@ -42,7 +42,7 @@ jobs:
           username: ${{ github.repository }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - run: cargo build --release
+      - run: cargo build --release --bin coordinator --target-dir ./target
 
       - uses: docker/metadata-action@v4
         id: meta
