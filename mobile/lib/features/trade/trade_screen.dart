@@ -1,22 +1,21 @@
 import 'package:flutter/material.dart';
+import 'package:get_10101/common/submission_status_dialog.dart';
+import 'package:get_10101/common/value_data_row.dart';
 import 'package:get_10101/features/trade/btc_usd_trading_pair_image.dart';
 import 'package:get_10101/features/trade/domain/direction.dart';
+import 'package:get_10101/features/trade/submit_order_change_notifier.dart';
 import 'package:get_10101/features/trade/trade_bottom_sheet.dart';
 import 'package:get_10101/features/trade/candlestick_chart.dart';
 import 'package:get_10101/features/trade/trade_tabs.dart';
 import 'package:get_10101/features/trade/trade_theme.dart';
+import 'package:provider/provider.dart';
 
-class TradeScreen extends StatefulWidget {
+class TradeScreen extends StatelessWidget {
   static const route = "/trade";
   static const label = "Trade";
 
   const TradeScreen({Key? key}) : super(key: key);
 
-  @override
-  State<TradeScreen> createState() => _TradeScreenState();
-}
-
-class _TradeScreenState extends State<TradeScreen> {
   @override
   Widget build(BuildContext context) {
     TradeTheme tradeTheme = Theme.of(context).extension<TradeTheme>()!;
@@ -31,6 +30,66 @@ class _TradeScreenState extends State<TradeScreen> {
     );
 
     const double tradeButtonWidth = 100.0;
+
+    SubmitOrderChangeNotifier submitOrderChangeNotifier =
+        context.watch<SubmitOrderChangeNotifier>();
+
+    if (submitOrderChangeNotifier.pendingOrder != null &&
+        submitOrderChangeNotifier.pendingOrder!.state == PendingOrderState.submitting) {
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        return await showDialog(
+            context: context,
+            useRootNavigator: true,
+            builder: (BuildContext context) {
+              return Selector<SubmitOrderChangeNotifier, PendingOrderState>(
+                selector: (_, provider) => provider.pendingOrder!.state,
+                builder: (context, state, child) {
+                  const String title = "Submit Order";
+                  Widget body = Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      SizedBox(
+                        width: 200,
+                        child: Wrap(
+                          runSpacing: 10,
+                          children: [
+                            ValueDataRow(
+                                type: ValueType.amount,
+                                value: submitOrderChangeNotifier.pendingOrderValues?.margin,
+                                label: "Margin"),
+                            ValueDataRow(
+                                type: ValueType.amount,
+                                value: submitOrderChangeNotifier.pendingOrderValues?.fee,
+                                label: "Fee")
+                          ],
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.only(top: 20, left: 10, right: 10, bottom: 5),
+                        child: Text(
+                            "Your Position will be shown automatically in the Orders tab once your ${submitOrderChangeNotifier.pendingOrderValues?.direction.name} order has been filled!",
+                            style: DefaultTextStyle.of(context).style.apply(fontSizeFactor: 1.0)),
+                      )
+                    ],
+                  );
+
+                  switch (state) {
+                    case PendingOrderState.submitting:
+                      return SubmissionStatusDialog(
+                          title: title, type: SubmissionStatusDialogType.pending, content: body);
+                    case PendingOrderState.submittedSuccessfully:
+                      return SubmissionStatusDialog(
+                          title: title, type: SubmissionStatusDialogType.success, content: body);
+                    case PendingOrderState.submissionFailed:
+                      // TODO: This failure case has to be handled differently; are we planning to show orders that failed to submit in the order history?
+                      return SubmissionStatusDialog(
+                          title: title, type: SubmissionStatusDialogType.failure, content: body);
+                  }
+                },
+              );
+            });
+      });
+    }
 
     return Scaffold(
         body: Container(
