@@ -17,9 +17,9 @@ async fn given_no_channel_with_coordinator_when_invoice_generated_then_can_be_pa
     let test_dir = create_tmp_dir("channel_less_payment");
 
     // 1. Set up three LN-DLC nodes.
-    let alice = setup_ln_node(&test_dir, "alice").await;
-    let coordinator = setup_ln_node(&test_dir, "coordinator").await;
-    let bob = setup_ln_node(&test_dir, "bob").await;
+    let alice = setup_ln_node(&test_dir, "alice", false).await;
+    let coordinator = setup_ln_node(&test_dir, "coordinator", true).await;
+    let bob = setup_ln_node(&test_dir, "bob", false).await;
 
     tracing::info!("alice: {}", alice.info);
     tracing::info!("coordinator: {}", coordinator.info);

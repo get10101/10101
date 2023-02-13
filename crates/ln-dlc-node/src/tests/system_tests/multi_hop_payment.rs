@@ -14,9 +14,9 @@ async fn multi_hop_payment() {
     let test_dir = create_tmp_dir("multi_hop_test");
 
     // 1. Set up three LN-DLC nodes.
-    let alice = setup_ln_node(&test_dir, "alice").await;
-    let bob = setup_ln_node(&test_dir, "bob").await;
-    let claire = setup_ln_node(&test_dir, "claire").await;
+    let alice = setup_ln_node(&test_dir, "alice", false).await;
+    let bob = setup_ln_node(&test_dir, "bob", true).await;
+    let claire = setup_ln_node(&test_dir, "claire", false).await;
 
     tracing::info!("Alice: {}", alice.info);
     tracing::info!("Bob: {}", bob.info);
