@@ -400,7 +400,32 @@ impl EventHandler {
                     expected_outbound_amount_msat,
                     "Intercepted HTLC"
                 );
-                // TODO: check if there is a channel present
+
+                // if we have already a channel with them, we try to forward the payment.
+                // TODO: here we would need to increase the channel size if the channel is too small
+                if let Some(channel) =
+                    self.channel_manager
+                        .list_channels()
+                        .iter()
+                        .find(|channel_details| {
+                            if let Some(scid) = channel_details.short_channel_id {
+                                scid == requested_next_hop_scid
+                            } else {
+                                false
+                            }
+                        })
+                {
+                    self.channel_manager
+                        .forward_intercepted_htlc(
+                            intercept_id,
+                            &channel.channel_id,
+                            channel.counterparty.node_id,
+                            expected_outbound_amount_msat,
+                        )
+                        .expect("Payment to succeed");
+                    return;
+                }
+
                 let cid = self
                     .channel_manager
                     .create_channel(*target_node_id, expected_outbound_amount_msat, 0, 0, None)
