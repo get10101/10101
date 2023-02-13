@@ -1,0 +1,59 @@
+= ADR 006 - Just-in-time channels
+Philipp Hoenisch <philipp@10101.finance>
+3.0, July 29, 2022: AsciiDoc article template
+:toc:
+:icons: font
+:attributes: 2023-02-13
+
+Status: Draft
+
+This document contains a description about the protocol we use for channel-less payments.
+
+== Decision
+
+Due to technical reasons in rust-lightning we opted for the following protocol:
+
+. Alice tells the coordinator that she is expecting a payment. The coordinator generates a `fake_channel_id`
+. Alice generates an invoice which includes a routing hint using this fake channel id
+. Alice gives the invoice to Bob
+. Bob pays the invoice
+. The coordinator intercepts this payment and checks for known `fake_channel_ids`
+. The coordinator opens a channel
+. Once the channel is open, the coordinator forwards the payment
+
+[source,mermaid]
+----
+sequenceDiagram
+
+title Payment Flow
+
+participant Alice
+participant Coordinator
+participant Bob
+
+Alice->>Coordinator: tells she is expecting a payment
+Coordinator->>Coordinator: generates `fake_channel_id`
+Coordinator->>Alice: fake_channel_id
+Alice->>Alice: generates invoice with routing hint using `fake_channel_id`
+Alice->>Bob: invoice
+Bob->>Bob: pays invoice
+Bob->>Coordinator: payment
+Coordinator->>Coordinator: intercepts payment
+Coordinator->>Coordinator: checks for known fake_channel_id
+Coordinator->>Coordinator: opens channel
+Coordinator->>Alice: payment
+----
+
+== Context
+
+We want to offer to the users of the 10101-app a great UX when initially transferring funds into the wallet.
+For example, Alice uses 10101 and wants to receive a payment from Bob via the coordinator but does not yet have a channel open with the coordinator.
+To receive the payment, the coordinator will have to intercept the payment, create a channel on-the-fly to Alice and then forward the payment.
+
+The same feature slightly adapted can be used later-on when receiving funds which exceed the in-bound channel capacity.
+
+=== Options considered
+
+We initially thought that for the described feature above, no communication is needed between the coordinator and the payee (Alice in the scenario above).
+However, due to technical constraints in https://github.com/lightningdevkit/rust-lightning/blob/a1f7cbb572fa50dcb933bb162facb5ce2cd82576/lightning/src/util/events.rs#L753-L784[rust-lightning], we do not learn about the next hop ID.
+Instead, a fake channel id (scid) needs to be generated in advance which needs to be included as a routing hint in the invoice passed to the payer.
