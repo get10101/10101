@@ -139,9 +139,6 @@ pub(crate) async fn setup_ln_node(test_dir: &Path, node_name: &str) -> Node {
         listener.local_addr().expect("To get a free local address")
     };
 
-    // todo: the tests are executed in the crates/ln-dlc-node directory, hence the folder will
-    // be created there. but the creation will fail if the .ldk-data/alice/on_chain has not been
-    // created before.
     Node::new(
         node_name.to_string(),
         Network::Regtest,
