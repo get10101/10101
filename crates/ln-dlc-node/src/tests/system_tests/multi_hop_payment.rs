@@ -114,6 +114,8 @@ async fn multi_hop_payment() {
 
     tracing::info!(?invoice);
 
+    tokio::time::sleep(Duration::from_secs(5)).await;
+
     // 6. Pay the invoice.
     alice.send_payment(&invoice).unwrap();
 

@@ -14,7 +14,7 @@ async fn given_no_channel_with_coordinator_when_invoice_generated_then_can_be_pa
 ) {
     init_tracing();
 
-    let test_dir = create_tmp_dir("multi_hop_test");
+    let test_dir = create_tmp_dir("channel_less_payment");
 
     // 1. Set up three LN-DLC nodes.
     let alice = setup_ln_node(&test_dir, "alice").await;
