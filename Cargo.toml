@@ -3,9 +3,14 @@ members = ["coordinator", "mobile/native/", "crates/*"]
 resolver = "2"
 
 [patch.crates-io]
+bip39 = { git = "https://github.com/get10101/rust-bip39", rev = "991760d3364a9cb18d8ff89ac6ad1abef2ed333f" } # Until https://github.com/rust-bitcoin/rust-bip39/pull/38 is merged and released
 dlc-manager = { git = "https://github.com/get10101/rust-dlc", rev = "3c57f779a1c6f10db19630af7e8d34a69d0e4c39" }
 dlc-messages = { git = "https://github.com/get10101/rust-dlc", rev = "3c57f779a1c6f10db19630af7e8d34a69d0e4c39" }
+dlc = { git = "https://github.com/get10101/rust-dlc", rev = "3c57f779a1c6f10db19630af7e8d34a69d0e4c39" }
 dlc-sled-storage-provider = { git = "https://github.com/get10101/rust-dlc", rev = "3c57f779a1c6f10db19630af7e8d34a69d0e4c39" }
+p2pd-oracle-client = { git = "https://github.com/get10101/rust-dlc", rev = "3c57f779a1c6f10db19630af7e8d34a69d0e4c39" }
+dlc-trie = { git = "https://github.com/get10101/rust-dlc", rev = "3c57f779a1c6f10db19630af7e8d34a69d0e4c39" }
+simple-wallet = { git = "https://github.com/get10101/rust-dlc", rev = "3c57f779a1c6f10db19630af7e8d34a69d0e4c39" }
 lightning = { git = "https://github.com/get10101/rust-lightning/", rev = "77fc8a11b0f10fb7e31f246b59a37455d4f0d41d" }
 lightning-background-processor = { git = "https://github.com/get10101/rust-lightning/", rev = "77fc8a11b0f10fb7e31f246b59a37455d4f0d41d" }
 lightning-block-sync = { git = "https://github.com/get10101/rust-lightning/", rev = "77fc8a11b0f10fb7e31f246b59a37455d4f0d41d" }

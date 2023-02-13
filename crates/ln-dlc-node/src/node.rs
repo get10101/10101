@@ -6,14 +6,15 @@ use crate::on_chain_wallet::OnChainWallet;
 use crate::seed::Bip39Seed;
 use crate::ChainMonitor;
 use crate::ChannelManager;
+use crate::DlcManager;
 use crate::FakeChannelPaymentRequests;
 use crate::HTLCStatus;
 use crate::InvoicePayer;
 use crate::NetworkGraph;
 use crate::PaymentInfoStorage;
 use crate::PeerManager;
+use crate::SubChannelManager;
 use anyhow::anyhow;
-use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
 use bdk::blockchain::ElectrumBlockchain;
@@ -23,9 +24,13 @@ use bitcoin::hashes::Hash;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::secp256k1::Secp256k1;
 use bitcoin::Network;
+use dlc_manager::contract::contract_input::ContractInput;
 use dlc_manager::custom_signer::CustomKeysManager;
+use dlc_manager::Oracle;
+use dlc_manager::SystemTimeProvider;
 use dlc_messages::message_handler::MessageHandler as DlcMessageHandler;
-use futures::Future;
+use dlc_messages::sub_channel::SubChannelMessage;
+use dlc_sled_storage_provider::SledStorageProvider;
 use lightning::chain;
 use lightning::chain::chainmonitor;
 use lightning::chain::keysinterface::KeysInterface;
@@ -34,6 +39,7 @@ use lightning::chain::keysinterface::Recipient;
 use lightning::chain::Access;
 use lightning::chain::BestBlock;
 use lightning::ln::channelmanager::ChainParameters;
+use lightning::ln::channelmanager::ChannelDetails;
 use lightning::ln::channelmanager::MIN_CLTV_EXPIRY_DELTA;
 use lightning::ln::msgs::NetAddress;
 use lightning::ln::peer_handler::IgnoringMessageHandler;
@@ -55,17 +61,20 @@ use lightning_invoice::Currency;
 use lightning_invoice::Invoice;
 use lightning_invoice::InvoiceBuilder;
 use lightning_persister::FilesystemPersister;
+use p2pd_oracle_client::P2PDOracleClient;
 use std::collections::HashMap;
 use std::fmt;
 use std::fmt::Display;
 use std::fmt::Formatter;
+use std::fs;
 use std::net::SocketAddr;
 use std::path::Path;
-use std::pin::Pin;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::time::Duration;
 use std::time::SystemTime;
+
+mod connection;
 
 type TracingLoggerGossipSync =
     Arc<P2PGossipSync<Arc<NetworkGraph>, Arc<dyn Access + Send + Sync>, Arc<TracingLogger>>>;
@@ -76,9 +85,9 @@ pub struct Node {
 
     pub wallet: Arc<LnDlcWallet>,
     alias: [u8; 32],
-    peer_manager: Arc<PeerManager>,
+    pub(crate) peer_manager: Arc<PeerManager>,
     invoice_payer: Arc<InvoicePayer<EventHandler>>,
-    channel_manager: Arc<ChannelManager>,
+    pub(crate) channel_manager: Arc<ChannelManager>,
     chain_monitor: Arc<ChainMonitor>,
     persister: Arc<FilesystemPersister>,
     keys_manager: Arc<CustomKeysManager>,
@@ -89,6 +98,14 @@ pub struct Node {
     gossip_sync: TracingLoggerGossipSync,
     scorer: Arc<Mutex<ProbabilisticScorer<Arc<NetworkGraph>, Arc<TracingLogger>>>>,
     fake_channel_payments: FakeChannelPaymentRequests,
+
+    pub(crate) dlc_manager: Arc<DlcManager>,
+    sub_channel_manager: Arc<SubChannelManager>,
+    pub(crate) oracle: Arc<P2PDOracleClient>,
+    dlc_message_handler: Arc<DlcMessageHandler>,
+
+    #[cfg(test)]
+    pub(crate) user_config: UserConfig,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -109,8 +126,9 @@ impl Display for NodeInfo {
     }
 }
 
-/// Liquidity-based routing fee in millionths of a routed amount. In other words, 10000 is 1%.
-const MILLIONTH_ROUTING_FEE: u32 = 20000;
+/// Liquidity-based routing fee in millionths of a routed amount. In
+/// other words, 10000 is 1%.
+pub(crate) const LIQUIDITY_ROUTING_FEE_MILLIONTHS: u32 = 20_000;
 
 impl Node {
     /// Constructs a new node to be run as the app
@@ -168,7 +186,7 @@ impl Node {
     // the persistence layer. But we're not there yet because we're still copying convenient code
     // from `ldk-sample` which involves IO.
     #[allow(clippy::too_many_arguments)]
-    async fn new(
+    pub(crate) async fn new(
         alias: String,
         network: Network,
         data_dir: &Path,
@@ -193,6 +211,11 @@ impl Node {
         let persister_path = data_dir.as_os_str().to_str().unwrap();
         let persister = Arc::new(FilesystemPersister::new(persister_path.to_string()));
 
+        let storage = Arc::new(
+            SledStorageProvider::new(data_dir.to_str().expect("data_dir"))
+                .expect("to be able to create sled storage"),
+        );
+
         let on_chain_dir = data_dir.join("on_chain");
         let on_chain_wallet =
             OnChainWallet::new(on_chain_dir.as_path(), network, seed.wallet_seed()).unwrap();
@@ -204,6 +227,7 @@ impl Node {
             Arc::new(LnDlcWallet::new(
                 Box::new(blockchain_client),
                 on_chain_wallet.inner,
+                storage.clone(),
             ))
         };
 
@@ -229,8 +253,6 @@ impl Node {
         let channel_manager = {
             let chain_params = ChainParameters {
                 network,
-                // TODO: This needs to be fetched from electrs if the node is restarted. Also, I'm
-                // not sure if the genesis block with a block height of 0 is a valid `BestBlock`
                 best_block: BestBlock::new(hash, height),
             };
             Arc::new(ChannelManager::new(
@@ -263,13 +285,11 @@ impl Node {
 
         let peer_manager: Arc<PeerManager> = Arc::new(PeerManager::new(
             lightning_msg_handler,
-            keys_manager
-                .get_node_secret(chain::keysinterface::Recipient::Node)
-                .unwrap(),
+            keys_manager.get_node_secret(Recipient::Node).unwrap(),
             time_since_unix_epoch.as_secs() as u32,
             &ephemeral_randomness,
             logger.clone(),
-            dlc_message_handler,
+            dlc_message_handler.clone(),
         ));
 
         let scorer_path = data_dir.join("scorer");
@@ -326,6 +346,44 @@ impl Node {
             bytes
         };
 
+        let offers_path = data_dir.join("offers");
+        fs::create_dir_all(offers_path).expect("Error creating offered contract directory");
+
+        let p2pdoracle = tokio::task::spawn_blocking(move || {
+            Arc::new(
+                P2PDOracleClient::new("https://oracle.holzeis.me/")
+                    .expect("to be able to create the p2pd oracle"),
+            )
+        })
+        .await
+        .unwrap();
+
+        let oracle_pubkey = p2pdoracle.get_public_key();
+        let oracles = HashMap::from([(oracle_pubkey, p2pdoracle.clone())]);
+
+        let dlc_manager = Arc::new(
+            DlcManager::new(
+                ln_dlc_wallet.clone(),
+                ln_dlc_wallet.clone(),
+                storage.clone(),
+                oracles,
+                Arc::new(SystemTimeProvider {}),
+                ln_dlc_wallet.clone(),
+            )
+            .unwrap(),
+        );
+
+        let sub_channel_manager = Arc::new(SubChannelManager::new(
+            Secp256k1::new(),
+            ln_dlc_wallet.clone(),
+            channel_manager.clone(),
+            storage,
+            ln_dlc_wallet.clone(),
+            dlc_manager.clone(),
+            ln_dlc_wallet.clone(),
+            height as u64,
+        ));
+
         Self {
             network,
             wallet: ln_dlc_wallet,
@@ -344,6 +402,12 @@ impl Node {
                 address,
             },
             fake_channel_payments,
+            sub_channel_manager,
+            oracle: p2pdoracle,
+            dlc_message_handler,
+            dlc_manager,
+            #[cfg(test)]
+            user_config: ldk_user_config,
         }
     }
 
@@ -414,82 +478,15 @@ impl Node {
         Ok(background_processor)
     }
 
-    async fn connect(
-        peer_manager: Arc<PeerManager>,
-        peer: NodeInfo,
-    ) -> Result<Pin<Box<impl Future<Output = ()>>>> {
-        let connection_closed_future =
-            lightning_net_tokio::connect_outbound(peer_manager.clone(), peer.pubkey, peer.address)
-                .await
-                .context("Failed to connect to counterparty")?;
-
-        let mut connection_closed_future = Box::pin(connection_closed_future);
-        while !Self::is_connected(&peer_manager, peer.pubkey) {
-            if futures::poll!(&mut connection_closed_future).is_ready() {
-                bail!("Peer disconnected before we finished the handshake");
-            }
-
-            tracing::debug!(%peer, "Waiting to establish connection");
-            tokio::time::sleep(Duration::from_secs(1)).await;
-        }
-
-        tracing::info!(%peer, "Connection established");
-        Ok(connection_closed_future)
-    }
-
-    // todo: That might be better placed in a dedicated connection manager file.
-    pub async fn keep_connected(&self, peer: NodeInfo) -> Result<()> {
-        let peer_manager = self.peer_manager.clone();
-        tokio::spawn({
-            async move {
-                // initial connection retry
-                let mut connection_closed_future = loop {
-                    match Self::connect(peer_manager.clone(), peer).await {
-                        Ok(fut) => break fut,
-                        Err(e) => {
-                            tracing::error!(%peer, "Establishing connection failed because {e:#}");
-                            tokio::time::sleep(Duration::from_secs(10)).await;
-                            continue;
-                        }
-                    }
-                };
-
-                // keep alive
-                loop {
-                    tracing::debug!(%peer, "Keeping connection alive");
-
-                    connection_closed_future.await;
-                    tracing::debug!(%peer, "Connection lost");
-
-                    loop {
-                        match Self::connect(peer_manager.clone(), peer).await {
-                            Ok(fut) => {
-                                connection_closed_future = fut;
-                                break;
-                            }
-                            Err(_) => continue,
-                        }
-                    }
-                }
-            }
-        });
-
-        Ok(())
-    }
-
-    fn is_connected(peer_manager: &Arc<PeerManager>, pubkey: PublicKey) -> bool {
-        peer_manager
-            .get_peer_node_ids()
-            .iter()
-            .any(|id| *id == pubkey)
-    }
-
-    pub fn open_channel(
+    /// Initiates the open channel protocol.
+    ///
+    /// Returns a temporary channel ID as a 32-byte long array.
+    pub fn initiate_open_channel(
         &self,
         peer: NodeInfo,
         channel_amount_sat: u64,
         initial_send_amount_sats: u64,
-    ) -> Result<()> {
+    ) -> Result<[u8; 32]> {
         let temp_channel_id = self
             .channel_manager
             .create_channel(
@@ -501,16 +498,13 @@ impl Node {
             )
             .map_err(|e| anyhow!("Could not create channel with {} due to {e:?}", peer))?;
 
-        let temp_channel_id = hex::encode(temp_channel_id);
-        tracing::info!(%peer, %temp_channel_id, "Started channel creation");
+        tracing::info!(
+            %peer,
+            temp_channel_id = %hex::encode(temp_channel_id),
+            "Started channel creation"
+        );
 
-        Ok(())
-    }
-
-    #[allow(dead_code)] // Clippy is in the wrong here, this code is being used in the system tests
-    #[cfg(feature = "system_tests")]
-    pub(crate) fn channel_manager(&self) -> &ChannelManager {
-        &self.channel_manager
+        Ok(temp_channel_id)
     }
 
     pub fn sync(&self) {
@@ -542,7 +536,7 @@ impl Node {
         .map_err(|e| anyhow!(e))
     }
 
-    ///  Creates an invoice which is meant to be intercepted
+    /// Creates an invoice which is meant to be intercepted
     ///
     /// Doing so we need to pass in `intercepted_channel_id` which needs to be generated by the
     /// intercepting node. This information, in combination with `hop_before_me` is used to add a
@@ -570,9 +564,11 @@ impl Node {
             .private_route(RouteHint(vec![RouteHintHop {
                 src_node_id: hop_before_me,
                 short_channel_id: intercepted_channel_id,
+                // QUESTION: What happens if these differ with the actual values
+                // in the `ChannelConfig` for the private channel?
                 fees: RoutingFees {
                     base_msat: 1000,
-                    proportional_millionths: MILLIONTH_ROUTING_FEE,
+                    proportional_millionths: LIQUIDITY_ROUTING_FEE_MILLIONTHS,
                 },
                 cltv_expiry_delta: MIN_CLTV_EXPIRY_DELTA,
                 htlc_minimum_msat: None,
@@ -688,9 +684,107 @@ impl Node {
             .insert(intercept_scid, target_node);
         intercept_scid
     }
+
+    pub async fn propose_dlc_channel(
+        &self,
+        channel_details: &ChannelDetails,
+        contract_input: &ContractInput,
+    ) -> Result<()> {
+        let announcement = tokio::task::spawn_blocking({
+            let oracle = self.oracle.clone();
+            let event_id = contract_input.contract_infos[0].oracles.event_id.clone();
+            move || {
+                oracle
+                    .get_announcement(&event_id)
+                    .map_err(|e| anyhow!(e.to_string()))
+            }
+        })
+        .await??;
+
+        let sub_channel_offer = self
+            .sub_channel_manager
+            .offer_sub_channel(
+                &channel_details.channel_id,
+                contract_input,
+                &[vec![announcement]],
+            )
+            .unwrap();
+
+        self.dlc_message_handler.send_subchannel_message(
+            channel_details.counterparty.node_id,
+            SubChannelMessage::Request(sub_channel_offer),
+        );
+
+        Ok(())
+    }
+
+    pub fn initiate_accept_dlc_channel_offer(&self, channel_id: &[u8; 32]) -> Result<()> {
+        let channel_id_hex = hex::encode(channel_id);
+
+        tracing::info!(channel_id = %channel_id_hex, "Accepting DLC channel offer");
+
+        let (node_id, accept_sub_channel) = self
+            .sub_channel_manager
+            .accept_sub_channel(channel_id)
+            .map_err(|e| anyhow!(e.to_string()))?;
+
+        self.dlc_message_handler
+            .send_subchannel_message(node_id, SubChannelMessage::Accept(accept_sub_channel));
+
+        Ok(())
+    }
+
+    pub fn process_incoming_messages(&self) -> Result<()> {
+        let messages = self.dlc_message_handler.get_and_clear_received_messages();
+
+        for (node_id, msg) in messages {
+            tracing::debug!(from = %node_id, "Processing DLC-manager message");
+            let resp = self
+                .dlc_manager
+                .on_dlc_message(&msg, node_id)
+                .map_err(|e| anyhow!(e.to_string()))?;
+
+            if let Some(msg) = resp {
+                tracing::debug!(to = %node_id, "Sending DLC-manager message");
+                self.dlc_message_handler.send_message(node_id, msg);
+            }
+        }
+
+        let sub_channel_messages = self
+            .dlc_message_handler
+            .get_and_clear_received_sub_channel_messages();
+
+        for (node_id, msg) in sub_channel_messages {
+            tracing::debug!(
+                from = %node_id,
+                msg = %sub_channel_message_as_str(&msg),
+                "Processing sub-channel message"
+            );
+            let resp = self
+                .sub_channel_manager
+                .on_sub_channel_message(&msg, &node_id)
+                .map_err(|e| anyhow!(e.to_string()))?;
+
+            if let Some(msg) = resp {
+                tracing::debug!(
+                    to = %node_id,
+                    msg = %sub_channel_message_as_str(&msg),
+                    "Sending sub-channel message"
+                );
+                self.dlc_message_handler
+                    .send_subchannel_message(node_id, msg);
+            }
+        }
+
+        if self.dlc_message_handler.has_pending_messages() {
+            self.peer_manager.process_events();
+        }
+
+        Ok(())
+    }
 }
 
-fn app_config() -> UserConfig {
+pub(crate) fn app_config() -> UserConfig {
     UserConfig {
         channel_handshake_config: ChannelHandshakeConfig {
             // this is needed as otherwise the config between the coordinator and us diverges and we
@@ -714,7 +808,7 @@ fn app_config() -> UserConfig {
     }
 }
 
-fn coordinator_config() -> UserConfig {
+pub(crate) fn coordinator_config() -> UserConfig {
     UserConfig {
         channel_handshake_config: ChannelHandshakeConfig {
             announced_channel: true,
@@ -736,5 +830,21 @@ fn coordinator_config() -> UserConfig {
         accept_forwards_to_priv_channels: true,
         manually_accept_inbound_channels: true,
         ..Default::default()
+    }
+}
+
+fn sub_channel_message_as_str(msg: &SubChannelMessage) -> &str {
+    use SubChannelMessage::*;
+
+    match msg {
+        Request(_) => "Request",
+        Accept(_) => "Accept",
+        Confirm(_) => "Confirm",
+        Finalize(_) => "Finalize",
+        CloseOffer(_) => "CloseOffer",
+        CloseAccept(_) => "CloseAccept",
+        CloseConfirm(_) => "CloseConfirm",
+        CloseFinalize(_) => "CloseFinalize",
+        CloseReject(_) => "CloseReject",
     }
 }
