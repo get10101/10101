@@ -194,10 +194,10 @@ packages:
     dependency: "direct main"
     description:
       name: flutter_rust_bridge
-      sha256: "5aea0f3980dcd314f1890ef0d2392263817899cc15e543734b5d4dbe66b761eb"
+      sha256: f8f96059ffea18260c4009c3bc476f6300cf19fc180c89c7caf095bb8e30b4b7
       url: "https://pub.dev"
     source: hosted
-    version: "1.62.0"
+    version: "1.63.1"
   flutter_speed_dial:
     dependency: "direct main"
     description:
