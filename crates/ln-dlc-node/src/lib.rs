@@ -1,10 +1,12 @@
 use crate::logger::TracingLogger;
+use bitcoin::secp256k1::PublicKey;
 use dlc_manager::custom_signer::CustomKeysManager;
 use dlc_manager::custom_signer::CustomSigner;
 use dlc_messages::message_handler::MessageHandler as DlcMessageHandler;
 use lightning::chain;
 use lightning::chain::chainmonitor;
 use lightning::chain::Filter;
+use lightning::ln::channelmanager::InterceptId;
 use lightning::ln::peer_handler::IgnoringMessageHandler;
 use lightning::ln::PaymentHash;
 use lightning::ln::PaymentPreimage;
@@ -77,7 +79,10 @@ type Router = DefaultRouter<
 
 type NetworkGraph = gossip::NetworkGraph<Arc<TracingLogger>>;
 
+type RequestedScid = u64;
 type PaymentInfoStorage = Arc<Mutex<HashMap<PaymentHash, PaymentInfo>>>;
+type FakeChannelPaymentRequests = Arc<Mutex<HashMap<RequestedScid, PublicKey>>>;
+type PendingInterceptedHtlcs = Arc<Mutex<HashMap<PublicKey, (InterceptId, u64)>>>;
 
 struct PaymentInfo {
     preimage: Option<PaymentPreimage>,

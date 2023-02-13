@@ -16,6 +16,7 @@ use std::str::FromStr;
 use std::sync::Once;
 use std::time::Duration;
 
+mod channel_less_payment;
 mod multi_hop_payment;
 mod single_hop_payment;
 
