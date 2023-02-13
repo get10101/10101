@@ -18,7 +18,8 @@ use lightning::util::events::PaymentPurpose;
 use rand::thread_rng;
 use rand::Rng;
 use std::collections::hash_map::Entry;
-use std::sync::Arc;
+use std::sync::mpsc::Sender;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tokio::runtime;
 
@@ -30,8 +31,10 @@ pub struct EventHandler {
     keys_manager: Arc<CustomKeysManager>,
     inbound_payments: PaymentInfoStorage,
     outbound_payments: PaymentInfoStorage,
+    event_subscriber: Mutex<Sender<Event>>,
 }
 
+#[allow(clippy::too_many_arguments)]
 impl EventHandler {
     pub(crate) fn new(
         runtime_handle: runtime::Handle,
@@ -41,6 +44,7 @@ impl EventHandler {
         keys_manager: Arc<CustomKeysManager>,
         inbound_payments: PaymentInfoStorage,
         outbound_payments: PaymentInfoStorage,
+        event_subscriber: Mutex<Sender<Event>>,
     ) -> Self {
         Self {
             runtime_handle,
@@ -50,6 +54,7 @@ impl EventHandler {
             keys_manager,
             inbound_payments,
             outbound_payments,
+            event_subscriber,
         }
     }
 }
@@ -57,6 +62,10 @@ impl EventHandler {
 impl lightning::util::events::EventHandler for EventHandler {
     fn handle_event(&self, event: Event) {
         tracing::info!(?event, "Received event");
+        let event_subscriber = self.event_subscriber.lock().unwrap();
+        event_subscriber
+            .send(event.clone())
+            .expect("To be able to forward the event");
 
         self.runtime_handle.block_on(async {
             match event {

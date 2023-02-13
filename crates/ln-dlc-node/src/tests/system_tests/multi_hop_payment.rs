@@ -7,8 +7,12 @@ use crate::tests::system_tests::ELECTRS_ORIGIN;
 use bip39::Mnemonic;
 use bitcoin::Network;
 use dlc_manager::Wallet;
+use lightning::util::events::Event;
 use rand::thread_rng;
 use rand::RngCore;
+use std::sync::mpsc::channel;
+use std::sync::mpsc::Receiver;
+use std::sync::mpsc::Sender;
 use std::time::Duration;
 
 #[tokio::test]
@@ -16,6 +20,11 @@ async fn multi_hop_payment() {
     init_tracing();
 
     let test_dir = create_tmp_dir("multi_hop_test");
+
+    let (alice_events_sender, _alice_events_receiver): (Sender<Event>, Receiver<Event>) = channel();
+    let (bob_events_sender, _bob_events_receiver): (Sender<Event>, Receiver<Event>) = channel();
+    let (claire_events_sender, _claire_events_receiver): (Sender<Event>, Receiver<Event>) =
+        channel();
 
     // 1. Set up two LN-DLC nodes.
     let alice = {
@@ -44,6 +53,7 @@ async fn multi_hop_payment() {
             ELECTRS_ORIGIN.to_string(),
             seed,
             ephemeral_randomness,
+            alice_events_sender,
         )
         .await
     };
@@ -71,6 +81,7 @@ async fn multi_hop_payment() {
             ELECTRS_ORIGIN.to_string(),
             seed,
             ephemeral_randomness,
+            bob_events_sender,
         )
         .await
     };
@@ -98,6 +109,7 @@ async fn multi_hop_payment() {
             ELECTRS_ORIGIN.to_string(),
             seed,
             ephemeral_randomness,
+            claire_events_sender,
         )
         .await
     };

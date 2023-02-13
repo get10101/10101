@@ -37,6 +37,7 @@ use lightning::routing::scoring::ProbabilisticScorer;
 use lightning::util::config::ChannelHandshakeConfig;
 use lightning::util::config::ChannelHandshakeLimits;
 use lightning::util::config::UserConfig;
+use lightning::util::events::Event;
 use lightning_background_processor::BackgroundProcessor;
 use lightning_background_processor::GossipSync;
 use lightning_invoice::payment;
@@ -51,6 +52,7 @@ use std::fmt::Formatter;
 use std::net::SocketAddr;
 use std::path::Path;
 use std::pin::Pin;
+use std::sync::mpsc::Sender;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::time::Duration;
@@ -97,6 +99,7 @@ impl Display for NodeInfo {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 impl Node {
     // I'd like this to be a pure function and to be able to pass in anything that was loaded from
     // the persistence layer. But we're not there yet because we're still copying convenient code
@@ -109,6 +112,7 @@ impl Node {
         electrs_origin: String,
         seed: Bip39Seed,
         ephemeral_randomness: [u8; 32],
+        event_subscriber: Sender<Event>,
     ) -> Self {
         let time_since_unix_epoch = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)
@@ -235,6 +239,7 @@ impl Node {
                 keys_manager.clone(),
                 inbound_payments,
                 outbound_payments,
+                Mutex::new(event_subscriber),
             )
         };
 

@@ -6,8 +6,12 @@ use crate::tests::system_tests::init_tracing;
 use crate::tests::system_tests::ELECTRS_ORIGIN;
 use bitcoin::Network;
 use dlc_manager::Wallet;
+use lightning::util::events::Event;
 use rand::thread_rng;
 use rand::RngCore;
+use std::sync::mpsc::channel;
+use std::sync::mpsc::Receiver;
+use std::sync::mpsc::Sender;
 use std::time::Duration;
 
 #[tokio::test]
@@ -15,6 +19,9 @@ async fn given_sibling_channel_when_payment_then_can_be_claimed() {
     init_tracing();
 
     let test_dir = create_tmp_dir("single_hop_test");
+
+    let (alice_events_sender, _alice_events_receiver): (Sender<Event>, Receiver<Event>) = channel();
+    let (bob_events_sender, _bob_events_receiver): (Sender<Event>, Receiver<Event>) = channel();
 
     // 1. Set up two LN-DLC nodes.
     let alice = {
@@ -38,6 +45,7 @@ async fn given_sibling_channel_when_payment_then_can_be_claimed() {
             ELECTRS_ORIGIN.to_string(),
             seed,
             ephemeral_randomness,
+            alice_events_sender,
         )
         .await
     };
@@ -60,6 +68,7 @@ async fn given_sibling_channel_when_payment_then_can_be_claimed() {
             ELECTRS_ORIGIN.to_string(),
             seed,
             ephemeral_randomness,
+            bob_events_sender,
         )
         .await
     };
