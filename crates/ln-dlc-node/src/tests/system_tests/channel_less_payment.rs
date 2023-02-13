@@ -48,10 +48,6 @@ async fn given_no_channel_with_coordinator_when_invoice_generated_then_can_be_pa
         // we need to wait here for the wallet to sync properly
         tokio::time::sleep(Duration::from_secs(5)).await;
 
-        alice.sync();
-        let balance = alice.wallet.inner().get_balance().unwrap();
-        tracing::info!(%balance, "Alice's wallet balance");
-
         coordinator.sync();
         let balance = coordinator.wallet.inner().get_balance().unwrap();
         tracing::info!(%balance, "coordinator's wallet balance");
