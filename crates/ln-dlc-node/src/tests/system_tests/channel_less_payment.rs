@@ -29,7 +29,7 @@ async fn given_no_channel_with_coordinator_when_invoice_generated_then_can_be_pa
     let _coordinator_bg = coordinator.start().await.unwrap();
     let _bob_bg = bob.start().await.unwrap();
 
-    // 2. Connect the two nodes.
+    // 2. Connect the nodes.
 
     tokio::time::sleep(Duration::from_secs(2)).await;
     alice.keep_connected(coordinator.info).await.unwrap();
