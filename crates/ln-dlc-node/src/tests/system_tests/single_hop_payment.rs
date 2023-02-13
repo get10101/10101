@@ -20,7 +20,7 @@ async fn given_sibling_channel_when_payment_then_can_be_claimed() {
 
     let test_dir = create_tmp_dir("single_hop_test");
 
-    let (alice_events_sender, _alice_events_receiver): (Sender<Event>, Receiver<Event>) = channel();
+    let (alice_events_sender, alice_events_receiver): (Sender<Event>, Receiver<Event>) = channel();
     let (bob_events_sender, _bob_events_receiver): (Sender<Event>, Receiver<Event>) = channel();
 
     // 1. Set up two LN-DLC nodes.
@@ -100,24 +100,22 @@ async fn given_sibling_channel_when_payment_then_can_be_claimed() {
     let address = alice.wallet.get_new_address().unwrap();
     fund_and_mine(address.clone(), bitcoin::Amount::from_sat(1000)).await;
 
-    tokio::time::sleep(Duration::from_secs(2)).await;
-
-    // TODO: it would be nicer if we could hook that assertion to the corresponding event received
-    // through the event handler.
+    let mut iter = alice_events_receiver.try_iter();
     loop {
-        alice.sync();
-        bob.sync();
-
-        tracing::debug!("Checking if channel is open yet");
-
-        if bob.channel_manager().list_channels().iter().any(|channel| {
-            channel.counterparty.node_id == alice.channel_manager().get_our_node_id()
-                && channel.is_usable
-        }) {
-            break;
+        match iter.next() {
+            Some(event) => {
+                if let Event::ChannelReady { .. } = event {
+                    println!("Channel ready mate");
+                    break;
+                }
+            }
+            None => {
+                println!("Waiting for next event");
+                alice.sync();
+                bob.sync();
+                tokio::time::sleep(Duration::from_secs(1)).await;
+            }
         }
-
-        tokio::time::sleep(Duration::from_secs(2)).await;
     }
 
     tracing::info!("Channel open");
