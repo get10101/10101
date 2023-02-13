@@ -25,7 +25,7 @@ jobs:
         uses: baptiste0928/cargo-install@v1
         with:
           crate: flutter_rust_bridge_codegen
-          version: "1.62.1"
+          version: "1.63.1"
       - name: Start containers
         run: |
           docker-compose up bitcoin electrs -d

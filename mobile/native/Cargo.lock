@@ -166,7 +166,7 @@ dependencies = [
 
 [[package]]
 name = "flutter_rust_bridge"
-version = "1.61.1"
+version = "1.61.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8079119bbe8fb63d7ebb731fa2aa68c6c8375f4ac95ca26d5868e64c0f4b9244"
 dependencies = [
@@ -190,7 +190,7 @@ dependencies = [
 
 [[package]]
 name = "flutter_rust_bridge_macros"
-version = "1.61.1"
+version = "1.61.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8d5cd827645690ef378be57a890d0581e17c28d07b712872af7d744f454fd27d"
 
