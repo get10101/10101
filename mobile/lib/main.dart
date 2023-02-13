@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' as foundation;
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge.dart';
+import 'package:get_10101/features/trade/submit_order_change_notifier.dart';
 import 'package:get_10101/features/trade/trade_value_change_notifier.dart';
 import 'package:get_10101/features/trade/settings_screen.dart';
 import 'package:get_10101/features/trade/trade_theme.dart';
@@ -32,6 +33,7 @@ void main() {
   runApp(MultiProvider(providers: [
     ChangeNotifierProvider(create: (context) => TradeValuesChangeNotifier()),
     ChangeNotifierProvider(create: (context) => AmountDenominationChangeNotifier()),
+    ChangeNotifierProvider(create: (context) => SubmitOrderChangeNotifier()),
   ], child: const TenTenOneApp()));
 }
 

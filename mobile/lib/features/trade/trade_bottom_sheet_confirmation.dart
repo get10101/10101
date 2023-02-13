@@ -5,8 +5,10 @@ import 'package:get_10101/common/value_data_row.dart';
 import 'package:get_10101/features/trade/btc_usd_trading_pair_image.dart';
 import 'package:get_10101/features/trade/domain/direction.dart';
 import 'package:get_10101/features/trade/domain/trade_values.dart';
+import 'package:get_10101/features/trade/submit_order_change_notifier.dart';
 import 'package:get_10101/features/trade/trade_theme.dart';
 import 'package:get_10101/features/trade/trade_value_change_notifier.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:slide_to_confirm/slide_to_confirm.dart';
 
@@ -117,10 +119,13 @@ class TradeBottomSheetConfirmation extends StatelessWidget {
                 color: Colors.white,
                 size: 20,
               ),
-              onConfirmation: () {
-                // TODO: Is there a better way to navigate to the trade screen?
-                Navigator.pop(context);
-                Navigator.pop(context);
+              onConfirmation: () async {
+                context.read<SubmitOrderChangeNotifier>().submitPendingOrder(tradeValues);
+
+                // TODO: Explore if it would be easier / better handle the popups as routes
+                // Pop twice to navigate back to the trade screen.
+                GoRouter.of(context).pop();
+                GoRouter.of(context).pop();
               },
             )
           ],
