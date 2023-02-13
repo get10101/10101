@@ -1,0 +1,30 @@
+= ADR XXX - Title
+Author Firstname <your@email.address>
+:toc:
+:icons: font
+:attributes: yyyy-mm-dd
+
+Status: Draft/Proposed/Adopted/Superseded
+
+== Decision
+
+The decision that has been taken in a few sentences.
+
+== Context
+
+The forces and current contextual circumstances which have necessitated this decision.
+
+== Options considered
+
+Each option considered, described briefly, with pros and cons. (Typically the option proposed / adopted comes first in this list).
+
+== Consequences
+
+The ramifications of this decision, both positive and negative.
+
+== Advice
+
+This reflects the raw outputs from following the Advice Process.
+It is here that all advice given is recorded.
+This ought to include the name of the advice giver, and the date the advice was given.
+

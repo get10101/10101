@@ -7,3 +7,9 @@ This is an overview of all documents related to 10101.
 
 == Architecture Decision Records (ADR)
 
+. link:../docs/001-ci-strategy.adoc[ADR-001 CI Strategy]
+. link:../docs/002-database.adoc[ADR-002 Databases]
+. link:../docs/003-onchain-monitoring.adoc[ADR-003 On-chain monitoring]
+. link:../docs/004-solution-architecture.adoc[ADR-004 Solution Architecture]
+. link:../docs/005-mobile-app-routing.adoc[ADR-005 Mobile App Routing]
+. link:../docs/006-just-in-time-channels.adoc[ADR-006 Just-in-time channels]

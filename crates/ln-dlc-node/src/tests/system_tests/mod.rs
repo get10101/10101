@@ -1,15 +1,22 @@
 use crate::node::Node;
+use crate::seed::Bip39Seed;
 use anyhow::anyhow;
 use anyhow::Result;
+use bitcoin::Network;
 use dlc_manager::Oracle;
 use dlc_manager::Wallet;
+use rand::thread_rng;
+use rand::RngCore;
 use serde::Serialize;
 use std::env::temp_dir;
+use std::net::TcpListener;
+use std::path::Path;
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::Once;
 use std::time::Duration;
 
+mod channel_less_payment;
 mod multi_hop_payment;
 mod single_hop_payment;
 
@@ -117,4 +124,68 @@ pub fn create_tmp_dir(dir_name: &str) -> PathBuf {
     // TODO: why can't we use tracing here?
     println!("Current test dir location {test_dir_str}");
     test_dir
+}
+
+pub(crate) async fn setup_ln_node(test_dir: &Path, node_name: &str) -> Node {
+    let data_dir = test_dir.join(node_name);
+
+    let seed = Bip39Seed::new().expect("A valid bip39 seed");
+
+    let mut ephemeral_randomness = [0; 32];
+    thread_rng().fill_bytes(&mut ephemeral_randomness);
+
+    let address = {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        listener.local_addr().expect("To get a free local address")
+    };
+
+    // todo: the tests are executed in the crates/ln-dlc-node directory, hence the folder will
+    // be created there. but the creation will fail if the .ldk-data/alice/on_chain has not been
+    // created before.
+    Node::new(
+        node_name.to_string(),
+        Network::Regtest,
+        data_dir.as_path(),
+        address,
+        ELECTRS_ORIGIN.to_string(),
+        seed,
+        ephemeral_randomness,
+    )
+    .await
+}
+
+pub(crate) fn has_channel(source_node: &Node, target_node: &Node) -> bool {
+    source_node
+        .channel_manager()
+        .list_channels()
+        .iter()
+        .any(|channel| {
+            channel.counterparty.node_id == target_node.channel_manager().get_our_node_id()
+                && channel.is_usable
+        })
+}
+
+pub(crate) fn log_channel_id(node: &Node, index: usize, pair: &str) {
+    let details = node
+        .channel_manager()
+        .list_channels()
+        .get(index)
+        .unwrap()
+        .clone();
+
+    let channel_id = hex::encode(details.channel_id);
+    let short_channel_id = details.short_channel_id.unwrap();
+    let is_ready = details.is_channel_ready;
+    let is_usable = details.is_usable;
+    let inbound = details.inbound_capacity_msat;
+    let outbound = details.outbound_capacity_msat;
+    tracing::info!(
+        channel_id,
+        short_channel_id,
+        is_ready,
+        is_usable,
+        inbound,
+        outbound,
+        "{pair}"
+    );
 }

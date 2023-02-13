@@ -1,11 +1,14 @@
 use crate::ln_dlc_wallet::LnDlcWallet;
 use crate::util;
 use crate::ChannelManager;
+use crate::FakeChannelPaymentRequests;
 use crate::HTLCStatus;
 use crate::MillisatAmount;
 use crate::NetworkGraph;
 use crate::PaymentInfo;
 use crate::PaymentInfoStorage;
+use crate::PendingInterceptedHtlcs;
+use anyhow::anyhow;
 use bitcoin::secp256k1::Secp256k1;
 use bitcoin_bech32::WitnessProgram;
 use dlc_manager::custom_signer::CustomKeysManager;
@@ -30,8 +33,11 @@ pub struct EventHandler {
     keys_manager: Arc<CustomKeysManager>,
     inbound_payments: PaymentInfoStorage,
     outbound_payments: PaymentInfoStorage,
+    fake_channel_payments: FakeChannelPaymentRequests,
+    pending_intercepted_htlcs: PendingInterceptedHtlcs,
 }
 
+#[allow(clippy::too_many_arguments)]
 impl EventHandler {
     pub(crate) fn new(
         runtime_handle: runtime::Handle,
@@ -41,6 +47,8 @@ impl EventHandler {
         keys_manager: Arc<CustomKeysManager>,
         inbound_payments: PaymentInfoStorage,
         outbound_payments: PaymentInfoStorage,
+        fake_channel_payments: FakeChannelPaymentRequests,
+        pending_intercepted_htlcs: PendingInterceptedHtlcs,
     ) -> Self {
         Self {
             runtime_handle,
@@ -50,16 +58,13 @@ impl EventHandler {
             keys_manager,
             inbound_payments,
             outbound_payments,
+            fake_channel_payments,
+            pending_intercepted_htlcs,
         }
     }
-}
 
-impl lightning::util::events::EventHandler for EventHandler {
-    fn handle_event(&self, event: Event) {
-        tracing::info!(?event, "Received event");
-
-        self.runtime_handle.block_on(async {
-            match event {
+    fn match_event(&self, event: Event) {
+        match event {
             Event::FundingGenerationReady {
                 temporary_channel_id,
                 counterparty_node_id,
@@ -171,8 +176,31 @@ impl lightning::util::events::EventHandler for EventHandler {
                     }
                 }
             }
-            Event::OpenChannelRequest { .. } => {
-                // Unreachable, we don't set manually_accept_inbound_channels
+            Event::OpenChannelRequest {
+                temporary_channel_id,
+                counterparty_node_id,
+                funding_satoshis,
+                push_msat,
+                ..
+            } => {
+                // TODO: only accept 0-conf from the coordinator.
+                // right now we are using the same conf for app and coordinator, meaning this will
+                // be called for both. We however do not want to accept 0-conf channels from someone
+                // outside of our domain.
+                let counterparty = counterparty_node_id.to_string();
+                tracing::info!(
+                    counterparty,
+                    funding_satoshis,
+                    push_msat,
+                    "Accepting 0-conf channel request"
+                );
+                self.channel_manager
+                    .accept_inbound_channel_from_trusted_peer_0conf(
+                        &temporary_channel_id,
+                        &counterparty_node_id,
+                        0,
+                    )
+                    .expect("To be able to accept a 0-conf channel");
             }
             Event::PaymentPathSuccessful { .. } => {}
             Event::PaymentPathFailed { .. } => {}
@@ -237,12 +265,17 @@ impl lightning::util::events::EventHandler for EventHandler {
                 if let Some(fee_earned) = fee_earned_msat {
                     tracing::info!(
                         "Forwarded payment{}{}, earning {} msat {}",
-                        from_prev_str, to_next_str, fee_earned, from_onchain_str
+                        from_prev_str,
+                        to_next_str,
+                        fee_earned,
+                        from_onchain_str
                     );
                 } else {
                     tracing::info!(
                         "Forwarded payment{}{}, claiming onchain {}",
-                        from_prev_str, to_next_str, from_onchain_str
+                        from_prev_str,
+                        to_next_str,
+                        from_onchain_str
                     );
                 }
             }
@@ -292,7 +325,37 @@ impl lightning::util::events::EventHandler for EventHandler {
             }
             Event::ProbeSuccessful { .. } => {}
             Event::ProbeFailed { .. } => {}
-            Event::ChannelReady { .. } => {}
+            Event::ChannelReady {
+                channel_id,
+                user_channel_id: _,
+                counterparty_node_id,
+                channel_type: _,
+            } => {
+                let counterparty = counterparty_node_id.to_string();
+                let channel_id_str = hex::encode(channel_id);
+                tracing::info!(channel_id = channel_id_str, counterparty, "Channel ready");
+
+                let pending_intercepted_htlc = self.pending_intercepted_htlcs.clone();
+                let pending_intercepted_htlc = pending_intercepted_htlc.lock().unwrap();
+                if let Some((intercept_id, expected_outbound_amount_msat)) =
+                    pending_intercepted_htlc.get(&counterparty_node_id)
+                {
+                    let intercept_id_str = hex::encode(intercept_id.0);
+                    tracing::info!(
+                        intercept_id = intercept_id_str,
+                        counterparty,
+                        "Pending intercepted htlc found, forwarding payment"
+                    );
+                    self.channel_manager
+                        .forward_intercepted_htlc(
+                            *intercept_id,
+                            &channel_id,
+                            counterparty_node_id,
+                            *expected_outbound_amount_msat,
+                        )
+                        .expect("To be able to forward that payment");
+                }
+            }
             Event::HTLCHandlingFailed { .. } => {}
             Event::PaymentClaimable {
                 receiver_node_id: _,
@@ -306,19 +369,95 @@ impl lightning::util::events::EventHandler for EventHandler {
                 tracing::info!(%payment_hash, %amount_msat, "Received payment");
 
                 let payment_preimage = match purpose {
-                    PaymentPurpose::InvoicePayment { payment_preimage, .. } => payment_preimage,
+                    PaymentPurpose::InvoicePayment {
+                        payment_preimage, ..
+                    } => payment_preimage,
                     PaymentPurpose::SpontaneousPayment(preimage) => Some(preimage),
                 };
                 self.channel_manager.claim_funds(payment_preimage.unwrap());
             }
             Event::HTLCIntercepted {
-                intercept_id: _,
-                requested_next_hop_scid: _,
-                payment_hash: _,
-                inbound_amount_msat: _,
-                expected_outbound_amount_msat: _,
-            } => todo!(),
+                intercept_id,
+                requested_next_hop_scid,
+                payment_hash,
+                inbound_amount_msat,
+                expected_outbound_amount_msat,
+            } => {
+                let fake_channel_payemnts = self.fake_channel_payments.clone();
+                let result = fake_channel_payemnts.lock();
+                let guard = result.unwrap();
+                let target_node_id = guard
+                    .get(&requested_next_hop_scid)
+                    .expect("To have a target node id stored");
+
+                let intercepted_id = hex::encode(intercept_id.0);
+                let payment_hash = hex::encode(payment_hash.0);
+                tracing::info!(
+                    intercepted_id,
+                    requested_next_hop_scid,
+                    payment_hash,
+                    inbound_amount_msat,
+                    expected_outbound_amount_msat,
+                    "Intercepted HTLC"
+                );
+
+                // if we have already a channel with them, we try to forward the payment.
+                // TODO: here we would need to increase the channel size if the channel is too small
+                if let Some(channel) =
+                    self.channel_manager
+                        .list_channels()
+                        .iter()
+                        .find(|channel_details| {
+                            if let Some(scid) = channel_details.short_channel_id {
+                                scid == requested_next_hop_scid
+                            } else {
+                                false
+                            }
+                        })
+                {
+                    self.channel_manager
+                        .forward_intercepted_htlc(
+                            intercept_id,
+                            &channel.channel_id,
+                            channel.counterparty.node_id,
+                            expected_outbound_amount_msat,
+                        )
+                        .expect("Payment to succeed");
+                    return;
+                }
+
+                let cid = self
+                    .channel_manager
+                    .create_channel(*target_node_id, expected_outbound_amount_msat, 0, 0, None)
+                    .map_err(|e| {
+                        anyhow!(
+                            "Could not create channel with {} due to {e:?}",
+                            target_node_id
+                        )
+                    })
+                    .expect("To open channel");
+                let channel_id = hex::encode(cid);
+                tracing::info!(channel_id, "Opened new channel for in-flight payment");
+
+                let pending_intercepted_htlcs = self.pending_intercepted_htlcs.clone();
+                let mut pending_intercepted_htlcs = pending_intercepted_htlcs
+                    .lock()
+                    .expect("To get hold of lock");
+                pending_intercepted_htlcs.insert(
+                    *target_node_id,
+                    (intercept_id, expected_outbound_amount_msat),
+                );
+            }
         }
+    }
+}
+
+impl lightning::util::events::EventHandler for EventHandler {
+    fn handle_event(&self, event: Event) {
+        tracing::info!(?event, "Received event");
+
+        self.runtime_handle.block_on(async {
+            self.match_event(event);
         })
     }
 }
