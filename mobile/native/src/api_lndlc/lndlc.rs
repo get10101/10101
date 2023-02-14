@@ -8,9 +8,13 @@ use bdk::bitcoin::secp256k1::rand::RngCore;
 use bdk::bitcoin::Network;
 use flutter_rust_bridge::StreamSink;
 use ln_dlc_node::node::Node;
+use ln_dlc_node::node::NodeInfo;
 use ln_dlc_node::seed::Bip39Seed;
 use std::net::TcpListener;
 use std::path::Path;
+
+const REGTEST_COORDINATOR_PK: &str =
+    "02dd6abec97f9a748bf76ad502b004ce05d1b2d1f43a9e76bd7d85e767ffb022c9";
 
 pub fn run(stream: StreamSink<Event>, data_dir: String) -> Result<()> {
     let network = Network::Regtest;
@@ -46,6 +50,18 @@ pub fn run(stream: StreamSink<Event>, data_dir: String) -> Result<()> {
         .await;
 
         let background_processor = node.start().await?;
+
+        // todo: should the library really be responsible for managing the task?
+        let _ = node
+            .keep_connected(NodeInfo {
+                pubkey: REGTEST_COORDINATOR_PK
+                    .parse()
+                    .expect("Hard-coded PK to be valid"),
+                address: format!("127.0.0.1:9735") // todo: make ip configurable
+                    .parse()
+                    .expect("Hard-coded IP and port to be valid"),
+            })
+            .await;
 
         runtime.spawn_blocking(move || {
             // background processor joins on a sync thread, meaning that join here will block a
