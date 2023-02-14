@@ -28,7 +28,7 @@ mod ln;
 mod ln_dlc_wallet;
 mod logger;
 mod on_chain_wallet;
-mod seed;
+pub mod seed;
 mod util;
 
 pub mod node;
