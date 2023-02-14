@@ -1,4 +1,4 @@
-use crate::api_calculations;
+use crate::{api_calculations, api_lndlc};
 use crate::api_model;
 use crate::api_model::order::NewOrder;
 use crate::api_model::order::Order;
@@ -40,6 +40,7 @@ pub fn calculate_liquidation_price(
 #[allow(dead_code)]
 #[derive(Clone)]
 pub enum Event {
+    Init(String),
     Log(String),
     OrderUpdateNotification(String),
 }
@@ -69,4 +70,9 @@ pub async fn get_orders() -> Result<Vec<Order>> {
         .collect::<Vec<Order>>();
 
     Ok(orders)
+}
+
+pub fn run(stream: StreamSink<Event>, app_dir: String) -> Result<()> {
+    anyhow::ensure!(!app_dir.is_empty(), "app_dir must not be empty");
+    api_lndlc::lndlc::run(stream, app_dir)
 }

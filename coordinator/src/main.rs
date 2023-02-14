@@ -32,7 +32,7 @@ async fn main() -> Result<()> {
     let seed_path = data_dir.join("seed");
     let seed = Bip39Seed::initialize(&seed_path)?;
 
-    let node = Node::new(
+    let node = Node::new_coordinator(
         "coordinator".to_string(),
         network,
         data_dir.as_path(),

@@ -1441,6 +1441,7 @@ dependencies = [
  "anyhow",
  "bdk",
  "flutter_rust_bridge",
+ "ln-dlc-node",
  "rust_decimal",
  "rust_decimal_macros",
  "state",

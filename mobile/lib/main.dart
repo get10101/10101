@@ -17,6 +17,7 @@ import 'package:get_10101/features/wallet/settings_screen.dart';
 import 'package:get_10101/common/app_bar_wrapper.dart';
 import 'package:get_10101/util/constants.dart';
 import 'package:go_router/go_router.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import 'common/amount_denomination_change_notifier.dart';
 import 'features/trade/trade_screen.dart';
@@ -146,8 +147,17 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
     try {
       await setupRustLogging();
 
-      setState(() {
-        FLog.info(text: "10101 is ready!");
+      final appSupportDir = await getApplicationSupportDirectory();
+      FLog.info(text: "App data will be stored in: $appSupportDir");
+
+      api.run(appDir: appSupportDir.path).listen((event) {
+        if (event is Event_Ready) {
+          FLog.info(text: "10101 is ready!");
+        } else if (event is Event_Init) {
+          FLog.info(text: event.field0);
+        } else {
+          FLog.warning(text: "Received unexpected event: $event");
+        }
       });
     } on FfiException catch (error) {
       FLog.error(text: "Failed to initialise: Error: ${error.message}", exception: error);
@@ -162,7 +172,7 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
     rust.api.initLogging().listen((event) {
       // Only log to Dart file in release mode - in debug mode it's easier to
       // use stdout
-      if (foundation.kReleaseMode) {
+      if (foundation.kReleaseMode || true) {
         FLog.logThis(text: '${event.target}: ${event.msg}', type: LogLevel.DEBUG);
       }
     });

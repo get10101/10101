@@ -68,6 +68,8 @@ void wire_get_order(int64_t port_, struct wire_uint_8_list *id);
 
 void wire_get_orders(int64_t port_);
 
+void wire_run(int64_t port_, struct wire_uint_8_list *app_dir);
+
 struct wire_NewOrder *new_box_autoadd_new_order_0(void);
 
 struct wire_OrderType *new_box_order_type_0(void);
@@ -88,6 +90,7 @@ static int64_t dummy_method_to_enforce_bundling(void) {
     dummy_var ^= ((int64_t) (void*) wire_subscribe_to_order_notifications);
     dummy_var ^= ((int64_t) (void*) wire_get_order);
     dummy_var ^= ((int64_t) (void*) wire_get_orders);
+    dummy_var ^= ((int64_t) (void*) wire_run);
     dummy_var ^= ((int64_t) (void*) new_box_autoadd_new_order_0);
     dummy_var ^= ((int64_t) (void*) new_box_order_type_0);
     dummy_var ^= ((int64_t) (void*) new_uint_8_list_0);
