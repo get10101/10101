@@ -6,6 +6,12 @@ const ELECTRS_ORIGIN: &str = "tcp://localhost:50000";
 
 pub mod lndlc;
 
+#[derive(Debug, Clone)]
+pub struct Balance {
+    pub on_chain: u64,
+    pub off_chain: u64,
+}
+
 /// Lazily creates a multi threaded runtime with the the number of worker threads corresponding to
 /// the number of available cores.
 fn runtime() -> Result<&'static Runtime> {

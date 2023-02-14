@@ -9,6 +9,7 @@ use crate::trade::order;
 use anyhow::Result;
 use flutter_rust_bridge::StreamSink;
 use flutter_rust_bridge::SyncReturn;
+use crate::api_lndlc::Balance;
 
 /// Initialise logging infrastructure for Rust
 pub fn init_logging(sink: StreamSink<logger::LogEntry>) {
@@ -43,6 +44,7 @@ pub enum Event {
     Init(String),
     Log(String),
     OrderUpdateNotification(String),
+    WalletInfo(Balance),
 }
 
 #[tokio::main(flavor = "current_thread")]

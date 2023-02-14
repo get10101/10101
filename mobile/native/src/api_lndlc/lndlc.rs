@@ -1,5 +1,6 @@
 use crate::api::Event;
 use crate::api_lndlc::runtime;
+use crate::api_lndlc::Balance;
 use crate::api_lndlc::ELECTRS_ORIGIN;
 use anyhow::Context;
 use anyhow::Result;
@@ -62,6 +63,20 @@ pub fn run(stream: StreamSink<Event>, data_dir: String) -> Result<()> {
                     .expect("Hard-coded IP and port to be valid"),
             })
             .await;
+
+        // todo: node is moved into this context, that's not ideal!
+        runtime.spawn(async move {
+            loop {
+                // todo: the node sync should not swallow the error.
+                node.sync();
+                tokio::time::sleep(std::time::Duration::from_secs(10)).await;
+
+                stream.add(Event::WalletInfo(Balance {
+                    off_chain: node.get_ldk_balance().unwrap().available,
+                    on_chain: 0,
+                }));
+            }
+        });
 
         runtime.spawn_blocking(move || {
             // background processor joins on a sync thread, meaning that join here will block a

@@ -10,6 +10,7 @@ import 'package:get_10101/features/trade/submit_order_change_notifier.dart';
 import 'package:get_10101/features/trade/trade_value_change_notifier.dart';
 import 'package:get_10101/features/trade/settings_screen.dart';
 import 'package:get_10101/features/trade/trade_theme.dart';
+import 'package:get_10101/features/wallet/balance_change_notifier.dart';
 import 'package:get_10101/features/wallet/receive_screen.dart';
 import 'package:get_10101/features/wallet/scanner_screen.dart';
 import 'package:get_10101/features/wallet/send_screen.dart';
@@ -40,6 +41,7 @@ void main() {
     ChangeNotifierProvider(create: (context) => AmountDenominationChangeNotifier()),
     ChangeNotifierProvider(create: (context) => SubmitOrderChangeNotifier(OrderService())),
     ChangeNotifierProvider(create: (context) => OrderChangeNotifier(OrderService())),
+    ChangeNotifierProvider(create: (context) => BalanceChangeNotifier())
   ], child: const TenTenOneApp()));
 }
 
@@ -155,6 +157,8 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
           FLog.info(text: "10101 is ready!");
         } else if (event is Event_Init) {
           FLog.info(text: event.field0);
+        } else if (event is Event_WalletInfo) {
+          context.read<BalanceChangeNotifier>().update(event.field0);
         } else {
           FLog.warning(text: "Received unexpected event: $event");
         }
