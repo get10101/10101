@@ -1,20 +1,27 @@
 import 'package:flutter/material.dart';
+import 'package:get_10101/common/submission_status_dialog.dart';
+import 'package:get_10101/common/value_data_row.dart';
+import 'package:get_10101/features/trade/btc_usd_trading_pair_image.dart';
+import 'package:get_10101/features/trade/domain/direction.dart';
+import 'package:get_10101/features/trade/submit_order_change_notifier.dart';
+import 'package:get_10101/features/trade/trade_bottom_sheet.dart';
+import 'package:get_10101/features/trade/candlestick_chart.dart';
+import 'package:get_10101/features/trade/trade_tabs.dart';
 import 'package:get_10101/features/trade/trade_theme.dart';
+import 'package:provider/provider.dart';
 
-class TradeScreen extends StatefulWidget {
+class TradeScreen extends StatelessWidget {
   static const route = "/trade";
   static const label = "Trade";
 
   const TradeScreen({Key? key}) : super(key: key);
 
   @override
-  State<TradeScreen> createState() => _TradeScreenState();
-}
-
-class _TradeScreenState extends State<TradeScreen> {
-  @override
   Widget build(BuildContext context) {
     TradeTheme tradeTheme = Theme.of(context).extension<TradeTheme>()!;
+
+    List<String> orders = List<String>.generate(100, (i) => 'Order $i');
+    List<String> positions = List<String>.generate(100, (i) => 'Position $i');
 
     const RoundedRectangleBorder tradeButtonShape = RoundedRectangleBorder(
       borderRadius: BorderRadius.all(
@@ -24,10 +31,110 @@ class _TradeScreenState extends State<TradeScreen> {
 
     const double tradeButtonWidth = 100.0;
 
+    SubmitOrderChangeNotifier submitOrderChangeNotifier =
+        context.watch<SubmitOrderChangeNotifier>();
+
+    if (submitOrderChangeNotifier.pendingOrder != null &&
+        submitOrderChangeNotifier.pendingOrder!.state == PendingOrderState.submitting) {
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        return await showDialog(
+            context: context,
+            useRootNavigator: true,
+            builder: (BuildContext context) {
+              return Selector<SubmitOrderChangeNotifier, PendingOrderState>(
+                selector: (_, provider) => provider.pendingOrder!.state,
+                builder: (context, state, child) {
+                  const String title = "Submit Order";
+                  Widget body = Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      SizedBox(
+                        width: 200,
+                        child: Wrap(
+                          runSpacing: 10,
+                          children: [
+                            ValueDataRow(
+                                type: ValueType.amount,
+                                value: submitOrderChangeNotifier.pendingOrderValues?.margin,
+                                label: "Margin"),
+                            ValueDataRow(
+                                type: ValueType.amount,
+                                value: submitOrderChangeNotifier.pendingOrderValues?.fee,
+                                label: "Fee")
+                          ],
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.only(top: 20, left: 10, right: 10, bottom: 5),
+                        child: Text(
+                            "Your Position will be shown automatically in the Orders tab once your ${submitOrderChangeNotifier.pendingOrderValues?.direction.name} order has been filled!",
+                            style: DefaultTextStyle.of(context).style.apply(fontSizeFactor: 1.0)),
+                      )
+                    ],
+                  );
+
+                  switch (state) {
+                    case PendingOrderState.submitting:
+                      return SubmissionStatusDialog(
+                          title: title, type: SubmissionStatusDialogType.pending, content: body);
+                    case PendingOrderState.submittedSuccessfully:
+                      return SubmissionStatusDialog(
+                          title: title, type: SubmissionStatusDialogType.success, content: body);
+                    case PendingOrderState.submissionFailed:
+                      // TODO: This failure case has to be handled differently; are we planning to show orders that failed to submit in the order history?
+                      return SubmissionStatusDialog(
+                          title: title, type: SubmissionStatusDialogType.failure, content: body);
+                  }
+                },
+              );
+            });
+      });
+    }
+
     return Scaffold(
-        body: ListView(
-          padding: const EdgeInsets.only(left: 25, right: 25),
-          children: const [Center(child: Text("Trade Screen"))],
+        body: Container(
+          padding: const EdgeInsets.only(left: 15, right: 15),
+          child: Column(
+            children: [
+              Row(
+                children: const [BtcUsdTradingPairImage(), Text("BTC/USD")],
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: const [CandlestickChart()],
+              ),
+              Expanded(
+                child: TradeTabs(
+                  tabs: const [
+                    "Positions",
+                    "Orders",
+                  ],
+                  tabBarViewChildren: [
+                    ListView.builder(
+                      shrinkWrap: true,
+                      physics: const ClampingScrollPhysics(),
+                      itemCount: positions.length,
+                      itemBuilder: (BuildContext context, int index) {
+                        return ListTile(
+                          title: Text(positions[index]),
+                        );
+                      },
+                    ),
+                    ListView.builder(
+                      shrinkWrap: true,
+                      physics: const ClampingScrollPhysics(),
+                      itemCount: orders.length,
+                      itemBuilder: (BuildContext context, int index) {
+                        return ListTile(
+                          title: Text(orders[index]),
+                        );
+                      },
+                    )
+                  ],
+                ),
+              )
+            ],
+          ),
         ),
         floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
         floatingActionButton: Padding(
@@ -40,25 +147,7 @@ class _TradeScreenState extends State<TradeScreen> {
                   child: FloatingActionButton.extended(
                     heroTag: "btnBuy",
                     onPressed: () {
-                      showModalBottomSheet<void>(
-                        useRootNavigator: true,
-                        backgroundColor: Colors.green.shade50,
-                        context: context,
-                        builder: (BuildContext context) {
-                          return SizedBox(
-                            height: 200,
-                            child: Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                mainAxisSize: MainAxisSize.min,
-                                children: const <Widget>[
-                                  Text('Buy Sheet'),
-                                ],
-                              ),
-                            ),
-                          );
-                        },
-                      );
+                      tradeBottomSheet(context: context, direction: Direction.buy);
                     },
                     label: const Text("Buy"),
                     shape: tradeButtonShape,
@@ -70,25 +159,7 @@ class _TradeScreenState extends State<TradeScreen> {
                   child: FloatingActionButton.extended(
                     heroTag: "btnSell",
                     onPressed: () {
-                      showModalBottomSheet<void>(
-                        useRootNavigator: true,
-                        backgroundColor: Colors.red.shade50,
-                        context: context,
-                        builder: (BuildContext context) {
-                          return SizedBox(
-                            height: 200,
-                            child: Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                mainAxisSize: MainAxisSize.min,
-                                children: const <Widget>[
-                                  Text('Sell Sheet'),
-                                ],
-                              ),
-                            ),
-                          );
-                        },
-                      );
+                      tradeBottomSheet(context: context, direction: Direction.sell);
                     },
                     label: const Text("Sell"),
                     shape: tradeButtonShape,
