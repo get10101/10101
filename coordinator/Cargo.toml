@@ -5,8 +5,12 @@ edition = "2021"
 
 [dependencies]
 anyhow = { version = "1", features = ["backtrace"] }
+atty = "0.2.14"
 bitcoin = "0.29"
 clap = { version = "4", features = ["derive"] }
 ln-dlc-node = { path = "../crates/ln-dlc-node" }
 rand = "0.8.5"
+time = { version = "0.3", features = ["serde", "parsing", "std", "formatting", "macros", "serde-well-known"] }
 tokio = { version = "1", features = ["full"] }
+tracing = "0.1.37"
+tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "ansi", "env-filter", "time", "tracing-log", "json"] }

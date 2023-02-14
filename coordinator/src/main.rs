@@ -2,10 +2,12 @@ use anyhow::Context;
 use anyhow::Result;
 use bitcoin::Network;
 use coordinator::cli::Opts;
+use coordinator::logger;
 use ln_dlc_node::node::Node;
 use ln_dlc_node::seed::Bip39Seed;
 use rand::thread_rng;
 use rand::RngCore;
+use tracing::metadata::LevelFilter;
 
 const ELECTRS_ORIGIN: &str = "tcp://localhost:50000";
 
@@ -15,6 +17,8 @@ async fn main() -> Result<()> {
     let data_dir = opts.data_dir()?;
     let address = opts.p2p_address;
     let network = Network::Regtest;
+
+    logger::init_tracing(LevelFilter::DEBUG, false)?;
 
     let mut ephemeral_randomness = [0; 32];
     thread_rng().fill_bytes(&mut ephemeral_randomness);
