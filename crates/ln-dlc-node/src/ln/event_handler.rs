@@ -383,8 +383,8 @@ impl EventHandler {
                 inbound_amount_msat,
                 expected_outbound_amount_msat,
             } => {
-                let fake_channel_payemnts = self.fake_channel_payments.clone();
-                let result = fake_channel_payemnts.lock();
+                let fake_channel_payments = self.fake_channel_payments.clone();
+                let result = fake_channel_payments.lock();
                 let guard = result.unwrap();
                 let target_node_id = guard
                     .get(&requested_next_hop_scid)

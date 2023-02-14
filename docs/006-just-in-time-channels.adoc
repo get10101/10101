@@ -7,7 +7,7 @@ Philipp Hoenisch <philipp@10101.finance>
 
 Status: Draft
 
-This document contains a description about the protocol we use for channel-less payments.
+This document contains a description about the protocol we use for just-in-time channels.
 
 == Decision
 

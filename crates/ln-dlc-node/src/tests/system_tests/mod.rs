@@ -126,7 +126,7 @@ pub fn create_tmp_dir(dir_name: &str) -> PathBuf {
     test_dir
 }
 
-pub(crate) async fn setup_ln_node(test_dir: &Path, node_name: &str) -> Node {
+pub(crate) async fn setup_ln_node(test_dir: &Path, node_name: &str, is_coordinator: bool) -> Node {
     let data_dir = test_dir.join(node_name);
 
     let seed = Bip39Seed::new().expect("A valid bip39 seed");
@@ -139,19 +139,29 @@ pub(crate) async fn setup_ln_node(test_dir: &Path, node_name: &str) -> Node {
         listener.local_addr().expect("To get a free local address")
     };
 
-    // todo: the tests are executed in the crates/ln-dlc-node directory, hence the folder will
-    // be created there. but the creation will fail if the .ldk-data/alice/on_chain has not been
-    // created before.
-    Node::new(
-        node_name.to_string(),
-        Network::Regtest,
-        data_dir.as_path(),
-        address,
-        ELECTRS_ORIGIN.to_string(),
-        seed,
-        ephemeral_randomness,
-    )
-    .await
+    if is_coordinator {
+        Node::new_coordinator(
+            node_name.to_string(),
+            Network::Regtest,
+            data_dir.as_path(),
+            address,
+            ELECTRS_ORIGIN.to_string(),
+            seed,
+            ephemeral_randomness,
+        )
+        .await
+    } else {
+        Node::new_app(
+            node_name.to_string(),
+            Network::Regtest,
+            data_dir.as_path(),
+            address,
+            ELECTRS_ORIGIN.to_string(),
+            seed,
+            ephemeral_randomness,
+        )
+        .await
+    }
 }
 
 pub(crate) fn has_channel(source_node: &Node, target_node: &Node) -> bool {

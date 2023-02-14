@@ -17,9 +17,9 @@ async fn given_no_channel_with_coordinator_when_invoice_generated_then_can_be_pa
     let test_dir = create_tmp_dir("channel_less_payment");
 
     // 1. Set up three LN-DLC nodes.
-    let alice = setup_ln_node(&test_dir, "alice").await;
-    let coordinator = setup_ln_node(&test_dir, "coordinator").await;
-    let bob = setup_ln_node(&test_dir, "bob").await;
+    let alice = setup_ln_node(&test_dir, "alice", false).await;
+    let coordinator = setup_ln_node(&test_dir, "coordinator", true).await;
+    let bob = setup_ln_node(&test_dir, "bob", false).await;
 
     tracing::info!("alice: {}", alice.info);
     tracing::info!("coordinator: {}", coordinator.info);
@@ -29,12 +29,11 @@ async fn given_no_channel_with_coordinator_when_invoice_generated_then_can_be_pa
     let _coordinator_bg = coordinator.start().await.unwrap();
     let _bob_bg = bob.start().await.unwrap();
 
-    // 2. Connect the two nodes.
+    // 2. Connect the nodes.
 
     tokio::time::sleep(Duration::from_secs(2)).await;
     alice.keep_connected(coordinator.info).await.unwrap();
     bob.keep_connected(coordinator.info).await.unwrap();
-    alice.keep_connected(bob.info).await.unwrap();
 
     // 3. Fund the Bitcoin wallets of the nodes who will open a channel.
     {
@@ -48,10 +47,6 @@ async fn given_no_channel_with_coordinator_when_invoice_generated_then_can_be_pa
 
         // we need to wait here for the wallet to sync properly
         tokio::time::sleep(Duration::from_secs(5)).await;
-
-        alice.sync();
-        let balance = alice.wallet.inner().get_balance().unwrap();
-        tracing::info!(%balance, "Alice's wallet balance");
 
         coordinator.sync();
         let balance = coordinator.wallet.inner().get_balance().unwrap();
@@ -75,10 +70,8 @@ async fn given_no_channel_with_coordinator_when_invoice_generated_then_can_be_pa
         .expect("To be a valid address");
     fund_and_mine(address.clone(), bitcoin::Amount::from_sat(1000)).await;
 
-    // Add 5 confirmations for the channel to get announced.
-    for _ in 1..6 {
-        fund_and_mine(address.clone(), bitcoin::Amount::from_sat(1000)).await;
-    }
+    // Add 1 confirmations for the channel to get announced.
+    fund_and_mine(address.clone(), bitcoin::Amount::from_sat(1000)).await;
 
     tokio::time::sleep(Duration::from_secs(2)).await;
 

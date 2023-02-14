@@ -12,8 +12,8 @@ async fn given_sibling_channel_when_payment_then_can_be_claimed() {
     let test_dir = create_tmp_dir("single_hop_test");
 
     // 1. Set up two LN-DLC nodes.
-    let alice = setup_ln_node(&test_dir, "alice").await;
-    let bob = setup_ln_node(&test_dir, "bob").await;
+    let alice = setup_ln_node(&test_dir, "alice", false).await;
+    let bob = setup_ln_node(&test_dir, "bob", true).await;
 
     tracing::info!("Alice: {}", alice.info);
     tracing::info!("Bob: {}", alice.info);

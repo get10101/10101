@@ -112,10 +112,8 @@ impl Display for NodeInfo {
 const MILLIONTH_ROUTING_FEE: u32 = 20000;
 
 impl Node {
-    // I'd like this to be a pure function and to be able to pass in anything that was loaded from
-    // the persistence layer. But we're not there yet because we're still copying convenient code
-    // from `ldk-sample` which involves IO.
-    pub async fn new(
+    /// Constructs a new node to be run as the app
+    pub async fn new_app(
         alias: String,
         network: Network,
         data_dir: &Path,
@@ -123,6 +121,61 @@ impl Node {
         electrs_origin: String,
         seed: Bip39Seed,
         ephemeral_randomness: [u8; 32],
+    ) -> Self {
+        let user_config = app_config();
+        Node::new(
+            alias,
+            network,
+            data_dir,
+            address,
+            electrs_origin,
+            seed,
+            ephemeral_randomness,
+            user_config,
+        )
+        .await
+    }
+
+    /// Constructs a new node to be run for the coordinator
+    ///
+    /// The main difference between this and `new_app` is that the user config is different to
+    /// be able to create just-in-time channels and 0-conf channels towards our peers.
+    pub async fn new_coordinator(
+        alias: String,
+        network: Network,
+        data_dir: &Path,
+        address: SocketAddr,
+        electrs_origin: String,
+        seed: Bip39Seed,
+        ephemeral_randomness: [u8; 32],
+    ) -> Self {
+        let user_config = coordinator_config();
+        Self::new(
+            alias,
+            network,
+            data_dir,
+            address,
+            electrs_origin,
+            seed,
+            ephemeral_randomness,
+            user_config,
+        )
+        .await
+    }
+
+    // I'd like this to be a pure function and to be able to pass in anything that was loaded from
+    // the persistence layer. But we're not there yet because we're still copying convenient code
+    // from `ldk-sample` which involves IO.
+    #[allow(clippy::too_many_arguments)]
+    async fn new(
+        alias: String,
+        network: Network,
+        data_dir: &Path,
+        address: SocketAddr,
+        electrs_origin: String,
+        seed: Bip39Seed,
+        ephemeral_randomness: [u8; 32],
+        ldk_user_config: UserConfig,
     ) -> Self {
         let time_since_unix_epoch = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)
@@ -168,8 +221,6 @@ impl Node {
                 time_since_unix_epoch.subsec_nanos(),
             )))
         };
-
-        let ldk_user_config = default_user_config();
 
         let (height, header) = ln_dlc_wallet.tip().unwrap();
         let hash = header.block_hash();
@@ -625,7 +676,31 @@ impl Node {
     }
 }
 
-fn default_user_config() -> UserConfig {
+fn app_config() -> UserConfig {
+    UserConfig {
+        channel_handshake_config: ChannelHandshakeConfig {
+            // this is needed as otherwise the config between the coordinator and us diverges and we
+            // can't open channels.
+            announced_channel: true,
+            minimum_depth: 1,
+            // only 10% of the total channel value can be sent. e.g. with a volume of 30.000 sats
+            // only 3.000 sats can be sent.
+            max_inbound_htlc_value_in_flight_percent_of_channel: 10,
+            ..Default::default()
+        },
+        channel_handshake_limits: ChannelHandshakeLimits {
+            max_minimum_depth: 1,
+            // lnd's max to_self_delay is 2016, so we want to be compatible.
+            their_to_self_delay: 2016,
+            ..Default::default()
+        },
+        // we want to accept 0-conf channels from the coordinator
+        manually_accept_inbound_channels: true,
+        ..Default::default()
+    }
+}
+
+fn coordinator_config() -> UserConfig {
     UserConfig {
         channel_handshake_config: ChannelHandshakeConfig {
             announced_channel: true,
