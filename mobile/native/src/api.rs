@@ -78,3 +78,7 @@ pub fn run(stream: StreamSink<Event>, app_dir: String) -> Result<()> {
     anyhow::ensure!(!app_dir.is_empty(), "app_dir must not be empty");
     api_lndlc::lndlc::run(stream, app_dir)
 }
+
+pub fn get_new_address() -> SyncReturn<String> {
+    SyncReturn(api_lndlc::lndlc::get_new_address().unwrap())
+}

@@ -9,6 +9,7 @@ crate-type = ["cdylib", "staticlib"]
 [dependencies]
 anyhow = "1"
 bdk = { version = "0.24.0", features = ["key-value-db"] }
+dlc-manager = { version = "0.3.0", features = ["use-serde"] } # required for the dlc_manager::Wallet trait
 flutter_rust_bridge = "1.63.1"
 ln-dlc-node = { path = "../../crates/ln-dlc-node" }
 rust_decimal = { version = "1", features = ["serde-with-float"] }

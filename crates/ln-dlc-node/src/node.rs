@@ -65,6 +65,7 @@ use std::sync::Arc;
 use std::sync::Mutex;
 use std::time::Duration;
 use std::time::SystemTime;
+use bdk::Balance;
 
 type TracingLoggerGossipSync =
     Arc<P2PGossipSync<Arc<NetworkGraph>, Arc<dyn Access + Send + Sync>, Arc<TracingLogger>>>;
@@ -603,6 +604,10 @@ impl Node {
             }
         };
         Ok(())
+    }
+
+    pub fn get_on_chain_balance(&self) -> Result<Balance> {
+        self.wallet.inner().get_balance().map_err(|e| anyhow!(e))
     }
 
     /// The LDK [`OffChain`] balance keeps track of:

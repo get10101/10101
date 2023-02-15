@@ -1440,6 +1440,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "bdk",
+ "dlc-manager",
  "flutter_rust_bridge",
  "ln-dlc-node",
  "rust_decimal",
