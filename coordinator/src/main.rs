@@ -3,13 +3,13 @@ use anyhow::Result;
 use bitcoin::Network;
 use coordinator::cli::Opts;
 use coordinator::logger;
+use coordinator::routes;
 use ln_dlc_node::node::Node;
 use ln_dlc_node::seed::Bip39Seed;
 use rand::thread_rng;
 use rand::RngCore;
 use std::sync::Arc;
 use tracing::metadata::LevelFilter;
-use coordinator::routes;
 
 const ELECTRS_ORIGIN: &str = "tcp://localhost:50000";
 
@@ -51,6 +51,17 @@ async fn main() -> Result<()> {
     tokio::spawn({
         let node = node.clone();
         async move {
+            loop {
+                // todo: the node sync should not swallow the error.
+                node.sync();
+                tokio::time::sleep(std::time::Duration::from_secs(10)).await;
+            }
+        }
+    });
+
+    tokio::spawn({
+        let node = node.clone();
+        async move {
             let background_processor = node.start().await.expect("background processor to start");
             if let Err(err) = background_processor.join() {
                 tracing::error!(?err, "Background processor stopped unexpected");
@@ -63,7 +74,14 @@ async fn main() -> Result<()> {
         .merge(("port", http_address.port()));
 
     let mission_success = rocket::custom(figment)
-        .mount("/api", rocket::routes![routes::get_fake_scid])
+        .mount(
+            "/api",
+            rocket::routes![
+                routes::get_fake_scid,
+                routes::get_new_address,
+                routes::get_balance
+            ],
+        )
         .manage(node)
         .launch()
         .await?;

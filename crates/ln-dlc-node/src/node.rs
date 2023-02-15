@@ -17,6 +17,7 @@ use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
 use bdk::blockchain::ElectrumBlockchain;
+use bdk::Balance;
 use bitcoin::hashes::sha256;
 use bitcoin::hashes::Hash;
 use bitcoin::secp256k1::PublicKey;
@@ -65,7 +66,6 @@ use std::sync::Arc;
 use std::sync::Mutex;
 use std::time::Duration;
 use std::time::SystemTime;
-use bdk::Balance;
 
 type TracingLoggerGossipSync =
     Arc<P2PGossipSync<Arc<NetworkGraph>, Arc<dyn Access + Send + Sync>, Arc<TracingLogger>>>;
