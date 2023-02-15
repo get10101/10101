@@ -1,14 +1,14 @@
-import '../../../bridge_generated/bridge_definitions.dart';
+import '../../../bridge_generated/bridge_definitions.dart' as rust;
 
-enum Direction { buy, sell }
+enum Direction { long, short }
 
 extension DirectionExt on Direction {
-  Position intoPosition() {
+  rust.Direction toApi() {
     switch (this) {
-      case Direction.buy:
-        return Position.Long;
-      case Direction.sell:
-        return Position.Short;
+      case Direction.long:
+        return rust.Direction.Long;
+      case Direction.short:
+        return rust.Direction.Short;
     }
   }
 

@@ -20,8 +20,8 @@ class TradeBottomSheetTab extends StatelessWidget {
   Widget build(BuildContext context) {
     TradeTheme tradeTheme = Theme.of(context).extension<TradeTheme>()!;
 
-    String label = direction == Direction.buy ? "Buy" : "Sell";
-    Color color = direction == Direction.buy ? tradeTheme.buy : tradeTheme.sell;
+    String label = direction == Direction.long ? "Buy" : "Sell";
+    Color color = direction == Direction.long ? tradeTheme.buy : tradeTheme.sell;
 
     TradeValuesChangeNotifier provider = context.read<TradeValuesChangeNotifier>();
 

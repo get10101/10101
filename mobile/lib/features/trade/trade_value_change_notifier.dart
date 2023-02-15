@@ -7,8 +7,8 @@ import 'domain/trade_values.dart';
 
 class TradeValuesChangeNotifier extends ChangeNotifier {
   // The trade values are represented as Order domain, because that's essentially what they are
-  final TradeValues _buyTradeValues = _initOrder(Direction.buy);
-  final TradeValues _sellTradeValues = _initOrder(Direction.sell);
+  final TradeValues _buyTradeValues = _initOrder(Direction.long);
+  final TradeValues _sellTradeValues = _initOrder(Direction.short);
 
   // TODO: Replace dummy price with price from backend
   // TODO: Get price from separate change notifier; might be able to use a proxy change notifiers
@@ -24,14 +24,14 @@ class TradeValuesChangeNotifier extends ChangeNotifier {
     double defaultLeverage = 2;
 
     switch (direction) {
-      case Direction.buy:
+      case Direction.long:
         return TradeValues.create(
             quantity: defaultQuantity,
             leverage: Leverage(defaultLeverage),
             price: ask,
             fundingRate: fundingRateBuy,
             direction: direction);
-      case Direction.sell:
+      case Direction.short:
         return TradeValues.create(
             quantity: defaultQuantity,
             leverage: Leverage(defaultLeverage),
@@ -57,5 +57,5 @@ class TradeValuesChangeNotifier extends ChangeNotifier {
   }
 
   TradeValues fromDirection(Direction direction) =>
-      direction == Direction.buy ? _buyTradeValues : _sellTradeValues;
+      direction == Direction.long ? _buyTradeValues : _sellTradeValues;
 }
