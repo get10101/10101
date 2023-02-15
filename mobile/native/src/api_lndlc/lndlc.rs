@@ -26,12 +26,18 @@ static NODE: Storage<Arc<Node>> = Storage::new();
 const REGTEST_COORDINATOR_PK: &str =
     "02dd6abec97f9a748bf76ad502b004ce05d1b2d1f43a9e76bd7d85e767ffb022c9";
 
+
+// TODO: this configuration should not be hardcoded.
+const HOST: &str = "127.0.0.1";
+const HTTP_PORT: u16 = 8000;
+const P2P_PORT: u16 = 9045;
+
 pub fn get_coordinator_info() -> NodeInfo {
     NodeInfo {
         pubkey: REGTEST_COORDINATOR_PK
             .parse()
             .expect("Hard-coded PK to be valid"),
-        address: format!("10.0.0.20:9045") // todo: make ip configurable
+        address: format!("{HOST}:{P2P_PORT}") // todo: make ip configurable
             .parse()
             .expect("Hard-coded IP and port to be valid"),
     }
@@ -132,7 +138,7 @@ pub fn create_invoice() -> Result<Invoice> {
         let client = reqwest::Client::new();
         let response = client
             .get(format!(
-                "http://10.0.0.20:8000/api/get_fake_scid/{}",
+                "http://{HOST}:{HTTP_PORT}/api/get_fake_scid/{}",
                 node.info.pubkey
             )) // TODO: make host configurable
             .send()
