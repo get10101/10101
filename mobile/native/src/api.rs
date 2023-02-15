@@ -1,6 +1,9 @@
 use crate::api_calculations;
-use crate::api_model::Direction;
+use crate::api_model::order::NewOrder;
+use crate::common::Direction;
 use crate::logger;
+use crate::trade::order_handler::process_new_order;
+use anyhow::Result;
 use flutter_rust_bridge::StreamSink;
 use flutter_rust_bridge::SyncReturn;
 
@@ -29,4 +32,11 @@ pub fn calculate_liquidation_price(
     SyncReturn(api_calculations::calculate_liquidation_price(
         price, leverage, direction,
     ))
+}
+
+#[tokio::main(flavor = "current_thread")]
+pub async fn submit_order(order: NewOrder) -> Result<()> {
+    process_new_order(order.into()).await?;
+
+    Ok(())
 }
