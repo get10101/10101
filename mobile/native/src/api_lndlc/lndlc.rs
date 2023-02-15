@@ -17,6 +17,17 @@ use std::path::Path;
 const REGTEST_COORDINATOR_PK: &str =
     "02dd6abec97f9a748bf76ad502b004ce05d1b2d1f43a9e76bd7d85e767ffb022c9";
 
+pub fn get_coordinator_info() -> NodeInfo {
+    NodeInfo {
+        pubkey: REGTEST_COORDINATOR_PK
+            .parse()
+            .expect("Hard-coded PK to be valid"),
+        address: format!("10.0.0.20:9045") // todo: make ip configurable
+            .parse()
+            .expect("Hard-coded IP and port to be valid"),
+    }
+}
+
 pub fn run(stream: StreamSink<Event>, data_dir: String) -> Result<()> {
     let network = Network::Regtest;
     let runtime = runtime()?;
@@ -53,16 +64,7 @@ pub fn run(stream: StreamSink<Event>, data_dir: String) -> Result<()> {
         let background_processor = node.start().await?;
 
         // todo: should the library really be responsible for managing the task?
-        let _ = node
-            .keep_connected(NodeInfo {
-                pubkey: REGTEST_COORDINATOR_PK
-                    .parse()
-                    .expect("Hard-coded PK to be valid"),
-                address: format!("127.0.0.1:9735") // todo: make ip configurable
-                    .parse()
-                    .expect("Hard-coded IP and port to be valid"),
-            })
-            .await;
+        node.keep_connected(get_coordinator_info()).await?;
 
         // todo: node is moved into this context, that's not ideal!
         runtime.spawn(async move {
