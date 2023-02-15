@@ -52,7 +52,7 @@ class TradeBottomSheetConfirmation extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     TradeTheme tradeTheme = Theme.of(context).extension<TradeTheme>()!;
-    Color color = direction == Direction.buy ? tradeTheme.buy : tradeTheme.sell;
+    Color color = direction == Direction.long ? tradeTheme.buy : tradeTheme.sell;
 
     TradeValues tradeValues =
         Provider.of<TradeValuesChangeNotifier>(context).fromDirection(direction);

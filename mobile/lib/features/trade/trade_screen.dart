@@ -148,7 +148,7 @@ class TradeScreen extends StatelessWidget {
                   child: FloatingActionButton.extended(
                     heroTag: "btnBuy",
                     onPressed: () {
-                      tradeBottomSheet(context: context, direction: Direction.buy);
+                      tradeBottomSheet(context: context, direction: Direction.long);
                     },
                     label: const Text("Buy"),
                     shape: tradeButtonShape,
@@ -160,7 +160,7 @@ class TradeScreen extends StatelessWidget {
                   child: FloatingActionButton.extended(
                     heroTag: "btnSell",
                     onPressed: () {
-                      tradeBottomSheet(context: context, direction: Direction.sell);
+                      tradeBottomSheet(context: context, direction: Direction.short);
                     },
                     label: const Text("Sell"),
                     shape: tradeButtonShape,

@@ -1,5 +1,5 @@
 use crate::api_model::ContractSymbol;
-use crate::api_model::Position;
+use crate::api_model::Direction;
 use flutter_rust_bridge::frb;
 
 #[frb]
@@ -14,5 +14,5 @@ pub struct MarketOrder {
     #[frb(non_final)]
     pub contract_symbol: ContractSymbol,
     #[frb(non_final)]
-    pub position: Position,
+    pub direction: Direction,
 }

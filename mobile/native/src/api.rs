@@ -1,5 +1,5 @@
 use crate::api_calculations;
-use crate::api_model::Position;
+use crate::api_model::Direction;
 use crate::logger;
 use flutter_rust_bridge::StreamSink;
 use flutter_rust_bridge::SyncReturn;
@@ -24,9 +24,9 @@ pub fn calculate_quantity(price: f64, margin: u64, leverage: f64) -> SyncReturn<
 pub fn calculate_liquidation_price(
     price: f64,
     leverage: f64,
-    position: Position,
+    direction: Direction,
 ) -> SyncReturn<f64> {
     SyncReturn(api_calculations::calculate_liquidation_price(
-        price, leverage, position,
+        price, leverage, direction,
     ))
 }

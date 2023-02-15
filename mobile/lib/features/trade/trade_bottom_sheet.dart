@@ -53,13 +53,13 @@ class TradeBottomSheet extends StatelessWidget {
         tabs: const ["Buy", "Sell"],
         tabBarViewChildren: const [
           TradeBottomSheetTab(
-            direction: Direction.buy,
+            direction: Direction.long,
           ),
           TradeBottomSheetTab(
-            direction: Direction.sell,
+            direction: Direction.short,
           ),
         ],
-        selectedIndex: direction == Direction.buy ? 0 : 1,
+        selectedIndex: direction == Direction.long ? 0 : 1,
         topRightWidget: Row(
           children: [
             const Text(

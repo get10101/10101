@@ -9,7 +9,7 @@ pub enum ContractSymbol {
 
 #[frb]
 #[derive(Debug, Clone, Copy)]
-pub enum Position {
+pub enum Direction {
     Long,
     Short,
 }

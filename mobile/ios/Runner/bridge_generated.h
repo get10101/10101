@@ -27,7 +27,7 @@ WireSyncReturn wire_calculate_margin(double price, double quantity, double lever
 
 WireSyncReturn wire_calculate_quantity(double price, uint64_t margin, double leverage);
 
-WireSyncReturn wire_calculate_liquidation_price(double price, double leverage, int32_t position);
+WireSyncReturn wire_calculate_liquidation_price(double price, double leverage, int32_t direction);
 
 void free_WireSyncReturn(WireSyncReturn ptr);
 

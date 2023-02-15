@@ -1,4 +1,4 @@
-use crate::api_model::Position;
+use crate::api_model::Direction;
 use bdk::bitcoin;
 use bdk::bitcoin::Denomination;
 use rust_decimal::prelude::ToPrimitive;
@@ -41,16 +41,16 @@ pub fn calculate_quantity(opening_price: f64, margin: u64, leverage: f64) -> f64
     quantity.to_f64().expect("quantity to fit into f64")
 }
 
-pub fn calculate_liquidation_price(price: f64, leverage: f64, position: Position) -> f64 {
+pub fn calculate_liquidation_price(price: f64, leverage: f64, direction: Direction) -> f64 {
     let initial_price = Decimal::try_from(price).expect("Price to fit");
 
     tracing::trace!("Initial price: {}", price);
 
     let leverage = Decimal::try_from(leverage).expect("leverage to fix into decimal");
 
-    let liquidation_price = match position {
-        Position::Long => calculate_long_liquidation_price(leverage, initial_price),
-        Position::Short => calculate_short_liquidation_price(leverage, initial_price),
+    let liquidation_price = match direction {
+        Direction::Long => calculate_long_liquidation_price(leverage, initial_price),
+        Direction::Short => calculate_short_liquidation_price(leverage, initial_price),
     };
 
     let liquidation_price = liquidation_price.to_f64().expect("price to fit into f64");

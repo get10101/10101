@@ -1,6 +1,6 @@
 import 'package:get_10101/features/trade/domain/direction.dart';
 import 'package:get_10101/features/trade/domain/leverage.dart';
-import 'package:get_10101/ffi.dart';
+import 'package:get_10101/ffi.dart' as rust;
 import 'package:get_10101/common/domain/model.dart';
 
 class TradeValues {
@@ -30,10 +30,10 @@ class TradeValues {
       required double price,
       required double fundingRate,
       required Direction direction}) {
-    Amount margin =
-        Amount(api.calculateMargin(price: price, quantity: quantity, leverage: leverage.leverage));
-    double liquidationPrice = api.calculateLiquidationPrice(
-        price: price, leverage: leverage.leverage, position: direction.intoPosition());
+    Amount margin = Amount(
+        rust.api.calculateMargin(price: price, quantity: quantity, leverage: leverage.leverage));
+    double liquidationPrice = rust.api.calculateLiquidationPrice(
+        price: price, leverage: leverage.leverage, direction: direction.toApi());
 
     // TODO: Calculate fee based on price, quantity and funding rate
     Amount fee = Amount(30);
@@ -72,20 +72,20 @@ class TradeValues {
   }
 
   _recalculateMargin() {
-    Amount margin =
-        Amount(api.calculateMargin(price: price, quantity: quantity, leverage: leverage.leverage));
+    Amount margin = Amount(
+        rust.api.calculateMargin(price: price, quantity: quantity, leverage: leverage.leverage));
     this.margin = margin;
   }
 
   _recalculateQuantity() {
     double quantity =
-        api.calculateQuantity(price: price, margin: margin.sats, leverage: leverage.leverage);
+        rust.api.calculateQuantity(price: price, margin: margin.sats, leverage: leverage.leverage);
     this.quantity = quantity;
   }
 
   _recalculateLiquidationPrice() {
-    double liquidationPrice = api.calculateLiquidationPrice(
-        price: price, leverage: leverage.leverage, position: direction.intoPosition());
+    double liquidationPrice = rust.api.calculateLiquidationPrice(
+        price: price, leverage: leverage.leverage, direction: direction.toApi());
     this.liquidationPrice = liquidationPrice;
   }
 }
