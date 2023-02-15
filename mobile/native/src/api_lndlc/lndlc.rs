@@ -11,14 +11,15 @@ use bdk::bitcoin::secp256k1::rand::RngCore;
 use bdk::bitcoin::Network;
 use dlc_manager::Wallet;
 use flutter_rust_bridge::StreamSink;
+use lightning_invoice::Invoice;
 use ln_dlc_node::node::Node;
 use ln_dlc_node::node::NodeInfo;
 use ln_dlc_node::seed::Bip39Seed;
 use state::Storage;
 use std::net::TcpListener;
 use std::path::Path;
+use std::str::FromStr;
 use std::sync::Arc;
-use lightning_invoice::Invoice;
 
 static NODE: Storage<Arc<Node>> = Storage::new();
 
@@ -155,4 +156,10 @@ pub fn create_invoice() -> Result<Invoice> {
             "test".to_string(),
         )
     })
+}
+
+pub fn send_payment(invoice: &str) -> Result<()> {
+    let node = NODE.try_get().unwrap();
+    let invoice = Invoice::from_str(invoice).context("Could not parse Invoice string")?;
+    node.send_payment(&invoice)
 }

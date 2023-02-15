@@ -90,3 +90,7 @@ pub fn open_channel() -> Result<()> {
 pub fn create_invoice() -> Result<String> {
     Ok(api_lndlc::lndlc::create_invoice()?.to_string())
 }
+
+pub fn send_payment(invoice: String) -> Result<()> {
+    api_lndlc::lndlc::send_payment(&invoice)
+}
