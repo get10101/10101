@@ -19,7 +19,16 @@ static LOG_STREAM_SINK: Storage<StreamSink<LogEntry>> = Storage::new();
 
 // Tracing log directives config
 pub fn log_base_directives(env: EnvFilter, level: LevelFilter) -> Result<EnvFilter> {
-    let filter = env.add_directive(Directive::from(level));
+    let filter = env
+        .add_directive(Directive::from(level))
+        .add_directive("hyper=warn".parse()?)
+        .add_directive("sqlx=warn".parse()?) // sqlx logs all queries on INFO
+        .add_directive("reqwest=warn".parse()?)
+        .add_directive("rustls=warn".parse()?)
+        // set to debug to show ldk logs (they're also in logs.txt)
+        .add_directive("sled=warn".parse()?)
+        .add_directive("ldk=warn".parse()?)
+        .add_directive("bdk=warn".parse()?); // bdk is quite spamy on debug
     Ok(filter)
 }
 
@@ -28,6 +37,10 @@ pub struct LogEntry {
     pub msg: String,
     pub target: String,
     pub level: String,
+    pub file: String,
+    pub line: String,
+    pub module_path: String,
+    pub data: String,
 }
 
 pub fn create_log_stream(sink: StreamSink<LogEntry>) {
@@ -53,20 +66,29 @@ where
         let mut visitor = Visitor(&mut fields);
         event.record(&mut visitor);
 
-        let fmt_fields = fields
+        let target = fields.remove("log.target").unwrap_or("".to_string());
+        let msg = fields.remove("message").unwrap_or("".to_string());
+        let file = fields.remove("log.file").unwrap_or("".to_string());
+        let line = fields.remove("log.line").unwrap_or("".to_string());
+        let module_path = fields.remove("log.module_path").unwrap_or("".to_string());
+
+        let data = fields
             .iter()
             .map(|field| format!("{}: {}", field.0, field.1))
             .collect::<Vec<String>>()
             .join(",");
-        let msg = format!("{}: {}", event.metadata().name(), fmt_fields);
 
         LOG_STREAM_SINK
             .try_get()
             .expect("StreamSink from Flutter to be initialised")
             .add(LogEntry {
                 msg,
-                target: event.metadata().target().to_string(),
+                target,
                 level: event.metadata().level().to_string(),
+                file,
+                line,
+                module_path,
+                data,
             });
     }
 }

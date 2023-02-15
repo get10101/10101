@@ -1,6 +1,6 @@
 import 'package:f_logs/f_logs.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' as foundation;
+import 'dart:io';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge.dart';
 import 'package:get_10101/features/trade/application/order_service.dart';
@@ -34,6 +34,16 @@ void main() {
 
   final config = FLog.getDefaultConfigurations();
   config.activeLogLevel = LogLevel.DEBUG;
+  config.formatType = FormatType.FORMAT_CUSTOM;
+  config.timestampFormat = 'yyyy-MM-dd HH:mm:ss.SSS';
+  config.fieldOrderFormatCustom = [
+    FieldName.TIMESTAMP,
+    FieldName.LOG_LEVEL,
+    FieldName.TEXT,
+    FieldName.STACKTRACE
+  ];
+  config.customClosingDivider = "";
+  config.customOpeningDivider = "| ";
 
   FLog.applyConfigurations(config);
   runApp(MultiProvider(providers: [
@@ -174,12 +184,30 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
 
   Future<void> setupRustLogging() async {
     rust.api.initLogging().listen((event) {
-      // Only log to Dart file in release mode - in debug mode it's easier to
-      // use stdout
-      if (foundation.kReleaseMode || true) {
-        FLog.logThis(text: '${event.target}: ${event.msg}', type: LogLevel.DEBUG);
+      // TODO: this should not be required if we enable mobile loggers for FLog.
+      if (Platform.isAndroid || Platform.isIOS) {
+        FLog.logThis(
+            text: event.target != "" ? '${event.target}: ${event.msg}' : event.msg,
+            type: mapLogLevel(event.level));
       }
     });
+  }
+
+  LogLevel mapLogLevel(String level) {
+    switch (level) {
+      case "INFO":
+        return LogLevel.INFO;
+      case "DEBUG":
+        return LogLevel.DEBUG;
+      case "ERROR":
+        return LogLevel.ERROR;
+      case "WARN":
+        return LogLevel.WARNING;
+      case "TRACE":
+        return LogLevel.TRACE;
+      default:
+        return LogLevel.DEBUG;
+    }
   }
 }
 

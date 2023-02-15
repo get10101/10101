@@ -9,11 +9,9 @@ use tracing_subscriber::util::SubscriberInitExt;
 use tracing_subscriber::EnvFilter;
 use tracing_subscriber::Layer;
 
-// TODO: Share the logging infrastructure (it's just a copy for now for expedience)
-
 const RUST_LOG_ENV: &str = "RUST_LOG";
 
-// Configure and initalise tracing subsystem
+// Configure and initialise tracing subsystem
 pub fn init_tracing(level: LevelFilter, json_format: bool) -> Result<()> {
     if level == LevelFilter::OFF {
         return Ok(());
@@ -24,10 +22,7 @@ pub fn init_tracing(level: LevelFilter, json_format: bool) -> Result<()> {
     let mut filter = EnvFilter::new("")
         .add_directive(Directive::from(level))
         .add_directive("hyper=warn".parse()?)
-        .add_directive("sqlx=warn".parse()?) // sqlx logs all queries on INFO
-        .add_directive("reqwest=warn".parse()?)
         .add_directive("rustls=warn".parse()?)
-        // set to debug to show ldk logs (they're also in logs.txt)
         .add_directive("sled=warn".parse()?)
         .add_directive("ldk=warn".parse()?)
         .add_directive("bdk=warn".parse()?); // bdk is quite spamy on debug
