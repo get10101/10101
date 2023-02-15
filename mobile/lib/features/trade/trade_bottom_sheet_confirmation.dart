@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get_10101/common/amount_text.dart';
 import 'package:get_10101/common/domain/model.dart';
 import 'package:get_10101/common/value_data_row.dart';
-import 'package:get_10101/features/trade/btc_usd_trading_pair_image.dart';
+import 'package:get_10101/features/trade/contract_symbol_icon.dart';
 import 'package:get_10101/features/trade/domain/direction.dart';
 import 'package:get_10101/features/trade/domain/trade_values.dart';
 import 'package:get_10101/features/trade/submit_order_change_notifier.dart';
@@ -63,7 +63,7 @@ class TradeBottomSheetConfirmation extends StatelessWidget {
         padding: const EdgeInsets.all(20),
         child: Column(
           children: [
-            const BtcUsdTradingPairImage(),
+            const ContractSymbolIcon(),
             Text("Market ${direction.nameU}",
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17, color: color)),
             Center(
