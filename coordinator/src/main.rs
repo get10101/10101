@@ -7,15 +7,18 @@ use ln_dlc_node::node::Node;
 use ln_dlc_node::seed::Bip39Seed;
 use rand::thread_rng;
 use rand::RngCore;
+use std::sync::Arc;
 use tracing::metadata::LevelFilter;
+use coordinator::routes;
 
 const ELECTRS_ORIGIN: &str = "tcp://localhost:50000";
 
-#[tokio::main]
+#[rocket::main]
 async fn main() -> Result<()> {
     let opts = Opts::read();
     let data_dir = opts.data_dir()?;
     let address = opts.p2p_address;
+    let http_address = opts.http_address;
     let network = Network::Regtest;
 
     logger::init_tracing(LevelFilter::DEBUG, false)?;
@@ -32,20 +35,40 @@ async fn main() -> Result<()> {
     let seed_path = data_dir.join("seed");
     let seed = Bip39Seed::initialize(&seed_path)?;
 
-    let node = Node::new_coordinator(
-        "coordinator".to_string(),
-        network,
-        data_dir.as_path(),
-        address,
-        ELECTRS_ORIGIN.to_string(),
-        seed,
-        ephemeral_randomness,
-    )
-    .await;
+    let node = Arc::new(
+        Node::new_coordinator(
+            "coordinator".to_string(),
+            network,
+            data_dir.as_path(),
+            address,
+            ELECTRS_ORIGIN.to_string(),
+            seed,
+            ephemeral_randomness,
+        )
+        .await,
+    );
 
-    let background_processor = node.start().await?;
+    tokio::spawn({
+        let node = node.clone();
+        async move {
+            let background_processor = node.start().await.expect("background processor to start");
+            if let Err(err) = background_processor.join() {
+                tracing::error!(?err, "Background processor stopped unexpected");
+            }
+        }
+    });
 
-    background_processor.join()?;
+    let figment = rocket::Config::figment()
+        .merge(("address", http_address.ip()))
+        .merge(("port", http_address.port()));
+
+    let mission_success = rocket::custom(figment)
+        .mount("/api", rocket::routes![routes::get_fake_scid])
+        .manage(node)
+        .launch()
+        .await?;
+
+    tracing::trace!(?mission_success, "Rocket has landed");
 
     Ok(())
 }

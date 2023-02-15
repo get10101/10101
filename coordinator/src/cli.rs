@@ -10,6 +10,10 @@ pub struct Opts {
     #[clap(long, default_value = "0.0.0.0:9045")]
     pub p2p_address: SocketAddr,
 
+    /// The IP address to listen on for the HTTP API.
+    #[clap(long, default_value = "0.0.0.0:8000")]
+    pub http_address: SocketAddr,
+
     /// Where to permanently store data, defaults to the current working directory.
     #[clap(long)]
     data_dir: Option<PathBuf>,
