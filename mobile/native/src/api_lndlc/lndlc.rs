@@ -26,7 +26,6 @@ static NODE: Storage<Arc<Node>> = Storage::new();
 const REGTEST_COORDINATOR_PK: &str =
     "02dd6abec97f9a748bf76ad502b004ce05d1b2d1f43a9e76bd7d85e767ffb022c9";
 
-
 // TODO: this configuration should not be hardcoded.
 const HOST: &str = "127.0.0.1";
 const HTTP_PORT: u16 = 8000;
@@ -67,7 +66,7 @@ pub fn run(stream: StreamSink<Event>, data_dir: String) -> Result<()> {
 
         let node = Arc::new(
             Node::new_app(
-                "coordinator".to_string(),
+                "10101".to_string(),
                 network,
                 data_dir.as_path(),
                 address,
