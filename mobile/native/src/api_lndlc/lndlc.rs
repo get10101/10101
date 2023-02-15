@@ -3,6 +3,7 @@ use crate::api_lndlc::runtime;
 use crate::api_lndlc::Balance;
 use crate::api_lndlc::ELECTRS_ORIGIN;
 use anyhow::anyhow;
+use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
 use bdk::bitcoin::secp256k1::rand::thread_rng;
@@ -17,6 +18,7 @@ use state::Storage;
 use std::net::TcpListener;
 use std::path::Path;
 use std::sync::Arc;
+use lightning_invoice::Invoice;
 
 static NODE: Storage<Arc<Node>> = Storage::new();
 
@@ -118,4 +120,39 @@ pub fn open_channel() -> Result<()> {
     let node = NODE.try_get().unwrap();
 
     node.open_channel(get_coordinator_info(), 500000, 250000)
+}
+
+pub fn create_invoice() -> Result<Invoice> {
+    let runtime = runtime()?;
+
+    runtime.block_on(async {
+        let node = NODE.try_get().unwrap();
+
+        let client = reqwest::Client::new();
+        let response = client
+            .get(format!(
+                "http://10.0.0.20:8000/api/get_fake_scid/{}",
+                node.info.pubkey
+            )) // TODO: make host configurable
+            .send()
+            .await?;
+
+        if !response.status().is_success() {
+            let text = response.text().await?;
+            bail!("Failed to fetch fake scid from coordinator: {text}")
+        }
+
+        let text = response.text().await?;
+        tracing::info!("Fetch fake channel id: {}", text);
+
+        let fake_channel_id: u64 = text.parse()?;
+
+        node.create_interceptable_invoice(
+            1000,
+            fake_channel_id,
+            get_coordinator_info().pubkey,
+            0,
+            "test".to_string(),
+        )
+    })
 }

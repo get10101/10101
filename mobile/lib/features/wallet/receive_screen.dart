@@ -5,11 +5,18 @@ import 'package:get_10101/features/wallet/wallet_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:get_10101/ffi.dart';
 
-class ReceiveScreen extends StatelessWidget {
+class ReceiveScreen extends StatefulWidget {
   static const route = "${WalletScreen.route}/$subRouteName";
   static const subRouteName = "receive";
 
   const ReceiveScreen({super.key});
+
+  @override
+  State<ReceiveScreen> createState() => _ReceiveScreenState();
+}
+
+class _ReceiveScreenState extends State<ReceiveScreen> {
+  String invoice = "";
 
   @override
   Widget build(BuildContext context) {
@@ -24,6 +31,20 @@ class ReceiveScreen extends StatelessWidget {
           const SizedBox(height: 50),
           SelectableText("Address: ${api.getNewAddress()}"),
           Text("Balance: ${balance.offChain} / ${balance.onChain}"),
+          ElevatedButton(
+              onPressed: () async {
+                try {
+                  setState(() async {
+                    invoice = await api.createInvoice();
+                  });
+
+                  FLog.info(text: "Successfully created invoice.");
+                } catch (error) {
+                  FLog.error(text: "Error: $error", exception: error);
+                }
+              },
+              child: const Text("Create Invoice")),
+          SelectableText("Invoice: $invoice"),
           ElevatedButton(
               onPressed: () async {
                 try {

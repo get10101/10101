@@ -86,3 +86,7 @@ pub fn get_new_address() -> SyncReturn<String> {
 pub fn open_channel() -> Result<()> {
     api_lndlc::lndlc::open_channel()
 }
+
+pub fn create_invoice() -> Result<String> {
+    Ok(api_lndlc::lndlc::create_invoice()?.to_string())
+}
