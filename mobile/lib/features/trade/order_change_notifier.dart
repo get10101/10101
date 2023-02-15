@@ -7,6 +7,11 @@ class OrderChangeNotifier extends ChangeNotifier {
 
   List<Order> orders = List.empty();
 
+  OrderChangeNotifier init() {
+    updateOrders();
+    return this;
+  }
+
   updateOrders() async {
     orders = await orderService.fetchOrders();
     notifyListeners();
