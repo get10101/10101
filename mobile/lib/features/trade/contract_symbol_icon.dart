@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 
-class BtcUsdTradingPairImage extends StatelessWidget {
-  const BtcUsdTradingPairImage(
+class ContractSymbolIcon extends StatelessWidget {
+  const ContractSymbolIcon(
       {this.height = 30.0,
       this.width = 30.0,
       this.paddingUsd = const EdgeInsets.only(left: 20.0),
