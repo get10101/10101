@@ -82,3 +82,7 @@ pub fn run(stream: StreamSink<Event>, app_dir: String) -> Result<()> {
 pub fn get_new_address() -> SyncReturn<String> {
     SyncReturn(api_lndlc::lndlc::get_new_address().unwrap())
 }
+
+pub fn open_channel() -> Result<()> {
+    api_lndlc::lndlc::open_channel()
+}

@@ -1,3 +1,4 @@
+import 'package:f_logs/f_logs.dart';
 import 'package:flutter/material.dart';
 import 'package:get_10101/features/wallet/balance_change_notifier.dart';
 import 'package:get_10101/features/wallet/wallet_screen.dart';
@@ -23,6 +24,16 @@ class ReceiveScreen extends StatelessWidget {
           const SizedBox(height: 50),
           SelectableText("Address: ${api.getNewAddress()}"),
           Text("Balance: ${balance.offChain} / ${balance.onChain}"),
+          ElevatedButton(
+              onPressed: () async {
+                try {
+                  await api.openChannel();
+                  FLog.info(text: "Open Channel successfully started.");
+                } catch (error) {
+                  FLog.error(text: "Error: $error", exception: error);
+                }
+              },
+              child: const Text("Open Channel!"))
         ],
       )),
     );

@@ -113,3 +113,9 @@ pub fn get_new_address() -> Result<String> {
         .map_err(|e| anyhow!("Failed to get new address: {e}"))?;
     Ok(address.to_string())
 }
+
+pub fn open_channel() -> Result<()> {
+    let node = NODE.try_get().unwrap();
+
+    node.open_channel(get_coordinator_info(), 500000, 250000)
+}
