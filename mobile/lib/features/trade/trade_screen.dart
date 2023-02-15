@@ -4,6 +4,8 @@ import 'package:get_10101/common/value_data_row.dart';
 import 'package:get_10101/features/trade/contract_symbol_icon.dart';
 import 'package:get_10101/features/trade/domain/contract_symbol.dart';
 import 'package:get_10101/features/trade/domain/direction.dart';
+import 'package:get_10101/features/trade/order_change_notifier.dart';
+import 'package:get_10101/features/trade/order_list_item.dart';
 import 'package:get_10101/features/trade/submit_order_change_notifier.dart';
 import 'package:get_10101/features/trade/trade_bottom_sheet.dart';
 import 'package:get_10101/features/trade/candlestick_chart.dart';
@@ -21,7 +23,6 @@ class TradeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     TradeTheme tradeTheme = Theme.of(context).extension<TradeTheme>()!;
 
-    List<String> orders = List<String>.generate(100, (i) => 'Order $i');
     List<String> positions = List<String>.generate(100, (i) => 'Position $i');
 
     const RoundedRectangleBorder tradeButtonShape = RoundedRectangleBorder(
@@ -92,6 +93,8 @@ class TradeScreen extends StatelessWidget {
       });
     }
 
+    OrderChangeNotifier orderChangeNotifier = context.watch<OrderChangeNotifier>();
+
     return Scaffold(
         body: Container(
           padding: const EdgeInsets.only(left: 15, right: 15),
@@ -124,11 +127,9 @@ class TradeScreen extends StatelessWidget {
                     ListView.builder(
                       shrinkWrap: true,
                       physics: const ClampingScrollPhysics(),
-                      itemCount: orders.length,
+                      itemCount: orderChangeNotifier.orders.length,
                       itemBuilder: (BuildContext context, int index) {
-                        return ListTile(
-                          title: Text(orders[index]),
-                        );
+                        return OrderListItem(order: orderChangeNotifier.orders[index]);
                       },
                     )
                   ],

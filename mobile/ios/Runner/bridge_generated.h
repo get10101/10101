@@ -37,6 +37,11 @@ typedef struct wire_NewOrder {
   struct wire_OrderType *order_type;
 } wire_NewOrder;
 
+typedef struct wire_uint_8_list {
+  uint8_t *ptr;
+  int32_t len;
+} wire_uint_8_list;
+
 void store_dart_post_cobject(DartPostCObjectFnType ptr);
 
 Dart_Handle get_dart_object(uintptr_t ptr);
@@ -57,9 +62,17 @@ WireSyncReturn wire_calculate_liquidation_price(double price, double leverage, i
 
 void wire_submit_order(int64_t port_, struct wire_NewOrder *order);
 
+void wire_subscribe_to_order_notifications(int64_t port_);
+
+void wire_get_order(int64_t port_, struct wire_uint_8_list *id);
+
+void wire_get_orders(int64_t port_);
+
 struct wire_NewOrder *new_box_autoadd_new_order_0(void);
 
 struct wire_OrderType *new_box_order_type_0(void);
+
+struct wire_uint_8_list *new_uint_8_list_0(int32_t len);
 
 union OrderTypeKind *inflate_OrderType_Limit(void);
 
@@ -72,8 +85,12 @@ static int64_t dummy_method_to_enforce_bundling(void) {
     dummy_var ^= ((int64_t) (void*) wire_calculate_quantity);
     dummy_var ^= ((int64_t) (void*) wire_calculate_liquidation_price);
     dummy_var ^= ((int64_t) (void*) wire_submit_order);
+    dummy_var ^= ((int64_t) (void*) wire_subscribe_to_order_notifications);
+    dummy_var ^= ((int64_t) (void*) wire_get_order);
+    dummy_var ^= ((int64_t) (void*) wire_get_orders);
     dummy_var ^= ((int64_t) (void*) new_box_autoadd_new_order_0);
     dummy_var ^= ((int64_t) (void*) new_box_order_type_0);
+    dummy_var ^= ((int64_t) (void*) new_uint_8_list_0);
     dummy_var ^= ((int64_t) (void*) inflate_OrderType_Limit);
     dummy_var ^= ((int64_t) (void*) free_WireSyncReturn);
     dummy_var ^= ((int64_t) (void*) store_dart_post_cobject);
