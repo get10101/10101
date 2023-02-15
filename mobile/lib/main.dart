@@ -36,7 +36,7 @@ void main() {
     ChangeNotifierProvider(create: (context) => TradeValuesChangeNotifier()),
     ChangeNotifierProvider(create: (context) => AmountDenominationChangeNotifier()),
     ChangeNotifierProvider(create: (context) => SubmitOrderChangeNotifier()),
-    ChangeNotifierProvider(create: (context) => OrderChangeNotifier()),
+    ChangeNotifierProvider(create: (context) => OrderChangeNotifier().init()),
   ], child: const TenTenOneApp()));
 }
 
