@@ -1,4 +1,7 @@
+import 'package:f_logs/model/flog/flog.dart';
 import 'package:flutter/material.dart';
+import 'package:get_10101/features/trade/application/order_service.dart';
+import 'package:get_10101/features/trade/domain/contract_symbol.dart';
 import 'domain/trade_values.dart';
 
 enum PendingOrderState {
@@ -16,18 +19,26 @@ class PendingOrder {
 }
 
 class SubmitOrderChangeNotifier extends ChangeNotifier {
+  final OrderService orderService = OrderService();
+
   PendingOrder? _pendingOrder;
 
   submitPendingOrder(TradeValues tradeValues) async {
     _pendingOrder = PendingOrder(tradeValues);
 
+    // notify listeners about pending order in state "pending"
     notifyListeners();
 
-    // TODO: Actually submit the pending order...
-    await Future.delayed(const Duration(seconds: 1));
-    // TODO: Handle submit failure
-    _pendingOrder!.state = PendingOrderState.submittedSuccessfully;
+    try {
+      await orderService.submitMarketOrder(
+          tradeValues.leverage, tradeValues.quantity, ContractSymbol.btcusd, tradeValues.direction);
+      _pendingOrder!.state = PendingOrderState.submittedSuccessfully;
+    } catch (exception) {
+      FLog.error(text: "Failed to submit order: $exception");
+      _pendingOrder!.state = PendingOrderState.submissionFailed;
+    }
 
+    // notify listeners about the status change of the pending order after submission
     notifyListeners();
   }
 
