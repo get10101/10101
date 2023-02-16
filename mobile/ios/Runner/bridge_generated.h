@@ -64,6 +64,8 @@ void wire_submit_order(int64_t port_, struct wire_NewOrder *order);
 
 void wire_subscribe_to_order_notifications(int64_t port_);
 
+void wire_subscribe_to_position_notifications(int64_t port_);
+
 void wire_get_order(int64_t port_, struct wire_uint_8_list *id);
 
 void wire_get_orders(int64_t port_);
@@ -86,6 +88,7 @@ static int64_t dummy_method_to_enforce_bundling(void) {
     dummy_var ^= ((int64_t) (void*) wire_calculate_liquidation_price);
     dummy_var ^= ((int64_t) (void*) wire_submit_order);
     dummy_var ^= ((int64_t) (void*) wire_subscribe_to_order_notifications);
+    dummy_var ^= ((int64_t) (void*) wire_subscribe_to_position_notifications);
     dummy_var ^= ((int64_t) (void*) wire_get_order);
     dummy_var ^= ((int64_t) (void*) wire_get_orders);
     dummy_var ^= ((int64_t) (void*) new_box_autoadd_new_order_0);

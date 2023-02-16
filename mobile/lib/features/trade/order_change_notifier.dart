@@ -8,7 +8,7 @@ class OrderChangeNotifier extends ChangeNotifier {
   List<Order> orders = List.empty();
 
   OrderChangeNotifier init() {
-    updateOrders();
+    // updateOrders();
     return this;
   }
 

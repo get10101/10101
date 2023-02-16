@@ -3,9 +3,11 @@ use crate::api_model;
 use crate::api_model::order::NewOrder;
 use crate::api_model::order::Order;
 use crate::api_model::order::OrderNotification;
+use crate::api_model::position::PositionNotification;
 use crate::common::Direction;
 use crate::logger;
 use crate::trade::order;
+use crate::trade::position;
 use anyhow::Result;
 use flutter_rust_bridge::StreamSink;
 use flutter_rust_bridge::SyncReturn;
@@ -54,6 +56,10 @@ pub fn subscribe_to_order_notifications(sink: StreamSink<OrderNotification>) -> 
     api_model::order::notifications::add_listener(sink)
 }
 
+pub fn subscribe_to_position_notifications(sink: StreamSink<PositionNotification>) -> Result<()> {
+    position::notifications::add_listener(sink)
+}
+
 #[tokio::main(flavor = "current_thread")]
 pub async fn get_order(id: String) -> Result<Order> {
     let order = order::handler::get_order(id).await?.into();
@@ -62,7 +68,7 @@ pub async fn get_order(id: String) -> Result<Order> {
 
 #[tokio::main(flavor = "current_thread")]
 pub async fn get_orders() -> Result<Vec<Order>> {
-    let orders = order::handler::get_orders()
+    let orders = order::handler::get_open_and_filled_orders()
         .await?
         .into_iter()
         .map(|order| order.into())
@@ -70,3 +76,5 @@ pub async fn get_orders() -> Result<Vec<Order>> {
 
     Ok(orders)
 }
+
+// TODO: Add stream to listen to events from orderbook to the `run` function that will be introduced with https://github.com/get10101/10101/pull/146

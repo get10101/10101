@@ -16,13 +16,25 @@ pub enum OrderTypeTrade {
 
 #[derive(Debug, Clone, Copy)]
 pub enum OrderStatusTrade {
+    /// When saved but not in the orderbook yet
+    ///
+    /// In order to be able to track how many failed orders we have we store the order in the
+    /// database and update it once the orderbook returns success.
+    Initial,
+    /// If the orderbook returns failure
+    Failed,
+    /// If the orderbook returns success
     Open,
+    /// Once the orderbook filled it
+    ///
+    /// Partial filling not depicted yet.
     Filled,
 }
 
 #[derive(Debug, Clone, Copy)]
 pub struct OrderTrade {
     pub id: Uuid,
+    pub orderbook_id: Option<Uuid>,
     pub leverage: f64,
     pub quantity: f64,
     pub contract_symbol: ContractSymbol,
@@ -35,6 +47,7 @@ impl From<api_model::order::NewOrder> for OrderTrade {
     fn from(value: api_model::order::NewOrder) -> Self {
         OrderTrade {
             id: Uuid::new_v4(),
+            orderbook_id: None,
             leverage: value.leverage,
             quantity: value.quantity,
             contract_symbol: value.contract_symbol,

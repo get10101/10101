@@ -92,6 +92,13 @@ impl From<trade::order::OrderStatusTrade> for OrderStatus {
         match value {
             trade::order::OrderStatusTrade::Open => OrderStatus::Open,
             trade::order::OrderStatusTrade::Filled => OrderStatus::Filled,
+            // When fetching orders from the database we ignore initial and failed orders
+            trade::order::OrderStatusTrade::Initial => {
+                unimplemented!("we don't expose initial state to the app")
+            }
+            trade::order::OrderStatusTrade::Failed => {
+                unimplemented!("we don't expose the failed state to the app")
+            }
         }
     }
 }
