@@ -1,5 +1,5 @@
 [workspace]
-members = ["coordinator", "mobile/native/", "crates/*"]
+members = ["coordinator", "mobile/native/", "crates/*", "orderbook"]
 resolver = "2"
 
 [patch.crates-io]
