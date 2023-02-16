@@ -19,5 +19,8 @@ bridge_generated.h
 mobile/android/app/src/main/jniLibs/
 mobile/ios/Runner/libnative.a
 
+# generated files by mockito flutter package
+/mobile/test/*.mocks.dart
+
 #ignore keystores
 *.jks

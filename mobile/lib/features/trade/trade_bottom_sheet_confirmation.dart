@@ -8,11 +8,20 @@ import 'package:get_10101/features/trade/domain/trade_values.dart';
 import 'package:get_10101/features/trade/submit_order_change_notifier.dart';
 import 'package:get_10101/features/trade/trade_theme.dart';
 import 'package:get_10101/features/trade/trade_value_change_notifier.dart';
+import 'package:get_10101/util/constants.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:slide_to_confirm/slide_to_confirm.dart';
 
 tradeBottomSheetConfirmation({required BuildContext context, required Direction direction}) {
+  final sliderKey = direction == Direction.long
+      ? tradeScreenBottomSheetConfirmationSliderBuy
+      : tradeScreenBottomSheetConfirmationSliderSell;
+
+  final sliderButtonKey = direction == Direction.long
+      ? tradeScreenBottomSheetConfirmationSliderButtonBuy
+      : tradeScreenBottomSheetConfirmationSliderButtonSell;
+
   showModalBottomSheet<void>(
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(
@@ -37,7 +46,13 @@ tradeBottomSheetConfirmation({required BuildContext context, required Direction 
                 currentFocus.unfocus();
               }
             },
-            child: SizedBox(height: 350, child: TradeBottomSheetConfirmation(direction: direction)),
+            child: SizedBox(
+                height: 350,
+                child: TradeBottomSheetConfirmation(
+                  direction: direction,
+                  sliderButtonKey: sliderButtonKey,
+                  sliderKey: sliderKey,
+                )),
           ),
         ),
       );
@@ -46,8 +61,12 @@ tradeBottomSheetConfirmation({required BuildContext context, required Direction 
 }
 
 class TradeBottomSheetConfirmation extends StatelessWidget {
-  const TradeBottomSheetConfirmation({required this.direction, super.key});
   final Direction direction;
+  final Key sliderKey;
+  final Key sliderButtonKey;
+
+  const TradeBottomSheetConfirmation(
+      {required this.direction, super.key, required this.sliderButtonKey, required this.sliderKey});
 
   @override
   Widget build(BuildContext context) {
@@ -69,7 +88,6 @@ class TradeBottomSheetConfirmation extends StatelessWidget {
             Center(
               child: Container(
                 padding: const EdgeInsets.symmetric(vertical: 10),
-                width: 250,
                 child: Column(
                   children: [
                     Wrap(
@@ -109,14 +127,18 @@ class TradeBottomSheetConfirmation extends StatelessWidget {
             ),
             const Spacer(),
             ConfirmationSlider(
+              key: sliderKey,
               text: "Swipe to confirm ${direction.nameU}",
               textStyle: TextStyle(color: color),
               height: 40,
               foregroundColor: color,
-              sliderButtonContent: const Icon(
-                Icons.chevron_right,
-                color: Colors.white,
-                size: 20,
+              sliderButtonContent: Container(
+                key: sliderButtonKey,
+                child: const Icon(
+                  Icons.chevron_right,
+                  color: Colors.white,
+                  size: 20,
+                ),
               ),
               onConfirmation: () async {
                 context.read<SubmitOrderChangeNotifier>().submitPendingOrder(tradeValues);

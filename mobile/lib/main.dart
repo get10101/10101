@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart' as foundation;
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge.dart';
 import 'package:get_10101/features/trade/application/order_service.dart';
+import 'package:get_10101/features/trade/application/trade_values_service.dart';
 import 'package:get_10101/features/trade/order_change_notifier.dart';
 import 'package:get_10101/features/trade/submit_order_change_notifier.dart';
 import 'package:get_10101/features/trade/trade_value_change_notifier.dart';
@@ -14,6 +15,7 @@ import 'package:get_10101/features/wallet/scanner_screen.dart';
 import 'package:get_10101/features/wallet/send_screen.dart';
 import 'package:get_10101/features/wallet/settings_screen.dart';
 import 'package:get_10101/common/app_bar_wrapper.dart';
+import 'package:get_10101/util/constants.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'common/amount_denomination_change_notifier.dart';
@@ -33,10 +35,10 @@ void main() {
 
   FLog.applyConfigurations(config);
   runApp(MultiProvider(providers: [
-    ChangeNotifierProvider(create: (context) => TradeValuesChangeNotifier()),
+    ChangeNotifierProvider(create: (context) => TradeValuesChangeNotifier(TradeValuesService())),
     ChangeNotifierProvider(create: (context) => AmountDenominationChangeNotifier()),
-    ChangeNotifierProvider(create: (context) => SubmitOrderChangeNotifier()),
-    ChangeNotifierProvider(create: (context) => OrderChangeNotifier().init()),
+    ChangeNotifierProvider(create: (context) => SubmitOrderChangeNotifier(OrderService())),
+    ChangeNotifierProvider(create: (context) => OrderChangeNotifier(OrderService())),
   ], child: const TenTenOneApp()));
 }
 
@@ -183,13 +185,13 @@ class ScaffoldWithNavBar extends StatelessWidget {
       appBar: const PreferredSize(
           preferredSize: Size.fromHeight(40), child: SafeArea(child: AppBarWrapper())),
       bottomNavigationBar: BottomNavigationBar(
-        items: const <BottomNavigationBarItem>[
+        items: <BottomNavigationBarItem>[
           BottomNavigationBarItem(
-            icon: Icon(Icons.wallet),
+            icon: Container(key: tabWallet, child: const Icon(Icons.wallet)),
             label: WalletScreen.label,
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.bar_chart),
+            icon: Container(key: tabTrade, child: const Icon(Icons.bar_chart)),
             label: TradeScreen.label,
           ),
         ],

@@ -19,9 +19,10 @@ class PendingOrder {
 }
 
 class SubmitOrderChangeNotifier extends ChangeNotifier {
-  final OrderService orderService = OrderService();
-
+  final OrderService orderService;
   PendingOrder? _pendingOrder;
+
+  SubmitOrderChangeNotifier(this.orderService);
 
   submitPendingOrder(TradeValues tradeValues) async {
     _pendingOrder = PendingOrder(tradeValues);

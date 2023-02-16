@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:get_10101/common/domain/model.dart';
+import 'package:get_10101/features/trade/application/trade_values_service.dart';
 import 'package:get_10101/features/trade/domain/direction.dart';
 import 'package:get_10101/features/trade/domain/leverage.dart';
 
 import 'domain/trade_values.dart';
 
 class TradeValuesChangeNotifier extends ChangeNotifier {
+  final TradeValuesService tradeValuesService;
+
   // The trade values are represented as Order domain, because that's essentially what they are
-  final TradeValues _buyTradeValues = _initOrder(Direction.long);
-  final TradeValues _sellTradeValues = _initOrder(Direction.short);
+  late final TradeValues _buyTradeValues;
+  late final TradeValues _sellTradeValues;
 
   // TODO: Replace dummy price with price from backend
   // TODO: Get price from separate change notifier; might be able to use a proxy change notifiers
@@ -19,7 +22,12 @@ class TradeValuesChangeNotifier extends ChangeNotifier {
   static const double fundingRateBuy = 0.003;
   static const double fundingRateSell = -0.003;
 
-  static TradeValues _initOrder(Direction direction) {
+  TradeValuesChangeNotifier(this.tradeValuesService) {
+    _buyTradeValues = _initOrder(Direction.long);
+    _sellTradeValues = _initOrder(Direction.short);
+  }
+
+  TradeValues _initOrder(Direction direction) {
     double defaultQuantity = 100;
     double defaultLeverage = 2;
 
@@ -30,14 +38,16 @@ class TradeValuesChangeNotifier extends ChangeNotifier {
             leverage: Leverage(defaultLeverage),
             price: ask,
             fundingRate: fundingRateBuy,
-            direction: direction);
+            direction: direction,
+            tradeValuesService: tradeValuesService);
       case Direction.short:
         return TradeValues.create(
             quantity: defaultQuantity,
             leverage: Leverage(defaultLeverage),
             price: bid,
             fundingRate: fundingRateSell,
-            direction: direction);
+            direction: direction,
+            tradeValuesService: tradeValuesService);
     }
   }
 
