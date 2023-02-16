@@ -428,7 +428,7 @@ impl EventHandler {
 
                 let cid = self
                     .channel_manager
-                    .create_channel(*target_node_id, expected_outbound_amount_msat, 0, 0, None)
+                    .create_channel(*target_node_id, 100_000, 0, 0, None)
                     .map_err(|e| {
                         anyhow!(
                             "Could not create channel with {} due to {e:?}",

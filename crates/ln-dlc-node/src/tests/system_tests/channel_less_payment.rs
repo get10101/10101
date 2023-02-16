@@ -37,11 +37,11 @@ async fn given_no_channel_with_coordinator_when_invoice_generated_then_can_be_pa
 
     // 3. Fund the Bitcoin wallets of the nodes who will open a channel.
     {
-        bob.fund(bitcoin::Amount::from_sat(1_000_000))
+        bob.fund(bitcoin::Amount::from_sat(10_000_000))
             .await
             .unwrap();
         coordinator
-            .fund(bitcoin::Amount::from_sat(1_000_000))
+            .fund(bitcoin::Amount::from_sat(10_000_000))
             .await
             .unwrap();
 
@@ -60,7 +60,7 @@ async fn given_no_channel_with_coordinator_when_invoice_generated_then_can_be_pa
     tracing::info!("Opening channel");
 
     // 4. Create channel between bob and coordinator.
-    bob.open_channel(coordinator.info, 30000, 0).unwrap();
+    bob.open_channel(coordinator.info, 1_000_000, 0).unwrap();
 
     tokio::time::sleep(Duration::from_secs(2)).await;
 
@@ -71,6 +71,12 @@ async fn given_no_channel_with_coordinator_when_invoice_generated_then_can_be_pa
     fund_and_mine(address.clone(), bitcoin::Amount::from_sat(1000)).await;
 
     // Add 1 confirmations for the channel to get announced.
+    fund_and_mine(address.clone(), bitcoin::Amount::from_sat(1000)).await;
+    fund_and_mine(address.clone(), bitcoin::Amount::from_sat(1000)).await;
+    fund_and_mine(address.clone(), bitcoin::Amount::from_sat(1000)).await;
+    fund_and_mine(address.clone(), bitcoin::Amount::from_sat(1000)).await;
+    fund_and_mine(address.clone(), bitcoin::Amount::from_sat(1000)).await;
+    fund_and_mine(address.clone(), bitcoin::Amount::from_sat(1000)).await;
     fund_and_mine(address.clone(), bitcoin::Amount::from_sat(1000)).await;
 
     tokio::time::sleep(Duration::from_secs(2)).await;
@@ -108,7 +114,7 @@ async fn given_no_channel_with_coordinator_when_invoice_generated_then_can_be_pa
     let coordinator_node_id = coordinator.info.pubkey;
 
     // 5. Generate an invoice from the payer to the payee.
-    let invoice_amount = 500;
+    let invoice_amount = 10_000;
     let invoice_expiry = 0; // an expiry of 0 means the invoice never expires.
     let invoice = alice
         .create_interceptable_invoice(
@@ -124,7 +130,8 @@ async fn given_no_channel_with_coordinator_when_invoice_generated_then_can_be_pa
     coordinator.sync();
     bob.sync();
 
-    tracing::info!(?invoice);
+    let invoice_str = invoice.to_string();
+    tracing::info!(?invoice_str);
 
     // 6. Pay the invoice.
     bob.send_payment(&invoice).unwrap();
@@ -136,12 +143,33 @@ async fn given_no_channel_with_coordinator_when_invoice_generated_then_can_be_pa
     tracing::info!(?balance, "coordinator's wallet balance");
 
     bob.sync();
-    let balance = bob.get_ldk_balance().unwrap();
-    tracing::info!(?balance, "bob's wallet balance");
+    let bob_balance_before_receiving = bob.get_ldk_balance().unwrap();
+    tracing::info!(?bob_balance_before_receiving, "bob's wallet balance");
 
     alice.sync();
-    let balance = alice.get_ldk_balance().unwrap();
-    tracing::info!(?balance, "Alice's wallet balance");
+    let alice_balance_before_sending = alice.get_ldk_balance().unwrap();
+    tracing::info!(?alice_balance_before_sending, "Alice's wallet balance");
 
-    assert_eq!(balance.available, invoice_amount)
+    assert_eq!(alice_balance_before_sending.available, invoice_amount);
+
+    let invoice = bob.create_invoice(100).unwrap();
+    dbg!(&invoice.to_string());
+    // let invoice = coordinator.create_invoice(10).unwrap();
+    // dbg!(&invoice.to_string());
+    alice.send_payment(&invoice).unwrap();
+
+    // paying the invoice takes some time
+    tracing::info!("Waiting for the payment to arrive");
+    tokio::time::sleep(Duration::from_secs(5)).await;
+
+    bob.sync();
+    let bob_balance_after_receiveing = bob.get_ldk_balance().unwrap();
+    tracing::info!(?bob_balance_after_receiveing, "bob's wallet balance");
+
+    alice.sync();
+    let alice_balance_after_sending = alice.get_ldk_balance().unwrap();
+    tracing::info!(?alice_balance_after_sending, "Alice's wallet balance");
+
+    assert!(alice_balance_before_sending.available > alice_balance_after_sending.available);
+    assert!(bob_balance_after_receiveing.available > bob_balance_before_receiving.available);
 }

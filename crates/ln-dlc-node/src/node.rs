@@ -685,7 +685,7 @@ fn app_config() -> UserConfig {
             minimum_depth: 1,
             // only 10% of the total channel value can be sent. e.g. with a volume of 30.000 sats
             // only 3.000 sats can be sent.
-            max_inbound_htlc_value_in_flight_percent_of_channel: 10,
+            max_inbound_htlc_value_in_flight_percent_of_channel: 100,
             ..Default::default()
         },
         channel_handshake_limits: ChannelHandshakeLimits {
@@ -707,7 +707,7 @@ fn coordinator_config() -> UserConfig {
             minimum_depth: 1,
             // only 10% of the total channel value can be sent. e.g. with a volume of 30.000 sats
             // only 3.000 sats can be sent.
-            max_inbound_htlc_value_in_flight_percent_of_channel: 10,
+            max_inbound_htlc_value_in_flight_percent_of_channel: 100,
             ..Default::default()
         },
         channel_handshake_limits: ChannelHandshakeLimits {
