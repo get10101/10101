@@ -43,9 +43,9 @@ use lightning::routing::router::DefaultRouter;
 use lightning::routing::router::RouteHint;
 use lightning::routing::router::RouteHintHop;
 use lightning::routing::scoring::ProbabilisticScorer;
-use lightning::util::config::ChannelHandshakeConfig;
 use lightning::util::config::ChannelHandshakeLimits;
 use lightning::util::config::UserConfig;
+use lightning::util::config::{ChannelConfig, ChannelHandshakeConfig};
 use lightning_background_processor::BackgroundProcessor;
 use lightning_background_processor::GossipSync;
 use lightning_invoice::payment;
@@ -716,6 +716,10 @@ fn coordinator_config() -> UserConfig {
             force_announced_channel_preference: false,
             // lnd's max to_self_delay is 2016, so we want to be compatible.
             their_to_self_delay: 2016,
+            ..Default::default()
+        },
+        channel_config: ChannelConfig {
+            cltv_expiry_delta: MIN_CLTV_EXPIRY_DELTA,
             ..Default::default()
         },
         accept_intercept_htlcs: true,

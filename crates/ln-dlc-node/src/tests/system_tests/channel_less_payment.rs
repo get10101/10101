@@ -72,12 +72,6 @@ async fn given_no_channel_with_coordinator_when_invoice_generated_then_can_be_pa
 
     // Add 1 confirmations for the channel to get announced.
     fund_and_mine(address.clone(), bitcoin::Amount::from_sat(1000)).await;
-    fund_and_mine(address.clone(), bitcoin::Amount::from_sat(1000)).await;
-    fund_and_mine(address.clone(), bitcoin::Amount::from_sat(1000)).await;
-    fund_and_mine(address.clone(), bitcoin::Amount::from_sat(1000)).await;
-    fund_and_mine(address.clone(), bitcoin::Amount::from_sat(1000)).await;
-    fund_and_mine(address.clone(), bitcoin::Amount::from_sat(1000)).await;
-    fund_and_mine(address.clone(), bitcoin::Amount::from_sat(1000)).await;
 
     tokio::time::sleep(Duration::from_secs(2)).await;
 
@@ -152,10 +146,15 @@ async fn given_no_channel_with_coordinator_when_invoice_generated_then_can_be_pa
 
     assert_eq!(alice_balance_before_sending.available, invoice_amount);
 
-    let invoice = bob.create_invoice(100).unwrap();
-    dbg!(&invoice.to_string());
-    // let invoice = coordinator.create_invoice(10).unwrap();
-    // dbg!(&invoice.to_string());
+    let invoice = bob
+        .create_interceptable_invoice(
+            100,
+            coordinator.create_intercept_scid(bob.info.pubkey),
+            coordinator.info.pubkey,
+            42,
+            "please arrive".to_string(),
+        )
+        .unwrap();
     alice.send_payment(&invoice).unwrap();
 
     // paying the invoice takes some time
