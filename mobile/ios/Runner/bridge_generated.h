@@ -76,6 +76,8 @@ void wire_open_channel(int64_t port_);
 
 void wire_create_invoice(int64_t port_);
 
+void wire_send_payment(int64_t port_, struct wire_uint_8_list *invoice);
+
 struct wire_NewOrder *new_box_autoadd_new_order_0(void);
 
 struct wire_OrderType *new_box_order_type_0(void);
@@ -100,6 +102,7 @@ static int64_t dummy_method_to_enforce_bundling(void) {
     dummy_var ^= ((int64_t) (void*) wire_get_new_address);
     dummy_var ^= ((int64_t) (void*) wire_open_channel);
     dummy_var ^= ((int64_t) (void*) wire_create_invoice);
+    dummy_var ^= ((int64_t) (void*) wire_send_payment);
     dummy_var ^= ((int64_t) (void*) new_box_autoadd_new_order_0);
     dummy_var ^= ((int64_t) (void*) new_box_order_type_0);
     dummy_var ^= ((int64_t) (void*) new_uint_8_list_0);

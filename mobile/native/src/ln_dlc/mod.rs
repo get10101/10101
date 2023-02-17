@@ -1,7 +1,4 @@
 use crate::api::Event;
-use crate::api_lndlc::runtime;
-use crate::api_lndlc::Balance;
-use crate::api_lndlc::ELECTRS_ORIGIN;
 use anyhow::anyhow;
 use anyhow::bail;
 use anyhow::Context;
@@ -20,6 +17,9 @@ use std::net::TcpListener;
 use std::path::Path;
 use std::str::FromStr;
 use std::sync::Arc;
+use tokio::runtime::Runtime;
+
+const ELECTRS_ORIGIN: &str = "tcp://localhost:50000";
 
 static NODE: Storage<Arc<Node>> = Storage::new();
 
@@ -40,6 +40,25 @@ pub fn get_coordinator_info() -> NodeInfo {
             .parse()
             .expect("Hard-coded IP and port to be valid"),
     }
+}
+
+#[derive(Debug, Clone)]
+pub struct Balance {
+    pub on_chain: u64,
+    pub off_chain: u64,
+}
+
+/// Lazily creates a multi threaded runtime with the the number of worker threads corresponding to
+/// the number of available cores.
+fn runtime() -> Result<&'static Runtime> {
+    static RUNTIME: Storage<Runtime> = Storage::new();
+
+    if RUNTIME.try_get().is_none() {
+        let runtime = Runtime::new()?;
+        RUNTIME.set(runtime);
+    }
+
+    Ok(RUNTIME.get())
 }
 
 pub fn run(stream: StreamSink<Event>, data_dir: String) -> Result<()> {

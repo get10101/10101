@@ -1,6 +1,6 @@
-use crate::api_model::order::notifications::send_notification;
-use crate::api_model::order::OrderNotification;
-use crate::api_model::order::OrderNotificationType;
+use crate::model::order::notifications::send_notification;
+use crate::model::order::OrderNotification;
+use crate::model::order::OrderNotificationType;
 use crate::trade::order::OrderStateTrade;
 use crate::trade::order::OrderTrade;
 use crate::trade::order::OrderTypeTrade;

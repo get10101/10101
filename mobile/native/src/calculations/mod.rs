@@ -1,4 +1,4 @@
-use crate::api_model::Direction;
+use crate::model::Direction;
 use bdk::bitcoin;
 use bdk::bitcoin::Denomination;
 use rust_decimal::prelude::ToPrimitive;

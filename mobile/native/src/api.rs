@@ -1,15 +1,16 @@
-use crate::{api_calculations, api_lndlc};
-use crate::api_model;
-use crate::api_model::order::NewOrder;
-use crate::api_model::order::Order;
-use crate::api_model::order::OrderNotification;
-use crate::api_model::Direction;
+use crate::calculations;
+use crate::ln_dlc;
+use crate::ln_dlc::Balance;
 use crate::logger;
+use crate::model;
+use crate::model::order::NewOrder;
+use crate::model::order::Order;
+use crate::model::order::OrderNotification;
+use crate::model::Direction;
 use crate::trade::order;
 use anyhow::Result;
 use flutter_rust_bridge::StreamSink;
 use flutter_rust_bridge::SyncReturn;
-use crate::api_lndlc::Balance;
 
 /// Initialise logging infrastructure for Rust
 pub fn init_logging(sink: StreamSink<logger::LogEntry>) {
@@ -17,15 +18,11 @@ pub fn init_logging(sink: StreamSink<logger::LogEntry>) {
 }
 
 pub fn calculate_margin(price: f64, quantity: f64, leverage: f64) -> SyncReturn<u64> {
-    SyncReturn(api_calculations::calculate_margin(
-        price, quantity, leverage,
-    ))
+    SyncReturn(calculations::calculate_margin(price, quantity, leverage))
 }
 
 pub fn calculate_quantity(price: f64, margin: u64, leverage: f64) -> SyncReturn<f64> {
-    SyncReturn(api_calculations::calculate_quantity(
-        price, margin, leverage,
-    ))
+    SyncReturn(calculations::calculate_quantity(price, margin, leverage))
 }
 
 pub fn calculate_liquidation_price(
@@ -33,7 +30,7 @@ pub fn calculate_liquidation_price(
     leverage: f64,
     direction: Direction,
 ) -> SyncReturn<f64> {
-    SyncReturn(api_calculations::calculate_liquidation_price(
+    SyncReturn(calculations::calculate_liquidation_price(
         price, leverage, direction,
     ))
 }
@@ -54,7 +51,7 @@ pub async fn submit_order(order: NewOrder) -> Result<()> {
 }
 
 pub fn subscribe_to_order_notifications(sink: StreamSink<OrderNotification>) -> Result<()> {
-    api_model::order::notifications::add_listener(sink)
+    model::order::notifications::add_listener(sink)
 }
 
 #[tokio::main(flavor = "current_thread")]
@@ -75,22 +72,21 @@ pub async fn get_orders() -> Result<Vec<Order>> {
 }
 
 pub fn run(stream: StreamSink<Event>, app_dir: String) -> Result<()> {
-    anyhow::ensure!(!app_dir.is_empty(), "app_dir must not be empty");
-    api_lndlc::lndlc::run(stream, app_dir)
+    ln_dlc::run(stream, app_dir)
 }
 
 pub fn get_new_address() -> SyncReturn<String> {
-    SyncReturn(api_lndlc::lndlc::get_new_address().unwrap())
+    SyncReturn(ln_dlc::get_new_address().unwrap())
 }
 
 pub fn open_channel() -> Result<()> {
-    api_lndlc::lndlc::open_channel()
+    ln_dlc::open_channel()
 }
 
 pub fn create_invoice() -> Result<String> {
-    Ok(api_lndlc::lndlc::create_invoice()?.to_string())
+    Ok(ln_dlc::create_invoice()?.to_string())
 }
 
 pub fn send_payment(invoice: String) -> Result<()> {
-    api_lndlc::lndlc::send_payment(&invoice)
+    ln_dlc::send_payment(&invoice)
 }
