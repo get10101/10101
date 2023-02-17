@@ -132,15 +132,15 @@ async fn given_no_channel_with_coordinator_when_invoice_generated_then_can_be_pa
     tokio::time::sleep(Duration::from_secs(5)).await;
 
     coordinator.sync();
-    let balance = coordinator.get_ldk_balance().unwrap();
+    let balance = coordinator.get_ldk_balance();
     tracing::info!(?balance, "coordinator's wallet balance");
 
     bob.sync();
-    let balance = bob.get_ldk_balance().unwrap();
+    let balance = bob.get_ldk_balance();
     tracing::info!(?balance, "bob's wallet balance");
 
     alice.sync();
-    let balance = alice.get_ldk_balance().unwrap();
+    let balance = alice.get_ldk_balance();
     tracing::info!(?balance, "Alice's wallet balance");
 
     assert_eq!(balance.available, invoice_amount)

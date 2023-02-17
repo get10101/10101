@@ -1,4 +1,4 @@
-use crate::api_model::order::OrderNotification;
+use crate::model::order::OrderNotification;
 use anyhow::anyhow;
 use anyhow::Result;
 use flutter_rust_bridge::support::lazy_static;

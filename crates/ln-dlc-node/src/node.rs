@@ -17,6 +17,7 @@ use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
 use bdk::blockchain::ElectrumBlockchain;
+use bdk::Balance;
 use bitcoin::hashes::sha256;
 use bitcoin::hashes::Hash;
 use bitcoin::secp256k1::PublicKey;
@@ -605,11 +606,15 @@ impl Node {
         Ok(())
     }
 
+    pub fn get_on_chain_balance(&self) -> Result<Balance> {
+        self.wallet.inner().get_balance().map_err(|e| anyhow!(e))
+    }
+
     /// The LDK [`OffChain`] balance keeps track of:
     ///
     /// - The total sum of money in all open channels.
     /// - The total sum of money in close transactions that do not yet pay to our on-chain wallet.
-    pub fn get_ldk_balance(&self) -> Result<OffChain> {
+    pub fn get_ldk_balance(&self) -> OffChain {
         let open_channels = self.channel_manager.list_channels();
 
         let claimable_channel_balances = {
@@ -655,10 +660,10 @@ impl Node {
             .map(|details| details.balance_msat / 1000)
             .sum();
 
-        Ok(OffChain {
+        OffChain {
             available,
             pending_close,
-        })
+        }
     }
 
     /// Creates a fake channel id needed to intercept payments to the provided `target_node`

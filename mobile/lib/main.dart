@@ -1,6 +1,6 @@
 import 'package:f_logs/f_logs.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' as foundation;
+import 'dart:io';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge.dart';
 import 'package:get_10101/features/trade/application/order_service.dart';
@@ -10,6 +10,7 @@ import 'package:get_10101/features/trade/submit_order_change_notifier.dart';
 import 'package:get_10101/features/trade/trade_value_change_notifier.dart';
 import 'package:get_10101/features/trade/settings_screen.dart';
 import 'package:get_10101/features/trade/trade_theme.dart';
+import 'package:get_10101/features/wallet/balance_change_notifier.dart';
 import 'package:get_10101/features/wallet/receive_screen.dart';
 import 'package:get_10101/features/wallet/scanner_screen.dart';
 import 'package:get_10101/features/wallet/send_screen.dart';
@@ -17,6 +18,7 @@ import 'package:get_10101/features/wallet/settings_screen.dart';
 import 'package:get_10101/common/app_bar_wrapper.dart';
 import 'package:get_10101/util/constants.dart';
 import 'package:go_router/go_router.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import 'common/amount_denomination_change_notifier.dart';
 import 'features/trade/trade_screen.dart';
@@ -32,6 +34,16 @@ void main() {
 
   final config = FLog.getDefaultConfigurations();
   config.activeLogLevel = LogLevel.DEBUG;
+  config.formatType = FormatType.FORMAT_CUSTOM;
+  config.timestampFormat = 'yyyy-MM-dd HH:mm:ss.SSS';
+  config.fieldOrderFormatCustom = [
+    FieldName.TIMESTAMP,
+    FieldName.LOG_LEVEL,
+    FieldName.TEXT,
+    FieldName.STACKTRACE
+  ];
+  config.customClosingDivider = "";
+  config.customOpeningDivider = "| ";
 
   FLog.applyConfigurations(config);
   runApp(MultiProvider(providers: [
@@ -39,6 +51,7 @@ void main() {
     ChangeNotifierProvider(create: (context) => AmountDenominationChangeNotifier()),
     ChangeNotifierProvider(create: (context) => SubmitOrderChangeNotifier(OrderService())),
     ChangeNotifierProvider(create: (context) => OrderChangeNotifier(OrderService())),
+    ChangeNotifierProvider(create: (context) => BalanceChangeNotifier())
   ], child: const TenTenOneApp()));
 }
 
@@ -146,8 +159,17 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
     try {
       await setupRustLogging();
 
-      setState(() {
-        FLog.info(text: "10101 is ready!");
+      final appSupportDir = await getApplicationSupportDirectory();
+      FLog.info(text: "App data will be stored in: $appSupportDir");
+
+      rust.api.run(appDir: appSupportDir.path).listen((event) {
+        if (event is rust.Event_Init) {
+          FLog.info(text: event.field0);
+        } else if (event is rust.Event_WalletInfo) {
+          context.read<BalanceChangeNotifier>().update(event.field0);
+        } else {
+          FLog.warning(text: "Received unexpected event: $event");
+        }
       });
     } on FfiException catch (error) {
       FLog.error(text: "Failed to initialise: Error: ${error.message}", exception: error);
@@ -160,12 +182,30 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
 
   Future<void> setupRustLogging() async {
     rust.api.initLogging().listen((event) {
-      // Only log to Dart file in release mode - in debug mode it's easier to
-      // use stdout
-      if (foundation.kReleaseMode) {
-        FLog.logThis(text: '${event.target}: ${event.msg}', type: LogLevel.DEBUG);
+      // TODO: this should not be required if we enable mobile loggers for FLog.
+      if (Platform.isAndroid || Platform.isIOS) {
+        FLog.logThis(
+            text: event.target != "" ? '${event.target}: ${event.msg}' : event.msg,
+            type: mapLogLevel(event.level));
       }
     });
+  }
+
+  LogLevel mapLogLevel(String level) {
+    switch (level) {
+      case "INFO":
+        return LogLevel.INFO;
+      case "DEBUG":
+        return LogLevel.DEBUG;
+      case "ERROR":
+        return LogLevel.ERROR;
+      case "WARN":
+        return LogLevel.WARNING;
+      case "TRACE":
+        return LogLevel.TRACE;
+      default:
+        return LogLevel.DEBUG;
+    }
   }
 }
 

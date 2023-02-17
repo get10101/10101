@@ -22,6 +22,7 @@ dependencies:
   intl: ^0.17.0
   decimal: ^2.3.2
   slide_to_confirm: ^1.1.0
+  path_provider: ^2.0.11
 
 dev_dependencies:
   flutter_launcher_icons: "^0.11.0"

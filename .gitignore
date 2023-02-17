@@ -22,5 +22,9 @@ mobile/ios/Runner/libnative.a
 # generated files by mockito flutter package
 /mobile/test/*.mocks.dart
 
-#ignore keystores
+# ignore keystores
 *.jks
+
+# ignore data runtime data
+data/**
+!data/coordinator/regtest/seed
