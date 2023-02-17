@@ -1,17 +1,17 @@
 import 'package:get_10101/features/trade/domain/contract_symbol.dart';
 import 'package:get_10101/features/trade/domain/direction.dart';
 import 'package:get_10101/features/trade/domain/leverage.dart';
-import 'package:get_10101/bridge_generated/bridge_definitions.dart' as rust;
+import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
 
 enum OrderStatus {
   open,
   filled;
 
-  static OrderStatus fromApi(rust.OrderStatus orderStatus) {
+  static OrderStatus fromApi(bridge.OrderStatus orderStatus) {
     switch (orderStatus) {
-      case rust.OrderStatus.Open:
+      case bridge.OrderStatus.Open:
         return OrderStatus.open;
-      case rust.OrderStatus.Filled:
+      case bridge.OrderStatus.Filled:
         return OrderStatus.filled;
     }
   }
