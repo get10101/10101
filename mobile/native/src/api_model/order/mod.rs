@@ -1,6 +1,6 @@
 use crate::api_model::ContractSymbol;
 use crate::api_model::Direction;
-use crate::trade::order::OrderStatusTrade;
+use crate::trade::order::OrderStateTrade;
 use crate::trade::order::OrderTrade;
 use crate::trade::order::OrderTypeTrade;
 use flutter_rust_bridge::frb;
@@ -15,10 +15,14 @@ pub enum OrderType {
     Limit { price: f64 },
 }
 
+/// State of an order
+///
+/// Please refer to [`crate::trade::order::OrderStateTrade`]
 #[frb]
 #[derive(Debug, Clone, Copy)]
-pub enum OrderStatus {
+pub enum OrderState {
     Open,
+    Failed,
     Filled,
 }
 
@@ -47,7 +51,7 @@ pub struct Order {
     pub contract_symbol: ContractSymbol,
     pub direction: Direction,
     pub order_type: Box<OrderType>,
-    pub status: OrderStatus,
+    pub status: OrderState,
 }
 
 #[frb]
@@ -73,11 +77,12 @@ impl From<OrderType> for OrderTypeTrade {
     }
 }
 
-impl From<OrderStatus> for OrderStatusTrade {
-    fn from(value: OrderStatus) -> Self {
+impl From<OrderState> for OrderStateTrade {
+    fn from(value: OrderState) -> Self {
         match value {
-            OrderStatus::Open => OrderStatusTrade::Open,
-            OrderStatus::Filled => OrderStatusTrade::Filled,
+            OrderState::Open => OrderStateTrade::Open,
+            OrderState::Filled => OrderStateTrade::Filled,
+            OrderState::Failed => OrderStateTrade::Failed,
         }
     }
 }
@@ -104,11 +109,18 @@ impl From<OrderTypeTrade> for OrderType {
     }
 }
 
-impl From<OrderStatusTrade> for OrderStatus {
-    fn from(value: OrderStatusTrade) -> Self {
+impl From<OrderStateTrade> for OrderState {
+    fn from(value: OrderStateTrade) -> Self {
         match value {
-            OrderStatusTrade::Open => OrderStatus::Open,
-            OrderStatusTrade::Filled => OrderStatus::Filled,
+            OrderStateTrade::Open => OrderState::Open,
+            OrderStateTrade::Filled => OrderState::Filled,
+            OrderStateTrade::Failed => OrderState::Failed,
+            OrderStateTrade::Initial => unimplemented!(
+                "don't expose orders that were not submitted into the orderbook to the frontend!"
+            ),
+            OrderStateTrade::Rejected => unimplemented!(
+                "don't expose orders that were rejected by the orderbook to the frontend!"
+            ),
         }
     }
 }
@@ -122,7 +134,7 @@ impl From<NewOrder> for OrderTrade {
             contract_symbol: value.contract_symbol.into(),
             direction: value.direction.into(),
             order_type: (*value.order_type).into(),
-            status: OrderStatusTrade::Open,
+            status: OrderStateTrade::Open,
         }
     }
 }

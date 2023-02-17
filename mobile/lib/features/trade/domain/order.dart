@@ -3,16 +3,19 @@ import 'package:get_10101/features/trade/domain/direction.dart';
 import 'package:get_10101/features/trade/domain/leverage.dart';
 import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
 
-enum OrderStatus {
+enum OrderState {
   open,
-  filled;
+  filled,
+  failed;
 
-  static OrderStatus fromApi(bridge.OrderStatus orderStatus) {
-    switch (orderStatus) {
-      case bridge.OrderStatus.Open:
-        return OrderStatus.open;
-      case bridge.OrderStatus.Filled:
-        return OrderStatus.filled;
+  static OrderState fromApi(bridge.OrderState orderState) {
+    switch (orderState) {
+      case bridge.OrderState.Open:
+        return OrderState.open;
+      case bridge.OrderState.Filled:
+        return OrderState.filled;
+      case bridge.OrderState.Failed:
+        return OrderState.failed;
     }
   }
 }
@@ -24,7 +27,7 @@ class Order {
   final double quantity;
   final ContractSymbol contractSymbol;
   final Direction direction;
-  final OrderStatus status;
+  final OrderState status;
   final OrderType type;
 
   Order(

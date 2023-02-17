@@ -1,7 +1,7 @@
 use crate::api_model::order::notifications::send_notification;
 use crate::api_model::order::OrderNotification;
 use crate::api_model::order::OrderNotificationType;
-use crate::trade::order::OrderStatusTrade;
+use crate::trade::order::OrderStateTrade;
 use crate::trade::order::OrderTrade;
 use crate::trade::order::OrderTypeTrade;
 use crate::trade::ContractSymbolTrade;
@@ -36,7 +36,7 @@ pub async fn get_order(id: String) -> Result<OrderTrade> {
         contract_symbol: ContractSymbolTrade::BtcUsd,
         direction: DirectionTrade::Long,
         order_type: OrderTypeTrade::Market,
-        status: OrderStatusTrade::Filled,
+        status: OrderStateTrade::Filled,
     };
 
     Ok(dummy_order)
@@ -52,7 +52,7 @@ pub async fn get_orders() -> Result<Vec<OrderTrade>> {
         contract_symbol: ContractSymbolTrade::BtcUsd,
         direction: DirectionTrade::Long,
         order_type: OrderTypeTrade::Market,
-        status: OrderStatusTrade::Filled,
+        status: OrderStateTrade::Filled,
     };
 
     Ok(vec![dummy_order])

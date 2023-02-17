@@ -28,7 +28,7 @@ class OrderService {
             quantity: order.quantity,
             contractSymbol: ContractSymbol.fromApi(order.contractSymbol),
             direction: Direction.fromApi(order.direction),
-            status: OrderStatus.fromApi(order.status),
+            status: OrderState.fromApi(order.status),
             type: OrderType.market))
         .toList();
 

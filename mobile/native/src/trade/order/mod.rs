@@ -12,10 +12,45 @@ pub enum OrderTypeTrade {
     Market,
     Limit { price: f64 },
 }
-
 #[derive(Debug, Clone, Copy)]
-pub enum OrderStatusTrade {
+pub enum OrderStateTrade {
+    /// Not submitted to orderbook yet
+    ///
+    /// In order to be able to track how many failed orders we have we store the order in the
+    /// database and update it once the orderbook returns success.
+    /// Transitions:
+    /// - Initial->Open
+    /// - Initial->Rejected
+    Initial,
+
+    /// Rejected by the orderbook upon submission
+    ///
+    /// If the orderbook returns failure upon submission.
+    /// This is a final state.
+    Rejected,
+
+    /// Successfully submit to orderbook
+    ///
+    /// If the orderbook returns success upon submission.
+    /// Transitions:
+    /// - Open->Failed (if we fail to set up the trade)
+    /// - Open->Filled (if we successfully set up the trade)
     Open,
+
+    /// Failed to set up a trade
+    /// In order to reach this state the orderbook must have provided trade params to start trade
+    /// execution, and the trade execution failed.
+    /// For the MVP there won't be a retry mechanism, so this is treated as a final state.
+    /// This is a final state.
+    Failed,
+
+    /// Successfully set up trade
+    ///
+    /// In order to reach this state the orderbook must have provided trade params to start trade
+    /// execution, and the trade execution succeeded. This state assumes that a DLC exists, and
+    /// the order is reflected in a position. Note that only complete filling is supported,
+    /// partial filling not depicted yet.
+    /// This is a final state
     Filled,
 }
 
@@ -27,5 +62,5 @@ pub struct OrderTrade {
     pub contract_symbol: ContractSymbolTrade,
     pub direction: DirectionTrade,
     pub order_type: OrderTypeTrade,
-    pub status: OrderStatusTrade,
+    pub status: OrderStateTrade,
 }
