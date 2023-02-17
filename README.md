@@ -39,6 +39,8 @@ It is also important to run the following to generate the Flutter-Rust glue code
 just gen
 ```
 
+## Mobile App
+
 ### Run the mobile-app natively (on your Linux/MacOS/other OS)
 
 ```bash
@@ -72,6 +74,26 @@ just ios
 ```bash
 just run
 ```
+
+### Mobile Tests
+
+The flutter project contains flutter tests and tests in the native rust backend of the mobile app.
+
+Run the flutter tests:
+
+```
+just flutter-test
+```
+
+Note that this command takes care of re-generating the generated [`mockito`](https://pub.dev/packages/mockito) mocks before running the test.
+
+Run the native rust backend tests:
+
+```
+just native-test
+```
+
+## Coordinator
 
 ### Run the coordinator
 
