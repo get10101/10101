@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' as foundation;
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge.dart';
+import 'package:get_10101/features/trade/application/order_service.dart';
+import 'package:get_10101/features/trade/order_change_notifier.dart';
 import 'package:get_10101/features/trade/submit_order_change_notifier.dart';
 import 'package:get_10101/features/trade/trade_value_change_notifier.dart';
 import 'package:get_10101/features/trade/settings_screen.dart';
@@ -17,7 +19,7 @@ import 'package:provider/provider.dart';
 import 'common/amount_denomination_change_notifier.dart';
 import 'features/trade/trade_screen.dart';
 import 'features/wallet/wallet_screen.dart';
-import 'ffi.dart';
+import 'ffi.dart' as rust;
 
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
 final GlobalKey<NavigatorState> _shellNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'shell');
@@ -34,6 +36,7 @@ void main() {
     ChangeNotifierProvider(create: (context) => TradeValuesChangeNotifier()),
     ChangeNotifierProvider(create: (context) => AmountDenominationChangeNotifier()),
     ChangeNotifierProvider(create: (context) => SubmitOrderChangeNotifier()),
+    ChangeNotifierProvider(create: (context) => OrderChangeNotifier().init()),
   ], child: const TenTenOneApp()));
 }
 
@@ -45,6 +48,8 @@ class TenTenOneApp extends StatefulWidget {
 }
 
 class _TenTenOneAppState extends State<TenTenOneApp> {
+  final OrderService orderService = OrderService();
+
   final GoRouter _router = GoRouter(
     navigatorKey: _rootNavigatorKey,
     initialLocation: WalletScreen.route,
@@ -113,8 +118,11 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
 
   @override
   void initState() {
+    OrderChangeNotifier orderChangeNotifier = context.read<OrderChangeNotifier>();
+
     super.initState();
     init();
+    orderService.subscribeToOrderNotifications(orderChangeNotifier);
   }
 
   @override
@@ -149,7 +157,7 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
   }
 
   Future<void> setupRustLogging() async {
-    api.initLogging().listen((event) {
+    rust.api.initLogging().listen((event) {
       // Only log to Dart file in release mode - in debug mode it's easier to
       // use stdout
       if (foundation.kReleaseMode) {

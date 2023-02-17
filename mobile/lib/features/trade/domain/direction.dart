@@ -1,14 +1,24 @@
-import '../../../bridge_generated/bridge_definitions.dart' as rust;
+import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
 
-enum Direction { long, short }
+enum Direction {
+  long,
+  short;
 
-extension DirectionExt on Direction {
-  rust.Direction toApi() {
+  bridge.Direction toApi() {
     switch (this) {
       case Direction.long:
-        return rust.Direction.Long;
+        return bridge.Direction.Long;
       case Direction.short:
-        return rust.Direction.Short;
+        return bridge.Direction.Short;
+    }
+  }
+
+  static Direction fromApi(bridge.Direction direction) {
+    switch (direction) {
+      case bridge.Direction.Long:
+        return Direction.long;
+      case bridge.Direction.Short:
+        return Direction.short;
     }
   }
 
