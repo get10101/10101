@@ -12,6 +12,7 @@ import 'package:get_10101/features/trade/candlestick_chart.dart';
 import 'package:get_10101/features/trade/trade_tabs.dart';
 import 'package:get_10101/features/trade/trade_theme.dart';
 import 'package:provider/provider.dart';
+import 'package:get_10101/util/constants.dart';
 
 class TradeScreen extends StatelessWidget {
   static const route = "/trade";
@@ -113,6 +114,7 @@ class TradeScreen extends StatelessWidget {
                     "Positions",
                     "Orders",
                   ],
+                  keys: const [tradeScreenTabsPositions, tradeScreenTabsOrders],
                   tabBarViewChildren: [
                     ListView.builder(
                       shrinkWrap: true,
@@ -147,6 +149,7 @@ class TradeScreen extends StatelessWidget {
               SizedBox(
                   width: tradeButtonWidth,
                   child: FloatingActionButton.extended(
+                    key: tradeScreenButtonBuy,
                     heroTag: "btnBuy",
                     onPressed: () {
                       tradeBottomSheet(context: context, direction: Direction.long);
@@ -159,6 +162,7 @@ class TradeScreen extends StatelessWidget {
               SizedBox(
                   width: tradeButtonWidth,
                   child: FloatingActionButton.extended(
+                    key: tradeScreenButtonSell,
                     heroTag: "btnSell",
                     onPressed: () {
                       tradeBottomSheet(context: context, direction: Direction.short);

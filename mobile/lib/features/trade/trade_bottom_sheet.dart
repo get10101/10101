@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get_10101/features/trade/domain/direction.dart';
 import 'package:get_10101/features/trade/trade_bottom_sheet_tab.dart';
 import 'package:get_10101/features/trade/trade_tabs.dart';
+import 'package:get_10101/util/constants.dart';
 
 tradeBottomSheet({required BuildContext context, required Direction direction}) {
   showModalBottomSheet<void>(
@@ -41,8 +42,9 @@ tradeBottomSheet({required BuildContext context, required Direction direction}) 
 }
 
 class TradeBottomSheet extends StatelessWidget {
-  const TradeBottomSheet({required this.direction, super.key});
   final Direction direction;
+
+  const TradeBottomSheet({required this.direction, super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -51,12 +53,15 @@ class TradeBottomSheet extends StatelessWidget {
       child: TradeTabs(
         tabBarPadding: const EdgeInsets.only(bottom: 10.0),
         tabs: const ["Buy", "Sell"],
+        keys: const [tradeScreenBottomSheetTabsBuy, tradeScreenBottomSheetTabsSell],
         tabBarViewChildren: const [
           TradeBottomSheetTab(
             direction: Direction.long,
+            buttonKey: tradeScreenBottomSheetButtonBuy,
           ),
           TradeBottomSheetTab(
             direction: Direction.short,
+            buttonKey: tradeScreenBottomSheetButtonSell,
           ),
         ],
         selectedIndex: direction == Direction.long ? 0 : 1,

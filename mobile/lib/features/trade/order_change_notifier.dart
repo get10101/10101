@@ -3,13 +3,11 @@ import 'package:get_10101/features/trade/application/order_service.dart';
 import 'package:get_10101/features/trade/domain/order.dart';
 
 class OrderChangeNotifier extends ChangeNotifier {
-  final OrderService orderService = OrderService();
-
+  final OrderService orderService;
   List<Order> orders = List.empty();
 
-  OrderChangeNotifier init() {
+  OrderChangeNotifier(this.orderService) {
     updateOrders();
-    return this;
   }
 
   updateOrders() async {
