@@ -20,7 +20,17 @@ enum OrderState {
   }
 }
 
-enum OrderType { market }
+enum OrderType {
+  market;
+
+  static OrderType fromApi(bridge.OrderType orderType) {
+    if (orderType is bridge.OrderType_Market) {
+      return OrderType.market;
+    }
+
+    throw Exception("Only market orders are supported! Received unexpected order type $orderType");
+  }
+}
 
 class Order {
   final Leverage leverage;
