@@ -109,7 +109,7 @@ pub fn run(stream: StreamSink<Event>, data_dir: String) -> Result<()> {
                 tokio::time::sleep(std::time::Duration::from_secs(10)).await;
 
                 stream.add(Event::WalletInfo(Balance {
-                    off_chain: node_clone.get_ldk_balance().unwrap().available,
+                    off_chain: node_clone.get_ldk_balance().available,
                     on_chain: node_clone
                         .get_on_chain_balance()
                         .expect("balance")

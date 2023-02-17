@@ -43,11 +43,7 @@ pub struct Balance {
 
 #[rocket::get("/get_balance")]
 pub async fn get_balance(node: &State<Arc<Node>>) -> Result<Json<Balance>, HttpApiProblem> {
-    let offchain = node.get_ldk_balance().map_err(|e| {
-        HttpApiProblem::new(StatusCode::INTERNAL_SERVER_ERROR)
-            .title("Invalid public key")
-            .detail(format!("Failed to get new address: {e:#}"))
-    })?;
+    let offchain = node.get_ldk_balance();
     let onchain = node.get_on_chain_balance().map_err(|e| {
         HttpApiProblem::new(StatusCode::INTERNAL_SERVER_ERROR)
             .title("Invalid public key")

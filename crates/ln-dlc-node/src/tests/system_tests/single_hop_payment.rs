@@ -77,11 +77,11 @@ async fn given_sibling_channel_when_payment_then_can_be_claimed() {
     tokio::time::sleep(Duration::from_secs(5)).await;
 
     alice.sync();
-    let balance = alice.get_ldk_balance().unwrap();
+    let balance = alice.get_ldk_balance();
     tracing::info!(?balance, "Alice's wallet balance");
 
     bob.sync();
-    let balance = bob.get_ldk_balance().unwrap();
+    let balance = bob.get_ldk_balance();
     tracing::info!(?balance, "Bob's wallet balance");
 
     assert_eq!(balance.available, invoice_amount)
