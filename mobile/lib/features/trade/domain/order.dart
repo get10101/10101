@@ -1,8 +1,7 @@
 import 'package:get_10101/features/trade/domain/contract_symbol.dart';
-import 'package:get_10101/features/trade/domain/leverage.dart';
-
 import 'package:get_10101/features/trade/domain/direction.dart';
-import '../../../bridge_generated/bridge_definitions.dart' as rust;
+import 'package:get_10101/features/trade/domain/leverage.dart';
+import 'package:get_10101/bridge_generated/bridge_definitions.dart' as rust;
 
 enum OrderStatus {
   open,

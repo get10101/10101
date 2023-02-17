@@ -1,4 +1,4 @@
-import '../../../bridge_generated/bridge_definitions.dart' as rust;
+import 'package:get_10101/bridge_generated/bridge_definitions.dart' as rust;
 
 enum Direction {
   long,

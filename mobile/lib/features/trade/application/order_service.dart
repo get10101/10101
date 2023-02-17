@@ -5,7 +5,7 @@ import 'package:get_10101/features/trade/domain/contract_symbol.dart';
 import 'package:get_10101/features/trade/domain/direction.dart';
 import 'package:get_10101/features/trade/domain/leverage.dart';
 import 'package:get_10101/features/trade/domain/order.dart';
-import '../order_change_notifier.dart';
+import 'package:get_10101/features/trade/order_change_notifier.dart';
 
 class OrderService {
   Future<void> submitMarketOrder(Leverage leverage, double quantity, ContractSymbol contractSymbol,
