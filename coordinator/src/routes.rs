@@ -9,8 +9,8 @@ use rocket::serde::Serialize;
 use rocket::State;
 use std::sync::Arc;
 
-#[rocket::get("/get_fake_scid/<target_node>")]
-pub async fn get_fake_scid(
+#[rocket::post("/fake_scid/<target_node>")]
+pub async fn post_fake_scid(
     node: &State<Arc<Node>>,
     target_node: String,
 ) -> Result<Json<u64>, HttpApiProblem> {
@@ -25,7 +25,7 @@ pub async fn get_fake_scid(
     Ok(Json(node.create_intercept_scid(target_node)))
 }
 
-#[rocket::get("/get_new_address")]
+#[rocket::get("/newaddress")]
 pub async fn get_new_address(node: &State<Arc<Node>>) -> Result<Json<String>, HttpApiProblem> {
     let address = node.wallet.get_new_address().map_err(|e| {
         HttpApiProblem::new(StatusCode::INTERNAL_SERVER_ERROR)
@@ -41,7 +41,7 @@ pub struct Balance {
     onchain: u64,
 }
 
-#[rocket::get("/get_balance")]
+#[rocket::get("/balance")]
 pub async fn get_balance(node: &State<Arc<Node>>) -> Result<Json<Balance>, HttpApiProblem> {
     let offchain = node.get_ldk_balance();
     let onchain = node.get_on_chain_balance().map_err(|e| {

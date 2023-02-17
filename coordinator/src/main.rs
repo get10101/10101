@@ -77,7 +77,7 @@ async fn main() -> Result<()> {
         .mount(
             "/api",
             rocket::routes![
-                routes::get_fake_scid,
+                routes::post_fake_scid,
                 routes::get_new_address,
                 routes::get_balance
             ],

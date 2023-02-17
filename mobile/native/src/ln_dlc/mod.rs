@@ -155,8 +155,8 @@ pub fn create_invoice() -> Result<Invoice> {
 
         let client = reqwest::Client::new();
         let response = client
-            .get(format!(
-                "http://{HOST}:{HTTP_PORT}/api/get_fake_scid/{}",
+            .post(format!(
+                "http://{HOST}:{HTTP_PORT}/api/fake_scid/{}",
                 node.info.pubkey
             )) // TODO: make host configurable
             .send()
