@@ -59,10 +59,9 @@ async fn main() -> Result<()> {
         }
     });
 
+    let background_processor = node.start().await.expect("background processor to start");
     tokio::spawn({
-        let node = node.clone();
         async move {
-            let background_processor = node.start().await.expect("background processor to start");
             if let Err(err) = background_processor.join() {
                 tracing::error!(?err, "Background processor stopped unexpected");
             }
