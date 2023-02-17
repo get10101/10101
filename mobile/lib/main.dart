@@ -162,12 +162,10 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
       final appSupportDir = await getApplicationSupportDirectory();
       FLog.info(text: "App data will be stored in: $appSupportDir");
 
-      api.run(appDir: appSupportDir.path).listen((event) {
-        if (event is Event_Ready) {
-          FLog.info(text: "10101 is ready!");
-        } else if (event is Event_Init) {
+      rust.api.run(appDir: appSupportDir.path).listen((event) {
+        if (event is rust.Event_Init) {
           FLog.info(text: event.field0);
-        } else if (event is Event_WalletInfo) {
+        } else if (event is rust.Event_WalletInfo) {
           context.read<BalanceChangeNotifier>().update(event.field0);
         } else {
           FLog.warning(text: "Received unexpected event: $event");

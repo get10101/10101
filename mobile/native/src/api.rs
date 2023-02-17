@@ -35,7 +35,6 @@ pub fn calculate_liquidation_price(
     ))
 }
 
-#[allow(dead_code)]
 #[derive(Clone)]
 pub enum Event {
     Init(String),
