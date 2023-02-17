@@ -3,6 +3,7 @@ import 'package:get_10101/features/trade/trade_theme.dart';
 
 class TradeTabs extends StatelessWidget {
   final List<String> tabs;
+  final List<Key> keys;
   final List<Widget> tabBarViewChildren;
 
   /// Offset that is added to the label based on the longest tab label text.
@@ -18,6 +19,7 @@ class TradeTabs extends StatelessWidget {
 
   const TradeTabs(
       {required this.tabs,
+      required this.keys,
       required this.tabBarViewChildren,
       this.tabLabelPadding = const EdgeInsets.symmetric(horizontal: 3.0, vertical: 3.0),
       this.tabBarPadding = const EdgeInsets.symmetric(vertical: 10.0),
@@ -31,6 +33,7 @@ class TradeTabs extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     assert(tabs.length == tabBarViewChildren.length);
+    assert(tabs.length == keys.length);
 
     TradeTheme tradeTheme = Theme.of(context).extension<TradeTheme>()!;
 
@@ -74,22 +77,26 @@ class TradeTabs extends StatelessWidget {
                       unselectedLabelColor: tradeTheme.tabColor,
                       indicator:
                           BoxDecoration(borderRadius: tabBorderRadius, color: tradeTheme.tabColor),
-                      tabs: tabs
-                          .map((label) => Container(
-                                width: tabWidth,
-                                padding: tabLabelPadding,
-                                decoration: BoxDecoration(
-                                    borderRadius: tabBorderRadius,
-                                    border: Border.all(color: tradeTheme.tabColor, width: 1)),
-                                child: Align(
-                                  alignment: Alignment.center,
-                                  child: Text(
-                                    label,
-                                    style: textStyle,
-                                  ),
-                                ),
-                              ))
-                          .toList()),
+                      tabs: tabs.asMap().entries.map((entry) {
+                        int index = entry.key;
+                        String label = entry.value;
+
+                        return Container(
+                          key: keys[index],
+                          width: tabWidth,
+                          padding: tabLabelPadding,
+                          decoration: BoxDecoration(
+                              borderRadius: tabBorderRadius,
+                              border: Border.all(color: tradeTheme.tabColor, width: 1)),
+                          child: Align(
+                            alignment: Alignment.center,
+                            child: Text(
+                              label,
+                              style: textStyle,
+                            ),
+                          ),
+                        );
+                      }).toList()),
                   if (topRightWidget != null) topRightWidget!,
                 ],
               ),

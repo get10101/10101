@@ -1,7 +1,8 @@
 import 'package:get_10101/features/trade/domain/direction.dart';
 import 'package:get_10101/features/trade/domain/leverage.dart';
-import 'package:get_10101/ffi.dart' as rust;
 import 'package:get_10101/common/domain/model.dart';
+
+import '../application/trade_values_service.dart';
 
 class TradeValues {
   Amount margin;
@@ -14,6 +15,9 @@ class TradeValues {
   Amount fee;
   double fundingRate;
 
+  // no final so it can be mocked in tests
+  TradeValuesService tradeValuesService;
+
   TradeValues(
       {required this.direction,
       required this.margin,
@@ -22,18 +26,20 @@ class TradeValues {
       required this.price,
       required this.liquidationPrice,
       required this.fee,
-      required this.fundingRate});
+      required this.fundingRate,
+      required this.tradeValuesService});
 
   factory TradeValues.create(
       {required double quantity,
       required Leverage leverage,
       required double price,
       required double fundingRate,
-      required Direction direction}) {
-    Amount margin = Amount(
-        rust.api.calculateMargin(price: price, quantity: quantity, leverage: leverage.leverage));
-    double liquidationPrice = rust.api.calculateLiquidationPrice(
-        price: price, leverage: leverage.leverage, direction: direction.toApi());
+      required Direction direction,
+      required TradeValuesService tradeValuesService}) {
+    Amount margin =
+        tradeValuesService.calculateMargin(price: price, quantity: quantity, leverage: leverage);
+    double liquidationPrice = tradeValuesService.calculateLiquidationPrice(
+        price: price, leverage: leverage, direction: direction);
 
     // TODO: Calculate fee based on price, quantity and funding rate
     Amount fee = Amount(30);
@@ -46,7 +52,8 @@ class TradeValues {
         price: price,
         fundingRate: fundingRate,
         liquidationPrice: liquidationPrice,
-        fee: fee);
+        fee: fee,
+        tradeValuesService: tradeValuesService);
   }
 
   updateQuantity(double quantity) {
@@ -72,20 +79,20 @@ class TradeValues {
   }
 
   _recalculateMargin() {
-    Amount margin = Amount(
-        rust.api.calculateMargin(price: price, quantity: quantity, leverage: leverage.leverage));
+    Amount margin =
+        tradeValuesService.calculateMargin(price: price, quantity: quantity, leverage: leverage);
     this.margin = margin;
   }
 
   _recalculateQuantity() {
     double quantity =
-        rust.api.calculateQuantity(price: price, margin: margin.sats, leverage: leverage.leverage);
+        tradeValuesService.calculateQuantity(price: price, margin: margin, leverage: leverage);
     this.quantity = quantity;
   }
 
   _recalculateLiquidationPrice() {
-    double liquidationPrice = rust.api.calculateLiquidationPrice(
-        price: price, leverage: leverage.leverage, direction: direction.toApi());
+    double liquidationPrice = tradeValuesService.calculateLiquidationPrice(
+        price: price, leverage: leverage, direction: direction);
     this.liquidationPrice = liquidationPrice;
   }
 }

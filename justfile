@@ -79,4 +79,12 @@ alias c := coordinator
 coordinator:
     cd coordinator && cargo run
 
+flutter-test:
+    cd mobile && flutter pub run build_runner build && flutter test
+
+native-test:
+    cd mobile/native
+
+test: flutter-test native-test
+
 # vim:expandtab:sw=4:ts=4

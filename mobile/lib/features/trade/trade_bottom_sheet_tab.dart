@@ -13,8 +13,10 @@ import 'package:get_10101/features/trade/trade_theme.dart';
 import 'package:provider/provider.dart';
 
 class TradeBottomSheetTab extends StatelessWidget {
-  const TradeBottomSheetTab({required this.direction, super.key});
   final Direction direction;
+  final Key buttonKey;
+
+  const TradeBottomSheetTab({required this.direction, super.key, required this.buttonKey});
 
   @override
   Widget build(BuildContext context) {
@@ -146,6 +148,7 @@ class TradeBottomSheetTab extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             ElevatedButton(
+                key: buttonKey,
                 onPressed: () {
                   tradeBottomSheetConfirmation(context: context, direction: direction);
                 },

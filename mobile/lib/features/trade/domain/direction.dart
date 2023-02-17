@@ -23,4 +23,13 @@ enum Direction {
   }
 
   String get nameU => "${name[0].toUpperCase()}${name.substring(1).toLowerCase()}";
+
+  String get keySuffix {
+    switch (this) {
+      case Direction.long:
+        return "long";
+      case Direction.short:
+        return "short";
+    }
+  }
 }

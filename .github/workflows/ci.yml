@@ -77,3 +77,5 @@ jobs:
         run: just gen
       - name: Running cargo tests
         run: cargo test
+      - name: Running flutter tests
+        run: just flutter-test
