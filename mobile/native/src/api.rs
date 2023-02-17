@@ -3,7 +3,7 @@ use crate::api_model;
 use crate::api_model::order::NewOrder;
 use crate::api_model::order::Order;
 use crate::api_model::order::OrderNotification;
-use crate::common::Direction;
+use crate::api_model::Direction;
 use crate::logger;
 use crate::trade::order;
 use anyhow::Result;

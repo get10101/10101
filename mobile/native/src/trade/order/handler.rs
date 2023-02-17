@@ -1,11 +1,11 @@
 use crate::api_model::order::notifications::send_notification;
 use crate::api_model::order::OrderNotification;
 use crate::api_model::order::OrderNotificationType;
-use crate::common::ContractSymbol;
-use crate::common::Direction;
 use crate::trade::order::OrderStatusTrade;
 use crate::trade::order::OrderTrade;
 use crate::trade::order::OrderTypeTrade;
+use crate::trade::ContractSymbolTrade;
+use crate::trade::DirectionTrade;
 use anyhow::Context;
 use anyhow::Result;
 use std::str::FromStr;
@@ -33,8 +33,8 @@ pub async fn get_order(id: String) -> Result<OrderTrade> {
         id,
         leverage: 2.0,
         quantity: 1000.0,
-        contract_symbol: ContractSymbol::BtcUsd,
-        direction: Direction::Long,
+        contract_symbol: ContractSymbolTrade::BtcUsd,
+        direction: DirectionTrade::Long,
         order_type: OrderTypeTrade::Market,
         status: OrderStatusTrade::Filled,
     };
@@ -49,8 +49,8 @@ pub async fn get_orders() -> Result<Vec<OrderTrade>> {
         id: Uuid::new_v4(),
         leverage: 2.0,
         quantity: 1000.0,
-        contract_symbol: ContractSymbol::BtcUsd,
-        direction: Direction::Long,
+        contract_symbol: ContractSymbolTrade::BtcUsd,
+        direction: DirectionTrade::Long,
         order_type: OrderTypeTrade::Market,
         status: OrderStatusTrade::Filled,
     };
