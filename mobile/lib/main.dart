@@ -12,6 +12,7 @@ import 'package:get_10101/features/trade/submit_order_change_notifier.dart';
 import 'package:get_10101/features/trade/trade_value_change_notifier.dart';
 import 'package:get_10101/features/trade/settings_screen.dart';
 import 'package:get_10101/features/trade/trade_theme.dart';
+import 'package:get_10101/features/wallet/application/wallet_info_service.dart';
 import 'package:get_10101/features/wallet/balance_change_notifier.dart';
 import 'package:get_10101/features/wallet/receive_screen.dart';
 import 'package:get_10101/features/wallet/scanner_screen.dart';
@@ -59,7 +60,7 @@ void main() {
     ChangeNotifierProvider(create: (context) => SubmitOrderChangeNotifier(OrderService())),
     ChangeNotifierProvider(create: (context) => OrderChangeNotifier.create(OrderService())),
     ChangeNotifierProvider(create: (context) => BalanceChangeNotifier()),
-    ChangeNotifierProvider(create: (context) => WalletChangeNotifier()),
+    ChangeNotifierProvider(create: (context) => WalletChangeNotifier(WalletInfoService())),
   ], child: const TenTenOneApp()));
 }
 

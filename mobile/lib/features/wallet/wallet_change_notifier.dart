@@ -1,12 +1,18 @@
 import 'package:f_logs/f_logs.dart';
 import 'package:flutter/material.dart' hide Flow;
-import 'package:get_10101/ffi.dart';
+import 'package:get_10101/common/domain/model.dart';
+import 'package:get_10101/features/wallet/application/wallet_info_service.dart';
+import 'package:get_10101/features/wallet/domain/wallet_balances.dart';
+import 'domain/wallet_info.dart';
 
 class WalletChangeNotifier extends ChangeNotifier {
+  final WalletInfoService service;
   WalletInfo walletInfo = WalletInfo(
-      balances: Balances(onChain: 0, lightning: 0),
+      balances: WalletBalances(onChain: Amount(0), lightning: Amount(0)),
       history: List.empty(),
   );
+
+  WalletChangeNotifier(this.service);
 
   void update(WalletInfo? walletInfo) {
     if (walletInfo == null) {
@@ -20,16 +26,10 @@ class WalletChangeNotifier extends ChangeNotifier {
   }
 
   Future<void> refreshWalletInfo() async {
-    try {
-      final walletInfo = await api.refreshWalletInfo();
-      update(walletInfo);
-      FLog.trace(text: 'Successfully refreshed wallet info');
-    } catch (error) {
-      FLog.error(text: "Failed to get wallet info: $error");
-    }
+    update(await service.getWalletInfo());
   }
 
-  int total() => onChain() + lightning();
-  int onChain() => walletInfo.balances.onChain;
-  int lightning() => walletInfo.balances.lightning;
+  Amount total() => Amount(onChain().sats + lightning().sats);
+  Amount onChain() => walletInfo.balances.onChain;
+  Amount lightning() => walletInfo.balances.lightning;
 }

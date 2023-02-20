@@ -6,12 +6,13 @@ import 'package:get_10101/features/wallet/receive_screen.dart';
 import 'package:get_10101/features/wallet/send_screen.dart';
 import 'package:get_10101/features/wallet/wallet_change_notifier.dart';
 import 'package:get_10101/features/wallet/wallet_theme.dart';
-import 'package:get_10101/ffi.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import 'domain/payment_flow.dart';
+import 'domain/wallet_type.dart';
+
 class BalanceRow extends StatefulWidget {
-  // TODO(restioson): use dart version of this?
   final WalletType walletType;
   final double iconSize;
   const BalanceRow({required this.walletType, this.iconSize = 30, super.key});
@@ -48,16 +49,16 @@ class _BalanceRowState extends State<BalanceRow>
     Color rowBgColor;
     SvgPicture icon;
 
-    if (widget.walletType == WalletType.Lightning) {
+    if (widget.walletType == WalletType.lightning) {
       name = "Lightning";
       rowBgColor = theme.lightning;
       icon = SvgPicture.asset("assets/Lightning_logo.svg");
-      amount = Amount(walletChangeNotifier.lightning());
+      amount = walletChangeNotifier.lightning();
     } else {
       name = "On-chain";
       rowBgColor = theme.onChain;
       icon = SvgPicture.asset("assets/Bitcoin_logo.svg");
-      amount = Amount(walletChangeNotifier.onChain());
+      amount = walletChangeNotifier.onChain();
     }
 
     return Padding(
@@ -71,12 +72,12 @@ class _BalanceRowState extends State<BalanceRow>
                 children: [
                   BalanceRowButton(
                     walletType: widget.walletType,
-                    flow: PaymentFlow.Outbound,
+                    flow: PaymentFlow.outbound,
                     enabled: _expanded,
                   ),
                   BalanceRowButton(
                     walletType: widget.walletType,
-                    flow: PaymentFlow.Inbound,
+                    flow: PaymentFlow.outbound,
                     enabled: _expanded,
                   ),
                 ]
@@ -152,7 +153,7 @@ class BalanceRowButton extends StatelessWidget {
 
     String action;
     IconData icon;
-    if (flow == PaymentFlow.Outbound) {
+    if (flow == PaymentFlow.outbound) {
       icon = Icons.upload;
       action = "Send";
     } else {
@@ -161,7 +162,7 @@ class BalanceRowButton extends StatelessWidget {
     }
 
     String type;
-    if (walletType == WalletType.Lightning) {
+    if (walletType == WalletType.lightning) {
       type = "lightning";
     } else {
       type = "chain";
@@ -171,7 +172,7 @@ class BalanceRowButton extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: horizontalPadding),
       child: IconButton(
         onPressed: !enabled ? null : () {
-          if (flow == PaymentFlow.Outbound) {
+          if (flow == PaymentFlow.outbound) {
             context.go(SendScreen.route);
           } else {
             context.go(ReceiveScreen.route);

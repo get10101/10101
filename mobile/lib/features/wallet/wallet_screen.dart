@@ -7,10 +7,10 @@ import 'package:get_10101/features/wallet/wallet_theme.dart';
 import 'package:get_10101/features/wallet/receive_screen.dart';
 import 'package:get_10101/features/wallet/send_screen.dart';
 import 'package:get_10101/features/wallet/wallet_change_notifier.dart';
-import 'package:get_10101/ffi.dart';
 import 'package:get_10101/util/send_receive_icons.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'domain/wallet_type.dart';
 
 class WalletScreen extends StatefulWidget {
   static const route = "/wallet";
@@ -44,7 +44,7 @@ class _WalletScreenState extends State<WalletScreen> {
                       const SizedBox(width: 64), // ExpansionPanelList IconContainer size: end margin 8 + padding 16*2 + size 24),
                       Expanded(
                         child: Center(child:
-                          AmountText(amount: Amount(walletChangeNotifier.total()), textStyle: const TextStyle(fontSize: 20.0))
+                          AmountText(amount: walletChangeNotifier.total(), textStyle: const TextStyle(fontSize: 20.0))
                         ),
                       )
                     ],
