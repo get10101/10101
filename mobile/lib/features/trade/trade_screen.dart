@@ -6,6 +6,8 @@ import 'package:get_10101/features/trade/domain/contract_symbol.dart';
 import 'package:get_10101/features/trade/domain/direction.dart';
 import 'package:get_10101/features/trade/order_change_notifier.dart';
 import 'package:get_10101/features/trade/order_list_item.dart';
+import 'package:get_10101/features/trade/position_change_notifier.dart';
+import 'package:get_10101/features/trade/position_list_item.dart';
 import 'package:get_10101/features/trade/submit_order_change_notifier.dart';
 import 'package:get_10101/features/trade/trade_bottom_sheet.dart';
 import 'package:get_10101/features/trade/candlestick_chart.dart';
@@ -23,8 +25,6 @@ class TradeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     TradeTheme tradeTheme = Theme.of(context).extension<TradeTheme>()!;
-
-    List<String> positions = List<String>.generate(100, (i) => 'Position $i');
 
     const RoundedRectangleBorder tradeButtonShape = RoundedRectangleBorder(
       borderRadius: BorderRadius.all(
@@ -95,6 +95,7 @@ class TradeScreen extends StatelessWidget {
     }
 
     OrderChangeNotifier orderChangeNotifier = context.watch<OrderChangeNotifier>();
+    PositionChangeNotifier positionChangeNotifier = context.watch<PositionChangeNotifier>();
 
     return Scaffold(
         body: Container(
@@ -116,15 +117,14 @@ class TradeScreen extends StatelessWidget {
                   ],
                   keys: const [tradeScreenTabsPositions, tradeScreenTabsOrders],
                   tabBarViewChildren: [
-                    ListView.builder(
+                    ListView(
                       shrinkWrap: true,
                       physics: const ClampingScrollPhysics(),
-                      itemCount: positions.length,
-                      itemBuilder: (BuildContext context, int index) {
-                        return ListTile(
-                          title: Text(positions[index]),
-                        );
-                      },
+                      children: [
+                        PositionListItem(
+                          position: positionChangeNotifier.position,
+                        )
+                      ],
                     ),
                     ListView.builder(
                       shrinkWrap: true,
