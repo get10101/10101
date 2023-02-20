@@ -1,3 +1,5 @@
+import 'dart:developer';
+
 import 'package:flutter/material.dart';
 import 'package:get_10101/bridge_generated/bridge_definitions.dart';
 
@@ -6,6 +8,7 @@ class BalanceChangeNotifier extends ChangeNotifier {
 
   void update(Balance balance) {
     this.balance = balance;
+    log("BalanceChangeNotifier: ${this.balance.onChain}");
     super.notifyListeners();
   }
 }

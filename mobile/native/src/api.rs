@@ -1,11 +1,11 @@
 use crate::calculations;
+use crate::event;
+use crate::event::flutter_subscriber::FlutterSubscriber;
+use crate::event::Event;
 use crate::ln_dlc;
-use crate::ln_dlc::Balance;
 use crate::logger;
-use crate::model;
 use crate::model::order::NewOrder;
 use crate::model::order::Order;
-use crate::model::order::OrderNotification;
 use crate::model::Direction;
 use crate::trade::order;
 use anyhow::Result;
@@ -35,22 +35,10 @@ pub fn calculate_liquidation_price(
     ))
 }
 
-#[derive(Clone)]
-pub enum Event {
-    Init(String),
-    Log(String),
-    OrderUpdateNotification(String),
-    WalletInfo(Balance),
-}
-
 #[tokio::main(flavor = "current_thread")]
 pub async fn submit_order(order: NewOrder) -> Result<()> {
     order::handler::submit_order(order.into()).await?;
     Ok(())
-}
-
-pub fn subscribe_to_order_notifications(sink: StreamSink<OrderNotification>) -> Result<()> {
-    model::order::notifications::add_listener(sink)
 }
 
 #[tokio::main(flavor = "current_thread")]
@@ -70,8 +58,13 @@ pub async fn get_orders() -> Result<Vec<Order>> {
     Ok(orders)
 }
 
-pub fn run(stream: StreamSink<Event>, app_dir: String) -> Result<()> {
-    ln_dlc::run(stream, app_dir)
+pub fn subscribe(stream: StreamSink<Event>) {
+    tracing::debug!("Subscribing flutter to event hub");
+    event::subscribe(FlutterSubscriber::new(stream))
+}
+
+pub fn run(app_dir: String) -> Result<()> {
+    ln_dlc::run(app_dir)
 }
 
 pub fn get_new_address() -> SyncReturn<String> {

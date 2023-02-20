@@ -1,3 +1,5 @@
+import 'dart:developer';
+
 import 'package:f_logs/f_logs.dart';
 import 'package:flutter/material.dart';
 import 'package:get_10101/features/wallet/balance_change_notifier.dart';
@@ -21,6 +23,8 @@ class _ReceiveScreenState extends State<ReceiveScreen> {
   @override
   Widget build(BuildContext context) {
     Balance balance = context.watch<BalanceChangeNotifier>().balance;
+
+    log("Refresh receive screen: ${balance.onChain}");
 
     return Scaffold(
       appBar: AppBar(title: const Text("Receive")),

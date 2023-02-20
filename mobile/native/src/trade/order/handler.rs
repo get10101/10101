@@ -1,6 +1,5 @@
-use crate::model::order::notifications::send_notification;
-use crate::model::order::OrderNotification;
-use crate::model::order::OrderNotificationType;
+use crate::event;
+use crate::event::Event;
 use crate::trade::order::OrderStateTrade;
 use crate::trade::order::OrderTrade;
 use crate::trade::order::OrderTypeTrade;
@@ -14,12 +13,12 @@ use uuid::Uuid;
 
 pub async fn submit_order(order: OrderTrade) -> Result<()> {
     // TODO: Save in DB and pass on to orderbook
-    tokio::time::sleep(Duration::from_secs(10)).await;
+    tokio::time::sleep(Duration::from_secs(5)).await;
 
-    send_notification(OrderNotification {
-        id: order.id.to_string(),
-        notification_type: OrderNotificationType::New,
-    });
+    // TODO: The conversion to the API order should not be done in here, but should be done by
+    // FlutterSubscriber! This requires a proper internal Even model. We should distinguish
+    // between the internal events and those exposed on the API!
+    event::publish(&Event::OrderUpdateNotification(order.into()));
 
     Ok(())
 }

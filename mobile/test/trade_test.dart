@@ -79,7 +79,7 @@ void main() {
     await tester.pumpWidget(MultiProvider(providers: [
       ChangeNotifierProvider(create: (context) => TradeValuesChangeNotifier(tradeValueService)),
       ChangeNotifierProvider(create: (context) => submitOrderChangeNotifier),
-      ChangeNotifierProvider(create: (context) => OrderChangeNotifier(orderService)),
+      ChangeNotifierProvider(create: (context) => OrderChangeNotifier.create(orderService)),
       ChangeNotifierProvider(create: (context) => AmountDenominationChangeNotifier()),
     ], child: const TestWrapperWithTradeTheme(child: TradeScreen())));
 

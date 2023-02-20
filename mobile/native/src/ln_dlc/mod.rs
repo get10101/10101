@@ -1,4 +1,5 @@
-use crate::api::Event;
+use crate::event;
+use crate::event::Event;
 use anyhow::anyhow;
 use anyhow::bail;
 use anyhow::Context;
@@ -7,7 +8,6 @@ use bdk::bitcoin::secp256k1::rand::thread_rng;
 use bdk::bitcoin::secp256k1::rand::RngCore;
 use bdk::bitcoin::Network;
 use dlc_manager::Wallet;
-use flutter_rust_bridge::StreamSink;
 use lightning_invoice::Invoice;
 use ln_dlc_node::node::Node;
 use ln_dlc_node::node::NodeInfo;
@@ -42,7 +42,8 @@ pub fn get_coordinator_info() -> NodeInfo {
     }
 }
 
-#[derive(Debug, Clone)]
+// TODO: this model should not be in the event!
+#[derive(Debug, Eq, Hash, PartialEq, Clone, Default)]
 pub struct Balance {
     pub on_chain: u64,
     pub off_chain: u64,
@@ -61,11 +62,13 @@ fn runtime() -> Result<&'static Runtime> {
     Ok(RUNTIME.get())
 }
 
-pub fn run(stream: StreamSink<Event>, data_dir: String) -> Result<()> {
+pub fn run(data_dir: String) -> Result<()> {
     let network = Network::Regtest;
     let runtime = runtime()?;
+
     runtime.block_on(async move {
-        stream.add(Event::Init("Starting full ldk node".to_string()));
+        event::publish(&Event::Init("Starting full ldk node".to_string()));
+
         let mut ephemeral_randomness = [0; 32];
         thread_rng().fill_bytes(&mut ephemeral_randomness);
 
@@ -108,7 +111,7 @@ pub fn run(stream: StreamSink<Event>, data_dir: String) -> Result<()> {
                 node_clone.sync();
                 tokio::time::sleep(std::time::Duration::from_secs(10)).await;
 
-                stream.add(Event::WalletInfo(Balance {
+                event::publish(&Event::WalletInfo(Balance {
                     off_chain: node_clone.get_ldk_balance().available,
                     on_chain: node_clone
                         .get_on_chain_balance()
@@ -133,7 +136,7 @@ pub fn run(stream: StreamSink<Event>, data_dir: String) -> Result<()> {
 }
 
 pub fn get_new_address() -> Result<String> {
-    let node = NODE.try_get().unwrap();
+    let node = NODE.try_get().context("failed to get ln dlc node")?;
     let address = node
         .wallet
         .get_new_address()
@@ -142,7 +145,7 @@ pub fn get_new_address() -> Result<String> {
 }
 
 pub fn open_channel() -> Result<()> {
-    let node = NODE.try_get().unwrap();
+    let node = NODE.try_get().context("failed to get ln dlc node")?;
 
     node.open_channel(get_coordinator_info(), 500000, 250000)
 }
@@ -151,7 +154,7 @@ pub fn create_invoice() -> Result<Invoice> {
     let runtime = runtime()?;
 
     runtime.block_on(async {
-        let node = NODE.try_get().unwrap();
+        let node = NODE.try_get().context("failed to get ln dlc node")?;
 
         let client = reqwest::Client::new();
         let response = client
@@ -183,7 +186,7 @@ pub fn create_invoice() -> Result<Invoice> {
 }
 
 pub fn send_payment(invoice: &str) -> Result<()> {
-    let node = NODE.try_get().unwrap();
+    let node = NODE.try_get().context("failed to get ln dlc node")?;
     let invoice = Invoice::from_str(invoice).context("Could not parse Invoice string")?;
     node.send_payment(&invoice)
 }
