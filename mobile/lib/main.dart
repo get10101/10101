@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge.dart';
+import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
+import 'package:get_10101/common/application/event_service.dart';
 import 'package:get_10101/features/trade/application/order_service.dart';
 import 'package:get_10101/features/trade/application/trade_values_service.dart';
 import 'package:get_10101/features/trade/order_change_notifier.dart';
@@ -21,6 +23,7 @@ import 'package:go_router/go_router.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import 'common/amount_denomination_change_notifier.dart';
+import 'features/trade/domain/order.dart';
 import 'features/trade/trade_screen.dart';
 import 'features/wallet/wallet_screen.dart';
 import 'ffi.dart' as rust;
@@ -50,7 +53,7 @@ void main() {
     ChangeNotifierProvider(create: (context) => TradeValuesChangeNotifier(TradeValuesService())),
     ChangeNotifierProvider(create: (context) => AmountDenominationChangeNotifier()),
     ChangeNotifierProvider(create: (context) => SubmitOrderChangeNotifier(OrderService())),
-    ChangeNotifierProvider(create: (context) => OrderChangeNotifier(OrderService())),
+    ChangeNotifierProvider(create: (context) => OrderChangeNotifier.create(OrderService())),
     ChangeNotifierProvider(create: (context) => BalanceChangeNotifier())
   ], child: const TenTenOneApp()));
 }
@@ -63,8 +66,6 @@ class TenTenOneApp extends StatefulWidget {
 }
 
 class _TenTenOneAppState extends State<TenTenOneApp> {
-  final OrderService orderService = OrderService();
-
   final GoRouter _router = GoRouter(
     navigatorKey: _rootNavigatorKey,
     initialLocation: WalletScreen.route,
@@ -133,11 +134,8 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
 
   @override
   void initState() {
-    OrderChangeNotifier orderChangeNotifier = context.read<OrderChangeNotifier>();
-
     super.initState();
-    init();
-    orderService.subscribeToOrderNotifications(orderChangeNotifier);
+    init(context.read<OrderChangeNotifier>());
   }
 
   @override
@@ -155,32 +153,38 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
     );
   }
 
-  Future<void> init() async {
+  Future<void> init(OrderChangeNotifier orderChangeNotifier) async {
     try {
-      await setupRustLogging();
+      setupRustLogging();
+
+      // TODO: Move this code into an "InitService" or similar; we should not have bridge code in the widget
+
+      final EventService eventService = EventService.create();
+      eventService.subscribe(
+          orderChangeNotifier, bridge.Event.orderUpdateNotification(Order.apiDummy()));
+
+      eventService.subscribe(
+          AnonSubscriber((event) => FLog.info(text: event.field0)), const bridge.Event.log(""));
+
+      eventService.subscribe(AnonSubscriber((event) {
+        FLog.debug(text: "Received wallet info event");
+        context.read<BalanceChangeNotifier>().update(event.field0);
+      }), bridge.Event.walletInfo(bridge.Balance(onChain: 0, offChain: 0)));
 
       final appSupportDir = await getApplicationSupportDirectory();
       FLog.info(text: "App data will be stored in: $appSupportDir");
 
-      rust.api.run(appDir: appSupportDir.path).listen((event) {
-        if (event is rust.Event_Init) {
-          FLog.info(text: event.field0);
-        } else if (event is rust.Event_WalletInfo) {
-          context.read<BalanceChangeNotifier>().update(event.field0);
-        } else {
-          FLog.warning(text: "Received unexpected event: $event");
-        }
-      });
+      await rust.api.run(appDir: appSupportDir.path);
     } on FfiException catch (error) {
       FLog.error(text: "Failed to initialise: Error: ${error.message}", exception: error);
     } catch (error) {
-      FLog.error(text: "Failed to initialise: Unknown error");
+      FLog.error(text: "Failed to initialise: $error", exception: error);
     } finally {
       FlutterNativeSplash.remove();
     }
   }
 
-  Future<void> setupRustLogging() async {
+  setupRustLogging() {
     rust.api.initLogging().listen((event) {
       // TODO: this should not be required if we enable mobile loggers for FLog.
       if (Platform.isAndroid || Platform.isIOS) {

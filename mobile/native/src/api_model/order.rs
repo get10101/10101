@@ -1,12 +1,10 @@
-use crate::model::ContractSymbol;
-use crate::model::Direction;
+use crate::api_model::ContractSymbol;
+use crate::api_model::Direction;
 use crate::trade::order::OrderStateTrade;
 use crate::trade::order::OrderTrade;
 use crate::trade::order::OrderTypeTrade;
 use flutter_rust_bridge::frb;
 use uuid::Uuid;
-
-pub mod notifications;
 
 #[frb]
 #[derive(Debug, Clone, Copy)]
@@ -52,20 +50,6 @@ pub struct Order {
     pub direction: Direction,
     pub order_type: Box<OrderType>,
     pub status: OrderState,
-}
-
-#[frb]
-#[derive(Debug, Clone, Copy)]
-pub enum OrderNotificationType {
-    New,
-    Update,
-}
-
-#[frb]
-#[derive(Debug, Clone)]
-pub struct OrderNotification {
-    pub id: String,
-    pub notification_type: OrderNotificationType,
 }
 
 impl From<OrderType> for OrderTypeTrade {

@@ -131,7 +131,8 @@ class TradeScreen extends StatelessWidget {
                       physics: const ClampingScrollPhysics(),
                       itemCount: orderChangeNotifier.orders.length,
                       itemBuilder: (BuildContext context, int index) {
-                        return OrderListItem(order: orderChangeNotifier.orders[index]);
+                        return OrderListItem(
+                            order: orderChangeNotifier.orders.values.toList()[index]);
                       },
                     )
                   ],
