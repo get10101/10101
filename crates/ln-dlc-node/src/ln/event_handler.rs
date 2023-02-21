@@ -25,6 +25,18 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::runtime;
 
+/// When handling the [`Event::HTLCIntercepted`], we may need to
+/// create a new channel with the recipient of the HTLC. If the
+/// payment is small enough (< 1000 sats), opening the channel will
+/// fail unless we provide more outbound liquidity.
+///
+/// This value is completely arbitrary at this stage. Eventually, we
+/// should, for example, let the payee decide how much inbound
+/// liquidity they desire, and charge them for it.
+///
+/// This constant only applies to the coordinator.
+pub(crate) const JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT: u64 = 10_000;
+
 pub struct EventHandler {
     runtime_handle: runtime::Handle,
     channel_manager: Arc<ChannelManager>,
@@ -283,7 +295,7 @@ impl EventHandler {
                 let forwarding_channel_manager = self.channel_manager.clone();
                 let min = time_forwardable.as_millis() as u64;
                 tokio::spawn(async move {
-                    let millis_to_sleep = thread_rng().gen_range(min, min * 5);
+                    let millis_to_sleep = thread_rng().gen_range(min..(min * 5));
                     tokio::time::sleep(Duration::from_millis(millis_to_sleep)).await;
                     forwarding_channel_manager.process_pending_htlc_forwards();
                 });
@@ -327,25 +339,27 @@ impl EventHandler {
             Event::ProbeFailed { .. } => {}
             Event::ChannelReady {
                 channel_id,
-                user_channel_id: _,
                 counterparty_node_id,
-                channel_type: _,
+                ..
             } => {
-                let counterparty = counterparty_node_id.to_string();
-                let channel_id_str = hex::encode(channel_id);
-                tracing::info!(channel_id = channel_id_str, counterparty, "Channel ready");
+                tracing::info!(
+                    channel_id = %hex::encode(channel_id),
+                    counterparty = %counterparty_node_id.to_string(),
+                    "Channel ready"
+                );
 
-                let pending_intercepted_htlc = self.pending_intercepted_htlcs.clone();
-                let pending_intercepted_htlc = pending_intercepted_htlc.lock().unwrap();
+                let pending_intercepted_htlcs = self.pending_intercepted_htlcs.lock().unwrap();
+
                 if let Some((intercept_id, expected_outbound_amount_msat)) =
-                    pending_intercepted_htlc.get(&counterparty_node_id)
+                    pending_intercepted_htlcs.get(&counterparty_node_id)
                 {
-                    let intercept_id_str = hex::encode(intercept_id.0);
                     tracing::info!(
-                        intercept_id = intercept_id_str,
-                        counterparty,
-                        "Pending intercepted htlc found, forwarding payment"
+                        intercept_id = %hex::encode(intercept_id.0),
+                        counterparty = %counterparty_node_id.to_string(),
+                        forward_amount_msat = %expected_outbound_amount_msat,
+                        "Pending intercepted HTLC found, forwarding payment"
                     );
+
                     self.channel_manager
                         .forward_intercepted_htlc(
                             *intercept_id,
@@ -426,9 +440,22 @@ impl EventHandler {
                     return;
                 }
 
-                let cid = self
+                // FIXME: This is arbitrary and will not work beyond
+                // specific cases (like the just-in-time channel
+                // test). This value must be computed and we must
+                // ensure that the intercepted HTLC can actually be
+                // added to the just-in-time channel
+                let channel_value = JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT;
+
+                // NOTE: We actually might want to override the `UserConfig`
+                // for this just-in-time channel so that the
+                // intercepted HTLC is allowed to be added to the
+                // channel according to its
+                // `max_inbound_htlc_value_in_flight_percent_of_channel`
+                // configuration value
+                let temp_channel_id = self
                     .channel_manager
-                    .create_channel(*target_node_id, expected_outbound_amount_msat, 0, 0, None)
+                    .create_channel(*target_node_id, channel_value, 0, 0, None)
                     .map_err(|e| {
                         anyhow!(
                             "Could not create channel with {} due to {e:?}",
@@ -436,8 +463,12 @@ impl EventHandler {
                         )
                     })
                     .expect("To open channel");
-                let channel_id = hex::encode(cid);
-                tracing::info!(channel_id, "Opened new channel for in-flight payment");
+
+                tracing::info!(
+                    peer = %target_node_id,
+                    temp_channel_id = %hex::encode(temp_channel_id),
+                    "Started channel creation for in-flight payment"
+                );
 
                 let pending_intercepted_htlcs = self.pending_intercepted_htlcs.clone();
                 let mut pending_intercepted_htlcs = pending_intercepted_htlcs

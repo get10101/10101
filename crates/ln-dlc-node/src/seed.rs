@@ -18,7 +18,10 @@ pub struct Bip39Seed {
 impl Bip39Seed {
     pub fn new() -> Result<Self> {
         let mut rng = rand::thread_rng();
-        let mnemonic = Mnemonic::generate_in_with(&mut rng, Language::English, 12)?;
+
+        let word_count = 12;
+        let mnemonic = Mnemonic::generate_in_with(&mut rng, Language::English, word_count)?;
+
         Ok(Self { mnemonic })
     }
 

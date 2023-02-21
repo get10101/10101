@@ -1,0 +1,51 @@
+name: Slow ln-dlc-node tests
+
+on:
+  push:
+    branches:
+      - "staging"
+
+env:
+  CARGO_INCREMENTAL: 0
+  CARGO_TERM_COLOR: always
+
+jobs:
+  # job to run change detection
+  changes:
+    runs-on: ubuntu-latest
+    # Set job outputs to values from filter step
+    outputs:
+      ln-dlc-node: ${{ steps.filter.outputs.ln-dlc-node }}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dorny/paths-filter@v2
+        id: filter
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          filters: |
+            ln-dlc-node:
+              - '.github/workflows/**'
+              - 'crates/bdk-ldk/**'
+              - 'crates/ln-dlc-node/**'
+              - 'Cargo.*'
+  tests-ln-dlc-node:
+    runs-on: ubuntu-latest
+    needs: changes
+    if: ${{ needs.changes.outputs.ln-dlc-node == 'true' }}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: extractions/setup-just@v1
+      - name: Setup rust toolchain
+        run: rustup show
+      - uses: Swatinem/rust-cache@v2.2.0
+      - name: Start containers
+        run: |
+          docker-compose up -d
+          sleep 10 # We need to give docker a bit of time to startup
+
+      - name: Test containers are up
+        run: |
+          curl -d '{"address":"bcrt1qylgu6ffkp3p0m8tw8kp4tt2dmdh755f4r5dq7s", "amount":"0.1"}' -H "Content-Type: application/json" -X POST http://localhost:3000/faucet
+
+      - name: Run slow tests
+        run: cargo test -p ln-dlc-node -- --ignored

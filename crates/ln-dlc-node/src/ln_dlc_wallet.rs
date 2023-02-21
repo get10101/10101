@@ -1,10 +1,15 @@
 use bdk::blockchain::ElectrumBlockchain;
 use bdk::sled;
 use bdk::wallet::AddressIndex;
+use bitcoin::secp256k1::All;
 use bitcoin::secp256k1::PublicKey;
+use bitcoin::secp256k1::Secp256k1;
 use bitcoin::secp256k1::SecretKey;
 use bitcoin::Address;
+use bitcoin::Block;
 use bitcoin::BlockHeader;
+use bitcoin::KeyPair;
+use bitcoin::Network;
 use bitcoin::Script;
 use bitcoin::Transaction;
 use bitcoin::TxOut;
@@ -13,31 +18,76 @@ use dlc_manager::error::Error;
 use dlc_manager::error::Error::WalletError;
 use dlc_manager::Signer;
 use dlc_manager::Utxo;
+use dlc_sled_storage_provider::SledStorageProvider;
 use lightning::chain::Filter;
 use lightning::chain::WatchedOutput;
+use simple_wallet::WalletStorage;
+use std::sync::Arc;
 
 /// This is a wrapper type introduced to be able to implement traits from `rust-dlc` on the
 /// `bdk_ldk::LightningWallet`.
 ///
 /// We want to eventually get rid of the dependency on `bdk-ldk`, because it's a dead project.
-pub struct LnDlcWallet(bdk_ldk::LightningWallet<ElectrumBlockchain, sled::Tree>);
+pub struct LnDlcWallet {
+    ln_wallet: bdk_ldk::LightningWallet<ElectrumBlockchain, sled::Tree>,
+    storage: Arc<SledStorageProvider>,
+    secp: Secp256k1<All>,
+}
 
 impl LnDlcWallet {
     pub fn new(
         blockchain_client: Box<ElectrumBlockchain>,
         wallet: bdk::Wallet<bdk::sled::Tree>,
+        storage: Arc<SledStorageProvider>,
     ) -> Self {
-        Self(bdk_ldk::LightningWallet::new(blockchain_client, wallet))
+        Self {
+            ln_wallet: bdk_ldk::LightningWallet::new(blockchain_client, wallet),
+            storage,
+            secp: Secp256k1::new(),
+        }
     }
 
     // TODO: Better to keep this private and expose the necessary APIs instead.
     pub(crate) fn inner(&self) -> &bdk_ldk::LightningWallet<ElectrumBlockchain, sled::Tree> {
-        &self.0
+        &self.ln_wallet
     }
 
     pub(crate) fn tip(&self) -> anyhow::Result<(u32, BlockHeader)> {
-        let (height, header) = self.0.get_tip()?;
+        let (height, header) = self.ln_wallet.get_tip()?;
         Ok((height, header))
+    }
+}
+
+impl dlc_manager::Blockchain for LnDlcWallet {
+    fn send_transaction(&self, transaction: &Transaction) -> Result<(), Error> {
+        self.ln_wallet
+            .broadcast(transaction)
+            .map_err(|_| Error::BlockchainError)
+    }
+
+    fn get_network(&self) -> Result<Network, Error> {
+        // todo: replace with actual network value
+        Ok(bitcoin::Network::Regtest)
+    }
+
+    fn get_blockchain_height(&self) -> Result<u64, Error> {
+        Ok(self
+            .ln_wallet
+            .get_tip()
+            .map_err(|_| Error::BlockchainError)?
+            .0 as u64)
+    }
+
+    fn get_block_at_height(&self, _height: u64) -> Result<Block, Error> {
+        todo!()
+    }
+
+    fn get_transaction(&self, _txid: &Txid) -> Result<Transaction, Error> {
+        todo!()
+    }
+
+    fn get_transaction_confirmations(&self, _txid: &Txid) -> Result<u32, Error> {
+        todo!()
     }
 }
 
@@ -62,15 +112,17 @@ impl Signer for LnDlcWallet {
         todo!()
     }
 
-    fn get_secret_key_for_pubkey(&self, _pubkey: &PublicKey) -> Result<SecretKey, Error> {
-        todo!()
+    fn get_secret_key_for_pubkey(&self, pubkey: &PublicKey) -> Result<SecretKey, Error> {
+        self.storage
+            .get_priv_key_for_pubkey(pubkey)?
+            .ok_or_else(|| Error::StorageError("No sk for provided pk".to_string()))
     }
 }
 
 impl dlc_manager::Wallet for LnDlcWallet {
     fn get_new_address(&self) -> Result<Address, Error> {
         let address_info = self
-            .0
+            .ln_wallet
             .get_wallet()
             .unwrap()
             .get_address(AddressIndex::New)
@@ -79,7 +131,12 @@ impl dlc_manager::Wallet for LnDlcWallet {
     }
 
     fn get_new_secret_key(&self) -> Result<SecretKey, Error> {
-        todo!()
+        let kp = KeyPair::new(&self.secp, &mut rand::thread_rng());
+        let sk = kp.secret_key();
+
+        self.storage.upsert_key_pair(&kp.public_key(), &sk)?;
+
+        Ok(sk)
     }
 
     fn get_utxos_for_amount(
@@ -98,7 +155,7 @@ impl dlc_manager::Wallet for LnDlcWallet {
 
 impl lightning::chain::chaininterface::BroadcasterInterface for LnDlcWallet {
     fn broadcast_transaction(&self, tx: &Transaction) {
-        self.0.broadcast_transaction(tx)
+        self.ln_wallet.broadcast_transaction(tx)
     }
 }
 
@@ -107,6 +164,7 @@ impl lightning::chain::chaininterface::FeeEstimator for LnDlcWallet {
         &self,
         confirmation_target: lightning::chain::chaininterface::ConfirmationTarget,
     ) -> u32 {
-        self.0.get_est_sat_per_1000_weight(confirmation_target)
+        self.ln_wallet
+            .get_est_sat_per_1000_weight(confirmation_target)
     }
 }
