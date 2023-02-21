@@ -828,7 +828,7 @@ pub(crate) fn coordinator_config() -> UserConfig {
         },
         accept_intercept_htlcs: true,
         accept_forwards_to_priv_channels: true,
-        manually_accept_inbound_channels: true,
+        manually_accept_inbound_channels: false,
         ..Default::default()
     }
 }

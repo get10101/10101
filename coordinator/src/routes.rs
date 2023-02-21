@@ -29,7 +29,7 @@ pub async fn post_fake_scid(
 pub async fn get_new_address(node: &State<Arc<Node>>) -> Result<Json<String>, HttpApiProblem> {
     let address = node.wallet.get_new_address().map_err(|e| {
         HttpApiProblem::new(StatusCode::INTERNAL_SERVER_ERROR)
-            .title("Invalid public key")
+            .title("Failed to get new address")
             .detail(format!("Failed to get new address: {e:#}"))
     })?;
     Ok(Json(address.to_string()))
@@ -46,11 +46,23 @@ pub async fn get_balance(node: &State<Arc<Node>>) -> Result<Json<Balance>, HttpA
     let offchain = node.get_ldk_balance();
     let onchain = node.get_on_chain_balance().map_err(|e| {
         HttpApiProblem::new(StatusCode::INTERNAL_SERVER_ERROR)
-            .title("Invalid public key")
-            .detail(format!("Failed to get new address: {e:#}"))
+            .title("Failed to get balance")
+            .detail(format!("Failed to get balance: {e:#}"))
     })?;
     Ok(Json(Balance {
         offchain: offchain.available,
         onchain: onchain.confirmed,
     }))
 }
+
+#[rocket::get("/invoice")]
+pub async fn get_invoice(node: &State<Arc<Node>>) -> Result<Json<String>, HttpApiProblem> {
+    let invoice = node.create_invoice(2000).map_err(|e| {
+        HttpApiProblem::new(StatusCode::INTERNAL_SERVER_ERROR)
+            .title("Failed to create invoice")
+            .detail(format!("Failed to create invoice: {e:#}"))
+    })?;
+
+    Ok(Json(invoice.to_string()))
+}
+
