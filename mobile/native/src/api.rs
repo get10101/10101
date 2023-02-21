@@ -1,12 +1,12 @@
+use crate::api_model;
+use crate::api_model::event::flutter_subscriber::FlutterSubscriber;
+use crate::api_model::order::NewOrder;
+use crate::api_model::order::Order;
+use crate::api_model::Direction;
 use crate::calculations;
 use crate::event;
 use crate::ln_dlc;
 use crate::logger;
-use crate::model;
-use crate::model::event::flutter_subscriber::FlutterSubscriber;
-use crate::model::order::NewOrder;
-use crate::model::order::Order;
-use crate::model::Direction;
 use crate::trade::order;
 use anyhow::Result;
 use flutter_rust_bridge::StreamSink;
@@ -58,7 +58,7 @@ pub async fn get_orders() -> Result<Vec<Order>> {
     Ok(orders)
 }
 
-pub fn subscribe(stream: StreamSink<model::event::Event>) {
+pub fn subscribe(stream: StreamSink<api_model::event::Event>) {
     tracing::debug!("Subscribing flutter to event hub");
     event::subscribe(FlutterSubscriber::new(stream))
 }

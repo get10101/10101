@@ -1,6 +1,6 @@
+use crate::api_model::order::Order;
 use crate::event::EventInternal;
 use crate::ln_dlc::Balance;
-use crate::model::order::Order;
 use flutter_rust_bridge::frb;
 
 pub mod flutter_subscriber;

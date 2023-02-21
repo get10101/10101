@@ -1,5 +1,5 @@
-use crate::model::ContractSymbol;
-use crate::model::Direction;
+use crate::api_model::ContractSymbol;
+use crate::api_model::Direction;
 use crate::trade::order::OrderStateTrade;
 use crate::trade::order::OrderTrade;
 use crate::trade::order::OrderTypeTrade;

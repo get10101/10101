@@ -1,6 +1,6 @@
+use crate::api_model::event::Event;
 use crate::event::subscriber::Subscriber;
 use crate::event::EventInternal;
-use crate::model::event::Event;
 use flutter_rust_bridge::StreamSink;
 
 #[derive(Clone)]
