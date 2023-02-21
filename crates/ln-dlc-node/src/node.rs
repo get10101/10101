@@ -439,13 +439,22 @@ impl Node {
 
     // todo: That might be better placed in a dedicated connection manager file.
     pub async fn keep_connected(&self, peer: NodeInfo) -> Result<()> {
-        let connection_closed_future = Self::connect(self.peer_manager.clone(), peer).await?;
-
         let peer_manager = self.peer_manager.clone();
         tokio::spawn({
             async move {
-                let mut connection_closed_future = connection_closed_future;
+                // initial connection retry
+                let mut connection_closed_future = loop {
+                    match Self::connect(peer_manager.clone(), peer).await {
+                        Ok(fut) => break fut,
+                        Err(e) => {
+                            tracing::error!(%peer, "Establishing connection failed because {e:#}");
+                            tokio::time::sleep(Duration::from_secs(10)).await;
+                            continue;
+                        }
+                    }
+                };
 
+                // keep alive
                 loop {
                     tracing::debug!(%peer, "Keeping connection alive");
 
