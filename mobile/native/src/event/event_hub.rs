@@ -1,5 +1,5 @@
 use crate::event::subscriber::Subscriber;
-use crate::event::Event;
+use crate::event::EventInternal;
 use state::Storage;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
@@ -23,7 +23,7 @@ pub(crate) fn get() -> MutexGuard<'static, EventHub> {
 }
 
 pub struct EventHub {
-    subscribers: HashMap<Event, Vec<Box<dyn Subscriber + 'static + Send + Sync>>>,
+    subscribers: HashMap<EventInternal, Vec<Box<dyn Subscriber + 'static + Send + Sync>>>,
 }
 
 impl EventHub {
@@ -31,7 +31,7 @@ impl EventHub {
     /// that the filter hook will only be called once during the subscribe function and is not
     /// considered anymore when publishing.
     pub fn subscribe(&mut self, subscriber: impl Subscriber + 'static + Send + Sync + Clone) {
-        for event in Event::iter() {
+        for event in EventInternal::iter() {
             if !subscriber.filter(&event) {
                 continue;
             }
@@ -47,7 +47,7 @@ impl EventHub {
     }
 
     /// Publishes the given event to all subscribers. Note, that this will be executed in a loop.
-    pub fn publish(&self, event: &Event) {
+    pub fn publish(&self, event: &EventInternal) {
         tracing::debug!("Publishing event {:?}", event);
         if let Some(subscribers) = self.subscribers.get(event) {
             tracing::debug!("Found subscriber");

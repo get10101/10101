@@ -1,5 +1,5 @@
 use crate::event;
-use crate::event::Event;
+use crate::event::EventInternal;
 use anyhow::anyhow;
 use anyhow::bail;
 use anyhow::Context;
@@ -67,7 +67,7 @@ pub fn run(data_dir: String) -> Result<()> {
     let runtime = runtime()?;
 
     runtime.block_on(async move {
-        event::publish(&Event::Init("Starting full ldk node".to_string()));
+        event::publish(&EventInternal::Init("Starting full ldk node".to_string()));
 
         let mut ephemeral_randomness = [0; 32];
         thread_rng().fill_bytes(&mut ephemeral_randomness);
@@ -111,7 +111,7 @@ pub fn run(data_dir: String) -> Result<()> {
                 node_clone.sync();
                 tokio::time::sleep(std::time::Duration::from_secs(10)).await;
 
-                event::publish(&Event::WalletInfo(Balance {
+                event::publish(&EventInternal::WalletInfo(Balance {
                     off_chain: node_clone.get_ldk_balance().available,
                     on_chain: node_clone
                         .get_on_chain_balance()

@@ -1,3 +1,4 @@
+pub mod event;
 pub mod order;
 use crate::trade::ContractSymbolTrade;
 use crate::trade::DirectionTrade;

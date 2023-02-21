@@ -1,6 +1,6 @@
-use crate::event::Event;
+use crate::event::EventInternal;
 
 pub trait Subscriber {
-    fn notify(&self, event: &Event);
-    fn filter(&self, event: &Event) -> bool;
+    fn notify(&self, event: &EventInternal);
+    fn filter(&self, event: &EventInternal) -> bool;
 }

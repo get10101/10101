@@ -1,5 +1,5 @@
 use crate::event;
-use crate::event::Event;
+use crate::event::EventInternal;
 use crate::trade::order::OrderStateTrade;
 use crate::trade::order::OrderTrade;
 use crate::trade::order::OrderTypeTrade;
@@ -18,7 +18,7 @@ pub async fn submit_order(order: OrderTrade) -> Result<()> {
     // TODO: The conversion to the API order should not be done in here, but should be done by
     // FlutterSubscriber! This requires a proper internal Even model. We should distinguish
     // between the internal events and those exposed on the API!
-    event::publish(&Event::OrderUpdateNotification(order.into()));
+    event::publish(&EventInternal::OrderUpdateNotification(order));
 
     Ok(())
 }

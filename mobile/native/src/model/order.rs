@@ -52,21 +52,6 @@ pub struct Order {
     pub status: OrderState,
 }
 
-// TODO: This is needed because we use EnumIter for `Event`. Is there a better way to impl iter that
-// does not require Default impl?
-impl Default for Order {
-    fn default() -> Self {
-        Order {
-            leverage: 0.0,
-            quantity: 0.0,
-            contract_symbol: ContractSymbol::BtcUsd,
-            direction: Direction::Long,
-            order_type: Box::new(OrderType::Market),
-            status: OrderState::Open,
-        }
-    }
-}
-
 impl From<OrderType> for OrderTypeTrade {
     fn from(value: OrderType) -> Self {
         match value {

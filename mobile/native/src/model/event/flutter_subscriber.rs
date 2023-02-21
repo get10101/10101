@@ -1,5 +1,6 @@
 use crate::event::subscriber::Subscriber;
-use crate::event::Event;
+use crate::event::EventInternal;
+use crate::model::event::Event;
 use flutter_rust_bridge::StreamSink;
 
 #[derive(Clone)]
@@ -9,14 +10,16 @@ pub struct FlutterSubscriber {
 
 /// Subscribes to event relevant for flutter and forwards them to the stream sink.
 impl Subscriber for FlutterSubscriber {
-    fn notify(&self, event: &Event) {
-        self.stream.add(event.clone());
+    fn notify(&self, event: &EventInternal) {
+        self.stream.add(event.clone().into());
     }
 
-    fn filter(&self, event: &Event) -> bool {
+    fn filter(&self, event: &EventInternal) -> bool {
         matches!(
             event,
-            Event::Init(_) | Event::WalletInfo(_) | Event::OrderUpdateNotification(_)
+            EventInternal::Init(_)
+                | EventInternal::WalletInfo(_)
+                | EventInternal::OrderUpdateNotification(_)
         )
     }
 }
