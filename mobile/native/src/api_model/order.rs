@@ -50,6 +50,7 @@ pub struct Order {
     pub direction: Direction,
     pub order_type: Box<OrderType>,
     pub status: OrderState,
+    pub execution_price: Option<f64>,
 }
 
 impl From<OrderType> for OrderTypeTrade {
@@ -61,18 +62,13 @@ impl From<OrderType> for OrderTypeTrade {
     }
 }
 
-impl From<OrderState> for OrderStateTrade {
-    fn from(value: OrderState) -> Self {
-        match value {
-            OrderState::Open => OrderStateTrade::Open,
-            OrderState::Filled => OrderStateTrade::Filled,
-            OrderState::Failed => OrderStateTrade::Failed,
-        }
-    }
-}
-
 impl From<OrderTrade> for Order {
     fn from(value: OrderTrade) -> Self {
+        let execution_price = match value.status {
+            OrderStateTrade::Filled { execution_price } => Some(execution_price),
+            _ => None,
+        };
+
         Order {
             leverage: value.leverage,
             quantity: value.quantity,
@@ -80,6 +76,7 @@ impl From<OrderTrade> for Order {
             direction: value.direction.into(),
             order_type: Box::new(value.order_type.into()),
             status: value.status.into(),
+            execution_price,
         }
     }
 }
@@ -97,7 +94,7 @@ impl From<OrderStateTrade> for OrderState {
     fn from(value: OrderStateTrade) -> Self {
         match value {
             OrderStateTrade::Open => OrderState::Open,
-            OrderStateTrade::Filled => OrderState::Filled,
+            OrderStateTrade::Filled { .. } => OrderState::Filled,
             OrderStateTrade::Failed => OrderState::Failed,
             OrderStateTrade::Initial => unimplemented!(
                 "don't expose orders that were not submitted into the orderbook to the frontend!"

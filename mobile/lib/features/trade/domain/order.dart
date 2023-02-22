@@ -41,6 +41,7 @@ class Order {
   final Direction direction;
   final OrderState status;
   final OrderType type;
+  final double? executionPrice;
 
   Order(
       {required this.leverage,
@@ -48,7 +49,8 @@ class Order {
       required this.contractSymbol,
       required this.direction,
       required this.status,
-      required this.type}) {
+      required this.type,
+      this.executionPrice}) {
     id = const Uuid().v4();
   }
 
@@ -59,7 +61,8 @@ class Order {
         contractSymbol: ContractSymbol.fromApi(order.contractSymbol),
         direction: Direction.fromApi(order.direction),
         status: OrderState.fromApi(order.status),
-        type: OrderType.fromApi(order.orderType));
+        type: OrderType.fromApi(order.orderType),
+        executionPrice: order.executionPrice);
   }
 
   static bridge.Order apiDummy() {

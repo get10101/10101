@@ -51,7 +51,10 @@ pub enum OrderStateTrade {
     /// the order is reflected in a position. Note that only complete filling is supported,
     /// partial filling not depicted yet.
     /// This is a final state
-    Filled,
+    Filled {
+        /// The execution price that the order was filled with
+        execution_price: f64,
+    },
 }
 
 #[derive(Debug, Clone, Copy)]
