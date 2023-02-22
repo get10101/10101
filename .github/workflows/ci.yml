@@ -53,6 +53,17 @@ jobs:
               - 'crates/bdk-ldk/**'
               - 'crates/ln-dlc-node/**'
               - 'Cargo.*'
+            flutter:
+              - '.github/workflows/**'
+              - 'mobile/android/**'
+              - 'mobile/ios/**'
+              - 'mobile/lib/**'
+              - 'mobile/linux/**'
+              - 'mobile/macos/**'
+              - 'mobile/native/**'
+              - 'mobile/test/**'
+              - 'mobile/windows/**'
+              - 'mobile/pubspec.*'
 
   clippy:
     runs-on: ubuntu-latest
@@ -76,6 +87,8 @@ jobs:
       - run: cargo clippy --all-targets --all-features -- -D warnings
 
   lint-flutter:
+    needs: changes
+    if: ${{ needs.changes.outputs.flutter == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
