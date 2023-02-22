@@ -18,7 +18,7 @@ impl Subscriber for FlutterSubscriber {
         matches!(
             event,
             EventInternal::Init(_)
-                | EventInternal::WalletInfo(_)
+                | EventInternal::WalletInfoUpdateNotification(_)
                 | EventInternal::OrderUpdateNotification(_)
         )
     }

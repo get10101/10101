@@ -12,8 +12,7 @@ import 'package:get_10101/features/trade/submit_order_change_notifier.dart';
 import 'package:get_10101/features/trade/trade_value_change_notifier.dart';
 import 'package:get_10101/features/trade/settings_screen.dart';
 import 'package:get_10101/features/trade/trade_theme.dart';
-import 'package:get_10101/features/wallet/application/wallet_info_service.dart';
-import 'package:get_10101/features/wallet/balance_change_notifier.dart';
+import 'package:get_10101/features/wallet/application/wallet_service.dart';
 import 'package:get_10101/features/wallet/receive_screen.dart';
 import 'package:get_10101/features/wallet/scanner_screen.dart';
 import 'package:get_10101/features/wallet/send_screen.dart';
@@ -30,6 +29,7 @@ import 'package:provider/provider.dart';
 import 'common/amount_denomination_change_notifier.dart';
 import 'features/trade/domain/order.dart';
 import 'features/trade/trade_screen.dart';
+import 'features/wallet/domain/wallet_info.dart';
 import 'features/wallet/wallet_screen.dart';
 import 'ffi.dart' as rust;
 
@@ -59,8 +59,7 @@ void main() {
     ChangeNotifierProvider(create: (context) => AmountDenominationChangeNotifier()),
     ChangeNotifierProvider(create: (context) => SubmitOrderChangeNotifier(OrderService())),
     ChangeNotifierProvider(create: (context) => OrderChangeNotifier.create(OrderService())),
-    ChangeNotifierProvider(create: (context) => BalanceChangeNotifier()),
-    ChangeNotifierProvider(create: (context) => WalletChangeNotifier(WalletInfoService())),
+    ChangeNotifierProvider(create: (context) => WalletChangeNotifier(WalletService())),
   ], child: const TenTenOneApp()));
 }
 
@@ -164,9 +163,8 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
   }
 
   Future<void> init(OrderChangeNotifier orderChangeNotifier, WalletChangeNotifier walletChangeNotifier) async {
-    await walletChangeNotifier.refreshWalletInfo();
-
     try {
+      await walletChangeNotifier.refreshWalletInfo();
       setupRustLogging();
 
       // TODO: Move this code into an "InitService" or similar; we should not have bridge code in the widget
@@ -176,12 +174,10 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
           orderChangeNotifier, bridge.Event.orderUpdateNotification(Order.apiDummy()));
 
       eventService.subscribe(
-          AnonSubscriber((event) => FLog.info(text: event.field0)), const bridge.Event.log(""));
+          walletChangeNotifier, bridge.Event.walletInfoUpdateNotification(WalletInfo.apiDummy()));
 
-      eventService.subscribe(AnonSubscriber((event) {
-        FLog.debug(text: "Received wallet info event");
-        context.read<BalanceChangeNotifier>().update(event.field0);
-      }), bridge.Event.walletInfo(bridge.Balance(onChain: 0, offChain: 0)));
+      eventService.subscribe(
+          AnonSubscriber((event) => FLog.info(text: event.field0)), const bridge.Event.log(""));
 
       final appSupportDir = await getApplicationSupportDirectory();
       FLog.info(text: "App data will be stored in: $appSupportDir");

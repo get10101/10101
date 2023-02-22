@@ -17,11 +17,13 @@ pub fn init_logging(sink: StreamSink<logger::LogEntry>) {
     logger::create_log_stream(sink)
 }
 
+#[derive(Clone, Debug, Default)]
 pub struct WalletInfo {
     pub balances: Balances,
     pub history: Vec<Transaction>,
 }
 
+#[derive(Clone, Debug, Default)]
 pub struct Balances {
     pub on_chain: u64,
     pub lightning: u64,
@@ -51,6 +53,7 @@ pub async fn refresh_wallet_info() -> WalletInfo {
     }
 }
 
+#[derive(Clone, Debug, Default)]
 pub struct Transaction {
     // TODO(Restioson): newtype?
     pub address: String,
@@ -60,13 +63,16 @@ pub struct Transaction {
     pub wallet_type: WalletType,
 }
 
+#[derive(Clone, Debug, Default)]
 pub enum WalletType {
     OnChain,
+    #[default]
     Lightning,
 }
 
-#[allow(dead_code)] // used in dart
+#[derive(Clone, Debug, Default)]
 pub enum PaymentFlow {
+    #[default]
     Inbound,
     Outbound,
 }
