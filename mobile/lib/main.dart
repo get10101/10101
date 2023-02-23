@@ -149,7 +149,6 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
       title: "10101",
       theme: ThemeData(
         primarySwatch: swatch,
-        useMaterial3: true,
         extensions: <ThemeExtension<dynamic>>[
           const TradeTheme(),
           WalletTheme(colors: ColorScheme.fromSwatch(primarySwatch: swatch)),
