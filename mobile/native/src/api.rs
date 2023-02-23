@@ -1,8 +1,8 @@
 use crate::api_model::order::NewOrder;
 use crate::api_model::order::Order;
 use crate::api_model::position::Position;
-use crate::api_model::Direction;
 use crate::calculations;
+use crate::common::api::Direction;
 use crate::event;
 use crate::event::api::FlutterSubscriber;
 use crate::ln_dlc;

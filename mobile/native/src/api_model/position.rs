@@ -1,5 +1,5 @@
-use crate::api_model::ContractSymbol;
-use crate::api_model::Direction;
+use crate::common::api::ContractSymbol;
+use crate::common::api::Direction;
 use crate::trade::position::PositionStateTrade;
 use crate::trade::position::PositionTrade;
 use flutter_rust_bridge::frb;
