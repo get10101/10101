@@ -59,110 +59,114 @@ class _BalanceRowState extends State<BalanceRow> with SingleTickerProviderStateM
       amount = walletChangeNotifier.onChain();
     }
 
+    double balanceRowHeight = 40;
+    double buttonSize = balanceRowHeight - 10;
+    double buttonSpacing = 10;
+
+    BalanceRowButton send = BalanceRowButton(
+      flow: PaymentFlow.outbound,
+      enabled: _expanded,
+      buttonSize: buttonSize,
+    );
+
+    BalanceRowButton receive = BalanceRowButton(
+      flow: PaymentFlow.inbound,
+      enabled: _expanded,
+      buttonSize: buttonSize,
+    );
+
+    double buttonWidth = send.width();
+
     return Padding(
       padding: const EdgeInsets.all(8.0),
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          FadeTransition(
-            opacity: _controller.drive(CurveTween(curve: Curves.easeIn)),
-            child: Row(children: [
-              BalanceRowButton(
-                walletType: widget.walletType,
-                flow: PaymentFlow.outbound,
-                enabled: _expanded,
-              ),
-              BalanceRowButton(
-                walletType: widget.walletType,
-                flow: PaymentFlow.outbound,
-                enabled: _expanded,
-              ),
-            ]),
-          ),
-          PositionedTransition(
-            rect: RelativeRectTween(
-                    begin: RelativeRect.fill,
-                    end: RelativeRect.fromLTRB(
-                        BalanceRowButton.width(context) * 2 + 4.0 + 8.0, 0, 0, 0))
-                .animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutBack)),
-            child: GestureDetector(
-              onTap: () {
-                _controller.stop();
-                setState(() => _expanded = !_expanded);
+      child: SizedBox(
+        height: balanceRowHeight,
+        child: Stack(
+          alignment: Alignment.topLeft,
+          children: [
+            FadeTransition(
+              opacity: _controller.drive(CurveTween(curve: Curves.easeIn)),
+              child: Row(mainAxisAlignment: MainAxisAlignment.start, children: [
+                send,
+                SizedBox(
+                  width: buttonSpacing,
+                ),
+                receive
+              ]),
+            ),
+            PositionedTransition(
+              rect: RelativeRectTween(
+                      begin: RelativeRect.fill,
+                      end: RelativeRect.fromLTRB(buttonWidth * 2 + buttonSpacing * 2, 0, 0, 0))
+                  .animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutBack)),
+              child: GestureDetector(
+                onTap: () {
+                  _controller.stop();
+                  setState(() => _expanded = !_expanded);
 
-                if (_expanded) {
-                  _controller.forward();
-                } else {
-                  _controller.reverse();
-                }
-              },
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 4.0),
-                decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.centerLeft,
-                      end: Alignment.centerRight,
-                      transform: const GradientRotation(1.1),
-                      stops: const [0, 0.5],
-                      colors: [rowBgColor, theme.bgColor],
+                  if (_expanded) {
+                    _controller.forward();
+                  } else {
+                    _controller.reverse();
+                  }
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                  decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.centerLeft,
+                        end: Alignment.centerRight,
+                        transform: const GradientRotation(1.1),
+                        stops: const [0, 0.5],
+                        colors: [rowBgColor, theme.bgColor],
+                      ),
+                      border: Border.all(color: theme.borderColor),
+                      borderRadius: const BorderRadius.all(Radius.circular(8))),
+                  child: Row(children: [
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                      child: SizedBox(height: widget.iconSize, width: widget.iconSize, child: icon),
                     ),
-                    border: Border.all(color: theme.borderColor),
-                    borderRadius: const BorderRadius.all(Radius.circular(8))),
-                child: Row(children: [
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 4.0),
-                    child: SizedBox(height: widget.iconSize, width: widget.iconSize, child: icon),
-                  ),
-                  Expanded(child: Text(name, style: normal)),
-                  AmountText(amount: amount, textStyle: bold),
-                ]),
+                    Expanded(child: Text(name, style: normal)),
+                    AmountText(amount: amount, textStyle: bold),
+                  ]),
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 }
 
 class BalanceRowButton extends StatelessWidget {
-  final WalletType walletType;
   final PaymentFlow flow;
   final bool enabled;
-  static const double horizontalPadding = 8;
+  final double buttonSize;
 
   const BalanceRowButton(
-      {super.key, required this.walletType, required this.flow, required this.enabled});
+      {super.key, required this.flow, required this.enabled, this.buttonSize = 40});
 
-  static double width(BuildContext context) {
+  double width() {
     // 2x padding from around the icon, 2x padding from inside the icon
-    return (horizontalPadding * 4) + (IconTheme.of(context).size ?? 24.0);
+    return buttonSize;
   }
 
   @override
   Widget build(BuildContext context) {
-    WalletTheme theme = Theme.of(context).extension<WalletTheme>()!;
-
-    String action;
     IconData icon;
     if (flow == PaymentFlow.outbound) {
       icon = Icons.upload;
-      action = "Send";
     } else {
       icon = Icons.download;
-      action = "Receive";
     }
 
-    String type;
-    if (walletType == WalletType.lightning) {
-      type = "lightning";
-    } else {
-      type = "chain";
-    }
+    double buttonIconPadding = 5;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: horizontalPadding),
-      child: IconButton(
+    return SizedBox(
+      width: buttonSize,
+      child: ElevatedButton(
         onPressed: !enabled
             ? null
             : () {
@@ -172,10 +176,17 @@ class BalanceRowButton extends StatelessWidget {
                   context.go(ReceiveScreen.route);
                 }
               },
-        tooltip: enabled ? "$action bitcoins on $type" : null,
-        icon: Icon(icon),
-        style: theme.iconButtonStyle,
-        padding: const EdgeInsets.all(horizontalPadding),
+        style: ElevatedButton.styleFrom(
+          shape: const CircleBorder(),
+          padding: EdgeInsets.all(buttonIconPadding),
+        ),
+        child: Center(
+            child: Icon(
+          icon,
+          size: buttonSize - buttonIconPadding * 2,
+        )),
+        // tooltip: enabled ? "$action bitcoins on $type" : null,
+        // padding: const EdgeInsets.all(horizontalPadding),
       ),
     );
   }
