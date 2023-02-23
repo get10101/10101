@@ -162,7 +162,8 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
     );
   }
 
-  Future<void> init(OrderChangeNotifier orderChangeNotifier, WalletChangeNotifier walletChangeNotifier) async {
+  Future<void> init(
+      OrderChangeNotifier orderChangeNotifier, WalletChangeNotifier walletChangeNotifier) async {
     try {
       await walletChangeNotifier.refreshWalletInfo();
       setupRustLogging();

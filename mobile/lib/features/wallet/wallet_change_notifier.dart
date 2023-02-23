@@ -11,8 +11,8 @@ import 'domain/wallet_info.dart';
 class WalletChangeNotifier extends ChangeNotifier implements Subscriber {
   final WalletService service;
   WalletInfo walletInfo = WalletInfo(
-      balances: WalletBalances(onChain: Amount(0), lightning: Amount(0)),
-      history: List.empty(),
+    balances: WalletBalances(onChain: Amount(0), lightning: Amount(0)),
+    history: List.empty(),
   );
 
   WalletChangeNotifier(this.service);

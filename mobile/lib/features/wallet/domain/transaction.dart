@@ -1,4 +1,3 @@
-
 import 'package:get_10101/common/domain/model.dart';
 
 import 'payment_flow.dart';
@@ -10,5 +9,6 @@ class Transaction {
   final Amount amount;
   final WalletType walletType;
 
-  const Transaction({required this.address, required this.flow, required this.amount, required this.walletType});
+  const Transaction(
+      {required this.address, required this.flow, required this.amount, required this.walletType});
 }

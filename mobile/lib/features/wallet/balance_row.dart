@@ -21,9 +21,7 @@ class BalanceRow extends StatefulWidget {
   State<BalanceRow> createState() => _BalanceRowState();
 }
 
-class _BalanceRowState extends State<BalanceRow>
-    with SingleTickerProviderStateMixin
-{
+class _BalanceRowState extends State<BalanceRow> with SingleTickerProviderStateMixin {
   late final AnimationController _controller = AnimationController(
     duration: const Duration(milliseconds: 750),
     vsync: this,
@@ -68,29 +66,25 @@ class _BalanceRowState extends State<BalanceRow>
         children: [
           FadeTransition(
             opacity: _controller.drive(CurveTween(curve: Curves.easeIn)),
-            child: Row(
-                children: [
-                  BalanceRowButton(
-                    walletType: widget.walletType,
-                    flow: PaymentFlow.outbound,
-                    enabled: _expanded,
-                  ),
-                  BalanceRowButton(
-                    walletType: widget.walletType,
-                    flow: PaymentFlow.outbound,
-                    enabled: _expanded,
-                  ),
-                ]
-            ),
+            child: Row(children: [
+              BalanceRowButton(
+                walletType: widget.walletType,
+                flow: PaymentFlow.outbound,
+                enabled: _expanded,
+              ),
+              BalanceRowButton(
+                walletType: widget.walletType,
+                flow: PaymentFlow.outbound,
+                enabled: _expanded,
+              ),
+            ]),
           ),
           PositionedTransition(
             rect: RelativeRectTween(
-              begin: RelativeRect.fill,
-              end: RelativeRect.fromLTRB(BalanceRowButton.width(context) * 2 + 4.0 + 8.0, 0, 0, 0)
-            ).animate(CurvedAnimation(
-              parent: _controller,
-              curve: Curves.easeOutBack
-            )),
+                    begin: RelativeRect.fill,
+                    end: RelativeRect.fromLTRB(
+                        BalanceRowButton.width(context) * 2 + 4.0 + 8.0, 0, 0, 0))
+                .animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutBack)),
             child: GestureDetector(
               onTap: () {
                 _controller.stop();
@@ -105,26 +99,23 @@ class _BalanceRowState extends State<BalanceRow>
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 4.0),
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.centerLeft,
-                    end: Alignment.centerRight,
-                    transform: const GradientRotation(1.1),
-                    stops: const [0, 0.5],
-                    colors: [rowBgColor, theme.bgColor],
-                  ),
-                  border: Border.all(color: theme.borderColor),
-                  borderRadius: const BorderRadius.all(Radius.circular(8))
-                ),
-                child: Row(
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4.0),
-                      child: SizedBox(height: widget.iconSize, width: widget.iconSize, child: icon),
+                    gradient: LinearGradient(
+                      begin: Alignment.centerLeft,
+                      end: Alignment.centerRight,
+                      transform: const GradientRotation(1.1),
+                      stops: const [0, 0.5],
+                      colors: [rowBgColor, theme.bgColor],
                     ),
-                    Expanded(child: Text(name, style: normal)),
-                    AmountText(amount: amount, textStyle: bold),
-                  ]
-                ),
+                    border: Border.all(color: theme.borderColor),
+                    borderRadius: const BorderRadius.all(Radius.circular(8))),
+                child: Row(children: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                    child: SizedBox(height: widget.iconSize, width: widget.iconSize, child: icon),
+                  ),
+                  Expanded(child: Text(name, style: normal)),
+                  AmountText(amount: amount, textStyle: bold),
+                ]),
               ),
             ),
           ),
@@ -140,7 +131,8 @@ class BalanceRowButton extends StatelessWidget {
   final bool enabled;
   static const double horizontalPadding = 8;
 
-  const BalanceRowButton({super.key, required this.walletType, required this.flow, required this.enabled});
+  const BalanceRowButton(
+      {super.key, required this.walletType, required this.flow, required this.enabled});
 
   static double width(BuildContext context) {
     // 2x padding from around the icon, 2x padding from inside the icon
@@ -171,13 +163,15 @@ class BalanceRowButton extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: horizontalPadding),
       child: IconButton(
-        onPressed: !enabled ? null : () {
-          if (flow == PaymentFlow.outbound) {
-            context.go(SendScreen.route);
-          } else {
-            context.go(ReceiveScreen.route);
-          }
-        },
+        onPressed: !enabled
+            ? null
+            : () {
+                if (flow == PaymentFlow.outbound) {
+                  context.go(SendScreen.route);
+                } else {
+                  context.go(ReceiveScreen.route);
+                }
+              },
         tooltip: enabled ? "$action bitcoins on $type" : null,
         icon: Icon(icon),
         style: theme.iconButtonStyle,
