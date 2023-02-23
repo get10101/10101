@@ -1,10 +1,11 @@
 use crate::api::WalletInfo;
 use crate::api_model::order::Order;
 use crate::api_model::position::Position;
+use crate::event::subscriber::Subscriber;
 use crate::event::EventInternal;
+use core::convert::From;
 use flutter_rust_bridge::frb;
-
-pub mod flutter_subscriber;
+use flutter_rust_bridge::StreamSink;
 
 #[frb]
 #[derive(Clone)]
@@ -34,5 +35,33 @@ impl From<EventInternal> for Event {
                 Event::PositionUpdateNotification(position.into())
             }
         }
+    }
+}
+
+#[derive(Clone)]
+pub struct FlutterSubscriber {
+    stream: StreamSink<Event>,
+}
+
+/// Subscribes to event relevant for flutter and forwards them to the stream sink.
+impl Subscriber for FlutterSubscriber {
+    fn notify(&self, event: &EventInternal) {
+        self.stream.add(event.clone().into());
+    }
+
+    fn filter(&self, event: &EventInternal) -> bool {
+        matches!(
+            event,
+            EventInternal::Init(_)
+                | EventInternal::WalletInfoUpdateNotification(_)
+                | EventInternal::OrderUpdateNotification(_)
+                | EventInternal::PositionUpdateNotification(_)
+        )
+    }
+}
+
+impl FlutterSubscriber {
+    pub fn new(stream: StreamSink<Event>) -> Self {
+        FlutterSubscriber { stream }
     }
 }

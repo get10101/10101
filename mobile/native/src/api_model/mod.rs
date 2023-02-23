@@ -1,4 +1,3 @@
-pub mod event;
 pub mod order;
 pub mod position;
 use crate::trade::ContractSymbolTrade;
