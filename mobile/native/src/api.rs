@@ -1,4 +1,3 @@
-use crate::api_model::position::Position;
 use crate::calculations;
 use crate::common::api::Direction;
 use crate::event;
@@ -9,6 +8,7 @@ use crate::trade::order;
 use crate::trade::order::api::NewOrder;
 use crate::trade::order::api::Order;
 use crate::trade::position;
+use crate::trade::position::api::Position;
 use anyhow::Result;
 use flutter_rust_bridge::StreamSink;
 use flutter_rust_bridge::SyncReturn;
