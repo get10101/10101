@@ -10,23 +10,24 @@ class WalletTheme extends ThemeExtension<WalletTheme> {
   final Color dividerColor;
   final ButtonStyle iconButtonStyle;
 
-  WalletTheme(
-      {this.lightning = Colors.yellow,
-        this.onChain = Colors.orange,
-        this.borderColor = Colors.grey,
-        this.bgColor = Colors.white,
-        this.dividerColor = Colors.black,
-        ColorScheme? colors,
-        ButtonStyle? iconButtonStyle,}):
-        assert(iconButtonStyle != null || colors != null),
-        iconButtonStyle = iconButtonStyle ?? IconButton.styleFrom(
-          foregroundColor: colors!.onPrimary,
-          backgroundColor: colors.primary,
-          disabledBackgroundColor: colors.onSurface.withOpacity(0.12),
-          hoverColor: colors.onPrimary.withOpacity(0.08),
-          focusColor: colors.onPrimary.withOpacity(0.12),
-          highlightColor: colors.onPrimary.withOpacity(0.12),
-        );
+  WalletTheme({
+    this.lightning = Colors.yellow,
+    this.onChain = Colors.orange,
+    this.borderColor = Colors.grey,
+    this.bgColor = Colors.white,
+    this.dividerColor = Colors.black,
+    ColorScheme? colors,
+    ButtonStyle? iconButtonStyle,
+  })  : assert(iconButtonStyle != null || colors != null),
+        iconButtonStyle = iconButtonStyle ??
+            IconButton.styleFrom(
+              foregroundColor: colors!.onPrimary,
+              backgroundColor: colors.primary,
+              disabledBackgroundColor: colors.onSurface.withOpacity(0.12),
+              hoverColor: colors.onPrimary.withOpacity(0.08),
+              focusColor: colors.onPrimary.withOpacity(0.12),
+              highlightColor: colors.onPrimary.withOpacity(0.12),
+            );
 
   @override
   WalletTheme copyWith({
@@ -43,7 +44,7 @@ class WalletTheme extends ThemeExtension<WalletTheme> {
       borderColor: borderColor ?? this.borderColor,
       bgColor: bgColor ?? this.bgColor,
       dividerColor: dividerColor ?? this.dividerColor,
-      iconButtonStyle: iconButtonStyle   ?? this.iconButtonStyle,
+      iconButtonStyle: iconButtonStyle ?? this.iconButtonStyle,
     );
   }
 
@@ -58,7 +59,8 @@ class WalletTheme extends ThemeExtension<WalletTheme> {
       borderColor: Color.lerp(borderColor, other.borderColor, t) ?? Colors.white,
       bgColor: Color.lerp(bgColor, other.bgColor, t) ?? Colors.white,
       dividerColor: Color.lerp(dividerColor, other.dividerColor, t) ?? Colors.white,
-      iconButtonStyle: ButtonStyle.lerp(iconButtonStyle, other.iconButtonStyle, t) ?? const ButtonStyle(),
+      iconButtonStyle:
+          ButtonStyle.lerp(iconButtonStyle, other.iconButtonStyle, t) ?? const ButtonStyle(),
     );
   }
 

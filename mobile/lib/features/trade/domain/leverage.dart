@@ -3,6 +3,5 @@ class Leverage {
 
   Leverage(this.leverage);
 
-  String formatted() =>
-      "x${leverage % 1 == 0 ? leverage.toInt().toString() : leverage.toString()}";
+  String formatted() => "x${leverage % 1 == 0 ? leverage.toInt().toString() : leverage.toString()}";
 }

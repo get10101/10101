@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_speed_dial/flutter_speed_dial.dart';
 import 'package:get_10101/common/amount_text.dart';
-import 'package:get_10101/common/domain/model.dart';
 import 'package:get_10101/features/wallet/balance_row.dart';
 import 'package:get_10101/features/wallet/wallet_theme.dart';
 import 'package:get_10101/features/wallet/receive_screen.dart';
@@ -41,11 +40,14 @@ class _WalletScreenState extends State<WalletScreen> {
                   return Row(
                     children: [
                       // https://stackoverflow.com/a/70192038 - do not know if this is principled
-                      const SizedBox(width: 64), // ExpansionPanelList IconContainer size: end margin 8 + padding 16*2 + size 24),
+                      const SizedBox(
+                          width:
+                              64), // ExpansionPanelList IconContainer size: end margin 8 + padding 16*2 + size 24),
                       Expanded(
-                        child: Center(child:
-                          AmountText(amount: walletChangeNotifier.total(), textStyle: const TextStyle(fontSize: 20.0))
-                        ),
+                        child: Center(
+                            child: AmountText(
+                                amount: walletChangeNotifier.total(),
+                                textStyle: const TextStyle(fontSize: 20.0))),
                       )
                     ],
                   );
@@ -54,20 +56,17 @@ class _WalletScreenState extends State<WalletScreen> {
                   padding: const EdgeInsets.only(left: 8.0, right: 8.0, bottom: 8.0),
                   child: Column(
                     children: WalletType.values
-                      .map((type) => Padding(
-                        padding: const EdgeInsets.all(8.0),
-                        child: BalanceRow(walletType: type),
-                      ))
-                      .toList(growable: false),
+                        .map((type) => Padding(
+                              padding: const EdgeInsets.all(8.0),
+                              child: BalanceRow(walletType: type),
+                            ))
+                        .toList(growable: false),
                   ),
                 ),
                 isExpanded: _isBalanceBreakdownOpen,
               )
             ],
-            expansionCallback: (i, isOpen) =>
-              setState(() =>
-                _isBalanceBreakdownOpen = !isOpen
-              ),
+            expansionCallback: (i, isOpen) => setState(() => _isBalanceBreakdownOpen = !isOpen),
           ),
           Divider(color: theme.dividerColor),
           ElevatedButton(

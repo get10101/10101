@@ -11,19 +11,20 @@ class WalletInfo {
   List<Transaction> history;
 
   WalletInfo({required this.balances, required this.history});
-  WalletInfo.fromApi(rust.WalletInfo walletInfo):
-    balances = WalletBalances(
-        onChain: Amount(walletInfo.balances.onChain),
-        lightning: Amount(walletInfo.balances.lightning)
-    ),
-    history = walletInfo.history.map((tx) {
-      return Transaction(
-        address: tx.address,
-        flow: tx.flow == rust.PaymentFlow.Outbound ? PaymentFlow.outbound : PaymentFlow.inbound,
-        amount: Amount(tx.amountSats),
-        walletType: tx.walletType == rust.WalletType.Lightning ? WalletType.lightning : WalletType.onChain,
-      );
-    }).toList();
+  WalletInfo.fromApi(rust.WalletInfo walletInfo)
+      : balances = WalletBalances(
+            onChain: Amount(walletInfo.balances.onChain),
+            lightning: Amount(walletInfo.balances.lightning)),
+        history = walletInfo.history.map((tx) {
+          return Transaction(
+            address: tx.address,
+            flow: tx.flow == rust.PaymentFlow.Outbound ? PaymentFlow.outbound : PaymentFlow.inbound,
+            amount: Amount(tx.amountSats),
+            walletType: tx.walletType == rust.WalletType.Lightning
+                ? WalletType.lightning
+                : WalletType.onChain,
+          );
+        }).toList();
 
   static bridge.WalletInfo apiDummy() {
     return bridge.WalletInfo(

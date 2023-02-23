@@ -28,9 +28,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import 'common/amount_denomination_change_notifier.dart';
 import 'features/trade/domain/order.dart';
-import 'features/trade/trade_screen.dart';
 import 'features/wallet/domain/wallet_info.dart';
-import 'features/wallet/wallet_screen.dart';
 import 'ffi.dart' as rust;
 
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
@@ -59,7 +57,7 @@ void main() {
     ChangeNotifierProvider(create: (context) => AmountDenominationChangeNotifier()),
     ChangeNotifierProvider(create: (context) => SubmitOrderChangeNotifier(OrderService())),
     ChangeNotifierProvider(create: (context) => OrderChangeNotifier.create(OrderService())),
-    ChangeNotifierProvider(create: (context) => WalletChangeNotifier(WalletService())),
+    ChangeNotifierProvider(create: (context) => WalletChangeNotifier(const WalletService())),
   ], child: const TenTenOneApp()));
 }
 
@@ -151,7 +149,6 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
       title: "10101",
       theme: ThemeData(
         primarySwatch: swatch,
-        useMaterial3: true,
         extensions: <ThemeExtension<dynamic>>[
           const TradeTheme(),
           WalletTheme(colors: ColorScheme.fromSwatch(primarySwatch: swatch)),
@@ -162,7 +159,8 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
     );
   }
 
-  Future<void> init(OrderChangeNotifier orderChangeNotifier, WalletChangeNotifier walletChangeNotifier) async {
+  Future<void> init(
+      OrderChangeNotifier orderChangeNotifier, WalletChangeNotifier walletChangeNotifier) async {
     try {
       await walletChangeNotifier.refreshWalletInfo();
       setupRustLogging();

@@ -51,7 +51,8 @@ class OrderListItem extends StatelessWidget {
                   style: TextStyle(
                       color: order.direction == Direction.long ? tradeTheme.buy : tradeTheme.sell,
                       fontWeight: FontWeight.bold)),
-              TextSpan(text: " ${order.quantity} ", style: const TextStyle(fontWeight: FontWeight.bold)),
+              TextSpan(
+                  text: " ${order.quantity} ", style: const TextStyle(fontWeight: FontWeight.bold)),
               const TextSpan(text: "contracts")
             ],
           ),
