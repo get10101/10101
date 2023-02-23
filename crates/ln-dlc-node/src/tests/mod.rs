@@ -143,12 +143,12 @@ impl Node {
     /// the peers involved!! It may not always work.
     async fn open_channel(
         &self,
-        peer: NodeInfo,
+        peer: &NodeInfo,
         amount_us: u64,
         amount_them: u64,
     ) -> Result<ChannelDetails> {
         let temp_channel_id =
-            self.initiate_open_channel(peer, amount_us + amount_them, amount_them)?;
+            self.initiate_open_channel(*peer, amount_us + amount_them, amount_them)?;
 
         // TODO: Mine as many blocks as needed (and sync the wallets)
         // for the channel to become usable. Currently this assumes
@@ -207,6 +207,7 @@ async fn fund_and_mine(address: bitcoin::Address, amount: bitcoin::Amount) {
 }
 
 /// Instructs `nigiri-chopsticks` to mine a block.
+#[allow(dead_code)]
 async fn mine(n: u32) {
     let address =
         Address::from_str("bcrt1qylgu6ffkp3p0m8tw8kp4tt2dmdh755f4r5dq7s").expect("valid address");

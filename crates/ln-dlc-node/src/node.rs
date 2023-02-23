@@ -478,7 +478,7 @@ impl Node {
         Ok(background_processor)
     }
 
-    /// Initiates the open channel protocol.
+    /// Initiates the open private channel protocol.
     ///
     /// Returns a temporary channel ID as a 32-byte long array.
     pub fn initiate_open_channel(
@@ -487,6 +487,9 @@ impl Node {
         channel_amount_sat: u64,
         initial_send_amount_sats: u64,
     ) -> Result<[u8; 32]> {
+        let mut user_config = coordinator_config();
+        user_config.channel_handshake_config.announced_channel = false;
+
         let temp_channel_id = self
             .channel_manager
             .create_channel(
@@ -494,7 +497,7 @@ impl Node {
                 channel_amount_sat,
                 initial_send_amount_sats * 1000,
                 0,
-                None,
+                Some(user_config),
             )
             .map_err(|e| anyhow!("Could not create channel with {} due to {e:?}", peer))?;
 
@@ -789,7 +792,7 @@ pub(crate) fn app_config() -> UserConfig {
         channel_handshake_config: ChannelHandshakeConfig {
             // this is needed as otherwise the config between the coordinator and us diverges and we
             // can't open channels.
-            announced_channel: true,
+            announced_channel: false,
             minimum_depth: 1,
             // only 10% of the total channel value can be sent. e.g. with a volume of 30.000 sats
             // only 3.000 sats can be sent.

@@ -2,7 +2,6 @@ use bitcoin::Amount;
 
 use crate::node::Node;
 use crate::tests::init_tracing;
-use crate::tests::mine;
 use std::time::Duration;
 
 #[tokio::test]
@@ -17,20 +16,23 @@ async fn multi_hop_payment() {
     let payee = Node::start_test_app("payee").await.unwrap();
 
     payer.keep_connected(router.info).await.unwrap();
-    router.keep_connected(payee.info).await.unwrap();
+    payee.keep_connected(router.info).await.unwrap();
 
     payer.fund(Amount::from_sat(50_000)).await.unwrap();
-    router.fund(Amount::from_sat(50_000)).await.unwrap();
+    router.fund(Amount::from_sat(100_000)).await.unwrap();
 
-    payer.open_channel(router.info, 20_000, 0).await.unwrap();
-    router.open_channel(payee.info, 20_000, 0).await.unwrap();
+    router
+        .open_channel(&payer.info, 20_000, 20_000)
+        .await
+        .unwrap();
+    router
+        .open_channel(&payee.info, 20_000, 20_000)
+        .await
+        .unwrap();
 
     let payer_balance_before = payer.get_ldk_balance();
     let router_balance_before = router.get_ldk_balance();
     let payee_balance_before = payee.get_ldk_balance();
-
-    // Add 6 confirmations for the channels to be announced
-    mine(6).await;
 
     payer.sync();
     router.sync();
