@@ -28,7 +28,8 @@ jobs:
               - 'crates/bdk-ldk/**'
               - 'crates/ln-dlc-node/**'
               - 'Cargo.*'
-  tests-ln-dlc-node:
+
+  run-tests-ln-dlc-node:
     runs-on: ubuntu-latest
     needs: changes
     if: ${{ needs.changes.outputs.ln-dlc-node == 'true' }}
@@ -42,10 +43,17 @@ jobs:
         run: |
           docker-compose up -d
           sleep 10 # We need to give docker a bit of time to startup
-
       - name: Test containers are up
         run: |
           curl -d '{"address":"bcrt1qylgu6ffkp3p0m8tw8kp4tt2dmdh755f4r5dq7s", "amount":"0.1"}' -H "Content-Type: application/json" -X POST http://localhost:3000/faucet
-
       - name: Run slow tests
         run: cargo test -p ln-dlc-node -- --ignored
+
+  tests-ln-dlc-node:
+    runs-on: ubuntu-latest
+    needs: run-tests-ln-dlc-node
+    # The name of the job which output's results are checked has to align with the name that was defined for the output in `changes`!
+    if: ${{ always() && (needs.run-tests-ln-dlc-node.result == 'success' || needs.run-tests-ln-dlc-node.result == 'skipped') }}
+    steps:
+      - name: ln-dlc-node tests passed (or skipped)
+        run: exit 0
