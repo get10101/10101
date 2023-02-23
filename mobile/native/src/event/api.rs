@@ -1,8 +1,8 @@
 use crate::api::WalletInfo;
-use crate::api_model::order::Order;
 use crate::api_model::position::Position;
 use crate::event::subscriber::Subscriber;
 use crate::event::EventInternal;
+use crate::trade::order::api::Order;
 use core::convert::From;
 use flutter_rust_bridge::frb;
 use flutter_rust_bridge::StreamSink;
