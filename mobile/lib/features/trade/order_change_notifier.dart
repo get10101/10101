@@ -1,6 +1,5 @@
 import 'dart:collection';
 import 'dart:developer';
-
 import 'package:flutter/material.dart';
 import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
 import 'package:get_10101/common/application/event_service.dart';

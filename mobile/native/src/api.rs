@@ -2,12 +2,14 @@ use crate::api_model;
 use crate::api_model::event::flutter_subscriber::FlutterSubscriber;
 use crate::api_model::order::NewOrder;
 use crate::api_model::order::Order;
+use crate::api_model::position::Position;
 use crate::api_model::Direction;
 use crate::calculations;
 use crate::event;
 use crate::ln_dlc;
 use crate::logger;
 use crate::trade::order;
+use crate::trade::position;
 use anyhow::Result;
 use flutter_rust_bridge::StreamSink;
 use flutter_rust_bridge::SyncReturn;
@@ -116,6 +118,17 @@ pub async fn get_orders() -> Result<Vec<Order>> {
         .collect::<Vec<Order>>();
 
     Ok(orders)
+}
+
+#[tokio::main(flavor = "current_thread")]
+pub async fn get_positions() -> Result<Vec<Position>> {
+    let positions = position::handler::get_positions()
+        .await?
+        .into_iter()
+        .map(|order| order.into())
+        .collect::<Vec<Position>>();
+
+    Ok(positions)
 }
 
 pub fn subscribe(stream: StreamSink<api_model::event::Event>) {

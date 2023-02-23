@@ -117,14 +117,14 @@ class TradeScreen extends StatelessWidget {
                   ],
                   keys: const [tradeScreenTabsPositions, tradeScreenTabsOrders],
                   tabBarViewChildren: [
-                    ListView(
+                    ListView.builder(
                       shrinkWrap: true,
                       physics: const ClampingScrollPhysics(),
-                      children: [
-                        PositionListItem(
-                          position: positionChangeNotifier.position,
-                        )
-                      ],
+                      itemCount: positionChangeNotifier.positions.length,
+                      itemBuilder: (BuildContext context, int index) {
+                        return PositionListItem(
+                            position: positionChangeNotifier.positions.values.toList()[index]);
+                      },
                     ),
                     ListView.builder(
                       shrinkWrap: true,

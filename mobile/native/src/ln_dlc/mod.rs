@@ -2,6 +2,8 @@ use crate::api::Balances;
 use crate::api::WalletInfo;
 use crate::event;
 use crate::event::EventInternal;
+use crate::trade::position;
+use crate::trade::position::TradeParams;
 use anyhow::anyhow;
 use anyhow::bail;
 use anyhow::Context;
@@ -19,6 +21,7 @@ use std::net::TcpListener;
 use std::path::Path;
 use std::str::FromStr;
 use std::sync::Arc;
+use std::time::Duration;
 use tokio::runtime::Runtime;
 
 const ELECTRS_ORIGIN: &str = "tcp://localhost:50000";
@@ -79,6 +82,16 @@ pub fn run(data_dir: String) -> Result<()> {
             std::fs::create_dir_all(&data_dir)
                 .context(format!("Could not create data dir for {network}"))?;
         }
+
+        event::subscribe(position::subscriber::Subscriber {});
+        runtime.spawn(async move {
+            loop {
+                // TODO: Subscribe to events from the orderbook and replace the dummy code with
+                // actual updates
+                tokio::time::sleep(Duration::from_secs(10)).await;
+                event::publish(&EventInternal::OrderFilledWith(TradeParams {}));
+            }
+        });
 
         let address = {
             let listener = TcpListener::bind("0.0.0.0:0").unwrap();

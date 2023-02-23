@@ -20,6 +20,7 @@ impl Subscriber for FlutterSubscriber {
             EventInternal::Init(_)
                 | EventInternal::WalletInfoUpdateNotification(_)
                 | EventInternal::OrderUpdateNotification(_)
+                | EventInternal::PositionUpdateNotification(_)
         )
     }
 }

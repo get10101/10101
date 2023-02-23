@@ -1,5 +1,6 @@
 use crate::api::WalletInfo;
 use crate::api_model::order::Order;
+use crate::api_model::position::Position;
 use crate::event::EventInternal;
 use flutter_rust_bridge::frb;
 
@@ -12,6 +13,7 @@ pub enum Event {
     Log(String),
     OrderUpdateNotification(Order),
     WalletInfoUpdateNotification(WalletInfo),
+    PositionUpdateNotification(Position),
 }
 
 impl From<EventInternal> for Event {
@@ -24,6 +26,12 @@ impl From<EventInternal> for Event {
             }
             EventInternal::WalletInfoUpdateNotification(value) => {
                 Event::WalletInfoUpdateNotification(value)
+            }
+            EventInternal::OrderFilledWith(_) => {
+                unreachable!("This internal event is not exposed to the UI")
+            }
+            EventInternal::PositionUpdateNotification(position) => {
+                Event::PositionUpdateNotification(position.into())
             }
         }
     }

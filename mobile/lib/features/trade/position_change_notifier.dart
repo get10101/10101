@@ -1,31 +1,40 @@
+import 'dart:collection';
+import 'dart:developer';
 import 'package:flutter/material.dart';
-import 'package:get_10101/common/domain/model.dart';
+import 'package:get_10101/common/application/event_service.dart';
+import 'package:get_10101/features/trade/application/position_service.dart';
 import 'package:get_10101/features/trade/domain/contract_symbol.dart';
-import 'package:get_10101/features/trade/domain/direction.dart';
-import 'package:get_10101/features/trade/domain/leverage.dart';
+import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
 
 import 'domain/position.dart';
 
-class PositionChangeNotifier extends ChangeNotifier {
-  // TODO: Remove dummy position once we actually handle updates from the backend
-  final Position _dummy = Position(
-      averageEntryPrice: 19000,
-      liquidationPrice: 14000,
-      leverage: Leverage(2),
-      quantity: 100,
-      contractSymbol: ContractSymbol.btcusd,
-      direction: Direction.long,
-      unrealizedPnL: Amount(-400),
-      positionState: PositionState.open);
+class PositionChangeNotifier extends ChangeNotifier implements Subscriber {
+  HashMap<ContractSymbol, Position> positions = HashMap();
 
-  Position? position;
+  Future<void> _create(PositionService positionService) async {
+    List<Position> positions = await positionService.fetchPositions();
+    for (Position position in positions) {
+      this.positions[position.contractSymbol] = position;
+    }
 
-  PositionChangeNotifier() {
-    position = _dummy;
+    notifyListeners();
   }
 
-  updatePosition(Position position) async {
-    this.position = position;
+  PositionChangeNotifier.create(PositionService positionService) {
+    _create(positionService);
+  }
+
+  @override
+  void notify(bridge.Event event) {
+    log("Receiving this in the position notifier: ${event.toString()}");
+
+    if (event is bridge.Event_PositionUpdateNotification) {
+      Position position = Position.fromApi(event.field0);
+      positions[position.contractSymbol] = position;
+    } else {
+      log("Received unexpected event: ${event.toString()}");
+    }
+
     notifyListeners();
   }
 }

@@ -64,10 +64,10 @@ class PositionListItem extends StatelessWidget {
                   children: [
                     ValueDataRow(
                       type: ValueType.amount,
-                      value: notNullPosition.unrealizedPnL,
+                      value: notNullPosition.unrealizedPnl,
                       label: "Unrealized P/L",
                       valueTextStyle: dataRowStyle.apply(
-                          color: notNullPosition.unrealizedPnL.sats.isNegative
+                          color: notNullPosition.unrealizedPnl.sats.isNegative
                               ? tradeTheme.loss
                               : tradeTheme.profit),
                       labelTextStyle: dataRowStyle,

@@ -1,5 +1,6 @@
 pub mod event;
 pub mod order;
+pub mod position;
 use crate::trade::ContractSymbolTrade;
 use crate::trade::DirectionTrade;
 use flutter_rust_bridge::frb;
