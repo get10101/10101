@@ -1,7 +1,7 @@
 mod event_hub;
 pub mod subscriber;
 
-use crate::ln_dlc::Balance;
+use crate::api::WalletInfo;
 use std::hash::Hash;
 use std::hash::Hasher;
 use strum_macros::EnumIter;
@@ -23,7 +23,7 @@ pub enum EventInternal {
     Init(String),
     Log(String),
     OrderUpdateNotification(OrderTrade),
-    WalletInfo(Balance),
+    WalletInfoUpdateNotification(WalletInfo),
 }
 
 impl PartialEq for EventInternal {
@@ -44,8 +44,9 @@ impl Eq for EventInternal {}
 
 #[cfg(test)]
 mod tests {
+    use crate::api::Balances;
+    use crate::api::WalletInfo;
     use crate::event::EventInternal;
-    use crate::ln_dlc::Balance;
     use std::collections::HashMap;
 
     #[test]
@@ -75,13 +76,19 @@ mod tests {
     #[test]
     fn given_wallet_info_event_with_different_balances_when_used_as_key_in_hashmap_then_is_treated_as_same_key(
     ) {
-        let event1 = EventInternal::WalletInfo(Balance {
-            on_chain: 1,
-            off_chain: 1,
+        let event1 = EventInternal::WalletInfoUpdateNotification(WalletInfo {
+            balances: Balances {
+                on_chain: 1,
+                lightning: 1,
+            },
+            history: vec![],
         });
-        let event2 = EventInternal::WalletInfo(Balance {
-            on_chain: 2,
-            off_chain: 2,
+        let event2 = EventInternal::WalletInfoUpdateNotification(WalletInfo {
+            balances: Balances {
+                on_chain: 2,
+                lightning: 2,
+            },
+            history: vec![],
         });
 
         let mut map = HashMap::new();

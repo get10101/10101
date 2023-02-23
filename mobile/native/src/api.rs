@@ -17,6 +17,66 @@ pub fn init_logging(sink: StreamSink<logger::LogEntry>) {
     logger::create_log_stream(sink)
 }
 
+#[derive(Clone, Debug, Default)]
+pub struct WalletInfo {
+    pub balances: Balances,
+    pub history: Vec<Transaction>,
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct Balances {
+    pub on_chain: u64,
+    pub lightning: u64,
+}
+
+#[tokio::main(flavor = "current_thread")]
+pub async fn refresh_wallet_info() -> WalletInfo {
+    WalletInfo {
+        balances: Balances {
+            on_chain: 300,
+            lightning: 104,
+        },
+        history: vec![
+            Transaction {
+                address: "loremipsum".to_string(),
+                flow: PaymentFlow::Inbound,
+                amount_sats: 300,
+                wallet_type: WalletType::OnChain,
+            },
+            Transaction {
+                address: "dolorsitamet".to_string(),
+                flow: PaymentFlow::Inbound,
+                amount_sats: 104,
+                wallet_type: WalletType::Lightning,
+            },
+        ],
+    }
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct Transaction {
+    // TODO(Restioson): newtype?
+    pub address: String,
+    pub flow: PaymentFlow,
+    // TODO(Restioson): newtype?
+    pub amount_sats: u64,
+    pub wallet_type: WalletType,
+}
+
+#[derive(Clone, Debug, Default)]
+pub enum WalletType {
+    OnChain,
+    #[default]
+    Lightning,
+}
+
+#[derive(Clone, Debug, Default)]
+pub enum PaymentFlow {
+    #[default]
+    Inbound,
+    Outbound,
+}
+
 pub fn calculate_margin(price: f64, quantity: f64, leverage: f64) -> SyncReturn<u64> {
     SyncReturn(calculations::calculate_margin(price, quantity, leverage))
 }

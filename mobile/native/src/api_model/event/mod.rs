@@ -1,6 +1,6 @@
+use crate::api::WalletInfo;
 use crate::api_model::order::Order;
 use crate::event::EventInternal;
-use crate::ln_dlc::Balance;
 use flutter_rust_bridge::frb;
 
 pub mod flutter_subscriber;
@@ -11,9 +11,7 @@ pub enum Event {
     Init(String),
     Log(String),
     OrderUpdateNotification(Order),
-    // TODO: This balance should have it's own API type, at the moment we are sending out the
-    // ln_dlc balance
-    WalletInfo(Balance),
+    WalletInfoUpdateNotification(WalletInfo),
 }
 
 impl From<EventInternal> for Event {
@@ -24,7 +22,9 @@ impl From<EventInternal> for Event {
             EventInternal::OrderUpdateNotification(value) => {
                 Event::OrderUpdateNotification(value.into())
             }
-            EventInternal::WalletInfo(value) => Event::WalletInfo(value),
+            EventInternal::WalletInfoUpdateNotification(value) => {
+                Event::WalletInfoUpdateNotification(value)
+            }
         }
     }
 }

@@ -2,16 +2,18 @@ import 'dart:developer';
 
 import 'package:f_logs/f_logs.dart';
 import 'package:flutter/material.dart';
-import 'package:get_10101/features/wallet/balance_change_notifier.dart';
+import 'package:get_10101/features/wallet/application/wallet_service.dart';
+import 'package:get_10101/features/wallet/domain/wallet_info.dart';
+import 'package:get_10101/features/wallet/wallet_change_notifier.dart';
 import 'package:get_10101/features/wallet/wallet_screen.dart';
 import 'package:provider/provider.dart';
-import 'package:get_10101/ffi.dart';
 
 class ReceiveScreen extends StatefulWidget {
   static const route = "${WalletScreen.route}/$subRouteName";
   static const subRouteName = "receive";
+  final WalletService walletService;
 
-  const ReceiveScreen({super.key});
+  const ReceiveScreen({super.key, this.walletService = const WalletService()});
 
   @override
   State<ReceiveScreen> createState() => _ReceiveScreenState();
@@ -22,9 +24,9 @@ class _ReceiveScreenState extends State<ReceiveScreen> {
 
   @override
   Widget build(BuildContext context) {
-    Balance balance = context.watch<BalanceChangeNotifier>().balance;
+    WalletInfo info = context.watch<WalletChangeNotifier>().walletInfo;
 
-    log("Refresh receive screen: ${balance.onChain}");
+    log("Refresh receive screen: ${info.balances.onChain}");
 
     return Scaffold(
       appBar: AppBar(title: const Text("Receive")),
@@ -33,32 +35,22 @@ class _ReceiveScreenState extends State<ReceiveScreen> {
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           const SizedBox(height: 50),
-          SelectableText("Address: ${api.getNewAddress()}"),
-          Text("Balance: ${balance.offChain} / ${balance.onChain}"),
+          SelectableText("Address: ${widget.walletService.getNewAddress()}"),
+          Text("Balance: ${info.balances.lightning} / ${info.balances.onChain}"),
           ElevatedButton(
-              onPressed: () async {
-                try {
-                  setState(() async {
-                    invoice = await api.createInvoice();
-                  });
-
-                  FLog.info(text: "Successfully created invoice.");
-                } catch (error) {
-                  FLog.error(text: "Error: $error", exception: error);
+            onPressed: () {
+              setState(() async {
+                String? invoice = await widget.walletService.createInvoice();
+                if (invoice != null) {
+                  this.invoice = invoice;
                 }
-              },
-              child: const Text("Create Invoice")),
+              });
+            },
+            child: const Text("Create Invoice")),
           SelectableText("Invoice: $invoice"),
           ElevatedButton(
-              onPressed: () async {
-                try {
-                  await api.openChannel();
-                  FLog.info(text: "Open Channel successfully started.");
-                } catch (error) {
-                  FLog.error(text: "Error: $error", exception: error);
-                }
-              },
-              child: const Text("Open Channel!"))
+            onPressed: () async { await widget.walletService.openChannel(); },
+            child: const Text("Open Channel!"))
         ],
       )),
     );

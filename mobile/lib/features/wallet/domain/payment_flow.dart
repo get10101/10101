@@ -1,0 +1,1 @@
+enum PaymentFlow { outbound, inbound }

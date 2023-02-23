@@ -1,3 +1,5 @@
+use crate::api::Balances;
+use crate::api::WalletInfo;
 use crate::event;
 use crate::event::EventInternal;
 use anyhow::anyhow;
@@ -111,12 +113,15 @@ pub fn run(data_dir: String) -> Result<()> {
                 node_clone.sync();
                 tokio::time::sleep(std::time::Duration::from_secs(10)).await;
 
-                event::publish(&EventInternal::WalletInfo(Balance {
-                    off_chain: node_clone.get_ldk_balance().available,
-                    on_chain: node_clone
-                        .get_on_chain_balance()
-                        .expect("balance")
-                        .confirmed,
+                event::publish(&EventInternal::WalletInfoUpdateNotification(WalletInfo {
+                    balances: Balances {
+                        lightning: node_clone.get_ldk_balance().available,
+                        on_chain: node_clone
+                            .get_on_chain_balance()
+                            .expect("balance")
+                            .confirmed,
+                    },
+                    history: vec![], // TODO: sync history
                 }));
             }
         });

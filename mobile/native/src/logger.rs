@@ -130,7 +130,7 @@ impl<'a> tracing::field::Visit for Visitor<'a> {
     }
 }
 
-// Configure and initalise tracing subsystem
+// Configure and initialise tracing subsystem
 pub fn init_tracing(level: LevelFilter, json_format: bool) -> Result<()> {
     if level == LevelFilter::OFF {
         return Ok(());
