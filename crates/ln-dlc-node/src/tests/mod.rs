@@ -281,7 +281,7 @@ fn log_channel_id(node: &Node, index: usize, pair: &str) {
         .clone();
 
     let channel_id = hex::encode(details.channel_id);
-    let short_channel_id = details.short_channel_id.unwrap();
+    let short_channel_id = details.short_channel_id;
     let is_ready = details.is_channel_ready;
     let is_usable = details.is_usable;
     let inbound = details.inbound_capacity_msat;
