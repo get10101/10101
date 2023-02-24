@@ -481,38 +481,6 @@ impl Node {
         Ok(background_processor)
     }
 
-    /// Initiates the open private channel protocol.
-    ///
-    /// Returns a temporary channel ID as a 32-byte long array.
-    pub fn initiate_open_channel(
-        &self,
-        peer: NodeInfo,
-        channel_amount_sat: u64,
-        initial_send_amount_sats: u64,
-    ) -> Result<[u8; 32]> {
-        let mut user_config = coordinator_config();
-        user_config.channel_handshake_config.announced_channel = false;
-
-        let temp_channel_id = self
-            .channel_manager
-            .create_channel(
-                peer.pubkey,
-                channel_amount_sat,
-                initial_send_amount_sats * 1000,
-                0,
-                Some(user_config),
-            )
-            .map_err(|e| anyhow!("Could not create channel with {} due to {e:?}", peer))?;
-
-        tracing::info!(
-            %peer,
-            temp_channel_id = %hex::encode(temp_channel_id),
-            "Started channel creation"
-        );
-
-        Ok(temp_channel_id)
-    }
-
     pub fn sync(&self) {
         let confirmables = vec![
             &*self.channel_manager as &dyn chain::Confirm,

@@ -143,10 +143,6 @@ pub fn get_new_address() -> SyncReturn<String> {
     SyncReturn(ln_dlc::get_new_address().unwrap())
 }
 
-pub fn open_channel() -> Result<()> {
-    ln_dlc::open_channel()
-}
-
 pub fn create_invoice() -> Result<String> {
     Ok(ln_dlc::create_invoice()?.to_string())
 }

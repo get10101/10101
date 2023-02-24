@@ -65,4 +65,3 @@ pub async fn get_invoice(node: &State<Arc<Node>>) -> Result<Json<String>, HttpAp
 
     Ok(Json(invoice.to_string()))
 }
-

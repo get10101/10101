@@ -35,7 +35,7 @@ class _ReceiveScreenState extends State<ReceiveScreen> {
         children: [
           const SizedBox(height: 50),
           SelectableText("Address: ${widget.walletService.getNewAddress()}"),
-          Text("Balance: ${info.balances.lightning} / ${info.balances.onChain}"),
+          Text("Balance: ${info.balances.lightning.sats} / ${info.balances.onChain.sats}"),
           ElevatedButton(
               onPressed: () {
                 setState(() async {
@@ -47,11 +47,6 @@ class _ReceiveScreenState extends State<ReceiveScreen> {
               },
               child: const Text("Create Invoice")),
           SelectableText("Invoice: $invoice"),
-          ElevatedButton(
-              onPressed: () async {
-                await widget.walletService.openChannel();
-              },
-              child: const Text("Open Channel!"))
         ],
       )),
     );
