@@ -424,7 +424,9 @@ impl Node {
                     .expect("Failed to bind to listen port");
                 loop {
                     let peer_manager = peer_manager.clone();
-                    let (tcp_stream, _) = listener.accept().await.unwrap();
+                    let (tcp_stream, addr) = listener.accept().await.unwrap();
+
+                    tracing::info!(%addr, "Received inbound connection");
 
                     tokio::spawn(async move {
                         lightning_net_tokio::setup_inbound(
