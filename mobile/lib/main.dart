@@ -6,8 +6,11 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge.dart';
 import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
 import 'package:get_10101/common/application/event_service.dart';
 import 'package:get_10101/features/trade/application/order_service.dart';
+import 'package:get_10101/features/trade/application/position_service.dart';
 import 'package:get_10101/features/trade/application/trade_values_service.dart';
+import 'package:get_10101/features/trade/domain/position.dart';
 import 'package:get_10101/features/trade/order_change_notifier.dart';
+import 'package:get_10101/features/trade/position_change_notifier.dart';
 import 'package:get_10101/features/trade/submit_order_change_notifier.dart';
 import 'package:get_10101/features/trade/trade_value_change_notifier.dart';
 import 'package:get_10101/features/trade/settings_screen.dart';
@@ -57,6 +60,7 @@ void main() {
     ChangeNotifierProvider(create: (context) => AmountDenominationChangeNotifier()),
     ChangeNotifierProvider(create: (context) => SubmitOrderChangeNotifier(OrderService())),
     ChangeNotifierProvider(create: (context) => OrderChangeNotifier.create(OrderService())),
+    ChangeNotifierProvider(create: (context) => PositionChangeNotifier.create(PositionService())),
     ChangeNotifierProvider(create: (context) => WalletChangeNotifier(const WalletService())),
   ], child: const TenTenOneApp()));
 }
@@ -138,7 +142,8 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
   @override
   void initState() {
     super.initState();
-    init(context.read<OrderChangeNotifier>(), context.read<WalletChangeNotifier>());
+    init(context.read<OrderChangeNotifier>(), context.read<PositionChangeNotifier>(),
+        context.read<WalletChangeNotifier>());
   }
 
   @override
@@ -160,7 +165,9 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
   }
 
   Future<void> init(
-      OrderChangeNotifier orderChangeNotifier, WalletChangeNotifier walletChangeNotifier) async {
+      OrderChangeNotifier orderChangeNotifier,
+      PositionChangeNotifier positionChangeNotifier,
+      WalletChangeNotifier walletChangeNotifier) async {
     try {
       await walletChangeNotifier.refreshWalletInfo();
       setupRustLogging();
@@ -170,6 +177,9 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
       final EventService eventService = EventService.create();
       eventService.subscribe(
           orderChangeNotifier, bridge.Event.orderUpdateNotification(Order.apiDummy()));
+
+      eventService.subscribe(
+          positionChangeNotifier, bridge.Event.positionUpdateNotification(Position.apiDummy()));
 
       eventService.subscribe(
           walletChangeNotifier, bridge.Event.walletInfoUpdateNotification(WalletInfo.apiDummy()));

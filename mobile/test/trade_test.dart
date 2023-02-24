@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:get_10101/common/amount_denomination_change_notifier.dart';
 import 'package:get_10101/common/domain/model.dart';
 import 'package:get_10101/features/trade/order_change_notifier.dart';
+import 'package:get_10101/features/trade/position_change_notifier.dart';
 import 'package:get_10101/features/trade/submit_order_change_notifier.dart';
 import 'package:get_10101/features/trade/trade_screen.dart';
 import 'package:get_10101/features/trade/trade_theme.dart';
@@ -18,6 +19,9 @@ import 'package:get_10101/features/trade/application/trade_values_service.dart';
 
 @GenerateNiceMocks([MockSpec<OrderService>()])
 import 'package:get_10101/features/trade/application/order_service.dart';
+
+@GenerateNiceMocks([MockSpec<PositionService>()])
+import 'package:get_10101/features/trade/application/position_service.dart';
 
 import 'trade_test.mocks.dart';
 
@@ -56,6 +60,7 @@ void main() {
   testWidgets('Given trade screen when completing buy flow then market order is submitted',
       (tester) async {
     MockOrderService orderService = MockOrderService();
+    MockPositionService positionService = MockPositionService();
     MockTradeValuesService tradeValueService = MockTradeValuesService();
 
     // TODO: we could make this more resilient in the underlying components...
@@ -80,6 +85,7 @@ void main() {
       ChangeNotifierProvider(create: (context) => TradeValuesChangeNotifier(tradeValueService)),
       ChangeNotifierProvider(create: (context) => submitOrderChangeNotifier),
       ChangeNotifierProvider(create: (context) => OrderChangeNotifier.create(orderService)),
+      ChangeNotifierProvider(create: (context) => PositionChangeNotifier.create(positionService)),
       ChangeNotifierProvider(create: (context) => AmountDenominationChangeNotifier()),
     ], child: const TestWrapperWithTradeTheme(child: TradeScreen())));
 

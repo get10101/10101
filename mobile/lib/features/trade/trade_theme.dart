@@ -11,6 +11,9 @@ class TradeTheme extends ThemeExtension<TradeTheme> {
   final Color buy;
   final Color sell;
 
+  final Color profit;
+  final Color loss;
+
   final Color tabColor;
   final Color leveragePlusButtonColor;
   final Color leverageMinusButtonColor;
@@ -20,6 +23,8 @@ class TradeTheme extends ThemeExtension<TradeTheme> {
   const TradeTheme(
       {this.buy = green600,
       this.sell = red600,
+      this.profit = Colors.green,
+      this.loss = Colors.red,
       this.tabColor = Colors.grey,
       this.leveragePlusButtonColor = Colors.grey,
       this.leverageMinusButtonColor = Colors.grey,
@@ -30,6 +35,8 @@ class TradeTheme extends ThemeExtension<TradeTheme> {
   TradeTheme copyWith({
     Color? buy,
     Color? sell,
+    Color? profit,
+    Color? loss,
     ShapeBorder? tradeButtonShape,
     double? tradeButtonWidth,
     Color? tabColor,
@@ -37,6 +44,8 @@ class TradeTheme extends ThemeExtension<TradeTheme> {
     return TradeTheme(
       buy: buy ?? this.buy,
       sell: sell ?? this.sell,
+      profit: profit ?? this.profit,
+      loss: loss ?? this.loss,
       tabColor: tabColor ?? this.tabColor,
     );
   }
@@ -49,6 +58,8 @@ class TradeTheme extends ThemeExtension<TradeTheme> {
     return TradeTheme(
       buy: Color.lerp(buy, other.buy, t) ?? Colors.white,
       sell: Color.lerp(sell, other.sell, t) ?? Colors.white,
+      profit: Color.lerp(profit, other.profit, t) ?? Colors.white,
+      loss: Color.lerp(loss, other.loss, t) ?? Colors.white,
       tabColor: Color.lerp(tabColor, other.tabColor, t) ?? Colors.white,
     );
   }
@@ -57,6 +68,8 @@ class TradeTheme extends ThemeExtension<TradeTheme> {
   String toString() => 'TradeTheme('
       'buy: $buy, '
       'sell: $sell, '
+      'profit: $profit, '
+      'loss: $loss, '
       'tabColor: $tabColor, '
       ')';
 }
