@@ -1,3 +1,4 @@
+pub mod api;
 mod event_hub;
 pub mod subscriber;
 

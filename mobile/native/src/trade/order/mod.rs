@@ -2,6 +2,7 @@ use crate::trade::ContractSymbolTrade;
 use crate::trade::DirectionTrade;
 use uuid::Uuid;
 
+pub mod api;
 pub mod handler;
 
 // When naming this the same as `api_model::order::OrderType` the generated code somehow uses

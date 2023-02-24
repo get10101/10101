@@ -1,15 +1,14 @@
-use crate::api_model;
-use crate::api_model::event::flutter_subscriber::FlutterSubscriber;
-use crate::api_model::order::NewOrder;
-use crate::api_model::order::Order;
-use crate::api_model::position::Position;
-use crate::api_model::Direction;
 use crate::calculations;
+use crate::common::api::Direction;
 use crate::event;
+use crate::event::api::FlutterSubscriber;
 use crate::ln_dlc;
 use crate::logger;
 use crate::trade::order;
+use crate::trade::order::api::NewOrder;
+use crate::trade::order::api::Order;
 use crate::trade::position;
+use crate::trade::position::api::Position;
 use anyhow::Result;
 use flutter_rust_bridge::StreamSink;
 use flutter_rust_bridge::SyncReturn;
@@ -131,7 +130,7 @@ pub async fn get_positions() -> Result<Vec<Position>> {
     Ok(positions)
 }
 
-pub fn subscribe(stream: StreamSink<api_model::event::Event>) {
+pub fn subscribe(stream: StreamSink<event::api::Event>) {
     tracing::debug!("Subscribing flutter to event hub");
     event::subscribe(FlutterSubscriber::new(stream))
 }
