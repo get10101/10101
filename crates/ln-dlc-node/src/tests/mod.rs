@@ -6,6 +6,7 @@ use crate::seed::Bip39Seed;
 use anyhow::anyhow;
 use anyhow::Result;
 use bitcoin::Address;
+use bitcoin::Amount;
 use bitcoin::Network;
 use bitcoin::XOnlyPublicKey;
 use dlc_manager::contract::contract_input::ContractInput;
@@ -27,26 +28,27 @@ use rand::distributions::Alphanumeric;
 use rand::thread_rng;
 use rand::Rng;
 use rand::RngCore;
-use serde::Serialize;
 use std::env::temp_dir;
 use std::mem;
 use std::net::TcpListener;
 use std::path::PathBuf;
-use std::str::FromStr;
 use std::sync::Once;
 use std::time::Duration;
 use std::time::SystemTime;
 use std::time::UNIX_EPOCH;
 
 mod add_dlc;
+mod bitcoind;
 mod dlc_collaborative_settlement;
 mod dlc_non_collaborative_settlement;
 mod just_in_time_channel;
+mod lnd;
 mod multi_hop_payment;
+mod onboard_from_lnd;
 mod single_hop_payment;
 
-const CHOPSTICKS_FAUCET_ORIGIN: &str = "http://localhost:3000";
 const ELECTRS_ORIGIN: &str = "tcp://localhost:50000";
+const FAUCET_ORIGIN: &str = "http://localhost:8080";
 
 fn init_tracing() {
     static TRACING_TEST_SUBSCRIBER: Once = Once::new();
@@ -79,7 +81,7 @@ impl Node {
         thread_rng().fill_bytes(&mut ephemeral_randomness);
 
         let address = {
-            let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+            let listener = TcpListener::bind("0.0.0.0:0").unwrap();
             listener.local_addr().expect("To get a free local address")
         };
 
@@ -112,7 +114,7 @@ impl Node {
             .get_new_address()
             .map_err(|_| anyhow!("Failed to get new address"))?;
 
-        fund_and_mine(address, amount).await;
+        fund_and_mine(address, amount).await?;
 
         while self.get_confirmed_balance()? < expected_balance {
             let interval = Duration::from_millis(200);
@@ -184,41 +186,10 @@ impl Node {
     }
 }
 
-/// Instructs `nigiri-chopsticks` to mine a block and spend the given `amount` from the coinbase
-/// transaction to the given `address`.
-async fn fund_and_mine(address: bitcoin::Address, amount: bitcoin::Amount) {
-    #[derive(Serialize)]
-    struct Payload {
-        address: bitcoin::Address,
-        #[serde(with = "bdk::bitcoin::util::amount::serde::as_btc")]
-        amount: bitcoin::Amount,
-    }
-
-    let client = reqwest::Client::new();
-
-    let result = client
-        .post(format!("{CHOPSTICKS_FAUCET_ORIGIN}/faucet"))
-        .json(&Payload { address, amount })
-        .send()
-        .await
-        .unwrap();
-
-    assert!(result.status().is_success());
-}
-
-/// Instructs `nigiri-chopsticks` to mine a block.
-#[allow(dead_code)]
-async fn mine(n: u32) {
-    let address =
-        Address::from_str("bcrt1qylgu6ffkp3p0m8tw8kp4tt2dmdh755f4r5dq7s").expect("valid address");
-
-    for _ in 0..n {
-        fund_and_mine(address.clone(), bitcoin::Amount::from_sat(1000)).await;
-    }
-
-    // For the mined blocks to be picked up by the subsequent wallet
-    // syncs
-    tokio::time::sleep(Duration::from_secs(5)).await;
+async fn fund_and_mine(address: Address, amount: Amount) -> Result<()> {
+    bitcoind::fund(address.to_string(), amount).await?;
+    bitcoind::mine(1).await?;
+    Ok(())
 }
 
 fn random_tmp_dir() -> PathBuf {
