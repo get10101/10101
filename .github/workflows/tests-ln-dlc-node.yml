@@ -41,7 +41,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2.2.0
       - name: Start containers
         run: |
-          docker-compose up -d chopsticks
+          docker-compose up
           sleep 10 # We need to give docker a bit of time to startup
       - name: Test containers are up
         run: |

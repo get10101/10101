@@ -18,11 +18,11 @@ services:
       - -zmqpubrawblock=tcp://0.0.0.0:28332
       - -zmqpubrawtx=tcp://0.0.0.0:28333
     ports:
-      - 18443:18443
-      - 18444:18444
+      - "18443:18443"
+      - "18444:18444"
       # ZMQ
-      - 28332:28332
-      - 28333:28333
+      - "28332:28332"
+      - "28333:28333"
     volumes:
       - bitcoin:/config
     restart: unless-stopped
@@ -53,8 +53,8 @@ services:
     depends_on:
       - bitcoin
     ports:
-      - 50000:50000
-      - 30000:30000
+      - "50000:50000"
+      - "30000:30000"
     volumes:
       - bitcoin:/config
     restart: unless-stopped
@@ -68,7 +68,7 @@ services:
     environment:
       API_URL: http://localhost:3000
     ports:
-      - 5000:5000
+      - "5000:5000"
     restart: unless-stopped
 
   # Chopsticks
@@ -89,7 +89,7 @@ services:
       - bitcoin
       - electrs
     ports:
-      - 3000:3000
+      - "3000:3000"
     restart: unless-stopped
 
   lnd:
@@ -109,14 +109,14 @@ services:
     stop_grace_period: 5m30s
     ports:
       - "9735:9735" # p2p
-      - "10009:10009" # grpc"
-      - "18080:18080" # rest"
+      - "10009:10009" # grpc
+      - "18080:18080" # rest
 
   faucet:
     image: nginx
     container_name: faucet
     ports:
-      - 8080:80
+      - "8080:80"
     volumes:
       - ./faucet/faucet.html:/usr/share/nginx/html/faucet/index.html
       - ./faucet/open_channel.html:/usr/share/nginx/html/channel/index.html
