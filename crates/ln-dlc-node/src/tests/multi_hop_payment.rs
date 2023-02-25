@@ -38,9 +38,6 @@ async fn multi_hop_payment() {
     router.sync();
     payee.sync();
 
-    // For the channels to be announced
-    tokio::time::sleep(Duration::from_secs(2)).await;
-
     // Act
 
     let invoice_amount = 1_000;
