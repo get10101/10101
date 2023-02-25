@@ -15,11 +15,9 @@ pub async fn post_fake_scid(
     target_node: String,
 ) -> Result<Json<u64>, HttpApiProblem> {
     let target_node: PublicKey = target_node.parse().map_err(|e| {
-        HttpApiProblem::new(StatusCode::BAD_REQUEST)
-            .title("Invalid public key")
-            .detail(format!(
-                "Provided public key {target_node} was not valid: {e:#}"
-            ))
+        HttpApiProblem::new(StatusCode::BAD_REQUEST).detail(format!(
+            "Provided public key {target_node} was not valid: {e:#}"
+        ))
     })?;
 
     Ok(Json(node.create_intercept_scid(target_node)))
@@ -29,7 +27,6 @@ pub async fn post_fake_scid(
 pub async fn get_new_address(node: &State<Arc<Node>>) -> Result<Json<String>, HttpApiProblem> {
     let address = node.wallet.get_new_address().map_err(|e| {
         HttpApiProblem::new(StatusCode::INTERNAL_SERVER_ERROR)
-            .title("Failed to get new address")
             .detail(format!("Failed to get new address: {e:#}"))
     })?;
     Ok(Json(address.to_string()))
@@ -46,7 +43,6 @@ pub async fn get_balance(node: &State<Arc<Node>>) -> Result<Json<Balance>, HttpA
     let offchain = node.get_ldk_balance();
     let onchain = node.get_on_chain_balance().map_err(|e| {
         HttpApiProblem::new(StatusCode::INTERNAL_SERVER_ERROR)
-            .title("Failed to get balance")
             .detail(format!("Failed to get balance: {e:#}"))
     })?;
     Ok(Json(Balance {
@@ -59,7 +55,6 @@ pub async fn get_balance(node: &State<Arc<Node>>) -> Result<Json<Balance>, HttpA
 pub async fn get_invoice(node: &State<Arc<Node>>) -> Result<Json<String>, HttpApiProblem> {
     let invoice = node.create_invoice(2000).map_err(|e| {
         HttpApiProblem::new(StatusCode::INTERNAL_SERVER_ERROR)
-            .title("Failed to create invoice")
             .detail(format!("Failed to create invoice: {e:#}"))
     })?;
 
