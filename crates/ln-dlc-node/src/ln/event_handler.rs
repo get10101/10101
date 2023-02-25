@@ -456,7 +456,7 @@ impl EventHandler {
                 // We are overwriting the coordinators channel handshake configuration to prevent
                 // the just-in-time-channel from being announced (private). This is required as both
                 // parties need to agree on this configuration. For other channels, like with the
-                // channel to the faucet we want this channel to be announced (public).
+                // channel to an external node we want this channel to be announced (public).
                 // NOTE: we want private channels with the mobile app, as this will allow us to make
                 // use of 0-conf channels.
                 user_config.channel_handshake_config.announced_channel = false;

@@ -426,7 +426,7 @@ impl Node {
                     let peer_manager = peer_manager.clone();
                     let (tcp_stream, addr) = listener.accept().await.unwrap();
 
-                    tracing::info!(%addr, "Received inbound connection");
+                    tracing::debug!(%addr, "Received inbound connection");
 
                     tokio::spawn(async move {
                         lightning_net_tokio::setup_inbound(
@@ -770,8 +770,6 @@ pub(crate) fn app_config() -> UserConfig {
             // channel preferences, the coordinator needs to override this config to match the apps
             // preferences.
             announced_channel: false,
-            // The minimum amount of confirmations before the inbound channel is deemed useable,
-            // between the counterparties
             minimum_depth: 1,
             // only 10% of the total channel value can be sent. e.g. with a volume of 30.000 sats
             // only 3.000 sats can be sent.
@@ -779,8 +777,6 @@ pub(crate) fn app_config() -> UserConfig {
             ..Default::default()
         },
         channel_handshake_limits: ChannelHandshakeLimits {
-            // The minimum amount of confirmations before the outbound channel is deemed useable,
-            // between the counterparties
             max_minimum_depth: 1,
             trust_own_funding_0conf: true,
             // Enforces that incoming channels will be private.
