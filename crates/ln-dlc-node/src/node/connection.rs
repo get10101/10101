@@ -39,10 +39,11 @@ impl Node {
         let connection_closed_future = loop {
             tracing::debug!(%peer, "Attempting to establish initial connection");
 
-            match Self::connect(self.peer_manager.clone(), peer).await {
-                Ok(fut) => break fut,
-                Err(_) => continue,
+            if let Ok(fut) = Self::connect(self.peer_manager.clone(), peer).await {
+                break fut;
             }
+
+            tokio::time::sleep(Duration::from_secs(1)).await;
         };
 
         let peer_manager = self.peer_manager.clone();
@@ -57,13 +58,14 @@ impl Node {
                     tracing::debug!(%peer, "Connection lost");
 
                     loop {
-                        match Self::connect(peer_manager.clone(), peer).await {
-                            Ok(fut) => {
-                                connection_closed_future = fut;
-                                break;
-                            }
-                            Err(_) => continue,
+                        tracing::debug!(%peer, "Attempting to reconnect");
+
+                        if let Ok(fut) = Self::connect(peer_manager.clone(), peer).await {
+                            connection_closed_future = fut;
+                            break;
                         }
+
+                        tokio::time::sleep(Duration::from_secs(1)).await;
                     }
                 }
             }
