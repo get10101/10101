@@ -104,3 +104,30 @@ or in short
 ```bash
 just c
 ```
+
+## Regtest environment
+
+The following command will start a regtest bitcoin node, electrs, chopsticks, esplora, lnd node and a http server allowing you to faucet your bitcoin and lightning wallet.
+
+```bash
+docker-compose up
+```
+
+### How to faucet your lightning wallet.
+
+#### Setup
+
+1. Start the coordinator with `cargo run --bin coordinator` or `just coordinator`
+2. Open `http://localhost:8080/faucet/` (note: ensure to add the trailing `/` as otherwise nginx will try to redirect the call)
+3. Ensure you have enough balance on your bitcoin wallet. Hit the mine button a couple of times if not.
+4. Get a new address of your coordinator by running `curl http://localhost:8000/api/newaddress`
+5. Faucet some coins to your coordinator wallet. Hit the mine button afterwards so the transaction gets into a block.
+6. Open `http://localhost:8080/channel/` (note: ensure to add the trailing `/` as otherwise nginx will try to redirect the call)
+7. Copy the address of the lnd node and faucet that wallet as described in step 5.
+8. Copy the node id (_pubkey@host:port_) from your coordinator logs and instruct lnd to open a channel with your coordinator. Set a reasonable channel capacity. Note, this capacity will be only inbound for your coordinator.
+9. Mine a few blocks (at least 6) so that the channel gets announced.
+
+#### Fauceting your lightning wallet
+
+10. Create an invoice in your 10101 app by navigating to the receive screen.
+11. Copy the invoice and enter it on the lightning faucet. Hit send and you will receive your funds momentarily.

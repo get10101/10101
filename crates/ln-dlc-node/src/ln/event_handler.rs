@@ -1,4 +1,5 @@
 use crate::ln_dlc_wallet::LnDlcWallet;
+use crate::node::coordinator_config;
 use crate::util;
 use crate::ChannelManager;
 use crate::FakeChannelPaymentRequests;
@@ -20,6 +21,7 @@ use lightning::util::events::Event;
 use lightning::util::events::PaymentPurpose;
 use rand::thread_rng;
 use rand::Rng;
+use std::cmp;
 use std::collections::hash_map::Entry;
 use std::sync::Arc;
 use std::time::Duration;
@@ -440,12 +442,24 @@ impl EventHandler {
                     return;
                 }
 
-                // FIXME: This is arbitrary and will not work beyond
-                // specific cases (like the just-in-time channel
-                // test). This value must be computed and we must
-                // ensure that the intercepted HTLC can actually be
-                // added to the just-in-time channel
-                let channel_value = JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT;
+                // FIXME: This will set the channel capacity to twice the amount that is
+                // transferred or the `JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT` ensuring there
+                // is enough liquidity in the channel. This is arbitrary and needs
+                // to be computed, but good enough for our test cases to support any
+                // amount to be sent.
+                let channel_value = cmp::max(
+                    JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT,
+                    expected_outbound_amount_msat * 2 / 1000,
+                );
+
+                let mut user_config = coordinator_config();
+                // We are overwriting the coordinators channel handshake configuration to prevent
+                // the just-in-time-channel from being announced (private). This is required as both
+                // parties need to agree on this configuration. For other channels, like with the
+                // channel to an external node we want this channel to be announced (public).
+                // NOTE: we want private channels with the mobile app, as this will allow us to make
+                // use of 0-conf channels.
+                user_config.channel_handshake_config.announced_channel = false;
 
                 // NOTE: We actually might want to override the `UserConfig`
                 // for this just-in-time channel so that the
@@ -455,7 +469,7 @@ impl EventHandler {
                 // configuration value
                 let temp_channel_id = self
                     .channel_manager
-                    .create_channel(*target_node_id, channel_value, 0, 0, None)
+                    .create_channel(*target_node_id, channel_value, 0, 0, Some(user_config))
                     .map_err(|e| {
                         anyhow!(
                             "Could not create channel with {} due to {e:?}",

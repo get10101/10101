@@ -143,12 +143,12 @@ impl Node {
     /// the peers involved!! It may not always work.
     async fn open_channel(
         &self,
-        peer: NodeInfo,
+        peer: &NodeInfo,
         amount_us: u64,
         amount_them: u64,
     ) -> Result<ChannelDetails> {
         let temp_channel_id =
-            self.initiate_open_channel(peer, amount_us + amount_them, amount_them)?;
+            self.initiate_open_channel(*peer, amount_us + amount_them, amount_them)?;
 
         // TODO: Mine as many blocks as needed (and sync the wallets)
         // for the channel to become usable. Currently this assumes
@@ -175,6 +175,37 @@ impl Node {
         .await?;
 
         Ok(channel_details)
+    }
+
+    /// Initiates the open private channel protocol.
+    ///
+    /// Returns a temporary channel ID as a 32-byte long array.
+    pub fn initiate_open_channel(
+        &self,
+        peer: NodeInfo,
+        channel_amount_sat: u64,
+        initial_send_amount_sats: u64,
+    ) -> Result<[u8; 32]> {
+        let mut user_config = self.user_config;
+        user_config.channel_handshake_config.announced_channel = false;
+        let temp_channel_id = self
+            .channel_manager
+            .create_channel(
+                peer.pubkey,
+                channel_amount_sat,
+                initial_send_amount_sats * 1000,
+                0,
+                Some(user_config),
+            )
+            .map_err(|e| anyhow!("Could not create channel with {} due to {e:?}", peer))?;
+
+        tracing::info!(
+            %peer,
+            temp_channel_id = %hex::encode(temp_channel_id),
+            "Started channel creation"
+        );
+
+        Ok(temp_channel_id)
     }
 
     async fn accept_dlc_channel(&self, channel_id: &[u8; 32]) -> Result<()> {
@@ -207,6 +238,7 @@ async fn fund_and_mine(address: bitcoin::Address, amount: bitcoin::Amount) {
 }
 
 /// Instructs `nigiri-chopsticks` to mine a block.
+#[allow(dead_code)]
 async fn mine(n: u32) {
     let address =
         Address::from_str("bcrt1qylgu6ffkp3p0m8tw8kp4tt2dmdh755f4r5dq7s").expect("valid address");
@@ -249,7 +281,7 @@ fn log_channel_id(node: &Node, index: usize, pair: &str) {
         .clone();
 
     let channel_id = hex::encode(details.channel_id);
-    let short_channel_id = details.short_channel_id.unwrap();
+    let short_channel_id = details.short_channel_id;
     let is_ready = details.is_channel_ready;
     let is_usable = details.is_usable;
     let inbound = details.inbound_capacity_msat;

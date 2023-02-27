@@ -17,7 +17,7 @@ async fn single_hop_payment() {
 
     payer.fund(Amount::from_btc(0.1).unwrap()).await.unwrap();
 
-    payer.open_channel(payee.info, 30_000, 0).await.unwrap();
+    payer.open_channel(&payee.info, 30_000, 0).await.unwrap();
 
     let payer_balance_before = payer.get_ldk_balance();
     let payee_balance_before = payee.get_ldk_balance();

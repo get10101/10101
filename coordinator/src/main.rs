@@ -78,7 +78,8 @@ async fn main() -> Result<()> {
             rocket::routes![
                 routes::post_fake_scid,
                 routes::get_new_address,
-                routes::get_balance
+                routes::get_balance,
+                routes::get_invoice,
             ],
         )
         .manage(node)

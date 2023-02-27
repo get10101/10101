@@ -50,6 +50,7 @@ use lightning::routing::router::DefaultRouter;
 use lightning::routing::router::RouteHint;
 use lightning::routing::router::RouteHintHop;
 use lightning::routing::scoring::ProbabilisticScorer;
+use lightning::util::config::ChannelConfig;
 use lightning::util::config::ChannelHandshakeConfig;
 use lightning::util::config::ChannelHandshakeLimits;
 use lightning::util::config::UserConfig;
@@ -423,7 +424,9 @@ impl Node {
                     .expect("Failed to bind to listen port");
                 loop {
                     let peer_manager = peer_manager.clone();
-                    let (tcp_stream, _) = listener.accept().await.unwrap();
+                    let (tcp_stream, addr) = listener.accept().await.unwrap();
+
+                    tracing::debug!(%addr, "Received inbound connection");
 
                     tokio::spawn(async move {
                         lightning_net_tokio::setup_inbound(
@@ -476,35 +479,6 @@ impl Node {
             self.info.address
         );
         Ok(background_processor)
-    }
-
-    /// Initiates the open channel protocol.
-    ///
-    /// Returns a temporary channel ID as a 32-byte long array.
-    pub fn initiate_open_channel(
-        &self,
-        peer: NodeInfo,
-        channel_amount_sat: u64,
-        initial_send_amount_sats: u64,
-    ) -> Result<[u8; 32]> {
-        let temp_channel_id = self
-            .channel_manager
-            .create_channel(
-                peer.pubkey,
-                channel_amount_sat,
-                initial_send_amount_sats * 1000,
-                0,
-                None,
-            )
-            .map_err(|e| anyhow!("Could not create channel with {} due to {e:?}", peer))?;
-
-        tracing::info!(
-            %peer,
-            temp_channel_id = %hex::encode(temp_channel_id),
-            "Started channel creation"
-        );
-
-        Ok(temp_channel_id)
     }
 
     pub fn sync(&self) {
@@ -561,6 +535,11 @@ impl Node {
             .payment_hash(sha256::Hash::from_slice(&payment_hash.0)?)
             .payment_secret(payment_secret)
             .timestamp(SystemTime::now())
+            // the min final cltv defaults to 9, which does not work with lnd.
+            // todo: Check why the value needs to be set to at least 20, as the payment will
+            // otherwise fail with an error on lnd `Unable to send payment:
+            // incorrect_payment_details`
+            .min_final_cltv_expiry(20)
             .private_route(RouteHint(vec![RouteHintHop {
                 src_node_id: hop_before_me,
                 short_channel_id: intercepted_channel_id,
@@ -787,9 +766,10 @@ impl Node {
 pub(crate) fn app_config() -> UserConfig {
     UserConfig {
         channel_handshake_config: ChannelHandshakeConfig {
-            // this is needed as otherwise the config between the coordinator and us diverges and we
-            // can't open channels.
-            announced_channel: true,
+            // The app will only accept private channels. As we are forcing the apps announced
+            // channel preferences, the coordinator needs to override this config to match the apps
+            // preferences.
+            announced_channel: false,
             minimum_depth: 1,
             // only 10% of the total channel value can be sent. e.g. with a volume of 30.000 sats
             // only 3.000 sats can be sent.
@@ -798,8 +778,15 @@ pub(crate) fn app_config() -> UserConfig {
         },
         channel_handshake_limits: ChannelHandshakeLimits {
             max_minimum_depth: 1,
+            trust_own_funding_0conf: true,
+            // Enforces that incoming channels will be private.
+            force_announced_channel_preference: true,
             // lnd's max to_self_delay is 2016, so we want to be compatible.
             their_to_self_delay: 2016,
+            ..Default::default()
+        },
+        channel_config: ChannelConfig {
+            cltv_expiry_delta: MIN_CLTV_EXPIRY_DELTA,
             ..Default::default()
         },
         // we want to accept 0-conf channels from the coordinator
@@ -811,7 +798,15 @@ pub(crate) fn app_config() -> UserConfig {
 pub(crate) fn coordinator_config() -> UserConfig {
     UserConfig {
         channel_handshake_config: ChannelHandshakeConfig {
+            // The coordinator will by default only accept public channels. (see also
+            // force_announced_channel_preference). In order to open a private channel with the
+            // mobile app this config gets overwritten during the creation of the just-in-time
+            // channel)
+            // Note, public channels need 6 confirmations to get announced (and usable for multi-hop
+            // payments) this is a requirement of BOLT 7.
             announced_channel: true,
+            // The minimum amount of confirmations before the inbound channel is deemed useable,
+            // between the counterparties
             minimum_depth: 1,
             // only 10% of the total channel value can be sent. e.g. with a volume of 30.000 sats
             // only 3.000 sats can be sent.
@@ -819,16 +814,30 @@ pub(crate) fn coordinator_config() -> UserConfig {
             ..Default::default()
         },
         channel_handshake_limits: ChannelHandshakeLimits {
+            // The minimum amount of confirmations before the outbound channel is deemed useable,
+            // between the counterparties
             max_minimum_depth: 1,
             trust_own_funding_0conf: true,
-            force_announced_channel_preference: false,
+            // Enforces incoming channels to the coordinator to be public! We
+            // only want to open private channels to our 10101 app.
+            force_announced_channel_preference: true,
             // lnd's max to_self_delay is 2016, so we want to be compatible.
             their_to_self_delay: 2016,
             ..Default::default()
         },
+        channel_config: ChannelConfig {
+            cltv_expiry_delta: MIN_CLTV_EXPIRY_DELTA,
+            ..Default::default()
+        },
+        // This is needed to intercept payments to open just-in-time channels. This will produce the
+        // HTLCIntercepted event.
         accept_intercept_htlcs: true,
+        // This config is needed to forward payments to the 10101 app, which only have private
+        // channels with the coordinator.
         accept_forwards_to_priv_channels: true,
-        manually_accept_inbound_channels: true,
+        // the coordinator automatically accepts any inbound channels if the adhere to it's channel
+        // preferences. (public, etc.)
+        manually_accept_inbound_channels: false,
         ..Default::default()
     }
 }

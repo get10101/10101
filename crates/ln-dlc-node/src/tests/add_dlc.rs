@@ -23,10 +23,19 @@ async fn given_lightning_channel_then_can_add_dlc_channel() {
     app.keep_connected(coordinator.info).await.unwrap();
 
     app.fund(Amount::from_btc(0.1).unwrap()).await.unwrap();
-
-    let channel_details = app
-        .open_channel(coordinator.info, 50000, 50000)
+    coordinator
+        .fund(Amount::from_btc(0.1).unwrap())
         .await
+        .unwrap();
+
+    coordinator
+        .open_channel(&app.info, 50000, 50000)
+        .await
+        .unwrap();
+    let channel_details = app.channel_manager.list_usable_channels();
+    let channel_details = channel_details
+        .iter()
+        .find(|c| c.counterparty.node_id == coordinator.info.pubkey)
         .unwrap();
 
     // Act
@@ -34,7 +43,7 @@ async fn given_lightning_channel_then_can_add_dlc_channel() {
     let oracle_pk = app.oracle.get_public_key();
     let contract_input = dummy_contract_input(5_000, 2_500, oracle_pk);
 
-    app.propose_dlc_channel(&channel_details, &contract_input)
+    app.propose_dlc_channel(channel_details, &contract_input)
         .await
         .unwrap();
 
