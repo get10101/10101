@@ -3,17 +3,18 @@ use anyhow::Result;
 use bitcoin::Network;
 use coordinator::cli::Opts;
 use coordinator::logger;
-use coordinator::routes;
+use coordinator::routes::router;
 use ln_dlc_node::node::Node;
 use ln_dlc_node::seed::Bip39Seed;
 use rand::thread_rng;
 use rand::RngCore;
+use std::net::SocketAddr;
 use std::sync::Arc;
 use tracing::metadata::LevelFilter;
 
 const ELECTRS_ORIGIN: &str = "tcp://localhost:50000";
 
-#[rocket::main]
+#[tokio::main]
 async fn main() -> Result<()> {
     let opts = Opts::read();
     let data_dir = opts.data_dir()?;
@@ -68,25 +69,15 @@ async fn main() -> Result<()> {
         }
     });
 
-    let figment = rocket::Config::figment()
-        .merge(("address", http_address.ip()))
-        .merge(("port", http_address.port()));
+    let app = router(node);
 
-    let mission_success = rocket::custom(figment)
-        .mount(
-            "/api",
-            rocket::routes![
-                routes::post_fake_scid,
-                routes::get_new_address,
-                routes::get_balance,
-                routes::get_invoice,
-            ],
-        )
-        .manage(node)
-        .launch()
+    let addr = SocketAddr::from((http_address.ip(), http_address.port()));
+    tracing::debug!("listening on http://{}", addr);
+    axum::Server::bind(&addr)
+        .serve(app.into_make_service())
         .await?;
 
-    tracing::trace!(?mission_success, "Rocket has landed");
+    // tracing::trace!(?mission_success, "Rocket has landed");
 
     Ok(())
 }
