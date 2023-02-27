@@ -11,18 +11,18 @@ import 'package:provider/provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
 
-class ReceiveScreen extends StatefulWidget {
+class ShareInvoiceScreen extends StatefulWidget {
   static const route = "${WalletScreen.route}/$subRouteName";
-  static const subRouteName = "receive";
+  static const subRouteName = "share_invoice";
   final WalletService walletService;
 
-  const ReceiveScreen({super.key, this.walletService = const WalletService()});
+  const ShareInvoiceScreen({super.key, this.walletService = const WalletService()});
 
   @override
-  State<ReceiveScreen> createState() => _ReceiveScreenState();
+  State<ShareInvoiceScreen> createState() => _ShareInvoiceScreenState();
 }
 
-class _ReceiveScreenState extends State<ReceiveScreen> {
+class _ShareInvoiceScreenState extends State<ShareInvoiceScreen> {
   String invoice = "";
 
   @override
