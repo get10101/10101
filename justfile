@@ -77,7 +77,7 @@ flutter-format:
 
 alias c := coordinator
 coordinator:
-    cd coordinator && cargo run
+    cargo run --bin coordinator
 
 flutter-test:
     cd mobile && flutter pub run build_runner build && flutter test
