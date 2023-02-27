@@ -1,5 +1,5 @@
 use crate::event;
-use crate::event::EventInternal;
+use crate::event::{EventInternal, EventType};
 use crate::trade::position::handler;
 
 #[derive(Clone)]
@@ -21,7 +21,7 @@ impl event::subscriber::Subscriber for Subscriber {
         }
     }
 
-    fn filter(&self, event: &EventInternal) -> bool {
-        matches!(event, EventInternal::OrderFilledWith(_))
+    fn events(&self) -> Vec<EventType> {
+        vec![EventType::OrderFilledWith]
     }
 }

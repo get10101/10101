@@ -1,6 +1,6 @@
 use crate::api::WalletInfo;
 use crate::event::subscriber::Subscriber;
-use crate::event::EventInternal;
+use crate::event::{EventInternal, EventType};
 use crate::trade::order::api::Order;
 use crate::trade::position::api::Position;
 use core::convert::From;
@@ -49,14 +49,13 @@ impl Subscriber for FlutterSubscriber {
         self.stream.add(event.clone().into());
     }
 
-    fn filter(&self, event: &EventInternal) -> bool {
-        matches!(
-            event,
-            EventInternal::Init(_)
-                | EventInternal::WalletInfoUpdateNotification(_)
-                | EventInternal::OrderUpdateNotification(_)
-                | EventInternal::PositionUpdateNotification(_)
-        )
+    fn events(&self) -> Vec<EventType> {
+        vec![
+            EventType::Init,
+            EventType::WalletInfoUpdateNotification,
+            EventType::OrderUpdateNotification,
+            EventType::PositionUpdateNotification,
+        ]
     }
 }
 

@@ -38,21 +38,6 @@ pub struct PositionTrade {
     pub position_state: PositionStateTrade,
 }
 
-impl Default for PositionTrade {
-    fn default() -> Self {
-        PositionTrade {
-            leverage: 0.0,
-            quantity: 0.0,
-            contract_symbol: ContractSymbolTrade::BtcUsd,
-            direction: DirectionTrade::Long,
-            average_entry_price: 0.0,
-            liquidation_price: 0.0,
-            unrealized_pnl: 0,
-            position_state: PositionStateTrade::Open,
-        }
-    }
-}
-
 #[derive(Debug, Clone, Default)]
 pub struct TradeParams {
     // TODO Trade parameters needed to contact coordinator for trade execution

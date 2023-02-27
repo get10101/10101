@@ -17,8 +17,6 @@ reqwest = { version = "0.11", default-features = false, features = ["json"] }
 rust_decimal = { version = "1", features = ["serde-with-float"] }
 rust_decimal_macros = "1.26"
 state = "0.5.3"
-strum = { version = "0.24.1" }
-strum_macros = "0.24.3"
 tokio = { version = "1.25.0", features = ["macros", "rt", "rt-multi-thread", "sync", "time"] }
 tracing = "0.1.37"
 tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "env-filter", "time", "json"] }
