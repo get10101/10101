@@ -3,7 +3,11 @@ use crate::api::WalletInfo;
 use crate::event;
 use crate::event::EventInternal;
 use crate::trade::position;
+use crate::trade::position::PositionStateTrade;
+use crate::trade::position::PositionTrade;
 use crate::trade::position::TradeParams;
+use crate::trade::ContractSymbolTrade;
+use crate::trade::DirectionTrade;
 use anyhow::anyhow;
 use anyhow::bail;
 use anyhow::Context;
@@ -11,6 +15,7 @@ use anyhow::Result;
 use bdk::bitcoin::secp256k1::rand::thread_rng;
 use bdk::bitcoin::secp256k1::rand::RngCore;
 use bdk::bitcoin::Network;
+use dlc_manager::contract::Contract;
 use dlc_manager::Wallet;
 use lightning_invoice::Invoice;
 use ln_dlc_node::node::Node;
@@ -45,6 +50,10 @@ pub fn get_coordinator_info() -> NodeInfo {
             .parse()
             .expect("Hard-coded IP and port to be valid"),
     }
+}
+
+pub fn get_node_pubkey() -> bdk::bitcoin::secp256k1::PublicKey {
+    NODE.try_get().unwrap().info.pubkey
 }
 
 // TODO: this model should not be in the event!
@@ -85,12 +94,16 @@ pub fn run(data_dir: String) -> Result<()> {
 
         event::subscribe(position::subscriber::Subscriber {});
         runtime.spawn(async move {
-            loop {
-                // TODO: Subscribe to events from the orderbook and replace the dummy code with
-                // actual updates
-                tokio::time::sleep(Duration::from_secs(10)).await;
-                event::publish(&EventInternal::OrderFilledWith(TradeParams {}));
-            }
+            // loop {
+            // TODO: Subscribe to events from the orderbook and publish OrderFilledWith event
+            // event::publish(&EventInternal::OrderFilledWith(TradeParams {
+            //     taker_node_pubkey: bdk::bitcoin::secp256k1::PublicKey::from_str(
+            //         "02e6642fd69bd211f93f7f1f36ca51a26a5290eb2dd1b0d8279a87bb0d480c8443",
+            //     )
+            //     .unwrap(),
+            //     contract_input: ContractInput {},
+            // }));
+            // }
         });
 
         let address = {
@@ -136,6 +149,33 @@ pub fn run(data_dir: String) -> Result<()> {
                     },
                     history: vec![], // TODO: sync history
                 }));
+            }
+        });
+
+        let node_cloned = node.clone();
+        // periodically update for positions
+        runtime.spawn(async move {
+            loop {
+                let contracts = node_cloned.get_contracts().unwrap();
+
+                // Assumes that there is only one contract, i.e. one position
+                if let Some(Contract::Confirmed(contract)) = contracts.get(0) {
+                    // TODO: Load position data from database and fill in the values; the collateral
+                    // can be taken from the DLC
+                    event::publish(&EventInternal::PositionUpdateNotification(PositionTrade {
+                        leverage: 0.0,
+                        quantity: 0.0,
+                        contract_symbol: ContractSymbolTrade::BtcUsd,
+                        direction: DirectionTrade::Long,
+                        average_entry_price: 0.0,
+                        liquidation_price: 0.0,
+                        unrealized_pnl: 0,
+                        position_state: PositionStateTrade::Open,
+                        collateral: contract.accepted_contract.accept_params.collateral,
+                    }));
+                }
+
+                tokio::time::sleep(Duration::from_secs(10)).await;
             }
         });
 
@@ -211,4 +251,30 @@ pub fn send_payment(invoice: &str) -> Result<()> {
     let node = NODE.try_get().context("failed to get ln dlc node")?;
     let invoice = Invoice::from_str(invoice).context("Could not parse Invoice string")?;
     node.send_payment(&invoice)
+}
+
+pub async fn trade(trade_params: TradeParams) -> Result<()> {
+    let url = "http://localhost:8000/api/trade"; // TODO: we need the coordinators http address here
+
+    let client = reqwest::Client::new();
+    client
+        .post(url)
+        .json(&trade_params)
+        .send()
+        .await
+        .context("Failed to submit trade request to coordinator")?;
+
+    let node = NODE.try_get().context("failed to get ln dlc node")?;
+
+    let channel_details = node.list_usable_channels();
+    let channel_details = channel_details
+        .iter()
+        .find(|c| c.counterparty.node_id == get_coordinator_info().pubkey)
+        .unwrap();
+
+    node.propose_dlc_channel(channel_details, &trade_params.contract_input.into())
+        .await
+        .context("Failed to propose DLC channel with coordinator")?;
+    tracing::info!("Proposed dlc subchannel");
+    Ok(())
 }

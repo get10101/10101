@@ -1,6 +1,6 @@
 use crate::event;
-use crate::event::{EventInternal, EventType};
-use crate::trade::position::handler;
+use crate::event::EventInternal;
+use crate::event::EventType;
 
 #[derive(Clone)]
 pub struct Subscriber {}
@@ -11,9 +11,11 @@ impl event::subscriber::Subscriber for Subscriber {
         match event {
             EventInternal::OrderFilledWith(trade_params) => {
                 tokio::spawn({
-                    let trade_params = trade_params.clone();
+                    let _trade_params = trade_params.clone();
                     async move {
-                        handler::trade(trade_params.clone()).await;
+                        // TODO: Trigger this once we have an orderbook and remove triggering trade
+                        // upon order submission
+                        // handler::trade(trade_params.clone()).await.unwrap();
                     }
                 });
             }

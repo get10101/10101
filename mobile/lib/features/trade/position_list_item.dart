@@ -73,6 +73,13 @@ class PositionListItem extends StatelessWidget {
                       labelTextStyle: dataRowStyle,
                     ),
                     ValueDataRow(
+                      type: ValueType.amount,
+                      value: notNullPosition.collateral,
+                      label: "Margin",
+                      valueTextStyle: dataRowStyle,
+                      labelTextStyle: dataRowStyle,
+                    ),
+                    ValueDataRow(
                       type: ValueType.contracts,
                       value: notNullPosition.quantity,
                       label: "Quantity",

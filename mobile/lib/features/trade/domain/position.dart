@@ -29,6 +29,7 @@ class Position {
   final double liquidationPrice;
   final Amount unrealizedPnl;
   final PositionState positionState;
+  final Amount collateral;
 
   Position(
       {required this.averageEntryPrice,
@@ -38,7 +39,8 @@ class Position {
       required this.contractSymbol,
       required this.direction,
       required this.positionState,
-      required this.unrealizedPnl});
+      required this.unrealizedPnl,
+      required this.collateral});
 
   static Position fromApi(bridge.Position position) {
     return Position(
@@ -49,18 +51,21 @@ class Position {
         positionState: PositionState.fromApi(position.positionState),
         averageEntryPrice: position.averageEntryPrice,
         liquidationPrice: position.liquidationPrice,
-        unrealizedPnl: Amount(position.unrealizedPnl));
+        unrealizedPnl: Amount(position.unrealizedPnl),
+        collateral: Amount(position.collateral));
   }
 
   static bridge.Position apiDummy() {
     return bridge.Position(
-        leverage: 0,
-        quantity: 0,
-        contractSymbol: bridge.ContractSymbol.BtcUsd,
-        direction: bridge.Direction.Long,
-        positionState: bridge.PositionState.Open,
-        averageEntryPrice: 0,
-        liquidationPrice: 0,
-        unrealizedPnl: 0);
+      leverage: 0,
+      quantity: 0,
+      contractSymbol: bridge.ContractSymbol.BtcUsd,
+      direction: bridge.Direction.Long,
+      positionState: bridge.PositionState.Open,
+      averageEntryPrice: 0,
+      liquidationPrice: 0,
+      unrealizedPnl: 0,
+      collateral: 0,
+    );
   }
 }

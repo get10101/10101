@@ -16,6 +16,7 @@ use crate::PeerManager;
 use crate::SubChannelManager;
 use anyhow::anyhow;
 use anyhow::Context;
+use anyhow::Error;
 use anyhow::Result;
 use bdk::blockchain::ElectrumBlockchain;
 use bdk::Balance;
@@ -24,9 +25,12 @@ use bitcoin::hashes::Hash;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::secp256k1::Secp256k1;
 use bitcoin::Network;
-use dlc_manager::contract::contract_input::ContractInput;
+use dlc_manager::contract::contract_input::ContractInput as DlcContractInput;
+use dlc_manager::contract::Contract;
 use dlc_manager::custom_signer::CustomKeysManager;
+use dlc_manager::sub_channel_manager::SubChannelState;
 use dlc_manager::Oracle;
+use dlc_manager::Storage;
 use dlc_manager::SystemTimeProvider;
 use dlc_messages::message_handler::MessageHandler as DlcMessageHandler;
 use dlc_messages::sub_channel::SubChannelMessage;
@@ -63,7 +67,9 @@ use lightning_invoice::Invoice;
 use lightning_invoice::InvoiceBuilder;
 use lightning_persister::FilesystemPersister;
 use p2pd_oracle_client::P2PDOracleClient;
+use serde::Deserialize;
 use std::collections::HashMap;
+use std::collections::HashSet;
 use std::fmt;
 use std::fmt::Display;
 use std::fmt::Formatter;
@@ -107,6 +113,8 @@ pub struct Node {
 
     #[cfg(test)]
     pub(crate) user_config: UserConfig,
+
+    pending_trades: Arc<Mutex<HashSet<PublicKey>>>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -417,6 +425,7 @@ impl Node {
             dlc_manager,
             #[cfg(test)]
             user_config: ldk_user_config,
+            pending_trades: Arc::new(Mutex::new(HashSet::new())),
         }
     }
 
@@ -478,6 +487,89 @@ impl Node {
                     }],
                 );
                 interval.tick().await;
+            }
+        });
+
+        let dlc_man = self.dlc_manager.clone();
+        let pending_trades = self.pending_trades.clone();
+        let sub_channel_manager = self.sub_channel_manager.clone();
+        let dlc_message_handler = self.dlc_message_handler.clone();
+        let peer_manager = self.peer_manager.clone();
+
+        tokio::spawn({
+            let dlc_man = dlc_man.clone();
+            let sub_channel_manager = sub_channel_manager.clone();
+            let dlc_message_handler = dlc_message_handler.clone();
+            let peer_manager = peer_manager.clone();
+
+            async move {
+                loop {
+                    Node::process_incoming_messages_internal(
+                        &dlc_message_handler,
+                        &dlc_man,
+                        &sub_channel_manager,
+                        &peer_manager,
+                    )
+                    .unwrap();
+                    tokio::time::sleep(Duration::from_secs(30)).await;
+                }
+            }
+        });
+
+        tokio::spawn(async move {
+            loop {
+                tokio::time::sleep(Duration::from_secs(30)).await;
+
+                // TODO: Fix unwraps: We need events so we can publish state of doing stuff
+
+                let mut pending_trades = pending_trades.lock().unwrap();
+
+                let mut to_be_deleted: HashSet<PublicKey> = HashSet::new();
+
+                // TODO: this is not ideal as it is only needed on the coordinator
+                for pubkey in pending_trades.iter() {
+                    let pubkey_string = pubkey.to_string();
+                    tracing::debug!(pubkey_string, "Checking for sub channel offers");
+                    let sub_channels = dlc_man
+                        .get_store()
+                        .get_sub_channels() // `get_offered_sub_channels` appears to have a bug
+                        .map_err(|e| anyhow!(e.to_string()))
+                        .unwrap();
+
+                    tracing::info!("Found sub_channels: {}", sub_channels.len());
+
+                    let sub_channel = match sub_channels.iter().find(|sub_channel| {
+                        dbg!(sub_channel.counter_party) == dbg!(*pubkey)
+                            && matches!(&sub_channel.state, SubChannelState::Offered(_))
+                    }) {
+                        None => {
+                            tracing::debug!(pubkey_string, "Nothing found for pubkey");
+                            continue;
+                        }
+                        Some(sub_channel) => sub_channel,
+                    };
+                    to_be_deleted.insert(*pubkey);
+
+                    let channel_id = sub_channel.channel_id;
+
+                    let channel_id_hex = hex::encode(channel_id);
+
+                    tracing::info!(channel_id = %channel_id_hex, "Accepting DLC channel offer");
+
+                    let (node_id, accept_sub_channel) = sub_channel_manager
+                        .accept_sub_channel(&channel_id)
+                        .map_err(|e| anyhow!(e.to_string()))
+                        .unwrap();
+
+                    dlc_message_handler.send_subchannel_message(
+                        node_id,
+                        SubChannelMessage::Accept(accept_sub_channel),
+                    );
+                }
+
+                for delete_me in to_be_deleted {
+                    pending_trades.remove(&delete_me);
+                }
             }
         });
 
@@ -707,7 +799,7 @@ impl Node {
     pub async fn propose_dlc_channel(
         &self,
         channel_details: &ChannelDetails,
-        contract_input: &ContractInput,
+        contract_input: &DlcContractInput,
     ) -> Result<()> {
         let announcement = tokio::task::spawn_blocking({
             let oracle = self.oracle.clone();
@@ -754,24 +846,36 @@ impl Node {
     }
 
     pub fn process_incoming_messages(&self) -> Result<()> {
-        let messages = self.dlc_message_handler.get_and_clear_received_messages();
+        Node::process_incoming_messages_internal(
+            &self.dlc_message_handler,
+            &self.dlc_manager,
+            &self.sub_channel_manager,
+            &self.peer_manager,
+        )
+    }
+
+    fn process_incoming_messages_internal(
+        dlc_message_handler: &DlcMessageHandler,
+        dlc_manager: &DlcManager,
+        sub_channel_manager: &SubChannelManager,
+        peer_manager: &PeerManager,
+    ) -> Result<(), Error> {
+        let messages = dlc_message_handler.get_and_clear_received_messages();
 
         for (node_id, msg) in messages {
             tracing::debug!(from = %node_id, "Processing DLC-manager message");
-            let resp = self
-                .dlc_manager
+            let resp = dlc_manager
                 .on_dlc_message(&msg, node_id)
                 .map_err(|e| anyhow!(e.to_string()))?;
 
             if let Some(msg) = resp {
                 tracing::debug!(to = %node_id, "Sending DLC-manager message");
-                self.dlc_message_handler.send_message(node_id, msg);
+                dlc_message_handler.send_message(node_id, msg);
             }
         }
 
-        let sub_channel_messages = self
-            .dlc_message_handler
-            .get_and_clear_received_sub_channel_messages();
+        let sub_channel_messages =
+            dlc_message_handler.get_and_clear_received_sub_channel_messages();
 
         for (node_id, msg) in sub_channel_messages {
             tracing::debug!(
@@ -779,8 +883,7 @@ impl Node {
                 msg = %sub_channel_message_as_str(&msg),
                 "Processing sub-channel message"
             );
-            let resp = self
-                .sub_channel_manager
+            let resp = sub_channel_manager
                 .on_sub_channel_message(&msg, &node_id)
                 .map_err(|e| anyhow!(e.to_string()))?;
 
@@ -790,17 +893,45 @@ impl Node {
                     msg = %sub_channel_message_as_str(&msg),
                     "Sending sub-channel message"
                 );
-                self.dlc_message_handler
-                    .send_subchannel_message(node_id, msg);
+                dlc_message_handler.send_subchannel_message(node_id, msg);
             }
         }
 
-        if self.dlc_message_handler.has_pending_messages() {
-            self.peer_manager.process_events();
+        if dlc_message_handler.has_pending_messages() {
+            peer_manager.process_events();
         }
 
         Ok(())
     }
+
+    pub fn trade(&self, trade_params: TradeParams) -> Result<()> {
+        let mut pending_trades = self.pending_trades.lock().unwrap();
+        pending_trades.insert(trade_params.taker_node_pubkey);
+
+        // TODO: Handle maker setup
+
+        Ok(())
+    }
+
+    pub fn list_usable_channels(&self) -> Vec<ChannelDetails> {
+        self.channel_manager.list_usable_channels()
+    }
+
+    pub fn get_contracts(&self) -> Result<Vec<Contract>> {
+        self.dlc_manager
+            .get_store()
+            .get_contracts()
+            .map_err(|e| anyhow!("Unable to get contracts from manager: {e:#}"))
+    }
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct ContractInput {}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct TradeParams {
+    pub taker_node_pubkey: bdk::bitcoin::secp256k1::PublicKey,
+    pub contract_input: ContractInput,
 }
 
 pub(crate) fn app_config() -> UserConfig {

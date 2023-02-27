@@ -1,8 +1,12 @@
 use crate::event;
 use crate::event::EventInternal;
+use crate::ln_dlc::get_node_pubkey;
 use crate::trade::order::OrderStateTrade;
 use crate::trade::order::OrderTrade;
 use crate::trade::order::OrderTypeTrade;
+use crate::trade::position;
+use crate::trade::position::ContractInput;
+use crate::trade::position::TradeParams;
 use crate::trade::ContractSymbolTrade;
 use crate::trade::DirectionTrade;
 use anyhow::Context;
@@ -15,10 +19,15 @@ pub async fn submit_order(order: OrderTrade) -> Result<()> {
     // TODO: Save in DB and pass on to orderbook
     tokio::time::sleep(Duration::from_secs(5)).await;
 
-    // TODO: The conversion to the API order should not be done in here, but should be done by
-    // FlutterSubscriber! This requires a proper internal Even model. We should distinguish
-    // between the internal events and those exposed on the API!
     event::publish(&EventInternal::OrderUpdateNotification(order));
+
+    // TODO: remove this and use the orderbook event to trigger the trade!
+    let dummy_trade_params = TradeParams {
+        taker_node_pubkey: get_node_pubkey(),
+        contract_input: ContractInput {},
+    };
+
+    position::handler::trade(dummy_trade_params).await?;
 
     Ok(())
 }

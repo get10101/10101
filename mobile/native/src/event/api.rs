@@ -1,6 +1,7 @@
 use crate::api::WalletInfo;
 use crate::event::subscriber::Subscriber;
-use crate::event::{EventInternal, EventType};
+use crate::event::EventInternal;
+use crate::event::EventType;
 use crate::trade::order::api::Order;
 use crate::trade::position::api::Position;
 use core::convert::From;

@@ -21,6 +21,7 @@ use diesel::r2d2::Pool;
 use diesel::PgConnection;
 use dlc_manager::Wallet;
 use ln_dlc_node::node::Node;
+use ln_dlc_node::node::TradeParams;
 use serde::Deserialize;
 use serde::Serialize;
 use serde_json::json;
@@ -54,6 +55,7 @@ pub fn router(node: Arc<Node>, pool: Pool<ConnectionManager<PgConnection>>) -> R
             get(get_order).put(put_order).delete(delete_order),
         )
         .route("/api/orderbook/websocket", get(websocket_handler))
+        .route("/api/trade", post(post_trade))
         .with_state(app_state)
 }
 
@@ -117,6 +119,16 @@ pub async fn get_invoice(State(state): State<Arc<AppState>>) -> Result<Json<Stri
         .map_err(|e| AppError::InternalServerError(format!("Failed to create invoice: {e:#}")))?;
 
     Ok(Json(invoice.to_string()))
+}
+
+pub async fn post_trade(
+    State(state): State<Arc<AppState>>,
+    trade_params: Json<TradeParams>,
+) -> Result<(), HttpApiProblem> {
+    // TODO unwrap
+    state.node.trade(trade_params.0).unwrap();
+
+    Ok(())
 }
 
 /// Our app's top level error type.

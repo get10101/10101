@@ -1,5 +1,6 @@
 use crate::event::subscriber::Subscriber;
-use crate::event::{EventInternal, EventType};
+use crate::event::EventInternal;
+use crate::event::EventType;
 use state::Storage;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;

@@ -4,7 +4,7 @@ use bdk::bitcoin::Denomination;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 
-/// Calculate the margin in BTC.
+/// Calculate the colleteral in BTC.
 pub fn calculate_margin(opening_price: f64, quantity: f64, leverage: f64) -> u64 {
     let quantity = Decimal::try_from(quantity).expect("quantity to fit into decimal");
     let open_price = Decimal::try_from(opening_price).expect("price to fit into decimal");
@@ -20,20 +20,20 @@ pub fn calculate_margin(opening_price: f64, quantity: f64, leverage: f64) -> u64
     // TODO: Shift the decimal without going into float
     let margin =
         margin.round_dp_with_strategy(8, rust_decimal::RoundingStrategy::MidpointAwayFromZero);
-    let margin = margin.to_f64().expect("margin to fit into f64");
+    let margin = margin.to_f64().expect("colleteral to fit into f64");
 
     bitcoin::Amount::from_btc(margin)
-        .expect("margin to fit in amount")
+        .expect("colleteral to fit in amount")
         .to_sat()
 }
 
-/// Calculate the quantity from price, margin and leverage
+/// Calculate the quantity from price, colleteral and leverage
 /// Margin in sats, calculation in BTC
 pub fn calculate_quantity(opening_price: f64, margin: u64, leverage: f64) -> f64 {
     let margin_amount = bitcoin::Amount::from_sat(margin);
 
     let margin = Decimal::try_from(margin_amount.to_float_in(Denomination::Bitcoin))
-        .expect("margin to fit into decimal");
+        .expect("colleteral to fit into decimal");
     let open_price = Decimal::try_from(opening_price).expect("price to fit into decimal");
     let leverage = Decimal::try_from(leverage).expect("leverage to fit into decimal");
 
