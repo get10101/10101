@@ -17,7 +17,8 @@
     "**/sqlx-data.json",
     "**/dist",
     "**/build",
-    "**/ios/Pods"
+    "**/ios/Pods",
+    "orderbook/migrations/00000000000000_diesel_initial_setup/up.sql"
   ],
   "plugins": [
     "https://plugins.dprint.dev/markdown-0.13.0.wasm",
