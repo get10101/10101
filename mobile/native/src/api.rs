@@ -30,28 +30,8 @@ pub struct Balances {
     pub lightning: u64,
 }
 
-#[tokio::main(flavor = "current_thread")]
-pub async fn refresh_wallet_info() -> WalletInfo {
-    WalletInfo {
-        balances: Balances {
-            on_chain: 300,
-            lightning: 104,
-        },
-        history: vec![
-            Transaction {
-                address: "loremipsum".to_string(),
-                flow: PaymentFlow::Inbound,
-                amount_sats: 300,
-                wallet_type: WalletType::OnChain,
-            },
-            Transaction {
-                address: "dolorsitamet".to_string(),
-                flow: PaymentFlow::Inbound,
-                amount_sats: 104,
-                wallet_type: WalletType::Lightning,
-            },
-        ],
-    }
+pub fn refresh_wallet_info() -> Result<WalletInfo> {
+    ln_dlc::get_wallet_info()
 }
 
 #[derive(Clone, Debug, Default)]

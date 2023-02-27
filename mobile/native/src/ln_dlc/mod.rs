@@ -54,6 +54,22 @@ pub fn get_coordinator_info() -> NodeInfo {
     }
 }
 
+pub fn get_wallet_info() -> Result<WalletInfo> {
+    Ok(get_wallet_info_from_node(
+        NODE.try_get().context("failed to get ln dlc node")?,
+    ))
+}
+
+fn get_wallet_info_from_node(node: &Node) -> WalletInfo {
+    WalletInfo {
+        balances: Balances {
+            lightning: node.get_ldk_balance().available,
+            on_chain: node.get_on_chain_balance().expect("balance").confirmed,
+        },
+        history: vec![], // TODO: sync history
+    }
+}
+
 pub fn get_node_info() -> Result<NodeInfo> {
     Ok(NODE.try_get().context("failed to get ln dlc node")?.info)
 }
@@ -140,16 +156,8 @@ pub fn run(data_dir: String) -> Result<()> {
                 node_clone.sync();
                 tokio::time::sleep(std::time::Duration::from_secs(10)).await;
 
-                event::publish(&EventInternal::WalletInfoUpdateNotification(WalletInfo {
-                    balances: Balances {
-                        lightning: node_clone.get_ldk_balance().available,
-                        on_chain: node_clone
-                            .get_on_chain_balance()
-                            .expect("balance")
-                            .confirmed,
-                    },
-                    history: vec![], // TODO: sync history
-                }));
+                let wallet_info = get_wallet_info_from_node(&node_clone);
+                event::publish(&EventInternal::WalletInfoUpdateNotification(wallet_info));
             }
         });
 
