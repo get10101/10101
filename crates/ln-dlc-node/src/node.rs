@@ -108,7 +108,7 @@ pub struct Node {
 
     pub(crate) dlc_manager: Arc<DlcManager>,
     sub_channel_manager: Arc<SubChannelManager>,
-    pub(crate) oracle: Arc<P2PDOracleClient>,
+    pub oracle: Arc<P2PDOracleClient>,
     dlc_message_handler: Arc<DlcMessageHandler>,
 
     #[cfg(test)]

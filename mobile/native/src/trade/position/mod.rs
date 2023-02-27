@@ -1,6 +1,5 @@
 use crate::trade::ContractSymbolTrade;
 use crate::trade::DirectionTrade;
-use bdk::bitcoin;
 use bdk::bitcoin::secp256k1::PublicKey;
 use bdk::bitcoin::XOnlyPublicKey;
 use dlc_manager::contract::contract_input::ContractInputInfo;
@@ -15,9 +14,6 @@ use dlc_manager::payout_curve::RoundingInterval;
 use dlc_manager::payout_curve::RoundingIntervals;
 use serde::Deserialize;
 use serde::Serialize;
-use std::str::FromStr;
-use std::time::SystemTime;
-use std::time::UNIX_EPOCH;
 
 pub mod api;
 pub mod handler;
@@ -59,7 +55,12 @@ pub struct PositionTrade {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ContractInput {}
+pub struct ContractInput {
+    pub maturity_time: u32,
+    pub taker_margin: u64,
+    pub maker_margin: u64,
+    pub oracle_pk: XOnlyPublicKey,
+}
 
 #[derive(Debug, Clone, Serialize)]
 pub struct TradeParams {
@@ -68,22 +69,18 @@ pub struct TradeParams {
 }
 
 impl From<ContractInput> for dlc_manager::contract::contract_input::ContractInput {
-    fn from(_ci: ContractInput) -> Self {
-        let maturity_time = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_secs()
-            + 86_400;
-        let kpk1 = bitcoin::secp256k1::PublicKey::from_str(
-            "02e6642fd69bd211f93f7f1f36ca51a26a5290eb2dd1b0d8279a87bb0d480c8443",
-        )
-        .unwrap();
-        let total_collateral = 2000;
-        let oracle_pk = XOnlyPublicKey::from(kpk1);
+    fn from(contract_input: ContractInput) -> Self {
+        // TODO: the contract symbol is currently hard coded, but should be fetched from the
+        // contract input, once multiple contract symbols are supported.
+        let contract_symbol = "btcusd";
+
+        // TODO: calculate inverse payout curve.
+
+        let total_collateral = contract_input.maker_margin + contract_input.taker_margin;
         dlc_manager::contract::contract_input::ContractInput {
-            offer_collateral: 1000,
-            accept_collateral: 1000,
-            maturity_time: maturity_time as u32,
+            offer_collateral: contract_input.maker_margin,
+            accept_collateral: contract_input.taker_margin,
+            maturity_time: contract_input.maturity_time,
             fee_rate: 2,
             contract_infos: vec![ContractInputInfo {
                 contract_descriptor: ContractDescriptor::Numerical(NumericalDescriptor {
@@ -149,8 +146,8 @@ impl From<ContractInput> for dlc_manager::contract::contract_input::ContractInpu
                     },
                 }),
                 oracles: OracleInput {
-                    public_keys: vec![oracle_pk],
-                    event_id: "btcusd1610611200".to_string(),
+                    public_keys: vec![contract_input.oracle_pk],
+                    event_id: format!("{contract_symbol}{}", contract_input.maturity_time),
                     threshold: 1,
                 },
             }],

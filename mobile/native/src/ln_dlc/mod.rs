@@ -15,7 +15,9 @@ use anyhow::Result;
 use bdk::bitcoin::secp256k1::rand::thread_rng;
 use bdk::bitcoin::secp256k1::rand::RngCore;
 use bdk::bitcoin::Network;
+use bdk::bitcoin::XOnlyPublicKey;
 use dlc_manager::contract::Contract;
+use dlc_manager::Oracle;
 use dlc_manager::Wallet;
 use lightning_invoice::Invoice;
 use ln_dlc_node::node::Node;
@@ -52,8 +54,18 @@ pub fn get_coordinator_info() -> NodeInfo {
     }
 }
 
-pub fn get_node_pubkey() -> bdk::bitcoin::secp256k1::PublicKey {
-    NODE.try_get().unwrap().info.pubkey
+pub fn get_node_info() -> Result<NodeInfo> {
+    Ok(NODE.try_get().context("failed to get ln dlc node")?.info)
+}
+
+// TODO: should we also wrap the oracle as `NodeInfo`. It would fit the required attributes pubkey
+// and address.
+pub fn get_oracle_pubkey() -> Result<XOnlyPublicKey> {
+    Ok(NODE
+        .try_get()
+        .context("failed to get ln dlc node")?
+        .oracle
+        .get_public_key())
 }
 
 // TODO: this model should not be in the event!
