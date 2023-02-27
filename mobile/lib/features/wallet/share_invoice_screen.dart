@@ -2,7 +2,6 @@ import 'dart:developer';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:get_10101/features/wallet/application/wallet_service.dart';
 import 'package:get_10101/features/wallet/domain/wallet_info.dart';
 import 'package:get_10101/features/wallet/wallet_change_notifier.dart';
 import 'package:get_10101/features/wallet/wallet_screen.dart';
@@ -11,19 +10,16 @@ import 'package:provider/provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
 
-class ShareInvoiceScreen extends StatefulWidget {
+import 'application/wallet_service.dart';
+
+class ShareInvoiceScreen extends StatelessWidget {
   static const route = "${WalletScreen.route}/$subRouteName";
   static const subRouteName = "share_invoice";
   final WalletService walletService;
+  final String invoice;
 
-  const ShareInvoiceScreen({super.key, this.walletService = const WalletService()});
-
-  @override
-  State<ShareInvoiceScreen> createState() => _ShareInvoiceScreenState();
-}
-
-class _ShareInvoiceScreenState extends State<ShareInvoiceScreen> {
-  String invoice = "";
+  const ShareInvoiceScreen(
+      {super.key, this.walletService = const WalletService(), required this.invoice});
 
   @override
   Widget build(BuildContext context) {
@@ -52,17 +48,9 @@ class _ShareInvoiceScreenState extends State<ShareInvoiceScreen> {
                 ),
                 ElevatedButton(
                     onPressed: () async {
-                      await widget.walletService.openChannel();
+                      await walletService.openChannel();
                     },
                     child: const Text("Open Channel!")),
-                ElevatedButton(
-                    onPressed: () async {
-                      String? invoice = await widget.walletService.createInvoice();
-                      if (invoice != null) {
-                        setState(() => this.invoice = invoice);
-                      }
-                    },
-                    child: const Text("Create Invoice")),
                 Expanded(
                   child: Center(
                     child: QrImage(

@@ -127,8 +127,8 @@ pub fn open_channel() -> Result<()> {
     ln_dlc::open_channel()
 }
 
-pub fn create_invoice() -> Result<String> {
-    Ok(ln_dlc::create_invoice()?.to_string())
+pub fn create_invoice(amount_sats: u64) -> Result<String> {
+    Ok(ln_dlc::create_invoice(amount_sats)?.to_string())
 }
 
 pub fn send_payment(invoice: String) -> Result<()> {

@@ -228,7 +228,7 @@ pub fn open_channel() -> Result<()> {
     Ok(())
 }
 
-pub fn create_invoice() -> Result<Invoice> {
+pub fn create_invoice(amount_sats: u64) -> Result<Invoice> {
     let runtime = runtime()?;
 
     runtime.block_on(async {
@@ -254,7 +254,7 @@ pub fn create_invoice() -> Result<Invoice> {
         let fake_channel_id: u64 = text.parse()?;
 
         node.create_interceptable_invoice(
-            1000,
+            amount_sats,
             fake_channel_id,
             get_coordinator_info().pubkey,
             0,

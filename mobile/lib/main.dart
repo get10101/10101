@@ -16,6 +16,7 @@ import 'package:get_10101/features/trade/trade_value_change_notifier.dart';
 import 'package:get_10101/features/trade/settings_screen.dart';
 import 'package:get_10101/features/trade/trade_theme.dart';
 import 'package:get_10101/features/wallet/application/wallet_service.dart';
+import 'package:get_10101/features/wallet/create_invoice_screen.dart';
 import 'package:get_10101/features/wallet/share_invoice_screen.dart';
 import 'package:get_10101/features/wallet/scanner_screen.dart';
 import 'package:get_10101/features/wallet/send_screen.dart';
@@ -98,11 +99,19 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
                 },
               ),
               GoRoute(
+                path: CreateInvoiceScreen.subRouteName,
+                // Use root navigator so the screen overlays the application shell
+                parentNavigatorKey: _rootNavigatorKey,
+                builder: (BuildContext context, GoRouterState state) {
+                  return const CreateInvoiceScreen();
+                },
+              ),
+              GoRoute(
                 path: ShareInvoiceScreen.subRouteName,
                 // Use root navigator so the screen overlays the application shell
                 parentNavigatorKey: _rootNavigatorKey,
                 builder: (BuildContext context, GoRouterState state) {
-                  return const ShareInvoiceScreen();
+                  return ShareInvoiceScreen(invoice: state.extra as String);
                 },
               ),
               GoRoute(
