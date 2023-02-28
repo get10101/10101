@@ -1,17 +1,18 @@
 use axum::extract::Path;
 use axum::extract::State;
+use axum::http::StatusCode;
 use axum::response::IntoResponse;
+use axum::response::Response;
 use axum::routing::get;
 use axum::routing::post;
 use axum::Json;
 use axum::Router;
 use bitcoin::secp256k1::PublicKey;
 use dlc_manager::Wallet;
-use http_api_problem::HttpApiProblem;
-use http_api_problem::StatusCode;
 use ln_dlc_node::node::Node;
 use serde::Deserialize;
 use serde::Serialize;
+use serde_json::json;
 use std::sync::Arc;
 
 pub struct AppState {
@@ -44,34 +45,25 @@ pub async fn index() -> impl IntoResponse {
 pub async fn post_fake_scid(
     target_node: Path<String>,
     State(app_state): State<Arc<AppState>>,
-) -> impl IntoResponse {
+) -> Result<Json<u64>, AppError> {
     let target_node = target_node.0;
-    let target_node: PublicKey = target_node
-        .parse()
-        .map_err(|e| {
-            HttpApiProblem::new(StatusCode::BAD_REQUEST)
-                .title("Invalid public key")
-                .detail(format!(
-                    "Provided public key {target_node} was not valid: {e:#}"
-                ))
-        })
-        .unwrap();
+    let target_node: PublicKey = target_node.parse().map_err(|e| {
+        AppError::BadRequest(format!(
+            "Provided public key {target_node} was not valid: {e:#}"
+        ))
+    })?;
 
-    Json(app_state.node.create_intercept_scid(target_node))
+    Ok(Json(app_state.node.create_intercept_scid(target_node)))
 }
 
-pub async fn get_new_address(State(app_state): State<Arc<AppState>>) -> impl IntoResponse {
-    let address = app_state
-        .node
-        .wallet
-        .get_new_address()
-        .map_err(|e| {
-            HttpApiProblem::new(StatusCode::INTERNAL_SERVER_ERROR)
-                .title("Invalid public key")
-                .detail(format!("Failed to get new address: {e:#}"))
-        })
-        .unwrap();
-    Json(address.to_string())
+pub async fn get_new_address(
+    State(app_state): State<Arc<AppState>>,
+) -> Result<Json<String>, AppError> {
+    let address =
+        app_state.node.wallet.get_new_address().map_err(|e| {
+            AppError::InternalServerError(format!("Failed to get new address: {e:#}"))
+        })?;
+    Ok(Json(address.to_string()))
 }
 
 #[derive(Serialize, Deserialize)]
@@ -80,32 +72,44 @@ pub struct Balance {
     onchain: u64,
 }
 
-pub async fn get_balance(State(state): State<Arc<AppState>>) -> impl IntoResponse {
+pub async fn get_balance(State(state): State<Arc<AppState>>) -> Result<Json<Balance>, AppError> {
     let offchain = state.node.get_ldk_balance();
     let onchain = state
         .node
         .get_on_chain_balance()
-        .map_err(|e| {
-            HttpApiProblem::new(StatusCode::INTERNAL_SERVER_ERROR)
-                .title("Invalid public key")
-                .detail(format!("Failed to get balance: {e:#}"))
-        })
-        .unwrap();
-    Json(Balance {
+        .map_err(|e| AppError::InternalServerError(format!("Failed to get balance: {e:#}")))?;
+    Ok(Json(Balance {
         offchain: offchain.available,
         onchain: onchain.confirmed,
-    })
+    }))
 }
 
-pub async fn get_invoice(State(state): State<Arc<AppState>>) -> impl IntoResponse {
+pub async fn get_invoice(State(state): State<Arc<AppState>>) -> Result<Json<String>, AppError> {
     let invoice = state
         .node
         .create_invoice(2000)
-        .map_err(|e| {
-            HttpApiProblem::new(StatusCode::INTERNAL_SERVER_ERROR)
-                .detail(format!("Failed to create invoice: {e:#}"))
-        })
-        .unwrap();
+        .map_err(|e| AppError::InternalServerError(format!("Failed to create invoice: {e:#}")))?;
 
-    Json(invoice.to_string())
+    Ok(Json(invoice.to_string()))
+}
+
+/// Our app's top level error type.
+pub enum AppError {
+    InternalServerError(String),
+    BadRequest(String),
+}
+
+impl IntoResponse for AppError {
+    fn into_response(self) -> Response {
+        let (status, error_message) = match self {
+            AppError::InternalServerError(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg),
+            AppError::BadRequest(msg) => (StatusCode::BAD_REQUEST, msg),
+        };
+
+        let body = Json(json!({
+            "error": error_message,
+        }));
+
+        (status, body).into_response()
+    }
 }

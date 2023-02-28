@@ -77,7 +77,7 @@ async fn main() -> Result<()> {
         .serve(app.into_make_service())
         .await?;
 
-    // tracing::trace!(?mission_success, "Rocket has landed");
+    tracing::trace!("Server has had been launched");
 
     Ok(())
 }
