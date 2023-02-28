@@ -24,9 +24,9 @@ cargo run --bin orderbook
 cargo install diesel_cli --no-default-features --features postgres,sqlite
 ```
 
-### Spin up a postgres db 
+### Spin up a postgres db
 
-Run this from the project root to start the database 
+Run this from the project root to start the database
 
 ```bash
 docker-compose up -d coordinator-db
