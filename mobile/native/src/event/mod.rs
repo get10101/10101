@@ -4,12 +4,12 @@ pub mod subscriber;
 
 use crate::api::WalletInfo;
 use std::hash::Hash;
+use trade::TradeParams;
 
 use crate::event::event_hub::get;
 use crate::event::subscriber::Subscriber;
 use crate::trade::order::OrderTrade;
 use crate::trade::position::PositionTrade;
-use crate::trade::position::TradeParams;
 
 pub fn subscribe(subscriber: impl Subscriber + 'static + Send + Sync + Clone) {
     get().subscribe(subscriber);
@@ -25,7 +25,7 @@ pub enum EventInternal {
     Log(String),
     OrderUpdateNotification(OrderTrade),
     WalletInfoUpdateNotification(WalletInfo),
-    OrderFilledWith(TradeParams),
+    OrderFilledWith(Box<TradeParams>),
     PositionUpdateNotification(PositionTrade),
 }
 

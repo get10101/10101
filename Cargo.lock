@@ -574,6 +574,7 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-subscriber",
+ "trade",
 ]
 
 [[package]]
@@ -1536,6 +1537,7 @@ dependencies = [
  "tracing",
  "tracing-log",
  "tracing-subscriber",
+ "trade",
 ]
 
 [[package]]
@@ -1691,6 +1693,7 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-subscriber",
+ "trade",
  "uuid",
 ]
 
@@ -2907,6 +2910,16 @@ dependencies = [
  "tracing-core",
  "tracing-log",
  "tracing-serde",
+]
+
+[[package]]
+name = "trade"
+version = "0.1.0"
+dependencies = [
+ "bdk",
+ "rust_decimal",
+ "rust_decimal_macros",
+ "serde",
 ]
 
 [[package]]

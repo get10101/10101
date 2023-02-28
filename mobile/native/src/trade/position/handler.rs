@@ -1,10 +1,10 @@
 use crate::ln_dlc;
 use crate::trade::position::PositionStateTrade;
 use crate::trade::position::PositionTrade;
-use crate::trade::position::TradeParams;
 use crate::trade::ContractSymbolTrade;
 use crate::trade::DirectionTrade;
 use anyhow::Result;
+use trade::TradeParams;
 
 /// Sets up a trade with the counterparty
 ///

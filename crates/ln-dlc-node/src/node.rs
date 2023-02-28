@@ -26,8 +26,18 @@ use bitcoin::secp256k1::PublicKey;
 use bitcoin::secp256k1::Secp256k1;
 use bitcoin::Network;
 use dlc_manager::contract::contract_input::ContractInput as DlcContractInput;
+use dlc_manager::contract::contract_input::ContractInputInfo;
+use dlc_manager::contract::contract_input::OracleInput;
+use dlc_manager::contract::numerical_descriptor::NumericalDescriptor;
 use dlc_manager::contract::Contract;
+use dlc_manager::contract::ContractDescriptor;
 use dlc_manager::custom_signer::CustomKeysManager;
+use dlc_manager::payout_curve::PayoutFunction;
+use dlc_manager::payout_curve::PayoutFunctionPiece;
+use dlc_manager::payout_curve::PayoutPoint;
+use dlc_manager::payout_curve::PolynomialPayoutCurvePiece;
+use dlc_manager::payout_curve::RoundingInterval;
+use dlc_manager::payout_curve::RoundingIntervals;
 use dlc_manager::sub_channel_manager::SubChannelState;
 use dlc_manager::Oracle;
 use dlc_manager::Storage;
@@ -80,6 +90,9 @@ use std::sync::Arc;
 use std::sync::Mutex;
 use std::time::Duration;
 use std::time::SystemTime;
+use std::time::UNIX_EPOCH;
+use trade::cfd::calculate_margin;
+use trade::TradeParams;
 
 mod connection;
 
@@ -904,13 +917,120 @@ impl Node {
         Ok(())
     }
 
-    pub fn trade(&self, trade_params: TradeParams) -> Result<()> {
+    pub fn trade(
+        &self,
+        trade_params: TradeParams,
+    ) -> Result<dlc_manager::contract::contract_input::ContractInput> {
         let mut pending_trades = self.pending_trades.lock().unwrap();
-        pending_trades.insert(trade_params.taker_node_pubkey);
 
-        // TODO: Handle maker setup
+        // TODO: We need to keep around more information than just the pubkey and have to introduce
+        // validation steps once we add the maker
+        pending_trades.insert(trade_params.pubkey);
 
-        Ok(())
+        // The coordinator always trades at a leverage of 1
+        let coordinator_leverage = 1.0;
+
+        let margin_coordinator = calculate_margin(
+            trade_params.execution_price,
+            trade_params.quantity,
+            coordinator_leverage,
+        );
+        let margin_trader = calculate_margin(
+            trade_params.execution_price,
+            trade_params.quantity,
+            trade_params.leverage,
+        );
+
+        let total_collateral = margin_coordinator + margin_trader;
+
+        let maturity_time = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_secs()
+            + trade_params.expiry.as_secs();
+
+        let contract_symbol = trade_params.contract_symbol.label();
+
+        // The contract input to be used for setting up the trade between the trader and the
+        // coordinator
+        let contract_input = dlc_manager::contract::contract_input::ContractInput {
+            offer_collateral: margin_coordinator,
+            accept_collateral: margin_trader,
+            maturity_time: maturity_time as u32,
+            fee_rate: 2,
+            contract_infos: vec![ContractInputInfo {
+                contract_descriptor: ContractDescriptor::Numerical(NumericalDescriptor {
+                    // TODO: calculate inverse payout curve.
+                    payout_function: PayoutFunction {
+                        payout_function_pieces: vec![
+                            PayoutFunctionPiece::PolynomialPayoutCurvePiece(
+                                PolynomialPayoutCurvePiece::new(vec![
+                                    PayoutPoint {
+                                        event_outcome: 0,
+                                        outcome_payout: 0,
+                                        extra_precision: 0,
+                                    },
+                                    PayoutPoint {
+                                        event_outcome: 50_000,
+                                        outcome_payout: 0,
+                                        extra_precision: 0,
+                                    },
+                                ])
+                                .unwrap(),
+                            ),
+                            PayoutFunctionPiece::PolynomialPayoutCurvePiece(
+                                PolynomialPayoutCurvePiece::new(vec![
+                                    PayoutPoint {
+                                        event_outcome: 50_000,
+                                        outcome_payout: 0,
+                                        extra_precision: 0,
+                                    },
+                                    PayoutPoint {
+                                        event_outcome: 60_000,
+                                        outcome_payout: total_collateral,
+                                        extra_precision: 0,
+                                    },
+                                ])
+                                .unwrap(),
+                            ),
+                            PayoutFunctionPiece::PolynomialPayoutCurvePiece(
+                                PolynomialPayoutCurvePiece::new(vec![
+                                    PayoutPoint {
+                                        event_outcome: 60_000,
+                                        outcome_payout: total_collateral,
+                                        extra_precision: 0,
+                                    },
+                                    PayoutPoint {
+                                        event_outcome: 1048575,
+                                        outcome_payout: total_collateral,
+                                        extra_precision: 0,
+                                    },
+                                ])
+                                .unwrap(),
+                            ),
+                        ],
+                    },
+                    rounding_intervals: RoundingIntervals {
+                        intervals: vec![RoundingInterval {
+                            begin_interval: 0,
+                            rounding_mod: 1,
+                        }],
+                    },
+                    difference_params: None,
+                    oracle_numeric_infos: dlc_trie::OracleNumericInfo {
+                        base: 2,
+                        nb_digits: vec![20],
+                    },
+                }),
+                oracles: OracleInput {
+                    public_keys: vec![trade_params.oracle_pk],
+                    event_id: format!("{contract_symbol}{maturity_time}"),
+                    threshold: 1,
+                },
+            }],
+        };
+
+        Ok(contract_input)
     }
 
     pub fn list_usable_channels(&self) -> Vec<ChannelDetails> {
@@ -927,12 +1047,6 @@ impl Node {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct ContractInput {}
-
-#[derive(Debug, Clone, Deserialize)]
-pub struct TradeParams {
-    pub taker_node_pubkey: bdk::bitcoin::secp256k1::PublicKey,
-    pub contract_input: ContractInput,
-}
 
 pub(crate) fn app_config() -> UserConfig {
     UserConfig {

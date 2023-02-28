@@ -5,7 +5,6 @@ use crate::event::EventInternal;
 use crate::trade::position;
 use crate::trade::position::PositionStateTrade;
 use crate::trade::position::PositionTrade;
-use crate::trade::position::TradeParams;
 use crate::trade::ContractSymbolTrade;
 use crate::trade::DirectionTrade;
 use anyhow::anyhow;
@@ -30,6 +29,7 @@ use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::runtime::Runtime;
+use trade::TradeParams;
 
 const ELECTRS_ORIGIN: &str = "tcp://localhost:50000";
 
@@ -269,12 +269,14 @@ pub async fn trade(trade_params: TradeParams) -> Result<()> {
     let url = "http://localhost:8000/api/trade"; // TODO: we need the coordinators http address here
 
     let client = reqwest::Client::new();
-    client
+    let contract_info = client
         .post(url)
         .json(&trade_params)
         .send()
         .await
-        .context("Failed to submit trade request to coordinator")?;
+        .context("Failed to submit trade request to coordinator")?
+        .json()
+        .await?;
 
     let node = NODE.try_get().context("failed to get ln dlc node")?;
 
@@ -284,7 +286,7 @@ pub async fn trade(trade_params: TradeParams) -> Result<()> {
         .find(|c| c.counterparty.node_id == get_coordinator_info().pubkey)
         .unwrap();
 
-    node.propose_dlc_channel(channel_details, &trade_params.contract_input.into())
+    node.propose_dlc_channel(channel_details, &contract_info)
         .await
         .context("Failed to propose DLC channel with coordinator")?;
     tracing::info!("Proposed dlc subchannel");

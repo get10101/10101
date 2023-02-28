@@ -1,4 +1,3 @@
-use crate::calculations;
 use crate::event;
 use crate::event::EventInternal;
 use crate::ln_dlc;
@@ -6,16 +5,14 @@ use crate::trade::order::OrderStateTrade;
 use crate::trade::order::OrderTrade;
 use crate::trade::order::OrderTypeTrade;
 use crate::trade::position;
-use crate::trade::position::ContractInput;
-use crate::trade::position::TradeParams;
 use crate::trade::ContractSymbolTrade;
 use crate::trade::DirectionTrade;
 use anyhow::Context;
 use anyhow::Result;
 use std::str::FromStr;
 use std::time::Duration;
-use std::time::SystemTime;
-use std::time::UNIX_EPOCH;
+use trade::ContractSymbol;
+use trade::TradeParams;
 use uuid::Uuid;
 
 pub async fn submit_order(order: OrderTrade) -> Result<()> {
@@ -24,31 +21,24 @@ pub async fn submit_order(order: OrderTrade) -> Result<()> {
 
     event::publish(&EventInternal::OrderUpdateNotification(order));
 
-    // in a day's time
-    let maturity_time = (SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_secs()
-        + 86_400) as u32;
-
-    // TODO: fetch open (market) price from e.g. bitmex
-    let open_price: f64 = 55_000.0;
-
     // TODO: remove this and use the orderbook event to trigger the trade!
     let dummy_trade_params = TradeParams {
-        taker_node_pubkey: ln_dlc::get_node_info()?.pubkey,
-        contract_input: ContractInput {
-            maturity_time,
-            taker_margin: calculations::calculate_margin(
-                open_price,
-                order.quantity,
-                order.leverage,
-            ),
-            // TODO: What would we choose as leverage for the coordinator? is it the same leverage
-            // of the matched order? For now I am hard coding that value to 1
-            maker_margin: calculations::calculate_margin(open_price, order.quantity, 1.0),
-            oracle_pk: ln_dlc::get_oracle_pubkey()?
-        },
+        pubkey: ln_dlc::get_node_info()?.pubkey,
+        // We set this to our pubkey as well for simplicity until we receive a match from the
+        // orderbook
+        pubkey_counterparty: ln_dlc::get_node_info()?.pubkey,
+        // We set this to our order as well for simplicity until we receive a match from the
+        // orderbook
+        order_id: "the orderbook will know".to_string(),
+        order_id_counterparty: "the orderbook will know".to_string(),
+        contract_symbol: ContractSymbol::BtcUsd,
+        leverage: order.leverage,
+        leverage_counterparty: 2.0,
+        quantity: order.quantity,
+        execution_price: 55_000.0,
+        // in 24h
+        expiry: Duration::from_secs(60 * 60 * 24),
+        oracle_pk: ln_dlc::get_oracle_pubkey()?,
     };
 
     position::handler::trade(dummy_trade_params).await?;
