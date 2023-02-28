@@ -21,6 +21,7 @@ use anyhow::Error;
 use anyhow::Result;
 use bdk::blockchain::ElectrumBlockchain;
 use bdk::Balance;
+use bitcoin::blockdata::constants::genesis_block;
 use bitcoin::hashes::sha256;
 use bitcoin::hashes::Hash;
 use bitcoin::secp256k1::PublicKey;
@@ -382,8 +383,13 @@ impl Node {
             );
         }
 
-        // TODO: Provide persisted one if restarting
-        let network_graph = Arc::new(NetworkGraph::new(hash, logger.clone()));
+        let genesis = genesis_block(network).header.block_hash();
+        let network_graph_path = format!("{ldk_data_dir}/network_graph");
+        let network_graph = Arc::new(disk::read_network(
+            Path::new(&network_graph_path),
+            genesis,
+            logger.clone(),
+        ));
 
         let gossip_sync = Arc::new(P2PGossipSync::new(
             network_graph.clone(),
