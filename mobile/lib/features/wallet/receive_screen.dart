@@ -47,6 +47,11 @@ class _ReceiveScreenState extends State<ReceiveScreen> {
               },
               child: const Text("Create Invoice")),
           SelectableText("Invoice: $invoice"),
+          ElevatedButton(
+              onPressed: () async {
+                await widget.walletService.openChannel();
+              },
+              child: const Text("Open Channel!"))
         ],
       )),
     );
