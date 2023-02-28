@@ -284,7 +284,7 @@ pub async fn trade(trade_params: TradeParams) -> Result<()> {
     let channel_details = channel_details
         .iter()
         .find(|c| c.counterparty.node_id == get_coordinator_info().pubkey)
-        .unwrap();
+        .context("Channel details not found")?;
 
     node.propose_dlc_channel(channel_details, &contract_info)
         .await

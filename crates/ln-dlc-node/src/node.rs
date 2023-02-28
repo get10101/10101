@@ -517,13 +517,15 @@ impl Node {
 
             async move {
                 loop {
-                    Node::process_incoming_messages_internal(
+                    if let Err(e) = Node::process_incoming_messages_internal(
                         &dlc_message_handler,
                         &dlc_man,
                         &sub_channel_manager,
                         &peer_manager,
-                    )
-                    .unwrap();
+                    ) {
+                        tracing::error!("Unable to process internal message: {e:#}");
+                    }
+
                     tokio::time::sleep(Duration::from_secs(30)).await;
                 }
             }
@@ -535,7 +537,13 @@ impl Node {
 
                 // TODO: Fix unwraps: We need events so we can publish state of doing stuff
 
-                let mut pending_trades = pending_trades.lock().unwrap();
+                let mut pending_trades = match pending_trades.lock() {
+                    Ok(pending_trades) => pending_trades,
+                    Err(e) => {
+                        tracing::warn!("Failed to lock pending trades: {e:#}");
+                        continue;
+                    }
+                };
 
                 let mut to_be_deleted: HashSet<PublicKey> = HashSet::new();
 
@@ -543,11 +551,17 @@ impl Node {
                 for pubkey in pending_trades.iter() {
                     let pubkey_string = pubkey.to_string();
                     tracing::debug!(pubkey_string, "Checking for sub channel offers");
-                    let sub_channels = dlc_man
+                    let sub_channels = match dlc_man
                         .get_store()
                         .get_sub_channels() // `get_offered_sub_channels` appears to have a bug
                         .map_err(|e| anyhow!(e.to_string()))
-                        .unwrap();
+                    {
+                        Ok(sub_channel) => sub_channel,
+                        Err(e) => {
+                            tracing::error!("Unable to retrieve subchannels: {e:#}");
+                            continue;
+                        }
+                    };
 
                     tracing::info!("Found sub_channels: {}", sub_channels.len());
 
@@ -569,10 +583,16 @@ impl Node {
 
                     tracing::info!(channel_id = %channel_id_hex, "Accepting DLC channel offer");
 
-                    let (node_id, accept_sub_channel) = sub_channel_manager
+                    let (node_id, accept_sub_channel) = match sub_channel_manager
                         .accept_sub_channel(&channel_id)
                         .map_err(|e| anyhow!(e.to_string()))
-                        .unwrap();
+                    {
+                        Ok(sub_channel_details) => sub_channel_details,
+                        Err(e) => {
+                            tracing::error!("Failed to accept subchannel {channel_id_hex}: {e:#}");
+                            continue;
+                        }
+                    };
 
                     dlc_message_handler.send_subchannel_message(
                         node_id,
@@ -956,69 +976,7 @@ impl Node {
             maturity_time: maturity_time as u32,
             fee_rate: 2,
             contract_infos: vec![ContractInputInfo {
-                contract_descriptor: ContractDescriptor::Numerical(NumericalDescriptor {
-                    // TODO: calculate inverse payout curve.
-                    payout_function: PayoutFunction {
-                        payout_function_pieces: vec![
-                            PayoutFunctionPiece::PolynomialPayoutCurvePiece(
-                                PolynomialPayoutCurvePiece::new(vec![
-                                    PayoutPoint {
-                                        event_outcome: 0,
-                                        outcome_payout: 0,
-                                        extra_precision: 0,
-                                    },
-                                    PayoutPoint {
-                                        event_outcome: 50_000,
-                                        outcome_payout: 0,
-                                        extra_precision: 0,
-                                    },
-                                ])
-                                .unwrap(),
-                            ),
-                            PayoutFunctionPiece::PolynomialPayoutCurvePiece(
-                                PolynomialPayoutCurvePiece::new(vec![
-                                    PayoutPoint {
-                                        event_outcome: 50_000,
-                                        outcome_payout: 0,
-                                        extra_precision: 0,
-                                    },
-                                    PayoutPoint {
-                                        event_outcome: 60_000,
-                                        outcome_payout: total_collateral,
-                                        extra_precision: 0,
-                                    },
-                                ])
-                                .unwrap(),
-                            ),
-                            PayoutFunctionPiece::PolynomialPayoutCurvePiece(
-                                PolynomialPayoutCurvePiece::new(vec![
-                                    PayoutPoint {
-                                        event_outcome: 60_000,
-                                        outcome_payout: total_collateral,
-                                        extra_precision: 0,
-                                    },
-                                    PayoutPoint {
-                                        event_outcome: 1048575,
-                                        outcome_payout: total_collateral,
-                                        extra_precision: 0,
-                                    },
-                                ])
-                                .unwrap(),
-                            ),
-                        ],
-                    },
-                    rounding_intervals: RoundingIntervals {
-                        intervals: vec![RoundingInterval {
-                            begin_interval: 0,
-                            rounding_mod: 1,
-                        }],
-                    },
-                    difference_params: None,
-                    oracle_numeric_infos: dlc_trie::OracleNumericInfo {
-                        base: 2,
-                        nb_digits: vec![20],
-                    },
-                }),
+                contract_descriptor: dummy_contract_descriptor(total_collateral),
                 oracles: OracleInput {
                     public_keys: vec![trade_params.oracle_pk],
                     event_id: format!("{contract_symbol}{maturity_time}"),
@@ -1040,6 +998,72 @@ impl Node {
             .get_contracts()
             .map_err(|e| anyhow!("Unable to get contracts from manager: {e:#}"))
     }
+}
+
+// TODO: To be deleted once we configure a proper payout curve
+fn dummy_contract_descriptor(total_collateral: u64) -> ContractDescriptor {
+    ContractDescriptor::Numerical(NumericalDescriptor {
+        payout_function: PayoutFunction {
+            payout_function_pieces: vec![
+                PayoutFunctionPiece::PolynomialPayoutCurvePiece(
+                    PolynomialPayoutCurvePiece::new(vec![
+                        PayoutPoint {
+                            event_outcome: 0,
+                            outcome_payout: 0,
+                            extra_precision: 0,
+                        },
+                        PayoutPoint {
+                            event_outcome: 50_000,
+                            outcome_payout: 0,
+                            extra_precision: 0,
+                        },
+                    ])
+                    .unwrap(),
+                ),
+                PayoutFunctionPiece::PolynomialPayoutCurvePiece(
+                    PolynomialPayoutCurvePiece::new(vec![
+                        PayoutPoint {
+                            event_outcome: 50_000,
+                            outcome_payout: 0,
+                            extra_precision: 0,
+                        },
+                        PayoutPoint {
+                            event_outcome: 60_000,
+                            outcome_payout: total_collateral,
+                            extra_precision: 0,
+                        },
+                    ])
+                    .unwrap(),
+                ),
+                PayoutFunctionPiece::PolynomialPayoutCurvePiece(
+                    PolynomialPayoutCurvePiece::new(vec![
+                        PayoutPoint {
+                            event_outcome: 60_000,
+                            outcome_payout: total_collateral,
+                            extra_precision: 0,
+                        },
+                        PayoutPoint {
+                            event_outcome: 1048575,
+                            outcome_payout: total_collateral,
+                            extra_precision: 0,
+                        },
+                    ])
+                    .unwrap(),
+                ),
+            ],
+        },
+        rounding_intervals: RoundingIntervals {
+            intervals: vec![RoundingInterval {
+                begin_interval: 0,
+                rounding_mod: 1,
+            }],
+        },
+        difference_params: None,
+        oracle_numeric_infos: dlc_trie::OracleNumericInfo {
+            base: 2,
+            nb_digits: vec![20],
+        },
+    })
 }
 
 pub(crate) fn app_config() -> UserConfig {
