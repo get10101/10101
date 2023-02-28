@@ -41,6 +41,7 @@ use lightning::chain::BestBlock;
 use lightning::ln::channelmanager::ChainParameters;
 use lightning::ln::channelmanager::ChannelDetails;
 use lightning::ln::channelmanager::MIN_CLTV_EXPIRY_DELTA;
+use lightning::ln::channelmanager::MIN_FINAL_CLTV_EXPIRY;
 use lightning::ln::msgs::NetAddress;
 use lightning::ln::peer_handler::IgnoringMessageHandler;
 use lightning::ln::peer_handler::MessageHandler;
@@ -535,11 +536,11 @@ impl Node {
             .payment_hash(sha256::Hash::from_slice(&payment_hash.0)?)
             .payment_secret(payment_secret)
             .timestamp(SystemTime::now())
-            // the min final cltv defaults to 9, which does not work with lnd.
-            // todo: Check why the value needs to be set to at least 20, as the payment will
-            // otherwise fail with an error on lnd `Unable to send payment:
-            // incorrect_payment_details`
-            .min_final_cltv_expiry(20)
+            // lnd defaults the min final cltv to 9 (according to BOLT 11 - the recommendation has
+            // changed to 18) 9 is not safe to use for ldk, because ldk mandates that
+            // the `cltv_expiry_delta` has to be greater than `HTLC_FAIL_BACK_BUFFER`
+            // (23).
+            .min_final_cltv_expiry(MIN_FINAL_CLTV_EXPIRY as u64)
             .private_route(RouteHint(vec![RouteHintHop {
                 src_node_id: hop_before_me,
                 short_channel_id: intercepted_channel_id,
