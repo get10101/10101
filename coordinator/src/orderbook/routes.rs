@@ -1,69 +1,18 @@
-use crate::models::Order;
+use crate::orderbook::models::Order;
+use crate::routes::AppState;
 use axum::extract::ws::Message;
 use axum::extract::ws::WebSocket;
 use axum::extract::ws::WebSocketUpgrade;
 use axum::extract::Path;
 use axum::extract::State;
 use axum::response::IntoResponse;
-use axum::routing::get;
 use axum::Json;
-use axum::Router;
-use diesel::r2d2;
-use diesel::r2d2::ConnectionManager;
-use diesel::r2d2::Pool;
-use diesel::PgConnection;
 use futures::SinkExt;
 use futures::StreamExt;
 use serde::Deserialize;
 use serde::Serialize;
 use std::sync::Arc;
-use tokio::sync::broadcast;
 use tokio::sync::broadcast::Sender;
-
-pub fn router(pool: Pool<ConnectionManager<PgConnection>>) -> Router {
-    // Set up application state for use with with_state().
-    let (tx, _rx) = broadcast::channel(100);
-
-    let app_state = Arc::new(AppState {
-        tx_pricefeed: tx,
-        pool,
-    });
-
-    Router::new()
-        .route("/", get(index))
-        .route("/orders", get(get_orders).post(post_order))
-        .route(
-            "/orders/:order_id",
-            get(get_order).put(put_order).delete(delete_order),
-        )
-        .route("/websocket", get(websocket_handler))
-        .with_state(app_state)
-}
-// Our shared state
-pub struct AppState {
-    // Channel used to send messages to all connected clients.
-    pub tx_pricefeed: broadcast::Sender<PriceFeedMessage>,
-    pub pool: r2d2::Pool<ConnectionManager<PgConnection>>,
-}
-
-#[derive(Serialize, Clone, Deserialize, Debug)]
-pub enum PriceFeedMessage {
-    AllOrders(Vec<Order>),
-    NewOrder(Order),
-    DeleteOrder(i32),
-    Update(Order),
-}
-
-#[derive(Serialize)]
-struct HelloWorld {
-    hello: String,
-}
-
-pub async fn index() -> impl IntoResponse {
-    Json(HelloWorld {
-        hello: "world".to_string(),
-    })
-}
 
 pub async fn get_orders(State(state): State<Arc<AppState>>) -> impl IntoResponse {
     let mut conn = state.pool.clone().get().unwrap();
@@ -90,9 +39,9 @@ pub struct NewOrder {
     pub taken: bool,
 }
 
-impl From<NewOrder> for crate::models::NewOrder {
+impl From<NewOrder> for crate::orderbook::models::NewOrder {
     fn from(value: NewOrder) -> Self {
-        crate::models::NewOrder {
+        crate::orderbook::models::NewOrder {
             price: value.price,
             maker_id: value.maker_id,
             taken: value.taken,
@@ -111,6 +60,14 @@ pub async fn post_order(
     update_pricefeed(PriceFeedMessage::NewOrder(inserted.clone()), sender);
 
     Json(inserted)
+}
+
+#[derive(Serialize, Clone, Deserialize, Debug)]
+pub enum PriceFeedMessage {
+    AllOrders(Vec<Order>),
+    NewOrder(Order),
+    DeleteOrder(i32),
+    Update(Order),
 }
 
 fn update_pricefeed(pricefeed_msg: PriceFeedMessage, sender: Sender<PriceFeedMessage>) {

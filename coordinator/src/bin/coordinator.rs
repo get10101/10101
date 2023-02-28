@@ -4,6 +4,10 @@ use bitcoin::Network;
 use coordinator::cli::Opts;
 use coordinator::logger;
 use coordinator::routes::router;
+use coordinator::run_migration;
+use diesel::r2d2;
+use diesel::r2d2::ConnectionManager;
+use diesel::PgConnection;
 use ln_dlc_node::node::Node;
 use ln_dlc_node::seed::Bip39Seed;
 use rand::thread_rng;
@@ -69,7 +73,17 @@ async fn main() -> Result<()> {
         }
     });
 
-    let app = router(node);
+    // set up database connection pool
+    let conn_spec = "postgres://postgres:mysecretpassword@localhost:5432/orderbook".to_string();
+    let manager = ConnectionManager::<PgConnection>::new(conn_spec);
+    let pool = r2d2::Pool::builder()
+        .build(manager)
+        .expect("Failed to create pool.");
+
+    let mut conn = pool.get().unwrap();
+    run_migration(&mut conn);
+
+    let app = router(node, pool);
 
     let addr = SocketAddr::from((http_address.ip(), http_address.port()));
     tracing::debug!("listening on http://{}", addr);

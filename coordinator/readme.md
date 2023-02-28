@@ -1,4 +1,6 @@
-# Orderbook
+# Coordinator
+
+## Orderbook
 
 The orderbook is a simple webservice with CRUD functionality over orders, i.e.
 it offers
@@ -9,9 +11,6 @@ it offers
 - `HTTP::DELETE /orders`: to delete an order
 
 ## Run
-
-To run the orderbook, first make sure that `Rocket.toml` is up2date and the database is running.
-Then run
 
 ```bash
 cargo run --bin orderbook
@@ -33,17 +32,16 @@ docker-compose up -d
 
 ### Setup diesel
 
-To tell diesel where our db is, export this var into Rocket.toml
+The db settings are currently hardcoded in main.rs:
 
-```toml
-[default.databases.postgres_database]
-url = "postgres://postgres:mysecretpassword@localhost:5432/orderbook"
+```
+postgres://postgres:mysecretpassword@localhost:5432/orderbook
 ```
 
 ```bash
-diesel setup
+diesel setup --database-url=postgres://postgres:mysecretpassword@localhost:5432/orderbook --migration-dir ./migrations
 ```
 
 ```bash
-diesel migration generate create_posts
+diesel migration run --database-url=postgres://postgres:mysecretpassword@localhost:5432/orderbook --migration-dir ./migrations
 ```

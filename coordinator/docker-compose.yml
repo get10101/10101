@@ -2,7 +2,7 @@ version: "3.3"
 services:
   db:
     build:
-      context: ./docker
+      context: docker
       dockerfile: Dockerfile
     volumes:
       - ./pgdata:/var/lib/postgresql/data
