@@ -16,6 +16,7 @@ use crate::PaymentInfoStorage;
 use crate::PeerManager;
 use crate::SubChannelManager;
 use anyhow::anyhow;
+use anyhow::bail;
 use anyhow::Context;
 use anyhow::Error;
 use anyhow::Result;
@@ -177,7 +178,7 @@ impl Node {
         electrs_origin: String,
         seed: Bip39Seed,
         ephemeral_randomness: [u8; 32],
-    ) -> Self {
+    ) -> Result<Self> {
         let user_config = app_config();
         Node::new(
             alias,
@@ -204,7 +205,7 @@ impl Node {
         electrs_origin: String,
         seed: Bip39Seed,
         ephemeral_randomness: [u8; 32],
-    ) -> Self {
+    ) -> Result<Self> {
         let mut user_config = coordinator_config();
 
         // TODO: The config `force_announced_channel_preference` has been temporarily disabled
@@ -213,7 +214,6 @@ impl Node {
         user_config
             .channel_handshake_limits
             .force_announced_channel_preference = false;
-
         Self::new(
             alias,
             network,
@@ -240,35 +240,30 @@ impl Node {
         seed: Bip39Seed,
         ephemeral_randomness: [u8; 32],
         ldk_user_config: UserConfig,
-    ) -> Self {
-        let time_since_unix_epoch = SystemTime::now()
-            .duration_since(SystemTime::UNIX_EPOCH)
-            .unwrap();
+    ) -> Result<Self> {
+        let time_since_unix_epoch = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH)?;
 
         let logger = Arc::new(TracingLogger);
 
         if !data_dir.exists() {
             std::fs::create_dir_all(data_dir)
-                .context(format!("Could not create data dir ({data_dir:?})"))
-                .unwrap();
+                .context(format!("Could not create data dir ({data_dir:?})"))?;
         }
 
         let ldk_data_dir = data_dir.to_string_lossy().to_string();
         let persister = Arc::new(FilesystemPersister::new(ldk_data_dir.clone()));
 
-        let storage = Arc::new(
-            SledStorageProvider::new(data_dir.to_str().expect("data_dir"))
-                .expect("to be able to create sled storage"),
-        );
+        let storage = Arc::new(SledStorageProvider::new(
+            data_dir.to_str().expect("data_dir"),
+        )?);
 
         let on_chain_dir = data_dir.join("on_chain");
         let on_chain_wallet =
-            OnChainWallet::new(on_chain_dir.as_path(), network, seed.wallet_seed()).unwrap();
+            OnChainWallet::new(on_chain_dir.as_path(), network, seed.wallet_seed())?;
 
         let ln_dlc_wallet = {
-            let blockchain_client = ElectrumBlockchain::from(
-                bdk::electrum_client::Client::new(&electrs_origin).unwrap(),
-            );
+            let blockchain_client =
+                ElectrumBlockchain::from(bdk::electrum_client::Client::new(&electrs_origin)?);
             Arc::new(LnDlcWallet::new(
                 Box::new(blockchain_client),
                 on_chain_wallet.inner,
@@ -292,13 +287,11 @@ impl Node {
             )))
         };
 
-        let (height, header) = ln_dlc_wallet.tip().unwrap();
+        let (height, header) = ln_dlc_wallet.tip()?;
         let hash = header.block_hash();
 
         // Read ChannelMonitor state from disk
-        let mut channelmonitors = persister
-            .read_channelmonitors(keys_manager.clone())
-            .unwrap();
+        let mut channelmonitors = persister.read_channelmonitors(keys_manager.clone())?;
 
         let channel_manager = {
             if let Ok(mut f) = std::fs::File::open(format!("{ldk_data_dir}/manager")) {
@@ -316,8 +309,7 @@ impl Node {
                     channel_monitor_mut_references,
                 );
                 <(BlockHash, ChannelManager)>::read(&mut f, read_args)
-                    .map_err(|e| anyhow::anyhow!("{e:?}"))
-                    .unwrap()
+                    .map_err(|e| anyhow::anyhow!("{e:?}"))?
                     .1
             } else {
                 // We're starting a fresh node.
@@ -370,8 +362,7 @@ impl Node {
         ln_dlc_wallet
             .inner()
             .sync(confirmables)
-            .map_err(|e| anyhow::anyhow!("{e:?}"))
-            .unwrap();
+            .map_err(|e| anyhow::anyhow!("{e:?}"))?;
 
         // Give ChannelMonitors to ChainMonitor to watch
         for confirmable_monitor in confirmable_monitors.drain(..) {
@@ -407,7 +398,9 @@ impl Node {
 
         let peer_manager: Arc<PeerManager> = Arc::new(PeerManager::new(
             lightning_msg_handler,
-            keys_manager.get_node_secret(Recipient::Node).unwrap(),
+            keys_manager
+                .get_node_secret(Recipient::Node)
+                .map_err(|e| anyhow::anyhow!("{e:?}"))?,
             time_since_unix_epoch.as_secs() as u32,
             &ephemeral_randomness,
             logger.clone(),
@@ -461,7 +454,7 @@ impl Node {
 
         let alias = {
             if alias.len() > 32 {
-                panic!("Node Alias can not be longer than 32 bytes");
+                bail!("Node Alias can not be longer than 32 bytes");
             }
             let mut bytes = [0; 32];
             bytes[..alias.len()].copy_from_slice(alias.as_bytes());
@@ -469,7 +462,7 @@ impl Node {
         };
 
         let offers_path = data_dir.join("offers");
-        fs::create_dir_all(offers_path).expect("Error creating offered contract directory");
+        fs::create_dir_all(offers_path)?;
 
         let p2pdoracle = tokio::task::spawn_blocking(move || {
             Arc::new(
@@ -477,8 +470,7 @@ impl Node {
                     .expect("to be able to create the p2pd oracle"),
             )
         })
-        .await
-        .unwrap();
+        .await?;
 
         let oracle_pubkey = p2pdoracle.get_public_key();
         let oracles = HashMap::from([(oracle_pubkey, p2pdoracle.clone())]);
@@ -492,7 +484,7 @@ impl Node {
                 Arc::new(SystemTimeProvider {}),
                 ln_dlc_wallet.clone(),
             )
-            .unwrap(),
+            .map_err(|e| anyhow::anyhow!("{e:?}"))?,
         );
 
         let sub_channel_manager = Arc::new(SubChannelManager::new(
@@ -506,7 +498,7 @@ impl Node {
             height as u64,
         ));
 
-        Self {
+        Ok(Self {
             network,
             wallet: ln_dlc_wallet,
             alias,
@@ -531,7 +523,7 @@ impl Node {
             #[cfg(test)]
             user_config: ldk_user_config,
             pending_trades: Arc::new(Mutex::new(HashSet::new())),
-        }
+        })
     }
 
     pub async fn start(&self) -> Result<BackgroundProcessor> {
