@@ -918,7 +918,10 @@ impl Node {
     }
 
     pub fn trade(&self, trade_params: TradeParams) -> Result<ContractInput> {
-        let mut pending_trades = self.pending_trades.lock().unwrap();
+        let mut pending_trades = self
+            .pending_trades
+            .lock()
+            .map_err(|e| anyhow!("Failed to access pending trades: {e:#}"))?;
 
         // TODO: We need to keep around more information than just the pubkey and have to introduce
         // validation steps once we add the maker
@@ -940,11 +943,8 @@ impl Node {
 
         let total_collateral = margin_coordinator + margin_trader;
 
-        let maturity_time = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_secs()
-            + trade_params.expiry.as_secs();
+        let maturity_time =
+            SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs() + trade_params.expiry.as_secs();
 
         let contract_symbol = trade_params.contract_symbol.label();
 
