@@ -115,13 +115,17 @@
         const xhr = new XMLHttpRequest();
         xhr.onload = function() {
           if (xhr.readyState == XMLHttpRequest.DONE) {
-              var data = xhr.responseText;
-              console.log(data);
-              if (xhr.status === 200 && !data.payment_error) {
-                document.getElementById("message-lightning").innerHTML = "<div style='color:#008000'>Payment sent successfully</b>";
+              console.log(xhr.responseText);
+              if (xhr.status === 200) {
+                const data = JSON.parse(xhr.responseText);
+                if (data.payment_error) {
+                  document.getElementById("message-lightning").innerHTML = "<div style='color:#ff0000'>" + data.payment_error + "</div>";
+                } else {
+                  document.getElementById("message-lightning").innerHTML = "<div style='color:#008000'>Payment of " + data.payment_route.total_amt + " sats successfully sent.</b>";
+                }
                 getBalance();
               } else {
-                document.getElementById("message-lightning").innerHTML = "<div style='color:#ff0000'>" + data.payment_error + "</div>";
+                document.getElementById("message-lightning").innerHTML = "<div style='color:#ff0000'>" + xhr.responseText + "</div>";
               }
           }
         }
