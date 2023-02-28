@@ -1,3 +1,10 @@
+use crate::orderbook::routes::delete_order;
+use crate::orderbook::routes::get_order;
+use crate::orderbook::routes::get_orders;
+use crate::orderbook::routes::post_order;
+use crate::orderbook::routes::put_order;
+use crate::orderbook::routes::websocket_handler;
+use crate::orderbook::routes::PriceFeedMessage;
 use axum::extract::Path;
 use axum::extract::State;
 use axum::http::StatusCode;
@@ -8,19 +15,32 @@ use axum::routing::post;
 use axum::Json;
 use axum::Router;
 use bitcoin::secp256k1::PublicKey;
+use diesel::r2d2;
+use diesel::r2d2::ConnectionManager;
+use diesel::r2d2::Pool;
+use diesel::PgConnection;
 use dlc_manager::Wallet;
 use ln_dlc_node::node::Node;
 use serde::Deserialize;
 use serde::Serialize;
 use serde_json::json;
 use std::sync::Arc;
+use tokio::sync::broadcast;
 
 pub struct AppState {
     pub node: Arc<Node>,
+    // Channel used to send messages to all connected clients.
+    pub tx_pricefeed: broadcast::Sender<PriceFeedMessage>,
+    pub pool: r2d2::Pool<ConnectionManager<PgConnection>>,
 }
 
-pub fn router(node: Arc<Node>) -> Router {
-    let app_state = Arc::new(AppState { node });
+pub fn router(node: Arc<Node>, pool: Pool<ConnectionManager<PgConnection>>) -> Router {
+    let (tx, _rx) = broadcast::channel(100);
+    let app_state = Arc::new(AppState {
+        node,
+        pool,
+        tx_pricefeed: tx,
+    });
 
     Router::new()
         .route("/", get(index))
@@ -28,6 +48,12 @@ pub fn router(node: Arc<Node>) -> Router {
         .route("/api/newaddress", get(get_new_address))
         .route("/api/balance", get(get_balance))
         .route("/api/invoice", get(get_invoice))
+        .route("/api/orderbook/orders", get(get_orders).post(post_order))
+        .route(
+            "/api/orderbook/orders/:order_id",
+            get(get_order).put(put_order).delete(delete_order),
+        )
+        .route("/api/orderbook/websocket", get(websocket_handler))
         .with_state(app_state)
 }
 
