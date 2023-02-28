@@ -4,6 +4,9 @@ pub mod orderbook;
 pub mod routes;
 pub mod schema;
 
+#[cfg(test)]
+mod tests;
+
 use diesel::PgConnection;
 use diesel_migrations::embed_migrations;
 use diesel_migrations::EmbeddedMigrations;
