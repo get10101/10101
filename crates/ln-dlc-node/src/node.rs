@@ -26,6 +26,7 @@ use bitcoin::secp256k1::PublicKey;
 use bitcoin::secp256k1::Secp256k1;
 use bitcoin::Network;
 use dlc_manager::contract::contract_input::ContractInput as DlcContractInput;
+use dlc_manager::contract::contract_input::ContractInput;
 use dlc_manager::contract::contract_input::ContractInputInfo;
 use dlc_manager::contract::contract_input::OracleInput;
 use dlc_manager::contract::numerical_descriptor::NumericalDescriptor;
@@ -77,7 +78,6 @@ use lightning_invoice::Invoice;
 use lightning_invoice::InvoiceBuilder;
 use lightning_persister::FilesystemPersister;
 use p2pd_oracle_client::P2PDOracleClient;
-use serde::Deserialize;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::fmt;
@@ -917,10 +917,7 @@ impl Node {
         Ok(())
     }
 
-    pub fn trade(
-        &self,
-        trade_params: TradeParams,
-    ) -> Result<dlc_manager::contract::contract_input::ContractInput> {
+    pub fn trade(&self, trade_params: TradeParams) -> Result<ContractInput> {
         let mut pending_trades = self.pending_trades.lock().unwrap();
 
         // TODO: We need to keep around more information than just the pubkey and have to introduce
@@ -953,7 +950,7 @@ impl Node {
 
         // The contract input to be used for setting up the trade between the trader and the
         // coordinator
-        let contract_input = dlc_manager::contract::contract_input::ContractInput {
+        let contract_input = ContractInput {
             offer_collateral: margin_coordinator,
             accept_collateral: margin_trader,
             maturity_time: maturity_time as u32,
@@ -1044,9 +1041,6 @@ impl Node {
             .map_err(|e| anyhow!("Unable to get contracts from manager: {e:#}"))
     }
 }
-
-#[derive(Debug, Clone, Deserialize)]
-pub struct ContractInput {}
 
 pub(crate) fn app_config() -> UserConfig {
     UserConfig {
