@@ -179,7 +179,11 @@ pub fn run(data_dir: String) -> Result<()> {
                         liquidation_price: 0.0,
                         unrealized_pnl: 0,
                         position_state: PositionStateTrade::Open,
-                        collateral: contract.accepted_contract.accept_params.collateral,
+                        collateral: contract
+                            .accepted_contract
+                            .offered_contract
+                            .offer_params
+                            .collateral,
                     }));
                 }
 
