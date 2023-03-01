@@ -99,6 +99,11 @@ mod connection;
 type TracingLoggerGossipSync =
     Arc<P2PGossipSync<Arc<NetworkGraph>, Arc<dyn Access + Send + Sync>, Arc<TracingLogger>>>;
 
+// TODO: These intervals are quite arbitrary at the moment, come up with more sensible values
+const PROCESS_INCOMING_MESSAGES_INTERVAL: Duration = Duration::from_secs(30);
+const PROCESS_TRADE_REQUESTS_INTERVAL: Duration = Duration::from_secs(30);
+const BROADCAST_NODE_ANNOUNCEMENT_INTERVAL: Duration = Duration::from_secs(60);
+
 /// An LN-DLC node.
 pub struct Node {
     network: Network,
@@ -489,7 +494,7 @@ impl Node {
 
         let alias = self.alias;
         tokio::spawn(async move {
-            let mut interval = tokio::time::interval(Duration::from_secs(60));
+            let mut interval = tokio::time::interval(BROADCAST_NODE_ANNOUNCEMENT_INTERVAL);
             loop {
                 peer_man.broadcast_node_announcement(
                     [0; 3],
@@ -526,14 +531,14 @@ impl Node {
                         tracing::error!("Unable to process internal message: {e:#}");
                     }
 
-                    tokio::time::sleep(Duration::from_secs(30)).await;
+                    tokio::time::sleep(PROCESS_INCOMING_MESSAGES_INTERVAL).await;
                 }
             }
         });
 
         tokio::spawn(async move {
             loop {
-                tokio::time::sleep(Duration::from_secs(30)).await;
+                tokio::time::sleep(PROCESS_TRADE_REQUESTS_INTERVAL).await;
 
                 // TODO: Remove pending trades if we were unable to fulfill them within a certain
                 // time
