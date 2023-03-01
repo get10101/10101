@@ -8,6 +8,7 @@ import 'package:get_10101/features/trade/submit_order_change_notifier.dart';
 import 'package:get_10101/features/trade/trade_screen.dart';
 import 'package:get_10101/features/trade/trade_theme.dart';
 import 'package:get_10101/features/trade/trade_value_change_notifier.dart';
+import 'package:get_10101/features/wallet/wallet_change_notifier.dart';
 import 'package:get_10101/util/constants.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mockito/annotations.dart';
@@ -22,6 +23,9 @@ import 'package:get_10101/features/trade/application/order_service.dart';
 
 @GenerateNiceMocks([MockSpec<PositionService>()])
 import 'package:get_10101/features/trade/application/position_service.dart';
+
+@GenerateNiceMocks([MockSpec<WalletService>()])
+import 'package:get_10101/features/wallet/application/wallet_service.dart';
 
 import 'trade_test.mocks.dart';
 
@@ -38,7 +42,9 @@ final GoRouter _router = GoRouter(
 
 class TestWrapperWithTradeTheme extends StatelessWidget {
   final Widget child;
+
   const TestWrapperWithTradeTheme({super.key, required this.child});
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp.router(
@@ -62,6 +68,7 @@ void main() {
     MockOrderService orderService = MockOrderService();
     MockPositionService positionService = MockPositionService();
     MockTradeValuesService tradeValueService = MockTradeValuesService();
+    MockWalletService walletService = MockWalletService();
 
     // TODO: we could make this more resilient in the underlying components...
     // return dummies otherwise the fields won't be initialized correctly
@@ -87,6 +94,7 @@ void main() {
       ChangeNotifierProvider(create: (context) => OrderChangeNotifier.create(orderService)),
       ChangeNotifierProvider(create: (context) => PositionChangeNotifier.create(positionService)),
       ChangeNotifierProvider(create: (context) => AmountDenominationChangeNotifier()),
+      ChangeNotifierProvider(create: (context) => WalletChangeNotifier(walletService)),
     ], child: const TestWrapperWithTradeTheme(child: TradeScreen())));
 
     await tester.pumpAndSettle();
