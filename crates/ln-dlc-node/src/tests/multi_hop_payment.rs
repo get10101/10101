@@ -22,10 +22,7 @@ async fn multi_hop_payment() {
         .open_channel(&payer, 20_000, 20_000)
         .await
         .unwrap();
-    coordinator
-        .open_channel(&payee, 20_000, 20_000)
-        .await
-        .unwrap();
+    coordinator.open_channel(&payee, 20_000, 0).await.unwrap();
 
     let payer_balance_before = payer.get_ldk_balance();
     let coordinator_balance_before = coordinator.get_ldk_balance();
