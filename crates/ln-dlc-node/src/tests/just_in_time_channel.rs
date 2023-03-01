@@ -6,7 +6,6 @@ use anyhow::Context;
 use anyhow::Result;
 use bitcoin::Amount;
 use rust_decimal::Decimal;
-use std::time::Duration;
 
 #[tokio::test]
 #[ignore]
@@ -105,14 +104,17 @@ async fn just_in_time_channel() {
 
     payer.send_payment(&invoice).unwrap();
 
-    // For the payment to be claimed before the wallets sync
-    tokio::time::sleep(Duration::from_secs(3)).await;
+    payee
+        .wait_for_payment_claimed(invoice.payment_hash())
+        .await
+        .unwrap();
 
+    // Assert
+
+    // Sync LN wallet after payment is claimed to update the balances
     payer.sync();
     coordinator.sync();
     payee.sync();
-
-    // Assert
 
     let payer_balance_after = payer.get_ldk_balance();
     let coordinator_balance_after = coordinator.get_ldk_balance();
