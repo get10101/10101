@@ -39,6 +39,26 @@ It is also important to run the following to generate the Flutter-Rust glue code
 just gen
 ```
 
+### Diesel database dependencies
+
+Some crates, e.g. the coordinator use [`diesel`](https://diesel.rs/guides/getting-started) for the database connection.
+This may require installing dependencies, such as e.g. `libpql` for the postgres database for the coordinator.
+
+If you run into linking troubles when trying to build the coordinator you might have to configure the linker as so:
+
+```bash
+RUSTFLAGS='-L /path/to/libpq/lib' cargo build --bin coordinator
+```
+
+Alternatively you can configure this flag in `.cargo/config.toml` so you don't have to configure it all the time:
+
+```toml
+[target.aarch64-apple-darwin]
+rustflags = '-L /path/to/libpq/lib'
+```
+
+where `/path/to` is the path to `libpq` on your machine.
+
 ## Mobile App
 
 ### Run the mobile-app natively (on your Linux/MacOS/other OS)
@@ -97,6 +117,9 @@ just native-test
 
 ### Run the coordinator
 
+In order to successfully run the coordinator you will have to provide the coordinator with a PostgreSQL database.
+The easiest way to do so is by starting the [local regest dev environemnt](#development-environment) through `docker-compose up`.
+
 `bash just coordinator`
 
 or in short
@@ -105,13 +128,19 @@ or in short
 just c
 ```
 
-## Regtest environment
+## Development environment
 
-The following command will start a regtest bitcoin node, electrs, chopsticks, esplora, lnd node and a http server allowing you to faucet your bitcoin and lightning wallet.
+The docker development environment provides the managed database containers as well as a regest bitcoin setup.
+
+For more information on what containers are available please have a look at the [docker-compose](docker-compose.yml) file.
+To start the development environment you can just run:
 
 ```bash
 docker-compose up
 ```
+
+You can add `-d` to run the environment in the background.
+Please refer to the [docker](https://docs.docker.com/) docs for more information on how to use docker / docker-compose.
 
 ### How to faucet your lightning wallet.
 
