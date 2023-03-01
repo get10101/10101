@@ -113,7 +113,6 @@ services:
       - --configfile=/var/lib/lnd/lnd.conf
     volumes:
       - ./faucet/lnd.conf:/var/lib/lnd/lnd.conf
-      - ./faucet/macaroons.db:/root/.lnd/data/chain/bitcoin/regtest/macaroons.db
       - bitcoin:/data
     environment:
       HOME: /data
