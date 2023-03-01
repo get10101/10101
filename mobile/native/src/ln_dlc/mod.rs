@@ -168,7 +168,14 @@ pub fn run(data_dir: String) -> Result<()> {
         // periodically update for positions
         runtime.spawn(async move {
             loop {
-                let contracts = node_cloned.get_contracts().unwrap();
+                let contracts = match node_cloned.get_contracts() {
+                    Ok(contracts) => contracts,
+                    Err(e) => {
+                        tracing::error!("Failed to retrieve DLCs from node: {e:#}");
+                        tokio::time::sleep(Duration::from_secs(5)).await;
+                        continue;
+                    }
+                };
 
                 // Assumes that there is only one contract, i.e. one position
                 if let Some(Contract::Confirmed(contract)) = contracts.get(0) {
