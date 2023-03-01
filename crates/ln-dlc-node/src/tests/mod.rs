@@ -259,12 +259,13 @@ fn random_tmp_dir() -> PathBuf {
 
 #[allow(dead_code)]
 fn log_channel_id(node: &Node, index: usize, pair: &str) {
-    let details = node
-        .channel_manager
-        .list_channels()
-        .get(index)
-        .unwrap()
-        .clone();
+    let details = match node.channel_manager.list_channels().get(index) {
+        Some(details) => details.clone(),
+        None => {
+            tracing::info!(%index, %pair, "No channel");
+            return;
+        }
+    };
 
     let channel_id = hex::encode(details.channel_id);
     let short_channel_id = details.short_channel_id;
