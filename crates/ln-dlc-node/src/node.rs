@@ -812,9 +812,8 @@ pub(crate) fn app_config() -> UserConfig {
             // preferences.
             announced_channel: false,
             minimum_depth: 1,
-            // only 10% of the total channel value can be sent. e.g. with a volume of 30.000 sats
-            // only 3.000 sats can be sent.
-            max_inbound_htlc_value_in_flight_percent_of_channel: 10,
+            // There is no risk in the leaf channel to receive 100% of the channel capacity.
+            max_inbound_htlc_value_in_flight_percent_of_channel: 100,
             ..Default::default()
         },
         channel_handshake_limits: ChannelHandshakeLimits {
@@ -849,9 +848,8 @@ pub(crate) fn coordinator_config() -> UserConfig {
             // The minimum amount of confirmations before the inbound channel is deemed useable,
             // between the counterparties
             minimum_depth: 1,
-            // only 10% of the total channel value can be sent. e.g. with a volume of 30.000 sats
-            // only 3.000 sats can be sent.
-            max_inbound_htlc_value_in_flight_percent_of_channel: 10,
+            // We set this 100% as the coordinator is online 24/7 and can take the risk.
+            max_inbound_htlc_value_in_flight_percent_of_channel: 100,
             ..Default::default()
         },
         channel_handshake_limits: ChannelHandshakeLimits {
