@@ -535,7 +535,8 @@ impl Node {
             loop {
                 tokio::time::sleep(Duration::from_secs(30)).await;
 
-                // TODO: Fix unwraps: We need events so we can publish state of doing stuff
+                // TODO: Remove pending trades if we were unable to fulfill them within a certain
+                // time
 
                 let mut pending_trades = match pending_trades.lock() {
                     Ok(pending_trades) => pending_trades,

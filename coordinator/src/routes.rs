@@ -128,7 +128,6 @@ pub async fn post_trade(
     State(state): State<Arc<AppState>>,
     trade_params: Json<TradeParams>,
 ) -> Result<Json<ContractInput>, AppError> {
-    // TODO unwrap
     let contract_input = state.node.trade(trade_params.0).map_err(|e| {
         AppError::InternalServerError(format!("Failed to accept trade request: {e:#}"))
     })?;
