@@ -9,15 +9,8 @@ pub struct Subscriber {}
 impl event::subscriber::Subscriber for Subscriber {
     fn notify(&self, event: &EventInternal) {
         match event {
-            EventInternal::OrderFilledWith(trade_params) => {
-                tokio::spawn({
-                    let _trade_params = trade_params.clone();
-                    async move {
-                        // TODO: Trigger this once we have an orderbook and remove triggering trade
-                        // upon order submission
-                        // handler::trade(trade_params.clone()).await.unwrap();
-                    }
-                });
+            EventInternal::OrderFilledWith(_trade_params) => {
+                // TODO: spawn task to handle the trade
             }
             _ => unreachable!("Received Unexpected Event"),
         }

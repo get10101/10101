@@ -45,7 +45,7 @@ pub struct TradeParams {
 
     /// The quantity to be used
     ///
-    /// This quantity my be the compete amount of either order, or a fraction.
+    /// This quantity may be the complete amount of either order or a fraction.
     pub quantity: f64,
 
     /// The execution price as defined by the orderbook
