@@ -2,11 +2,11 @@ use crate::ln::event_handler::JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT;
 use crate::node::Node;
 use crate::node::LIQUIDITY_ROUTING_FEE_MILLIONTHS;
 use crate::tests::init_tracing;
+use crate::tests::min_outbound_liquidity_channel_creator;
 use anyhow::Context;
 use anyhow::Result;
 use bitcoin::Amount;
 use rust_decimal::Decimal;
-use std::time::Duration;
 
 #[tokio::test]
 #[ignore]
@@ -22,17 +22,17 @@ async fn just_in_time_channel() {
     payer.keep_connected(coordinator.info).await.unwrap();
     payee.keep_connected(coordinator.info).await.unwrap();
 
-    // Fund the on-chain wallets of the nodes who will open a channel
-    payer.fund(Amount::from_sat(100_000)).await.unwrap();
     coordinator.fund(Amount::from_sat(100_000)).await.unwrap();
 
-    let coordinator_outbound_liquidity_sat = 25_000;
-    let payer_inbound_liquidity_sat = 25_000;
+    let payer_outbound_liquidity_sat = 25_000;
+    let coordinator_outbound_liquidity_sat =
+        min_outbound_liquidity_channel_creator(&payer, payer_outbound_liquidity_sat);
+
     let payer_coordinator_channel_details = coordinator
         .open_channel(
-            &payer.info,
+            &payer,
             coordinator_outbound_liquidity_sat,
-            payer_inbound_liquidity_sat,
+            payer_outbound_liquidity_sat,
         )
         .await
         .unwrap();
@@ -105,14 +105,17 @@ async fn just_in_time_channel() {
 
     payer.send_payment(&invoice).unwrap();
 
-    // For the payment to be claimed before the wallets sync
-    tokio::time::sleep(Duration::from_secs(3)).await;
+    payee
+        .wait_for_payment_claimed(invoice.payment_hash())
+        .await
+        .unwrap();
 
+    // Assert
+
+    // Sync LN wallet after payment is claimed to update the balances
     payer.sync();
     coordinator.sync();
     payee.sync();
-
-    // Assert
 
     let payer_balance_after = payer.get_ldk_balance();
     let coordinator_balance_after = coordinator.get_ldk_balance();

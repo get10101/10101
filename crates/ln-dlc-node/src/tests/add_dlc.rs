@@ -4,7 +4,6 @@ use crate::tests::init_tracing;
 use crate::tests::wait_until;
 use anyhow::anyhow;
 use bitcoin::Amount;
-use dlc_manager::contract::Contract;
 use dlc_manager::sub_channel_manager::SubChannelState;
 use dlc_manager::Oracle;
 use dlc_manager::Storage;
@@ -22,16 +21,9 @@ async fn given_lightning_channel_then_can_add_dlc_channel() {
 
     app.keep_connected(coordinator.info).await.unwrap();
 
-    app.fund(Amount::from_btc(0.1).unwrap()).await.unwrap();
-    coordinator
-        .fund(Amount::from_btc(0.1).unwrap())
-        .await
-        .unwrap();
+    coordinator.fund(Amount::from_sat(200_000)).await.unwrap();
 
-    coordinator
-        .open_channel(&app.info, 50000, 50000)
-        .await
-        .unwrap();
+    coordinator.open_channel(&app, 50000, 50000).await.unwrap();
     let channel_details = app.channel_manager.list_usable_channels();
     let channel_details = channel_details
         .iter()
@@ -105,23 +97,4 @@ async fn given_lightning_channel_then_can_add_dlc_channel() {
         .unwrap();
 
     matches!(sub_channel_app.state, SubChannelState::Signed(_));
-
-    if let Contract::Confirmed(contract) =
-        &coordinator.dlc_manager.get_store().get_contracts().unwrap()[0]
-    {
-        let cets = &contract
-            .accepted_contract
-            .dlc_transactions
-            .cets
-            .iter()
-            .map(|c| {
-                (
-                    c.output[0].value,
-                    c.output.get(1).map(|t| t.value).unwrap_or_default(),
-                )
-            })
-            .collect::<Vec<_>>();
-
-        dbg!(cets);
-    };
 }

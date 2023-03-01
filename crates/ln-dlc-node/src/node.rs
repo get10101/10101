@@ -12,6 +12,7 @@ use crate::FakeChannelPaymentRequests;
 use crate::HTLCStatus;
 use crate::InvoicePayer;
 use crate::NetworkGraph;
+use crate::PaymentInfo;
 use crate::PaymentInfoStorage;
 use crate::PeerManager;
 use crate::SubChannelManager;
@@ -68,6 +69,7 @@ use lightning::ln::channelmanager::MIN_FINAL_CLTV_EXPIRY;
 use lightning::ln::msgs::NetAddress;
 use lightning::ln::peer_handler::IgnoringMessageHandler;
 use lightning::ln::peer_handler::MessageHandler;
+use lightning::ln::PaymentHash;
 use lightning::routing::gossip::P2PGossipSync;
 use lightning::routing::gossip::RoutingFees;
 use lightning::routing::router::DefaultRouter;
@@ -139,6 +141,8 @@ pub struct Node {
     sub_channel_manager: Arc<SubChannelManager>,
     pub oracle: Arc<P2PDOracleClient>,
     dlc_message_handler: Arc<DlcMessageHandler>,
+
+    inbound_payments: PaymentInfoStorage,
 
     #[cfg(test)]
     pub(crate) user_config: UserConfig,
@@ -424,11 +428,12 @@ impl Node {
         let fake_channel_payments: FakeChannelPaymentRequests =
             Arc::new(Mutex::new(HashMap::new()));
 
+        // TODO: Persist inbound payment info to disk
+        let inbound_payments: PaymentInfoStorage = Arc::new(Mutex::new(HashMap::new()));
         let event_handler = {
             let runtime_handle = tokio::runtime::Handle::current();
 
-            // TODO: Persist payment info to disk
-            let inbound_payments: PaymentInfoStorage = Arc::new(Mutex::new(HashMap::new()));
+            // TODO: Persist outbound payment info to disk
             let outbound_payments: PaymentInfoStorage = Arc::new(Mutex::new(HashMap::new()));
 
             EventHandler::new(
@@ -437,7 +442,7 @@ impl Node {
                 ln_dlc_wallet.clone(),
                 network_graph,
                 keys_manager.clone(),
-                inbound_payments,
+                inbound_payments.clone(),
                 outbound_payments,
                 fake_channel_payments.clone(),
                 Arc::new(Mutex::new(HashMap::new())),
@@ -520,6 +525,7 @@ impl Node {
             oracle: p2pdoracle,
             dlc_message_handler,
             dlc_manager,
+            inbound_payments,
             #[cfg(test)]
             user_config: ldk_user_config,
             pending_trades: Arc::new(Mutex::new(HashSet::new())),
@@ -838,6 +844,41 @@ impl Node {
             }
         };
         Ok(())
+    }
+
+    pub async fn wait_for_payment_claimed(
+        &self,
+        hash: &sha256::Hash,
+    ) -> Result<(), tokio::time::error::Elapsed> {
+        let payment_hash = PaymentHash(hash.into_inner());
+
+        tokio::time::timeout(Duration::from_secs(6), async {
+            loop {
+                tokio::time::sleep(Duration::from_secs(1)).await;
+
+                match self.inbound_payments.lock().unwrap().get(&payment_hash) {
+                    Some(PaymentInfo {
+                        status: HTLCStatus::Succeeded,
+                        ..
+                    }) => return,
+                    Some(PaymentInfo { status, .. }) => {
+                        tracing::debug!(
+                            payment_hash = %hex::encode(hash),
+                            ?status,
+                            "Checking if payment has been claimed"
+                        );
+                    }
+                    None => {
+                        tracing::debug!(
+                            payment_hash = %hex::encode(hash),
+                            status = "unknown",
+                            "Checking if payment has been claimed"
+                        );
+                    }
+                }
+            }
+        })
+        .await
     }
 
     pub fn get_on_chain_balance(&self) -> Result<Balance> {

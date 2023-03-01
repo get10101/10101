@@ -1,7 +1,6 @@
 use crate::node::Node;
 use crate::tests::init_tracing;
 use bitcoin::Amount;
-use std::time::Duration;
 
 #[tokio::test]
 #[ignore]
@@ -17,7 +16,7 @@ async fn single_hop_payment() {
 
     payer.fund(Amount::from_btc(0.1).unwrap()).await.unwrap();
 
-    payer.open_channel(&payee.info, 30_000, 0).await.unwrap();
+    payer.open_channel(&payee, 30_000, 0).await.unwrap();
 
     let payer_balance_before = payer.get_ldk_balance();
     let payee_balance_before = payee.get_ldk_balance();
@@ -32,13 +31,16 @@ async fn single_hop_payment() {
 
     payer.send_payment(&invoice).unwrap();
 
-    // For the payment to be claimed before the wallet syncs
-    tokio::time::sleep(Duration::from_secs(1)).await;
-
-    payer.sync();
-    payee.sync();
+    payee
+        .wait_for_payment_claimed(invoice.payment_hash())
+        .await
+        .unwrap();
 
     // Assert
+
+    // Sync LN wallet after payment is claimed to update the balances
+    payer.sync();
+    payee.sync();
 
     let payer_balance_after = payer.get_ldk_balance();
     let payee_balance_after = payee.get_ldk_balance();

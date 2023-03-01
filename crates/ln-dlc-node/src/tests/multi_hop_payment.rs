@@ -1,8 +1,7 @@
-use bitcoin::Amount;
-
 use crate::node::Node;
 use crate::tests::init_tracing;
-use std::time::Duration;
+use crate::tests::min_outbound_liquidity_channel_creator;
+use bitcoin::Amount;
 
 #[tokio::test]
 #[ignore]
@@ -12,30 +11,34 @@ async fn multi_hop_payment() {
     // Arrange
 
     let payer = Node::start_test_app("payer").await.unwrap();
-    let router = Node::start_test_coordinator("router").await.unwrap();
+    let coordinator = Node::start_test_coordinator("coordinator").await.unwrap();
     let payee = Node::start_test_app("payee").await.unwrap();
 
-    payer.keep_connected(router.info).await.unwrap();
-    payee.keep_connected(router.info).await.unwrap();
+    payer.keep_connected(coordinator.info).await.unwrap();
+    payee.keep_connected(coordinator.info).await.unwrap();
 
-    payer.fund(Amount::from_sat(50_000)).await.unwrap();
-    router.fund(Amount::from_sat(100_000)).await.unwrap();
+    coordinator.fund(Amount::from_sat(50_000)).await.unwrap();
 
-    router
-        .open_channel(&payer.info, 20_000, 20_000)
+    let payer_outbound_liquidity_sat = 20_000;
+    let coordinator_outbound_liquidity_sat =
+        min_outbound_liquidity_channel_creator(&payer, payer_outbound_liquidity_sat);
+    coordinator
+        .open_channel(
+            &payer,
+            coordinator_outbound_liquidity_sat,
+            payer_outbound_liquidity_sat,
+        )
         .await
         .unwrap();
-    router
-        .open_channel(&payee.info, 20_000, 20_000)
-        .await
-        .unwrap();
+
+    coordinator.open_channel(&payee, 20_000, 0).await.unwrap();
 
     let payer_balance_before = payer.get_ldk_balance();
-    let router_balance_before = router.get_ldk_balance();
+    let coordinator_balance_before = coordinator.get_ldk_balance();
     let payee_balance_before = payee.get_ldk_balance();
 
     payer.sync();
-    router.sync();
+    coordinator.sync();
     payee.sync();
 
     // Act
@@ -45,17 +48,20 @@ async fn multi_hop_payment() {
 
     payer.send_payment(&invoice).unwrap();
 
-    // For the payment to be claimed before the wallet syncs
-    tokio::time::sleep(Duration::from_secs(1)).await;
-
-    payer.sync();
-    router.sync();
-    payee.sync();
+    payee
+        .wait_for_payment_claimed(invoice.payment_hash())
+        .await
+        .unwrap();
 
     // Assert
 
+    // Sync LN wallet after payment is claimed to update the balances
+    payer.sync();
+    coordinator.sync();
+    payee.sync();
+
     let payer_balance_after = payer.get_ldk_balance();
-    let router_balance_after = router.get_ldk_balance();
+    let coordinator_balance_after = coordinator.get_ldk_balance();
     let payee_balance_after = payee.get_ldk_balance();
 
     let routing_fee = 1; // according to the default `ChannelConfig`
@@ -66,7 +72,7 @@ async fn multi_hop_payment() {
     );
 
     assert_eq!(
-        router_balance_after.available - router_balance_before.available,
+        coordinator_balance_after.available - coordinator_balance_before.available,
         routing_fee
     );
 

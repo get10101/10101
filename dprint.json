@@ -18,6 +18,7 @@
     "**/dist",
     "**/build",
     "**/ios/Pods",
+    "**/pgdata",
     "coordinator/migrations/00000000000000_diesel_initial_setup/up.sql"
   ],
   "plugins": [

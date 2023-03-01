@@ -1,7 +1,6 @@
 use crate::node::app_config;
 use crate::node::coordinator_config;
 use crate::node::Node;
-use crate::node::NodeInfo;
 use crate::seed::Bip39Seed;
 use anyhow::anyhow;
 use anyhow::Result;
@@ -28,6 +27,8 @@ use rand::distributions::Alphanumeric;
 use rand::thread_rng;
 use rand::Rng;
 use rand::RngCore;
+use rust_decimal::prelude::ToPrimitive;
+use rust_decimal::Decimal;
 use std::env::temp_dir;
 use std::mem;
 use std::net::TcpListener;
@@ -139,35 +140,46 @@ impl Node {
 
     /// Initiates the opening of a channel _and_ waits for the channel
     /// to be usable.
-    ///
-    /// We are assuming that a channel will be usable with 0
-    /// confirmations. This depends on the channel's `UserConfig`'s of
-    /// the peers involved!! It may not always work.
     async fn open_channel(
         &self,
-        peer: &NodeInfo,
+        peer: &Node,
         amount_us: u64,
         amount_them: u64,
     ) -> Result<ChannelDetails> {
         let temp_channel_id =
-            self.initiate_open_channel(*peer, amount_us + amount_them, amount_them)?;
+            self.initiate_open_channel(peer.info, amount_us + amount_them, amount_them)?;
 
-        // TODO: Mine as many blocks as needed (and sync the wallets)
-        // for the channel to become usable. Currently this assumes
-        // support for 0-conf channels
-        let channel_details = tokio::time::timeout(Duration::from_secs(10), async {
+        // The config flag
+        // `user_config.manually_accept_inbound_channels` implies that
+        // the peer will accept 0-conf channels
+        if !peer.user_config.manually_accept_inbound_channels {
+            let required_confirmations = peer.user_config.channel_handshake_config.minimum_depth;
+
+            bitcoind::mine(required_confirmations as u16).await?;
+        }
+
+        let channel_details = tokio::time::timeout(Duration::from_secs(30), async {
             loop {
                 if let Some(details) = self
                     .channel_manager
                     .list_usable_channels()
                     .iter()
-                    .find(|c| c.counterparty.node_id == peer.pubkey)
+                    .find(|c| c.counterparty.node_id == peer.info.pubkey)
                 {
                     break details.clone();
                 }
 
+                // Only sync if 0-conf channels are disabled
+                if !peer.user_config.manually_accept_inbound_channels {
+                    // We need to sync both parties, even if
+                    // `trust_own_funding_0conf` is true for the creator
+                    // of the channel (`self`)
+                    self.sync();
+                    peer.sync();
+                }
+
                 tracing::debug!(
-                    %peer,
+                    peer = %peer.info,
                     temp_channel_id = %hex::encode(temp_channel_id),
                     "Waiting for channel to be usable"
                 );
@@ -192,6 +204,40 @@ async fn fund_and_mine(address: Address, amount: Amount) -> Result<()> {
     Ok(())
 }
 
+/// Calculate the "minimum" acceptable value for the outbound liquidity
+/// of the channel creator.
+///
+/// The value calculated is not guaranteed to be the exact minimum,
+/// but it should be close enough.
+///
+/// This is useful when the channel creator wants to push as many
+/// coins as possible to their peer on channel creation.
+fn min_outbound_liquidity_channel_creator(peer: &Node, peer_balance: u64) -> u64 {
+    let min_reserve_millionths_creator = Decimal::from(
+        peer.user_config
+            .channel_handshake_config
+            .their_channel_reserve_proportional_millionths,
+    );
+
+    let min_reserve_percent_creator = min_reserve_millionths_creator / Decimal::from(1_000_000);
+
+    // This is an approximation as we assume that `channel_balance ~=
+    // peer_balance`
+    let channel_balance_estimate = Decimal::from(peer_balance);
+
+    let min_reserve_creator = min_reserve_percent_creator * channel_balance_estimate;
+    let min_reserve_creator = min_reserve_creator.to_u64().unwrap();
+
+    // The minimum reserve for any party is actually hard-coded to
+    // 1_000 sats by LDK
+    let min_reserve_creator = min_reserve_creator.max(1_000);
+
+    // This is just an upper bound
+    let commit_transaction_fee = 1_000;
+
+    min_reserve_creator + commit_transaction_fee
+}
+
 fn random_tmp_dir() -> PathBuf {
     let tmp = temp_dir();
 
@@ -213,12 +259,13 @@ fn random_tmp_dir() -> PathBuf {
 
 #[allow(dead_code)]
 fn log_channel_id(node: &Node, index: usize, pair: &str) {
-    let details = node
-        .channel_manager
-        .list_channels()
-        .get(index)
-        .unwrap()
-        .clone();
+    let details = match node.channel_manager.list_channels().get(index) {
+        Some(details) => details.clone(),
+        None => {
+            tracing::info!(%index, %pair, "No channel");
+            return;
+        }
+    };
 
     let channel_id = hex::encode(details.channel_id);
     let short_channel_id = details.short_channel_id;
