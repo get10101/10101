@@ -122,6 +122,7 @@ struct PaymentInfo {
     amt_msat: MillisatAmount,
 }
 
+#[derive(Debug)]
 enum HTLCStatus {
     Pending,
     Succeeded,
