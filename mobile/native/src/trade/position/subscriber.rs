@@ -1,6 +1,6 @@
 use crate::event;
 use crate::event::EventInternal;
-use crate::trade::position::handler;
+use crate::event::EventType;
 
 #[derive(Clone)]
 pub struct Subscriber {}
@@ -9,19 +9,14 @@ pub struct Subscriber {}
 impl event::subscriber::Subscriber for Subscriber {
     fn notify(&self, event: &EventInternal) {
         match event {
-            EventInternal::OrderFilledWith(trade_params) => {
-                tokio::spawn({
-                    let trade_params = trade_params.clone();
-                    async move {
-                        handler::trade(trade_params.clone()).await;
-                    }
-                });
+            EventInternal::OrderFilledWith(_trade_params) => {
+                // TODO: spawn task to handle the trade
             }
             _ => unreachable!("Received Unexpected Event"),
         }
     }
 
-    fn filter(&self, event: &EventInternal) -> bool {
-        matches!(event, EventInternal::OrderFilledWith(_))
+    fn events(&self) -> Vec<EventType> {
+        vec![EventType::OrderFilledWith]
     }
 }

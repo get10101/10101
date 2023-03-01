@@ -16,6 +16,7 @@ use crate::PeerManager;
 use crate::SubChannelManager;
 use anyhow::anyhow;
 use anyhow::Context;
+use anyhow::Error;
 use anyhow::Result;
 use bdk::blockchain::ElectrumBlockchain;
 use bdk::Balance;
@@ -24,9 +25,23 @@ use bitcoin::hashes::Hash;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::secp256k1::Secp256k1;
 use bitcoin::Network;
+use dlc_manager::contract::contract_input::ContractInput as DlcContractInput;
 use dlc_manager::contract::contract_input::ContractInput;
+use dlc_manager::contract::contract_input::ContractInputInfo;
+use dlc_manager::contract::contract_input::OracleInput;
+use dlc_manager::contract::numerical_descriptor::NumericalDescriptor;
+use dlc_manager::contract::Contract;
+use dlc_manager::contract::ContractDescriptor;
 use dlc_manager::custom_signer::CustomKeysManager;
+use dlc_manager::payout_curve::PayoutFunction;
+use dlc_manager::payout_curve::PayoutFunctionPiece;
+use dlc_manager::payout_curve::PayoutPoint;
+use dlc_manager::payout_curve::PolynomialPayoutCurvePiece;
+use dlc_manager::payout_curve::RoundingInterval;
+use dlc_manager::payout_curve::RoundingIntervals;
+use dlc_manager::sub_channel_manager::SubChannelState;
 use dlc_manager::Oracle;
+use dlc_manager::Storage;
 use dlc_manager::SystemTimeProvider;
 use dlc_messages::message_handler::MessageHandler as DlcMessageHandler;
 use dlc_messages::sub_channel::SubChannelMessage;
@@ -65,6 +80,7 @@ use lightning_invoice::InvoiceBuilder;
 use lightning_persister::FilesystemPersister;
 use p2pd_oracle_client::P2PDOracleClient;
 use std::collections::HashMap;
+use std::collections::HashSet;
 use std::fmt;
 use std::fmt::Display;
 use std::fmt::Formatter;
@@ -75,11 +91,19 @@ use std::sync::Arc;
 use std::sync::Mutex;
 use std::time::Duration;
 use std::time::SystemTime;
+use std::time::UNIX_EPOCH;
+use trade::cfd::calculate_margin;
+use trade::TradeParams;
 
 mod connection;
 
 type TracingLoggerGossipSync =
     Arc<P2PGossipSync<Arc<NetworkGraph>, Arc<dyn Access + Send + Sync>, Arc<TracingLogger>>>;
+
+// TODO: These intervals are quite arbitrary at the moment, come up with more sensible values
+const PROCESS_INCOMING_MESSAGES_INTERVAL: Duration = Duration::from_secs(30);
+const PROCESS_TRADE_REQUESTS_INTERVAL: Duration = Duration::from_secs(30);
+const BROADCAST_NODE_ANNOUNCEMENT_INTERVAL: Duration = Duration::from_secs(60);
 
 /// An LN-DLC node.
 pub struct Node {
@@ -103,11 +127,13 @@ pub struct Node {
 
     pub(crate) dlc_manager: Arc<DlcManager>,
     sub_channel_manager: Arc<SubChannelManager>,
-    pub(crate) oracle: Arc<P2PDOracleClient>,
+    pub oracle: Arc<P2PDOracleClient>,
     dlc_message_handler: Arc<DlcMessageHandler>,
 
     #[cfg(test)]
     pub(crate) user_config: UserConfig,
+
+    pending_trades: Arc<Mutex<HashSet<PublicKey>>>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -418,6 +444,7 @@ impl Node {
             dlc_manager,
             #[cfg(test)]
             user_config: ldk_user_config,
+            pending_trades: Arc::new(Mutex::new(HashSet::new())),
         }
     }
 
@@ -468,7 +495,7 @@ impl Node {
 
         let alias = self.alias;
         tokio::spawn(async move {
-            let mut interval = tokio::time::interval(Duration::from_secs(60));
+            let mut interval = tokio::time::interval(BROADCAST_NODE_ANNOUNCEMENT_INTERVAL);
             loop {
                 peer_man.broadcast_node_announcement(
                     [0; 3],
@@ -479,6 +506,110 @@ impl Node {
                     }],
                 );
                 interval.tick().await;
+            }
+        });
+
+        let dlc_man = self.dlc_manager.clone();
+        let pending_trades = self.pending_trades.clone();
+        let sub_channel_manager = self.sub_channel_manager.clone();
+        let dlc_message_handler = self.dlc_message_handler.clone();
+        let peer_manager = self.peer_manager.clone();
+
+        tokio::spawn({
+            let dlc_man = dlc_man.clone();
+            let sub_channel_manager = sub_channel_manager.clone();
+            let dlc_message_handler = dlc_message_handler.clone();
+            let peer_manager = peer_manager.clone();
+
+            async move {
+                loop {
+                    if let Err(e) = Node::process_incoming_messages_internal(
+                        &dlc_message_handler,
+                        &dlc_man,
+                        &sub_channel_manager,
+                        &peer_manager,
+                    ) {
+                        tracing::error!("Unable to process internal message: {e:#}");
+                    }
+
+                    tokio::time::sleep(PROCESS_INCOMING_MESSAGES_INTERVAL).await;
+                }
+            }
+        });
+
+        tokio::spawn(async move {
+            loop {
+                tokio::time::sleep(PROCESS_TRADE_REQUESTS_INTERVAL).await;
+
+                // TODO: Remove pending trades if we were unable to fulfill them within a certain
+                // time
+
+                let mut pending_trades = match pending_trades.lock() {
+                    Ok(pending_trades) => pending_trades,
+                    Err(e) => {
+                        tracing::warn!("Failed to lock pending trades: {e:#}");
+                        continue;
+                    }
+                };
+
+                let mut to_be_deleted: HashSet<PublicKey> = HashSet::new();
+
+                // TODO: this is not ideal as it is only needed on the coordinator
+                for pubkey in pending_trades.iter() {
+                    let pubkey_string = pubkey.to_string();
+                    tracing::debug!(pubkey_string, "Checking for sub channel offers");
+                    let sub_channels = match dlc_man
+                        .get_store()
+                        .get_sub_channels() // `get_offered_sub_channels` appears to have a bug
+                        .map_err(|e| anyhow!(e.to_string()))
+                    {
+                        Ok(sub_channel) => sub_channel,
+                        Err(e) => {
+                            tracing::error!("Unable to retrieve subchannels: {e:#}");
+                            continue;
+                        }
+                    };
+
+                    tracing::info!("Found sub_channels: {}", sub_channels.len());
+
+                    let sub_channel = match sub_channels.iter().find(|sub_channel| {
+                        dbg!(sub_channel.counter_party) == dbg!(*pubkey)
+                            && matches!(&sub_channel.state, SubChannelState::Offered(_))
+                    }) {
+                        None => {
+                            tracing::debug!(pubkey_string, "Nothing found for pubkey");
+                            continue;
+                        }
+                        Some(sub_channel) => sub_channel,
+                    };
+                    to_be_deleted.insert(*pubkey);
+
+                    let channel_id = sub_channel.channel_id;
+
+                    let channel_id_hex = hex::encode(channel_id);
+
+                    tracing::info!(channel_id = %channel_id_hex, "Accepting DLC channel offer");
+
+                    let (node_id, accept_sub_channel) = match sub_channel_manager
+                        .accept_sub_channel(&channel_id)
+                        .map_err(|e| anyhow!(e.to_string()))
+                    {
+                        Ok(sub_channel_details) => sub_channel_details,
+                        Err(e) => {
+                            tracing::error!("Failed to accept subchannel {channel_id_hex}: {e:#}");
+                            continue;
+                        }
+                    };
+
+                    dlc_message_handler.send_subchannel_message(
+                        node_id,
+                        SubChannelMessage::Accept(accept_sub_channel),
+                    );
+                }
+
+                for delete_me in to_be_deleted {
+                    pending_trades.remove(&delete_me);
+                }
             }
         });
 
@@ -708,7 +839,7 @@ impl Node {
     pub async fn propose_dlc_channel(
         &self,
         channel_details: &ChannelDetails,
-        contract_input: &ContractInput,
+        contract_input: &DlcContractInput,
     ) -> Result<()> {
         let announcement = tokio::task::spawn_blocking({
             let oracle = self.oracle.clone();
@@ -755,24 +886,36 @@ impl Node {
     }
 
     pub fn process_incoming_messages(&self) -> Result<()> {
-        let messages = self.dlc_message_handler.get_and_clear_received_messages();
+        Node::process_incoming_messages_internal(
+            &self.dlc_message_handler,
+            &self.dlc_manager,
+            &self.sub_channel_manager,
+            &self.peer_manager,
+        )
+    }
+
+    fn process_incoming_messages_internal(
+        dlc_message_handler: &DlcMessageHandler,
+        dlc_manager: &DlcManager,
+        sub_channel_manager: &SubChannelManager,
+        peer_manager: &PeerManager,
+    ) -> Result<(), Error> {
+        let messages = dlc_message_handler.get_and_clear_received_messages();
 
         for (node_id, msg) in messages {
             tracing::debug!(from = %node_id, "Processing DLC-manager message");
-            let resp = self
-                .dlc_manager
+            let resp = dlc_manager
                 .on_dlc_message(&msg, node_id)
                 .map_err(|e| anyhow!(e.to_string()))?;
 
             if let Some(msg) = resp {
                 tracing::debug!(to = %node_id, "Sending DLC-manager message");
-                self.dlc_message_handler.send_message(node_id, msg);
+                dlc_message_handler.send_message(node_id, msg);
             }
         }
 
-        let sub_channel_messages = self
-            .dlc_message_handler
-            .get_and_clear_received_sub_channel_messages();
+        let sub_channel_messages =
+            dlc_message_handler.get_and_clear_received_sub_channel_messages();
 
         for (node_id, msg) in sub_channel_messages {
             tracing::debug!(
@@ -780,8 +923,7 @@ impl Node {
                 msg = %sub_channel_message_as_str(&msg),
                 "Processing sub-channel message"
             );
-            let resp = self
-                .sub_channel_manager
+            let resp = sub_channel_manager
                 .on_sub_channel_message(&msg, &node_id)
                 .map_err(|e| anyhow!(e.to_string()))?;
 
@@ -791,17 +933,144 @@ impl Node {
                     msg = %sub_channel_message_as_str(&msg),
                     "Sending sub-channel message"
                 );
-                self.dlc_message_handler
-                    .send_subchannel_message(node_id, msg);
+                dlc_message_handler.send_subchannel_message(node_id, msg);
             }
         }
 
-        if self.dlc_message_handler.has_pending_messages() {
-            self.peer_manager.process_events();
+        if dlc_message_handler.has_pending_messages() {
+            peer_manager.process_events();
         }
 
         Ok(())
     }
+
+    pub fn trade(&self, trade_params: TradeParams) -> Result<ContractInput> {
+        let mut pending_trades = self
+            .pending_trades
+            .lock()
+            .map_err(|e| anyhow!("Failed to access pending trades: {e:#}"))?;
+
+        // TODO: We need to keep around more information than just the pubkey and have to introduce
+        // validation steps once we add the maker
+        pending_trades.insert(trade_params.pubkey);
+
+        // The coordinator always trades at a leverage of 1
+        let coordinator_leverage = 1.0;
+
+        let margin_coordinator = calculate_margin(
+            trade_params.execution_price,
+            trade_params.quantity,
+            coordinator_leverage,
+        );
+        let margin_trader = calculate_margin(
+            trade_params.execution_price,
+            trade_params.quantity,
+            trade_params.leverage,
+        );
+
+        let total_collateral = margin_coordinator + margin_trader;
+
+        let maturity_time =
+            SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs() + trade_params.expiry.as_secs();
+
+        let contract_symbol = trade_params.contract_symbol.label();
+
+        // The contract input to be used for setting up the trade between the trader and the
+        // coordinator
+        let contract_input = ContractInput {
+            offer_collateral: margin_coordinator,
+            accept_collateral: margin_trader,
+            maturity_time: maturity_time as u32,
+            fee_rate: 2,
+            contract_infos: vec![ContractInputInfo {
+                contract_descriptor: dummy_contract_descriptor(total_collateral),
+                oracles: OracleInput {
+                    public_keys: vec![trade_params.oracle_pk],
+                    event_id: format!("{contract_symbol}{maturity_time}"),
+                    threshold: 1,
+                },
+            }],
+        };
+
+        Ok(contract_input)
+    }
+
+    pub fn list_usable_channels(&self) -> Vec<ChannelDetails> {
+        self.channel_manager.list_usable_channels()
+    }
+
+    pub fn get_contracts(&self) -> Result<Vec<Contract>> {
+        self.dlc_manager
+            .get_store()
+            .get_contracts()
+            .map_err(|e| anyhow!("Unable to get contracts from manager: {e:#}"))
+    }
+}
+
+// TODO: To be deleted once we configure a proper payout curve
+fn dummy_contract_descriptor(total_collateral: u64) -> ContractDescriptor {
+    ContractDescriptor::Numerical(NumericalDescriptor {
+        payout_function: PayoutFunction {
+            payout_function_pieces: vec![
+                PayoutFunctionPiece::PolynomialPayoutCurvePiece(
+                    PolynomialPayoutCurvePiece::new(vec![
+                        PayoutPoint {
+                            event_outcome: 0,
+                            outcome_payout: 0,
+                            extra_precision: 0,
+                        },
+                        PayoutPoint {
+                            event_outcome: 50_000,
+                            outcome_payout: 0,
+                            extra_precision: 0,
+                        },
+                    ])
+                    .unwrap(),
+                ),
+                PayoutFunctionPiece::PolynomialPayoutCurvePiece(
+                    PolynomialPayoutCurvePiece::new(vec![
+                        PayoutPoint {
+                            event_outcome: 50_000,
+                            outcome_payout: 0,
+                            extra_precision: 0,
+                        },
+                        PayoutPoint {
+                            event_outcome: 60_000,
+                            outcome_payout: total_collateral,
+                            extra_precision: 0,
+                        },
+                    ])
+                    .unwrap(),
+                ),
+                PayoutFunctionPiece::PolynomialPayoutCurvePiece(
+                    PolynomialPayoutCurvePiece::new(vec![
+                        PayoutPoint {
+                            event_outcome: 60_000,
+                            outcome_payout: total_collateral,
+                            extra_precision: 0,
+                        },
+                        PayoutPoint {
+                            event_outcome: 1048575,
+                            outcome_payout: total_collateral,
+                            extra_precision: 0,
+                        },
+                    ])
+                    .unwrap(),
+                ),
+            ],
+        },
+        rounding_intervals: RoundingIntervals {
+            intervals: vec![RoundingInterval {
+                begin_interval: 0,
+                rounding_mod: 1,
+            }],
+        },
+        difference_params: None,
+        oracle_numeric_infos: dlc_trie::OracleNumericInfo {
+            base: 2,
+            nb_digits: vec![20],
+        },
+    })
 }
 
 pub(crate) fn app_config() -> UserConfig {

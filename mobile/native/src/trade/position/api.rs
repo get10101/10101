@@ -38,6 +38,7 @@ pub struct Position {
     /// The unrealized PL can be positive or negative
     pub unrealized_pnl: i64,
     pub position_state: PositionState,
+    pub collateral: u64,
 }
 
 impl From<PositionStateTrade> for PositionState {
@@ -60,6 +61,7 @@ impl From<PositionTrade> for Position {
             liquidation_price: value.liquidation_price,
             unrealized_pnl: value.unrealized_pnl,
             position_state: value.position_state.into(),
+            collateral: value.collateral,
         }
     }
 }

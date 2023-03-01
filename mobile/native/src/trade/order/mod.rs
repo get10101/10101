@@ -68,19 +68,3 @@ pub struct OrderTrade {
     pub order_type: OrderTypeTrade,
     pub status: OrderStateTrade,
 }
-
-// TODO: This is needed because we use EnumIter for `Event`. Is there a better way to impl iter that
-// does not require Default impl?
-impl Default for OrderTrade {
-    fn default() -> Self {
-        OrderTrade {
-            id: Default::default(),
-            leverage: 0.0,
-            quantity: 0.0,
-            contract_symbol: ContractSymbolTrade::BtcUsd,
-            direction: DirectionTrade::Long,
-            order_type: OrderTypeTrade::Market,
-            status: OrderStateTrade::Open,
-        }
-    }
-}

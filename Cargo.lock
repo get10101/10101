@@ -574,6 +574,7 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-subscriber",
+ "trade",
 ]
 
 [[package]]
@@ -1537,6 +1538,7 @@ dependencies = [
  "tracing",
  "tracing-log",
  "tracing-subscriber",
+ "trade",
 ]
 
 [[package]]
@@ -1692,18 +1694,19 @@ dependencies = [
  "anyhow",
  "bdk",
  "dlc-manager",
+ "dlc-trie",
  "flutter_rust_bridge",
  "lightning-invoice",
  "ln-dlc-node",
  "reqwest",
  "rust_decimal",
  "rust_decimal_macros",
+ "serde",
  "state",
- "strum",
- "strum_macros",
  "tokio",
  "tracing",
  "tracing-subscriber",
+ "trade",
  "uuid",
 ]
 
@@ -2594,25 +2597,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "73473c0e59e6d5812c5dfe2a064a6444949f089e20eec9a2e5506596494e4623"
 
 [[package]]
-name = "strum"
-version = "0.24.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "063e6045c0e62079840579a7e47a355ae92f60eb74daaf156fb1e84ba164e63f"
-
-[[package]]
-name = "strum_macros"
-version = "0.24.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1e385be0d24f186b4ce2f9982191e7101bb737312ad61c1f2f984f34bcf85d59"
-dependencies = [
- "heck",
- "proc-macro2",
- "quote",
- "rustversion",
- "syn",
-]
-
-[[package]]
 name = "subtle"
 version = "2.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2949,6 +2933,16 @@ dependencies = [
  "tracing-core",
  "tracing-log",
  "tracing-serde",
+]
+
+[[package]]
+name = "trade"
+version = "0.1.0"
+dependencies = [
+ "bdk",
+ "rust_decimal",
+ "rust_decimal_macros",
+ "serde",
 ]
 
 [[package]]

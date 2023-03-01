@@ -22,6 +22,7 @@ time = { version = "0.3", features = ["serde", "parsing", "std", "formatting", "
 tokio = { version = "1", features = ["full"] }
 tracing = "0.1.37"
 tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "ansi", "env-filter", "time", "tracing-log", "json"] }
+trade = { path = "../crates/trade" }
 
 [dev-dependencies]
 testcontainers = "0.14.0"

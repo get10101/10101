@@ -19,6 +19,7 @@ use diesel::r2d2;
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::Pool;
 use diesel::PgConnection;
+use dlc_manager::contract::contract_input::ContractInput;
 use dlc_manager::Wallet;
 use ln_dlc_node::node::Node;
 use serde::Deserialize;
@@ -26,6 +27,7 @@ use serde::Serialize;
 use serde_json::json;
 use std::sync::Arc;
 use tokio::sync::broadcast;
+use trade::TradeParams;
 
 pub struct AppState {
     pub node: Arc<Node>,
@@ -54,6 +56,7 @@ pub fn router(node: Arc<Node>, pool: Pool<ConnectionManager<PgConnection>>) -> R
             get(get_order).put(put_order).delete(delete_order),
         )
         .route("/api/orderbook/websocket", get(websocket_handler))
+        .route("/api/trade", post(post_trade))
         .with_state(app_state)
 }
 
@@ -117,6 +120,19 @@ pub async fn get_invoice(State(state): State<Arc<AppState>>) -> Result<Json<Stri
         .map_err(|e| AppError::InternalServerError(format!("Failed to create invoice: {e:#}")))?;
 
     Ok(Json(invoice.to_string()))
+}
+
+// TODO: We might want to have our own ContractInput type here so we can potentially map fields if
+// the library changes?
+pub async fn post_trade(
+    State(state): State<Arc<AppState>>,
+    trade_params: Json<TradeParams>,
+) -> Result<Json<ContractInput>, AppError> {
+    let contract_input = state.node.trade(trade_params.0).map_err(|e| {
+        AppError::InternalServerError(format!("Failed to accept trade request: {e:#}"))
+    })?;
+
+    Ok(Json(contract_input))
 }
 
 /// Our app's top level error type.
