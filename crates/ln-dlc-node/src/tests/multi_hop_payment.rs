@@ -1,5 +1,6 @@
 use crate::node::Node;
 use crate::tests::init_tracing;
+use crate::tests::min_outbound_liquidity_channel_creator;
 use bitcoin::Amount;
 
 #[tokio::test]
@@ -16,12 +17,20 @@ async fn multi_hop_payment() {
     payer.keep_connected(coordinator.info).await.unwrap();
     payee.keep_connected(coordinator.info).await.unwrap();
 
-    coordinator.fund(Amount::from_sat(100_000)).await.unwrap();
+    coordinator.fund(Amount::from_sat(50_000)).await.unwrap();
 
+    let payer_outbound_liquidity_sat = 20_000;
+    let coordinator_outbound_liquidity_sat =
+        min_outbound_liquidity_channel_creator(&payer, payer_outbound_liquidity_sat);
     coordinator
-        .open_channel(&payer, 20_000, 20_000)
+        .open_channel(
+            &payer,
+            coordinator_outbound_liquidity_sat,
+            payer_outbound_liquidity_sat,
+        )
         .await
         .unwrap();
+
     coordinator.open_channel(&payee, 20_000, 0).await.unwrap();
 
     let payer_balance_before = payer.get_ldk_balance();
