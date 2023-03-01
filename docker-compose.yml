@@ -135,6 +135,7 @@ services:
       - ./faucet/faucet.html:/usr/share/nginx/html/faucet/index.html
       - ./faucet/open_channel.html:/usr/share/nginx/html/channel/index.html
       - ./faucet/default.conf:/etc/nginx/conf.d/default.conf
+      - ./faucet/btc-fee-estimates.json:/usr/share/nginx/html/fee/btc-fee-estimates.json
     depends_on:
       - bitcoin
       - lnd
