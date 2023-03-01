@@ -26,6 +26,9 @@ services:
     volumes:
       - bitcoin:/config
     restart: unless-stopped
+    networks:
+      vtto:
+        ipv4_address: 10.5.0.2
 
   # Block explorer server
   electrs:
@@ -40,7 +43,7 @@ services:
       - --daemon-dir
       - /config
       - --daemon-rpc-addr
-      - bitcoin:18443
+      - 10.5.0.2:18443
       - --cookie
       - admin1:123
       - --http-addr
@@ -58,6 +61,9 @@ services:
     volumes:
       - bitcoin:/config
     restart: unless-stopped
+    networks:
+      vtto:
+        ipv4_address: 10.5.0.3
 
   # Block explorer frontend
   esplora:
@@ -70,6 +76,9 @@ services:
     ports:
       - "5000:5000"
     restart: unless-stopped
+    networks:
+      vtto:
+        ipv4_address: 10.5.0.4
 
   # Chopsticks
   chopsticks:
@@ -80,9 +89,9 @@ services:
       - --use-mining
       - --use-logger
       - --rpc-addr
-      - bitcoin:18443
+      - 10.5.0.2:18443
       - --electrs-addr
-      - electrs:30000
+      - 10.5.0.3:30000
       - --addr
       - 0.0.0.0:3000
     depends_on:
@@ -91,6 +100,9 @@ services:
     ports:
       - "3000:3000"
     restart: unless-stopped
+    networks:
+      vtto:
+        ipv4_address: 10.5.0.5
 
   lnd:
     container_name: lnd
@@ -111,6 +123,9 @@ services:
       - "9735:9735" # p2p
       - "10009:10009" # grpc
       - "18080:18080" # rest
+    networks:
+      vtto:
+        ipv4_address: 10.5.0.6
 
   faucet:
     image: nginx
@@ -125,6 +140,9 @@ services:
       - bitcoin
       - lnd
     restart: unless-stopped
+    networks:
+      vtto:
+        ipv4_address: 10.5.0.7
 
   coordinator-db:
     build:
@@ -146,7 +164,13 @@ services:
 
 networks:
   default:
-    name: nigiri
+    name: vtto
+  vtto:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.5.0.0/16
+          gateway: 10.5.0.1
 
 volumes:
   bitcoin:
