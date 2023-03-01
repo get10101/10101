@@ -1,4 +1,5 @@
 use crate::common::api::Direction;
+use dlc::channel::sub_channel::LN_GLUE_TX_WEIGHT;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use trade::cfd;
@@ -30,4 +31,14 @@ pub fn calculate_liquidation_price(price: f64, leverage: f64, direction: Directi
     tracing::trace!("Liquidation_price: {liquidation_price}");
 
     liquidation_price
+}
+
+pub fn calculate_fees() -> u64 {
+    // TODO: this should probably come from a configuration.
+    let fee_rate = 2;
+    let total_fee = (dlc::channel::sub_channel::dlc_channel_and_split_fee(fee_rate)
+        + dlc::util::weight_to_fee(LN_GLUE_TX_WEIGHT, fee_rate)) as f64;
+
+    // the party that offers the trade will pay the extra sat in case the fees are uneven.
+    (total_fee / 2.0).ceil() as u64
 }

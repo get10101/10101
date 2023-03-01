@@ -38,7 +38,9 @@ final GoRouter _router = GoRouter(
 
 class TestWrapperWithTradeTheme extends StatelessWidget {
   final Widget child;
+
   const TestWrapperWithTradeTheme({super.key, required this.child});
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp.router(
@@ -78,6 +80,7 @@ void main() {
     when(tradeValueService.calculateQuantity(
             price: anyNamed('price'), leverage: anyNamed('leverage'), margin: anyNamed('margin')))
         .thenReturn(100);
+    when(tradeValueService.calculateFee()).thenReturn(Amount(833));
 
     SubmitOrderChangeNotifier submitOrderChangeNotifier = SubmitOrderChangeNotifier(orderService);
 

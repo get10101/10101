@@ -78,6 +78,10 @@ pub enum PaymentFlow {
     Outbound,
 }
 
+pub fn calculate_fees() -> SyncReturn<u64> {
+    SyncReturn(calculations::calculate_fees())
+}
+
 pub fn calculate_margin(price: f64, quantity: f64, leverage: f64) -> SyncReturn<u64> {
     SyncReturn(calculations::calculate_margin(price, quantity, leverage))
 }

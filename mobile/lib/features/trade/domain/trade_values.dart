@@ -41,8 +41,7 @@ class TradeValues {
     double liquidationPrice = tradeValuesService.calculateLiquidationPrice(
         price: price, leverage: leverage, direction: direction);
 
-    // TODO: Calculate fee based on price, quantity and funding rate
-    Amount fee = Amount(30);
+    Amount fee = tradeValuesService.calculateFee();
 
     return TradeValues(
         direction: direction,
