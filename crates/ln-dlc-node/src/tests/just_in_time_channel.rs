@@ -95,7 +95,7 @@ async fn just_in_time_channel() {
     let invoice_expiry = 0; // an expiry of 0 means the invoice never expires
     let invoice = payee
         .create_interceptable_invoice(
-            invoice_amount,
+            Some(invoice_amount),
             intercept_scid,
             coordinator.info.pubkey,
             invoice_expiry,

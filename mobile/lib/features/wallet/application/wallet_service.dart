@@ -26,9 +26,15 @@ class WalletService {
     }
   }
 
-  Future<String?> createInvoice(Amount amount) async {
+  Future<String?> createInvoice(Amount? amount) async {
     try {
-      String invoice = await rust.api.createInvoice(amountSats: amount.sats);
+      String invoice;
+      if (amount != null) {
+        invoice = await rust.api.createInvoiceWithAmount(amountSats: amount.sats);
+      } else {
+        invoice = await rust.api.createInvoiceWithoutAmount();
+      }
+
       FLog.info(text: "Successfully created invoice.");
       return invoice;
     } catch (error) {

@@ -228,7 +228,7 @@ pub fn open_channel() -> Result<()> {
     Ok(())
 }
 
-pub fn create_invoice(amount_sats: u64) -> Result<Invoice> {
+pub fn create_invoice(amount_sats: Option<u64>) -> Result<Invoice> {
     let runtime = runtime()?;
 
     runtime.block_on(async {

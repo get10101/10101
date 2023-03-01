@@ -63,6 +63,18 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
                 },
               ),
             ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32.0),
+              child: OutlinedButton(
+                  onPressed: () => {
+                        widget.walletService.createInvoice(null).then((invoice) {
+                          if (invoice != null) {
+                            GoRouter.of(context).go(ShareInvoiceScreen.route, extra: invoice);
+                          }
+                        })
+                      },
+                  child: const Text("I don't want to specify amount")),
+            ),
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.all(32.0),
@@ -71,7 +83,7 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
                     ElevatedButton(
-                        onPressed: amount == null
+                        onPressed: (amount == null || amount == Amount(0))
                             ? null
                             : () {
                                 widget.walletService.createInvoice(amount!).then((invoice) {
