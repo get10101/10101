@@ -21,7 +21,6 @@ async fn given_lightning_channel_then_can_add_dlc_channel() {
 
     app.keep_connected(coordinator.info).await.unwrap();
 
-    app.fund(Amount::from_btc(0.1).unwrap()).await.unwrap();
     coordinator
         .fund(Amount::from_btc(0.1).unwrap())
         .await
