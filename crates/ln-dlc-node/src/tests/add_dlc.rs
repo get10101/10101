@@ -27,10 +27,7 @@ async fn given_lightning_channel_then_can_add_dlc_channel() {
         .await
         .unwrap();
 
-    coordinator
-        .open_channel(&app.info, 50000, 50000)
-        .await
-        .unwrap();
+    coordinator.open_channel(&app, 50000, 50000).await.unwrap();
     let channel_details = app.channel_manager.list_usable_channels();
     let channel_details = channel_details
         .iter()

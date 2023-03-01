@@ -30,7 +30,7 @@ async fn just_in_time_channel() {
     let payer_inbound_liquidity_sat = 25_000;
     let payer_coordinator_channel_details = coordinator
         .open_channel(
-            &payer.info,
+            &payer,
             coordinator_outbound_liquidity_sat,
             payer_inbound_liquidity_sat,
         )

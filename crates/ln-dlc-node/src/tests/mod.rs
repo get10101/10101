@@ -1,7 +1,6 @@
 use crate::node::app_config;
 use crate::node::coordinator_config;
 use crate::node::Node;
-use crate::node::NodeInfo;
 use crate::seed::Bip39Seed;
 use anyhow::anyhow;
 use anyhow::Result;
@@ -139,35 +138,46 @@ impl Node {
 
     /// Initiates the opening of a channel _and_ waits for the channel
     /// to be usable.
-    ///
-    /// We are assuming that a channel will be usable with 0
-    /// confirmations. This depends on the channel's `UserConfig`'s of
-    /// the peers involved!! It may not always work.
     async fn open_channel(
         &self,
-        peer: &NodeInfo,
+        peer: &Node,
         amount_us: u64,
         amount_them: u64,
     ) -> Result<ChannelDetails> {
         let temp_channel_id =
-            self.initiate_open_channel(*peer, amount_us + amount_them, amount_them)?;
+            self.initiate_open_channel(peer.info, amount_us + amount_them, amount_them)?;
 
-        // TODO: Mine as many blocks as needed (and sync the wallets)
-        // for the channel to become usable. Currently this assumes
-        // support for 0-conf channels
-        let channel_details = tokio::time::timeout(Duration::from_secs(10), async {
+        // The config flag
+        // `user_config.manually_accept_inbound_channels` implies that
+        // the peer will accept 0-conf channels
+        if !peer.user_config.manually_accept_inbound_channels {
+            let required_confirmations = peer.user_config.channel_handshake_config.minimum_depth;
+
+            bitcoind::mine(required_confirmations as u16).await?;
+        }
+
+        let channel_details = tokio::time::timeout(Duration::from_secs(30), async {
             loop {
                 if let Some(details) = self
                     .channel_manager
                     .list_usable_channels()
                     .iter()
-                    .find(|c| c.counterparty.node_id == peer.pubkey)
+                    .find(|c| c.counterparty.node_id == peer.info.pubkey)
                 {
                     break details.clone();
                 }
 
+                // Only sync if 0-conf channels are disabled
+                if !peer.user_config.manually_accept_inbound_channels {
+                    // We need to sync both parties, even if
+                    // `trust_own_funding_0conf` is true for the creator
+                    // of the channel (`self`)
+                    self.sync();
+                    peer.sync();
+                }
+
                 tracing::debug!(
-                    %peer,
+                    peer = %peer.info,
                     temp_channel_id = %hex::encode(temp_channel_id),
                     "Waiting for channel to be usable"
                 );

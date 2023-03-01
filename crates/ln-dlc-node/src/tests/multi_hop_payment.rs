@@ -21,14 +21,8 @@ async fn multi_hop_payment() {
     payer.fund(Amount::from_sat(50_000)).await.unwrap();
     router.fund(Amount::from_sat(100_000)).await.unwrap();
 
-    router
-        .open_channel(&payer.info, 20_000, 20_000)
-        .await
-        .unwrap();
-    router
-        .open_channel(&payee.info, 20_000, 20_000)
-        .await
-        .unwrap();
+    router.open_channel(&payer, 20_000, 20_000).await.unwrap();
+    router.open_channel(&payee, 20_000, 20_000).await.unwrap();
 
     let payer_balance_before = payer.get_ldk_balance();
     let router_balance_before = router.get_ldk_balance();
