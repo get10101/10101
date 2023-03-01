@@ -21,8 +21,6 @@ async fn just_in_time_channel() {
     payer.keep_connected(coordinator.info).await.unwrap();
     payee.keep_connected(coordinator.info).await.unwrap();
 
-    // Fund the on-chain wallets of the nodes who will open a channel
-    payer.fund(Amount::from_sat(100_000)).await.unwrap();
     coordinator.fund(Amount::from_sat(100_000)).await.unwrap();
 
     let coordinator_outbound_liquidity_sat = 25_000;
