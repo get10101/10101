@@ -1,8 +1,6 @@
-use bitcoin::Amount;
-
 use crate::node::Node;
 use crate::tests::init_tracing;
-use std::time::Duration;
+use bitcoin::Amount;
 
 #[tokio::test]
 #[ignore]
@@ -44,14 +42,17 @@ async fn multi_hop_payment() {
 
     payer.send_payment(&invoice).unwrap();
 
-    // For the payment to be claimed before the wallet syncs
-    tokio::time::sleep(Duration::from_secs(1)).await;
+    payee
+        .wait_for_payment_claimed(invoice.payment_hash())
+        .await
+        .unwrap();
 
+    // Assert
+
+    // Sync LN wallet after payment is claimed to update the balances
     payer.sync();
     coordinator.sync();
     payee.sync();
-
-    // Assert
 
     let payer_balance_after = payer.get_ldk_balance();
     let coordinator_balance_after = coordinator.get_ldk_balance();
