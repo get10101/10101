@@ -18,14 +18,17 @@ services:
       - -zmqpubrawblock=tcp://0.0.0.0:28332
       - -zmqpubrawtx=tcp://0.0.0.0:28333
     ports:
-      - 18443:18443
-      - 18444:18444
+      - "18443:18443"
+      - "18444:18444"
       # ZMQ
-      - 28332:28332
-      - 28333:28333
+      - "28332:28332"
+      - "28333:28333"
     volumes:
       - bitcoin:/config
     restart: unless-stopped
+    networks:
+      vtto:
+        ipv4_address: 10.5.0.2
 
   # Block explorer server
   electrs:
@@ -40,7 +43,7 @@ services:
       - --daemon-dir
       - /config
       - --daemon-rpc-addr
-      - bitcoin:18443
+      - 10.5.0.2:18443
       - --cookie
       - admin1:123
       - --http-addr
@@ -53,11 +56,14 @@ services:
     depends_on:
       - bitcoin
     ports:
-      - 50000:50000
-      - 30000:30000
+      - "50000:50000"
+      - "30000:30000"
     volumes:
       - bitcoin:/config
     restart: unless-stopped
+    networks:
+      vtto:
+        ipv4_address: 10.5.0.3
 
   # Block explorer frontend
   esplora:
@@ -68,8 +74,11 @@ services:
     environment:
       API_URL: http://localhost:3000
     ports:
-      - 5000:5000
+      - "5000:5000"
     restart: unless-stopped
+    networks:
+      vtto:
+        ipv4_address: 10.5.0.4
 
   # Chopsticks
   chopsticks:
@@ -80,17 +89,20 @@ services:
       - --use-mining
       - --use-logger
       - --rpc-addr
-      - bitcoin:18443
+      - 10.5.0.2:18443
       - --electrs-addr
-      - electrs:30000
+      - 10.5.0.3:30000
       - --addr
       - 0.0.0.0:3000
     depends_on:
       - bitcoin
       - electrs
     ports:
-      - 3000:3000
+      - "3000:3000"
     restart: unless-stopped
+    networks:
+      vtto:
+        ipv4_address: 10.5.0.5
 
   lnd:
     container_name: lnd
@@ -101,7 +113,6 @@ services:
       - --configfile=/var/lib/lnd/lnd.conf
     volumes:
       - ./faucet/lnd.conf:/var/lib/lnd/lnd.conf
-      - ./faucet/macaroons.db:/root/.lnd/data/chain/bitcoin/regtest/macaroons.db
       - bitcoin:/data
     environment:
       HOME: /data
@@ -109,22 +120,29 @@ services:
     stop_grace_period: 5m30s
     ports:
       - "9735:9735" # p2p
-      - "10009:10009" # grpc"
-      - "18080:18080" # rest"
+      - "10009:10009" # grpc
+      - "18080:18080" # rest
+    networks:
+      vtto:
+        ipv4_address: 10.5.0.6
 
   faucet:
     image: nginx
     container_name: faucet
     ports:
-      - 8080:80
+      - "8080:80"
     volumes:
       - ./faucet/faucet.html:/usr/share/nginx/html/faucet/index.html
       - ./faucet/open_channel.html:/usr/share/nginx/html/channel/index.html
       - ./faucet/default.conf:/etc/nginx/conf.d/default.conf
+      - ./faucet/btc-fee-estimates.json:/usr/share/nginx/html/fee/btc-fee-estimates.json
     depends_on:
       - bitcoin
       - lnd
     restart: unless-stopped
+    networks:
+      vtto:
+        ipv4_address: 10.5.0.7
 
   coordinator-db:
     build:
@@ -146,7 +164,13 @@ services:
 
 networks:
   default:
-    name: nigiri
+    name: vtto
+  vtto:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.5.0.0/16
+          gateway: 10.5.0.1
 
 volumes:
   bitcoin:
