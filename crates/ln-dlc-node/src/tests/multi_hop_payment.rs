@@ -18,7 +18,6 @@ async fn multi_hop_payment() {
     payer.keep_connected(coordinator.info).await.unwrap();
     payee.keep_connected(coordinator.info).await.unwrap();
 
-    payer.fund(Amount::from_sat(50_000)).await.unwrap();
     coordinator.fund(Amount::from_sat(100_000)).await.unwrap();
 
     coordinator
