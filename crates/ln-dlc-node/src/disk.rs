@@ -1,5 +1,5 @@
+use crate::ln::TracingLogger;
 use crate::NetworkGraph;
-use crate::TracingLogger;
 use bitcoin::BlockHash;
 use lightning::routing::scoring::ProbabilisticScorer;
 use lightning::routing::scoring::ProbabilisticScoringParameters;

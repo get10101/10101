@@ -1,4 +1,4 @@
-use crate::ln::event_handler::JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT;
+use crate::ln::JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT;
 use crate::node::Node;
 use crate::node::LIQUIDITY_ROUTING_FEE_MILLIONTHS;
 use crate::tests::init_tracing;

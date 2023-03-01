@@ -17,7 +17,6 @@ use bdk::bitcoin::secp256k1::rand::RngCore;
 use bdk::bitcoin::Network;
 use bdk::bitcoin::XOnlyPublicKey;
 use dlc_manager::contract::Contract;
-use dlc_manager::Oracle;
 use dlc_manager::Wallet;
 use lightning_invoice::Invoice;
 use ln_dlc_node::node::Node;
@@ -60,8 +59,7 @@ pub fn get_oracle_pubkey() -> Result<XOnlyPublicKey> {
     Ok(NODE
         .try_get()
         .context("failed to get ln dlc node")?
-        .oracle
-        .get_public_key())
+        .oracle_pk())
 }
 
 /// Lazily creates a multi threaded runtime with the the number of worker threads corresponding to
@@ -106,7 +104,7 @@ pub fn run(data_dir: String) -> Result<()> {
 
         let node = Arc::new(
             Node::new_app(
-                "10101".to_string(),
+                "10101",
                 network,
                 data_dir.as_path(),
                 address,
@@ -138,7 +136,7 @@ pub fn run(data_dir: String) -> Result<()> {
         // periodically update for positions
         runtime.spawn(async move {
             loop {
-                let contracts = match node_cloned.get_contracts() {
+                let contracts = match node_cloned.get_dlcs() {
                     Ok(contracts) => contracts,
                     Err(e) => {
                         tracing::error!("Failed to retrieve DLCs from node: {e:#}");

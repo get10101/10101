@@ -1,5 +1,5 @@
-use crate::node::app_config;
-use crate::node::coordinator_config;
+use crate::ln::app_config;
+use crate::ln::coordinator_config;
 use crate::node::Node;
 use crate::seed::Bip39Seed;
 use anyhow::anyhow;
@@ -87,7 +87,7 @@ impl Node {
         };
 
         let node = Node::new(
-            name.to_string(),
+            name,
             Network::Regtest,
             data_dir.as_path(),
             address,

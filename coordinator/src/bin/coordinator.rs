@@ -42,7 +42,7 @@ async fn main() -> Result<()> {
 
     let node = Arc::new(
         Node::new_coordinator(
-            "coordinator".to_string(),
+            "coordinator",
             network,
             data_dir.as_path(),
             address,
