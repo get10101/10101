@@ -2,6 +2,7 @@ use crate::ln::event_handler::JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT;
 use crate::node::Node;
 use crate::node::LIQUIDITY_ROUTING_FEE_MILLIONTHS;
 use crate::tests::init_tracing;
+use crate::tests::min_outbound_liquidity_channel_creator;
 use anyhow::Context;
 use anyhow::Result;
 use bitcoin::Amount;
@@ -23,8 +24,10 @@ async fn just_in_time_channel() {
 
     coordinator.fund(Amount::from_sat(100_000)).await.unwrap();
 
-    let coordinator_outbound_liquidity_sat = 25_000;
     let payer_outbound_liquidity_sat = 25_000;
+    let coordinator_outbound_liquidity_sat =
+        min_outbound_liquidity_channel_creator(&payer, payer_outbound_liquidity_sat);
+
     let payer_coordinator_channel_details = coordinator
         .open_channel(
             &payer,
