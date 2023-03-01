@@ -7,6 +7,7 @@ use dlc_messages::message_handler::MessageHandler as DlcMessageHandler;
 use dlc_sled_storage_provider::SledStorageProvider;
 use lightning::chain;
 use lightning::chain::chainmonitor;
+use lightning::chain::channelmonitor::ChannelMonitor;
 use lightning::chain::Filter;
 use lightning::ln::channelmanager::InterceptId;
 use lightning::ln::peer_handler::IgnoringMessageHandler;
@@ -38,6 +39,13 @@ pub mod node;
 
 #[cfg(test)]
 mod tests;
+
+type ConfirmableMonitor = (
+    ChannelMonitor<CustomSigner>,
+    Arc<LnDlcWallet>,
+    Arc<LnDlcWallet>,
+    Arc<TracingLogger>,
+);
 
 type ChainMonitor = chainmonitor::ChainMonitor<
     CustomSigner,

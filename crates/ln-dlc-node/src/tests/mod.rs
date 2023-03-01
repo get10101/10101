@@ -95,7 +95,7 @@ impl Node {
             ephemeral_randomness,
             user_config,
         )
-        .await;
+        .await?;
 
         let bg_processor = node.start().await?;
         mem::forget(bg_processor); // to keep it running

@@ -6,6 +6,7 @@ use crate::on_chain_wallet::OnChainWallet;
 use crate::seed::Bip39Seed;
 use crate::ChainMonitor;
 use crate::ChannelManager;
+use crate::ConfirmableMonitor;
 use crate::DlcManager;
 use crate::FakeChannelPaymentRequests;
 use crate::HTLCStatus;
@@ -15,15 +16,18 @@ use crate::PaymentInfoStorage;
 use crate::PeerManager;
 use crate::SubChannelManager;
 use anyhow::anyhow;
+use anyhow::bail;
 use anyhow::Context;
 use anyhow::Error;
 use anyhow::Result;
 use bdk::blockchain::ElectrumBlockchain;
 use bdk::Balance;
+use bitcoin::blockdata::constants::genesis_block;
 use bitcoin::hashes::sha256;
 use bitcoin::hashes::Hash;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::secp256k1::Secp256k1;
+use bitcoin::BlockHash;
 use bitcoin::Network;
 use dlc_manager::contract::contract_input::ContractInput as DlcContractInput;
 use dlc_manager::contract::contract_input::ContractInput;
@@ -53,8 +57,12 @@ use lightning::chain::keysinterface::KeysManager;
 use lightning::chain::keysinterface::Recipient;
 use lightning::chain::Access;
 use lightning::chain::BestBlock;
+use lightning::chain::ChannelMonitorUpdateStatus;
+use lightning::chain::Confirm;
+use lightning::chain::Watch;
 use lightning::ln::channelmanager::ChainParameters;
 use lightning::ln::channelmanager::ChannelDetails;
+use lightning::ln::channelmanager::ChannelManagerReadArgs;
 use lightning::ln::channelmanager::MIN_CLTV_EXPIRY_DELTA;
 use lightning::ln::channelmanager::MIN_FINAL_CLTV_EXPIRY;
 use lightning::ln::msgs::NetAddress;
@@ -70,6 +78,7 @@ use lightning::util::config::ChannelConfig;
 use lightning::util::config::ChannelHandshakeConfig;
 use lightning::util::config::ChannelHandshakeLimits;
 use lightning::util::config::UserConfig;
+use lightning::util::ser::ReadableArgs;
 use lightning_background_processor::BackgroundProcessor;
 use lightning_background_processor::GossipSync;
 use lightning_invoice::payment;
@@ -85,6 +94,7 @@ use std::fmt;
 use std::fmt::Display;
 use std::fmt::Formatter;
 use std::fs;
+use std::iter;
 use std::net::SocketAddr;
 use std::path::Path;
 use std::sync::Arc;
@@ -168,7 +178,7 @@ impl Node {
         electrs_origin: String,
         seed: Bip39Seed,
         ephemeral_randomness: [u8; 32],
-    ) -> Self {
+    ) -> Result<Self> {
         let user_config = app_config();
         Node::new(
             alias,
@@ -195,7 +205,7 @@ impl Node {
         electrs_origin: String,
         seed: Bip39Seed,
         ephemeral_randomness: [u8; 32],
-    ) -> Self {
+    ) -> Result<Self> {
         let mut user_config = coordinator_config();
 
         // TODO: The config `force_announced_channel_preference` has been temporarily disabled
@@ -204,7 +214,6 @@ impl Node {
         user_config
             .channel_handshake_limits
             .force_announced_channel_preference = false;
-
         Self::new(
             alias,
             network,
@@ -231,35 +240,30 @@ impl Node {
         seed: Bip39Seed,
         ephemeral_randomness: [u8; 32],
         ldk_user_config: UserConfig,
-    ) -> Self {
-        let time_since_unix_epoch = SystemTime::now()
-            .duration_since(SystemTime::UNIX_EPOCH)
-            .unwrap();
+    ) -> Result<Self> {
+        let time_since_unix_epoch = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH)?;
 
         let logger = Arc::new(TracingLogger);
 
         if !data_dir.exists() {
             std::fs::create_dir_all(data_dir)
-                .context(format!("Could not create data dir ({data_dir:?})"))
-                .unwrap();
+                .context(format!("Could not create data dir ({data_dir:?})"))?;
         }
 
-        let persister_path = data_dir.as_os_str().to_str().unwrap();
-        let persister = Arc::new(FilesystemPersister::new(persister_path.to_string()));
+        let ldk_data_dir = data_dir.to_string_lossy().to_string();
+        let persister = Arc::new(FilesystemPersister::new(ldk_data_dir.clone()));
 
-        let storage = Arc::new(
-            SledStorageProvider::new(data_dir.to_str().expect("data_dir"))
-                .expect("to be able to create sled storage"),
-        );
+        let storage = Arc::new(SledStorageProvider::new(
+            data_dir.to_str().expect("data_dir"),
+        )?);
 
         let on_chain_dir = data_dir.join("on_chain");
         let on_chain_wallet =
-            OnChainWallet::new(on_chain_dir.as_path(), network, seed.wallet_seed()).unwrap();
+            OnChainWallet::new(on_chain_dir.as_path(), network, seed.wallet_seed())?;
 
         let ln_dlc_wallet = {
-            let blockchain_client = ElectrumBlockchain::from(
-                bdk::electrum_client::Client::new(&electrs_origin).unwrap(),
-            );
+            let blockchain_client =
+                ElectrumBlockchain::from(bdk::electrum_client::Client::new(&electrs_origin)?);
             Arc::new(LnDlcWallet::new(
                 Box::new(blockchain_client),
                 on_chain_wallet.inner,
@@ -283,27 +287,100 @@ impl Node {
             )))
         };
 
-        let (height, header) = ln_dlc_wallet.tip().unwrap();
+        let (height, header) = ln_dlc_wallet.tip()?;
         let hash = header.block_hash();
 
-        let channel_manager = {
-            let chain_params = ChainParameters {
-                network,
-                best_block: BestBlock::new(hash, height),
-            };
-            Arc::new(ChannelManager::new(
-                ln_dlc_wallet.clone(),
-                chain_monitor.clone(),
-                ln_dlc_wallet.clone(),
-                logger.clone(),
-                keys_manager.clone(),
-                ldk_user_config,
-                chain_params,
-            ))
-        };
+        // Read ChannelMonitor state from disk
+        let mut channelmonitors = persister.read_channelmonitors(keys_manager.clone())?;
 
-        // TODO: Provide persisted one if restarting
-        let network_graph = Arc::new(NetworkGraph::new(hash, logger.clone()));
+        let channel_manager = {
+            if let Ok(mut f) = std::fs::File::open(format!("{ldk_data_dir}/manager")) {
+                let mut channel_monitor_mut_references = Vec::new();
+                for (_, channel_monitor) in channelmonitors.iter_mut() {
+                    channel_monitor_mut_references.push(channel_monitor);
+                }
+                let read_args = ChannelManagerReadArgs::new(
+                    keys_manager.clone(),
+                    ln_dlc_wallet.clone(),
+                    chain_monitor.clone(),
+                    ln_dlc_wallet.clone(),
+                    logger.clone(),
+                    ldk_user_config,
+                    channel_monitor_mut_references,
+                );
+                <(BlockHash, ChannelManager)>::read(&mut f, read_args)
+                    .map_err(|e| anyhow::anyhow!("{e:?}"))?
+                    .1
+            } else {
+                // We're starting a fresh node.
+                ChannelManager::new(
+                    ln_dlc_wallet.clone(),
+                    chain_monitor.clone(),
+                    ln_dlc_wallet.clone(),
+                    logger.clone(),
+                    keys_manager.clone(),
+                    ldk_user_config,
+                    ChainParameters {
+                        network,
+                        best_block: BestBlock::new(hash, height),
+                    },
+                )
+            }
+        };
+        let channel_manager: Arc<ChannelManager> = Arc::new(channel_manager);
+
+        // Make sure our filter is initialized with all the txs and outputs
+        // that we need to be watching based on our set of channel monitors
+        for (_, monitor) in channelmonitors.iter() {
+            monitor.load_outputs_to_watch(&ln_dlc_wallet.clone());
+        }
+
+        // `Confirm` trait is not implemented on an individual ChannelMonitor
+        // but on a tuple consisting of (channel_monitor, broadcaster, fee_estimator, logger)
+        // this maps our channel monitors into a tuple that implements Confirm
+        let mut confirmable_monitors = channelmonitors
+            .into_iter()
+            .map(|(_, channel_monitor)| {
+                (
+                    channel_monitor,
+                    ln_dlc_wallet.clone(),
+                    ln_dlc_wallet.clone(),
+                    logger.clone(),
+                )
+            })
+            .collect::<Vec<ConfirmableMonitor>>();
+
+        // construct and collect a Vec of references to objects that implement the Confirm trait
+        // note: we chain the channel_manager into this Vec
+        let confirmables: Vec<&dyn Confirm> = confirmable_monitors
+            .iter()
+            .map(|cm| cm as &dyn chain::Confirm)
+            .chain(iter::once(&*channel_manager as &dyn chain::Confirm))
+            .collect();
+
+        // Sync our channel monitors and channel manager to chain tip
+        ln_dlc_wallet
+            .inner()
+            .sync(confirmables)
+            .map_err(|e| anyhow::anyhow!("{e:?}"))?;
+
+        // Give ChannelMonitors to ChainMonitor to watch
+        for confirmable_monitor in confirmable_monitors.drain(..) {
+            let channel_monitor = confirmable_monitor.0;
+            let funding_txo = channel_monitor.get_funding_txo().0;
+            assert_eq!(
+                chain_monitor.watch_channel(funding_txo, channel_monitor),
+                ChannelMonitorUpdateStatus::Completed
+            );
+        }
+
+        let genesis = genesis_block(network).header.block_hash();
+        let network_graph_path = format!("{ldk_data_dir}/network_graph");
+        let network_graph = Arc::new(disk::read_network(
+            Path::new(&network_graph_path),
+            genesis,
+            logger.clone(),
+        ));
 
         let gossip_sync = Arc::new(P2PGossipSync::new(
             network_graph.clone(),
@@ -321,7 +398,9 @@ impl Node {
 
         let peer_manager: Arc<PeerManager> = Arc::new(PeerManager::new(
             lightning_msg_handler,
-            keys_manager.get_node_secret(Recipient::Node).unwrap(),
+            keys_manager
+                .get_node_secret(Recipient::Node)
+                .map_err(|e| anyhow::anyhow!("{e:?}"))?,
             time_since_unix_epoch.as_secs() as u32,
             &ephemeral_randomness,
             logger.clone(),
@@ -375,7 +454,7 @@ impl Node {
 
         let alias = {
             if alias.len() > 32 {
-                panic!("Node Alias can not be longer than 32 bytes");
+                bail!("Node Alias can not be longer than 32 bytes");
             }
             let mut bytes = [0; 32];
             bytes[..alias.len()].copy_from_slice(alias.as_bytes());
@@ -383,7 +462,7 @@ impl Node {
         };
 
         let offers_path = data_dir.join("offers");
-        fs::create_dir_all(offers_path).expect("Error creating offered contract directory");
+        fs::create_dir_all(offers_path)?;
 
         let p2pdoracle = tokio::task::spawn_blocking(move || {
             Arc::new(
@@ -391,8 +470,7 @@ impl Node {
                     .expect("to be able to create the p2pd oracle"),
             )
         })
-        .await
-        .unwrap();
+        .await?;
 
         let oracle_pubkey = p2pdoracle.get_public_key();
         let oracles = HashMap::from([(oracle_pubkey, p2pdoracle.clone())]);
@@ -406,7 +484,7 @@ impl Node {
                 Arc::new(SystemTimeProvider {}),
                 ln_dlc_wallet.clone(),
             )
-            .unwrap(),
+            .map_err(|e| anyhow::anyhow!("{e:?}"))?,
         );
 
         let sub_channel_manager = Arc::new(SubChannelManager::new(
@@ -420,7 +498,7 @@ impl Node {
             height as u64,
         ));
 
-        Self {
+        Ok(Self {
             network,
             wallet: ln_dlc_wallet,
             alias,
@@ -445,7 +523,7 @@ impl Node {
             #[cfg(test)]
             user_config: ldk_user_config,
             pending_trades: Arc::new(Mutex::new(HashSet::new())),
-        }
+        })
     }
 
     pub async fn start(&self) -> Result<BackgroundProcessor> {

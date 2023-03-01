@@ -125,7 +125,7 @@ pub fn run(data_dir: String) -> Result<()> {
                 seed,
                 ephemeral_randomness,
             )
-            .await,
+            .await?,
         );
 
         let background_processor = node.start().await?;

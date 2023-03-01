@@ -50,7 +50,7 @@ async fn main() -> Result<()> {
             seed,
             ephemeral_randomness,
         )
-        .await,
+        .await?,
     );
 
     tokio::spawn({
