@@ -1104,8 +1104,8 @@ impl Node {
         // The contract input to be used for setting up the trade between the trader and the
         // coordinator
         let contract_input = ContractInput {
-            offer_collateral: margin_coordinator,
-            accept_collateral: margin_trader,
+            offer_collateral: margin_trader,
+            accept_collateral: margin_coordinator,
             maturity_time: maturity_time as u32,
             fee_rate: 2,
             contract_infos: vec![ContractInputInfo {
