@@ -75,7 +75,7 @@ jobs:
         # The solution using a `find` command is from here: https://github.com/dart-lang/dart_style/issues/864
         run: dart format --output=none --set-exit-if-changed --line-length 100 $(find . -name "*.dart" -not \( -name "*.*freezed.dart" -o -name "*.mocks.dart"  \) )
       - name: Analyze flutter code
-        run: flutter analyze --fatal-infos
+        run: just lint-flutter
 
   tests:
     runs-on: ubuntu-latest

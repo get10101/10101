@@ -66,12 +66,12 @@ class Order {
   }
 
   static bridge.Order apiDummy() {
-    return bridge.Order(
+    return const bridge.Order(
         leverage: 0,
         quantity: 0,
         contractSymbol: bridge.ContractSymbol.BtcUsd,
         direction: bridge.Direction.Long,
-        orderType: const bridge.OrderType.market(),
+        orderType: bridge.OrderType.market(),
         status: bridge.OrderState.Open);
   }
 }

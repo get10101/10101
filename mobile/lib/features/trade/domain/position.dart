@@ -56,7 +56,7 @@ class Position {
   }
 
   static bridge.Position apiDummy() {
-    return bridge.Position(
+    return const bridge.Position(
       leverage: 0,
       quantity: 0,
       contractSymbol: bridge.ContractSymbol.BtcUsd,
