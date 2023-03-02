@@ -35,7 +35,7 @@ async fn onboard_from_lnd() {
     let fake_scid = coordinator.create_intercept_scid(payee.info.pubkey);
     let invoice = payee
         .create_interceptable_invoice(
-            invoice_amount,
+            Some(invoice_amount),
             fake_scid,
             coordinator.info.pubkey,
             0,

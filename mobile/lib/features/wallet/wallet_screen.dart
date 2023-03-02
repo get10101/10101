@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_speed_dial/flutter_speed_dial.dart';
 import 'package:get_10101/common/amount_text.dart';
 import 'package:get_10101/features/wallet/balance_row.dart';
+import 'package:get_10101/features/wallet/create_invoice_screen.dart';
 import 'package:get_10101/features/wallet/wallet_theme.dart';
-import 'package:get_10101/features/wallet/receive_screen.dart';
 import 'package:get_10101/features/wallet/send_screen.dart';
 import 'package:get_10101/features/wallet/wallet_change_notifier.dart';
 import 'package:get_10101/util/send_receive_icons.dart';
@@ -71,7 +71,7 @@ class _WalletScreenState extends State<WalletScreen> {
           Divider(color: theme.dividerColor),
           ElevatedButton(
             onPressed: () {
-              context.go(ReceiveScreen.route);
+              context.go(CreateInvoiceScreen.route);
             },
             child: const Text("Fund Wallet"),
           ),
@@ -94,7 +94,7 @@ class _WalletScreenState extends State<WalletScreen> {
             child: const Icon(SendReceiveIcons.receive, size: 20.0),
             label: 'Receive',
             labelStyle: const TextStyle(fontSize: 18.0),
-            onTap: () => context.go(ReceiveScreen.route),
+            onTap: () => context.go(CreateInvoiceScreen.route),
           ),
           SpeedDialChild(
             child: const Icon(SendReceiveIcons.sendWithQr, size: 24.0),

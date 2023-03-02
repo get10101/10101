@@ -774,20 +774,20 @@ impl Node {
     /// invoice
     pub fn create_interceptable_invoice(
         &self,
-        amount_in_sats: u64,
+        amount_in_sats: Option<u64>,
         intercepted_channel_id: u64,
         hop_before_me: PublicKey,
         invoice_expiry: u32,
         description: String,
     ) -> Result<Invoice> {
+        let amount_msat = amount_in_sats.map(|x| x * 1000);
         let (payment_hash, payment_secret) = self
             .channel_manager
-            .create_inbound_payment(Some(amount_in_sats * 1000), invoice_expiry)
+            .create_inbound_payment(amount_msat, invoice_expiry)
             .unwrap();
         let node_secret = self.keys_manager.get_node_secret(Recipient::Node).unwrap();
-        let signed_invoice = InvoiceBuilder::new(Currency::Regtest)
+        let invoice_builder = InvoiceBuilder::new(Currency::Regtest)
             .description(description)
-            .amount_milli_satoshis(amount_in_sats * 1000)
             .payment_hash(sha256::Hash::from_slice(&payment_hash.0)?)
             .payment_secret(payment_secret)
             .timestamp(SystemTime::now())
@@ -808,7 +808,14 @@ impl Node {
                 cltv_expiry_delta: MIN_CLTV_EXPIRY_DELTA,
                 htlc_minimum_msat: None,
                 htlc_maximum_msat: None,
-            }]))
+            }]));
+
+        let invoice_builder = match amount_msat {
+            Some(msats) => invoice_builder.amount_milli_satoshis(msats),
+            None => invoice_builder,
+        };
+
+        let signed_invoice = invoice_builder
             .build_raw()
             .unwrap()
             .sign::<_, ()>(|hash| {

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:get_10101/common/amount_text.dart';
 import 'package:get_10101/common/domain/model.dart';
-import 'package:get_10101/features/wallet/receive_screen.dart';
+import 'package:get_10101/features/wallet/create_invoice_screen.dart';
 import 'package:get_10101/features/wallet/send_screen.dart';
 import 'package:get_10101/features/wallet/wallet_change_notifier.dart';
 import 'package:get_10101/features/wallet/wallet_theme.dart';
@@ -173,7 +173,7 @@ class BalanceRowButton extends StatelessWidget {
                 if (flow == PaymentFlow.outbound) {
                   context.go(SendScreen.route);
                 } else {
-                  context.go(ReceiveScreen.route);
+                  context.go(CreateInvoiceScreen.route);
                 }
               },
         style: ElevatedButton.styleFrom(
