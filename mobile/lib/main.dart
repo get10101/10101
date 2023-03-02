@@ -27,6 +27,7 @@ import 'package:get_10101/features/wallet/wallet_screen.dart';
 import 'package:get_10101/common/app_bar_wrapper.dart';
 import 'package:get_10101/features/wallet/wallet_theme.dart';
 import 'package:get_10101/util/constants.dart';
+import 'package:get_10101/util/environment.dart';
 import 'package:go_router/go_router.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
@@ -63,6 +64,7 @@ void main() {
     ChangeNotifierProvider(create: (context) => OrderChangeNotifier.create(OrderService())),
     ChangeNotifierProvider(create: (context) => PositionChangeNotifier.create(PositionService())),
     ChangeNotifierProvider(create: (context) => WalletChangeNotifier(const WalletService())),
+    Provider(create: (context) => Environment.parse()),
   ], child: const TenTenOneApp()));
 }
 
@@ -151,8 +153,8 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
   @override
   void initState() {
     super.initState();
-    init(context.read<OrderChangeNotifier>(), context.read<PositionChangeNotifier>(),
-        context.read<WalletChangeNotifier>());
+    init(context.read<bridge.Config>(), context.read<OrderChangeNotifier>(),
+        context.read<PositionChangeNotifier>(), context.read<WalletChangeNotifier>());
   }
 
   @override
@@ -174,6 +176,7 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
   }
 
   Future<void> init(
+      bridge.Config config,
       OrderChangeNotifier orderChangeNotifier,
       PositionChangeNotifier positionChangeNotifier,
       WalletChangeNotifier walletChangeNotifier) async {
@@ -199,7 +202,7 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
       final appSupportDir = await getApplicationSupportDirectory();
       FLog.info(text: "App data will be stored in: $appSupportDir");
 
-      await rust.api.run(appDir: appSupportDir.path);
+      await rust.api.run(config: config, appDir: appSupportDir.path);
     } on FfiException catch (error) {
       FLog.error(text: "Failed to initialise: Error: ${error.message}", exception: error);
     } catch (error) {

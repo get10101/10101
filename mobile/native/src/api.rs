@@ -1,5 +1,7 @@
 use crate::calculations;
 use crate::common::api::Direction;
+use crate::config;
+use crate::config::api::Config;
 use crate::event;
 use crate::event::api::FlutterSubscriber;
 use crate::ln_dlc;
@@ -115,7 +117,8 @@ pub fn subscribe(stream: StreamSink<event::api::Event>) {
     event::subscribe(FlutterSubscriber::new(stream))
 }
 
-pub fn run(app_dir: String) -> Result<()> {
+pub fn run(config: Config, app_dir: String) -> Result<()> {
+    config::set(config);
     ln_dlc::run(app_dir)
 }
 
