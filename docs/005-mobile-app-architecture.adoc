@@ -11,11 +11,12 @@ This document contains the reasoning for high level architecture and project str
 
 * Application State and data storage are handled in the mobile app's native rust code.
 ** Whenever data is required the app should ask the native backend for data.
-** Widget state should be kept on the presentation layer.
-* The domain model is mostly defined in rust.
-** It is recommended to keep the internal domain model used in the business logic encapsulated in the native code and expose a separate domain model on the API.
-** There must be a separate DTO model for the app's database.
-** We will likely still need some models in Dart, but they should be added for presentation and presentation controller purposes only. Examples are: a model to cache data until it is complete and can be handed over to the API to be stored, or a model that aggregates API data for display purposes.
+** Ephemeral (widget) state should be kept on the presentation layer.
+* The Dart presentation layer is encapsulated as presentation layer
+** We have a Dart and a rust model and map between them
+** No rust FFI code should be use in the presetnation layer, i.e. no FFI includes in `ChangeNotifier`s and `Widget`s.
+** FFI bindings should be encapsulated in `Service`s in Dart
+* The Rust code should have a separate model for the API, the business logic and DAO (data access objects), typical for a classic 3-tier architecture.
 * We use a feature-first structure for the project files because it will scale better.
 * We use the https://pub.dev/packages/go_router[`go_router`] flutter package for routing.
 ** We can consider using type-safe routes which with https://pub.dev/documentation/go_router/latest/topics/Type-safe%20routes-topic.html[possible in `go_router`].
@@ -39,11 +40,13 @@ General rule of thumb:
 
 === Data Model
 
-The data model is mostly managed in the rust code.
-It is recommended to separate the domain model used in the rust code from the model exposed to the Dart code.
-Very simple, basic domain objects can be shared between the business logic and the API layer.
+Each layer should have it's own data model for proper encapsulation.
+This means a data model for the presentation layer (in Dart), API layer (rust + FFI), the rust business logic and the rust data access layer.
 
-The Dart code may still require some domain models for e.g. caching data before it being handed over to the rust API or aggregating data provided by the API.
+Very simple, basic domain objects can be shared between the business logic and the API layer.
+We might want to introduce a crate for such shared model because they could be shared among other systems as well.
+
+The Dart code may still require addition domain models for e.g. caching data before it being handed over to the rust API or aggregating data provided by the API.
 
 === Project Structure
 
@@ -66,11 +69,25 @@ Alignment on terminology:
 Recommended initial folder structure:
 
 * lib
-** common_widgets
-** common_models
+** common
+*** application
+**** `some_shared_service.dart`
+*** domain
+**** `some_shared_domain_class.dart`
+*** `some_presentation_layer_class.dart`
 ** features
 *** wallet
+**** application
+***** `some_shared_service.dart`
+**** domain
+***** `some_shared_domain_class.dart`
+**** `some_presentation_layer_class.dart`
 *** trade
+**** application
+***** `some_shared_service.dart`
+**** domain
+***** `some_shared_domain_class.dart`
+**** `some_presentation_layer_class.dart`
 
 This image shows the boundaries of the Flutter layers:
 
@@ -79,16 +96,19 @@ image::assets/006-mobile-application-architecture/flutter-layers.png[alt=Flutter
 
 Within the `wallet` and `trade` features we can introduce subfolders:
 
-* `presentation` - widget related files (including widget state and widget controllers)
 * `application` - services; we will likely not need this in Dart because we handle it in rust
 * `domain` - domain model files
+
+Additionally, we could add:
+
+* `presentation` - widget related files (including widget state and widget controllers); this might be unnecessary, we could also just put these files in the feature folder directly
 * `data` - storage related files; we will likely not need this in Dart
 
 Initially it is expected that almost all of our files except from commonly share widgets / models will be in the `presentation` folder, so I would not introduce this folder structure, but rather add all files to the `wallet` folder.
 
 We can opt to further structure a features subfolder into sub-feature folders (e.g. `send` and `receive` for the `wallet` folder), but I would do that once the application grows.
 
-It is recommended to name widgets semantically by context (feature, task) and a logical suffix that is associated with the composition of the widget.
+It is recommended to name widgets semantically by context (feature, task) and a logical suFFIx that is associated with the composition of the widget.
 Examples:
 
 - `[...]_sceen`: composition of widgets that represents a screen (identified by a route)
