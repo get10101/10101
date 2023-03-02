@@ -10,6 +10,8 @@ import 'package:get_10101/features/trade/leverage_slider.dart';
 import 'package:get_10101/features/trade/trade_bottom_sheet_confirmation.dart';
 import 'package:get_10101/features/trade/trade_value_change_notifier.dart';
 import 'package:get_10101/features/trade/trade_theme.dart';
+import 'package:get_10101/features/wallet/domain/wallet_info.dart';
+import 'package:get_10101/features/wallet/wallet_change_notifier.dart';
 import 'package:provider/provider.dart';
 
 class TradeBottomSheetTab extends StatelessWidget {
@@ -21,6 +23,8 @@ class TradeBottomSheetTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     TradeTheme tradeTheme = Theme.of(context).extension<TradeTheme>()!;
+
+    WalletInfo walletInfo = context.watch<WalletChangeNotifier>().walletInfo;
 
     String label = direction == Direction.long ? "Buy" : "Sell";
     Color color = direction == Direction.long ? tradeTheme.buy : tradeTheme.sell;
@@ -48,7 +52,7 @@ class TradeBottomSheetTab extends StatelessWidget {
                 children: [
                   const Flexible(child: Text("Available Balance:")),
                   const SizedBox(width: 5),
-                  Flexible(child: AmountText(amount: Amount(2000)))
+                  Flexible(child: AmountText(amount: walletInfo.balances.lightning))
                 ],
               ),
             ),
