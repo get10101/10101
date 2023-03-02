@@ -741,6 +741,7 @@ dependencies = [
  "byteorder",
  "diesel_derives",
  "itoa",
+ "libsqlite3-sys",
  "pq-sys",
  "r2d2",
 ]
@@ -1412,6 +1413,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "201de327520df007757c1f0adce6e827fe8562fbc28bfd9c15571c66ca1f5f79"
 
 [[package]]
+name = "libsqlite3-sys"
+version = "0.25.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "29f835d03d717946d28b1d1ed632eb6f0e24a299388ee623d0c23118d3e8a7fa"
+dependencies = [
+ "pkg-config",
+ "vcpkg",
+]
+
+[[package]]
 name = "lightning"
 version = "0.0.113"
 source = "git+https://github.com/get10101/rust-lightning/?rev=77fc8a11b0f10fb7e31f246b59a37455d4f0d41d#77fc8a11b0f10fb7e31f246b59a37455d4f0d41d"
@@ -1693,8 +1704,9 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "bdk",
+ "diesel",
+ "diesel_migrations",
  "dlc-manager",
- "dlc-trie",
  "flutter_rust_bridge",
  "lightning-invoice",
  "ln-dlc-node",
@@ -1703,6 +1715,7 @@ dependencies = [
  "rust_decimal_macros",
  "serde",
  "state",
+ "time 0.3.20",
  "tokio",
  "tracing",
  "tracing-subscriber",

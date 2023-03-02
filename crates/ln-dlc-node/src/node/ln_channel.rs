@@ -28,7 +28,7 @@ impl Node {
                 Some(user_config),
             )
             .map_err(|e| anyhow!("{e:?}"))
-            .with_context(|| format!("Could not create channel with {}", peer))?;
+            .with_context(|| format!("Could not create channel with {peer}"))?;
 
         tracing::info!(
             %peer,
