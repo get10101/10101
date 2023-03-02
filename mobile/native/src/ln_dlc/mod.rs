@@ -97,7 +97,7 @@ pub fn run(data_dir: String) -> Result<()> {
         // TODO: Subscribe to events from the orderbook and publish OrderFilledWith event
 
         let address = {
-            let listener = TcpListener::bind("0.0.0.0:0").unwrap();
+            let listener = TcpListener::bind("0.0.0.0:0")?;
             listener.local_addr().expect("To get a free local address")
         };
 
