@@ -28,7 +28,7 @@ class WalletInfo {
 
   static bridge.WalletInfo apiDummy() {
     return bridge.WalletInfo(
-      balances: bridge.Balances(onChain: -1, lightning: -1),
+      balances: const bridge.Balances(onChain: -1, lightning: -1),
       history: List.empty(growable: false),
     );
   }
