@@ -181,7 +181,6 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
       PositionChangeNotifier positionChangeNotifier,
       WalletChangeNotifier walletChangeNotifier) async {
     try {
-      await walletChangeNotifier.refreshWalletInfo();
       setupRustLogging();
 
       // TODO: Move this code into an "InitService" or similar; we should not have bridge code in the widget
@@ -203,6 +202,8 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
       FLog.info(text: "App data will be stored in: $appSupportDir");
 
       await rust.api.run(config: config, appDir: appSupportDir.path);
+
+      await walletChangeNotifier.refreshWalletInfo();
     } on FfiException catch (error) {
       FLog.error(text: "Failed to initialise: Error: ${error.message}", exception: error);
     } catch (error) {
