@@ -4,6 +4,7 @@ use crate::ln_dlc_wallet::LnDlcWallet;
 use crate::logger::TracingLogger;
 use crate::on_chain_wallet::OnChainWallet;
 use crate::seed::Bip39Seed;
+use crate::util;
 use crate::ChainMonitor;
 use crate::ChannelManager;
 use crate::ConfirmableMonitor;
@@ -66,7 +67,6 @@ use lightning::ln::channelmanager::ChannelDetails;
 use lightning::ln::channelmanager::ChannelManagerReadArgs;
 use lightning::ln::channelmanager::MIN_CLTV_EXPIRY_DELTA;
 use lightning::ln::channelmanager::MIN_FINAL_CLTV_EXPIRY;
-use lightning::ln::msgs::NetAddress;
 use lightning::ln::peer_handler::IgnoringMessageHandler;
 use lightning::ln::peer_handler::MessageHandler;
 use lightning::ln::PaymentHash;
@@ -579,16 +579,12 @@ impl Node {
 
         let alias = self.alias;
         tokio::spawn(async move {
+            // TODO: Check why we need to announce the node of the mobile app as otherwise the
+            // just-in-time channel creation will fail with a `unable to decode own hop data` error.
+            let address = util::build_net_address(address.ip(), address.port());
             let mut interval = tokio::time::interval(BROADCAST_NODE_ANNOUNCEMENT_INTERVAL);
             loop {
-                peer_man.broadcast_node_announcement(
-                    [0; 3],
-                    alias,
-                    vec![NetAddress::IPv4 {
-                        addr: [127, 0, 0, 1],
-                        port: address.port(),
-                    }],
-                );
+                peer_man.broadcast_node_announcement([0; 3], alias, vec![address.clone()]);
                 interval.tick().await;
             }
         });

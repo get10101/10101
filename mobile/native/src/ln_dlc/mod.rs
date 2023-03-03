@@ -1,5 +1,6 @@
 use crate::api::Balances;
 use crate::api::WalletInfo;
+use crate::config;
 use crate::event;
 use crate::event::EventInternal;
 use crate::trade::position;
@@ -31,28 +32,7 @@ use std::time::Duration;
 use tokio::runtime::Runtime;
 use trade::TradeParams;
 
-const ELECTRS_ORIGIN: &str = "tcp://localhost:50000";
-
 static NODE: Storage<Arc<Node>> = Storage::new();
-
-const REGTEST_COORDINATOR_PK: &str =
-    "02dd6abec97f9a748bf76ad502b004ce05d1b2d1f43a9e76bd7d85e767ffb022c9";
-
-// TODO: this configuration should not be hardcoded.
-const HOST: &str = "127.0.0.1";
-const HTTP_PORT: u16 = 8000;
-const P2P_PORT: u16 = 9045;
-
-pub fn get_coordinator_info() -> NodeInfo {
-    NodeInfo {
-        pubkey: REGTEST_COORDINATOR_PK
-            .parse()
-            .expect("Hard-coded PK to be valid"),
-        address: format!("{HOST}:{P2P_PORT}") // todo: make ip configurable
-            .parse()
-            .expect("Hard-coded IP and port to be valid"),
-    }
-}
 
 pub fn get_wallet_info() -> Result<WalletInfo> {
     Ok(get_wallet_info_from_node(
@@ -82,13 +62,6 @@ pub fn get_oracle_pubkey() -> Result<XOnlyPublicKey> {
         .context("failed to get ln dlc node")?
         .oracle
         .get_public_key())
-}
-
-// TODO: this model should not be in the event!
-#[derive(Debug, Eq, Hash, PartialEq, Clone, Default)]
-pub struct Balance {
-    pub on_chain: u64,
-    pub off_chain: u64,
 }
 
 /// Lazily creates a multi threaded runtime with the the number of worker threads corresponding to
@@ -124,7 +97,7 @@ pub fn run(data_dir: String) -> Result<()> {
         // TODO: Subscribe to events from the orderbook and publish OrderFilledWith event
 
         let address = {
-            let listener = TcpListener::bind("0.0.0.0:0").unwrap();
+            let listener = TcpListener::bind("0.0.0.0:0")?;
             listener.local_addr().expect("To get a free local address")
         };
 
@@ -137,7 +110,7 @@ pub fn run(data_dir: String) -> Result<()> {
                 network,
                 data_dir.as_path(),
                 address,
-                ELECTRS_ORIGIN.to_string(),
+                config::get_electrs_endpoint().to_string(),
                 seed,
                 ephemeral_randomness,
             )
@@ -147,7 +120,7 @@ pub fn run(data_dir: String) -> Result<()> {
         let background_processor = node.start().await?;
 
         // todo: should the library really be responsible for managing the task?
-        node.keep_connected(get_coordinator_info()).await?;
+        node.keep_connected(config::get_coordinator_info()).await?;
 
         let node_clone = node.clone();
         runtime.spawn(async move {
@@ -227,7 +200,7 @@ pub fn get_new_address() -> Result<String> {
 pub fn open_channel() -> Result<()> {
     let node = NODE.try_get().context("failed to get ln dlc node")?;
 
-    node.initiate_open_channel(get_coordinator_info(), 500000, 250000)?;
+    node.initiate_open_channel(config::get_coordinator_info(), 500000, 250000)?;
 
     Ok(())
 }
@@ -237,11 +210,11 @@ pub fn create_invoice(amount_sats: Option<u64>) -> Result<Invoice> {
 
     runtime.block_on(async {
         let node = NODE.try_get().context("failed to get ln dlc node")?;
-
         let client = reqwest::Client::new();
         let response = client
             .post(format!(
-                "http://{HOST}:{HTTP_PORT}/api/fake_scid/{}",
+                "http://{}/api/fake_scid/{}",
+                config::get_http_endpoint(),
                 node.info.pubkey
             )) // TODO: make host configurable
             .send()
@@ -260,7 +233,7 @@ pub fn create_invoice(amount_sats: Option<u64>) -> Result<Invoice> {
         node.create_interceptable_invoice(
             amount_sats,
             fake_channel_id,
-            get_coordinator_info().pubkey,
+            config::get_coordinator_info().pubkey,
             0,
             "test".to_string(),
         )
@@ -274,11 +247,9 @@ pub fn send_payment(invoice: &str) -> Result<()> {
 }
 
 pub async fn trade(trade_params: TradeParams) -> Result<()> {
-    let url = "http://localhost:8000/api/trade"; // TODO: we need the coordinators http address here
-
     let client = reqwest::Client::new();
     let contract_info = client
-        .post(url)
+        .post(format!("http://{}/api/trade", config::get_http_endpoint()))
         .json(&trade_params)
         .send()
         .await
@@ -291,7 +262,7 @@ pub async fn trade(trade_params: TradeParams) -> Result<()> {
     let channel_details = node.list_usable_channels();
     let channel_details = channel_details
         .iter()
-        .find(|c| c.counterparty.node_id == get_coordinator_info().pubkey)
+        .find(|c| c.counterparty.node_id == config::get_coordinator_info().pubkey)
         .context("Channel details not found")?;
 
     node.propose_dlc_channel(channel_details, &contract_info)

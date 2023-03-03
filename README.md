@@ -146,7 +146,9 @@ Please refer to the [docker](https://docs.docker.com/) docs for more information
 
 #### Setup
 
-1. Start the coordinator with `cargo run --bin coordinator` or `just coordinator`
+1. Start the coordinator with `cargo run --bin coordinator -- --p2p-address=<your-local-ip>:9045` or `just coordinator --p2p-address=<your-local-ip>:9045`.
+
+   _Ensure that you are using your network ip address and not localhost. This is critical as the docker container will otherwise not be able to reach the coordinator._
 2. Open `http://localhost:8080/faucet/` (note: ensure to add the trailing `/` as otherwise nginx will try to redirect the call)
 3. Ensure you have enough balance on your bitcoin wallet. Hit the mine button a couple of times if not.
 4. Get a new address of your coordinator by running `curl http://localhost:8000/api/newaddress`
@@ -159,4 +161,6 @@ Please refer to the [docker](https://docs.docker.com/) docs for more information
 #### Fauceting your lightning wallet
 
 10. Create an invoice in your 10101 app by navigating to the receive screen.
+
+    _Note, that you have to provide the coordinator host to the mobile app like that `just run --dart-define="COORDINATOR_HOST=<your-local-ip>"`_
 11. Copy the invoice and enter it on the lightning faucet. Hit send and you will receive your funds momentarily.

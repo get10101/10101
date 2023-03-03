@@ -46,8 +46,9 @@ ios:
 	cd mobile/native && cargo lipo
 	cp target/universal/debug/libnative.a mobile/ios/Runner
 
-run:
-    cd mobile && flutter run
+
+run args="":
+    cd mobile && flutter run {{args}}
 
 clean:
     #!/usr/bin/env bash
@@ -76,8 +77,8 @@ flutter-format:
     cd mobile && dart format . --fix --line-length {{line_length}}
 
 alias c := coordinator
-coordinator:
-    cargo run --bin coordinator
+coordinator args="":
+    cargo run --bin coordinator -- {{args}}
 
 flutter-test:
     cd mobile && flutter pub run build_runner build && flutter test
