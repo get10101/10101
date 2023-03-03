@@ -115,8 +115,6 @@ pub fn run(data_dir: String) -> Result<()> {
             .await?,
         );
 
-        let background_processor = node.start().await?;
-
         // todo: should the library really be responsible for managing the task?
         node.keep_connected(config::get_coordinator_info()).await?;
 
@@ -167,14 +165,6 @@ pub fn run(data_dir: String) -> Result<()> {
                 }
 
                 tokio::time::sleep(Duration::from_secs(10)).await;
-            }
-        });
-
-        runtime.spawn_blocking(move || {
-            // background processor joins on a sync thread, meaning that join here will block a
-            // full thread, which is dis-encouraged to do in async code.
-            if let Err(err) = background_processor.join() {
-                tracing::error!(?err, "Background processor stopped unexpected");
             }
         });
 

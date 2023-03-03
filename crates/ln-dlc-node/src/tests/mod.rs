@@ -30,7 +30,6 @@ use rand::RngCore;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use std::env::temp_dir;
-use std::mem;
 use std::net::TcpListener;
 use std::path::PathBuf;
 use std::sync::Once;
@@ -97,9 +96,6 @@ impl Node {
             user_config,
         )
         .await?;
-
-        let bg_processor = node.start().await?;
-        mem::forget(bg_processor); // to keep it running
 
         tracing::debug!(%name, info = ?node.info, "Node started");
 

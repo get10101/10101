@@ -64,15 +64,6 @@ async fn main() -> Result<()> {
         }
     });
 
-    let background_processor = node.start().await.expect("background processor to start");
-    tokio::spawn({
-        async move {
-            if let Err(err) = background_processor.join() {
-                tracing::error!(?err, "Background processor stopped unexpected");
-            }
-        }
-    });
-
     // set up database connection pool
     let conn_spec = "postgres://postgres:mysecretpassword@localhost:5432/orderbook".to_string();
     let manager = ConnectionManager::<PgConnection>::new(conn_spec);

@@ -12,7 +12,6 @@ use crate::util;
 use crate::ChainMonitor;
 use crate::FakeChannelPaymentRequests;
 use crate::InvoicePayer;
-use crate::NetworkGraph;
 use crate::PaymentInfoStorage;
 use crate::PeerManager;
 use ::dlc_manager::custom_signer::CustomKeysManager;
@@ -34,12 +33,10 @@ use lightning::chain::chainmonitor;
 use lightning::chain::keysinterface::KeysInterface;
 use lightning::chain::keysinterface::KeysManager;
 use lightning::chain::keysinterface::Recipient;
-use lightning::chain::Access;
 use lightning::ln::peer_handler::IgnoringMessageHandler;
 use lightning::ln::peer_handler::MessageHandler;
 use lightning::routing::gossip::P2PGossipSync;
 use lightning::routing::router::DefaultRouter;
-use lightning::routing::scoring::ProbabilisticScorer;
 use lightning::util::config::UserConfig;
 use lightning_background_processor::BackgroundProcessor;
 use lightning_background_processor::GossipSync;
@@ -70,9 +67,6 @@ mod wallet;
 
 pub(crate) use channel_manager::ChannelManager;
 
-type TracingLoggerGossipSync =
-    Arc<P2PGossipSync<Arc<NetworkGraph>, Arc<dyn Access + Send + Sync>, Arc<TracingLogger>>>;
-
 // TODO: These intervals are quite arbitrary at the moment, come up with more sensible values
 const PROCESS_INCOMING_MESSAGES_INTERVAL: Duration = Duration::from_secs(30);
 const PROCESS_TRADE_REQUESTS_INTERVAL: Duration = Duration::from_secs(30);
@@ -83,19 +77,16 @@ pub struct Node {
     network: Network,
 
     pub wallet: Arc<LnDlcWallet>,
-    alias: String,
     pub(crate) peer_manager: Arc<PeerManager>,
     invoice_payer: Arc<InvoicePayer<EventHandler>>,
     pub(crate) channel_manager: Arc<ChannelManager>,
     chain_monitor: Arc<ChainMonitor>,
-    persister: Arc<FilesystemPersister>,
     keys_manager: Arc<CustomKeysManager>,
+    _background_processor: BackgroundProcessor,
 
     logger: Arc<TracingLogger>,
 
     pub info: NodeInfo,
-    gossip_sync: TracingLoggerGossipSync,
-    scorer: Arc<Mutex<ProbabilisticScorer<Arc<NetworkGraph>, Arc<TracingLogger>>>>,
     fake_channel_payments: FakeChannelPaymentRequests,
 
     pub(crate) dlc_manager: Arc<DlcManager>,
@@ -178,9 +169,6 @@ impl Node {
         .await
     }
 
-    // I'd like this to be a pure function and to be able to pass in anything that was loaded from
-    // the persistence layer. But we're not there yet because we're still copying convenient code
-    // from `ldk-sample` which involves IO.
     #[allow(clippy::too_many_arguments)]
     pub(crate) async fn new(
         alias: &str,
@@ -347,40 +335,9 @@ impl Node {
             storage.clone(),
         )?;
 
-        Ok(Self {
-            network,
-            alias: alias.to_string(),
-            wallet: ln_dlc_wallet,
-            peer_manager,
-            persister,
-            invoice_payer,
-            gossip_sync,
-            scorer,
-            keys_manager,
-            chain_monitor,
-            logger,
-            channel_manager: channel_manager.clone(),
-            info: NodeInfo {
-                pubkey: channel_manager.get_our_node_id(),
-                address,
-            },
-            fake_channel_payments,
-            sub_channel_manager,
-            oracle: oracle_client,
-            dlc_message_handler,
-            dlc_manager,
-            inbound_payments,
-            user_config: ldk_user_config,
-            pending_trades: Arc::new(Mutex::new(HashSet::new())),
-        })
-    }
-
-    pub async fn start(&self) -> Result<BackgroundProcessor> {
-        let address = self.info.address;
-
         // Connection manager
         tokio::spawn({
-            let peer_manager = self.peer_manager.clone();
+            let peer_manager = peer_manager.clone();
             async move {
                 let listener = tokio::net::TcpListener::bind(address)
                     .await
@@ -408,19 +365,19 @@ impl Node {
         tracing::info!("Starting background processor");
 
         let background_processor = BackgroundProcessor::start(
-            self.persister.clone(),
-            self.invoice_payer.clone(),
-            self.chain_monitor.clone(),
-            self.channel_manager.clone(),
-            GossipSync::p2p(self.gossip_sync.clone()),
-            self.peer_manager.clone(),
-            self.logger.clone(),
-            Some(self.scorer.clone()),
+            persister.clone(),
+            invoice_payer.clone(),
+            chain_monitor.clone(),
+            channel_manager.clone(),
+            GossipSync::p2p(gossip_sync.clone()),
+            peer_manager.clone(),
+            logger.clone(),
+            Some(scorer.clone()),
         );
 
         tokio::spawn({
-            let alias = alias_as_bytes(&self.alias)?;
-            let peer_manager = self.peer_manager.clone();
+            let alias = alias_as_bytes(alias)?;
+            let peer_manager = peer_manager.clone();
             async move {
                 // TODO: Check why we need to announce the node of the mobile app as otherwise the
                 // just-in-time channel creation will fail with a `unable to decode own hop data`
@@ -436,116 +393,147 @@ impl Node {
             }
         });
 
-        let dlc_man = self.dlc_manager.clone();
-        let pending_trades = self.pending_trades.clone();
-        let sub_channel_manager = self.sub_channel_manager.clone();
-        let dlc_message_handler = self.dlc_message_handler.clone();
-        let peer_manager = self.peer_manager.clone();
+        let pending_trades = Arc::new(Mutex::new(HashSet::<PublicKey>::new()));
+
+        {
+            let dlc_manager = dlc_manager.clone();
+            let sub_channel_manager = sub_channel_manager.clone();
+            tokio::spawn({
+                let dlc_message_handler = dlc_message_handler.clone();
+                let peer_manager = peer_manager.clone();
+
+                async move {
+                    loop {
+                        if let Err(e) = Node::process_incoming_messages_internal(
+                            &dlc_message_handler,
+                            &dlc_manager,
+                            &sub_channel_manager,
+                            &peer_manager,
+                        ) {
+                            tracing::error!("Unable to process internal message: {e:#}");
+                        }
+
+                        tokio::time::sleep(PROCESS_INCOMING_MESSAGES_INTERVAL).await;
+                    }
+                }
+            })
+        };
 
         tokio::spawn({
-            let dlc_man = dlc_man.clone();
-            let sub_channel_manager = sub_channel_manager.clone();
+            let dlc_manager = dlc_manager.clone();
             let dlc_message_handler = dlc_message_handler.clone();
-            let peer_manager = peer_manager.clone();
-
+            let sub_channel_manager = sub_channel_manager.clone();
+            let pending_trades = pending_trades.clone();
             async move {
                 loop {
-                    if let Err(e) = Node::process_incoming_messages_internal(
-                        &dlc_message_handler,
-                        &dlc_man,
-                        &sub_channel_manager,
-                        &peer_manager,
-                    ) {
-                        tracing::error!("Unable to process internal message: {e:#}");
+                    tokio::time::sleep(PROCESS_TRADE_REQUESTS_INTERVAL).await;
+
+                    // TODO: Remove pending trades if we were unable to fulfill them within a
+                    // certain time
+
+                    let mut pending_trades = match pending_trades.lock() {
+                        Ok(pending_trades) => pending_trades,
+                        Err(e) => {
+                            tracing::warn!("Failed to lock pending trades: {e:#}");
+                            continue;
+                        }
+                    };
+
+                    let mut to_be_deleted: HashSet<PublicKey> = HashSet::new();
+
+                    // TODO: this is not ideal as it is only needed on the coordinator
+                    for pubkey in pending_trades.iter() {
+                        let pubkey_string = pubkey.to_string();
+                        tracing::debug!(pubkey_string, "Checking for sub channel offers");
+                        let sub_channels = match dlc_manager
+                            .get_store()
+                            .get_sub_channels() // `get_offered_sub_channels` appears to have a bug
+                            .map_err(|e| anyhow!(e.to_string()))
+                        {
+                            Ok(sub_channel) => sub_channel,
+                            Err(e) => {
+                                tracing::error!("Unable to retrieve subchannels: {e:#}");
+                                continue;
+                            }
+                        };
+
+                        tracing::info!("Found sub_channels: {}", sub_channels.len());
+
+                        let sub_channel = match sub_channels.iter().find(|sub_channel| {
+                            dbg!(sub_channel.counter_party) == dbg!(*pubkey)
+                                && matches!(&sub_channel.state, SubChannelState::Offered(_))
+                        }) {
+                            None => {
+                                tracing::debug!(pubkey_string, "Nothing found for pubkey");
+                                continue;
+                            }
+                            Some(sub_channel) => sub_channel,
+                        };
+                        to_be_deleted.insert(*pubkey);
+
+                        let channel_id = sub_channel.channel_id;
+
+                        let channel_id_hex = hex::encode(channel_id);
+
+                        tracing::info!(channel_id = %channel_id_hex, "Accepting DLC channel offer");
+
+                        let (node_id, accept_sub_channel) = match sub_channel_manager
+                            .accept_sub_channel(&channel_id)
+                            .map_err(|e| anyhow!(e.to_string()))
+                        {
+                            Ok(sub_channel_details) => sub_channel_details,
+                            Err(e) => {
+                                tracing::error!(
+                                    "Failed to accept subchannel {channel_id_hex}: {e:#}"
+                                );
+                                continue;
+                            }
+                        };
+
+                        dlc_message_handler.send_subchannel_message(
+                            node_id,
+                            SubChannelMessage::Accept(accept_sub_channel),
+                        );
                     }
 
-                    tokio::time::sleep(PROCESS_INCOMING_MESSAGES_INTERVAL).await;
+                    for delete_me in to_be_deleted {
+                        pending_trades.remove(&delete_me);
+                    }
                 }
             }
         });
 
-        tokio::spawn(async move {
-            loop {
-                tokio::time::sleep(PROCESS_TRADE_REQUESTS_INTERVAL).await;
-
-                // TODO: Remove pending trades if we were unable to fulfill them within a certain
-                // time
-
-                let mut pending_trades = match pending_trades.lock() {
-                    Ok(pending_trades) => pending_trades,
-                    Err(e) => {
-                        tracing::warn!("Failed to lock pending trades: {e:#}");
-                        continue;
-                    }
-                };
-
-                let mut to_be_deleted: HashSet<PublicKey> = HashSet::new();
-
-                // TODO: this is not ideal as it is only needed on the coordinator
-                for pubkey in pending_trades.iter() {
-                    let pubkey_string = pubkey.to_string();
-                    tracing::debug!(pubkey_string, "Checking for sub channel offers");
-                    let sub_channels = match dlc_man
-                        .get_store()
-                        .get_sub_channels() // `get_offered_sub_channels` appears to have a bug
-                        .map_err(|e| anyhow!(e.to_string()))
-                    {
-                        Ok(sub_channel) => sub_channel,
-                        Err(e) => {
-                            tracing::error!("Unable to retrieve subchannels: {e:#}");
-                            continue;
-                        }
-                    };
-
-                    tracing::info!("Found sub_channels: {}", sub_channels.len());
-
-                    let sub_channel = match sub_channels.iter().find(|sub_channel| {
-                        dbg!(sub_channel.counter_party) == dbg!(*pubkey)
-                            && matches!(&sub_channel.state, SubChannelState::Offered(_))
-                    }) {
-                        None => {
-                            tracing::debug!(pubkey_string, "Nothing found for pubkey");
-                            continue;
-                        }
-                        Some(sub_channel) => sub_channel,
-                    };
-                    to_be_deleted.insert(*pubkey);
-
-                    let channel_id = sub_channel.channel_id;
-
-                    let channel_id_hex = hex::encode(channel_id);
-
-                    tracing::info!(channel_id = %channel_id_hex, "Accepting DLC channel offer");
-
-                    let (node_id, accept_sub_channel) = match sub_channel_manager
-                        .accept_sub_channel(&channel_id)
-                        .map_err(|e| anyhow!(e.to_string()))
-                    {
-                        Ok(sub_channel_details) => sub_channel_details,
-                        Err(e) => {
-                            tracing::error!("Failed to accept subchannel {channel_id_hex}: {e:#}");
-                            continue;
-                        }
-                    };
-
-                    dlc_message_handler.send_subchannel_message(
-                        node_id,
-                        SubChannelMessage::Accept(accept_sub_channel),
-                    );
-                }
-
-                for delete_me in to_be_deleted {
-                    pending_trades.remove(&delete_me);
-                }
-            }
-        });
+        let node_info = NodeInfo {
+            pubkey: channel_manager.get_our_node_id(),
+            address,
+        };
 
         tracing::info!(
             "Lightning node started with node ID {}@{}",
-            self.info.pubkey,
-            self.info.address
+            node_info.pubkey,
+            node_info.address
         );
-        Ok(background_processor)
+
+        Ok(Self {
+            network,
+            wallet: ln_dlc_wallet,
+            peer_manager,
+            invoice_payer,
+            keys_manager,
+            chain_monitor,
+            logger,
+            channel_manager: channel_manager.clone(),
+            info: node_info,
+            fake_channel_payments,
+            sub_channel_manager,
+            oracle: oracle_client,
+            dlc_message_handler,
+            dlc_manager,
+            inbound_payments,
+            user_config: ldk_user_config,
+            pending_trades,
+            _background_processor: background_processor,
+        })
     }
 }
 
