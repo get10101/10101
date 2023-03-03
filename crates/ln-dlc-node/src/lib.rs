@@ -1,10 +1,7 @@
-use crate::logger::TracingLogger;
+use crate::ln::TracingLogger;
 use bitcoin::secp256k1::PublicKey;
-use dlc_manager::custom_signer::CustomKeysManager;
 use dlc_manager::custom_signer::CustomSigner;
-use dlc_manager::SystemTimeProvider;
 use dlc_messages::message_handler::MessageHandler as DlcMessageHandler;
-use dlc_sled_storage_provider::SledStorageProvider;
 use lightning::chain;
 use lightning::chain::chainmonitor;
 use lightning::chain::channelmonitor::ChannelMonitor;
@@ -22,7 +19,8 @@ use lightning_invoice::payment;
 use lightning_net_tokio::SocketDescriptor;
 use lightning_persister::FilesystemPersister;
 use ln_dlc_wallet::LnDlcWallet;
-use p2pd_oracle_client::P2PDOracleClient;
+use node::invoice::HTLCStatus;
+use node::ChannelManager;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::Mutex;
@@ -30,7 +28,6 @@ use std::sync::Mutex;
 mod disk;
 mod ln;
 mod ln_dlc_wallet;
-mod logger;
 mod on_chain_wallet;
 pub mod seed;
 mod util;
@@ -71,34 +68,6 @@ type PeerManager = lightning::ln::peer_handler::PeerManager<
     Arc<DlcMessageHandler>,
 >;
 
-type ChannelManager = lightning::ln::channelmanager::ChannelManager<
-    Arc<ChainMonitor>,
-    Arc<LnDlcWallet>,
-    Arc<CustomKeysManager>,
-    Arc<LnDlcWallet>,
-    Arc<TracingLogger>,
->;
-
-pub(crate) type SubChannelManager = dlc_manager::sub_channel_manager::SubChannelManager<
-    Arc<LnDlcWallet>,
-    Arc<ChannelManager>,
-    Arc<SledStorageProvider>,
-    Arc<LnDlcWallet>,
-    Arc<P2PDOracleClient>,
-    Arc<SystemTimeProvider>,
-    Arc<LnDlcWallet>,
-    Arc<DlcManager>,
->;
-
-pub(crate) type DlcManager = dlc_manager::manager::Manager<
-    Arc<LnDlcWallet>,
-    Arc<LnDlcWallet>,
-    Arc<SledStorageProvider>,
-    Arc<P2PDOracleClient>,
-    Arc<SystemTimeProvider>,
-    Arc<LnDlcWallet>,
->;
-
 pub(crate) type InvoicePayer<E> =
     payment::InvoicePayer<Arc<ChannelManager>, Router, Arc<TracingLogger>, E>;
 
@@ -120,13 +89,6 @@ struct PaymentInfo {
     secret: Option<PaymentSecret>,
     status: HTLCStatus,
     amt_msat: MillisatAmount,
-}
-
-#[derive(Debug)]
-enum HTLCStatus {
-    Pending,
-    Succeeded,
-    Failed,
 }
 
 #[derive(Debug)]

@@ -1,5 +1,5 @@
-use crate::node::app_config;
-use crate::node::coordinator_config;
+use crate::ln::app_config;
+use crate::ln::coordinator_config;
 use crate::node::Node;
 use crate::seed::Bip39Seed;
 use anyhow::anyhow;
@@ -30,7 +30,6 @@ use rand::RngCore;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use std::env::temp_dir;
-use std::mem;
 use std::net::TcpListener;
 use std::path::PathBuf;
 use std::sync::Once;
@@ -87,7 +86,7 @@ impl Node {
         };
 
         let node = Node::new(
-            name.to_string(),
+            name,
             Network::Regtest,
             data_dir.as_path(),
             address,
@@ -97,9 +96,6 @@ impl Node {
             user_config,
         )
         .await?;
-
-        let bg_processor = node.start().await?;
-        mem::forget(bg_processor); // to keep it running
 
         tracing::debug!(%name, info = ?node.info, "Node started");
 

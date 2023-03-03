@@ -42,7 +42,7 @@ async fn main() -> Result<()> {
 
     let node = Arc::new(
         Node::new_coordinator(
-            "coordinator".to_string(),
+            "coordinator",
             network,
             data_dir.as_path(),
             address,
@@ -60,15 +60,6 @@ async fn main() -> Result<()> {
                 // todo: the node sync should not swallow the error.
                 node.sync();
                 tokio::time::sleep(std::time::Duration::from_secs(10)).await;
-            }
-        }
-    });
-
-    let background_processor = node.start().await.expect("background processor to start");
-    tokio::spawn({
-        async move {
-            if let Err(err) = background_processor.join() {
-                tracing::error!(?err, "Background processor stopped unexpected");
             }
         }
     });

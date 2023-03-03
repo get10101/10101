@@ -5,7 +5,6 @@ use crate::tests::wait_until;
 use anyhow::anyhow;
 use bitcoin::Amount;
 use dlc_manager::sub_channel_manager::SubChannelState;
-use dlc_manager::Oracle;
 use dlc_manager::Storage;
 use std::time::Duration;
 
@@ -32,7 +31,7 @@ async fn given_lightning_channel_then_can_add_dlc_channel() {
 
     // Act
 
-    let oracle_pk = app.oracle.get_public_key();
+    let oracle_pk = app.oracle_pk();
     let contract_input = dummy_contract_input(5_000, 2_500, oracle_pk);
 
     app.propose_dlc_channel(channel_details, &contract_input)

@@ -1,9 +1,10 @@
+use crate::ln::coordinator_config;
+use crate::ln::JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT;
 use crate::ln_dlc_wallet::LnDlcWallet;
-use crate::node::coordinator_config;
+use crate::node::invoice::HTLCStatus;
+use crate::node::ChannelManager;
 use crate::util;
-use crate::ChannelManager;
 use crate::FakeChannelPaymentRequests;
-use crate::HTLCStatus;
 use crate::MillisatAmount;
 use crate::NetworkGraph;
 use crate::PaymentInfo;
@@ -26,18 +27,6 @@ use std::collections::hash_map::Entry;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::runtime;
-
-/// When handling the [`Event::HTLCIntercepted`], we may need to
-/// create a new channel with the recipient of the HTLC. If the
-/// payment is small enough (< 1000 sats), opening the channel will
-/// fail unless we provide more outbound liquidity.
-///
-/// This value is completely arbitrary at this stage. Eventually, we
-/// should, for example, let the payee decide how much inbound
-/// liquidity they desire, and charge them for it.
-///
-/// This constant only applies to the coordinator.
-pub(crate) const JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT: u64 = 10_000;
 
 pub struct EventHandler {
     runtime_handle: runtime::Handle,
