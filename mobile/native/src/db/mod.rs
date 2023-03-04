@@ -37,12 +37,8 @@ pub fn init_db(db_dir: String) -> Result<()> {
     Ok(())
 }
 
-fn get_db() -> Result<Arc<Pool<ConnectionManager<SqliteConnection>>>> {
-    DB.try_get().context("DB uninitialised").cloned()
-}
-
 fn connection() -> Result<PooledConnection<ConnectionManager<SqliteConnection>>> {
-    let pool = get_db()?;
+    let pool = DB.try_get().context("DB uninitialised").cloned()?;
 
     pool.get()
         .map_err(|e| anyhow!("cannot acquire database connection: {e:#}"))
