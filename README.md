@@ -143,7 +143,7 @@ You can add `-d` to run the environment in the background.
 Please refer to the [docker](https://docs.docker.com/) docs for more information on how to use docker / docker-compose.
 
 Our development environment is based on [nigiri](https://github.com/vulpemventures/nigiri).
-If you are a `nigiri` user, make sure stop it before starting `10101`, and that you prune the Docker containers by running:
+If you are a `nigiri` user, make sure to stop it before running the `10101` docker-compose setup, and that you prune the Docker containers by running:
 
 ```bash
 nigiri stop
