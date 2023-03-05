@@ -142,6 +142,16 @@ docker-compose up
 You can add `-d` to run the environment in the background.
 Please refer to the [docker](https://docs.docker.com/) docs for more information on how to use docker / docker-compose.
 
+Our development environment is based on [nigiri](https://github.com/vulpemventures/nigiri).
+If you are a `nigiri` user, make sure stop it before starting `10101`, and that you prune the Docker containers by running:
+
+```bash
+nigiri stop
+docker container prune
+```
+
+Otherwise, you might have troubles starting 10101, due to port conflicts on containers.
+
 ### How to faucet your lightning wallet.
 
 #### Setup
