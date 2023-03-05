@@ -206,7 +206,6 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
       var lastLogin = await rust.api.updateLastLogin();
       FLog.debug(text: "Last login was at ${lastLogin.date}");
 
-
       await walletChangeNotifier.refreshWalletInfo();
     } on FfiException catch (error) {
       FLog.error(text: "Failed to initialise: Error: ${error.message}", exception: error);
