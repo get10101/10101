@@ -74,7 +74,7 @@ services:
     environment:
       API_URL: http://localhost:3000
     ports:
-      - "5000:5000"
+      - "5050:5000"
     restart: unless-stopped
     networks:
       vtto:
