@@ -2,6 +2,8 @@ use crate::calculations;
 use crate::common::api::Direction;
 use crate::config;
 use crate::config::api::Config;
+use crate::db;
+use crate::db::models::LastLogin;
 use crate::event;
 use crate::event::api::FlutterSubscriber;
 use crate::ln_dlc;
@@ -119,6 +121,7 @@ pub fn subscribe(stream: StreamSink<event::api::Event>) {
 
 pub fn run(config: Config, app_dir: String) -> Result<()> {
     config::set(config);
+    db::init_db(app_dir.clone())?;
     ln_dlc::run(app_dir)
 }
 
@@ -140,4 +143,9 @@ pub fn create_invoice_without_amount() -> Result<String> {
 
 pub fn send_payment(invoice: String) -> Result<()> {
     ln_dlc::send_payment(&invoice)
+}
+
+pub fn update_last_login() -> Result<LastLogin> {
+    let last_login = db::update_last_login()?;
+    Ok(last_login)
 }

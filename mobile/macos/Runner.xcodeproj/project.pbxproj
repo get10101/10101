@@ -492,6 +492,10 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
+                OTHER_LDFLAGS = (
+					"$(inherited)",
+                    "-lsqlite3",
+                );
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_OBJC_BRIDGING_HEADER = Runner/bridge_generated.h;
 				SWIFT_VERSION = 5.0;
@@ -619,6 +623,10 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
+                OTHER_LDFLAGS = (
+                    "$(inherited)",
+                    "-lsqlite3",
+                );
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_OBJC_BRIDGING_HEADER = Runner/bridge_generated.h;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
@@ -640,6 +648,10 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
+                OTHER_LDFLAGS = (
+                    "$(inherited)",
+                    "-lsqlite3",
+                );
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_OBJC_BRIDGING_HEADER = Runner/bridge_generated.h;
 				SWIFT_VERSION = 5.0;
