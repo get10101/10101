@@ -1,3 +1,4 @@
+use crate::common::api::Direction;
 use crate::event;
 use crate::event::EventInternal;
 use crate::ln_dlc;
@@ -5,8 +6,6 @@ use crate::trade::order::OrderStateTrade;
 use crate::trade::order::OrderTrade;
 use crate::trade::order::OrderTypeTrade;
 use crate::trade::position;
-use crate::trade::ContractSymbolTrade;
-use crate::trade::DirectionTrade;
 use anyhow::Context;
 use anyhow::Result;
 use std::str::FromStr;
@@ -55,8 +54,8 @@ pub async fn get_order(id: String) -> Result<OrderTrade> {
         id,
         leverage: 2.0,
         quantity: 1000.0,
-        contract_symbol: ContractSymbolTrade::BtcUsd,
-        direction: DirectionTrade::Long,
+        contract_symbol: ContractSymbol::BtcUsd,
+        direction: Direction::Long,
         order_type: OrderTypeTrade::Market,
         status: OrderStateTrade::Filled {
             execution_price: 25000.0,
@@ -73,8 +72,8 @@ pub async fn get_orders() -> Result<Vec<OrderTrade>> {
         id: Uuid::new_v4(),
         leverage: 2.0,
         quantity: 1000.0,
-        contract_symbol: ContractSymbolTrade::BtcUsd,
-        direction: DirectionTrade::Long,
+        contract_symbol: ContractSymbol::BtcUsd,
+        direction: Direction::Long,
         order_type: OrderTypeTrade::Market,
         status: OrderStateTrade::Filled {
             execution_price: 25000.0,

@@ -14,8 +14,10 @@ use crate::trade::order::api::Order;
 use crate::trade::position;
 use crate::trade::position::api::Position;
 use anyhow::Result;
+use flutter_rust_bridge::frb;
 use flutter_rust_bridge::StreamSink;
 use flutter_rust_bridge::SyncReturn;
+pub use trade::ContractSymbol;
 
 /// Initialise logging infrastructure for Rust
 pub fn init_logging(sink: StreamSink<logger::LogEntry>) {
@@ -68,6 +70,13 @@ pub fn calculate_margin(price: f64, quantity: f64, leverage: f64) -> SyncReturn<
 
 pub fn calculate_quantity(price: f64, margin: u64, leverage: f64) -> SyncReturn<f64> {
     SyncReturn(calculations::calculate_quantity(price, margin, leverage))
+}
+
+#[allow(dead_code)]
+#[frb(mirror(ContractSymbol))]
+#[derive(Debug, Clone, Copy)]
+pub enum _ContractSymbol {
+    BtcUsd,
 }
 
 pub fn calculate_liquidation_price(

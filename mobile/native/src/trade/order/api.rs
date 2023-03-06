@@ -1,9 +1,9 @@
-use crate::common::api::ContractSymbol;
 use crate::common::api::Direction;
 use crate::trade::order::OrderStateTrade;
 use crate::trade::order::OrderTrade;
 use crate::trade::order::OrderTypeTrade;
 use flutter_rust_bridge::frb;
+use trade::ContractSymbol;
 use uuid::Uuid;
 
 #[frb]
@@ -72,8 +72,8 @@ impl From<OrderTrade> for Order {
         Order {
             leverage: value.leverage,
             quantity: value.quantity,
-            contract_symbol: value.contract_symbol.into(),
-            direction: value.direction.into(),
+            contract_symbol: value.contract_symbol,
+            direction: value.direction,
             order_type: Box::new(value.order_type.into()),
             status: value.status.into(),
             execution_price,
@@ -112,8 +112,8 @@ impl From<NewOrder> for OrderTrade {
             id: Uuid::new_v4(),
             leverage: value.leverage,
             quantity: value.quantity,
-            contract_symbol: value.contract_symbol.into(),
-            direction: value.direction.into(),
+            contract_symbol: value.contract_symbol,
+            direction: value.direction,
             order_type: (*value.order_type).into(),
             status: OrderStateTrade::Open,
         }
