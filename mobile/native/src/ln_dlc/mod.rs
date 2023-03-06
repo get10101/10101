@@ -1,13 +1,12 @@
 use crate::api::Balances;
 use crate::api::WalletInfo;
+use crate::common::api::Direction;
 use crate::config;
 use crate::event;
 use crate::event::EventInternal;
 use crate::trade::position;
 use crate::trade::position::PositionStateTrade;
 use crate::trade::position::PositionTrade;
-use crate::trade::ContractSymbolTrade;
-use crate::trade::DirectionTrade;
 use anyhow::anyhow;
 use anyhow::bail;
 use anyhow::Context;
@@ -29,6 +28,7 @@ use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::runtime::Runtime;
+use trade::ContractSymbol;
 use trade::TradeParams;
 
 static NODE: Storage<Arc<Node>> = Storage::new();
@@ -150,8 +150,8 @@ pub fn run(data_dir: String) -> Result<()> {
                     event::publish(&EventInternal::PositionUpdateNotification(PositionTrade {
                         leverage: 0.0,
                         quantity: 0.0,
-                        contract_symbol: ContractSymbolTrade::BtcUsd,
-                        direction: DirectionTrade::Long,
+                        contract_symbol: ContractSymbol::BtcUsd,
+                        direction: Direction::Long,
                         average_entry_price: 0.0,
                         liquidation_price: 0.0,
                         unrealized_pnl: 0,

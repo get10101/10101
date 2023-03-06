@@ -1,5 +1,5 @@
-use crate::trade::ContractSymbolTrade;
-use crate::trade::DirectionTrade;
+use crate::common::api::Direction;
+use trade::ContractSymbol;
 
 pub mod api;
 pub mod handler;
@@ -30,8 +30,8 @@ pub enum PositionStateTrade {
 pub struct PositionTrade {
     pub leverage: f64,
     pub quantity: f64,
-    pub contract_symbol: ContractSymbolTrade,
-    pub direction: DirectionTrade,
+    pub contract_symbol: ContractSymbol,
+    pub direction: Direction,
     pub average_entry_price: f64,
     pub liquidation_price: f64,
     /// The unrealized PL can be positive or negative

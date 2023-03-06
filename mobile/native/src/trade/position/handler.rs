@@ -1,9 +1,9 @@
+use crate::common::api::Direction;
 use crate::ln_dlc;
 use crate::trade::position::PositionStateTrade;
 use crate::trade::position::PositionTrade;
-use crate::trade::ContractSymbolTrade;
-use crate::trade::DirectionTrade;
 use anyhow::Result;
+use trade::ContractSymbol;
 use trade::TradeParams;
 
 /// Sets up a trade with the counterparty
@@ -35,8 +35,8 @@ pub async fn get_positions() -> Result<Vec<PositionTrade>> {
     let dummy_position = PositionTrade {
         leverage: 2.0,
         quantity: 10000.0,
-        contract_symbol: ContractSymbolTrade::BtcUsd,
-        direction: DirectionTrade::Long,
+        contract_symbol: ContractSymbol::BtcUsd,
+        direction: Direction::Long,
         average_entry_price: 20000.0,
         liquidation_price: 14000.0,
         unrealized_pnl: -400,

@@ -1,8 +1,8 @@
-use crate::common::api::ContractSymbol;
 use crate::common::api::Direction;
 use crate::trade::position::PositionStateTrade;
 use crate::trade::position::PositionTrade;
 use flutter_rust_bridge::frb;
+use trade::ContractSymbol;
 
 #[frb]
 #[derive(Debug, Clone)]
@@ -55,8 +55,8 @@ impl From<PositionTrade> for Position {
         Position {
             leverage: value.leverage,
             quantity: value.quantity,
-            contract_symbol: value.contract_symbol.into(),
-            direction: value.direction.into(),
+            contract_symbol: value.contract_symbol,
+            direction: value.direction,
             average_entry_price: value.average_entry_price,
             liquidation_price: value.liquidation_price,
             unrealized_pnl: value.unrealized_pnl,

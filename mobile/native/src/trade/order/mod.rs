@@ -1,5 +1,5 @@
-use crate::trade::ContractSymbolTrade;
-use crate::trade::DirectionTrade;
+use crate::common::api::Direction;
+use trade::ContractSymbol;
 use uuid::Uuid;
 
 pub mod api;
@@ -63,8 +63,8 @@ pub struct OrderTrade {
     pub id: Uuid,
     pub leverage: f64,
     pub quantity: f64,
-    pub contract_symbol: ContractSymbolTrade,
-    pub direction: DirectionTrade,
+    pub contract_symbol: ContractSymbol,
+    pub direction: Direction,
     pub order_type: OrderTypeTrade,
     pub status: OrderStateTrade,
 }
