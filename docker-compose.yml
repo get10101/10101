@@ -144,9 +144,9 @@ services:
       vtto:
         ipv4_address: 10.5.0.7
 
-  coordinator-db:
+  db:
     build:
-      context: ./coordinator/docker
+      context: database
       dockerfile: Dockerfile
     volumes:
       - ./pgdata:/var/lib/postgresql/data
