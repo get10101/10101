@@ -156,7 +156,7 @@ Otherwise, you might have troubles starting 10101, due to port conflicts on cont
 
 #### Setup
 
-1. Start the coordinator with `cargo run --bin coordinator -- --p2p-address=<your-local-ip>:9045` or `just coordinator --p2p-address=<your-local-ip>:9045`.
+1. Start the coordinator with `cargo run --bin coordinator` or `just coordinator`.
 
    _Ensure that you are using your network ip address and not localhost. This is critical as the docker container will otherwise not be able to reach the coordinator._
 2. Open `http://localhost:8080/faucet/` (note: ensure to add the trailing `/` as otherwise nginx will try to redirect the call)
@@ -165,12 +165,14 @@ Otherwise, you might have troubles starting 10101, due to port conflicts on cont
 5. Faucet some coins to your coordinator wallet. Hit the mine button afterwards so the transaction gets into a block.
 6. Open `http://localhost:8080/channel/` (note: ensure to add the trailing `/` as otherwise nginx will try to redirect the call)
 7. Copy the address of the lnd node and faucet that wallet as described in step 5.
-8. Copy the node id (_pubkey@host:port_) from your coordinator logs and instruct lnd to open a channel with your coordinator. Set a reasonable channel capacity. Note, this capacity will be only inbound for your coordinator.
+8. Open a channel with your coordinator (02dd6abec97f9a748bf76ad502b004ce05d1b2d1f43a9e76bd7d85e767ffb022c9@[coordinator ip]:9045) and set a reasonable channel capacity.
+
+   _Note, if you're on mac or windows you can use `host.docker.internal` as coordinator ip._
 9. Mine a few blocks (at least 6) so that the channel gets announced.
 
 #### Fauceting your lightning wallet
 
 10. Create an invoice in your 10101 app by navigating to the receive screen.
 
-    _Note, that you have to provide the coordinator host to the mobile app like that `just run --dart-define="COORDINATOR_HOST=<your-local-ip>"`_
+    _Note, that you have to provide the coordinator host to the mobile app like that `just run`_
 11. Copy the invoice and enter it on the lightning faucet. Hit send and you will receive your funds momentarily.
