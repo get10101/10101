@@ -2,6 +2,7 @@ import 'dart:developer';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:get_10101/features/wallet/create_invoice_screen.dart';
 import 'package:get_10101/features/wallet/domain/wallet_info.dart';
 import 'package:get_10101/features/wallet/wallet_change_notifier.dart';
 import 'package:get_10101/features/wallet/wallet_screen.dart';
@@ -13,7 +14,7 @@ import 'package:share_plus/share_plus.dart';
 import 'application/wallet_service.dart';
 
 class ShareInvoiceScreen extends StatelessWidget {
-  static const route = "${WalletScreen.route}/$subRouteName";
+  static const route = "${WalletScreen.route}/${CreateInvoiceScreen.subRouteName}/$subRouteName";
   static const subRouteName = "share_invoice";
   final WalletService walletService;
   final String invoice;
