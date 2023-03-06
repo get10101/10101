@@ -42,4 +42,8 @@ impl Node {
     pub fn list_usable_channels(&self) -> Vec<ChannelDetails> {
         self.channel_manager.list_usable_channels()
     }
+
+    pub fn list_channels(&self) -> Vec<ChannelDetails> {
+        self.channel_manager.list_channels()
+    }
 }
