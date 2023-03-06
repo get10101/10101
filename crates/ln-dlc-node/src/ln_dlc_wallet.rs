@@ -66,8 +66,12 @@ impl dlc_manager::Blockchain for LnDlcWallet {
     }
 
     fn get_network(&self) -> Result<Network, Error> {
-        // todo: replace with actual network value
-        Ok(bitcoin::Network::Regtest)
+        let network = self
+            .ln_wallet
+            .get_wallet()
+            .map_err(|e| Error::WalletError(Box::new(e)))?
+            .network();
+        Ok(network)
     }
 
     fn get_blockchain_height(&self) -> Result<u64, Error> {

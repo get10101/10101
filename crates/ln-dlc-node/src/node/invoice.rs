@@ -26,18 +26,11 @@ use std::time::SystemTime;
 
 impl Node {
     pub fn create_invoice(&self, amount_in_sats: u64) -> Result<Invoice> {
-        let currency = match self.network {
-            Network::Bitcoin => Currency::Bitcoin,
-            Network::Testnet => Currency::BitcoinTestnet,
-            Network::Regtest => Currency::Regtest,
-            Network::Signet => Currency::Signet,
-        };
-
         lightning_invoice::utils::create_invoice_from_channelmanager(
             &self.channel_manager,
             self.keys_manager.clone(),
             self.logger.clone(),
-            currency,
+            self.get_currency(),
             Some(amount_in_sats * 1000),
             "".to_string(),
             180,
@@ -65,7 +58,7 @@ impl Node {
             .create_inbound_payment(amount_msat, invoice_expiry)
             .unwrap();
         let node_secret = self.keys_manager.get_node_secret(Recipient::Node).unwrap();
-        let invoice_builder = InvoiceBuilder::new(Currency::Regtest)
+        let invoice_builder = InvoiceBuilder::new(self.get_currency())
             .description(description)
             .payment_hash(sha256::Hash::from_slice(&payment_hash.0)?)
             .payment_secret(payment_secret)
@@ -104,6 +97,15 @@ impl Node {
             .unwrap();
         let invoice = Invoice::from_signed(signed_invoice).unwrap();
         Ok(invoice)
+    }
+
+    fn get_currency(&self) -> Currency {
+        match self.network {
+            Network::Bitcoin => Currency::Bitcoin,
+            Network::Testnet => Currency::BitcoinTestnet,
+            Network::Regtest => Currency::Regtest,
+            Network::Signet => Currency::Signet,
+        }
     }
 
     /// Creates a fake channel id needed to intercept payments to the provided `target_node`
