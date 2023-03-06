@@ -145,6 +145,7 @@ services:
         ipv4_address: 10.5.0.7
 
   db:
+    container_name: db
     build:
       context: database
       dockerfile: Dockerfile
@@ -157,6 +158,7 @@ services:
       POSTGRES_PASSWORD: mysecretpassword
 
   adminer:
+    container_name: adminer
     image: adminer
     restart: always
     ports:
