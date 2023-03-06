@@ -3,6 +3,8 @@ use crate::tests::dummy_contract_input;
 use crate::tests::init_tracing;
 use crate::tests::wait_until;
 use anyhow::anyhow;
+use anyhow::Context;
+use anyhow::Result;
 use bitcoin::Amount;
 use dlc_manager::subchannel::SubChannelState;
 use dlc_manager::Storage;
@@ -13,34 +15,53 @@ use std::time::Duration;
 async fn given_lightning_channel_then_can_add_dlc_channel() {
     init_tracing();
 
+    let app_balance = 50_000;
+    let coordinator_balance = 50_000;
+
+    create_dlc_channel(app_balance, coordinator_balance)
+        .await
+        .unwrap();
+}
+
+pub(crate) async fn create_dlc_channel(
+    app_dlc_collateral: u64,
+    coordinator_dlc_collateral: u64,
+) -> Result<(Node, Node)> {
     // Arrange
 
-    let app = Node::start_test_app("app").await.unwrap();
-    let coordinator = Node::start_test_coordinator("coordinator").await.unwrap();
+    let app_ln_balance = app_dlc_collateral * 2;
+    let coordinator_ln_balance = coordinator_dlc_collateral * 2;
 
-    app.keep_connected(coordinator.info).await.unwrap();
+    let fund_amount = (app_ln_balance + coordinator_ln_balance) * 2;
 
-    coordinator.fund(Amount::from_sat(200_000)).await.unwrap();
+    let app = Node::start_test_app("app").await?;
+    let coordinator = Node::start_test_coordinator("coordinator").await?;
 
-    coordinator.open_channel(&app, 50000, 50000).await.unwrap();
+    app.keep_connected(coordinator.info).await?;
+
+    coordinator.fund(Amount::from_sat(fund_amount)).await?;
+
+    coordinator
+        .open_channel(&app, coordinator_ln_balance, app_ln_balance)
+        .await?;
     let channel_details = app.channel_manager.list_usable_channels();
     let channel_details = channel_details
         .iter()
         .find(|c| c.counterparty.node_id == coordinator.info.pubkey)
-        .unwrap();
+        .context("No usable channels for app")?;
 
     // Act
 
     let oracle_pk = app.oracle_pk();
-    let contract_input = dummy_contract_input(5_000, 2_500, oracle_pk);
+    let contract_input =
+        dummy_contract_input(app_dlc_collateral, coordinator_dlc_collateral, oracle_pk);
 
     app.propose_dlc_channel(channel_details, &contract_input)
-        .await
-        .unwrap();
+        .await?;
 
     // TODO: Spawn a task that does this work periodically
     tokio::time::sleep(Duration::from_secs(2)).await;
-    coordinator.process_incoming_messages().unwrap();
+    coordinator.process_incoming_messages()?;
 
     let sub_channel = wait_until(Duration::from_secs(30), || async {
         let sub_channels = coordinator
@@ -56,22 +77,20 @@ async fn given_lightning_channel_then_can_add_dlc_channel() {
 
         Ok(sub_channel.cloned())
     })
-    .await
-    .unwrap();
+    .await?;
 
     coordinator
         .accept_dlc_channel(&sub_channel.channel_id)
-        .await
-        .unwrap();
+        .await?;
 
     // Process the coordinator's accept message _and_ send the confirm
     // message
     tokio::time::sleep(Duration::from_secs(2)).await;
-    app.process_incoming_messages().unwrap();
+    app.process_incoming_messages()?;
 
     // Process the confirm message
     tokio::time::sleep(Duration::from_secs(2)).await;
-    coordinator.process_incoming_messages().unwrap();
+    coordinator.process_incoming_messages()?;
 
     // Assert
 
@@ -79,10 +98,10 @@ async fn given_lightning_channel_then_can_add_dlc_channel() {
         .dlc_manager
         .get_store()
         .get_sub_channels()
-        .unwrap()
+        .map_err(|e| anyhow!("{e}"))?
         .into_iter()
         .find(|sc| sc.channel_id == sub_channel.channel_id)
-        .unwrap();
+        .context("No sub-channel for coordinator")?;
 
     matches!(sub_channel_coordinator.state, SubChannelState::Signed(_));
 
@@ -90,10 +109,12 @@ async fn given_lightning_channel_then_can_add_dlc_channel() {
         .dlc_manager
         .get_store()
         .get_sub_channels()
-        .unwrap()
+        .map_err(|e| anyhow!("{e}"))?
         .into_iter()
         .find(|sc| sc.channel_id == sub_channel.channel_id)
-        .unwrap();
+        .context("No sub-channel for app")?;
 
     matches!(sub_channel_app.state, SubChannelState::Signed(_));
+
+    Ok((app, coordinator))
 }
