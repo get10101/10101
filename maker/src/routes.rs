@@ -1,8 +1,10 @@
+use axum::extract::Path;
 use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::response::Response;
 use axum::routing::get;
+use axum::routing::post;
 use axum::Json;
 use axum::Router;
 use bitcoin::hashes::hex::ToHex;
@@ -34,6 +36,7 @@ pub fn router(node: Arc<Node>, pool: Pool<ConnectionManager<PgConnection>>) -> R
         .route("/api/balance", get(get_balance))
         .route("/api/invoice", get(get_invoice))
         .route("/api/channels", get(list_channels).post(create_channel))
+        .route("/api/pay-invoice/:invoice", post(pay_invoice))
         .with_state(app_state)
 }
 
@@ -255,4 +258,19 @@ pub async fn list_channels(
         .collect::<Vec<_>>();
 
     Ok(Json(usable_channels))
+}
+
+pub async fn pay_invoice(
+    State(state): State<Arc<AppState>>,
+    Path(invoice): Path<String>,
+) -> Result<Json<String>, AppError> {
+    dbg!(&invoice);
+    let invoice = invoice
+        .parse()
+        .map_err(|e| AppError::BadRequest(format!("Invalid invoice provided {e:#}")))?;
+    state
+        .node
+        .send_payment(&invoice)
+        .map_err(|e| AppError::InternalServerError(format!("Could not pay invoice {e:#}")))?;
+    Ok(Json("bl".to_string()))
 }
