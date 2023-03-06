@@ -34,6 +34,11 @@ impl Node {
         Ok(connection_closed_future)
     }
 
+    pub async fn connect_to_peer(&self, peer: NodeInfo) -> Result<()> {
+        Self::connect(self.peer_manager.clone(), peer).await?;
+        Ok(())
+    }
+
     pub async fn keep_connected(&self, peer: NodeInfo) -> Result<()> {
         // TODO: Let this time out
         let connection_closed_future = loop {

@@ -5,15 +5,19 @@ use axum::response::Response;
 use axum::routing::get;
 use axum::Json;
 use axum::Router;
+use bitcoin::hashes::hex::ToHex;
+use bitcoin::secp256k1::PublicKey;
 use diesel::r2d2;
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::Pool;
 use diesel::PgConnection;
 use dlc_manager::Wallet;
 use ln_dlc_node::node::Node;
+use ln_dlc_node::node::NodeInfo;
 use serde::Deserialize;
 use serde::Serialize;
 use serde_json::json;
+use std::str::FromStr;
 use std::sync::Arc;
 
 pub struct AppState {
@@ -29,6 +33,7 @@ pub fn router(node: Arc<Node>, pool: Pool<ConnectionManager<PgConnection>>) -> R
         .route("/api/newaddress", get(get_new_address))
         .route("/api/balance", get(get_balance))
         .route("/api/invoice", get(get_invoice))
+        .route("/api/channel", post(create_channel))
         .with_state(app_state)
 }
 
@@ -132,4 +137,47 @@ impl IntoResponse for AppError {
 
         (status, body).into_response()
     }
+}
+
+#[derive(serde::Deserialize)]
+pub struct ChannelParams {
+    target: TargetInfo,
+    local_balance: u64,
+    remote_balance: Option<u64>,
+}
+
+#[derive(serde::Deserialize)]
+pub struct TargetInfo {
+    pubkey: String,
+    address: String,
+}
+
+pub async fn create_channel(
+    State(state): State<Arc<AppState>>,
+    channel_params: Json<ChannelParams>,
+) -> Result<Json<String>, AppError> {
+    let target_address =
+        channel_params.0.target.address.parse().map_err(|e| {
+            AppError::BadRequest(format!("Invalid target node address provided {e:#}"))
+        })?;
+    let peer = NodeInfo {
+        pubkey: PublicKey::from_str(channel_params.0.target.pubkey.as_str()).map_err(|e| {
+            AppError::BadRequest(format!("Invalid target node pubkey provided {e:#}"))
+        })?,
+        address: target_address,
+    };
+
+    let channel_amount = channel_params.local_balance;
+    let initial_send_amount = channel_params.remote_balance.unwrap_or_default();
+
+    state.node.connect_to_peer(peer).await.map_err(|e| {
+        AppError::InternalServerError(format!("Could not connect to target node {e:#}"))
+    })?;
+
+    let channel_id = state
+        .node
+        .initiate_open_channel(peer, channel_amount, initial_send_amount)
+        .map_err(|e| AppError::InternalServerError(format!("Failed to open channel: {e:#}")))?;
+
+    Ok(Json(hex::encode(channel_id)))
 }

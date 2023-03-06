@@ -1612,6 +1612,7 @@ dependencies = [
  "diesel_migrations",
  "dlc-manager",
  "futures",
+ "hex 0.4.3",
  "ln-dlc-node",
  "rand",
  "serde",
