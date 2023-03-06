@@ -35,10 +35,8 @@ use std::path::PathBuf;
 use std::sync::Once;
 use std::time::Duration;
 
-mod add_dlc;
 mod bitcoind;
-mod dlc_collaborative_settlement;
-mod dlc_non_collaborative_settlement;
+mod dlc;
 mod just_in_time_channel;
 mod lnd;
 mod multi_hop_payment;
