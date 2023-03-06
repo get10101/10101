@@ -1,0 +1,135 @@
+use axum::extract::State;
+use axum::http::StatusCode;
+use axum::response::IntoResponse;
+use axum::response::Response;
+use axum::routing::get;
+use axum::Json;
+use axum::Router;
+use diesel::r2d2;
+use diesel::r2d2::ConnectionManager;
+use diesel::r2d2::Pool;
+use diesel::PgConnection;
+use dlc_manager::Wallet;
+use ln_dlc_node::node::Node;
+use serde::Deserialize;
+use serde::Serialize;
+use serde_json::json;
+use std::sync::Arc;
+
+pub struct AppState {
+    pub node: Arc<Node>,
+    pub pool: r2d2::Pool<ConnectionManager<PgConnection>>,
+}
+
+pub fn router(node: Arc<Node>, pool: Pool<ConnectionManager<PgConnection>>) -> Router {
+    let app_state = Arc::new(AppState { node, pool });
+
+    Router::new()
+        .route("/", get(index))
+        .route("/api/newaddress", get(get_new_address))
+        .route("/api/balance", get(get_balance))
+        .route("/api/invoice", get(get_invoice))
+        .with_state(app_state)
+}
+
+#[derive(serde::Serialize)]
+pub struct Index {
+    address: String,
+    balance: Balance,
+    invoice: Invoice,
+}
+
+#[derive(serde::Serialize)]
+pub struct Invoice {
+    invoice: String,
+    amount: u64,
+}
+
+pub async fn index(State(app_state): State<Arc<AppState>>) -> Result<Json<Index>, AppError> {
+    let address =
+        app_state.node.wallet.get_new_address().map_err(|e| {
+            AppError::InternalServerError(format!("Failed to get new address: {e:#}"))
+        })?;
+
+    let offchain = app_state.node.get_ldk_balance();
+    let onchain = app_state
+        .node
+        .get_on_chain_balance()
+        .map_err(|e| AppError::InternalServerError(format!("Failed to get balance: {e:#}")))?;
+
+    let amount = 2000;
+    let invoice = app_state
+        .node
+        .create_invoice(amount)
+        .map_err(|e| AppError::InternalServerError(format!("Failed to create invoice: {e:#}")))?;
+
+    Ok(Json(Index {
+        address: address.to_string(),
+        balance: Balance {
+            offchain: offchain.available,
+            onchain: onchain.confirmed,
+        },
+        invoice: Invoice {
+            invoice: invoice.to_string(),
+            amount,
+        },
+    }))
+}
+
+pub async fn get_new_address(
+    State(app_state): State<Arc<AppState>>,
+) -> Result<Json<String>, AppError> {
+    let address =
+        app_state.node.wallet.get_new_address().map_err(|e| {
+            AppError::InternalServerError(format!("Failed to get new address: {e:#}"))
+        })?;
+    Ok(Json(address.to_string()))
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct Balance {
+    offchain: u64,
+    onchain: u64,
+}
+
+pub async fn get_balance(State(state): State<Arc<AppState>>) -> Result<Json<Balance>, AppError> {
+    let offchain = state.node.get_ldk_balance();
+    let onchain = state
+        .node
+        .get_on_chain_balance()
+        .map_err(|e| AppError::InternalServerError(format!("Failed to get balance: {e:#}")))?;
+    Ok(Json(Balance {
+        offchain: offchain.available,
+        onchain: onchain.confirmed,
+    }))
+}
+
+pub async fn get_invoice(State(state): State<Arc<AppState>>) -> Result<Json<String>, AppError> {
+    let invoice = state
+        .node
+        .create_invoice(2000)
+        .map_err(|e| AppError::InternalServerError(format!("Failed to create invoice: {e:#}")))?;
+
+    Ok(Json(invoice.to_string()))
+}
+
+/// Our app's top level error type.
+pub enum AppError {
+    InternalServerError(String),
+    BadRequest(String),
+}
+
+impl IntoResponse for AppError {
+    fn into_response(self) -> Response {
+        let (status, error_message) = match self {
+            AppError::InternalServerError(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg),
+            AppError::BadRequest(msg) => (StatusCode::BAD_REQUEST, msg),
+        };
+
+        let body = Json(json!({
+            "error": error_message,
+        }));
+
+        (status, body).into_response()
+    }
+}
