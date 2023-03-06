@@ -7,7 +7,7 @@ use std::path::PathBuf;
 #[derive(Parser)]
 pub struct Opts {
     /// The address to listen on for the lightning and dlc peer2peer API.
-    #[clap(long, default_value = "127.0.0.1:19045")]
+    #[clap(long, default_value = "0.0.0.0:19045")]
     pub p2p_address: SocketAddr,
 
     /// The IP address to listen on for the HTTP API.
