@@ -35,10 +35,8 @@ use std::path::PathBuf;
 use std::sync::Once;
 use std::time::Duration;
 
-mod add_dlc;
 mod bitcoind;
-mod dlc_collaborative_settlement;
-mod dlc_non_collaborative_settlement;
+mod dlc;
 mod just_in_time_channel;
 mod lnd;
 mod multi_hop_payment;
@@ -183,12 +181,6 @@ impl Node {
         .await?;
 
         Ok(channel_details)
-    }
-
-    async fn accept_dlc_channel(&self, channel_id: &[u8; 32]) -> Result<()> {
-        self.initiate_accept_dlc_channel_offer(channel_id)?;
-
-        Ok(())
     }
 }
 
