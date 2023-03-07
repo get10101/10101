@@ -57,7 +57,7 @@ use std::time::SystemTime;
 
 mod channel_manager;
 mod connection;
-mod dlc_channel;
+pub(crate) mod dlc_channel;
 mod dlc_manager;
 pub(crate) mod invoice;
 mod ln_channel;
@@ -76,7 +76,7 @@ const BROADCAST_NODE_ANNOUNCEMENT_INTERVAL: Duration = Duration::from_secs(60);
 pub struct Node {
     network: Network,
 
-    pub wallet: Arc<LnDlcWallet>,
+    pub(crate) wallet: Arc<LnDlcWallet>,
     pub(crate) peer_manager: Arc<PeerManager>,
     invoice_payer: Arc<InvoicePayer<EventHandler>>,
     pub(crate) channel_manager: Arc<ChannelManager>,

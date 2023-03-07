@@ -38,6 +38,8 @@ pub mod seed;
 #[cfg(test)]
 mod tests;
 
+pub use node::dlc_channel::Dlc;
+
 type ConfirmableMonitor = (
     ChannelMonitor<CustomSigner>,
     Arc<LnDlcWallet>,
