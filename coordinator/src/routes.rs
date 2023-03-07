@@ -20,7 +20,6 @@ use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::Pool;
 use diesel::PgConnection;
 use dlc_manager::contract::contract_input::ContractInput;
-use dlc_manager::Wallet;
 use ln_dlc_node::node::Node;
 use serde::Deserialize;
 use serde::Serialize;
@@ -88,10 +87,10 @@ pub async fn post_fake_scid(
 pub async fn get_new_address(
     State(app_state): State<Arc<AppState>>,
 ) -> Result<Json<String>, AppError> {
-    let address =
-        app_state.node.wallet.get_new_address().map_err(|e| {
-            AppError::InternalServerError(format!("Failed to get new address: {e:#}"))
-        })?;
+    let address = app_state
+        .node
+        .get_new_address()
+        .map_err(|e| AppError::InternalServerError(format!("Failed to get new address: {e:#}")))?;
     Ok(Json(address.to_string()))
 }
 

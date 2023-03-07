@@ -34,8 +34,6 @@ use std::net::TcpListener;
 use std::path::PathBuf;
 use std::sync::Once;
 use std::time::Duration;
-use std::time::SystemTime;
-use std::time::UNIX_EPOCH;
 
 mod add_dlc;
 mod bitcoind;
@@ -303,68 +301,60 @@ fn dummy_contract_input(
 ) -> ContractInput {
     let total_collateral = offer_collateral + accept_collateral;
 
-    let maturity_time = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_secs()
-        + 86_400; // in a day's time
-
     ContractInput {
         offer_collateral,
         accept_collateral,
-        maturity_time: maturity_time as u32,
         fee_rate: 2,
         contract_infos: vec![ContractInputInfo {
             contract_descriptor: ContractDescriptor::Numerical(NumericalDescriptor {
-                payout_function: PayoutFunction {
-                    payout_function_pieces: vec![
-                        PayoutFunctionPiece::PolynomialPayoutCurvePiece(
-                            PolynomialPayoutCurvePiece::new(vec![
-                                PayoutPoint {
-                                    event_outcome: 0,
-                                    outcome_payout: 0,
-                                    extra_precision: 0,
-                                },
-                                PayoutPoint {
-                                    event_outcome: 50_000,
-                                    outcome_payout: 0,
-                                    extra_precision: 0,
-                                },
-                            ])
-                            .unwrap(),
-                        ),
-                        PayoutFunctionPiece::PolynomialPayoutCurvePiece(
-                            PolynomialPayoutCurvePiece::new(vec![
-                                PayoutPoint {
-                                    event_outcome: 50_000,
-                                    outcome_payout: 0,
-                                    extra_precision: 0,
-                                },
-                                PayoutPoint {
-                                    event_outcome: 60_000,
-                                    outcome_payout: total_collateral,
-                                    extra_precision: 0,
-                                },
-                            ])
-                            .unwrap(),
-                        ),
-                        PayoutFunctionPiece::PolynomialPayoutCurvePiece(
-                            PolynomialPayoutCurvePiece::new(vec![
-                                PayoutPoint {
-                                    event_outcome: 60_000,
-                                    outcome_payout: total_collateral,
-                                    extra_precision: 0,
-                                },
-                                PayoutPoint {
-                                    event_outcome: 1048575,
-                                    outcome_payout: total_collateral,
-                                    extra_precision: 0,
-                                },
-                            ])
-                            .unwrap(),
-                        ),
-                    ],
-                },
+                payout_function: PayoutFunction::new(vec![
+                    PayoutFunctionPiece::PolynomialPayoutCurvePiece(
+                        PolynomialPayoutCurvePiece::new(vec![
+                            PayoutPoint {
+                                event_outcome: 0,
+                                outcome_payout: 0,
+                                extra_precision: 0,
+                            },
+                            PayoutPoint {
+                                event_outcome: 50_000,
+                                outcome_payout: 0,
+                                extra_precision: 0,
+                            },
+                        ])
+                        .unwrap(),
+                    ),
+                    PayoutFunctionPiece::PolynomialPayoutCurvePiece(
+                        PolynomialPayoutCurvePiece::new(vec![
+                            PayoutPoint {
+                                event_outcome: 50_000,
+                                outcome_payout: 0,
+                                extra_precision: 0,
+                            },
+                            PayoutPoint {
+                                event_outcome: 60_000,
+                                outcome_payout: total_collateral,
+                                extra_precision: 0,
+                            },
+                        ])
+                        .unwrap(),
+                    ),
+                    PayoutFunctionPiece::PolynomialPayoutCurvePiece(
+                        PolynomialPayoutCurvePiece::new(vec![
+                            PayoutPoint {
+                                event_outcome: 60_000,
+                                outcome_payout: total_collateral,
+                                extra_precision: 0,
+                            },
+                            PayoutPoint {
+                                event_outcome: 1048575,
+                                outcome_payout: total_collateral,
+                                extra_precision: 0,
+                            },
+                        ])
+                        .unwrap(),
+                    ),
+                ])
+                .unwrap(),
                 rounding_intervals: RoundingIntervals {
                     intervals: vec![RoundingInterval {
                         begin_interval: 0,

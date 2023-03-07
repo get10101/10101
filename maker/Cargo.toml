@@ -12,7 +12,6 @@ bitcoin = "0.29"
 clap = { version = "4", features = ["derive"] }
 diesel = { version = "2.0.0", features = ["r2d2", "postgres"] }
 diesel_migrations = "2.0.0"
-dlc-manager = { version = "0.3.0", features = ["use-serde"] }
 futures = "0.3"
 hex = "0.4.3"
 ln-dlc-node = { path = "../crates/ln-dlc-node" }

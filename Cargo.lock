@@ -192,15 +192,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a4a4ddaa51a5bc52a6948f74c06d20aaaddb71924eab79b8c97a8c556e942d6a"
 
 [[package]]
-name = "base64-compat"
-version = "1.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5a8d4d2746f89841e49230dd26917df1876050f95abafafbe34f47cb534b88d7"
-dependencies = [
- "byteorder",
-]
-
-[[package]]
 name = "bdk"
 version = "0.24.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -258,10 +249,11 @@ checksum = "d86b93f97252c47b41663388e6d155714a9d0c398b99f1005cbc5f978b29f445"
 
 [[package]]
 name = "bip39"
-version = "1.0.1"
-source = "git+https://github.com/get10101/rust-bip39?rev=991760d3364a9cb18d8ff89ac6ad1abef2ed333f#991760d3364a9cb18d8ff89ac6ad1abef2ed333f"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "93f2635620bf0b9d4576eb7bb9a38a55df78bd1205d26fa994b25911a69f212f"
 dependencies = [
- "bitcoin_hashes 0.9.7",
+ "bitcoin_hashes",
  "rand_core",
  "serde",
  "unicode-normalization",
@@ -275,7 +267,7 @@ checksum = "0694ea59225b0c5f3cb405ff3f670e4828358ed26aec49dc352f730f0cb1a8a3"
 dependencies = [
  "base64 0.13.1",
  "bech32 0.9.1",
- "bitcoin_hashes 0.11.0",
+ "bitcoin_hashes",
  "secp256k1",
  "serde",
 ]
@@ -290,52 +282,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "bitcoin-test-utils"
-version = "0.1.0"
-source = "git+https://github.com/get10101/rust-dlc?rev=3c57f779a1c6f10db19630af7e8d34a69d0e4c39#3c57f779a1c6f10db19630af7e8d34a69d0e4c39"
-dependencies = [
- "bitcoin",
- "bitcoincore-rpc",
- "bitcoincore-rpc-json",
-]
-
-[[package]]
-name = "bitcoin_hashes"
-version = "0.9.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7ce18265ec2324ad075345d5814fbeed4f41f0a660055dc78840b74d19b874b1"
-
-[[package]]
 name = "bitcoin_hashes"
 version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "90064b8dee6815a6470d60bad07bbbaee885c0e12d04177138fa3291a01b7bc4"
 dependencies = [
  "serde",
-]
-
-[[package]]
-name = "bitcoincore-rpc"
-version = "0.16.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0261b2bb7617e0c91b452a837bbd1291fd34ad6990cb8e3ffc28239cc045b5ca"
-dependencies = [
- "bitcoincore-rpc-json",
- "jsonrpc",
- "log",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "bitcoincore-rpc-json"
-version = "0.16.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c231bea28e314879c5aef240f6052e8a72a369e3c9f9b20d9bfbb33ad18029b2"
-dependencies = [
- "bitcoin",
- "serde",
- "serde_json",
 ]
 
 [[package]]
@@ -782,8 +734,8 @@ dependencies = [
 
 [[package]]
 name = "dlc"
-version = "0.3.0"
-source = "git+https://github.com/get10101/rust-dlc?rev=3c57f779a1c6f10db19630af7e8d34a69d0e4c39#3c57f779a1c6f10db19630af7e8d34a69d0e4c39"
+version = "0.4.0"
+source = "git+https://github.com/get10101/rust-dlc?branch=feature/ln-dlc-channels#b3d31730874ffe422d27d4bbdbb508532a5ba8ee"
 dependencies = [
  "bitcoin",
  "miniscript",
@@ -794,12 +746,11 @@ dependencies = [
 
 [[package]]
 name = "dlc-manager"
-version = "0.3.0"
-source = "git+https://github.com/get10101/rust-dlc?rev=3c57f779a1c6f10db19630af7e8d34a69d0e4c39#3c57f779a1c6f10db19630af7e8d34a69d0e4c39"
+version = "0.4.0"
+source = "git+https://github.com/get10101/rust-dlc?branch=feature/ln-dlc-channels#b3d31730874ffe422d27d4bbdbb508532a5ba8ee"
 dependencies = [
  "async-trait",
  "bitcoin",
- "bitcoin-test-utils",
  "dlc",
  "dlc-messages",
  "dlc-trie",
@@ -811,8 +762,8 @@ dependencies = [
 
 [[package]]
 name = "dlc-messages"
-version = "0.3.0"
-source = "git+https://github.com/get10101/rust-dlc?rev=3c57f779a1c6f10db19630af7e8d34a69d0e4c39#3c57f779a1c6f10db19630af7e8d34a69d0e4c39"
+version = "0.4.0"
+source = "git+https://github.com/get10101/rust-dlc?branch=feature/ln-dlc-channels#b3d31730874ffe422d27d4bbdbb508532a5ba8ee"
 dependencies = [
  "bitcoin",
  "dlc",
@@ -824,7 +775,7 @@ dependencies = [
 [[package]]
 name = "dlc-sled-storage-provider"
 version = "0.1.0"
-source = "git+https://github.com/get10101/rust-dlc?rev=3c57f779a1c6f10db19630af7e8d34a69d0e4c39#3c57f779a1c6f10db19630af7e8d34a69d0e4c39"
+source = "git+https://github.com/get10101/rust-dlc?branch=feature/ln-dlc-channels#b3d31730874ffe422d27d4bbdbb508532a5ba8ee"
 dependencies = [
  "bitcoin",
  "dlc-manager",
@@ -836,8 +787,8 @@ dependencies = [
 
 [[package]]
 name = "dlc-trie"
-version = "0.3.0"
-source = "git+https://github.com/get10101/rust-dlc?rev=3c57f779a1c6f10db19630af7e8d34a69d0e4c39#3c57f779a1c6f10db19630af7e8d34a69d0e4c39"
+version = "0.4.0"
+source = "git+https://github.com/get10101/rust-dlc?branch=feature/ln-dlc-channels#b3d31730874ffe422d27d4bbdbb508532a5ba8ee"
 dependencies = [
  "bitcoin",
  "dlc",
@@ -1389,18 +1340,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "jsonrpc"
-version = "0.12.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7f8423b78fc94d12ef1a4a9d13c348c9a78766dda0cc18817adf0faf77e670c8"
-dependencies = [
- "base64-compat",
- "serde",
- "serde_derive",
- "serde_json",
-]
-
-[[package]]
 name = "lazy_static"
 version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1425,7 +1364,7 @@ dependencies = [
 [[package]]
 name = "lightning"
 version = "0.0.113"
-source = "git+https://github.com/get10101/rust-lightning/?rev=77fc8a11b0f10fb7e31f246b59a37455d4f0d41d#77fc8a11b0f10fb7e31f246b59a37455d4f0d41d"
+source = "git+https://github.com/p2pderivatives/rust-lightning/?branch=split-tx-experiment#be41078f333577f7d513ea26543dcc79b0588698"
 dependencies = [
  "bitcoin",
 ]
@@ -1433,7 +1372,7 @@ dependencies = [
 [[package]]
 name = "lightning-background-processor"
 version = "0.0.113"
-source = "git+https://github.com/get10101/rust-lightning/?rev=77fc8a11b0f10fb7e31f246b59a37455d4f0d41d#77fc8a11b0f10fb7e31f246b59a37455d4f0d41d"
+source = "git+https://github.com/p2pderivatives/rust-lightning/?branch=split-tx-experiment#be41078f333577f7d513ea26543dcc79b0588698"
 dependencies = [
  "bitcoin",
  "lightning",
@@ -1443,7 +1382,7 @@ dependencies = [
 [[package]]
 name = "lightning-block-sync"
 version = "0.0.113"
-source = "git+https://github.com/get10101/rust-lightning/?rev=77fc8a11b0f10fb7e31f246b59a37455d4f0d41d#77fc8a11b0f10fb7e31f246b59a37455d4f0d41d"
+source = "git+https://github.com/p2pderivatives/rust-lightning/?branch=split-tx-experiment#be41078f333577f7d513ea26543dcc79b0588698"
 dependencies = [
  "bitcoin",
  "chunked_transfer",
@@ -1460,7 +1399,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e9680857590c3529cf8c7d32b04501f215f2bf1e029fdfa22f4112f66c1741e4"
 dependencies = [
  "bech32 0.9.1",
- "bitcoin_hashes 0.11.0",
+ "bitcoin_hashes",
  "lightning",
  "num-traits",
  "secp256k1",
@@ -1469,7 +1408,7 @@ dependencies = [
 [[package]]
 name = "lightning-net-tokio"
 version = "0.0.113"
-source = "git+https://github.com/get10101/rust-lightning/?rev=77fc8a11b0f10fb7e31f246b59a37455d4f0d41d#77fc8a11b0f10fb7e31f246b59a37455d4f0d41d"
+source = "git+https://github.com/p2pderivatives/rust-lightning/?branch=split-tx-experiment#be41078f333577f7d513ea26543dcc79b0588698"
 dependencies = [
  "bitcoin",
  "lightning",
@@ -1479,7 +1418,7 @@ dependencies = [
 [[package]]
 name = "lightning-persister"
 version = "0.0.113"
-source = "git+https://github.com/get10101/rust-lightning/?rev=77fc8a11b0f10fb7e31f246b59a37455d4f0d41d#77fc8a11b0f10fb7e31f246b59a37455d4f0d41d"
+source = "git+https://github.com/p2pderivatives/rust-lightning/?branch=split-tx-experiment#be41078f333577f7d513ea26543dcc79b0588698"
 dependencies = [
  "bitcoin",
  "libc",
@@ -1490,7 +1429,7 @@ dependencies = [
 [[package]]
 name = "lightning-rapid-gossip-sync"
 version = "0.0.113"
-source = "git+https://github.com/get10101/rust-lightning/?rev=77fc8a11b0f10fb7e31f246b59a37455d4f0d41d#77fc8a11b0f10fb7e31f246b59a37455d4f0d41d"
+source = "git+https://github.com/p2pderivatives/rust-lightning/?branch=split-tx-experiment#be41078f333577f7d513ea26543dcc79b0588698"
 dependencies = [
  "bitcoin",
  "lightning",
@@ -1542,6 +1481,7 @@ dependencies = [
  "rand",
  "reqwest",
  "rust_decimal",
+ "secp256k1-zkp",
  "serde",
  "sha2",
  "simple-wallet",
@@ -1610,7 +1550,6 @@ dependencies = [
  "clap",
  "diesel",
  "diesel_migrations",
- "dlc-manager",
  "futures",
  "hex 0.4.3",
  "ln-dlc-node",
@@ -1645,12 +1584,6 @@ name = "matchit"
 version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b87248edafb776e59e6ee64a79086f65890d3510f2c656c000bf2a7e8a0aea40"
-
-[[package]]
-name = "maybe-uninit"
-version = "2.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "60302e4db3a61da70c0cb7991976248362f30319e88850c487b9b95bbf059e00"
 
 [[package]]
 name = "memchr"
@@ -1733,7 +1666,6 @@ dependencies = [
  "bdk",
  "diesel",
  "diesel_migrations",
- "dlc-manager",
  "flutter_rust_bridge",
  "lightning-invoice",
  "ln-dlc-node",
@@ -1892,7 +1824,7 @@ checksum = "b15813163c1d831bf4a13c3610c05c0d03b39feb07f7e09fa234dac9b15aaf39"
 [[package]]
 name = "p2pd-oracle-client"
 version = "0.1.0"
-source = "git+https://github.com/get10101/rust-dlc?rev=3c57f779a1c6f10db19630af7e8d34a69d0e4c39#3c57f779a1c6f10db19630af7e8d34a69d0e4c39"
+source = "git+https://github.com/get10101/rust-dlc?branch=feature/ln-dlc-channels#b3d31730874ffe422d27d4bbdbb508532a5ba8ee"
 dependencies = [
  "chrono",
  "dlc-manager",
@@ -1933,7 +1865,7 @@ dependencies = [
  "instant",
  "libc",
  "redox_syscall",
- "smallvec 1.10.0",
+ "smallvec",
  "winapi",
 ]
 
@@ -1946,7 +1878,7 @@ dependencies = [
  "cfg-if",
  "libc",
  "redox_syscall",
- "smallvec 1.10.0",
+ "smallvec",
  "windows-sys 0.45.0",
 ]
 
@@ -2378,7 +2310,7 @@ version = "0.24.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6b1629c9c557ef9b293568b338dddfc8208c98a18c59d722a9d53f859d9c9b62"
 dependencies = [
- "bitcoin_hashes 0.11.0",
+ "bitcoin_hashes",
  "rand",
  "secp256k1-sys",
  "serde",
@@ -2555,7 +2487,7 @@ dependencies = [
 [[package]]
 name = "simple-wallet"
 version = "0.1.0"
-source = "git+https://github.com/get10101/rust-dlc?rev=3c57f779a1c6f10db19630af7e8d34a69d0e4c39#3c57f779a1c6f10db19630af7e8d34a69d0e4c39"
+source = "git+https://github.com/get10101/rust-dlc?branch=feature/ln-dlc-channels#b3d31730874ffe422d27d4bbdbb508532a5ba8ee"
 dependencies = [
  "bitcoin",
  "dlc",
@@ -2588,15 +2520,6 @@ dependencies = [
  "libc",
  "log",
  "parking_lot 0.11.2",
-]
-
-[[package]]
-name = "smallvec"
-version = "0.6.14"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b97fcaeba89edba30f044a10c6a3cc39df9c3f17d7cd829dd1446cab35f890e0"
-dependencies = [
- "maybe-uninit",
 ]
 
 [[package]]
@@ -2774,6 +2697,21 @@ checksum = "fd80a657e71da814b8e5d60d3374fc6d35045062245d80224748ae522dd76f36"
 dependencies = [
  "time-core",
 ]
+
+[[package]]
+name = "tinyvec"
+version = "1.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "87cc5ceb3875bb20c2890005a4e226a4651264a5c75edb2421b52861a0a0cb50"
+dependencies = [
+ "tinyvec_macros",
+]
+
+[[package]]
+name = "tinyvec_macros"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
 
 [[package]]
 name = "tokio"
@@ -2966,7 +2904,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sharded-slab",
- "smallvec 1.10.0",
+ "smallvec",
  "thread_local",
  "time 0.3.20",
  "tracing",
@@ -3030,11 +2968,11 @@ checksum = "84a22b9f218b40614adcb3f4ff08b703773ad44fa9423e4e0d346d5db86e4ebc"
 
 [[package]]
 name = "unicode-normalization"
-version = "0.1.9"
+version = "0.1.22"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "09c8070a9942f5e7cfccd93f490fdebd230ee3c3c9f107cb25bad5351ef671cf"
+checksum = "5c5713f0fc4b5db668a2ac63cdb7bb4469d8c9fed047b1d0292cc7b0ce2ba921"
 dependencies = [
- "smallvec 0.6.14",
+ "tinyvec",
 ]
 
 [[package]]

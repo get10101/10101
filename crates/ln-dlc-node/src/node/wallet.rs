@@ -1,6 +1,8 @@
 use crate::node::Node;
 use anyhow::anyhow;
 use anyhow::Result;
+use bdk::wallet::AddressIndex;
+use bitcoin::Address;
 use lightning::chain::Confirm;
 
 #[derive(Debug, Clone)]
@@ -17,6 +19,17 @@ impl Node {
         ];
 
         self.wallet.inner().sync(confirmables).unwrap();
+    }
+
+    pub fn get_new_address(&self) -> Result<Address> {
+        let address = self
+            .wallet
+            .inner()
+            .get_wallet()
+            .unwrap()
+            .get_address(AddressIndex::New)?;
+
+        Ok(address.address)
     }
 
     pub fn get_on_chain_balance(&self) -> Result<bdk::Balance> {

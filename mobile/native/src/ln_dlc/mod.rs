@@ -15,12 +15,11 @@ use bdk::bitcoin::secp256k1::rand::thread_rng;
 use bdk::bitcoin::secp256k1::rand::RngCore;
 use bdk::bitcoin::Network;
 use bdk::bitcoin::XOnlyPublicKey;
-use dlc_manager::contract::Contract;
-use dlc_manager::Wallet;
 use lightning_invoice::Invoice;
 use ln_dlc_node::node::Node;
 use ln_dlc_node::node::NodeInfo;
 use ln_dlc_node::seed::Bip39Seed;
+use ln_dlc_node::Dlc;
 use state::Storage;
 use std::net::TcpListener;
 use std::path::Path;
@@ -134,7 +133,7 @@ pub fn run(data_dir: String) -> Result<()> {
         // periodically update for positions
         runtime.spawn(async move {
             loop {
-                let contracts = match node_cloned.get_dlcs() {
+                let contracts = match node_cloned.get_confirmed_dlcs() {
                     Ok(contracts) => contracts,
                     Err(e) => {
                         tracing::error!("Failed to retrieve DLCs from node: {e:#}");
@@ -144,7 +143,10 @@ pub fn run(data_dir: String) -> Result<()> {
                 };
 
                 // Assumes that there is only one contract, i.e. one position
-                if let Some(Contract::Confirmed(contract)) = contracts.get(0) {
+                if let Some(Dlc {
+                    offer_collateral, ..
+                }) = contracts.get(0)
+                {
                     // TODO: Load position data from database and fill in the values; the collateral
                     // can be taken from the DLC
                     event::publish(&EventInternal::PositionUpdateNotification(PositionTrade {
@@ -156,11 +158,7 @@ pub fn run(data_dir: String) -> Result<()> {
                         liquidation_price: 0.0,
                         unrealized_pnl: 0,
                         position_state: PositionStateTrade::Open,
-                        collateral: contract
-                            .accepted_contract
-                            .offered_contract
-                            .offer_params
-                            .collateral,
+                        collateral: *offer_collateral,
                     }));
                 }
 
@@ -177,7 +175,6 @@ pub fn run(data_dir: String) -> Result<()> {
 pub fn get_new_address() -> Result<String> {
     let node = NODE.try_get().context("failed to get ln dlc node")?;
     let address = node
-        .wallet
         .get_new_address()
         .map_err(|e| anyhow!("Failed to get new address: {e}"))?;
     Ok(address.to_string())
