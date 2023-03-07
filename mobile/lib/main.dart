@@ -101,21 +101,22 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
                 },
               ),
               GoRoute(
-                path: CreateInvoiceScreen.subRouteName,
-                // Use root navigator so the screen overlays the application shell
-                parentNavigatorKey: _rootNavigatorKey,
-                builder: (BuildContext context, GoRouterState state) {
-                  return const CreateInvoiceScreen();
-                },
-              ),
-              GoRoute(
-                path: ShareInvoiceScreen.subRouteName,
-                // Use root navigator so the screen overlays the application shell
-                parentNavigatorKey: _rootNavigatorKey,
-                builder: (BuildContext context, GoRouterState state) {
-                  return ShareInvoiceScreen(invoice: state.extra as String);
-                },
-              ),
+                  path: CreateInvoiceScreen.subRouteName,
+                  // Use root navigator so the screen overlays the application shell
+                  parentNavigatorKey: _rootNavigatorKey,
+                  builder: (BuildContext context, GoRouterState state) {
+                    return const CreateInvoiceScreen();
+                  },
+                  routes: [
+                    GoRoute(
+                      path: ShareInvoiceScreen.subRouteName,
+                      // Use root navigator so the screen overlays the application shell
+                      parentNavigatorKey: _rootNavigatorKey,
+                      builder: (BuildContext context, GoRouterState state) {
+                        return ShareInvoiceScreen(invoice: state.extra as String);
+                      },
+                    ),
+                  ]),
               GoRoute(
                 path: ScannerScreen.subRouteName,
                 parentNavigatorKey: _rootNavigatorKey,
