@@ -18,6 +18,7 @@ use coordinator_commons::TradeParams;
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::Pool;
 use diesel::PgConnection;
+use ln_dlc_node::node::NodeInfo;
 use orderbook_commons::OrderbookMsg;
 use serde::Deserialize;
 use serde::Serialize;
@@ -48,6 +49,7 @@ pub fn router(node: Node, pool: Pool<ConnectionManager<PgConnection>>) -> Router
         .route("/", get(index))
         .route("/api/fake_scid/:target_node", post(post_fake_scid))
         .route("/api/newaddress", get(get_new_address))
+        .route("/api/node", get(get_node_info))
         .route("/api/balance", get(get_balance))
         .route("/api/invoice", get(get_invoice))
         .route("/api/orderbook/orders", get(get_orders).post(post_order))
@@ -95,6 +97,13 @@ pub async fn get_new_address(
             AppError::InternalServerError(format!("Failed to get new address: {e:#}"))
         })?;
     Ok(Json(address.to_string()))
+}
+
+pub async fn get_node_info(
+    State(app_state): State<Arc<AppState>>,
+) -> Result<Json<NodeInfo>, AppError> {
+    let node_info = app_state.node.inner.info;
+    Ok(Json(node_info))
 }
 
 #[derive(Serialize, Deserialize)]

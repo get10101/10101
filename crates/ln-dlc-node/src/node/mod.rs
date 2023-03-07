@@ -38,6 +38,8 @@ use lightning_background_processor::GossipSync;
 use lightning_invoice::payment;
 use lightning_persister::FilesystemPersister;
 use p2pd_oracle_client::P2PDOracleClient;
+use serde::Deserialize;
+use serde::Serialize;
 use std::collections::HashMap;
 use std::fmt;
 use std::fmt::Display;
@@ -94,7 +96,7 @@ pub struct Node {
     pub(crate) user_config: UserConfig,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Deserialize, Serialize)]
 pub struct NodeInfo {
     pub pubkey: PublicKey,
     pub address: SocketAddr,
@@ -395,11 +397,7 @@ impl Node {
             address,
         };
 
-        tracing::info!(
-            "Lightning node started with node ID {}@{}",
-            node_info.pubkey,
-            node_info.address
-        );
+        tracing::info!("Lightning node started with node ID {}", node_info);
 
         Ok(Self {
             network,

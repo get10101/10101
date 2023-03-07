@@ -50,7 +50,7 @@ If you run into linking troubles when trying to build the coordinator you might 
 RUSTFLAGS='-L /path/to/libpq/lib' cargo build --bin coordinator
 ```
 
-Alternatively you can configure this flag in `.cargo/config.toml` so you don't have to configure it all the time:
+Alternatively you can configure this flag in `~/.cargo/config.toml` so you don't have to configure it all the time:
 
 ```toml
 [target.aarch64-apple-darwin]
@@ -170,24 +170,16 @@ Otherwise, you might have troubles starting 10101, due to port conflicts on cont
 
 1. Start the coordinator with `cargo run --bin coordinator` or `just coordinator`.
 
-   _Ensure that you are using your network ip address and not localhost. This is critical as the docker container will otherwise not be able to reach the coordinator._
-2. Open `http://localhost:8080/faucet/` (note: ensure to add the trailing `/` as otherwise nginx will try to redirect the call)
-3. Ensure you have enough balance on your bitcoin wallet. Hit the mine button a couple of times if not.
-4. Get a new address of your coordinator by running `curl http://localhost:8000/api/newaddress`
-5. Faucet some coins to your coordinator wallet. Hit the mine button afterwards so the transaction gets into a block.
-6. Open `http://localhost:8080/channel/` (note: ensure to add the trailing `/` as otherwise nginx will try to redirect the call)
-7. Copy the address of the lnd node and faucet that wallet as described in step 5.
-8. Open a channel with your coordinator (02dd6abec97f9a748bf76ad502b004ce05d1b2d1f43a9e76bd7d85e767ffb022c9@[coordinator ip]:9045) and set a reasonable channel capacity.
-
-   _Note, if you're on mac or windows you can use `host.docker.internal` as coordinator ip._
-9. Mine a few blocks (at least 6) so that the channel gets announced.
+2. Fund and configure coordinator by running `just fund`
 
 #### Fauceting your lightning wallet
 
-10. Create an invoice in your 10101 app by navigating to the receive screen.
+3. Create an invoice in your 10101 app by navigating to the receive screen.
+   _Note, that you have to provide the coordinator host to the mobile app like that `just run`_
 
-    _Note, that you have to provide the coordinator host to the mobile app like that `just run`_
-11. Copy the invoice and enter it on the lightning faucet. Hit send and you will receive your funds momentarily.
+4. Open `http://localhost:8080/faucet/` (note: ensure to add the trailing `/` as otherwise nginx will try to redirect the call)
+
+5. Copy the invoice and enter it on the lightning faucet. Hit send and you will receive your funds momentarily.
 
 #### Resetting dev environment
 
