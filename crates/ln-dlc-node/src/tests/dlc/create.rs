@@ -7,6 +7,7 @@ use anyhow::Context;
 use anyhow::Result;
 use bitcoin::Amount;
 use dlc_manager::subchannel::SubChannelState;
+use dlc_manager::ChannelId;
 use dlc_manager::Storage;
 use std::time::Duration;
 
@@ -23,10 +24,20 @@ async fn given_lightning_channel_then_can_add_dlc_channel() {
         .unwrap();
 }
 
-pub(crate) async fn create_dlc_channel(
+pub struct DlcChannelCreated {
+    pub coordinator: Node,
+    /// Available balance for the coordinator after the LN channel was created. In sats.
+    pub coordinator_balance_channel_creation: u64,
+    pub app: Node,
+    /// Available balance for the app after the LN channel was created. In sats.
+    pub app_balance_channel_creation: u64,
+    pub channel_id: ChannelId,
+}
+
+pub async fn create_dlc_channel(
     app_dlc_collateral: u64,
     coordinator_dlc_collateral: u64,
-) -> Result<(Node, Node)> {
+) -> Result<DlcChannelCreated> {
     // Arrange
 
     let app_ln_balance = app_dlc_collateral * 2;
@@ -49,6 +60,10 @@ pub(crate) async fn create_dlc_channel(
         .iter()
         .find(|c| c.counterparty.node_id == coordinator.info.pubkey)
         .context("No usable channels for app")?;
+    let channel_id = channel_details.channel_id;
+
+    let app_balance_channel_creation = app.get_ldk_balance().available;
+    let coordinator_balance_channel_creation = coordinator.get_ldk_balance().available;
 
     // Act
 
@@ -59,6 +74,7 @@ pub(crate) async fn create_dlc_channel(
     app.propose_dlc_channel(channel_details, &contract_input)
         .await?;
 
+    // Processs the app's offer to close the channel
     // TODO: Spawn a task that does this work periodically
     tokio::time::sleep(Duration::from_secs(2)).await;
     coordinator.process_incoming_messages()?;
@@ -79,9 +95,7 @@ pub(crate) async fn create_dlc_channel(
     })
     .await?;
 
-    coordinator
-        .accept_dlc_channel(&sub_channel.channel_id)
-        .await?;
+    coordinator.initiate_accept_dlc_channel_offer(&sub_channel.channel_id)?;
 
     // Process the coordinator's accept message _and_ send the confirm
     // message
@@ -116,5 +130,11 @@ pub(crate) async fn create_dlc_channel(
 
     matches!(sub_channel_app.state, SubChannelState::Signed(_));
 
-    Ok((app, coordinator))
+    Ok(DlcChannelCreated {
+        coordinator,
+        coordinator_balance_channel_creation,
+        app,
+        app_balance_channel_creation,
+        channel_id,
+    })
 }

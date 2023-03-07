@@ -136,6 +136,50 @@ impl Node {
         Ok(())
     }
 
+    pub fn propose_dlc_channel_collaborative_settlement(
+        &self,
+        channel_id: &[u8; 32],
+        accept_settlement_amount: u64,
+    ) -> Result<()> {
+        let channel_id_hex = hex::encode(channel_id);
+
+        tracing::info!(
+            channel_id = %channel_id_hex,
+            %accept_settlement_amount,
+            "Settling DLC channel collaboratively"
+        );
+
+        let (sub_channel_close_offer, counterparty_pk) = self
+            .sub_channel_manager
+            .offer_subchannel_close(channel_id, accept_settlement_amount)
+            .map_err(|e| anyhow!("{e}"))?;
+
+        self.dlc_message_handler.send_message(
+            counterparty_pk,
+            Message::SubChannel(SubChannelMessage::CloseOffer(sub_channel_close_offer)),
+        );
+
+        Ok(())
+    }
+
+    pub fn initiate_accept_dlc_channel_close_offer(&self, channel_id: &[u8; 32]) -> Result<()> {
+        let channel_id_hex = hex::encode(channel_id);
+
+        tracing::info!(channel_id = %channel_id_hex, "Accepting DLC channel close offer");
+
+        let (sub_channel_close_accept, counterparty_pk) = self
+            .sub_channel_manager
+            .accept_subchannel_close_offer(channel_id)
+            .map_err(|e| anyhow!(e.to_string()))?;
+
+        self.dlc_message_handler.send_message(
+            counterparty_pk,
+            Message::SubChannel(SubChannelMessage::CloseAccept(sub_channel_close_accept)),
+        );
+
+        Ok(())
+    }
+
     pub fn get_confirmed_dlcs(&self) -> Result<Vec<Dlc>> {
         let confimed_dlcs = self
             .dlc_manager

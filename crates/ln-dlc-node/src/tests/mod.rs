@@ -182,12 +182,6 @@ impl Node {
 
         Ok(channel_details)
     }
-
-    async fn accept_dlc_channel(&self, channel_id: &[u8; 32]) -> Result<()> {
-        self.initiate_accept_dlc_channel_offer(channel_id)?;
-
-        Ok(())
-    }
 }
 
 async fn fund_and_mine(address: Address, amount: Amount) -> Result<()> {
