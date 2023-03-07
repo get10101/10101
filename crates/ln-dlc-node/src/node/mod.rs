@@ -458,7 +458,7 @@ impl Node {
                         tracing::info!("Found sub_channels: {}", sub_channels.len());
 
                         let sub_channel = match sub_channels.iter().find(|sub_channel| {
-                            dbg!(sub_channel.counter_party) == dbg!(*pubkey)
+                            sub_channel.counter_party == *pubkey
                                 && matches!(&sub_channel.state, SubChannelState::Offered(_))
                         }) {
                             None => {
