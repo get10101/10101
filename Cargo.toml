@@ -3,7 +3,6 @@ members = ["coordinator", "maker", "mobile/native/", "crates/*"]
 resolver = "2"
 
 [patch.crates-io]
-bip39 = { git = "https://github.com/get10101/rust-bip39", rev = "991760d3364a9cb18d8ff89ac6ad1abef2ed333f" } # Until https://github.com/rust-bitcoin/rust-bip39/pull/38 is merged and released
 dlc-manager = { git = "https://github.com/get10101/rust-dlc", branch = "feature/ln-dlc-channels" }
 dlc-messages = { git = "https://github.com/get10101/rust-dlc", branch = "feature/ln-dlc-channels" }
 dlc = { git = "https://github.com/get10101/rust-dlc", branch = "feature/ln-dlc-channels" }
