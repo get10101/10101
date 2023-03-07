@@ -13,6 +13,7 @@ pub enum OrderTypeTrade {
     Market,
     Limit { price: f64 },
 }
+
 #[derive(Debug, Clone, Copy)]
 pub enum OrderStateTrade {
     /// Not submitted to orderbook yet

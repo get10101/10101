@@ -14,6 +14,7 @@ use state::Storage;
 use std::sync::Arc;
 use time::OffsetDateTime;
 
+mod custom_types;
 pub mod models;
 
 pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!();

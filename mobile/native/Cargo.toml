@@ -9,7 +9,7 @@ crate-type = ["cdylib", "staticlib"]
 [dependencies]
 anyhow = "1"
 bdk = { version = "0.24.0", features = ["key-value-db"] }
-diesel = { version = "2.0.0", features = ["sqlite", "r2d2"] }
+diesel = { version = "2.0.0", features = ["sqlite", "r2d2", "extras"] }
 diesel_migrations = "2.0.0"
 flutter_rust_bridge = "1.63.1"
 lightning-invoice = { version = "0.21" }
