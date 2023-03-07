@@ -1,6 +1,6 @@
 use crate::ln::TracingLogger;
 use bitcoin::secp256k1::PublicKey;
-use dlc_manager::custom_signer::CustomSigner;
+use dlc_custom_signer::CustomSigner;
 use dlc_messages::message_handler::MessageHandler as DlcMessageHandler;
 use lightning::chain;
 use lightning::chain::chainmonitor;
@@ -26,13 +26,14 @@ use std::sync::Arc;
 use std::sync::Mutex;
 
 mod disk;
+mod dlc_custom_signer;
 mod ln;
 mod ln_dlc_wallet;
 mod on_chain_wallet;
-pub mod seed;
 mod util;
 
 pub mod node;
+pub mod seed;
 
 #[cfg(test)]
 mod tests;

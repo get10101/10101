@@ -1,3 +1,4 @@
+use crate::dlc_custom_signer::CustomKeysManager;
 use crate::ln::coordinator_config;
 use crate::ln::JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT;
 use crate::ln_dlc_wallet::LnDlcWallet;
@@ -13,7 +14,6 @@ use crate::PendingInterceptedHtlcs;
 use anyhow::anyhow;
 use bitcoin::secp256k1::Secp256k1;
 use bitcoin_bech32::WitnessProgram;
-use dlc_manager::custom_signer::CustomKeysManager;
 use lightning::chain::chaininterface::BroadcasterInterface;
 use lightning::chain::chaininterface::ConfirmationTarget;
 use lightning::chain::chaininterface::FeeEstimator;

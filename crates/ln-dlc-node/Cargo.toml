@@ -13,11 +13,11 @@ bdk-ldk = { path = "../bdk-ldk" }
 bip39 = "1.0.1"
 bitcoin = "0.29"
 bitcoin-bech32 = "0.12"
-dlc = { version = "0.3.0" }
-dlc-manager = { version = "0.3.0", features = ["use-serde"] }
-dlc-messages = { version = "0.3.0" }
-dlc-sled-storage-provider = { version = "0.1.0" }
-dlc-trie = { version = "0.3.0" }
+dlc = { version = "0.4.0" }
+dlc-manager = { version = "0.4.0", features = ["use-serde"] }
+dlc-messages = { version = "0.4.0" }
+dlc-sled-storage-provider = { version = "0.1.0", features = ["wallet"] }
+dlc-trie = { version = "0.4.0" }
 futures = "0.3"
 hex = "0.3"
 hkdf = "0.12"
@@ -32,6 +32,7 @@ log = "0.4.17"
 p2pd-oracle-client = { version = "0.1.0" }
 rand = "0.8.5"
 reqwest = { version = "0.11", default-features = false, features = ["json"] }
+secp256k1-zkp = { version = "0.7.0" }
 serde = "1.0.147"
 sha2 = "0.10"
 simple-wallet = "0.1.0"

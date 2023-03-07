@@ -4,7 +4,7 @@ use crate::tests::init_tracing;
 use crate::tests::wait_until;
 use anyhow::anyhow;
 use bitcoin::Amount;
-use dlc_manager::sub_channel_manager::SubChannelState;
+use dlc_manager::subchannel::SubChannelState;
 use dlc_manager::Storage;
 use std::time::Duration;
 

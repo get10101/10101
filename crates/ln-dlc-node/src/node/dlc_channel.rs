@@ -19,7 +19,8 @@ use dlc_manager::payout_curve::RoundingInterval;
 use dlc_manager::payout_curve::RoundingIntervals;
 use dlc_manager::Oracle;
 use dlc_manager::Storage;
-use dlc_messages::sub_channel::SubChannelMessage;
+use dlc_messages::Message;
+use dlc_messages::SubChannelMessage;
 use lightning::ln::channelmanager::ChannelDetails;
 use std::time::SystemTime;
 use std::time::UNIX_EPOCH;
@@ -64,7 +65,6 @@ impl Node {
         let contract_input = ContractInput {
             offer_collateral: margin_trader,
             accept_collateral: margin_coordinator,
-            maturity_time: maturity_time as u32,
             fee_rate: 2,
             contract_infos: vec![ContractInputInfo {
                 contract_descriptor: dummy_contract_descriptor(total_collateral),
@@ -104,9 +104,9 @@ impl Node {
             )
             .unwrap();
 
-        self.dlc_message_handler.send_subchannel_message(
+        self.dlc_message_handler.send_message(
             channel_details.counterparty.node_id,
-            SubChannelMessage::Request(sub_channel_offer),
+            Message::SubChannel(SubChannelMessage::Offer(sub_channel_offer)),
         );
 
         Ok(())
@@ -122,8 +122,10 @@ impl Node {
             .accept_sub_channel(channel_id)
             .map_err(|e| anyhow!(e.to_string()))?;
 
-        self.dlc_message_handler
-            .send_subchannel_message(node_id, SubChannelMessage::Accept(accept_sub_channel));
+        self.dlc_message_handler.send_message(
+            node_id,
+            Message::SubChannel(SubChannelMessage::Accept(accept_sub_channel)),
+        );
 
         Ok(())
     }
@@ -153,37 +155,37 @@ impl Node {
         let messages = dlc_message_handler.get_and_clear_received_messages();
 
         for (node_id, msg) in messages {
-            tracing::debug!(from = %node_id, "Processing DLC-manager message");
-            let resp = dlc_manager
-                .on_dlc_message(&msg, node_id)
-                .map_err(|e| anyhow!(e.to_string()))?;
+            match msg {
+                Message::OnChain(_) | Message::Channel(_) => {
+                    tracing::debug!(from = %node_id, "Processing DLC-manager message");
+                    let resp = dlc_manager
+                        .on_dlc_message(&msg, node_id)
+                        .map_err(|e| anyhow!(e.to_string()))?;
 
-            if let Some(msg) = resp {
-                tracing::debug!(to = %node_id, "Sending DLC-manager message");
-                dlc_message_handler.send_message(node_id, msg);
-            }
-        }
+                    if let Some(msg) = resp {
+                        tracing::debug!(to = %node_id, "Sending DLC-manager message");
+                        dlc_message_handler.send_message(node_id, msg);
+                    }
+                }
+                Message::SubChannel(msg) => {
+                    tracing::debug!(
+                        from = %node_id,
+                        msg = %sub_channel_message_as_str(&msg),
+                        "Processing sub-channel message"
+                    );
+                    let resp = sub_channel_manager
+                        .on_sub_channel_message(&msg, &node_id)
+                        .map_err(|e| anyhow!(e.to_string()))?;
 
-        let sub_channel_messages =
-            dlc_message_handler.get_and_clear_received_sub_channel_messages();
-
-        for (node_id, msg) in sub_channel_messages {
-            tracing::debug!(
-                from = %node_id,
-                msg = %sub_channel_message_as_str(&msg),
-                "Processing sub-channel message"
-            );
-            let resp = sub_channel_manager
-                .on_sub_channel_message(&msg, &node_id)
-                .map_err(|e| anyhow!(e.to_string()))?;
-
-            if let Some(msg) = resp {
-                tracing::debug!(
-                    to = %node_id,
-                    msg = %sub_channel_message_as_str(&msg),
-                    "Sending sub-channel message"
-                );
-                dlc_message_handler.send_subchannel_message(node_id, msg);
+                    if let Some(msg) = resp {
+                        tracing::debug!(
+                            to = %node_id,
+                            msg = %sub_channel_message_as_str(&msg),
+                            "Sending sub-channel message"
+                        );
+                        dlc_message_handler.send_message(node_id, Message::SubChannel(msg));
+                    }
+                }
             }
         }
 
@@ -200,55 +202,54 @@ impl Node {
 // TODO: To be deleted once we configure a proper payout curve
 pub(crate) fn dummy_contract_descriptor(total_collateral: u64) -> ContractDescriptor {
     ContractDescriptor::Numerical(NumericalDescriptor {
-        payout_function: PayoutFunction {
-            payout_function_pieces: vec![
-                PayoutFunctionPiece::PolynomialPayoutCurvePiece(
-                    PolynomialPayoutCurvePiece::new(vec![
-                        PayoutPoint {
-                            event_outcome: 0,
-                            outcome_payout: 0,
-                            extra_precision: 0,
-                        },
-                        PayoutPoint {
-                            event_outcome: 50_000,
-                            outcome_payout: 0,
-                            extra_precision: 0,
-                        },
-                    ])
-                    .unwrap(),
-                ),
-                PayoutFunctionPiece::PolynomialPayoutCurvePiece(
-                    PolynomialPayoutCurvePiece::new(vec![
-                        PayoutPoint {
-                            event_outcome: 50_000,
-                            outcome_payout: 0,
-                            extra_precision: 0,
-                        },
-                        PayoutPoint {
-                            event_outcome: 60_000,
-                            outcome_payout: total_collateral,
-                            extra_precision: 0,
-                        },
-                    ])
-                    .unwrap(),
-                ),
-                PayoutFunctionPiece::PolynomialPayoutCurvePiece(
-                    PolynomialPayoutCurvePiece::new(vec![
-                        PayoutPoint {
-                            event_outcome: 60_000,
-                            outcome_payout: total_collateral,
-                            extra_precision: 0,
-                        },
-                        PayoutPoint {
-                            event_outcome: 1048575,
-                            outcome_payout: total_collateral,
-                            extra_precision: 0,
-                        },
-                    ])
-                    .unwrap(),
-                ),
-            ],
-        },
+        payout_function: PayoutFunction::new(vec![
+            PayoutFunctionPiece::PolynomialPayoutCurvePiece(
+                PolynomialPayoutCurvePiece::new(vec![
+                    PayoutPoint {
+                        event_outcome: 0,
+                        outcome_payout: 0,
+                        extra_precision: 0,
+                    },
+                    PayoutPoint {
+                        event_outcome: 50_000,
+                        outcome_payout: 0,
+                        extra_precision: 0,
+                    },
+                ])
+                .unwrap(),
+            ),
+            PayoutFunctionPiece::PolynomialPayoutCurvePiece(
+                PolynomialPayoutCurvePiece::new(vec![
+                    PayoutPoint {
+                        event_outcome: 50_000,
+                        outcome_payout: 0,
+                        extra_precision: 0,
+                    },
+                    PayoutPoint {
+                        event_outcome: 60_000,
+                        outcome_payout: total_collateral,
+                        extra_precision: 0,
+                    },
+                ])
+                .unwrap(),
+            ),
+            PayoutFunctionPiece::PolynomialPayoutCurvePiece(
+                PolynomialPayoutCurvePiece::new(vec![
+                    PayoutPoint {
+                        event_outcome: 60_000,
+                        outcome_payout: total_collateral,
+                        extra_precision: 0,
+                    },
+                    PayoutPoint {
+                        event_outcome: 1048575,
+                        outcome_payout: total_collateral,
+                        extra_precision: 0,
+                    },
+                ])
+                .unwrap(),
+            ),
+        ])
+        .unwrap(),
         rounding_intervals: RoundingIntervals {
             intervals: vec![RoundingInterval {
                 begin_interval: 0,
@@ -267,7 +268,7 @@ fn sub_channel_message_as_str(msg: &SubChannelMessage) -> &str {
     use SubChannelMessage::*;
 
     match msg {
-        Request(_) => "Request",
+        Offer(_) => "Offer",
         Accept(_) => "Accept",
         Confirm(_) => "Confirm",
         Finalize(_) => "Finalize",
