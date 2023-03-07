@@ -1599,6 +1599,33 @@ dependencies = [
 ]
 
 [[package]]
+name = "maker"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "atty",
+ "axum",
+ "bdk",
+ "bitcoin",
+ "clap",
+ "diesel",
+ "diesel_migrations",
+ "dlc-manager",
+ "futures",
+ "hex 0.4.3",
+ "ln-dlc-node",
+ "rand",
+ "serde",
+ "serde_json",
+ "testcontainers",
+ "time 0.3.20",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "trade",
+]
+
+[[package]]
 name = "matchers"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"

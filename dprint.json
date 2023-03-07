@@ -19,7 +19,8 @@
     "**/build",
     "**/ios/Pods",
     "**/pgdata",
-    "coordinator/migrations/00000000000000_diesel_initial_setup/up.sql"
+    "coordinator/migrations/00000000000000_diesel_initial_setup/up.sql",
+    "maker/migrations/00000000000000_diesel_initial_setup/up.sql"
   ],
   "plugins": [
     "https://plugins.dprint.dev/markdown-0.13.0.wasm",
