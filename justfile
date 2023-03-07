@@ -80,6 +80,9 @@ alias c := coordinator
 coordinator args="":
     cargo run --bin coordinator -- {{args}}
 
+maker args="":
+    cargo run --bin maker -- {{args}}
+
 flutter-test:
     cd mobile && flutter pub run build_runner build && flutter test
 

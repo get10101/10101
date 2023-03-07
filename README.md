@@ -118,7 +118,7 @@ just native-test
 ### Run the coordinator
 
 In order to successfully run the coordinator you will have to provide the coordinator with a PostgreSQL database.
-The easiest way to do so is by starting the [local regest dev environemnt](#development-environment) through `docker-compose up`.
+The easiest way to do so is by starting the [local regest dev environemnt](#development-environment) through `docker-compose up --build`. The `--build` ensures that all tables exist for `maker` and `coordinator`.
 
 `bash just coordinator`
 
@@ -126,6 +126,18 @@ or in short
 
 ```bash
 just c
+```
+
+## Maker
+
+### Run the maker
+
+To run the coordinator you will need a PostgeSQL database.
+
+The easiest way to do so is by starting the [local regest dev environemnt](#development-environment) through `docker-compose up --build`. The `--build` ensures that all tables exist for `maker` and `coordinator`.
+
+```bash
+just maker
 ```
 
 ## Development environment
