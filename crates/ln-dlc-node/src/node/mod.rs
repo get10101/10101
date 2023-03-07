@@ -1,4 +1,5 @@
 use crate::disk;
+use crate::dlc_custom_signer::CustomKeysManager;
 use crate::ln::app_config;
 use crate::ln::coordinator_config;
 use crate::ln::EventHandler;
@@ -14,8 +15,7 @@ use crate::FakeChannelPaymentRequests;
 use crate::InvoicePayer;
 use crate::PaymentInfoStorage;
 use crate::PeerManager;
-use ::dlc_manager::custom_signer::CustomKeysManager;
-use ::dlc_manager::sub_channel_manager::SubChannelState;
+use ::dlc_manager::subchannel::SubChannelState;
 use ::dlc_manager::Storage;
 use anyhow::anyhow;
 use anyhow::ensure;
@@ -26,7 +26,7 @@ use bitcoin::blockdata::constants::genesis_block;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::Network;
 use dlc_messages::message_handler::MessageHandler as DlcMessageHandler;
-use dlc_messages::sub_channel::SubChannelMessage;
+use dlc_messages::SubChannelMessage;
 use dlc_sled_storage_provider::SledStorageProvider;
 use lightning::chain;
 use lightning::chain::chainmonitor;
@@ -328,12 +328,10 @@ impl Node {
         )?;
         let dlc_manager = Arc::new(dlc_manager);
 
-        let sub_channel_manager = sub_channel_manager::build(
-            dlc_manager.clone(),
-            ln_dlc_wallet.clone(),
-            channel_manager.clone(),
-            storage.clone(),
-        )?;
+        let sub_channel_manager = {
+            let (height, _) = ln_dlc_wallet.tip()?;
+            sub_channel_manager::build(channel_manager.clone(), dlc_manager.clone(), height as u64)?
+        };
 
         // Connection manager
         tokio::spawn({
@@ -490,9 +488,11 @@ impl Node {
                             }
                         };
 
-                        dlc_message_handler.send_subchannel_message(
+                        dlc_message_handler.send_message(
                             node_id,
-                            SubChannelMessage::Accept(accept_sub_channel),
+                            dlc_messages::Message::SubChannel(SubChannelMessage::Accept(
+                                accept_sub_channel,
+                            )),
                         );
                     }
 

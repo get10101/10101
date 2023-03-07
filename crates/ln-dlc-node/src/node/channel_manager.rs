@@ -1,10 +1,10 @@
+use crate::dlc_custom_signer::CustomKeysManager;
 use crate::ln::TracingLogger;
 use crate::ln_dlc_wallet::LnDlcWallet;
 use crate::ChainMonitor;
 use crate::ConfirmableMonitor;
 use anyhow::Result;
 use bitcoin::BlockHash;
-use dlc_manager::custom_signer::CustomKeysManager;
 use lightning::chain::BestBlock;
 use lightning::chain::ChannelMonitorUpdateStatus;
 use lightning::chain::Confirm;
