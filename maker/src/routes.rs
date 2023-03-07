@@ -13,7 +13,6 @@ use diesel::r2d2;
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::Pool;
 use diesel::PgConnection;
-use dlc_manager::Wallet;
 use ln_dlc_node::node::Node;
 use ln_dlc_node::node::NodeInfo;
 use serde::Deserialize;
@@ -54,10 +53,10 @@ pub struct Invoice {
 }
 
 pub async fn index(State(app_state): State<Arc<AppState>>) -> Result<Json<Index>, AppError> {
-    let address =
-        app_state.node.wallet.get_new_address().map_err(|e| {
-            AppError::InternalServerError(format!("Failed to get new address: {e:#}"))
-        })?;
+    let address = app_state
+        .node
+        .get_new_address()
+        .map_err(|e| AppError::InternalServerError(format!("Failed to get new address: {e:#}")))?;
 
     let offchain = app_state.node.get_ldk_balance();
     let onchain = app_state
@@ -87,10 +86,10 @@ pub async fn index(State(app_state): State<Arc<AppState>>) -> Result<Json<Index>
 pub async fn get_new_address(
     State(app_state): State<Arc<AppState>>,
 ) -> Result<Json<String>, AppError> {
-    let address =
-        app_state.node.wallet.get_new_address().map_err(|e| {
-            AppError::InternalServerError(format!("Failed to get new address: {e:#}"))
-        })?;
+    let address = app_state
+        .node
+        .get_new_address()
+        .map_err(|e| AppError::InternalServerError(format!("Failed to get new address: {e:#}")))?;
     Ok(Json(address.to_string()))
 }
 

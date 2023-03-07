@@ -27,6 +27,12 @@ use std::time::UNIX_EPOCH;
 use trade::cfd::calculate_margin;
 use trade::TradeParams;
 
+pub struct Dlc {
+    pub id: [u8; 32],
+    pub offer_collateral: u64,
+    pub accept_collateral: u64,
+}
+
 impl Node {
     // TODO: This API doesn't belong in this crate!
     pub fn trade(&self, trade_params: TradeParams) -> Result<ContractInput> {
@@ -130,11 +136,29 @@ impl Node {
         Ok(())
     }
 
-    pub fn get_dlcs(&self) -> Result<Vec<Contract>> {
-        self.dlc_manager
+    pub fn get_confirmed_dlcs(&self) -> Result<Vec<Dlc>> {
+        let confimed_dlcs = self
+            .dlc_manager
             .get_store()
             .get_contracts()
-            .map_err(|e| anyhow!("Unable to get contracts from manager: {e:#}"))
+            .map_err(|e| anyhow!("Unable to get contracts from manager: {e:#}"))?
+            .iter()
+            .filter_map(|contract| match contract {
+                Contract::Confirmed(signed) => Some((contract.get_id(), signed)),
+                _ => None,
+            })
+            .map(|(id, signed)| Dlc {
+                id,
+                offer_collateral: signed
+                    .accepted_contract
+                    .offered_contract
+                    .offer_params
+                    .collateral,
+                accept_collateral: signed.accepted_contract.accept_params.collateral,
+            })
+            .collect();
+
+        Ok(confimed_dlcs)
     }
 
     pub fn process_incoming_messages(&self) -> Result<()> {
