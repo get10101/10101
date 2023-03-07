@@ -10,6 +10,7 @@ use maker::cli::Opts;
 use maker::logger;
 use maker::routes::router;
 use maker::run_migration;
+use maker::trading::orderbook_client::post_new_order;
 use rand::thread_rng;
 use rand::RngCore;
 use std::net::SocketAddr;
@@ -63,6 +64,8 @@ async fn main() -> Result<()> {
             }
         }
     });
+
+    post_new_order(opts.orderbook, node.info.to_string()).await?;
 
     // set up database connection pool
     let conn_spec = "postgres://postgres:mysecretpassword@localhost:5432/maker".to_string();
