@@ -1619,6 +1619,7 @@ dependencies = [
  "axum",
  "bdk",
  "bitcoin",
+ "bitmex-stream",
  "clap",
  "diesel",
  "diesel_migrations",
@@ -1627,6 +1628,8 @@ dependencies = [
  "ln-dlc-node",
  "rand",
  "reqwest",
+ "rust_decimal",
+ "rust_decimal_macros",
  "serde",
  "serde_json",
  "testcontainers",
@@ -3005,6 +3008,7 @@ dependencies = [
 name = "trade"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "bdk",
  "rust_decimal",
  "rust_decimal_macros",
