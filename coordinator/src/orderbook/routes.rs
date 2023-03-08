@@ -19,11 +19,13 @@ use trade::Direction;
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Order {
     pub id: i32,
-    pub price: f32,
+    #[serde(with = "rust_decimal::serde::float")]
+    pub price: Decimal,
     pub maker_id: String,
     pub taken: bool,
     pub direction: Direction,
-    pub quantity: f32,
+    #[serde(with = "rust_decimal::serde::float")]
+    pub quantity: Decimal,
 }
 
 pub async fn get_orders(State(state): State<Arc<AppState>>) -> impl IntoResponse {

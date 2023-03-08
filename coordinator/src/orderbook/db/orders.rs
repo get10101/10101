@@ -5,7 +5,9 @@ use crate::schema::orders;
 use diesel::prelude::*;
 use diesel::result::QueryResult;
 use diesel::PgConnection;
+use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::prelude::ToPrimitive;
+use rust_decimal::Decimal;
 
 impl From<trade::Direction> for Direction {
     fn from(value: trade::Direction) -> Self {
@@ -39,11 +41,12 @@ impl From<Order> for OrderbookOrder {
     fn from(value: Order) -> Self {
         OrderbookOrder {
             id: value.id,
-            price: value.price,
+            price: Decimal::from_f32(value.price).expect("To be able to convert f32 to decimal"),
             maker_id: value.maker_id,
             taken: value.taken,
             direction: value.direction.into(),
-            quantity: value.quantity,
+            quantity: Decimal::from_f32(value.quantity)
+                .expect("To be able to convert f32 to decimal"),
         }
     }
 }
