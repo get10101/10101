@@ -52,7 +52,7 @@ impl BaseSign for CustomSigner {
     fn get_per_commitment_point(
         &self,
         idx: u64,
-        secp_ctx: &secp256k1_zkp::Secp256k1<bitcoin::secp256k1::All>,
+        secp_ctx: &Secp256k1<bitcoin::secp256k1::All>,
     ) -> secp256k1_zkp::PublicKey {
         self.in_memory_signer
             .lock()
@@ -78,7 +78,7 @@ impl BaseSign for CustomSigner {
             .validate_holder_commitment(holder_tx, preimages)
     }
 
-    fn pubkeys(&self) -> &lightning::ln::chan_utils::ChannelPublicKeys {
+    fn pubkeys(&self) -> &ChannelPublicKeys {
         &self.channel_public_keys
     }
 
@@ -90,7 +90,7 @@ impl BaseSign for CustomSigner {
         &self,
         commitment_tx: &lightning::ln::chan_utils::CommitmentTransaction,
         preimages: Vec<lightning::ln::PaymentPreimage>,
-        secp_ctx: &secp256k1_zkp::Secp256k1<bitcoin::secp256k1::All>,
+        secp_ctx: &Secp256k1<bitcoin::secp256k1::All>,
     ) -> Result<
         (
             secp256k1_zkp::ecdsa::Signature,
@@ -104,11 +104,7 @@ impl BaseSign for CustomSigner {
             .sign_counterparty_commitment(commitment_tx, preimages, secp_ctx)
     }
 
-    fn validate_counterparty_revocation(
-        &self,
-        idx: u64,
-        secret: &secp256k1_zkp::SecretKey,
-    ) -> Result<(), ()> {
+    fn validate_counterparty_revocation(&self, idx: u64, secret: &SecretKey) -> Result<(), ()> {
         self.in_memory_signer
             .lock()
             .unwrap()
@@ -118,7 +114,7 @@ impl BaseSign for CustomSigner {
     fn sign_holder_commitment_and_htlcs(
         &self,
         commitment_tx: &lightning::ln::chan_utils::HolderCommitmentTransaction,
-        secp_ctx: &secp256k1_zkp::Secp256k1<bitcoin::secp256k1::All>,
+        secp_ctx: &Secp256k1<bitcoin::secp256k1::All>,
     ) -> Result<
         (
             secp256k1_zkp::ecdsa::Signature,
@@ -134,11 +130,11 @@ impl BaseSign for CustomSigner {
 
     fn sign_justice_revoked_output(
         &self,
-        justice_tx: &bitcoin::Transaction,
+        justice_tx: &Transaction,
         input: usize,
         amount: u64,
-        per_commitment_key: &secp256k1_zkp::SecretKey,
-        secp_ctx: &secp256k1_zkp::Secp256k1<bitcoin::secp256k1::All>,
+        per_commitment_key: &SecretKey,
+        secp_ctx: &Secp256k1<bitcoin::secp256k1::All>,
     ) -> Result<secp256k1_zkp::ecdsa::Signature, ()> {
         self.in_memory_signer
             .lock()
@@ -148,12 +144,12 @@ impl BaseSign for CustomSigner {
 
     fn sign_justice_revoked_htlc(
         &self,
-        justice_tx: &bitcoin::Transaction,
+        justice_tx: &Transaction,
         input: usize,
         amount: u64,
-        per_commitment_key: &secp256k1_zkp::SecretKey,
+        per_commitment_key: &SecretKey,
         htlc: &lightning::ln::chan_utils::HTLCOutputInCommitment,
-        secp_ctx: &secp256k1_zkp::Secp256k1<bitcoin::secp256k1::All>,
+        secp_ctx: &Secp256k1<bitcoin::secp256k1::All>,
     ) -> Result<secp256k1_zkp::ecdsa::Signature, ()> {
         self.in_memory_signer
             .lock()
@@ -170,12 +166,12 @@ impl BaseSign for CustomSigner {
 
     fn sign_counterparty_htlc_transaction(
         &self,
-        htlc_tx: &bitcoin::Transaction,
+        htlc_tx: &Transaction,
         input: usize,
         amount: u64,
         per_commitment_point: &secp256k1_zkp::PublicKey,
         htlc: &lightning::ln::chan_utils::HTLCOutputInCommitment,
-        secp_ctx: &secp256k1_zkp::Secp256k1<bitcoin::secp256k1::All>,
+        secp_ctx: &Secp256k1<bitcoin::secp256k1::All>,
     ) -> Result<secp256k1_zkp::ecdsa::Signature, ()> {
         self.in_memory_signer
             .lock()
@@ -193,7 +189,7 @@ impl BaseSign for CustomSigner {
     fn sign_closing_transaction(
         &self,
         closing_tx: &lightning::ln::chan_utils::ClosingTransaction,
-        secp_ctx: &secp256k1_zkp::Secp256k1<bitcoin::secp256k1::All>,
+        secp_ctx: &Secp256k1<bitcoin::secp256k1::All>,
     ) -> Result<secp256k1_zkp::ecdsa::Signature, ()> {
         self.in_memory_signer
             .lock()
@@ -204,7 +200,7 @@ impl BaseSign for CustomSigner {
     fn sign_channel_announcement(
         &self,
         msg: &lightning::ln::msgs::UnsignedChannelAnnouncement,
-        secp_ctx: &secp256k1_zkp::Secp256k1<bitcoin::secp256k1::All>,
+        secp_ctx: &Secp256k1<bitcoin::secp256k1::All>,
     ) -> Result<
         (
             secp256k1_zkp::ecdsa::Signature,
@@ -244,7 +240,7 @@ impl BaseSign for CustomSigner {
 impl ExtraSign for CustomSigner {
     fn sign_with_fund_key_callback<F>(&self, cb: &mut F)
     where
-        F: FnMut(&secp256k1_zkp::SecretKey),
+        F: FnMut(&SecretKey),
     {
         self.in_memory_signer
             .lock()

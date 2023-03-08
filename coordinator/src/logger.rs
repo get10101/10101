@@ -31,6 +31,7 @@ pub fn init_tracing(level: LevelFilter, json_format: bool) -> Result<()> {
     let filter = match std::env::var_os(RUST_LOG_ENV).map(|s| s.into_string()) {
         Some(Ok(env)) => {
             for directive in env.split(',') {
+                #[allow(clippy::print_stdout)]
                 match directive.parse() {
                     Ok(d) => filter = filter.add_directive(d),
                     Err(e) => println!("WARN ignoring log directive: `{directive}`: {e}"),

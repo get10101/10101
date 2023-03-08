@@ -91,7 +91,7 @@ pub enum Direction {
 impl FromStr for ContractSymbol {
     type Err = anyhow::Error;
 
-    fn from_str(value: &str) -> std::result::Result<Self, Self::Err> {
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
         match value.to_lowercase().as_str() {
             "btcusd" => Ok(ContractSymbol::BtcUsd),
             // BitMEX representation

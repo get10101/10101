@@ -69,7 +69,7 @@ impl dlc_manager::Blockchain for LnDlcWallet {
         let network = self
             .ln_wallet
             .get_wallet()
-            .map_err(|e| Error::WalletError(Box::new(e)))?
+            .map_err(|e| WalletError(Box::new(e)))?
             .network();
         Ok(network)
     }

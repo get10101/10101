@@ -405,7 +405,7 @@ where
 {
     fn broadcast_transaction(&self, tx: &Transaction) {
         if let Err(e) = self.client.broadcast(tx) {
-            eprintln!("Error broadcasting transaction: {e:#}");
+            tracing::error!("Error broadcasting transaction: {e:#}");
         }
     }
 }
