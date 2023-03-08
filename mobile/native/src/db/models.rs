@@ -1,3 +1,4 @@
+use crate::api;
 use crate::schema;
 use crate::schema::last_login;
 use crate::schema::orders;
@@ -20,16 +21,25 @@ const SQLITE_DATETIME_FMT: &str = "[year]-[month]-[day] [hour]:[minute]:[second]
 
 #[derive(Queryable, QueryableByName, Debug, Clone)]
 #[diesel(table_name = last_login)]
-pub struct LastLogin {
+pub(crate) struct LastLogin {
     #[diesel(sql_type = Integer)]
     pub id: i32,
     #[diesel(sql_type = Text)]
     pub date: String,
 }
 
+impl From<LastLogin> for api::LastLogin {
+    fn from(value: LastLogin) -> Self {
+        api::LastLogin {
+            id: value.id,
+            date: value.date,
+        }
+    }
+}
+
 #[derive(Insertable, Debug, Clone)]
 #[diesel(table_name = last_login)]
-pub struct NewLastLogin {
+pub(crate) struct NewLastLogin {
     #[diesel(sql_type = Integer)]
     pub id: i32,
     #[diesel(sql_type = Text)]
@@ -72,7 +82,7 @@ impl LastLogin {
 
 #[derive(Queryable, QueryableByName, Insertable, Debug, Clone, PartialEq)]
 #[diesel(table_name = orders)]
-pub struct Order {
+pub(crate) struct Order {
     pub id: String,
     pub leverage: f64,
     pub quantity: f64,
