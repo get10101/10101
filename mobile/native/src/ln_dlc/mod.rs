@@ -1,6 +1,5 @@
 use crate::api::Balances;
 use crate::api::WalletInfo;
-use crate::common::api::Direction;
 use crate::config;
 use crate::event;
 use crate::event::EventInternal;
@@ -28,6 +27,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::runtime::Runtime;
 use trade::ContractSymbol;
+use trade::Direction;
 use trade::TradeParams;
 
 static NODE: Storage<Arc<Node>> = Storage::new();

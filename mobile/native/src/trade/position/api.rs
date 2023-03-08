@@ -1,8 +1,8 @@
-use crate::common::api::Direction;
 use crate::trade::position::PositionStateTrade;
 use crate::trade::position::PositionTrade;
 use flutter_rust_bridge::frb;
 use trade::ContractSymbol;
+use trade::Direction;
 
 #[frb]
 #[derive(Debug, Clone)]

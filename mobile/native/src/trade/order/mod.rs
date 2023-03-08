@@ -1,5 +1,5 @@
-use crate::common::api::Direction;
 use trade::ContractSymbol;
+use trade::Direction;
 use uuid::Uuid;
 
 pub mod api;

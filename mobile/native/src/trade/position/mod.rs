@@ -1,5 +1,5 @@
-use crate::common::api::Direction;
 use trade::ContractSymbol;
+use trade::Direction;
 
 pub mod api;
 pub mod handler;

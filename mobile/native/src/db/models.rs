@@ -1,4 +1,3 @@
-use crate::common;
 use crate::schema;
 use crate::schema::last_login;
 use crate::schema::orders;
@@ -153,11 +152,11 @@ pub enum Direction {
     Short,
 }
 
-impl From<common::api::Direction> for Direction {
-    fn from(value: common::api::Direction) -> Self {
+impl From<trade::Direction> for Direction {
+    fn from(value: trade::Direction) -> Self {
         match value {
-            common::api::Direction::Long => Direction::Long,
-            common::api::Direction::Short => Direction::Short,
+            trade::Direction::Long => Direction::Long,
+            trade::Direction::Short => Direction::Short,
         }
     }
 }
@@ -204,7 +203,6 @@ impl From<crate::trade::order::OrderState> for (OrderState, Option<f64>) {
 
 #[cfg(test)]
 pub mod test {
-    use crate::common;
     use crate::db::models::LastLogin;
     use crate::db::models::Order;
     use crate::db::MIGRATIONS;
@@ -256,7 +254,7 @@ pub mod test {
         let leverage = 2.0;
         let quantity = 100.0;
         let contract_symbol = trade::ContractSymbol::BtcUsd;
-        let direction = common::api::Direction::Long;
+        let direction = trade::Direction::Long;
         let (order_type, limit_price) = crate::trade::order::OrderType::Market.into();
         let (status, execution_price) = crate::trade::order::OrderState::Initial.into();
         let order = Order {
@@ -293,7 +291,7 @@ pub mod test {
                 leverage,
                 quantity,
                 contract_symbol,
-                direction: common::api::Direction::Long,
+                direction: trade::Direction::Long,
                 order_type: crate::trade::order::OrderType::Market,
                 status: crate::trade::order::OrderState::Initial,
             }

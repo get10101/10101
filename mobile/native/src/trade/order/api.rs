@@ -1,7 +1,7 @@
-use crate::common::api::Direction;
 use crate::trade::order;
 use flutter_rust_bridge::frb;
 use trade::ContractSymbol;
+use trade::Direction;
 use uuid::Uuid;
 
 #[frb]

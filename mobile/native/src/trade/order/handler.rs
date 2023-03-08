@@ -1,4 +1,3 @@
-use crate::common::api::Direction;
 use crate::event;
 use crate::event::EventInternal;
 use crate::ln_dlc;
@@ -11,6 +10,7 @@ use anyhow::Result;
 use std::str::FromStr;
 use std::time::Duration;
 use trade::ContractSymbol;
+use trade::Direction;
 use trade::TradeParams;
 use uuid::Uuid;
 
