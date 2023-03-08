@@ -118,7 +118,7 @@ impl Node {
         Ok(())
     }
 
-    pub fn initiate_accept_dlc_channel_offer(&self, channel_id: &[u8; 32]) -> Result<()> {
+    pub fn accept_dlc_channel_offer(&self, channel_id: &[u8; 32]) -> Result<()> {
         let channel_id_hex = hex::encode(channel_id);
 
         tracing::info!(channel_id = %channel_id_hex, "Accepting DLC channel offer");
@@ -162,7 +162,7 @@ impl Node {
         Ok(())
     }
 
-    pub fn initiate_accept_dlc_channel_close_offer(&self, channel_id: &[u8; 32]) -> Result<()> {
+    pub fn accept_dlc_channel_close_offer(&self, channel_id: &[u8; 32]) -> Result<()> {
         let channel_id_hex = hex::encode(channel_id);
 
         tracing::info!(channel_id = %channel_id_hex, "Accepting DLC channel close offer");

@@ -95,7 +95,7 @@ pub async fn create_dlc_channel(
     })
     .await?;
 
-    coordinator.initiate_accept_dlc_channel_offer(&sub_channel.channel_id)?;
+    coordinator.accept_dlc_channel_offer(&sub_channel.channel_id)?;
 
     // Process the coordinator's accept message _and_ send the confirm
     // message

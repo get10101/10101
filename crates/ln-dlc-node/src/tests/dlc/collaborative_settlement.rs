@@ -65,7 +65,7 @@ async fn dlc_collaborative_settlement() {
     .unwrap();
 
     coordinator
-        .initiate_accept_dlc_channel_close_offer(&sub_channel.channel_id)
+        .accept_dlc_channel_close_offer(&sub_channel.channel_id)
         .unwrap();
 
     // Process the coordinator's accept message _and_ send the confirm
