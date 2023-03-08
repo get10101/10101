@@ -1,6 +1,5 @@
 use crate::common::api::Direction;
 use crate::trade::order;
-use crate::trade::order::OrderTypeTrade;
 use flutter_rust_bridge::frb;
 use trade::ContractSymbol;
 use uuid::Uuid;
@@ -52,11 +51,11 @@ pub struct Order {
     pub execution_price: Option<f64>,
 }
 
-impl From<OrderType> for OrderTypeTrade {
-    fn from(value: OrderType) -> Self {
+impl From<order::OrderType> for OrderType {
+    fn from(value: order::OrderType) -> Self {
         match value {
-            OrderType::Market => OrderTypeTrade::Market,
-            OrderType::Limit { price } => OrderTypeTrade::Limit { price },
+            order::OrderType::Market => OrderType::Market,
+            order::OrderType::Limit { price } => OrderType::Limit { price },
         }
     }
 }
@@ -80,11 +79,11 @@ impl From<order::Order> for Order {
     }
 }
 
-impl From<OrderTypeTrade> for OrderType {
-    fn from(value: OrderTypeTrade) -> Self {
+impl From<OrderType> for order::OrderType {
+    fn from(value: OrderType) -> Self {
         match value {
-            OrderTypeTrade::Market => OrderType::Market,
-            OrderTypeTrade::Limit { price } => OrderType::Limit { price },
+            OrderType::Market => order::OrderType::Market,
+            OrderType::Limit { price } => order::OrderType::Limit { price },
         }
     }
 }

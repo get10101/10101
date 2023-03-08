@@ -169,11 +169,11 @@ pub enum OrderType {
     Limit,
 }
 
-impl From<crate::trade::order::OrderTypeTrade> for (OrderType, Option<f64>) {
-    fn from(value: crate::trade::order::OrderTypeTrade) -> Self {
+impl From<crate::trade::order::OrderType> for (OrderType, Option<f64>) {
+    fn from(value: crate::trade::order::OrderType) -> Self {
         match value {
-            crate::trade::order::OrderTypeTrade::Market => (OrderType::Market, None),
-            crate::trade::order::OrderTypeTrade::Limit { price } => (OrderType::Limit, Some(price)),
+            crate::trade::order::OrderType::Market => (OrderType::Market, None),
+            crate::trade::order::OrderType::Limit { price } => (OrderType::Limit, Some(price)),
         }
     }
 }
@@ -257,7 +257,7 @@ pub mod test {
         let quantity = 100.0;
         let contract_symbol = trade::ContractSymbol::BtcUsd;
         let direction = common::api::Direction::Long;
-        let (order_type, limit_price) = crate::trade::order::OrderTypeTrade::Market.into();
+        let (order_type, limit_price) = crate::trade::order::OrderType::Market.into();
         let (status, execution_price) = crate::trade::order::OrderState::Initial.into();
         let order = Order {
             id: uuid.to_string(),
@@ -278,7 +278,7 @@ pub mod test {
                 quantity,
                 contract_symbol,
                 direction,
-                order_type: crate::trade::order::OrderTypeTrade::Market,
+                order_type: crate::trade::order::OrderType::Market,
                 status: crate::trade::order::OrderState::Initial,
             }
             .into(),
@@ -294,7 +294,7 @@ pub mod test {
                 quantity,
                 contract_symbol,
                 direction: common::api::Direction::Long,
-                order_type: crate::trade::order::OrderTypeTrade::Market,
+                order_type: crate::trade::order::OrderType::Market,
                 status: crate::trade::order::OrderState::Initial,
             }
             .into(),

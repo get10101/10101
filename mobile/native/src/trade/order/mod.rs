@@ -9,7 +9,7 @@ pub mod handler;
 // `trade::OrderType` and contains errors, hence different name is used.
 // This is likely a bug in frb.
 #[derive(Debug, Clone, Copy)]
-pub enum OrderTypeTrade {
+pub enum OrderType {
     Market,
     Limit { price: f64 },
 }
@@ -66,6 +66,6 @@ pub struct Order {
     pub quantity: f64,
     pub contract_symbol: ContractSymbol,
     pub direction: Direction,
-    pub order_type: OrderTypeTrade,
+    pub order_type: OrderType,
     pub status: OrderState,
 }
