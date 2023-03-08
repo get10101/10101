@@ -31,7 +31,7 @@ async fn crud_test() {
     let order = Order::insert(
         &mut conn,
         NewOrder {
-            price: 20000,
+            price: 20000.00,
             maker_id: "Bob the Maker".to_string(),
             taken: false,
         },

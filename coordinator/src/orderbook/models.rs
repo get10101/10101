@@ -8,7 +8,7 @@ use serde::Serialize;
 #[derive(Queryable, Serialize, Deserialize, Debug, Clone)]
 pub struct Order {
     pub id: i32,
-    pub price: i32,
+    pub price: f32,
     pub maker_id: String,
     pub taken: bool,
 }
@@ -16,7 +16,7 @@ pub struct Order {
 #[derive(Insertable)]
 #[diesel(table_name = orders)]
 pub struct NewOrder {
-    pub price: i32,
+    pub price: f32,
     pub maker_id: String,
     pub taken: bool,
 }

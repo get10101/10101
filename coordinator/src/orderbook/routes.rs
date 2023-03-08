@@ -9,6 +9,8 @@ use axum::response::IntoResponse;
 use axum::Json;
 use futures::SinkExt;
 use futures::StreamExt;
+use rust_decimal::prelude::ToPrimitive;
+use rust_decimal::Decimal;
 use serde::Deserialize;
 use serde::Serialize;
 use std::sync::Arc;
@@ -34,7 +36,7 @@ pub async fn get_order(
 
 #[derive(Deserialize, Serialize)]
 pub struct NewOrder {
-    pub price: i32,
+    pub price: Decimal,
     pub maker_id: String,
     pub taken: bool,
 }
@@ -42,7 +44,11 @@ pub struct NewOrder {
 impl From<NewOrder> for crate::orderbook::models::NewOrder {
     fn from(value: NewOrder) -> Self {
         crate::orderbook::models::NewOrder {
-            price: value.price,
+            price: value
+                .price
+                .round_dp(2)
+                .to_f32()
+                .expect("To be able to format decimal to f32"),
             maker_id: value.maker_id,
             taken: value.taken,
         }
