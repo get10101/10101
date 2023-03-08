@@ -1,3 +1,2 @@
-pub mod custom_types;
-pub mod models;
+pub mod db;
 pub mod routes;

@@ -1,4 +1,4 @@
-use crate::orderbook::models::Direction;
+use crate::orderbook::db::models::Direction;
 use crate::schema::sql_types::DirectionType;
 use diesel::deserialize;
 use diesel::deserialize::FromSql;
