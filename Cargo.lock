@@ -1704,6 +1704,7 @@ dependencies = [
  "rust_decimal_macros",
  "serde",
  "state",
+ "thiserror",
  "time 0.3.20",
  "tokio",
  "tracing",

@@ -14,9 +14,21 @@ use diesel::FromSqlRow;
 use diesel::Queryable;
 use time::format_description;
 use time::OffsetDateTime;
+use trade;
+use uuid::Uuid;
 
 const SQLITE_DATETIME_FMT: &str = "[year]-[month]-[day] [hour]:[minute]:[second] [offset_hour \
          sign:mandatory]:[offset_minute]:[offset_second]";
+
+#[derive(thiserror::Error, Debug)]
+pub enum Error {
+    #[error("Invalid id when converting string to uuid")]
+    InvalidId(#[from] uuid::Error),
+    #[error("Limit order has to have a price")]
+    MissingPriceForLimitOrder,
+    #[error("A filled order has to have an execution price")]
+    MissingExecutionPrice,
+}
 
 #[derive(Queryable, QueryableByName, Debug, Clone)]
 #[diesel(table_name = last_login)]
@@ -107,6 +119,35 @@ impl Order {
         }
     }
 
+    /// updates the status of the given order in the db
+    pub fn update_state(
+        order_id: String,
+        status: (OrderState, Option<f64>),
+        conn: &mut SqliteConnection,
+    ) -> Result<()> {
+        conn.transaction::<(), _, _>(|conn| {
+            let effected_rows = diesel::update(orders::table)
+                .filter(schema::orders::id.eq(order_id.clone()))
+                .set(schema::orders::status.eq(status.0))
+                .execute(conn)?;
+
+            if effected_rows == 0 {
+                bail!("Could not update order")
+            }
+
+            let effected_rows = diesel::update(orders::table)
+                .filter(schema::orders::id.eq(order_id))
+                .set(schema::orders::execution_price.eq(status.1))
+                .execute(conn)?;
+
+            if effected_rows > 0 {
+                Ok(())
+            } else {
+                bail!("Could not update order")
+            }
+        })
+    }
+
     pub fn get(order_id: String, conn: &mut SqliteConnection) -> QueryResult<Order> {
         orders::table
             .filter(schema::orders::id.eq(order_id))
@@ -140,6 +181,24 @@ impl From<crate::trade::order::Order> for Order {
     }
 }
 
+impl TryFrom<Order> for crate::trade::order::Order {
+    type Error = Error;
+
+    fn try_from(value: Order) -> std::result::Result<Self, Self::Error> {
+        let order = crate::trade::order::Order {
+            id: Uuid::parse_str(value.id.as_str()).map_err(Error::InvalidId)?,
+            leverage: value.leverage,
+            quantity: value.quantity,
+            contract_symbol: value.contract_symbol.into(),
+            direction: value.direction.into(),
+            order_type: (value.order_type, value.limit_price).try_into()?,
+            status: (value.status, value.execution_price).try_into()?,
+        };
+
+        Ok(order)
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, FromSqlRow, AsExpression)]
 #[diesel(sql_type = Text)]
 pub enum ContractSymbol {
@@ -150,6 +209,14 @@ impl From<trade::ContractSymbol> for ContractSymbol {
     fn from(value: trade::ContractSymbol) -> Self {
         match value {
             trade::ContractSymbol::BtcUsd => ContractSymbol::BtcUsd,
+        }
+    }
+}
+
+impl From<ContractSymbol> for trade::ContractSymbol {
+    fn from(value: ContractSymbol) -> Self {
+        match value {
+            ContractSymbol::BtcUsd => trade::ContractSymbol::BtcUsd,
         }
     }
 }
@@ -170,6 +237,15 @@ impl From<trade::Direction> for Direction {
     }
 }
 
+impl From<Direction> for trade::Direction {
+    fn from(value: Direction) -> Self {
+        match value {
+            Direction::Long => trade::Direction::Long,
+            Direction::Short => trade::Direction::Short,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, FromSqlRow, AsExpression)]
 #[diesel(sql_type = Text)]
 pub enum OrderType {
@@ -183,6 +259,22 @@ impl From<crate::trade::order::OrderType> for (OrderType, Option<f64>) {
             crate::trade::order::OrderType::Market => (OrderType::Market, None),
             crate::trade::order::OrderType::Limit { price } => (OrderType::Limit, Some(price)),
         }
+    }
+}
+
+impl TryFrom<(OrderType, Option<f64>)> for crate::trade::order::OrderType {
+    type Error = Error;
+
+    fn try_from(value: (OrderType, Option<f64>)) -> std::result::Result<Self, Self::Error> {
+        let order_type = match value.0 {
+            OrderType::Market => crate::trade::order::OrderType::Market,
+            OrderType::Limit => match value.1 {
+                None => return Err(Error::MissingPriceForLimitOrder),
+                Some(price) => crate::trade::order::OrderType::Limit { price },
+            },
+        };
+
+        Ok(order_type)
     }
 }
 
@@ -210,10 +302,32 @@ impl From<crate::trade::order::OrderState> for (OrderState, Option<f64>) {
     }
 }
 
+impl TryFrom<(OrderState, Option<f64>)> for crate::trade::order::OrderState {
+    type Error = Error;
+
+    fn try_from(value: (OrderState, Option<f64>)) -> std::result::Result<Self, Self::Error> {
+        let order_state = match value.0 {
+            OrderState::Initial => crate::trade::order::OrderState::Initial,
+            OrderState::Rejected => crate::trade::order::OrderState::Rejected,
+            OrderState::Open => crate::trade::order::OrderState::Open,
+            OrderState::Failed => crate::trade::order::OrderState::Failed,
+            OrderState::Filled => match value.1 {
+                None => return Err(Error::MissingExecutionPrice),
+                Some(execution_price) => {
+                    crate::trade::order::OrderState::Filled { execution_price }
+                }
+            },
+        };
+
+        Ok(order_state)
+    }
+}
+
 #[cfg(test)]
 pub mod test {
     use crate::db::models::LastLogin;
     use crate::db::models::Order;
+    use crate::db::models::OrderState;
     use crate::db::MIGRATIONS;
     use diesel::result::Error;
     use diesel::Connection;
@@ -312,6 +426,25 @@ pub mod test {
         // load the order to see if it was randomly changed
         let loaded_order = Order::get(uuid.to_string(), &mut connection).unwrap();
         assert_eq!(order, loaded_order);
+
+        Order::update_state(
+            uuid.to_string(),
+            (crate::trade::order::OrderState::Filled {
+                execution_price: 100000.0,
+            })
+            .into(),
+            &mut connection,
+        )
+        .unwrap();
+
+        let updated_order = Order {
+            status: OrderState::Filled,
+            execution_price: Some(100000.0),
+            ..order
+        };
+
+        let loaded_order = Order::get(uuid.to_string(), &mut connection).unwrap();
+        assert_eq!(updated_order, loaded_order);
 
         // delete it
         let deleted_rows = Order::delete(uuid.to_string(), &mut connection).unwrap();

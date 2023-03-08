@@ -1,4 +1,6 @@
 use crate::api;
+use crate::db::models::Order;
+use crate::trade;
 use anyhow::anyhow;
 use anyhow::Context;
 use anyhow::Result;
@@ -13,6 +15,7 @@ use diesel_migrations::MigrationHarness;
 use state::Storage;
 use std::sync::Arc;
 use time::OffsetDateTime;
+use uuid::Uuid;
 
 mod custom_types;
 pub mod models;
@@ -38,7 +41,7 @@ pub fn init_db(db_dir: String) -> Result<()> {
     Ok(())
 }
 
-fn connection() -> Result<PooledConnection<ConnectionManager<SqliteConnection>>> {
+pub fn connection() -> Result<PooledConnection<ConnectionManager<SqliteConnection>>> {
     let pool = DB.try_get().context("DB uninitialised").cloned()?;
 
     pool.get()
@@ -50,4 +53,33 @@ pub fn update_last_login() -> Result<api::LastLogin> {
     let now = OffsetDateTime::now_utc();
     let last_login = models::LastLogin::update_last_login(now, &mut db)?.into();
     Ok(last_login)
+}
+
+pub fn insert_order(order: trade::order::Order) -> Result<trade::order::Order> {
+    let mut db = connection()?;
+    let order = Order::insert(order.into(), &mut db)?;
+
+    Ok(order.try_into()?)
+}
+
+pub fn update_order_state(order_id: Uuid, order_state: trade::order::OrderState) -> Result<()> {
+    let mut db = connection()?;
+    Order::update_state(order_id.to_string(), order_state.into(), &mut db)
+        .context("Failed to update order state")?;
+
+    Ok(())
+}
+
+pub fn get_order(order_id: Uuid) -> Result<trade::order::Order> {
+    let mut db = connection()?;
+    let order = Order::get(order_id.to_string(), &mut db)?;
+
+    Ok(order.try_into()?)
+}
+
+pub fn delete_order(order_id: Uuid) -> Result<()> {
+    let mut db = connection()?;
+    Order::delete(order_id.to_string(), &mut db)?;
+
+    Ok(())
 }
