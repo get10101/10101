@@ -1,13 +1,16 @@
 use anyhow::Result;
 use clap::Parser;
+use lightning::ln::msgs::NetAddress;
+use local_ip_address::local_ip;
 use std::env::current_dir;
+use std::net::IpAddr;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 
 #[derive(Parser)]
 pub struct Opts {
     /// The address to listen on for the lightning and dlc peer2peer API.
-    #[clap(long, default_value = "127.0.0.1:9045")]
+    #[clap(long, default_value = "0.0.0.0:9045")]
     pub p2p_address: SocketAddr,
 
     /// The IP address to listen on for the HTTP API.
@@ -17,6 +20,10 @@ pub struct Opts {
     /// Where to permanently store data, defaults to the current working directory.
     #[clap(long)]
     data_dir: Option<PathBuf>,
+
+    /// Will skip announcing the node on the local ip address. Set this flag for production.
+    #[clap(long)]
+    skip_local_network_announcement: bool,
 }
 
 impl Opts {
@@ -33,5 +40,41 @@ impl Opts {
         .join("coordinator");
 
         Ok(data_dir)
+    }
+
+    /// Returns a list of addresses under which the node can be reached. Note this is used for the
+    /// node announcements.
+    pub fn p2p_announcement_addresses(&self) -> Vec<NetAddress> {
+        let mut addresses: Vec<NetAddress> = vec![];
+        if !self.p2p_address.ip().is_unspecified() {
+            addresses.push(build_net_address(
+                self.p2p_address.ip(),
+                self.p2p_address.port(),
+            ));
+        } else {
+            // Announcing the node on an unspecified ip address does not make any sense.
+            tracing::warn!("Skipping node announcement on '0.0.0.0'.");
+        }
+
+        if !self.skip_local_network_announcement {
+            let local_ip = local_ip().expect("to get local ip address");
+            tracing::info!("Adding node announcement within local network {local_ip}. Do not use for production!");
+            addresses.push(build_net_address(local_ip, self.p2p_address.port()));
+        }
+
+        addresses
+    }
+}
+
+fn build_net_address(ip: IpAddr, port: u16) -> NetAddress {
+    match ip {
+        IpAddr::V4(ip) => NetAddress::IPv4 {
+            addr: ip.octets(),
+            port,
+        },
+        IpAddr::V6(ip) => NetAddress::IPv6 {
+            addr: ip.octets(),
+            port,
+        },
     }
 }

@@ -33,6 +33,7 @@ use lightning::chain::chainmonitor;
 use lightning::chain::keysinterface::KeysInterface;
 use lightning::chain::keysinterface::KeysManager;
 use lightning::chain::keysinterface::Recipient;
+use lightning::ln::msgs::NetAddress;
 use lightning::ln::peer_handler::IgnoringMessageHandler;
 use lightning::ln::peer_handler::MessageHandler;
 use lightning::routing::gossip::P2PGossipSync;
@@ -127,6 +128,7 @@ impl Node {
             network,
             data_dir,
             address,
+            vec![util::build_net_address(address.ip(), address.port())],
             electrs_origin,
             seed,
             ephemeral_randomness,
@@ -139,11 +141,13 @@ impl Node {
     ///
     /// The main difference between this and `new_app` is that the user config is different to
     /// be able to create just-in-time channels and 0-conf channels towards our peers.
+    #[allow(clippy::too_many_arguments)]
     pub async fn new_coordinator(
         alias: &str,
         network: Network,
         data_dir: &Path,
         address: SocketAddr,
+        announcements: Vec<NetAddress>,
         electrs_origin: String,
         seed: Bip39Seed,
         ephemeral_randomness: [u8; 32],
@@ -161,6 +165,7 @@ impl Node {
             network,
             data_dir,
             address,
+            announcements,
             electrs_origin,
             seed,
             ephemeral_randomness,
@@ -175,6 +180,7 @@ impl Node {
         network: Network,
         data_dir: &Path,
         address: SocketAddr,
+        announcements: Vec<NetAddress>,
         electrs_origin: String,
         seed: Bip39Seed,
         ephemeral_randomness: [u8; 32],
@@ -380,12 +386,12 @@ impl Node {
                 // TODO: Check why we need to announce the node of the mobile app as otherwise the
                 // just-in-time channel creation will fail with a `unable to decode own hop data`
                 // error.
-
-                let address = util::build_net_address(address.ip(), address.port());
                 let mut interval = tokio::time::interval(BROADCAST_NODE_ANNOUNCEMENT_INTERVAL);
 
                 loop {
-                    peer_manager.broadcast_node_announcement([0; 3], alias, vec![address.clone()]);
+                    tracing::debug!("Announcing node on {:?}", announcements);
+                    let announcements = announcements.clone();
+                    peer_manager.broadcast_node_announcement([0; 3], alias, announcements);
                     interval.tick().await;
                 }
             }

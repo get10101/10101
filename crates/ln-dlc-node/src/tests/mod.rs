@@ -2,6 +2,7 @@ use crate::ln::app_config;
 use crate::ln::coordinator_config;
 use crate::node::Node;
 use crate::seed::Bip39Seed;
+use crate::util;
 use anyhow::anyhow;
 use anyhow::Result;
 use bitcoin::Address;
@@ -86,6 +87,7 @@ impl Node {
             Network::Regtest,
             data_dir.as_path(),
             address,
+            vec![util::build_net_address(address.ip(), address.port())],
             ELECTRS_ORIGIN.to_string(),
             seed,
             ephemeral_randomness,

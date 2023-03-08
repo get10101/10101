@@ -12,7 +12,6 @@ use ln_dlc_node::node::Node;
 use ln_dlc_node::seed::Bip39Seed;
 use rand::thread_rng;
 use rand::RngCore;
-use std::net::SocketAddr;
 use std::sync::Arc;
 use tracing::metadata::LevelFilter;
 
@@ -46,6 +45,7 @@ async fn main() -> Result<()> {
             network,
             data_dir.as_path(),
             address,
+            opts.p2p_announcement_addresses(),
             ELECTRS_ORIGIN.to_string(),
             seed,
             ephemeral_randomness,
@@ -76,9 +76,8 @@ async fn main() -> Result<()> {
 
     let app = router(node, pool);
 
-    let addr = SocketAddr::from((http_address.ip(), http_address.port()));
-    tracing::debug!("listening on http://{}", addr);
-    axum::Server::bind(&addr)
+    tracing::debug!("listening on http://{}", http_address);
+    axum::Server::bind(&http_address)
         .serve(app.into_make_service())
         .await?;
 
