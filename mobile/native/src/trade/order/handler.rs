@@ -3,7 +3,7 @@ use crate::event;
 use crate::event::EventInternal;
 use crate::ln_dlc;
 use crate::trade::order::Order;
-use crate::trade::order::OrderStateTrade;
+use crate::trade::order::OrderState;
 use crate::trade::order::OrderTypeTrade;
 use crate::trade::position;
 use anyhow::Context;
@@ -57,7 +57,7 @@ pub async fn get_order(id: String) -> Result<Order> {
         contract_symbol: ContractSymbol::BtcUsd,
         direction: Direction::Long,
         order_type: OrderTypeTrade::Market,
-        status: OrderStateTrade::Filled {
+        status: OrderState::Filled {
             execution_price: 25000.0,
         },
     };
@@ -75,7 +75,7 @@ pub async fn get_orders() -> Result<Vec<Order>> {
         contract_symbol: ContractSymbol::BtcUsd,
         direction: Direction::Long,
         order_type: OrderTypeTrade::Market,
-        status: OrderStateTrade::Filled {
+        status: OrderState::Filled {
             execution_price: 25000.0,
         },
     };

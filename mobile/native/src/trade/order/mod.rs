@@ -15,7 +15,7 @@ pub enum OrderTypeTrade {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub enum OrderStateTrade {
+pub enum OrderState {
     /// Not submitted to orderbook yet
     ///
     /// In order to be able to track how many failed orders we have we store the order in the
@@ -67,5 +67,5 @@ pub struct Order {
     pub contract_symbol: ContractSymbol,
     pub direction: Direction,
     pub order_type: OrderTypeTrade,
-    pub status: OrderStateTrade,
+    pub status: OrderState,
 }

@@ -1,6 +1,5 @@
 use crate::common::api::Direction;
 use crate::trade::order;
-use crate::trade::order::OrderStateTrade;
 use crate::trade::order::OrderTypeTrade;
 use flutter_rust_bridge::frb;
 use trade::ContractSymbol;
@@ -65,7 +64,7 @@ impl From<OrderType> for OrderTypeTrade {
 impl From<order::Order> for Order {
     fn from(value: order::Order) -> Self {
         let execution_price = match value.status {
-            OrderStateTrade::Filled { execution_price } => Some(execution_price),
+            order::OrderState::Filled { execution_price } => Some(execution_price),
             _ => None,
         };
 
@@ -90,16 +89,16 @@ impl From<OrderTypeTrade> for OrderType {
     }
 }
 
-impl From<OrderStateTrade> for OrderState {
-    fn from(value: OrderStateTrade) -> Self {
+impl From<order::OrderState> for OrderState {
+    fn from(value: order::OrderState) -> Self {
         match value {
-            OrderStateTrade::Open => OrderState::Open,
-            OrderStateTrade::Filled { .. } => OrderState::Filled,
-            OrderStateTrade::Failed => OrderState::Failed,
-            OrderStateTrade::Initial => unimplemented!(
+            order::OrderState::Open => OrderState::Open,
+            order::OrderState::Filled { .. } => OrderState::Filled,
+            order::OrderState::Failed => OrderState::Failed,
+            order::OrderState::Initial => unimplemented!(
                 "don't expose orders that were not submitted into the orderbook to the frontend!"
             ),
-            OrderStateTrade::Rejected => unimplemented!(
+            order::OrderState::Rejected => unimplemented!(
                 "don't expose orders that were rejected by the orderbook to the frontend!"
             ),
         }
@@ -115,7 +114,7 @@ impl From<NewOrder> for order::Order {
             contract_symbol: value.contract_symbol,
             direction: value.direction,
             order_type: (*value.order_type).into(),
-            status: OrderStateTrade::Open,
+            status: order::OrderState::Open,
         }
     }
 }

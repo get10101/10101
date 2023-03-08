@@ -188,14 +188,14 @@ pub enum OrderState {
     Filled,
 }
 
-impl From<crate::trade::order::OrderStateTrade> for (OrderState, Option<f64>) {
-    fn from(value: crate::trade::order::OrderStateTrade) -> Self {
+impl From<crate::trade::order::OrderState> for (OrderState, Option<f64>) {
+    fn from(value: crate::trade::order::OrderState) -> Self {
         match value {
-            crate::trade::order::OrderStateTrade::Initial => (OrderState::Initial, None),
-            crate::trade::order::OrderStateTrade::Rejected => (OrderState::Rejected, None),
-            crate::trade::order::OrderStateTrade::Open => (OrderState::Open, None),
-            crate::trade::order::OrderStateTrade::Failed => (OrderState::Failed, None),
-            crate::trade::order::OrderStateTrade::Filled { execution_price } => {
+            crate::trade::order::OrderState::Initial => (OrderState::Initial, None),
+            crate::trade::order::OrderState::Rejected => (OrderState::Rejected, None),
+            crate::trade::order::OrderState::Open => (OrderState::Open, None),
+            crate::trade::order::OrderState::Failed => (OrderState::Failed, None),
+            crate::trade::order::OrderState::Filled { execution_price } => {
                 (OrderState::Filled, Some(execution_price))
             }
         }
@@ -258,7 +258,7 @@ pub mod test {
         let contract_symbol = trade::ContractSymbol::BtcUsd;
         let direction = common::api::Direction::Long;
         let (order_type, limit_price) = crate::trade::order::OrderTypeTrade::Market.into();
-        let (status, execution_price) = crate::trade::order::OrderStateTrade::Initial.into();
+        let (status, execution_price) = crate::trade::order::OrderState::Initial.into();
         let order = Order {
             id: uuid.to_string(),
             leverage,
@@ -279,7 +279,7 @@ pub mod test {
                 contract_symbol,
                 direction,
                 order_type: crate::trade::order::OrderTypeTrade::Market,
-                status: crate::trade::order::OrderStateTrade::Initial,
+                status: crate::trade::order::OrderState::Initial,
             }
             .into(),
             &mut connection,
@@ -295,7 +295,7 @@ pub mod test {
                 contract_symbol,
                 direction: common::api::Direction::Long,
                 order_type: crate::trade::order::OrderTypeTrade::Market,
-                status: crate::trade::order::OrderStateTrade::Initial,
+                status: crate::trade::order::OrderState::Initial,
             }
             .into(),
             &mut connection,
