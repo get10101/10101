@@ -10,7 +10,7 @@ use maker::cli::Opts;
 use maker::logger;
 use maker::routes::router;
 use maker::run_migration;
-use maker::trading::orderbook_client::post_new_order;
+use maker::trading;
 use rand::thread_rng;
 use rand::RngCore;
 use std::net::SocketAddr;
@@ -65,7 +65,17 @@ async fn main() -> Result<()> {
         }
     });
 
-    post_new_order(opts.orderbook, node.info.to_string()).await?;
+    let node_info_string = node.info.to_string();
+    tokio::spawn(async move {
+        match trading::run(opts.orderbook, node_info_string, network).await {
+            Ok(_) => {
+                // all good
+            }
+            Err(error) => {
+                tracing::error!("Trading logic died {error:#}")
+            }
+        }
+    });
 
     // set up database connection pool
     let conn_spec = "postgres://postgres:mysecretpassword@localhost:5432/maker".to_string();

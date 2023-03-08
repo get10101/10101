@@ -573,6 +573,7 @@ dependencies = [
  "local-ip-address",
  "rand",
  "rust_decimal",
+ "rust_decimal_macros",
  "serde",
  "serde_json",
  "testcontainers",
@@ -1616,10 +1617,12 @@ name = "maker"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-stream",
  "atty",
  "axum",
  "bdk",
  "bitcoin",
+ "bitmex-stream",
  "clap",
  "diesel",
  "diesel_migrations",
@@ -1628,6 +1631,8 @@ dependencies = [
  "ln-dlc-node",
  "rand",
  "reqwest",
+ "rust_decimal",
+ "rust_decimal_macros",
  "serde",
  "serde_json",
  "testcontainers",
@@ -1636,6 +1641,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "trade",
+ "uuid",
 ]
 
 [[package]]
@@ -3103,6 +3109,7 @@ checksum = "1674845326ee10d37ca60470760d4288a6f80f304007d92e5c53bab78c9cfd79"
 dependencies = [
  "getrandom",
  "rand",
+ "serde",
  "uuid-macro-internal",
 ]
 
