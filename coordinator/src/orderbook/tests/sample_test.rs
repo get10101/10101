@@ -1,12 +1,12 @@
-use crate::orderbook::models::Direction;
-use crate::orderbook::models::NewOrder;
-use crate::orderbook::models::Order;
+use crate::orderbook::db::orders;
+use crate::orderbook::tests::start_postgres;
 use crate::run_migration;
-use crate::tests::start_postgres;
 use diesel::r2d2;
 use diesel::r2d2::ConnectionManager;
 use diesel::PgConnection;
+use rust_decimal_macros::dec;
 use testcontainers::clients::Cli;
+use trade::Direction;
 
 #[tokio::test]
 async fn crud_test() {
@@ -26,28 +26,27 @@ async fn crud_test() {
     let mut conn = pool.get().unwrap();
     run_migration(&mut conn);
 
-    let orders = Order::all(&mut conn).unwrap();
+    let orders = orders::all(&mut conn).unwrap();
     assert!(orders.is_empty());
 
-    let order = Order::insert(
+    let order = orders::insert(
         &mut conn,
-        NewOrder {
-            price: 20000.00,
+        crate::orderbook::routes::NewOrder {
+            price: dec!(20000.00),
             maker_id: "Bob the Maker".to_string(),
-            taken: false,
             direction: Direction::Long,
-            quantity: 100.0,
+            quantity: dec!(100.0),
         },
     )
     .unwrap();
     assert!(order.id > 0);
 
-    let order = Order::update(&mut conn, order.id, true).unwrap();
+    let order = orders::update(&mut conn, order.id, true).unwrap();
     assert!(order.taken);
 
-    let deleted = Order::delete_with_id(&mut conn, order.id).unwrap();
+    let deleted = orders::delete_with_id(&mut conn, order.id).unwrap();
     assert_eq!(deleted, 1);
 
-    let orders = Order::all(&mut conn).unwrap();
+    let orders = orders::all(&mut conn).unwrap();
     assert!(orders.is_empty());
 }

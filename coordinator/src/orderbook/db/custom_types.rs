@@ -1,4 +1,3 @@
-use crate::orderbook::db::models::Direction;
 use crate::schema::sql_types::DirectionType;
 use diesel::deserialize;
 use diesel::deserialize::FromSql;
@@ -8,7 +7,16 @@ use diesel::serialize;
 use diesel::serialize::IsNull;
 use diesel::serialize::Output;
 use diesel::serialize::ToSql;
+use diesel::AsExpression;
+use diesel::FromSqlRow;
 use std::io::Write;
+
+#[derive(Debug, Clone, Copy, PartialEq, FromSqlRow, AsExpression, Eq)]
+#[diesel(sql_type = DirectionType)]
+pub enum Direction {
+    Long,
+    Short,
+}
 
 impl ToSql<DirectionType, Pg> for Direction {
     fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, Pg>) -> serialize::Result {

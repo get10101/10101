@@ -9,7 +9,6 @@ use axum::response::IntoResponse;
 use axum::Json;
 use futures::SinkExt;
 use futures::StreamExt;
-use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use serde::Deserialize;
 use serde::Serialize;
@@ -24,29 +23,12 @@ pub struct Order {
     pub maker_id: String,
     pub taken: bool,
     pub direction: Direction,
-    pub amount: i32,
-}
-
-impl From<orderbook::db::models::Order> for Order {
-    fn from(value: orderbook::db::models::Order) -> Self {
-        Order {
-            id: value.id,
-            price: value.price,
-            maker_id: "".to_string(),
-            taken: false,
-            direction: Direction::Long,
-            amount: 0,
-        }
-    }
+    pub quantity: f32,
 }
 
 pub async fn get_orders(State(state): State<Arc<AppState>>) -> impl IntoResponse {
     let mut conn = state.pool.clone().get().unwrap();
-    let order = orderbook::db::models::Order::all(&mut conn)
-        .unwrap()
-        .iter()
-        .map(|order| Order::from(order.clone()))
-        .collect::<Vec<_>>();
+    let order = orderbook::db::orders::all(&mut conn).unwrap();
 
     Json(order)
 }
@@ -57,11 +39,11 @@ pub async fn get_order(
 ) -> impl IntoResponse {
     let pool = state.pool.clone();
     let mut conn = pool.get().unwrap();
-    let order = orderbook::db::models::Order::get_with_id(&mut conn, order_id)
+    let order = orderbook::db::orders::get_with_id(&mut conn, order_id)
         .unwrap()
         .unwrap();
 
-    Json(Order::from(order))
+    Json(order)
 }
 
 #[derive(Deserialize, Serialize)]
@@ -72,33 +54,12 @@ pub struct NewOrder {
     pub direction: Direction,
 }
 
-impl From<NewOrder> for crate::orderbook::db::models::NewOrder {
-    fn from(value: NewOrder) -> Self {
-        crate::orderbook::db::models::NewOrder {
-            price: value
-                .price
-                .round_dp(2)
-                .to_f32()
-                .expect("To be able to format decimal to f32"),
-            quantity: value
-                .quantity
-                .round_dp(2)
-                .to_f32()
-                .expect("To be able to format decimal to f32"),
-            maker_id: value.maker_id,
-            direction: value.direction.into(),
-            taken: false,
-        }
-    }
-}
-
 pub async fn post_order(
     State(state): State<Arc<AppState>>,
     Json(new_order): Json<NewOrder>,
 ) -> impl IntoResponse {
     let mut conn = state.pool.clone().get().unwrap();
-    let inserted = orderbook::db::models::Order::insert(&mut conn, new_order.into()).unwrap();
-    let order = Order::from(inserted);
+    let order = orderbook::db::orders::insert(&mut conn, new_order).unwrap();
 
     let sender = state.tx_pricefeed.clone();
     update_pricefeed(PriceFeedMessage::NewOrder(order.clone()), sender);
@@ -136,9 +97,7 @@ pub async fn put_order(
     Json(updated_order): Json<UpdateOrder>,
 ) -> impl IntoResponse {
     let mut conn = state.pool.clone().get().unwrap();
-    let order =
-        orderbook::db::models::Order::update(&mut conn, order_id, updated_order.taken).unwrap();
-    let order = Order::from(order);
+    let order = orderbook::db::orders::update(&mut conn, order_id, updated_order.taken).unwrap();
     let sender = state.tx_pricefeed.clone();
     update_pricefeed(PriceFeedMessage::Update(order.clone()), sender);
 
@@ -150,7 +109,7 @@ pub async fn delete_order(
     State(state): State<Arc<AppState>>,
 ) -> impl IntoResponse {
     let mut conn = state.pool.clone().get().unwrap();
-    let deleted = orderbook::db::models::Order::delete_with_id(&mut conn, order_id).unwrap();
+    let deleted = orderbook::db::orders::delete_with_id(&mut conn, order_id).unwrap();
     if deleted > 0 {
         let sender = state.tx_pricefeed.clone();
         update_pricefeed(PriceFeedMessage::DeleteOrder(order_id), sender);
@@ -178,11 +137,7 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>) {
     let mut rx = state.tx_pricefeed.subscribe();
 
     let mut conn = state.pool.clone().get().unwrap();
-    let orders = orderbook::db::models::Order::all(&mut conn)
-        .unwrap()
-        .iter()
-        .map(|order| Order::from(order.clone()))
-        .collect();
+    let orders = orderbook::db::orders::all(&mut conn).unwrap();
 
     // Now send the "joined" message to all subscribers.
     let _ = state.tx_pricefeed.send(PriceFeedMessage::AllOrders(orders));
