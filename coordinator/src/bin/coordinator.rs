@@ -1,6 +1,5 @@
 use anyhow::Context;
 use anyhow::Result;
-use bitcoin::Network;
 use coordinator::cli::Opts;
 use coordinator::logger;
 use coordinator::routes::router;
@@ -23,7 +22,7 @@ async fn main() -> Result<()> {
     let data_dir = opts.data_dir()?;
     let address = opts.p2p_address;
     let http_address = opts.http_address;
-    let network = Network::Regtest;
+    let network = opts.network();
 
     logger::init_tracing(LevelFilter::DEBUG, false)?;
 

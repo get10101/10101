@@ -12,7 +12,6 @@ use anyhow::Context;
 use anyhow::Result;
 use bdk::bitcoin::secp256k1::rand::thread_rng;
 use bdk::bitcoin::secp256k1::rand::RngCore;
-use bdk::bitcoin::Network;
 use bdk::bitcoin::XOnlyPublicKey;
 use lightning_invoice::Invoice;
 use ln_dlc_node::node::Node;
@@ -75,7 +74,7 @@ fn runtime() -> Result<&'static Runtime> {
 }
 
 pub fn run(data_dir: String) -> Result<()> {
-    let network = Network::Regtest;
+    let network = config::get_network();
     let runtime = runtime()?;
 
     runtime.block_on(async move {

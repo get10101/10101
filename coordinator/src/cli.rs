@@ -24,12 +24,38 @@ pub struct Opts {
     /// Will skip announcing the node on the local ip address. Set this flag for production.
     #[clap(long)]
     skip_local_network_announcement: bool,
+
+    #[clap(value_enum, default_value = "regtest")]
+    pub network: Network,
+}
+
+#[derive(Debug, Clone, Copy, clap::ValueEnum)]
+pub enum Network {
+    Regtest,
+    Signet,
+    Testnet,
+    Mainnet,
+}
+
+impl From<Network> for bitcoin::Network {
+    fn from(network: Network) -> Self {
+        match network {
+            Network::Regtest => bitcoin::Network::Regtest,
+            Network::Signet => bitcoin::Network::Signet,
+            Network::Testnet => bitcoin::Network::Testnet,
+            Network::Mainnet => bitcoin::Network::Bitcoin,
+        }
+    }
 }
 
 impl Opts {
     // use this method to parse the options from the cli.
     pub fn read() -> Opts {
         Opts::parse()
+    }
+
+    pub fn network(&self) -> bitcoin::Network {
+        self.network.into()
     }
 
     pub fn data_dir(&self) -> Result<PathBuf> {

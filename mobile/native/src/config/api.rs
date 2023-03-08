@@ -1,4 +1,5 @@
 use crate::config::ConfigInternal;
+use bdk::bitcoin::Network;
 use flutter_rust_bridge::frb;
 
 #[frb]
@@ -9,6 +10,7 @@ pub struct Config {
     pub host: String,
     pub p2p_port: u16,
     pub http_port: u16,
+    pub network: String,
 }
 
 impl From<Config> for ConfigInternal {
@@ -25,6 +27,16 @@ impl From<Config> for ConfigInternal {
             p2p_endpoint: format!("{}:{}", config.host, config.p2p_port)
                 .parse()
                 .expect("host and p2p_port to be valid"),
+            network: parse_network(&config.network),
         }
+    }
+}
+
+fn parse_network(network: &str) -> Network {
+    match network {
+        "signet" => Network::Signet,
+        "testnet" => Network::Testnet,
+        "mainnet" => Network::Bitcoin,
+        _ => Network::Regtest,
     }
 }

@@ -10,6 +10,7 @@ class Environment {
     int httpPort = const int.fromEnvironment("COORDINATOR_PORT_HTTP", defaultValue: 8000);
     String electrsEndpoint =
         const String.fromEnvironment("ELECTRS_ENDPOINT", defaultValue: "127.0.0.1:50000");
+    String network = const String.fromEnvironment('NETWORK', defaultValue: "regtest");
 
     String p2pEndpoint = const String.fromEnvironment('COORDINATOR_P2P_ENDPOINT');
     if (p2pEndpoint.contains("@")) {
@@ -26,6 +27,7 @@ class Environment {
         electrsEndpoint: electrsEndpoint,
         coordinatorPubkey: coordinatorPublicKey,
         p2PPort: lightningPort,
-        httpPort: httpPort);
+        httpPort: httpPort,
+        network: network);
   }
 }
