@@ -14,7 +14,6 @@ use diesel::FromSqlRow;
 use diesel::Queryable;
 use time::format_description;
 use time::OffsetDateTime;
-use uuid::Uuid;
 
 const SQLITE_DATETIME_FMT: &str = "[year]-[month]-[day] [hour]:[minute]:[second] [offset_hour \
          sign:mandatory]:[offset_minute]:[offset_second]";
@@ -108,16 +107,16 @@ impl Order {
         }
     }
 
-    pub fn get(order_id: Uuid, conn: &mut SqliteConnection) -> QueryResult<Order> {
+    pub fn get(order_id: String, conn: &mut SqliteConnection) -> QueryResult<Order> {
         orders::table
-            .filter(schema::orders::id.eq(order_id.to_string()))
+            .filter(schema::orders::id.eq(order_id))
             .first(conn)
     }
 
     /// Deletes given order from DB, in case of success, returns > 0, else 0 or Err
-    pub fn delete(order_id: Uuid, conn: &mut SqliteConnection) -> QueryResult<usize> {
+    pub fn delete(order_id: String, conn: &mut SqliteConnection) -> QueryResult<usize> {
         diesel::delete(orders::table)
-            .filter(orders::id.eq(order_id.to_string()))
+            .filter(orders::id.eq(order_id))
             .execute(conn)
     }
 }
@@ -311,15 +310,15 @@ pub mod test {
         .unwrap();
 
         // load the order to see if it was randomly changed
-        let loaded_order = Order::get(uuid, &mut connection).unwrap();
+        let loaded_order = Order::get(uuid.to_string(), &mut connection).unwrap();
         assert_eq!(order, loaded_order);
 
         // delete it
-        let deleted_rows = Order::delete(uuid, &mut connection).unwrap();
+        let deleted_rows = Order::delete(uuid.to_string(), &mut connection).unwrap();
         assert_eq!(deleted_rows, 1);
 
         // check if it is really gone
-        match Order::get(uuid, &mut connection) {
+        match Order::get(uuid.to_string(), &mut connection) {
             Err(Error::NotFound) => { // all good
             }
             _ => {
