@@ -2,7 +2,6 @@ use crate::calculations;
 use crate::config;
 use crate::config::api::Config;
 use crate::db;
-use crate::db::models::LastLogin;
 use crate::event;
 use crate::event::api::FlutterSubscriber;
 use crate::ln_dlc;
@@ -160,6 +159,11 @@ pub fn create_invoice_without_amount() -> Result<String> {
 
 pub fn send_payment(invoice: String) -> Result<()> {
     ln_dlc::send_payment(&invoice)
+}
+
+pub struct LastLogin {
+    pub id: i32,
+    pub date: String,
 }
 
 pub fn update_last_login() -> Result<LastLogin> {

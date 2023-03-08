@@ -1,4 +1,4 @@
-use crate::db::models::LastLogin;
+use crate::api;
 use anyhow::anyhow;
 use anyhow::Context;
 use anyhow::Result;
@@ -45,9 +45,9 @@ fn connection() -> Result<PooledConnection<ConnectionManager<SqliteConnection>>>
         .map_err(|e| anyhow!("cannot acquire database connection: {e:#}"))
 }
 
-pub fn update_last_login() -> Result<LastLogin> {
+pub fn update_last_login() -> Result<api::LastLogin> {
     let mut db = connection()?;
     let now = OffsetDateTime::now_utc();
-    let last_login = LastLogin::update_last_login(now, &mut db)?;
+    let last_login = models::LastLogin::update_last_login(now, &mut db)?.into();
     Ok(last_login)
 }
