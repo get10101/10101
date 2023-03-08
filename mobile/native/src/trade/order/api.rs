@@ -1,6 +1,6 @@
 use crate::common::api::Direction;
+use crate::trade::order;
 use crate::trade::order::OrderStateTrade;
-use crate::trade::order::OrderTrade;
 use crate::trade::order::OrderTypeTrade;
 use flutter_rust_bridge::frb;
 use trade::ContractSymbol;
@@ -62,8 +62,8 @@ impl From<OrderType> for OrderTypeTrade {
     }
 }
 
-impl From<OrderTrade> for Order {
-    fn from(value: OrderTrade) -> Self {
+impl From<order::Order> for Order {
+    fn from(value: order::Order) -> Self {
         let execution_price = match value.status {
             OrderStateTrade::Filled { execution_price } => Some(execution_price),
             _ => None,
@@ -106,9 +106,9 @@ impl From<OrderStateTrade> for OrderState {
     }
 }
 
-impl From<NewOrder> for OrderTrade {
+impl From<NewOrder> for order::Order {
     fn from(value: NewOrder) -> Self {
-        OrderTrade {
+        order::Order {
             id: Uuid::new_v4(),
             leverage: value.leverage,
             quantity: value.quantity,

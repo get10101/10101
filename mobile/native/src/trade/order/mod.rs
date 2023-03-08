@@ -60,7 +60,7 @@ pub enum OrderStateTrade {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct OrderTrade {
+pub struct Order {
     pub id: Uuid,
     pub leverage: f64,
     pub quantity: f64,

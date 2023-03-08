@@ -113,8 +113,8 @@ impl Order {
     }
 }
 
-impl From<crate::trade::order::OrderTrade> for Order {
-    fn from(value: crate::trade::order::OrderTrade) -> Self {
+impl From<crate::trade::order::Order> for Order {
+    fn from(value: crate::trade::order::Order) -> Self {
         let (order_type, limit_price) = value.order_type.into();
         let (status, execution_price) = value.status.into();
 
@@ -272,7 +272,7 @@ pub mod test {
         };
 
         Order::insert(
-            crate::trade::order::OrderTrade {
+            crate::trade::order::Order {
                 id: uuid,
                 leverage,
                 quantity,
@@ -288,7 +288,7 @@ pub mod test {
 
         // Insert another one, just so that there is not just one order in the db
         Order::insert(
-            crate::trade::order::OrderTrade {
+            crate::trade::order::Order {
                 id: uuid::Uuid::new_v4(),
                 leverage,
                 quantity,
