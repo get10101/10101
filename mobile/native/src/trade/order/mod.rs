@@ -14,6 +14,30 @@ pub enum OrderType {
     Limit { price: f64 },
 }
 
+#[derive(thiserror::Error, Debug)]
+pub enum TradeExecutionError {
+    #[error("Failed to request execution with coordinator")]
+    CoordinatorRequest,
+    #[error("Failed to propose channel creation")]
+    ProposeChannel,
+}
+
+/// Internal type so we still have Copy on order
+#[derive(Debug, Clone, Copy)]
+pub enum FailureReason {
+    CoordinatorRequest,
+    ProposeChannel,
+}
+
+impl From<FailureReason> for TradeExecutionError {
+    fn from(value: FailureReason) -> Self {
+        match value {
+            FailureReason::CoordinatorRequest => TradeExecutionError::CoordinatorRequest,
+            FailureReason::ProposeChannel => TradeExecutionError::ProposeChannel,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 pub enum OrderState {
     /// Not submitted to orderbook yet
@@ -39,12 +63,30 @@ pub enum OrderState {
     /// - Open->Filled (if we successfully set up the trade)
     Open,
 
-    /// Failed to set up a trade
+    /// The orderbook has matched the order and it is being filled
+    ///
+    /// Once the order is being filled we know the execution price and store it.
+    /// Since it's a non-custodial setup filling an order involves setting up a DLC.
+    /// This state is set once we receive the TradeParams from the orderbook.
+    /// This state covers the complete trade execution until we have a DLC or we run into a failure
+    /// scenario. We don't allow re-trying the trade execution; if the app is started and we
+    /// detect an order that is in the `Filling` state, we will have to evaluate if there is a DLC
+    /// currently being set up. If yes the order remains in `Filling` state, if there is no DLC
+    /// currently being set up we move the order into `Failed` state.
+    ///
+    /// Transitions:
+    /// Filling->Filled (if we eventually end up with a DLC)
+    /// Filling->Failed (if we experience an error when executing the trade or the DLC manager
+    /// reported back failure/rejection)
+    Filling { execution_price: f64 },
+
+    /// The order failed to be filled
+    ///
     /// In order to reach this state the orderbook must have provided trade params to start trade
-    /// execution, and the trade execution failed.
+    /// execution, and the trade execution failed; i.e. it did not result in setting up a DLC.
     /// For the MVP there won't be a retry mechanism, so this is treated as a final state.
     /// This is a final state.
-    Failed,
+    Failed { reason: FailureReason },
 
     /// Successfully set up trade
     ///
@@ -68,4 +110,22 @@ pub struct Order {
     pub direction: Direction,
     pub order_type: OrderType,
     pub state: OrderState,
+}
+
+impl Order {
+    /// This returns the executed price once known
+    ///
+    /// Logs an error if this function is called on a state where the execution price is not know
+    /// yet.
+    pub fn execution_price(&self) -> Option<f64> {
+        match self.state {
+            OrderState::Filling { execution_price } | OrderState::Filled { execution_price } => {
+                Some(execution_price)
+            }
+            _ => {
+                tracing::error!("Executed price not known in state {:?}", self.state);
+                None
+            }
+        }
+    }
 }

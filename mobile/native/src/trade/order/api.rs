@@ -93,13 +93,15 @@ impl From<order::OrderState> for OrderState {
         match value {
             order::OrderState::Open => OrderState::Open,
             order::OrderState::Filled { .. } => OrderState::Filled,
-            order::OrderState::Failed => OrderState::Failed,
+            order::OrderState::Failed { .. } => OrderState::Failed,
             order::OrderState::Initial => unimplemented!(
                 "don't expose orders that were not submitted into the orderbook to the frontend!"
             ),
             order::OrderState::Rejected => unimplemented!(
                 "don't expose orders that were rejected by the orderbook to the frontend!"
             ),
+            // We don't expose this state, but treat it as Open in the UI
+            order::OrderState::Filling { .. } => OrderState::Open,
         }
     }
 }

@@ -26,8 +26,10 @@ pub enum Error {
     InvalidId(#[from] uuid::Error),
     #[error("Limit order has to have a price")]
     MissingPriceForLimitOrder,
-    #[error("A filled order has to have an execution price")]
+    #[error("A filling or filled order has to have an execution price")]
     MissingExecutionPrice,
+    #[error("A failed order must have a reason")]
+    MissingFailureReason,
 }
 
 #[derive(Queryable, QueryableByName, Debug, Clone)]
@@ -103,6 +105,7 @@ pub(crate) struct Order {
     pub state: OrderState,
     pub limit_price: Option<f64>,
     pub execution_price: Option<f64>,
+    pub failure_reason: Option<FailureReason>,
 }
 
 impl Order {
@@ -122,7 +125,7 @@ impl Order {
     /// updates the status of the given order in the db
     pub fn update_state(
         order_id: String,
-        status: (OrderState, Option<f64>),
+        status: (OrderState, Option<f64>, Option<FailureReason>),
         conn: &mut SqliteConnection,
     ) -> Result<()> {
         conn.transaction::<(), _, _>(|conn| {
@@ -135,16 +138,29 @@ impl Order {
                 bail!("Could not update order")
             }
 
-            let effected_rows = diesel::update(orders::table)
-                .filter(schema::orders::id.eq(order_id))
-                .set(schema::orders::execution_price.eq(status.1))
-                .execute(conn)?;
+            if let Some(execution_price) = status.1 {
+                diesel::update(orders::table)
+                    .filter(schema::orders::id.eq(order_id.clone()))
+                    .set(schema::orders::execution_price.eq(execution_price))
+                    .execute(conn)?;
 
-            if effected_rows > 0 {
-                Ok(())
-            } else {
-                bail!("Could not update order")
+                if effected_rows == 0 {
+                    bail!("Could not update order")
+                }
             }
+
+            if let Some(failure_reason) = status.2 {
+                diesel::update(orders::table)
+                    .filter(schema::orders::id.eq(order_id))
+                    .set(schema::orders::failure_reason.eq(failure_reason))
+                    .execute(conn)?;
+
+                if effected_rows == 0 {
+                    bail!("Could not update order")
+                }
+            }
+
+            Ok(())
         })
     }
 
@@ -152,6 +168,15 @@ impl Order {
         orders::table
             .filter(schema::orders::id.eq(order_id))
             .first(conn)
+    }
+
+    pub fn get_by_state(
+        order_state: OrderState,
+        conn: &mut SqliteConnection,
+    ) -> QueryResult<Vec<Order>> {
+        orders::table
+            .filter(schema::orders::state.eq(order_state))
+            .load(conn)
     }
 
     /// Deletes given order from DB, in case of success, returns > 0, else 0 or Err
@@ -165,7 +190,7 @@ impl Order {
 impl From<crate::trade::order::Order> for Order {
     fn from(value: crate::trade::order::Order) -> Self {
         let (order_type, limit_price) = value.order_type.into();
-        let (status, execution_price) = value.state.into();
+        let (status, execution_price, failure_reason) = value.state.into();
 
         Order {
             id: value.id.to_string(),
@@ -177,6 +202,7 @@ impl From<crate::trade::order::Order> for Order {
             state: status,
             limit_price,
             execution_price,
+            failure_reason,
         }
     }
 }
@@ -192,7 +218,7 @@ impl TryFrom<Order> for crate::trade::order::Order {
             contract_symbol: value.contract_symbol.into(),
             direction: value.direction.into(),
             order_type: (value.order_type, value.limit_price).try_into()?,
-            state: (value.state, value.execution_price).try_into()?,
+            state: (value.state, value.execution_price, value.failure_reason).try_into()?,
         };
 
         Ok(order)
@@ -284,42 +310,90 @@ pub enum OrderState {
     Initial,
     Rejected,
     Open,
+    Filling,
     Failed,
     Filled,
 }
 
-impl From<crate::trade::order::OrderState> for (OrderState, Option<f64>) {
+impl From<crate::trade::order::OrderState> for (OrderState, Option<f64>, Option<FailureReason>) {
     fn from(value: crate::trade::order::OrderState) -> Self {
         match value {
-            crate::trade::order::OrderState::Initial => (OrderState::Initial, None),
-            crate::trade::order::OrderState::Rejected => (OrderState::Rejected, None),
-            crate::trade::order::OrderState::Open => (OrderState::Open, None),
-            crate::trade::order::OrderState::Failed => (OrderState::Failed, None),
+            crate::trade::order::OrderState::Initial => (OrderState::Initial, None, None),
+            crate::trade::order::OrderState::Rejected => (OrderState::Rejected, None, None),
+            crate::trade::order::OrderState::Open => (OrderState::Open, None, None),
+            crate::trade::order::OrderState::Failed { reason } => {
+                (OrderState::Failed, None, Some(reason.into()))
+            }
             crate::trade::order::OrderState::Filled { execution_price } => {
-                (OrderState::Filled, Some(execution_price))
+                (OrderState::Filled, Some(execution_price), None)
+            }
+            crate::trade::order::OrderState::Filling { execution_price } => {
+                (OrderState::Filling, Some(execution_price), None)
             }
         }
     }
 }
 
-impl TryFrom<(OrderState, Option<f64>)> for crate::trade::order::OrderState {
+impl TryFrom<(OrderState, Option<f64>, Option<FailureReason>)> for crate::trade::order::OrderState {
     type Error = Error;
 
-    fn try_from(value: (OrderState, Option<f64>)) -> std::result::Result<Self, Self::Error> {
+    fn try_from(
+        value: (OrderState, Option<f64>, Option<FailureReason>),
+    ) -> std::result::Result<Self, Self::Error> {
         let order_state = match value.0 {
             OrderState::Initial => crate::trade::order::OrderState::Initial,
             OrderState::Rejected => crate::trade::order::OrderState::Rejected,
             OrderState::Open => crate::trade::order::OrderState::Open,
-            OrderState::Failed => crate::trade::order::OrderState::Failed,
+            OrderState::Failed => match value.2 {
+                None => return Err(Error::MissingFailureReason),
+                Some(reason) => crate::trade::order::OrderState::Failed {
+                    reason: reason.into(),
+                },
+            },
             OrderState::Filled => match value.1 {
                 None => return Err(Error::MissingExecutionPrice),
                 Some(execution_price) => {
                     crate::trade::order::OrderState::Filled { execution_price }
                 }
             },
+            OrderState::Filling => match value.1 {
+                None => return Err(Error::MissingExecutionPrice),
+                Some(execution_price) => {
+                    crate::trade::order::OrderState::Filling { execution_price }
+                }
+            },
         };
 
         Ok(order_state)
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, FromSqlRow, AsExpression)]
+#[diesel(sql_type = Text)]
+pub enum FailureReason {
+    CoordinatorRequest,
+    ProposeChannel,
+}
+
+impl From<FailureReason> for crate::trade::order::FailureReason {
+    fn from(value: FailureReason) -> Self {
+        match value {
+            FailureReason::CoordinatorRequest => {
+                crate::trade::order::FailureReason::CoordinatorRequest
+            }
+            FailureReason::ProposeChannel => crate::trade::order::FailureReason::ProposeChannel,
+        }
+    }
+}
+
+impl From<crate::trade::order::FailureReason> for FailureReason {
+    fn from(value: crate::trade::order::FailureReason) -> Self {
+        match value {
+            crate::trade::order::FailureReason::CoordinatorRequest => {
+                FailureReason::CoordinatorRequest
+            }
+            crate::trade::order::FailureReason::ProposeChannel => FailureReason::ProposeChannel,
+        }
     }
 }
 
@@ -379,7 +453,8 @@ pub mod test {
         let contract_symbol = trade::ContractSymbol::BtcUsd;
         let direction = trade::Direction::Long;
         let (order_type, limit_price) = crate::trade::order::OrderType::Market.into();
-        let (status, execution_price) = crate::trade::order::OrderState::Initial.into();
+        let (status, execution_price, failure_reason) =
+            crate::trade::order::OrderState::Initial.into();
         let order = Order {
             id: uuid.to_string(),
             leverage,
@@ -390,6 +465,7 @@ pub mod test {
             state: status,
             limit_price,
             execution_price,
+            failure_reason,
         };
 
         Order::insert(

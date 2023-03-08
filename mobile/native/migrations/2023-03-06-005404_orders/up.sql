@@ -9,6 +9,8 @@ CREATE TABLE IF NOT EXISTS orders (
     state TEXT NOT NULL,
     -- might be null if market order
     limit_price NUMBER,
-    -- might be null if not yet filled
-    execution_price NUMBER
+    -- might be null if not yet matched
+    execution_price NUMBER,
+    -- might be null ig there was no failure
+    failure_reason TEXT
 )

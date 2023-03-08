@@ -18,6 +18,7 @@ diesel::table! {
         state -> Text,
         limit_price -> Nullable<Double>,
         execution_price -> Nullable<Double>,
+        failure_reason -> Nullable<Text>,
     }
 }
 

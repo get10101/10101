@@ -1,5 +1,6 @@
 use crate::db::models::ContractSymbol;
 use crate::db::models::Direction;
+use crate::db::models::FailureReason;
 use crate::db::models::OrderState;
 use crate::db::models::OrderType;
 use diesel::backend;
@@ -44,6 +45,7 @@ impl ToSql<sql_types::Text, Sqlite> for OrderState {
             OrderState::Open => "open".to_string(),
             OrderState::Failed => "failed".to_string(),
             OrderState::Filled => "filled".to_string(),
+            OrderState::Filling => "filling".to_string(),
         };
         out.set_value(text);
         Ok(IsNull::No)
@@ -60,6 +62,7 @@ impl FromSql<sql_types::Text, Sqlite> for OrderState {
             "open" => Ok(OrderState::Open),
             "failed" => Ok(OrderState::Failed),
             "filled" => Ok(OrderState::Filled),
+            "filling" => Ok(OrderState::Filling),
             _ => Err("Unrecognized enum variant".into()),
         };
     }
@@ -104,6 +107,29 @@ impl FromSql<sql_types::Text, Sqlite> for Direction {
         return match string.as_str() {
             "Long" => Ok(Direction::Long),
             "Short" => Ok(Direction::Short),
+            _ => Err("Unrecognized enum variant".into()),
+        };
+    }
+}
+
+impl ToSql<sql_types::Text, Sqlite> for FailureReason {
+    fn to_sql(&self, out: &mut Output<Sqlite>) -> serialize::Result {
+        let text = match *self {
+            FailureReason::CoordinatorRequest => "CoordinatorRequest",
+            FailureReason::ProposeChannel => "ProposeChannel",
+        };
+        out.set_value(text);
+        Ok(IsNull::No)
+    }
+}
+
+impl FromSql<sql_types::Text, Sqlite> for FailureReason {
+    fn from_sql(bytes: backend::RawValue<Sqlite>) -> deserialize::Result<Self> {
+        let string = <String as FromSql<Text, Sqlite>>::from_sql(bytes)?;
+
+        return match string.as_str() {
+            "CoordinatorRequest" => Ok(FailureReason::CoordinatorRequest),
+            "ProposeChannel" => Ok(FailureReason::ProposeChannel),
             _ => Err("Unrecognized enum variant".into()),
         };
     }

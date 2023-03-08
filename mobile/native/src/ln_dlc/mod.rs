@@ -3,9 +3,8 @@ use crate::api::WalletInfo;
 use crate::config;
 use crate::event;
 use crate::event::EventInternal;
+use crate::trade::order;
 use crate::trade::position;
-use crate::trade::position::Position;
-use crate::trade::position::PositionState;
 use anyhow::anyhow;
 use anyhow::bail;
 use anyhow::Context;
@@ -25,8 +24,6 @@ use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::runtime::Runtime;
-use trade::ContractSymbol;
-use trade::Direction;
 use trade::TradeParams;
 
 static NODE: Storage<Arc<Node>> = Storage::new();
@@ -146,19 +143,23 @@ pub fn run(data_dir: String) -> Result<()> {
                     offer_collateral, ..
                 }) = contracts.get(0)
                 {
-                    // TODO: Load position data from database and fill in the values; the collateral
-                    // can be taken from the DLC
-                    event::publish(&EventInternal::PositionUpdateNotification(Position {
-                        leverage: 0.0,
-                        quantity: 0.0,
-                        contract_symbol: ContractSymbol::BtcUsd,
-                        direction: Direction::Long,
-                        average_entry_price: 0.0,
-                        liquidation_price: 0.0,
-                        unrealized_pnl: 0,
-                        position_state: PositionState::Open,
-                        collateral: *offer_collateral,
-                    }));
+                    if position::handler::is_position_up_to_date(offer_collateral) {
+                        continue;
+                    }
+
+                    // TODO: I don't think we can get rid of this error scenarios, but they sucks
+                  let filled_order = match order::handler::order_filled() {
+                      Ok(filled_order) => filled_order,
+                      Err(e) => {
+                          tracing::error!("Critical Error! We have a DLC but were unable to set the order to filled: {e:#}");
+                          continue;
+                      }
+                  };
+
+                    if let Err(e) = position::handler::order_filled(filled_order, *offer_collateral) {
+                        tracing::error!("Failed to handle position after receiving DLC: {e:#}");
+                        continue;
+                    }
                 }
 
                 tokio::time::sleep(Duration::from_secs(10)).await;

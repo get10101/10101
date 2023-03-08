@@ -1,7 +1,9 @@
 use crate::api;
 use crate::db::models::Order;
+use crate::db::models::OrderState;
 use crate::trade;
 use anyhow::anyhow;
+use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
 use diesel::r2d2;
@@ -75,6 +77,26 @@ pub fn get_order(order_id: Uuid) -> Result<trade::order::Order> {
     let order = Order::get(order_id.to_string(), &mut db)?;
 
     Ok(order.try_into()?)
+}
+
+/// Returns an order of there is currently an order that is being filled
+pub fn maybe_get_order_in_filling() -> Result<Option<trade::order::Order>> {
+    let mut db = connection()?;
+    let orders = Order::get_by_state(OrderState::Filling, &mut db)?;
+
+    if orders.is_empty() {
+        return Ok(None);
+    }
+
+    if orders.len() > 1 {
+        bail!("More than one order is being filled at the same time, this should not happen.")
+    }
+
+    let first = orders
+        .get(0)
+        .expect("at this point we know there is exactly one order");
+
+    Ok(Some(first.clone().try_into()?))
 }
 
 pub fn delete_order(order_id: Uuid) -> Result<()> {

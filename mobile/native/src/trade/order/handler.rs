@@ -1,3 +1,4 @@
+use crate::db;
 use crate::event;
 use crate::event::EventInternal;
 use crate::ln_dlc;
@@ -5,6 +6,7 @@ use crate::trade::order::Order;
 use crate::trade::order::OrderState;
 use crate::trade::order::OrderType;
 use crate::trade::position;
+use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
 use std::str::FromStr;
@@ -15,8 +17,7 @@ use trade::TradeParams;
 use uuid::Uuid;
 
 pub async fn submit_order(order: Order) -> Result<()> {
-    // TODO: Save in DB and pass on to orderbook
-    tokio::time::sleep(Duration::from_secs(5)).await;
+    db::insert_order(order)?;
 
     event::publish(&EventInternal::OrderUpdateNotification(order));
 
@@ -28,7 +29,7 @@ pub async fn submit_order(order: Order) -> Result<()> {
         pubkey_counterparty: ln_dlc::get_node_info()?.pubkey,
         // We set this to our order as well for simplicity until we receive a match from the
         // orderbook
-        order_id: "the orderbook will know".to_string(),
+        order_id: order.id,
         order_id_counterparty: "the orderbook will know".to_string(),
         contract_symbol: ContractSymbol::BtcUsd,
         leverage: order.leverage,
@@ -43,6 +44,29 @@ pub async fn submit_order(order: Order) -> Result<()> {
     position::handler::trade(dummy_trade_params).await?;
 
     Ok(())
+}
+
+pub fn order_filled() -> Result<Order> {
+    let order_being_filled = match db::maybe_get_order_in_filling() {
+        Ok(Some(order_being_filled)) => order_being_filled,
+        Ok(None) => {
+            bail!("There is no order in state filled in the database");
+        }
+        Err(e) => {
+            bail!("Error when loading order being filled from database: {e:#}");
+        }
+    };
+
+    // Default the execution price in case we don't know
+    let execution_price = order_being_filled.execution_price().unwrap_or(0.0);
+    db::update_order_state(
+        order_being_filled.id,
+        OrderState::Filled { execution_price },
+    )
+    .context("Failure when updating order to filled")?;
+
+    let filled_order = db::get_order(order_being_filled.id)?;
+    Ok(filled_order)
 }
 
 pub async fn get_order(id: String) -> Result<Order> {
