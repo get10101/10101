@@ -1,6 +1,6 @@
 use crate::ln_dlc;
+use crate::trade::position::Position;
 use crate::trade::position::PositionStateTrade;
-use crate::trade::position::PositionTrade;
 use anyhow::Result;
 use trade::ContractSymbol;
 use trade::Direction;
@@ -29,10 +29,10 @@ pub async fn trade(trade_params: TradeParams) -> Result<()> {
 }
 
 /// Fetch the positions from the database
-pub async fn get_positions() -> Result<Vec<PositionTrade>> {
+pub async fn get_positions() -> Result<Vec<Position>> {
     // TODO: Fetch from database
 
-    let dummy_position = PositionTrade {
+    let dummy_position = Position {
         leverage: 2.0,
         quantity: 10000.0,
         contract_symbol: ContractSymbol::BtcUsd,

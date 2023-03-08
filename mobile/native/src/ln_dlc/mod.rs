@@ -4,8 +4,8 @@ use crate::config;
 use crate::event;
 use crate::event::EventInternal;
 use crate::trade::position;
+use crate::trade::position::Position;
 use crate::trade::position::PositionStateTrade;
-use crate::trade::position::PositionTrade;
 use anyhow::anyhow;
 use anyhow::bail;
 use anyhow::Context;
@@ -149,7 +149,7 @@ pub fn run(data_dir: String) -> Result<()> {
                 {
                     // TODO: Load position data from database and fill in the values; the collateral
                     // can be taken from the DLC
-                    event::publish(&EventInternal::PositionUpdateNotification(PositionTrade {
+                    event::publish(&EventInternal::PositionUpdateNotification(Position {
                         leverage: 0.0,
                         quantity: 0.0,
                         contract_symbol: ContractSymbol::BtcUsd,

@@ -1,5 +1,5 @@
+use crate::trade::position;
 use crate::trade::position::PositionStateTrade;
-use crate::trade::position::PositionTrade;
 use flutter_rust_bridge::frb;
 use trade::ContractSymbol;
 use trade::Direction;
@@ -50,8 +50,8 @@ impl From<PositionStateTrade> for PositionState {
     }
 }
 
-impl From<PositionTrade> for Position {
-    fn from(value: PositionTrade) -> Self {
+impl From<position::Position> for Position {
+    fn from(value: position::Position) -> Self {
         Position {
             leverage: value.leverage,
             quantity: value.quantity,

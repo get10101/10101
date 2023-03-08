@@ -27,7 +27,7 @@ pub enum PositionStateTrade {
 }
 
 #[derive(Debug, Clone)]
-pub struct PositionTrade {
+pub struct Position {
     pub leverage: f64,
     pub quantity: f64,
     pub contract_symbol: ContractSymbol,
