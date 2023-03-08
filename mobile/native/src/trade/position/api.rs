@@ -1,5 +1,4 @@
 use crate::trade::position;
-use crate::trade::position::PositionStateTrade;
 use flutter_rust_bridge::frb;
 use trade::ContractSymbol;
 use trade::Direction;
@@ -41,11 +40,11 @@ pub struct Position {
     pub collateral: u64,
 }
 
-impl From<PositionStateTrade> for PositionState {
-    fn from(value: PositionStateTrade) -> Self {
+impl From<position::PositionState> for PositionState {
+    fn from(value: position::PositionState) -> Self {
         match value {
-            PositionStateTrade::Open => PositionState::Open,
-            PositionStateTrade::Closing => PositionState::Closing,
+            position::PositionState::Open => PositionState::Open,
+            position::PositionState::Closing => PositionState::Closing,
         }
     }
 }

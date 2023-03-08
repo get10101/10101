@@ -5,7 +5,7 @@ use crate::event;
 use crate::event::EventInternal;
 use crate::trade::position;
 use crate::trade::position::Position;
-use crate::trade::position::PositionStateTrade;
+use crate::trade::position::PositionState;
 use anyhow::anyhow;
 use anyhow::bail;
 use anyhow::Context;
@@ -157,7 +157,7 @@ pub fn run(data_dir: String) -> Result<()> {
                         average_entry_price: 0.0,
                         liquidation_price: 0.0,
                         unrealized_pnl: 0,
-                        position_state: PositionStateTrade::Open,
+                        position_state: PositionState::Open,
                         collateral: *offer_collateral,
                     }));
                 }

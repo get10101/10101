@@ -1,6 +1,6 @@
 use crate::ln_dlc;
 use crate::trade::position::Position;
-use crate::trade::position::PositionStateTrade;
+use crate::trade::position::PositionState;
 use anyhow::Result;
 use trade::ContractSymbol;
 use trade::Direction;
@@ -40,7 +40,7 @@ pub async fn get_positions() -> Result<Vec<Position>> {
         average_entry_price: 20000.0,
         liquidation_price: 14000.0,
         unrealized_pnl: -400,
-        position_state: PositionStateTrade::Open,
+        position_state: PositionState::Open,
         collateral: 2000,
     };
 
