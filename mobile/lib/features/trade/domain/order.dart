@@ -39,7 +39,7 @@ class Order {
   final double quantity;
   final ContractSymbol contractSymbol;
   final Direction direction;
-  final OrderState status;
+  final OrderState state;
   final OrderType type;
   final double? executionPrice;
 
@@ -48,7 +48,7 @@ class Order {
       required this.quantity,
       required this.contractSymbol,
       required this.direction,
-      required this.status,
+      required this.state,
       required this.type,
       this.executionPrice}) {
     id = const Uuid().v4();
@@ -60,7 +60,7 @@ class Order {
         quantity: order.quantity,
         contractSymbol: ContractSymbol.fromApi(order.contractSymbol),
         direction: Direction.fromApi(order.direction),
-        status: OrderState.fromApi(order.status),
+        state: OrderState.fromApi(order.state),
         type: OrderType.fromApi(order.orderType),
         executionPrice: order.executionPrice);
   }
@@ -72,6 +72,6 @@ class Order {
         contractSymbol: bridge.ContractSymbol.BtcUsd,
         direction: bridge.Direction.Long,
         orderType: bridge.OrderType.market(),
-        status: bridge.OrderState.Open);
+        state: bridge.OrderState.Open);
   }
 }

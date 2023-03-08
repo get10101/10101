@@ -100,7 +100,7 @@ pub(crate) struct Order {
     pub contract_symbol: ContractSymbol,
     pub direction: Direction,
     pub order_type: OrderType,
-    pub status: OrderState,
+    pub state: OrderState,
     pub limit_price: Option<f64>,
     pub execution_price: Option<f64>,
 }
@@ -128,7 +128,7 @@ impl Order {
         conn.transaction::<(), _, _>(|conn| {
             let effected_rows = diesel::update(orders::table)
                 .filter(schema::orders::id.eq(order_id.clone()))
-                .set(schema::orders::status.eq(status.0))
+                .set(schema::orders::state.eq(status.0))
                 .execute(conn)?;
 
             if effected_rows == 0 {
@@ -165,7 +165,7 @@ impl Order {
 impl From<crate::trade::order::Order> for Order {
     fn from(value: crate::trade::order::Order) -> Self {
         let (order_type, limit_price) = value.order_type.into();
-        let (status, execution_price) = value.status.into();
+        let (status, execution_price) = value.state.into();
 
         Order {
             id: value.id.to_string(),
@@ -174,7 +174,7 @@ impl From<crate::trade::order::Order> for Order {
             contract_symbol: value.contract_symbol.into(),
             direction: value.direction.into(),
             order_type,
-            status,
+            state: status,
             limit_price,
             execution_price,
         }
@@ -192,7 +192,7 @@ impl TryFrom<Order> for crate::trade::order::Order {
             contract_symbol: value.contract_symbol.into(),
             direction: value.direction.into(),
             order_type: (value.order_type, value.limit_price).try_into()?,
-            status: (value.status, value.execution_price).try_into()?,
+            state: (value.state, value.execution_price).try_into()?,
         };
 
         Ok(order)
@@ -387,7 +387,7 @@ pub mod test {
             contract_symbol: contract_symbol.into(),
             direction: direction.into(),
             order_type,
-            status,
+            state: status,
             limit_price,
             execution_price,
         };
@@ -400,7 +400,7 @@ pub mod test {
                 contract_symbol,
                 direction,
                 order_type: crate::trade::order::OrderType::Market,
-                status: crate::trade::order::OrderState::Initial,
+                state: crate::trade::order::OrderState::Initial,
             }
             .into(),
             &mut connection,
@@ -416,7 +416,7 @@ pub mod test {
                 contract_symbol,
                 direction: trade::Direction::Long,
                 order_type: crate::trade::order::OrderType::Market,
-                status: crate::trade::order::OrderState::Initial,
+                state: crate::trade::order::OrderState::Initial,
             }
             .into(),
             &mut connection,
@@ -438,7 +438,7 @@ pub mod test {
         .unwrap();
 
         let updated_order = Order {
-            status: OrderState::Filled,
+            state: OrderState::Filled,
             execution_price: Some(100000.0),
             ..order
         };

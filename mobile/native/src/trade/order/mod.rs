@@ -67,5 +67,5 @@ pub struct Order {
     pub contract_symbol: ContractSymbol,
     pub direction: Direction,
     pub order_type: OrderType,
-    pub status: OrderState,
+    pub state: OrderState,
 }

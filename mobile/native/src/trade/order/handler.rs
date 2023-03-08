@@ -57,7 +57,7 @@ pub async fn get_order(id: String) -> Result<Order> {
         contract_symbol: ContractSymbol::BtcUsd,
         direction: Direction::Long,
         order_type: OrderType::Market,
-        status: OrderState::Filled {
+        state: OrderState::Filled {
             execution_price: 25000.0,
         },
     };
@@ -75,7 +75,7 @@ pub async fn get_orders() -> Result<Vec<Order>> {
         contract_symbol: ContractSymbol::BtcUsd,
         direction: Direction::Long,
         order_type: OrderType::Market,
-        status: OrderState::Filled {
+        state: OrderState::Filled {
             execution_price: 25000.0,
         },
     };

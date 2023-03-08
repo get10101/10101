@@ -47,7 +47,7 @@ pub struct Order {
     pub contract_symbol: ContractSymbol,
     pub direction: Direction,
     pub order_type: Box<OrderType>,
-    pub status: OrderState,
+    pub state: OrderState,
     pub execution_price: Option<f64>,
 }
 
@@ -62,7 +62,7 @@ impl From<order::OrderType> for OrderType {
 
 impl From<order::Order> for Order {
     fn from(value: order::Order) -> Self {
-        let execution_price = match value.status {
+        let execution_price = match value.state {
             order::OrderState::Filled { execution_price } => Some(execution_price),
             _ => None,
         };
@@ -73,7 +73,7 @@ impl From<order::Order> for Order {
             contract_symbol: value.contract_symbol,
             direction: value.direction,
             order_type: Box::new(value.order_type.into()),
-            status: value.status.into(),
+            state: value.state.into(),
             execution_price,
         }
     }
@@ -113,7 +113,7 @@ impl From<NewOrder> for order::Order {
             contract_symbol: value.contract_symbol,
             direction: value.direction,
             order_type: (*value.order_type).into(),
-            status: order::OrderState::Open,
+            state: order::OrderState::Open,
         }
     }
 }
