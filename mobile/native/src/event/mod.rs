@@ -8,8 +8,8 @@ use trade::TradeParams;
 
 use crate::event::event_hub::get;
 use crate::event::subscriber::Subscriber;
-use crate::trade::order::OrderTrade;
-use crate::trade::position::PositionTrade;
+use crate::trade::order::Order;
+use crate::trade::position::Position;
 
 pub fn subscribe(subscriber: impl Subscriber + 'static + Send + Sync + Clone) {
     get().subscribe(subscriber);
@@ -23,10 +23,10 @@ pub fn publish(event: &EventInternal) {
 pub enum EventInternal {
     Init(String),
     Log(String),
-    OrderUpdateNotification(OrderTrade),
+    OrderUpdateNotification(Order),
     WalletInfoUpdateNotification(WalletInfo),
     OrderFilledWith(Box<TradeParams>),
-    PositionUpdateNotification(PositionTrade),
+    PositionUpdateNotification(Position),
 }
 
 impl From<EventInternal> for EventType {

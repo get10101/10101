@@ -1,5 +1,4 @@
 use crate::calculations;
-use crate::common::api::Direction;
 use crate::config;
 use crate::config::api::Config;
 use crate::db;
@@ -18,6 +17,7 @@ use flutter_rust_bridge::frb;
 use flutter_rust_bridge::StreamSink;
 use flutter_rust_bridge::SyncReturn;
 pub use trade::ContractSymbol;
+pub use trade::Direction;
 
 /// Initialise logging infrastructure for Rust
 pub fn init_logging(sink: StreamSink<logger::LogEntry>) {
@@ -77,6 +77,14 @@ pub fn calculate_quantity(price: f64, margin: u64, leverage: f64) -> SyncReturn<
 #[derive(Debug, Clone, Copy)]
 pub enum _ContractSymbol {
     BtcUsd,
+}
+
+#[allow(dead_code)]
+#[frb(mirror(Direction))]
+#[derive(Debug, Clone, Copy)]
+pub enum _Direction {
+    Long,
+    Short,
 }
 
 pub fn calculate_liquidation_price(

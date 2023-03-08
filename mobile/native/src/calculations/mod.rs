@@ -1,7 +1,7 @@
-use crate::common::api::Direction;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use trade::cfd;
+use trade::Direction;
 
 /// Calculate the collateral in BTC.
 pub fn calculate_margin(opening_price: f64, quantity: f64, leverage: f64) -> u64 {

@@ -1,4 +1,3 @@
-use crate::common;
 use crate::schema;
 use crate::schema::last_login;
 use crate::schema::orders;
@@ -113,8 +112,8 @@ impl Order {
     }
 }
 
-impl From<crate::trade::order::OrderTrade> for Order {
-    fn from(value: crate::trade::order::OrderTrade) -> Self {
+impl From<crate::trade::order::Order> for Order {
+    fn from(value: crate::trade::order::Order) -> Self {
         let (order_type, limit_price) = value.order_type.into();
         let (status, execution_price) = value.status.into();
 
@@ -153,11 +152,11 @@ pub enum Direction {
     Short,
 }
 
-impl From<common::api::Direction> for Direction {
-    fn from(value: common::api::Direction) -> Self {
+impl From<trade::Direction> for Direction {
+    fn from(value: trade::Direction) -> Self {
         match value {
-            common::api::Direction::Long => Direction::Long,
-            common::api::Direction::Short => Direction::Short,
+            trade::Direction::Long => Direction::Long,
+            trade::Direction::Short => Direction::Short,
         }
     }
 }
@@ -169,11 +168,11 @@ pub enum OrderType {
     Limit,
 }
 
-impl From<crate::trade::order::OrderTypeTrade> for (OrderType, Option<f64>) {
-    fn from(value: crate::trade::order::OrderTypeTrade) -> Self {
+impl From<crate::trade::order::OrderType> for (OrderType, Option<f64>) {
+    fn from(value: crate::trade::order::OrderType) -> Self {
         match value {
-            crate::trade::order::OrderTypeTrade::Market => (OrderType::Market, None),
-            crate::trade::order::OrderTypeTrade::Limit { price } => (OrderType::Limit, Some(price)),
+            crate::trade::order::OrderType::Market => (OrderType::Market, None),
+            crate::trade::order::OrderType::Limit { price } => (OrderType::Limit, Some(price)),
         }
     }
 }
@@ -188,14 +187,14 @@ pub enum OrderState {
     Filled,
 }
 
-impl From<crate::trade::order::OrderStateTrade> for (OrderState, Option<f64>) {
-    fn from(value: crate::trade::order::OrderStateTrade) -> Self {
+impl From<crate::trade::order::OrderState> for (OrderState, Option<f64>) {
+    fn from(value: crate::trade::order::OrderState) -> Self {
         match value {
-            crate::trade::order::OrderStateTrade::Initial => (OrderState::Initial, None),
-            crate::trade::order::OrderStateTrade::Rejected => (OrderState::Rejected, None),
-            crate::trade::order::OrderStateTrade::Open => (OrderState::Open, None),
-            crate::trade::order::OrderStateTrade::Failed => (OrderState::Failed, None),
-            crate::trade::order::OrderStateTrade::Filled { execution_price } => {
+            crate::trade::order::OrderState::Initial => (OrderState::Initial, None),
+            crate::trade::order::OrderState::Rejected => (OrderState::Rejected, None),
+            crate::trade::order::OrderState::Open => (OrderState::Open, None),
+            crate::trade::order::OrderState::Failed => (OrderState::Failed, None),
+            crate::trade::order::OrderState::Filled { execution_price } => {
                 (OrderState::Filled, Some(execution_price))
             }
         }
@@ -204,7 +203,6 @@ impl From<crate::trade::order::OrderStateTrade> for (OrderState, Option<f64>) {
 
 #[cfg(test)]
 pub mod test {
-    use crate::common;
     use crate::db::models::LastLogin;
     use crate::db::models::Order;
     use crate::db::MIGRATIONS;
@@ -256,9 +254,9 @@ pub mod test {
         let leverage = 2.0;
         let quantity = 100.0;
         let contract_symbol = trade::ContractSymbol::BtcUsd;
-        let direction = common::api::Direction::Long;
-        let (order_type, limit_price) = crate::trade::order::OrderTypeTrade::Market.into();
-        let (status, execution_price) = crate::trade::order::OrderStateTrade::Initial.into();
+        let direction = trade::Direction::Long;
+        let (order_type, limit_price) = crate::trade::order::OrderType::Market.into();
+        let (status, execution_price) = crate::trade::order::OrderState::Initial.into();
         let order = Order {
             id: uuid.to_string(),
             leverage,
@@ -272,14 +270,14 @@ pub mod test {
         };
 
         Order::insert(
-            crate::trade::order::OrderTrade {
+            crate::trade::order::Order {
                 id: uuid,
                 leverage,
                 quantity,
                 contract_symbol,
                 direction,
-                order_type: crate::trade::order::OrderTypeTrade::Market,
-                status: crate::trade::order::OrderStateTrade::Initial,
+                order_type: crate::trade::order::OrderType::Market,
+                status: crate::trade::order::OrderState::Initial,
             }
             .into(),
             &mut connection,
@@ -288,14 +286,14 @@ pub mod test {
 
         // Insert another one, just so that there is not just one order in the db
         Order::insert(
-            crate::trade::order::OrderTrade {
+            crate::trade::order::Order {
                 id: uuid::Uuid::new_v4(),
                 leverage,
                 quantity,
                 contract_symbol,
-                direction: common::api::Direction::Long,
-                order_type: crate::trade::order::OrderTypeTrade::Market,
-                status: crate::trade::order::OrderStateTrade::Initial,
+                direction: trade::Direction::Long,
+                order_type: crate::trade::order::OrderType::Market,
+                status: crate::trade::order::OrderState::Initial,
             }
             .into(),
             &mut connection,

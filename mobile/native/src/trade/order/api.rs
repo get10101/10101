@@ -1,9 +1,7 @@
-use crate::common::api::Direction;
-use crate::trade::order::OrderStateTrade;
-use crate::trade::order::OrderTrade;
-use crate::trade::order::OrderTypeTrade;
+use crate::trade::order;
 use flutter_rust_bridge::frb;
 use trade::ContractSymbol;
+use trade::Direction;
 use uuid::Uuid;
 
 #[frb]
@@ -53,19 +51,19 @@ pub struct Order {
     pub execution_price: Option<f64>,
 }
 
-impl From<OrderType> for OrderTypeTrade {
-    fn from(value: OrderType) -> Self {
+impl From<order::OrderType> for OrderType {
+    fn from(value: order::OrderType) -> Self {
         match value {
-            OrderType::Market => OrderTypeTrade::Market,
-            OrderType::Limit { price } => OrderTypeTrade::Limit { price },
+            order::OrderType::Market => OrderType::Market,
+            order::OrderType::Limit { price } => OrderType::Limit { price },
         }
     }
 }
 
-impl From<OrderTrade> for Order {
-    fn from(value: OrderTrade) -> Self {
+impl From<order::Order> for Order {
+    fn from(value: order::Order) -> Self {
         let execution_price = match value.status {
-            OrderStateTrade::Filled { execution_price } => Some(execution_price),
+            order::OrderState::Filled { execution_price } => Some(execution_price),
             _ => None,
         };
 
@@ -81,41 +79,41 @@ impl From<OrderTrade> for Order {
     }
 }
 
-impl From<OrderTypeTrade> for OrderType {
-    fn from(value: OrderTypeTrade) -> Self {
+impl From<OrderType> for order::OrderType {
+    fn from(value: OrderType) -> Self {
         match value {
-            OrderTypeTrade::Market => OrderType::Market,
-            OrderTypeTrade::Limit { price } => OrderType::Limit { price },
+            OrderType::Market => order::OrderType::Market,
+            OrderType::Limit { price } => order::OrderType::Limit { price },
         }
     }
 }
 
-impl From<OrderStateTrade> for OrderState {
-    fn from(value: OrderStateTrade) -> Self {
+impl From<order::OrderState> for OrderState {
+    fn from(value: order::OrderState) -> Self {
         match value {
-            OrderStateTrade::Open => OrderState::Open,
-            OrderStateTrade::Filled { .. } => OrderState::Filled,
-            OrderStateTrade::Failed => OrderState::Failed,
-            OrderStateTrade::Initial => unimplemented!(
+            order::OrderState::Open => OrderState::Open,
+            order::OrderState::Filled { .. } => OrderState::Filled,
+            order::OrderState::Failed => OrderState::Failed,
+            order::OrderState::Initial => unimplemented!(
                 "don't expose orders that were not submitted into the orderbook to the frontend!"
             ),
-            OrderStateTrade::Rejected => unimplemented!(
+            order::OrderState::Rejected => unimplemented!(
                 "don't expose orders that were rejected by the orderbook to the frontend!"
             ),
         }
     }
 }
 
-impl From<NewOrder> for OrderTrade {
+impl From<NewOrder> for order::Order {
     fn from(value: NewOrder) -> Self {
-        OrderTrade {
+        order::Order {
             id: Uuid::new_v4(),
             leverage: value.leverage,
             quantity: value.quantity,
             contract_symbol: value.contract_symbol,
             direction: value.direction,
             order_type: (*value.order_type).into(),
-            status: OrderStateTrade::Open,
+            status: order::OrderState::Open,
         }
     }
 }

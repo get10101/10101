@@ -1,20 +1,20 @@
-use crate::common::api::Direction;
 use crate::event;
 use crate::event::EventInternal;
 use crate::ln_dlc;
-use crate::trade::order::OrderStateTrade;
-use crate::trade::order::OrderTrade;
-use crate::trade::order::OrderTypeTrade;
+use crate::trade::order::Order;
+use crate::trade::order::OrderState;
+use crate::trade::order::OrderType;
 use crate::trade::position;
 use anyhow::Context;
 use anyhow::Result;
 use std::str::FromStr;
 use std::time::Duration;
 use trade::ContractSymbol;
+use trade::Direction;
 use trade::TradeParams;
 use uuid::Uuid;
 
-pub async fn submit_order(order: OrderTrade) -> Result<()> {
+pub async fn submit_order(order: Order) -> Result<()> {
     // TODO: Save in DB and pass on to orderbook
     tokio::time::sleep(Duration::from_secs(5)).await;
 
@@ -45,19 +45,19 @@ pub async fn submit_order(order: OrderTrade) -> Result<()> {
     Ok(())
 }
 
-pub async fn get_order(id: String) -> Result<OrderTrade> {
+pub async fn get_order(id: String) -> Result<Order> {
     // TODO: Fetch from database
 
     let id = Uuid::from_str(id.as_str()).context("Failed to parse UUID")?;
 
-    let dummy_order = OrderTrade {
+    let dummy_order = Order {
         id,
         leverage: 2.0,
         quantity: 1000.0,
         contract_symbol: ContractSymbol::BtcUsd,
         direction: Direction::Long,
-        order_type: OrderTypeTrade::Market,
-        status: OrderStateTrade::Filled {
+        order_type: OrderType::Market,
+        status: OrderState::Filled {
             execution_price: 25000.0,
         },
     };
@@ -65,17 +65,17 @@ pub async fn get_order(id: String) -> Result<OrderTrade> {
     Ok(dummy_order)
 }
 
-pub async fn get_orders() -> Result<Vec<OrderTrade>> {
+pub async fn get_orders() -> Result<Vec<Order>> {
     // TODO: Fetch from database
 
-    let dummy_order = OrderTrade {
+    let dummy_order = Order {
         id: Uuid::new_v4(),
         leverage: 2.0,
         quantity: 1000.0,
         contract_symbol: ContractSymbol::BtcUsd,
         direction: Direction::Long,
-        order_type: OrderTypeTrade::Market,
-        status: OrderStateTrade::Filled {
+        order_type: OrderType::Market,
+        status: OrderState::Filled {
             execution_price: 25000.0,
         },
     };

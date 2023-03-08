@@ -1,9 +1,9 @@
-use crate::common::api::Direction;
 use crate::ln_dlc;
-use crate::trade::position::PositionStateTrade;
-use crate::trade::position::PositionTrade;
+use crate::trade::position::Position;
+use crate::trade::position::PositionState;
 use anyhow::Result;
 use trade::ContractSymbol;
+use trade::Direction;
 use trade::TradeParams;
 
 /// Sets up a trade with the counterparty
@@ -29,10 +29,10 @@ pub async fn trade(trade_params: TradeParams) -> Result<()> {
 }
 
 /// Fetch the positions from the database
-pub async fn get_positions() -> Result<Vec<PositionTrade>> {
+pub async fn get_positions() -> Result<Vec<Position>> {
     // TODO: Fetch from database
 
-    let dummy_position = PositionTrade {
+    let dummy_position = Position {
         leverage: 2.0,
         quantity: 10000.0,
         contract_symbol: ContractSymbol::BtcUsd,
@@ -40,7 +40,7 @@ pub async fn get_positions() -> Result<Vec<PositionTrade>> {
         average_entry_price: 20000.0,
         liquidation_price: 14000.0,
         unrealized_pnl: -400,
-        position_state: PositionStateTrade::Open,
+        position_state: PositionState::Open,
         collateral: 2000,
     };
 

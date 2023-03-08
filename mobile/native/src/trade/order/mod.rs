@@ -1,5 +1,5 @@
-use crate::common::api::Direction;
 use trade::ContractSymbol;
+use trade::Direction;
 use uuid::Uuid;
 
 pub mod api;
@@ -9,13 +9,13 @@ pub mod handler;
 // `trade::OrderType` and contains errors, hence different name is used.
 // This is likely a bug in frb.
 #[derive(Debug, Clone, Copy)]
-pub enum OrderTypeTrade {
+pub enum OrderType {
     Market,
     Limit { price: f64 },
 }
 
 #[derive(Debug, Clone, Copy)]
-pub enum OrderStateTrade {
+pub enum OrderState {
     /// Not submitted to orderbook yet
     ///
     /// In order to be able to track how many failed orders we have we store the order in the
@@ -60,12 +60,12 @@ pub enum OrderStateTrade {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct OrderTrade {
+pub struct Order {
     pub id: Uuid,
     pub leverage: f64,
     pub quantity: f64,
     pub contract_symbol: ContractSymbol,
     pub direction: Direction,
-    pub order_type: OrderTypeTrade,
-    pub status: OrderStateTrade,
+    pub order_type: OrderType,
+    pub status: OrderState,
 }

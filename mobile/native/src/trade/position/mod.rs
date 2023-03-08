@@ -1,12 +1,12 @@
-use crate::common::api::Direction;
 use trade::ContractSymbol;
+use trade::Direction;
 
 pub mod api;
 pub mod handler;
 pub mod subscriber;
 
 #[derive(Debug, Clone)]
-pub enum PositionStateTrade {
+pub enum PositionState {
     /// The position is open
     ///
     /// Open in the sense, that there is an active position that is being rolled-over.
@@ -27,7 +27,7 @@ pub enum PositionStateTrade {
 }
 
 #[derive(Debug, Clone)]
-pub struct PositionTrade {
+pub struct Position {
     pub leverage: f64,
     pub quantity: f64,
     pub contract_symbol: ContractSymbol,
@@ -36,6 +36,6 @@ pub struct PositionTrade {
     pub liquidation_price: f64,
     /// The unrealized PL can be positive or negative
     pub unrealized_pnl: i64,
-    pub position_state: PositionStateTrade,
+    pub position_state: PositionState,
     pub collateral: u64,
 }
