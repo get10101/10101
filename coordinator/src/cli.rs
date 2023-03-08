@@ -79,7 +79,7 @@ impl Opts {
             ));
         } else {
             // Announcing the node on an unspecified ip address does not make any sense.
-            tracing::warn!("Skipping node announcement on '0.0.0.0'.");
+            tracing::debug!("Skipping node announcement on '0.0.0.0'.");
         }
 
         if !self.skip_local_network_announcement {
