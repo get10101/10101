@@ -1,24 +1,54 @@
 use crate::schema::orders;
+use crate::schema::sql_types::DirectionType;
 use diesel::prelude::*;
 use diesel::result::QueryResult;
+use diesel::AsExpression;
+use diesel::FromSqlRow;
 use diesel::PgConnection;
-use serde::Deserialize;
-use serde::Serialize;
 
-#[derive(Queryable, Serialize, Deserialize, Debug, Clone)]
+#[derive(Debug, Clone, Copy, PartialEq, FromSqlRow, AsExpression, Eq)]
+#[diesel(sql_type = DirectionType)]
+pub enum Direction {
+    Long,
+    Short,
+}
+
+impl From<trade::Direction> for Direction {
+    fn from(value: trade::Direction) -> Self {
+        match value {
+            trade::Direction::Long => Direction::Long,
+            trade::Direction::Short => Direction::Short,
+        }
+    }
+}
+
+impl From<Direction> for trade::Direction {
+    fn from(value: Direction) -> Self {
+        match value {
+            Direction::Long => trade::Direction::Long,
+            Direction::Short => trade::Direction::Short,
+        }
+    }
+}
+
+#[derive(Queryable, Debug, Clone)]
 pub struct Order {
     pub id: i32,
     pub price: f32,
     pub maker_id: String,
     pub taken: bool,
+    pub direction: Direction,
+    pub quantity: f32,
 }
 
-#[derive(Insertable)]
+#[derive(Insertable, Debug, PartialEq)]
 #[diesel(table_name = orders)]
 pub struct NewOrder {
     pub price: f32,
     pub maker_id: String,
     pub taken: bool,
+    pub direction: Direction,
+    pub quantity: f32,
 }
 
 impl Order {

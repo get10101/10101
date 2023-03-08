@@ -69,7 +69,7 @@ pub struct TradeParams {
     pub oracle_pk: XOnlyPublicKey,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
 pub enum ContractSymbol {
     BtcUsd,
 }

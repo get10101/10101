@@ -1,3 +1,4 @@
+use crate::orderbook::models::Direction;
 use crate::orderbook::models::NewOrder;
 use crate::orderbook::models::Order;
 use crate::run_migration;
@@ -34,6 +35,8 @@ async fn crud_test() {
             price: 20000.00,
             maker_id: "Bob the Maker".to_string(),
             taken: false,
+            direction: Direction::Long,
+            quantity: 100.0,
         },
     )
     .unwrap();
