@@ -170,6 +170,19 @@ impl Order {
             .first(conn)
     }
 
+    /// Fetch all orders that are not in initial and rejected state
+    pub fn get_without_rejected_and_initial(
+        conn: &mut SqliteConnection,
+    ) -> QueryResult<Vec<Order>> {
+        orders::table
+            .filter(
+                schema::orders::state
+                    .ne(OrderState::Initial)
+                    .and(schema::orders::state.ne(OrderState::Rejected)),
+            )
+            .load(conn)
+    }
+
     pub fn get_by_state(
         order_state: OrderState,
         conn: &mut SqliteConnection,

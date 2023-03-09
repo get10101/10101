@@ -79,6 +79,19 @@ pub fn get_order(order_id: Uuid) -> Result<trade::order::Order> {
     Ok(order.try_into()?)
 }
 
+pub fn get_orders_for_ui() -> Result<Vec<trade::order::Order>> {
+    let mut db = connection()?;
+    let orders = Order::get_without_rejected_and_initial(&mut db)?;
+
+    // TODO: Can probably be optimized with combinator
+    let mut mapped = vec![];
+    for order in orders {
+        mapped.push(order.try_into()?)
+    }
+
+    Ok(mapped)
+}
+
 /// Returns an order of there is currently an order that is being filled
 pub fn maybe_get_order_in_filling() -> Result<Option<trade::order::Order>> {
     let mut db = connection()?;

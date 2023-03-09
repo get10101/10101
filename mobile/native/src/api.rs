@@ -110,7 +110,7 @@ pub async fn get_order(id: String) -> Result<Order> {
 
 #[tokio::main(flavor = "current_thread")]
 pub async fn get_orders() -> Result<Vec<Order>> {
-    let orders = order::handler::get_orders()
+    let orders = order::handler::get_orders_for_ui()
         .await?
         .into_iter()
         .map(|order| order.into())

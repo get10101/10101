@@ -89,20 +89,6 @@ pub async fn get_order(id: String) -> Result<Order> {
     Ok(dummy_order)
 }
 
-pub async fn get_orders() -> Result<Vec<Order>> {
-    // TODO: Fetch from database
-
-    let dummy_order = Order {
-        id: Uuid::new_v4(),
-        leverage: 2.0,
-        quantity: 1000.0,
-        contract_symbol: ContractSymbol::BtcUsd,
-        direction: Direction::Long,
-        order_type: OrderType::Market,
-        state: OrderState::Filled {
-            execution_price: 25000.0,
-        },
-    };
-
-    Ok(vec![dummy_order])
+pub async fn get_orders_for_ui() -> Result<Vec<Order>> {
+    db::get_orders_for_ui()
 }
