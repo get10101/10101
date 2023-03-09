@@ -103,14 +103,8 @@ pub async fn submit_order(order: NewOrder) -> Result<()> {
 }
 
 #[tokio::main(flavor = "current_thread")]
-pub async fn get_order(id: String) -> Result<Order> {
-    let order = order::handler::get_order(id).await?.into();
-    Ok(order)
-}
-
-#[tokio::main(flavor = "current_thread")]
 pub async fn get_orders() -> Result<Vec<Order>> {
-    let orders = order::handler::get_orders()
+    let orders = order::handler::get_orders_for_ui()
         .await?
         .into_iter()
         .map(|order| order.into())

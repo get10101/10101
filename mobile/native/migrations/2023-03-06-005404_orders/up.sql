@@ -6,9 +6,12 @@ CREATE TABLE IF NOT EXISTS orders (
     contract_symbol TEXT NOT NULL,
     direction TEXT NOT NULL,
     order_type TEXT NOT NULL,
-    STATUS TEXT NOT NULL,
+    state TEXT NOT NULL,
+    creation_timestamp BIGINT NOT NULL,
     -- might be null if market order
     limit_price NUMBER,
-    -- might be null if not yet filled
-    execution_price NUMBER
+    -- might be null if not yet matched
+    execution_price NUMBER,
+    -- might be null ig there was no failure
+    failure_reason TEXT
 )

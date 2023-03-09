@@ -16,7 +16,7 @@ class OrderListItem extends StatelessWidget {
 
     const double iconSize = 18;
     Icon statusIcon = () {
-      switch (order.status) {
+      switch (order.state) {
         case OrderState.open:
           return const Icon(
             Icons.pending,
@@ -60,7 +60,7 @@ class OrderListItem extends StatelessWidget {
         trailing: RichText(
           text: TextSpan(style: DefaultTextStyle.of(context).style, children: <InlineSpan>[
             WidgetSpan(alignment: PlaceholderAlignment.middle, child: statusIcon),
-            TextSpan(text: " ${order.status.name}")
+            TextSpan(text: " ${order.state.name}")
           ]),
         ),
         subtitle: RichText(

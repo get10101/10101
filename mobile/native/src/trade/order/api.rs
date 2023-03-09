@@ -1,5 +1,6 @@
 use crate::trade::order;
 use flutter_rust_bridge::frb;
+use time::OffsetDateTime;
 use trade::ContractSymbol;
 use trade::Direction;
 use uuid::Uuid;
@@ -42,13 +43,15 @@ pub struct NewOrder {
 #[frb]
 #[derive(Debug, Clone)]
 pub struct Order {
+    pub id: String,
     pub leverage: f64,
     pub quantity: f64,
     pub contract_symbol: ContractSymbol,
     pub direction: Direction,
     pub order_type: Box<OrderType>,
-    pub status: OrderState,
+    pub state: OrderState,
     pub execution_price: Option<f64>,
+    pub creation_timestamp: i64,
 }
 
 impl From<order::OrderType> for OrderType {
@@ -62,19 +65,21 @@ impl From<order::OrderType> for OrderType {
 
 impl From<order::Order> for Order {
     fn from(value: order::Order) -> Self {
-        let execution_price = match value.status {
+        let execution_price = match value.state {
             order::OrderState::Filled { execution_price } => Some(execution_price),
             _ => None,
         };
 
         Order {
+            id: value.id.to_string(),
             leverage: value.leverage,
             quantity: value.quantity,
             contract_symbol: value.contract_symbol,
             direction: value.direction,
             order_type: Box::new(value.order_type.into()),
-            status: value.status.into(),
+            state: value.state.into(),
             execution_price,
+            creation_timestamp: value.creation_timestamp.unix_timestamp(),
         }
     }
 }
@@ -93,13 +98,15 @@ impl From<order::OrderState> for OrderState {
         match value {
             order::OrderState::Open => OrderState::Open,
             order::OrderState::Filled { .. } => OrderState::Filled,
-            order::OrderState::Failed => OrderState::Failed,
+            order::OrderState::Failed { .. } => OrderState::Failed,
             order::OrderState::Initial => unimplemented!(
                 "don't expose orders that were not submitted into the orderbook to the frontend!"
             ),
             order::OrderState::Rejected => unimplemented!(
                 "don't expose orders that were rejected by the orderbook to the frontend!"
             ),
+            // We don't expose this state, but treat it as Open in the UI
+            order::OrderState::Filling { .. } => OrderState::Open,
         }
     }
 }
@@ -113,7 +120,8 @@ impl From<NewOrder> for order::Order {
             contract_symbol: value.contract_symbol,
             direction: value.direction,
             order_type: (*value.order_type).into(),
-            status: order::OrderState::Open,
+            state: order::OrderState::Open,
+            creation_timestamp: OffsetDateTime::now_utc(),
         }
     }
 }

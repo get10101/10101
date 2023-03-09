@@ -7,6 +7,7 @@ use std::fmt;
 use std::fmt::Formatter;
 use std::str::FromStr;
 use std::time::Duration;
+use uuid::Uuid;
 
 pub mod cfd;
 
@@ -24,8 +25,11 @@ pub struct TradeParams {
     /// The identity of the trading party that eas matched to our order by the orderbook.
     pub pubkey_counterparty: PublicKey,
 
-    /// The orderbook id of our order that was matched
-    pub order_id: String,
+    /// The id of the order
+    ///
+    /// The order has to be identifiable by the client when returned from the orderbook, so the
+    /// client is in charge of creating this ID and passing it to the orderbook.
+    pub order_id: Uuid,
 
     /// The orderbook id of the counterparty order
     ///

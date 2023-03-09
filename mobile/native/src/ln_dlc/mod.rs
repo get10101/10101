@@ -3,9 +3,9 @@ use crate::api::WalletInfo;
 use crate::config;
 use crate::event;
 use crate::event::EventInternal;
+use crate::trade::order;
+use crate::trade::order::FailureReason;
 use crate::trade::position;
-use crate::trade::position::Position;
-use crate::trade::position::PositionState;
 use anyhow::anyhow;
 use anyhow::bail;
 use anyhow::Context;
@@ -25,8 +25,6 @@ use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::runtime::Runtime;
-use trade::ContractSymbol;
-use trade::Direction;
 use trade::TradeParams;
 
 static NODE: Storage<Arc<Node>> = Storage::new();
@@ -146,19 +144,23 @@ pub fn run(data_dir: String) -> Result<()> {
                     offer_collateral, ..
                 }) = contracts.get(0)
                 {
-                    // TODO: Load position data from database and fill in the values; the collateral
-                    // can be taken from the DLC
-                    event::publish(&EventInternal::PositionUpdateNotification(Position {
-                        leverage: 0.0,
-                        quantity: 0.0,
-                        contract_symbol: ContractSymbol::BtcUsd,
-                        direction: Direction::Long,
-                        average_entry_price: 0.0,
-                        liquidation_price: 0.0,
-                        unrealized_pnl: 0,
-                        position_state: PositionState::Open,
-                        collateral: *offer_collateral,
-                    }));
+                    if position::handler::is_position_up_to_date(offer_collateral) {
+                        continue;
+                    }
+
+                    // TODO: I don't think we can get rid of this error scenarios, but they sucks
+                  let filled_order = match order::handler::order_filled() {
+                      Ok(filled_order) => filled_order,
+                      Err(e) => {
+                          tracing::error!("Critical Error! We have a DLC but were unable to set the order to filled: {e:#}");
+                          continue;
+                      }
+                  };
+
+                    if let Err(e) = position::handler::order_filled(filled_order, *offer_collateral) {
+                        tracing::error!("Failed to handle position after receiving DLC: {e:#}");
+                        continue;
+                    }
                 }
 
                 tokio::time::sleep(Duration::from_secs(10)).await;
@@ -230,28 +232,35 @@ pub fn send_payment(invoice: &str) -> Result<()> {
     node.send_payment(&invoice)
 }
 
-pub async fn trade(trade_params: TradeParams) -> Result<()> {
+pub async fn trade(trade_params: TradeParams) -> Result<(), (FailureReason, anyhow::Error)> {
     let client = reqwest::Client::new();
     let contract_info = client
         .post(format!("http://{}/api/trade", config::get_http_endpoint()))
         .json(&trade_params)
         .send()
         .await
-        .context("Failed to submit trade request to coordinator")?
+        .context("Failed to request trade with coordinator")
+        .map_err(|e| (FailureReason::TradeRequest, e))?
         .json()
-        .await?;
+        .await
+        .context("Failed to deserialize response into JSON")
+        .map_err(|e| (FailureReason::TradeResponse, e))?;
 
-    let node = NODE.try_get().context("failed to get ln dlc node")?;
+    let node = NODE
+        .try_get()
+        .context("Failed to get ln dlc node")
+        .map_err(|e| (FailureReason::NodeAccess, e))?;
 
     let channel_details = node.list_usable_channels();
     let channel_details = channel_details
         .iter()
         .find(|c| c.counterparty.node_id == config::get_coordinator_info().pubkey)
-        .context("Channel details not found")?;
+        .context("Channel details not found")
+        .map_err(|e| (FailureReason::NoUsableChannel, e))?;
 
     node.propose_dlc_channel(channel_details, &contract_info)
         .await
-        .context("Failed to propose DLC channel with coordinator")?;
+        .map_err(|e| (FailureReason::ProposeDlcChannel, e))?;
     tracing::info!("Proposed dlc subchannel");
     Ok(())
 }
