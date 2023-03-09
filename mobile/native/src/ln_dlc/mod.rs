@@ -27,6 +27,8 @@ use tokio::runtime::Runtime;
 
 static NODE: Storage<Arc<Node>> = Storage::new();
 
+const PROCESS_TRADE_REQUESTS_INTERVAL: Duration = Duration::from_secs(30);
+
 pub fn get_wallet_info() -> Result<WalletInfo> {
     Ok(get_wallet_info_from_node(
         NODE.try_get().context("failed to get ln dlc node")?,
@@ -162,6 +164,42 @@ pub fn run(data_dir: String) -> Result<()> {
                 }
 
                 tokio::time::sleep(Duration::from_secs(10)).await;
+            }
+        });
+
+        tokio::spawn({
+            let node = node.clone();
+            async move {
+                loop {
+                    tokio::time::sleep(PROCESS_TRADE_REQUESTS_INTERVAL).await;
+
+                    let coordinator_pubkey = config::get_coordinator_info().pubkey;
+                    tracing::debug!(%coordinator_pubkey, "Checking for DLC offers");
+
+                    let sub_channel = match node.get_sub_channel_offer(&coordinator_pubkey) {
+                        Ok(Some(sub_channel)) => sub_channel,
+                        Ok(None) => {
+                            tracing::debug!(%coordinator_pubkey, "No DLC channel offers found");
+                            continue;
+                        },
+                        Err(e) => {
+                            tracing::error!(peer = %coordinator_pubkey.to_string(), "Unable to retrieve DLC channel offer: {e:#}");
+                            continue;
+                        }
+                    };
+
+                    tracing::info!(%coordinator_pubkey, "Found DLC channel offer");
+
+                    let channel_id = sub_channel.channel_id;
+
+                    // todo: the app should validate if the offered dlc channel matches it's submitted order.
+
+                    tracing::info!(%coordinator_pubkey, channel_id = %hex::encode(channel_id), "Accepting DLC channel offer");
+
+                    if let Err(e) = node.accept_dlc_channel_offer(&channel_id) {
+                        tracing::error!(channel_id = %hex::encode(channel_id), "Failed to accept subchannel: {e:#}");
+                    };
+                }
             }
         });
 

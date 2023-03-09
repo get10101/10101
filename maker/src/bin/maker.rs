@@ -14,9 +14,11 @@ use rand::thread_rng;
 use rand::RngCore;
 use std::net::SocketAddr;
 use std::sync::Arc;
+use std::time::Duration;
 use tracing::metadata::LevelFilter;
 
 const ELECTRS_ORIGIN: &str = "tcp://localhost:50000";
+const PROCESS_TRADE_REQUESTS_INTERVAL: Duration = Duration::from_secs(30);
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -72,6 +74,47 @@ async fn main() -> Result<()> {
             }
             Err(error) => {
                 tracing::error!("Trading logic died {error:#}")
+            }
+        }
+    });
+
+    tokio::spawn({
+        let node = node.clone();
+        async move {
+            loop {
+                tokio::time::sleep(PROCESS_TRADE_REQUESTS_INTERVAL).await;
+
+                // todo: the coordinator pubkey should come from the cli arguments.
+                let coordinator_pubkey =
+                    "02dd6abec97f9a748bf76ad502b004ce05d1b2d1f43a9e76bd7d85e767ffb022c9"
+                        .parse()
+                        .expect("hard coded pubkey to be valid");
+                tracing::debug!(%coordinator_pubkey, "Checking for DLC offers");
+
+                let sub_channel = match node.get_sub_channel_offer(&coordinator_pubkey) {
+                    Ok(Some(sub_channel)) => sub_channel,
+                    Ok(None) => {
+                        tracing::debug!(%coordinator_pubkey, "No DLC channel offers found");
+                        continue;
+                    }
+                    Err(e) => {
+                        tracing::error!(peer = %coordinator_pubkey.to_string(), "Unable to retrieve DLC channel offer: {e:#}");
+                        continue;
+                    }
+                };
+
+                tracing::info!(%coordinator_pubkey, "Found DLC channel offer");
+
+                let channel_id = sub_channel.channel_id;
+
+                // todo: the maker should validate if the offered dlc channel matches it's submitted
+                // order.
+
+                tracing::info!(%coordinator_pubkey, channel_id = %hex::encode(channel_id), "Accepting DLC channel offer");
+
+                if let Err(e) = node.accept_dlc_channel_offer(&channel_id) {
+                    tracing::error!(channel_id = %hex::encode(channel_id), "Failed to accept subchannel: {e:#}");
+                };
             }
         }
     });

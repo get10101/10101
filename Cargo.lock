@@ -1750,6 +1750,7 @@ dependencies = [
  "diesel",
  "diesel_migrations",
  "flutter_rust_bridge",
+ "hex 0.3.2",
  "lightning-invoice",
  "ln-dlc-node",
  "reqwest",
