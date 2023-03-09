@@ -2,7 +2,6 @@ import 'package:get_10101/features/trade/domain/contract_symbol.dart';
 import 'package:get_10101/features/trade/domain/direction.dart';
 import 'package:get_10101/features/trade/domain/leverage.dart';
 import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
-import 'package:uuid/uuid.dart';
 
 enum OrderState {
   open,
@@ -42,36 +41,41 @@ class Order {
   final OrderState state;
   final OrderType type;
   final double? executionPrice;
+  final DateTime creationTimestamp;
 
   Order(
-      {required this.leverage,
+      {required this.id,
+      required this.leverage,
       required this.quantity,
       required this.contractSymbol,
       required this.direction,
       required this.state,
       required this.type,
-      this.executionPrice}) {
-    id = const Uuid().v4();
-  }
+      required this.creationTimestamp,
+      this.executionPrice});
 
   static Order fromApi(bridge.Order order) {
     return Order(
+        id: order.id,
         leverage: Leverage(order.leverage),
         quantity: order.quantity,
         contractSymbol: ContractSymbol.fromApi(order.contractSymbol),
         direction: Direction.fromApi(order.direction),
         state: OrderState.fromApi(order.state),
         type: OrderType.fromApi(order.orderType),
-        executionPrice: order.executionPrice);
+        executionPrice: order.executionPrice,
+        creationTimestamp: DateTime.fromMillisecondsSinceEpoch(order.creationTimestamp * 1000));
   }
 
   static bridge.Order apiDummy() {
     return const bridge.Order(
+        id: "",
         leverage: 0,
         quantity: 0,
         contractSymbol: bridge.ContractSymbol.BtcUsd,
         direction: bridge.Direction.Long,
         orderType: bridge.OrderType.market(),
-        state: bridge.OrderState.Open);
+        state: bridge.OrderState.Open,
+        creationTimestamp: 0);
   }
 }

@@ -1,5 +1,6 @@
 use crate::trade::order;
 use flutter_rust_bridge::frb;
+use time::OffsetDateTime;
 use trade::ContractSymbol;
 use trade::Direction;
 use uuid::Uuid;
@@ -42,6 +43,7 @@ pub struct NewOrder {
 #[frb]
 #[derive(Debug, Clone)]
 pub struct Order {
+    pub id: String,
     pub leverage: f64,
     pub quantity: f64,
     pub contract_symbol: ContractSymbol,
@@ -49,6 +51,7 @@ pub struct Order {
     pub order_type: Box<OrderType>,
     pub state: OrderState,
     pub execution_price: Option<f64>,
+    pub creation_timestamp: i64,
 }
 
 impl From<order::OrderType> for OrderType {
@@ -68,6 +71,7 @@ impl From<order::Order> for Order {
         };
 
         Order {
+            id: value.id.to_string(),
             leverage: value.leverage,
             quantity: value.quantity,
             contract_symbol: value.contract_symbol,
@@ -75,6 +79,7 @@ impl From<order::Order> for Order {
             order_type: Box::new(value.order_type.into()),
             state: value.state.into(),
             execution_price,
+            creation_timestamp: value.creation_timestamp.unix_timestamp(),
         }
     }
 }
@@ -116,6 +121,7 @@ impl From<NewOrder> for order::Order {
             direction: value.direction,
             order_type: (*value.order_type).into(),
             state: order::OrderState::Open,
+            creation_timestamp: OffsetDateTime::now_utc(),
         }
     }
 }

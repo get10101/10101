@@ -61,8 +61,8 @@ void main() {
     ChangeNotifierProvider(create: (context) => TradeValuesChangeNotifier(TradeValuesService())),
     ChangeNotifierProvider(create: (context) => AmountDenominationChangeNotifier()),
     ChangeNotifierProvider(create: (context) => SubmitOrderChangeNotifier(OrderService())),
-    ChangeNotifierProvider(create: (context) => OrderChangeNotifier.create(OrderService())),
-    ChangeNotifierProvider(create: (context) => PositionChangeNotifier.create(PositionService())),
+    ChangeNotifierProvider(create: (context) => OrderChangeNotifier(OrderService())),
+    ChangeNotifierProvider(create: (context) => PositionChangeNotifier(PositionService())),
     ChangeNotifierProvider(create: (context) => WalletChangeNotifier(const WalletService())),
     Provider(create: (context) => Environment.parse()),
   ], child: const TenTenOneApp()));
@@ -203,6 +203,9 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
       FLog.info(text: "App data will be stored in: $appSupportDir");
 
       await rust.api.run(config: config, appDir: appSupportDir.path);
+
+      await orderChangeNotifier.initialize();
+      await positionChangeNotifier.initialize();
 
       var lastLogin = await rust.api.updateLastLogin();
       FLog.debug(text: "Last login was at ${lastLogin.date}");

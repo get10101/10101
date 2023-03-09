@@ -103,6 +103,7 @@ pub(crate) struct Order {
     pub direction: Direction,
     pub order_type: OrderType,
     pub state: OrderState,
+    pub creation_timestamp: i64,
     pub limit_price: Option<f64>,
     pub execution_price: Option<f64>,
     pub failure_reason: Option<FailureReason>,
@@ -213,6 +214,7 @@ impl From<crate::trade::order::Order> for Order {
             direction: value.direction.into(),
             order_type,
             state: status,
+            creation_timestamp: value.creation_timestamp.unix_timestamp(),
             limit_price,
             execution_price,
             failure_reason,
@@ -232,6 +234,8 @@ impl TryFrom<Order> for crate::trade::order::Order {
             direction: value.direction.into(),
             order_type: (value.order_type, value.limit_price).try_into()?,
             state: (value.state, value.execution_price, value.failure_reason).try_into()?,
+            creation_timestamp: OffsetDateTime::from_unix_timestamp(value.creation_timestamp)
+                .expect("unix timestamp to fit in itself"),
         };
 
         Ok(order)
@@ -432,6 +436,7 @@ pub mod test {
     use crate::db::models::Order;
     use crate::db::models::OrderState;
     use crate::db::MIGRATIONS;
+    use crate::trade::order::FailureReason;
     use diesel::result::Error;
     use diesel::Connection;
     use diesel::SqliteConnection;
@@ -484,6 +489,8 @@ pub mod test {
         let (order_type, limit_price) = crate::trade::order::OrderType::Market.into();
         let (status, execution_price, failure_reason) =
             crate::trade::order::OrderState::Initial.into();
+        let creation_timestamp = OffsetDateTime::UNIX_EPOCH;
+
         let order = Order {
             id: uuid.to_string(),
             leverage,
@@ -492,6 +499,7 @@ pub mod test {
             direction: direction.into(),
             order_type,
             state: status,
+            creation_timestamp: creation_timestamp.unix_timestamp(),
             limit_price,
             execution_price,
             failure_reason,
@@ -506,6 +514,7 @@ pub mod test {
                 direction,
                 order_type: crate::trade::order::OrderType::Market,
                 state: crate::trade::order::OrderState::Initial,
+                creation_timestamp,
             }
             .into(),
             &mut connection,
@@ -522,6 +531,7 @@ pub mod test {
                 direction: trade::Direction::Long,
                 order_type: crate::trade::order::OrderType::Market,
                 state: crate::trade::order::OrderState::Initial,
+                creation_timestamp,
             }
             .into(),
             &mut connection,
@@ -563,5 +573,90 @@ pub mod test {
                 panic!("Expected to not being able to find said order")
             }
         }
+    }
+
+    #[test]
+    pub fn given_several_orders_when_fetching_orders_for_ui_only_relevant_orders_are_loaded() {
+        let mut connection = SqliteConnection::establish(":memory:").unwrap();
+        connection.run_pending_migrations(MIGRATIONS).unwrap();
+
+        let uuid = uuid::Uuid::new_v4();
+        let leverage = 2.0;
+        let quantity = 100.0;
+        let contract_symbol = trade::ContractSymbol::BtcUsd;
+        let direction = trade::Direction::Long;
+        let creation_timestamp = OffsetDateTime::UNIX_EPOCH;
+
+        Order::insert(
+            crate::trade::order::Order {
+                id: uuid,
+                leverage,
+                quantity,
+                contract_symbol,
+                direction,
+                order_type: crate::trade::order::OrderType::Market,
+                state: crate::trade::order::OrderState::Initial,
+                creation_timestamp,
+            }
+            .into(),
+            &mut connection,
+        )
+        .unwrap();
+
+        let orders = Order::get_without_rejected_and_initial(&mut connection).unwrap();
+        assert_eq!(orders.len(), 0);
+
+        let uuid1 = uuid::Uuid::new_v4();
+        Order::insert(
+            crate::trade::order::Order {
+                id: uuid1,
+                leverage,
+                quantity,
+                contract_symbol,
+                direction,
+                order_type: crate::trade::order::OrderType::Market,
+                state: crate::trade::order::OrderState::Initial,
+                creation_timestamp,
+            }
+            .into(),
+            &mut connection,
+        )
+        .unwrap();
+
+        let orders = Order::get_without_rejected_and_initial(&mut connection).unwrap();
+        assert_eq!(orders.len(), 0);
+
+        Order::update_state(
+            uuid.to_string(),
+            crate::trade::order::OrderState::Open.into(),
+            &mut connection,
+        )
+        .unwrap();
+
+        let orders = Order::get_without_rejected_and_initial(&mut connection).unwrap();
+        assert_eq!(orders.len(), 1);
+
+        Order::update_state(
+            uuid1.to_string(),
+            crate::trade::order::OrderState::Open.into(),
+            &mut connection,
+        )
+        .unwrap();
+
+        let orders = Order::get_without_rejected_and_initial(&mut connection).unwrap();
+        assert_eq!(orders.len(), 2);
+
+        Order::update_state(
+            uuid1.to_string(),
+            crate::trade::order::OrderState::Failed {
+                reason: FailureReason::FailedToSetToFilling,
+            }
+            .into(),
+            &mut connection,
+        )
+        .unwrap();
+
+        let orders = Order::get_without_rejected_and_initial(&mut connection).unwrap();
+        assert_eq!(orders.len(), 2);
     }
 }

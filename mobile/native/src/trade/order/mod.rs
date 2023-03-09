@@ -1,3 +1,4 @@
+use time::OffsetDateTime;
 use trade::ContractSymbol;
 use trade::Direction;
 use uuid::Uuid;
@@ -97,6 +98,7 @@ pub struct Order {
     pub direction: Direction,
     pub order_type: OrderType,
     pub state: OrderState,
+    pub creation_timestamp: OffsetDateTime,
 }
 
 impl Order {

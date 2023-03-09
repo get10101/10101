@@ -1,4 +1,3 @@
-import 'dart:collection';
 import 'dart:developer';
 import 'package:flutter/material.dart';
 import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
@@ -8,20 +7,20 @@ import 'package:get_10101/features/trade/domain/order.dart';
 
 class OrderChangeNotifier extends ChangeNotifier implements Subscriber {
   late OrderService _orderService;
-  HashMap<String, Order> orders = HashMap();
+  Map<String, Order> orders = {};
 
-  Future<void> _create() async {
+  Future<void> initialize() async {
     List<Order> orders = await _orderService.fetchOrders();
     for (Order order in orders) {
       this.orders[order.id] = order;
     }
 
+    sortOrderByTimestampDesc();
     notifyListeners();
   }
 
-  OrderChangeNotifier.create(OrderService orderService) {
+  OrderChangeNotifier(OrderService orderService) {
     _orderService = orderService;
-    _create();
   }
 
   // TODO: This is not optimal, because we map the Order in the change notifier. We can do this, but it would be better to do this on the service level.
@@ -32,10 +31,17 @@ class OrderChangeNotifier extends ChangeNotifier implements Subscriber {
     if (event is bridge.Event_OrderUpdateNotification) {
       Order order = Order.fromApi(event.field0);
       orders[order.id] = order;
+
+      sortOrderByTimestampDesc();
     } else {
       log("Received unexpected event: ${event.toString()}");
     }
 
     notifyListeners();
+  }
+
+  void sortOrderByTimestampDesc() {
+    orders = Map<String, Order>.fromEntries(orders.entries.toList()
+      ..sort((e1, e2) => e2.value.creationTimestamp.compareTo(e1.value.creationTimestamp)));
   }
 }

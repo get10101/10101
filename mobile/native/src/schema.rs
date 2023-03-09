@@ -16,6 +16,7 @@ diesel::table! {
         direction -> Text,
         order_type -> Text,
         state -> Text,
+        creation_timestamp -> BigInt,
         limit_price -> Nullable<Double>,
         execution_price -> Nullable<Double>,
         failure_reason -> Nullable<Text>,

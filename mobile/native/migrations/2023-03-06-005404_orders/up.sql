@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS orders (
     direction TEXT NOT NULL,
     order_type TEXT NOT NULL,
     state TEXT NOT NULL,
+    creation_timestamp BIGINT NOT NULL,
     -- might be null if market order
     limit_price NUMBER,
     -- might be null if not yet matched
