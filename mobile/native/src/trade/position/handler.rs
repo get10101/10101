@@ -1,32 +1,12 @@
 use crate::calculations::calculate_liquidation_price;
 use crate::event;
 use crate::event::EventInternal;
-use crate::ln_dlc;
-use crate::trade::order;
 use crate::trade::order::Order;
 use crate::trade::position::Position;
 use crate::trade::position::PositionState;
 use anyhow::Result;
 use trade::ContractSymbol;
 use trade::Direction;
-use trade::TradeParams;
-
-/// Sets up a trade with the counterparty
-///
-/// In a success scenario this results in creating, updating or deleting a position.
-/// The DLC that represents the position will be stored in the database.
-/// Errors are handled within the scope of this function.
-pub async fn trade(trade_params: TradeParams) -> Result<()> {
-    let order_id = trade_params.order_id;
-
-    order::handler::order_filling(order_id, trade_params.execution_price)?;
-
-    if let Err((reason, e)) = ln_dlc::trade(trade_params).await {
-        order::handler::order_failed(Some(order_id), reason, e)?;
-    }
-
-    Ok(())
-}
 
 /// Fetch the positions from the database
 pub async fn get_positions() -> Result<Vec<Position>> {

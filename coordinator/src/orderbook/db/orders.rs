@@ -1,5 +1,4 @@
 use crate::orderbook::db::custom_types::Direction;
-use crate::orderbook::routes::NewOrder as OrderbookNewOrder;
 use crate::orderbook::routes::Order as OrderbookOrder;
 use crate::schema::orders;
 use diesel::prelude::*;
@@ -8,6 +7,7 @@ use diesel::PgConnection;
 use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
+use trade::NewOrder as OrderbookNewOrder;
 
 impl From<trade::Direction> for Direction {
     fn from(value: trade::Direction) -> Self {

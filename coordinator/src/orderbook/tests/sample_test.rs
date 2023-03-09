@@ -31,7 +31,7 @@ async fn crud_test() {
 
     let order = orders::insert(
         &mut conn,
-        crate::orderbook::routes::NewOrder {
+        trade::NewOrder {
             price: dec!(20000.00),
             maker_id: "Bob the Maker".to_string(),
             direction: Direction::Long,

@@ -1,6 +1,6 @@
 use anyhow::bail;
 use bdk::bitcoin::secp256k1::PublicKey;
-use bdk::bitcoin::XOnlyPublicKey;
+use rust_decimal::Decimal;
 use serde::Deserialize;
 use serde::Serialize;
 use std::fmt;
@@ -11,11 +11,36 @@ use uuid::Uuid;
 
 pub mod cfd;
 
-/// The trade parameters defining the trade execution
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct NewOrder {
+    pub price: Decimal,
+    pub quantity: Decimal,
+    pub maker_id: String,
+    pub direction: Direction,
+}
+
+/// A match represents the matched orders of a taker and a maker and will be executed by the
+/// coordinator.
 ///
-/// Emitted by the orderbook when a match is found.
-/// Both trading parties will receive trade params and then request trade execution with said trade
-/// parameters from the coordinator.
+/// Emitted by the orderbook to the coordinator for execution when a match is found.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MatchParams {
+    /// The taker trade information
+    ///
+    /// Note, for the MVP we are not supporting partial order filling, hence this is always exactly
+    /// one. We will need a Vector here once we support partial order filling.
+    pub taker: Trade,
+
+    /// The maker trade information
+    ///
+    /// Note, for the MVP we are not supporting partial order filling, hence this is always exactly
+    /// one. We will need a Vector here once we support partial order filling.
+    pub maker: Trade,
+
+    /// The match params of the trade unspecific to the individual trader
+    pub params: Match,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TradeParams {
     /// Our identity

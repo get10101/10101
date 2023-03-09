@@ -15,6 +15,7 @@ use serde::Serialize;
 use std::sync::Arc;
 use tokio::sync::broadcast::Sender;
 use trade::Direction;
+use trade::NewOrder;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Order {
@@ -46,14 +47,6 @@ pub async fn get_order(
         .unwrap();
 
     Json(order)
-}
-
-#[derive(Deserialize, Serialize)]
-pub struct NewOrder {
-    pub price: Decimal,
-    pub quantity: Decimal,
-    pub maker_id: String,
-    pub direction: Direction,
 }
 
 pub async fn post_order(
