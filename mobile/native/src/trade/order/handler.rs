@@ -4,17 +4,13 @@ use crate::event::EventInternal;
 use crate::ln_dlc;
 use crate::trade::order::Order;
 use crate::trade::order::OrderState;
-use crate::trade::order::OrderType;
 use crate::trade::position;
 use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
-use std::str::FromStr;
 use std::time::Duration;
 use trade::ContractSymbol;
-use trade::Direction;
 use trade::TradeParams;
-use uuid::Uuid;
 
 pub async fn submit_order(order: Order) -> Result<()> {
     db::insert_order(order)?;
@@ -67,26 +63,6 @@ pub fn order_filled() -> Result<Order> {
 
     let filled_order = db::get_order(order_being_filled.id)?;
     Ok(filled_order)
-}
-
-pub async fn get_order(id: String) -> Result<Order> {
-    // TODO: Fetch from database
-
-    let id = Uuid::from_str(id.as_str()).context("Failed to parse UUID")?;
-
-    let dummy_order = Order {
-        id,
-        leverage: 2.0,
-        quantity: 1000.0,
-        contract_symbol: ContractSymbol::BtcUsd,
-        direction: Direction::Long,
-        order_type: OrderType::Market,
-        state: OrderState::Filled {
-            execution_price: 25000.0,
-        },
-    };
-
-    Ok(dummy_order)
 }
 
 pub async fn get_orders_for_ui() -> Result<Vec<Order>> {
