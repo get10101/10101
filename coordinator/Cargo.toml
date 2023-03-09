@@ -12,8 +12,11 @@ bitcoin = "0.29"
 clap = { version = "4", features = ["derive"] }
 diesel = { version = "2.0.0", features = ["r2d2", "postgres"] }
 diesel_migrations = "2.0.0"
-dlc-manager = { version = "0.4.0", features = ["use-serde"] } # required for the ContractInput type
+dlc-manager = { version = "0.4.0", features = ["use-serde"] }
+dlc-messages = "0.4.0"
+dlc-trie = "0.4.0"
 futures = "0.3"
+hex = "0.3"
 lightning = { version = "0.0.113", features = ["max_level_trace"] }
 ln-dlc-node = { path = "../crates/ln-dlc-node" }
 local-ip-address = "0.5.1"
