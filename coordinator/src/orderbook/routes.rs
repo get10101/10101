@@ -142,7 +142,11 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>) {
     let orders = orderbook::db::orders::all(&mut conn).unwrap();
 
     // Now send the "joined" message to all subscribers.
-    let _ = state.tx_pricefeed.send(PriceFeedMessage::AllOrders(orders));
+    let _ = sender
+        .send(Message::Text(
+            serde_json::to_string(&PriceFeedMessage::AllOrders(orders)).unwrap(),
+        ))
+        .await;
 
     // Spawn the first task that will receive broadcast messages and send text
     // messages over the websocket to our client.
