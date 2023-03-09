@@ -75,6 +75,28 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8da52d66c7071e2e3fa2a1e5c6d088fec47b593032b254f5e980de8ea54454d6"
 
 [[package]]
+name = "async-stream"
+version = "0.3.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ad445822218ce64be7a341abfb0b1ea43b5c23aa83902542a4542e78309d8e5e"
+dependencies = [
+ "async-stream-impl",
+ "futures-core",
+ "pin-project-lite",
+]
+
+[[package]]
+name = "async-stream-impl"
+version = "0.3.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e4655ae1a7b0cdf149156f780c5bf3f1352bc53cbd9e0a361a7ef7b22947e965"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "async-trait"
 version = "0.1.64"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -308,6 +330,24 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bef38d45163c2f1dde094a7dfd33ccf595c92905c8f8f4fdc18d06fb1037718a"
 
 [[package]]
+name = "bitmex-stream"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-stream",
+ "futures",
+ "hex 0.4.3",
+ "ring",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tokio-tungstenite",
+ "tracing",
+ "tracing-subscriber",
+ "url",
+]
+
+[[package]]
 name = "block-buffer"
 version = "0.10.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -532,6 +572,8 @@ dependencies = [
  "ln-dlc-node",
  "local-ip-address",
  "rand",
+ "rust_decimal",
+ "rust_decimal_macros",
  "serde",
  "serde_json",
  "testcontainers",
@@ -1575,10 +1617,12 @@ name = "maker"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-stream",
  "atty",
  "axum",
  "bdk",
  "bitcoin",
+ "bitmex-stream",
  "clap",
  "diesel",
  "diesel_migrations",
@@ -1586,6 +1630,9 @@ dependencies = [
  "hex 0.4.3",
  "ln-dlc-node",
  "rand",
+ "reqwest",
+ "rust_decimal",
+ "rust_decimal_macros",
  "serde",
  "serde_json",
  "testcontainers",
@@ -1594,6 +1641,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "trade",
+ "uuid",
 ]
 
 [[package]]
@@ -2774,6 +2822,7 @@ dependencies = [
  "signal-hook-registry",
  "socket2",
  "tokio-macros",
+ "tracing",
  "windows-sys 0.42.0",
 ]
 
@@ -2806,7 +2855,9 @@ checksum = "54319c93411147bced34cb5609a80e0a8e44c5999c93903a81cd866630ec0bfd"
 dependencies = [
  "futures-util",
  "log",
+ "native-tls",
  "tokio",
+ "tokio-native-tls",
  "tungstenite",
 ]
 
@@ -2961,6 +3012,7 @@ dependencies = [
 name = "trade"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "bdk",
  "rust_decimal",
  "rust_decimal_macros",
@@ -2985,6 +3037,7 @@ dependencies = [
  "http",
  "httparse",
  "log",
+ "native-tls",
  "rand",
  "sha1",
  "thiserror",
@@ -3056,6 +3109,7 @@ checksum = "1674845326ee10d37ca60470760d4288a6f80f304007d92e5c53bab78c9cfd79"
 dependencies = [
  "getrandom",
  "rand",
+ "serde",
  "uuid-macro-internal",
 ]
 

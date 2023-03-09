@@ -2,6 +2,7 @@ pub mod cli;
 pub mod logger;
 pub mod routes;
 pub mod schema;
+pub mod trading;
 
 #[cfg(test)]
 mod tests;

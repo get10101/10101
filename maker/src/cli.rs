@@ -1,5 +1,6 @@
 use anyhow::Result;
 use clap::Parser;
+use reqwest::Url;
 use std::env::current_dir;
 use std::net::SocketAddr;
 use std::path::PathBuf;
@@ -17,6 +18,10 @@ pub struct Opts {
     /// Where to permanently store data, defaults to the current working directory.
     #[clap(long)]
     data_dir: Option<PathBuf>,
+
+    /// The HTTP address for the orderbook.
+    #[clap(long, default_value = "http://localhost:8000")]
+    pub orderbook: Url,
 }
 
 impl Opts {

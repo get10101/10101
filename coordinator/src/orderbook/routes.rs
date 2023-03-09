@@ -1,4 +1,4 @@
-use crate::orderbook::models::Order;
+use crate::orderbook;
 use crate::routes::AppState;
 use axum::extract::ws::Message;
 use axum::extract::ws::WebSocket;
@@ -9,14 +9,28 @@ use axum::response::IntoResponse;
 use axum::Json;
 use futures::SinkExt;
 use futures::StreamExt;
+use rust_decimal::Decimal;
 use serde::Deserialize;
 use serde::Serialize;
 use std::sync::Arc;
 use tokio::sync::broadcast::Sender;
+use trade::Direction;
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Order {
+    pub id: i32,
+    #[serde(with = "rust_decimal::serde::float")]
+    pub price: Decimal,
+    pub maker_id: String,
+    pub taken: bool,
+    pub direction: Direction,
+    #[serde(with = "rust_decimal::serde::float")]
+    pub quantity: Decimal,
+}
 
 pub async fn get_orders(State(state): State<Arc<AppState>>) -> impl IntoResponse {
     let mut conn = state.pool.clone().get().unwrap();
-    let order = Order::all(&mut conn).unwrap();
+    let order = orderbook::db::orders::all(&mut conn).unwrap();
 
     Json(order)
 }
@@ -27,26 +41,19 @@ pub async fn get_order(
 ) -> impl IntoResponse {
     let pool = state.pool.clone();
     let mut conn = pool.get().unwrap();
-    let order = Order::get_with_id(&mut conn, order_id).unwrap().unwrap();
+    let order = orderbook::db::orders::get_with_id(&mut conn, order_id)
+        .unwrap()
+        .unwrap();
 
     Json(order)
 }
 
 #[derive(Deserialize, Serialize)]
 pub struct NewOrder {
-    pub price: i32,
+    pub price: Decimal,
+    pub quantity: Decimal,
     pub maker_id: String,
-    pub taken: bool,
-}
-
-impl From<NewOrder> for crate::orderbook::models::NewOrder {
-    fn from(value: NewOrder) -> Self {
-        crate::orderbook::models::NewOrder {
-            price: value.price,
-            maker_id: value.maker_id,
-            taken: value.taken,
-        }
-    }
+    pub direction: Direction,
 }
 
 pub async fn post_order(
@@ -54,12 +61,12 @@ pub async fn post_order(
     Json(new_order): Json<NewOrder>,
 ) -> impl IntoResponse {
     let mut conn = state.pool.clone().get().unwrap();
-    let inserted = Order::insert(&mut conn, new_order.into()).unwrap();
+    let order = orderbook::db::orders::insert(&mut conn, new_order).unwrap();
 
     let sender = state.tx_pricefeed.clone();
-    update_pricefeed(PriceFeedMessage::NewOrder(inserted.clone()), sender);
+    update_pricefeed(PriceFeedMessage::NewOrder(order.clone()), sender);
 
-    Json(inserted)
+    Json(order)
 }
 
 #[derive(Serialize, Clone, Deserialize, Debug)]
@@ -92,7 +99,7 @@ pub async fn put_order(
     Json(updated_order): Json<UpdateOrder>,
 ) -> impl IntoResponse {
     let mut conn = state.pool.clone().get().unwrap();
-    let order = Order::update(&mut conn, order_id, updated_order.taken).unwrap();
+    let order = orderbook::db::orders::update(&mut conn, order_id, updated_order.taken).unwrap();
     let sender = state.tx_pricefeed.clone();
     update_pricefeed(PriceFeedMessage::Update(order.clone()), sender);
 
@@ -104,7 +111,7 @@ pub async fn delete_order(
     State(state): State<Arc<AppState>>,
 ) -> impl IntoResponse {
     let mut conn = state.pool.clone().get().unwrap();
-    let deleted = Order::delete_with_id(&mut conn, order_id).unwrap();
+    let deleted = orderbook::db::orders::delete_with_id(&mut conn, order_id).unwrap();
     if deleted > 0 {
         let sender = state.tx_pricefeed.clone();
         update_pricefeed(PriceFeedMessage::DeleteOrder(order_id), sender);
@@ -132,7 +139,7 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>) {
     let mut rx = state.tx_pricefeed.subscribe();
 
     let mut conn = state.pool.clone().get().unwrap();
-    let orders = Order::all(&mut conn).unwrap();
+    let orders = orderbook::db::orders::all(&mut conn).unwrap();
 
     // Now send the "joined" message to all subscribers.
     let _ = state.tx_pricefeed.send(PriceFeedMessage::AllOrders(orders));

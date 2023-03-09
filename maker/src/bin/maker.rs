@@ -10,6 +10,7 @@ use maker::cli::Opts;
 use maker::logger;
 use maker::routes::router;
 use maker::run_migration;
+use maker::trading;
 use rand::thread_rng;
 use rand::RngCore;
 use std::net::SocketAddr;
@@ -60,6 +61,18 @@ async fn main() -> Result<()> {
                 // todo: the node sync should not swallow the error.
                 node.sync();
                 tokio::time::sleep(std::time::Duration::from_secs(10)).await;
+            }
+        }
+    });
+
+    let node_info_string = node.info.to_string();
+    tokio::spawn(async move {
+        match trading::run(opts.orderbook, node_info_string, network).await {
+            Ok(_) => {
+                // all good
+            }
+            Err(error) => {
+                tracing::error!("Trading logic died {error:#}")
             }
         }
     });

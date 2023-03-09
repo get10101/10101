@@ -1,0 +1,25 @@
+[package]
+name = "bitmex-stream"
+version = "0.1.0"
+edition = "2021"
+description = "A stable and simple connection to BitMex's websocket API."
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = "1"
+async-stream = "0.3"
+futures = "0.3"
+hex = "0.4.3"
+ring = "0.16"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["macros", "time", "tracing"] }
+tokio-tungstenite = { version = "0.18", features = ["native-tls"] }
+tracing = "0.1"
+url = "2.3.0"
+
+[dev-dependencies]
+anyhow = "1"
+tokio = { version = "1", features = ["full"] }
+tracing-subscriber = { version = "0.3", features = ["fmt", "env-filter"] }
