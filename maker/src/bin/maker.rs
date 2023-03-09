@@ -1,6 +1,5 @@
 use anyhow::Context;
 use anyhow::Result;
-use bitcoin::Network;
 use diesel::r2d2;
 use diesel::r2d2::ConnectionManager;
 use diesel::PgConnection;
@@ -25,7 +24,7 @@ async fn main() -> Result<()> {
     let data_dir = opts.data_dir()?;
     let address = opts.p2p_address;
     let http_address = opts.http_address;
-    let network = Network::Regtest;
+    let network = opts.network();
 
     logger::init_tracing(LevelFilter::DEBUG, false)?;
 

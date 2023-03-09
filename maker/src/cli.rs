@@ -19,15 +19,41 @@ pub struct Opts {
     #[clap(long)]
     data_dir: Option<PathBuf>,
 
+    #[clap(value_enum, default_value = "regtest")]
+    pub network: Network,
+
     /// The HTTP address for the orderbook.
     #[clap(long, default_value = "http://localhost:8000")]
     pub orderbook: Url,
+}
+
+#[derive(Debug, Clone, Copy, clap::ValueEnum)]
+pub enum Network {
+    Regtest,
+    Signet,
+    Testnet,
+    Mainnet,
+}
+
+impl From<Network> for bitcoin::Network {
+    fn from(network: Network) -> Self {
+        match network {
+            Network::Regtest => bitcoin::Network::Regtest,
+            Network::Signet => bitcoin::Network::Signet,
+            Network::Testnet => bitcoin::Network::Testnet,
+            Network::Mainnet => bitcoin::Network::Bitcoin,
+        }
+    }
 }
 
 impl Opts {
     // use this method to parse the options from the cli.
     pub fn read() -> Opts {
         Opts::parse()
+    }
+
+    pub fn network(&self) -> bitcoin::Network {
+        self.network.into()
     }
 
     pub fn data_dir(&self) -> Result<PathBuf> {
