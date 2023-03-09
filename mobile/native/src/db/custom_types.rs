@@ -10,11 +10,10 @@ use diesel::serialize::IsNull;
 use diesel::serialize::Output;
 use diesel::serialize::ToSql;
 use diesel::serialize::{self};
-use diesel::sql_types;
 use diesel::sql_types::Text;
 use diesel::sqlite::Sqlite;
 
-impl ToSql<sql_types::Text, Sqlite> for OrderType {
+impl ToSql<Text, Sqlite> for OrderType {
     fn to_sql(&self, out: &mut Output<Sqlite>) -> serialize::Result {
         let text = match *self {
             OrderType::Market => "market".to_string(),
@@ -25,7 +24,7 @@ impl ToSql<sql_types::Text, Sqlite> for OrderType {
     }
 }
 
-impl FromSql<sql_types::Text, Sqlite> for OrderType {
+impl FromSql<Text, Sqlite> for OrderType {
     fn from_sql(bytes: backend::RawValue<Sqlite>) -> deserialize::Result<Self> {
         let string = <String as FromSql<Text, Sqlite>>::from_sql(bytes)?;
 
@@ -37,7 +36,7 @@ impl FromSql<sql_types::Text, Sqlite> for OrderType {
     }
 }
 
-impl ToSql<sql_types::Text, Sqlite> for OrderState {
+impl ToSql<Text, Sqlite> for OrderState {
     fn to_sql(&self, out: &mut Output<Sqlite>) -> serialize::Result {
         let text = match *self {
             OrderState::Initial => "initial".to_string(),
@@ -52,7 +51,7 @@ impl ToSql<sql_types::Text, Sqlite> for OrderState {
     }
 }
 
-impl FromSql<sql_types::Text, Sqlite> for OrderState {
+impl FromSql<Text, Sqlite> for OrderState {
     fn from_sql(bytes: backend::RawValue<Sqlite>) -> deserialize::Result<Self> {
         let string = <String as FromSql<Text, Sqlite>>::from_sql(bytes)?;
 
@@ -68,7 +67,7 @@ impl FromSql<sql_types::Text, Sqlite> for OrderState {
     }
 }
 
-impl ToSql<sql_types::Text, Sqlite> for ContractSymbol {
+impl ToSql<Text, Sqlite> for ContractSymbol {
     fn to_sql(&self, out: &mut Output<Sqlite>) -> serialize::Result {
         let text = match *self {
             ContractSymbol::BtcUsd => "BtcUsd",
@@ -78,7 +77,7 @@ impl ToSql<sql_types::Text, Sqlite> for ContractSymbol {
     }
 }
 
-impl FromSql<sql_types::Text, Sqlite> for ContractSymbol {
+impl FromSql<Text, Sqlite> for ContractSymbol {
     fn from_sql(bytes: backend::RawValue<Sqlite>) -> deserialize::Result<Self> {
         let string = <String as FromSql<Text, Sqlite>>::from_sql(bytes)?;
 
@@ -89,7 +88,7 @@ impl FromSql<sql_types::Text, Sqlite> for ContractSymbol {
     }
 }
 
-impl ToSql<sql_types::Text, Sqlite> for Direction {
+impl ToSql<Text, Sqlite> for Direction {
     fn to_sql(&self, out: &mut Output<Sqlite>) -> serialize::Result {
         let text = match *self {
             Direction::Long => "Long",
@@ -100,7 +99,7 @@ impl ToSql<sql_types::Text, Sqlite> for Direction {
     }
 }
 
-impl FromSql<sql_types::Text, Sqlite> for Direction {
+impl FromSql<Text, Sqlite> for Direction {
     fn from_sql(bytes: backend::RawValue<Sqlite>) -> deserialize::Result<Self> {
         let string = <String as FromSql<Text, Sqlite>>::from_sql(bytes)?;
 
@@ -112,7 +111,7 @@ impl FromSql<sql_types::Text, Sqlite> for Direction {
     }
 }
 
-impl ToSql<sql_types::Text, Sqlite> for FailureReason {
+impl ToSql<Text, Sqlite> for FailureReason {
     fn to_sql(&self, out: &mut Output<Sqlite>) -> serialize::Result {
         let text = match *self {
             FailureReason::TradeRequest => "TradeRequest",
@@ -127,7 +126,7 @@ impl ToSql<sql_types::Text, Sqlite> for FailureReason {
     }
 }
 
-impl FromSql<sql_types::Text, Sqlite> for FailureReason {
+impl FromSql<Text, Sqlite> for FailureReason {
     fn from_sql(bytes: backend::RawValue<Sqlite>) -> deserialize::Result<Self> {
         let string = <String as FromSql<Text, Sqlite>>::from_sql(bytes)?;
 
