@@ -7,7 +7,6 @@ use std::fmt;
 use std::fmt::Formatter;
 use std::str::FromStr;
 use std::time::Duration;
-use uuid::Uuid;
 
 pub mod cfd;
 
@@ -42,40 +41,27 @@ pub struct MatchParams {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TradeParams {
-    /// Our identity
-    pub pubkey: PublicKey,
-    /// Identity of the trade's counterparty
+pub struct Trade {
+    /// The identity of the trading party either maker or taker.
+    pub pub_key: PublicKey,
+
+    /// The leverage of the trading party either maker or taker.
+    pub leverage: f64,
+
+    /// The direction of the trading party either long or short.
     ///
-    /// The identity of the trading party that eas matched to our order by the orderbook.
-    pub pubkey_counterparty: PublicKey,
+    /// Note, this needs to be reversed for the counter party.
+    pub direction: Direction,
 
     /// The id of the order
     ///
     /// The order has to be identifiable by the client when returned from the orderbook, so the
     /// client is in charge of creating this ID and passing it to the orderbook.
-    pub order_id: Uuid,
+    pub order_id: i32,
+}
 
-    /// The orderbook id of the counterparty order
-    ///
-    /// The orderbook id of the order that was matched with ours.
-    /// This can be used by the coordinator to make sure the trade is set up correctly.
-    pub order_id_counterparty: String,
-
-    /// The contract symbol for the order
-    pub contract_symbol: ContractSymbol,
-
-    /// Our leverage
-    ///
-    /// This has to correspond to our order's leverage.
-    pub leverage: f64,
-
-    /// The leverage of the order that was matched
-    ///
-    /// This is the leverage of the counterparty.
-    /// This can be used by the coordinator to make sure the trade is set up correctly.
-    pub leverage_counterparty: f64,
-
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Match {
     /// The quantity to be used
     ///
     /// This quantity may be the complete amount of either order or a fraction.
@@ -92,10 +78,8 @@ pub struct TradeParams {
     /// The coordinator calculates the maturity timestamp based on the current time and the expiry.
     pub expiry: Duration,
 
-    /// The public key of the oracle to be used
-    ///
-    /// The orderbook decides this when matching orders.
-    pub oracle_pk: XOnlyPublicKey,
+    /// The contract symbol for the order
+    pub contract_symbol: ContractSymbol,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]

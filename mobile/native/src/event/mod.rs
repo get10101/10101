@@ -4,7 +4,7 @@ pub mod subscriber;
 
 use crate::api::WalletInfo;
 use std::hash::Hash;
-use trade::TradeParams;
+use trade::MatchParams;
 
 use crate::event::event_hub::get;
 use crate::event::subscriber::Subscriber;
@@ -25,7 +25,7 @@ pub enum EventInternal {
     Log(String),
     OrderUpdateNotification(Order),
     WalletInfoUpdateNotification(WalletInfo),
-    OrderFilledWith(Box<TradeParams>),
+    OrderFilledWith(Box<MatchParams>),
     PositionUpdateNotification(Position),
 }
 

@@ -9,10 +9,12 @@ use axum::response::IntoResponse;
 use axum::Json;
 use futures::SinkExt;
 use futures::StreamExt;
+use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use serde::Deserialize;
 use serde::Serialize;
 use std::sync::Arc;
+use std::time::Duration;
 use tokio::sync::broadcast::Sender;
 use trade::Direction;
 use trade::NewOrder;
@@ -58,6 +60,33 @@ pub async fn post_order(
 
     let sender = state.tx_pricefeed.clone();
     update_pricefeed(PriceFeedMessage::NewOrder(order.clone()), sender);
+
+    // TODO: remove this dummy call to the coordinator, once the orderbook matching has been
+    // implemented. Also this call should not happen here, it is just added for temporary
+    // testing.
+
+    let dummy_match_params = trade::MatchParams {
+        taker: trade::Trade {
+            pub_key: "todo: the order book will know".parse().unwrap(),
+            leverage: 1.0, // todo: the order book will know
+            direction: order.direction,
+            order_id: order.id,
+        },
+        maker: trade::Trade {
+            pub_key: "todo: the order book will know".parse().unwrap(),
+            leverage: 1.0, // todo: the order book will know
+            direction: Direction::Short,
+            order_id: 0, // todo: the orderbook will know,
+        },
+        params: trade::Match {
+            quantity: order.quantity.to_f64().unwrap(),
+            execution_price: 55_000.0,
+            expiry: Duration::from_secs(60 * 60 * 24), // in 24h
+            contract_symbol: trade::ContractSymbol::BtcUsd,
+        },
+    };
+
+    state.node.trade(dummy_match_params).await.unwrap();
 
     Json(order)
 }

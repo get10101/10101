@@ -1,4 +1,4 @@
-use anyhow::anyhow;
+use anyhow::Context;
 use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
 use dlc_manager::contract::contract_input::ContractInput;
@@ -17,8 +17,11 @@ use std::sync::Arc;
 use std::sync::Mutex;
 use std::time::SystemTime;
 use std::time::UNIX_EPOCH;
+use tokio::task::JoinHandle;
 use trade::cfd::calculate_margin;
-use trade::TradeParams;
+use trade::Match;
+use trade::MatchParams;
+use trade::Trade;
 
 pub struct Node {
     pub inner: Arc<ln_dlc_node::node::Node>,
@@ -26,54 +29,96 @@ pub struct Node {
 }
 
 impl Node {
-    pub fn trade(&self, trade_params: TradeParams) -> Result<ContractInput> {
-        let mut pending_trades = self
-            .pending_trades
-            .lock()
-            .map_err(|e| anyhow!("Failed to access pending trades: {e:#}"))?;
+    /// Sets up the trade with the matched traders (maker, taker)
+    pub async fn trade(&self, match_params: MatchParams) -> Result<()> {
+        // todo: these proposals should be done in parallel with a timeout.
+        // propose trade to the taker
+        let taker_handle = self
+            .propose_trade(&match_params.taker, &match_params.params)
+            .await;
 
-        // TODO: We need to keep around more information than just the pubkey and have to introduce
-        // validation steps once we add the maker
-        pending_trades.insert(trade_params.pubkey);
+        // propose trade to the maker
+        let maker_handle = self
+            .propose_trade(&match_params.maker, &match_params.params)
+            .await;
 
-        // The coordinator always trades at a leverage of 1
-        let coordinator_leverage = 1.0;
+        // todo: add proper error handling. In case on of the proposals fails, but the other
+        // succeeds we need to cancel the successful one.
 
-        let margin_coordinator = calculate_margin(
-            trade_params.execution_price,
-            trade_params.quantity,
-            coordinator_leverage,
-        );
-        let margin_trader = calculate_margin(
-            trade_params.execution_price,
-            trade_params.quantity,
-            trade_params.leverage,
-        );
+        taker_handle
+            .await
+            .context("Failed to wait on future")?
+            .context("Failed to propose trade to taker")?;
 
-        let total_collateral = margin_coordinator + margin_trader;
+        maker_handle
+            .await
+            .context("Failed to wait on future")?
+            .context("Failed to propose trade to maker")?;
 
-        let maturity_time =
-            SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs() + trade_params.expiry.as_secs();
+        Ok(())
+    }
 
-        let contract_symbol = trade_params.contract_symbol.label();
+    pub async fn propose_trade(
+        &self,
+        trade: &Trade,
+        match_params: &Match,
+    ) -> JoinHandle<Result<()>> {
+        tokio::spawn({
+            let match_params = match_params.clone();
+            let trade = trade.clone();
+            let node = self.inner.clone();
+            async move {
+                let maturity_time = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs()
+                    + match_params.expiry.as_secs();
 
-        // The contract input to be used for setting up the trade between the trader and the
-        // coordinator
-        let contract_input = ContractInput {
-            offer_collateral: margin_trader,
-            accept_collateral: margin_coordinator,
-            fee_rate: 2,
-            contract_infos: vec![ContractInputInfo {
-                contract_descriptor: dummy_contract_descriptor(total_collateral),
-                oracles: OracleInput {
-                    public_keys: vec![trade_params.oracle_pk],
-                    event_id: format!("{contract_symbol}{maturity_time}"),
-                    threshold: 1,
-                },
-            }],
-        };
+                let contract_symbol = match_params.contract_symbol.label();
 
-        Ok(contract_input)
+                let margin_trader = calculate_margin(
+                    match_params.execution_price,
+                    match_params.quantity,
+                    trade.leverage,
+                );
+
+                // The coordinator always trades at a leverage of 1
+                let coordinator_leverage = 1.0;
+
+                let margin_coordinator = calculate_margin(
+                    match_params.execution_price,
+                    match_params.quantity,
+                    coordinator_leverage,
+                );
+
+                let total_collateral = margin_coordinator + margin_trader;
+
+                // The contract input to be used for setting up the trade between the trader and the
+                // coordinator
+                let contract_input = ContractInput {
+                    offer_collateral: margin_coordinator,
+                    accept_collateral: margin_trader,
+                    fee_rate: 2,
+                    contract_infos: vec![ContractInputInfo {
+                        contract_descriptor: dummy_contract_descriptor(total_collateral),
+                        oracles: OracleInput {
+                            public_keys: vec![node.oracle_pk()],
+                            event_id: format!("{contract_symbol}{maturity_time}"),
+                            threshold: 1,
+                        },
+                    }],
+                };
+
+                let channel_details = node.list_usable_channels();
+                let channel_details = channel_details
+                    .iter()
+                    .find(|c| c.counterparty.node_id == trade.pub_key)
+                    .context("Channel details not found")?;
+
+                node.propose_dlc_channel(channel_details, &contract_input)
+                    .await?;
+
+                tracing::info!("Proposed dlc subchannel");
+                Ok(())
+            }
+        })
     }
 }
 
