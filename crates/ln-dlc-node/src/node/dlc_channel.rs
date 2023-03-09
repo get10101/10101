@@ -160,7 +160,7 @@ impl Node {
         Ok(sub_channel.cloned())
     }
 
-    pub fn process_incoming_messages(&self) -> Result<()> {
+    pub fn process_incoming_messages(&self) -> Result<Vec<(PublicKey, SubChannelMessage)>> {
         Node::process_incoming_messages_internal(
             &self.dlc_message_handler,
             &self.dlc_manager,
@@ -174,8 +174,10 @@ impl Node {
         dlc_manager: &DlcManager,
         sub_channel_manager: &SubChannelManager,
         peer_manager: &PeerManager,
-    ) -> Result<()> {
+    ) -> Result<Vec<(PublicKey, SubChannelMessage)>> {
         let messages = dlc_message_handler.get_and_clear_received_messages();
+
+        let mut confirm_messages = vec![];
 
         for (node_id, msg) in messages {
             match msg {
@@ -201,12 +203,18 @@ impl Node {
                         .map_err(|e| anyhow!(e.to_string()))?;
 
                     if let Some(msg) = resp {
-                        tracing::debug!(
-                            to = %node_id,
-                            msg = %sub_channel_message_as_str(&msg),
-                            "Sending sub-channel message"
-                        );
-                        dlc_message_handler.send_message(node_id, Message::SubChannel(msg));
+                        if match msg.clone() {
+                            SubChannelMessage::Confirm(_) | SubChannelMessage::CloseConfirm(_) => {
+                                confirm_messages.push((node_id, msg.clone()));
+                                true
+                            }
+                            _ => false,
+                        } {
+                            tracing::debug!(to = %node_id, msg = %sub_channel_message_as_str(&msg), "Skipping automatic send of sub channel message");
+                        } else {
+                            tracing::debug!(to = %node_id, msg = %sub_channel_message_as_str(&msg), "Sending sub-channel message");
+                            dlc_message_handler.send_message(node_id, Message::SubChannel(msg));
+                        }
                     }
                 }
             }
@@ -218,7 +226,12 @@ impl Node {
             peer_manager.process_events();
         }
 
-        Ok(())
+        Ok(confirm_messages)
+    }
+
+    pub fn send_sub_channel_message(&self, node_id: PublicKey, msg: &SubChannelMessage) {
+        self.dlc_message_handler
+            .send_message(node_id, Message::SubChannel(msg.clone()));
     }
 }
 

@@ -27,7 +27,8 @@ use tokio::runtime::Runtime;
 
 static NODE: Storage<Arc<Node>> = Storage::new();
 
-const PROCESS_TRADE_REQUESTS_INTERVAL: Duration = Duration::from_secs(30);
+// todo: This interval is quite arbitrary at the moment, come up with more sensible values
+const PROCESS_INCOMING_MESSAGES_INTERVAL: Duration = Duration::from_secs(30);
 
 pub fn get_wallet_info() -> Result<WalletInfo> {
     Ok(get_wallet_info_from_node(
@@ -171,7 +172,12 @@ pub fn run(data_dir: String) -> Result<()> {
             let node = node.clone();
             async move {
                 loop {
-                    tokio::time::sleep(PROCESS_TRADE_REQUESTS_INTERVAL).await;
+                    tokio::time::sleep(PROCESS_INCOMING_MESSAGES_INTERVAL).await;
+
+                    if let Err(e) = node.process_incoming_messages() {
+                        tracing::warn!("Unable to process internal message: {e:#}");
+                        continue;
+                    }
 
                     let coordinator_pubkey = config::get_coordinator_info().pubkey;
                     tracing::debug!(%coordinator_pubkey, "Checking for DLC offers");
@@ -183,7 +189,7 @@ pub fn run(data_dir: String) -> Result<()> {
                             continue;
                         },
                         Err(e) => {
-                            tracing::error!(peer = %coordinator_pubkey.to_string(), "Unable to retrieve DLC channel offer: {e:#}");
+                            tracing::warn!(peer = %coordinator_pubkey.to_string(), "Unable to retrieve DLC channel offer: {e:#}");
                             continue;
                         }
                     };

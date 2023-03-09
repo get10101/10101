@@ -25,6 +25,7 @@ rust_decimal = { version = "1", features = ["serde-with-float"] }
 rust_decimal_macros = "1"
 serde = "1.0.147"
 serde_json = "1"
+sha2 = "0.10"
 time = { version = "0.3", features = ["serde", "parsing", "std", "formatting", "macros", "serde-well-known"] }
 tokio = { version = "1", features = ["full"] }
 tracing = "0.1.37"

@@ -1,3 +1,4 @@
+use anyhow::anyhow;
 use anyhow::Context;
 use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
@@ -12,7 +13,8 @@ use dlc_manager::payout_curve::PayoutPoint;
 use dlc_manager::payout_curve::PolynomialPayoutCurvePiece;
 use dlc_manager::payout_curve::RoundingInterval;
 use dlc_manager::payout_curve::RoundingIntervals;
-use std::collections::HashSet;
+use dlc_messages::SubChannelMessage;
+use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::time::SystemTime;
@@ -25,7 +27,8 @@ use trade::Trade;
 
 pub struct Node {
     pub inner: Arc<ln_dlc_node::node::Node>,
-    pub pending_trades: Arc<Mutex<HashSet<PublicKey>>>,
+    pub pending_matches: Arc<Mutex<Vec<MatchParams>>>,
+    pub pending_confirmations: Arc<Mutex<HashMap<PublicKey, SubChannelMessage>>>,
 }
 
 impl Node {
@@ -54,6 +57,13 @@ impl Node {
             .await
             .context("Failed to wait on future")?
             .context("Failed to propose trade to maker")?;
+
+        let mut pending_matches = self
+            .pending_matches
+            .lock()
+            .map_err(|e| anyhow!("Failed to access pending matches: {e:#}"))?;
+
+        pending_matches.push(match_params);
 
         Ok(())
     }

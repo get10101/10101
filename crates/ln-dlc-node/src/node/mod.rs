@@ -64,7 +64,6 @@ mod wallet;
 pub(crate) use channel_manager::ChannelManager;
 
 // TODO: These intervals are quite arbitrary at the moment, come up with more sensible values
-const PROCESS_INCOMING_MESSAGES_INTERVAL: Duration = Duration::from_secs(30);
 const BROADCAST_NODE_ANNOUNCEMENT_INTERVAL: Duration = Duration::from_secs(60);
 
 /// An LN-DLC node.
@@ -388,30 +387,6 @@ impl Node {
                 }
             }
         });
-
-        {
-            let dlc_manager = dlc_manager.clone();
-            let sub_channel_manager = sub_channel_manager.clone();
-            tokio::spawn({
-                let dlc_message_handler = dlc_message_handler.clone();
-                let peer_manager = peer_manager.clone();
-
-                async move {
-                    loop {
-                        if let Err(e) = Node::process_incoming_messages_internal(
-                            &dlc_message_handler,
-                            &dlc_manager,
-                            &sub_channel_manager,
-                            &peer_manager,
-                        ) {
-                            tracing::error!("Unable to process internal message: {e:#}");
-                        }
-
-                        tokio::time::sleep(PROCESS_INCOMING_MESSAGES_INTERVAL).await;
-                    }
-                }
-            })
-        };
 
         let node_info = NodeInfo {
             pubkey: channel_manager.get_our_node_id(),

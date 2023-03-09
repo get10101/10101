@@ -18,7 +18,9 @@ use std::time::Duration;
 use tracing::metadata::LevelFilter;
 
 const ELECTRS_ORIGIN: &str = "tcp://localhost:50000";
-const PROCESS_TRADE_REQUESTS_INTERVAL: Duration = Duration::from_secs(30);
+
+// todo: This interval is quite arbitrary at the moment, come up with more sensible values
+const PROCESS_INCOMING_MESSAGES_INTERVAL: Duration = Duration::from_secs(30);
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -82,7 +84,12 @@ async fn main() -> Result<()> {
         let node = node.clone();
         async move {
             loop {
-                tokio::time::sleep(PROCESS_TRADE_REQUESTS_INTERVAL).await;
+                tokio::time::sleep(PROCESS_INCOMING_MESSAGES_INTERVAL).await;
+
+                if let Err(e) = node.process_incoming_messages() {
+                    tracing::warn!("Unable to process internal message: {e:#}");
+                    continue;
+                }
 
                 // todo: the coordinator pubkey should come from the cli arguments.
                 let coordinator_pubkey =

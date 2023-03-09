@@ -9,17 +9,20 @@ use coordinator::run_migration;
 use diesel::r2d2;
 use diesel::r2d2::ConnectionManager;
 use diesel::PgConnection;
+use dlc_messages::SubChannelMessage;
 use ln_dlc_node::seed::Bip39Seed;
 use rand::thread_rng;
 use rand::RngCore;
-use std::collections::HashSet;
+use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::time::Duration;
 use tracing::metadata::LevelFilter;
 
 const ELECTRS_ORIGIN: &str = "tcp://localhost:50000";
-const PROCESS_TRADE_REQUESTS_INTERVAL: Duration = Duration::from_secs(30);
+
+// todo: This interval is quite arbitrary at the moment, come up with more sensible values
+const PROCESS_INCOMING_MESSAGES_INTERVAL: Duration = Duration::from_secs(30);
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -68,77 +71,100 @@ async fn main() -> Result<()> {
         }
     });
 
-    let pending_trades = Arc::new(Mutex::new(HashSet::<PublicKey>::new()));
-
+    let pending_confirmations =
+        Arc::new(Mutex::new(HashMap::<PublicKey, SubChannelMessage>::new()));
     tokio::spawn({
         let node = node.clone();
-        let pending_trades = pending_trades.clone();
+        let pending_confirmations = pending_confirmations.clone();
         async move {
             loop {
-                tokio::time::sleep(PROCESS_TRADE_REQUESTS_INTERVAL).await;
+                match node.process_incoming_messages() {
+                    Ok(confirm_messages) => {
+                        for confirm_message in confirm_messages.iter() {
+                            let message = confirm_message.1.clone();
+                            let node_id = confirm_message.0;
 
-                // TODO: Remove pending trades if we were unable to fulfill them within a
-                // certain time
-
-                let mut pending_trades = match pending_trades.lock() {
-                    Ok(pending_trades) => pending_trades,
-                    Err(e) => {
-                        tracing::warn!("Failed to lock pending trades: {e:#}");
-                        continue;
+                            if let Ok(mut pending_confirmations) = pending_confirmations.lock() {
+                                pending_confirmations.insert(node_id, message);
+                            } else {
+                                tracing::warn!("Failed to acquire lock on pending confirmations");
+                            }
+                        }
                     }
-                };
+                    Err(e) => tracing::error!("Failed to process internal message. Error: {e:#}"),
+                }
 
-                let mut to_be_deleted: HashSet<PublicKey> = HashSet::new();
+                tokio::time::sleep(PROCESS_INCOMING_MESSAGES_INTERVAL).await;
+            }
+        }
+    });
 
-                for pk in pending_trades.iter() {
-                    let peer = pk.to_string();
-
-                    tracing::debug!(
-                        %peer,
-                        "Checking for DLC offers"
-                    );
-
-                    let sub_channel = match node.get_sub_channel_offer(pk) {
-                        Ok(Some(sub_channel)) => sub_channel,
-                        Ok(None) => {
-                            tracing::debug!(
-                                %peer,
-                                "No DLC channel offers found"
-                            );
-                            continue;
-                        }
+    let pending_matches = Arc::new(Mutex::new(Vec::<trade::MatchParams>::new()));
+    tokio::spawn({
+        let node = node.clone();
+        let pending_matches = pending_matches.clone();
+        let pending_confirmations = pending_confirmations.clone();
+        async move {
+            loop {
+                {
+                    let mut pending_matches = match pending_matches.lock() {
+                        Ok(pending_matches) => pending_matches,
                         Err(e) => {
-                            tracing::error!(
-                                peer = %pk.to_string(),
-                                "Unable to retrieve DLC channel offer: {e:#}"
+                            tracing::warn!(
+                                "Failed to acquire lock on pending matches. Error: {e:#}"
                             );
                             continue;
                         }
                     };
 
-                    tracing::info!(%peer, "Found DLC channel offer");
-
-                    to_be_deleted.insert(*pk);
-
-                    let channel_id = sub_channel.channel_id;
-
-                    tracing::info!(
-                        %peer,
-                        channel_id = %hex::encode(channel_id),
-                        "Accepting DLC channel offer"
-                    );
-
-                    if let Err(e) = node.accept_dlc_channel_offer(&channel_id) {
-                        tracing::error!(
-                            channel_id = %hex::encode(channel_id),
-                            "Failed to accept subchannel: {e:#}"
-                        );
+                    let mut pending_confirmations = match pending_confirmations.lock() {
+                        Ok(pending_confirmations) => pending_confirmations,
+                        Err(e) => {
+                            tracing::warn!(
+                                "Failed to acquire lock on pending confirmations. Error {e:#}"
+                            );
+                            continue;
+                        }
                     };
+
+                    let mut confirmed_matches_indices = vec![];
+
+                    for (index, pending_match) in pending_matches.iter().enumerate() {
+                        if pending_confirmations
+                            .get(&pending_match.maker.pub_key)
+                            .is_some()
+                            && pending_confirmations
+                                .get(&pending_match.taker.pub_key)
+                                .is_some()
+                        {
+                            tracing::info!("Both traders accepted the dlc proposal. Going to confirm the trade.");
+                            let maker_confirmation = pending_confirmations
+                                .remove(&pending_match.maker.pub_key)
+                                .expect("confirmation message to exist");
+                            node.send_sub_channel_message(
+                                pending_match.maker.pub_key,
+                                &maker_confirmation,
+                            );
+
+                            let taker_confirmation = pending_confirmations
+                                .remove(&pending_match.taker.pub_key)
+                                .expect("confirmation message to exist");
+                            node.send_sub_channel_message(
+                                pending_match.taker.pub_key,
+                                &taker_confirmation,
+                            );
+
+                            confirmed_matches_indices.push(index);
+                        }
+                    }
+
+                    tracing::debug!("Removing confirmed matches from pending matches");
+                    for index in confirmed_matches_indices.iter().rev() {
+                        pending_matches.remove(*index);
+                    }
                 }
 
-                for delete_me in to_be_deleted {
-                    pending_trades.remove(&delete_me);
-                }
+                tokio::time::sleep(PROCESS_INCOMING_MESSAGES_INTERVAL).await;
             }
         }
     });
@@ -156,7 +182,8 @@ async fn main() -> Result<()> {
     let app = router(
         Node {
             inner: node,
-            pending_trades,
+            pending_matches,
+            pending_confirmations,
         },
         pool,
     );
