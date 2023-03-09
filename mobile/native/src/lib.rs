@@ -4,10 +4,12 @@ pub mod db;
 pub mod schema;
 
 mod api;
-mod bridge_generated;
 pub mod calculations;
 pub(crate) mod config;
 pub mod event;
 pub mod ln_dlc;
 pub mod logger;
 pub mod trade;
+
+#[allow(clippy::all, unused_import_braces, unused_qualifications)]
+mod bridge_generated;

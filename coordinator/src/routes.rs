@@ -15,7 +15,6 @@ use axum::routing::post;
 use axum::Json;
 use axum::Router;
 use bitcoin::secp256k1::PublicKey;
-use diesel::r2d2;
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::Pool;
 use diesel::PgConnection;
@@ -32,7 +31,7 @@ pub struct AppState {
     pub node: Arc<Node>,
     // Channel used to send messages to all connected clients.
     pub tx_pricefeed: broadcast::Sender<PriceFeedMessage>,
-    pub pool: r2d2::Pool<ConnectionManager<PgConnection>>,
+    pub pool: Pool<ConnectionManager<PgConnection>>,
 }
 
 pub fn router(node: Arc<Node>, pool: Pool<ConnectionManager<PgConnection>>) -> Router {

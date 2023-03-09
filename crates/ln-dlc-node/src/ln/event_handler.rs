@@ -219,7 +219,10 @@ impl EventHandler {
             Event::PaymentPathSuccessful { .. } => {}
             Event::PaymentPathFailed { .. } => {}
             Event::PaymentFailed { payment_hash, .. } => {
-                print!("\nEVENT: Failed to send payment to payment hash {:?}: exhausted payment retry attempts", hex::encode(payment_hash.0));
+                tracing::warn!(
+                    "Failed to send payment to payment hash {:?}: exhausted payment retry attempts",
+                    hex::encode(payment_hash.0)
+                );
 
                 let mut payments = self.outbound_payments.lock().unwrap();
                 if payments.contains_key(&payment_hash) {

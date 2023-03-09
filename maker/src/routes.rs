@@ -9,7 +9,6 @@ use axum::Json;
 use axum::Router;
 use bitcoin::hashes::hex::ToHex;
 use bitcoin::secp256k1::PublicKey;
-use diesel::r2d2;
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::Pool;
 use diesel::PgConnection;
@@ -23,7 +22,7 @@ use std::sync::Arc;
 
 pub struct AppState {
     pub node: Arc<Node>,
-    pub pool: r2d2::Pool<ConnectionManager<PgConnection>>,
+    pub pool: Pool<ConnectionManager<PgConnection>>,
 }
 
 pub fn router(node: Arc<Node>, pool: Pool<ConnectionManager<PgConnection>>) -> Router {
@@ -263,7 +262,6 @@ pub async fn pay_invoice(
     State(state): State<Arc<AppState>>,
     Path(invoice): Path<String>,
 ) -> Result<Json<String>, AppError> {
-    dbg!(&invoice);
     let invoice = invoice
         .parse()
         .map_err(|e| AppError::BadRequest(format!("Invalid invoice provided {e:#}")))?;

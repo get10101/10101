@@ -100,7 +100,7 @@ impl Node {
         Ok(node)
     }
 
-    async fn fund(&self, amount: bitcoin::Amount) -> Result<()> {
+    async fn fund(&self, amount: Amount) -> Result<()> {
         let starting_balance = self.get_confirmed_balance()?;
         let expected_balance = starting_balance + amount.to_sat();
 

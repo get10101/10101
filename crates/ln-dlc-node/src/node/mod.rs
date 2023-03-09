@@ -96,7 +96,7 @@ pub struct Node {
     dlc_message_handler: Arc<DlcMessageHandler>,
     inbound_payments: PaymentInfoStorage,
 
-    pub(crate) user_config: lightning::util::config::UserConfig,
+    pub(crate) user_config: UserConfig,
 
     pending_trades: Arc<Mutex<HashSet<PublicKey>>>,
 }

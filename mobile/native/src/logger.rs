@@ -141,6 +141,7 @@ pub fn init_tracing(level: LevelFilter, json_format: bool) -> Result<()> {
         Some(Ok(env)) => {
             let mut filter = log_base_directives(EnvFilter::new(""), level)?;
             for directive in env.split(',') {
+                #[allow(clippy::print_stdout)]
                 match directive.parse() {
                     Ok(d) => filter = filter.add_directive(d),
                     Err(e) => println!("WARN ignoring log directive: `{directive}`: {e}"),
