@@ -4,6 +4,7 @@ use crate::config;
 use crate::event;
 use crate::event::EventInternal;
 use crate::trade::order;
+use crate::trade::order::FailureReason;
 use crate::trade::position;
 use anyhow::anyhow;
 use anyhow::bail;
@@ -231,28 +232,35 @@ pub fn send_payment(invoice: &str) -> Result<()> {
     node.send_payment(&invoice)
 }
 
-pub async fn trade(trade_params: TradeParams) -> Result<()> {
+pub async fn trade(trade_params: TradeParams) -> Result<(), (FailureReason, anyhow::Error)> {
     let client = reqwest::Client::new();
     let contract_info = client
         .post(format!("http://{}/api/trade", config::get_http_endpoint()))
         .json(&trade_params)
         .send()
         .await
-        .context("Failed to submit trade request to coordinator")?
+        .context("Failed to request trade with coordinator")
+        .map_err(|e| (FailureReason::TradeRequest, e))?
         .json()
-        .await?;
+        .await
+        .context("Failed to deserialize response into JSON")
+        .map_err(|e| (FailureReason::TradeResponse, e))?;
 
-    let node = NODE.try_get().context("failed to get ln dlc node")?;
+    let node = NODE
+        .try_get()
+        .context("Failed to get ln dlc node")
+        .map_err(|e| (FailureReason::NodeAccess, e))?;
 
     let channel_details = node.list_usable_channels();
     let channel_details = channel_details
         .iter()
         .find(|c| c.counterparty.node_id == config::get_coordinator_info().pubkey)
-        .context("Channel details not found")?;
+        .context("Channel details not found")
+        .map_err(|e| (FailureReason::NoUsableChannel, e))?;
 
     node.propose_dlc_channel(channel_details, &contract_info)
         .await
-        .context("Failed to propose DLC channel with coordinator")?;
+        .map_err(|e| (FailureReason::ProposeDlcChannel, e))?;
     tracing::info!("Proposed dlc subchannel");
     Ok(())
 }

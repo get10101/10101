@@ -14,28 +14,15 @@ pub enum OrderType {
     Limit { price: f64 },
 }
 
-#[derive(thiserror::Error, Debug)]
-pub enum TradeExecutionError {
-    #[error("Failed to request execution with coordinator")]
-    CoordinatorRequest,
-    #[error("Failed to propose channel creation")]
-    ProposeChannel,
-}
-
 /// Internal type so we still have Copy on order
 #[derive(Debug, Clone, Copy)]
 pub enum FailureReason {
-    CoordinatorRequest,
-    ProposeChannel,
-}
-
-impl From<FailureReason> for TradeExecutionError {
-    fn from(value: FailureReason) -> Self {
-        match value {
-            FailureReason::CoordinatorRequest => TradeExecutionError::CoordinatorRequest,
-            FailureReason::ProposeChannel => TradeExecutionError::ProposeChannel,
-        }
-    }
+    FailedToSetToFilling,
+    TradeRequest,
+    TradeResponse,
+    NodeAccess,
+    NoUsableChannel,
+    ProposeDlcChannel,
 }
 
 #[derive(Debug, Clone, Copy)]

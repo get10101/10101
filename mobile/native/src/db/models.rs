@@ -384,17 +384,27 @@ impl TryFrom<(OrderState, Option<f64>, Option<FailureReason>)> for crate::trade:
 #[derive(Debug, Clone, Copy, PartialEq, FromSqlRow, AsExpression)]
 #[diesel(sql_type = Text)]
 pub enum FailureReason {
-    CoordinatorRequest,
-    ProposeChannel,
+    FailedToSetToFilling,
+    TradeRequest,
+    TradeResponse,
+    NodeAccess,
+    NoUsableChannel,
+    ProposeDlcChannel,
 }
 
 impl From<FailureReason> for crate::trade::order::FailureReason {
     fn from(value: FailureReason) -> Self {
         match value {
-            FailureReason::CoordinatorRequest => {
-                crate::trade::order::FailureReason::CoordinatorRequest
+            FailureReason::TradeRequest => crate::trade::order::FailureReason::TradeRequest,
+            FailureReason::TradeResponse => crate::trade::order::FailureReason::TradeResponse,
+            FailureReason::NodeAccess => crate::trade::order::FailureReason::NodeAccess,
+            FailureReason::NoUsableChannel => crate::trade::order::FailureReason::NoUsableChannel,
+            FailureReason::ProposeDlcChannel => {
+                crate::trade::order::FailureReason::ProposeDlcChannel
             }
-            FailureReason::ProposeChannel => crate::trade::order::FailureReason::ProposeChannel,
+            FailureReason::FailedToSetToFilling => {
+                crate::trade::order::FailureReason::FailedToSetToFilling
+            }
         }
     }
 }
@@ -402,10 +412,16 @@ impl From<FailureReason> for crate::trade::order::FailureReason {
 impl From<crate::trade::order::FailureReason> for FailureReason {
     fn from(value: crate::trade::order::FailureReason) -> Self {
         match value {
-            crate::trade::order::FailureReason::CoordinatorRequest => {
-                FailureReason::CoordinatorRequest
+            crate::trade::order::FailureReason::TradeRequest => FailureReason::TradeRequest,
+            crate::trade::order::FailureReason::TradeResponse => FailureReason::TradeResponse,
+            crate::trade::order::FailureReason::NodeAccess => FailureReason::NodeAccess,
+            crate::trade::order::FailureReason::NoUsableChannel => FailureReason::NoUsableChannel,
+            crate::trade::order::FailureReason::ProposeDlcChannel => {
+                FailureReason::ProposeDlcChannel
             }
-            crate::trade::order::FailureReason::ProposeChannel => FailureReason::ProposeChannel,
+            crate::trade::order::FailureReason::FailedToSetToFilling => {
+                FailureReason::FailedToSetToFilling
+            }
         }
     }
 }

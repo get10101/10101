@@ -1,10 +1,9 @@
 use crate::calculations::calculate_liquidation_price;
-use crate::db;
 use crate::event;
 use crate::event::EventInternal;
 use crate::ln_dlc;
+use crate::trade::order;
 use crate::trade::order::Order;
-use crate::trade::order::OrderState;
 use crate::trade::position::Position;
 use crate::trade::position::PositionState;
 use anyhow::Result;
@@ -18,18 +17,13 @@ use trade::TradeParams;
 /// The DLC that represents the position will be stored in the database.
 /// Errors are handled within the scope of this function.
 pub async fn trade(trade_params: TradeParams) -> Result<()> {
-    db::update_order_state(
-        trade_params.order_id,
-        OrderState::Filling {
-            execution_price: trade_params.execution_price,
-        },
-    )?;
+    let order_id = trade_params.order_id;
 
-    ln_dlc::trade(trade_params).await?;
+    order::handler::order_filling(order_id, trade_params.execution_price)?;
 
-    // TODO: Failure -> Either we send out an event that notifies others (i.e. the order handler)
-    //          that this fails, or we just write the failure state to the database here and then
-    //          send out an event that the order failed.
+    if let Err((reason, e)) = ln_dlc::trade(trade_params).await {
+        order::handler::order_failed(Some(order_id), reason, e)?;
+    }
 
     Ok(())
 }

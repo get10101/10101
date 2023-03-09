@@ -115,8 +115,12 @@ impl FromSql<sql_types::Text, Sqlite> for Direction {
 impl ToSql<sql_types::Text, Sqlite> for FailureReason {
     fn to_sql(&self, out: &mut Output<Sqlite>) -> serialize::Result {
         let text = match *self {
-            FailureReason::CoordinatorRequest => "CoordinatorRequest",
-            FailureReason::ProposeChannel => "ProposeChannel",
+            FailureReason::TradeRequest => "TradeRequest",
+            FailureReason::TradeResponse => "TradeResponse",
+            FailureReason::NodeAccess => "NodeAccess",
+            FailureReason::NoUsableChannel => "NoUsableChannel",
+            FailureReason::ProposeDlcChannel => "ProposeDlcChannel",
+            FailureReason::FailedToSetToFilling => "FailedToSetToFilling",
         };
         out.set_value(text);
         Ok(IsNull::No)
@@ -128,8 +132,12 @@ impl FromSql<sql_types::Text, Sqlite> for FailureReason {
         let string = <String as FromSql<Text, Sqlite>>::from_sql(bytes)?;
 
         return match string.as_str() {
-            "CoordinatorRequest" => Ok(FailureReason::CoordinatorRequest),
-            "ProposeChannel" => Ok(FailureReason::ProposeChannel),
+            "TradeRequest" => Ok(FailureReason::TradeRequest),
+            "TradeResponse" => Ok(FailureReason::TradeResponse),
+            "NodeAccess" => Ok(FailureReason::NodeAccess),
+            "NoUsableChannel" => Ok(FailureReason::NoUsableChannel),
+            "ProposeDlcChannel" => Ok(FailureReason::ProposeDlcChannel),
+            "FailedToSetToFilling" => Ok(FailureReason::FailedToSetToFilling),
             _ => Err("Unrecognized enum variant".into()),
         };
     }
