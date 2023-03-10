@@ -4,7 +4,7 @@ use crate::orderbook::routes::get_orders;
 use crate::orderbook::routes::post_order;
 use crate::orderbook::routes::put_order;
 use crate::orderbook::routes::websocket_handler;
-use crate::orderbook::routes::PriceFeedMessage;
+use crate::orderbook::routes::PriceFeedResponseMsg;
 use axum::extract::Path;
 use axum::extract::State;
 use axum::http::StatusCode;
@@ -30,7 +30,7 @@ use trade::TradeParams;
 pub struct AppState {
     pub node: Arc<Node>,
     // Channel used to send messages to all connected clients.
-    pub tx_pricefeed: broadcast::Sender<PriceFeedMessage>,
+    pub tx_pricefeed: broadcast::Sender<PriceFeedResponseMsg>,
     pub pool: Pool<ConnectionManager<PgConnection>>,
 }
 
