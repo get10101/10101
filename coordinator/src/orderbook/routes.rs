@@ -148,24 +148,42 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>) {
     // display it to our client.
     let mut rx = state.tx_pricefeed.subscribe();
 
-    let mut conn = state.pool.clone().get().unwrap();
-    let orders = orderbook::db::orders::all(&mut conn).unwrap();
+    let mut conn = match state.pool.clone().get() {
+        Ok(conn) => conn,
+        Err(err) => {
+            tracing::error!("Could not get connection to db pool {err:#}");
+            return;
+        }
+    };
+
+    let orders = match orderbook::db::orders::all(&mut conn) {
+        Ok(orders) => orders,
+        Err(error) => {
+            tracing::error!("Could not load all orders from db {error:#}");
+            return;
+        }
+    };
 
     // Now send the "all orders" to the new client.
-    let _ = sender
-        .send(Message::Text(
-            serde_json::to_string(&PriceFeedResponseMsg::AllOrders(orders)).unwrap(),
-        ))
-        .await;
+    if let Ok(msg) = serde_json::to_string(&PriceFeedResponseMsg::AllOrders(orders)) {
+        let _ = sender.send(Message::Text(msg)).await;
+    }
 
     let (local_sender, mut local_receiver) = mpsc::channel::<PriceFeedResponseMsg>(100);
 
     let mut local_recv_task = tokio::spawn(async move {
         while let Some(local_msg) = local_receiver.recv().await {
-            sender
-                .send(Message::Text(serde_json::to_string(&local_msg).unwrap()))
-                .await
-                .unwrap();
+            match serde_json::to_string(&local_msg) {
+                Ok(msg) => {
+                    if let Err(err) = sender.send(Message::Text(msg.clone())).await {
+                        tracing::error!("Could not forward message {msg} : {err:#}");
+                        return;
+                    }
+                }
+                Err(error) => {
+                    tracing::warn!("Could not deserialize message {error:#}");
+                }
+            }
         }
     });
 
@@ -174,7 +192,10 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>) {
     let inner_local_sender = local_sender.clone();
     let mut send_task = tokio::spawn(async move {
         while let Ok(st) = rx.recv().await {
-            inner_local_sender.send(st).await.unwrap();
+            if let Err(error) = inner_local_sender.send(st).await {
+                tracing::error!("Could not send message {error:#}");
+                return;
+            }
         }
     });
 
