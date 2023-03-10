@@ -23,8 +23,11 @@ use ln_dlc_node::node::Node;
 use serde::Deserialize;
 use serde::Serialize;
 use serde_json::json;
+use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::broadcast;
+use tokio::sync::mpsc;
+use tokio::sync::Mutex;
 use trade::TradeParams;
 
 pub struct AppState {
@@ -32,6 +35,7 @@ pub struct AppState {
     // Channel used to send messages to all connected clients.
     pub tx_pricefeed: broadcast::Sender<PriceFeedResponseMsg>,
     pub pool: Pool<ConnectionManager<PgConnection>>,
+    pub authenticated_users: Arc<Mutex<HashMap<PublicKey, mpsc::Sender<PriceFeedResponseMsg>>>>,
 }
 
 pub fn router(node: Arc<Node>, pool: Pool<ConnectionManager<PgConnection>>) -> Router {
@@ -40,6 +44,7 @@ pub fn router(node: Arc<Node>, pool: Pool<ConnectionManager<PgConnection>>) -> R
         node,
         pool,
         tx_pricefeed: tx,
+        authenticated_users: Default::default(),
     });
 
     Router::new()

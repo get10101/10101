@@ -216,6 +216,10 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>) {
                                     tracing::error!("Could not respond to user {e:#}");
                                     return;
                                 }
+
+                                let mut authenticated_users =
+                                    state.authenticated_users.lock().await;
+                                authenticated_users.insert(pubkey, local_sender.clone());
                             }
                             Err(err) => {
                                 if let Err(er) = local_sender
