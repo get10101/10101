@@ -1,5 +1,3 @@
-pub mod serialization;
-
 use anyhow::Context;
 pub use anyhow::Error;
 use anyhow::Result;
@@ -7,15 +5,12 @@ use async_stream::stream;
 use futures::SinkExt;
 use futures::Stream;
 use futures::StreamExt;
-use secp256k1_zkp::Message;
-use secp256k1_zkp::PublicKey;
-use secp256k1_zkp::SecretKey;
-use secp256k1_zkp::SECP256K1;
+use orderbook_commons::create_sign_message;
+use orderbook_commons::Signature;
+use secp256k1::SecretKey;
+use secp256k1::SECP256K1;
 use serde::Serialize;
 use serde_json::to_string;
-use sha2::digest::FixedOutput;
-use sha2::Digest;
-use sha2::Sha256;
 use tokio_tungstenite::tungstenite;
 
 /// Connects to the 10101 orderbook websocket API
@@ -49,7 +44,7 @@ fn subscribe_impl(
         tracing::info!("Connected to orderbook realtime API");
 
         if let Some(credentials) = credentials {
-            let signature = credentials.sign()?;
+            let signature = credentials.sign();
             let _ = connection
                 .send(tungstenite::Message::try_from(Command::from(signature))?)
                 .await;
@@ -112,34 +107,20 @@ pub struct Credentials {
     pub secret_key: SecretKey,
 }
 
-#[derive(Debug, PartialEq)]
-pub struct Signature {
-    pubkey: PublicKey,
-    signature: secp256k1_zkp::ecdsa::Signature,
-}
-
 impl Credentials {
     pub fn new(secret_key: SecretKey) -> Self {
         Self { secret_key }
     }
 
-    fn sign(&self) -> Result<Signature> {
-        let msg = create_sign_message()?;
+    fn sign(&self) -> Signature {
+        let msg = create_sign_message();
 
         let signature = self.secret_key.sign_ecdsa(msg);
-        Ok(Signature {
+        Signature {
             pubkey: self.secret_key.public_key(SECP256K1),
             signature,
-        })
+        }
     }
-}
-
-fn create_sign_message() -> Result<Message> {
-    let sign_message = "Hello it's me Mario".to_string();
-    let hashed_message = Sha256::new().chain_update(sign_message).finalize_fixed();
-
-    let msg = Message::from_slice(hashed_message.as_slice())?;
-    Ok(msg)
 }
 
 impl From<Signature> for Command {
@@ -153,7 +134,7 @@ mod test {
     use super::Credentials;
     use crate::create_sign_message;
     use crate::Signature;
-    use secp256k1_zkp::SecretKey;
+    use secp256k1::SecretKey;
     use std::str::FromStr;
 
     #[test]
@@ -161,9 +142,9 @@ mod test {
         let secret_key = test_secret_key();
 
         let tr = Credentials::new(secret_key);
-        let Signature { signature, .. } = tr.sign().unwrap();
+        let Signature { signature, .. } = tr.sign();
 
-        let should_signature = secp256k1_zkp::ecdsa::Signature::from_str(
+        let should_signature = secp256k1::ecdsa::Signature::from_str(
             "304402202f2545f818a5dac9311157d75065156b141e5a6437e817d1d75f9fab084e46940220757bb6f0916f83b2be28877a0d6b05c45463794e3c8c99f799b774443575910d",
         )
         .unwrap();
@@ -183,9 +164,9 @@ mod test {
         let secret_key = test_secret_key();
 
         let tr = Credentials::new(secret_key);
-        let Signature { signature, pubkey } = tr.sign().unwrap();
+        let Signature { signature, pubkey } = tr.sign();
 
-        let msg = create_sign_message().unwrap();
+        let msg = create_sign_message();
 
         signature.verify(&msg, &pubkey).unwrap();
     }

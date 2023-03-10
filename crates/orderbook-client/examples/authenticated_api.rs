@@ -1,7 +1,7 @@
 use anyhow::Result;
 use futures::TryStreamExt;
 use orderbook_client::Credentials;
-use secp256k1_zkp::SecretKey;
+use secp256k1::SecretKey;
 
 #[tokio::main]
 async fn main() -> Result<()> {

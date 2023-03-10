@@ -576,14 +576,12 @@ dependencies = [
  "rust_decimal_macros",
  "serde",
  "serde_json",
- "sha2",
  "testcontainers",
  "time 0.3.20",
  "tokio",
  "tracing",
  "tracing-subscriber",
  "trade",
- "url",
 ]
 
 [[package]]
@@ -1904,8 +1902,9 @@ dependencies = [
  "async-stream",
  "futures",
  "hex 0.4.3",
+ "orderbook-commons",
  "ring",
- "secp256k1-zkp",
+ "secp256k1",
  "serde",
  "serde_json",
  "sha2",
@@ -1914,6 +1913,17 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "url",
+]
+
+[[package]]
+name = "orderbook-commons"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "secp256k1",
+ "serde",
+ "serde_json",
+ "sha2",
 ]
 
 [[package]]
