@@ -13,3 +13,4 @@ pub mod trade;
 
 #[allow(clippy::all, unused_import_braces, unused_qualifications)]
 mod bridge_generated;
+mod orderbook;

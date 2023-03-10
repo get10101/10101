@@ -12,8 +12,11 @@ bdk = { version = "0.24.0", features = ["key-value-db"] }
 diesel = { version = "2.0.0", features = ["sqlite", "r2d2", "extras"] }
 diesel_migrations = "2.0.0"
 flutter_rust_bridge = "1.68.0"
+futures = "0.3"
 lightning-invoice = { version = "0.21" }
 ln-dlc-node = { path = "../../crates/ln-dlc-node" }
+orderbook-client = { path = "../../crates/orderbook-client" }
+orderbook-commons = { path = "../../crates/orderbook-commons" }
 reqwest = { version = "0.11", default-features = false, features = ["json"] }
 rust_decimal = { version = "1", features = ["serde-with-float"] }
 rust_decimal_macros = "1.26"
