@@ -28,3 +28,4 @@ mobile/ios/Runner/libnative.a
 # ignore data runtime data
 data/**
 !data/coordinator/regtest/seed
+!data/maker/regtest/seed
