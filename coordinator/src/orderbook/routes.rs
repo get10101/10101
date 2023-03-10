@@ -186,21 +186,26 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>) {
             if let Ok(msg) = serde_json::from_str(text.as_str()) {
                 match msg {
                     PriceFeedRequestMsg::Authenticate(Signature { signature, pubkey }) => {
-                        let msg = create_sign_message().unwrap();
+                        let msg = create_sign_message();
                         match signature.verify(&msg, &pubkey) {
                             Ok(_) => {
-                                local_sender
-                                    .send(PriceFeedResponseMsg::Authenticated)
-                                    .await
-                                    .unwrap();
+                                if let Err(e) =
+                                    local_sender.send(PriceFeedResponseMsg::Authenticated).await
+                                {
+                                    tracing::error!("Could not respond to user {e:#}");
+                                    return;
+                                }
                             }
                             Err(err) => {
-                                local_sender
+                                if let Err(er) = local_sender
                                     .send(PriceFeedResponseMsg::InvalidAuthentication(format!(
                                         "Could not authenticate {err:#}"
                                     )))
                                     .await
-                                    .unwrap();
+                                {
+                                    tracing::error!("Failed to notify user about invalid authentication: {er:#}");
+                                    return;
+                                }
                             }
                         }
                     }
