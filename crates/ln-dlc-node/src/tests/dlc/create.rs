@@ -16,10 +16,10 @@ use std::time::Duration;
 async fn given_lightning_channel_then_can_add_dlc_channel() {
     init_tracing();
 
-    let app_balance = 50_000;
-    let coordinator_balance = 50_000;
+    let app_dlc_collateral = 50_000;
+    let coordinator_dlc_collateral = 25_000;
 
-    create_dlc_channel(app_balance, coordinator_balance)
+    create_dlc_channel(app_dlc_collateral, coordinator_dlc_collateral)
         .await
         .unwrap();
 }
