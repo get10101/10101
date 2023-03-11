@@ -19,7 +19,7 @@ e.g.
 
 - `HTTP-POST api/channels`: allows you to open a channel with a target node.
 
-Below a snippet to opena channel with the coordinator
+Below a snippet to open a channel with the coordinator
 
 ```bash
 curl -d '{
