@@ -114,7 +114,9 @@ impl From<order::OrderState> for OrderState {
 impl From<NewOrder> for order::Order {
     fn from(value: NewOrder) -> Self {
         order::Order {
-            id: Uuid::new_v4(),
+            // todo: Added static uuid for testing reasons. Remove once the dlc can be referenced to
+            // an order_id
+            id: Uuid::parse_str("02f09a3f-1624-3b1d-8409-44eff7708208").unwrap(), //Uuid::new_v4(),
             leverage: value.leverage,
             quantity: value.quantity,
             contract_symbol: value.contract_symbol,

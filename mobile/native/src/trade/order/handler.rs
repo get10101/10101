@@ -2,6 +2,7 @@ use crate::config;
 use crate::db;
 use crate::event;
 use crate::event::EventInternal;
+use crate::ln_dlc;
 use crate::trade::order::FailureReason;
 use crate::trade::order::Order;
 use crate::trade::order::OrderState;
@@ -13,8 +14,6 @@ use rust_decimal_macros::dec;
 use uuid::Uuid;
 
 pub async fn submit_order(order: Order) -> Result<()> {
-    db::insert_order(order)?;
-
     // todo: this model should include the contract_symbol
     let new_order = trade::NewOrder {
         price: dec!(22_000), // todo: replace with actual btcusd rate price
@@ -34,6 +33,19 @@ pub async fn submit_order(order: Order) -> Result<()> {
         .await
         .context("Failed submit order to order book")?;
 
+    // todo: this is only added for testing purposes, remove once the order book is ready to publish
+    // matches to the coordinator.
+    client
+        .post(format!(
+            "http://{}/api/orderbook/fake_match/{}",
+            config::get_http_endpoint(),
+            ln_dlc::get_node_info()?.pubkey
+        ))
+        .send()
+        .await
+        .context("Failed to fake match the dummy order")?;
+
+    db::insert_order(order)?;
     ui_update(order);
 
     Ok(())

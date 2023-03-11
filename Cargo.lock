@@ -570,7 +570,7 @@ dependencies = [
  "dlc-messages",
  "dlc-trie",
  "futures",
- "hex 0.3.2",
+ "hex 0.4.3",
  "lightning",
  "ln-dlc-node",
  "local-ip-address",
@@ -586,6 +586,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "trade",
+ "uuid",
 ]
 
 [[package]]

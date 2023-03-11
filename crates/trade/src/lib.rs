@@ -7,6 +7,7 @@ use std::fmt;
 use std::fmt::Formatter;
 use std::str::FromStr;
 use std::time::Duration;
+use uuid::Uuid;
 
 pub mod cfd;
 
@@ -57,7 +58,7 @@ pub struct Trade {
     ///
     /// The order has to be identifiable by the client when returned from the orderbook, so the
     /// client is in charge of creating this ID and passing it to the orderbook.
-    pub order_id: i32,
+    pub order_id: Uuid,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

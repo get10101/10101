@@ -34,6 +34,8 @@ pub struct Node {
 impl Node {
     /// Sets up the trade with the matched traders (maker, taker)
     pub async fn trade(&self, match_params: MatchParams) -> Result<()> {
+        // todo: add check if either taker or maker does already have a dlc.
+
         // todo: these proposals should be done in parallel with a timeout.
         // propose trade to the taker
         let taker_handle = self

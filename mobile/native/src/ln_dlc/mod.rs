@@ -24,6 +24,7 @@ use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::runtime::Runtime;
+use uuid::Uuid;
 
 static NODE: Storage<Arc<Node>> = Storage::new();
 
@@ -194,7 +195,15 @@ pub fn run(data_dir: String) -> Result<()> {
                         }
                     };
 
+                    // todo: fetch execution price from match (orderbook)
+                    let execution_price = 22_000.0;
+                    let order_id = Uuid::parse_str("02f09a3f-1624-3b1d-8409-44eff7708208").unwrap();
                     tracing::info!(%coordinator_pubkey, "Found DLC channel offer");
+
+                    if let Err(e) = order::handler::order_filling(order_id, execution_price) {
+                        tracing::error!("Failed to handle position after receiving DLC: {e:#}");
+                        continue;
+                    }
 
                     let channel_id = sub_channel.channel_id;
 

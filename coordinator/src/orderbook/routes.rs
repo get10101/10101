@@ -1,4 +1,5 @@
 use crate::orderbook;
+use crate::routes::AppError;
 use crate::routes::AppState;
 use axum::extract::ws::Message;
 use axum::extract::ws::WebSocket;
@@ -7,9 +8,9 @@ use axum::extract::Path;
 use axum::extract::State;
 use axum::response::IntoResponse;
 use axum::Json;
+use bitcoin::secp256k1::PublicKey;
 use futures::SinkExt;
 use futures::StreamExt;
-use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use serde::Deserialize;
 use serde::Serialize;
@@ -18,6 +19,7 @@ use std::time::Duration;
 use tokio::sync::broadcast::Sender;
 use trade::Direction;
 use trade::NewOrder;
+use uuid::Uuid;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Order {
@@ -61,34 +63,51 @@ pub async fn post_order(
     let sender = state.tx_pricefeed.clone();
     update_pricefeed(PriceFeedMessage::NewOrder(order.clone()), sender);
 
+    Json(order)
+}
+
+pub async fn fake_match(
+    taker_pub_key: Path<String>,
+    State(state): State<Arc<AppState>>,
+) -> Result<(), AppError> {
+    let taker_pub_key = taker_pub_key.0;
+    let taker_pub_key: PublicKey = taker_pub_key.parse().map_err(|e| {
+        AppError::BadRequest(format!(
+            "Provided public key {taker_pub_key} was not valid: {e:#}"
+        ))
+    })?;
+
     // TODO: remove this dummy call to the coordinator, once the orderbook matching has been
     // implemented. Also this call should not happen here, it is just added for temporary
     // testing.
 
+    tracing::debug!("Executing fake trade with hard coded trading parties.");
+
     let dummy_match_params = trade::MatchParams {
         taker: trade::Trade {
-            pub_key: "todo: the order book will know".parse().unwrap(),
+            pub_key: taker_pub_key,
             leverage: 1.0, // todo: the order book will know
-            direction: order.direction,
-            order_id: order.id,
+            direction: Direction::Long,
+            order_id: Uuid::parse_str("02f09a3f-1624-3b1d-8409-44eff7708208").unwrap(),
         },
         maker: trade::Trade {
-            pub_key: "todo: the order book will know".parse().unwrap(),
+            pub_key: "02b103838b4fc38a423342e2d187de6da76dde13e7a0271c8247e19c91027140f7"
+                .parse()
+                .unwrap(),
             leverage: 1.0, // todo: the order book will know
             direction: Direction::Short,
-            order_id: 0, // todo: the orderbook will know,
+            order_id: Uuid::parse_str("02f09a3f-1624-3b1d-8409-33eff7708210").unwrap(), /* todo: the orderbook will know */
         },
         params: trade::Match {
-            quantity: order.quantity.to_f64().unwrap(),
-            execution_price: 55_000.0,
+            quantity: 1.0,
+            execution_price: 22_000.0,
             expiry: Duration::from_secs(60 * 60 * 24), // in 24h
             contract_symbol: trade::ContractSymbol::BtcUsd,
         },
     };
 
     state.node.trade(dummy_match_params).await.unwrap();
-
-    Json(order)
+    Ok(())
 }
 
 #[derive(Serialize, Clone, Deserialize, Debug)]
