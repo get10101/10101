@@ -16,7 +16,7 @@ dlc-manager = { version = "0.4.0", features = ["use-serde"] }
 dlc-messages = "0.4.0"
 dlc-trie = "0.4.0"
 futures = "0.3"
-hex = "0.3"
+hex = "0.4"
 lightning = { version = "0.0.113", features = ["max_level_trace"] }
 ln-dlc-node = { path = "../crates/ln-dlc-node" }
 local-ip-address = "0.5.1"
