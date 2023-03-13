@@ -6,6 +6,7 @@ use crate::event;
 use crate::event::api::FlutterSubscriber;
 use crate::ln_dlc;
 use crate::logger;
+use crate::orderbook;
 use crate::trade::order;
 use crate::trade::order::api::NewOrder;
 use crate::trade::order::api::Order;
@@ -132,7 +133,12 @@ pub fn subscribe(stream: StreamSink<event::api::Event>) {
 pub fn run(config: Config, app_dir: String) -> Result<()> {
     config::set(config);
     db::init_db(app_dir.clone())?;
-    ln_dlc::run(app_dir)
+    ln_dlc::run(app_dir)?;
+    orderbook_subscribe()
+}
+
+pub fn orderbook_subscribe() -> Result<()> {
+    orderbook::subscribe(ln_dlc::get_node_key()?)
 }
 
 pub fn get_new_address() -> SyncReturn<String> {

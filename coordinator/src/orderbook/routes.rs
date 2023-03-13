@@ -9,11 +9,14 @@ use axum::response::IntoResponse;
 use axum::Json;
 use futures::SinkExt;
 use futures::StreamExt;
+use orderbook_commons::create_sign_message;
+use orderbook_commons::Signature;
 use rust_decimal::Decimal;
 use serde::Deserialize;
 use serde::Serialize;
 use std::sync::Arc;
 use tokio::sync::broadcast::Sender;
+use tokio::sync::mpsc;
 use trade::Direction;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -64,20 +67,27 @@ pub async fn post_order(
     let order = orderbook::db::orders::insert(&mut conn, new_order).unwrap();
 
     let sender = state.tx_pricefeed.clone();
-    update_pricefeed(PriceFeedMessage::NewOrder(order.clone()), sender);
+    update_pricefeed(PriceFeedResponseMsg::NewOrder(order.clone()), sender);
 
     Json(order)
 }
 
 #[derive(Serialize, Clone, Deserialize, Debug)]
-pub enum PriceFeedMessage {
+pub enum PriceFeedRequestMsg {
+    Authenticate(Signature),
+}
+
+#[derive(Serialize, Clone, Deserialize, Debug)]
+pub enum PriceFeedResponseMsg {
     AllOrders(Vec<Order>),
     NewOrder(Order),
     DeleteOrder(i32),
     Update(Order),
+    InvalidAuthentication(String),
+    Authenticated,
 }
 
-fn update_pricefeed(pricefeed_msg: PriceFeedMessage, sender: Sender<PriceFeedMessage>) {
+fn update_pricefeed(pricefeed_msg: PriceFeedResponseMsg, sender: Sender<PriceFeedResponseMsg>) {
     match sender.send(pricefeed_msg) {
         Ok(_) => {
             tracing::trace!("Pricefeed updated")
@@ -101,7 +111,7 @@ pub async fn put_order(
     let mut conn = state.pool.clone().get().unwrap();
     let order = orderbook::db::orders::update(&mut conn, order_id, updated_order.taken).unwrap();
     let sender = state.tx_pricefeed.clone();
-    update_pricefeed(PriceFeedMessage::Update(order.clone()), sender);
+    update_pricefeed(PriceFeedResponseMsg::Update(order.clone()), sender);
 
     Json(order)
 }
@@ -114,7 +124,7 @@ pub async fn delete_order(
     let deleted = orderbook::db::orders::delete_with_id(&mut conn, order_id).unwrap();
     if deleted > 0 {
         let sender = state.tx_pricefeed.clone();
-        update_pricefeed(PriceFeedMessage::DeleteOrder(order_id), sender);
+        update_pricefeed(PriceFeedResponseMsg::DeleteOrder(order_id), sender);
     }
 
     Json(deleted)
@@ -138,38 +148,112 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>) {
     // display it to our client.
     let mut rx = state.tx_pricefeed.subscribe();
 
-    let mut conn = state.pool.clone().get().unwrap();
-    let orders = orderbook::db::orders::all(&mut conn).unwrap();
+    let mut conn = match state.pool.clone().get() {
+        Ok(conn) => conn,
+        Err(err) => {
+            tracing::error!("Could not get connection to db pool {err:#}");
+            return;
+        }
+    };
 
-    // Now send the "joined" message to all subscribers.
-    let _ = state.tx_pricefeed.send(PriceFeedMessage::AllOrders(orders));
+    let orders = match orderbook::db::orders::all(&mut conn) {
+        Ok(orders) => orders,
+        Err(error) => {
+            tracing::error!("Could not load all orders from db {error:#}");
+            return;
+        }
+    };
 
-    // Spawn the first task that will receive broadcast messages and send text
-    // messages over the websocket to our client.
-    let mut send_task = tokio::spawn(async move {
-        while let Ok(st) = rx.recv().await {
-            sender
-                .send(Message::Text(serde_json::to_string(&st).unwrap()))
-                .await
-                .unwrap();
+    // Now send the "all orders" to the new client.
+    if let Ok(msg) = serde_json::to_string(&PriceFeedResponseMsg::AllOrders(orders)) {
+        let _ = sender.send(Message::Text(msg)).await;
+    }
+
+    let (local_sender, mut local_receiver) = mpsc::channel::<PriceFeedResponseMsg>(100);
+
+    let mut local_recv_task = tokio::spawn(async move {
+        while let Some(local_msg) = local_receiver.recv().await {
+            match serde_json::to_string(&local_msg) {
+                Ok(msg) => {
+                    if let Err(err) = sender.send(Message::Text(msg.clone())).await {
+                        tracing::error!("Could not forward message {msg} : {err:#}");
+                        return;
+                    }
+                }
+                Err(error) => {
+                    tracing::warn!("Could not deserialize message {error:#}");
+                }
+            }
         }
     });
 
-    // Clone things we want to pass (move) to the receiving task.
-    let tx = state.tx_pricefeed.clone();
+    // Spawn the first task that will receive broadcast messages and send
+    // messages over the websocket to our client.
+    let inner_local_sender = local_sender.clone();
+    let mut send_task = tokio::spawn(async move {
+        while let Ok(st) = rx.recv().await {
+            if let Err(error) = inner_local_sender.send(st).await {
+                tracing::error!("Could not send message {error:#}");
+                return;
+            }
+        }
+    });
 
-    // Spawn a task that takes messages from the websocket, prepends the user
-    // name, and sends them to all broadcast subscribers.
+    // Spawn a task that takes messages from the websocket
+    let local_sender = local_sender.clone();
     let mut recv_task = tokio::spawn(async move {
         while let Some(Ok(Message::Text(text))) = receiver.next().await {
-            let orders = serde_json::from_str(text.as_str()).unwrap();
-            let _ = tx.send(orders);
+            match serde_json::from_str(text.as_str()) {
+                Ok(msg) => match msg {
+                    PriceFeedRequestMsg::Authenticate(Signature { signature, pubkey }) => {
+                        let msg = create_sign_message();
+                        match signature.verify(&msg, &pubkey) {
+                            Ok(_) => {
+                                if let Err(e) =
+                                    local_sender.send(PriceFeedResponseMsg::Authenticated).await
+                                {
+                                    tracing::error!("Could not respond to user {e:#}");
+                                    return;
+                                }
+
+                                let mut authenticated_users =
+                                    state.authenticated_users.lock().await;
+                                authenticated_users.insert(pubkey, local_sender.clone());
+                            }
+                            Err(err) => {
+                                if let Err(er) = local_sender
+                                    .send(PriceFeedResponseMsg::InvalidAuthentication(format!(
+                                        "Could not authenticate {err:#}"
+                                    )))
+                                    .await
+                                {
+                                    tracing::error!("Failed to notify user about invalid authentication: {er:#}");
+                                    return;
+                                }
+                            }
+                        }
+                    }
+                },
+                Err(err) => {
+                    tracing::trace!("Could not derserialize msg: {text} {err:#}");
+                }
+            }
         }
     });
 
     // If any one of the tasks run to completion, we abort the other.
     tokio::select! {
-        _ = (&mut send_task) => recv_task.abort(),
-        _ = (&mut recv_task) => send_task.abort(),
+        _ = (&mut send_task) => {
+            recv_task.abort();
+            local_recv_task.abort()
+        },
+        _ = (&mut recv_task) => {
+            send_task.abort();
+            local_recv_task.abort()
+        },
+        _ = (&mut local_recv_task) => {
+            recv_task.abort();
+            send_task.abort();
+        },
     };
 }

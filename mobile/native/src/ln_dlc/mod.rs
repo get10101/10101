@@ -12,6 +12,7 @@ use anyhow::Context;
 use anyhow::Result;
 use bdk::bitcoin::secp256k1::rand::thread_rng;
 use bdk::bitcoin::secp256k1::rand::RngCore;
+use bdk::bitcoin::secp256k1::SecretKey;
 use bdk::bitcoin::XOnlyPublicKey;
 use lightning_invoice::Invoice;
 use ln_dlc_node::node::Node;
@@ -33,6 +34,12 @@ pub fn get_wallet_info() -> Result<WalletInfo> {
     Ok(get_wallet_info_from_node(
         NODE.try_get().context("failed to get ln dlc node")?,
     ))
+}
+
+pub fn get_node_key() -> Result<SecretKey> {
+    NODE.try_get()
+        .context("failed to get ln dlc node")?
+        .node_key()
 }
 
 fn get_wallet_info_from_node(node: &Node) -> WalletInfo {

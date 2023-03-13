@@ -1,8 +1,12 @@
 use crate::node::Node;
 use anyhow::anyhow;
+use anyhow::bail;
 use anyhow::Result;
 use bdk::wallet::AddressIndex;
+use bitcoin::secp256k1::SecretKey;
 use bitcoin::Address;
+use lightning::chain::keysinterface::KeysInterface;
+use lightning::chain::keysinterface::Recipient;
 use lightning::chain::Confirm;
 
 #[derive(Debug, Clone)]
@@ -34,6 +38,15 @@ impl Node {
 
     pub fn get_on_chain_balance(&self) -> Result<bdk::Balance> {
         self.wallet.inner().get_balance().map_err(|e| anyhow!(e))
+    }
+
+    pub fn node_key(&self) -> Result<SecretKey> {
+        match self.keys_manager.get_node_secret(Recipient::Node) {
+            Ok(key) => Ok(key),
+            Err(()) => {
+                bail!("Could not get secret key from node")
+            }
+        }
     }
 
     /// The LDK [`OffChain`] balance keeps track of:
