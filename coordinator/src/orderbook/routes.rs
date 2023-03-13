@@ -203,9 +203,8 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>) {
     let local_sender = local_sender.clone();
     let mut recv_task = tokio::spawn(async move {
         while let Some(Ok(Message::Text(text))) = receiver.next().await {
-            // we ignore other messages we can't deserialize
-            if let Ok(msg) = serde_json::from_str(text.as_str()) {
-                match msg {
+            match serde_json::from_str(text.as_str()) {
+                Ok(msg) => match msg {
                     PriceFeedRequestMsg::Authenticate(Signature { signature, pubkey }) => {
                         let msg = create_sign_message();
                         match signature.verify(&msg, &pubkey) {
@@ -234,6 +233,9 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>) {
                             }
                         }
                     }
+                },
+                Err(err) => {
+                    tracing::trace!("Could not derserialize msg: {text} {err:#}");
                 }
             }
         }
