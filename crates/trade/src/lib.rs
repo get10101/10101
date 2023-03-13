@@ -71,6 +71,11 @@ pub struct TradeParams {
     ///
     /// The orderbook decides this when matching orders.
     pub oracle_pk: XOnlyPublicKey,
+
+    /// The direction of the trade
+    ///
+    /// The direction from the point of view of the trader.
+    pub direction: Direction,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]

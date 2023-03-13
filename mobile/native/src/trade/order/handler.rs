@@ -11,6 +11,7 @@ use anyhow::Context;
 use anyhow::Result;
 use std::time::Duration;
 use trade::ContractSymbol;
+use trade::Direction;
 use trade::TradeParams;
 use uuid::Uuid;
 
@@ -37,6 +38,7 @@ pub async fn submit_order(order: Order) -> Result<()> {
         // in 24h
         expiry: Duration::from_secs(60 * 60 * 24),
         oracle_pk: ln_dlc::get_oracle_pubkey()?,
+        direction: Direction::Long,
     };
     // TODO: Remove this call once we plug in the orderbook; we trigger trade upon being matched
     // then
