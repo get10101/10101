@@ -56,7 +56,7 @@ pub(crate) fn order_filling(order_id: Uuid, execution_price: f64) -> Result<()> 
 
     if let Err(e) = db::update_order_state(order_id, filling_state) {
         tracing::error!("Failed to update state of {order_id} to {filling_state:?}: {e:#}");
-        order_failed(Some(order_id), FailureReason::FailedToSetToFilling, e)?;
+        order_failed(Some(order_id), FailureReason::FailedToSetToFilling, e).with_context(|| format!("Critical: Failed to update order {order_id} to failed after failing to update it to filling"))?;
 
         bail!("Failed to update state of {order_id} to {filling_state:?}")
     }
@@ -65,7 +65,7 @@ pub(crate) fn order_filling(order_id: Uuid, execution_price: f64) -> Result<()> 
 }
 
 pub(crate) fn order_filled() -> Result<Order> {
-    let order_being_filled = get_order_being_filled()?;
+    let order_being_filled = get_open_order()?;
 
     // Default the execution price in case we don't know
     let execution_price = order_being_filled.execution_price().unwrap_or(0.0);
@@ -90,7 +90,7 @@ pub(crate) fn order_failed(
     tracing::error!("Failed to execute trade for order {order_id:?}: {reason:?}: {error:#}");
 
     let order_id = match order_id {
-        None => get_order_being_filled()?.id,
+        None => get_open_order()?.id,
         Some(order_id) => order_id,
     };
 
@@ -103,18 +103,23 @@ pub async fn get_orders_for_ui() -> Result<Vec<Order>> {
     db::get_orders_for_ui()
 }
 
-fn get_order_being_filled() -> Result<Order> {
-    let order_being_filled = match db::maybe_get_order_in_filling() {
-        Ok(Some(order_being_filled)) => order_being_filled,
+/// Returns the one order that is currently open
+///
+/// Fails if there is more than one, or no order currently in `Open` state.
+/// For the MVP we only support one `Open` order; as soon as the order is in a final state
+/// (`Filled`, `Rejected`, `Failed`) another order can be created.
+fn get_open_order() -> Result<Order> {
+    let open_order = match db::maybe_get_open_order() {
+        Ok(Some(open_order)) => open_order,
         Ok(None) => {
-            bail!("There is no order in state filled in the database");
+            bail!("There is no order in state open in the database");
         }
         Err(e) => {
-            bail!("Error when loading order being filled from database: {e:#}");
+            bail!("Error when loading open order from database: {e:#}");
         }
     };
 
-    Ok(order_being_filled)
+    Ok(open_order)
 }
 
 fn update_order_state(order_id: Uuid, state: OrderState) -> Result<Order> {

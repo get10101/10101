@@ -1,6 +1,7 @@
 use crate::api::Balances;
 use crate::api::WalletInfo;
 use crate::config;
+use crate::db;
 use crate::event;
 use crate::event::EventInternal;
 use crate::trade::order;
@@ -24,7 +25,6 @@ use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::runtime::Runtime;
-use uuid::Uuid;
 
 static NODE: Storage<Arc<Node>> = Storage::new();
 
@@ -195,13 +195,15 @@ pub fn run(data_dir: String) -> Result<()> {
                         }
                     };
 
-                    // todo: fetch execution price from match (orderbook)
+                    // todo: fetch match from orderbook
+                    // TODO: get execution price from match
                     let execution_price = 22_000.0;
-                    let order_id = Uuid::parse_str("02f09a3f-1624-3b1d-8409-44eff7708208").unwrap();
+                    // TODO: get order_id from match
+                    let order_id = db::maybe_get_open_order().unwrap().unwrap().id;
                     tracing::info!(%coordinator_pubkey, "Found DLC channel offer");
 
                     if let Err(e) = order::handler::order_filling(order_id, execution_price) {
-                        tracing::error!("Failed to handle position after receiving DLC: {e:#}");
+                        tracing::error!("Failed to update order to filling: {e:#}");
                         continue;
                     }
 
