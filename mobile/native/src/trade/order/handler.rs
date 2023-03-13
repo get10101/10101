@@ -34,7 +34,7 @@ pub async fn submit_order(order: Order) -> Result<()> {
         leverage: order.leverage,
         leverage_counterparty: 2.0,
         quantity: order.quantity,
-        execution_price: 55_000.0,
+        execution_price: 23_000.0,
         // in 24h
         expiry: Duration::from_secs(60 * 60 * 24),
         oracle_pk: ln_dlc::get_oracle_pubkey()?,

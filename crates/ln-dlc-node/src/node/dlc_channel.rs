@@ -145,18 +145,47 @@ impl Node {
         Ok(confirmed_dlcs)
     }
 
-    pub fn get_sub_channel_offer(&self, counterparty_pk: &PublicKey) -> Result<Option<SubChannel>> {
+    pub fn get_sub_channel_offer(&self, pubkey: &PublicKey) -> Result<Option<SubChannel>> {
+        let matcher = |sub_channel: &&SubChannel| {
+            sub_channel.counter_party == *pubkey
+                && matches!(&sub_channel.state, SubChannelState::Offered(_))
+        };
+
+        let sub_channel = self.get_sub_channel(&matcher)?; // `get_offered_sub_channels` appears to have a bug
+        Ok(sub_channel)
+    }
+
+    pub fn get_sub_channel_signed(&self, pubkey: &PublicKey) -> Result<Option<SubChannel>> {
+        let matcher = |sub_channel: &&SubChannel| {
+            sub_channel.counter_party == *pubkey
+                && matches!(&sub_channel.state, SubChannelState::Signed(_))
+        };
+
+        let sub_channel = self.get_sub_channel(&matcher)?;
+        Ok(sub_channel)
+    }
+
+    pub fn get_sub_channel_close_offer(&self, pubkey: &PublicKey) -> Result<Option<SubChannel>> {
+        let matcher = |sub_channel: &&SubChannel| {
+            sub_channel.counter_party == *pubkey
+                && matches!(&sub_channel.state, SubChannelState::CloseOffered(_))
+        };
+        let sub_channel = self.get_sub_channel(&matcher)?;
+
+        Ok(sub_channel)
+    }
+
+    fn get_sub_channel(
+        &self,
+        matcher: &dyn Fn(&&SubChannel) -> bool,
+    ) -> Result<Option<SubChannel>> {
         let sub_channels = self
             .dlc_manager
             .get_store()
-            .get_sub_channels() // `get_offered_sub_channels` appears to have a bug
+            .get_sub_channels()
             .map_err(|e| anyhow!(e.to_string()))?;
 
-        let sub_channel = sub_channels.iter().find(|sub_channel| {
-            sub_channel.counter_party == *counterparty_pk
-                && matches!(&sub_channel.state, SubChannelState::Offered(_))
-        });
-
+        let sub_channel = sub_channels.iter().find(matcher);
         Ok(sub_channel.cloned())
     }
 
