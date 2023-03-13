@@ -134,10 +134,6 @@ pub fn run(config: Config, app_dir: String) -> Result<()> {
     config::set(config);
     db::init_db(app_dir.clone())?;
     ln_dlc::run(app_dir)?;
-    orderbook_subscribe()
-}
-
-pub fn orderbook_subscribe() -> Result<()> {
     orderbook::subscribe(ln_dlc::get_node_key()?)
 }
 

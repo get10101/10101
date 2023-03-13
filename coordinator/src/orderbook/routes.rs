@@ -189,51 +189,52 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>) {
 
     // Spawn the first task that will receive broadcast messages and send
     // messages over the websocket to our client.
-    let inner_local_sender = local_sender.clone();
-    let mut send_task = tokio::spawn(async move {
-        while let Ok(st) = rx.recv().await {
-            if let Err(error) = inner_local_sender.send(st).await {
-                tracing::error!("Could not send message {error:#}");
-                return;
+    let mut send_task = {
+        let local_sender = local_sender.clone();
+        tokio::spawn(async move {
+            while let Ok(st) = rx.recv().await {
+                if let Err(error) = local_sender.send(st).await {
+                    tracing::error!("Could not send message {error:#}");
+                    return;
+                }
             }
-        }
-    });
+        })
+    };
 
     // Spawn a task that takes messages from the websocket
     let local_sender = local_sender.clone();
     let mut recv_task = tokio::spawn(async move {
         while let Some(Ok(Message::Text(text))) = receiver.next().await {
             match serde_json::from_str(text.as_str()) {
-                Ok(msg) => match msg {
-                    PriceFeedRequestMsg::Authenticate(Signature { signature, pubkey }) => {
-                        let msg = create_sign_message();
-                        match signature.verify(&msg, &pubkey) {
-                            Ok(_) => {
-                                if let Err(e) =
-                                    local_sender.send(PriceFeedResponseMsg::Authenticated).await
-                                {
-                                    tracing::error!("Could not respond to user {e:#}");
-                                    return;
-                                }
-
-                                let mut authenticated_users =
-                                    state.authenticated_users.lock().await;
-                                authenticated_users.insert(pubkey, local_sender.clone());
+                Ok(PriceFeedRequestMsg::Authenticate(Signature { signature, pubkey })) => {
+                    let msg = create_sign_message();
+                    match signature.verify(&msg, &pubkey) {
+                        Ok(_) => {
+                            if let Err(e) =
+                                local_sender.send(PriceFeedResponseMsg::Authenticated).await
+                            {
+                                tracing::error!("Could not respond to user {e:#}");
+                                return;
                             }
-                            Err(err) => {
-                                if let Err(er) = local_sender
-                                    .send(PriceFeedResponseMsg::InvalidAuthentication(format!(
-                                        "Could not authenticate {err:#}"
-                                    )))
-                                    .await
-                                {
-                                    tracing::error!("Failed to notify user about invalid authentication: {er:#}");
-                                    return;
-                                }
+
+                            let mut authenticated_users = state.authenticated_users.lock().await;
+                            authenticated_users.insert(pubkey, local_sender.clone());
+                        }
+                        Err(err) => {
+                            if let Err(er) = local_sender
+                                .send(PriceFeedResponseMsg::InvalidAuthentication(format!(
+                                    "Could not authenticate {err:#}"
+                                )))
+                                .await
+                            {
+                                tracing::error!(
+                                    "Failed to notify user about invalid authentication: {er:#}"
+                                );
+                                return;
                             }
                         }
                     }
-                },
+                }
                 Err(err) => {
                     tracing::trace!("Could not derserialize msg: {text} {err:#}");
                 }
