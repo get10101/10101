@@ -1,6 +1,5 @@
-use anyhow::anyhow;
+use anyhow::Context;
 use anyhow::Result;
-use bitcoin::secp256k1::PublicKey;
 use dlc_manager::contract::contract_input::ContractInput;
 use dlc_manager::contract::contract_input::ContractInputInfo;
 use dlc_manager::contract::contract_input::OracleInput;
@@ -12,9 +11,7 @@ use dlc_manager::payout_curve::PayoutPoint;
 use dlc_manager::payout_curve::PolynomialPayoutCurvePiece;
 use dlc_manager::payout_curve::RoundingInterval;
 use dlc_manager::payout_curve::RoundingIntervals;
-use std::collections::HashSet;
 use std::sync::Arc;
-use std::sync::Mutex;
 use std::time::SystemTime;
 use std::time::UNIX_EPOCH;
 use trade::cfd::calculate_margin;
@@ -22,20 +19,10 @@ use trade::TradeParams;
 
 pub struct Node {
     pub inner: Arc<ln_dlc_node::node::Node>,
-    pub pending_trades: Arc<Mutex<HashSet<PublicKey>>>,
 }
 
 impl Node {
-    pub fn trade(&self, trade_params: TradeParams) -> Result<ContractInput> {
-        let mut pending_trades = self
-            .pending_trades
-            .lock()
-            .map_err(|e| anyhow!("Failed to access pending trades: {e:#}"))?;
-
-        // TODO: We need to keep around more information than just the pubkey and have to introduce
-        // validation steps once we add the maker
-        pending_trades.insert(trade_params.pubkey);
-
+    pub async fn trade(&self, trade_params: TradeParams) -> Result<()> {
         // The coordinator always trades at a leverage of 1
         let coordinator_leverage = 1.0;
 
@@ -73,7 +60,17 @@ impl Node {
             }],
         };
 
-        Ok(contract_input)
+        let channel_details = self.inner.list_usable_channels();
+        let channel_details = channel_details
+            .iter()
+            .find(|c| c.counterparty.node_id == trade_params.pubkey)
+            .context("Channel details not found")?;
+
+        self.inner
+            .propose_dlc_channel(channel_details, &contract_input)
+            .await?;
+
+        Ok(())
     }
 }
 

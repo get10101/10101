@@ -29,6 +29,7 @@ use tokio::runtime::Runtime;
 use trade::TradeParams;
 
 static NODE: Storage<Arc<Node>> = Storage::new();
+const PROCESS_TRADE_REQUESTS_INTERVAL: Duration = Duration::from_secs(30);
 
 pub fn get_wallet_info() -> Result<WalletInfo> {
     Ok(get_wallet_info_from_node(
@@ -130,6 +131,60 @@ pub fn run(data_dir: String) -> Result<()> {
 
                 let wallet_info = get_wallet_info_from_node(&node_clone);
                 event::publish(&EventInternal::WalletInfoUpdateNotification(wallet_info));
+            }
+        });
+
+
+        runtime.spawn({
+            let node_clone = node.clone();
+            async move {
+                loop {
+                    tokio::time::sleep(PROCESS_TRADE_REQUESTS_INTERVAL).await;
+
+
+                    let peer = config::get_coordinator_info();
+                    let pk = peer.pubkey;
+
+                    tracing::debug!(
+                        %peer,
+                        "Checking for DLC offers"
+                    );
+
+                    let sub_channel = match node_clone.get_sub_channel_offer(&pk) {
+                        Ok(Some(sub_channel)) => sub_channel,
+                        Ok(None) => {
+                            tracing::debug!(
+                                %peer,
+                                "No DLC channel offers found"
+                            );
+                            continue;
+                        }
+                        Err(e) => {
+                            tracing::error!(
+                                peer = %pk.to_string(),
+                                "Unable to retrieve DLC channel offer: {e:#}"
+                            );
+                            continue;
+                        }
+                    };
+
+                    tracing::info!(%peer, "Found DLC channel offer");
+
+                    let channel_id = sub_channel.channel_id;
+
+                    tracing::info!(
+                        %peer,
+                        channel_id = %hex::encode(channel_id),
+                        "Accepting DLC channel offer"
+                    );
+
+                    if let Err(e) = node_clone.accept_dlc_channel_offer(&channel_id) {
+                        tracing::error!(
+                            channel_id = %hex::encode(channel_id),
+                            "Failed to accept subchannel: {e:#}"
+                        );
+                    };
+                }
             }
         });
 
@@ -241,7 +296,7 @@ pub fn send_payment(invoice: &str) -> Result<()> {
 
 pub async fn trade(trade_params: TradeParams) -> Result<(), (FailureReason, anyhow::Error)> {
     let client = reqwest::Client::new();
-    let contract_info = client
+    client
         .post(format!("http://{}/api/trade", config::get_http_endpoint()))
         .json(&trade_params)
         .send()
@@ -253,21 +308,6 @@ pub async fn trade(trade_params: TradeParams) -> Result<(), (FailureReason, anyh
         .context("Failed to deserialize response into JSON")
         .map_err(|e| (FailureReason::TradeResponse, e))?;
 
-    let node = NODE
-        .try_get()
-        .context("Failed to get ln dlc node")
-        .map_err(|e| (FailureReason::NodeAccess, e))?;
-
-    let channel_details = node.list_usable_channels();
-    let channel_details = channel_details
-        .iter()
-        .find(|c| c.counterparty.node_id == config::get_coordinator_info().pubkey)
-        .context("Channel details not found")
-        .map_err(|e| (FailureReason::NoUsableChannel, e))?;
-
-    node.propose_dlc_channel(channel_details, &contract_info)
-        .await
-        .map_err(|e| (FailureReason::ProposeDlcChannel, e))?;
-    tracing::info!("Proposed dlc subchannel");
+    tracing::info!("Requested trade");
     Ok(())
 }
