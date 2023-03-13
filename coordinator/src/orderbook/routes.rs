@@ -59,7 +59,7 @@ pub async fn get_order(
     Json(order)
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, Clone)]
 pub struct NewOrder {
     pub price: Decimal,
     pub quantity: Decimal,
@@ -79,12 +79,53 @@ pub async fn post_order(
     Json(new_order): Json<NewOrder>,
 ) -> impl IntoResponse {
     let mut conn = state.pool.clone().get().unwrap();
-    let order = orderbook::db::orders::insert(&mut conn, new_order).unwrap();
+    let order = orderbook::db::orders::insert(&mut conn, new_order.clone()).unwrap();
 
-    let _matched_orders = match_order(order.clone(), &mut conn).unwrap();
+    if new_order.order_type == OrderType::Limit {
+        // we only tell everyone about new limit orders
+        let sender = state.tx_pricefeed.clone();
+        update_pricefeed(PriceFeedResponseMsg::NewOrder(order.clone()), sender);
+    }
 
-    let sender = state.tx_pricefeed.clone();
-    update_pricefeed(PriceFeedResponseMsg::NewOrder(order.clone()), sender);
+    let matched_orders = match_order(order.clone(), &mut conn).unwrap();
+
+    let authenticated_users = state.authenticated_users.lock().await;
+    for matched_param in matched_orders {
+        let maker_order = matched_param.maker_order;
+        let taker_order = matched_param.taker_order;
+        let maker_public_key = maker_order.trader_id.parse().unwrap();
+        let taker_public_key = taker_order.trader_id.parse().unwrap();
+
+        match (
+            authenticated_users.get(&maker_public_key),
+            authenticated_users.get(&taker_public_key),
+        ) {
+            (Some(maker_sender), Some(taker_sender)) => {
+                maker_sender
+                    .send(PriceFeedResponseMsg::Match)
+                    .await
+                    .unwrap();
+
+                taker_sender
+                    .send(PriceFeedResponseMsg::Match)
+                    .await
+                    .unwrap();
+            }
+            (Some(_), None) => {
+                tracing::error!(
+                    "Could not notify taker about the match - probably not online anymore"
+                )
+            }
+            (None, Some(_)) => {
+                tracing::error!(
+                    "Could not notify maker about the match - probably not online anymore"
+                )
+            }
+            (None, None) => {
+                tracing::error!("Could not notify maker nor taker about the match - probably not online anymore")
+            }
+        }
+    }
 
     Json(order)
 }
@@ -102,6 +143,7 @@ pub enum PriceFeedResponseMsg {
     Update(Order),
     InvalidAuthentication(String),
     Authenticated,
+    Match, // TODO: add match params
 }
 
 fn update_pricefeed(pricefeed_msg: PriceFeedResponseMsg, sender: Sender<PriceFeedResponseMsg>) {
