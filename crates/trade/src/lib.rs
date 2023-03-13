@@ -20,10 +20,19 @@ impl ContractSymbol {
     }
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 pub enum Direction {
     Long,
     Short,
+}
+
+impl Direction {
+    pub fn opposite(&self) -> Direction {
+        match self {
+            Direction::Long => Direction::Short,
+            Direction::Short => Direction::Long,
+        }
+    }
 }
 
 impl FromStr for ContractSymbol {
