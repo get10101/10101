@@ -1,4 +1,5 @@
 use crate::orderbook;
+use crate::orderbook::trading::match_order;
 use crate::routes::AppState;
 use axum::extract::ws::Message;
 use axum::extract::ws::WebSocket;
@@ -67,12 +68,20 @@ pub struct NewOrder {
     pub order_type: OrderType,
 }
 
+pub struct MatchParams {
+    // todo: waiting for https://github.com/get10101/10101/pull/244 to land
+    pub taker_order: Order,
+    pub maker_order: Order,
+}
+
 pub async fn post_order(
     State(state): State<Arc<AppState>>,
     Json(new_order): Json<NewOrder>,
 ) -> impl IntoResponse {
     let mut conn = state.pool.clone().get().unwrap();
     let order = orderbook::db::orders::insert(&mut conn, new_order).unwrap();
+
+    let _matched_orders = match_order(order.clone(), &mut conn).unwrap();
 
     let sender = state.tx_pricefeed.clone();
     update_pricefeed(PriceFeedResponseMsg::NewOrder(order.clone()), sender);
