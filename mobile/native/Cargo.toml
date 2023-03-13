@@ -13,6 +13,7 @@ diesel = { version = "2.0.0", features = ["sqlite", "r2d2", "extras"] }
 diesel_migrations = "2.0.0"
 flutter_rust_bridge = "1.68.0"
 futures = "0.3"
+hex = "0.4"
 lightning-invoice = { version = "0.21" }
 ln-dlc-node = { path = "../../crates/ln-dlc-node" }
 orderbook-client = { path = "../../crates/orderbook-client" }

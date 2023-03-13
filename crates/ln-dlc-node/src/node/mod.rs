@@ -15,9 +15,6 @@ use crate::FakeChannelPaymentRequests;
 use crate::InvoicePayer;
 use crate::PaymentInfoStorage;
 use crate::PeerManager;
-use ::dlc_manager::subchannel::SubChannelState;
-use ::dlc_manager::Storage;
-use anyhow::anyhow;
 use anyhow::ensure;
 use anyhow::Context;
 use anyhow::Result;
@@ -26,7 +23,6 @@ use bitcoin::blockdata::constants::genesis_block;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::Network;
 use dlc_messages::message_handler::MessageHandler as DlcMessageHandler;
-use dlc_messages::SubChannelMessage;
 use dlc_sled_storage_provider::SledStorageProvider;
 use lightning::chain;
 use lightning::chain::chainmonitor;
@@ -45,7 +41,6 @@ use lightning_invoice::payment;
 use lightning_persister::FilesystemPersister;
 use p2pd_oracle_client::P2PDOracleClient;
 use std::collections::HashMap;
-use std::collections::HashSet;
 use std::fmt;
 use std::fmt::Display;
 use std::fmt::Formatter;
@@ -70,7 +65,6 @@ pub(crate) use channel_manager::ChannelManager;
 
 // TODO: These intervals are quite arbitrary at the moment, come up with more sensible values
 const PROCESS_INCOMING_MESSAGES_INTERVAL: Duration = Duration::from_secs(30);
-const PROCESS_TRADE_REQUESTS_INTERVAL: Duration = Duration::from_secs(30);
 const BROADCAST_NODE_ANNOUNCEMENT_INTERVAL: Duration = Duration::from_secs(60);
 
 /// An LN-DLC node.
@@ -97,8 +91,6 @@ pub struct Node {
     inbound_payments: PaymentInfoStorage,
 
     pub(crate) user_config: UserConfig,
-
-    pending_trades: Arc<Mutex<HashSet<PublicKey>>>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -397,8 +389,6 @@ impl Node {
             }
         });
 
-        let pending_trades = Arc::new(Mutex::new(HashSet::<PublicKey>::new()));
-
         {
             let dlc_manager = dlc_manager.clone();
             let sub_channel_manager = sub_channel_manager.clone();
@@ -422,92 +412,6 @@ impl Node {
                 }
             })
         };
-
-        tokio::spawn({
-            let dlc_manager = dlc_manager.clone();
-            let dlc_message_handler = dlc_message_handler.clone();
-            let sub_channel_manager = sub_channel_manager.clone();
-            let pending_trades = pending_trades.clone();
-            async move {
-                loop {
-                    tokio::time::sleep(PROCESS_TRADE_REQUESTS_INTERVAL).await;
-
-                    // TODO: Remove pending trades if we were unable to fulfill them within a
-                    // certain time
-
-                    let mut pending_trades = match pending_trades.lock() {
-                        Ok(pending_trades) => pending_trades,
-                        Err(e) => {
-                            tracing::warn!("Failed to lock pending trades: {e:#}");
-                            continue;
-                        }
-                    };
-
-                    let mut to_be_deleted: HashSet<PublicKey> = HashSet::new();
-
-                    // TODO: this is not ideal as it is only needed on the coordinator
-                    for pubkey in pending_trades.iter() {
-                        let pubkey_string = pubkey.to_string();
-                        tracing::debug!(pubkey_string, "Checking for sub channel offers");
-                        let sub_channels = match dlc_manager
-                            .get_store()
-                            .get_sub_channels() // `get_offered_sub_channels` appears to have a bug
-                            .map_err(|e| anyhow!(e.to_string()))
-                        {
-                            Ok(sub_channel) => sub_channel,
-                            Err(e) => {
-                                tracing::error!("Unable to retrieve subchannels: {e:#}");
-                                continue;
-                            }
-                        };
-
-                        tracing::info!("Found sub_channels: {}", sub_channels.len());
-
-                        let sub_channel = match sub_channels.iter().find(|sub_channel| {
-                            sub_channel.counter_party == *pubkey
-                                && matches!(&sub_channel.state, SubChannelState::Offered(_))
-                        }) {
-                            None => {
-                                tracing::debug!(pubkey_string, "Nothing found for pubkey");
-                                continue;
-                            }
-                            Some(sub_channel) => sub_channel,
-                        };
-                        to_be_deleted.insert(*pubkey);
-
-                        let channel_id = sub_channel.channel_id;
-
-                        let channel_id_hex = hex::encode(channel_id);
-
-                        tracing::info!(channel_id = %channel_id_hex, "Accepting DLC channel offer");
-
-                        let (node_id, accept_sub_channel) = match sub_channel_manager
-                            .accept_sub_channel(&channel_id)
-                            .map_err(|e| anyhow!(e.to_string()))
-                        {
-                            Ok(sub_channel_details) => sub_channel_details,
-                            Err(e) => {
-                                tracing::error!(
-                                    "Failed to accept subchannel {channel_id_hex}: {e:#}"
-                                );
-                                continue;
-                            }
-                        };
-
-                        dlc_message_handler.send_message(
-                            node_id,
-                            dlc_messages::Message::SubChannel(SubChannelMessage::Accept(
-                                accept_sub_channel,
-                            )),
-                        );
-                    }
-
-                    for delete_me in to_be_deleted {
-                        pending_trades.remove(&delete_me);
-                    }
-                }
-            }
-        });
 
         let node_info = NodeInfo {
             pubkey: channel_manager.get_our_node_id(),
@@ -537,7 +441,6 @@ impl Node {
             dlc_manager,
             inbound_payments,
             user_config: ldk_user_config,
-            pending_trades,
             _background_processor: background_processor,
         })
     }

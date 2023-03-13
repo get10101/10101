@@ -1,3 +1,4 @@
+use crate::node::Node;
 use crate::orderbook::routes::delete_order;
 use crate::orderbook::routes::get_order;
 use crate::orderbook::routes::get_orders;
@@ -18,8 +19,6 @@ use bitcoin::secp256k1::PublicKey;
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::Pool;
 use diesel::PgConnection;
-use dlc_manager::contract::contract_input::ContractInput;
-use ln_dlc_node::node::Node;
 use serde::Deserialize;
 use serde::Serialize;
 use serde_json::json;
@@ -31,14 +30,14 @@ use tokio::sync::Mutex;
 use trade::TradeParams;
 
 pub struct AppState {
-    pub node: Arc<Node>,
+    pub node: Node,
     // Channel used to send messages to all connected clients.
     pub tx_pricefeed: broadcast::Sender<PriceFeedResponseMsg>,
     pub pool: Pool<ConnectionManager<PgConnection>>,
     pub authenticated_users: Arc<Mutex<HashMap<PublicKey, mpsc::Sender<PriceFeedResponseMsg>>>>,
 }
 
-pub fn router(node: Arc<Node>, pool: Pool<ConnectionManager<PgConnection>>) -> Router {
+pub fn router(node: Node, pool: Pool<ConnectionManager<PgConnection>>) -> Router {
     let (tx, _rx) = broadcast::channel(100);
     let app_state = Arc::new(AppState {
         node,
@@ -85,16 +84,18 @@ pub async fn post_fake_scid(
         ))
     })?;
 
-    Ok(Json(app_state.node.create_intercept_scid(target_node)))
+    Ok(Json(
+        app_state.node.inner.create_intercept_scid(target_node),
+    ))
 }
 
 pub async fn get_new_address(
     State(app_state): State<Arc<AppState>>,
 ) -> Result<Json<String>, AppError> {
-    let address = app_state
-        .node
-        .get_new_address()
-        .map_err(|e| AppError::InternalServerError(format!("Failed to get new address: {e:#}")))?;
+    let address =
+        app_state.node.inner.get_new_address().map_err(|e| {
+            AppError::InternalServerError(format!("Failed to get new address: {e:#}"))
+        })?;
     Ok(Json(address.to_string()))
 }
 
@@ -105,9 +106,10 @@ pub struct Balance {
 }
 
 pub async fn get_balance(State(state): State<Arc<AppState>>) -> Result<Json<Balance>, AppError> {
-    let offchain = state.node.get_ldk_balance();
+    let offchain = state.node.inner.get_ldk_balance();
     let onchain = state
         .node
+        .inner
         .get_on_chain_balance()
         .map_err(|e| AppError::InternalServerError(format!("Failed to get balance: {e:#}")))?;
     Ok(Json(Balance {
@@ -117,10 +119,10 @@ pub async fn get_balance(State(state): State<Arc<AppState>>) -> Result<Json<Bala
 }
 
 pub async fn get_invoice(State(state): State<Arc<AppState>>) -> Result<Json<String>, AppError> {
-    let invoice = state
-        .node
-        .create_invoice(2000)
-        .map_err(|e| AppError::InternalServerError(format!("Failed to create invoice: {e:#}")))?;
+    let invoice =
+        state.node.inner.create_invoice(2000).map_err(|e| {
+            AppError::InternalServerError(format!("Failed to create invoice: {e:#}"))
+        })?;
 
     Ok(Json(invoice.to_string()))
 }
@@ -130,12 +132,12 @@ pub async fn get_invoice(State(state): State<Arc<AppState>>) -> Result<Json<Stri
 pub async fn post_trade(
     State(state): State<Arc<AppState>>,
     trade_params: Json<TradeParams>,
-) -> Result<Json<ContractInput>, AppError> {
-    let contract_input = state.node.trade(trade_params.0).map_err(|e| {
+) -> Result<(), AppError> {
+    state.node.trade(trade_params.0).await.map_err(|e| {
         AppError::InternalServerError(format!("Failed to accept trade request: {e:#}"))
     })?;
 
-    Ok(Json(contract_input))
+    Ok(())
 }
 
 /// Our app's top level error type.

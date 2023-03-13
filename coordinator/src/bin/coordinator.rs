@@ -2,12 +2,12 @@ use anyhow::Context;
 use anyhow::Result;
 use coordinator::cli::Opts;
 use coordinator::logger;
+use coordinator::node::Node;
 use coordinator::routes::router;
 use coordinator::run_migration;
 use diesel::r2d2;
 use diesel::r2d2::ConnectionManager;
 use diesel::PgConnection;
-use ln_dlc_node::node::Node;
 use ln_dlc_node::seed::Bip39Seed;
 use rand::thread_rng;
 use rand::RngCore;
@@ -39,7 +39,7 @@ async fn main() -> Result<()> {
     let seed = Bip39Seed::initialize(&seed_path)?;
 
     let node = Arc::new(
-        Node::new_coordinator(
+        ln_dlc_node::node::Node::new_coordinator(
             "coordinator",
             network,
             data_dir.as_path(),
@@ -73,7 +73,7 @@ async fn main() -> Result<()> {
     let mut conn = pool.get().unwrap();
     run_migration(&mut conn);
 
-    let app = router(node, pool);
+    let app = router(Node { inner: node }, pool);
 
     tracing::debug!("listening on http://{}", http_address);
     axum::Server::bind(&http_address)

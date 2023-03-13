@@ -336,7 +336,7 @@ dependencies = [
  "anyhow",
  "async-stream",
  "futures",
- "hex 0.4.3",
+ "hex",
  "ring",
  "serde",
  "serde_json",
@@ -567,7 +567,10 @@ dependencies = [
  "diesel",
  "diesel_migrations",
  "dlc-manager",
+ "dlc-messages",
+ "dlc-trie",
  "futures",
+ "hex",
  "lightning",
  "ln-dlc-node",
  "local-ip-address",
@@ -1200,12 +1203,6 @@ checksum = "fed44880c466736ef9a5c5b5facefb5ed0785676d0c02d612db14e54f0d84286"
 
 [[package]]
 name = "hex"
-version = "0.3.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "805026a5d0141ffc30abb3be3173848ad46a1b1664fe632428479619a3644d77"
-
-[[package]]
-name = "hex"
 version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
@@ -1543,7 +1540,7 @@ dependencies = [
  "dlc-sled-storage-provider",
  "dlc-trie",
  "futures",
- "hex 0.3.2",
+ "hex",
  "hkdf",
  "lightning",
  "lightning-background-processor",
@@ -1630,7 +1627,7 @@ dependencies = [
  "diesel",
  "diesel_migrations",
  "futures",
- "hex 0.4.3",
+ "hex",
  "ln-dlc-node",
  "rand",
  "reqwest",
@@ -1745,6 +1742,7 @@ dependencies = [
  "diesel_migrations",
  "flutter_rust_bridge",
  "futures",
+ "hex",
  "lightning-invoice",
  "ln-dlc-node",
  "orderbook-client",
@@ -1908,7 +1906,7 @@ dependencies = [
  "anyhow",
  "async-stream",
  "futures",
- "hex 0.4.3",
+ "hex",
  "orderbook-commons",
  "ring",
  "secp256k1",
@@ -2736,7 +2734,7 @@ checksum = "0e2b1567ca8a2b819ea7b28c92be35d9f76fb9edb214321dcc86eb96023d1f87"
 dependencies = [
  "bollard-stubs",
  "futures",
- "hex 0.4.3",
+ "hex",
  "hmac",
  "log",
  "rand",
