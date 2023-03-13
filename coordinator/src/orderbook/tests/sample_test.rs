@@ -1,9 +1,6 @@
 use crate::orderbook::db::orders;
+use crate::orderbook::tests::setup_db;
 use crate::orderbook::tests::start_postgres;
-use crate::run_migration;
-use diesel::r2d2;
-use diesel::r2d2::ConnectionManager;
-use diesel::PgConnection;
 use rust_decimal_macros::dec;
 use testcontainers::clients::Cli;
 use trade::Direction;
@@ -18,13 +15,7 @@ async fn crud_test() {
     let docker = Cli::default();
     let (_container, conn_spec) = start_postgres(&docker).unwrap();
 
-    let manager = ConnectionManager::<PgConnection>::new(conn_spec);
-    let pool = r2d2::Pool::builder()
-        .build(manager)
-        .expect("Failed to create pool.");
-
-    let mut conn = pool.get().unwrap();
-    run_migration(&mut conn);
+    let mut conn = setup_db(conn_spec);
 
     let orders = orders::all(&mut conn).unwrap();
     assert!(orders.is_empty());
