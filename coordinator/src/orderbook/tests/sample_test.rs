@@ -1,4 +1,5 @@
 use crate::orderbook::db::orders;
+use crate::orderbook::routes::OrderType;
 use crate::orderbook::tests::setup_db;
 use crate::orderbook::tests::start_postgres;
 use rust_decimal_macros::dec;
@@ -24,9 +25,10 @@ async fn crud_test() {
         &mut conn,
         crate::orderbook::routes::NewOrder {
             price: dec!(20000.00),
-            maker_id: "Bob the Maker".to_string(),
+            trader_id: "Bob the Maker".to_string(),
             direction: Direction::Long,
             quantity: dec!(100.0),
+            order_type: OrderType::Market,
         },
     )
     .unwrap();

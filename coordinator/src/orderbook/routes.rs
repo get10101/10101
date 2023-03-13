@@ -19,16 +19,23 @@ use tokio::sync::broadcast::Sender;
 use tokio::sync::mpsc;
 use trade::Direction;
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct Order {
     pub id: i32,
     #[serde(with = "rust_decimal::serde::float")]
     pub price: Decimal,
-    pub maker_id: String,
+    pub trader_id: String,
     pub taken: bool,
     pub direction: Direction,
     #[serde(with = "rust_decimal::serde::float")]
     pub quantity: Decimal,
+    pub order_type: OrderType,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+pub enum OrderType {
+    Market,
+    Limit,
 }
 
 pub async fn get_orders(State(state): State<Arc<AppState>>) -> impl IntoResponse {
@@ -55,8 +62,9 @@ pub async fn get_order(
 pub struct NewOrder {
     pub price: Decimal,
     pub quantity: Decimal,
-    pub maker_id: String,
+    pub trader_id: String,
     pub direction: Direction,
+    pub order_type: OrderType,
 }
 
 pub async fn post_order(

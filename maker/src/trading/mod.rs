@@ -1,6 +1,7 @@
 use crate::trading::orderbook_client::Direction;
 use crate::trading::orderbook_client::NewOrder;
 use crate::trading::orderbook_client::OrderResponse;
+use crate::trading::orderbook_client::OrderType;
 use anyhow::Result;
 use bitcoin::Network;
 use futures::TryStreamExt;
@@ -67,8 +68,9 @@ async fn update_order(
         NewOrder {
             price,
             quantity,
-            maker_id,
+            trader_id: maker_id,
             direction,
+            order_type: OrderType::Limit,
         },
     )
     .await
