@@ -1,11 +1,7 @@
-use crate::orderbook::db;
 use crate::orderbook::routes::MatchParams;
 use crate::orderbook::routes::Order;
 use crate::orderbook::routes::OrderType;
 use anyhow::Result;
-use diesel::r2d2::ConnectionManager;
-use diesel::r2d2::PooledConnection;
-use diesel::PgConnection;
 use rust_decimal::Decimal;
 use std::cmp::Ordering;
 use trade::Direction;
@@ -14,23 +10,14 @@ use trade::Direction;
 ///
 /// If the order is a long order, we return the orders with the highest price
 /// If the order is a short order, we return the orders with the lowest price
-pub fn match_order(
-    order: Order,
-    db_connection: &mut PooledConnection<ConnectionManager<PgConnection>>,
-) -> Result<Vec<MatchParams>> {
+pub fn match_order(order: Order, all_orders: Vec<Order>) -> Result<Vec<MatchParams>> {
     if order.order_type == OrderType::Limit {
         // we don't match limit and limit at the moment
         return Ok(vec![]);
     }
 
-    let orders = db::orders::all_by_direction_and_type(
-        db_connection,
-        order.direction.opposite(),
-        OrderType::Limit,
-    )
-    .unwrap();
     let is_long = order.direction == Direction::Long;
-    let mut orders = sort_orders(orders, is_long);
+    let mut orders = sort_orders(all_orders, is_long);
 
     let mut remaining_quantity = order.quantity;
     let mut matched_orders = vec![];
@@ -81,36 +68,31 @@ fn sort_orders(mut orders: Vec<Order>, is_long: bool) -> Vec<Order> {
 
 #[cfg(test)]
 pub mod tests {
-    use crate::orderbook::db;
-    use crate::orderbook::routes::NewOrder;
     use crate::orderbook::routes::Order;
     use crate::orderbook::routes::OrderType;
-    use crate::orderbook::tests::setup_db;
-    use crate::orderbook::tests::start_postgres;
     use crate::orderbook::trading::match_order;
     use crate::orderbook::trading::sort_orders;
     use rust_decimal::Decimal;
     use rust_decimal_macros::dec;
-    use testcontainers::clients::Cli;
     use trade::Direction;
 
-    fn dummy_order(price: Decimal, id: i32) -> Order {
+    fn dummy_order(price: Decimal, id: i32, quantity: Decimal) -> Order {
         Order {
             id,
             price,
             trader_id: "".to_string(),
             taken: false,
             direction: Direction::Long,
-            quantity: Default::default(),
+            quantity,
             order_type: OrderType::Limit,
         }
     }
 
     #[test]
     pub fn when_short_then_sort_desc() {
-        let order1 = dummy_order(dec!(20_000), 1);
-        let order2 = dummy_order(dec!(21_000), 2);
-        let order3 = dummy_order(dec!(20_500), 3);
+        let order1 = dummy_order(dec!(20_000), 1, Default::default());
+        let order2 = dummy_order(dec!(21_000), 2, Default::default());
+        let order3 = dummy_order(dec!(20_500), 3, Default::default());
 
         let orders = vec![order3.clone(), order1.clone(), order2.clone()];
 
@@ -122,9 +104,9 @@ pub mod tests {
 
     #[test]
     pub fn when_long_then_sort_asc() {
-        let order1 = dummy_order(dec!(20_000), 1);
-        let order2 = dummy_order(dec!(21_000), 2);
-        let order3 = dummy_order(dec!(20_500), 3);
+        let order1 = dummy_order(dec!(20_000), 1, Default::default());
+        let order2 = dummy_order(dec!(21_000), 2, Default::default());
+        let order3 = dummy_order(dec!(20_500), 3, Default::default());
 
         let orders = vec![order3.clone(), order1.clone(), order2.clone()];
 
@@ -136,9 +118,9 @@ pub mod tests {
 
     #[test]
     pub fn when_all_same_id_sort_by_id() {
-        let order1 = dummy_order(dec!(20_000), 1);
-        let order2 = dummy_order(dec!(20_000), 2);
-        let order3 = dummy_order(dec!(20_000), 3);
+        let order1 = dummy_order(dec!(20_000), 1, Default::default());
+        let order2 = dummy_order(dec!(20_000), 2, Default::default());
+        let order3 = dummy_order(dec!(20_000), 3, Default::default());
 
         let orders = vec![order3.clone(), order1.clone(), order2.clone()];
 
@@ -155,14 +137,12 @@ pub mod tests {
 
     #[test]
     fn given_limit_and_market_with_same_amount_then_match() {
-        let docker = Cli::default();
-        let (_container, conn_spec) = start_postgres(&docker).unwrap();
-
-        let mut conn = setup_db(conn_spec);
-        db::orders::insert(&mut conn, dummy_new_order(dec!(20_000), dec!(100))).unwrap();
-        db::orders::insert(&mut conn, dummy_new_order(dec!(21_000), dec!(200))).unwrap();
-        db::orders::insert(&mut conn, dummy_new_order(dec!(20_000), dec!(300))).unwrap();
-        db::orders::insert(&mut conn, dummy_new_order(dec!(22_000), dec!(400))).unwrap();
+        let all_orders = vec![
+            dummy_order(dec!(20_000), 1, dec!(100)),
+            dummy_order(dec!(21_000), 2, dec!(200)),
+            dummy_order(dec!(20_000), 3, dec!(300)),
+            dummy_order(dec!(22_000), 4, dec!(400)),
+        ];
 
         let order = Order {
             id: 1,
@@ -174,7 +154,7 @@ pub mod tests {
             order_type: OrderType::Market,
         };
 
-        let matched_orders = match_order(order, &mut conn).unwrap();
+        let matched_orders = match_order(order, all_orders).unwrap();
 
         assert_eq!(matched_orders.len(), 1);
         let matched_order = matched_orders.get(0).unwrap();
@@ -183,14 +163,12 @@ pub mod tests {
 
     #[test]
     fn given_limit_and_market_with_smaller_amount_then_match_multiple() {
-        let docker = Cli::default();
-        let (_container, conn_spec) = start_postgres(&docker).unwrap();
-
-        let mut conn = setup_db(conn_spec);
-        db::orders::insert(&mut conn, dummy_new_order(dec!(20_000), dec!(100))).unwrap();
-        db::orders::insert(&mut conn, dummy_new_order(dec!(22_000), dec!(400))).unwrap();
-        db::orders::insert(&mut conn, dummy_new_order(dec!(21_000), dec!(200))).unwrap();
-        db::orders::insert(&mut conn, dummy_new_order(dec!(20_000), dec!(300))).unwrap();
+        let all_orders = vec![
+            dummy_order(dec!(20_000), 1, dec!(100)),
+            dummy_order(dec!(21_000), 2, dec!(200)),
+            dummy_order(dec!(22_000), 3, dec!(400)),
+            dummy_order(dec!(20_000), 4, dec!(300)),
+        ];
 
         let order = Order {
             id: 1,
@@ -202,22 +180,12 @@ pub mod tests {
             order_type: OrderType::Market,
         };
 
-        let matched_orders = match_order(order, &mut conn).unwrap();
+        let matched_orders = match_order(order, all_orders).unwrap();
 
         assert_eq!(matched_orders.len(), 2);
         let matched_order = matched_orders.get(0).unwrap();
         assert_eq!(matched_order.maker_order.id, 1);
         let matched_order = matched_orders.get(1).unwrap();
         assert_eq!(matched_order.maker_order.id, 4);
-    }
-
-    fn dummy_new_order(price: Decimal, quantity: Decimal) -> NewOrder {
-        NewOrder {
-            price,
-            quantity,
-            trader_id: "".to_string(),
-            direction: Direction::Long,
-            order_type: OrderType::Limit,
-        }
     }
 }

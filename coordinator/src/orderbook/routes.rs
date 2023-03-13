@@ -1,4 +1,5 @@
 use crate::orderbook;
+use crate::orderbook::db::orders;
 use crate::orderbook::trading::match_order;
 use crate::routes::AppState;
 use axum::extract::ws::Message;
@@ -87,7 +88,10 @@ pub async fn post_order(
         update_pricefeed(PriceFeedResponseMsg::NewOrder(order.clone()), sender);
     }
 
-    let matched_orders = match_order(order.clone(), &mut conn).unwrap();
+    let all_orders =
+        orders::all_by_direction_and_type(&mut conn, order.direction.opposite(), OrderType::Limit)
+            .unwrap();
+    let matched_orders = match_order(order.clone(), all_orders).unwrap();
 
     let authenticated_users = state.authenticated_users.lock().await;
     for matched_param in matched_orders {
