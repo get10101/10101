@@ -114,9 +114,15 @@ impl Node {
 
         let total_collateral = margin_coordinator + margin_trader;
 
+        // FIXME: This is wrong as we cannot use the closing price to
+        // rebuild the payout function. We must save the initial price
+        // when creating the position and use it here again for
+        // closing.
+        let initial_price = trade_params.weighted_execution_price();
+
         let payout_function = build_payout_function(
             total_collateral,
-            trade_params.weighted_execution_price(),
+            initial_price,
             leverage_long,
             leverage_short,
         )?;
