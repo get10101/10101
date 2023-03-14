@@ -64,9 +64,9 @@ async fn main() -> Result<()> {
         }
     });
 
-    let node_info_string = node.info.to_string();
+    let node_pubkey = node.info.pubkey;
     tokio::spawn(async move {
-        match trading::run(opts.orderbook, node_info_string, network).await {
+        match trading::run(opts.orderbook, node_pubkey, network).await {
             Ok(_) => {
                 // all good
             }

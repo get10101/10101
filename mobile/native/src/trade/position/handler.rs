@@ -8,6 +8,7 @@ use crate::trade::position::Position;
 use crate::trade::position::PositionState;
 use anyhow::Result;
 use coordinator_commons::TradeParams;
+use rust_decimal::prelude::ToPrimitive;
 use trade::ContractSymbol;
 use trade::Direction;
 
@@ -19,7 +20,11 @@ use trade::Direction;
 pub async fn trade(trade_params: TradeParams) -> Result<()> {
     let order_id = trade_params.filled_with.order_id;
 
-    order::handler::order_filling(order_id, trade_params.weighted_execution_price())?;
+    let execution_price = trade_params
+        .weighted_execution_price()
+        .to_f64()
+        .expect("to fit into f64");
+    order::handler::order_filling(order_id, execution_price)?;
 
     if let Err((reason, e)) = ln_dlc::trade(trade_params).await {
         order::handler::order_failed(Some(order_id), reason, e)?;

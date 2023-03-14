@@ -1,10 +1,10 @@
 use crate::orderbook::db::orders;
+use crate::orderbook::tests::setup_db;
 use crate::orderbook::tests::start_postgres;
-use crate::run_migration;
-use diesel::r2d2;
-use diesel::r2d2::ConnectionManager;
-use diesel::PgConnection;
+use bitcoin::secp256k1::PublicKey;
+use orderbook_commons::OrderType;
 use rust_decimal_macros::dec;
+use std::str::FromStr;
 use testcontainers::clients::Cli;
 use trade::Direction;
 
@@ -18,28 +18,25 @@ async fn crud_test() {
     let docker = Cli::default();
     let (_container, conn_spec) = start_postgres(&docker).unwrap();
 
-    let manager = ConnectionManager::<PgConnection>::new(conn_spec);
-    let pool = r2d2::Pool::builder()
-        .build(manager)
-        .expect("Failed to create pool.");
-
-    let mut conn = pool.get().unwrap();
-    run_migration(&mut conn);
+    let mut conn = setup_db(conn_spec);
 
     let orders = orders::all(&mut conn).unwrap();
     assert!(orders.is_empty());
 
     let order = orders::insert(
         &mut conn,
-        crate::orderbook::routes::NewOrder {
+        orderbook_commons::NewOrder {
             price: dec!(20000.00),
-            maker_id: "Bob the Maker".to_string(),
+            trader_id: PublicKey::from_str(
+                "027f31ebc5462c1fdce1b737ecff52d37d75dea43ce11c74d25aa297165faa2007",
+            )
+            .unwrap(),
             direction: Direction::Long,
             quantity: dec!(100.0),
+            order_type: OrderType::Market,
         },
     )
     .unwrap();
-    assert!(order.id > 0);
 
     let order = orders::update(&mut conn, order.id, true).unwrap();
     assert!(order.taken);

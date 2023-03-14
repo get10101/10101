@@ -13,6 +13,7 @@ use anyhow::Result;
 use coordinator_commons::TradeParams;
 use orderbook_commons::FilledWith;
 use orderbook_commons::Match;
+use rust_decimal::Decimal;
 use std::ops::Add;
 use std::time::Duration;
 use time::OffsetDateTime;
@@ -54,9 +55,9 @@ pub async fn submit_order(order: NewOrder) -> Result<()> {
             oracle_pk: ln_dlc::get_oracle_pubkey()?,
             matches: vec![Match {
                 order_id: Default::default(),
-                quantity: order.quantity,
+                quantity: Decimal::try_from(order.quantity)?,
                 pubkey: ln_dlc::get_node_info()?.pubkey,
-                execution_price: 23_000.0,
+                execution_price: Decimal::from(23_000),
             }],
         },
     };

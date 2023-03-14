@@ -1,5 +1,6 @@
 use bdk::bitcoin::secp256k1::PublicKey;
 use orderbook_commons::FilledWith;
+use rust_decimal::Decimal;
 use serde::Deserialize;
 use serde::Serialize;
 use trade::ContractSymbol;
@@ -43,7 +44,7 @@ pub struct TradeParams {
 }
 
 impl TradeParams {
-    pub fn weighted_execution_price(&self) -> f64 {
+    pub fn weighted_execution_price(&self) -> Decimal {
         if self.filled_with.matches.len() == 1 {
             return self
                 .filled_with
@@ -55,20 +56,20 @@ impl TradeParams {
 
         // TODO: Make sure this is correct
 
-        let sum_weighted_execution_price: f64 = self
+        let sum_weighted_execution_price: Decimal = self
             .filled_with
             .matches
             .iter()
             .map(|m| m.execution_price * m.quantity)
-            .collect::<Vec<f64>>()
+            .collect::<Vec<Decimal>>()
             .iter()
             .sum();
-        let quantities: f64 = self
+        let quantities: Decimal = self
             .filled_with
             .matches
             .iter()
             .map(|m| m.quantity)
-            .collect::<Vec<f64>>()
+            .collect::<Vec<Decimal>>()
             .iter()
             .sum();
 

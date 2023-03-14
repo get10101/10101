@@ -5,12 +5,10 @@ use crate::orderbook::routes::get_orders;
 use crate::orderbook::routes::post_order;
 use crate::orderbook::routes::put_order;
 use crate::orderbook::routes::websocket_handler;
-use crate::orderbook::routes::PriceFeedResponseMsg;
+use crate::AppError;
 use axum::extract::Path;
 use axum::extract::State;
-use axum::http::StatusCode;
 use axum::response::IntoResponse;
-use axum::response::Response;
 use axum::routing::get;
 use axum::routing::post;
 use axum::Json;
@@ -20,9 +18,9 @@ use coordinator_commons::TradeParams;
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::Pool;
 use diesel::PgConnection;
+use orderbook_commons::OrderbookMsg;
 use serde::Deserialize;
 use serde::Serialize;
-use serde_json::json;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::broadcast;
@@ -32,9 +30,9 @@ use tokio::sync::Mutex;
 pub struct AppState {
     pub node: Node,
     // Channel used to send messages to all connected clients.
-    pub tx_pricefeed: broadcast::Sender<PriceFeedResponseMsg>,
+    pub tx_pricefeed: broadcast::Sender<OrderbookMsg>,
     pub pool: Pool<ConnectionManager<PgConnection>>,
-    pub authenticated_users: Arc<Mutex<HashMap<PublicKey, mpsc::Sender<PriceFeedResponseMsg>>>>,
+    pub authenticated_users: Arc<Mutex<HashMap<PublicKey, mpsc::Sender<OrderbookMsg>>>>,
 }
 
 pub fn router(node: Node, pool: Pool<ConnectionManager<PgConnection>>) -> Router {
@@ -138,25 +136,4 @@ pub async fn post_trade(
     })?;
 
     Ok(())
-}
-
-/// Our app's top level error type.
-pub enum AppError {
-    InternalServerError(String),
-    BadRequest(String),
-}
-
-impl IntoResponse for AppError {
-    fn into_response(self) -> Response {
-        let (status, error_message) = match self {
-            AppError::InternalServerError(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg),
-            AppError::BadRequest(msg) => (StatusCode::BAD_REQUEST, msg),
-        };
-
-        let body = Json(json!({
-            "error": error_message,
-        }));
-
-        (status, body).into_response()
-    }
 }

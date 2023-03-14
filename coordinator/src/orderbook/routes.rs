@@ -1,5 +1,10 @@
 use crate::orderbook;
+use crate::orderbook::db::orders;
+use crate::orderbook::trading::match_order;
 use crate::routes::AppState;
+use crate::AppError;
+use anyhow::Context;
+use anyhow::Result;
 use axum::extract::ws::Message;
 use axum::extract::ws::WebSocket;
 use axum::extract::ws::WebSocketUpgrade;
@@ -7,87 +12,146 @@ use axum::extract::Path;
 use axum::extract::State;
 use axum::response::IntoResponse;
 use axum::Json;
+use bitcoin::secp256k1::PublicKey;
+use diesel::r2d2::ConnectionManager;
+use diesel::r2d2::PooledConnection;
+use diesel::PgConnection;
 use futures::SinkExt;
 use futures::StreamExt;
 use orderbook_commons::create_sign_message;
+use orderbook_commons::FilledWith;
+use orderbook_commons::NewOrder;
+use orderbook_commons::Order;
+use orderbook_commons::OrderType;
+use orderbook_commons::OrderbookMsg;
+use orderbook_commons::OrderbookRequest;
 use orderbook_commons::Signature;
-use rust_decimal::Decimal;
 use serde::Deserialize;
 use serde::Serialize;
 use std::sync::Arc;
 use tokio::sync::broadcast::Sender;
 use tokio::sync::mpsc;
-use trade::Direction;
+use uuid::Uuid;
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct Order {
-    pub id: i32,
-    #[serde(with = "rust_decimal::serde::float")]
-    pub price: Decimal,
-    pub maker_id: String,
-    pub taken: bool,
-    pub direction: Direction,
-    #[serde(with = "rust_decimal::serde::float")]
-    pub quantity: Decimal,
+pub async fn get_orders(State(state): State<Arc<AppState>>) -> Result<Json<Vec<Order>>, AppError> {
+    let mut conn = get_db_connection(&state)?;
+    let order = orderbook::db::orders::all(&mut conn)
+        .map_err(|e| AppError::InternalServerError(format!("Failed to load all orders: {e:#}")))?;
+
+    Ok(Json(order))
 }
 
-pub async fn get_orders(State(state): State<Arc<AppState>>) -> impl IntoResponse {
-    let mut conn = state.pool.clone().get().unwrap();
-    let order = orderbook::db::orders::all(&mut conn).unwrap();
-
-    Json(order)
+fn get_db_connection(
+    state: &Arc<AppState>,
+) -> Result<PooledConnection<ConnectionManager<PgConnection>>, AppError> {
+    state
+        .pool
+        .clone()
+        .get()
+        .map_err(|e| AppError::InternalServerError(format!("Failed to get db access: {e:#}")))
 }
 
 pub async fn get_order(
-    Path(order_id): Path<i32>,
+    Path(order_id): Path<Uuid>,
     State(state): State<Arc<AppState>>,
-) -> impl IntoResponse {
-    let pool = state.pool.clone();
-    let mut conn = pool.get().unwrap();
+) -> Result<Json<Order>, AppError> {
+    let mut conn = get_db_connection(&state)?;
     let order = orderbook::db::orders::get_with_id(&mut conn, order_id)
-        .unwrap()
-        .unwrap();
+        .map_err(|e| AppError::InternalServerError(format!("Failed to load order: {e:#}")))?
+        .context(format!("Order not found {order_id}"))
+        .map_err(|e| AppError::BadRequest(format!("{e:#}")))?;
 
-    Json(order)
+    Ok(Json(order))
 }
 
-#[derive(Deserialize, Serialize)]
-pub struct NewOrder {
-    pub price: Decimal,
-    pub quantity: Decimal,
-    pub maker_id: String,
-    pub direction: Direction,
+#[derive(Clone)]
+pub struct MatchParams {
+    pub taker_matches: TakerMatchParams,
+    pub makers_matches: Vec<MakerMatchParams>,
+}
+
+#[derive(Clone)]
+pub struct MakerMatchParams {
+    pub maker_id: PublicKey,
+    pub filled_with: FilledWith,
+}
+
+#[derive(Clone)]
+pub struct TakerMatchParams {
+    pub taker_id: PublicKey,
+    pub filled_with: FilledWith,
 }
 
 pub async fn post_order(
     State(state): State<Arc<AppState>>,
     Json(new_order): Json<NewOrder>,
-) -> impl IntoResponse {
-    let mut conn = state.pool.clone().get().unwrap();
-    let order = orderbook::db::orders::insert(&mut conn, new_order).unwrap();
+) -> Result<Json<Order>, AppError> {
+    let mut conn = get_db_connection(&state)?;
+    let order = orderbook::db::orders::insert(&mut conn, new_order.clone()).map_err(|e| {
+        AppError::InternalServerError(format!("Failed to insert new order into db: {e:#}"))
+    })?;
 
-    let sender = state.tx_pricefeed.clone();
-    update_pricefeed(PriceFeedResponseMsg::NewOrder(order.clone()), sender);
+    if new_order.order_type == OrderType::Limit {
+        // we only tell everyone about new limit orders
+        let sender = state.tx_pricefeed.clone();
+        update_pricefeed(OrderbookMsg::NewOrder(order.clone()), sender);
+    }
 
-    Json(order)
+    let all_orders =
+        orders::all_by_direction_and_type(&mut conn, order.direction.opposite(), OrderType::Limit)
+            .map_err(|e| {
+                AppError::InternalServerError(format!("Failed to load all orders: {e:#}"))
+            })?;
+    let matched_orders = match_order(order.clone(), all_orders)
+        .map_err(|e| AppError::InternalServerError(format!("Failed to match order: {e:#}")))?;
+
+    let authenticated_users = state.authenticated_users.lock().await;
+    if let Some(matched_orders) = matched_orders {
+        for maker_match in matched_orders.makers_matches {
+            match authenticated_users.get(&maker_match.maker_id) {
+                None => {
+                    // TODO we should fail here and get another match if possible
+                    tracing::error!("Could not notify maker - we should fail here and get another match if possible");
+                }
+                Some(sender) => match sender
+                    .send(OrderbookMsg::Match(maker_match.filled_with))
+                    .await
+                {
+                    Ok(_) => {
+                        tracing::debug!("Successfully notified maker")
+                    }
+                    Err(err) => {
+                        tracing::error!("Connection lost to maker {err:#}")
+                    }
+                },
+            }
+        }
+        match authenticated_users.get(&matched_orders.taker_matches.taker_id) {
+            None => {
+                // TODO we should fail here and get another match if possible
+                tracing::error!("Could not notify taker - we should fail here and get another match if possible");
+            }
+            Some(sender) => match sender
+                .send(OrderbookMsg::Match(
+                    matched_orders.taker_matches.filled_with,
+                ))
+                .await
+            {
+                Ok(_) => {
+                    tracing::debug!("Successfully notified taker")
+                }
+                Err(err) => {
+                    // TODO we should fail here and get another match if possible
+                    tracing::error!("Connection lost to taker {err:#}")
+                }
+            },
+        }
+    }
+
+    Ok(Json(order))
 }
 
-#[derive(Serialize, Clone, Deserialize, Debug)]
-pub enum PriceFeedRequestMsg {
-    Authenticate(Signature),
-}
-
-#[derive(Serialize, Clone, Deserialize, Debug)]
-pub enum PriceFeedResponseMsg {
-    AllOrders(Vec<Order>),
-    NewOrder(Order),
-    DeleteOrder(i32),
-    Update(Order),
-    InvalidAuthentication(String),
-    Authenticated,
-}
-
-fn update_pricefeed(pricefeed_msg: PriceFeedResponseMsg, sender: Sender<PriceFeedResponseMsg>) {
+fn update_pricefeed(pricefeed_msg: OrderbookMsg, sender: Sender<OrderbookMsg>) {
     match sender.send(pricefeed_msg) {
         Ok(_) => {
             tracing::trace!("Pricefeed updated")
@@ -104,30 +168,32 @@ pub struct UpdateOrder {
 }
 
 pub async fn put_order(
-    Path(order_id): Path<i32>,
+    Path(order_id): Path<Uuid>,
     State(state): State<Arc<AppState>>,
     Json(updated_order): Json<UpdateOrder>,
-) -> impl IntoResponse {
-    let mut conn = state.pool.clone().get().unwrap();
-    let order = orderbook::db::orders::update(&mut conn, order_id, updated_order.taken).unwrap();
+) -> Result<Json<Order>, AppError> {
+    let mut conn = get_db_connection(&state)?;
+    let order = orderbook::db::orders::update(&mut conn, order_id, updated_order.taken)
+        .map_err(|e| AppError::InternalServerError(format!("Failed to update order: {e:#}")))?;
     let sender = state.tx_pricefeed.clone();
-    update_pricefeed(PriceFeedResponseMsg::Update(order.clone()), sender);
+    update_pricefeed(OrderbookMsg::Update(order.clone()), sender);
 
-    Json(order)
+    Ok(Json(order))
 }
 
 pub async fn delete_order(
-    Path(order_id): Path<i32>,
+    Path(order_id): Path<Uuid>,
     State(state): State<Arc<AppState>>,
-) -> impl IntoResponse {
-    let mut conn = state.pool.clone().get().unwrap();
-    let deleted = orderbook::db::orders::delete_with_id(&mut conn, order_id).unwrap();
+) -> Result<Json<usize>, AppError> {
+    let mut conn = get_db_connection(&state)?;
+    let deleted = orderbook::db::orders::delete_with_id(&mut conn, order_id)
+        .map_err(|e| AppError::InternalServerError(format!("Failed to delete order: {e:#}")))?;
     if deleted > 0 {
         let sender = state.tx_pricefeed.clone();
-        update_pricefeed(PriceFeedResponseMsg::DeleteOrder(order_id), sender);
+        update_pricefeed(OrderbookMsg::DeleteOrder(order_id), sender);
     }
 
-    Json(deleted)
+    Ok(Json(deleted))
 }
 
 pub async fn websocket_handler(
@@ -165,11 +231,11 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>) {
     };
 
     // Now send the "all orders" to the new client.
-    if let Ok(msg) = serde_json::to_string(&PriceFeedResponseMsg::AllOrders(orders)) {
+    if let Ok(msg) = serde_json::to_string(&OrderbookMsg::AllOrders(orders)) {
         let _ = sender.send(Message::Text(msg)).await;
     }
 
-    let (local_sender, mut local_receiver) = mpsc::channel::<PriceFeedResponseMsg>(100);
+    let (local_sender, mut local_receiver) = mpsc::channel::<OrderbookMsg>(100);
 
     let mut local_recv_task = tokio::spawn(async move {
         while let Some(local_msg) = local_receiver.recv().await {
@@ -206,13 +272,11 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>) {
     let mut recv_task = tokio::spawn(async move {
         while let Some(Ok(Message::Text(text))) = receiver.next().await {
             match serde_json::from_str(text.as_str()) {
-                Ok(PriceFeedRequestMsg::Authenticate(Signature { signature, pubkey })) => {
+                Ok(OrderbookRequest::Authenticate(Signature { signature, pubkey })) => {
                     let msg = create_sign_message();
                     match signature.verify(&msg, &pubkey) {
                         Ok(_) => {
-                            if let Err(e) =
-                                local_sender.send(PriceFeedResponseMsg::Authenticated).await
-                            {
+                            if let Err(e) = local_sender.send(OrderbookMsg::Authenticated).await {
                                 tracing::error!("Could not respond to user {e:#}");
                                 return;
                             }
@@ -222,7 +286,7 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>) {
                         }
                         Err(err) => {
                             if let Err(er) = local_sender
-                                .send(PriceFeedResponseMsg::InvalidAuthentication(format!(
+                                .send(OrderbookMsg::InvalidAuthentication(format!(
                                     "Could not authenticate {err:#}"
                                 )))
                                 .await

@@ -17,6 +17,7 @@ diesel_migrations = "2.0.0"
 futures = "0.3"
 hex = "0.4"
 ln-dlc-node = { path = "../crates/ln-dlc-node" }
+orderbook-commons = { path = "../crates/orderbook-commons" }
 rand = "0.8.5"
 reqwest = "0.11.14"
 rust_decimal = { version = "1", features = ["serde-with-float"] }

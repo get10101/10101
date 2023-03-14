@@ -1,3 +1,4 @@
+use rust_decimal::Decimal;
 use secp256k1::Message;
 use secp256k1::PublicKey;
 use secp256k1::XOnlyPublicKey;
@@ -7,7 +8,22 @@ use sha2::digest::FixedOutput;
 use sha2::Digest;
 use sha2::Sha256;
 use time::OffsetDateTime;
+use trade::Direction;
 use uuid::Uuid;
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct Order {
+    pub id: Uuid,
+    #[serde(with = "rust_decimal::serde::float")]
+    pub price: Decimal,
+    pub trader_id: PublicKey,
+    pub taken: bool,
+    pub direction: Direction,
+    #[serde(with = "rust_decimal::serde::float")]
+    pub quantity: Decimal,
+    pub order_type: OrderType,
+    pub timestamp: OffsetDateTime,
+}
 
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub struct Signature {
@@ -24,6 +40,53 @@ pub fn create_sign_message() -> Message {
     msg
 }
 
+#[derive(Serialize, Deserialize, Clone)]
+pub struct NewOrder {
+    #[serde(with = "rust_decimal::serde::float")]
+    pub price: Decimal,
+    #[serde(with = "rust_decimal::serde::float")]
+    pub quantity: Decimal,
+    pub trader_id: PublicKey,
+    pub direction: Direction,
+    pub order_type: OrderType,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+pub enum OrderType {
+    #[allow(dead_code)]
+    Market,
+    Limit,
+}
+
+#[derive(Deserialize)]
+pub struct OrderResponse {
+    pub id: Uuid,
+    #[serde(with = "rust_decimal::serde::float")]
+    pub price: Decimal,
+    pub trader_id: PublicKey,
+    pub taken: bool,
+    pub direction: Direction,
+    #[serde(with = "rust_decimal::serde::float")]
+    pub quantity: Decimal,
+    pub order_type: OrderType,
+}
+
+#[derive(Serialize, Clone, Deserialize, Debug)]
+pub enum OrderbookRequest {
+    Authenticate(Signature),
+}
+
+#[derive(Serialize, Clone, Deserialize, Debug)]
+pub enum OrderbookMsg {
+    AllOrders(Vec<Order>),
+    NewOrder(Order),
+    DeleteOrder(Uuid),
+    Update(Order),
+    InvalidAuthentication(String),
+    Authenticated,
+    Match(FilledWith),
+}
+
 /// A match for an order
 ///
 /// The match defines the execution price and the quantity to be used of the order with the
@@ -38,7 +101,8 @@ pub struct Match {
     /// The quantity of the matched order to be used
     ///
     /// This might be the complete quantity of the matched order, or a fraction.
-    pub quantity: f64,
+    #[serde(with = "rust_decimal::serde::float")]
+    pub quantity: Decimal,
 
     /// Pubkey of the node which order was matched
     pub pubkey: PublicKey,
@@ -46,7 +110,8 @@ pub struct Match {
     /// The execution price as defined by the orderbook
     ///
     /// The trade is to be executed at this price.
-    pub execution_price: f64,
+    #[serde(with = "rust_decimal::serde::float")]
+    pub execution_price: Decimal,
 }
 
 /// The match params for one order

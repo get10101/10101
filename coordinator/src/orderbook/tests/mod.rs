@@ -1,6 +1,11 @@
 mod sample_test;
 
+use crate::run_migration;
 use anyhow::Result;
+use diesel::r2d2;
+use diesel::r2d2::ConnectionManager;
+use diesel::r2d2::PooledConnection;
+use diesel::PgConnection;
 use testcontainers::clients::Cli;
 use testcontainers::core::WaitFor;
 use testcontainers::images;
@@ -31,4 +36,15 @@ pub fn start_postgres(docker: &Cli) -> Result<(Container<GenericImage>, String)>
     );
 
     Ok((node, connection_string.clone()))
+}
+
+pub fn setup_db(db_url: String) -> PooledConnection<ConnectionManager<PgConnection>> {
+    let manager = ConnectionManager::<PgConnection>::new(db_url);
+    let pool = r2d2::Pool::builder()
+        .build(manager)
+        .expect("Failed to create pool.");
+
+    let mut conn = pool.get().unwrap();
+    run_migration(&mut conn);
+    conn
 }
