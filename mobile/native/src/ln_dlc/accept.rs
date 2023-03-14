@@ -27,12 +27,12 @@ impl Node {
         let peer = config::get_coordinator_info();
         let pk = peer.pubkey;
 
-        tracing::debug!(%peer, "Checking for DLC offers");
+        tracing::trace!(%peer, "Checking for DLC offers");
 
         let sub_channel = match self.inner.get_sub_channel_offer(&pk) {
             Ok(Some(sub_channel)) => sub_channel,
             Ok(None) => {
-                tracing::debug!(%peer, "No DLC channel offers found");
+                tracing::trace!(%peer, "No DLC channel offers found");
                 return;
             }
             Err(e) => {
@@ -41,7 +41,7 @@ impl Node {
             }
         };
 
-        tracing::info!(%peer, "Found DLC channel offer");
+        tracing::debug!(%peer, "Found DLC channel offer");
         let channel_id = sub_channel.channel_id;
         tracing::info!(%peer, channel_id = %hex::encode(channel_id), "Accepting DLC channel offer");
 
@@ -54,12 +54,12 @@ impl Node {
         let peer = config::get_coordinator_info();
         let pk = peer.pubkey;
 
-        tracing::debug!(%peer, "Checking for DLC close offers");
+        tracing::trace!(%peer, "Checking for DLC close offers");
 
         let sub_channel = match self.inner.get_sub_channel_close_offer(&pk) {
             Ok(Some(sub_channel)) => sub_channel,
             Ok(None) => {
-                tracing::debug!(%peer, "No DLC channel offers found");
+                tracing::trace!(%peer, "No DLC channel offers found");
                 return;
             }
             Err(e) => {
@@ -68,7 +68,7 @@ impl Node {
             }
         };
 
-        tracing::info!(%peer, "Found DLC channel close offer");
+        tracing::debug!(%peer, "Found DLC channel close offer");
         let channel_id = sub_channel.channel_id;
         tracing::info!(%peer, channel_id = %hex::encode(channel_id), "Accepting DLC channel close offer");
 
