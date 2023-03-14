@@ -7,9 +7,9 @@ use crate::trade::order::Order;
 use crate::trade::position::Position;
 use crate::trade::position::PositionState;
 use anyhow::Result;
+use coordinator_commons::TradeParams;
 use trade::ContractSymbol;
 use trade::Direction;
-use trade::TradeParams;
 
 /// Sets up a trade with the counterparty
 ///

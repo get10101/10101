@@ -16,6 +16,7 @@ use axum::routing::post;
 use axum::Json;
 use axum::Router;
 use bitcoin::secp256k1::PublicKey;
+use coordinator_commons::TradeParams;
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::Pool;
 use diesel::PgConnection;
@@ -27,7 +28,6 @@ use std::sync::Arc;
 use tokio::sync::broadcast;
 use tokio::sync::mpsc;
 use tokio::sync::Mutex;
-use trade::TradeParams;
 
 pub struct AppState {
     pub node: Node,

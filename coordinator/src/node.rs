@@ -2,6 +2,7 @@ use anyhow::anyhow;
 use anyhow::Context;
 use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
+use coordinator_commons::TradeParams;
 use dlc_manager::contract::contract_input::ContractInput;
 use dlc_manager::contract::contract_input::ContractInputInfo;
 use dlc_manager::contract::contract_input::OracleInput;
@@ -21,7 +22,6 @@ use trade::cfd::calculate_long_liquidation_price;
 use trade::cfd::calculate_margin;
 use trade::cfd::calculate_short_liquidation_price;
 use trade::Direction;
-use trade::TradeParams;
 
 // todo: in case of leverage 1.0 the liquidation will be set to 21000000. I guess this will result
 // in issues when the overall upper boundary is smaller than that. It looks like the payout function

@@ -564,6 +564,7 @@ dependencies = [
  "bdk",
  "bitcoin",
  "clap",
+ "coordinator-commons",
  "diesel",
  "diesel_migrations",
  "dlc-manager",
@@ -589,6 +590,18 @@ dependencies = [
  "tracing-subscriber",
  "trade",
  "url",
+]
+
+[[package]]
+name = "coordinator-commons"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "bdk",
+ "serde",
+ "time 0.3.20",
+ "trade",
+ "uuid",
 ]
 
 [[package]]
@@ -1738,6 +1751,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "bdk",
+ "coordinator-commons",
  "diesel",
  "diesel_migrations",
  "flutter_rust_bridge",
@@ -3049,8 +3063,6 @@ dependencies = [
  "rust_decimal",
  "rust_decimal_macros",
  "serde",
- "time 0.3.20",
- "uuid",
 ]
 
 [[package]]
