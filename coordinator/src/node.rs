@@ -131,7 +131,7 @@ impl Node {
             .to_range_payouts(total_collateral, &get_rounding_intervals())
             .map_err(|e| anyhow!("{e:#}"))?
             .iter()
-            .find(|p| trade_params.weighted_execution_price() < (p.start + p.count) as f64)
+            .find(|p| trade_params.weighted_execution_price() < Decimal::from(p.start + p.count))
             .map(|p| p.payout.accept)
             .context("Failed to find payout.")?;
 
@@ -239,7 +239,7 @@ fn get_rounding_intervals() -> RoundingIntervals {
 /// Builds the contract descriptor from the point of view of the trader.
 fn build_contract_descriptor(
     total_collateral: u64,
-    initial_price: f64,
+    initial_price: Decimal,
     leverage_long: f64,
     leverage_short: f64,
 ) -> Result<ContractDescriptor> {
@@ -266,12 +266,11 @@ fn build_contract_descriptor(
 /// function like we used to do in ItchySats.
 fn build_payout_function(
     total_collateral: u64,
-    initial_price: f64,
+    initial_price: Decimal,
     leverage_long: f64,
     leverage_short: f64,
 ) -> Result<PayoutFunction> {
     let leverage_short = Decimal::try_from(leverage_short)?;
-    let initial_price = Decimal::try_from(initial_price)?;
     let liquidation_price_short = calculate_short_liquidation_price(leverage_short, initial_price);
 
     let leverage_long = Decimal::try_from(leverage_long)?;

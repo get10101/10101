@@ -6,9 +6,8 @@ use rust_decimal::Decimal;
 pub const BTCUSD_MAX_PRICE: u64 = 1_048_575;
 
 /// Calculate the colleteral in BTC.
-pub fn calculate_margin(opening_price: f64, quantity: f64, leverage: f64) -> u64 {
+pub fn calculate_margin(open_price: Decimal, quantity: f64, leverage: f64) -> u64 {
     let quantity = Decimal::try_from(quantity).expect("quantity to fit into decimal");
-    let open_price = Decimal::try_from(opening_price).expect("price to fit into decimal");
     let leverage = Decimal::try_from(leverage).expect("leverage to fix into decimal");
 
     if open_price == Decimal::ZERO || leverage == Decimal::ZERO {

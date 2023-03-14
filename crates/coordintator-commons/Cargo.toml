@@ -9,6 +9,8 @@ edition = "2021"
 anyhow = "1"
 bdk = { version = "0.24.0" }
 orderbook-commons = { path = "../orderbook-commons" }
+rust_decimal = { version = "1", features = ["serde-with-float"] }
+rust_decimal_macros = "1.26"
 serde = { version = "1", features = ["derive"] }
 time = { version = "0.3.20", features = ["serde"] }
 trade = { path = "../trade" }

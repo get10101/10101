@@ -5,6 +5,7 @@ use trade::Direction;
 
 /// Calculate the collateral in BTC.
 pub fn calculate_margin(opening_price: f64, quantity: f64, leverage: f64) -> u64 {
+    let opening_price = Decimal::try_from(opening_price).expect("price to fit into decimal");
     cfd::calculate_margin(opening_price, quantity, leverage)
 }
 
