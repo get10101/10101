@@ -85,9 +85,11 @@ pub mod tests {
     use orderbook_commons::OrderType;
     use rust_decimal::Decimal;
     use rust_decimal_macros::dec;
+    use time::OffsetDateTime;
     use trade::Direction;
+    use uuid::Uuid;
 
-    fn dumm_long_order(price: Decimal, id: i32, quantity: Decimal) -> Order {
+    fn dumm_long_order(price: Decimal, id: Uuid, quantity: Decimal) -> Order {
         Order {
             id,
             price,
@@ -96,14 +98,15 @@ pub mod tests {
             direction: Direction::Long,
             quantity,
             order_type: OrderType::Limit,
+            timestamp: OffsetDateTime::now_utc(),
         }
     }
 
     #[test]
     pub fn when_short_then_sort_desc() {
-        let order1 = dumm_long_order(dec!(20_000), 1, Default::default());
-        let order2 = dumm_long_order(dec!(21_000), 2, Default::default());
-        let order3 = dumm_long_order(dec!(20_500), 3, Default::default());
+        let order1 = dumm_long_order(dec!(20_000), Uuid::new_v4(), Default::default());
+        let order2 = dumm_long_order(dec!(21_000), Uuid::new_v4(), Default::default());
+        let order3 = dumm_long_order(dec!(20_500), Uuid::new_v4(), Default::default());
 
         let orders = vec![order3.clone(), order1.clone(), order2.clone()];
 
@@ -115,9 +118,9 @@ pub mod tests {
 
     #[test]
     pub fn when_long_then_sort_asc() {
-        let order1 = dumm_long_order(dec!(20_000), 1, Default::default());
-        let order2 = dumm_long_order(dec!(21_000), 2, Default::default());
-        let order3 = dumm_long_order(dec!(20_500), 3, Default::default());
+        let order1 = dumm_long_order(dec!(20_000), Uuid::new_v4(), Default::default());
+        let order2 = dumm_long_order(dec!(21_000), Uuid::new_v4(), Default::default());
+        let order3 = dumm_long_order(dec!(20_500), Uuid::new_v4(), Default::default());
 
         let orders = vec![order3.clone(), order1.clone(), order2.clone()];
 
@@ -129,9 +132,9 @@ pub mod tests {
 
     #[test]
     pub fn when_all_same_id_sort_by_id() {
-        let order1 = dumm_long_order(dec!(20_000), 1, Default::default());
-        let order2 = dumm_long_order(dec!(20_000), 2, Default::default());
-        let order3 = dumm_long_order(dec!(20_000), 3, Default::default());
+        let order1 = dumm_long_order(dec!(20_000), Uuid::new_v4(), Default::default());
+        let order2 = dumm_long_order(dec!(20_000), Uuid::new_v4(), Default::default());
+        let order3 = dumm_long_order(dec!(20_000), Uuid::new_v4(), Default::default());
 
         let orders = vec![order3.clone(), order1.clone(), order2.clone()];
 
@@ -149,20 +152,21 @@ pub mod tests {
     #[test]
     fn given_limit_and_market_with_same_amount_then_match() {
         let all_orders = vec![
-            dumm_long_order(dec!(20_000), 1, dec!(100)),
-            dumm_long_order(dec!(21_000), 2, dec!(200)),
-            dumm_long_order(dec!(20_000), 3, dec!(300)),
-            dumm_long_order(dec!(22_000), 4, dec!(400)),
+            dumm_long_order(dec!(20_000), Uuid::new_v4(), dec!(100)),
+            dumm_long_order(dec!(21_000), Uuid::new_v4(), dec!(200)),
+            dumm_long_order(dec!(20_000), Uuid::new_v4(), dec!(300)),
+            dumm_long_order(dec!(22_000), Uuid::new_v4(), dec!(400)),
         ];
 
         let order = Order {
-            id: 1,
+            id: Uuid::new_v4(),
             price: Default::default(),
             trader_id: "".to_string(),
             taken: false,
             direction: Direction::Short,
             quantity: dec!(100),
             order_type: OrderType::Market,
+            timestamp: OffsetDateTime::now_utc(),
         };
 
         let matched_orders = match_order(order, all_orders).unwrap();
@@ -174,49 +178,50 @@ pub mod tests {
 
     #[test]
     fn given_limit_and_market_with_smaller_amount_then_match_multiple() {
-        let all_orders = vec![
-            dumm_long_order(dec!(20_000), 1, dec!(100)),
-            dumm_long_order(dec!(21_000), 2, dec!(200)),
-            dumm_long_order(dec!(22_000), 3, dec!(400)),
-            dumm_long_order(dec!(20_000), 4, dec!(300)),
-        ];
+        let order1 = dumm_long_order(dec!(20_000), Uuid::new_v4(), dec!(100));
+        let order2 = dumm_long_order(dec!(21_000), Uuid::new_v4(), dec!(200));
+        let order3 = dumm_long_order(dec!(22_000), Uuid::new_v4(), dec!(400));
+        let order4 = dumm_long_order(dec!(20_000), Uuid::new_v4(), dec!(300));
+        let all_orders = vec![order1.clone(), order2, order3, order4.clone()];
 
         let order = Order {
-            id: 1,
+            id: Uuid::new_v4(),
             price: Default::default(),
             trader_id: "".to_string(),
             taken: false,
             direction: Direction::Short,
             quantity: dec!(200),
             order_type: OrderType::Market,
+            timestamp: OffsetDateTime::now_utc(),
         };
 
         let matched_orders = match_order(order, all_orders).unwrap();
 
         assert_eq!(matched_orders.len(), 2);
         let matched_order = matched_orders.get(0).unwrap();
-        assert_eq!(matched_order.maker_order.id, 1);
+        assert_eq!(matched_order.maker_order.id, order1.id);
         let matched_order = matched_orders.get(1).unwrap();
-        assert_eq!(matched_order.maker_order.id, 4);
+        assert_eq!(matched_order.maker_order.id, order4.id);
     }
 
     #[test]
     fn given_long_when_needed_short_direction_then_no_match() {
         let all_orders = vec![
-            dumm_long_order(dec!(20_000), 1, dec!(100)),
-            dumm_long_order(dec!(21_000), 2, dec!(200)),
-            dumm_long_order(dec!(22_000), 3, dec!(400)),
-            dumm_long_order(dec!(20_000), 4, dec!(300)),
+            dumm_long_order(dec!(20_000), Uuid::new_v4(), dec!(100)),
+            dumm_long_order(dec!(21_000), Uuid::new_v4(), dec!(200)),
+            dumm_long_order(dec!(22_000), Uuid::new_v4(), dec!(400)),
+            dumm_long_order(dec!(20_000), Uuid::new_v4(), dec!(300)),
         ];
 
         let order = Order {
-            id: 1,
+            id: Uuid::new_v4(),
             price: Default::default(),
             trader_id: "".to_string(),
             taken: false,
             direction: Direction::Long,
             quantity: dec!(200),
             order_type: OrderType::Market,
+            timestamp: OffsetDateTime::now_utc(),
         };
 
         let matched_orders = match_order(order, all_orders).unwrap();

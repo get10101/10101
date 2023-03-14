@@ -10,7 +10,9 @@ use orderbook_commons::OrderType as OrderBookOrderType;
 use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
+use time::OffsetDateTime;
 use trade::Direction as OrderbookDirection;
+use uuid::Uuid;
 
 impl From<trade::Direction> for Direction {
     fn from(value: trade::Direction) -> Self {
@@ -50,12 +52,13 @@ impl From<OrderBookOrderType> for OrderType {
 
 #[derive(Queryable, Debug, Clone)]
 struct Order {
-    pub id: i32,
+    pub id: Uuid,
     pub price: f32,
     pub maker_id: String,
     pub taken: bool,
     pub direction: Direction,
     pub quantity: f32,
+    pub timestamp: OffsetDateTime,
     pub order_type: OrderType,
 }
 
@@ -70,6 +73,7 @@ impl From<Order> for OrderbookOrder {
             quantity: Decimal::from_f32(value.quantity)
                 .expect("To be able to convert f32 to decimal"),
             order_type: value.order_type.into(),
+            timestamp: value.timestamp,
         }
     }
 }
@@ -77,6 +81,7 @@ impl From<Order> for OrderbookOrder {
 #[derive(Insertable, Debug, PartialEq)]
 #[diesel(table_name = orders)]
 struct NewOrder {
+    pub id: Uuid,
     pub price: f32,
     pub trader_id: String,
     pub taken: bool,
@@ -88,6 +93,7 @@ struct NewOrder {
 impl From<OrderbookNewOrder> for NewOrder {
     fn from(value: OrderbookNewOrder) -> Self {
         NewOrder {
+            id: Uuid::new_v4(),
             price: value
                 .price
                 .round_dp(2)
@@ -136,7 +142,7 @@ pub fn insert(conn: &mut PgConnection, order: OrderbookNewOrder) -> QueryResult<
 }
 
 /// Returns the number of affected rows: 1.
-pub fn update(conn: &mut PgConnection, id: i32, is_taken: bool) -> QueryResult<OrderbookOrder> {
+pub fn update(conn: &mut PgConnection, id: Uuid, is_taken: bool) -> QueryResult<OrderbookOrder> {
     let order: Order = diesel::update(orders::table)
         .filter(orders::id.eq(id))
         .set(orders::taken.eq(is_taken))
@@ -146,7 +152,7 @@ pub fn update(conn: &mut PgConnection, id: i32, is_taken: bool) -> QueryResult<O
 }
 
 /// Returns the order by id
-pub fn get_with_id(conn: &mut PgConnection, uid: i32) -> QueryResult<Option<OrderbookOrder>> {
+pub fn get_with_id(conn: &mut PgConnection, uid: Uuid) -> QueryResult<Option<OrderbookOrder>> {
     let x = orders::table
         .filter(orders::id.eq(uid))
         .load::<Order>(conn)
@@ -157,7 +163,7 @@ pub fn get_with_id(conn: &mut PgConnection, uid: i32) -> QueryResult<Option<Orde
 }
 
 /// Returns the number of affected rows: 1.
-pub fn delete_with_id(conn: &mut PgConnection, order_id: i32) -> QueryResult<usize> {
+pub fn delete_with_id(conn: &mut PgConnection, order_id: Uuid) -> QueryResult<usize> {
     diesel::delete(orders::table)
         .filter(orders::id.eq(order_id))
         .execute(conn)

@@ -29,6 +29,7 @@ use serde::Serialize;
 use std::sync::Arc;
 use tokio::sync::broadcast::Sender;
 use tokio::sync::mpsc;
+use uuid::Uuid;
 
 pub async fn get_orders(State(state): State<Arc<AppState>>) -> Result<Json<Vec<Order>>, AppError> {
     let mut conn = get_db_connection(&state)?;
@@ -49,7 +50,7 @@ fn get_db_connection(
 }
 
 pub async fn get_order(
-    Path(order_id): Path<i32>,
+    Path(order_id): Path<Uuid>,
     State(state): State<Arc<AppState>>,
 ) -> Result<Json<Order>, AppError> {
     let mut conn = get_db_connection(&state)?;
@@ -148,7 +149,7 @@ pub struct UpdateOrder {
 }
 
 pub async fn put_order(
-    Path(order_id): Path<i32>,
+    Path(order_id): Path<Uuid>,
     State(state): State<Arc<AppState>>,
     Json(updated_order): Json<UpdateOrder>,
 ) -> Result<Json<Order>, AppError> {
@@ -162,7 +163,7 @@ pub async fn put_order(
 }
 
 pub async fn delete_order(
-    Path(order_id): Path<i32>,
+    Path(order_id): Path<Uuid>,
     State(state): State<Arc<AppState>>,
 ) -> Result<Json<usize>, AppError> {
     let mut conn = get_db_connection(&state)?;

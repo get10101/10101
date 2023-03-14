@@ -590,6 +590,7 @@ dependencies = [
  "tracing-subscriber",
  "trade",
  "url",
+ "uuid",
 ]
 
 [[package]]

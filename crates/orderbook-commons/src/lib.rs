@@ -13,7 +13,7 @@ use uuid::Uuid;
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct Order {
-    pub id: i32,
+    pub id: Uuid,
     #[serde(with = "rust_decimal::serde::float")]
     pub price: Decimal,
     pub trader_id: String,
@@ -22,6 +22,7 @@ pub struct Order {
     #[serde(with = "rust_decimal::serde::float")]
     pub quantity: Decimal,
     pub order_type: OrderType,
+    pub timestamp: OffsetDateTime,
 }
 
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
@@ -79,7 +80,7 @@ pub enum OrderbookRequest {
 pub enum OrderbookMsg {
     AllOrders(Vec<Order>),
     NewOrder(Order),
-    DeleteOrder(i32),
+    DeleteOrder(Uuid),
     Update(Order),
     InvalidAuthentication(String),
     Authenticated,

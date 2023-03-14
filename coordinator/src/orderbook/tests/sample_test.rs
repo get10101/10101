@@ -32,7 +32,6 @@ async fn crud_test() {
         },
     )
     .unwrap();
-    assert!(order.id > 0);
 
     let order = orders::update(&mut conn, order.id, true).unwrap();
     assert!(order.taken);

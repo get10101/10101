@@ -16,12 +16,13 @@ diesel::table! {
     use super::sql_types::OrderTypeType;
 
     orders (id) {
-        id -> Int4,
+        id -> Uuid,
         price -> Float4,
         trader_id -> Text,
         taken -> Bool,
         direction -> DirectionType,
         quantity -> Float4,
+        timestamp -> Timestamptz,
         order_type -> OrderTypeType,
     }
 }
