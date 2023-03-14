@@ -4,7 +4,8 @@ use crate::ln_dlc::Node;
 use anyhow::Result;
 use std::time::Duration;
 
-const PROCESS_TRADE_REQUESTS_INTERVAL: Duration = Duration::from_secs(30);
+// TODO: Set to 5 seconds for test purposes; this might not be feasible once in production
+const PROCESS_TRADE_REQUESTS_INTERVAL: Duration = Duration::from_secs(5);
 
 impl Node {
     /// Starts a task to accept positions in an `PROCESS_TRADE_REQUESTS_INTERVAL`
