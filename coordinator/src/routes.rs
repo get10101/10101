@@ -5,7 +5,7 @@ use crate::orderbook::routes::get_orders;
 use crate::orderbook::routes::post_order;
 use crate::orderbook::routes::put_order;
 use crate::orderbook::routes::websocket_handler;
-use crate::orderbook::routes::PriceFeedResponseMsg;
+use crate::orderbook::routes::OrderbookMsg;
 use crate::AppError;
 use axum::extract::Path;
 use axum::extract::State;
@@ -30,9 +30,9 @@ use tokio::sync::Mutex;
 pub struct AppState {
     pub node: Node,
     // Channel used to send messages to all connected clients.
-    pub tx_pricefeed: broadcast::Sender<PriceFeedResponseMsg>,
+    pub tx_pricefeed: broadcast::Sender<OrderbookMsg>,
     pub pool: Pool<ConnectionManager<PgConnection>>,
-    pub authenticated_users: Arc<Mutex<HashMap<PublicKey, mpsc::Sender<PriceFeedResponseMsg>>>>,
+    pub authenticated_users: Arc<Mutex<HashMap<PublicKey, mpsc::Sender<OrderbookMsg>>>>,
 }
 
 pub fn router(node: Node, pool: Pool<ConnectionManager<PgConnection>>) -> Router {

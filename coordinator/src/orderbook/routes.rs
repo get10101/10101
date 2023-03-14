@@ -77,7 +77,7 @@ pub async fn post_order(
     if new_order.order_type == OrderType::Limit {
         // we only tell everyone about new limit orders
         let sender = state.tx_pricefeed.clone();
-        update_pricefeed(PriceFeedResponseMsg::NewOrder(order.clone()), sender);
+        update_pricefeed(OrderbookMsg::NewOrder(order.clone()), sender);
     }
 
     let all_orders =
@@ -106,15 +106,9 @@ pub async fn post_order(
             authenticated_users.get(&taker_public_key),
         ) {
             (Some(maker_sender), Some(taker_sender)) => {
-                maker_sender
-                    .send(PriceFeedResponseMsg::Match)
-                    .await
-                    .unwrap();
+                maker_sender.send(OrderbookMsg::Match).await.unwrap();
 
-                taker_sender
-                    .send(PriceFeedResponseMsg::Match)
-                    .await
-                    .unwrap();
+                taker_sender.send(OrderbookMsg::Match).await.unwrap();
             }
             (Some(_), None) => {
                 tracing::error!(
@@ -136,12 +130,12 @@ pub async fn post_order(
 }
 
 #[derive(Serialize, Clone, Deserialize, Debug)]
-pub enum PriceFeedRequestMsg {
+pub enum OrderbookRequest {
     Authenticate(Signature),
 }
 
 #[derive(Serialize, Clone, Deserialize, Debug)]
-pub enum PriceFeedResponseMsg {
+pub enum OrderbookMsg {
     AllOrders(Vec<Order>),
     NewOrder(Order),
     DeleteOrder(i32),
@@ -151,7 +145,7 @@ pub enum PriceFeedResponseMsg {
     Match, // TODO: add match params
 }
 
-fn update_pricefeed(pricefeed_msg: PriceFeedResponseMsg, sender: Sender<PriceFeedResponseMsg>) {
+fn update_pricefeed(pricefeed_msg: OrderbookMsg, sender: Sender<OrderbookMsg>) {
     match sender.send(pricefeed_msg) {
         Ok(_) => {
             tracing::trace!("Pricefeed updated")
@@ -176,7 +170,7 @@ pub async fn put_order(
     let order = orderbook::db::orders::update(&mut conn, order_id, updated_order.taken)
         .map_err(|e| AppError::InternalServerError(format!("Failed to update order: {e:#}")))?;
     let sender = state.tx_pricefeed.clone();
-    update_pricefeed(PriceFeedResponseMsg::Update(order.clone()), sender);
+    update_pricefeed(OrderbookMsg::Update(order.clone()), sender);
 
     Ok(Json(order))
 }
@@ -190,7 +184,7 @@ pub async fn delete_order(
         .map_err(|e| AppError::InternalServerError(format!("Failed to delete order: {e:#}")))?;
     if deleted > 0 {
         let sender = state.tx_pricefeed.clone();
-        update_pricefeed(PriceFeedResponseMsg::DeleteOrder(order_id), sender);
+        update_pricefeed(OrderbookMsg::DeleteOrder(order_id), sender);
     }
 
     Ok(Json(deleted))
@@ -231,11 +225,11 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>) {
     };
 
     // Now send the "all orders" to the new client.
-    if let Ok(msg) = serde_json::to_string(&PriceFeedResponseMsg::AllOrders(orders)) {
+    if let Ok(msg) = serde_json::to_string(&OrderbookMsg::AllOrders(orders)) {
         let _ = sender.send(Message::Text(msg)).await;
     }
 
-    let (local_sender, mut local_receiver) = mpsc::channel::<PriceFeedResponseMsg>(100);
+    let (local_sender, mut local_receiver) = mpsc::channel::<OrderbookMsg>(100);
 
     let mut local_recv_task = tokio::spawn(async move {
         while let Some(local_msg) = local_receiver.recv().await {
@@ -272,13 +266,11 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>) {
     let mut recv_task = tokio::spawn(async move {
         while let Some(Ok(Message::Text(text))) = receiver.next().await {
             match serde_json::from_str(text.as_str()) {
-                Ok(PriceFeedRequestMsg::Authenticate(Signature { signature, pubkey })) => {
+                Ok(OrderbookRequest::Authenticate(Signature { signature, pubkey })) => {
                     let msg = create_sign_message();
                     match signature.verify(&msg, &pubkey) {
                         Ok(_) => {
-                            if let Err(e) =
-                                local_sender.send(PriceFeedResponseMsg::Authenticated).await
-                            {
+                            if let Err(e) = local_sender.send(OrderbookMsg::Authenticated).await {
                                 tracing::error!("Could not respond to user {e:#}");
                                 return;
                             }
@@ -288,7 +280,7 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>) {
                         }
                         Err(err) => {
                             if let Err(er) = local_sender
-                                .send(PriceFeedResponseMsg::InvalidAuthentication(format!(
+                                .send(OrderbookMsg::InvalidAuthentication(format!(
                                     "Could not authenticate {err:#}"
                                 )))
                                 .await
