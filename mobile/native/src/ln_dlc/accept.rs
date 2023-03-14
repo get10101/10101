@@ -59,7 +59,7 @@ impl Node {
         let sub_channel = match self.inner.get_sub_channel_close_offer(&pk) {
             Ok(Some(sub_channel)) => sub_channel,
             Ok(None) => {
-                tracing::trace!(%peer, "No DLC channel offers found");
+                tracing::trace!(%peer, "No DLC channel close offers found");
                 return;
             }
             Err(e) => {
