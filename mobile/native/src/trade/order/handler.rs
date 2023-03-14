@@ -10,12 +10,12 @@ use crate::trade::position;
 use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
+use coordinator_commons::TradeParams;
 use std::ops::Add;
 use std::time::Duration;
 use time::OffsetDateTime;
 use trade::ContractSymbol;
 use trade::Direction;
-use trade::TradeParams;
 use uuid::Uuid;
 
 pub async fn submit_order(order: NewOrder) -> Result<()> {

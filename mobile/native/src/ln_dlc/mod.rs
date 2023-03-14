@@ -17,6 +17,7 @@ use bdk::bitcoin::secp256k1::rand::thread_rng;
 use bdk::bitcoin::secp256k1::rand::RngCore;
 use bdk::bitcoin::secp256k1::SecretKey;
 use bdk::bitcoin::XOnlyPublicKey;
+use coordinator_commons::TradeParams;
 use lightning_invoice::Invoice;
 use ln_dlc_node::node::NodeInfo;
 use ln_dlc_node::seed::Bip39Seed;
@@ -28,7 +29,6 @@ use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::runtime::Runtime;
-use trade::TradeParams;
 
 static NODE: Storage<Arc<Node>> = Storage::new();
 

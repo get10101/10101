@@ -3,8 +3,8 @@ mod event_hub;
 pub mod subscriber;
 
 use crate::api::WalletInfo;
+use coordinator_commons::TradeParams;
 use std::hash::Hash;
-use trade::TradeParams;
 
 use crate::event::event_hub::get;
 use crate::event::subscriber::Subscriber;
