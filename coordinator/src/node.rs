@@ -84,7 +84,7 @@ impl Node {
         tracing::info!("build payout curve");
         let payout_function = build_payout_curve(
             total_collateral,
-            trade_params.execution_price,
+            trade_params.weighted_execution_price(),
             leverage_long,
             leverage_short,
         )?;
@@ -95,7 +95,7 @@ impl Node {
             .to_range_payouts(total_collateral, &get_rounding_intervals())
             .map_err(|e| anyhow!("{e:#}"))?
             .iter()
-            .find(|p| trade_params.execution_price < (p.start + p.count) as f64)
+            .find(|p| trade_params.weighted_execution_price() < (p.start + p.count) as f64)
             .map(|p| p.payout.accept)
             .context("Failed to find payout.")?;
 
@@ -124,13 +124,13 @@ impl Node {
 
         let contract_descriptor = build_contract_descriptor(
             total_collateral,
-            trade_params.execution_price,
+            trade_params.weighted_execution_price(),
             leverage_long,
             leverage_short,
         )?;
 
         let contract_symbol = trade_params.contract_symbol.label();
-        let maturity_time = trade_params.expiry_timestamp;
+        let maturity_time = trade_params.weighted_execution_price();
 
         // The contract input to be used for setting up the trade between the trader and the
         // coordinator
@@ -168,12 +168,12 @@ impl Node {
 
 fn get_margins(trade_params: &TradeParams) -> (u64, u64) {
     let margin_coordinator = calculate_margin(
-        trade_params.execution_price,
+        trade_params.weighted_execution_price(),
         trade_params.quantity,
         COORDINATOR_LEVERAGE,
     );
     let margin_trader = calculate_margin(
-        trade_params.execution_price,
+        trade_params.weighted_execution_price(),
         trade_params.quantity,
         trade_params.leverage,
     );

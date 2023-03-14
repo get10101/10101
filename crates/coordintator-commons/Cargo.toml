@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 anyhow = "1"
 bdk = { version = "0.24.0" }
+orderbook-commons = { path = "../orderbook-commons" }
 serde = { version = "1", features = ["derive"] }
 time = { version = "0.3.20", features = ["serde"] }
 trade = { path = "../trade" }
