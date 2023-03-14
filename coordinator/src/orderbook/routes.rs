@@ -21,6 +21,8 @@ use orderbook_commons::create_sign_message;
 use orderbook_commons::NewOrder;
 use orderbook_commons::Order;
 use orderbook_commons::OrderType;
+use orderbook_commons::OrderbookMsg;
+use orderbook_commons::OrderbookRequest;
 use orderbook_commons::Signature;
 use serde::Deserialize;
 use serde::Serialize;
@@ -127,22 +129,6 @@ pub async fn post_order(
     }
 
     Ok(Json(order))
-}
-
-#[derive(Serialize, Clone, Deserialize, Debug)]
-pub enum OrderbookRequest {
-    Authenticate(Signature),
-}
-
-#[derive(Serialize, Clone, Deserialize, Debug)]
-pub enum OrderbookMsg {
-    AllOrders(Vec<Order>),
-    NewOrder(Order),
-    DeleteOrder(i32),
-    Update(Order),
-    InvalidAuthentication(String),
-    Authenticated,
-    Match, // TODO: add match params
 }
 
 fn update_pricefeed(pricefeed_msg: OrderbookMsg, sender: Sender<OrderbookMsg>) {

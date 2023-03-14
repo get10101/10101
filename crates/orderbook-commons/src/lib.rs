@@ -70,6 +70,22 @@ pub struct OrderResponse {
     pub order_type: OrderType,
 }
 
+#[derive(Serialize, Clone, Deserialize, Debug)]
+pub enum OrderbookRequest {
+    Authenticate(Signature),
+}
+
+#[derive(Serialize, Clone, Deserialize, Debug)]
+pub enum OrderbookMsg {
+    AllOrders(Vec<Order>),
+    NewOrder(Order),
+    DeleteOrder(i32),
+    Update(Order),
+    InvalidAuthentication(String),
+    Authenticated,
+    Match, // TODO: add match params
+}
+
 /// A match for an order
 ///
 /// The match defines the execution price and the quantity to be used of the order with the
