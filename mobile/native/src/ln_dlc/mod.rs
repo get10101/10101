@@ -1,8 +1,11 @@
-use crate::api::Balances;
+mod accept;
+mod node;
+
 use crate::api::WalletInfo;
 use crate::config;
 use crate::event;
 use crate::event::EventInternal;
+use crate::ln_dlc::node::Node;
 use crate::trade::order;
 use crate::trade::order::FailureReason;
 use crate::trade::position;
@@ -15,7 +18,6 @@ use bdk::bitcoin::secp256k1::rand::RngCore;
 use bdk::bitcoin::secp256k1::SecretKey;
 use bdk::bitcoin::XOnlyPublicKey;
 use lightning_invoice::Invoice;
-use ln_dlc_node::node::Node;
 use ln_dlc_node::node::NodeInfo;
 use ln_dlc_node::seed::Bip39Seed;
 use ln_dlc_node::Dlc;
@@ -29,32 +31,26 @@ use tokio::runtime::Runtime;
 use trade::TradeParams;
 
 static NODE: Storage<Arc<Node>> = Storage::new();
-const PROCESS_TRADE_REQUESTS_INTERVAL: Duration = Duration::from_secs(30);
 
 pub fn get_wallet_info() -> Result<WalletInfo> {
-    Ok(get_wallet_info_from_node(
-        NODE.try_get().context("failed to get ln dlc node")?,
-    ))
+    let node = NODE.try_get().context("failed to get ln dlc node")?;
+    let wallet_info = node.get_wallet_info_from_node();
+    Ok(wallet_info)
 }
 
 pub fn get_node_key() -> Result<SecretKey> {
     NODE.try_get()
         .context("failed to get ln dlc node")?
+        .inner
         .node_key()
 }
 
-fn get_wallet_info_from_node(node: &Node) -> WalletInfo {
-    WalletInfo {
-        balances: Balances {
-            lightning: node.get_ldk_balance().available,
-            on_chain: node.get_on_chain_balance().expect("balance").confirmed,
-        },
-        history: vec![], // TODO: sync history
-    }
-}
-
 pub fn get_node_info() -> Result<NodeInfo> {
-    Ok(NODE.try_get().context("failed to get ln dlc node")?.info)
+    Ok(NODE
+        .try_get()
+        .context("failed to get ln dlc node")?
+        .inner
+        .info)
 }
 
 // TODO: should we also wrap the oracle as `NodeInfo`. It would fit the required attributes pubkey
@@ -63,6 +59,7 @@ pub fn get_oracle_pubkey() -> Result<XOnlyPublicKey> {
     Ok(NODE
         .try_get()
         .context("failed to get ln dlc node")?
+        .inner
         .oracle_pk())
 }
 
@@ -107,7 +104,7 @@ pub fn run(data_dir: String) -> Result<()> {
         let seed = Bip39Seed::initialize(&seed_path)?;
 
         let node = Arc::new(
-            Node::new_app(
+            ln_dlc_node::node::Node::new_app(
                 "10101",
                 network,
                 data_dir.as_path(),
@@ -118,114 +115,67 @@ pub fn run(data_dir: String) -> Result<()> {
             )
             .await?,
         );
+        let node = Arc::new(Node {inner: node});
 
         // todo: should the library really be responsible for managing the task?
-        node.keep_connected(config::get_coordinator_info()).await?;
+        node.inner.keep_connected(config::get_coordinator_info()).await?;
 
-        let node_clone = node.clone();
-        runtime.spawn(async move {
-            loop {
-                // todo: the node sync should not swallow the error.
-                node_clone.sync();
-                tokio::time::sleep(std::time::Duration::from_secs(10)).await;
-
-                let wallet_info = get_wallet_info_from_node(&node_clone);
-                event::publish(&EventInternal::WalletInfoUpdateNotification(wallet_info));
-            }
-        });
-
+        // automatically accepts dlc channel offers (open and close)
+        node.start_accept_offers_task()?;
 
         runtime.spawn({
-            let node_clone = node.clone();
+            let node = node.clone();
             async move {
                 loop {
-                    tokio::time::sleep(PROCESS_TRADE_REQUESTS_INTERVAL).await;
+                    // todo: the node sync should not swallow the error.
+                    node.inner.sync();
+                    tokio::time::sleep(Duration::from_secs(10)).await;
 
-
-                    let peer = config::get_coordinator_info();
-                    let pk = peer.pubkey;
-
-                    tracing::debug!(
-                        %peer,
-                        "Checking for DLC offers"
-                    );
-
-                    let sub_channel = match node_clone.get_sub_channel_offer(&pk) {
-                        Ok(Some(sub_channel)) => sub_channel,
-                        Ok(None) => {
-                            tracing::debug!(
-                                %peer,
-                                "No DLC channel offers found"
-                            );
-                            continue;
-                        }
-                        Err(e) => {
-                            tracing::error!(
-                                peer = %pk.to_string(),
-                                "Unable to retrieve DLC channel offer: {e:#}"
-                            );
-                            continue;
-                        }
-                    };
-
-                    tracing::info!(%peer, "Found DLC channel offer");
-
-                    let channel_id = sub_channel.channel_id;
-
-                    tracing::info!(
-                        %peer,
-                        channel_id = %hex::encode(channel_id),
-                        "Accepting DLC channel offer"
-                    );
-
-                    if let Err(e) = node_clone.accept_dlc_channel_offer(&channel_id) {
-                        tracing::error!(
-                            channel_id = %hex::encode(channel_id),
-                            "Failed to accept subchannel: {e:#}"
-                        );
-                    };
+                    let wallet_info = node.get_wallet_info_from_node();
+                    event::publish(&EventInternal::WalletInfoUpdateNotification(wallet_info));
                 }
             }
         });
 
-        let node_cloned = node.clone();
         // periodically update for positions
-        runtime.spawn(async move {
-            loop {
-                let contracts = match node_cloned.get_confirmed_dlcs() {
-                    Ok(contracts) => contracts,
-                    Err(e) => {
-                        tracing::error!("Failed to retrieve DLCs from node: {e:#}");
-                        tokio::time::sleep(Duration::from_secs(5)).await;
-                        continue;
-                    }
-                };
+        runtime.spawn({
+            let node = node.clone();
+            async move {
+                loop {
+                    tokio::time::sleep(Duration::from_secs(10)).await;
 
-                // Assumes that there is only one contract, i.e. one position
-                if let Some(Dlc {
-                    offer_collateral, ..
-                }) = contracts.get(0)
-                {
-                    if position::handler::is_position_up_to_date(offer_collateral) {
-                        continue;
-                    }
+                    let contracts = match node.inner.get_confirmed_dlcs() {
+                        Ok(contracts) => contracts,
+                        Err(e) => {
+                            tracing::error!("Failed to retrieve DLCs from node: {e:#}");
+                            continue;
+                        }
+                    };
 
-                    // TODO: I don't think we can get rid of this error scenarios, but they sucks
-                  let filled_order = match order::handler::order_filled() {
-                      Ok(filled_order) => filled_order,
-                      Err(e) => {
-                          tracing::error!("Critical Error! We have a DLC but were unable to set the order to filled: {e:#}");
-                          continue;
-                      }
-                  };
+                    // Assumes that there is only one contract, i.e. one position
+                    if let Some(Dlc {
+                                    offer_collateral, ..
+                                }) = contracts.get(0)
+                    {
+                        if position::handler::is_position_up_to_date(offer_collateral) {
+                            continue;
+                        }
 
-                    if let Err(e) = position::handler::order_filled(filled_order, *offer_collateral) {
-                        tracing::error!("Failed to handle position after receiving DLC: {e:#}");
-                        continue;
+                        // TODO: I don't think we can get rid of this error scenarios, but they sucks
+                        let filled_order = match order::handler::order_filled() {
+                            Ok(filled_order) => filled_order,
+                            Err(e) => {
+                                tracing::error!("Critical Error! We have a DLC but were unable to set the order to filled: {e:#}");
+                                continue;
+                            }
+                        };
+
+                        if let Err(e) = position::handler::order_filled(filled_order, *offer_collateral) {
+                            tracing::error!("Failed to handle position after receiving DLC: {e:#}");
+                            continue;
+                        }
                     }
                 }
-
-                tokio::time::sleep(Duration::from_secs(10)).await;
             }
         });
 
@@ -238,6 +188,7 @@ pub fn run(data_dir: String) -> Result<()> {
 pub fn get_new_address() -> Result<String> {
     let node = NODE.try_get().context("failed to get ln dlc node")?;
     let address = node
+        .inner
         .get_new_address()
         .map_err(|e| anyhow!("Failed to get new address: {e}"))?;
     Ok(address.to_string())
@@ -248,7 +199,8 @@ pub fn get_new_address() -> Result<String> {
 pub fn open_channel() -> Result<()> {
     let node = NODE.try_get().context("failed to get ln dlc node")?;
 
-    node.initiate_open_channel(config::get_coordinator_info(), 500000, 250000)?;
+    node.inner
+        .initiate_open_channel(config::get_coordinator_info(), 500000, 250000)?;
 
     Ok(())
 }
@@ -263,7 +215,7 @@ pub fn create_invoice(amount_sats: Option<u64>) -> Result<Invoice> {
             .post(format!(
                 "http://{}/api/fake_scid/{}",
                 config::get_http_endpoint(),
-                node.info.pubkey
+                node.inner.info.pubkey
             )) // TODO: make host configurable
             .send()
             .await?;
@@ -278,7 +230,7 @@ pub fn create_invoice(amount_sats: Option<u64>) -> Result<Invoice> {
 
         let fake_channel_id: u64 = text.parse()?;
 
-        node.create_interceptable_invoice(
+        node.inner.create_interceptable_invoice(
             amount_sats,
             fake_channel_id,
             config::get_coordinator_info().pubkey,
@@ -291,7 +243,7 @@ pub fn create_invoice(amount_sats: Option<u64>) -> Result<Invoice> {
 pub fn send_payment(invoice: &str) -> Result<()> {
     let node = NODE.try_get().context("failed to get ln dlc node")?;
     let invoice = Invoice::from_str(invoice).context("Could not parse Invoice string")?;
-    node.send_payment(&invoice)
+    node.inner.send_payment(&invoice)
 }
 
 pub async fn trade(trade_params: TradeParams) -> Result<(), (FailureReason, anyhow::Error)> {

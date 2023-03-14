@@ -9,8 +9,11 @@ use crate::trade::position;
 use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
+use std::ops::Add;
 use std::time::Duration;
+use time::OffsetDateTime;
 use trade::ContractSymbol;
+use trade::Direction;
 use trade::TradeParams;
 use uuid::Uuid;
 
@@ -33,10 +36,11 @@ pub async fn submit_order(order: Order) -> Result<()> {
         leverage: order.leverage,
         leverage_counterparty: 2.0,
         quantity: order.quantity,
-        execution_price: 55_000.0,
+        execution_price: 23_000.0,
         // in 24h
-        expiry: Duration::from_secs(60 * 60 * 24),
+        expiry_timestamp: OffsetDateTime::now_utc().add(Duration::from_secs(60 * 60 * 24)),
         oracle_pk: ln_dlc::get_oracle_pubkey()?,
+        direction: Direction::Long,
     };
     // TODO: Remove this call once we plug in the orderbook; we trigger trade upon being matched
     // then

@@ -1,3 +1,4 @@
+use crate::config;
 use anyhow::Result;
 use bdk::bitcoin::secp256k1::SecretKey;
 use bdk::bitcoin::secp256k1::SECP256K1;
@@ -23,7 +24,10 @@ pub fn subscribe(secret_key: SecretKey) -> Result<()> {
     runtime.block_on(async move {
         let _ = runtime
             .spawn(async move {
-                let url = "ws://localhost:8000/api/orderbook/websocket".to_string();
+                let url = format!(
+                    "ws://{}/api/orderbook/websocket",
+                    config::get_http_endpoint()
+                );
 
                 let pubkey = secret_key.public_key(SECP256K1);
                 let authenticate = |msg| {

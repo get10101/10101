@@ -64,7 +64,8 @@ mod wallet;
 pub(crate) use channel_manager::ChannelManager;
 
 // TODO: These intervals are quite arbitrary at the moment, come up with more sensible values
-const PROCESS_INCOMING_MESSAGES_INTERVAL: Duration = Duration::from_secs(30);
+// TODO: Set to 5 seconds for test purposes; this might not be feasible once in production
+const PROCESS_INCOMING_MESSAGES_INTERVAL: Duration = Duration::from_secs(5);
 const BROADCAST_NODE_ANNOUNCEMENT_INTERVAL: Duration = Duration::from_secs(60);
 
 /// An LN-DLC node.

@@ -6,7 +6,7 @@ use serde::Serialize;
 use std::fmt;
 use std::fmt::Formatter;
 use std::str::FromStr;
-use std::time::Duration;
+use time::OffsetDateTime;
 use uuid::Uuid;
 
 pub mod cfd;
@@ -61,16 +61,33 @@ pub struct TradeParams {
     /// The trade is to be executed at this price.
     pub execution_price: f64,
 
-    /// The expiry of the contract-to-be
+    /// The expiry timestamp of the contract-to-be
     ///
-    /// A duration that defines how long the contract is meant to be valid.
-    /// The coordinator calculates the maturity timestamp based on the current time and the expiry.
-    pub expiry: Duration,
+    /// A timestamp that defines when the contract will expire.
+    /// The orderbook defines the timestamp so that the systems using the trade params to set up
+    /// the trade are aligned on one timestamp. The systems using the trade params should
+    /// validate this timestamp against their trade settings. If the expiry timestamp is older
+    /// than a defined threshold a system my discard the trade params as outdated.
+    ///
+    /// The oracle event-id is defined by contract symbol and the expiry timestamp.
+    pub expiry_timestamp: OffsetDateTime,
 
     /// The public key of the oracle to be used
     ///
     /// The orderbook decides this when matching orders.
+    /// The oracle_pk is used to define what oracle is to be used in the contract.
+    /// This `oracle_pk` must correspond to one `oracle_pk` configured in the dlc-manager.
+    /// It is possible to configure multiple oracles in the dlc-manager; this
+    /// `oracle_pk` has to match one of them. This allows us to configure the dlc-managers
+    /// using two oracles, where one oracles can be used as backup if the other oracle is not
+    /// available. Eventually this can be changed to be a list of oracle PKs and a threshold of
+    /// how many oracle have to agree on the attestation.
     pub oracle_pk: XOnlyPublicKey,
+
+    /// The direction of the trade
+    ///
+    /// The direction from the point of view of the trader.
+    pub direction: Direction,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
