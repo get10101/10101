@@ -1929,6 +1929,8 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
+ "time 0.3.20",
+ "uuid",
 ]
 
 [[package]]
