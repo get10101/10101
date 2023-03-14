@@ -17,8 +17,6 @@ use lightning::ln::channelmanager::ChannelDetails;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use std::sync::Arc;
-use std::time::SystemTime;
-use std::time::UNIX_EPOCH;
 use trade::cfd::calculate_long_liquidation_price;
 use trade::cfd::calculate_margin;
 use trade::cfd::calculate_short_liquidation_price;
@@ -132,8 +130,7 @@ impl Node {
         )?;
 
         let contract_symbol = trade_params.contract_symbol.label();
-        let maturity_time =
-            SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs() + trade_params.expiry.as_secs();
+        let maturity_time = trade_params.expiry_timestamp;
 
         // The contract input to be used for setting up the trade between the trader and the
         // coordinator

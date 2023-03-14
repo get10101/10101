@@ -6,7 +6,7 @@ use serde::Serialize;
 use std::fmt;
 use std::fmt::Formatter;
 use std::str::FromStr;
-use std::time::Duration;
+use time::OffsetDateTime;
 use uuid::Uuid;
 
 pub mod cfd;
@@ -61,11 +61,16 @@ pub struct TradeParams {
     /// The trade is to be executed at this price.
     pub execution_price: f64,
 
-    /// The expiry of the contract-to-be
+    /// The expiry timestamp of the contract-to-be
     ///
-    /// A duration that defines how long the contract is meant to be valid.
-    /// The coordinator calculates the maturity timestamp based on the current time and the expiry.
-    pub expiry: Duration,
+    /// A timestamp that defines when the contract will expire.
+    /// The orderbook defines the timestamp so that the systems using the trade params to set up
+    /// the trade are aligned on one timestamp. The systems using the trade params should
+    /// validate this timestamp against their trade settings. If the expiry timestamp is older
+    /// than a defined threshold a system my discard the trade params as outdated.
+    ///
+    /// The oracle event-id is defined by contract symbol and the expiry timestamp.
+    pub expiry_timestamp: OffsetDateTime,
 
     /// The public key of the oracle to be used
     ///
