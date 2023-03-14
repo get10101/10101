@@ -16,7 +16,7 @@ pub struct Order {
     pub id: Uuid,
     #[serde(with = "rust_decimal::serde::float")]
     pub price: Decimal,
-    pub trader_id: String,
+    pub trader_id: PublicKey,
     pub taken: bool,
     pub direction: Direction,
     #[serde(with = "rust_decimal::serde::float")]

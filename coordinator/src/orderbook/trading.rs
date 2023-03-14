@@ -81,10 +81,12 @@ fn sort_orders(mut orders: Vec<Order>, is_long: bool) -> Vec<Order> {
 pub mod tests {
     use crate::orderbook::trading::match_order;
     use crate::orderbook::trading::sort_orders;
+    use bitcoin::secp256k1::PublicKey;
     use orderbook_commons::Order;
     use orderbook_commons::OrderType;
     use rust_decimal::Decimal;
     use rust_decimal_macros::dec;
+    use std::str::FromStr;
     use time::OffsetDateTime;
     use trade::Direction;
     use uuid::Uuid;
@@ -93,7 +95,10 @@ pub mod tests {
         Order {
             id,
             price,
-            trader_id: "".to_string(),
+            trader_id: PublicKey::from_str(
+                "027f31ebc5462c1fdce1b737ecff52d37d75dea43ce11c74d25aa297165faa2007",
+            )
+            .unwrap(),
             taken: false,
             direction: Direction::Long,
             quantity,
@@ -161,7 +166,10 @@ pub mod tests {
         let order = Order {
             id: Uuid::new_v4(),
             price: Default::default(),
-            trader_id: "".to_string(),
+            trader_id: PublicKey::from_str(
+                "027f31ebc5462c1fdce1b737ecff52d37d75dea43ce11c74d25aa297165faa2007",
+            )
+            .unwrap(),
             taken: false,
             direction: Direction::Short,
             quantity: dec!(100),
@@ -187,7 +195,10 @@ pub mod tests {
         let order = Order {
             id: Uuid::new_v4(),
             price: Default::default(),
-            trader_id: "".to_string(),
+            trader_id: PublicKey::from_str(
+                "027f31ebc5462c1fdce1b737ecff52d37d75dea43ce11c74d25aa297165faa2007",
+            )
+            .unwrap(),
             taken: false,
             direction: Direction::Short,
             quantity: dec!(200),
@@ -216,7 +227,10 @@ pub mod tests {
         let order = Order {
             id: Uuid::new_v4(),
             price: Default::default(),
-            trader_id: "".to_string(),
+            trader_id: PublicKey::from_str(
+                "027f31ebc5462c1fdce1b737ecff52d37d75dea43ce11c74d25aa297165faa2007",
+            )
+            .unwrap(),
             taken: false,
             direction: Direction::Long,
             quantity: dec!(200),

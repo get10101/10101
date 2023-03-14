@@ -67,7 +67,7 @@ impl From<Order> for OrderbookOrder {
         OrderbookOrder {
             id: value.id,
             price: Decimal::from_f32(value.price).expect("To be able to convert f32 to decimal"),
-            trader_id: value.maker_id,
+            trader_id: value.maker_id.parse().expect("to have a valid pubkey"),
             taken: value.taken,
             direction: value.direction.into(),
             quantity: Decimal::from_f32(value.quantity)

@@ -95,14 +95,8 @@ pub async fn post_order(
     for matched_param in matched_orders {
         let maker_order = matched_param.maker_order;
         let taker_order = matched_param.taker_order;
-        let maker_public_key = maker_order
-            .trader_id
-            .parse()
-            .expect("To have a valid pub key");
-        let taker_public_key = taker_order
-            .trader_id
-            .parse()
-            .expect("To have a valid pub key");
+        let maker_public_key = maker_order.trader_id;
+        let taker_public_key = taker_order.trader_id;
 
         match (
             authenticated_users.get(&maker_public_key),
