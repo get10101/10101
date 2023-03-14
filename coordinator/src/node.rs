@@ -79,14 +79,14 @@ impl Node {
         tracing::info!("total collatoral");
         let total_collateral = margin_coordinator + margin_trader;
         tracing::info!("get leverages");
-        let (leverage_short, leverage_long) = get_leverages(trade_params);
+        let (leverage_long, leverage_short) = get_leverages(trade_params);
 
         tracing::info!("build payout curve");
         let payout_function = build_payout_curve(
             total_collateral,
             trade_params.execution_price,
-            leverage_short,
             leverage_long,
+            leverage_short,
         )?;
 
         tracing::info!("starting payout function");
@@ -120,13 +120,13 @@ impl Node {
 
         let (margin_coordinator, margin_trader) = get_margins(trade_params);
         let total_collateral = margin_coordinator + margin_trader;
-        let (leverage_short, leverage_long) = get_leverages(trade_params);
+        let (leverage_long, leverage_short) = get_leverages(trade_params);
 
         let contract_descriptor = build_contract_descriptor(
             total_collateral,
             trade_params.execution_price,
-            leverage_short,
             leverage_long,
+            leverage_short,
         )?;
 
         let contract_symbol = trade_params.contract_symbol.label();
@@ -183,8 +183,8 @@ fn get_margins(trade_params: &TradeParams) -> (u64, u64) {
 
 fn get_leverages(trade_params: &TradeParams) -> (f64, f64) {
     match trade_params.direction {
-        Direction::Long => (COORDINATOR_LEVERAGE, trade_params.leverage),
-        Direction::Short => (trade_params.leverage, COORDINATOR_LEVERAGE),
+        Direction::Long => (trade_params.leverage, COORDINATOR_LEVERAGE),
+        Direction::Short => (COORDINATOR_LEVERAGE, trade_params.leverage),
     }
 }
 
@@ -201,15 +201,15 @@ fn get_rounding_intervals() -> RoundingIntervals {
 fn build_contract_descriptor(
     total_collateral: u64,
     execution_price: f64,
-    leverage_short: f64,
     leverage_long: f64,
+    leverage_short: f64,
 ) -> Result<ContractDescriptor> {
     Ok(ContractDescriptor::Numerical(NumericalDescriptor {
         payout_function: build_payout_curve(
             total_collateral,
             execution_price,
-            leverage_short,
             leverage_long,
+            leverage_short,
         )?,
         rounding_intervals: get_rounding_intervals(),
         difference_params: None,
@@ -227,8 +227,8 @@ fn build_contract_descriptor(
 fn build_payout_curve(
     total_collateral: u64,
     execution_price: f64,
-    leverage_short: f64,
     leverage_long: f64,
+    leverage_short: f64,
 ) -> Result<PayoutFunction> {
     let leverage_short = Decimal::try_from(leverage_short)?;
     let execution_price = Decimal::try_from(execution_price)?;
