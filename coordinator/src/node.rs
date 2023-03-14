@@ -22,6 +22,7 @@ use std::sync::Arc;
 use trade::cfd::calculate_long_liquidation_price;
 use trade::cfd::calculate_margin;
 use trade::cfd::calculate_short_liquidation_price;
+use trade::cfd::BTCUSD_MAX_PRICE;
 use trade::Direction;
 
 /// The leverage used by the coordinator for all trades.
@@ -113,7 +114,7 @@ impl Node {
 
         let total_collateral = margin_coordinator + margin_trader;
 
-        let payout_function = build_payout_curve(
+        let payout_function = build_payout_function(
             total_collateral,
             trade_params.weighted_execution_price(),
             leverage_long,
@@ -237,7 +238,7 @@ fn build_contract_descriptor(
     leverage_short: f64,
 ) -> Result<ContractDescriptor> {
     Ok(ContractDescriptor::Numerical(NumericalDescriptor {
-        payout_function: build_payout_curve(
+        payout_function: build_payout_function(
             total_collateral,
             initial_price,
             leverage_long,
@@ -257,7 +258,7 @@ fn build_contract_descriptor(
 /// TODO: We are currently building a linear payout function for
 /// simplicity. This is *wrong*. We should build an inverse payout
 /// function like we used to do in ItchySats.
-fn build_payout_curve(
+fn build_payout_function(
     total_collateral: u64,
     initial_price: f64,
     leverage_long: f64,
@@ -307,26 +308,30 @@ fn build_payout_curve(
     ])
     .map_err(|e| anyhow!("{e:#}"))?;
 
-    let upper_range = PolynomialPayoutCurvePiece::new(vec![
-        PayoutPoint {
-            event_outcome: upper_limit,
-            outcome_payout: total_collateral,
-            extra_precision: 0,
-        },
-        PayoutPoint {
-            // TODO: This number is copied from the rust-dlc examples and is probably
-            // chosen randomly. Pick a sensible number for this upper range value.
-            event_outcome: 1048575,
-            outcome_payout: total_collateral,
-            extra_precision: 0,
-        },
-    ])
-    .map_err(|e| anyhow!("{e:#}"))?;
-
-    PayoutFunction::new(vec![
+    let mut pieces = vec![
         PayoutFunctionPiece::PolynomialPayoutCurvePiece(lower_range),
         PayoutFunctionPiece::PolynomialPayoutCurvePiece(middle_range),
-        PayoutFunctionPiece::PolynomialPayoutCurvePiece(upper_range),
-    ])
-    .map_err(|e| anyhow!("{e:#}"))
+    ];
+
+    // When the upper limit is greater than or equal to the
+    // `BTCUSD_MAX_PRICE`, we don't have to add another curve piece.
+    if upper_limit < BTCUSD_MAX_PRICE {
+        let upper_range = PolynomialPayoutCurvePiece::new(vec![
+            PayoutPoint {
+                event_outcome: upper_limit,
+                outcome_payout: total_collateral,
+                extra_precision: 0,
+            },
+            PayoutPoint {
+                event_outcome: BTCUSD_MAX_PRICE,
+                outcome_payout: total_collateral,
+                extra_precision: 0,
+            },
+        ])
+        .map_err(|e| anyhow!("{e:#}"))?;
+
+        pieces.push(PayoutFunctionPiece::PolynomialPayoutCurvePiece(upper_range));
+    }
+
+    PayoutFunction::new(pieces).map_err(|e| anyhow!("{e:#}"))
 }
