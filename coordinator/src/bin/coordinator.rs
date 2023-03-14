@@ -35,6 +35,9 @@ async fn main() -> Result<()> {
             .context(format!("Could not create data dir for {network}"))?;
     }
 
+    let data_dir_string = data_dir.clone().into_os_string();
+    tracing::info!("Data-dir: {data_dir_string:?}");
+
     let seed_path = data_dir.join("seed");
     let seed = Bip39Seed::initialize(&seed_path)?;
 
