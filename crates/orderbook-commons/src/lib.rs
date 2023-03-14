@@ -1,10 +1,13 @@
 use secp256k1::Message;
 use secp256k1::PublicKey;
+use secp256k1::XOnlyPublicKey;
 use serde::Deserialize;
 use serde::Serialize;
 use sha2::digest::FixedOutput;
 use sha2::Digest;
 use sha2::Sha256;
+use time::OffsetDateTime;
+use uuid::Uuid;
 
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub struct Signature {
@@ -19,6 +22,71 @@ pub fn create_sign_message() -> Message {
     let msg = Message::from_slice(hashed_message.as_slice())
         .expect("The message is static, hence this should never happen");
     msg
+}
+
+/// A match for an order
+///
+/// The match defines the execution price and the quantity to be used of the order with the
+/// corresponding order id.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Match {
+    /// The id of the matched order defined by the orderbook
+    ///
+    /// The identifier of the order as defined by the orderbook.
+    pub order_id: Uuid,
+
+    /// The quantity of the matched order to be used
+    ///
+    /// This might be the complete quantity of the matched order, or a fraction.
+    pub quantity: f64,
+
+    /// Pubkey of the node which order was matched
+    pub pubkey: PublicKey,
+
+    /// The execution price as defined by the orderbook
+    ///
+    /// The trade is to be executed at this price.
+    pub execution_price: f64,
+}
+
+/// The match params for one order
+///
+/// This is emitted by the orderbook to the trader when an order gets filled.
+/// This emitted for one of the trader's order, i.e. the `order_id` matches one of the orders that
+/// the trader submitted to the orderbook. The matches define how this order was filled.
+/// This information is used to request trade execution with the coordinator.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FilledWith {
+    /// The id of the order defined by the orderbook
+    ///
+    /// The identifier of the order as defined by the orderbook.
+    pub order_id: Uuid,
+
+    /// The expiry timestamp of the contract-to-be
+    ///
+    /// A timestamp that defines when the contract will expire.
+    /// The orderbook defines the timestamp so that the systems using the trade params to set up
+    /// the trade are aligned on one timestamp. The systems using the trade params should
+    /// validate this timestamp against their trade settings. If the expiry timestamp is older
+    /// than a defined threshold a system my discard the trade params as outdated.
+    ///
+    /// The oracle event-id is defined by contract symbol and the expiry timestamp.
+    pub expiry_timestamp: OffsetDateTime,
+
+    /// The public key of the oracle to be used
+    ///
+    /// The orderbook decides this when matching orders.
+    /// The oracle_pk is used to define what oracle is to be used in the contract.
+    /// This `oracle_pk` must correspond to one `oracle_pk` configured in the dlc-manager.
+    /// It is possible to configure multiple oracles in the dlc-manager; this
+    /// `oracle_pk` has to match one of them. This allows us to configure the dlc-managers
+    /// using two oracles, where one oracles can be used as backup if the other oracle is not
+    /// available. Eventually this can be changed to be a list of oracle PKs and a threshold of
+    /// how many oracle have to agree on the attestation.
+    pub oracle_pk: XOnlyPublicKey,
+
+    /// The matches for the order
+    pub matches: Vec<Match>,
 }
 
 #[cfg(test)]
