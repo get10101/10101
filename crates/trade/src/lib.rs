@@ -70,6 +70,13 @@ pub struct TradeParams {
     /// The public key of the oracle to be used
     ///
     /// The orderbook decides this when matching orders.
+    /// The oracle_pk is used to define what oracle is to be used in the contract.
+    /// This `oracle_pk` must correspond to one `oracle_pk` configured in the dlc-manager.
+    /// It is possible to configure multiple oracles in the dlc-manager; this
+    /// `oracle_pk` has to match one of them. This allows us to configure the dlc-managers
+    /// using two oracles, where one oracles can be used as backup if the other oracle is not
+    /// available. Eventually this can be changed to be a list of oracle PKs and a threshold of
+    /// how many oracle have to agree on the attestation.
     pub oracle_pk: XOnlyPublicKey,
 
     /// The direction of the trade
