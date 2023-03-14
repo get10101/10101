@@ -25,7 +25,8 @@ async fn crud_test() {
         &mut conn,
         orderbook_commons::NewOrder {
             price: dec!(20000.00),
-            trader_id: "Bob the Maker".to_string(),
+            trader_id: "027f31ebc5462c1fdce1b737ecff52d37d75dea43ce11c74d25aa297165faa2007"
+                .to_string(),
             direction: Direction::Long,
             quantity: dec!(100.0),
             order_type: OrderType::Market,
