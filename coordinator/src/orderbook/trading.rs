@@ -51,6 +51,11 @@ pub fn match_order(
         }
     }
 
+    // For the time being we do not want to support multi match
+    if matched_orders.len() > 1 {
+        bail!("More than one matched order, please reduce order quantity");
+    }
+
     // For now we go for 1 week contracts, this has been chosen randomly and should be chosen wisely
     // once we move to perpetuals
     let expiry_timestamp = OffsetDateTime::now_utc() + Duration::days(7);
