@@ -10,6 +10,8 @@ use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
 use coordinator_commons::TradeParams;
+use orderbook_commons::FilledWith;
+use orderbook_commons::Match;
 use std::ops::Add;
 use std::time::Duration;
 use time::OffsetDateTime;
@@ -27,20 +29,21 @@ pub async fn submit_order(order: Order) -> Result<()> {
         pubkey: ln_dlc::get_node_info()?.pubkey,
         // We set this to our pubkey as well for simplicity until we receive a match from the
         // orderbook
-        pubkey_counterparty: ln_dlc::get_node_info()?.pubkey,
-        // We set this to our order as well for simplicity until we receive a match from the
-        // orderbook
-        order_id: order.id,
-        order_id_counterparty: "the orderbook will know".to_string(),
         contract_symbol: ContractSymbol::BtcUsd,
         leverage: order.leverage,
-        leverage_counterparty: 2.0,
         quantity: order.quantity,
-        execution_price: 23_000.0,
-        // in 24h
-        expiry_timestamp: OffsetDateTime::now_utc().add(Duration::from_secs(60 * 60 * 24)),
-        oracle_pk: ln_dlc::get_oracle_pubkey()?,
         direction: Direction::Long,
+        filled_with: FilledWith {
+            order_id: order.id,
+            expiry_timestamp: OffsetDateTime::now_utc().add(Duration::from_secs(60 * 60 * 24)),
+            oracle_pk: ln_dlc::get_oracle_pubkey()?,
+            matches: vec![Match {
+                order_id: Default::default(),
+                quantity: order.quantity,
+                pubkey: ln_dlc::get_node_info()?.pubkey,
+                execution_price: 23_000.0,
+            }],
+        },
     };
     // TODO: Remove this call once we plug in the orderbook; we trigger trade upon being matched
     // then

@@ -17,9 +17,9 @@ use trade::Direction;
 /// The DLC that represents the position will be stored in the database.
 /// Errors are handled within the scope of this function.
 pub async fn trade(trade_params: TradeParams) -> Result<()> {
-    let order_id = trade_params.order_id;
+    let order_id = trade_params.filled_with.order_id;
 
-    order::handler::order_filling(order_id, trade_params.execution_price)?;
+    order::handler::order_filling(order_id, trade_params.weighted_execution_price())?;
 
     if let Err((reason, e)) = ln_dlc::trade(trade_params).await {
         order::handler::order_failed(Some(order_id), reason, e)?;
