@@ -1,10 +1,13 @@
+use rust_decimal::Decimal;
 use time::OffsetDateTime;
 use trade::ContractSymbol;
 use trade::Direction;
 use uuid::Uuid;
+use crate::ln_dlc;
 
 pub mod api;
 pub mod handler;
+mod orderbook_client;
 
 // When naming this the same as `api_model::order::OrderType` the generated code somehow uses
 // `trade::OrderType` and contains errors, hence different name is used.
@@ -116,6 +119,31 @@ impl Order {
                 tracing::error!("Executed price not known in state {:?}", self.state);
                 None
             }
+        }
+    }
+}
+
+impl From<NewOrder> for orderbook_commons::NewOrder {
+    fn from(order: NewOrder) -> Self {
+        let quantity = Decimal::try_from(order.quantity).expect("to parse into decimal");
+        let trader_id = ln_dlc::get_node_info().unwrap().pubkey;
+        orderbook_commons::NewOrder {
+            // todo: this is left out intentionally as market orders do not set a price. this field
+            // should either be an option or differently modelled for a market order.
+            price: Decimal::ZERO,
+            quantity,
+            trader_id,
+            direction: order.direction,
+            order_type: order.order_type.into(),
+        }
+    }
+}
+
+impl From<OrderType> for orderbook_commons::OrderType {
+    fn from(order_type: OrderType) -> Self {
+        match order_type {
+            OrderType::Market => orderbook_commons::OrderType::Market,
+            OrderType::Limit { .. } => orderbook_commons::OrderType::Limit,
         }
     }
 }

@@ -1,7 +1,9 @@
+use crate::config;
 use crate::db;
 use crate::event;
 use crate::event::EventInternal;
 use crate::ln_dlc;
+use crate::trade::order::orderbook_client::OrderbookClient;
 use crate::trade::order::FailureReason;
 use crate::trade::order::NewOrder;
 use crate::trade::order::Order;
@@ -13,6 +15,7 @@ use anyhow::Result;
 use coordinator_commons::TradeParams;
 use orderbook_commons::FilledWith;
 use orderbook_commons::Match;
+use reqwest::Url;
 use rust_decimal::Decimal;
 use std::ops::Add;
 use std::time::Duration;
@@ -22,11 +25,19 @@ use trade::Direction;
 use uuid::Uuid;
 
 pub async fn submit_order(order: NewOrder) -> Result<()> {
-    // TODO: Submit to orderbook -> This will define the Uuid of the order
-    // In case we fail to submit to the orderbook we assign our own internal uuid and then return
-    // failure.
+    let url = format!("http://{}", config::get_http_endpoint());
+    let orderbook_client = OrderbookClient::new(Url::parse(&url)?);
+
+    let order_id = match orderbook_client.post_new_order(order.into()).await {
+        Ok(order_response) => order_response.id,
+        Err(e) => {
+            tracing::error!("Failed to post new order. Error: {e:#}");
+            Uuid::new_v4()
+        }
+    };
+
     let order = Order {
-        id: Uuid::new_v4(),
+        id: order_id,
         leverage: order.leverage,
         quantity: order.quantity,
         contract_symbol: order.contract_symbol,
