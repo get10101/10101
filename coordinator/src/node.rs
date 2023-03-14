@@ -56,7 +56,7 @@ impl Node {
         // position on quantity and direction. If a "reversed" order was found we propose to
         // collaboratively settle the dlc channel. If not the position either needs to be extended
         // or reduced. e.g. if we have an existing long position of a quantity of 100 and we get a
-        // short position of a quantity of 75, we will simply reduce the existing dlc_channel to 75.
+        // short position of a quantity of 75, we will simply reduce the existing dlc_channel to 25.
         // For MVP we do not support partially closing or extending a position, hence we can assume
         // that if a dlc has been found that means we need to close the position.
 
