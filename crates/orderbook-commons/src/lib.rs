@@ -154,12 +154,45 @@ pub struct FilledWith {
     pub matches: Vec<Match>,
 }
 
+impl FilledWith {
+    /// calculates the average execution price for inverse contracts
+    ///
+    /// The average execution price follows a simple formula:
+    /// `total_order_quantity / (quantity_trade_0 / execution_price_trade_0 + quantity_trade_1 /
+    /// execution_price_trade_1 )`
+    pub fn average_execution_price(&self) -> Decimal {
+        if self.matches.len() == 1 {
+            return self
+                .matches
+                .first()
+                .expect("to be exactly one")
+                .execution_price;
+        }
+
+        let sum_quantity = self
+            .matches
+            .iter()
+            .fold(Decimal::ZERO, |acc, m| acc + m.quantity);
+
+        let nominal_prices: Decimal = self.matches.iter().fold(Decimal::ZERO, |acc, m| {
+            acc + (m.quantity / m.execution_price)
+        });
+
+        sum_quantity / nominal_prices
+    }
+}
+
 #[cfg(test)]
 mod test {
+    use crate::FilledWith;
+    use crate::Match;
     use crate::Signature;
+    use rust_decimal_macros::dec;
     use secp256k1::PublicKey;
     use secp256k1::SecretKey;
+    use secp256k1::XOnlyPublicKey;
     use std::str::FromStr;
+    use time::OffsetDateTime;
 
     #[test]
     fn test_serialize_signature() {
@@ -192,5 +225,45 @@ mod test {
         };
 
         assert_eq!(serialized, signature);
+    }
+
+    #[test]
+    fn test_average_execution_price() {
+        let match_0_quantity = dec!(1000);
+        let match_0_price = dec!(10_000);
+        let match_1_quantity = dec!(2000);
+        let match_1_price = dec!(12_000);
+        let filled = FilledWith {
+            order_id: Default::default(),
+            expiry_timestamp: OffsetDateTime::now_utc(),
+            oracle_pk: XOnlyPublicKey::from_str(
+                "16f88cf7d21e6c0f46bcbc983a4e3b19726c6c98858cc31c83551a88fde171c0",
+            )
+            .expect("To be a valid pubkey"),
+            matches: vec![
+                Match {
+                    order_id: Default::default(),
+                    quantity: match_0_quantity,
+                    pubkey: PublicKey::from_str(
+                        "02bd998ebd176715fe92b7467cf6b1df8023950a4dd911db4c94dfc89cc9f5a655",
+                    )
+                    .unwrap(),
+                    execution_price: match_0_price,
+                },
+                Match {
+                    order_id: Default::default(),
+                    quantity: match_1_quantity,
+                    pubkey: PublicKey::from_str(
+                        "02bd998ebd176715fe92b7467cf6b1df8023950a4dd911db4c94dfc89cc9f5a655",
+                    )
+                    .unwrap(),
+                    execution_price: match_1_price,
+                },
+            ],
+        };
+
+        let average_execution_price = filled.average_execution_price();
+
+        assert_eq!(average_execution_price.round_dp(2), dec!(11250.00));
     }
 }

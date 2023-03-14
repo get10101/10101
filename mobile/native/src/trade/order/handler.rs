@@ -2,26 +2,16 @@ use crate::config;
 use crate::db;
 use crate::event;
 use crate::event::EventInternal;
-use crate::ln_dlc;
 use crate::trade::order::orderbook_client::OrderbookClient;
 use crate::trade::order::FailureReason;
 use crate::trade::order::NewOrder;
 use crate::trade::order::Order;
 use crate::trade::order::OrderState;
-use crate::trade::position;
 use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
-use coordinator_commons::TradeParams;
-use orderbook_commons::FilledWith;
-use orderbook_commons::Match;
 use reqwest::Url;
-use rust_decimal::Decimal;
-use std::ops::Add;
-use std::time::Duration;
 use time::OffsetDateTime;
-use trade::ContractSymbol;
-use trade::Direction;
 use uuid::Uuid;
 
 pub async fn submit_order(order: NewOrder) -> Result<()> {
@@ -50,31 +40,6 @@ pub async fn submit_order(order: NewOrder) -> Result<()> {
     db::insert_order(order)?;
 
     ui_update(order);
-
-    // TODO: remove this dummy
-    let dummy_trade_params = TradeParams {
-        pubkey: ln_dlc::get_node_info()?.pubkey,
-        // We set this to our pubkey as well for simplicity until we receive a match from the
-        // orderbook
-        contract_symbol: ContractSymbol::BtcUsd,
-        leverage: order.leverage,
-        quantity: order.quantity,
-        direction: Direction::Long,
-        filled_with: FilledWith {
-            order_id: order.id,
-            expiry_timestamp: OffsetDateTime::now_utc().add(Duration::from_secs(60 * 60 * 24)),
-            oracle_pk: ln_dlc::get_oracle_pubkey()?,
-            matches: vec![Match {
-                order_id: Default::default(),
-                quantity: Decimal::try_from(order.quantity)?,
-                pubkey: ln_dlc::get_node_info()?.pubkey,
-                execution_price: Decimal::from(23_000),
-            }],
-        },
-    };
-    // TODO: Remove this call once we plug in the orderbook; we trigger trade upon being matched
-    // then
-    position::handler::trade(dummy_trade_params).await?;
 
     Ok(())
 }

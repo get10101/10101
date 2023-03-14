@@ -45,34 +45,6 @@ pub struct TradeParams {
 
 impl TradeParams {
     pub fn weighted_execution_price(&self) -> Decimal {
-        if self.filled_with.matches.len() == 1 {
-            return self
-                .filled_with
-                .matches
-                .first()
-                .expect("to be exactly one")
-                .execution_price;
-        }
-
-        // TODO: Make sure this is correct
-
-        let sum_weighted_execution_price: Decimal = self
-            .filled_with
-            .matches
-            .iter()
-            .map(|m| m.execution_price * m.quantity)
-            .collect::<Vec<Decimal>>()
-            .iter()
-            .sum();
-        let quantities: Decimal = self
-            .filled_with
-            .matches
-            .iter()
-            .map(|m| m.quantity)
-            .collect::<Vec<Decimal>>()
-            .iter()
-            .sum();
-
-        sum_weighted_execution_price / quantities
+        self.filled_with.average_execution_price()
     }
 }
