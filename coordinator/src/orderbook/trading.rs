@@ -8,8 +8,8 @@ use trade::Direction;
 
 /// Matches a provided market order with limit orders from the DB
 ///
-/// If the order is a long order, we return the orders with the highest price
-/// If the order is a short order, we return the orders with the lowest price
+/// If the order is a long order, we return the short orders sorted by price (highest first)
+/// If the order is a short order, we return the long orders sorted by price (lowest first)
 pub fn match_order(order: Order, all_orders: Vec<Order>) -> Result<Vec<MatchParams>> {
     if order.order_type == OrderType::Limit {
         // we don't match limit and limit at the moment
