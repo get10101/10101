@@ -1,6 +1,5 @@
-use crate::orderbook::routes::MakerMatchParams;
 use crate::orderbook::routes::MatchParams;
-use crate::orderbook::routes::TakerMatchParams;
+use crate::orderbook::routes::TraderMatchParams;
 use anyhow::bail;
 use anyhow::Result;
 use bitcoin::XOnlyPublicKey;
@@ -74,8 +73,8 @@ pub fn match_order(
         .iter()
         .map(|maker_order| {
             (
-                MakerMatchParams {
-                    maker_id: maker_order.trader_id,
+                TraderMatchParams {
+                    trader_id: maker_order.trader_id,
                     filled_with: FilledWith {
                         order_id: maker_order.id,
                         expiry_timestamp,
@@ -96,7 +95,7 @@ pub fn match_order(
                 },
             )
         })
-        .collect::<Vec<(MakerMatchParams, Match)>>();
+        .collect::<Vec<(TraderMatchParams, Match)>>();
 
     let mut maker_matches = vec![];
     let mut taker_matches = vec![];
@@ -107,8 +106,8 @@ pub fn match_order(
     }
 
     Ok(Some(MatchParams {
-        taker_matches: TakerMatchParams {
-            taker_id: order.trader_id,
+        taker_matches: TraderMatchParams {
+            trader_id: order.trader_id,
             filled_with: FilledWith {
                 order_id: order.id,
                 expiry_timestamp,

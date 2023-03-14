@@ -66,19 +66,13 @@ pub async fn get_order(
 
 #[derive(Clone)]
 pub struct MatchParams {
-    pub taker_matches: TakerMatchParams,
-    pub makers_matches: Vec<MakerMatchParams>,
+    pub taker_matches: TraderMatchParams,
+    pub makers_matches: Vec<TraderMatchParams>,
 }
 
 #[derive(Clone)]
-pub struct MakerMatchParams {
-    pub maker_id: PublicKey,
-    pub filled_with: FilledWith,
-}
-
-#[derive(Clone)]
-pub struct TakerMatchParams {
-    pub taker_id: PublicKey,
+pub struct TraderMatchParams {
+    pub trader_id: PublicKey,
     pub filled_with: FilledWith,
 }
 
@@ -108,7 +102,7 @@ pub async fn post_order(
     let authenticated_users = state.authenticated_users.lock().await;
     if let Some(matched_orders) = matched_orders {
         for maker_match in matched_orders.makers_matches {
-            match authenticated_users.get(&maker_match.maker_id) {
+            match authenticated_users.get(&maker_match.trader_id) {
                 None => {
                     // TODO we should fail here and get another match if possible
                     tracing::error!("Could not notify maker - we should fail here and get another match if possible");
@@ -126,7 +120,7 @@ pub async fn post_order(
                 },
             }
         }
-        match authenticated_users.get(&matched_orders.taker_matches.taker_id) {
+        match authenticated_users.get(&matched_orders.taker_matches.trader_id) {
             None => {
                 // TODO we should fail here and get another match if possible
                 tracing::error!("Could not notify taker - we should fail here and get another match if possible");
