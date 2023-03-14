@@ -240,7 +240,7 @@ pub mod tests {
     }
 
     #[test]
-    pub fn when_all_same_id_sort_by_id() {
+    pub fn when_all_same_price_sort_by_id() {
         let order1 = dumm_long_order(
             dec!(20_000),
             Uuid::new_v4(),
