@@ -22,26 +22,23 @@ pub fn subscribe(secret_key: SecretKey) -> Result<()> {
     let runtime = runtime()?;
 
     runtime.block_on(async move {
-        let _ = runtime
-            .spawn(async move {
-                let url = format!(
-                    "ws://{}/api/orderbook/websocket",
-                    config::get_http_endpoint()
-                );
+        runtime.spawn(async move {
+            let url = format!(
+                "ws://{}/api/orderbook/websocket",
+                config::get_http_endpoint()
+            );
 
-                let pubkey = secret_key.public_key(SECP256K1);
-                let authenticate = |msg| {
-                    let signature = secret_key.sign_ecdsa(msg);
-                    Signature { pubkey, signature }
-                };
-                let mut stream =
-                    orderbook_client::subscribe_with_authentication(url, &authenticate);
+            let pubkey = secret_key.public_key(SECP256K1);
+            let authenticate = |msg| {
+                let signature = secret_key.sign_ecdsa(msg);
+                Signature { pubkey, signature }
+            };
+            let mut stream = orderbook_client::subscribe_with_authentication(url, &authenticate);
 
-                while let Ok(Some(result)) = stream.try_next().await {
-                    tracing::info!("Received: {result}");
-                }
-            })
-            .await;
+            while let Ok(Some(result)) = stream.try_next().await {
+                tracing::info!("Received: {result}");
+            }
+        });
         Ok(())
     })
 }
