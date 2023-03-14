@@ -9,8 +9,8 @@ pub(crate) mod config;
 pub mod event;
 pub mod ln_dlc;
 pub mod logger;
+mod orderbook;
 pub mod trade;
 
 #[allow(clippy::all, unused_import_braces, unused_qualifications)]
 mod bridge_generated;
-mod orderbook;

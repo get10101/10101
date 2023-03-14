@@ -7,8 +7,7 @@ use futures::Stream;
 use futures::StreamExt;
 use orderbook_commons::create_sign_message;
 use orderbook_commons::Signature;
-use secp256k1::SecretKey;
-use secp256k1::SECP256K1;
+use secp256k1::Message;
 use serde::Serialize;
 use serde_json::to_string;
 use tokio_tungstenite::tungstenite;
@@ -25,14 +24,15 @@ pub fn subscribe(url: String) -> impl Stream<Item = Result<String, Error>> + Unp
 /// It subscribes and yields all messages.
 pub fn subscribe_with_authentication(
     url: String,
-    credentials: Credentials,
+    authenticate: impl Fn(Message) -> Signature,
 ) -> impl Stream<Item = Result<String, Error>> + Unpin {
-    subscribe_impl(Some(credentials), url)
+    let signature = authenticate(create_sign_message());
+    subscribe_impl(Some(signature), url)
 }
 
 /// Connects to the orderbook websocket API yields all messages.
 fn subscribe_impl(
-    credentials: Option<Credentials>,
+    signature: Option<Signature>,
     url: String,
 ) -> impl Stream<Item = Result<String, Error>> + Unpin {
     let stream = stream! {
@@ -43,13 +43,13 @@ fn subscribe_impl(
 
         tracing::info!("Connected to orderbook realtime API");
 
-        if let Some(credentials) = credentials {
-            let signature = credentials.sign();
+
+        if let Some(signature) = signature {
             let _ = connection
                 .send(tungstenite::Message::try_from(Command::from(signature))?)
                 .await;
-
         }
+
 
         loop {
             tokio::select! {
@@ -102,27 +102,6 @@ impl TryFrom<Command> for tungstenite::Message {
     }
 }
 
-#[derive(Clone, Debug)]
-pub struct Credentials {
-    pub secret_key: SecretKey,
-}
-
-impl Credentials {
-    pub fn new(secret_key: SecretKey) -> Self {
-        Self { secret_key }
-    }
-
-    fn sign(&self) -> Signature {
-        let msg = create_sign_message();
-
-        let signature = self.secret_key.sign_ecdsa(msg);
-        Signature {
-            pubkey: self.secret_key.public_key(SECP256K1),
-            signature,
-        }
-    }
-}
-
 impl From<Signature> for Command {
     fn from(sig: Signature) -> Self {
         Command::Authenticate(sig)
@@ -131,18 +110,17 @@ impl From<Signature> for Command {
 
 #[cfg(test)]
 mod test {
-    use super::Credentials;
     use crate::create_sign_message;
-    use crate::Signature;
     use secp256k1::SecretKey;
+    use secp256k1::SECP256K1;
     use std::str::FromStr;
 
     #[test]
     fn test_signature_get() {
         let secret_key = test_secret_key();
 
-        let tr = Credentials::new(secret_key);
-        let Signature { signature, .. } = tr.sign();
+        let message = create_sign_message();
+        let signature = secret_key.sign_ecdsa(message);
 
         let should_signature = secp256k1::ecdsa::Signature::from_str(
             "304402202f2545f818a5dac9311157d75065156b141e5a6437e817d1d75f9fab084e46940220757bb6f0916f83b2be28877a0d6b05c45463794e3c8c99f799b774443575910d",
@@ -163,8 +141,10 @@ mod test {
     fn test_verify_signature() {
         let secret_key = test_secret_key();
 
-        let tr = Credentials::new(secret_key);
-        let Signature { signature, pubkey } = tr.sign();
+        let message = create_sign_message();
+        let signature = secret_key.sign_ecdsa(message);
+
+        let pubkey = secret_key.public_key(SECP256K1);
 
         let msg = create_sign_message();
 
