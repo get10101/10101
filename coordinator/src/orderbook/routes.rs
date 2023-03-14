@@ -12,12 +12,14 @@ use axum::extract::Path;
 use axum::extract::State;
 use axum::response::IntoResponse;
 use axum::Json;
+use bitcoin::secp256k1::PublicKey;
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::PooledConnection;
 use diesel::PgConnection;
 use futures::SinkExt;
 use futures::StreamExt;
 use orderbook_commons::create_sign_message;
+use orderbook_commons::FilledWith;
 use orderbook_commons::NewOrder;
 use orderbook_commons::Order;
 use orderbook_commons::OrderType;
@@ -62,10 +64,22 @@ pub async fn get_order(
     Ok(Json(order))
 }
 
+#[derive(Clone)]
 pub struct MatchParams {
-    // todo: waiting for https://github.com/get10101/10101/pull/244 to land
-    pub taker_order: Order,
-    pub maker_order: Order,
+    pub taker_matches: TakerMatchParams,
+    pub makers_matches: Vec<MakerMatchParams>,
+}
+
+#[derive(Clone)]
+pub struct MakerMatchParams {
+    pub maker_id: PublicKey,
+    pub filled_with: FilledWith,
+}
+
+#[derive(Clone)]
+pub struct TakerMatchParams {
+    pub taker_id: PublicKey,
+    pub filled_with: FilledWith,
 }
 
 pub async fn post_order(
@@ -92,34 +106,37 @@ pub async fn post_order(
         .map_err(|e| AppError::InternalServerError(format!("Failed to match order: {e:#}")))?;
 
     let authenticated_users = state.authenticated_users.lock().await;
-    for matched_param in matched_orders {
-        let maker_order = matched_param.maker_order;
-        let taker_order = matched_param.taker_order;
-        let maker_public_key = maker_order.trader_id;
-        let taker_public_key = taker_order.trader_id;
-
-        match (
-            authenticated_users.get(&maker_public_key),
-            authenticated_users.get(&taker_public_key),
-        ) {
-            (Some(maker_sender), Some(taker_sender)) => {
-                maker_sender.send(OrderbookMsg::Match).await.unwrap();
-
-                taker_sender.send(OrderbookMsg::Match).await.unwrap();
+    if let Some(matched_orders) = matched_orders {
+        for maker_match in matched_orders.makers_matches {
+            match authenticated_users.get(&maker_match.maker_id) {
+                None => {
+                    // TODO we should fail here and get another match if possible
+                    tracing::error!("Could not notify maker - we should fail here and get another match if possible");
+                }
+                Some(sender) => match sender.send(OrderbookMsg::Match).await {
+                    Ok(_) => {
+                        tracing::debug!("Successfully notified maker")
+                    }
+                    Err(err) => {
+                        tracing::error!("Connection lost to maker {err:#}")
+                    }
+                },
             }
-            (Some(_), None) => {
-                tracing::error!(
-                    "Could not notify taker about the match - probably not online anymore"
-                )
+        }
+        match authenticated_users.get(&matched_orders.taker_matches.taker_id) {
+            None => {
+                // TODO we should fail here and get another match if possible
+                tracing::error!("Could not notify taker - we should fail here and get another match if possible");
             }
-            (None, Some(_)) => {
-                tracing::error!(
-                    "Could not notify maker about the match - probably not online anymore"
-                )
-            }
-            (None, None) => {
-                tracing::error!("Could not notify maker nor taker about the match - probably not online anymore")
-            }
+            Some(sender) => match sender.send(OrderbookMsg::Match).await {
+                Ok(_) => {
+                    tracing::debug!("Successfully notified taker")
+                }
+                Err(err) => {
+                    // TODO we should fail here and get another match if possible
+                    tracing::error!("Connection lost to taker {err:#}")
+                }
+            },
         }
     }
 

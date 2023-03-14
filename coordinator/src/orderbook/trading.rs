@@ -1,9 +1,18 @@
+use crate::orderbook::routes::MakerMatchParams;
 use crate::orderbook::routes::MatchParams;
+use crate::orderbook::routes::TakerMatchParams;
+use anyhow::bail;
 use anyhow::Result;
+use bitcoin::XOnlyPublicKey;
+use orderbook_commons::FilledWith;
+use orderbook_commons::Match;
 use orderbook_commons::Order;
 use orderbook_commons::OrderType;
 use rust_decimal::Decimal;
 use std::cmp::Ordering;
+use std::str::FromStr;
+use time::Duration;
+use time::OffsetDateTime;
 use trade::Direction;
 
 /// Matches a provided market order with limit orders from the DB
@@ -16,10 +25,10 @@ use trade::Direction;
 pub fn match_order(
     order: Order,
     opposite_direction_orders: Vec<Order>,
-) -> Result<Vec<MatchParams>> {
+) -> Result<Option<MatchParams>> {
     if order.order_type == OrderType::Limit {
         // we don't match limit and limit at the moment
-        return Ok(vec![]);
+        return Ok(None);
     }
 
     let opposite_direction_orders = opposite_direction_orders
@@ -42,14 +51,64 @@ pub fn match_order(
         }
     }
 
-    Ok(matched_orders
+    // For now we go for 1 week contracts, this has been chosen randomly and should be chosen wisely
+    // once we move to perpetuals
+    let expiry_timestamp = OffsetDateTime::now_utc() + Duration::days(7);
+
+    // For now we hardcode the oracle pubkey here
+    let oracle_pk = XOnlyPublicKey::from_str(
+        "16f88cf7d21e6c0f46bcbc983a4e3b19726c6c98858cc31c83551a88fde171c0",
+    )
+    .expect("To be a valid pubkey");
+
+    let matches = matched_orders
         .iter()
-        .map(|maker_order| MatchParams {
-            // TODO: wait for the final type
-            maker_order: maker_order.clone(),
-            taker_order: order.clone(),
+        .map(|maker_order| {
+            (
+                MakerMatchParams {
+                    maker_id: maker_order.trader_id,
+                    filled_with: FilledWith {
+                        order_id: maker_order.id,
+                        expiry_timestamp,
+                        oracle_pk,
+                        matches: vec![Match {
+                            order_id: order.id,
+                            quantity: order.quantity,
+                            pubkey: order.trader_id,
+                            execution_price: maker_order.price,
+                        }],
+                    },
+                },
+                Match {
+                    order_id: maker_order.id,
+                    quantity: order.quantity,
+                    pubkey: maker_order.trader_id,
+                    execution_price: maker_order.price,
+                },
+            )
         })
-        .collect())
+        .collect::<Vec<(MakerMatchParams, Match)>>();
+
+    let mut maker_matches = vec![];
+    let mut taker_matches = vec![];
+
+    for (mm, taker_match) in matches {
+        maker_matches.push(mm);
+        taker_matches.push(taker_match);
+    }
+
+    Ok(Some(MatchParams {
+        taker_matches: TakerMatchParams {
+            taker_id: order.trader_id,
+            filled_with: FilledWith {
+                order_id: order.id,
+                expiry_timestamp,
+                oracle_pk,
+                matches: taker_matches,
+            },
+        },
+        makers_matches: maker_matches,
+    }))
 }
 
 /// sorts the provided list of orders
@@ -177,20 +236,41 @@ pub mod tests {
             timestamp: OffsetDateTime::now_utc(),
         };
 
-        let matched_orders = match_order(order, all_orders).unwrap();
+        let matched_orders = match_order(order.clone(), all_orders).unwrap().unwrap();
 
-        assert_eq!(matched_orders.len(), 1);
-        let matched_order = matched_orders.get(0).unwrap();
-        assert_eq!(matched_order.maker_order.quantity, dec!(100));
+        assert_eq!(matched_orders.makers_matches.len(), 1);
+        let maker_matches = matched_orders
+            .makers_matches
+            .get(0)
+            .unwrap()
+            .filled_with
+            .matches
+            .clone();
+        assert_eq!(maker_matches.len(), 1);
+        assert_eq!(maker_matches.get(0).unwrap().quantity, dec!(100));
+
+        assert_eq!(matched_orders.taker_matches.filled_with.order_id, order.id);
+        assert_eq!(matched_orders.taker_matches.filled_with.matches.len(), 1);
+        assert_eq!(
+            matched_orders
+                .taker_matches
+                .filled_with
+                .matches
+                .get(0)
+                .unwrap()
+                .quantity,
+            order.quantity
+        );
     }
 
+    /// This test is for safety reasons only. Once we want multiple matches we should update it
     #[test]
-    fn given_limit_and_market_with_smaller_amount_then_match_multiple() {
+    fn given_limit_and_market_with_smaller_amount_then_error() {
         let order1 = dumm_long_order(dec!(20_000), Uuid::new_v4(), dec!(100));
         let order2 = dumm_long_order(dec!(21_000), Uuid::new_v4(), dec!(200));
         let order3 = dumm_long_order(dec!(22_000), Uuid::new_v4(), dec!(400));
         let order4 = dumm_long_order(dec!(20_000), Uuid::new_v4(), dec!(300));
-        let all_orders = vec![order1.clone(), order2, order3, order4.clone()];
+        let all_orders = vec![order1, order2, order3, order4];
 
         let order = Order {
             id: Uuid::new_v4(),
@@ -206,13 +286,7 @@ pub mod tests {
             timestamp: OffsetDateTime::now_utc(),
         };
 
-        let matched_orders = match_order(order, all_orders).unwrap();
-
-        assert_eq!(matched_orders.len(), 2);
-        let matched_order = matched_orders.get(0).unwrap();
-        assert_eq!(matched_order.maker_order.id, order1.id);
-        let matched_order = matched_orders.get(1).unwrap();
-        assert_eq!(matched_order.maker_order.id, order4.id);
+        assert!(match_order(order, all_orders).is_err());
     }
 
     #[test]
@@ -240,6 +314,6 @@ pub mod tests {
 
         let matched_orders = match_order(order, all_orders).unwrap();
 
-        assert_eq!(matched_orders.len(), 0);
+        assert!(matched_orders.is_none());
     }
 }

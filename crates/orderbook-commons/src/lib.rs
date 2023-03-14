@@ -101,7 +101,8 @@ pub struct Match {
     /// The quantity of the matched order to be used
     ///
     /// This might be the complete quantity of the matched order, or a fraction.
-    pub quantity: f64,
+    #[serde(with = "rust_decimal::serde::float")]
+    pub quantity: Decimal,
 
     /// Pubkey of the node which order was matched
     pub pubkey: PublicKey,
@@ -109,7 +110,8 @@ pub struct Match {
     /// The execution price as defined by the orderbook
     ///
     /// The trade is to be executed at this price.
-    pub execution_price: f64,
+    #[serde(with = "rust_decimal::serde::float")]
+    pub execution_price: Decimal,
 }
 
 /// The match params for one order
