@@ -1,6 +1,7 @@
 use crate::orderbook;
 use crate::orderbook::db::orders;
 use crate::orderbook::trading::match_order;
+use crate::orderbook::trading::notify_traders;
 use crate::routes::AppState;
 use crate::AppError;
 use anyhow::Context;
@@ -101,45 +102,7 @@ pub async fn post_order(
 
     let authenticated_users = state.authenticated_users.lock().await;
     if let Some(matched_orders) = matched_orders {
-        for maker_match in matched_orders.makers_matches {
-            match authenticated_users.get(&maker_match.trader_id) {
-                None => {
-                    // TODO we should fail here and get another match if possible
-                    tracing::error!("Could not notify maker - we should fail here and get another match if possible");
-                }
-                Some(sender) => match sender
-                    .send(OrderbookMsg::Match(maker_match.filled_with))
-                    .await
-                {
-                    Ok(_) => {
-                        tracing::debug!("Successfully notified maker")
-                    }
-                    Err(err) => {
-                        tracing::error!("Connection lost to maker {err:#}")
-                    }
-                },
-            }
-        }
-        match authenticated_users.get(&matched_orders.taker_matches.trader_id) {
-            None => {
-                // TODO we should fail here and get another match if possible
-                tracing::error!("Could not notify taker - we should fail here and get another match if possible");
-            }
-            Some(sender) => match sender
-                .send(OrderbookMsg::Match(
-                    matched_orders.taker_matches.filled_with,
-                ))
-                .await
-            {
-                Ok(_) => {
-                    tracing::debug!("Successfully notified taker")
-                }
-                Err(err) => {
-                    // TODO we should fail here and get another match if possible
-                    tracing::error!("Connection lost to taker {err:#}")
-                }
-            },
-        }
+        notify_traders(matched_orders, authenticated_users.clone()).await;
     }
 
     Ok(Json(order))

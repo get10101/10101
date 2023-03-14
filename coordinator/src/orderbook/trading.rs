@@ -2,16 +2,19 @@ use crate::orderbook::routes::MatchParams;
 use crate::orderbook::routes::TraderMatchParams;
 use anyhow::bail;
 use anyhow::Result;
+use bitcoin::secp256k1::PublicKey;
 use bitcoin::XOnlyPublicKey;
-use orderbook_commons::FilledWith;
 use orderbook_commons::Match;
 use orderbook_commons::Order;
 use orderbook_commons::OrderType;
+use orderbook_commons::{FilledWith, OrderbookMsg};
 use rust_decimal::Decimal;
 use std::cmp::Ordering;
+use std::collections::HashMap;
 use std::str::FromStr;
 use time::Duration;
 use time::OffsetDateTime;
+use tokio::sync::mpsc::Sender;
 use trade::Direction;
 
 /// Matches a provided market order with limit orders from the DB
@@ -142,6 +145,53 @@ fn sort_orders(mut orders: Vec<Order>, is_long: bool) -> Vec<Order> {
         }
     });
     orders
+}
+
+pub async fn notify_traders(
+    matched_orders: MatchParams,
+    authenticated_users: HashMap<PublicKey, Sender<OrderbookMsg>>,
+) {
+    for maker_match in matched_orders.makers_matches {
+        match authenticated_users.get(&maker_match.trader_id) {
+            None => {
+                // TODO we should fail here and get another match if possible
+                tracing::error!("Could not notify maker - we should fail here and get another match if possible");
+            }
+            Some(sender) => match sender
+                .send(OrderbookMsg::Match(maker_match.filled_with))
+                .await
+            {
+                Ok(_) => {
+                    tracing::debug!("Successfully notified maker")
+                }
+                Err(err) => {
+                    tracing::error!("Connection lost to maker {err:#}")
+                }
+            },
+        }
+    }
+    match authenticated_users.get(&matched_orders.taker_matches.trader_id) {
+        None => {
+            // TODO we should fail here and get another match if possible
+            tracing::error!(
+                "Could not notify taker - we should fail here and get another match if possible"
+            );
+        }
+        Some(sender) => match sender
+            .send(OrderbookMsg::Match(
+                matched_orders.taker_matches.filled_with,
+            ))
+            .await
+        {
+            Ok(_) => {
+                tracing::debug!("Successfully notified taker")
+            }
+            Err(err) => {
+                // TODO we should fail here and get another match if possible
+                tracing::error!("Connection lost to taker {err:#}")
+            }
+        },
+    }
 }
 
 #[cfg(test)]
