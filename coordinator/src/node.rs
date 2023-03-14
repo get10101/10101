@@ -232,14 +232,14 @@ fn get_rounding_intervals() -> RoundingIntervals {
 /// Builds the contract descriptor from the point of view of the trader.
 fn build_contract_descriptor(
     total_collateral: u64,
-    execution_price: f64,
+    initial_price: f64,
     leverage_long: f64,
     leverage_short: f64,
 ) -> Result<ContractDescriptor> {
     Ok(ContractDescriptor::Numerical(NumericalDescriptor {
         payout_function: build_payout_curve(
             total_collateral,
-            execution_price,
+            initial_price,
             leverage_long,
             leverage_short,
         )?,
@@ -259,17 +259,16 @@ fn build_contract_descriptor(
 /// function like we used to do in ItchySats.
 fn build_payout_curve(
     total_collateral: u64,
-    execution_price: f64,
+    initial_price: f64,
     leverage_long: f64,
     leverage_short: f64,
 ) -> Result<PayoutFunction> {
     let leverage_short = Decimal::try_from(leverage_short)?;
-    let execution_price = Decimal::try_from(execution_price)?;
-    let liquidation_price_short =
-        calculate_short_liquidation_price(leverage_short, execution_price);
+    let initial_price = Decimal::try_from(initial_price)?;
+    let liquidation_price_short = calculate_short_liquidation_price(leverage_short, initial_price);
 
     let leverage_long = Decimal::try_from(leverage_long)?;
-    let liquidation_price_long = calculate_long_liquidation_price(leverage_long, execution_price);
+    let liquidation_price_long = calculate_long_liquidation_price(leverage_long, initial_price);
 
     let lower_limit = liquidation_price_long
         .floor()
