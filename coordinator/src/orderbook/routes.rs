@@ -113,7 +113,10 @@ pub async fn post_order(
                     // TODO we should fail here and get another match if possible
                     tracing::error!("Could not notify maker - we should fail here and get another match if possible");
                 }
-                Some(sender) => match sender.send(OrderbookMsg::Match).await {
+                Some(sender) => match sender
+                    .send(OrderbookMsg::Match(maker_match.filled_with))
+                    .await
+                {
                     Ok(_) => {
                         tracing::debug!("Successfully notified maker")
                     }
@@ -128,7 +131,12 @@ pub async fn post_order(
                 // TODO we should fail here and get another match if possible
                 tracing::error!("Could not notify taker - we should fail here and get another match if possible");
             }
-            Some(sender) => match sender.send(OrderbookMsg::Match).await {
+            Some(sender) => match sender
+                .send(OrderbookMsg::Match(
+                    matched_orders.taker_matches.filled_with,
+                ))
+                .await
+            {
                 Ok(_) => {
                     tracing::debug!("Successfully notified taker")
                 }

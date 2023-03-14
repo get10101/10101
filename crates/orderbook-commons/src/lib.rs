@@ -84,7 +84,7 @@ pub enum OrderbookMsg {
     Update(Order),
     InvalidAuthentication(String),
     Authenticated,
-    Match, // TODO: add match params
+    Match(FilledWith),
 }
 
 /// A match for an order
