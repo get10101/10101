@@ -10,14 +10,25 @@ use trade::Direction;
 ///
 /// If the order is a long order, we return the short orders sorted by price (highest first)
 /// If the order is a short order, we return the long orders sorted by price (lowest first)
-pub fn match_order(order: Order, all_orders: Vec<Order>) -> Result<Vec<MatchParams>> {
+///
+/// Note: `opposite_direction_orders` should contain only relevant orders. For safety this function
+/// will filter it again though
+pub fn match_order(
+    order: Order,
+    opposite_direction_orders: Vec<Order>,
+) -> Result<Vec<MatchParams>> {
     if order.order_type == OrderType::Limit {
         // we don't match limit and limit at the moment
         return Ok(vec![]);
     }
 
+    let opposite_direction_orders = opposite_direction_orders
+        .into_iter()
+        .filter(|o| !o.direction.eq(&order.direction))
+        .collect();
+
     let is_long = order.direction == Direction::Long;
-    let mut orders = sort_orders(all_orders, is_long);
+    let mut orders = sort_orders(opposite_direction_orders, is_long);
 
     let mut remaining_quantity = order.quantity;
     let mut matched_orders = vec![];
@@ -76,7 +87,7 @@ pub mod tests {
     use rust_decimal_macros::dec;
     use trade::Direction;
 
-    fn dummy_order(price: Decimal, id: i32, quantity: Decimal) -> Order {
+    fn dumm_long_order(price: Decimal, id: i32, quantity: Decimal) -> Order {
         Order {
             id,
             price,
@@ -90,9 +101,9 @@ pub mod tests {
 
     #[test]
     pub fn when_short_then_sort_desc() {
-        let order1 = dummy_order(dec!(20_000), 1, Default::default());
-        let order2 = dummy_order(dec!(21_000), 2, Default::default());
-        let order3 = dummy_order(dec!(20_500), 3, Default::default());
+        let order1 = dumm_long_order(dec!(20_000), 1, Default::default());
+        let order2 = dumm_long_order(dec!(21_000), 2, Default::default());
+        let order3 = dumm_long_order(dec!(20_500), 3, Default::default());
 
         let orders = vec![order3.clone(), order1.clone(), order2.clone()];
 
@@ -104,9 +115,9 @@ pub mod tests {
 
     #[test]
     pub fn when_long_then_sort_asc() {
-        let order1 = dummy_order(dec!(20_000), 1, Default::default());
-        let order2 = dummy_order(dec!(21_000), 2, Default::default());
-        let order3 = dummy_order(dec!(20_500), 3, Default::default());
+        let order1 = dumm_long_order(dec!(20_000), 1, Default::default());
+        let order2 = dumm_long_order(dec!(21_000), 2, Default::default());
+        let order3 = dumm_long_order(dec!(20_500), 3, Default::default());
 
         let orders = vec![order3.clone(), order1.clone(), order2.clone()];
 
@@ -118,9 +129,9 @@ pub mod tests {
 
     #[test]
     pub fn when_all_same_id_sort_by_id() {
-        let order1 = dummy_order(dec!(20_000), 1, Default::default());
-        let order2 = dummy_order(dec!(20_000), 2, Default::default());
-        let order3 = dummy_order(dec!(20_000), 3, Default::default());
+        let order1 = dumm_long_order(dec!(20_000), 1, Default::default());
+        let order2 = dumm_long_order(dec!(20_000), 2, Default::default());
+        let order3 = dumm_long_order(dec!(20_000), 3, Default::default());
 
         let orders = vec![order3.clone(), order1.clone(), order2.clone()];
 
@@ -138,10 +149,10 @@ pub mod tests {
     #[test]
     fn given_limit_and_market_with_same_amount_then_match() {
         let all_orders = vec![
-            dummy_order(dec!(20_000), 1, dec!(100)),
-            dummy_order(dec!(21_000), 2, dec!(200)),
-            dummy_order(dec!(20_000), 3, dec!(300)),
-            dummy_order(dec!(22_000), 4, dec!(400)),
+            dumm_long_order(dec!(20_000), 1, dec!(100)),
+            dumm_long_order(dec!(21_000), 2, dec!(200)),
+            dumm_long_order(dec!(20_000), 3, dec!(300)),
+            dumm_long_order(dec!(22_000), 4, dec!(400)),
         ];
 
         let order = Order {
@@ -164,10 +175,10 @@ pub mod tests {
     #[test]
     fn given_limit_and_market_with_smaller_amount_then_match_multiple() {
         let all_orders = vec![
-            dummy_order(dec!(20_000), 1, dec!(100)),
-            dummy_order(dec!(21_000), 2, dec!(200)),
-            dummy_order(dec!(22_000), 3, dec!(400)),
-            dummy_order(dec!(20_000), 4, dec!(300)),
+            dumm_long_order(dec!(20_000), 1, dec!(100)),
+            dumm_long_order(dec!(21_000), 2, dec!(200)),
+            dumm_long_order(dec!(22_000), 3, dec!(400)),
+            dumm_long_order(dec!(20_000), 4, dec!(300)),
         ];
 
         let order = Order {
@@ -187,5 +198,29 @@ pub mod tests {
         assert_eq!(matched_order.maker_order.id, 1);
         let matched_order = matched_orders.get(1).unwrap();
         assert_eq!(matched_order.maker_order.id, 4);
+    }
+
+    #[test]
+    fn given_long_when_needed_short_direction_then_no_match() {
+        let all_orders = vec![
+            dumm_long_order(dec!(20_000), 1, dec!(100)),
+            dumm_long_order(dec!(21_000), 2, dec!(200)),
+            dumm_long_order(dec!(22_000), 3, dec!(400)),
+            dumm_long_order(dec!(20_000), 4, dec!(300)),
+        ];
+
+        let order = Order {
+            id: 1,
+            price: Default::default(),
+            trader_id: "".to_string(),
+            taken: false,
+            direction: Direction::Long,
+            quantity: dec!(200),
+            order_type: OrderType::Market,
+        };
+
+        let matched_orders = match_order(order, all_orders).unwrap();
+
+        assert_eq!(matched_orders.len(), 0);
     }
 }
