@@ -4,10 +4,11 @@ use anyhow::bail;
 use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::XOnlyPublicKey;
+use orderbook_commons::FilledWith;
 use orderbook_commons::Match;
 use orderbook_commons::Order;
 use orderbook_commons::OrderType;
-use orderbook_commons::{FilledWith, OrderbookMsg};
+use orderbook_commons::OrderbookMsg;
 use rust_decimal::Decimal;
 use std::cmp::Ordering;
 use std::collections::HashMap;
@@ -196,16 +197,27 @@ pub async fn notify_traders(
 
 #[cfg(test)]
 pub mod tests {
+    use crate::orderbook::routes::MatchParams;
+    use crate::orderbook::routes::TraderMatchParams;
     use crate::orderbook::trading::match_order;
+    use crate::orderbook::trading::notify_traders;
     use crate::orderbook::trading::sort_orders;
     use bitcoin::secp256k1::PublicKey;
+    use bitcoin::secp256k1::SecretKey;
+    use bitcoin::secp256k1::SECP256K1;
+    use bitcoin::XOnlyPublicKey;
+    use orderbook_commons::FilledWith;
+    use orderbook_commons::Match;
     use orderbook_commons::Order;
     use orderbook_commons::OrderType;
+    use orderbook_commons::OrderbookMsg;
     use rust_decimal::Decimal;
     use rust_decimal_macros::dec;
+    use std::collections::HashMap;
     use std::str::FromStr;
     use time::Duration;
     use time::OffsetDateTime;
+    use tokio::sync::mpsc;
     use trade::Direction;
     use uuid::Uuid;
 
@@ -484,5 +496,79 @@ pub mod tests {
         let matched_orders = match_order(order, all_orders).unwrap();
 
         assert!(matched_orders.is_none());
+    }
+
+    #[tokio::test]
+    async fn given_matches_will_notify_all_traders() {
+        let trader_key = SecretKey::from_slice(&b"Me noob, don't lose money pleazz"[..]).unwrap();
+        let trader_pub_key = trader_key.public_key(SECP256K1);
+        let maker_key = SecretKey::from_slice(&b"I am a king trader mate, right!?"[..]).unwrap();
+        let maker_pub_key = maker_key.public_key(SECP256K1);
+        let trader_order_id = Uuid::new_v4();
+        let maker_order_id = Uuid::new_v4();
+        let oracle_pk = XOnlyPublicKey::from_str(
+            "16f88cf7d21e6c0f46bcbc983a4e3b19726c6c98858cc31c83551a88fde171c0",
+        )
+        .unwrap();
+        let maker_order_price = dec!(20_000);
+        let expiry_timestamp = OffsetDateTime::now_utc();
+        let matched_orders = MatchParams {
+            taker_matches: TraderMatchParams {
+                trader_id: trader_pub_key,
+                filled_with: FilledWith {
+                    order_id: trader_order_id,
+                    expiry_timestamp,
+                    oracle_pk,
+                    matches: vec![Match {
+                        order_id: maker_order_id,
+                        quantity: dec!(100),
+                        pubkey: maker_pub_key,
+                        execution_price: maker_order_price,
+                    }],
+                },
+            },
+            makers_matches: vec![TraderMatchParams {
+                trader_id: maker_pub_key,
+                filled_with: FilledWith {
+                    order_id: maker_order_id,
+                    expiry_timestamp,
+                    oracle_pk,
+                    matches: vec![Match {
+                        order_id: trader_order_id,
+                        quantity: dec!(100),
+                        pubkey: trader_pub_key,
+                        execution_price: maker_order_price,
+                    }],
+                },
+            }],
+        };
+        let mut traders = HashMap::new();
+        let (maker_sender, mut maker_receiver) = mpsc::channel::<OrderbookMsg>(1);
+        let (trader_sender, mut trader_receiver) = mpsc::channel::<OrderbookMsg>(1);
+        traders.insert(maker_pub_key, maker_sender);
+        traders.insert(trader_pub_key, trader_sender);
+
+        notify_traders(matched_orders, traders).await;
+
+        let maker_msg = maker_receiver.recv().await.unwrap();
+        let trader_msg = trader_receiver.recv().await.unwrap();
+
+        match maker_msg {
+            OrderbookMsg::Match(msg) => {
+                assert_eq!(msg.order_id, maker_order_id)
+            }
+            _ => {
+                panic!("Invalid message received")
+            }
+        }
+
+        match trader_msg {
+            OrderbookMsg::Match(msg) => {
+                assert_eq!(msg.order_id, trader_order_id)
+            }
+            _ => {
+                panic!("Invalid message received")
+            }
+        }
     }
 }
