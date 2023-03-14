@@ -3,6 +3,8 @@ use bdk::bitcoin::Denomination;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 
+pub const BTCUSD_MAX_PRICE: u64 = 1_048_575;
+
 /// Calculate the colleteral in BTC.
 pub fn calculate_margin(opening_price: f64, quantity: f64, leverage: f64) -> u64 {
     let quantity = Decimal::try_from(quantity).expect("quantity to fit into decimal");
@@ -48,7 +50,8 @@ pub fn calculate_long_liquidation_price(leverage: Decimal, price: Decimal) -> De
 pub fn calculate_short_liquidation_price(leverage: Decimal, price: Decimal) -> Decimal {
     // If the leverage is equal to 1, the liquidation price will go towards infinity
     if leverage == Decimal::ONE {
-        return rust_decimal_macros::dec!(21_000_000);
+        return Decimal::from(BTCUSD_MAX_PRICE);
     }
+
     price * leverage / (leverage - Decimal::ONE)
 }
