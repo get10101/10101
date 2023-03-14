@@ -46,7 +46,7 @@ pub struct NewOrder {
     pub price: Decimal,
     #[serde(with = "rust_decimal::serde::float")]
     pub quantity: Decimal,
-    pub trader_id: String,
+    pub trader_id: PublicKey,
     pub direction: Direction,
     pub order_type: OrderType,
 }
@@ -60,10 +60,10 @@ pub enum OrderType {
 
 #[derive(Deserialize)]
 pub struct OrderResponse {
-    pub id: i32,
+    pub id: Uuid,
     #[serde(with = "rust_decimal::serde::float")]
     pub price: Decimal,
-    pub trader_id: String,
+    pub trader_id: PublicKey,
     pub taken: bool,
     pub direction: Direction,
     #[serde(with = "rust_decimal::serde::float")]

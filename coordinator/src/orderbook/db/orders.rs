@@ -99,7 +99,7 @@ impl From<OrderbookNewOrder> for NewOrder {
                 .round_dp(2)
                 .to_f32()
                 .expect("To be able to convert decimal to f32"),
-            trader_id: value.trader_id,
+            trader_id: value.trader_id.to_string(),
             taken: false,
             direction: value.direction.into(),
             quantity: value

@@ -3,6 +3,7 @@ use anyhow::Result;
 use orderbook_commons::NewOrder;
 use orderbook_commons::OrderResponse;
 use reqwest::Url;
+use uuid::Uuid;
 
 pub async fn post_new_order(url: Url, order: NewOrder) -> Result<OrderResponse> {
     let url = url.join("/api/orderbook/orders")?;
@@ -19,7 +20,7 @@ pub async fn post_new_order(url: Url, order: NewOrder) -> Result<OrderResponse> 
     }
 }
 
-pub async fn delete_order(url: Url, order_id: i32) -> Result<()> {
+pub async fn delete_order(url: Url, order_id: Uuid) -> Result<()> {
     let url = url.join(format!("/api/orderbook/orders/{order_id}").as_str())?;
     let client = reqwest::Client::new();
 

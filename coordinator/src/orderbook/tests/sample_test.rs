@@ -1,8 +1,10 @@
 use crate::orderbook::db::orders;
 use crate::orderbook::tests::setup_db;
 use crate::orderbook::tests::start_postgres;
+use bitcoin::secp256k1::PublicKey;
 use orderbook_commons::OrderType;
 use rust_decimal_macros::dec;
+use std::str::FromStr;
 use testcontainers::clients::Cli;
 use trade::Direction;
 
@@ -25,8 +27,10 @@ async fn crud_test() {
         &mut conn,
         orderbook_commons::NewOrder {
             price: dec!(20000.00),
-            trader_id: "027f31ebc5462c1fdce1b737ecff52d37d75dea43ce11c74d25aa297165faa2007"
-                .to_string(),
+            trader_id: PublicKey::from_str(
+                "027f31ebc5462c1fdce1b737ecff52d37d75dea43ce11c74d25aa297165faa2007",
+            )
+            .unwrap(),
             direction: Direction::Long,
             quantity: dec!(100.0),
             order_type: OrderType::Market,

@@ -1,4 +1,5 @@
 use anyhow::Result;
+use bitcoin::secp256k1::PublicKey;
 use bitcoin::Network;
 use futures::TryStreamExt;
 use orderbook_commons::NewOrder;
@@ -12,7 +13,7 @@ use trade::Direction;
 mod bitmex_client;
 mod orderbook_client;
 
-pub async fn run(orderbook_url: Url, maker_id: String, network: Network) -> Result<()> {
+pub async fn run(orderbook_url: Url, maker_id: PublicKey, network: Network) -> Result<()> {
     let network = match network {
         Network::Bitcoin => bitmex_stream::Network::Mainnet,
         _ => bitmex_stream::Network::Testnet,
@@ -29,7 +30,7 @@ pub async fn run(orderbook_url: Url, maker_id: String, network: Network) -> Resu
             orderbook_url.clone(),
             quote.ask(),
             Direction::Long,
-            maker_id.clone(),
+            maker_id,
             last_bid,
             dec!(1000),
         )
@@ -38,7 +39,7 @@ pub async fn run(orderbook_url: Url, maker_id: String, network: Network) -> Resu
             orderbook_url.clone(),
             quote.bid(),
             Direction::Short,
-            maker_id.clone(),
+            maker_id,
             last_ask,
             dec!(1000),
         )
@@ -52,7 +53,7 @@ async fn update_order(
     orderbook_url: Url,
     price: Decimal,
     direction: Direction,
-    maker_id: String,
+    maker_id: PublicKey,
     last_order: Option<OrderResponse>,
     quantity: Decimal,
 ) -> Option<OrderResponse> {
