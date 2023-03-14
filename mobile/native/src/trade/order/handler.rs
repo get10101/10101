@@ -3,6 +3,7 @@ use crate::event;
 use crate::event::EventInternal;
 use crate::ln_dlc;
 use crate::trade::order::FailureReason;
+use crate::trade::order::NewOrder;
 use crate::trade::order::Order;
 use crate::trade::order::OrderState;
 use crate::trade::position;
@@ -17,7 +18,21 @@ use trade::Direction;
 use trade::TradeParams;
 use uuid::Uuid;
 
-pub async fn submit_order(order: Order) -> Result<()> {
+pub async fn submit_order(order: NewOrder) -> Result<()> {
+    // TODO: Submit to orderbook -> This will define the Uuid of the order
+    // In case we fail to submit to the orderbook we assign our own internal uuid and then return
+    // failure.
+    let order = Order {
+        id: Uuid::new_v4(),
+        leverage: order.leverage,
+        quantity: order.quantity,
+        contract_symbol: order.contract_symbol,
+        direction: order.direction,
+        order_type: order.order_type,
+        state: OrderState::Open,
+        creation_timestamp: OffsetDateTime::now_utc(),
+    };
+
     db::insert_order(order)?;
 
     ui_update(order);

@@ -81,7 +81,7 @@ pub fn get_order(order_id: Uuid) -> Result<trade::order::Order> {
 
 pub fn get_orders_for_ui() -> Result<Vec<trade::order::Order>> {
     let mut db = connection()?;
-    let orders = Order::get_without_rejected_and_initial(&mut db)?;
+    let orders = Order::get_without_rejected(&mut db)?;
 
     // TODO: Can probably be optimized with combinator
     let mut mapped = vec![];
