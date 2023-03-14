@@ -1,7 +1,7 @@
 use crate::orderbook::routes::MatchParams;
-use crate::orderbook::routes::Order;
-use crate::orderbook::routes::OrderType;
 use anyhow::Result;
+use orderbook_commons::Order;
+use orderbook_commons::OrderType;
 use rust_decimal::Decimal;
 use std::cmp::Ordering;
 use trade::Direction;
@@ -68,10 +68,10 @@ fn sort_orders(mut orders: Vec<Order>, is_long: bool) -> Vec<Order> {
 
 #[cfg(test)]
 pub mod tests {
-    use crate::orderbook::routes::Order;
-    use crate::orderbook::routes::OrderType;
     use crate::orderbook::trading::match_order;
     use crate::orderbook::trading::sort_orders;
+    use orderbook_commons::Order;
+    use orderbook_commons::OrderType;
     use rust_decimal::Decimal;
     use rust_decimal_macros::dec;
     use trade::Direction;

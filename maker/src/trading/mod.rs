@@ -1,13 +1,13 @@
-use crate::trading::orderbook_client::Direction;
-use crate::trading::orderbook_client::NewOrder;
-use crate::trading::orderbook_client::OrderResponse;
-use crate::trading::orderbook_client::OrderType;
 use anyhow::Result;
 use bitcoin::Network;
 use futures::TryStreamExt;
+use orderbook_commons::NewOrder;
+use orderbook_commons::OrderResponse;
+use orderbook_commons::OrderType;
 use reqwest::Url;
 use rust_decimal::Decimal;
 use rust_decimal_macros::dec;
+use trade::Direction;
 
 mod bitmex_client;
 mod orderbook_client;

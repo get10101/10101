@@ -1,7 +1,7 @@
 use crate::orderbook::db::orders;
-use crate::orderbook::routes::OrderType;
 use crate::orderbook::tests::setup_db;
 use crate::orderbook::tests::start_postgres;
+use orderbook_commons::OrderType;
 use rust_decimal_macros::dec;
 use testcontainers::clients::Cli;
 use trade::Direction;
@@ -23,7 +23,7 @@ async fn crud_test() {
 
     let order = orders::insert(
         &mut conn,
-        crate::orderbook::routes::NewOrder {
+        orderbook_commons::NewOrder {
             price: dec!(20000.00),
             trader_id: "Bob the Maker".to_string(),
             direction: Direction::Long,

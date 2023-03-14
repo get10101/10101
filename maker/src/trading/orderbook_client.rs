@@ -1,44 +1,8 @@
 use anyhow::bail;
 use anyhow::Result;
+use orderbook_commons::NewOrder;
+use orderbook_commons::OrderResponse;
 use reqwest::Url;
-use rust_decimal::Decimal;
-use serde::Deserialize;
-use serde::Serialize;
-
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-pub enum Direction {
-    Long,
-    Short,
-}
-
-#[derive(Serialize)]
-pub struct NewOrder {
-    pub price: Decimal,
-    pub quantity: Decimal,
-    pub trader_id: String,
-    pub direction: Direction,
-    pub order_type: OrderType,
-}
-
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-pub enum OrderType {
-    #[allow(dead_code)]
-    Market,
-    Limit,
-}
-
-#[derive(Deserialize)]
-pub struct OrderResponse {
-    pub id: i32,
-    #[serde(with = "rust_decimal::serde::float")]
-    pub price: Decimal,
-    pub trader_id: String,
-    pub taken: bool,
-    pub direction: Direction,
-    #[serde(with = "rust_decimal::serde::float")]
-    pub quantity: Decimal,
-    pub order_type: OrderType,
-}
 
 pub async fn post_new_order(url: Url, order: NewOrder) -> Result<OrderResponse> {
     let url = url.join("/api/orderbook/orders")?;

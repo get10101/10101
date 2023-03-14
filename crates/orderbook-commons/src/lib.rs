@@ -1,3 +1,4 @@
+use rust_decimal::Decimal;
 use secp256k1::Message;
 use secp256k1::PublicKey;
 use secp256k1::XOnlyPublicKey;
@@ -7,7 +8,21 @@ use sha2::digest::FixedOutput;
 use sha2::Digest;
 use sha2::Sha256;
 use time::OffsetDateTime;
+use trade::Direction;
 use uuid::Uuid;
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct Order {
+    pub id: i32,
+    #[serde(with = "rust_decimal::serde::float")]
+    pub price: Decimal,
+    pub trader_id: String,
+    pub taken: bool,
+    pub direction: Direction,
+    #[serde(with = "rust_decimal::serde::float")]
+    pub quantity: Decimal,
+    pub order_type: OrderType,
+}
 
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub struct Signature {
@@ -22,6 +37,37 @@ pub fn create_sign_message() -> Message {
     let msg = Message::from_slice(hashed_message.as_slice())
         .expect("The message is static, hence this should never happen");
     msg
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct NewOrder {
+    #[serde(with = "rust_decimal::serde::float")]
+    pub price: Decimal,
+    #[serde(with = "rust_decimal::serde::float")]
+    pub quantity: Decimal,
+    pub trader_id: String,
+    pub direction: Direction,
+    pub order_type: OrderType,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+pub enum OrderType {
+    #[allow(dead_code)]
+    Market,
+    Limit,
+}
+
+#[derive(Deserialize)]
+pub struct OrderResponse {
+    pub id: i32,
+    #[serde(with = "rust_decimal::serde::float")]
+    pub price: Decimal,
+    pub trader_id: String,
+    pub taken: bool,
+    pub direction: Direction,
+    #[serde(with = "rust_decimal::serde::float")]
+    pub quantity: Decimal,
+    pub order_type: OrderType,
 }
 
 /// A match for an order

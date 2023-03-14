@@ -18,33 +18,15 @@ use diesel::PgConnection;
 use futures::SinkExt;
 use futures::StreamExt;
 use orderbook_commons::create_sign_message;
+use orderbook_commons::NewOrder;
+use orderbook_commons::Order;
+use orderbook_commons::OrderType;
 use orderbook_commons::Signature;
-use rust_decimal::Decimal;
 use serde::Deserialize;
 use serde::Serialize;
 use std::sync::Arc;
 use tokio::sync::broadcast::Sender;
 use tokio::sync::mpsc;
-use trade::Direction;
-
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-pub struct Order {
-    pub id: i32,
-    #[serde(with = "rust_decimal::serde::float")]
-    pub price: Decimal,
-    pub trader_id: String,
-    pub taken: bool,
-    pub direction: Direction,
-    #[serde(with = "rust_decimal::serde::float")]
-    pub quantity: Decimal,
-    pub order_type: OrderType,
-}
-
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
-pub enum OrderType {
-    Market,
-    Limit,
-}
 
 pub async fn get_orders(State(state): State<Arc<AppState>>) -> Result<Json<Vec<Order>>, AppError> {
     let mut conn = get_db_connection(&state)?;
@@ -75,15 +57,6 @@ pub async fn get_order(
         .map_err(|e| AppError::BadRequest(format!("{e:#}")))?;
 
     Ok(Json(order))
-}
-
-#[derive(Deserialize, Serialize, Clone)]
-pub struct NewOrder {
-    pub price: Decimal,
-    pub quantity: Decimal,
-    pub trader_id: String,
-    pub direction: Direction,
-    pub order_type: OrderType,
 }
 
 pub struct MatchParams {

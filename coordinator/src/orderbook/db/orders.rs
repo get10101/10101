@@ -1,12 +1,12 @@
 use crate::orderbook::db::custom_types::Direction;
 use crate::orderbook::db::custom_types::OrderType;
-use crate::orderbook::routes::NewOrder as OrderbookNewOrder;
-use crate::orderbook::routes::Order as OrderbookOrder;
-use crate::orderbook::routes::OrderType as OrderBookOrderType;
 use crate::schema::orders;
 use diesel::prelude::*;
 use diesel::result::QueryResult;
 use diesel::PgConnection;
+use orderbook_commons::NewOrder as OrderbookNewOrder;
+use orderbook_commons::Order as OrderbookOrder;
+use orderbook_commons::OrderType as OrderBookOrderType;
 use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
