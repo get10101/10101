@@ -28,19 +28,11 @@ pub enum FailureReason {
 
 #[derive(Debug, Clone, Copy)]
 pub enum OrderState {
-    /// Not submitted to orderbook yet
-    ///
-    /// In order to be able to track how many failed orders we have we store the order in the
-    /// database and update it once the orderbook returns success.
-    /// Transitions:
-    /// - Initial->Open
-    /// - Initial->Rejected
-    Initial,
-
     /// Rejected by the orderbook upon submission
     ///
     /// If the orderbook returns failure upon submission.
-    /// This is a final state.
+    /// Note that we will not be able to query this order from the orderbook again, because it was
+    /// rejected upon submission. This is a final state.
     Rejected,
 
     /// Successfully submit to orderbook
@@ -87,6 +79,15 @@ pub enum OrderState {
         /// The execution price that the order was filled with
         execution_price: f64,
     },
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct NewOrder {
+    pub leverage: f64,
+    pub quantity: f64,
+    pub contract_symbol: ContractSymbol,
+    pub direction: Direction,
+    pub order_type: OrderType,
 }
 
 #[derive(Debug, Clone, Copy)]

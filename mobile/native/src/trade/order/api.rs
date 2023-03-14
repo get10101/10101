@@ -1,9 +1,7 @@
 use crate::trade::order;
 use flutter_rust_bridge::frb;
-use time::OffsetDateTime;
 use trade::ContractSymbol;
 use trade::Direction;
-use uuid::Uuid;
 
 #[frb]
 #[derive(Debug, Clone, Copy)]
@@ -99,9 +97,6 @@ impl From<order::OrderState> for OrderState {
             order::OrderState::Open => OrderState::Open,
             order::OrderState::Filled { .. } => OrderState::Filled,
             order::OrderState::Failed { .. } => OrderState::Failed,
-            order::OrderState::Initial => unimplemented!(
-                "don't expose orders that were not submitted into the orderbook to the frontend!"
-            ),
             order::OrderState::Rejected => unimplemented!(
                 "don't expose orders that were rejected by the orderbook to the frontend!"
             ),
@@ -111,17 +106,14 @@ impl From<order::OrderState> for OrderState {
     }
 }
 
-impl From<NewOrder> for order::Order {
+impl From<NewOrder> for order::NewOrder {
     fn from(value: NewOrder) -> Self {
-        order::Order {
-            id: Uuid::new_v4(),
+        order::NewOrder {
             leverage: value.leverage,
             quantity: value.quantity,
             contract_symbol: value.contract_symbol,
             direction: value.direction,
             order_type: (*value.order_type).into(),
-            state: order::OrderState::Open,
-            creation_timestamp: OffsetDateTime::now_utc(),
         }
     }
 }
