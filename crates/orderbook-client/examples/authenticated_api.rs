@@ -1,7 +1,8 @@
 use anyhow::Result;
 use futures::TryStreamExt;
-use orderbook_client::Credentials;
+use orderbook_commons::Signature;
 use secp256k1::SecretKey;
+use secp256k1::SECP256K1;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -12,8 +13,14 @@ async fn main() -> Result<()> {
 
     let url = "ws://localhost:8000/api/orderbook/websocket".to_string();
 
-    let mut stream =
-        orderbook_client::subscribe_with_authentication(url, Credentials { secret_key });
+    let authenticate = move |msg| {
+        let signature = secret_key.sign_ecdsa(msg);
+        Signature {
+            pubkey: secret_key.public_key(SECP256K1),
+            signature,
+        }
+    };
+    let mut stream = orderbook_client::subscribe_with_authentication(url, &authenticate);
 
     while let Some(result) = stream.try_next().await? {
         tracing::info!("Received: {result}");

@@ -1,7 +1,8 @@
 use anyhow::Result;
 use bdk::bitcoin::secp256k1::SecretKey;
+use bdk::bitcoin::secp256k1::SECP256K1;
 use futures::TryStreamExt;
-use orderbook_client::Credentials;
+use orderbook_commons::Signature;
 use state::Storage;
 use tokio::runtime::Runtime;
 
@@ -24,10 +25,13 @@ pub fn subscribe(secret_key: SecretKey) -> Result<()> {
             .spawn(async move {
                 let url = "ws://localhost:8000/api/orderbook/websocket".to_string();
 
-                let mut stream = orderbook_client::subscribe_with_authentication(
-                    url,
-                    Credentials { secret_key },
-                );
+                let pubkey = secret_key.public_key(SECP256K1);
+                let authenticate = |msg| {
+                    let signature = secret_key.sign_ecdsa(msg);
+                    Signature { pubkey, signature }
+                };
+                let mut stream =
+                    orderbook_client::subscribe_with_authentication(url, &authenticate);
 
                 while let Ok(Some(result)) = stream.try_next().await {
                     tracing::info!("Received: {result}");
