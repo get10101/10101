@@ -48,37 +48,48 @@ impl Node {
         Ok(())
     }
 
-    /// Decides what trade action should be performed according to the
-    /// coordinator's current trading status with the trader.
-    ///
-    /// We look for a pre-existing position with the trader and
-    /// instruct accordingly:
-    ///
-    /// 1. If a position of equal quantity and opposite direction is
-    /// found, we direct the caller to close the position.
-    ///
-    /// 2. If no position is found, we direct the caller to open a
-    /// position.
-    ///
-    /// 3. If a position of differing quantity is found, we direct the
-    /// caller to extend or reduce the position. _This is currently
-    /// not supported_.
-    fn decide_trade_action(&self, trade_params: &TradeParams) -> Result<TradeAction> {
-        let action = match self.inner.get_sub_channel_signed(&trade_params.pubkey)? {
-            Some(subchannel) => {
-                // FIXME: Should query the database for more
-                // information
+    async fn open_position(&self, trade_params: &TradeParams) -> Result<()> {
+        tracing::info!("Opening position");
 
-                // TODO: Detect if the position should be
-                // extended/reduced. Return corresponding error as
-                // this is currently not supported.
+        let margin_trader = margin_trader(trade_params);
+        let margin_coordinator = margin_coordinator(trade_params);
 
-                TradeAction::Close(subchannel.channel_id)
-            }
-            None => TradeAction::Open,
+        let leverage_long = leverage_long(trade_params);
+        let leverage_short = leverage_short(trade_params);
+
+        let total_collateral = margin_coordinator + margin_trader;
+
+        let contract_descriptor = build_contract_descriptor(
+            total_collateral,
+            trade_params.weighted_execution_price(),
+            leverage_long,
+            leverage_short,
+        )?;
+
+        let contract_symbol = trade_params.contract_symbol.label();
+        let maturity_time = trade_params.filled_with.expiry_timestamp;
+
+        // The contract input to be used for setting up the trade between the trader and the
+        // coordinator
+        let contract_input = ContractInput {
+            offer_collateral: margin_trader,
+            accept_collateral: margin_coordinator,
+            fee_rate: 2,
+            contract_infos: vec![ContractInputInfo {
+                contract_descriptor,
+                oracles: OracleInput {
+                    public_keys: vec![self.inner.oracle_pk()],
+                    event_id: format!("{contract_symbol}{maturity_time}"),
+                    threshold: 1,
+                },
+            }],
         };
 
-        Ok(action)
+        let channel_details = self.get_counterparty_channel(trade_params.pubkey)?;
+        self.inner
+            .propose_dlc_channel(&channel_details, &contract_input)
+            .await?;
+        Ok(())
     }
 
     async fn close_position(
@@ -128,48 +139,37 @@ impl Node {
         Ok(())
     }
 
-    async fn open_position(&self, trade_params: &TradeParams) -> Result<()> {
-        tracing::info!("Opening position");
+    /// Decides what trade action should be performed according to the
+    /// coordinator's current trading status with the trader.
+    ///
+    /// We look for a pre-existing position with the trader and
+    /// instruct accordingly:
+    ///
+    /// 1. If a position of equal quantity and opposite direction is
+    /// found, we direct the caller to close the position.
+    ///
+    /// 2. If no position is found, we direct the caller to open a
+    /// position.
+    ///
+    /// 3. If a position of differing quantity is found, we direct the
+    /// caller to extend or reduce the position. _This is currently
+    /// not supported_.
+    fn decide_trade_action(&self, trade_params: &TradeParams) -> Result<TradeAction> {
+        let action = match self.inner.get_sub_channel_signed(&trade_params.pubkey)? {
+            Some(subchannel) => {
+                // FIXME: Should query the database for more
+                // information
 
-        let margin_trader = margin_trader(trade_params);
-        let margin_coordinator = margin_coordinator(trade_params);
+                // TODO: Detect if the position should be
+                // extended/reduced. Return corresponding error as
+                // this is currently not supported.
 
-        let leverage_long = leverage_long(trade_params);
-        let leverage_short = leverage_short(trade_params);
-
-        let total_collateral = margin_coordinator + margin_trader;
-
-        let contract_descriptor = build_contract_descriptor(
-            total_collateral,
-            trade_params.weighted_execution_price(),
-            leverage_long,
-            leverage_short,
-        )?;
-
-        let contract_symbol = trade_params.contract_symbol.label();
-        let maturity_time = trade_params.weighted_execution_price();
-
-        // The contract input to be used for setting up the trade between the trader and the
-        // coordinator
-        let contract_input = ContractInput {
-            offer_collateral: margin_trader,
-            accept_collateral: margin_coordinator,
-            fee_rate: 2,
-            contract_infos: vec![ContractInputInfo {
-                contract_descriptor,
-                oracles: OracleInput {
-                    public_keys: vec![self.inner.oracle_pk()],
-                    event_id: format!("{contract_symbol}{maturity_time}"),
-                    threshold: 1,
-                },
-            }],
+                TradeAction::Close(subchannel.channel_id)
+            }
+            None => TradeAction::Open,
         };
 
-        let channel_details = self.get_counterparty_channel(trade_params.pubkey)?;
-        self.inner
-            .propose_dlc_channel(&channel_details, &contract_input)
-            .await?;
-        Ok(())
+        Ok(action)
     }
 
     fn get_counterparty_channel(&self, trader_pubkey: PublicKey) -> Result<ChannelDetails> {
