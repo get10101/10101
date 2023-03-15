@@ -69,9 +69,12 @@ impl Node {
 
         let contract_symbol = trade_params.contract_symbol.label();
         let maturity_time = trade_params.filled_with.expiry_timestamp;
+        let maturity_time = maturity_time.unix_timestamp();
 
         // The contract input to be used for setting up the trade between the trader and the
         // coordinator
+        let event_id = format!("{contract_symbol}{maturity_time}");
+        tracing::debug!(event_id, "Proposing dlc channel");
         let contract_input = ContractInput {
             offer_collateral: margin_coordinator,
             accept_collateral: margin_trader,
@@ -80,7 +83,7 @@ impl Node {
                 contract_descriptor,
                 oracles: OracleInput {
                     public_keys: vec![self.inner.oracle_pk()],
-                    event_id: format!("{contract_symbol}{maturity_time}"),
+                    event_id,
                     threshold: 1,
                 },
             }],
