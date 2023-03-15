@@ -1,4 +1,5 @@
 use crate::orderbook;
+use crate::orderbook::db;
 use crate::orderbook::db::orders;
 use crate::orderbook::trading::match_order;
 use crate::orderbook::trading::notify_traders;
@@ -102,7 +103,25 @@ pub async fn post_order(
 
     let authenticated_users = state.authenticated_users.lock().await;
     if let Some(matched_orders) = matched_orders {
+        let mut orders_to_set_taken = vec![matched_orders.taker_matches.filled_with.order_id];
+        let mut order_ids = matched_orders
+            .taker_matches
+            .filled_with
+            .matches
+            .iter()
+            .map(|m| m.order_id)
+            .collect();
+
+        orders_to_set_taken.append(&mut order_ids);
+
         notify_traders(matched_orders, authenticated_users.clone()).await;
+
+        for order_id in orders_to_set_taken {
+            if let Err(err) = db::orders::update(&mut conn, order_id, true) {
+                let order_id = order_id.to_string();
+                tracing::error!(order_id, "Could not set order to taken {err:#}");
+            }
+        }
     }
 
     Ok(Json(order))
