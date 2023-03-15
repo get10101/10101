@@ -57,6 +57,26 @@ clean:
     flutter clean
     cd native && cargo clean
 
+wipe:
+    #!/usr/bin/env bash
+    set -euxo pipefail
+    docker-compose down -v
+    rm -rf data/coordinator/regtest
+    git checkout data/coordinator
+    # Array of possible app data directories (OS dependent)
+    # TODO: Add Linux locations
+    directories=( "$HOME/Library/Containers/finance.get10101.app/Data/Library/Application Support/finance.get10101.app")
+    # Remove all possible app data directories
+    for dir in "${directories[@]}"
+    do
+        if [ -d "$dir" ]; then
+            echo "App data directory ${dir} exists, removing it now..."
+            rm -r "$dir"
+        else
+            echo "$dir not found, skipping..."
+        fi
+    done
+
 lint: lint-flutter clippy
 
 clippy:
