@@ -1,7 +1,9 @@
+use anyhow::Result;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use trade::cfd;
 use trade::Direction;
+use trade::Price;
 
 /// Calculate the collateral in BTC.
 pub fn calculate_margin(opening_price: f64, quantity: f64, leverage: f64) -> u64 {
@@ -13,6 +15,28 @@ pub fn calculate_margin(opening_price: f64, quantity: f64, leverage: f64) -> u64
 /// Margin in sats, calculation in BTC
 pub fn calculate_quantity(opening_price: f64, margin: u64, leverage: f64) -> f64 {
     cfd::calculate_quantity(opening_price, margin, leverage)
+}
+
+pub fn calculate_pnl(
+    opening_price: f64,
+    closing_price: Price,
+    quantity: f64,
+    leverage: f64,
+    direction: Direction,
+) -> Result<i64> {
+    let (long_leverage, short_leverage) = match direction {
+        Direction::Long => (leverage, 1.0),
+        Direction::Short => (1.0, leverage),
+    };
+
+    cfd::calcualte_pnl(
+        opening_price,
+        closing_price,
+        quantity,
+        long_leverage,
+        short_leverage,
+        direction,
+    )
 }
 
 pub fn calculate_liquidation_price(price: f64, leverage: f64, direction: Direction) -> f64 {

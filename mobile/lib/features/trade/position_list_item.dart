@@ -62,16 +62,19 @@ class PositionListItem extends StatelessWidget {
                 child: Wrap(
                   runSpacing: 10,
                   children: [
-                    ValueDataRow(
-                      type: ValueType.amount,
-                      value: notNullPosition.unrealizedPnl,
-                      label: "Unrealized P/L",
-                      valueTextStyle: dataRowStyle.apply(
-                          color: notNullPosition.unrealizedPnl.sats.isNegative
-                              ? tradeTheme.loss
-                              : tradeTheme.profit),
-                      labelTextStyle: dataRowStyle,
-                    ),
+                    notNullPosition.unrealizedPnl == null
+                        ? const ValueDataRow(
+                            type: ValueType.loading, value: "", label: "Unrealized P/L")
+                        : ValueDataRow(
+                            type: ValueType.amount,
+                            value: notNullPosition.unrealizedPnl,
+                            label: "Unrealized P/L",
+                            valueTextStyle: dataRowStyle.apply(
+                                color: notNullPosition.unrealizedPnl!.sats.isNegative
+                                    ? tradeTheme.loss
+                                    : tradeTheme.profit),
+                            labelTextStyle: dataRowStyle,
+                          ),
                     ValueDataRow(
                       type: ValueType.amount,
                       value: notNullPosition.collateral,

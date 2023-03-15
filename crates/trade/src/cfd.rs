@@ -1,7 +1,13 @@
+use crate::Direction;
+use crate::Price;
+use anyhow::Context;
+use anyhow::Result;
 use bdk::bitcoin;
 use bdk::bitcoin::Denomination;
+use bdk::bitcoin::SignedAmount;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
+use std::ops::Neg;
 
 pub const BTCUSD_MAX_PRICE: u64 = 1_048_575;
 
@@ -53,4 +59,55 @@ pub fn calculate_short_liquidation_price(leverage: Decimal, price: Decimal) -> D
     }
 
     price * leverage / (leverage - Decimal::ONE)
+}
+
+// TODO: This was copied from ItchySats and adapted; we need tests for this!
+/// Compute the payout for the given CFD parameters at a particular `closing_price`.
+///
+/// The `opening_price` of the position is the weighted opening price per quantity.
+/// The `opening_price` is aggregated from all the execution prices of the orders that filled the
+/// position; weighted by quantity. The closing price is the best bid/ask according to the orderbook
+/// at a certain time.
+///
+/// Both leverages are supplied so that the total margin can be calculated and the PnL is capped by
+/// the total margin available.
+pub fn calcualte_pnl(
+    opening_price: f64,
+    closing_price: Price,
+    quantity: f64,
+    long_leverage: f64,
+    short_leverage: f64,
+    direction: Direction,
+) -> Result<i64> {
+    let opening_price = Decimal::try_from(opening_price).expect("price to fit into decimal");
+
+    let long_margin = calculate_margin(opening_price, quantity, long_leverage);
+    let short_margin = calculate_margin(opening_price, quantity, short_leverage);
+
+    let closing_price = match direction {
+        Direction::Long => closing_price.bid,
+        Direction::Short => closing_price.ask,
+    };
+
+    let uncapped_pnl_long = {
+        let quantity = Decimal::try_from(quantity).expect("quantity to fit into decimal");
+
+        let uncapped_pnl = (quantity / opening_price) - (quantity / closing_price);
+        let uncapped_pnl = uncapped_pnl
+            .round_dp_with_strategy(8, rust_decimal::RoundingStrategy::MidpointAwayFromZero);
+        let uncapped_pnl = uncapped_pnl
+            .to_f64()
+            .context("Could not convert Decimal to f64")?;
+
+        SignedAmount::from_btc(uncapped_pnl)?.to_sat()
+    };
+
+    // TODO: Fees are still missing; see ItchySats FeeAccount
+
+    let pnl = match direction {
+        Direction::Long => uncapped_pnl_long.min(short_margin as i64),
+        Direction::Short => uncapped_pnl_long.neg().min(long_margin as i64),
+    };
+
+    Ok(pnl)
 }

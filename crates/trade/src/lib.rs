@@ -1,4 +1,5 @@
 use anyhow::bail;
+use rust_decimal::Decimal;
 use serde::Deserialize;
 use serde::Serialize;
 use std::fmt;
@@ -33,6 +34,12 @@ impl Direction {
             Direction::Short => Direction::Long,
         }
     }
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+pub struct Price {
+    pub bid: Decimal,
+    pub ask: Decimal,
 }
 
 impl FromStr for ContractSymbol {

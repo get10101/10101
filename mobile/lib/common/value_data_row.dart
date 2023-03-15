@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'amount_text.dart';
 import 'fiat_text.dart';
 
-enum ValueType { amount, fiat, percentage, contracts }
+enum ValueType { amount, fiat, percentage, contracts, loading }
 
 class ValueDataRow extends StatelessWidget {
   final ValueType type;
@@ -39,6 +39,9 @@ class ValueDataRow extends StatelessWidget {
         break;
       case ValueType.contracts:
         widget = Text("$value contracts", style: valueTextStyle);
+        break;
+      case ValueType.loading:
+        widget = const SizedBox(width: 20, height: 20, child: CircularProgressIndicator());
         break;
     }
 

@@ -34,8 +34,6 @@ pub struct Position {
     pub direction: Direction,
     pub average_entry_price: f64,
     pub liquidation_price: f64,
-    /// The unrealized PL can be positive or negative
-    pub unrealized_pnl: i64,
     pub position_state: PositionState,
     pub collateral: u64,
 }

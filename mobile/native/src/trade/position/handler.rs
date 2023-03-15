@@ -58,7 +58,6 @@ pub async fn get_positions() -> Result<Vec<Position>> {
         direction: Direction::Long,
         average_entry_price: 20000.0,
         liquidation_price: 14000.0,
-        unrealized_pnl: -400,
         position_state: PositionState::Open,
         collateral: 2000,
     };
@@ -91,8 +90,6 @@ pub fn order_filled(filled_order: Order, collateral: u64) -> Result<()> {
             filled_order.leverage,
             filled_order.direction,
         ),
-        // TODO: PnL calc
-        unrealized_pnl: 0,
         position_state: PositionState::Open,
         collateral,
     }));

@@ -27,7 +27,8 @@ class Position {
   final Direction direction;
   final double averageEntryPrice;
   final double liquidationPrice;
-  final Amount unrealizedPnl;
+  // The unrealized PnL is calculated from the current price
+  Amount? unrealizedPnl;
   final PositionState positionState;
   final Amount collateral;
 
@@ -39,7 +40,7 @@ class Position {
       required this.contractSymbol,
       required this.direction,
       required this.positionState,
-      required this.unrealizedPnl,
+      this.unrealizedPnl,
       required this.collateral});
 
   static Position fromApi(bridge.Position position) {
@@ -51,7 +52,6 @@ class Position {
         positionState: PositionState.fromApi(position.positionState),
         averageEntryPrice: position.averageEntryPrice,
         liquidationPrice: position.liquidationPrice,
-        unrealizedPnl: Amount(position.unrealizedPnl),
         collateral: Amount(position.collateral));
   }
 
@@ -64,7 +64,6 @@ class Position {
       positionState: bridge.PositionState.Open,
       averageEntryPrice: 0,
       liquidationPrice: 0,
-      unrealizedPnl: 0,
       collateral: 0,
     );
   }
