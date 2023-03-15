@@ -1,4 +1,5 @@
 use crate::orderbook;
+use crate::orderbook::db;
 use crate::orderbook::db::orders;
 use crate::orderbook::trading::match_order;
 use crate::orderbook::trading::notify_traders;
@@ -92,17 +93,37 @@ pub async fn post_order(
         update_pricefeed(OrderbookMsg::NewOrder(order.clone()), sender);
     }
 
-    let all_orders =
-        orders::all_by_direction_and_type(&mut conn, order.direction.opposite(), OrderType::Limit)
-            .map_err(|e| {
-                AppError::InternalServerError(format!("Failed to load all orders: {e:#}"))
-            })?;
+    let all_orders = orders::all_by_direction_and_type(
+        &mut conn,
+        order.direction.opposite(),
+        OrderType::Limit,
+        false,
+    )
+    .map_err(|e| AppError::InternalServerError(format!("Failed to load all orders: {e:#}")))?;
     let matched_orders = match_order(order.clone(), all_orders)
         .map_err(|e| AppError::InternalServerError(format!("Failed to match order: {e:#}")))?;
 
     let authenticated_users = state.authenticated_users.lock().await;
     if let Some(matched_orders) = matched_orders {
+        let mut orders_to_set_taken = vec![matched_orders.taker_matches.filled_with.order_id];
+        let mut order_ids = matched_orders
+            .taker_matches
+            .filled_with
+            .matches
+            .iter()
+            .map(|m| m.order_id)
+            .collect();
+
+        orders_to_set_taken.append(&mut order_ids);
+
         notify_traders(matched_orders, authenticated_users.clone()).await;
+
+        for order_id in orders_to_set_taken {
+            if let Err(err) = db::orders::taken(&mut conn, order_id, true) {
+                let order_id = order_id.to_string();
+                tracing::error!(order_id, "Could not set order to taken {err:#}");
+            }
+        }
     }
 
     Ok(Json(order))
@@ -130,7 +151,7 @@ pub async fn put_order(
     Json(updated_order): Json<UpdateOrder>,
 ) -> Result<Json<Order>, AppError> {
     let mut conn = get_db_connection(&state)?;
-    let order = orderbook::db::orders::update(&mut conn, order_id, updated_order.taken)
+    let order = orderbook::db::orders::taken(&mut conn, order_id, updated_order.taken)
         .map_err(|e| AppError::InternalServerError(format!("Failed to update order: {e:#}")))?;
     let sender = state.tx_pricefeed.clone();
     update_pricefeed(OrderbookMsg::Update(order.clone()), sender);

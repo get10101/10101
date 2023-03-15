@@ -126,10 +126,12 @@ pub fn all_by_direction_and_type(
     conn: &mut PgConnection,
     direction: OrderbookDirection,
     order_type: OrderBookOrderType,
+    taken: bool,
 ) -> QueryResult<Vec<OrderbookOrder>> {
     let orders: Vec<Order> = orders::table
         .filter(orders::direction.eq(Direction::from(direction)))
         .filter(orders::order_type.eq(OrderType::from(order_type)))
+        .filter(orders::taken.eq(taken))
         .load::<Order>(conn)?;
 
     Ok(orders.into_iter().map(OrderbookOrder::from).collect())
@@ -145,7 +147,7 @@ pub fn insert(conn: &mut PgConnection, order: OrderbookNewOrder) -> QueryResult<
 }
 
 /// Returns the number of affected rows: 1.
-pub fn update(conn: &mut PgConnection, id: Uuid, is_taken: bool) -> QueryResult<OrderbookOrder> {
+pub fn taken(conn: &mut PgConnection, id: Uuid, is_taken: bool) -> QueryResult<OrderbookOrder> {
     let order: Order = diesel::update(orders::table)
         .filter(orders::trader_order_id.eq(id))
         .set(orders::taken.eq(is_taken))
