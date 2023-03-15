@@ -188,3 +188,35 @@ Otherwise, you might have troubles starting 10101, due to port conflicts on cont
 
     _Note, that you have to provide the coordinator host to the mobile app like that `just run`_
 11. Copy the invoice and enter it on the lightning faucet. Hit send and you will receive your funds momentarily.
+
+#### Resetting dev environment
+
+In order to wipe all the runtime data, run:
+
+```sh
+just wipe
+```
+
+Wiping (resetting) the data will:
+
+- stop Docker containers remove all Docker volumes
+- clear `coordinator` data (except the default seed)
+- remove 10101 native app data from the native
+
+iOS/Android app data should be cleared either on device itself, as they can't be easily scripted.
+
+#### Resetting iOS Simulator app
+
+Note: iOS Simulator has a CLI interface to automate this, but the device identifier is unique.
+
+In order to find out the iOS Simulator device identifier, one can run:
+
+```sh
+xcrun simctl list
+```
+
+In order to wipe device
+
+```sh
+xcrun simctl erase $DEVICE_IDENTIFIER
+```
