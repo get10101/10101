@@ -56,7 +56,7 @@ type ChainMonitor = chainmonitor::ChainMonitor<
     Arc<FilesystemPersister>,
 >;
 
-type PeerManager = lightning::ln::peer_handler::PeerManager<
+pub type PeerManager = lightning::ln::peer_handler::PeerManager<
     SocketDescriptor,
     Arc<ChannelManager>,
     Arc<

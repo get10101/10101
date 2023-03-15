@@ -251,7 +251,7 @@ impl Node {
     }
 }
 
-fn sub_channel_message_as_str(msg: &SubChannelMessage) -> &str {
+pub fn sub_channel_message_as_str(msg: &SubChannelMessage) -> &str {
     use SubChannelMessage::*;
 
     match msg {

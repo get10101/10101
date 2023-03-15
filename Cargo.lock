@@ -1759,6 +1759,7 @@ dependencies = [
  "coordinator-commons",
  "diesel",
  "diesel_migrations",
+ "dlc-messages",
  "flutter_rust_bridge",
  "futures",
  "hex",

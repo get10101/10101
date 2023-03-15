@@ -8,7 +8,7 @@ use dlc_sled_storage_provider::SledStorageProvider;
 use p2pd_oracle_client::P2PDOracleClient;
 use std::sync::Arc;
 
-pub(crate) type SubChannelManager = sub_channel_manager::SubChannelManager<
+pub type SubChannelManager = sub_channel_manager::SubChannelManager<
     Arc<LnDlcWallet>,
     Arc<ChannelManager>,
     Arc<SledStorageProvider>,

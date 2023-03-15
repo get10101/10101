@@ -79,6 +79,8 @@ async fn main() -> Result<()> {
         }
     });
 
+    // TODO: Process DLC message
+
     // set up database connection pool
     let conn_spec = "postgres://postgres:mysecretpassword@localhost:5432/maker".to_string();
     let manager = ConnectionManager::<PgConnection>::new(conn_spec);

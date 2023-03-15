@@ -16,7 +16,7 @@ use lightning::util::ser::ReadableArgs;
 use lightning_persister::FilesystemPersister;
 use std::sync::Arc;
 
-pub(crate) type ChannelManager = lightning::ln::channelmanager::ChannelManager<
+pub type ChannelManager = lightning::ln::channelmanager::ChannelManager<
     Arc<ChainMonitor>,
     Arc<LnDlcWallet>,
     Arc<CustomKeysManager>,
