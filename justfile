@@ -1,5 +1,6 @@
 # To use this file, install Just: cargo install just
 line_length := "100"
+coordinator_log_file := "$PWD/data/coordinator/regtest.log"
 
 default: gen
 precommit: gen lint
@@ -61,6 +62,7 @@ wipe:
     #!/usr/bin/env bash
     set -euxo pipefail
     docker-compose down -v
+    pkill -9 coordinator
     rm -rf data/coordinator/regtest
     git checkout data/coordinator
     # Array of possible app data directories (OS dependent)
@@ -110,5 +112,36 @@ native-test:
     cd mobile/native
 
 test: flutter-test native-test
+
+# Runs background Docker services
+docker:
+     docker-compose up -d
+
+docker-logs:
+     docker-compose logs
+
+# Starts coordinator process in the background, piping logs to a file (used in other recipes)
+run-coordinator-with-logs:
+    #!/usr/bin/env bash
+    set -euxo pipefail
+    echo "Starting (and building) coordinator"
+    cargo run --bin coordinator &> {{coordinator_log_file}} &
+    echo "Coordinator successfully started. You can inspect the logs at {{coordinator_log_file}}"
+
+# Attach to the current coordinator logs
+coordinator-logs:
+    #!/usr/bin/env bash
+    set -euxo pipefail
+    tail -f {{coordinator_log_file}}
+
+# Run services in the background
+services: docker run-coordinator-with-logs
+
+# Run everything at once (docker, coordinator, native build)
+# Note: if you have mobile simulator running, it will start that one instead of native, but will *not* rebuild the mobile rust library.
+all: services gen native run
+
+# Run everything at once, tailored for iOS development (rebuilds iOS)
+all-ios: services gen ios run
 
 # vim:expandtab:sw=4:ts=4
