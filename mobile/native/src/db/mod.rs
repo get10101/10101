@@ -6,6 +6,7 @@ use anyhow::anyhow;
 use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
+use diesel::connection::SimpleConnection;
 use diesel::r2d2;
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::Pool;
@@ -16,6 +17,7 @@ use diesel_migrations::EmbeddedMigrations;
 use diesel_migrations::MigrationHarness;
 use state::Storage;
 use std::sync::Arc;
+use time::Duration;
 use time::OffsetDateTime;
 use uuid::Uuid;
 
@@ -23,13 +25,52 @@ mod custom_types;
 pub mod models;
 
 pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!();
+/// Sets the number of max connections to the DB.
+///
+/// This number was arbitrarily chosen and can be adapted if needed.
+const MAX_DB_POOL_SIZE: u32 = 16;
 
 static DB: Storage<Arc<Pool<ConnectionManager<SqliteConnection>>>> = Storage::new();
+
+#[derive(Debug)]
+pub struct ConnectionOptions {
+    pub enable_wal: bool,
+    pub enable_foreign_keys: bool,
+    pub busy_timeout: Option<Duration>,
+}
+
+impl r2d2::CustomizeConnection<SqliteConnection, r2d2::Error> for ConnectionOptions {
+    fn on_acquire(&self, conn: &mut SqliteConnection) -> Result<(), r2d2::Error> {
+        (|| {
+            if self.enable_wal {
+                conn.batch_execute("PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL;")?;
+            }
+            if self.enable_foreign_keys {
+                conn.batch_execute("PRAGMA foreign_keys = ON;")?;
+            }
+            if let Some(d) = self.busy_timeout {
+                conn.batch_execute(&format!(
+                    "PRAGMA busy_timeout = {};",
+                    d.whole_milliseconds()
+                ))?;
+            }
+            Ok(())
+        })()
+        .map_err(diesel::r2d2::Error::QueryError)
+    }
+}
 
 pub fn init_db(db_dir: String) -> Result<()> {
     let database_url = format!("sqlite://{db_dir}/trader.sqlite");
     let manager = ConnectionManager::<SqliteConnection>::new(database_url);
-    let pool = r2d2::Pool::builder().build(manager)?;
+    let pool = r2d2::Pool::builder()
+        .max_size(MAX_DB_POOL_SIZE)
+        .connection_customizer(Box::new(ConnectionOptions {
+            enable_wal: true,
+            enable_foreign_keys: true,
+            busy_timeout: Some(Duration::seconds(30)),
+        }))
+        .build(manager)?;
 
     let mut connection = pool.get()?;
 
