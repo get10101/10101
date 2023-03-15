@@ -7,6 +7,7 @@ use rust_decimal_macros::dec;
 use std::str::FromStr;
 use testcontainers::clients::Cli;
 use trade::Direction;
+use uuid::Uuid;
 
 #[tokio::test]
 async fn crud_test() {
@@ -26,6 +27,7 @@ async fn crud_test() {
     let order = orders::insert(
         &mut conn,
         orderbook_commons::NewOrder {
+            id: Uuid::new_v4(),
             price: dec!(20000.00),
             trader_id: PublicKey::from_str(
                 "027f31ebc5462c1fdce1b737ecff52d37d75dea43ce11c74d25aa297165faa2007",

@@ -1,3 +1,5 @@
+use crate::ln_dlc;
+use rust_decimal::Decimal;
 use time::OffsetDateTime;
 use trade::ContractSymbol;
 use trade::Direction;
@@ -5,6 +7,7 @@ use uuid::Uuid;
 
 pub mod api;
 pub mod handler;
+mod orderbook_client;
 
 // When naming this the same as `api_model::order::OrderType` the generated code somehow uses
 // `trade::OrderType` and contains errors, hence different name is used.
@@ -28,6 +31,15 @@ pub enum FailureReason {
 
 #[derive(Debug, Clone, Copy)]
 pub enum OrderState {
+    /// Not submitted to orderbook yet
+    ///
+    /// In order to be able to track how many failed orders we have we store the order in the
+    /// database and update it once the orderbook returns success.
+    /// Transitions:
+    /// - Initial->Open
+    /// - Initial->Rejected
+    Initial,
+
     /// Rejected by the orderbook upon submission
     ///
     /// If the orderbook returns failure upon submission.
@@ -82,15 +94,6 @@ pub enum OrderState {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct NewOrder {
-    pub leverage: f64,
-    pub quantity: f64,
-    pub contract_symbol: ContractSymbol,
-    pub direction: Direction,
-    pub order_type: OrderType,
-}
-
-#[derive(Debug, Clone, Copy)]
 pub struct Order {
     pub id: Uuid,
     pub leverage: f64,
@@ -116,6 +119,32 @@ impl Order {
                 tracing::error!("Executed price not known in state {:?}", self.state);
                 None
             }
+        }
+    }
+}
+
+impl From<Order> for orderbook_commons::NewOrder {
+    fn from(order: Order) -> Self {
+        let quantity = Decimal::try_from(order.quantity).expect("to parse into decimal");
+        let trader_id = ln_dlc::get_node_info().unwrap().pubkey;
+        orderbook_commons::NewOrder {
+            id: order.id,
+            // todo: this is left out intentionally as market orders do not set a price. this field
+            // should either be an option or differently modelled for a market order.
+            price: Decimal::ZERO,
+            quantity,
+            trader_id,
+            direction: order.direction,
+            order_type: order.order_type.into(),
+        }
+    }
+}
+
+impl From<OrderType> for orderbook_commons::OrderType {
+    fn from(order_type: OrderType) -> Self {
+        match order_type {
+            OrderType::Market => orderbook_commons::OrderType::Market,
+            OrderType::Limit { .. } => orderbook_commons::OrderType::Limit,
         }
     }
 }

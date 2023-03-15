@@ -9,7 +9,7 @@ use std::fs;
 use std::path::Path;
 use std::sync::Arc;
 
-pub(crate) type DlcManager = dlc_manager::manager::Manager<
+pub type DlcManager = dlc_manager::manager::Manager<
     Arc<LnDlcWallet>,
     Arc<LnDlcWallet>,
     Arc<SledStorageProvider>,

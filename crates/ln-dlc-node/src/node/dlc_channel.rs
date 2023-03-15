@@ -7,7 +7,6 @@ use anyhow::anyhow;
 use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
 use dlc_manager::contract::contract_input::ContractInput;
-use dlc_manager::contract::Contract;
 use dlc_manager::subchannel::SubChannel;
 use dlc_manager::subchannel::SubChannelState;
 use dlc_manager::Oracle;
@@ -16,6 +15,7 @@ use dlc_messages::Message;
 use dlc_messages::SubChannelMessage;
 use lightning::ln::channelmanager::ChannelDetails;
 
+#[derive(Debug, Copy, Clone)]
 pub struct Dlc {
     pub id: [u8; 32],
     pub offer_collateral: u64,
@@ -117,32 +117,6 @@ impl Node {
         );
 
         Ok(())
-    }
-
-    pub fn get_confirmed_dlcs(&self) -> Result<Vec<Dlc>> {
-        let confirmed_dlcs = self
-            .dlc_manager
-            .get_store()
-            .get_contracts()
-            .map_err(|e| anyhow!("Unable to get contracts from manager: {e:#}"))?
-            .iter()
-            .filter_map(|contract| match contract {
-                Contract::Confirmed(signed) => Some((contract.get_id(), signed)),
-                _ => None,
-            })
-            .map(|(id, signed)| Dlc {
-                id,
-                offer_collateral: signed
-                    .accepted_contract
-                    .offered_contract
-                    .offer_params
-                    .collateral,
-                accept_collateral: signed.accepted_contract.accept_params.collateral,
-                accept_pk: signed.accepted_contract.offered_contract.counter_party,
-            })
-            .collect();
-
-        Ok(confirmed_dlcs)
     }
 
     pub fn get_sub_channel_offer(&self, pubkey: &PublicKey) -> Result<Option<SubChannel>> {
@@ -251,7 +225,7 @@ impl Node {
     }
 }
 
-fn sub_channel_message_as_str(msg: &SubChannelMessage) -> &str {
+pub fn sub_channel_message_as_str(msg: &SubChannelMessage) -> &str {
     use SubChannelMessage::*;
 
     match msg {

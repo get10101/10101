@@ -5,8 +5,6 @@ use crate::ln::coordinator_config;
 use crate::ln::EventHandler;
 use crate::ln::TracingLogger;
 use crate::ln_dlc_wallet::LnDlcWallet;
-use crate::node::dlc_manager::DlcManager;
-use crate::node::sub_channel_manager::SubChannelManager;
 use crate::on_chain_wallet::OnChainWallet;
 use crate::seed::Bip39Seed;
 use crate::util;
@@ -61,11 +59,13 @@ mod oracle_client;
 mod sub_channel_manager;
 mod wallet;
 
-pub(crate) use channel_manager::ChannelManager;
+pub use self::dlc_manager::DlcManager;
+pub use ::dlc_manager as rust_dlc_manager;
+pub use channel_manager::ChannelManager;
+pub use dlc_channel::sub_channel_message_as_str;
+pub use sub_channel_manager::SubChannelManager;
 
 // TODO: These intervals are quite arbitrary at the moment, come up with more sensible values
-// TODO: Set to 5 seconds for test purposes; this might not be feasible once in production
-const PROCESS_INCOMING_MESSAGES_INTERVAL: Duration = Duration::from_secs(5);
 const BROADCAST_NODE_ANNOUNCEMENT_INTERVAL: Duration = Duration::from_secs(60);
 
 /// An LN-DLC node.
@@ -73,7 +73,7 @@ pub struct Node {
     network: Network,
 
     pub(crate) wallet: Arc<LnDlcWallet>,
-    pub(crate) peer_manager: Arc<PeerManager>,
+    pub peer_manager: Arc<PeerManager>,
     invoice_payer: Arc<InvoicePayer<EventHandler>>,
     pub(crate) channel_manager: Arc<ChannelManager>,
     chain_monitor: Arc<ChainMonitor>,
@@ -85,10 +85,10 @@ pub struct Node {
     pub info: NodeInfo,
     fake_channel_payments: FakeChannelPaymentRequests,
 
-    pub(crate) dlc_manager: Arc<DlcManager>,
-    sub_channel_manager: Arc<SubChannelManager>,
+    pub dlc_manager: Arc<DlcManager>,
+    pub sub_channel_manager: Arc<SubChannelManager>,
     oracle: Arc<P2PDOracleClient>,
-    dlc_message_handler: Arc<DlcMessageHandler>,
+    pub dlc_message_handler: Arc<DlcMessageHandler>,
     inbound_payments: PaymentInfoStorage,
 
     pub(crate) user_config: UserConfig,
@@ -389,30 +389,6 @@ impl Node {
                 }
             }
         });
-
-        {
-            let dlc_manager = dlc_manager.clone();
-            let sub_channel_manager = sub_channel_manager.clone();
-            tokio::spawn({
-                let dlc_message_handler = dlc_message_handler.clone();
-                let peer_manager = peer_manager.clone();
-
-                async move {
-                    loop {
-                        if let Err(e) = Node::process_incoming_messages_internal(
-                            &dlc_message_handler,
-                            &dlc_manager,
-                            &sub_channel_manager,
-                            &peer_manager,
-                        ) {
-                            tracing::error!("Unable to process internal message: {e:#}");
-                        }
-
-                        tokio::time::sleep(PROCESS_INCOMING_MESSAGES_INTERVAL).await;
-                    }
-                }
-            })
-        };
 
         let node_info = NodeInfo {
             pubkey: channel_manager.get_our_node_id(),

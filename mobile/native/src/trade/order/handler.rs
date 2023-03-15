@@ -1,69 +1,36 @@
+use crate::config;
 use crate::db;
 use crate::event;
 use crate::event::EventInternal;
-use crate::ln_dlc;
+use crate::trade::order::orderbook_client::OrderbookClient;
 use crate::trade::order::FailureReason;
-use crate::trade::order::NewOrder;
 use crate::trade::order::Order;
 use crate::trade::order::OrderState;
-use crate::trade::position;
 use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
-use coordinator_commons::TradeParams;
-use orderbook_commons::FilledWith;
-use orderbook_commons::Match;
-use rust_decimal::Decimal;
-use std::ops::Add;
-use std::time::Duration;
-use time::OffsetDateTime;
-use trade::ContractSymbol;
-use trade::Direction;
+use reqwest::Url;
 use uuid::Uuid;
 
-pub async fn submit_order(order: NewOrder) -> Result<()> {
-    // TODO: Submit to orderbook -> This will define the Uuid of the order
-    // In case we fail to submit to the orderbook we assign our own internal uuid and then return
-    // failure.
-    let order = Order {
-        id: Uuid::new_v4(),
-        leverage: order.leverage,
-        quantity: order.quantity,
-        contract_symbol: order.contract_symbol,
-        direction: order.direction,
-        order_type: order.order_type,
-        state: OrderState::Open,
-        creation_timestamp: OffsetDateTime::now_utc(),
-    };
+pub async fn submit_order(order: Order) -> Result<()> {
+    let url = format!("http://{}", config::get_http_endpoint());
+    let orderbook_client = OrderbookClient::new(Url::parse(&url)?);
 
     db::insert_order(order)?;
 
-    ui_update(order);
+    if let Err(err) = orderbook_client.post_new_order(order.into()).await {
+        let order_id = order.id.to_string();
+        tracing::error!(order_id, "Failed to post new order. Error: {err:#}");
+        db::update_order_state(order.id, OrderState::Rejected)?;
+        bail!("Could not post order to orderbook");
+    }
+    db::update_order_state(order.id, OrderState::Open)?;
 
-    // TODO: remove this dummy
-    let dummy_trade_params = TradeParams {
-        pubkey: ln_dlc::get_node_info()?.pubkey,
-        // We set this to our pubkey as well for simplicity until we receive a match from the
-        // orderbook
-        contract_symbol: ContractSymbol::BtcUsd,
-        leverage: order.leverage,
-        quantity: order.quantity,
-        direction: Direction::Long,
-        filled_with: FilledWith {
-            order_id: order.id,
-            expiry_timestamp: OffsetDateTime::now_utc().add(Duration::from_secs(60 * 60 * 24)),
-            oracle_pk: ln_dlc::get_oracle_pubkey()?,
-            matches: vec![Match {
-                order_id: Default::default(),
-                quantity: Decimal::try_from(order.quantity)?,
-                pubkey: ln_dlc::get_node_info()?.pubkey,
-                execution_price: Decimal::from(23_000),
-            }],
-        },
+    let order = Order {
+        state: OrderState::Open,
+        ..order
     };
-    // TODO: Remove this call once we plug in the orderbook; we trigger trade upon being matched
-    // then
-    position::handler::trade(dummy_trade_params).await?;
+    ui_update(order);
 
     Ok(())
 }

@@ -1759,6 +1759,7 @@ dependencies = [
  "coordinator-commons",
  "diesel",
  "diesel_migrations",
+ "dlc-messages",
  "flutter_rust_bridge",
  "futures",
  "hex",
@@ -1770,6 +1771,7 @@ dependencies = [
  "rust_decimal",
  "rust_decimal_macros",
  "serde",
+ "serde_json",
  "state",
  "thiserror",
  "time 0.3.20",
@@ -1945,6 +1947,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "rust_decimal",
+ "rust_decimal_macros",
  "secp256k1",
  "serde",
  "serde_json",

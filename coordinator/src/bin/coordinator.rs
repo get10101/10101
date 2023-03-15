@@ -2,6 +2,7 @@ use anyhow::Context;
 use anyhow::Result;
 use coordinator::cli::Opts;
 use coordinator::logger;
+use coordinator::node;
 use coordinator::node::Node;
 use coordinator::routes::router;
 use coordinator::run_migration;
@@ -12,9 +13,11 @@ use ln_dlc_node::seed::Bip39Seed;
 use rand::thread_rng;
 use rand::RngCore;
 use std::sync::Arc;
+use std::time::Duration;
 use tracing::metadata::LevelFilter;
 
 const ELECTRS_ORIGIN: &str = "tcp://localhost:50000";
+const PROCESS_INCOMING_MESSAGES_INTERVAL: Duration = Duration::from_secs(5);
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -34,6 +37,9 @@ async fn main() -> Result<()> {
         std::fs::create_dir_all(&data_dir)
             .context(format!("Could not create data dir for {network}"))?;
     }
+
+    let data_dir_string = data_dir.clone().into_os_string();
+    tracing::info!("Data-dir: {data_dir_string:?}");
 
     let seed_path = data_dir.join("seed");
     let seed = Bip39Seed::initialize(&seed_path)?;
@@ -62,6 +68,30 @@ async fn main() -> Result<()> {
             }
         }
     });
+
+    {
+        let dlc_manager = node.dlc_manager.clone();
+        let sub_channel_manager = node.sub_channel_manager.clone();
+        tokio::spawn({
+            let dlc_message_handler = node.dlc_message_handler.clone();
+            let peer_manager = node.peer_manager.clone();
+
+            async move {
+                loop {
+                    if let Err(e) = node::process_incoming_messages_internal(
+                        &dlc_message_handler,
+                        &dlc_manager,
+                        &sub_channel_manager,
+                        &peer_manager,
+                    ) {
+                        tracing::error!("Unable to process internal message: {e:#}");
+                    }
+
+                    tokio::time::sleep(PROCESS_INCOMING_MESSAGES_INTERVAL).await;
+                }
+            }
+        })
+    };
 
     // set up database connection pool
     let conn_spec = "postgres://postgres:mysecretpassword@localhost:5432/orderbook".to_string();

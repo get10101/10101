@@ -1,4 +1,5 @@
 use crate::calculations::calculate_liquidation_price;
+use crate::db;
 use crate::event;
 use crate::event::EventInternal;
 use crate::ln_dlc;
@@ -6,8 +7,10 @@ use crate::trade::order;
 use crate::trade::order::Order;
 use crate::trade::position::Position;
 use crate::trade::position::PositionState;
+use anyhow::Context;
 use anyhow::Result;
 use coordinator_commons::TradeParams;
+use orderbook_commons::FilledWith;
 use rust_decimal::prelude::ToPrimitive;
 use trade::ContractSymbol;
 use trade::Direction;
@@ -17,17 +20,28 @@ use trade::Direction;
 /// In a success scenario this results in creating, updating or deleting a position.
 /// The DLC that represents the position will be stored in the database.
 /// Errors are handled within the scope of this function.
-pub async fn trade(trade_params: TradeParams) -> Result<()> {
-    let order_id = trade_params.filled_with.order_id;
+pub async fn trade(filled: FilledWith) -> Result<()> {
+    let order = db::get_order(filled.order_id).context("Could not load order from db")?;
+
+    let trade_params = TradeParams {
+        pubkey: ln_dlc::get_node_info()?.pubkey,
+        contract_symbol: ContractSymbol::BtcUsd,
+        leverage: order.leverage,
+        quantity: order.quantity,
+        direction: Direction::Long,
+        filled_with: filled,
+    };
 
     let execution_price = trade_params
         .weighted_execution_price()
         .to_f64()
         .expect("to fit into f64");
-    order::handler::order_filling(order_id, execution_price)?;
+    order::handler::order_filling(order.id, execution_price)
+        .context("Could not update order to filling")?;
 
     if let Err((reason, e)) = ln_dlc::trade(trade_params).await {
-        order::handler::order_failed(Some(order_id), reason, e)?;
+        order::handler::order_failed(Some(order.id), reason, e)
+            .context("Could not set order to failed")?;
     }
 
     Ok(())
@@ -84,13 +98,4 @@ pub fn order_filled(filled_order: Order, collateral: u64) -> Result<()> {
     }));
 
     Ok(())
-}
-
-pub fn is_position_up_to_date(_dlc_collateral: &u64) -> bool {
-    // TODO load the position and compare the collateral.
-    // Only if there is a position and said position's collateral is the same as the same as the DLC
-    // collateral we don't need an update.
-
-    // dummy: at the moment we always update
-    false
 }

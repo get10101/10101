@@ -16,7 +16,8 @@ diesel::table! {
     use super::sql_types::OrderTypeType;
 
     orders (id) {
-        id -> Uuid,
+        id -> Int4,
+        trader_order_id -> Uuid,
         price -> Float4,
         trader_id -> Text,
         taken -> Bool,
