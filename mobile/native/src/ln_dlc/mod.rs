@@ -257,9 +257,15 @@ pub async fn trade(trade_params: TradeParams) -> Result<(), (FailureReason, anyh
         .map_err(|e| (FailureReason::TradeRequest, e))?;
 
     if !response.status().is_success() {
+        let response_text = match response.text().await {
+            Ok(text) => text,
+            Err(err) => {
+                format!("could not decode response {err:#}")
+            }
+        };
         return Err((
             FailureReason::TradeResponse,
-            anyhow!("Could not post trade to coordinator"),
+            anyhow!("Could not post trade to coordinator: {response_text}"),
         ));
     }
 
