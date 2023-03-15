@@ -65,7 +65,8 @@ impl Node {
             trade_params.weighted_execution_price(),
             leverage_long,
             leverage_short,
-        )?;
+        )
+        .context("Could not build contract descriptor")?;
 
         let contract_symbol = trade_params.contract_symbol.label();
         let maturity_time = trade_params.filled_with.expiry_timestamp;
@@ -92,7 +93,8 @@ impl Node {
         let channel_details = self.get_counterparty_channel(trade_params.pubkey)?;
         self.inner
             .propose_dlc_channel(&channel_details, &contract_input)
-            .await?;
+            .await
+            .context("Could not propose dlc channel")?;
         Ok(())
     }
 
