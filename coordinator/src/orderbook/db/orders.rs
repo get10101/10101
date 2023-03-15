@@ -144,7 +144,7 @@ pub fn insert(conn: &mut PgConnection, order: OrderbookNewOrder) -> QueryResult<
 }
 
 /// Returns the number of affected rows: 1.
-pub fn update(conn: &mut PgConnection, id: Uuid, is_taken: bool) -> QueryResult<OrderbookOrder> {
+pub fn taken(conn: &mut PgConnection, id: Uuid, is_taken: bool) -> QueryResult<OrderbookOrder> {
     let order: Order = diesel::update(orders::table)
         .filter(orders::id.eq(id))
         .set(orders::taken.eq(is_taken))
