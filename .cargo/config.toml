@@ -1,5 +1,17 @@
+# Inspired by https://github.com/EmbarkStudios/rust-ecosystem/pull/68.
+[build]
+rustflags = [
+  "-Wclippy::disallowed_methods",
+  "-Wclippy::dbg_macro",
+  "-Wclippy::print_stderr",
+  "-Wclippy::print_stdout",
+  "-Wunused-import-braces",
+  "-Wunused-qualifications",
+]
+
 [target.'cfg(feature = "cargo-clippy")']
 rustflags = [
+  "-Wclippy::disallowed_methods",
   "-Wclippy::dbg_macro",
   "-Wclippy::print_stderr",
   "-Wclippy::print_stdout",
