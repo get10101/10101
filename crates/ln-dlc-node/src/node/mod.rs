@@ -60,6 +60,7 @@ mod sub_channel_manager;
 mod wallet;
 
 pub use self::dlc_manager::DlcManager;
+pub use ::dlc_manager as rust_dlc_manager;
 pub use channel_manager::ChannelManager;
 pub use dlc_channel::sub_channel_message_as_str;
 pub use sub_channel_manager::SubChannelManager;

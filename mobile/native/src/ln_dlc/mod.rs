@@ -7,7 +7,6 @@ use crate::event;
 use crate::event::EventInternal;
 use crate::ln_dlc::node::process_incoming_messages_internal;
 use crate::ln_dlc::node::Node;
-use crate::trade::order;
 use crate::trade::order::FailureReason;
 use crate::trade::position;
 use anyhow::anyhow;
@@ -22,7 +21,6 @@ use coordinator_commons::TradeParams;
 use lightning_invoice::Invoice;
 use ln_dlc_node::node::NodeInfo;
 use ln_dlc_node::seed::Bip39Seed;
-use ln_dlc_node::Dlc;
 use state::Storage;
 use std::net::TcpListener;
 use std::path::Path;
@@ -117,10 +115,12 @@ pub fn run(data_dir: String) -> Result<()> {
             )
             .await?,
         );
-        let node = Arc::new(Node {inner: node});
+        let node = Arc::new(Node { inner: node });
 
         // todo: should the library really be responsible for managing the task?
-        node.inner.keep_connected(config::get_coordinator_info()).await?;
+        node.inner
+            .keep_connected(config::get_coordinator_info())
+            .await?;
 
         // automatically accepts dlc channel offers (open and close)
         node.start_accept_offers_task()?;
@@ -159,48 +159,6 @@ pub fn run(data_dir: String) -> Result<()> {
 
                     let wallet_info = node.get_wallet_info_from_node();
                     event::publish(&EventInternal::WalletInfoUpdateNotification(wallet_info));
-                }
-            }
-        });
-
-        // periodically update for positions
-        runtime.spawn({
-            let node = node.clone();
-            async move {
-                loop {
-                    tokio::time::sleep(Duration::from_secs(10)).await;
-
-                    let contracts = match node.inner.get_confirmed_dlcs() {
-                        Ok(contracts) => contracts,
-                        Err(e) => {
-                            tracing::error!("Failed to retrieve DLCs from node: {e:#}");
-                            continue;
-                        }
-                    };
-
-                    // Assumes that there is only one contract, i.e. one position
-                    if let Some(Dlc {
-                                    offer_collateral, ..
-                                }) = contracts.get(0)
-                    {
-                        if position::handler::is_position_up_to_date(offer_collateral) {
-                            continue;
-                        }
-
-                        // TODO: I don't think we can get rid of this error scenarios, but they sucks
-                        let filled_order = match order::handler::order_filled() {
-                            Ok(filled_order) => filled_order,
-                            Err(e) => {
-                                tracing::error!("Critical Error! We have a DLC but were unable to set the order to filled: {e:#}");
-                                continue;
-                            }
-                        };
-
-                        if let Err(e) = position::handler::order_filled(filled_order, *offer_collateral) {
-                            tracing::error!("Failed to handle position after receiving DLC: {e:#}");
-                            continue;
-                        }
-                    }
                 }
             }
         });

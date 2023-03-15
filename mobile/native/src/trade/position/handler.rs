@@ -99,12 +99,3 @@ pub fn order_filled(filled_order: Order, collateral: u64) -> Result<()> {
 
     Ok(())
 }
-
-pub fn is_position_up_to_date(_dlc_collateral: &u64) -> bool {
-    // TODO load the position and compare the collateral.
-    // Only if there is a position and said position's collateral is the same as the same as the DLC
-    // collateral we don't need an update.
-
-    // dummy: at the moment we always update
-    false
-}

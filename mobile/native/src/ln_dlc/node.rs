@@ -1,12 +1,19 @@
 use crate::api::Balances;
 use crate::api::WalletInfo;
+use crate::trade::order;
+use crate::trade::position;
 use anyhow::anyhow;
+use anyhow::Context;
 use anyhow::Result;
 use dlc_messages::message_handler::MessageHandler as DlcMessageHandler;
 use dlc_messages::Message;
+use dlc_messages::SubChannelMessage;
+use ln_dlc_node::node::rust_dlc_manager::contract::Contract;
+use ln_dlc_node::node::rust_dlc_manager::Storage;
 use ln_dlc_node::node::sub_channel_message_as_str;
 use ln_dlc_node::node::DlcManager;
 use ln_dlc_node::node::SubChannelManager;
+use ln_dlc_node::Dlc;
 use ln_dlc_node::PeerManager;
 use std::sync::Arc;
 
@@ -68,7 +75,27 @@ pub(crate) fn process_incoming_messages_internal(
                         msg = %sub_channel_message_as_str(&msg),
                         "Sending sub-channel message"
                     );
-                    dlc_message_handler.send_message(node_id, Message::SubChannel(msg));
+                    dlc_message_handler.send_message(node_id, Message::SubChannel(msg.clone()));
+
+                    if let SubChannelMessage::Finalize(_) = msg {
+                        let offer_collateral =
+                            get_first_confirmed_dlc(dlc_manager)?.offer_collateral;
+
+                        let filled_order = match order::handler::order_filled() {
+                            Ok(filled_order) => filled_order,
+                            Err(e) => {
+                                tracing::error!("Critical Error! We have a DLC but were unable to set the order to filled: {e:#}");
+                                continue;
+                            }
+                        };
+
+                        if let Err(e) =
+                            position::handler::order_filled(filled_order, offer_collateral)
+                        {
+                            tracing::error!("Failed to handle position after receiving DLC: {e:#}");
+                            continue;
+                        }
+                    }
                 }
             }
         }
@@ -81,4 +108,32 @@ pub(crate) fn process_incoming_messages_internal(
     }
 
     Ok(())
+}
+
+pub fn get_first_confirmed_dlc(dlc_manager: &DlcManager) -> Result<Dlc> {
+    let confirmed_dlcs = dlc_manager
+        .get_store()
+        .get_contracts()
+        .map_err(|e| anyhow!("Unable to get contracts from manager: {e:#}"))?
+        .iter()
+        .filter_map(|contract| match contract {
+            Contract::Confirmed(signed) => Some((contract.get_id(), signed)),
+            _ => None,
+        })
+        .map(|(id, signed)| Dlc {
+            id,
+            offer_collateral: signed
+                .accepted_contract
+                .offered_contract
+                .offer_params
+                .collateral,
+            accept_collateral: signed.accepted_contract.accept_params.collateral,
+            accept_pk: signed.accepted_contract.offered_contract.counter_party,
+        })
+        .collect::<Vec<_>>();
+
+    confirmed_dlcs
+        .first()
+        .context("No confirmed DLC found")
+        .copied()
 }
