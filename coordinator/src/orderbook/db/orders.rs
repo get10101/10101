@@ -52,9 +52,12 @@ impl From<OrderBookOrderType> for OrderType {
 
 #[derive(Queryable, Debug, Clone)]
 struct Order {
-    pub id: Uuid,
+    // this id is only internally but needs to be here or diesel complains
+    #[allow(dead_code)]
+    pub id: i32,
+    pub trader_order_id: Uuid,
     pub price: f32,
-    pub maker_id: String,
+    pub trader_id: String,
     pub taken: bool,
     pub direction: Direction,
     pub quantity: f32,
@@ -65,9 +68,9 @@ struct Order {
 impl From<Order> for OrderbookOrder {
     fn from(value: Order) -> Self {
         OrderbookOrder {
-            id: value.id,
+            id: value.trader_order_id,
             price: Decimal::from_f32(value.price).expect("To be able to convert f32 to decimal"),
-            trader_id: value.maker_id.parse().expect("to have a valid pubkey"),
+            trader_id: value.trader_id.parse().expect("to have a valid pubkey"),
             taken: value.taken,
             direction: value.direction.into(),
             quantity: Decimal::from_f32(value.quantity)
@@ -81,7 +84,7 @@ impl From<Order> for OrderbookOrder {
 #[derive(Insertable, Debug, PartialEq)]
 #[diesel(table_name = orders)]
 struct NewOrder {
-    pub id: Uuid,
+    pub trader_order_id: Uuid,
     pub price: f32,
     pub trader_id: String,
     pub taken: bool,
@@ -93,7 +96,7 @@ struct NewOrder {
 impl From<OrderbookNewOrder> for NewOrder {
     fn from(value: OrderbookNewOrder) -> Self {
         NewOrder {
-            id: Uuid::new_v4(),
+            trader_order_id: value.id,
             price: value
                 .price
                 .round_dp(2)
@@ -144,7 +147,7 @@ pub fn insert(conn: &mut PgConnection, order: OrderbookNewOrder) -> QueryResult<
 /// Returns the number of affected rows: 1.
 pub fn update(conn: &mut PgConnection, id: Uuid, is_taken: bool) -> QueryResult<OrderbookOrder> {
     let order: Order = diesel::update(orders::table)
-        .filter(orders::id.eq(id))
+        .filter(orders::trader_order_id.eq(id))
         .set(orders::taken.eq(is_taken))
         .get_result(conn)?;
 
@@ -154,7 +157,7 @@ pub fn update(conn: &mut PgConnection, id: Uuid, is_taken: bool) -> QueryResult<
 /// Returns the order by id
 pub fn get_with_id(conn: &mut PgConnection, uid: Uuid) -> QueryResult<Option<OrderbookOrder>> {
     let x = orders::table
-        .filter(orders::id.eq(uid))
+        .filter(orders::trader_order_id.eq(uid))
         .load::<Order>(conn)
         .unwrap();
 
@@ -165,6 +168,6 @@ pub fn get_with_id(conn: &mut PgConnection, uid: Uuid) -> QueryResult<Option<Ord
 /// Returns the number of affected rows: 1.
 pub fn delete_with_id(conn: &mut PgConnection, order_id: Uuid) -> QueryResult<usize> {
     diesel::delete(orders::table)
-        .filter(orders::id.eq(order_id))
+        .filter(orders::trader_order_id.eq(order_id))
         .execute(conn)
 }

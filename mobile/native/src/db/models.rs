@@ -172,9 +172,15 @@ impl Order {
     }
 
     /// Fetch all orders that are not in initial and rejected state
-    pub fn get_without_rejected(conn: &mut SqliteConnection) -> QueryResult<Vec<Order>> {
+    pub fn get_without_rejected_and_initial(
+        conn: &mut SqliteConnection,
+    ) -> QueryResult<Vec<Order>> {
         orders::table
-            .filter(schema::orders::state.ne(OrderState::Rejected))
+            .filter(
+                schema::orders::state
+                    .ne(OrderState::Initial)
+                    .and(schema::orders::state.ne(OrderState::Rejected)),
+            )
             .load(conn)
     }
 
@@ -318,6 +324,7 @@ impl TryFrom<(OrderType, Option<f64>)> for crate::trade::order::OrderType {
 #[derive(Debug, Clone, Copy, PartialEq, FromSqlRow, AsExpression)]
 #[diesel(sql_type = Text)]
 pub enum OrderState {
+    Initial,
     Rejected,
     Open,
     Filling,
@@ -328,6 +335,7 @@ pub enum OrderState {
 impl From<crate::trade::order::OrderState> for (OrderState, Option<f64>, Option<FailureReason>) {
     fn from(value: crate::trade::order::OrderState) -> Self {
         match value {
+            crate::trade::order::OrderState::Initial => (OrderState::Initial, None, None),
             crate::trade::order::OrderState::Rejected => (OrderState::Rejected, None, None),
             crate::trade::order::OrderState::Open => (OrderState::Open, None, None),
             crate::trade::order::OrderState::Failed { reason } => {
@@ -350,6 +358,7 @@ impl TryFrom<(OrderState, Option<f64>, Option<FailureReason>)> for crate::trade:
         value: (OrderState, Option<f64>, Option<FailureReason>),
     ) -> std::result::Result<Self, Self::Error> {
         let order_state = match value.0 {
+            OrderState::Initial => crate::trade::order::OrderState::Initial,
             OrderState::Rejected => crate::trade::order::OrderState::Rejected,
             OrderState::Open => crate::trade::order::OrderState::Open,
             OrderState::Failed => match value.2 {
@@ -427,6 +436,7 @@ pub mod test {
     use crate::db::models::Order;
     use crate::db::models::OrderState;
     use crate::db::MIGRATIONS;
+    use crate::trade::order::FailureReason;
     use diesel::result::Error;
     use diesel::Connection;
     use diesel::SqliteConnection;
@@ -478,7 +488,7 @@ pub mod test {
         let direction = trade::Direction::Long;
         let (order_type, limit_price) = crate::trade::order::OrderType::Market.into();
         let (status, execution_price, failure_reason) =
-            crate::trade::order::OrderState::Open.into();
+            crate::trade::order::OrderState::Initial.into();
         let creation_timestamp = OffsetDateTime::UNIX_EPOCH;
 
         let order = Order {
@@ -503,7 +513,7 @@ pub mod test {
                 contract_symbol,
                 direction,
                 order_type: crate::trade::order::OrderType::Market,
-                state: crate::trade::order::OrderState::Open,
+                state: crate::trade::order::OrderState::Initial,
                 creation_timestamp,
             }
             .into(),
@@ -520,7 +530,7 @@ pub mod test {
                 contract_symbol,
                 direction: trade::Direction::Long,
                 order_type: crate::trade::order::OrderType::Market,
-                state: crate::trade::order::OrderState::Open,
+                state: crate::trade::order::OrderState::Initial,
                 creation_timestamp,
             }
             .into(),
@@ -566,8 +576,7 @@ pub mod test {
     }
 
     #[test]
-    pub fn given_rejected_order_when_loading_without_rejected_from_the_database_then_rejected_not_loaded(
-    ) {
+    pub fn given_several_orders_when_fetching_orders_for_ui_only_relevant_orders_are_loaded() {
         let mut connection = SqliteConnection::establish(":memory:").unwrap();
         connection.run_pending_migrations(MIGRATIONS).unwrap();
 
@@ -586,7 +595,7 @@ pub mod test {
                 contract_symbol,
                 direction,
                 order_type: crate::trade::order::OrderType::Market,
-                state: crate::trade::order::OrderState::Rejected,
+                state: crate::trade::order::OrderState::Initial,
                 creation_timestamp,
             }
             .into(),
@@ -594,7 +603,7 @@ pub mod test {
         )
         .unwrap();
 
-        let orders = Order::get_without_rejected(&mut connection).unwrap();
+        let orders = Order::get_without_rejected_and_initial(&mut connection).unwrap();
         assert_eq!(orders.len(), 0);
 
         let uuid1 = uuid::Uuid::new_v4();
@@ -606,7 +615,7 @@ pub mod test {
                 contract_symbol,
                 direction,
                 order_type: crate::trade::order::OrderType::Market,
-                state: crate::trade::order::OrderState::Open,
+                state: crate::trade::order::OrderState::Initial,
                 creation_timestamp,
             }
             .into(),
@@ -614,17 +623,40 @@ pub mod test {
         )
         .unwrap();
 
-        let orders = Order::get_without_rejected(&mut connection).unwrap();
-        assert_eq!(orders.len(), 1);
+        let orders = Order::get_without_rejected_and_initial(&mut connection).unwrap();
+        assert_eq!(orders.len(), 0);
 
         Order::update_state(
-            uuid1.to_string(),
-            crate::trade::order::OrderState::Rejected.into(),
+            uuid.to_string(),
+            crate::trade::order::OrderState::Open.into(),
             &mut connection,
         )
         .unwrap();
 
-        let orders = Order::get_without_rejected(&mut connection).unwrap();
-        assert_eq!(orders.len(), 0);
+        let orders = Order::get_without_rejected_and_initial(&mut connection).unwrap();
+        assert_eq!(orders.len(), 1);
+
+        Order::update_state(
+            uuid1.to_string(),
+            crate::trade::order::OrderState::Open.into(),
+            &mut connection,
+        )
+        .unwrap();
+
+        let orders = Order::get_without_rejected_and_initial(&mut connection).unwrap();
+        assert_eq!(orders.len(), 2);
+
+        Order::update_state(
+            uuid1.to_string(),
+            crate::trade::order::OrderState::Failed {
+                reason: FailureReason::FailedToSetToFilling,
+            }
+            .into(),
+            &mut connection,
+        )
+        .unwrap();
+
+        let orders = Order::get_without_rejected_and_initial(&mut connection).unwrap();
+        assert_eq!(orders.len(), 2);
     }
 }

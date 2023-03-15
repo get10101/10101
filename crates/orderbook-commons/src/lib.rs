@@ -42,6 +42,7 @@ pub fn create_sign_message() -> Message {
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct NewOrder {
+    pub id: Uuid,
     #[serde(with = "rust_decimal::serde::float")]
     pub price: Decimal,
     #[serde(with = "rust_decimal::serde::float")]

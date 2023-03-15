@@ -39,6 +39,7 @@ impl FromSql<Text, Sqlite> for OrderType {
 impl ToSql<Text, Sqlite> for OrderState {
     fn to_sql(&self, out: &mut Output<Sqlite>) -> serialize::Result {
         let text = match *self {
+            OrderState::Initial => "initial".to_string(),
             OrderState::Rejected => "rejected".to_string(),
             OrderState::Open => "open".to_string(),
             OrderState::Failed => "failed".to_string(),
@@ -55,6 +56,7 @@ impl FromSql<Text, Sqlite> for OrderState {
         let string = <String as FromSql<Text, Sqlite>>::from_sql(bytes)?;
 
         return match string.as_str() {
+            "initial" => Ok(OrderState::Initial),
             "rejected" => Ok(OrderState::Rejected),
             "open" => Ok(OrderState::Open),
             "failed" => Ok(OrderState::Failed),

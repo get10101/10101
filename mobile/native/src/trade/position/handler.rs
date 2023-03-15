@@ -7,6 +7,7 @@ use crate::trade::order;
 use crate::trade::order::Order;
 use crate::trade::position::Position;
 use crate::trade::position::PositionState;
+use anyhow::Context;
 use anyhow::Result;
 use coordinator_commons::TradeParams;
 use orderbook_commons::FilledWith;
@@ -20,7 +21,7 @@ use trade::Direction;
 /// The DLC that represents the position will be stored in the database.
 /// Errors are handled within the scope of this function.
 pub async fn trade(filled: FilledWith) -> Result<()> {
-    let order = db::get_order(filled.order_id)?;
+    let order = db::get_order(filled.order_id).context("Could not load order from db")?;
 
     let trade_params = TradeParams {
         pubkey: ln_dlc::get_node_info()?.pubkey,
@@ -35,10 +36,12 @@ pub async fn trade(filled: FilledWith) -> Result<()> {
         .weighted_execution_price()
         .to_f64()
         .expect("to fit into f64");
-    order::handler::order_filling(order.id, execution_price)?;
+    order::handler::order_filling(order.id, execution_price)
+        .context("Could not update order to filling")?;
 
     if let Err((reason, e)) = ln_dlc::trade(trade_params).await {
-        order::handler::order_failed(Some(order.id), reason, e)?;
+        order::handler::order_failed(Some(order.id), reason, e)
+            .context("Could not set order to failed")?;
     }
 
     Ok(())

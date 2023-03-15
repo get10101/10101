@@ -4,41 +4,32 @@ use crate::event;
 use crate::event::EventInternal;
 use crate::trade::order::orderbook_client::OrderbookClient;
 use crate::trade::order::FailureReason;
-use crate::trade::order::NewOrder;
 use crate::trade::order::Order;
 use crate::trade::order::OrderState;
 use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
 use reqwest::Url;
-use time::OffsetDateTime;
 use uuid::Uuid;
 
-pub async fn submit_order(order: NewOrder) -> Result<()> {
+pub async fn submit_order(order: Order) -> Result<()> {
     let url = format!("http://{}", config::get_http_endpoint());
     let orderbook_client = OrderbookClient::new(Url::parse(&url)?);
 
-    let order_id = match orderbook_client.post_new_order(order.into()).await {
-        Ok(order_response) => order_response.id,
-        Err(e) => {
-            tracing::error!("Failed to post new order. Error: {e:#}");
-            Uuid::new_v4()
-        }
-    };
-
-    let order = Order {
-        id: order_id,
-        leverage: order.leverage,
-        quantity: order.quantity,
-        contract_symbol: order.contract_symbol,
-        direction: order.direction,
-        order_type: order.order_type,
-        state: OrderState::Open,
-        creation_timestamp: OffsetDateTime::now_utc(),
-    };
-
     db::insert_order(order)?;
 
+    if let Err(err) = orderbook_client.post_new_order(order.into()).await {
+        let order_id = order.id.to_string();
+        tracing::error!(order_id, "Failed to post new order. Error: {err:#}");
+        db::update_order_state(order.id, OrderState::Rejected)?;
+        bail!("Could not post order to orderbook");
+    }
+    db::update_order_state(order.id, OrderState::Open)?;
+
+    let order = Order {
+        state: OrderState::Open,
+        ..order
+    };
     ui_update(order);
 
     Ok(())

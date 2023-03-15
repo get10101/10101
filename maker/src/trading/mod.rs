@@ -9,6 +9,7 @@ use reqwest::Url;
 use rust_decimal::Decimal;
 use rust_decimal_macros::dec;
 use trade::Direction;
+use uuid::Uuid;
 
 mod bitmex_client;
 mod orderbook_client;
@@ -67,6 +68,7 @@ async fn update_order(
     match orderbook_client::post_new_order(
         orderbook_url,
         NewOrder {
+            id: Uuid::new_v4(),
             price,
             quantity,
             trader_id: maker_id,

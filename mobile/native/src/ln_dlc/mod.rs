@@ -248,17 +248,20 @@ pub fn send_payment(invoice: &str) -> Result<()> {
 
 pub async fn trade(trade_params: TradeParams) -> Result<(), (FailureReason, anyhow::Error)> {
     let client = reqwest::Client::new();
-    client
+    let response = client
         .post(format!("http://{}/api/trade", config::get_http_endpoint()))
         .json(&trade_params)
         .send()
         .await
         .context("Failed to request trade with coordinator")
-        .map_err(|e| (FailureReason::TradeRequest, e))?
-        .json()
-        .await
-        .context("Failed to deserialize response into JSON")
-        .map_err(|e| (FailureReason::TradeResponse, e))?;
+        .map_err(|e| (FailureReason::TradeRequest, e))?;
+
+    if !response.status().is_success() {
+        return Err((
+            FailureReason::TradeResponse,
+            anyhow!("Could not post trade to coordinator"),
+        ));
+    }
 
     tracing::info!("Requested trade");
     Ok(())
