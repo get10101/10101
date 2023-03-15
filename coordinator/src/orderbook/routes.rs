@@ -93,11 +93,13 @@ pub async fn post_order(
         update_pricefeed(OrderbookMsg::NewOrder(order.clone()), sender);
     }
 
-    let all_orders =
-        orders::all_by_direction_and_type(&mut conn, order.direction.opposite(), OrderType::Limit)
-            .map_err(|e| {
-                AppError::InternalServerError(format!("Failed to load all orders: {e:#}"))
-            })?;
+    let all_orders = orders::all_by_direction_and_type(
+        &mut conn,
+        order.direction.opposite(),
+        OrderType::Limit,
+        false,
+    )
+    .map_err(|e| AppError::InternalServerError(format!("Failed to load all orders: {e:#}")))?;
     let matched_orders = match_order(order.clone(), all_orders)
         .map_err(|e| AppError::InternalServerError(format!("Failed to match order: {e:#}")))?;
 

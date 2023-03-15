@@ -123,10 +123,12 @@ pub fn all_by_direction_and_type(
     conn: &mut PgConnection,
     direction: OrderbookDirection,
     order_type: OrderBookOrderType,
+    taken: bool,
 ) -> QueryResult<Vec<OrderbookOrder>> {
     let orders: Vec<Order> = orders::table
         .filter(orders::direction.eq(Direction::from(direction)))
         .filter(orders::order_type.eq(OrderType::from(order_type)))
+        .filter(orders::taken.eq(taken))
         .load::<Order>(conn)?;
 
     Ok(orders.into_iter().map(OrderbookOrder::from).collect())
