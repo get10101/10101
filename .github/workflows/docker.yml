@@ -61,3 +61,25 @@ jobs:
         run: |
           docker build --platform linux/${{ matrix.docker_arch }} --pull --build-arg BINARY=./target/${{ matrix.target }}/release/${{ matrix.bin }} --tag ${{ env.REGISTRY }}/${{ github.repository }}/${{matrix.bin}}:${{ inputs.tag }}-${{ matrix.docker_arch }} .
           docker push ${{ env.REGISTRY }}/${{ github.repository }}/${{matrix.bin}}:${{ inputs.tag }}-${{ matrix.docker_arch }}
+
+  create_manifest_image:
+    needs: docker
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        bin: [maker, coordinator]
+    steps:
+      - name: Login into github registry
+        uses: docker/login-action@v2.1.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - run: |
+          docker manifest create --amend ghcr.io/${{ github.repository }}/${{matrix.bin}}:${{ inputs.tag }} ghcr.io/${{ github.repository }}/${{matrix.bin}}:${{ inputs.tag }}-amd64
+          docker manifest annotate ghcr.io/${{ github.repository }}/${{matrix.bin}}:${{ inputs.tag }} ghcr.io/${{ github.repository }}/${{matrix.bin}}:${{ inputs.tag }}-amd64 --os linux --arch amd64
+          docker manifest push ghcr.io/${{ github.repository }}/${{matrix.bin}}:${{ inputs.tag }} -p
