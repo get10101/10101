@@ -9,17 +9,17 @@ precommit: gen lint
 deps: deps-gen deps-android deps-ios
 
 deps-gen:
-	cargo install flutter_rust_bridge_codegen
+    cargo install flutter_rust_bridge_codegen
 
 # deps-android: Install dependencies for Android (build targets and cargo-ndk)
 deps-android:
-	cargo install cargo-ndk
-	rustup target add aarch64-linux-android armv7-linux-androideabi x86_64-linux-android i686-linux-android
+    cargo install cargo-ndk
+    rustup target add aarch64-linux-android armv7-linux-androideabi x86_64-linux-android i686-linux-android
 
 # deps-ios: Install dependencies for iOS
 deps-ios:
-	cargo install cargo-lipo
-	rustup target add aarch64-apple-ios x86_64-apple-ios
+    cargo install cargo-lipo
+    rustup target add aarch64-apple-ios x86_64-apple-ios
 
 gen:
     #!/usr/bin/env bash
@@ -40,12 +40,12 @@ native:
 
 # Build Rust library for Android native targets
 android:
-	cd mobile/native && cargo ndk -o ../android/app/src/main/jniLibs build
+    cd mobile/native && cargo ndk -o ../android/app/src/main/jniLibs build
 
 # ios: Build Rust library for iOS
 ios:
-	cd mobile/native && cargo lipo
-	cp target/universal/debug/libnative.a mobile/ios/Runner
+    cd mobile/native && cargo lipo
+    cp target/universal/debug/libnative.a mobile/ios/Runner
 
 
 run args="":
