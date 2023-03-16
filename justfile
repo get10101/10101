@@ -62,7 +62,7 @@ wipe:
     #!/usr/bin/env bash
     set -euxo pipefail
     docker-compose down -v
-    pkill -9 coordinator
+    pkill -9 coordinator && echo "stopped coordinator" || echo "coordinator not running, skipped"
     rm -rf data/coordinator/regtest
     git checkout data/coordinator
     # Array of possible app data directories (OS dependent)
