@@ -71,16 +71,14 @@ pub fn calculate_short_liquidation_price(leverage: Decimal, price: Decimal) -> D
 ///
 /// Both leverages are supplied so that the total margin can be calculated and the PnL is capped by
 /// the total margin available.
-pub fn calcualte_pnl(
-    opening_price: f64,
+pub fn calculate_pnl(
+    opening_price: Decimal,
     closing_price: Price,
     quantity: f64,
     long_leverage: f64,
     short_leverage: f64,
     direction: Direction,
 ) -> Result<i64> {
-    let opening_price = Decimal::try_from(opening_price).expect("price to fit into decimal");
-
     let long_margin = calculate_margin(opening_price, quantity, long_leverage);
     let short_margin = calculate_margin(opening_price, quantity, short_leverage);
 
@@ -110,4 +108,145 @@ pub fn calcualte_pnl(
     };
 
     Ok(pnl)
+}
+
+#[cfg(test)]
+pub mod tests {
+    use super::*;
+
+    #[test]
+    fn given_position_when_price_same_then_zero_pnl() {
+        let opening_price = Decimal::from(20000);
+        let closing_price = Price {
+            bid: Decimal::from(20000),
+            ask: Decimal::from(20000),
+        };
+        let quantity = 1.0;
+        let long_leverage = 2.0;
+        let short_leverage = 1.0;
+
+        let pnl_long = calculate_pnl(
+            opening_price,
+            closing_price,
+            quantity,
+            long_leverage,
+            short_leverage,
+            Direction::Long,
+        )
+        .unwrap();
+        let pnl_short = calculate_pnl(
+            opening_price,
+            closing_price,
+            quantity,
+            long_leverage,
+            short_leverage,
+            Direction::Short,
+        )
+        .unwrap();
+
+        assert_eq!(pnl_long, 0);
+        assert_eq!(pnl_short, 0);
+    }
+
+    #[test]
+    fn given_long_position_when_price_doubles_then_we_get_double() {
+        let opening_price = Decimal::from(20000);
+        let closing_price = Price {
+            // 10% up
+            bid: Decimal::from(40000),
+            ask: Decimal::ZERO,
+        };
+        let quantity = 100.0;
+        let long_leverage = 2.0;
+        let short_leverage = 1.0;
+
+        let pnl_long = calculate_pnl(
+            opening_price,
+            closing_price,
+            quantity,
+            long_leverage,
+            short_leverage,
+            Direction::Long,
+        )
+        .unwrap();
+
+        assert_eq!(pnl_long, 250000);
+    }
+
+    #[test]
+    fn given_long_position_when_price_halfs_then_we_loose_all() {
+        let opening_price = Decimal::from(20000);
+        let closing_price = Price {
+            // 10% up
+            bid: Decimal::from(10000),
+            ask: Decimal::ZERO,
+        };
+        let quantity = 100.0;
+        let long_leverage = 2.0;
+        let short_leverage = 1.0;
+
+        let pnl_long = calculate_pnl(
+            opening_price,
+            closing_price,
+            quantity,
+            long_leverage,
+            short_leverage,
+            Direction::Long,
+        )
+        .unwrap();
+
+        // This is a liquidation, our margin is consumed by the loss
+        assert_eq!(pnl_long, -500000);
+    }
+
+    #[test]
+    fn given_short_position_when_price_doubles_then_we_loose_all() {
+        let opening_price = Decimal::from(20000);
+        let closing_price = Price {
+            // 10% up
+            bid: Decimal::ZERO,
+            ask: Decimal::from(40000),
+        };
+        let quantity = 100.0;
+        let long_leverage = 1.0;
+        let short_leverage = 2.0;
+
+        let pnl_long = calculate_pnl(
+            opening_price,
+            closing_price,
+            quantity,
+            long_leverage,
+            short_leverage,
+            Direction::Short,
+        )
+        .unwrap();
+
+        assert_eq!(pnl_long, -250000);
+    }
+
+    #[test]
+    fn given_short_position_when_price_halfs_then_we_get_double() {
+        let opening_price = Decimal::from(20000);
+        let closing_price = Price {
+            // 10% up
+            bid: Decimal::ZERO,
+            ask: Decimal::from(10000),
+        };
+        let quantity = 100.0;
+        let long_leverage = 1.0;
+        let short_leverage = 2.0;
+
+        let pnl_long = calculate_pnl(
+            opening_price,
+            closing_price,
+            quantity,
+            long_leverage,
+            short_leverage,
+            Direction::Short,
+        )
+        .unwrap();
+
+        // This is a liquidation, our margin is consumed by the loss
+        assert_eq!(pnl_long, 500000);
+    }
 }

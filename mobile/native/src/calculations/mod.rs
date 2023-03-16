@@ -29,7 +29,9 @@ pub fn calculate_pnl(
         Direction::Short => (1.0, leverage),
     };
 
-    cfd::calcualte_pnl(
+    let opening_price = Decimal::try_from(opening_price).expect("price to fit into decimal");
+
+    cfd::calculate_pnl(
         opening_price,
         closing_price,
         quantity,
