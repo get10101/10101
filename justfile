@@ -86,8 +86,10 @@ wipe-app:
     set -euxo pipefail
     echo "Wiping native 10101 app"
     # Array of possible app data directories (OS dependent)
-    # TODO: Add Linux locations
-    directories=( "$HOME/Library/Containers/finance.get10101.app/Data/Library/Application Support/finance.get10101.app")
+    directories=(
+      "$HOME/Library/Containers/finance.get10101.app/Data/Library/Application Support/finance.get10101.app"
+      "$HOME/.local/share/10101/"
+    )
     # Remove all possible app data directories
     for dir in "${directories[@]}"
     do
