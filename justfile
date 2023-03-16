@@ -1,6 +1,7 @@
 # To use this file, install Just: cargo install just
 line_length := "100"
 coordinator_log_file := "$PWD/data/coordinator/regtest.log"
+maker_log_file := "$PWD/data/maker/regtest.log"
 
 default: gen
 precommit: gen lint
@@ -65,6 +66,8 @@ wipe:
     pkill -9 coordinator && echo "stopped coordinator" || echo "coordinator not running, skipped"
     rm -rf data/coordinator/regtest
     git checkout data/coordinator
+    pkill -9 maker && echo "stopped maker" || echo "maker not running, skipped"
+    rm -rf data/maker/regtest
     # Array of possible app data directories (OS dependent)
     # TODO: Add Linux locations
     directories=( "$HOME/Library/Containers/finance.get10101.app/Data/Library/Application Support/finance.get10101.app")
@@ -121,12 +124,20 @@ docker-logs:
      docker-compose logs
 
 # Starts coordinator process in the background, piping logs to a file (used in other recipes)
-run-coordinator-with-logs:
+run-coordinator-detached:
     #!/usr/bin/env bash
     set -euxo pipefail
     echo "Starting (and building) coordinator"
     cargo run --bin coordinator &> {{coordinator_log_file}} &
     echo "Coordinator successfully started. You can inspect the logs at {{coordinator_log_file}}"
+
+# Starts maker process in the background, piping logs to a file (used in other recipes)
+run-maker-detached:
+    #!/usr/bin/env bash
+    set -euxo pipefail
+    echo "Starting (and building) maker"
+    cargo run --bin maker &> {{maker_log_file}} &
+    echo "Maker successfully started. You can inspect the logs at {{maker_log_file}}"
 
 # Attach to the current coordinator logs
 coordinator-logs:
@@ -134,8 +145,14 @@ coordinator-logs:
     set -euxo pipefail
     tail -f {{coordinator_log_file}}
 
+# Attach to the current maker logs
+maker-logs:
+    #!/usr/bin/env bash
+    set -euxo pipefail
+    tail -f {{maker_log_file}}
+
 # Run services in the background
-services: docker run-coordinator-with-logs
+services: docker run-coordinator-detached run-maker-detached
 
 # Run everything at once (docker, coordinator, native build)
 # Note: if you have mobile simulator running, it will start that one instead of native, but will *not* rebuild the mobile rust library.
