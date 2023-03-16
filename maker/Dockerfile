@@ -5,6 +5,11 @@ LABEL "org.opencontainers.image.authors"="hello@10101.finance"
 
 ARG BINARY=target/release/maker
 
+# todo: check why sqlite3 is needed as the maker only depends on postgres.
+RUN apt-get update && \
+    apt-get install libpq5 -y && \
+    apt-get install sqlite3 -y
+
 USER 1000
 
 COPY $BINARY /usr/bin/maker
