@@ -26,75 +26,71 @@ fn runtime() -> Result<&'static Runtime> {
 pub fn subscribe(secret_key: SecretKey) -> Result<()> {
     let runtime = runtime()?;
 
-    runtime.block_on(async move {
-        runtime.spawn(async move {
-            let url = format!(
-                "ws://{}/api/orderbook/websocket",
-                config::get_http_endpoint()
-            );
+    runtime.spawn(async move {
+        let url = format!(
+            "ws://{}/api/orderbook/websocket",
+            config::get_http_endpoint()
+        );
 
-            let pubkey = secret_key.public_key(SECP256K1);
-            let authenticate = |msg| {
-                let signature = secret_key.sign_ecdsa(msg);
-                Signature { pubkey, signature }
-            };
+        let pubkey = secret_key.public_key(SECP256K1);
+        let authenticate = |msg| {
+            let signature = secret_key.sign_ecdsa(msg);
+            Signature { pubkey, signature }
+        };
 
-            loop {
-                let mut stream =
-                    orderbook_client::subscribe_with_authentication(url.clone(), &authenticate);
+        loop {
+            let mut stream =
+                orderbook_client::subscribe_with_authentication(url.clone(), &authenticate);
 
-                match stream.try_next().await {
-                    Ok(Some(result)) => {
-                        tracing::debug!("Receive {result}");
+            match stream.try_next().await {
+                Ok(Some(result)) => {
+                    tracing::debug!("Receive {result}");
 
-                        let orderbook_message: OrderbookMsg =
-                            match serde_json::from_str::<OrderbookMsg>(&result) {
-                                Ok(message) => message,
-                                Err(e) => {
-                                    tracing::error!(
-                                        "Could not deserialize message from orderbook. Error: {e:#}"
-                                    );
-                                    continue;
-                                }
-                            };
-                        match orderbook_message.clone() {
-                            OrderbookMsg::Match(filled) => {
-                                tracing::info!(
-                                    "Received a match from orderbook for order: {}",
-                                    filled.order_id
+                    let orderbook_message: OrderbookMsg =
+                        match serde_json::from_str::<OrderbookMsg>(&result) {
+                            Ok(message) => message,
+                            Err(e) => {
+                                tracing::error!(
+                                    "Could not deserialize message from orderbook. Error: {e:#}"
                                 );
-
-                                match position::handler::trade(filled).await {
-                                    Ok(_) => {
-                                        tracing::info!(
-                                            "Successfully requested trade at coordinator"
-                                        )
-                                    }
-                                    Err(e) => tracing::error!(
-                                        "Failed to request trade at coordinator. Error: {e:#}"
-                                    ),
-                                }
+                                continue;
                             }
-                            _ => tracing::debug!(
-                                "Skipping message from orderbook. {orderbook_message:?}"
-                            ),
+                        };
+                    match orderbook_message.clone() {
+                        OrderbookMsg::Match(filled) => {
+                            tracing::info!(
+                                "Received a match from orderbook for order: {}",
+                                filled.order_id
+                            );
+
+                            match position::handler::trade(filled).await {
+                                Ok(_) => {
+                                    tracing::info!("Successfully requested trade at coordinator")
+                                }
+                                Err(e) => tracing::error!(
+                                    "Failed to request trade at coordinator. Error: {e:#}"
+                                ),
+                            }
                         }
-                    }
-                    Ok(None) => {
-                        tracing::warn!("Orderbook WS stream closed");
-                    }
-                    Err(error) => {
-                        tracing::warn!(%error, "Orderbook WS stream closed with error");
+                        _ => tracing::debug!(
+                            "Skipping message from orderbook. {orderbook_message:?}"
+                        ),
                     }
                 }
-
-                let timeout = Duration::from_secs(WS_RECONNECT_TIMEOUT_SECS);
-
-                tracing::debug!(?timeout, "Reconnecting to orderbook WS after timeout");
-
-                tokio::time::sleep(timeout).await;
+                Ok(None) => {
+                    tracing::warn!("Orderbook WS stream closed");
+                }
+                Err(error) => {
+                    tracing::warn!(%error, "Orderbook WS stream closed with error");
+                }
             }
-        });
+
+            let timeout = Duration::from_secs(WS_RECONNECT_TIMEOUT_SECS);
+
+            tracing::debug!(?timeout, "Reconnecting to orderbook WS after timeout");
+
+            tokio::time::sleep(timeout).await;
+        }
     });
 
     Ok(())
