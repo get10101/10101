@@ -1,11 +1,13 @@
 use anyhow::Result;
+use futures::never::Never;
 use futures::TryStreamExt;
 use orderbook_commons::Signature;
 use secp256k1::SecretKey;
 use secp256k1::SECP256K1;
+use std::time::Duration;
 
 #[tokio::main]
-async fn main() -> Result<()> {
+async fn main() -> Result<Never> {
     tracing_subscriber::fmt()
         .with_env_filter("info,orderbook_client=trace")
         .init();
@@ -20,11 +22,25 @@ async fn main() -> Result<()> {
             signature,
         }
     };
-    let mut stream = orderbook_client::subscribe_with_authentication(url, &authenticate);
 
-    while let Some(result) = stream.try_next().await? {
-        tracing::info!("Received: {result}");
+    loop {
+        let mut stream =
+            orderbook_client::subscribe_with_authentication(url.clone(), &authenticate);
+
+        loop {
+            match stream.try_next().await {
+                Ok(Some(event)) => tracing::info!(%event, "Event received"),
+                Ok(None) => {
+                    tracing::error!("Stream ended");
+                    break;
+                }
+                Err(error) => {
+                    tracing::error!(%error, "Stream ended");
+                    break;
+                }
+            }
+        }
+
+        tokio::time::sleep(Duration::from_secs(2)).await;
     }
-
-    Ok(())
 }
