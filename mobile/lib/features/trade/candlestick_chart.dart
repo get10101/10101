@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:candlesticks/candlesticks.dart';
@@ -14,6 +15,7 @@ class CandlestickChart extends StatefulWidget {
 class _CandlestickChartState extends State<CandlestickChart> {
   List<Candle> candles = [];
   bool themeIsDark = false;
+  Timer? timer;
 
   @override
   void initState() {
@@ -23,13 +25,14 @@ class _CandlestickChartState extends State<CandlestickChart> {
       });
     });
     super.initState();
+    timer = Timer.periodic(const Duration(seconds: 30), (Timer t) => getNewCandles());
   }
 
   Future<List<Candle>> fetchCandles() async {
     final uri = Uri.parse(
         "https://www.bitmex.com/api/v1/trade/bucketed?binSize=1m&partial=false&symbol=XBTUSD&count=1000&reverse=true");
     final res = await http.get(uri);
-    return (jsonDecode(res.body) as List<dynamic>).map((e) => parse(e)).toList().reversed.toList();
+    return (jsonDecode(res.body) as List<dynamic>).map((e) => parse(e)).toList().toList();
   }
 
   @override
@@ -40,6 +43,26 @@ class _CandlestickChartState extends State<CandlestickChart> {
         candles: candles,
       ),
     );
+  }
+
+  Future<void> getNewCandles() async {
+    final uri = Uri.parse(
+        "https://www.bitmex.com/api/v1/trade/bucketed?binSize=1m&partial=false&symbol=XBTUSD&count=1&reverse=true");
+    final res = await http.get(uri);
+    var list = (jsonDecode(res.body) as List<dynamic>).map((e) => parse(e)).toList().toList();
+    if (list.isNotEmpty) {
+      // we expect only one item to be in the list
+      var item = list[0];
+      if (candles[0].date.isBefore(item.date)) {
+        candles.insert(0, item);
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    timer?.cancel();
+    super.dispose();
   }
 }
 
