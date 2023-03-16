@@ -26,13 +26,10 @@ class _CandlestickChartState extends State<CandlestickChart> {
   }
 
   Future<List<Candle>> fetchCandles() async {
-    final uri = Uri.parse("https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1m");
+    final uri = Uri.parse(
+        "https://www.bitmex.com/api/v1/trade/bucketed?binSize=1m&partial=false&symbol=XBTUSD&count=1000&reverse=true");
     final res = await http.get(uri);
-    return (jsonDecode(res.body) as List<dynamic>)
-        .map((e) => Candle.fromJson(e))
-        .toList()
-        .reversed
-        .toList();
+    return (jsonDecode(res.body) as List<dynamic>).map((e) => parse(e)).toList().reversed.toList();
   }
 
   @override
@@ -44,4 +41,15 @@ class _CandlestickChartState extends State<CandlestickChart> {
       ),
     );
   }
+}
+
+Candle parse(Map<String, dynamic> json) {
+  var date = DateTime.parse(json['timestamp']);
+  var high = json['high'].toDouble();
+  var low = json['low'].toDouble();
+  var open = json['open'].toDouble();
+  var close = json['close'].toDouble();
+  var volume = json['volume'].toDouble();
+
+  return Candle(date: date, high: high, low: low, open: open, close: close, volume: volume);
 }
