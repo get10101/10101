@@ -42,6 +42,9 @@ class PositionChangeNotifier extends ChangeNotifier implements Subscriber {
       position.unrealizedPnl = Amount(_positionService.calculatePnl(position, _bid, _ask));
 
       positions[position.contractSymbol] = position;
+    } else if (event is bridge.Event_PositionClosedNotification) {
+      ContractSymbol contractSymbol = ContractSymbol.fromApi(event.field0.contractSymbol);
+      positions.remove(contractSymbol);
     } else {
       log("Received unexpected event: ${event.toString()}");
     }

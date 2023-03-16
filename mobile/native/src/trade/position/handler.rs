@@ -12,6 +12,10 @@ use anyhow::Result;
 use coordinator_commons::TradeParams;
 use orderbook_commons::FilledWith;
 use rust_decimal::prelude::ToPrimitive;
+use state::Storage;
+use std::sync::Arc;
+use std::sync::Mutex;
+use std::sync::MutexGuard;
 use trade::ContractSymbol;
 use trade::Direction;
 
@@ -65,7 +69,21 @@ pub async fn get_positions() -> Result<Vec<Position>> {
     Ok(vec![dummy_position])
 }
 
-pub fn order_filled(filled_order: Order, collateral: u64) -> Result<()> {
+// TODO: Remove this temporary in-memory storage of the position and safe it in the database
+static POSITION: Storage<Arc<Mutex<Option<Position>>>> = Storage::new();
+
+pub(crate) fn get() -> MutexGuard<'static, Option<Position>> {
+    POSITION
+        .get()
+        .lock()
+        .expect("failed to get lock on event hub")
+}
+
+/// Update position once an order was filled
+///
+/// This crates or updates the position.
+/// If the position was closed we set it to `Closed` state.
+pub fn position_update(filled_order: Order, collateral: u64) -> Result<()> {
     // TODO: Persist the position
     // TODO: Decide if we have to create or update the position:
     //  Probably best to have a "insert or update" function for the db that returns the position
@@ -75,24 +93,43 @@ pub fn order_filled(filled_order: Order, collateral: u64) -> Result<()> {
 
     // TODO: Maybe we should change the model to *ensure* that the execution price is present past a
     // certain point; i.e. a `FilledOrder` struct?
-    let average_entry_price = filled_order.execution_price().unwrap_or(0.0);
 
-    event::publish(&EventInternal::PositionUpdateNotification(Position {
-        leverage: filled_order.leverage,
-        quantity: filled_order.quantity,
-        contract_symbol: filled_order.contract_symbol,
-        direction: filled_order.direction,
-        average_entry_price,
-        // TODO: Is it correct to use the average entry price to calculate the liquidation price? ->
-        // What would that mean in the UI if we already have a position and trade?
-        liquidation_price: calculate_liquidation_price(
-            average_entry_price,
-            filled_order.leverage,
-            filled_order.direction,
-        ),
-        position_state: PositionState::Open,
-        collateral,
-    }));
+    // store position in memory for now so we can show it to the user
+    match get().into() {
+        Some(_) => {
+            // If it was some we set it to None
+            POSITION.set(Arc::new(Mutex::new(None)));
+
+            event::publish(&EventInternal::PositionCloseNotification(
+                ContractSymbol::BtcUsd,
+            ));
+        }
+        None => {
+            let average_entry_price = filled_order.execution_price().unwrap_or(0.0);
+            let have_a_position = Position {
+                leverage: filled_order.leverage,
+                quantity: filled_order.quantity,
+                contract_symbol: filled_order.contract_symbol,
+                direction: filled_order.direction,
+                average_entry_price,
+                // TODO: Is it correct to use the average entry price to calculate the liquidation
+                // price? -> What would that mean in the UI if we already have a
+                // position and trade?
+                liquidation_price: calculate_liquidation_price(
+                    average_entry_price,
+                    filled_order.leverage,
+                    filled_order.direction,
+                ),
+                // TODO: Remove the PnL, that has to be calculated in the UI
+                position_state: PositionState::Open,
+                collateral,
+            };
+
+            POSITION.set(Arc::new(Mutex::new(Some(have_a_position.clone()))));
+
+            event::publish(&EventInternal::PositionUpdateNotification(have_a_position));
+        }
+    }
 
     Ok(())
 }
