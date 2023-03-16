@@ -61,23 +61,3 @@ jobs:
           push: true
           build-args: |
           tags: ${{ steps.meta.outputs.tags }}
-
-      - run: cargo build --release --bin maker --target-dir ./target
-
-      - uses: docker/metadata-action@v4
-        id: meta
-        with:
-          images: ${{ env.REGISTRY }}/${{ github.repository }}
-          tags: |
-            type=ref,event=branch
-            type=ref,event=tag
-
-      - name: Build docker image and push
-        uses: docker/build-push-action@v3
-        with:
-          context: ./maker
-          secrets: |
-            GIT_AUTH_TOKEN=${{ secrets.GITHUB_TOKEN }}
-          push: true
-          build-args: |
-          tags: ${{ steps.meta.outputs.tags }}
