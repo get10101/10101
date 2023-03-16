@@ -59,6 +59,7 @@ pub fn router(node: Node, pool: Pool<ConnectionManager<PgConnection>>) -> Router
         )
         .route("/api/orderbook/websocket", get(websocket_handler))
         .route("/api/trade", post(post_trade))
+        .route("/api/log_channel_list", get(log_channel_list))
         .with_state(app_state)
 }
 
@@ -145,4 +146,9 @@ pub async fn post_trade(
     })?;
 
     Ok(())
+}
+
+pub async fn log_channel_list(State(state): State<Arc<AppState>>) {
+    let channels = state.node.inner.list_channels();
+    tracing::info!(?channels, "Channel list");
 }
