@@ -43,38 +43,28 @@ pub fn subscribe(secret_key: SecretKey) -> Result<()> {
                 orderbook_client::subscribe_with_authentication(url.clone(), &authenticate);
 
             match stream.try_next().await {
-                Ok(Some(result)) => {
-                    tracing::debug!("Receive {result}");
+                Ok(Some(msg)) => {
+                    tracing::debug!(%msg, "New message from orderbook");
 
-                    let orderbook_message: OrderbookMsg =
-                        match serde_json::from_str::<OrderbookMsg>(&result) {
-                            Ok(message) => message,
-                            Err(e) => {
-                                tracing::error!(
-                                    "Could not deserialize message from orderbook. Error: {e:#}"
-                                );
-                                continue;
-                            }
-                        };
-                    match orderbook_message.clone() {
-                        OrderbookMsg::Match(filled) => {
-                            tracing::info!(
-                                "Received a match from orderbook for order: {}",
-                                filled.order_id
+                    let msg = match serde_json::from_str::<OrderbookMsg>(&msg) {
+                        Ok(msg) => msg,
+                        Err(e) => {
+                            tracing::error!(
+                                "Could not deserialize message from orderbook. Error: {e:#}"
                             );
-
-                            match position::handler::trade(filled).await {
-                                Ok(_) => {
-                                    tracing::info!("Successfully requested trade at coordinator")
-                                }
-                                Err(e) => tracing::error!(
-                                    "Failed to request trade at coordinator. Error: {e:#}"
-                                ),
-                            }
+                            continue;
                         }
-                        _ => tracing::debug!(
-                            "Skipping message from orderbook. {orderbook_message:?}"
-                        ),
+                    };
+
+                    match msg {
+                        OrderbookMsg::Match(filled) => {
+                            tracing::info!(order_id = %filled.order_id, "Received match from orderbook");
+
+                            if let Err(e) = position::handler::trade(filled).await {
+                                tracing::error!("Trade request sent to coordinator failed. Error: {e:#}");
+                            }
+                        },
+                        _ => tracing::debug!(?msg, "Skipping message from orderbook"),
                     }
                 }
                 Ok(None) => {
