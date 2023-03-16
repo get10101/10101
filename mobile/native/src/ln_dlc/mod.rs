@@ -1,6 +1,3 @@
-mod accept;
-mod node;
-
 use crate::api::WalletInfo;
 use crate::config;
 use crate::event;
@@ -27,6 +24,8 @@ use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::runtime::Runtime;
+
+mod node;
 
 static NODE: Storage<Arc<Node>> = Storage::new();
 const PROCESS_INCOMING_MESSAGES_INTERVAL: Duration = Duration::from_secs(5);
@@ -120,9 +119,6 @@ pub fn run(data_dir: String) -> Result<()> {
         node.inner
             .keep_connected(config::get_coordinator_info())
             .await?;
-
-        // automatically accepts dlc channel offers (open and close)
-        node.start_accept_offers_task()?;
 
         runtime.spawn({
             let node = node.clone();

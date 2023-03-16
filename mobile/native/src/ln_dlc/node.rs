@@ -55,19 +55,42 @@ impl Node {
                         self.inner.dlc_message_handler.send_message(node_id, msg);
                     }
                 }
-                Message::SubChannel(msg) => {
+                Message::SubChannel(incoming_msg) => {
                     tracing::debug!(
                         from = %node_id,
-                        msg = %sub_channel_message_as_str(&msg),
+                        msg = %sub_channel_message_as_str(&incoming_msg),
                         "Processing sub-channel message"
                     );
-                    let resp = self
+                    let reply_msg = self
                         .inner
                         .sub_channel_manager
-                        .on_sub_channel_message(&msg, &node_id)
+                        .on_sub_channel_message(&incoming_msg, &node_id)
                         .map_err(|e| anyhow!(e.to_string()))?;
 
-                    if let Some(reply_msg) = resp {
+                    if let SubChannelMessage::Offer(offer) = &incoming_msg {
+                        let channel_id = offer.channel_id;
+
+                        // TODO: We should probably verify that: (1) the counterparty is the
+                        // coordinator and (2) the DLC channel offer is expected and correct.
+                        if let Err(e) = self.inner.accept_dlc_channel_offer(&channel_id) {
+                            tracing::error!(channel_id = %hex::encode(channel_id), "Failed to accept sub-channel offer: {e:#}");
+                        }
+                    }
+
+                    if let SubChannelMessage::CloseOffer(offer) = &incoming_msg {
+                        let channel_id = offer.channel_id;
+
+                        // TODO: We should probably verify that: (1) the counterparty is the
+                        // coordinator and (2) the DLC channel close offer is expected and correct.
+                        if let Err(e) = self
+                            .inner
+                            .accept_dlc_channel_collaborative_settlement(&channel_id)
+                        {
+                            tracing::error!(channel_id = %hex::encode(channel_id), "Failed to accept sub-channel close offer: {e:#}");
+                        }
+                    }
+
+                    if let Some(reply_msg) = reply_msg {
                         tracing::debug!(
                             to = %node_id,
                             msg = %sub_channel_message_as_str(&reply_msg),
