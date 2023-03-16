@@ -4,30 +4,30 @@ import 'package:get_10101/features/trade/application/trade_values_service.dart';
 import 'package:get_10101/features/trade/domain/direction.dart';
 import 'package:get_10101/features/trade/domain/leverage.dart';
 
+import 'domain/price.dart';
 import 'domain/trade_values.dart';
 
 class TradeValuesChangeNotifier extends ChangeNotifier {
   final TradeValuesService tradeValuesService;
 
   // The trade values are represented as Order domain, because that's essentially what they are
-  late final TradeValues _buyTradeValues;
-  late final TradeValues _sellTradeValues;
+  final TradeValues? _buyTradeValues;
+  final TradeValues? _sellTradeValues;
 
   // TODO: Replace dummy price with price from backend
   // TODO: Get price from separate change notifier; might be able to use a proxy change notifiers
-  static const double bid = 22990.0;
-  static const double ask = 23010.0;
+  final Price? _currentPrice;
 
   // TODO replace dummy funding rate with funding rate from backend
   static const double fundingRateBuy = 0.003;
   static const double fundingRateSell = -0.003;
 
   TradeValuesChangeNotifier(this.tradeValuesService) {
-    _buyTradeValues = _initOrder(Direction.long);
-    _sellTradeValues = _initOrder(Direction.short);
+    _buyTradeValues = _initTradeValues(Direction.long);
+    _sellTradeValues = _initTradeValues(Direction.short);
   }
 
-  TradeValues _initOrder(Direction direction) {
+  TradeValues _initTradeValues(Direction direction) {
     double defaultQuantity = 100;
     double defaultLeverage = 2;
 
@@ -36,7 +36,7 @@ class TradeValuesChangeNotifier extends ChangeNotifier {
         return TradeValues.create(
             quantity: defaultQuantity,
             leverage: Leverage(defaultLeverage),
-            price: ask,
+            price: _currentPrice.bid,
             fundingRate: fundingRateBuy,
             direction: direction,
             tradeValuesService: tradeValuesService);
@@ -44,7 +44,7 @@ class TradeValuesChangeNotifier extends ChangeNotifier {
         return TradeValues.create(
             quantity: defaultQuantity,
             leverage: Leverage(defaultLeverage),
-            price: bid,
+            price: _currentPrice.ask,
             fundingRate: fundingRateSell,
             direction: direction,
             tradeValuesService: tradeValuesService);
