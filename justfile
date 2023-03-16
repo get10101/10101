@@ -59,15 +59,29 @@ clean:
     flutter clean
     cd native && cargo clean
 
-wipe:
+# Wipes everything
+wipe: wipe-docker wipe-coordinator wipe-maker wipe-app
+
+wipe-docker:
     #!/usr/bin/env bash
     set -euxo pipefail
     docker-compose down -v
+
+wipe-coordinator:
     pkill -9 coordinator && echo "stopped coordinator" || echo "coordinator not running, skipped"
     rm -rf data/coordinator/regtest
     git checkout data/coordinator
+
+wipe-maker:
+    #!/usr/bin/env bash
+    set -euxo pipefail
     pkill -9 maker && echo "stopped maker" || echo "maker not running, skipped"
     rm -rf data/maker/regtest
+
+wipe-app:
+    #!/usr/bin/env bash
+    set -euxo pipefail
+    echo "Wiping native 10101 app"
     # Array of possible app data directories (OS dependent)
     # TODO: Add Linux locations
     directories=( "$HOME/Library/Containers/finance.get10101.app/Data/Library/Application Support/finance.get10101.app")
@@ -81,6 +95,8 @@ wipe:
             echo "$dir not found, skipping..."
         fi
     done
+    echo "Done wiping 10101 app"
+
 
 lint: lint-flutter clippy
 
