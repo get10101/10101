@@ -7,7 +7,10 @@ use futures::TryStreamExt;
 use orderbook_commons::OrderbookMsg;
 use orderbook_commons::Signature;
 use state::Storage;
+use std::time::Duration;
 use tokio::runtime::Runtime;
+
+const WS_RECONNECT_TIMEOUT_SECS: u64 = 2;
 
 fn runtime() -> Result<&'static Runtime> {
     static RUNTIME: Storage<Runtime> = Storage::new();
@@ -23,26 +26,28 @@ fn runtime() -> Result<&'static Runtime> {
 pub fn subscribe(secret_key: SecretKey) -> Result<()> {
     let runtime = runtime()?;
 
-    runtime.block_on(async move {
-        runtime.spawn(async move {
-            let url = format!(
-                "ws://{}/api/orderbook/websocket",
-                config::get_http_endpoint()
-            );
+    runtime.spawn(async move {
+        let url = format!(
+            "ws://{}/api/orderbook/websocket",
+            config::get_http_endpoint()
+        );
 
-            let pubkey = secret_key.public_key(SECP256K1);
-            let authenticate = |msg| {
-                let signature = secret_key.sign_ecdsa(msg);
-                Signature { pubkey, signature }
-            };
-            let mut stream = orderbook_client::subscribe_with_authentication(url, &authenticate);
+        let pubkey = secret_key.public_key(SECP256K1);
+        let authenticate = |msg| {
+            let signature = secret_key.sign_ecdsa(msg);
+            Signature { pubkey, signature }
+        };
 
-            while let Ok(Some(result)) = stream.try_next().await {
-                tracing::debug!("Receive {result}");
+        loop {
+            let mut stream =
+                orderbook_client::subscribe_with_authentication(url.clone(), &authenticate);
 
-                let orderbook_message: OrderbookMsg =
-                    match serde_json::from_str::<OrderbookMsg>(&result) {
-                        Ok(message) => message,
+            match stream.try_next().await {
+                Ok(Some(msg)) => {
+                    tracing::debug!(%msg, "New message from orderbook");
+
+                    let msg = match serde_json::from_str::<OrderbookMsg>(&msg) {
+                        Ok(msg) => msg,
                         Err(e) => {
                             tracing::error!(
                                 "Could not deserialize message from orderbook. Error: {e:#}"
@@ -50,24 +55,33 @@ pub fn subscribe(secret_key: SecretKey) -> Result<()> {
                             continue;
                         }
                     };
-                match orderbook_message.clone() {
-                    OrderbookMsg::Match(filled) => {
-                        tracing::info!(
-                            "Received a match from orderbook for order: {}",
-                            filled.order_id
-                        );
 
-                        match position::handler::trade(filled).await {
-                            Ok(_) => tracing::info!("Successfully requested trade at coordinator"),
-                            Err(e) => tracing::error!(
-                                "Failed to request trade at coordinator. Error: {e:#}"
-                            ),
-                        }
+                    match msg {
+                        OrderbookMsg::Match(filled) => {
+                            tracing::info!(order_id = %filled.order_id, "Received match from orderbook");
+
+                            if let Err(e) = position::handler::trade(filled).await {
+                                tracing::error!("Trade request sent to coordinator failed. Error: {e:#}");
+                            }
+                        },
+                        _ => tracing::debug!(?msg, "Skipping message from orderbook"),
                     }
-                    _ => tracing::debug!("Skipping message from orderbook. {orderbook_message:?}"),
+                }
+                Ok(None) => {
+                    tracing::warn!("Orderbook WS stream closed");
+                }
+                Err(error) => {
+                    tracing::warn!(%error, "Orderbook WS stream closed with error");
                 }
             }
-        });
-        Ok(())
-    })
+
+            let timeout = Duration::from_secs(WS_RECONNECT_TIMEOUT_SECS);
+
+            tracing::debug!(?timeout, "Reconnecting to orderbook WS after timeout");
+
+            tokio::time::sleep(timeout).await;
+        }
+    });
+
+    Ok(())
 }

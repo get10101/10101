@@ -253,6 +253,7 @@ pub async fn trade(trade_params: TradeParams) -> Result<(), (FailureReason, anyh
         ));
     }
 
-    tracing::info!("Requested trade");
+    tracing::info!("Sent trade request to coordinator successfully");
+
     Ok(())
 }
