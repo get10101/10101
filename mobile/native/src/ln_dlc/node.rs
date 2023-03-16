@@ -59,7 +59,7 @@ impl Node {
                     tracing::debug!(
                         from = %node_id,
                         msg = %sub_channel_message_as_str(&incoming_msg),
-                        "Processing sub-channel message"
+                        "Processing DLC channel message"
                     );
                     let reply_msg = self
                         .inner
@@ -73,7 +73,7 @@ impl Node {
                         // TODO: We should probably verify that: (1) the counterparty is the
                         // coordinator and (2) the DLC channel offer is expected and correct.
                         if let Err(e) = self.inner.accept_dlc_channel_offer(&channel_id) {
-                            tracing::error!(channel_id = %hex::encode(channel_id), "Failed to accept sub-channel offer: {e:#}");
+                            tracing::error!(channel_id = %hex::encode(channel_id), "Failed to accept DLC channel offer: {e:#}");
                         }
                     }
 
@@ -86,7 +86,7 @@ impl Node {
                             .inner
                             .accept_dlc_channel_collaborative_settlement(&channel_id)
                         {
-                            tracing::error!(channel_id = %hex::encode(channel_id), "Failed to accept sub-channel close offer: {e:#}");
+                            tracing::error!(channel_id = %hex::encode(channel_id), "Failed to accept DLC channel close offer: {e:#}");
                         }
                     }
 
@@ -94,7 +94,7 @@ impl Node {
                         tracing::debug!(
                             to = %node_id,
                             msg = %sub_channel_message_as_str(&reply_msg),
-                            "Sending sub-channel message"
+                            "Sending DLC channel message"
                         );
                         self.inner
                             .dlc_message_handler
