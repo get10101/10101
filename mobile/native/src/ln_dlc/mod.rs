@@ -124,7 +124,7 @@ pub fn run(data_dir: String) -> Result<()> {
         // automatically accepts dlc channel offers (open and close)
         node.start_accept_offers_task()?;
 
-        tokio::spawn({
+        runtime.spawn({
             let node = node.clone();
             async move {
                 loop {
