@@ -1,5 +1,7 @@
 # To use this file, install Just: cargo install just
 line_length := "100"
+coordinator_log_file := "$PWD/data/coordinator/regtest.log"
+maker_log_file := "$PWD/data/maker/regtest.log"
 
 default: gen
 precommit: gen lint
@@ -8,17 +10,17 @@ precommit: gen lint
 deps: deps-gen deps-android deps-ios
 
 deps-gen:
-	cargo install flutter_rust_bridge_codegen
+    cargo install flutter_rust_bridge_codegen
 
 # deps-android: Install dependencies for Android (build targets and cargo-ndk)
 deps-android:
-	cargo install cargo-ndk
-	rustup target add aarch64-linux-android armv7-linux-androideabi x86_64-linux-android i686-linux-android
+    cargo install cargo-ndk
+    rustup target add aarch64-linux-android armv7-linux-androideabi x86_64-linux-android i686-linux-android
 
 # deps-ios: Install dependencies for iOS
 deps-ios:
-	cargo install cargo-lipo
-	rustup target add aarch64-apple-ios x86_64-apple-ios
+    cargo install cargo-lipo
+    rustup target add aarch64-apple-ios x86_64-apple-ios
 
 gen:
     #!/usr/bin/env bash
@@ -39,12 +41,12 @@ native:
 
 # Build Rust library for Android native targets
 android:
-	cd mobile/native && cargo ndk -o ../android/app/src/main/jniLibs build
+    cd mobile/native && cargo ndk -o ../android/app/src/main/jniLibs build
 
 # ios: Build Rust library for iOS
 ios:
-	cd mobile/native && cargo lipo
-	cp target/universal/debug/libnative.a mobile/ios/Runner
+    cd mobile/native && cargo lipo
+    cp target/universal/debug/libnative.a mobile/ios/Runner
 
 
 run args="":
@@ -57,12 +59,29 @@ clean:
     flutter clean
     cd native && cargo clean
 
-wipe:
+# Wipes everything
+wipe: wipe-docker wipe-coordinator wipe-maker wipe-app
+
+wipe-docker:
     #!/usr/bin/env bash
     set -euxo pipefail
     docker-compose down -v
+
+wipe-coordinator:
+    pkill -9 coordinator && echo "stopped coordinator" || echo "coordinator not running, skipped"
     rm -rf data/coordinator/regtest
     git checkout data/coordinator
+
+wipe-maker:
+    #!/usr/bin/env bash
+    set -euxo pipefail
+    pkill -9 maker && echo "stopped maker" || echo "maker not running, skipped"
+    rm -rf data/maker/regtest
+
+wipe-app:
+    #!/usr/bin/env bash
+    set -euxo pipefail
+    echo "Wiping native 10101 app"
     # Array of possible app data directories (OS dependent)
     # TODO: Add Linux locations
     directories=( "$HOME/Library/Containers/finance.get10101.app/Data/Library/Application Support/finance.get10101.app")
@@ -76,6 +95,8 @@ wipe:
             echo "$dir not found, skipping..."
         fi
     done
+    echo "Done wiping 10101 app"
+
 
 lint: lint-flutter clippy
 
@@ -110,5 +131,50 @@ native-test:
     cd mobile/native
 
 test: flutter-test native-test
+
+# Runs background Docker services
+docker:
+     docker-compose up -d
+
+docker-logs:
+     docker-compose logs
+
+# Starts coordinator process in the background, piping logs to a file (used in other recipes)
+run-coordinator-detached:
+    #!/usr/bin/env bash
+    set -euxo pipefail
+    echo "Starting (and building) coordinator"
+    cargo run --bin coordinator &> {{coordinator_log_file}} &
+    echo "Coordinator successfully started. You can inspect the logs at {{coordinator_log_file}}"
+
+# Starts maker process in the background, piping logs to a file (used in other recipes)
+run-maker-detached:
+    #!/usr/bin/env bash
+    set -euxo pipefail
+    echo "Starting (and building) maker"
+    cargo run --bin maker &> {{maker_log_file}} &
+    echo "Maker successfully started. You can inspect the logs at {{maker_log_file}}"
+
+# Attach to the current coordinator logs
+coordinator-logs:
+    #!/usr/bin/env bash
+    set -euxo pipefail
+    tail -f {{coordinator_log_file}}
+
+# Attach to the current maker logs
+maker-logs:
+    #!/usr/bin/env bash
+    set -euxo pipefail
+    tail -f {{maker_log_file}}
+
+# Run services in the background
+services: docker run-coordinator-detached run-maker-detached
+
+# Run everything at once (docker, coordinator, native build)
+# Note: if you have mobile simulator running, it will start that one instead of native, but will *not* rebuild the mobile rust library.
+all: services gen native run
+
+# Run everything at once, tailored for iOS development (rebuilds iOS)
+all-ios: services gen ios run
 
 # vim:expandtab:sw=4:ts=4
