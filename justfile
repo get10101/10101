@@ -52,6 +52,9 @@ ios:
 run args="":
     cd mobile && flutter run {{args}}
 
+fund:
+    cargo run --example fund
+
 clean:
     #!/usr/bin/env bash
     set -euxo pipefail
