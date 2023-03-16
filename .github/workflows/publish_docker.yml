@@ -40,7 +40,7 @@ jobs:
           # Note: if you want to fork this repo and push a container to your fork, you need to change this line to
           # username: ${{ github.actor }}
           username: ${{ github.repository }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          password: ${{ secrets.GH_ACTION_TOKEN }}
 
       - run: cargo build --release --bin coordinator --target-dir ./target
 
@@ -57,7 +57,7 @@ jobs:
         with:
           context: ./coordinator
           secrets: |
-            GIT_AUTH_TOKEN=${{ secrets.GITHUB_TOKEN }}
+            GIT_AUTH_TOKEN=${{ secrets.GH_ACTION_TOKEN }}
           push: true
           build-args: |
           tags: ${{ steps.meta.outputs.tags }}
@@ -77,7 +77,7 @@ jobs:
         with:
           context: ./maker
           secrets: |
-            GIT_AUTH_TOKEN=${{ secrets.GITHUB_TOKEN }}
+            GIT_AUTH_TOKEN=${{ secrets.GH_ACTION_TOKEN }}
           push: true
           build-args: |
           tags: ${{ steps.meta.outputs.tags }}
