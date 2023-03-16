@@ -99,7 +99,7 @@ class TradeBottomSheetTab extends StatelessWidget {
                     builder: (context, margin, child) {
                       return AmountInputField(
                         value: margin,
-                        hint: "e.g. 2,000 sats",
+                        hint: "e.g. 2000 sats",
                         label: "Margin (sats)",
                         controller: marginController,
                         onChanged: (value) {

@@ -51,7 +51,7 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
               padding: const EdgeInsets.all(32.0),
               child: AmountInputField(
                 value: amount != null ? amount! : Amount(0),
-                hint: "e.g. 2,000 sats",
+                hint: "e.g. 2000 sats",
                 label: "Amount",
                 controller: _amountController,
                 onChanged: (value) {
