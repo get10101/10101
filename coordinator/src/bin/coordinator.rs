@@ -16,7 +16,6 @@ use std::sync::Arc;
 use std::time::Duration;
 use tracing::metadata::LevelFilter;
 
-const ELECTRS_ORIGIN: &str = "tcp://localhost:50000";
 const PROCESS_INCOMING_MESSAGES_INTERVAL: Duration = Duration::from_secs(5);
 
 #[tokio::main]
@@ -51,7 +50,7 @@ async fn main() -> Result<()> {
             data_dir.as_path(),
             address,
             opts.p2p_announcement_addresses(),
-            ELECTRS_ORIGIN.to_string(),
+            opts.electrum,
             seed,
             ephemeral_randomness,
         )
