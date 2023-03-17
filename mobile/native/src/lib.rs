@@ -5,6 +5,7 @@ pub mod schema;
 
 mod api;
 pub mod calculations;
+pub mod commons;
 pub(crate) mod config;
 pub mod event;
 pub mod ln_dlc;

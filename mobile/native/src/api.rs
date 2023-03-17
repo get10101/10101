@@ -1,4 +1,5 @@
 use crate::calculations;
+use crate::commons::api::Price;
 use crate::config;
 use crate::config::api::Config;
 use crate::db;
@@ -95,6 +96,27 @@ pub fn calculate_liquidation_price(
     SyncReturn(calculations::calculate_liquidation_price(
         price, leverage, direction,
     ))
+}
+
+pub fn calculate_pnl(
+    opening_price: f64,
+    closing_price: Price,
+    quantity: f64,
+    leverage: f64,
+    direction: Direction,
+) -> SyncReturn<i64> {
+    // TODO: Handle the result and don't just return 0
+
+    SyncReturn(
+        calculations::calculate_pnl(
+            opening_price,
+            closing_price.into(),
+            quantity,
+            leverage,
+            direction,
+        )
+        .unwrap_or(0),
+    )
 }
 
 #[tokio::main(flavor = "current_thread")]

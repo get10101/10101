@@ -8,4 +8,17 @@ class PositionService {
 
     return positions;
   }
+
+  /// Returns the pnl in sat
+  int calculatePnl(Position position, double bid, double ask) {
+    return rust.api.calculatePnl(
+        openingPrice: position.averageEntryPrice,
+        closingPrice: rust.Price(
+          bid: bid,
+          ask: ask,
+        ),
+        quantity: position.quantity,
+        leverage: position.leverage.leverage,
+        direction: position.direction.toApi());
+  }
 }

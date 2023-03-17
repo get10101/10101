@@ -1,7 +1,13 @@
+use crate::Direction;
+use crate::Price;
+use anyhow::Context;
+use anyhow::Result;
 use bdk::bitcoin;
 use bdk::bitcoin::Denomination;
+use bdk::bitcoin::SignedAmount;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
+use std::ops::Neg;
 
 pub const BTCUSD_MAX_PRICE: u64 = 1_048_575;
 
@@ -53,4 +59,194 @@ pub fn calculate_short_liquidation_price(leverage: Decimal, price: Decimal) -> D
     }
 
     price * leverage / (leverage - Decimal::ONE)
+}
+
+// TODO: This was copied from ItchySats and adapted; we need tests for this!
+/// Compute the payout for the given CFD parameters at a particular `closing_price`.
+///
+/// The `opening_price` of the position is the weighted opening price per quantity.
+/// The `opening_price` is aggregated from all the execution prices of the orders that filled the
+/// position; weighted by quantity. The closing price is the best bid/ask according to the orderbook
+/// at a certain time.
+///
+/// Both leverages are supplied so that the total margin can be calculated and the PnL is capped by
+/// the total margin available.
+pub fn calculate_pnl(
+    opening_price: Decimal,
+    closing_price: Price,
+    quantity: f64,
+    long_leverage: f64,
+    short_leverage: f64,
+    direction: Direction,
+) -> Result<i64> {
+    let long_margin = calculate_margin(opening_price, quantity, long_leverage);
+    let short_margin = calculate_margin(opening_price, quantity, short_leverage);
+
+    let closing_price = match direction {
+        Direction::Long => closing_price.bid,
+        Direction::Short => closing_price.ask,
+    };
+
+    let uncapped_pnl_long = {
+        let quantity = Decimal::try_from(quantity).expect("quantity to fit into decimal");
+
+        let uncapped_pnl = (quantity / opening_price) - (quantity / closing_price);
+        let uncapped_pnl = uncapped_pnl
+            .round_dp_with_strategy(8, rust_decimal::RoundingStrategy::MidpointAwayFromZero);
+        let uncapped_pnl = uncapped_pnl
+            .to_f64()
+            .context("Could not convert Decimal to f64")?;
+
+        SignedAmount::from_btc(uncapped_pnl)?.to_sat()
+    };
+
+    // TODO: Fees are still missing; see ItchySats FeeAccount
+
+    let pnl = match direction {
+        Direction::Long => uncapped_pnl_long.min(short_margin as i64),
+        Direction::Short => uncapped_pnl_long.neg().min(long_margin as i64),
+    };
+
+    Ok(pnl)
+}
+
+#[cfg(test)]
+pub mod tests {
+    use super::*;
+
+    #[test]
+    fn given_position_when_price_same_then_zero_pnl() {
+        let opening_price = Decimal::from(20000);
+        let closing_price = Price {
+            bid: Decimal::from(20000),
+            ask: Decimal::from(20000),
+        };
+        let quantity = 1.0;
+        let long_leverage = 2.0;
+        let short_leverage = 1.0;
+
+        let pnl_long = calculate_pnl(
+            opening_price,
+            closing_price,
+            quantity,
+            long_leverage,
+            short_leverage,
+            Direction::Long,
+        )
+        .unwrap();
+        let pnl_short = calculate_pnl(
+            opening_price,
+            closing_price,
+            quantity,
+            long_leverage,
+            short_leverage,
+            Direction::Short,
+        )
+        .unwrap();
+
+        assert_eq!(pnl_long, 0);
+        assert_eq!(pnl_short, 0);
+    }
+
+    #[test]
+    fn given_long_position_when_price_doubles_then_we_get_double() {
+        let opening_price = Decimal::from(20000);
+        let closing_price = Price {
+            // 10% up
+            bid: Decimal::from(40000),
+            ask: Decimal::ZERO,
+        };
+        let quantity = 100.0;
+        let long_leverage = 2.0;
+        let short_leverage = 1.0;
+
+        let pnl_long = calculate_pnl(
+            opening_price,
+            closing_price,
+            quantity,
+            long_leverage,
+            short_leverage,
+            Direction::Long,
+        )
+        .unwrap();
+
+        assert_eq!(pnl_long, 250000);
+    }
+
+    #[test]
+    fn given_long_position_when_price_halfs_then_we_loose_all() {
+        let opening_price = Decimal::from(20000);
+        let closing_price = Price {
+            // 10% up
+            bid: Decimal::from(10000),
+            ask: Decimal::ZERO,
+        };
+        let quantity = 100.0;
+        let long_leverage = 2.0;
+        let short_leverage = 1.0;
+
+        let pnl_long = calculate_pnl(
+            opening_price,
+            closing_price,
+            quantity,
+            long_leverage,
+            short_leverage,
+            Direction::Long,
+        )
+        .unwrap();
+
+        // This is a liquidation, our margin is consumed by the loss
+        assert_eq!(pnl_long, -500000);
+    }
+
+    #[test]
+    fn given_short_position_when_price_doubles_then_we_loose_all() {
+        let opening_price = Decimal::from(20000);
+        let closing_price = Price {
+            // 10% up
+            bid: Decimal::ZERO,
+            ask: Decimal::from(40000),
+        };
+        let quantity = 100.0;
+        let long_leverage = 1.0;
+        let short_leverage = 2.0;
+
+        let pnl_long = calculate_pnl(
+            opening_price,
+            closing_price,
+            quantity,
+            long_leverage,
+            short_leverage,
+            Direction::Short,
+        )
+        .unwrap();
+
+        assert_eq!(pnl_long, -250000);
+    }
+
+    #[test]
+    fn given_short_position_when_price_halfs_then_we_get_double() {
+        let opening_price = Decimal::from(20000);
+        let closing_price = Price {
+            // 10% up
+            bid: Decimal::ZERO,
+            ask: Decimal::from(10000),
+        };
+        let quantity = 100.0;
+        let long_leverage = 1.0;
+        let short_leverage = 2.0;
+
+        let pnl_long = calculate_pnl(
+            opening_price,
+            closing_price,
+            quantity,
+            long_leverage,
+            short_leverage,
+            Direction::Short,
+        )
+        .unwrap();
+
+        // This is a liquidation, our margin is consumed by the loss
+        assert_eq!(pnl_long, 500000);
+    }
 }

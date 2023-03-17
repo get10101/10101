@@ -34,8 +34,6 @@ pub struct Position {
     pub direction: Direction,
     pub average_entry_price: f64,
     pub liquidation_price: f64,
-    /// The unrealized PL can be positive or negative
-    pub unrealized_pnl: i64,
     pub position_state: PositionState,
     pub collateral: u64,
 }
@@ -58,7 +56,6 @@ impl From<position::Position> for Position {
             direction: value.direction,
             average_entry_price: value.average_entry_price,
             liquidation_price: value.liquidation_price,
-            unrealized_pnl: value.unrealized_pnl,
             position_state: value.position_state.into(),
             collateral: value.collateral,
         }
