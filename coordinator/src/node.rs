@@ -377,7 +377,7 @@ pub fn process_incoming_messages_internal(
                 tracing::debug!(
                     from = %node_id,
                     msg = %sub_channel_message_as_str(&msg),
-                    "Processing sub-channel message"
+                    "Processing DLC channel message"
                 );
                 let resp = sub_channel_manager
                     .on_sub_channel_message(&msg, &node_id)
@@ -387,7 +387,7 @@ pub fn process_incoming_messages_internal(
                     tracing::debug!(
                         to = %node_id,
                         msg = %sub_channel_message_as_str(&msg),
-                        "Sending sub-channel message"
+                        "Sending DLC channel message"
                     );
                     dlc_message_handler.send_message(node_id, Message::SubChannel(msg));
                 }

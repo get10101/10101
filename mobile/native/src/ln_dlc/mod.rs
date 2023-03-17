@@ -1,11 +1,7 @@
-mod accept;
-mod node;
-
 use crate::api::WalletInfo;
 use crate::config;
 use crate::event;
 use crate::event::EventInternal;
-use crate::ln_dlc::node::process_incoming_messages_internal;
 use crate::ln_dlc::node::Node;
 use crate::trade::order::FailureReason;
 use crate::trade::position;
@@ -28,6 +24,8 @@ use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::runtime::Runtime;
+
+mod node;
 
 static NODE: Storage<Arc<Node>> = Storage::new();
 const PROCESS_INCOMING_MESSAGES_INTERVAL: Duration = Duration::from_secs(5);
@@ -122,32 +120,18 @@ pub fn run(data_dir: String) -> Result<()> {
             .keep_connected(config::get_coordinator_info())
             .await?;
 
-        // automatically accepts dlc channel offers (open and close)
-        node.start_accept_offers_task()?;
-
-        {
-            let dlc_manager = node.inner.dlc_manager.clone();
-            let sub_channel_manager = node.inner.sub_channel_manager.clone();
-            tokio::spawn({
-                let dlc_message_handler = node.inner.dlc_message_handler.clone();
-                let peer_manager = node.inner.peer_manager.clone();
-
-                async move {
-                    loop {
-                        if let Err(e) = process_incoming_messages_internal(
-                            &dlc_message_handler,
-                            &dlc_manager,
-                            &sub_channel_manager,
-                            &peer_manager,
-                        ) {
-                            tracing::error!("Unable to process internal message: {e:#}");
-                        }
-
-                        tokio::time::sleep(PROCESS_INCOMING_MESSAGES_INTERVAL).await;
+        runtime.spawn({
+            let node = node.clone();
+            async move {
+                loop {
+                    if let Err(e) = node.process_incoming_messages() {
+                        tracing::error!("Unable to process incoming messages: {e:#}");
                     }
+
+                    tokio::time::sleep(PROCESS_INCOMING_MESSAGES_INTERVAL).await;
                 }
-            })
-        };
+            }
+        });
 
         runtime.spawn({
             let node = node.clone();

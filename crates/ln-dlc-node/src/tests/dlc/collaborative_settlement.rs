@@ -95,7 +95,7 @@ async fn dlc_collaborative_settlement(
         .map_err(|e| anyhow!(e.to_string()))?
         .into_iter()
         .find(|sc| sc.channel_id == sub_channel.channel_id)
-        .context("No sub-channel for coordinator")?;
+        .context("No DLC channel for coordinator")?;
 
     matches!(
         sub_channel_coordinator.state,
@@ -109,7 +109,7 @@ async fn dlc_collaborative_settlement(
         .map_err(|e| anyhow!(e.to_string()))?
         .into_iter()
         .find(|sc| sc.channel_id == sub_channel.channel_id)
-        .context("No sub-channel for app")?;
+        .context("No DLC channel for app")?;
 
     let app_balance_after = app.get_ldk_balance().available;
     let coordinator_balance_after = coordinator.get_ldk_balance().available;
@@ -208,7 +208,7 @@ async fn open_dlc_channel_after_closing_dlc_channel() {
         .unwrap()
         .into_iter()
         .find(|sc| sc.channel_id == sub_channel.channel_id)
-        .context("No sub-channel for coordinator")
+        .context("No DLC channel for coordinator")
         .unwrap();
 
     matches!(sub_channel_coordinator.state, SubChannelState::Signed(_));
@@ -221,7 +221,7 @@ async fn open_dlc_channel_after_closing_dlc_channel() {
         .unwrap()
         .into_iter()
         .find(|sc| sc.channel_id == sub_channel.channel_id)
-        .context("No sub-channel for app")
+        .context("No DLC channel for app")
         .unwrap();
 
     matches!(sub_channel_app.state, SubChannelState::Signed(_));

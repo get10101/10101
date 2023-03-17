@@ -115,7 +115,7 @@ pub async fn create_dlc_channel(
         .map_err(|e| anyhow!("{e}"))?
         .into_iter()
         .find(|sc| sc.channel_id == sub_channel.channel_id)
-        .context("No sub-channel for coordinator")?;
+        .context("No DLC channel for coordinator")?;
 
     matches!(sub_channel_coordinator.state, SubChannelState::Signed(_));
 
@@ -126,7 +126,7 @@ pub async fn create_dlc_channel(
         .map_err(|e| anyhow!("{e}"))?
         .into_iter()
         .find(|sc| sc.channel_id == sub_channel.channel_id)
-        .context("No sub-channel for app")?;
+        .context("No DLC channel for app")?;
 
     matches!(sub_channel_app.state, SubChannelState::Signed(_));
 
