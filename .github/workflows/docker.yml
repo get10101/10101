@@ -28,6 +28,14 @@ jobs:
             target: x86_64-unknown-linux-gnu
             os: ubuntu-latest
             docker_arch: amd64
+          - bin: coordinator
+            target: aarch64-unknown-linux-gnu
+            os: ubuntu-latest
+            docker_arch: amd64
+          - bin: maker
+            target: aarch64-unknown-linux-gnu
+            os: ubuntu-latest
+            docker_arch: amd64
     defaults:
       run:
         shell: bash
@@ -80,6 +88,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - run: |
-          docker manifest create --amend ghcr.io/${{ github.repository }}/${{matrix.bin}}:${{ inputs.tag }} ghcr.io/${{ github.repository }}/${{matrix.bin}}:${{ inputs.tag }}-amd64
+          docker manifest create --amend ghcr.io/${{ github.repository }}/${{matrix.bin}}:${{ inputs.tag }} ghcr.io/${{ github.repository }}/${{matrix.bin}}:${{ inputs.tag }}-amd64 ghcr.io/${{ github.repository }}/${{matrix.bin}}:${{ inputs.tag }}-arm64
           docker manifest annotate ghcr.io/${{ github.repository }}/${{matrix.bin}}:${{ inputs.tag }} ghcr.io/${{ github.repository }}/${{matrix.bin}}:${{ inputs.tag }}-amd64 --os linux --arch amd64
+          docker manifest annotate ghcr.io/${{ github.repository }}/${{matrix.bin}}:${{ inputs.tag }} ghcr.io/${{ github.repository }}/${{matrix.bin}}:${{ inputs.tag }}-arm64 --os linux --arch arm64 --variant v8
           docker manifest push ghcr.io/${{ github.repository }}/${{matrix.bin}}:${{ inputs.tag }} -p
