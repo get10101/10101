@@ -6,7 +6,7 @@ use serde::Serialize;
 use serde::Serializer;
 
 #[derive(Serialize, Debug)]
-pub struct ChannelDetail {
+pub struct ChannelDetails {
     #[serde(serialize_with = "channel_id_as_hex")]
     pub channel_id: [u8; 32],
     #[serde(serialize_with = "pk_as_hex")]
@@ -42,9 +42,9 @@ pub struct ChannelConfig {
     pub force_close_avoidance_max_fee_satoshis: u64,
 }
 
-impl From<lightning::ln::channelmanager::ChannelDetails> for ChannelDetail {
+impl From<lightning::ln::channelmanager::ChannelDetails> for ChannelDetails {
     fn from(cd: lightning::ln::channelmanager::ChannelDetails) -> Self {
-        ChannelDetail {
+        ChannelDetails {
             channel_id: cd.channel_id,
             counterparty: cd.counterparty.node_id,
             funding_txo: cd.funding_txo,

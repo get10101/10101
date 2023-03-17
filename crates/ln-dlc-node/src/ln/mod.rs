@@ -3,7 +3,7 @@ mod config;
 mod event_handler;
 mod logger;
 
-pub use channel_details::ChannelDetail;
+pub use channel_details::ChannelDetails;
 pub(crate) use config::app_config;
 pub(crate) use config::coordinator_config;
 pub(crate) use event_handler::EventHandler;

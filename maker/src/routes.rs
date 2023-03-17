@@ -13,7 +13,7 @@ use diesel::r2d2::Pool;
 use diesel::PgConnection;
 use ln_dlc_node::node::Node;
 use ln_dlc_node::node::NodeInfo;
-use ln_dlc_node::ChannelDetail;
+use ln_dlc_node::ChannelDetails;
 use serde::Deserialize;
 use serde::Serialize;
 use serde_json::json;
@@ -185,12 +185,12 @@ pub async fn create_channel(
 
 pub async fn list_channels(
     State(state): State<Arc<AppState>>,
-) -> Result<Json<Vec<ChannelDetail>>, AppError> {
+) -> Result<Json<Vec<ChannelDetails>>, AppError> {
     let usable_channels = state
         .node
         .list_channels()
         .into_iter()
-        .map(ChannelDetail::from)
+        .map(ChannelDetails::from)
         .collect::<Vec<_>>();
 
     Ok(Json(usable_channels))
