@@ -94,8 +94,7 @@ async fn main() -> Result<()> {
     };
 
     // set up database connection pool
-    let conn_spec = "postgres://postgres:mysecretpassword@localhost:5432/orderbook".to_string();
-    let manager = ConnectionManager::<PgConnection>::new(conn_spec);
+    let manager = ConnectionManager::<PgConnection>::new(opts.database);
     let pool = r2d2::Pool::builder()
         .build(manager)
         .expect("Failed to create pool.");

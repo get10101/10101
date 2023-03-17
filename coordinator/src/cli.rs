@@ -27,6 +27,13 @@ pub struct Opts {
 
     #[clap(value_enum, default_value = "regtest")]
     pub network: Network,
+
+    /// The address where to find the database inclding username and password
+    #[clap(
+        long,
+        default_value = "postgres://postgres:mysecretpassword@localhost:5432/orderbook"
+    )]
+    pub database: String,
 }
 
 #[derive(Debug, Clone, Copy, clap::ValueEnum)]

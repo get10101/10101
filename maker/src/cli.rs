@@ -25,6 +25,13 @@ pub struct Opts {
     /// The HTTP address for the orderbook.
     #[clap(long, default_value = "http://localhost:8000")]
     pub orderbook: Url,
+
+    /// The address where to find the database inclding username and password
+    #[clap(
+        long,
+        default_value = "postgres://postgres:mysecretpassword@localhost:5432/orderbook"
+    )]
+    pub database: String,
 }
 
 #[derive(Debug, Clone, Copy, clap::ValueEnum)]
