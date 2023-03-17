@@ -16,8 +16,6 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use tracing::metadata::LevelFilter;
 
-const ELECTRS_ORIGIN: &str = "tcp://localhost:50000";
-
 #[tokio::main]
 async fn main() -> Result<()> {
     let opts = Opts::read();
@@ -49,7 +47,7 @@ async fn main() -> Result<()> {
             network,
             data_dir.as_path(),
             address,
-            ELECTRS_ORIGIN.to_string(),
+            opts.electrum,
             seed,
             ephemeral_randomness,
         )
@@ -82,8 +80,7 @@ async fn main() -> Result<()> {
     // TODO: Process DLC message
 
     // set up database connection pool
-    let conn_spec = "postgres://postgres:mysecretpassword@localhost:5432/maker".to_string();
-    let manager = ConnectionManager::<PgConnection>::new(conn_spec);
+    let manager = ConnectionManager::<PgConnection>::new(opts.database);
     let pool = r2d2::Pool::builder()
         .build(manager)
         .expect("Failed to create pool.");

@@ -8,7 +8,8 @@ ARG BINARY=target/release/coordinator
 # todo: check why sqlite3 is needed as the coordinator only depends on postgres.
 RUN apt-get update && \
     apt-get install libpq5 -y && \
-    apt-get install sqlite3 -y
+    apt-get install sqlite3 -y && \
+    apt-get install ca-certificates -y
 
 USER 1000
 
