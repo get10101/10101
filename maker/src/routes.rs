@@ -183,17 +183,15 @@ pub async fn create_channel(
     Ok(Json(hex::encode(channel_id)))
 }
 
-pub async fn list_channels(
-    State(state): State<Arc<AppState>>,
-) -> Result<Json<Vec<ChannelDetails>>, AppError> {
-    let usable_channels = state
+pub async fn list_channels(State(state): State<Arc<AppState>>) -> Json<Vec<ChannelDetails>> {
+    let channels = state
         .node
         .list_channels()
         .into_iter()
         .map(ChannelDetails::from)
         .collect::<Vec<_>>();
 
-    Ok(Json(usable_channels))
+    Json(channels)
 }
 
 pub async fn pay_invoice(
