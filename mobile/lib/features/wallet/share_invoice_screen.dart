@@ -47,11 +47,6 @@ class ShareInvoiceScreen extends StatelessWidget {
                     style: TextStyle(fontSize: 18.0, fontWeight: FontWeight.bold),
                   ),
                 ),
-                ElevatedButton(
-                    onPressed: () async {
-                      await walletService.openChannel();
-                    },
-                    child: const Text("Open Channel!")),
                 Expanded(
                   child: Center(
                     child: QrImage(

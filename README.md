@@ -21,11 +21,18 @@ To begin, ensure that you have a working installation of the following items:
 echo "ANDROID_NDK=.." >> ~/.gradle/gradle.properties
 ```
 
+- For iOS targets:
+  - XCode
+  - Cocoapods
+
+You can see whether you have all the sufficient dependencies for your platform by running `flutter doctor`.
+
 ## Dependencies
 
 A lot of complexity for building the app has been encapsulated in a [just](justfile)-file.
 You can install `just` with `cargo install just`.
-To see the available commands, simply run `make --list`.
+
+To see the available commands with explanations, simply run `just --list`.
 
 To install necessary project dependencies for all targets, run the following:
 
@@ -33,146 +40,62 @@ To install necessary project dependencies for all targets, run the following:
 just deps
 ```
 
-It is also important to run the following to generate the Flutter-Rust glue code:
-
-```sh
-just gen
-```
-
 ### Diesel database dependencies
 
 Some crates, e.g. the coordinator use [`diesel`](https://diesel.rs/guides/getting-started) for the database connection.
 This may require installing dependencies, such as e.g. `libpql` for the postgres database for the coordinator.
 
-If you run into linking troubles when trying to build the coordinator you might have to configure the linker as so:
+#### MacOS
 
-```bash
-RUSTFLAGS='-L /path/to/libpq/lib' cargo build --bin coordinator
+On macOS, one can install `libpq` with the following command:
+
+```sh
+brew install libpq
 ```
 
-Alternatively you can configure this flag in `~/.cargo/config.toml` so you don't have to configure it all the time:
+Bear in mind that `libpq` is keg-only (not installed globally). This means that you have to add the library path the linker manually.
+The are a number ways to do that (e.g. by setting rustflags), however the easiest one is to add the following lines to your `.zshrc`/`.bashrc`
 
-```toml
-[target.aarch64-apple-darwin]
-rustflags = '-L /path/to/libpq/lib'
+```sh
+export LDFLAGS="-L/usr/local/opt/libpq/lib"
+export CPPFLAGS="-I/usr/local/opt/libpq/include"
 ```
 
-where `/path/to` is the path to `libpq` on your machine.
+This will ensure that `libpq` is available during building the project
 
-## Mobile App
+## Running 10101
 
-### Run the mobile-app natively (on your Linux/MacOS/other OS)
+### Run the app natively (on your Linux/MacOS/other OS)
 
-```bash
-just deps
-```
-
-Note: it is not necessary to run this everytime again
+The following command will build and start all the necessary services, including the native desktop 10101 app.
 
 ```bash
-just native
-```
-
-```bash
-just run
+just all
 ```
 
 ### Run the mobile-app on the iOS simulator
 
 Note: Ensure that the iOS simulator is running on your machine so it can be selected as target.
 
-```bash
-just deps
-```
-
-Note: it is not necessary to run this everytime again
+The following command will build and start all the necessary services, including the native desktop 10101 app.
 
 ```bash
-just ios
+just all-ios
 ```
-
-```bash
-just run
-```
-
-### Mobile Tests
-
-The flutter project contains flutter tests and tests in the native rust backend of the mobile app.
-
-Run the flutter tests:
-
-```
-just flutter-test
-```
-
-Note that this command takes care of re-generating the generated [`mockito`](https://pub.dev/packages/mockito) mocks before running the test.
-
-Run the native rust backend tests:
-
-```
-just native-test
-```
-
-## Coordinator
-
-### Run the coordinator
-
-In order to successfully run the coordinator you will have to provide the coordinator with a PostgreSQL database.
-The easiest way to do so is by starting the [local regest dev environemnt](#development-environment) through `docker-compose up --build`. The `--build` ensures that all tables exist for `maker` and `coordinator`.
-
-`bash just coordinator`
-
-or in short
-
-```bash
-just c
-```
-
-## Maker
-
-### Run the maker
-
-To run the coordinator you will need a PostgeSQL database.
-
-The easiest way to do so is by starting the [local regest dev environemnt](#development-environment) through `docker-compose up --build`. The `--build` ensures that all tables exist for `maker` and `coordinator`.
-
-```bash
-just maker
-```
-
-## Development environment
-
-The docker development environment provides the managed database containers as well as a regest bitcoin setup.
-
-For more information on what containers are available please have a look at the [docker-compose](docker-compose.yml) file.
-To start the development environment you can just run:
-
-```bash
-docker-compose up
-```
-
-You can add `-d` to run the environment in the background.
-Please refer to the [docker](https://docs.docker.com/) docs for more information on how to use docker / docker-compose.
-
-Our development environment is based on [nigiri](https://github.com/vulpemventures/nigiri).
-If you are a `nigiri` user, make sure to stop it before running the `10101` docker-compose setup, and that you prune the Docker containers by running:
-
-```bash
-nigiri stop
-docker container prune
-```
-
-Otherwise, you might have troubles starting 10101, due to port conflicts on containers.
 
 ### How to faucet your lightning wallet.
 
+The app currently works only on `regtest`, which means that the wallet needs to be fauceted with the provided steps before you can start trading.
+
 #### Setup
 
-1. Start the coordinator with `cargo run --bin coordinator` or `just coordinator`.
+0. If you have run the app before, we recommend to clear the dev environment by running `just wipe`
+
+1. Start the complete project stack with `just all`.
 
 2. Fund and configure coordinator by running `just fund`
 
-#### Fauceting your lightning wallet
+#### Adding funds to 10101 lightning wallet
 
 3. Create an invoice in your 10101 app by navigating to the receive screen.
    _Note, that you have to provide the coordinator host to the mobile app like that `just run`_
@@ -180,35 +103,3 @@ Otherwise, you might have troubles starting 10101, due to port conflicts on cont
 4. Open `http://localhost:8080/faucet/` (note: ensure to add the trailing `/` as otherwise nginx will try to redirect the call)
 
 5. Copy the invoice and enter it on the lightning faucet. Hit send and you will receive your funds momentarily.
-
-#### Resetting dev environment
-
-In order to wipe all the runtime data, run:
-
-```sh
-just wipe
-```
-
-Wiping (resetting) the data will:
-
-- stop Docker containers remove all Docker volumes
-- clear `coordinator` data (except the default seed)
-- remove 10101 native app data from the native
-
-iOS/Android app data should be cleared either on device itself, as they can't be easily scripted.
-
-#### Resetting iOS Simulator app
-
-Note: iOS Simulator has a CLI interface to automate this, but the device identifier is unique.
-
-In order to find out the iOS Simulator device identifier, one can run:
-
-```sh
-xcrun simctl list
-```
-
-In order to wipe device
-
-```sh
-xcrun simctl erase $DEVICE_IDENTIFIER
-```
