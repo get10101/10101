@@ -38,6 +38,7 @@ pub mod seed;
 #[cfg(test)]
 mod tests;
 
+pub use ln::ChannelDetails;
 pub use node::dlc_channel::Dlc;
 
 type ConfirmableMonitor = (

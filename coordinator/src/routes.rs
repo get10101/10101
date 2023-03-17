@@ -19,6 +19,7 @@ use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::Pool;
 use diesel::PgConnection;
 use ln_dlc_node::node::NodeInfo;
+use ln_dlc_node::ChannelDetails;
 use orderbook_commons::OrderbookMsg;
 use serde::Deserialize;
 use serde::Serialize;
@@ -59,6 +60,7 @@ pub fn router(node: Node, pool: Pool<ConnectionManager<PgConnection>>) -> Router
         )
         .route("/api/orderbook/websocket", get(websocket_handler))
         .route("/api/trade", post(post_trade))
+        .route("/api/channels", get(list_channels))
         .with_state(app_state)
 }
 
@@ -145,4 +147,16 @@ pub async fn post_trade(
     })?;
 
     Ok(())
+}
+
+pub async fn list_channels(State(state): State<Arc<AppState>>) -> Json<Vec<ChannelDetails>> {
+    let channels = state
+        .node
+        .inner
+        .list_channels()
+        .into_iter()
+        .map(ChannelDetails::from)
+        .collect::<Vec<_>>();
+
+    Json(channels)
 }
