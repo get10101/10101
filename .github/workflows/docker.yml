@@ -50,6 +50,14 @@ jobs:
       - name: Setup rust toolchain
         run: rustup show
 
+      - name: Install compiler for aarch64 arch (armv8)
+        shell: bash
+        if: inputs.target == 'aarch64-unknown-linux-gnu'
+        run: |
+          sudo apt-get update
+          sudo apt-get install 'gcc-aarch64-linux-gnu'
+          sudo apt-get install 'g++-aarch64-linux-gnu'
+
       - uses: Swatinem/rust-cache@v2.0.1
 
       - name: Login into github registry
