@@ -57,6 +57,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install 'gcc-aarch64-linux-gnu'
           sudo apt-get install 'g++-aarch64-linux-gnu'
+          rustup target add aarch64-unknown-linux-gnu
 
       - uses: Swatinem/rust-cache@v2.0.1
 
