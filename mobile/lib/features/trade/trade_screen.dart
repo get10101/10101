@@ -4,6 +4,7 @@ import 'package:get_10101/common/value_data_row.dart';
 import 'package:get_10101/features/trade/contract_symbol_icon.dart';
 import 'package:get_10101/features/trade/domain/contract_symbol.dart';
 import 'package:get_10101/features/trade/domain/direction.dart';
+import 'package:get_10101/features/trade/domain/position.dart';
 import 'package:get_10101/features/trade/order_change_notifier.dart';
 import 'package:get_10101/features/trade/order_list_item.dart';
 import 'package:get_10101/features/trade/position_change_notifier.dart';
@@ -122,8 +123,14 @@ class TradeScreen extends StatelessWidget {
                       physics: const ClampingScrollPhysics(),
                       itemCount: positionChangeNotifier.positions.length,
                       itemBuilder: (BuildContext context, int index) {
+                        Position position = positionChangeNotifier.positions.values.toList()[index];
+
                         return PositionListItem(
-                            position: positionChangeNotifier.positions.values.toList()[index]);
+                          position: position,
+                          onClose: () async {
+                            await positionChangeNotifier.closePosition(position.contractSymbol);
+                          },
+                        );
                       },
                     ),
                     ListView.builder(

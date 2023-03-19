@@ -2,6 +2,7 @@ import 'dart:developer';
 import 'package:flutter/material.dart';
 import 'package:get_10101/common/application/event_service.dart';
 import 'package:get_10101/common/domain/model.dart';
+import 'package:get_10101/features/trade/application/order_service.dart';
 import 'package:get_10101/features/trade/application/position_service.dart';
 import 'package:get_10101/features/trade/domain/contract_symbol.dart';
 import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
@@ -10,6 +11,8 @@ import 'domain/position.dart';
 
 class PositionChangeNotifier extends ChangeNotifier implements Subscriber {
   late PositionService _positionService;
+  late OrderService _orderService;
+
   Map<ContractSymbol, Position> positions = {};
 
   late double _bid;
@@ -28,8 +31,9 @@ class PositionChangeNotifier extends ChangeNotifier implements Subscriber {
     notifyListeners();
   }
 
-  PositionChangeNotifier(PositionService positionService) {
+  PositionChangeNotifier(PositionService positionService, OrderService orderService) {
     _positionService = positionService;
+    _orderService = orderService;
   }
 
   @override
@@ -50,5 +54,15 @@ class PositionChangeNotifier extends ChangeNotifier implements Subscriber {
     }
 
     notifyListeners();
+  }
+
+  Future<void> closePosition(ContractSymbol contractSymbol) async {
+    if (positions[contractSymbol] == null) {
+      throw Exception("No position for contract symbol $contractSymbol");
+    }
+
+    Position position = positions[contractSymbol]!;
+    await _orderService.submitMarketOrder(position.leverage, position.quantity,
+        position.contractSymbol, position.direction.opposite());
   }
 }

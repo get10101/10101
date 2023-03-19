@@ -3,6 +3,7 @@ use crate::db::models::Direction;
 use crate::db::models::FailureReason;
 use crate::db::models::OrderState;
 use crate::db::models::OrderType;
+use crate::db::models::PositionState;
 use diesel::backend;
 use diesel::deserialize::FromSql;
 use diesel::deserialize::{self};
@@ -137,6 +138,29 @@ impl FromSql<Text, Sqlite> for FailureReason {
             "NoUsableChannel" => Ok(FailureReason::NoUsableChannel),
             "ProposeDlcChannel" => Ok(FailureReason::ProposeDlcChannel),
             "FailedToSetToFilling" => Ok(FailureReason::FailedToSetToFilling),
+            _ => Err("Unrecognized enum variant".into()),
+        };
+    }
+}
+
+impl ToSql<Text, Sqlite> for PositionState {
+    fn to_sql(&self, out: &mut Output<Sqlite>) -> serialize::Result {
+        let text = match *self {
+            PositionState::Open => "Open",
+            PositionState::Closing => "Closing",
+        };
+        out.set_value(text);
+        Ok(IsNull::No)
+    }
+}
+
+impl FromSql<Text, Sqlite> for PositionState {
+    fn from_sql(bytes: backend::RawValue<Sqlite>) -> deserialize::Result<Self> {
+        let string = <String as FromSql<Text, Sqlite>>::from_sql(bytes)?;
+
+        return match string.as_str() {
+            "Open" => Ok(PositionState::Open),
+            "Closing" => Ok(PositionState::Closing),
             _ => Err("Unrecognized enum variant".into()),
         };
     }

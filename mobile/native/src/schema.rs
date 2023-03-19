@@ -23,4 +23,18 @@ diesel::table! {
     }
 }
 
-diesel::allow_tables_to_appear_in_same_query!(last_login, orders,);
+diesel::table! {
+    positions (contract_symbol) {
+        contract_symbol -> Text,
+        leverage -> Double,
+        quantity -> Double,
+        direction -> Text,
+        average_entry_price -> Double,
+        liquidation_price -> Double,
+        state -> Text,
+        collateral -> BigInt,
+        creation_timestamp -> BigInt,
+    }
+}
+
+diesel::allow_tables_to_appear_in_same_query!(last_login, orders, positions,);

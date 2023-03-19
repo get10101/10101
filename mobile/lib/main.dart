@@ -62,7 +62,8 @@ void main() {
     ChangeNotifierProvider(create: (context) => AmountDenominationChangeNotifier()),
     ChangeNotifierProvider(create: (context) => SubmitOrderChangeNotifier(OrderService())),
     ChangeNotifierProvider(create: (context) => OrderChangeNotifier(OrderService())),
-    ChangeNotifierProvider(create: (context) => PositionChangeNotifier(PositionService())),
+    ChangeNotifierProvider(
+        create: (context) => PositionChangeNotifier(PositionService(), OrderService())),
     ChangeNotifierProvider(create: (context) => WalletChangeNotifier(const WalletService())),
     Provider(create: (context) => Environment.parse()),
   ], child: const TenTenOneApp()));
@@ -192,6 +193,11 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
 
       eventService.subscribe(
           positionChangeNotifier, bridge.Event.positionUpdateNotification(Position.apiDummy()));
+
+      eventService.subscribe(
+          positionChangeNotifier,
+          const bridge.Event.positionClosedNotification(
+              bridge.PositionClosed(contractSymbol: bridge.ContractSymbol.BtcUsd)));
 
       eventService.subscribe(
           walletChangeNotifier, bridge.Event.walletInfoUpdateNotification(WalletInfo.apiDummy()));
