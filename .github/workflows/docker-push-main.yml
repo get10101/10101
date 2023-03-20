@@ -9,7 +9,7 @@ jobs:
   build_and_publish_release_and_docker_image_for_latest_main:
     permissions:
       packages: write
-      contents: read
+      contents: write
     uses: ./.github/workflows/release_and_docker.yml
     with:
       tag: main
