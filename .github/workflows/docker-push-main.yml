@@ -6,10 +6,10 @@ on:
       - main
 
 jobs:
-  build_docker_image_for_latest_main:
+  build_and_publish_release_and_docker_image_for_latest_main:
     permissions:
       packages: write
-      contents: read
-    uses: ./.github/workflows/docker.yml
+      contents: write
+    uses: ./.github/workflows/release_and_docker.yml
     with:
       tag: main
