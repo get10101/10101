@@ -147,16 +147,22 @@ impl Node {
 
     fn get_sub_channel(
         &self,
-        matcher: &dyn Fn(&&SubChannel) -> bool,
+        matcher: impl FnMut(&&SubChannel) -> bool,
     ) -> Result<Option<SubChannel>> {
-        let sub_channels = self
+        let dlc_channels = self.list_dlc_channels()?;
+
+        let dlc_channel = dlc_channels.iter().find(matcher);
+        Ok(dlc_channel.cloned())
+    }
+
+    fn list_dlc_channels(&self) -> Result<Vec<SubChannel>> {
+        let dlc_channels = self
             .dlc_manager
             .get_store()
             .get_sub_channels()
             .map_err(|e| anyhow!(e.to_string()))?;
 
-        let sub_channel = sub_channels.iter().find(matcher);
-        Ok(sub_channel.cloned())
+        Ok(dlc_channels)
     }
 
     #[cfg(test)]
