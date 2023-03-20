@@ -1,8 +1,4 @@
-use crate::node::DlcManager;
 use crate::node::Node;
-use crate::node::SubChannelManager;
-use crate::DlcMessageHandler;
-use crate::PeerManager;
 use anyhow::anyhow;
 use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
@@ -163,11 +159,12 @@ impl Node {
         Ok(sub_channel.cloned())
     }
 
+    #[cfg(test)]
     pub fn process_incoming_messages(&self) -> Result<()> {
-        let dlc_message_handler: &DlcMessageHandler = &self.dlc_message_handler;
-        let dlc_manager: &DlcManager = &self.dlc_manager;
-        let sub_channel_manager: &SubChannelManager = &self.sub_channel_manager;
-        let peer_manager: &PeerManager = &self.peer_manager;
+        let dlc_message_handler = &self.dlc_message_handler;
+        let dlc_manager = &self.dlc_manager;
+        let sub_channel_manager = &self.sub_channel_manager;
+        let peer_manager = &self.peer_manager;
         let messages = dlc_message_handler.get_and_clear_received_messages();
 
         for (node_id, msg) in messages {
