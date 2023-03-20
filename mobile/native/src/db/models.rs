@@ -282,6 +282,24 @@ impl Position {
         positions::table.load(conn)
     }
 
+    /// updates the status of the given order in the db
+    pub fn update_state(
+        contract_symbol: ContractSymbol,
+        state: PositionState,
+        conn: &mut SqliteConnection,
+    ) -> Result<()> {
+        let effected_rows = diesel::update(positions::table)
+            .filter(schema::positions::contract_symbol.eq(contract_symbol))
+            .set(schema::positions::state.eq(state))
+            .execute(conn)?;
+
+        if effected_rows == 0 {
+            bail!("Could not update order")
+        }
+
+        Ok(())
+    }
+
     // TODO: This is obviously only for the MVP :)
     /// deletes all positions in the database
     /// Deletes given order from DB, in case of success, returns > 0, else 0 or Err
@@ -491,6 +509,7 @@ pub enum FailureReason {
     NodeAccess,
     NoUsableChannel,
     ProposeDlcChannel,
+    CannotExtendOrReduce,
 }
 
 impl From<FailureReason> for crate::trade::order::FailureReason {
@@ -505,6 +524,9 @@ impl From<FailureReason> for crate::trade::order::FailureReason {
             }
             FailureReason::FailedToSetToFilling => {
                 crate::trade::order::FailureReason::FailedToSetToFilling
+            }
+            FailureReason::CannotExtendOrReduce => {
+                crate::trade::order::FailureReason::CannotExtendOrReduce
             }
         }
     }
@@ -522,6 +544,9 @@ impl From<crate::trade::order::FailureReason> for FailureReason {
             }
             crate::trade::order::FailureReason::FailedToSetToFilling => {
                 FailureReason::FailedToSetToFilling
+            }
+            crate::trade::order::FailureReason::CannotExtendOrReduce => {
+                FailureReason::CannotExtendOrReduce
             }
         }
     }

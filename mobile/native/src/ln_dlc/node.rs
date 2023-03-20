@@ -114,9 +114,10 @@ impl Node {
                                 }
                             };
 
-                            if let Err(e) =
-                                position::handler::position_update(filled_order, offer_collateral)
-                            {
+                            if let Err(e) = position::handler::update_position_after_order_filled(
+                                filled_order,
+                                offer_collateral,
+                            ) {
                                 tracing::error!(
                                     "Failed to handle position after receiving DLC: {e:#}"
                                 );

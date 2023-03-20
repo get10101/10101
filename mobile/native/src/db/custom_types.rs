@@ -121,6 +121,7 @@ impl ToSql<Text, Sqlite> for FailureReason {
             FailureReason::NoUsableChannel => "NoUsableChannel",
             FailureReason::ProposeDlcChannel => "ProposeDlcChannel",
             FailureReason::FailedToSetToFilling => "FailedToSetToFilling",
+            FailureReason::CannotExtendOrReduce => "CannotExtendOrReduce",
         };
         out.set_value(text);
         Ok(IsNull::No)
@@ -138,6 +139,7 @@ impl FromSql<Text, Sqlite> for FailureReason {
             "NoUsableChannel" => Ok(FailureReason::NoUsableChannel),
             "ProposeDlcChannel" => Ok(FailureReason::ProposeDlcChannel),
             "FailedToSetToFilling" => Ok(FailureReason::FailedToSetToFilling),
+            "CannotExtendOrReduce" => Ok(FailureReason::CannotExtendOrReduce),
             _ => Err("Unrecognized enum variant".into()),
         };
     }

@@ -71,6 +71,7 @@ impl Subscriber for FlutterSubscriber {
             EventType::WalletInfoUpdateNotification,
             EventType::OrderUpdateNotification,
             EventType::PositionUpdateNotification,
+            EventType::PositionClosedNotification,
         ]
     }
 }

@@ -124,9 +124,11 @@ class PositionListItem extends StatelessWidget {
                 width: 10,
               ),
               ElevatedButton(
-                onPressed: () async {
-                  await onClose();
-                },
+                onPressed: notNullPosition.positionState == PositionState.closing
+                    ? null
+                    : () async {
+                        await onClose();
+                      },
                 child: const Text("Close Position"),
               ),
             ],

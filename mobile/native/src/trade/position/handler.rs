@@ -7,6 +7,7 @@ use crate::trade::order;
 use crate::trade::order::Order;
 use crate::trade::position::Position;
 use crate::trade::position::PositionState;
+use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
 use coordinator_commons::TradeParams;
@@ -56,7 +57,27 @@ pub async fn get_positions() -> Result<Vec<Position>> {
 ///
 /// This crates or updates the position.
 /// If the position was closed we set it to `Closed` state.
-pub fn position_update(filled_order: Order, collateral: u64) -> Result<()> {
+pub fn update_position_after_order_submitted(submitted_order: Order) -> Result<()> {
+    if let Some(position) = db::get_positions()?.first() {
+        // closing the position
+        if position.direction == submitted_order.direction.opposite()
+            && position.quantity == submitted_order.quantity
+        {
+            db::update_position_state(position.contract_symbol, PositionState::Closing)?;
+            event::publish(&EventInternal::PositionUpdateNotification(position.clone()));
+        } else {
+            bail!("Currently not possible to extend or reduce a position, you can only close the position with a counter-order");
+        }
+    }
+
+    Ok(())
+}
+
+/// Update position once an order was filled
+///
+/// This crates or updates the position.
+/// If the position was closed we set it to `Closed` state.
+pub fn update_position_after_order_filled(filled_order: Order, collateral: u64) -> Result<()> {
     // We don't have a position yet
     if db::get_positions()?.is_empty() {
         tracing::debug!("We don't have a position at the moment, creating it");
@@ -84,6 +105,8 @@ pub fn position_update(filled_order: Order, collateral: u64) -> Result<()> {
         let position = db::insert_position(have_a_position)?;
         event::publish(&EventInternal::PositionUpdateNotification(position));
     } else {
+        tracing::debug!("We have a position, removing it");
+
         db::delete_positions()?;
 
         event::publish(&EventInternal::PositionCloseNotification(
