@@ -164,20 +164,10 @@ impl Node {
     }
 
     pub fn process_incoming_messages(&self) -> Result<()> {
-        Node::process_incoming_messages_internal(
-            &self.dlc_message_handler,
-            &self.dlc_manager,
-            &self.sub_channel_manager,
-            &self.peer_manager,
-        )
-    }
-
-    pub(crate) fn process_incoming_messages_internal(
-        dlc_message_handler: &DlcMessageHandler,
-        dlc_manager: &DlcManager,
-        sub_channel_manager: &SubChannelManager,
-        peer_manager: &PeerManager,
-    ) -> Result<()> {
+        let dlc_message_handler: &DlcMessageHandler = &self.dlc_message_handler;
+        let dlc_manager: &DlcManager = &self.dlc_manager;
+        let sub_channel_manager: &SubChannelManager = &self.sub_channel_manager;
+        let peer_manager: &PeerManager = &self.peer_manager;
         let messages = dlc_message_handler.get_and_clear_received_messages();
 
         for (node_id, msg) in messages {
@@ -215,8 +205,9 @@ impl Node {
             }
         }
 
-        // NOTE: According to the docs of `process_events` we shouldn't have to call this since we
-        // use `lightning-net-tokio`. But we copied this from `p2pderivatives/ldk-sample`
+        // NOTE: According to the docs of `process_events` we shouldn't have to call this since
+        // we use `lightning-net-tokio`. But we copied this from
+        // `p2pderivatives/ldk-sample`
         if dlc_message_handler.has_pending_messages() {
             peer_manager.process_events();
         }
