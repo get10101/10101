@@ -63,11 +63,18 @@ jobs:
           filename: '${{ matrix.bin }}-${{matrix.target}}-${{inputs.tag}}.tar.gz'
           path: ./target/${{matrix.target}}/release/${{ matrix.bin }}
 
-      - name: Release
+      - name: Release for tag
         uses: softprops/action-gh-release@v1
+        # if there is a tag, we go with default settings
         if: startsWith(github.ref, 'refs/tags/')
         with:
-          #TODO: for now we only support prerelease
+          files: ./${{ matrix.bin }}-${{matrix.target}}-${{inputs.tag}}.tar.gz
+
+      - name: Release for latest
+        uses: softprops/action-gh-release@v1
+        # if there is no tag, we go with main
+        with:
+          name: Latest
           prerelease: true
           files: ./${{ matrix.bin }}-${{matrix.target}}-${{inputs.tag}}.tar.gz
 
