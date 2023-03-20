@@ -44,7 +44,7 @@ jobs:
         id: build
         with:
           target: ${{ matrix.target }}
-          gh_token: ${{ secrets.GITHUB_TOKEN }}
+          gh_token: ${{ secrets.GH_ACTION_TOKEN }}
           binary: ${{ matrix.bin }}
 
       - name: Login into github registry
@@ -54,7 +54,7 @@ jobs:
           # Note: if you want to fork this repo and push a container to your fork, you need to change this line to
           # username: ${{ github.actor }}
           username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          password: ${{ secrets.GH_ACTION_TOKEN }}
 
       - name: Archive Release
         uses: thedoctor0/zip-release@0.7.1
@@ -69,6 +69,7 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         with:
           files: ./${{ matrix.bin }}-${{matrix.target}}-${{inputs.tag}}.tar.gz
+          token: ${{ secrets.GH_ACTION_TOKEN }}
 
       - name: Release for latest
         uses: softprops/action-gh-release@v1
@@ -100,7 +101,7 @@ jobs:
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          password: ${{ secrets.GH_ACTION_TOKEN }}
 
       - run: |
           docker manifest create --amend ghcr.io/${{ github.actor }}/${{matrix.bin}}:${{ inputs.tag }} ghcr.io/${{ github.actor }}/${{matrix.bin}}:${{ inputs.tag }}-amd64
