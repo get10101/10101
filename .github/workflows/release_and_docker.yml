@@ -77,7 +77,7 @@ jobs:
           
       - name: Pack linux archive
         shell: bash
-        run: tar -C ./target/${{ matrix.target }}/release --create --file=${{ steps.create-archive-name.outputs.archive }} ${{ matrix.bin }}
+        run: tar -C ./target/${{ matrix.target }}/${{ matrix.bin }} --create --file=${{ steps.create-archive-name.outputs.archive }} ${{ matrix.bin }}
 
 
       - name: Release
