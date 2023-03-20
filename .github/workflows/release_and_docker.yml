@@ -74,6 +74,7 @@ jobs:
         uses: softprops/action-gh-release@v1
         # if there is no tag, we go with main
         with:
+          tag: latest
           name: Latest
           prerelease: true
           files: ./${{ matrix.bin }}-${{matrix.target}}-${{inputs.tag}}.tar.gz
