@@ -144,6 +144,16 @@ impl Node {
         Ok(dlc_channel)
     }
 
+    pub fn list_dlc_channels(&self) -> Result<Vec<SubChannel>> {
+        let dlc_channels = self
+            .dlc_manager
+            .get_store()
+            .get_sub_channels()
+            .map_err(|e| anyhow!(e.to_string()))?;
+
+        Ok(dlc_channels)
+    }
+
     fn get_dlc_channel(
         &self,
         matcher: impl FnMut(&&SubChannel) -> bool,
@@ -152,16 +162,6 @@ impl Node {
         let dlc_channel = dlc_channels.iter().find(matcher);
 
         Ok(dlc_channel.cloned())
-    }
-
-    fn list_dlc_channels(&self) -> Result<Vec<SubChannel>> {
-        let dlc_channels = self
-            .dlc_manager
-            .get_store()
-            .get_sub_channels()
-            .map_err(|e| anyhow!(e.to_string()))?;
-
-        Ok(dlc_channels)
     }
 
     #[cfg(test)]

@@ -1,11 +1,13 @@
 mod channel_details;
 mod config;
+mod dlc_channel_details;
 mod event_handler;
 mod logger;
 
 pub use channel_details::ChannelDetails;
 pub(crate) use config::app_config;
 pub(crate) use config::coordinator_config;
+pub use dlc_channel_details::DlcChannelDetails;
 pub(crate) use event_handler::EventHandler;
 pub(crate) use logger::TracingLogger;
 
