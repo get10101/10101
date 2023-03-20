@@ -20,6 +20,7 @@ use diesel::r2d2::Pool;
 use diesel::PgConnection;
 use ln_dlc_node::node::NodeInfo;
 use ln_dlc_node::ChannelDetails;
+use ln_dlc_node::DlcChannelDetails;
 use orderbook_commons::OrderbookMsg;
 use serde::Deserialize;
 use serde::Serialize;
@@ -61,6 +62,7 @@ pub fn router(node: Node, pool: Pool<ConnectionManager<PgConnection>>) -> Router
         .route("/api/orderbook/websocket", get(websocket_handler))
         .route("/api/trade", post(post_trade))
         .route("/api/channels", get(list_channels))
+        .route("/api/dlc_channels", get(list_dlc_channels))
         .with_state(app_state)
 }
 
@@ -159,4 +161,20 @@ pub async fn list_channels(State(state): State<Arc<AppState>>) -> Json<Vec<Chann
         .collect::<Vec<_>>();
 
     Json(channels)
+}
+
+pub async fn list_dlc_channels(
+    State(state): State<Arc<AppState>>,
+) -> Result<Json<Vec<DlcChannelDetails>>, AppError> {
+    let dlc_channels =
+        state.node.inner.list_dlc_channels().map_err(|e| {
+            AppError::InternalServerError(format!("Failed to get new address: {e:#}"))
+        })?;
+
+    let dlc_channels = dlc_channels
+        .into_iter()
+        .map(DlcChannelDetails::from)
+        .collect::<Vec<_>>();
+
+    Ok(Json(dlc_channels))
 }

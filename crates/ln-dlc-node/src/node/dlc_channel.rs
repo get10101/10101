@@ -1,8 +1,4 @@
-use crate::node::DlcManager;
 use crate::node::Node;
-use crate::node::SubChannelManager;
-use crate::DlcMessageHandler;
-use crate::PeerManager;
 use anyhow::anyhow;
 use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
@@ -119,65 +115,61 @@ impl Node {
         Ok(())
     }
 
-    pub fn get_sub_channel_offer(&self, pubkey: &PublicKey) -> Result<Option<SubChannel>> {
-        let matcher = |sub_channel: &&SubChannel| {
-            sub_channel.counter_party == *pubkey
-                && matches!(&sub_channel.state, SubChannelState::Offered(_))
+    pub fn get_dlc_channel_offer(&self, pubkey: &PublicKey) -> Result<Option<SubChannel>> {
+        let matcher = |dlc_channel: &&SubChannel| {
+            dlc_channel.counter_party == *pubkey
+                && matches!(&dlc_channel.state, SubChannelState::Offered(_))
         };
+        let dlc_channel = self.get_dlc_channel(&matcher)?; // `get_offered_sub_channels` appears to have a bug
 
-        let sub_channel = self.get_sub_channel(&matcher)?; // `get_offered_sub_channels` appears to have a bug
-        Ok(sub_channel)
+        Ok(dlc_channel)
     }
 
-    pub fn get_sub_channel_signed(&self, pubkey: &PublicKey) -> Result<Option<SubChannel>> {
-        let matcher = |sub_channel: &&SubChannel| {
-            sub_channel.counter_party == *pubkey
-                && matches!(&sub_channel.state, SubChannelState::Signed(_))
+    pub fn get_dlc_channel_signed(&self, pubkey: &PublicKey) -> Result<Option<SubChannel>> {
+        let matcher = |dlc_channel: &&SubChannel| {
+            dlc_channel.counter_party == *pubkey
+                && matches!(&dlc_channel.state, SubChannelState::Signed(_))
         };
-
-        let sub_channel = self.get_sub_channel(&matcher)?;
-        Ok(sub_channel)
+        let dlc_channel = self.get_dlc_channel(&matcher)?;
+        Ok(dlc_channel)
     }
 
-    pub fn get_sub_channel_close_offer(&self, pubkey: &PublicKey) -> Result<Option<SubChannel>> {
-        let matcher = |sub_channel: &&SubChannel| {
-            sub_channel.counter_party == *pubkey
-                && matches!(&sub_channel.state, SubChannelState::CloseOffered(_))
+    pub fn get_dlc_channel_close_offer(&self, pubkey: &PublicKey) -> Result<Option<SubChannel>> {
+        let matcher = |dlc_channel: &&SubChannel| {
+            dlc_channel.counter_party == *pubkey
+                && matches!(&dlc_channel.state, SubChannelState::CloseOffered(_))
         };
-        let sub_channel = self.get_sub_channel(&matcher)?;
+        let dlc_channel = self.get_dlc_channel(&matcher)?;
 
-        Ok(sub_channel)
+        Ok(dlc_channel)
     }
 
-    fn get_sub_channel(
-        &self,
-        matcher: &dyn Fn(&&SubChannel) -> bool,
-    ) -> Result<Option<SubChannel>> {
-        let sub_channels = self
+    pub fn list_dlc_channels(&self) -> Result<Vec<SubChannel>> {
+        let dlc_channels = self
             .dlc_manager
             .get_store()
             .get_sub_channels()
             .map_err(|e| anyhow!(e.to_string()))?;
 
-        let sub_channel = sub_channels.iter().find(matcher);
-        Ok(sub_channel.cloned())
+        Ok(dlc_channels)
     }
 
+    fn get_dlc_channel(
+        &self,
+        matcher: impl FnMut(&&SubChannel) -> bool,
+    ) -> Result<Option<SubChannel>> {
+        let dlc_channels = self.list_dlc_channels()?;
+        let dlc_channel = dlc_channels.iter().find(matcher);
+
+        Ok(dlc_channel.cloned())
+    }
+
+    #[cfg(test)]
     pub fn process_incoming_messages(&self) -> Result<()> {
-        Node::process_incoming_messages_internal(
-            &self.dlc_message_handler,
-            &self.dlc_manager,
-            &self.sub_channel_manager,
-            &self.peer_manager,
-        )
-    }
-
-    pub(crate) fn process_incoming_messages_internal(
-        dlc_message_handler: &DlcMessageHandler,
-        dlc_manager: &DlcManager,
-        sub_channel_manager: &SubChannelManager,
-        peer_manager: &PeerManager,
-    ) -> Result<()> {
+        let dlc_message_handler = &self.dlc_message_handler;
+        let dlc_manager = &self.dlc_manager;
+        let sub_channel_manager = &self.sub_channel_manager;
+        let peer_manager = &self.peer_manager;
         let messages = dlc_message_handler.get_and_clear_received_messages();
 
         for (node_id, msg) in messages {
@@ -215,8 +207,9 @@ impl Node {
             }
         }
 
-        // NOTE: According to the docs of `process_events` we shouldn't have to call this since we
-        // use `lightning-net-tokio`. But we copied this from `p2pderivatives/ldk-sample`
+        // NOTE: According to the docs of `process_events` we shouldn't have to call this since
+        // we use `lightning-net-tokio`. But we copied this from
+        // `p2pderivatives/ldk-sample`
         if dlc_message_handler.has_pending_messages() {
             peer_manager.process_events();
         }
