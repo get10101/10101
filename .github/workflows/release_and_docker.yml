@@ -15,7 +15,7 @@ jobs:
   docker:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
       packages: write
     strategy:
       matrix:
