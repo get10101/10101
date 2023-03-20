@@ -24,7 +24,7 @@ services:
       - "28332:28332"
       - "28333:28333"
     volumes:
-      - bitcoin:/config
+      - bitcoin:/home/bitcoin/.bitcoin
     restart: unless-stopped
     networks:
       vtto:
@@ -58,8 +58,6 @@ services:
     ports:
       - "50000:50000"
       - "30000:30000"
-    volumes:
-      - bitcoin:/config
     restart: unless-stopped
     networks:
       vtto:
@@ -113,9 +111,7 @@ services:
       - --configfile=/var/lib/lnd/lnd.conf
     volumes:
       - ./faucet/lnd.conf:/var/lib/lnd/lnd.conf
-      - bitcoin:/data
-    environment:
-      HOME: /data
+      - lnd:/root/.lnd
     restart: unless-stopped
     stop_grace_period: 5m30s
     ports:
@@ -173,3 +169,4 @@ networks:
 volumes:
   bitcoin:
   postgres:
+  lnd:
