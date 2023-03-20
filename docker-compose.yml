@@ -156,13 +156,9 @@ services:
       - "5432:5432"
     environment:
       POSTGRES_PASSWORD: mysecretpassword
-
-  adminer:
-    container_name: adminer
-    image: adminer
-    restart: always
-    ports:
-      - 8888:8080
+    networks:
+      vtto:
+        ipv4_address: 10.5.0.8
 
 networks:
   default:

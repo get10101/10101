@@ -116,9 +116,18 @@ pub fn run(data_dir: String) -> Result<()> {
         let node = Arc::new(Node { inner: node });
 
         // todo: should the library really be responsible for managing the task?
-        node.inner
-            .keep_connected(config::get_coordinator_info())
-            .await?;
+        runtime.spawn({
+            let node = node.clone();
+            async move {
+                if let Err(e) = node
+                    .inner
+                    .keep_connected(config::get_coordinator_info())
+                    .await
+                {
+                    tracing::error!("Failed to keep connection with coordinator alive: {e:#}");
+                };
+            }
+        });
 
         runtime.spawn({
             let node = node.clone();
