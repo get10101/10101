@@ -65,7 +65,7 @@ jobs:
         with:
           type: 'zip'
           filename: '${{ matrix.bin }}-${{matrix.target}}-${{inputs.tag}}.tar.gz'
-          path: ./target/${{matrix.target}}/${{ matrix.bin }}
+          path: ./target/${{matrix.target}}/release/${{ matrix.bin }}
 
       - name: Release
         uses: softprops/action-gh-release@v1
