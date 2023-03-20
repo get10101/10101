@@ -115,43 +115,42 @@ impl Node {
         Ok(())
     }
 
-    pub fn get_sub_channel_offer(&self, pubkey: &PublicKey) -> Result<Option<SubChannel>> {
-        let matcher = |sub_channel: &&SubChannel| {
-            sub_channel.counter_party == *pubkey
-                && matches!(&sub_channel.state, SubChannelState::Offered(_))
+    pub fn get_dlc_channel_offer(&self, pubkey: &PublicKey) -> Result<Option<SubChannel>> {
+        let matcher = |dlc_channel: &&SubChannel| {
+            dlc_channel.counter_party == *pubkey
+                && matches!(&dlc_channel.state, SubChannelState::Offered(_))
         };
+        let dlc_channel = self.get_dlc_channel(&matcher)?; // `get_offered_sub_channels` appears to have a bug
 
-        let sub_channel = self.get_sub_channel(&matcher)?; // `get_offered_sub_channels` appears to have a bug
-        Ok(sub_channel)
+        Ok(dlc_channel)
     }
 
-    pub fn get_sub_channel_signed(&self, pubkey: &PublicKey) -> Result<Option<SubChannel>> {
-        let matcher = |sub_channel: &&SubChannel| {
-            sub_channel.counter_party == *pubkey
-                && matches!(&sub_channel.state, SubChannelState::Signed(_))
+    pub fn get_dlc_channel_signed(&self, pubkey: &PublicKey) -> Result<Option<SubChannel>> {
+        let matcher = |dlc_channel: &&SubChannel| {
+            dlc_channel.counter_party == *pubkey
+                && matches!(&dlc_channel.state, SubChannelState::Signed(_))
         };
-
-        let sub_channel = self.get_sub_channel(&matcher)?;
-        Ok(sub_channel)
+        let dlc_channel = self.get_dlc_channel(&matcher)?;
+        Ok(dlc_channel)
     }
 
-    pub fn get_sub_channel_close_offer(&self, pubkey: &PublicKey) -> Result<Option<SubChannel>> {
-        let matcher = |sub_channel: &&SubChannel| {
-            sub_channel.counter_party == *pubkey
-                && matches!(&sub_channel.state, SubChannelState::CloseOffered(_))
+    pub fn get_dlc_channel_close_offer(&self, pubkey: &PublicKey) -> Result<Option<SubChannel>> {
+        let matcher = |dlc_channel: &&SubChannel| {
+            dlc_channel.counter_party == *pubkey
+                && matches!(&dlc_channel.state, SubChannelState::CloseOffered(_))
         };
-        let sub_channel = self.get_sub_channel(&matcher)?;
+        let dlc_channel = self.get_dlc_channel(&matcher)?;
 
-        Ok(sub_channel)
+        Ok(dlc_channel)
     }
 
-    fn get_sub_channel(
+    fn get_dlc_channel(
         &self,
         matcher: impl FnMut(&&SubChannel) -> bool,
     ) -> Result<Option<SubChannel>> {
         let dlc_channels = self.list_dlc_channels()?;
-
         let dlc_channel = dlc_channels.iter().find(matcher);
+
         Ok(dlc_channel.cloned())
     }
 

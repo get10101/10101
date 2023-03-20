@@ -173,7 +173,7 @@ impl Node {
     /// caller to extend or reduce the position. _This is currently
     /// not supported_.
     fn decide_trade_action(&self, trade_params: &TradeParams) -> Result<TradeAction> {
-        let action = match self.inner.get_sub_channel_signed(&trade_params.pubkey)? {
+        let action = match self.inner.get_dlc_channel_signed(&trade_params.pubkey)? {
             Some(subchannel) => {
                 // FIXME: Should query the database for more
                 // information
