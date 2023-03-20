@@ -88,7 +88,7 @@ wipe-app:
     # Array of possible app data directories (OS dependent)
     directories=(
       "$HOME/Library/Containers/finance.get10101.app/Data/Library/Application Support/finance.get10101.app"
-      "$HOME/.local/share/10101/"
+      "$HOME/.local/share/finance.get10101.app/"
     )
     # Remove all possible app data directories
     for dir in "${directories[@]}"
