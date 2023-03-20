@@ -1,7 +1,9 @@
+import 'package:candlesticks/candlesticks.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_10101/common/amount_denomination_change_notifier.dart';
 import 'package:get_10101/common/domain/model.dart';
+import 'package:get_10101/features/trade/candlestick_change_notifier.dart';
 import 'package:get_10101/features/trade/order_change_notifier.dart';
 import 'package:get_10101/features/trade/position_change_notifier.dart';
 import 'package:get_10101/features/trade/submit_order_change_notifier.dart';
@@ -26,6 +28,9 @@ import 'package:get_10101/features/trade/application/position_service.dart';
 
 @GenerateNiceMocks([MockSpec<WalletService>()])
 import 'package:get_10101/features/wallet/application/wallet_service.dart';
+
+@GenerateNiceMocks([MockSpec<CandlestickService>()])
+import 'package:get_10101/features/trade/application/candlestick_service.dart';
 
 import 'trade_test.mocks.dart';
 
@@ -69,6 +74,7 @@ void main() {
     MockPositionService positionService = MockPositionService();
     MockTradeValuesService tradeValueService = MockTradeValuesService();
     MockWalletService walletService = MockWalletService();
+    MockCandlestickService candlestickService = MockCandlestickService();
 
     // TODO: we could make this more resilient in the underlying components...
     // return dummies otherwise the fields won't be initialized correctly
@@ -86,6 +92,17 @@ void main() {
             price: anyNamed('price'), leverage: anyNamed('leverage'), margin: anyNamed('margin')))
         .thenReturn(100);
 
+    when(candlestickService.fetchCandles(1000)).thenAnswer((_) async {
+      return getDummyCandles(1000);
+    });
+    when(candlestickService.fetchCandles(1)).thenAnswer((_) async {
+      return getDummyCandles(1);
+    });
+
+    CandlestickChangeNotifier candlestickChangeNotifier =
+        CandlestickChangeNotifier(candlestickService);
+    await candlestickChangeNotifier.initialize();
+
     SubmitOrderChangeNotifier submitOrderChangeNotifier = SubmitOrderChangeNotifier(orderService);
 
     await tester.pumpWidget(MultiProvider(providers: [
@@ -95,6 +112,7 @@ void main() {
       ChangeNotifierProvider(create: (context) => PositionChangeNotifier(positionService)),
       ChangeNotifierProvider(create: (context) => AmountDenominationChangeNotifier()),
       ChangeNotifierProvider(create: (context) => WalletChangeNotifier(walletService)),
+      ChangeNotifierProvider(create: (context) => candlestickChangeNotifier)
     ], child: const TestWrapperWithTradeTheme(child: TradeScreen())));
 
     await tester.pumpAndSettle();
@@ -121,4 +139,19 @@ void main() {
 
     verify(orderService.submitMarketOrder(any, any, any, any)).called(1);
   });
+}
+
+List<Candle> getDummyCandles(int amount) {
+  List<Candle> candles = List.empty(growable: true);
+  for (int i = 0; i < amount; i++) {
+    candles.add(Candle(
+      date: DateTime.now(),
+      close: 23.000,
+      high: 24.000,
+      low: 22.000,
+      open: 22.000,
+      volume: 23.000,
+    ));
+  }
+  return candles;
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get_10101/common/submission_status_dialog.dart';
 import 'package:get_10101/common/value_data_row.dart';
+import 'package:get_10101/features/trade/candlestick_change_notifier.dart';
 import 'package:get_10101/features/trade/contract_symbol_icon.dart';
 import 'package:get_10101/features/trade/domain/contract_symbol.dart';
 import 'package:get_10101/features/trade/domain/direction.dart';
@@ -10,7 +11,7 @@ import 'package:get_10101/features/trade/position_change_notifier.dart';
 import 'package:get_10101/features/trade/position_list_item.dart';
 import 'package:get_10101/features/trade/submit_order_change_notifier.dart';
 import 'package:get_10101/features/trade/trade_bottom_sheet.dart';
-import 'package:get_10101/features/trade/candlestick_chart.dart';
+import 'package:candlesticks/candlesticks.dart';
 import 'package:get_10101/features/trade/trade_tabs.dart';
 import 'package:get_10101/features/trade/trade_theme.dart';
 import 'package:provider/provider.dart';
@@ -96,6 +97,8 @@ class TradeScreen extends StatelessWidget {
 
     OrderChangeNotifier orderChangeNotifier = context.watch<OrderChangeNotifier>();
     PositionChangeNotifier positionChangeNotifier = context.watch<PositionChangeNotifier>();
+    CandlestickChangeNotifier candlestickChangeNotifier =
+        context.watch<CandlestickChangeNotifier>();
 
     return Scaffold(
         body: Container(
@@ -107,7 +110,14 @@ class TradeScreen extends StatelessWidget {
               ),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: const [CandlestickChart()],
+                children: [
+                  SizedBox(
+                    height: 300,
+                    child: Candlesticks(
+                      candles: candlestickChangeNotifier.candles,
+                    ),
+                  )
+                ],
               ),
               Expanded(
                 child: TradeTabs(
