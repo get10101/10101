@@ -100,7 +100,9 @@ impl Node {
                             .dlc_message_handler
                             .send_message(node_id, Message::SubChannel(reply_msg.clone()));
 
-                        if let SubChannelMessage::Finalize(_) = reply_msg {
+                        if let SubChannelMessage::Finalize(_)
+                        | SubChannelMessage::CloseFinalize(_) = reply_msg
+                        {
                             let offer_collateral =
                                 get_first_confirmed_dlc(&self.inner.dlc_manager)?.offer_collateral;
 
