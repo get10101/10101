@@ -39,14 +39,6 @@ jobs:
           fetch-depth: 0
           ref: ${{ github.event.inputs.ref }}
 
-      - name: Build ${{ matrix.bin }} for ${{ matrix.target }}
-        uses: ./.github/actions/build-release-binary
-        id: build
-        with:
-          target: ${{ matrix.target }}
-          gh_token: ${{ secrets.GH_ACTION_TOKEN }}
-          binary: ${{ matrix.bin }}
-
       - name: Login into github registry
         uses: docker/login-action@v2.1.0
         with:
@@ -55,6 +47,15 @@ jobs:
           # username: ${{ github.actor }}
           username: ${{ github.actor }}
           password: ${{ secrets.GH_ACTION_TOKEN }}
+
+      - name: Build ${{ matrix.bin }} for ${{ matrix.target }}
+        uses: ./.github/actions/build-release-binary
+        id: build
+        with:
+          target: ${{ matrix.target }}
+          gh_token: ${{ secrets.GH_ACTION_TOKEN }}
+          binary: ${{ matrix.bin }}
+
 
       - name: Archive Release
         uses: thedoctor0/zip-release@0.7.1
