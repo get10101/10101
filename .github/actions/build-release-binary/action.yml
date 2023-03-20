@@ -1,0 +1,33 @@
+name: Build release binary
+description: Builds a release binary including
+
+inputs:
+  target:
+    description: "The Rust target to build for."
+    required: true
+  gh_token:
+    description: "A GITHUB_TOKEN authorized to check out source code and call GH API."
+    required: true
+  binary:
+    description: "The binary to build (maker | coordinator)."
+    required: true
+outputs:
+  path:
+    description: "The path to the built binary."
+    value: target/${{ inputs.target }}/release/${{ inputs.binary }}
+
+
+runs:
+  using: "composite"
+  steps:
+    - name: Setup rust toolchain
+      shell: bash
+      run: rustup show
+
+    - uses: Swatinem/rust-cache@v2.0.1
+      with:
+        key: ${{ inputs.target }}
+
+    - name: Build ${{ inputs.target }} ${{ inputs.binary }} release binary
+      shell: bash
+      run: cargo build --target=${{ inputs.target }} --release --bin ${{ inputs.binary }}
