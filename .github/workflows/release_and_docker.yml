@@ -46,7 +46,7 @@ jobs:
           # Note: if you want to fork this repo and push a container to your fork, you need to change this line to
           # username: ${{ github.actor }}
           username: ${{ github.actor }}
-          password: ${{ secrets.GH_ACTION_TOKEN }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build ${{ matrix.bin }} for ${{ matrix.target }}
         uses: ./.github/actions/build-release-binary
