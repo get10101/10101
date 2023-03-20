@@ -71,7 +71,7 @@ jobs:
           triple = "${{ matrix.target }}".split("-")
           arch = triple[0]
 
-          archive_name=f'${{ matrix.bin }}_${{ input.tag }}_{os_info.system}_{arch}.${{ matrix.archive_ext }}'
+          archive_name=f'${{ matrix.bin }}_${{ inputs.tag }}_{os_info.system}_{arch}.${{ matrix.archive_ext }}'
 
           print(f'::set-output name=archive::{archive_name}')
           
