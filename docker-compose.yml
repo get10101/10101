@@ -160,16 +160,6 @@ services:
       vtto:
         ipv4_address: 10.5.0.8
 
-  adminer:
-    container_name: adminer
-    image: adminer
-    restart: always
-    ports:
-      - 8888:8080
-    networks:
-      vtto:
-        ipv4_address: 10.5.0.9
-
 networks:
   default:
     name: vtto
