@@ -39,7 +39,8 @@ jobs:
           fetch-depth: 0
           ref: ${{ github.event.inputs.ref }}
 
-      - uses: ./.github/actions/build-release-binary
+      - name: Build ${{ matrix.bin }} for ${{ matrix.target }}
+        uses: ./.github/actions/build-release-binary
         id: build
         with:
           target: ${{ matrix.target }}
@@ -55,15 +56,10 @@ jobs:
           username: ${{ github.repository }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # Remove once python 3 is the default
-      - uses: actions/setup-python@v4
-        with:
-          python-version: "3.x"
-
       - name: Archive Release
         uses: thedoctor0/zip-release@0.7.1
         with:
-          type: 'zip'
+          type: 'tar'
           filename: '${{ matrix.bin }}-${{matrix.target}}-${{inputs.tag}}.tar.gz'
           path: ./target/${{matrix.target}}/release/${{ matrix.bin }}
 
