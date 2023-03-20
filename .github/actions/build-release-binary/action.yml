@@ -31,3 +31,7 @@ runs:
     - name: Build ${{ inputs.target }} ${{ inputs.binary }} release binary
       shell: bash
       run: cargo build --target=${{ inputs.target }} --release --bin ${{ inputs.binary }}
+
+    - name: List build artifacts
+      shell: bash
+      run: find ./target
