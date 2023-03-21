@@ -1,6 +1,8 @@
 import 'package:get_10101/features/trade/domain/position.dart';
 import 'package:get_10101/ffi.dart' as rust;
 
+import '../domain/price.dart';
+
 class PositionService {
   Future<List<Position>> fetchPositions() async {
     List<rust.Position> apiPositions = await rust.api.getPositions();
@@ -10,12 +12,12 @@ class PositionService {
   }
 
   /// Returns the pnl in sat
-  int calculatePnl(Position position, double bid, double ask) {
+  int calculatePnl(Position position, Price price) {
     return rust.api.calculatePnl(
         openingPrice: position.averageEntryPrice,
         closingPrice: rust.Price(
-          bid: bid,
-          ask: ask,
+          bid: price.bid,
+          ask: price.ask,
         ),
         quantity: position.quantity,
         leverage: position.leverage.leverage,
