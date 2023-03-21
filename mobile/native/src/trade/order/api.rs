@@ -102,9 +102,9 @@ impl From<order::OrderState> for OrderState {
             order::OrderState::Initial => unimplemented!(
                 "don't expose orders that were not submitted into the orderbook to the frontend!"
             ),
-            order::OrderState::Rejected => unimplemented!(
-                "don't expose orders that were rejected by the orderbook to the frontend!"
-            ),
+            // TODO: At the moment the UI does not depict Rejected, we map it to Failed; for better
+            // feedback we should change that eventually
+            order::OrderState::Rejected => OrderState::Failed,
             // We don't expose this state, but treat it as Open in the UI
             order::OrderState::Filling { .. } => OrderState::Open,
         }

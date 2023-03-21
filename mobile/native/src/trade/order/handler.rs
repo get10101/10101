@@ -27,16 +27,11 @@ pub async fn submit_order(order: Order) -> Result<()> {
     if let Err(err) = orderbook_client.post_new_order(order.into()).await {
         let order_id = order.id.to_string();
         tracing::error!(order_id, "Failed to post new order. Error: {err:#}");
-        db::update_order_state(order.id, OrderState::Rejected)?;
+        update_order_state(order.id, OrderState::Rejected)?;
         bail!("Could not post order to orderbook");
     }
-    db::update_order_state(order.id, OrderState::Open)?;
 
-    let order = Order {
-        state: OrderState::Open,
-        ..order
-    };
-    ui_update(order);
+    update_order_state(order.id, OrderState::Open)?;
 
     Ok(())
 }
