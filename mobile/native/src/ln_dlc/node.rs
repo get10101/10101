@@ -1,5 +1,3 @@
-use crate::api::Balances;
-use crate::api::WalletHistoryItem;
 use crate::trade::order;
 use crate::trade::position;
 use anyhow::anyhow;
@@ -20,7 +18,7 @@ pub struct Node {
     pub inner: Arc<ln_dlc_node::node::Node>,
 }
 
-pub struct WalletInfo {
+pub struct WalletInfoNode {
     on_chain_balance: u64,
     off_chain_balance: u64,
 
@@ -29,8 +27,8 @@ pub struct WalletInfo {
 }
 
 impl Node {
-    pub fn get_wallet_info_from_node(&self) -> Result<WalletInfo> {
-        let wallet_info = WalletInfo {
+    pub fn get_wallet_info_from_node(&self) -> Result<WalletInfoNode> {
+        let wallet_info = WalletInfoNode {
             off_chain_balance: self.inner.get_ldk_balance().available,
             on_chain_balance: self
                 .inner

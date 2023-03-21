@@ -1,4 +1,3 @@
-use crate::api::WalletInfo;
 use crate::config;
 use crate::event;
 use crate::event::EventInternal;
@@ -32,7 +31,7 @@ const PROCESS_INCOMING_MESSAGES_INTERVAL: Duration = Duration::from_secs(5);
 
 pub fn refresh_wallet_info() -> Result<()> {
     let node = NODE.try_get().context("failed to get ln dlc node")?;
-    let wallet_info = node.get_wallet_info_from_node();
+    let wallet_info = node.get_wallet_info_from_node().unwrap();
     refresh_wallet_info_internal(wallet_info);
 
     Ok(())
@@ -150,7 +149,7 @@ pub fn run(data_dir: String) -> Result<()> {
                 loop {
                     // todo: the node sync should not swallow the error.
                     node.inner.sync();
-                    let wallet_info_node = node.get_wallet_info_from_node();
+                    let wallet_info_node = node.get_wallet_info_from_node().unwrap();
                     refresh_wallet_info_internal(wallet_info_node);
                     tokio::time::sleep(Duration::from_secs(10)).await;
                 }
@@ -163,13 +162,15 @@ pub fn run(data_dir: String) -> Result<()> {
     })
 }
 
-fn refresh_wallet_info_internal(wallet_info_node: node::WalletInfo) {
+fn refresh_wallet_info_internal(_wallet_info_node: node::WalletInfoNode) {
     // TODO: Load the orders from db and add
     // TODO: Sort history by timestamp
 
-    event::publish(&EventInternal::WalletInfoUpdateNotification(
-        wallet_info_node,
-    ));
+    // event::publish(&EventInternal::WalletInfoUpdateNotification(
+    //     wallet_info_node,
+    // ));
+
+    unimplemented!()
 }
 
 pub fn get_new_address() -> Result<String> {

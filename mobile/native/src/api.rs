@@ -51,19 +51,19 @@ pub struct WalletHistoryItem {
     pub wallet_type: WalletType,
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 pub enum WalletType {
-    OnChain {
-        address: String,
-        txid: String,
-    },
-    #[default]
-    Lightning {
-        counterparty_node_id: String,
-    },
-    Trade {
-        order_id: String,
-    },
+    OnChain { address: String, txid: String },
+    Lightning { counterparty_node_id: String },
+    Trade { order_id: String },
+}
+
+impl Default for WalletType {
+    fn default() -> Self {
+        WalletType::Lightning {
+            counterparty_node_id: "".to_string(),
+        }
+    }
 }
 
 #[derive(Clone, Debug, Default)]

@@ -59,7 +59,8 @@ impl LnDlcWallet {
     }
 
     pub(crate) fn list_transactions(&self) -> Result<Vec<TransactionDetails>, bdk::Error> {
-        self.ln_wallet.get_wallet()?.list_transactions(false)
+        // self.ln_wallet.get_wallet()?.list_transactions(false)
+        unimplemented!()
     }
 }
 
