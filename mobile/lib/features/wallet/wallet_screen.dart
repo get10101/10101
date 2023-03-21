@@ -3,13 +3,13 @@ import 'package:flutter_speed_dial/flutter_speed_dial.dart';
 import 'package:get_10101/common/amount_text.dart';
 import 'package:get_10101/features/wallet/balance_row.dart';
 import 'package:get_10101/features/wallet/create_invoice_screen.dart';
+import 'package:get_10101/features/wallet/domain/wallet_history.dart';
 import 'package:get_10101/features/wallet/wallet_theme.dart';
 import 'package:get_10101/features/wallet/send_screen.dart';
 import 'package:get_10101/features/wallet/wallet_change_notifier.dart';
 import 'package:get_10101/util/send_receive_icons.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import 'domain/wallet_type.dart';
 
 class WalletScreen extends StatefulWidget {
   static const route = "/wallet";
@@ -55,12 +55,16 @@ class _WalletScreenState extends State<WalletScreen> {
                 body: Padding(
                   padding: const EdgeInsets.only(left: 8.0, right: 8.0, bottom: 8.0),
                   child: Column(
-                    children: WalletType.values
-                        .map((type) => Padding(
-                              padding: const EdgeInsets.all(8.0),
-                              child: BalanceRow(walletType: type),
-                            ))
-                        .toList(growable: false),
+                    children: const [
+                      Padding(
+                        padding: EdgeInsets.all(8.0),
+                        child: BalanceRow(walletType: WalletHistoryItemDataType.lightning),
+                      ),
+                      Padding(
+                        padding: EdgeInsets.all(8.0),
+                        child: BalanceRow(walletType: WalletHistoryItemDataType.onChain),
+                      )
+                    ],
                   ),
                 ),
                 isExpanded: _isBalanceBreakdownOpen,
