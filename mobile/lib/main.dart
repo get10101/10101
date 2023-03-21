@@ -5,9 +5,11 @@ import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge.dart';
 import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
 import 'package:get_10101/common/application/event_service.dart';
+import 'package:get_10101/features/trade/application/candlestick_service.dart';
 import 'package:get_10101/features/trade/application/order_service.dart';
 import 'package:get_10101/features/trade/application/position_service.dart';
 import 'package:get_10101/features/trade/application/trade_values_service.dart';
+import 'package:get_10101/features/trade/candlestick_change_notifier.dart';
 import 'package:get_10101/features/trade/domain/position.dart';
 import 'package:get_10101/features/trade/order_change_notifier.dart';
 import 'package:get_10101/features/trade/position_change_notifier.dart';
@@ -65,6 +67,8 @@ void main() {
     ChangeNotifierProvider(
         create: (context) => PositionChangeNotifier(PositionService(), OrderService())),
     ChangeNotifierProvider(create: (context) => WalletChangeNotifier(const WalletService())),
+    ChangeNotifierProvider(
+        create: (context) => CandlestickChangeNotifier(const CandlestickService())),
     Provider(create: (context) => Environment.parse()),
   ], child: const TenTenOneApp()));
 }
@@ -155,8 +159,12 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
   @override
   void initState() {
     super.initState();
-    init(context.read<bridge.Config>(), context.read<OrderChangeNotifier>(),
-        context.read<PositionChangeNotifier>(), context.read<WalletChangeNotifier>());
+    init(
+        context.read<bridge.Config>(),
+        context.read<OrderChangeNotifier>(),
+        context.read<PositionChangeNotifier>(),
+        context.read<WalletChangeNotifier>(),
+        context.read<CandlestickChangeNotifier>());
   }
 
   @override
@@ -181,7 +189,8 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
       bridge.Config config,
       OrderChangeNotifier orderChangeNotifier,
       PositionChangeNotifier positionChangeNotifier,
-      WalletChangeNotifier walletChangeNotifier) async {
+      WalletChangeNotifier walletChangeNotifier,
+      CandlestickChangeNotifier candlestickChangeNotifier) async {
     try {
       setupRustLogging();
 
@@ -212,6 +221,7 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
 
       await orderChangeNotifier.initialize();
       await positionChangeNotifier.initialize();
+      await candlestickChangeNotifier.initialize();
 
       var lastLogin = await rust.api.updateLastLogin();
       FLog.debug(text: "Last login was at ${lastLogin.date}");
