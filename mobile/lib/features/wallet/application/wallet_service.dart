@@ -1,6 +1,5 @@
 import 'package:f_logs/f_logs.dart';
 import 'package:get_10101/common/domain/model.dart';
-import 'package:get_10101/features/wallet/domain/wallet_info.dart';
 import 'package:get_10101/ffi.dart' as rust;
 
 class WalletService {
