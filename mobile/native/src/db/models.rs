@@ -509,7 +509,7 @@ pub enum FailureReason {
     NodeAccess,
     NoUsableChannel,
     ProposeDlcChannel,
-    CannotExtendOrReduce,
+    OrderNotAcceptable,
 }
 
 impl From<FailureReason> for crate::trade::order::FailureReason {
@@ -525,8 +525,8 @@ impl From<FailureReason> for crate::trade::order::FailureReason {
             FailureReason::FailedToSetToFilling => {
                 crate::trade::order::FailureReason::FailedToSetToFilling
             }
-            FailureReason::CannotExtendOrReduce => {
-                crate::trade::order::FailureReason::CannotExtendOrReduce
+            FailureReason::OrderNotAcceptable => {
+                crate::trade::order::FailureReason::OrderNotAcceptable
             }
         }
     }
@@ -545,8 +545,8 @@ impl From<crate::trade::order::FailureReason> for FailureReason {
             crate::trade::order::FailureReason::FailedToSetToFilling => {
                 FailureReason::FailedToSetToFilling
             }
-            crate::trade::order::FailureReason::CannotExtendOrReduce => {
-                FailureReason::CannotExtendOrReduce
+            crate::trade::order::FailureReason::OrderNotAcceptable => {
+                FailureReason::OrderNotAcceptable
             }
         }
     }

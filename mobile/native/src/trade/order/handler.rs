@@ -18,7 +18,7 @@ pub async fn submit_order(order: Order) -> Result<()> {
     let orderbook_client = OrderbookClient::new(Url::parse(&url)?);
 
     if let Err(e) = position::handler::update_position_after_order_submitted(order) {
-        order_failed(Some(order.id), FailureReason::CannotExtendOrReduce, e)?;
+        order_failed(Some(order.id), FailureReason::OrderNotAcceptable, e)?;
         bail!("Not part of MVP scope");
     }
 

@@ -28,7 +28,7 @@ pub enum FailureReason {
     NoUsableChannel,
     ProposeDlcChannel,
     /// MVP scope: Can only close the order, not reduce or extend
-    CannotExtendOrReduce,
+    OrderNotAcceptable,
 }
 
 #[derive(Debug, Clone, Copy)]
