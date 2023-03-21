@@ -32,14 +32,7 @@ use trade::cfd::BTCUSD_MAX_PRICE;
 use trade::Direction;
 
 /// The leverage used by the coordinator for all trades.
-///
-/// TODO: In case of leverage 1.0 the liquidation will be set to
-/// 21_000_000. I guess this will result in issues when the overall
-/// upper boundary is smaller than that. It looks like the payout
-/// function will never finish in that case. Setting this value
-/// temporarily to 2.0 so that the liquidation price is below that
-/// total upper boundary.
-const COORDINATOR_LEVERAGE: f64 = 2.0;
+const COORDINATOR_LEVERAGE: f64 = 1.0;
 
 pub struct Node {
     pub inner: Arc<ln_dlc_node::node::Node>,
