@@ -10,13 +10,14 @@ import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
 import 'domain/position.dart';
 
 class PositionChangeNotifier extends ChangeNotifier implements Subscriber {
-  late PositionService _positionService;
-  late OrderService _orderService;
+  final PositionService _positionService;
+  final OrderService _orderService;
 
   Map<ContractSymbol, Position> positions = {};
 
-  late double _bid;
-  late double _ask;
+  // TODO: fetch price from backend and wire in price updates
+  final double _bid = 23000;
+  final double _ask = 23100;
 
   Future<void> initialize() async {
     List<Position> positions = await _positionService.fetchPositions();
@@ -24,17 +25,10 @@ class PositionChangeNotifier extends ChangeNotifier implements Subscriber {
       this.positions[position.contractSymbol] = position;
     }
 
-    // TODO: fetch price from backend and wire in price updates
-    _bid = 23000;
-    _ask = 23100;
-
     notifyListeners();
   }
 
-  PositionChangeNotifier(PositionService positionService, OrderService orderService) {
-    _positionService = positionService;
-    _orderService = orderService;
-  }
+  PositionChangeNotifier(this._positionService, this._orderService);
 
   @override
   void notify(bridge.Event event) {
