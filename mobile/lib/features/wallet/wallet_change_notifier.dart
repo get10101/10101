@@ -29,7 +29,7 @@ class WalletChangeNotifier extends ChangeNotifier implements Subscriber {
   }
 
   Future<void> refreshWalletInfo() async {
-    update(await service.getWalletInfo());
+    await service.refreshWalletInfo();
   }
 
   Amount total() => Amount(onChain().sats + lightning().sats);

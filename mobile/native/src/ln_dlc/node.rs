@@ -1,10 +1,11 @@
 use crate::api::Balances;
-use crate::api::WalletInfo;
+use crate::api::WalletHistoryItem;
 use crate::trade::order;
 use crate::trade::position;
 use anyhow::anyhow;
 use anyhow::Context;
 use anyhow::Result;
+use bdk::TransactionDetails;
 use dlc_messages::Message;
 use dlc_messages::SubChannelMessage;
 use ln_dlc_node::node::rust_dlc_manager::contract::Contract;
@@ -19,19 +20,28 @@ pub struct Node {
     pub inner: Arc<ln_dlc_node::node::Node>,
 }
 
+pub struct WalletInfo {
+    on_chain_balance: u64,
+    off_chain_balance: u64,
+
+    on_chain_history: Vec<TransactionDetails>,
+    off_chain_history: (),
+}
+
 impl Node {
-    pub fn get_wallet_info_from_node(&self) -> WalletInfo {
-        WalletInfo {
-            balances: Balances {
-                lightning: self.inner.get_ldk_balance().available,
-                on_chain: self
-                    .inner
-                    .get_on_chain_balance()
-                    .expect("balance")
-                    .confirmed,
-            },
-            history: vec![], // TODO: sync history
-        }
+    pub fn get_wallet_info_from_node(&self) -> Result<WalletInfo> {
+        let wallet_info = WalletInfo {
+            off_chain_balance: self.inner.get_ldk_balance().available,
+            on_chain_balance: self
+                .inner
+                .get_on_chain_balance()
+                .expect("balance")
+                .confirmed,
+            on_chain_history: self.inner.get_history()?,
+            off_chain_history: (),
+        };
+
+        Ok(wallet_info)
     }
 
     pub fn process_incoming_messages(&self) -> Result<()> {

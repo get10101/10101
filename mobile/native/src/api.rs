@@ -28,7 +28,7 @@ pub fn init_logging(sink: StreamSink<logger::LogEntry>) {
 #[derive(Clone, Debug, Default)]
 pub struct WalletInfo {
     pub balances: Balances,
-    pub history: Vec<Transaction>,
+    pub history: Vec<WalletHistoryItem>,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -37,25 +37,33 @@ pub struct Balances {
     pub lightning: u64,
 }
 
-pub fn refresh_wallet_info() -> Result<WalletInfo> {
-    ln_dlc::get_wallet_info()
+/// Assembles the wallet info and publishes wallet info update event
+pub fn refresh_wallet_info() -> Result<()> {
+    ln_dlc::refresh_wallet_info()
 }
 
 #[derive(Clone, Debug, Default)]
-pub struct Transaction {
-    // TODO(Restioson): newtype?
-    pub address: String,
+pub struct WalletHistoryItem {
     pub flow: PaymentFlow,
-    // TODO(Restioson): newtype?
     pub amount_sats: u64,
+    pub timestamp: u64,
+    pub status: Status,
     pub wallet_type: WalletType,
 }
 
 #[derive(Clone, Debug, Default)]
 pub enum WalletType {
-    OnChain,
+    OnChain {
+        address: String,
+        txid: String,
+    },
     #[default]
-    Lightning,
+    Lightning {
+        counterparty_node_id: String,
+    },
+    Trade {
+        order_id: String,
+    },
 }
 
 #[derive(Clone, Debug, Default)]
@@ -63,6 +71,13 @@ pub enum PaymentFlow {
     #[default]
     Inbound,
     Outbound,
+}
+
+#[derive(Clone, Debug, Default)]
+pub enum Status {
+    #[default]
+    Pending,
+    Confirmed,
 }
 
 pub fn calculate_margin(price: f64, quantity: f64, leverage: f64) -> SyncReturn<u64> {

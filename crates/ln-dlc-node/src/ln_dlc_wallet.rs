@@ -1,6 +1,7 @@
 use bdk::blockchain::ElectrumBlockchain;
 use bdk::sled;
 use bdk::wallet::AddressIndex;
+use bdk::TransactionDetails;
 use bitcoin::secp256k1::All;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::secp256k1::Secp256k1;
@@ -55,6 +56,10 @@ impl LnDlcWallet {
     pub(crate) fn tip(&self) -> anyhow::Result<(u32, BlockHeader)> {
         let (height, header) = self.ln_wallet.get_tip()?;
         Ok((height, header))
+    }
+
+    pub(crate) fn list_transactions(&self) -> Result<Vec<TransactionDetails>, bdk::Error> {
+        self.ln_wallet.get_wallet()?.list_transactions(false)
     }
 }
 

@@ -6,14 +6,11 @@ import 'package:get_10101/ffi.dart' as rust;
 class WalletService {
   const WalletService();
 
-  Future<WalletInfo?> getWalletInfo() async {
+  Future<void> refreshWalletInfo() async {
     try {
-      final walletInfo = WalletInfo.fromApi(await rust.api.refreshWalletInfo());
-      FLog.trace(text: 'Successfully retrieved wallet info');
-      return walletInfo;
+      await rust.api.refreshWalletInfo();
     } catch (error) {
-      FLog.error(text: "Failed to get wallet info: $error");
-      return null;
+      FLog.error(text: "Failed to refresh wallet info: $error");
     }
   }
 

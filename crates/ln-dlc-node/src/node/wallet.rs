@@ -1,6 +1,7 @@
 use crate::node::Node;
 use anyhow::anyhow;
 use anyhow::bail;
+use anyhow::Context;
 use anyhow::Result;
 use bdk::wallet::AddressIndex;
 use bitcoin::secp256k1::SecretKey;
@@ -38,6 +39,12 @@ impl Node {
 
     pub fn get_on_chain_balance(&self) -> Result<bdk::Balance> {
         self.wallet.inner().get_balance().map_err(|e| anyhow!(e))
+    }
+
+    pub fn get_history(&self) -> Result<Vec<bdk::TransactionDetails>> {
+        self.wallet
+            .list_transactions()
+            .context("Failed to retrieve transaction history")
     }
 
     pub fn node_key(&self) -> Result<SecretKey> {
