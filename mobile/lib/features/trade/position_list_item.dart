@@ -129,7 +129,18 @@ class PositionListItem extends StatelessWidget {
                     : () async {
                         await onClose();
                       },
-                child: const Text("Close Position"),
+                child: notNullPosition.positionState == PositionState.closing
+                    ? Row(
+                        children: const [
+                          SizedBox(
+                            width: 10,
+                            height: 10,
+                            child: CircularProgressIndicator(),
+                          ),
+                          Text("Closing ...")
+                        ],
+                      )
+                    : const Text("Close Position"),
               ),
             ],
           ),
