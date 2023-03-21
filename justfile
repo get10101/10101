@@ -1,4 +1,5 @@
 # To use this file, install Just: cargo install just
+set dotenv-load
 line_length := "100"
 coordinator_log_file := "$PWD/data/coordinator/regtest.log"
 maker_log_file := "$PWD/data/maker/regtest.log"
@@ -209,5 +210,13 @@ wait-for-electrs-to-be-ready:
             sleep 1
         fi
     done
+
+build-ipa:
+    cd mobile && flutter build ipa --dart-define="ELECTRS_ENDPOINT=${ELECTRS_ENDPOINT}" --dart-define="COORDINATOR_P2P_ENDPOINT=${COORDINATOR_P2P_ENDPOINT}"
+
+publish-testflight:
+    cd mobile && xcrun altool --upload-app --type ios --file ./build/ios/ipa/10101.ipa --apiKey ${ALTOOL_API_KEY} --apiIssuer ${ALTOOL_API_ISSUER}
+
+release-testflight: gen ios build-ipa publish-testflight
 
 # vim:expandtab:sw=4:ts=4

@@ -31,3 +31,6 @@ data/**
 
 # ignore CLion/Android Studio files
 .idea/
+
+# env file
+.env
