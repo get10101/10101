@@ -4,6 +4,7 @@ use anyhow::Result;
 use bdk::bitcoin::secp256k1::SecretKey;
 use bdk::bitcoin::secp256k1::SECP256K1;
 use futures::TryStreamExt;
+use orderbook_commons::best_current_price;
 use orderbook_commons::OrderbookMsg;
 use orderbook_commons::Signature;
 use state::Storage;
@@ -63,6 +64,13 @@ pub fn subscribe(secret_key: SecretKey) -> Result<()> {
 
                                 if let Err(e) = position::handler::trade(filled).await {
                                     tracing::error!("Trade request sent to coordinator failed. Error: {e:#}");
+                                }
+                            },
+                            OrderbookMsg::AllOrders(orders) => {
+                                // TODO: How to trigger this more often? this comes only initially
+                                tracing::debug!(?orders, "Received all orders from orderbook");
+                                if let Err(e) = position::handler::price_update(best_current_price(&orders)) {
+                                    tracing::error!("Price update from the orderbook failed. Error: {e:#}");
                                 }
                             },
                             _ => tracing::debug!(?msg, "Skipping message from orderbook"),

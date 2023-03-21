@@ -12,6 +12,7 @@ use anyhow::Context;
 use anyhow::Result;
 use coordinator_commons::TradeParams;
 use orderbook_commons::FilledWith;
+use orderbook_commons::Prices;
 use rust_decimal::prelude::ToPrimitive;
 use trade::ContractSymbol;
 use trade::Direction;
@@ -114,5 +115,10 @@ pub fn update_position_after_order_filled(filled_order: Order, collateral: u64) 
         ));
     }
 
+    Ok(())
+}
+
+pub fn price_update(prices: Prices) -> Result<()> {
+    event::publish(&EventInternal::PriceUpdateNotification(prices));
     Ok(())
 }

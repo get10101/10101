@@ -4,6 +4,7 @@ pub mod subscriber;
 
 use crate::api::WalletInfo;
 use coordinator_commons::TradeParams;
+use orderbook_commons::Prices;
 use std::hash::Hash;
 use trade::ContractSymbol;
 
@@ -29,6 +30,7 @@ pub enum EventInternal {
     OrderFilledWith(Box<TradeParams>),
     PositionUpdateNotification(Position),
     PositionCloseNotification(ContractSymbol),
+    PriceUpdateNotification(Prices),
 }
 
 impl From<EventInternal> for EventType {
@@ -43,6 +45,7 @@ impl From<EventInternal> for EventType {
             EventInternal::OrderFilledWith(_) => EventType::OrderFilledWith,
             EventInternal::PositionUpdateNotification(_) => EventType::PositionUpdateNotification,
             EventInternal::PositionCloseNotification(_) => EventType::PositionClosedNotification,
+            EventInternal::PriceUpdateNotification(_) => EventType::PriceUpdateNotification,
         }
     }
 }
@@ -56,4 +59,5 @@ pub enum EventType {
     OrderFilledWith,
     PositionUpdateNotification,
     PositionClosedNotification,
+    PriceUpdateNotification,
 }

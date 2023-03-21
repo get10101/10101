@@ -7,6 +7,7 @@ use crate::trade::position::api::Position;
 use core::convert::From;
 use flutter_rust_bridge::frb;
 use flutter_rust_bridge::StreamSink;
+use rust_decimal::prelude::ToPrimitive;
 use trade::ContractSymbol;
 
 #[frb]
@@ -18,6 +19,7 @@ pub enum Event {
     WalletInfoUpdateNotification(WalletInfo),
     PositionUpdateNotification(Position),
     PositionClosedNotification(PositionClosed),
+    PriceUpdateNotification(BestPrice),
 }
 
 impl From<EventInternal> for Event {
@@ -39,6 +41,14 @@ impl From<EventInternal> for Event {
             }
             EventInternal::PositionCloseNotification(contract_symbol) => {
                 Event::PositionClosedNotification(PositionClosed { contract_symbol })
+            }
+            EventInternal::PriceUpdateNotification(prices) => {
+                let best_price = prices
+                    .get(&ContractSymbol::BtcUsd)
+                    .cloned()
+                    .unwrap_or_default()
+                    .into();
+                Event::PriceUpdateNotification(best_price)
             }
         }
     }
@@ -72,6 +82,7 @@ impl Subscriber for FlutterSubscriber {
             EventType::OrderUpdateNotification,
             EventType::PositionUpdateNotification,
             EventType::PositionClosedNotification,
+            EventType::PriceUpdateNotification,
         ]
     }
 }
@@ -79,5 +90,29 @@ impl Subscriber for FlutterSubscriber {
 impl FlutterSubscriber {
     pub fn new(stream: StreamSink<Event>) -> Self {
         FlutterSubscriber { stream }
+    }
+}
+
+/// The best bid and ask price for a contract.
+///
+/// Best prices come from an orderbook. Contrary to the `Price` struct, we can have no price
+/// available, due to no orders in the orderbook.
+#[frb]
+#[derive(Clone, Debug, Default)]
+pub struct BestPrice {
+    pub bid: Option<f64>,
+    pub ask: Option<f64>,
+}
+
+impl From<orderbook_commons::Price> for BestPrice {
+    fn from(value: orderbook_commons::Price) -> Self {
+        BestPrice {
+            bid: value
+                .bid
+                .map(|bid| bid.to_f64().expect("price bid to fit into f64")),
+            ask: value
+                .ask
+                .map(|ask| ask.to_f64().expect("price ask to fit into f64")),
+        }
     }
 }
