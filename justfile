@@ -139,10 +139,10 @@ test: flutter-test native-test
 
 # Runs background Docker services
 docker:
-     docker-compose up -d
+    docker-compose up -d
 
 docker-logs:
-     docker-compose logs
+    docker-compose logs
 
 # Starts coordinator process in the background, piping logs to a file (used in other recipes)
 run-coordinator-detached:
