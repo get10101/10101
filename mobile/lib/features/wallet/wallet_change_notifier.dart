@@ -5,17 +5,56 @@ import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
 import 'package:get_10101/common/application/event_service.dart';
 import 'package:get_10101/common/domain/model.dart';
 import 'package:get_10101/features/wallet/application/wallet_service.dart';
+import 'package:get_10101/features/wallet/domain/payment_flow.dart';
 import 'package:get_10101/features/wallet/domain/wallet_balances.dart';
+import 'package:get_10101/features/wallet/domain/wallet_history.dart';
 import 'domain/wallet_info.dart';
 
 class WalletChangeNotifier extends ChangeNotifier implements Subscriber {
-  final WalletService service;
+  final WalletService _service;
   WalletInfo walletInfo = WalletInfo(
-    balances: WalletBalances(onChain: Amount(0), lightning: Amount(0)),
-    history: List.empty(),
+    balances: WalletBalances(onChain: Amount(0), lightning: Amount(100)),
+    // TODO: Remove this dummy data
+    history: [
+      WalletHistoryItemData(
+          flow: PaymentFlow.inbound,
+          amount: Amount(123471637),
+          type: WalletHistoryItemDataType.onChain,
+          status: WalletHistoryStatus.confirmed,
+          timestamp: DateTime.now(),
+          txid: "txidad;ofiasbdfabdfuaisdfalsdufbasdiufb"),
+      WalletHistoryItemData(
+          flow: PaymentFlow.inbound,
+          amount: Amount(12471637),
+          type: WalletHistoryItemDataType.onChain,
+          status: WalletHistoryStatus.pending,
+          timestamp: DateTime.now(),
+          txid: "txidad;ofiasbdfabdfuaisdfalsdufbasdiufb"),
+      WalletHistoryItemData(
+          flow: PaymentFlow.outbound,
+          amount: Amount(1000),
+          type: WalletHistoryItemDataType.trade,
+          status: WalletHistoryStatus.confirmed,
+          timestamp: DateTime.now(),
+          orderId: "123asdga7s8dasdofiasbdfabdfuaisdfalsdufbasdiufb"),
+      WalletHistoryItemData(
+          flow: PaymentFlow.outbound,
+          amount: Amount(100000),
+          type: WalletHistoryItemDataType.lightning,
+          status: WalletHistoryStatus.confirmed,
+          timestamp: DateTime.now(),
+          nodeId: "blablayaddayaddedNodeIdIsWonderful"),
+      WalletHistoryItemData(
+          flow: PaymentFlow.outbound,
+          amount: Amount(100000),
+          type: WalletHistoryItemDataType.lightning,
+          status: WalletHistoryStatus.pending,
+          timestamp: DateTime.now(),
+          nodeId: "blablayaddayaddedNodeIdIsWonderful")
+    ],
   );
 
-  WalletChangeNotifier(this.service);
+  WalletChangeNotifier(this._service);
 
   void update(WalletInfo? walletInfo) {
     if (walletInfo == null) {
@@ -29,7 +68,7 @@ class WalletChangeNotifier extends ChangeNotifier implements Subscriber {
   }
 
   Future<void> refreshWalletInfo() async {
-    await service.refreshWalletInfo();
+    await _service.refreshWalletInfo();
   }
 
   Amount total() => Amount(onChain().sats + lightning().sats);
