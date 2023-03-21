@@ -139,15 +139,18 @@ test: flutter-test native-test
 
 # Runs background Docker services
 docker:
-     docker-compose up -d
+    docker-compose up -d
 
 docker-logs:
-     docker-compose logs
+    docker-compose logs
 
 # Starts coordinator process in the background, piping logs to a file (used in other recipes)
 run-coordinator-detached:
     #!/usr/bin/env bash
     set -euxo pipefail
+
+    just wait-for-electrs-to-be-ready
+
     echo "Starting (and building) coordinator"
     cargo run --bin coordinator &> {{coordinator_log_file}} &
     echo "Coordinator successfully started. You can inspect the logs at {{coordinator_log_file}}"
@@ -156,6 +159,9 @@ run-coordinator-detached:
 run-maker-detached:
     #!/usr/bin/env bash
     set -euxo pipefail
+
+    just wait-for-electrs-to-be-ready
+
     echo "Starting (and building) maker"
     cargo run --bin maker &> {{maker_log_file}} &
     echo "Maker successfully started. You can inspect the logs at {{maker_log_file}}"
@@ -181,5 +187,27 @@ all: services gen native run
 
 # Run everything at once, tailored for iOS development (rebuilds iOS)
 all-ios: services gen ios run
+
+[private]
+wait-for-electrs-to-be-ready:
+    #!/usr/bin/env bash
+    set +e
+
+    check_if_electrs_is_ready ()
+    {
+        docker logs electrs 2>&1 | grep "Electrum RPC server running" > /dev/null
+        return $?
+    }
+
+    while true
+    do
+        if check_if_electrs_is_ready; then
+            echo "Electrum server is ready"
+            break
+        else
+            echo "Waiting for Electrum server to be ready"
+            sleep 1
+        fi
+    done
 
 # vim:expandtab:sw=4:ts=4
