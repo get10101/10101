@@ -68,7 +68,7 @@ impl Node {
 
         let contract_descriptor = build_contract_descriptor(
             total_collateral,
-            trade_params.weighted_execution_price(),
+            trade_params.average_execution_price(),
             leverage_long,
             leverage_short,
         )
@@ -129,7 +129,7 @@ impl Node {
         // rebuild the payout function. We must save the initial price
         // when creating the position and use it here again for
         // closing.
-        let initial_price = trade_params.weighted_execution_price();
+        let initial_price = trade_params.average_execution_price();
 
         let payout_function = build_payout_function(
             total_collateral,
@@ -210,7 +210,7 @@ enum TradeAction {
 
 fn margin_trader(trade_params: &TradeParams) -> u64 {
     calculate_margin(
-        trade_params.weighted_execution_price(),
+        trade_params.average_execution_price(),
         trade_params.quantity,
         trade_params.leverage,
     )
@@ -218,7 +218,7 @@ fn margin_trader(trade_params: &TradeParams) -> u64 {
 
 fn margin_coordinator(trade_params: &TradeParams) -> u64 {
     calculate_margin(
-        trade_params.weighted_execution_price(),
+        trade_params.average_execution_price(),
         trade_params.quantity,
         COORDINATOR_LEVERAGE,
     )
