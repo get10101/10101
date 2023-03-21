@@ -4,6 +4,7 @@ import 'package:get_10101/common/value_data_row.dart';
 import 'package:get_10101/features/trade/contract_symbol_icon.dart';
 import 'package:get_10101/features/trade/domain/contract_symbol.dart';
 import 'package:get_10101/features/trade/domain/direction.dart';
+import 'package:get_10101/features/trade/domain/position.dart';
 import 'package:get_10101/features/trade/order_change_notifier.dart';
 import 'package:get_10101/features/trade/order_list_item.dart';
 import 'package:get_10101/features/trade/position_change_notifier.dart';
@@ -97,6 +98,10 @@ class TradeScreen extends StatelessWidget {
     OrderChangeNotifier orderChangeNotifier = context.watch<OrderChangeNotifier>();
     PositionChangeNotifier positionChangeNotifier = context.watch<PositionChangeNotifier>();
 
+    SizedBox listBottomScrollSpace = const SizedBox(
+      height: 60,
+    );
+
     return Scaffold(
         body: Container(
           padding: const EdgeInsets.only(left: 15, right: 15),
@@ -120,17 +125,33 @@ class TradeScreen extends StatelessWidget {
                     ListView.builder(
                       shrinkWrap: true,
                       physics: const ClampingScrollPhysics(),
-                      itemCount: positionChangeNotifier.positions.length,
+                      itemCount: positionChangeNotifier.positions.length + 1,
                       itemBuilder: (BuildContext context, int index) {
+                        // Spacer at the bottom of the list
+                        if (index == positionChangeNotifier.positions.length) {
+                          return listBottomScrollSpace;
+                        }
+
+                        Position position = positionChangeNotifier.positions.values.toList()[index];
+
                         return PositionListItem(
-                            position: positionChangeNotifier.positions.values.toList()[index]);
+                          position: position,
+                          onClose: () async {
+                            await positionChangeNotifier.closePosition(position.contractSymbol);
+                          },
+                        );
                       },
                     ),
                     ListView.builder(
                       shrinkWrap: true,
                       physics: const ClampingScrollPhysics(),
-                      itemCount: orderChangeNotifier.orders.length,
+                      itemCount: orderChangeNotifier.orders.length + 1,
                       itemBuilder: (BuildContext context, int index) {
+                        // Spacer at the bottom of the list
+                        if (index == orderChangeNotifier.orders.length) {
+                          return listBottomScrollSpace;
+                        }
+
                         return OrderListItem(
                             order: orderChangeNotifier.orders.values.toList()[index]);
                       },

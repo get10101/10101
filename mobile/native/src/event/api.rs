@@ -7,6 +7,7 @@ use crate::trade::position::api::Position;
 use core::convert::From;
 use flutter_rust_bridge::frb;
 use flutter_rust_bridge::StreamSink;
+use trade::ContractSymbol;
 
 #[frb]
 #[derive(Clone)]
@@ -16,6 +17,7 @@ pub enum Event {
     OrderUpdateNotification(Order),
     WalletInfoUpdateNotification(WalletInfo),
     PositionUpdateNotification(Position),
+    PositionClosedNotification(PositionClosed),
 }
 
 impl From<EventInternal> for Event {
@@ -35,8 +37,21 @@ impl From<EventInternal> for Event {
             EventInternal::PositionUpdateNotification(position) => {
                 Event::PositionUpdateNotification(position.into())
             }
+            EventInternal::PositionCloseNotification(contract_symbol) => {
+                Event::PositionClosedNotification(PositionClosed { contract_symbol })
+            }
         }
     }
+}
+
+/// Wrapper struct needed by frb
+///
+/// The mirrored `ContractSymbol` does not get picked up correctly when using it directly as
+/// type in an enum variant, so we wrap it in a struct.
+#[frb]
+#[derive(Clone, Copy)]
+pub struct PositionClosed {
+    pub contract_symbol: ContractSymbol,
 }
 
 #[derive(Clone)]
@@ -56,6 +71,7 @@ impl Subscriber for FlutterSubscriber {
             EventType::WalletInfoUpdateNotification,
             EventType::OrderUpdateNotification,
             EventType::PositionUpdateNotification,
+            EventType::PositionClosedNotification,
         ]
     }
 }

@@ -6,6 +6,7 @@ use crate::trade::order::orderbook_client::OrderbookClient;
 use crate::trade::order::FailureReason;
 use crate::trade::order::Order;
 use crate::trade::order::OrderState;
+use crate::trade::position;
 use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
@@ -15,6 +16,11 @@ use uuid::Uuid;
 pub async fn submit_order(order: Order) -> Result<()> {
     let url = format!("http://{}", config::get_http_endpoint());
     let orderbook_client = OrderbookClient::new(Url::parse(&url)?);
+
+    if let Err(e) = position::handler::update_position_after_order_submitted(order) {
+        order_failed(Some(order.id), FailureReason::OrderNotAcceptable, e)?;
+        bail!("Could not submit order because extending/reducing the position is not part of the MVP scope");
+    }
 
     db::insert_order(order)?;
 

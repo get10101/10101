@@ -32,4 +32,13 @@ enum Direction {
         return "short";
     }
   }
+
+  Direction opposite() {
+    switch (this) {
+      case Direction.long:
+        return Direction.short;
+      case Direction.short:
+        return Direction.long;
+    }
+  }
 }

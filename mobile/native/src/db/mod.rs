@@ -1,6 +1,7 @@
 use crate::api;
 use crate::db::models::Order;
 use crate::db::models::OrderState;
+use crate::db::models::Position;
 use crate::trade;
 use anyhow::anyhow;
 use anyhow::bail;
@@ -156,6 +157,42 @@ pub fn maybe_get_order_in_filling() -> Result<Option<trade::order::Order>> {
 pub fn delete_order(order_id: Uuid) -> Result<()> {
     let mut db = connection()?;
     Order::delete(order_id.to_string(), &mut db)?;
+
+    Ok(())
+}
+
+pub fn insert_position(position: trade::position::Position) -> Result<trade::position::Position> {
+    let mut db = connection()?;
+    let position = Position::insert(position.into(), &mut db)?;
+
+    Ok(position.into())
+}
+
+pub fn get_positions() -> Result<Vec<trade::position::Position>> {
+    let mut db = connection()?;
+    let positions = Position::get_all(&mut db)?;
+    let positions = positions
+        .into_iter()
+        .map(|position| position.into())
+        .collect();
+
+    Ok(positions)
+}
+
+pub fn delete_positions() -> Result<()> {
+    let mut db = connection()?;
+    Position::delete_all(&mut db)?;
+
+    Ok(())
+}
+
+pub fn update_position_state(
+    contract_symbol: ::trade::ContractSymbol,
+    position_state: trade::position::PositionState,
+) -> Result<()> {
+    let mut db = connection()?;
+    Position::update_state(contract_symbol.into(), position_state.into(), &mut db)
+        .context("Failed to update position state")?;
 
     Ok(())
 }

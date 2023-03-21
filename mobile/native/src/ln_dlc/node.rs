@@ -100,7 +100,9 @@ impl Node {
                             .dlc_message_handler
                             .send_message(node_id, Message::SubChannel(reply_msg.clone()));
 
-                        if let SubChannelMessage::Finalize(_) = reply_msg {
+                        if let SubChannelMessage::Finalize(_)
+                        | SubChannelMessage::CloseFinalize(_) = reply_msg
+                        {
                             let offer_collateral =
                                 get_first_confirmed_dlc(&self.inner.dlc_manager)?.offer_collateral;
 
@@ -112,9 +114,10 @@ impl Node {
                                 }
                             };
 
-                            if let Err(e) =
-                                position::handler::order_filled(filled_order, offer_collateral)
-                            {
+                            if let Err(e) = position::handler::update_position_after_order_filled(
+                                filled_order,
+                                offer_collateral,
+                            ) {
                                 tracing::error!(
                                     "Failed to handle position after receiving DLC: {e:#}"
                                 );

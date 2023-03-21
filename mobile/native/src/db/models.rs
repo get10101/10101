@@ -2,6 +2,7 @@ use crate::api;
 use crate::schema;
 use crate::schema::last_login;
 use crate::schema::orders;
+use crate::schema::positions;
 use anyhow::bail;
 use anyhow::Result;
 use diesel;
@@ -242,6 +243,119 @@ impl TryFrom<Order> for crate::trade::order::Order {
     }
 }
 
+#[derive(Queryable, QueryableByName, Insertable, Debug, Clone, PartialEq)]
+#[diesel(table_name = positions)]
+pub(crate) struct Position {
+    pub contract_symbol: ContractSymbol,
+    pub leverage: f64,
+    pub quantity: f64,
+    pub direction: Direction,
+    pub average_entry_price: f64,
+    pub liquidation_price: f64,
+    pub state: PositionState,
+    pub collateral: i64,
+    pub creation_timestamp: i64,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, FromSqlRow, AsExpression)]
+#[diesel(sql_type = Text)]
+pub enum PositionState {
+    Open,
+    Closing,
+}
+
+impl Position {
+    /// inserts the given position into the db. Returns the position if successful
+    pub fn insert(position: Position, conn: &mut SqliteConnection) -> Result<Position> {
+        let effected_rows = diesel::insert_into(positions::table)
+            .values(&position)
+            .execute(conn)?;
+
+        if effected_rows > 0 {
+            Ok(position)
+        } else {
+            bail!("Could not insert position")
+        }
+    }
+
+    pub fn get_all(conn: &mut SqliteConnection) -> QueryResult<Vec<Position>> {
+        positions::table.load(conn)
+    }
+
+    /// updates the status of the given order in the db
+    pub fn update_state(
+        contract_symbol: ContractSymbol,
+        state: PositionState,
+        conn: &mut SqliteConnection,
+    ) -> Result<()> {
+        let effected_rows = diesel::update(positions::table)
+            .filter(schema::positions::contract_symbol.eq(contract_symbol))
+            .set(schema::positions::state.eq(state))
+            .execute(conn)?;
+
+        if effected_rows == 0 {
+            bail!("Could not update position")
+        }
+
+        Ok(())
+    }
+
+    // TODO: This is obviously only for the MVP :)
+    /// deletes all positions in the database
+    pub fn delete_all(conn: &mut SqliteConnection) -> QueryResult<usize> {
+        diesel::delete(positions::table).execute(conn)
+    }
+}
+
+impl From<Position> for crate::trade::position::Position {
+    fn from(value: Position) -> Self {
+        Self {
+            leverage: value.leverage,
+            quantity: value.quantity,
+            contract_symbol: value.contract_symbol.into(),
+            direction: value.direction.into(),
+            average_entry_price: value.average_entry_price,
+            liquidation_price: value.liquidation_price,
+            position_state: value.state.into(),
+            collateral: value.collateral as u64,
+        }
+    }
+}
+
+impl From<crate::trade::position::Position> for Position {
+    fn from(value: crate::trade::position::Position) -> Self {
+        Self {
+            contract_symbol: value.contract_symbol.into(),
+            leverage: value.leverage,
+            quantity: value.quantity,
+            direction: value.direction.into(),
+            average_entry_price: value.average_entry_price,
+            liquidation_price: value.liquidation_price,
+            state: value.position_state.into(),
+            collateral: value.collateral as i64,
+            creation_timestamp: OffsetDateTime::now_utc().unix_timestamp(),
+        }
+    }
+}
+
+impl From<crate::trade::position::PositionState> for PositionState {
+    fn from(value: crate::trade::position::PositionState) -> Self {
+        match value {
+            crate::trade::position::PositionState::Open => PositionState::Open,
+            crate::trade::position::PositionState::Closing => PositionState::Closing,
+        }
+    }
+}
+
+impl From<PositionState> for crate::trade::position::PositionState {
+    fn from(value: PositionState) -> Self {
+        match value {
+            PositionState::Open => crate::trade::position::PositionState::Open,
+            PositionState::Closing => crate::trade::position::PositionState::Closing,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, FromSqlRow, AsExpression)]
 #[diesel(sql_type = Text)]
 pub enum ContractSymbol {
@@ -394,6 +508,7 @@ pub enum FailureReason {
     NodeAccess,
     NoUsableChannel,
     ProposeDlcChannel,
+    OrderNotAcceptable,
 }
 
 impl From<FailureReason> for crate::trade::order::FailureReason {
@@ -408,6 +523,9 @@ impl From<FailureReason> for crate::trade::order::FailureReason {
             }
             FailureReason::FailedToSetToFilling => {
                 crate::trade::order::FailureReason::FailedToSetToFilling
+            }
+            FailureReason::OrderNotAcceptable => {
+                crate::trade::order::FailureReason::OrderNotAcceptable
             }
         }
     }
@@ -425,6 +543,9 @@ impl From<crate::trade::order::FailureReason> for FailureReason {
             }
             crate::trade::order::FailureReason::FailedToSetToFilling => {
                 FailureReason::FailedToSetToFilling
+            }
+            crate::trade::order::FailureReason::OrderNotAcceptable => {
+                FailureReason::OrderNotAcceptable
             }
         }
     }

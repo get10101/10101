@@ -7,9 +7,10 @@ import 'package:get_10101/features/trade/trade_theme.dart';
 import 'contract_symbol_icon.dart';
 
 class PositionListItem extends StatelessWidget {
-  const PositionListItem({super.key, required this.position});
+  const PositionListItem({super.key, required this.position, required this.onClose});
 
   final Position? position;
+  final Function onClose;
 
   @override
   Widget build(BuildContext context) {
@@ -123,10 +124,23 @@ class PositionListItem extends StatelessWidget {
                 width: 10,
               ),
               ElevatedButton(
-                onPressed: () {
-                  // TODO: bottom sheet to close position
-                },
-                child: const Text("Close Position"),
+                onPressed: notNullPosition.positionState == PositionState.closing
+                    ? null
+                    : () async {
+                        await onClose();
+                      },
+                child: notNullPosition.positionState == PositionState.closing
+                    ? Row(
+                        children: const [
+                          SizedBox(
+                            width: 10,
+                            height: 10,
+                            child: CircularProgressIndicator(),
+                          ),
+                          Text("Closing ...")
+                        ],
+                      )
+                    : const Text("Close Position"),
               ),
             ],
           ),
