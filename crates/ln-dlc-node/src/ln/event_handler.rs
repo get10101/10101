@@ -28,6 +28,7 @@ use std::cmp;
 use std::collections::hash_map::Entry;
 use std::sync::Arc;
 use std::time::Duration;
+use time::OffsetDateTime;
 use tokio::runtime;
 
 pub struct EventHandler {
@@ -163,6 +164,7 @@ impl EventHandler {
                             secret: payment_secret,
                             status: HTLCStatus::Succeeded,
                             amt_msat: MillisatAmount(Some(amount_msat)),
+                            timestamp: OffsetDateTime::now_utc(),
                         });
                     }
                 }

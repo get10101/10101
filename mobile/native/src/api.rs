@@ -28,7 +28,7 @@ pub fn init_logging(sink: StreamSink<logger::LogEntry>) {
 #[derive(Clone, Debug, Default)]
 pub struct WalletInfo {
     pub balances: Balances,
-    pub history: Vec<Transaction>,
+    pub history: Vec<WalletHistoryItem>,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -37,25 +37,28 @@ pub struct Balances {
     pub lightning: u64,
 }
 
-pub fn refresh_wallet_info() -> Result<WalletInfo> {
-    ln_dlc::get_wallet_info()
+/// Assembles the wallet info and publishes wallet info update event
+#[tokio::main(flavor = "current_thread")]
+pub async fn refresh_wallet_info() -> Result<()> {
+    ln_dlc::refresh_wallet_info().await?;
+
+    Ok(())
 }
 
-#[derive(Clone, Debug, Default)]
-pub struct Transaction {
-    // TODO(Restioson): newtype?
-    pub address: String,
+#[derive(Clone, Debug)]
+pub struct WalletHistoryItem {
     pub flow: PaymentFlow,
-    // TODO(Restioson): newtype?
     pub amount_sats: u64,
+    pub timestamp: u64,
+    pub status: Status,
     pub wallet_type: WalletType,
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 pub enum WalletType {
-    OnChain,
-    #[default]
-    Lightning,
+    OnChain { txid: String },
+    Lightning { payment_hash: String },
+    Trade { order_id: String },
 }
 
 #[derive(Clone, Debug, Default)]
@@ -63,6 +66,13 @@ pub enum PaymentFlow {
     #[default]
     Inbound,
     Outbound,
+}
+
+#[derive(Clone, Debug, Default)]
+pub enum Status {
+    #[default]
+    Pending,
+    Confirmed,
 }
 
 pub fn calculate_margin(price: f64, quantity: f64, leverage: f64) -> SyncReturn<u64> {

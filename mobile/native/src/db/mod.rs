@@ -134,6 +134,22 @@ pub fn get_orders_for_ui() -> Result<Vec<trade::order::Order>> {
     Ok(mapped)
 }
 
+pub fn get_filled_orders() -> Result<Vec<trade::order::Order>> {
+    let mut db = connection()?;
+
+    let orders = Order::get_by_state(OrderState::Filled, &mut db)?;
+    let orders = orders
+        .into_iter()
+        .map(|order| {
+            order
+                .try_into()
+                .context("Failed to convert to trade::order::Order")
+        })
+        .collect::<Result<Vec<_>>>()?;
+
+    Ok(orders)
+}
+
 /// Returns an order of there is currently an order that is being filled
 pub fn maybe_get_order_in_filling() -> Result<Option<trade::order::Order>> {
     let mut db = connection()?;
