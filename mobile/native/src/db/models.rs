@@ -294,7 +294,7 @@ impl Position {
             .execute(conn)?;
 
         if effected_rows == 0 {
-            bail!("Could not update order")
+            bail!("Could not update position")
         }
 
         Ok(())
@@ -302,7 +302,6 @@ impl Position {
 
     // TODO: This is obviously only for the MVP :)
     /// deletes all positions in the database
-    /// Deletes given order from DB, in case of success, returns > 0, else 0 or Err
     pub fn delete_all(conn: &mut SqliteConnection) -> QueryResult<usize> {
         diesel::delete(positions::table).execute(conn)
     }

@@ -19,7 +19,7 @@ pub async fn submit_order(order: Order) -> Result<()> {
 
     if let Err(e) = position::handler::update_position_after_order_submitted(order) {
         order_failed(Some(order.id), FailureReason::OrderNotAcceptable, e)?;
-        bail!("Not part of MVP scope");
+        bail!("Could not submit order because extending/reducing the position is not part of the MVP scope");
     }
 
     db::insert_order(order)?;

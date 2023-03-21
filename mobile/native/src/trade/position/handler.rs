@@ -53,10 +53,10 @@ pub async fn get_positions() -> Result<Vec<Position>> {
     db::get_positions()
 }
 
-/// Update position once an order was filled
+/// Update the position once an order was submitted
 ///
-/// This crates or updates the position.
-/// If the position was closed we set it to `Closed` state.
+/// If the new order submitted is an order that closes the current position, then the position will
+/// be updated to `Closing` state.
 pub fn update_position_after_order_submitted(submitted_order: Order) -> Result<()> {
     if let Some(position) = db::get_positions()?.first() {
         // closing the position
@@ -80,7 +80,7 @@ pub fn update_position_after_order_submitted(submitted_order: Order) -> Result<(
 pub fn update_position_after_order_filled(filled_order: Order, collateral: u64) -> Result<()> {
     // We don't have a position yet
     if db::get_positions()?.is_empty() {
-        tracing::debug!("We don't have a position at the moment, creating it");
+        tracing::debug!("We don't have a position at the moment, creating it for order: {filled_order:?} with collateral {collateral}");
 
         let average_entry_price = filled_order.execution_price().unwrap_or(0.0);
         let have_a_position = Position {
