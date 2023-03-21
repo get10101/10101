@@ -81,12 +81,13 @@ class _WalletScreenState extends State<WalletScreen> {
               expansionCallback: (i, isOpen) => setState(() => _isBalanceBreakdownOpen = !isOpen),
             ),
             Divider(color: theme.dividerColor),
-            ElevatedButton(
-              onPressed: () {
-                context.go(CreateInvoiceScreen.route);
-              },
-              child: const Text("Fund Wallet"),
-            ),
+            if (walletChangeNotifier.lightning().sats == 0)
+              ElevatedButton(
+                onPressed: () {
+                  context.go(CreateInvoiceScreen.route);
+                },
+                child: const Text("Fund Wallet"),
+              ),
             const SizedBox(
               height: 10,
             ),
