@@ -35,82 +35,87 @@ class _WalletScreenState extends State<WalletScreen> {
     );
 
     return Scaffold(
-      body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            ExpansionPanelList(
-              children: [
-                ExpansionPanel(
-                  headerBuilder: (BuildContext context, bool isExpanded) {
-                    return Row(
-                      children: [
-                        // https://stackoverflow.com/a/70192038 - do not know if this is principled
-                        const SizedBox(
-                            width:
-                                64), // ExpansionPanelList IconContainer size: end margin 8 + padding 16*2 + size 24),
-                        Expanded(
-                          child: Center(
-                              child: AmountText(
-                                  amount: walletChangeNotifier.total(),
-                                  textStyle: const TextStyle(
-                                      fontSize: 20.0, fontWeight: FontWeight.bold))),
-                        )
-                      ],
+      body: RefreshIndicator(
+        onRefresh: () async {
+          await walletChangeNotifier.refreshWalletInfo();
+        },
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              ExpansionPanelList(
+                children: [
+                  ExpansionPanel(
+                    headerBuilder: (BuildContext context, bool isExpanded) {
+                      return Row(
+                        children: [
+                          // https://stackoverflow.com/a/70192038 - do not know if this is principled
+                          const SizedBox(
+                              width:
+                                  64), // ExpansionPanelList IconContainer size: end margin 8 + padding 16*2 + size 24),
+                          Expanded(
+                            child: Center(
+                                child: AmountText(
+                                    amount: walletChangeNotifier.total(),
+                                    textStyle: const TextStyle(
+                                        fontSize: 20.0, fontWeight: FontWeight.bold))),
+                          )
+                        ],
+                      );
+                    },
+                    body: Padding(
+                      padding: const EdgeInsets.only(left: 8.0, right: 8.0, bottom: 16.0),
+                      child: Column(
+                        children: const [
+                          Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 8.0),
+                            child: BalanceRow(walletType: WalletHistoryItemDataType.lightning),
+                          ),
+                          Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 8.0),
+                            child: BalanceRow(walletType: WalletHistoryItemDataType.onChain),
+                          )
+                        ],
+                      ),
+                    ),
+                    isExpanded: _isBalanceBreakdownOpen,
+                  )
+                ],
+                expansionCallback: (i, isOpen) => setState(() => _isBalanceBreakdownOpen = !isOpen),
+              ),
+              Divider(color: theme.dividerColor),
+              if (walletChangeNotifier.lightning().sats == 0)
+                ElevatedButton(
+                  onPressed: () {
+                    context.go(CreateInvoiceScreen.route);
+                  },
+                  child: const Text("Fund Wallet"),
+                ),
+              const SizedBox(
+                height: 10,
+              ),
+              Expanded(
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  physics: const ClampingScrollPhysics(),
+                  itemCount: walletChangeNotifier.walletInfo.history.length + 1,
+                  itemBuilder: (BuildContext context, int index) {
+                    // Spacer at the bottom of the list
+                    if (index == walletChangeNotifier.walletInfo.history.length) {
+                      return listBottomScrollSpace;
+                    }
+
+                    WalletHistoryItemData itemData = walletChangeNotifier.walletInfo.history[index];
+
+                    return WalletHistoryItem(
+                      data: itemData,
                     );
                   },
-                  body: Padding(
-                    padding: const EdgeInsets.only(left: 8.0, right: 8.0, bottom: 16.0),
-                    child: Column(
-                      children: const [
-                        Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 8.0),
-                          child: BalanceRow(walletType: WalletHistoryItemDataType.lightning),
-                        ),
-                        Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 8.0),
-                          child: BalanceRow(walletType: WalletHistoryItemDataType.onChain),
-                        )
-                      ],
-                    ),
-                  ),
-                  isExpanded: _isBalanceBreakdownOpen,
-                )
-              ],
-              expansionCallback: (i, isOpen) => setState(() => _isBalanceBreakdownOpen = !isOpen),
-            ),
-            Divider(color: theme.dividerColor),
-            if (walletChangeNotifier.lightning().sats == 0)
-              ElevatedButton(
-                onPressed: () {
-                  context.go(CreateInvoiceScreen.route);
-                },
-                child: const Text("Fund Wallet"),
+                ),
               ),
-            const SizedBox(
-              height: 10,
-            ),
-            Expanded(
-              child: ListView.builder(
-                shrinkWrap: true,
-                physics: const ClampingScrollPhysics(),
-                itemCount: walletChangeNotifier.walletInfo.history.length + 1,
-                itemBuilder: (BuildContext context, int index) {
-                  // Spacer at the bottom of the list
-                  if (index == walletChangeNotifier.walletInfo.history.length) {
-                    return listBottomScrollSpace;
-                  }
-
-                  WalletHistoryItemData itemData = walletChangeNotifier.walletInfo.history[index];
-
-                  return WalletHistoryItem(
-                    data: itemData,
-                  );
-                },
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
       floatingActionButton: SpeedDial(
