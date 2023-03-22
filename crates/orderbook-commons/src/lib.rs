@@ -1,3 +1,9 @@
+mod price;
+
+pub use crate::price::best_current_price;
+pub use crate::price::Price;
+pub use crate::price::Prices;
+use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use secp256k1::Message;
 use secp256k1::PublicKey;
@@ -195,6 +201,11 @@ mod test {
     use std::str::FromStr;
     use time::OffsetDateTime;
 
+    fn dummy_public_key() -> PublicKey {
+        PublicKey::from_str("02bd998ebd176715fe92b7467cf6b1df8023950a4dd911db4c94dfc89cc9f5a655")
+            .unwrap()
+    }
+
     #[test]
     fn test_serialize_signature() {
         let secret_key = SecretKey::from_slice(&[
@@ -221,7 +232,7 @@ mod test {
         let serialized: Signature = serde_json::from_str(sig).unwrap();
 
         let signature = Signature {
-            pubkey: PublicKey::from_str("02bd998ebd176715fe92b7467cf6b1df8023950a4dd911db4c94dfc89cc9f5a655").unwrap(),
+            pubkey: dummy_public_key(),
             signature: "3045022100ddd8e15dea994a3dd98c481d901fb46b7f3624bb25b4210ea10f8a00779c6f0e0220222235da47b1ba293184fa4a91b39999911c08020e069c9f4afa2d81586b23e1".parse().unwrap(),
         };
 
@@ -245,19 +256,13 @@ mod test {
                 Match {
                     order_id: Default::default(),
                     quantity: match_0_quantity,
-                    pubkey: PublicKey::from_str(
-                        "02bd998ebd176715fe92b7467cf6b1df8023950a4dd911db4c94dfc89cc9f5a655",
-                    )
-                    .unwrap(),
+                    pubkey: dummy_public_key(),
                     execution_price: match_0_price,
                 },
                 Match {
                     order_id: Default::default(),
                     quantity: match_1_quantity,
-                    pubkey: PublicKey::from_str(
-                        "02bd998ebd176715fe92b7467cf6b1df8023950a4dd911db4c94dfc89cc9f5a655",
-                    )
-                    .unwrap(),
+                    pubkey: dummy_public_key(),
                     execution_price: match_1_price,
                 },
             ],

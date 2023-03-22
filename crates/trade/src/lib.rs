@@ -8,7 +8,7 @@ use std::str::FromStr;
 
 pub mod cfd;
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum ContractSymbol {
     BtcUsd,
 }
