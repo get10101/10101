@@ -27,11 +27,11 @@ pub async fn submit_order(order: Order) -> Result<()> {
     if let Err(err) = orderbook_client.post_new_order(order.into()).await {
         let order_id = order.id.to_string();
         tracing::error!(order_id, "Failed to post new order. Error: {err:#}");
-        update_order_state(order.id, OrderState::Rejected)?;
+        update_order_state_in_db_and_ui(order.id, OrderState::Rejected)?;
         bail!("Could not post order to orderbook");
     }
 
-    update_order_state(order.id, OrderState::Open)?;
+    update_order_state_in_db_and_ui(order.id, OrderState::Open)?;
 
     Ok(())
 }
@@ -55,7 +55,7 @@ pub(crate) fn order_filled() -> Result<Order> {
     // Default the execution price in case we don't know
     let execution_price = order_being_filled.execution_price().unwrap_or(0.0);
 
-    let filled_order = update_order_state(
+    let filled_order = update_order_state_in_db_and_ui(
         order_being_filled.id,
         OrderState::Filled { execution_price },
     )?;
@@ -79,7 +79,7 @@ pub(crate) fn order_failed(
         Some(order_id) => order_id,
     };
 
-    update_order_state(order_id, OrderState::Failed { reason })?;
+    update_order_state_in_db_and_ui(order_id, OrderState::Failed { reason })?;
 
     Ok(())
 }
@@ -102,7 +102,7 @@ fn get_order_being_filled() -> Result<Order> {
     Ok(order_being_filled)
 }
 
-fn update_order_state(order_id: Uuid, state: OrderState) -> Result<Order> {
+fn update_order_state_in_db_and_ui(order_id: Uuid, state: OrderState) -> Result<Order> {
     db::update_order_state(order_id, state)
         .with_context(|| format!("Failed to update order {order_id} with state {state:?}"))?;
 
