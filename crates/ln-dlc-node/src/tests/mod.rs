@@ -4,6 +4,7 @@ use crate::node::Node;
 use crate::seed::Bip39Seed;
 use crate::util;
 use anyhow::anyhow;
+use anyhow::Context;
 use anyhow::Result;
 use bitcoin::Address;
 use bitcoin::Amount;
@@ -46,6 +47,9 @@ mod single_hop_payment;
 
 const ELECTRS_ORIGIN: &str = "tcp://localhost:50000";
 const FAUCET_ORIGIN: &str = "http://localhost:8080";
+
+/// The number of CETs generated using the discretised payout function.
+const N_CETS: u64 = 101;
 
 fn init_tracing() {
     static TRACING_TEST_SUBSCRIBER: Once = Once::new();
@@ -295,6 +299,8 @@ fn dummy_contract_input(
 ) -> ContractInput {
     let total_collateral = offer_collateral + accept_collateral;
 
+    let rounding_mod = rounding_mod(N_CETS, total_collateral).unwrap();
+
     ContractInput {
         offer_collateral,
         accept_collateral,
@@ -352,7 +358,7 @@ fn dummy_contract_input(
                 rounding_intervals: RoundingIntervals {
                     intervals: vec![RoundingInterval {
                         begin_interval: 0,
-                        rounding_mod: 1,
+                        rounding_mod,
                     }],
                 },
                 difference_params: None,
@@ -368,4 +374,12 @@ fn dummy_contract_input(
             },
         }],
     }
+}
+
+/// Calculate the rounding modulus to be used to round the payouts of the payout function, in order
+/// to reduce the number of CETs.
+fn rounding_mod(n_cets: u64, total_collateral: u64) -> Result<u64> {
+    total_collateral
+        .checked_div(n_cets - 1)
+        .context("Invalid number of CETs")
 }
