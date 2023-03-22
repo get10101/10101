@@ -329,10 +329,8 @@ impl Node {
         )?;
         let dlc_manager = Arc::new(dlc_manager);
 
-        let sub_channel_manager = {
-            let (height, _) = ln_dlc_wallet.tip()?;
-            sub_channel_manager::build(channel_manager.clone(), dlc_manager.clone(), height as u64)?
-        };
+        let sub_channel_manager =
+            sub_channel_manager::build(channel_manager.clone(), dlc_manager.clone())?;
 
         // Connection manager
         tokio::spawn({
