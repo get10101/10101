@@ -403,3 +403,41 @@ pub fn process_incoming_messages_internal(
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use proptest::prelude::*;
+    use rust_decimal::prelude::FromPrimitive;
+
+    proptest! {
+        #[test]
+        fn given_no_rounding_payout_function_generates_valid_payouts(
+            total_collateral in 1_000u64..100_000,
+            initial_price in 1_000f64..100_000.0,
+            leverage_long in 1f64..10.0,
+            leverage_short in 1f64..10.0,
+        ) {
+            let function = build_payout_function(
+                total_collateral,
+                Decimal::from_f64(initial_price).unwrap(),
+                leverage_long,
+                leverage_short
+            ).unwrap();
+
+            // The test will find failure scenarios for most other values
+            let rounding_mod = 1;
+
+            let rounding_intervals = RoundingIntervals {
+                intervals: vec![RoundingInterval {
+                    begin_interval: 0,
+                    rounding_mod,
+                }],
+            };
+
+            let res = function.to_range_payouts(total_collateral, &rounding_intervals);
+
+            prop_assert!(res.is_ok(), "{res:?}");
+        }
+    }
+}
