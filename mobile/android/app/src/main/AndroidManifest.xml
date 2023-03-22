@@ -1,5 +1,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="finance.get10101.app">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+
    <application
         android:label="10101"
         android:name="${applicationName}"
