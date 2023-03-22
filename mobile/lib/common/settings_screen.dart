@@ -1,8 +1,15 @@
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:f_logs/f_logs.dart';
 import 'package:flutter/material.dart';
 import 'package:get_10101/features/trade/settings_screen.dart';
 import 'package:get_10101/features/wallet/settings_screen.dart';
 import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
+import 'package:intl/intl.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({required this.fromRoute, super.key});
@@ -66,6 +73,19 @@ class SettingsScreen extends StatelessWidget {
             ),
           ],
         ),
+        ElevatedButton(
+            onPressed: () async {
+              var file = await FLog.exportLogs();
+              var logsAsString = await file.readAsString();
+              final List<int> bytes = utf8.encode(logsAsString);
+              final Directory tempDir = await getTemporaryDirectory();
+              String now = DateFormat('yyyy-MM-dd_HH:mm:ss').format(DateTime.now());
+              final String filePath = '${tempDir.path}/$now.logs';
+              await File(filePath).writeAsBytes(bytes);
+              final XFile logFile = XFile(filePath);
+              Share.shareXFiles([logFile], text: 'Logs from $now');
+            },
+            child: const Text("Share logs")),
       ])),
     );
   }
