@@ -16,8 +16,10 @@ dlc-messages = { version = "0.4.0" }
 flutter_rust_bridge = "1.68.0"
 futures = "0.3"
 hex = "0.4"
+libsqlite3-sys = { version = "0.25.2", features = ["bundled"] }
 lightning-invoice = { version = "0.21" }
 ln-dlc-node = { path = "../../crates/ln-dlc-node" }
+openssl = { version = "0.10.45", features = ["vendored"] }
 orderbook-client = { path = "../../crates/orderbook-client" }
 orderbook-commons = { path = "../../crates/orderbook-commons" }
 reqwest = { version = "0.11", default-features = false, features = ["json"] }
