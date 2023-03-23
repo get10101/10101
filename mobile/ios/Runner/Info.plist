@@ -49,5 +49,12 @@
 		<true/>
 		<key>UIStatusBarHidden</key>
 		<false/>
+        <key>NSAppTransportSecurity</key>
+            <dict>
+            <key>NSAllowsArbitraryLoads</key>
+            <true/>
+        </dict>
+        <key>ITSAppUsesNonExemptEncryption</key>
+        <false/>
 	</dict>
 </plist>
