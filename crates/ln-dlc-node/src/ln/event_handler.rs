@@ -402,13 +402,6 @@ impl EventHandler {
                 inbound_amount_msat,
                 expected_outbound_amount_msat,
             } => {
-                let fake_channel_payments = self.fake_channel_payments.clone();
-                let result = fake_channel_payments.lock();
-                let guard = result.unwrap();
-                let target_node_id = guard
-                    .get(&requested_next_hop_scid)
-                    .expect("To have a target node id stored");
-
                 let intercepted_id = hex::encode(intercept_id.0);
                 let payment_hash = hex::encode(payment_hash.0);
                 tracing::info!(
@@ -444,6 +437,21 @@ impl EventHandler {
                         .expect("Payment to succeed");
                     return;
                 }
+
+                let fake_channel_payments = self.fake_channel_payments.clone();
+                let result = fake_channel_payments.lock();
+                let guard = result.unwrap();
+
+                let target_node_id = match guard.get(&requested_next_hop_scid) {
+                    None => {
+                        tracing::warn!(fake_scid = requested_next_hop_scid, "Could not forward the intercepted HTLC because we didn't have a node registered with said fake scid");
+                        if let Err(err) = self.channel_manager.fail_intercepted_htlc(intercept_id) {
+                            tracing::error!("Could not fail intercepted htlc {err:?}")
+                        }
+                        return;
+                    }
+                    Some(target_node_id) => target_node_id,
+                };
 
                 // FIXME: This will set the channel capacity to twice the amount that is
                 // transferred or the `JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT` ensuring there
