@@ -1,0 +1,77 @@
+name: "Draft new release"
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "The new version in X.Y.Z format."
+        required: true
+
+jobs:
+  draft-new-release:
+    name: "Draft a new release"
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    env:
+      RELEASE_BRANCH: release/${{ github.event.inputs.version }}
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.GH_ACTION_TOKEN }}
+
+      - name: Create release branch
+        run: git checkout -b ${{ env.RELEASE_BRANCH }}
+
+      - name: Initialize mandatory git config
+        run: |
+          git config user.name "${{ secrets.GET10101_NAME }}"
+          git config user.email ${{ secrets.GET10101_EMAIL }}
+
+      - name: Update changelog
+        uses: thomaseizinger/keep-a-changelog-new-release@v1
+        with:
+          version: ${{ github.event.inputs.version }}
+
+      - name: Bump pubspec version
+        uses: fjogeleit/yaml-update-action@v0.12.2
+        with:
+          valueFile: "mobile/pubspec.yaml"
+          propertyPath: "version"
+          value: ${{ github.event.inputs.version }}
+          commitChange: false
+          updateFile: true
+
+      - name: Commit changelog and manifest files
+        id: make-commit
+        run: |
+          curl -fsSL https://dprint.dev/install.sh | sh
+          /home/runner/.dprint/bin/dprint fmt
+
+          git add CHANGELOG.md mobile/pubspec.yaml
+          git commit --message "Prepare release ${{ github.event.inputs.version }}"
+
+          echo "::set-output name=commit::$(git rev-parse HEAD)"
+
+      - name: Create pull request
+        run: |
+          # Force push to allow for easier re-runs of the action
+          git push origin ${{ env.RELEASE_BRANCH }} --force
+          # Use heredoc to define multiline string: https://stackoverflow.com/a/23930212/2489334
+          BODY=$(cat <<-EOF
+          Hi @${{ github.actor }}!
+          This PR was created in response to a manual trigger of the release workflow here: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}.
+          I've bumped the versions in the manifest files in this commit: ${{ steps.make-commit.outputs.commit }}.
+          Merging this PR will create a GitHub release!
+          EOF
+          )
+          gh pr create \
+            --reviewer ${{ github.actor }} \
+            --title "Release version ${{ github.event.inputs.version }}" \
+            --head ${{ env.RELEASE_BRANCH }} \
+            --body "$BODY"
+        env:
+          # Using a bot account is important to trigger subsequent workflows.
+          # See https://devopsdirective.com/posts/2020/07/stupid-github-actions/#2----recursive-action.
+          GITHUB_TOKEN: ${{ secrets.GH_ACTION_TOKEN }}
