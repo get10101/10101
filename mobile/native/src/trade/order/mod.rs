@@ -129,7 +129,6 @@ impl Order {
     pub fn trader_margin(&self) -> Option<u64> {
         let opening_price = self.execution_price()?;
 
-        // QUESTION: Is the leverage always the trader's leverage or the self_leverage?
         Some(calculate_margin(
             opening_price,
             self.quantity,

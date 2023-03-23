@@ -1,3 +1,4 @@
+use self::node::WalletHistories;
 use crate::api;
 use crate::config;
 use crate::event;
@@ -31,8 +32,6 @@ use std::sync::Arc;
 use std::time::Duration;
 use time::OffsetDateTime;
 use tokio::runtime::Runtime;
-
-use self::node::WalletHistories;
 
 mod node;
 
