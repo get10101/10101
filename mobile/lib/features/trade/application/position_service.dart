@@ -1,7 +1,6 @@
 import 'package:get_10101/features/trade/domain/position.dart';
+import 'package:get_10101/features/trade/domain/price.dart';
 import 'package:get_10101/ffi.dart' as rust;
-
-import '../domain/price.dart';
 
 class PositionService {
   Future<List<Position>> fetchPositions() async {

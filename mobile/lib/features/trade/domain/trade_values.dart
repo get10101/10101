@@ -1,8 +1,7 @@
 import 'package:get_10101/features/trade/domain/direction.dart';
 import 'package:get_10101/features/trade/domain/leverage.dart';
 import 'package:get_10101/common/domain/model.dart';
-
-import '../application/trade_values_service.dart';
+import 'package:get_10101/features/trade/application/trade_values_service.dart';
 
 class TradeValues {
   Amount margin;
