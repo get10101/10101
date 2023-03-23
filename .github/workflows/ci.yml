@@ -46,12 +46,10 @@ jobs:
       - uses: Swatinem/rust-cache@v2.2.0
       - uses: subosito/flutter-action@v2
         with:
+          flutter-version: "3.7.7"
           channel: "stable"
       - name: Install FFI bindings
-        uses: baptiste0928/cargo-install@v1
-        with:
-          crate: flutter_rust_bridge_codegen
-          version: "1.62.1"
+        run: just deps-gen
       - name: Generate FFI bindings
         run: just gen
       - run: cargo clippy --all-targets --all-features -- -D warnings
@@ -63,11 +61,12 @@ jobs:
       - uses: extractions/setup-just@v1
       - uses: subosito/flutter-action@v2
         with:
+          flutter-version: "3.7.7"
           channel: "stable"
       - name: Setup rust toolchain
         run: rustup show
       - name: Install FFI bindings
-        run: cargo install flutter_rust_bridge_codegen
+        run: just deps-gen
       - name: Generate FFI bindings
         run: just gen
       - name: Verify flutter formatting
@@ -88,12 +87,10 @@ jobs:
       - uses: Swatinem/rust-cache@v2.2.0
       - uses: subosito/flutter-action@v2
         with:
+          flutter-version: "3.7.7"
           channel: "stable"
       - name: Install FFI bindings
-        uses: baptiste0928/cargo-install@v1
-        with:
-          crate: flutter_rust_bridge_codegen
-          version: "1.63.1"
+        run: just deps-gen
       - name: Generate FFI bindings
         run: just gen
       - name: Running cargo tests
