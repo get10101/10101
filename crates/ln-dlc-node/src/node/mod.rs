@@ -108,11 +108,13 @@ pub(crate) const LIQUIDITY_ROUTING_FEE_MILLIONTHS: u32 = 20_000;
 
 impl Node {
     /// Constructs a new node to be run as the app
+    #[allow(clippy::too_many_arguments)]
     pub async fn new_app(
         alias: &str,
         network: Network,
         data_dir: &Path,
-        address: SocketAddr,
+        announcement_address: SocketAddr,
+        listen_address: SocketAddr,
         electrs_origin: String,
         seed: Bip39Seed,
         ephemeral_randomness: [u8; 32],
@@ -122,8 +124,12 @@ impl Node {
             alias,
             network,
             data_dir,
-            address,
-            vec![util::build_net_address(address.ip(), address.port())],
+            announcement_address,
+            listen_address,
+            vec![util::build_net_address(
+                announcement_address.ip(),
+                announcement_address.port(),
+            )],
             electrs_origin,
             seed,
             ephemeral_randomness,
@@ -141,7 +147,8 @@ impl Node {
         alias: &str,
         network: Network,
         data_dir: &Path,
-        address: SocketAddr,
+        announcement_address: SocketAddr,
+        listen_address: SocketAddr,
         announcements: Vec<NetAddress>,
         electrs_origin: String,
         seed: Bip39Seed,
@@ -159,7 +166,8 @@ impl Node {
             alias,
             network,
             data_dir,
-            address,
+            announcement_address,
+            listen_address,
             announcements,
             electrs_origin,
             seed,
@@ -174,7 +182,8 @@ impl Node {
         alias: &str,
         network: Network,
         data_dir: &Path,
-        address: SocketAddr,
+        announcement_address: SocketAddr,
+        listen_address: SocketAddr,
         announcements: Vec<NetAddress>,
         electrs_origin: String,
         seed: Bip39Seed,
@@ -338,7 +347,7 @@ impl Node {
         tokio::spawn({
             let peer_manager = peer_manager.clone();
             async move {
-                let listener = tokio::net::TcpListener::bind(address)
+                let listener = tokio::net::TcpListener::bind(listen_address)
                     .await
                     .expect("Failed to bind to listen port");
                 loop {
@@ -359,7 +368,7 @@ impl Node {
         });
         // TODO: Call sync(?) in a loop
 
-        tracing::info!("Listening on {address}");
+        tracing::info!("Listening on {listen_address}");
 
         tracing::info!("Starting background processor");
 
@@ -394,7 +403,7 @@ impl Node {
 
         let node_info = NodeInfo {
             pubkey: channel_manager.get_our_node_id(),
-            address,
+            address: announcement_address,
         };
 
         tracing::info!("Lightning node started with node ID {}", node_info);
