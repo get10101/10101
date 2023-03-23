@@ -87,6 +87,7 @@ impl Node {
             Network::Regtest,
             data_dir.as_path(),
             address,
+            address,
             vec![util::build_net_address(address.ip(), address.port())],
             ELECTRS_ORIGIN.to_string(),
             seed,

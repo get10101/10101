@@ -12,6 +12,9 @@ use diesel::PgConnection;
 use ln_dlc_node::seed::Bip39Seed;
 use rand::thread_rng;
 use rand::RngCore;
+use std::net::IpAddr;
+use std::net::Ipv4Addr;
+use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
 use tracing::metadata::LevelFilter;
@@ -49,6 +52,7 @@ async fn main() -> Result<()> {
             network,
             data_dir.as_path(),
             address,
+            SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), address.port()),
             opts.p2p_announcement_addresses(),
             opts.electrum,
             seed,

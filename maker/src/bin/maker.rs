@@ -12,6 +12,8 @@ use maker::run_migration;
 use maker::trading;
 use rand::thread_rng;
 use rand::RngCore;
+use std::net::IpAddr;
+use std::net::Ipv4Addr;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tracing::metadata::LevelFilter;
@@ -47,6 +49,7 @@ async fn main() -> Result<()> {
             network,
             data_dir.as_path(),
             address,
+            SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), address.port()),
             opts.electrum,
             seed,
             ephemeral_randomness,

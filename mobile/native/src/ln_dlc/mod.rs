@@ -18,6 +18,9 @@ use lightning_invoice::Invoice;
 use ln_dlc_node::node::NodeInfo;
 use ln_dlc_node::seed::Bip39Seed;
 use state::Storage;
+use std::net::IpAddr;
+use std::net::Ipv4Addr;
+use std::net::SocketAddr;
 use std::net::TcpListener;
 use std::path::Path;
 use std::str::FromStr;
@@ -107,6 +110,7 @@ pub fn run(data_dir: String) -> Result<()> {
                 network,
                 data_dir.as_path(),
                 address,
+                SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), address.port()),
                 config::get_electrs_endpoint().to_string(),
                 seed,
                 ephemeral_randomness,
