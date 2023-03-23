@@ -184,8 +184,8 @@ impl Node {
     }
 }
 
-#[derive(Debug)]
-pub(crate) enum HTLCStatus {
+#[derive(Debug, Clone, Copy)]
+pub enum HTLCStatus {
     Pending,
     Succeeded,
     Failed,

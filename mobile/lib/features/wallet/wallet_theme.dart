@@ -15,7 +15,7 @@ class WalletTheme extends ThemeExtension<WalletTheme> {
     this.onChain = Colors.orange,
     this.borderColor = Colors.grey,
     this.bgColor = Colors.white,
-    this.dividerColor = Colors.black,
+    this.dividerColor = Colors.grey,
     ColorScheme? colors,
     ButtonStyle? iconButtonStyle,
   })  : assert(iconButtonStyle != null || colors != null),

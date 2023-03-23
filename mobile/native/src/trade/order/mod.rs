@@ -1,3 +1,4 @@
+use crate::calculations::calculate_margin;
 use crate::ln_dlc;
 use rust_decimal::Decimal;
 use time::OffsetDateTime;
@@ -122,6 +123,17 @@ impl Order {
                 None
             }
         }
+    }
+
+    /// This returns the trader's margin once known (based on the execution price).
+    pub fn trader_margin(&self) -> Option<u64> {
+        let opening_price = self.execution_price()?;
+
+        Some(calculate_margin(
+            opening_price,
+            self.quantity,
+            self.leverage,
+        ))
     }
 }
 

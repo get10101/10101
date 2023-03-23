@@ -24,6 +24,7 @@ use node::ChannelManager;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::Mutex;
+use time::OffsetDateTime;
 
 mod disk;
 mod dlc_custom_signer;
@@ -94,6 +95,7 @@ struct PaymentInfo {
     secret: Option<PaymentSecret>,
     status: HTLCStatus,
     amt_msat: MillisatAmount,
+    timestamp: OffsetDateTime,
 }
 
 #[derive(Debug)]

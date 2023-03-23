@@ -3,6 +3,7 @@ import 'package:flutter_svg/svg.dart';
 import 'package:get_10101/common/amount_text.dart';
 import 'package:get_10101/common/domain/model.dart';
 import 'package:get_10101/features/wallet/create_invoice_screen.dart';
+import 'package:get_10101/features/wallet/domain/wallet_history.dart';
 import 'package:get_10101/features/wallet/send_screen.dart';
 import 'package:get_10101/features/wallet/wallet_change_notifier.dart';
 import 'package:get_10101/features/wallet/wallet_theme.dart';
@@ -10,10 +11,9 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import 'domain/payment_flow.dart';
-import 'domain/wallet_type.dart';
 
 class BalanceRow extends StatefulWidget {
-  final WalletType walletType;
+  final WalletHistoryItemDataType walletType;
   final double iconSize;
   const BalanceRow({required this.walletType, this.iconSize = 30, super.key});
 
@@ -47,7 +47,7 @@ class _BalanceRowState extends State<BalanceRow> with SingleTickerProviderStateM
     Color rowBgColor;
     SvgPicture icon;
 
-    if (widget.walletType == WalletType.lightning) {
+    if (widget.walletType == WalletHistoryItemDataType.lightning) {
       name = "Lightning";
       rowBgColor = theme.lightning;
       icon = SvgPicture.asset("assets/Lightning_logo.svg");

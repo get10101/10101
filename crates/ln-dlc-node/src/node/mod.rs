@@ -65,7 +65,10 @@ pub use self::dlc_manager::DlcManager;
 pub use ::dlc_manager as rust_dlc_manager;
 pub use channel_manager::ChannelManager;
 pub use dlc_channel::sub_channel_message_as_str;
+pub use invoice::HTLCStatus;
 pub use sub_channel_manager::SubChannelManager;
+pub use wallet::PaymentDetails;
+pub use wallet::PaymentFlow;
 
 // TODO: These intervals are quite arbitrary at the moment, come up with more sensible values
 const BROADCAST_NODE_ANNOUNCEMENT_INTERVAL: Duration = Duration::from_secs(60);
@@ -92,6 +95,7 @@ pub struct Node {
     oracle: Arc<P2PDOracleClient>,
     pub dlc_message_handler: Arc<DlcMessageHandler>,
     inbound_payments: PaymentInfoStorage,
+    outbound_payments: PaymentInfoStorage,
 
     pub(crate) user_config: UserConfig,
 }
@@ -300,11 +304,11 @@ impl Node {
 
         // TODO: Persist inbound payment info to disk
         let inbound_payments: PaymentInfoStorage = Arc::new(Mutex::new(HashMap::new()));
+        // TODO: Persist outbound payment info to disk
+        let outbound_payments: PaymentInfoStorage = Arc::new(Mutex::new(HashMap::new()));
+
         let event_handler = {
             let runtime_handle = tokio::runtime::Handle::current();
-
-            // TODO: Persist outbound payment info to disk
-            let outbound_payments: PaymentInfoStorage = Arc::new(Mutex::new(HashMap::new()));
 
             EventHandler::new(
                 runtime_handle,
@@ -313,7 +317,7 @@ impl Node {
                 network_graph,
                 keys_manager.clone(),
                 inbound_payments.clone(),
-                outbound_payments,
+                outbound_payments.clone(),
                 fake_channel_payments.clone(),
                 Arc::new(Mutex::new(HashMap::new())),
             )
@@ -424,6 +428,7 @@ impl Node {
             dlc_message_handler,
             dlc_manager,
             inbound_payments,
+            outbound_payments,
             user_config: ldk_user_config,
             _background_processor: background_processor,
         })

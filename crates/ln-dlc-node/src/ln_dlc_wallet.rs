@@ -1,6 +1,9 @@
+use anyhow::Context;
+use anyhow::Result;
 use bdk::blockchain::ElectrumBlockchain;
 use bdk::sled;
 use bdk::wallet::AddressIndex;
+use bdk::TransactionDetails;
 use bitcoin::secp256k1::All;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::secp256k1::Secp256k1;
@@ -52,9 +55,32 @@ impl LnDlcWallet {
         &self.ln_wallet
     }
 
-    pub(crate) fn tip(&self) -> anyhow::Result<(u32, BlockHeader)> {
+    pub(crate) fn tip(&self) -> Result<(u32, BlockHeader)> {
         let (height, header) = self.ln_wallet.get_tip()?;
         Ok((height, header))
+    }
+
+    /// A list of on-chain transactions. Transactions are sorted with the most recent transactions
+    /// appearing first.
+    ///
+    /// This list won't be up-to-date unless the wallet has previously been synchronised with the
+    /// blockchain.
+    pub(crate) fn on_chain_transactions(&self) -> Result<Vec<TransactionDetails>> {
+        let mut txs = self
+            .ln_wallet
+            .get_wallet()
+            .context("Can't acquire lock on bdk_ldk wallet")?
+            .list_transactions(false)
+            .context("bar")?;
+
+        txs.sort_by(|a, b| {
+            b.confirmation_time
+                .as_ref()
+                .map(|t| t.height)
+                .cmp(&a.confirmation_time.as_ref().map(|t| t.height))
+        });
+
+        Ok(txs)
     }
 }
 

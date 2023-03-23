@@ -1,16 +1,16 @@
-use crate::api::Balances;
-use crate::api::WalletInfo;
 use crate::trade::order;
 use crate::trade::position;
 use anyhow::anyhow;
 use anyhow::Context;
 use anyhow::Result;
+use bdk::TransactionDetails;
 use dlc_messages::Message;
 use dlc_messages::SubChannelMessage;
 use ln_dlc_node::node::rust_dlc_manager::contract::Contract;
 use ln_dlc_node::node::rust_dlc_manager::Storage;
 use ln_dlc_node::node::sub_channel_message_as_str;
 use ln_dlc_node::node::DlcManager;
+use ln_dlc_node::node::PaymentDetails;
 use ln_dlc_node::Dlc;
 use std::sync::Arc;
 
@@ -19,19 +19,44 @@ pub struct Node {
     pub inner: Arc<ln_dlc_node::node::Node>,
 }
 
-impl Node {
-    pub fn get_wallet_info_from_node(&self) -> WalletInfo {
-        WalletInfo {
-            balances: Balances {
-                lightning: self.inner.get_ldk_balance().available,
-                on_chain: self
-                    .inner
-                    .get_on_chain_balance()
-                    .expect("balance")
-                    .confirmed,
-            },
-            history: vec![], // TODO: sync history
+pub struct Balances {
+    pub on_chain: u64,
+    pub off_chain: u64,
+}
+
+impl From<Balances> for crate::api::Balances {
+    fn from(value: Balances) -> Self {
+        Self {
+            on_chain: value.on_chain,
+            lightning: value.off_chain,
         }
+    }
+}
+
+pub struct WalletHistories {
+    pub on_chain: Vec<TransactionDetails>,
+    pub off_chain: Vec<PaymentDetails>,
+}
+
+impl Node {
+    pub fn get_wallet_balances(&self) -> Result<Balances> {
+        let on_chain = self.inner.get_on_chain_balance()?.confirmed;
+        let off_chain = self.inner.get_ldk_balance().available;
+
+        Ok(Balances {
+            on_chain,
+            off_chain,
+        })
+    }
+
+    pub fn get_wallet_histories(&self) -> Result<WalletHistories> {
+        let on_chain = self.inner.get_on_chain_history()?;
+        let off_chain = self.inner.get_off_chain_history();
+
+        Ok(WalletHistories {
+            on_chain,
+            off_chain,
+        })
     }
 
     pub fn process_incoming_messages(&self) -> Result<()> {

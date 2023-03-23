@@ -1,4 +1,5 @@
-use crate::api::WalletInfo;
+use self::node::WalletHistories;
+use crate::api;
 use crate::config;
 use crate::event;
 use crate::event::EventInternal;
@@ -13,7 +14,10 @@ use bdk::bitcoin::secp256k1::rand::thread_rng;
 use bdk::bitcoin::secp256k1::rand::RngCore;
 use bdk::bitcoin::secp256k1::SecretKey;
 use bdk::bitcoin::XOnlyPublicKey;
+use bdk::BlockTime;
 use coordinator_commons::TradeParams;
+use itertools::chain;
+use itertools::Itertools;
 use lightning_invoice::Invoice;
 use ln_dlc_node::node::NodeInfo;
 use ln_dlc_node::seed::Bip39Seed;
@@ -26,6 +30,7 @@ use std::path::Path;
 use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
+use time::OffsetDateTime;
 use tokio::runtime::Runtime;
 
 mod node;
@@ -33,10 +38,12 @@ mod node;
 static NODE: Storage<Arc<Node>> = Storage::new();
 const PROCESS_INCOMING_MESSAGES_INTERVAL: Duration = Duration::from_secs(5);
 
-pub fn get_wallet_info() -> Result<WalletInfo> {
+pub async fn refresh_wallet_info() -> Result<()> {
     let node = NODE.try_get().context("failed to get ln dlc node")?;
-    let wallet_info = node.get_wallet_info_from_node();
-    Ok(wallet_info)
+
+    keep_wallet_balance_and_history_up_to_date(node).await?;
+
+    Ok(())
 }
 
 pub fn get_node_key() -> Result<SecretKey> {
@@ -150,12 +157,11 @@ pub fn run(data_dir: String) -> Result<()> {
             let node = node.clone();
             async move {
                 loop {
-                    // todo: the node sync should not swallow the error.
-                    node.inner.sync();
-                    tokio::time::sleep(Duration::from_secs(10)).await;
+                    if let Err(e) = keep_wallet_balance_and_history_up_to_date(&node).await {
+                        tracing::error!("Failed to sync balance and wallet history: {e:#}");
+                    }
 
-                    let wallet_info = node.get_wallet_info_from_node();
-                    event::publish(&EventInternal::WalletInfoUpdateNotification(wallet_info));
+                    tokio::time::sleep(Duration::from_secs(10)).await;
                 }
             }
         });
@@ -164,6 +170,134 @@ pub fn run(data_dir: String) -> Result<()> {
 
         Ok(())
     })
+}
+
+async fn keep_wallet_balance_and_history_up_to_date(node: &Node) -> Result<()> {
+    // TODO: The node sync should not swallow the error.
+    node.inner.sync();
+
+    let wallet_balances = node
+        .get_wallet_balances()
+        .context("Failed to get wallet balances")?;
+
+    let WalletHistories {
+        on_chain,
+        off_chain,
+    } = node
+        .get_wallet_histories()
+        .context("Failed to get wallet histories")?;
+
+    let on_chain = on_chain.iter().map(|details| {
+        let net_sats = details.received as i64 - details.sent as i64;
+
+        let (flow, amount_sats) = if net_sats >= 0 {
+            (api::PaymentFlow::Outbound, net_sats as u64)
+        } else {
+            (api::PaymentFlow::Inbound, net_sats.unsigned_abs())
+        };
+
+        let (status, timestamp) = match details.confirmation_time {
+            Some(BlockTime { timestamp, .. }) => (api::Status::Confirmed, timestamp),
+
+            None => {
+                (
+                    api::Status::Pending,
+                    // Unconfirmed transactions should appear towards the top of the history
+                    OffsetDateTime::now_utc().unix_timestamp() as u64,
+                )
+            }
+        };
+
+        let wallet_type = api::WalletType::OnChain {
+            txid: details.txid.to_string(),
+        };
+
+        api::WalletHistoryItem {
+            flow,
+            amount_sats,
+            timestamp,
+            status,
+            wallet_type,
+        }
+    });
+
+    let off_chain = off_chain.iter().filter_map(|details| {
+        let amount_sats = match details.amount_msat {
+            Some(msat) => msat / 1_000,
+            // Skip payments that don't yet have an amount associated
+            None => return None,
+        };
+
+        let status = match details.status {
+            ln_dlc_node::node::HTLCStatus::Pending => api::Status::Pending,
+            ln_dlc_node::node::HTLCStatus::Succeeded => api::Status::Confirmed,
+            // TODO: Handle failed payments
+            ln_dlc_node::node::HTLCStatus::Failed => return None,
+        };
+
+        let flow = match details.flow {
+            ln_dlc_node::node::PaymentFlow::Inbound => api::PaymentFlow::Inbound,
+            ln_dlc_node::node::PaymentFlow::Outbound => api::PaymentFlow::Outbound,
+        };
+
+        let timestamp = details.timestamp.unix_timestamp() as u64;
+
+        let wallet_type = api::WalletType::Lightning {
+            payment_hash: hex::encode(details.payment_hash.0),
+        };
+
+        Some(api::WalletHistoryItem {
+            flow,
+            amount_sats,
+            timestamp,
+            status,
+            wallet_type,
+        })
+    });
+
+    let trades = {
+        let orders = crate::db::get_filled_orders()
+            .context("Failed to get filled orders; skipping update")?;
+
+        orders.into_iter().enumerate().map(|(i, order)| {
+            let flow = if i % 2 == 0 {
+                api::PaymentFlow::Outbound
+            } else {
+                api::PaymentFlow::Inbound
+            };
+
+            let amount_sats = order
+                .trader_margin()
+                .expect("Filled order to have a margin");
+
+            let timestamp = order.creation_timestamp.unix_timestamp() as u64;
+
+            let wallet_type = api::WalletType::Trade {
+                order_id: order.id.to_string(),
+            };
+
+            api::WalletHistoryItem {
+                flow,
+                amount_sats,
+                timestamp,
+                status: api::Status::Confirmed, // TODO: Support other order/trade statuses
+                wallet_type,
+            }
+        })
+    };
+
+    let history = chain![on_chain, off_chain, trades]
+        .sorted_by(|a, b| b.timestamp.cmp(&a.timestamp))
+        .collect();
+
+    let wallet_info = api::WalletInfo {
+        balances: wallet_balances.into(),
+        history,
+    };
+
+    event::publish(&EventInternal::WalletInfoUpdateNotification(wallet_info));
+
+    Ok(())
 }
 
 pub fn get_new_address() -> Result<String> {
