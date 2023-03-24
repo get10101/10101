@@ -68,14 +68,6 @@ async fn just_in_time_channel() {
     // than the payee's
     // `max_inbound_htlc_value_in_flight_percent_of_channel`
     // configuration value for said channel.
-    //
-    // At this point in time, we fix the channel size to
-    // `JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT` (10_000 sats) and
-    // the default value of
-    // `max_inbound_htlc_value_in_flight_percent_of_channel` is set to
-    // 10 percent. This means that we won't succeed in routing the
-    // payment through the just-in-time channel if the amount is
-    // greater than 1_000 sats.
     let invoice_amount = 1_000;
 
     let flat_routing_fee = 1; // according to the default `ChannelConfig`
