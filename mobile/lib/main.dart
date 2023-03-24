@@ -35,6 +35,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import 'common/amount_denomination_change_notifier.dart';
 import 'features/trade/domain/order.dart';
+import 'features/trade/domain/price.dart';
 import 'features/wallet/domain/wallet_info.dart';
 import 'ffi.dart' as rust;
 
@@ -164,7 +165,8 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
         context.read<OrderChangeNotifier>(),
         context.read<PositionChangeNotifier>(),
         context.read<WalletChangeNotifier>(),
-        context.read<CandlestickChangeNotifier>());
+        context.read<CandlestickChangeNotifier>(),
+        context.read<TradeValuesChangeNotifier>());
   }
 
   @override
@@ -190,7 +192,8 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
       OrderChangeNotifier orderChangeNotifier,
       PositionChangeNotifier positionChangeNotifier,
       WalletChangeNotifier walletChangeNotifier,
-      CandlestickChangeNotifier candlestickChangeNotifier) async {
+      CandlestickChangeNotifier candlestickChangeNotifier,
+      TradeValuesChangeNotifier tradeValuesChangeNotifier) async {
     try {
       setupRustLogging();
 
@@ -210,6 +213,9 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
 
       eventService.subscribe(
           walletChangeNotifier, bridge.Event.walletInfoUpdateNotification(WalletInfo.apiDummy()));
+
+      eventService.subscribe(
+          tradeValuesChangeNotifier, bridge.Event.priceUpdateNotification(Price.apiDummy()));
 
       eventService.subscribe(
           AnonSubscriber((event) => FLog.info(text: event.field0)), const bridge.Event.log(""));

@@ -1,7 +1,7 @@
 import 'package:get_10101/ffi.dart' as rust;
 import 'package:get_10101/features/trade/domain/leverage.dart';
-import '../../../common/domain/model.dart';
-import '../domain/direction.dart';
+import 'package:get_10101/common/domain/model.dart';
+import 'package:get_10101/features/trade/domain/direction.dart';
 
 class TradeValuesService {
   Amount calculateMargin(

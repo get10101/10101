@@ -3,24 +3,19 @@ import 'package:get_10101/common/domain/model.dart';
 import 'package:get_10101/features/trade/application/trade_values_service.dart';
 import 'package:get_10101/features/trade/domain/direction.dart';
 import 'package:get_10101/features/trade/domain/leverage.dart';
+import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
+import 'package:get_10101/common/application/event_service.dart';
+import 'package:get_10101/common/dummy_values.dart';
 
+import 'domain/price.dart';
 import 'domain/trade_values.dart';
 
-class TradeValuesChangeNotifier extends ChangeNotifier {
+class TradeValuesChangeNotifier extends ChangeNotifier implements Subscriber {
   final TradeValuesService tradeValuesService;
 
   // The trade values are represented as Order domain, because that's essentially what they are
   late final TradeValues _buyTradeValues;
   late final TradeValues _sellTradeValues;
-
-  // TODO: Replace dummy price with price from backend
-  // TODO: Get price from separate change notifier; might be able to use a proxy change notifiers
-  static const double bid = 22990.0;
-  static const double ask = 23010.0;
-
-  // TODO replace dummy funding rate with funding rate from backend
-  static const double fundingRateBuy = 0.003;
-  static const double fundingRateSell = -0.003;
 
   TradeValuesChangeNotifier(this.tradeValuesService) {
     _buyTradeValues = _initOrder(Direction.long);
@@ -36,7 +31,7 @@ class TradeValuesChangeNotifier extends ChangeNotifier {
         return TradeValues.create(
             quantity: defaultQuantity,
             leverage: Leverage(defaultLeverage),
-            price: ask,
+            price: dummyAskPrice,
             fundingRate: fundingRateBuy,
             direction: direction,
             tradeValuesService: tradeValuesService);
@@ -44,7 +39,7 @@ class TradeValuesChangeNotifier extends ChangeNotifier {
         return TradeValues.create(
             quantity: defaultQuantity,
             leverage: Leverage(defaultLeverage),
-            price: bid,
+            price: dummyBidPrice,
             fundingRate: fundingRateSell,
             direction: direction,
             tradeValuesService: tradeValuesService);
@@ -66,6 +61,20 @@ class TradeValuesChangeNotifier extends ChangeNotifier {
     notifyListeners();
   }
 
+  // Orderbook price updates both directions
+  void updatePrice(Price price) {
+    _buyTradeValues.updatePrice(price.ask);
+    _sellTradeValues.updatePrice(price.bid);
+    notifyListeners();
+  }
+
   TradeValues fromDirection(Direction direction) =>
       direction == Direction.long ? _buyTradeValues : _sellTradeValues;
+
+  @override
+  void notify(bridge.Event event) {
+    if (event is bridge.Event_PriceUpdateNotification) {
+      updatePrice(Price.fromApi(event.field0));
+    }
+  }
 }
