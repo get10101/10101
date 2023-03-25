@@ -1,5 +1,4 @@
 use crate::Direction;
-use crate::Price;
 use anyhow::Context;
 use anyhow::Result;
 use bdk::bitcoin;
@@ -73,7 +72,7 @@ pub fn calculate_short_liquidation_price(leverage: Decimal, price: Decimal) -> D
 /// the total margin available.
 pub fn calculate_pnl(
     opening_price: Decimal,
-    closing_price: Price,
+    closing_price: Decimal,
     quantity: f64,
     long_leverage: f64,
     short_leverage: f64,
@@ -81,11 +80,6 @@ pub fn calculate_pnl(
 ) -> Result<i64> {
     let long_margin = calculate_margin(opening_price, quantity, long_leverage);
     let short_margin = calculate_margin(opening_price, quantity, short_leverage);
-
-    let closing_price = match direction {
-        Direction::Long => closing_price.bid,
-        Direction::Short => closing_price.ask,
-    };
 
     let uncapped_pnl_long = {
         let quantity = Decimal::try_from(quantity).expect("quantity to fit into decimal");
@@ -117,10 +111,7 @@ pub mod tests {
     #[test]
     fn given_position_when_price_same_then_zero_pnl() {
         let opening_price = Decimal::from(20000);
-        let closing_price = Price {
-            bid: Decimal::from(20000),
-            ask: Decimal::from(20000),
-        };
+        let closing_price = Decimal::from(20000);
         let quantity = 1.0;
         let long_leverage = 2.0;
         let short_leverage = 1.0;
@@ -151,11 +142,7 @@ pub mod tests {
     #[test]
     fn given_long_position_when_price_doubles_then_we_get_double() {
         let opening_price = Decimal::from(20000);
-        let closing_price = Price {
-            // 10% up
-            bid: Decimal::from(40000),
-            ask: Decimal::ZERO,
-        };
+        let closing_price = Decimal::from(40000);
         let quantity = 100.0;
         let long_leverage = 2.0;
         let short_leverage = 1.0;
@@ -176,11 +163,7 @@ pub mod tests {
     #[test]
     fn given_long_position_when_price_halfs_then_we_loose_all() {
         let opening_price = Decimal::from(20000);
-        let closing_price = Price {
-            // 10% up
-            bid: Decimal::from(10000),
-            ask: Decimal::ZERO,
-        };
+        let closing_price = Decimal::from(10000);
         let quantity = 100.0;
         let long_leverage = 2.0;
         let short_leverage = 1.0;
@@ -202,11 +185,7 @@ pub mod tests {
     #[test]
     fn given_short_position_when_price_doubles_then_we_loose_all() {
         let opening_price = Decimal::from(20000);
-        let closing_price = Price {
-            // 10% up
-            bid: Decimal::ZERO,
-            ask: Decimal::from(40000),
-        };
+        let closing_price = Decimal::from(40000);
         let quantity = 100.0;
         let long_leverage = 1.0;
         let short_leverage = 2.0;
@@ -227,11 +206,7 @@ pub mod tests {
     #[test]
     fn given_short_position_when_price_halfs_then_we_get_double() {
         let opening_price = Decimal::from(20000);
-        let closing_price = Price {
-            // 10% up
-            bid: Decimal::ZERO,
-            ask: Decimal::from(10000),
-        };
+        let closing_price = Decimal::from(10000);
         let quantity = 100.0;
         let long_leverage = 1.0;
         let short_leverage = 2.0;

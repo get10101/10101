@@ -35,7 +35,7 @@ pub async fn trade(filled: FilledWith) -> Result<()> {
     };
 
     let execution_price = trade_params
-        .weighted_execution_price()
+        .average_execution_price()
         .to_f64()
         .expect("to fit into f64");
     order::handler::order_filling(order.id, execution_price)

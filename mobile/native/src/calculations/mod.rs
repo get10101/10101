@@ -31,6 +31,11 @@ pub fn calculate_pnl(
 
     let opening_price = Decimal::try_from(opening_price).expect("price to fit into decimal");
 
+    let closing_price = match direction {
+        Direction::Long => closing_price.bid,
+        Direction::Short => closing_price.ask,
+    };
+
     cfd::calculate_pnl(
         opening_price,
         closing_price,

@@ -44,7 +44,7 @@ pub struct TradeParams {
 }
 
 impl TradeParams {
-    pub fn weighted_execution_price(&self) -> Decimal {
+    pub fn average_execution_price(&self) -> Decimal {
         self.filled_with.average_execution_price()
     }
 }
