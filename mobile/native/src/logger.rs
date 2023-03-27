@@ -27,7 +27,6 @@ pub fn log_base_directives(env: EnvFilter, level: LevelFilter) -> Result<EnvFilt
         .add_directive("rustls=warn".parse()?)
         // set to debug to show ldk logs (they're also in logs.txt)
         .add_directive("sled=warn".parse()?)
-        .add_directive("ldk=warn".parse()?)
         .add_directive("bdk=warn".parse()?); // bdk is quite spamy on debug
     Ok(filter)
 }

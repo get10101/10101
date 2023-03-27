@@ -24,7 +24,6 @@ pub fn init_tracing(level: LevelFilter, json_format: bool) -> Result<()> {
         .add_directive("hyper=warn".parse()?)
         .add_directive("rustls=warn".parse()?)
         .add_directive("sled=warn".parse()?)
-        .add_directive("ldk=warn".parse()?)
         .add_directive("bdk=warn".parse()?); // bdk is quite spamy on debug
 
     // Parse additional log directives from env variable
