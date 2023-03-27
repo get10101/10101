@@ -126,7 +126,6 @@ pub fn run(data_dir: String) -> Result<()> {
         );
         let node = Arc::new(Node { inner: node });
 
-        // todo: should the library really be responsible for managing the task?
         runtime.spawn({
             let node = node.clone();
             async move {

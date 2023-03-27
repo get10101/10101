@@ -47,7 +47,6 @@ impl EventHub {
     pub fn publish(&self, event: &EventInternal) {
         tracing::debug!("Publishing event {:?}", event);
         if let Some(subscribers) = self.subscribers.get(&EventType::from(event.clone())) {
-            tracing::debug!("Found subscriber");
             for subscriber in subscribers {
                 // todo: we should tokio spawn here.
                 subscriber.notify(event);

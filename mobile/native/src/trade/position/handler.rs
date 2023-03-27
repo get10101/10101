@@ -25,6 +25,8 @@ use trade::Direction;
 pub async fn trade(filled: FilledWith) -> Result<()> {
     let order = db::get_order(filled.order_id).context("Could not load order from db")?;
 
+    tracing::debug!(?order, ?filled, "Filling order with id: {}", order.id);
+
     let trade_params = TradeParams {
         pubkey: ln_dlc::get_node_info()?.pubkey,
         contract_symbol: ContractSymbol::BtcUsd,
