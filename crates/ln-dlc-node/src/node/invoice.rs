@@ -1,5 +1,6 @@
 use crate::node::Node;
 use crate::node::LIQUIDITY_ROUTING_FEE_MILLIONTHS;
+use crate::MillisatAmount;
 use crate::PaymentInfo;
 use anyhow::anyhow;
 use anyhow::Context;
@@ -23,6 +24,7 @@ use lightning_invoice::Invoice;
 use lightning_invoice::InvoiceBuilder;
 use std::time::Duration;
 use std::time::SystemTime;
+use time::OffsetDateTime;
 
 impl Node {
     pub fn create_invoice(&self, amount_in_sats: u64) -> Result<Invoice> {
@@ -123,8 +125,8 @@ impl Node {
     }
 
     pub fn send_payment(&self, invoice: &Invoice) -> Result<()> {
-        match self.invoice_payer.pay_invoice(invoice) {
-            Ok(_payment_id) => {
+        let status = match self.invoice_payer.pay_invoice(invoice) {
+            Ok(_) => {
                 let payee_pubkey = invoice.recover_payee_pub_key();
                 let amt_msat = invoice
                     .amount_milli_satoshis()
@@ -145,6 +147,18 @@ impl Node {
                 HTLCStatus::Failed
             }
         };
+
+        self.outbound_payments.lock().unwrap().insert(
+            PaymentHash(invoice.payment_hash().into_inner()),
+            PaymentInfo {
+                preimage: None,
+                secret: None,
+                status,
+                amt_msat: MillisatAmount(invoice.amount_milli_satoshis()),
+                timestamp: OffsetDateTime::now_utc(),
+            },
+        );
+
         Ok(())
     }
 

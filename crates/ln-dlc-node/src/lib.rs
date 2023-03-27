@@ -98,5 +98,5 @@ struct PaymentInfo {
     timestamp: OffsetDateTime,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 struct MillisatAmount(Option<u64>);

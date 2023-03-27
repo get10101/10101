@@ -1,6 +1,8 @@
 //! This file has temporarily been copied from `https://github.com/p2pderivatives/rust-dlc/pull/97`.
 //! We should reimplement some of these traits for production.
 
+use anyhow::anyhow;
+use anyhow::Result;
 use bitcoin::Script;
 use bitcoin::Transaction;
 use bitcoin::TxOut;
@@ -283,14 +285,16 @@ impl CustomKeysManager {
         change_destination_script: Script,
         feerate_sat_per_1000_weight: u32,
         secp_ctx: &Secp256k1<C>,
-    ) -> Result<Transaction, ()> {
-        self.keys_manager.spend_spendable_outputs(
-            descriptors,
-            outputs,
-            change_destination_script,
-            feerate_sat_per_1000_weight,
-            secp_ctx,
-        )
+    ) -> Result<Transaction> {
+        self.keys_manager
+            .spend_spendable_outputs(
+                descriptors,
+                outputs,
+                change_destination_script,
+                feerate_sat_per_1000_weight,
+                secp_ctx,
+            )
+            .map_err(|_| anyhow!("Could not spend spendable outputs"))
     }
 }
 

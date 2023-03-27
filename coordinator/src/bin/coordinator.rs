@@ -12,6 +12,7 @@ use diesel::PgConnection;
 use ln_dlc_node::seed::Bip39Seed;
 use rand::thread_rng;
 use rand::RngCore;
+use std::backtrace::Backtrace;
 use std::net::IpAddr;
 use std::net::Ipv4Addr;
 use std::net::SocketAddr;
@@ -23,6 +24,18 @@ const PROCESS_INCOMING_MESSAGES_INTERVAL: Duration = Duration::from_secs(5);
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    std::panic::set_hook(
+        #[allow(clippy::print_stderr)]
+        Box::new(|info| {
+            let backtrace = Backtrace::force_capture();
+
+            tracing::error!(%info, "Aborting after panic in task");
+            eprintln!("{backtrace}");
+
+            std::process::abort()
+        }),
+    );
+
     let opts = Opts::read();
     let data_dir = opts.data_dir()?;
     let address = opts.p2p_address;

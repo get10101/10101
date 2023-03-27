@@ -12,10 +12,9 @@ use crate::PaymentInfo;
 use crate::PaymentInfoStorage;
 use crate::PendingInterceptedHtlcs;
 use anyhow::anyhow;
+use anyhow::Context;
+use anyhow::Result;
 use bitcoin::secp256k1::Secp256k1;
-use bitcoin::Network;
-use bitcoin_bech32::WitnessProgram;
-use dlc_manager::Blockchain;
 use lightning::chain::chaininterface::BroadcasterInterface;
 use lightning::chain::chaininterface::ConfirmationTarget;
 use lightning::chain::chaininterface::FeeEstimator;
@@ -69,7 +68,7 @@ impl EventHandler {
         }
     }
 
-    fn match_event(&self, event: Event) {
+    fn match_event(&self, event: Event) -> Result<()> {
         match event {
             Event::FundingGenerationReady {
                 temporary_channel_id,
@@ -78,24 +77,6 @@ impl EventHandler {
                 output_script,
                 ..
             } => {
-                let network = self
-                    .wallet
-                    .get_network()
-                    .expect("Failed to get bitcoin network");
-
-                let network = match network {
-                    Network::Regtest => bitcoin_bech32::constants::Network::Regtest,
-                    Network::Signet => bitcoin_bech32::constants::Network::Signet,
-                    Network::Testnet => bitcoin_bech32::constants::Network::Testnet,
-                    Network::Bitcoin => bitcoin_bech32::constants::Network::Bitcoin,
-                };
-
-                // Construct the raw transaction with one output, that is paid the amount of the
-                // channel.
-                let _addr = WitnessProgram::from_scriptpubkey(&output_script[..], network)
-                    .expect("Lightning funding tx should always be to a SegWit output")
-                    .to_address();
-
                 let target_blocks = 2;
 
                 // Have wallet put the inputs into the transaction such that the output
@@ -115,8 +96,9 @@ impl EventHandler {
                         );
                         self.channel_manager
                             .close_channel(&temporary_channel_id, &counterparty_node_id)
-                            .expect("To be able to close a channel we cannot open");
-                        return;
+                            .map_err(|e| anyhow!("{e:?}"))?;
+
+                        return Ok(());
                     }
                 };
 
@@ -176,21 +158,39 @@ impl EventHandler {
                 ..
             } => {
                 let mut payments = self.outbound_payments.lock().unwrap();
-                for (hash, payment) in payments.iter_mut() {
-                    if *hash == payment_hash {
+                let amount_msat = match payments.entry(payment_hash) {
+                    Entry::Occupied(mut e) => {
+                        let payment = e.get_mut();
                         payment.preimage = Some(payment_preimage);
                         payment.status = HTLCStatus::Succeeded;
 
-                        let preimage_hash = hex::encode(payment_preimage.0);
-                        tracing::info!(
-                            amount_msat = ?payment.amt_msat.0,
-                            fee_paid_msat = ?fee_paid_msat,
-                            payment_hash = %hex::encode(payment_hash.0),
-                            %preimage_hash,
-                            "\nSuccessfully sent payment",
-                        );
+                        payment.amt_msat
                     }
-                }
+                    Entry::Vacant(e) => {
+                        tracing::warn!(
+                            "Got PaymentSent event without matching outbound payment on record"
+                        );
+
+                        let amt_msat = MillisatAmount(None);
+                        e.insert(PaymentInfo {
+                            preimage: Some(payment_preimage),
+                            secret: None,
+                            status: HTLCStatus::Succeeded,
+                            amt_msat,
+                            timestamp: OffsetDateTime::now_utc(),
+                        });
+
+                        amt_msat
+                    }
+                };
+
+                tracing::info!(
+                    amount_msat = ?amount_msat.0,
+                    fee_paid_msat = ?fee_paid_msat,
+                    payment_hash = %hex::encode(payment_hash.0),
+                    preimage_hash = %hex::encode(payment_preimage.0),
+                    "Successfully sent payment",
+                );
             }
             Event::OpenChannelRequest {
                 temporary_channel_id,
@@ -216,20 +216,32 @@ impl EventHandler {
                         &counterparty_node_id,
                         0,
                     )
-                    .expect("To be able to accept a 0-conf channel");
+                    .map_err(|e| anyhow!("{e:?}"))
+                    .context("To be able to accept a 0-conf channel")?;
             }
             Event::PaymentPathSuccessful { .. } => {}
             Event::PaymentPathFailed { .. } => {}
             Event::PaymentFailed { payment_hash, .. } => {
                 tracing::warn!(
-                    "Failed to send payment to payment hash {:?}: exhausted payment retry attempts",
-                    hex::encode(payment_hash.0)
+                    payment_hash = %hex::encode(payment_hash.0),
+                    "Failed to send payment to payment hash: exhausted payment retry attempts",
                 );
 
                 let mut payments = self.outbound_payments.lock().unwrap();
-                if payments.contains_key(&payment_hash) {
-                    let payment = payments.get_mut(&payment_hash).unwrap();
-                    payment.status = HTLCStatus::Failed;
+                match payments.entry(payment_hash) {
+                    Entry::Occupied(mut e) => {
+                        let payment = e.get_mut();
+                        payment.status = HTLCStatus::Failed;
+                    }
+                    Entry::Vacant(e) => {
+                        e.insert(PaymentInfo {
+                            preimage: None,
+                            secret: None,
+                            status: HTLCStatus::Failed,
+                            amt_msat: MillisatAmount(None),
+                            timestamp: OffsetDateTime::now_utc(),
+                        });
+                    }
                 }
             }
             Event::PaymentForwarded {
@@ -308,21 +320,18 @@ impl EventHandler {
                 });
             }
             Event::SpendableOutputs { outputs } => {
-                let destination_address = self.wallet.inner().get_unused_address().unwrap();
+                let destination_address = self.wallet.inner().get_unused_address()?;
                 let output_descriptors = &outputs.iter().collect::<Vec<_>>();
                 let tx_feerate = self
                     .wallet
                     .get_est_sat_per_1000_weight(ConfirmationTarget::Normal);
-                let spending_tx = self
-                    .keys_manager
-                    .spend_spendable_outputs(
-                        output_descriptors,
-                        Vec::new(),
-                        destination_address.script_pubkey(),
-                        tx_feerate,
-                        &Secp256k1::new(),
-                    )
-                    .unwrap();
+                let spending_tx = self.keys_manager.spend_spendable_outputs(
+                    output_descriptors,
+                    Vec::new(),
+                    destination_address.script_pubkey(),
+                    tx_feerate,
+                    &Secp256k1::new(),
+                )?;
                 self.wallet.broadcast_transaction(&spending_tx);
             }
             Event::ChannelClosed {
@@ -374,7 +383,8 @@ impl EventHandler {
                             counterparty_node_id,
                             *expected_outbound_amount_msat,
                         )
-                        .expect("To be able to forward that payment");
+                        .map_err(|e| anyhow!("{e:?}"))
+                        .context("Failed to forward intercepted HTLC")?;
                 }
             }
             Event::HTLCHandlingFailed { .. } => {}
@@ -387,15 +397,22 @@ impl EventHandler {
                 via_user_channel_id: _,
             } => {
                 let payment_hash = util::hex_str(&payment_hash.0);
+
+                let preimage = match purpose {
+                    PaymentPurpose::InvoicePayment {
+                        payment_preimage: Some(preimage),
+                        ..
+                    }
+                    | PaymentPurpose::SpontaneousPayment(preimage) => preimage,
+                    _ => {
+                        tracing::debug!("Received PaymentClaimable event without preimage");
+                        return Ok(());
+                    }
+                };
+
                 tracing::info!(%payment_hash, %amount_msat, "Received payment");
 
-                let payment_preimage = match purpose {
-                    PaymentPurpose::InvoicePayment {
-                        payment_preimage, ..
-                    } => payment_preimage,
-                    PaymentPurpose::SpontaneousPayment(preimage) => Some(preimage),
-                };
-                self.channel_manager.claim_funds(payment_preimage.unwrap());
+                self.channel_manager.claim_funds(preimage);
             }
             Event::HTLCIntercepted {
                 intercept_id,
@@ -429,28 +446,33 @@ impl EventHandler {
                             }
                         })
                 {
-                    self.channel_manager
-                        .forward_intercepted_htlc(
-                            intercept_id,
-                            &channel.channel_id,
-                            channel.counterparty.node_id,
-                            expected_outbound_amount_msat,
-                        )
-                        .expect("Payment to succeed");
-                    return;
+                    if let Err(error) = self.channel_manager.forward_intercepted_htlc(
+                        intercept_id,
+                        &channel.channel_id,
+                        channel.counterparty.node_id,
+                        expected_outbound_amount_msat,
+                    ) {
+                        tracing::warn!(?error, "Failed to forward intercepted HTLC");
+
+                        self.channel_manager
+                            .fail_intercepted_htlc(intercept_id)
+                            .map_err(|e| anyhow!("{e:?}"))?;
+                    }
+
+                    return Ok(());
                 }
 
-                let fake_channel_payments = self.fake_channel_payments.clone();
-                let result = fake_channel_payments.lock();
-                let guard = result.unwrap();
+                let fake_channel_payments = self.fake_channel_payments.lock().unwrap();
 
-                let target_node_id = match guard.get(&requested_next_hop_scid) {
+                let target_node_id = match fake_channel_payments.get(&requested_next_hop_scid) {
                     None => {
                         tracing::warn!(fake_scid = requested_next_hop_scid, "Could not forward the intercepted HTLC because we didn't have a node registered with said fake scid");
+
                         if let Err(err) = self.channel_manager.fail_intercepted_htlc(intercept_id) {
                             tracing::error!("Could not fail intercepted htlc {err:?}")
                         }
-                        return;
+
+                        return Ok(());
                     }
                     Some(target_node_id) => target_node_id,
                 };
@@ -480,16 +502,28 @@ impl EventHandler {
                 // channel according to its
                 // `max_inbound_htlc_value_in_flight_percent_of_channel`
                 // configuration value
-                let temp_channel_id = self
-                    .channel_manager
-                    .create_channel(*target_node_id, channel_value, 0, 0, Some(user_config))
-                    .map_err(|e| {
-                        anyhow!(
-                            "Could not create channel with {} due to {e:?}",
-                            target_node_id
-                        )
-                    })
-                    .expect("To open channel");
+                let temp_channel_id = match self.channel_manager.create_channel(
+                    *target_node_id,
+                    channel_value,
+                    0,
+                    0,
+                    Some(user_config),
+                ) {
+                    Ok(temp_channel_id) => temp_channel_id,
+                    Err(err) => {
+                        tracing::warn!(?err, "Failed to open just in time channel");
+
+                        if let Err(err) = self
+                            .channel_manager
+                            .fail_intercepted_htlc(intercept_id)
+                            .map_err(|e| anyhow!("{e:?}"))
+                        {
+                            tracing::error!("Could not fail intercepted htlc {err:?}");
+                        };
+
+                        return Ok(());
+                    }
+                };
 
                 tracing::info!(
                     peer = %target_node_id,
@@ -498,15 +532,15 @@ impl EventHandler {
                 );
 
                 let pending_intercepted_htlcs = self.pending_intercepted_htlcs.clone();
-                let mut pending_intercepted_htlcs = pending_intercepted_htlcs
-                    .lock()
-                    .expect("To get hold of lock");
+                let mut pending_intercepted_htlcs = pending_intercepted_htlcs.lock().unwrap();
                 pending_intercepted_htlcs.insert(
                     *target_node_id,
                     (intercept_id, expected_outbound_amount_msat),
                 );
             }
-        }
+        };
+
+        Ok(())
     }
 }
 
@@ -515,7 +549,12 @@ impl lightning::util::events::EventHandler for EventHandler {
         tracing::info!(?event, "Received event");
 
         self.runtime_handle.block_on(async {
-            self.match_event(event);
+            let event_str = format!("{event:?}");
+
+            match self.match_event(event) {
+                Ok(()) => tracing::debug!(event = ?event_str, "Successfully handled event"),
+                Err(e) => tracing::error!("Failed to handle event. Error {e:#}"),
+            }
         })
     }
 }
