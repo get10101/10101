@@ -1,6 +1,7 @@
 use crate::ln::app_config;
 use crate::ln::coordinator_config;
 use crate::node::Node;
+use crate::node::NodeInfo;
 use crate::seed::Bip39Seed;
 use crate::util;
 use anyhow::anyhow;
@@ -184,6 +185,10 @@ impl Node {
         .await?;
 
         Ok(channel_details)
+    }
+
+    pub fn disconnect(&self, peer: NodeInfo) {
+        self.peer_manager.disconnect_by_node_id(peer.pubkey, false)
     }
 }
 
