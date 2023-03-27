@@ -223,14 +223,25 @@ impl EventHandler {
             Event::PaymentPathFailed { .. } => {}
             Event::PaymentFailed { payment_hash, .. } => {
                 tracing::warn!(
-                    "Failed to send payment to payment hash {:?}: exhausted payment retry attempts",
-                    hex::encode(payment_hash.0)
+                    payment_hash = %hex::encode(payment_hash.0),
+                    "Failed to send payment to payment hash: exhausted payment retry attempts",
                 );
 
                 let mut payments = self.outbound_payments.lock().unwrap();
-                if payments.contains_key(&payment_hash) {
-                    let payment = payments.get_mut(&payment_hash).unwrap();
-                    payment.status = HTLCStatus::Failed;
+                match payments.entry(payment_hash) {
+                    Entry::Occupied(mut e) => {
+                        let payment = e.get_mut();
+                        payment.status = HTLCStatus::Failed;
+                    }
+                    Entry::Vacant(e) => {
+                        e.insert(PaymentInfo {
+                            preimage: None,
+                            secret: None,
+                            status: HTLCStatus::Failed,
+                            amt_msat: MillisatAmount(None),
+                            timestamp: OffsetDateTime::now_utc(),
+                        });
+                    }
                 }
             }
             Event::PaymentForwarded {
