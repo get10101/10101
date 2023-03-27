@@ -13,9 +13,6 @@ use crate::PaymentInfoStorage;
 use crate::PendingInterceptedHtlcs;
 use anyhow::anyhow;
 use bitcoin::secp256k1::Secp256k1;
-use bitcoin::Network;
-use bitcoin_bech32::WitnessProgram;
-use dlc_manager::Blockchain;
 use lightning::chain::chaininterface::BroadcasterInterface;
 use lightning::chain::chaininterface::ConfirmationTarget;
 use lightning::chain::chaininterface::FeeEstimator;
@@ -78,24 +75,6 @@ impl EventHandler {
                 output_script,
                 ..
             } => {
-                let network = self
-                    .wallet
-                    .get_network()
-                    .expect("Failed to get bitcoin network");
-
-                let network = match network {
-                    Network::Regtest => bitcoin_bech32::constants::Network::Regtest,
-                    Network::Signet => bitcoin_bech32::constants::Network::Signet,
-                    Network::Testnet => bitcoin_bech32::constants::Network::Testnet,
-                    Network::Bitcoin => bitcoin_bech32::constants::Network::Bitcoin,
-                };
-
-                // Construct the raw transaction with one output, that is paid the amount of the
-                // channel.
-                let _addr = WitnessProgram::from_scriptpubkey(&output_script[..], network)
-                    .expect("Lightning funding tx should always be to a SegWit output")
-                    .to_address();
-
                 let target_blocks = 2;
 
                 // Have wallet put the inputs into the transaction such that the output
