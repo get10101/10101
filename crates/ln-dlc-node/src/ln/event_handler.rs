@@ -158,21 +158,39 @@ impl EventHandler {
                 ..
             } => {
                 let mut payments = self.outbound_payments.lock().unwrap();
-                for (hash, payment) in payments.iter_mut() {
-                    if *hash == payment_hash {
+                let amount_msat = match payments.entry(payment_hash) {
+                    Entry::Occupied(mut e) => {
+                        let payment = e.get_mut();
                         payment.preimage = Some(payment_preimage);
                         payment.status = HTLCStatus::Succeeded;
 
-                        let preimage_hash = hex::encode(payment_preimage.0);
-                        tracing::info!(
-                            amount_msat = ?payment.amt_msat.0,
-                            fee_paid_msat = ?fee_paid_msat,
-                            payment_hash = %hex::encode(payment_hash.0),
-                            %preimage_hash,
-                            "\nSuccessfully sent payment",
-                        );
+                        payment.amt_msat
                     }
-                }
+                    Entry::Vacant(e) => {
+                        tracing::warn!(
+                            "Got PaymentSent event without matching outbound payment on record"
+                        );
+
+                        let amt_msat = MillisatAmount(None);
+                        e.insert(PaymentInfo {
+                            preimage: Some(payment_preimage),
+                            secret: None,
+                            status: HTLCStatus::Succeeded,
+                            amt_msat,
+                            timestamp: OffsetDateTime::now_utc(),
+                        });
+
+                        amt_msat
+                    }
+                };
+
+                tracing::info!(
+                    amount_msat = ?amount_msat.0,
+                    fee_paid_msat = ?fee_paid_msat,
+                    payment_hash = %hex::encode(payment_hash.0),
+                    preimage_hash = %hex::encode(payment_preimage.0),
+                    "Successfully sent payment",
+                );
             }
             Event::OpenChannelRequest {
                 temporary_channel_id,
