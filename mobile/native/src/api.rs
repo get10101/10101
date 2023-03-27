@@ -17,6 +17,7 @@ use anyhow::Result;
 use flutter_rust_bridge::frb;
 use flutter_rust_bridge::StreamSink;
 use flutter_rust_bridge::SyncReturn;
+use std::backtrace::Backtrace;
 pub use trade::ContractSymbol;
 pub use trade::Direction;
 
@@ -163,6 +164,18 @@ pub fn subscribe(stream: StreamSink<event::api::Event>) {
 }
 
 pub fn run(config: Config, app_dir: String) -> Result<()> {
+    std::panic::set_hook(
+        #[allow(clippy::print_stderr)]
+        Box::new(|info| {
+            let backtrace = Backtrace::force_capture();
+
+            tracing::error!(%info, "Aborting after panic in task");
+            eprintln!("{backtrace}");
+
+            std::process::abort()
+        }),
+    );
+
     config::set(config);
     db::init_db(app_dir.clone())?;
     ln_dlc::run(app_dir)?;
