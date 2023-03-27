@@ -24,7 +24,8 @@ pub fn init_tracing(level: LevelFilter, json_format: bool) -> Result<()> {
         .add_directive("hyper=warn".parse()?)
         .add_directive("rustls=warn".parse()?)
         .add_directive("sled=warn".parse()?)
-        .add_directive("bdk=warn".parse()?); // bdk is quite spamy on debug
+        .add_directive("bdk=warn".parse()?) // bdk is quite spamy on debug
+        .add_directive("lightning::chain=info".parse()?);
 
     // Parse additional log directives from env variable
     let filter = match std::env::var_os(RUST_LOG_ENV).map(|s| s.into_string()) {
