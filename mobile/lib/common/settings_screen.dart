@@ -11,10 +11,17 @@ import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 
-class SettingsScreen extends StatelessWidget {
+class SettingsScreen extends StatefulWidget {
   const SettingsScreen({required this.fromRoute, super.key});
 
   final String fromRoute;
+
+  @override
+  State<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends State<SettingsScreen> {
+  File? logs;
 
   @override
   Widget build(BuildContext context) {
@@ -27,14 +34,16 @@ class SettingsScreen extends StatelessWidget {
         Text(
           "Wallet Settings",
           style: TextStyle(
-              fontWeight:
-                  fromRoute == WalletSettingsScreen.route ? FontWeight.bold : FontWeight.normal),
+              fontWeight: widget.fromRoute == WalletSettingsScreen.route
+                  ? FontWeight.bold
+                  : FontWeight.normal),
         ),
         const Divider(),
         Text("Trade Settings",
             style: TextStyle(
-                fontWeight:
-                    fromRoute == TradeSettingsScreen.route ? FontWeight.bold : FontWeight.normal)),
+                fontWeight: widget.fromRoute == TradeSettingsScreen.route
+                    ? FontWeight.bold
+                    : FontWeight.normal)),
         const Divider(),
         const Text("App Info"),
         Table(
@@ -86,6 +95,22 @@ class SettingsScreen extends StatelessWidget {
               Share.shareXFiles([logFile], text: 'Logs from $now');
             },
             child: const Text("Share logs")),
+        ElevatedButton(
+            onPressed: () async {
+              var file = await FLog.exportLogs();
+              setState(() {
+                logs = file;
+              });
+            },
+            child: const Text("Print logs")),
+        if (logs != null)
+          SingleChildScrollView(
+              scrollDirection: Axis.vertical,
+              child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: SelectableText(
+                    logs!.readAsStringSync(),
+                  ))),
       ])),
     );
   }
