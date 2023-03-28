@@ -24,12 +24,15 @@ use ln_dlc_node::node::SubChannelManager;
 use ln_dlc_node::PeerManager;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
+use std::collections::HashMap;
 use std::sync::Arc;
+use std::sync::Mutex;
 use trade::cfd;
 use trade::cfd::calculate_long_liquidation_price;
 use trade::cfd::calculate_margin;
 use trade::cfd::calculate_short_liquidation_price;
 use trade::cfd::BTCUSD_MAX_PRICE;
+use trade::ContractSymbol;
 use trade::Direction;
 
 /// The leverage used by the coordinator for all trades.
@@ -37,6 +40,16 @@ const COORDINATOR_LEVERAGE: f64 = 1.0;
 
 pub struct Node {
     pub inner: Arc<ln_dlc_node::node::Node>,
+    pub positions: Mutex<HashMap<String, Position>>,
+}
+
+pub struct Position {
+    pub contract_symbol: ContractSymbol,
+    pub leverage: f64,
+    pub quantity: f64,
+    pub direction: Direction,
+    pub trader: PublicKey,
+    pub average_entry_price: f64,
 }
 
 impl Node {
@@ -51,6 +64,23 @@ impl Node {
 
     async fn open_position(&self, trade_params: &TradeParams) -> Result<()> {
         tracing::info!("Opening position");
+
+        // todo: Revisit position model and store to database.
+        let position = Position {
+            contract_symbol: trade_params.contract_symbol,
+            leverage: trade_params.leverage,
+            quantity: trade_params.quantity,
+            direction: trade_params.direction,
+            trader: trade_params.pubkey,
+            average_entry_price: trade_params
+                .average_execution_price()
+                .to_f64()
+                .expect("to fit into f64"),
+        };
+        self.positions
+            .lock()
+            .expect("to get lock on positions")
+            .insert(trade_params.pubkey.to_string(), position);
 
         let margin_trader = margin_trader(trade_params);
         let margin_coordinator = margin_coordinator(trade_params);
@@ -116,10 +146,21 @@ impl Node {
 
         let closing_price = trade_params.average_execution_price();
 
-        // FIXME: This is wrong as we cannot use the closing price to calculated the
-        // `accept_settlement_amount`. We must save the initial price when creating the position and
-        // use it here again for closing.
-        let opening_price = closing_price;
+        let opening_price = match self
+            .positions
+            .lock()
+            .expect("to get lock on positions")
+            .remove(&trade_params.pubkey.to_string())
+        {
+            Some(position) => Decimal::try_from(position.average_entry_price)?,
+            None => {
+                tracing::warn!("Did not find position in memory, thus we do not have the opening price to calculate a correct accept settlement amount. Using the closing price.");
+                // FIXME: This is wrong as we cannot use the closing price to calculated the
+                // `accept_settlement_amount`. We must save the initial price when creating the
+                // position and use it here again for closing.
+                closing_price
+            }
+        };
 
         let accept_settlement_amount = calculate_accept_settlement_amount(
             opening_price,
