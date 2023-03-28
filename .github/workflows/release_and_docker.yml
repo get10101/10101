@@ -85,8 +85,8 @@ jobs:
         run: |
           # we need to copy the release bin into this folder because the target folder is one level up.
           cp ../target/${{matrix.target}}/release/${{ matrix.bin }} ${{ matrix.bin }}
-          docker build --platform linux/${{ matrix.docker_arch }} --pull --build-arg BINARY=./${{ matrix.bin }} --tag ${{ env.REGISTRY }}/${{ github.repository }}/${{matrix.bin}}:${{ inputs.tag }}-${{ matrix.docker_arch }} .
-          docker push ${{ env.REGISTRY }}/${{ github.repository }}/${{matrix.bin}}:${{ inputs.tag }}-${{ matrix.docker_arch }}
+          docker build --platform linux/${{ matrix.docker_arch }} --pull --build-arg BINARY=./${{ matrix.bin }} --tag ${{ env.REGISTRY }}/${{ github.actor }}/${{matrix.bin}}:${{ inputs.tag }}-${{ matrix.docker_arch }} .
+          docker push ${{ env.REGISTRY }}/${{ github.actor }}/${{matrix.bin}}:${{ inputs.tag }}-${{ matrix.docker_arch }}
 
   create_manifest_image:
     needs: docker
@@ -106,6 +106,6 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - run: |
-          docker manifest create --amend ghcr.io/${{ github.repository }}/${{matrix.bin}}:${{ inputs.tag }} ghcr.io/${{ github.repository }}/${{matrix.bin}}:${{ inputs.tag }}-amd64
-          docker manifest annotate ghcr.io/${{ github.repository }}/${{matrix.bin}}:${{ inputs.tag }} ghcr.io/${{ github.repository }}/${{matrix.bin}}:${{ inputs.tag }}-amd64 --os linux --arch amd64
-          docker manifest push ghcr.io/${{ github.repository }}/${{matrix.bin}}:${{ inputs.tag }} -p
+          docker manifest create --amend ghcr.io/${{ github.actor }}/${{matrix.bin}}:${{ inputs.tag }} ghcr.io/${{ github.actor }}/${{matrix.bin}}:${{ inputs.tag }}-amd64
+          docker manifest annotate ghcr.io/${{ github.actor }}/${{matrix.bin}}:${{ inputs.tag }} ghcr.io/${{ github.actor }}/${{matrix.bin}}:${{ inputs.tag }}-amd64 --os linux --arch amd64
+          docker manifest push ghcr.io/${{ github.actor }}/${{matrix.bin}}:${{ inputs.tag }} -p
