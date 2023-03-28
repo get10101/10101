@@ -97,7 +97,7 @@ fn get_order_being_filled() -> Result<Order> {
     let order_being_filled = match db::maybe_get_order_in_filling() {
         Ok(Some(order_being_filled)) => order_being_filled,
         Ok(None) => {
-            bail!("There is no order in state filled in the database");
+            bail!("There is no order in state filling in the database");
         }
         Err(e) => {
             bail!("Error when loading order being filled from database: {e:#}");
