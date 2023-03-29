@@ -1,11 +1,14 @@
 # To use this file, install Just: cargo install just
 set dotenv-load
+# eports all justfile variables as environment variables
+set export
+
 line_length := "100"
 coordinator_log_file := "$PWD/data/coordinator/regtest.log"
 maker_log_file := "$PWD/data/maker/regtest.log"
 pubspec := "$PWD/mobile/pubspec.yaml"
-testnet_coordinator := "COORDINATOR_P2P_ENDPOINT=038fb0eb9d9deeb4f0aa885d6c64abb0a26002871d2f7501349cd8d00f1f130045@195.201.81.94:9045"
-testnet_electrs := "ELECTRS_ENDPOINT=195.201.81.94:50000"
+TESTNET_COORDINATOR := "038fb0eb9d9deeb4f0aa885d6c64abb0a26002871d2f7501349cd8d00f1f130045@195.201.81.94:9045"
+TESTNET_ELECTRS := "195.201.81.94:50000"
 
 default: gen
 precommit: gen lint
@@ -208,9 +211,13 @@ testnet-apk:
     #!/usr/bin/env bash
     BUILD_NAME=$(yq -r .version {{pubspec}})
     BUILD_NUMBER=$(git rev-list HEAD --count)
-    echo $BUILD_NAME
-    echo $BUILD_NUMBER
-    cd mobile && flutter build apk --build-name=$BUILD_NAME --build-number=$BUILD_NUMBER --release --dart-define={{testnet_electrs}} --dart-define={{testnet_coordinator}}
+    echo "build name: ${BUILD_NAME}"
+    echo "build number: ${BUILD_NUMBER}"
+    ELECTRS_ENDPOINT="${ELECTRS_ENDPOINT:-$TESTNET_ELECTRS}"
+    COORDINATOR_P2P_ENDPOINT="${COORDINATOR_P2P_ENDPOINT:-$TESTNET_COORDINATOR}"
+    echo "electrs: ${ELECTRS_ENDPOINT}"
+    echo "coordinator: ${COORDINATOR_P2P_ENDPOINT}"
+    cd mobile && flutter build apk --build-name=${BUILD_NAME} --build-number=${BUILD_NUMBER} --release --dart-define="ELECTRS_ENDPOINT=${ELECTRS_ENDPOINT}" --dart-define="COORDINATOR_P2P_ENDPOINT=${COORDINATOR_P2P_ENDPOINT}"
 
 [private]
 wait-for-electrs-to-be-ready:
@@ -235,8 +242,7 @@ wait-for-electrs-to-be-ready:
     done
 
 build-ipa:
-    #!/usr/bin/env bash
-    cd mobile && flutter build ipa --dart-define="ELECTRS_ENDPOINT=${ELECTRS_ENDPOINT}" --dart-define="COORDINATOR_P2P_ENDPOINT=${COORDINATOR_P2P_ENDPOINT}" --dart-define="COMMIT=$(git rev-parse HEAD)" --dart-define="BRANCH=$(git rev-parse --abbrev-ref HEAD)"
+    cd mobile && flutter build ipa --dart-define="ELECTRS_ENDPOINT=${ELECTRS_ENDPOINT}" --dart-define="COORDINATOR_P2P_ENDPOINT=${COORDINATOR_P2P_ENDPOINT}"
 
 publish-testflight:
     cd mobile && xcrun altool --upload-app --type ios --file ./build/ios/ipa/10101.ipa --apiKey ${ALTOOL_API_KEY} --apiIssuer ${ALTOOL_API_ISSUER}
