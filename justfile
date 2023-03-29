@@ -3,6 +3,9 @@ set dotenv-load
 line_length := "100"
 coordinator_log_file := "$PWD/data/coordinator/regtest.log"
 maker_log_file := "$PWD/data/maker/regtest.log"
+pubspec := "$PWD/mobile/pubspec.yaml"
+testnet_coordinator := "COORDINATOR_P2P_ENDPOINT=038fb0eb9d9deeb4f0aa885d6c64abb0a26002871d2f7501349cd8d00f1f130045@195.201.81.94:9045"
+testnet_electrs := "ELECTRS_ENDPOINT=195.201.81.94:50000"
 
 default: gen
 precommit: gen lint
@@ -200,6 +203,14 @@ all: services gen native run
 
 # Run everything at once, tailored for iOS development (rebuilds iOS)
 all-ios: services gen ios run
+
+testnet-apk:
+    #!/usr/bin/env bash
+    BUILD_NAME=$(yq -r .version {{pubspec}})
+    BUILD_NUMBER=$(git rev-list HEAD --count)
+    echo $BUILD_NAME
+    echo $BUILD_NUMBER
+    cd mobile && flutter build apk --build-name=$BUILD_NAME --build-number=$BUILD_NUMBER --release --dart-define={{testnet_electrs}} --dart-define={{testnet_coordinator}}
 
 [private]
 wait-for-electrs-to-be-ready:
