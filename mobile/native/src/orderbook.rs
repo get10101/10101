@@ -71,7 +71,7 @@ pub fn subscribe(secret_key: SecretKey) -> Result<()> {
                             },
                             OrderbookMsg::AllOrders(initial_orders) => {
                                 if !orders.is_empty() {
-                                    tracing::warn!("Received all orders from orderbook, but we already have some orders. This should not happen");
+                                    tracing::debug!("Received new set of initial orders from orderbook, replacing the previously stored orders");
                                 }
                                 else {
                                     tracing::debug!(?orders, "Received all orders from orderbook");
