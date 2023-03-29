@@ -7,6 +7,7 @@ use anyhow::anyhow;
 use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
+use bdk::bitcoin;
 use diesel::connection::SimpleConnection;
 use diesel::r2d2;
 use diesel::r2d2::ConnectionManager;
@@ -61,8 +62,8 @@ impl r2d2::CustomizeConnection<SqliteConnection, r2d2::Error> for ConnectionOpti
     }
 }
 
-pub fn init_db(db_dir: String) -> Result<()> {
-    let database_url = format!("sqlite://{db_dir}/trader.sqlite");
+pub fn init_db(db_dir: &str, network: bitcoin::Network) -> Result<()> {
+    let database_url = format!("sqlite://{db_dir}/trades-{network}.sqlite");
     let manager = ConnectionManager::<SqliteConnection>::new(database_url);
     let pool = r2d2::Pool::builder()
         .max_size(MAX_DB_POOL_SIZE)

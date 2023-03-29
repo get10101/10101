@@ -2,6 +2,7 @@ use crate::calculations;
 use crate::commons::api::Price;
 use crate::config;
 use crate::config::api::Config;
+use crate::config::get_network;
 use crate::db;
 use crate::event;
 use crate::event::api::FlutterSubscriber;
@@ -177,7 +178,7 @@ pub fn run(config: Config, app_dir: String) -> Result<()> {
     );
 
     config::set(config);
-    db::init_db(app_dir.clone())?;
+    db::init_db(&app_dir, get_network())?;
     ln_dlc::run(app_dir)?;
     orderbook::subscribe(ln_dlc::get_node_key()?)
 }
