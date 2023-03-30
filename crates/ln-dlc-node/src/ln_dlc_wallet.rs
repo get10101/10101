@@ -1,4 +1,4 @@
-use anyhow::Context;
+use anyhow::{anyhow, Context};
 use anyhow::Result;
 use bdk::blockchain::ElectrumBlockchain;
 use bdk::sled;
@@ -112,29 +112,31 @@ impl dlc_manager::Blockchain for LnDlcWallet {
         todo!()
     }
 
-    fn get_transaction(&self, _txid: &Txid) -> Result<Transaction, Error> {
-        todo!()
+    fn get_transaction(&self, txid: &Txid) -> Result<Transaction, Error> {
+        let transaction = self.ln_wallet.get_wallet().unwrap()
+            .list_transactions(true).map_err(|e| Error::WalletError(Box::new(e)))?
+            .iter()
+            .find_map(|tx_details| (tx_details.txid == *txid).then(|| tx_details.transaction.as_ref().ok_or(Error::BlockchainError))).ok_or(Error::BlockchainError)??.clone();
+        Ok(transaction)
     }
 
     fn get_transaction_confirmations(&self, txid: &Txid) -> Result<u32, Error> {
-        let status = self
-            .ln_wallet
-            .get_tx_status_for_script(todo!(), *txid)
-            .unwrap();
+        dbg!("requesting transaction confirmations");
+        let transaction = match self.ln_wallet.get_wallet().unwrap()
+            .list_transactions(true).map_err(|e| Error::WalletError(Box::new(e)))?
+            .iter()
+            .find(|tx_details| (tx_details.txid == *txid)) {
+            None => return Ok(0),
+            Some(tx_details) => tx_details.clone()
+        };
+        dbg!("got transaction");
 
-        use bdk_ldk::ScriptStatus::*;
-        Ok(match status {
-            Unseen => 0,
-            InMempool => 0,
-            Confirmed {
-                block_height: Some(height),
-            } => {
-                let blockchain_height = self.get_blockchain_height().unwrap();
-                todo!();
-            }
-            Confirmed { block_height: None } => todo!(),
-            Retrying => todo!(),
-        })
+        let confirmation_height = transaction.confirmation_time.ok_or(Error::BlockchainError)?.height;
+        dbg!("got conf height");
+        let (tip, header) = self.ln_wallet.get_tip().map_err(|e| Error::WalletError(Box::new(e)))?;
+        let confs = tip.checked_sub(confirmation_height).ok_or(Error::BlockchainError)?;
+        dbg!("got the tip");
+        Ok(confs + 1) // the inclusion block is the first confirmation
     }
 }
 

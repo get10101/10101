@@ -74,7 +74,7 @@ async fn dlc_non_collaborative_settlement(
     // Assert
 
     dbg!(coordinator.get_ldk_balance());
-    dbg!(coordinator.get_on_chain_balance());
+    dbg!(coordinator.get_on_chain_balance().unwrap());
 
     Ok((app, coordinator))
 }
