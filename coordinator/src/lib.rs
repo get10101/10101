@@ -25,6 +25,7 @@ pub fn run_migration(conn: &mut PgConnection) {
 pub enum AppError {
     InternalServerError(String),
     BadRequest(String),
+    NoMatchFound(String),
 }
 
 impl IntoResponse for AppError {
@@ -32,6 +33,7 @@ impl IntoResponse for AppError {
         let (status, error_message) = match self {
             AppError::InternalServerError(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg),
             AppError::BadRequest(msg) => (StatusCode::BAD_REQUEST, msg),
+            AppError::NoMatchFound(msg) => (StatusCode::SERVICE_UNAVAILABLE, msg),
         };
 
         let body = Json(json!({
