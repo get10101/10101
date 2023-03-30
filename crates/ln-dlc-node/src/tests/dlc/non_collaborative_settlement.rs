@@ -5,6 +5,7 @@ use crate::tests::dlc::create::DlcChannelCreated;
 use crate::tests::init_tracing;
 use anyhow::Result;
 use std::sync::Arc;
+use std::time::Duration;
 
 #[tokio::test]
 #[ignore]
@@ -52,7 +53,15 @@ async fn dlc_non_collaborative_settlement(
     .await
     .unwrap();
 
+    tokio::time::sleep(Duration::from_secs(5)).await;
+
     mine(500).await.unwrap();
+
+    tokio::time::sleep(Duration::from_secs(5)).await;
+
+    coordinator.sync();
+
+    tokio::time::sleep(Duration::from_secs(5)).await;
 
     tokio::task::spawn_blocking({
         let coordinator = coordinator.clone();

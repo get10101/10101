@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Context};
+use anyhow::Context;
 use anyhow::Result;
 use bdk::blockchain::ElectrumBlockchain;
 use bdk::sled;
@@ -18,7 +18,6 @@ use bitcoin::Transaction;
 use bitcoin::TxOut;
 use bitcoin::Txid;
 use dlc_manager::error::Error;
-use dlc_manager::error::Error::WalletError;
 use dlc_manager::Signer;
 use dlc_manager::Utxo;
 use dlc_sled_storage_provider::SledStorageProvider;
@@ -86,6 +85,8 @@ impl LnDlcWallet {
 
 impl dlc_manager::Blockchain for LnDlcWallet {
     fn send_transaction(&self, transaction: &Transaction) -> Result<(), Error> {
+        tracing::info!(txid = %transaction.txid(), "Broadcasting transaction");
+
         self.ln_wallet
             .broadcast(transaction)
             .map_err(|_| Error::BlockchainError)
@@ -95,7 +96,7 @@ impl dlc_manager::Blockchain for LnDlcWallet {
         let network = self
             .ln_wallet
             .get_wallet()
-            .map_err(|e| WalletError(Box::new(e)))?
+            .map_err(|e| Error::WalletError(Box::new(e)))?
             .network();
         Ok(network)
     }
@@ -113,29 +114,57 @@ impl dlc_manager::Blockchain for LnDlcWallet {
     }
 
     fn get_transaction(&self, txid: &Txid) -> Result<Transaction, Error> {
-        let transaction = self.ln_wallet.get_wallet().unwrap()
-            .list_transactions(true).map_err(|e| Error::WalletError(Box::new(e)))?
+        let transaction = self
+            .ln_wallet
+            .get_wallet()
+            .unwrap()
+            .list_transactions(true)
+            .map_err(|e| Error::WalletError(Box::new(e)))?
             .iter()
-            .find_map(|tx_details| (tx_details.txid == *txid).then(|| tx_details.transaction.as_ref().ok_or(Error::BlockchainError))).ok_or(Error::BlockchainError)??.clone();
+            .find_map(|tx_details| {
+                (tx_details.txid == *txid).then(|| {
+                    tx_details
+                        .transaction
+                        .as_ref()
+                        .ok_or(Error::BlockchainError)
+                })
+            })
+            .ok_or(Error::BlockchainError)??
+            .clone();
         Ok(transaction)
     }
 
     fn get_transaction_confirmations(&self, txid: &Txid) -> Result<u32, Error> {
-        dbg!("requesting transaction confirmations");
-        let transaction = match self.ln_wallet.get_wallet().unwrap()
-            .list_transactions(true).map_err(|e| Error::WalletError(Box::new(e)))?
-            .iter()
-            .find(|tx_details| (tx_details.txid == *txid)) {
-            None => return Ok(0),
-            Some(tx_details) => tx_details.clone()
-        };
-        dbg!("got transaction");
+        tracing::debug!(%txid, "Getting confirmations for transaction");
 
-        let confirmation_height = transaction.confirmation_time.ok_or(Error::BlockchainError)?.height;
-        dbg!("got conf height");
-        let (tip, header) = self.ln_wallet.get_tip().map_err(|e| Error::WalletError(Box::new(e)))?;
-        let confs = tip.checked_sub(confirmation_height).ok_or(Error::BlockchainError)?;
-        dbg!("got the tip");
+        // FIXME: Fetch info from Electrum client in bdk_ldk::Wallet. The BDK wallet does not know
+        // about this transaction because it is not receiving it, nor is it sending it!
+        let transaction = match self
+            .ln_wallet
+            .get_wallet()
+            .unwrap()
+            .list_transactions(false)
+            .map_err(|e| Error::WalletError(Box::new(e)))?
+            .iter()
+            .find(|tx_details| (dbg!(tx_details.txid) == *txid))
+        {
+            None => return Ok(0),
+            Some(tx_details) => tx_details.clone(),
+        };
+
+        let confirmation_height = transaction
+            .confirmation_time
+            .ok_or(Error::BlockchainError)?
+            .height;
+
+        let (tip, _) = self
+            .ln_wallet
+            .get_tip()
+            .map_err(|e| Error::WalletError(Box::new(e)))?;
+        let confs = tip
+            .checked_sub(confirmation_height)
+            .ok_or(Error::BlockchainError)?;
+
         Ok(confs + 1) // the inclusion block is the first confirmation
     }
 }
@@ -175,7 +204,7 @@ impl dlc_manager::Wallet for LnDlcWallet {
             .get_wallet()
             .unwrap()
             .get_address(AddressIndex::New)
-            .map_err(|e| WalletError(Box::new(e)))?;
+            .map_err(|e| Error::WalletError(Box::new(e)))?;
         Ok(address_info.address)
     }
 
