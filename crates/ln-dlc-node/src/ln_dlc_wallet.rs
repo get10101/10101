@@ -116,8 +116,25 @@ impl dlc_manager::Blockchain for LnDlcWallet {
         todo!()
     }
 
-    fn get_transaction_confirmations(&self, _txid: &Txid) -> Result<u32, Error> {
-        todo!()
+    fn get_transaction_confirmations(&self, txid: &Txid) -> Result<u32, Error> {
+        let status = self
+            .ln_wallet
+            .get_tx_status_for_script(todo!(), *txid)
+            .unwrap();
+
+        use bdk_ldk::ScriptStatus::*;
+        Ok(match status {
+            Unseen => 0,
+            InMempool => 0,
+            Confirmed {
+                block_height: Some(height),
+            } => {
+                let blockchain_height = self.get_blockchain_height().unwrap();
+                todo!();
+            }
+            Confirmed { block_height: None } => todo!(),
+            Retrying => todo!(),
+        })
     }
 }
 
