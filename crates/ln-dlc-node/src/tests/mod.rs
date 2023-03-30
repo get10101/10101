@@ -358,7 +358,7 @@ fn dummy_contract_input(
                 rounding_intervals: RoundingIntervals {
                     intervals: vec![RoundingInterval {
                         begin_interval: 0,
-                        rounding_mod: 1,
+                        rounding_mod: 500,
                     }],
                 },
                 difference_params: None,
