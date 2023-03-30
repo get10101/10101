@@ -40,19 +40,34 @@ async fn dlc_non_collaborative_settlement(
 
     let coordinator = Arc::new(coordinator);
 
-    let join_handle = tokio::task::spawn_blocking({
+    tokio::task::spawn_blocking({
         let coordinator = coordinator.clone();
         move || {
             coordinator
-                .dlc_manager
-                .force_close_channel(&channel_id)
+                .sub_channel_manager
+                .initiate_force_close_sub_channel(&channel_id)
                 .unwrap();
         }
-    });
+    })
+    .await
+    .unwrap();
 
-    join_handle.await.unwrap();
+    mine(500).await.unwrap();
 
-    mine(10).await.unwrap();
+    tokio::task::spawn_blocking({
+        let coordinator = coordinator.clone();
+        move || {
+            coordinator
+                .sub_channel_manager
+                .finalize_force_close_sub_channels(&channel_id)
+                .unwrap();
+        }
+    })
+    .await
+    .unwrap();
+
+    coordinator.sync();
+    app.sync();
 
     let coordinator_off_chain_balance = dbg!(coordinator.get_ldk_balance());
     let coordinator_on_chain_balance = dbg!(coordinator.get_on_chain_balance().unwrap());
