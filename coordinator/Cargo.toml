@@ -10,7 +10,7 @@ axum = { version = "0.6.7", features = ["ws"] }
 bdk = { version = "0.24.0", features = ["key-value-db"] }
 bitcoin = "0.29"
 clap = { version = "4", features = ["derive"] }
-coordinator-commons = { path = "../crates/coordintator-commons" }
+coordinator-commons = { path = "../crates/coordinator-commons" }
 diesel = { version = "2.0.0", features = ["r2d2", "postgres", "time", "uuid"] }
 diesel_migrations = "2.0.0"
 dlc-manager = { version = "0.4.0", features = ["use-serde"] }
