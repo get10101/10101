@@ -24,6 +24,7 @@ use lightning::chain::Confirm;
 use lightning::chain::Filter;
 use lightning::chain::WatchedOutput;
 use std::collections::HashMap;
+use std::sync::Arc;
 use std::sync::Mutex;
 use std::sync::MutexGuard;
 
@@ -75,7 +76,7 @@ impl Default for TxFilter {
 /// needed to use lightning with LDK.  Note: The bdk::Blockchain you use
 /// must implement the IndexedChain trait.
 pub struct LightningWallet<B, D> {
-    client: Box<B>,
+    client: Arc<B>,
     wallet: Mutex<Wallet<D>>,
     filter: Mutex<TxFilter>,
 }
@@ -86,7 +87,7 @@ where
     D: BatchDatabase,
 {
     /// create a new lightning wallet from your bdk wallet
-    pub fn new(client: Box<B>, wallet: Wallet<D>) -> Self {
+    pub fn new(client: Arc<B>, wallet: Wallet<D>) -> Self {
         LightningWallet {
             client,
             wallet: Mutex::new(wallet),

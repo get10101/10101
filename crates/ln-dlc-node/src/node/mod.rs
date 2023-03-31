@@ -218,7 +218,7 @@ impl Node {
             let blockchain_client =
                 ElectrumBlockchain::from(bdk::electrum_client::Client::new(&electrs_origin)?);
             Arc::new(LnDlcWallet::new(
-                Box::new(blockchain_client),
+                Arc::new(blockchain_client),
                 on_chain_wallet.inner,
                 storage.clone(),
             ))
