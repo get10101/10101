@@ -3,6 +3,7 @@ use bdk::blockchain::ElectrumBlockchain;
 use bdk::database::MemoryDatabase;
 use bdk::electrum_client::Client;
 use bdk_ldk::LightningWallet;
+use std::sync::Arc;
 
 #[test]
 fn can_init_sample_electrum_lightning_wallet() {
@@ -15,5 +16,5 @@ fn can_init_sample_electrum_lightning_wallet() {
         MemoryDatabase::default(),
     ).unwrap();
 
-    let _lightning = LightningWallet::new(Box::new(blockchain), wallet);
+    let _lightning = LightningWallet::new(Arc::new(blockchain), wallet);
 }

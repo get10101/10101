@@ -33,18 +33,20 @@ use std::sync::Arc;
 /// We want to eventually get rid of the dependency on `bdk-ldk`, because it's a dead project.
 pub struct LnDlcWallet {
     ln_wallet: bdk_ldk::LightningWallet<ElectrumBlockchain, sled::Tree>,
+    electrum: Arc<ElectrumBlockchain>,
     storage: Arc<SledStorageProvider>,
     secp: Secp256k1<All>,
 }
 
 impl LnDlcWallet {
     pub fn new(
-        blockchain_client: Box<ElectrumBlockchain>,
+        blockchain_client: Arc<ElectrumBlockchain>,
         wallet: bdk::Wallet<bdk::sled::Tree>,
         storage: Arc<SledStorageProvider>,
     ) -> Self {
         Self {
-            ln_wallet: bdk_ldk::LightningWallet::new(blockchain_client, wallet),
+            ln_wallet: bdk_ldk::LightningWallet::new(blockchain_client.clone(), wallet),
+            electrum: blockchain_client,
             storage,
             secp: Secp256k1::new(),
         }
@@ -53,6 +55,10 @@ impl LnDlcWallet {
     // TODO: Better to keep this private and expose the necessary APIs instead.
     pub(crate) fn inner(&self) -> &bdk_ldk::LightningWallet<ElectrumBlockchain, sled::Tree> {
         &self.ln_wallet
+    }
+
+    pub fn electrum(&self) -> Arc<ElectrumBlockchain> {
+        self.electrum.clone()
     }
 
     pub(crate) fn tip(&self) -> Result<(u32, BlockHeader)> {
