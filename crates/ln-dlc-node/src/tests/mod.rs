@@ -97,7 +97,7 @@ impl Node {
         )
         .await?;
 
-        tracing::debug!(%name, info = ?node.info, "Node started");
+        tracing::debug!(%name, info = %node.info, "Node started");
 
         Ok(node)
     }
