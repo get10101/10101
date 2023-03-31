@@ -22,11 +22,9 @@ pub type SubChannelManager = sub_channel_manager::SubChannelManager<
 pub(crate) fn build(
     channel_manager: Arc<ChannelManager>,
     dlc_manager: Arc<DlcManager>,
-    height: u64,
 ) -> Result<Arc<SubChannelManager>> {
     Ok(Arc::new(SubChannelManager::new(
         channel_manager.clone(),
         dlc_manager,
-        height,
     )))
 }

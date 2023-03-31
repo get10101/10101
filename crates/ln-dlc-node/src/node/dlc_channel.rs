@@ -230,6 +230,6 @@ pub fn sub_channel_message_as_str(msg: &SubChannelMessage) -> &str {
         CloseAccept(_) => "CloseAccept",
         CloseConfirm(_) => "CloseConfirm",
         CloseFinalize(_) => "CloseFinalize",
-        CloseReject(_) => "CloseReject",
+        Reject(_) => "Reject",
     }
 }

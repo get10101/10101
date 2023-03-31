@@ -32,6 +32,8 @@ pub enum SubChannelState {
     CloseConfirmed,
     OffChainClosed,
     ClosedPunished,
+    Confirmed,
+    Rejected,
 }
 
 impl From<SubChannel> for DlcChannelDetails {
@@ -63,6 +65,8 @@ impl From<dlc_manager::subchannel::SubChannelState> for SubChannelState {
             CloseConfirmed(_) => SubChannelState::CloseConfirmed,
             OffChainClosed => SubChannelState::OffChainClosed,
             ClosedPunished(_) => SubChannelState::ClosedPunished,
+            Confirmed(_) => SubChannelState::Confirmed,
+            Rejected => SubChannelState::Rejected,
         }
     }
 }
