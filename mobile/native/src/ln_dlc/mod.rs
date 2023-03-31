@@ -172,8 +172,7 @@ pub fn run(data_dir: String) -> Result<()> {
 }
 
 async fn keep_wallet_balance_and_history_up_to_date(node: &Node) -> Result<()> {
-    // TODO: The node sync should not swallow the error.
-    node.inner.sync();
+    node.inner.sync()?;
 
     let wallet_balances = node
         .get_wallet_balances()

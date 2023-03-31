@@ -116,7 +116,7 @@ impl Node {
         while self.get_confirmed_balance()? < expected_balance {
             let interval = Duration::from_millis(200);
 
-            self.sync();
+            self.sync().unwrap();
 
             tokio::time::sleep(interval).await;
             tracing::debug!(
@@ -170,8 +170,8 @@ impl Node {
                     // We need to sync both parties, even if
                     // `trust_own_funding_0conf` is true for the creator
                     // of the channel (`self`)
-                    self.sync();
-                    peer.sync();
+                    self.sync().unwrap();
+                    peer.sync().unwrap();
                 }
 
                 tracing::debug!(

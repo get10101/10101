@@ -39,8 +39,8 @@ async fn single_hop_payment() {
     // Assert
 
     // Sync LN wallet after payment is claimed to update the balances
-    payer.sync();
-    payee.sync();
+    payer.sync().unwrap();
+    payee.sync().unwrap();
 
     let payer_balance_after = payer.get_ldk_balance();
     let payee_balance_after = payee.get_ldk_balance();

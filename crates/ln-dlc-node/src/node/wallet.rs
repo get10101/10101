@@ -20,13 +20,16 @@ pub struct OffChainBalance {
 }
 
 impl Node {
-    pub fn sync(&self) {
+    pub fn sync(&self) -> Result<()> {
         let confirmables = vec![
             &*self.channel_manager as &dyn Confirm,
             &*self.chain_monitor as &dyn Confirm,
         ];
 
-        self.wallet.inner().sync(confirmables).unwrap();
+        self.wallet
+            .inner()
+            .sync(confirmables)
+            .map_err(|e| anyhow!("{e:#}"))
     }
 
     pub fn get_new_address(&self) -> Result<Address> {

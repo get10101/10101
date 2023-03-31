@@ -27,8 +27,8 @@ async fn onboard_from_lnd() {
 
     log_channel_id(&coordinator, 0, "lnd-coordinator");
 
-    coordinator.sync();
-    payee.sync();
+    coordinator.sync().unwrap();
+    payee.sync().unwrap();
 
     let invoice_amount = 1000;
 
@@ -49,8 +49,8 @@ async fn onboard_from_lnd() {
     // For the payment to be claimed before the wallets sync
     tokio::time::sleep(Duration::from_secs(3)).await;
 
-    coordinator.sync();
-    payee.sync();
+    coordinator.sync().unwrap();
+    payee.sync().unwrap();
 
     // Assert
 

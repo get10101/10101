@@ -70,7 +70,7 @@ impl LndNode {
         .await?;
 
         bitcoind::mine(1).await?;
-        target.sync();
+        target.sync().unwrap();
 
         tokio::time::timeout(Duration::from_secs(10), async {
             loop {
@@ -85,7 +85,7 @@ impl LndNode {
                     break;
                 }
 
-                target.sync();
+                target.sync().unwrap();
 
                 tracing::debug!("Waiting for channel to be usable");
                 tokio::time::sleep(Duration::from_millis(500)).await;

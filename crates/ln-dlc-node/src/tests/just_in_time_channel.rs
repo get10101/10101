@@ -105,9 +105,9 @@ async fn just_in_time_channel() {
     // Assert
 
     // Sync LN wallet after payment is claimed to update the balances
-    payer.sync();
-    coordinator.sync();
-    payee.sync();
+    payer.sync().unwrap();
+    coordinator.sync().unwrap();
+    payee.sync().unwrap();
 
     let payer_balance_after = payer.get_ldk_balance();
     let coordinator_balance_after = coordinator.get_ldk_balance();
