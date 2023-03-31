@@ -144,6 +144,10 @@ native-test:
 
 test: flutter-test native-test
 
+# Run expensive tests from the `ln-dlc-node` crate. To run them you will have to start certain Docker containers via `just docker`.
+ln-dlc-node-test:
+    cargo test -p ln-dlc-node -- --ignored
+
 # Runs background Docker services
 docker:
     docker-compose up -d
