@@ -107,8 +107,14 @@ wipe-app:
 lint: lint-flutter clippy
 
 clippy:
-    cd mobile/native && cargo clippy --all-targets -- -D warnings
-    cd coordinator && cargo clippy --all-targets -- -D warnings
+    cd mobile/native && just cargo-clippy
+    cd coordinator && just cargo-clippy
+    cd maker && just cargo-clippy
+    for crate in crates/*; do (cd "$crate" && just cargo-clippy); done
+
+[private]
+cargo-clippy:
+    cargo clippy --all-targets -- -D warnings
 
 lint-flutter:
     cd mobile && flutter analyze --fatal-infos .
