@@ -7,18 +7,18 @@ maker_log_file := "$PWD/data/maker/regtest.log"
 default: gen
 precommit: gen lint
 
-# deps: Install missing dependencies.
+# Install missing dependencies.
 deps: deps-gen deps-android deps-ios
 
 deps-gen:
     cargo install flutter_rust_bridge_codegen@1.71.1
 
-# deps-android: Install dependencies for Android (build targets and cargo-ndk)
+# Install dependencies for Android (build targets and cargo-ndk)
 deps-android:
     cargo install cargo-ndk
     rustup target add aarch64-linux-android armv7-linux-androideabi x86_64-linux-android i686-linux-android
 
-# deps-ios: Install dependencies for iOS
+# Install dependencies for iOS
 deps-ios:
     cargo install cargo-lipo
     rustup target add aarch64-apple-ios x86_64-apple-ios
@@ -44,7 +44,7 @@ native:
 android:
     cd mobile/native && cargo ndk -o ../android/app/src/main/jniLibs build
 
-# ios: Build Rust library for iOS
+# Build Rust library for iOS
 ios:
     cd mobile/native && cargo lipo
     cp target/universal/debug/libnative.a mobile/ios/Runner
