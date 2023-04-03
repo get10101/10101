@@ -19,7 +19,7 @@ async fn given_lightning_channel_then_can_add_dlc_channel() {
     let app_dlc_collateral = 50_000;
     let coordinator_dlc_collateral = 25_000;
 
-    create_dlc_channel(app_dlc_collateral, coordinator_dlc_collateral)
+    create_dlc_channel(app_dlc_collateral, coordinator_dlc_collateral, None, None)
         .await
         .unwrap();
 }
@@ -37,6 +37,8 @@ pub struct DlcChannelCreated {
 pub async fn create_dlc_channel(
     app_dlc_collateral: u64,
     coordinator_dlc_collateral: u64,
+    app: Option<Node>,
+    coordinator: Option<Node>,
 ) -> Result<DlcChannelCreated> {
     // Arrange
 
@@ -45,8 +47,14 @@ pub async fn create_dlc_channel(
 
     let fund_amount = (app_ln_balance + coordinator_ln_balance) * 2;
 
-    let app = Node::start_test_app("app").await?;
-    let coordinator = Node::start_test_coordinator("coordinator").await?;
+    let app = match app {
+        Some(app) => app,
+        None => Node::start_test_app("app").await?,
+    };
+    let coordinator = match coordinator {
+        Some(coordinator) => coordinator,
+        None => Node::start_test_coordinator("coordinator").await?,
+    };
 
     app.keep_connected(coordinator.info).await?;
 

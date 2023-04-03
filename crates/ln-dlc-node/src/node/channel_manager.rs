@@ -120,7 +120,12 @@ pub(crate) fn build(
     // Give ChannelMonitors to ChainMonitor to watch
     for confirmable_monitor in confirmable_monitors.drain(..) {
         let channel_monitor = confirmable_monitor.0;
-        let funding_txo = channel_monitor.get_funding_txo().0;
+
+        // ATTENTION: This must be `get_original_funding_txo` and _not_ `get_funding_txo`, because
+        // we are using LN-DLC channels. `rust-dlc` is manipulating the funding TXO so that LDK
+        // considers the `glue_transaction` as the `funding_transaction` for certain purposes. For
+        // other purposes, LDK must still refer back to the original `funding_transaction`.
+        let funding_txo = channel_monitor.get_original_funding_txo().0;
         assert_eq!(
             chain_monitor.watch_channel(funding_txo, channel_monitor),
             ChannelMonitorUpdateStatus::Completed

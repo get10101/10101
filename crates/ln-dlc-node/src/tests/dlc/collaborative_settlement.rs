@@ -39,7 +39,7 @@ async fn dlc_collaborative_settlement(
         app,
         app_balance_channel_creation,
         channel_id,
-    } = create_dlc_channel(app_dlc_collateral, coordinator_dlc_collateral).await?;
+    } = create_dlc_channel(app_dlc_collateral, coordinator_dlc_collateral, None, None).await?;
 
     // Act
 

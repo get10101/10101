@@ -33,6 +33,7 @@ use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use std::env::temp_dir;
 use std::net::TcpListener;
+use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Once;
 use std::time::Duration;
@@ -63,17 +64,26 @@ fn init_tracing() {
 
 impl Node {
     async fn start_test_app(name: &str) -> Result<Self> {
-        Self::start_test(name, app_config()).await
+        Self::start_test(name, app_config(), None, None).await
     }
 
     async fn start_test_coordinator(name: &str) -> Result<Self> {
-        Self::start_test(name, coordinator_config()).await
+        Self::start_test(name, coordinator_config(), None, None).await
     }
 
-    async fn start_test(name: &str, user_config: UserConfig) -> Result<Self> {
-        let data_dir = random_tmp_dir().join(name);
+    async fn start_test(
+        name: &str,
+        user_config: UserConfig,
+        data_dir: Option<&Path>,
+        seed: Option<Bip39Seed>,
+    ) -> Result<Self> {
+        let mut data_dir_buf = PathBuf::new();
+        match data_dir {
+            Some(path) => data_dir_buf.push(path),
+            None => data_dir_buf.push(random_tmp_dir().join(name).as_path()),
+        };
 
-        let seed = Bip39Seed::new().expect("A valid bip39 seed");
+        let seed = seed.unwrap_or_else(|| Bip39Seed::new().expect("A valid bip39 seed"));
 
         let mut ephemeral_randomness = [0; 32];
         thread_rng().fill_bytes(&mut ephemeral_randomness);
@@ -86,7 +96,7 @@ impl Node {
         let node = Node::new(
             name,
             Network::Regtest,
-            data_dir.as_path(),
+            data_dir_buf.as_path(),
             address,
             address,
             vec![util::build_net_address(address.ip(), address.port())],
