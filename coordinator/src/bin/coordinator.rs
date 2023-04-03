@@ -80,8 +80,9 @@ async fn main() -> Result<()> {
         let node = node.clone();
         async move {
             loop {
-                // todo: the node sync should not swallow the error.
-                node.sync();
+                if let Err(e) = node.sync() {
+                    tracing::error!("Failed to sync node. Error: {e:#}");
+                }
                 tokio::time::sleep(std::time::Duration::from_secs(10)).await;
             }
         }
