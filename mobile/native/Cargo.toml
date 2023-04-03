@@ -9,7 +9,7 @@ crate-type = ["cdylib", "staticlib"]
 [dependencies]
 anyhow = "1"
 bdk = { version = "0.24.0", features = ["key-value-db"] }
-coordinator-commons = { path = "../../crates/coordintator-commons" }
+coordinator-commons = { path = "../../crates/coordinator-commons" }
 diesel = { version = "2.0.0", features = ["sqlite", "r2d2", "extras"] }
 diesel_migrations = "2.0.0"
 dlc-messages = { version = "0.4.0" }

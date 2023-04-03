@@ -97,14 +97,17 @@ pub async fn create_dlc_channel(
 
     coordinator.accept_dlc_channel_offer(&sub_channel.channel_id)?;
 
-    // Process the coordinator's accept message _and_ send the confirm
-    // message
+    // Process the coordinator's accept message _and_ send the confirm message
     tokio::time::sleep(Duration::from_secs(2)).await;
     app.process_incoming_messages()?;
 
-    // Process the confirm message
+    // Process the confirm message _and_ send the finalize message
     tokio::time::sleep(Duration::from_secs(2)).await;
     coordinator.process_incoming_messages()?;
+
+    // Process the finalize message
+    tokio::time::sleep(Duration::from_secs(2)).await;
+    app.process_incoming_messages()?;
 
     // Assert
 

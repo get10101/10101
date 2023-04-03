@@ -97,7 +97,7 @@ impl Node {
         )
         .await?;
 
-        tracing::debug!(%name, info = ?node.info, "Node started");
+        tracing::debug!(%name, info = %node.info, "Node started");
 
         Ok(node)
     }
@@ -301,6 +301,9 @@ fn dummy_contract_input(
 ) -> ContractInput {
     let total_collateral = offer_collateral + accept_collateral;
 
+    let n_cets = 100;
+    let rounding_mod = total_collateral / (n_cets + 1);
+
     ContractInput {
         offer_collateral,
         accept_collateral,
@@ -358,7 +361,7 @@ fn dummy_contract_input(
                 rounding_intervals: RoundingIntervals {
                     intervals: vec![RoundingInterval {
                         begin_interval: 0,
-                        rounding_mod: 1,
+                        rounding_mod,
                     }],
                 },
                 difference_params: None,
