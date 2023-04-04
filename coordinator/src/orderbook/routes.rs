@@ -91,6 +91,7 @@ pub async fn post_order(
         // we only tell everyone about new limit orders
         let sender = state.tx_pricefeed.clone();
         update_pricefeed(OrderbookMsg::NewOrder(order.clone()), sender);
+        return Ok(Json(order));
     }
 
     let all_orders = orders::all_by_direction_and_type(
