@@ -229,4 +229,7 @@ publish-testflight:
 
 release-testflight: gen ios build-ipa publish-testflight
 
+version:
+    cargo --version && rustc --version && flutter --version
+
 # vim:expandtab:sw=4:ts=4
