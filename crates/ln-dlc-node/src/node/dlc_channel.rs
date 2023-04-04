@@ -43,7 +43,7 @@ impl Node {
                 contract_input,
                 &[vec![announcement]],
             )
-            .unwrap();
+            .map_err(|e| anyhow!("{e:#}"))?;
 
         self.dlc_message_handler.send_message(
             channel_details.counterparty.node_id,
