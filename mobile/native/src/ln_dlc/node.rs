@@ -125,29 +125,51 @@ impl Node {
                             .dlc_message_handler
                             .send_message(node_id, Message::SubChannel(reply_msg.clone()));
 
-                        if let SubChannelMessage::Finalize(_)
-                        | SubChannelMessage::CloseFinalize(_) = reply_msg
-                        {
-                            let accept_collateral =
-                                get_first_confirmed_dlc(&self.inner.dlc_manager)?.accept_collateral;
+                        match reply_msg {
+                            SubChannelMessage::Finalize(_) => {
+                                let accept_collateral =
+                                    get_first_confirmed_dlc(&self.inner.dlc_manager)?
+                                        .accept_collateral;
 
-                            let filled_order = match order::handler::order_filled() {
-                                Ok(filled_order) => filled_order,
-                                Err(e) => {
-                                    tracing::error!("Critical Error! We have a DLC but were unable to set the order to filled: {e:#}");
+                                let filled_order = match order::handler::order_filled() {
+                                    Ok(filled_order) => filled_order,
+                                    Err(e) => {
+                                        tracing::error!("Critical Error! We have a DLC but were unable to set the order to filled: {e:#}");
+                                        continue;
+                                    }
+                                };
+
+                                if let Err(e) =
+                                    position::handler::update_position_after_dlc_creation(
+                                        filled_order,
+                                        accept_collateral,
+                                    )
+                                {
+                                    tracing::error!(
+                                        "Failed to handle position after receiving DLC: {e:#}"
+                                    );
                                     continue;
                                 }
-                            };
-
-                            if let Err(e) = position::handler::update_position_after_order_filled(
-                                filled_order,
-                                accept_collateral,
-                            ) {
-                                tracing::error!(
-                                    "Failed to handle position after receiving DLC: {e:#}"
-                                );
-                                continue;
                             }
+                            SubChannelMessage::CloseFinalize(_) => {
+                                let filled_order = match order::handler::order_filled() {
+                                    Ok(filled_order) => filled_order,
+                                    Err(e) => {
+                                        tracing::error!("Critical Error! We have closed a DLC but were unable to set the order to filled: {e:#}");
+                                        continue;
+                                    }
+                                };
+
+                                if let Err(e) = position::handler::update_position_after_dlc_closure(
+                                    filled_order,
+                                ) {
+                                    tracing::error!(
+                                        "Failed to handle position after closing DLC: {e:#}"
+                                    );
+                                    continue;
+                                }
+                            }
+                            _ => (),
                         }
                     }
                 }
@@ -164,11 +186,18 @@ impl Node {
     }
 }
 
-pub fn get_first_confirmed_dlc(dlc_manager: &DlcManager) -> Result<Dlc> {
-    let confirmed_dlcs = dlc_manager
+fn get_first_confirmed_dlc(dlc_manager: &DlcManager) -> Result<Dlc> {
+    let contracts = dlc_manager
         .get_store()
         .get_contracts()
-        .map_err(|e| anyhow!("Unable to get contracts from manager: {e:#}"))?
+        .map_err(|e| anyhow!("Unable to get contracts from manager: {e:#}"))?;
+
+    tracing::debug!(
+        ?contracts,
+        "Looking for latest confirmed DLC among all contracts"
+    );
+
+    let confirmed_dlcs = contracts
         .iter()
         .filter_map(|contract| match contract {
             Contract::Confirmed(signed) => Some((contract.get_id(), signed)),
