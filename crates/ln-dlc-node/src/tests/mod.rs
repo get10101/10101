@@ -40,6 +40,7 @@ use std::time::Duration;
 mod bitcoind;
 mod dlc;
 mod just_in_time_channel;
+mod just_in_time_channel_with_multiple_payments;
 mod lnd;
 mod multi_hop_payment;
 mod onboard_from_lnd;
@@ -54,7 +55,7 @@ fn init_tracing() {
     TRACING_TEST_SUBSCRIBER.call_once(|| {
         tracing_subscriber::fmt()
             .with_env_filter(
-                "debug,hyper=warn,reqwest=warn,rustls=warn,bdk=info,ldk=debug,sled=info",
+                "debug,hyper=warn,reqwest=warn,rustls=warn,bdk=info,lightning=trace,sled=info",
             )
             .with_test_writer()
             .init()
