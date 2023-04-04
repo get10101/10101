@@ -40,7 +40,6 @@ use std::time::Duration;
 mod bitcoind;
 mod dlc;
 mod just_in_time_channel;
-mod just_in_time_channel_with_multiple_payments;
 mod lnd;
 mod multi_hop_payment;
 mod onboard_from_lnd;

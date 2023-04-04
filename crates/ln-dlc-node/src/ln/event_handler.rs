@@ -432,20 +432,37 @@ impl EventHandler {
                     "Intercepted HTLC"
                 );
 
-                // if we have already a channel with them, we try to forward the payment.
-                // TODO: here we would need to increase the channel size if the channel is too small
-                if let Some(channel) =
-                    self.channel_manager
-                        .list_channels()
-                        .iter()
-                        .find(|channel_details| {
-                            if let Some(scid) = channel_details.short_channel_id {
-                                scid == requested_next_hop_scid
-                            } else {
-                                false
+                let target_node_id = {
+                    let fake_channel_payments = self.fake_channel_payments.lock().unwrap();
+                    match fake_channel_payments.get(&requested_next_hop_scid) {
+                        None => {
+                            tracing::warn!(fake_scid = requested_next_hop_scid, "Could not forward the intercepted HTLC because we didn't have a node registered with said fake scid");
+
+                            if let Err(err) =
+                                self.channel_manager.fail_intercepted_htlc(intercept_id)
+                            {
+                                tracing::error!("Could not fail intercepted htlc {err:?}")
                             }
-                        })
+
+                            return Ok(());
+                        }
+                        Some(target_node_id) => *target_node_id,
+                    }
+                };
+
+                // if we have already a channel with them, we try to forward the payment.
+                if let Some(channel) = self
+                    .channel_manager
+                    .list_channels()
+                    .iter()
+                    // The coordinator can only have one channel with each app. Hence, if we find a
+                    // channel with the target of the intercepted HTLC, we know
+                    // that it is the only channel between coordinator and
+                    // target app and we can forward the intercepted HTLC through it.
+                    .find(|channel_details| channel_details.counterparty.node_id == target_node_id)
                 {
+                    // Note, the forward intercepted htlc might fail due to insufficient balance,
+                    // since we do not check yet if the channel outbound capacity is sufficient.
                     if let Err(error) = self.channel_manager.forward_intercepted_htlc(
                         intercept_id,
                         &channel.channel_id,
@@ -461,21 +478,6 @@ impl EventHandler {
 
                     return Ok(());
                 }
-
-                let fake_channel_payments = self.fake_channel_payments.lock().unwrap();
-
-                let target_node_id = match fake_channel_payments.get(&requested_next_hop_scid) {
-                    None => {
-                        tracing::warn!(fake_scid = requested_next_hop_scid, "Could not forward the intercepted HTLC because we didn't have a node registered with said fake scid");
-
-                        if let Err(err) = self.channel_manager.fail_intercepted_htlc(intercept_id) {
-                            tracing::error!("Could not fail intercepted htlc {err:?}")
-                        }
-
-                        return Ok(());
-                    }
-                    Some(target_node_id) => target_node_id,
-                };
 
                 // FIXME: This will set the channel capacity to twice the amount that is
                 // transferred or the `JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT` ensuring there
@@ -503,7 +505,7 @@ impl EventHandler {
                 // `max_inbound_htlc_value_in_flight_percent_of_channel`
                 // configuration value
                 let temp_channel_id = match self.channel_manager.create_channel(
-                    *target_node_id,
+                    target_node_id,
                     channel_value,
                     0,
                     0,
@@ -534,7 +536,7 @@ impl EventHandler {
                 let pending_intercepted_htlcs = self.pending_intercepted_htlcs.clone();
                 let mut pending_intercepted_htlcs = pending_intercepted_htlcs.lock().unwrap();
                 pending_intercepted_htlcs.insert(
-                    *target_node_id,
+                    target_node_id,
                     (intercept_id, expected_outbound_amount_msat),
                 );
             }
