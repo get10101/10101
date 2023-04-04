@@ -26,6 +26,7 @@ pub enum AppError {
     InternalServerError(String),
     BadRequest(String),
     NoMatchFound(String),
+    InvalidOrder(String),
 }
 
 impl IntoResponse for AppError {
@@ -34,6 +35,7 @@ impl IntoResponse for AppError {
             AppError::InternalServerError(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg),
             AppError::BadRequest(msg) => (StatusCode::BAD_REQUEST, msg),
             AppError::NoMatchFound(msg) => (StatusCode::SERVICE_UNAVAILABLE, msg),
+            AppError::InvalidOrder(msg) => (StatusCode::BAD_REQUEST, msg),
         };
 
         let body = Json(json!({
