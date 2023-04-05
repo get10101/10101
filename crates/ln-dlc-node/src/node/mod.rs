@@ -22,6 +22,8 @@ use bitcoin::secp256k1::PublicKey;
 use bitcoin::Network;
 use dlc_messages::message_handler::MessageHandler as DlcMessageHandler;
 use dlc_sled_storage_provider::SledStorageProvider;
+use futures::future::RemoteHandle;
+use futures::FutureExt;
 use lightning::chain;
 use lightning::chain::chainmonitor;
 use lightning::chain::keysinterface::KeysInterface;
@@ -84,6 +86,8 @@ pub struct Node {
     chain_monitor: Arc<ChainMonitor>,
     keys_manager: Arc<CustomKeysManager>,
     _background_processor: BackgroundProcessor,
+    _connection_manager_handle: RemoteHandle<()>,
+    _broadcast_node_announcement_handle: RemoteHandle<()>,
 
     logger: Arc<TracingLogger>,
 
@@ -337,7 +341,7 @@ impl Node {
         let dlc_manager = dlc_manager::build(
             data_dir,
             ln_dlc_wallet.clone(),
-            storage.clone(),
+            storage,
             oracle_client.clone(),
         )?;
         let dlc_manager = Arc::new(dlc_manager);
@@ -346,9 +350,11 @@ impl Node {
             sub_channel_manager::build(channel_manager.clone(), dlc_manager.clone())?;
 
         // Connection manager
-        tokio::spawn({
+        let connection_manager_handle = {
             let peer_manager = peer_manager.clone();
-            async move {
+            let (fut, remote_handle) = async move {
+                let mut connection_handles = Vec::new();
+
                 let listener = tokio::net::TcpListener::bind(listen_address)
                     .await
                     .expect("Failed to bind to listen port");
@@ -358,16 +364,26 @@ impl Node {
 
                     tracing::debug!(%addr, "Received inbound connection");
 
-                    tokio::spawn(async move {
+                    let (fut, connection_handle) = async move {
                         lightning_net_tokio::setup_inbound(
                             peer_manager.clone(),
                             tcp_stream.into_std().unwrap(),
                         )
                         .await;
-                    });
+                    }
+                    .remote_handle();
+
+                    connection_handles.push(connection_handle);
+
+                    tokio::spawn(fut);
                 }
             }
-        });
+            .remote_handle();
+
+            tokio::spawn(fut);
+
+            remote_handle
+        };
         // TODO: Call sync(?) in a loop
 
         tracing::info!("Listening on {listen_address}");
@@ -385,10 +401,10 @@ impl Node {
             Some(scorer.clone()),
         );
 
-        tokio::spawn({
+        let broadcast_node_announcement_handle = {
             let alias = alias_as_bytes(alias)?;
             let peer_manager = peer_manager.clone();
-            async move {
+            let (fut, remote_handle) = async move {
                 // TODO: Check why we need to announce the node of the mobile app as otherwise the
                 // just-in-time channel creation will fail with a `unable to decode own hop data`
                 // error.
@@ -401,7 +417,12 @@ impl Node {
                     interval.tick().await;
                 }
             }
-        });
+            .remote_handle();
+
+            tokio::spawn(fut);
+
+            remote_handle
+        };
 
         let node_info = NodeInfo {
             pubkey: channel_manager.get_our_node_id(),
@@ -429,6 +450,8 @@ impl Node {
             outbound_payments,
             user_config: ldk_user_config,
             _background_processor: background_processor,
+            _connection_manager_handle: connection_manager_handle,
+            _broadcast_node_announcement_handle: broadcast_node_announcement_handle,
         })
     }
 }
