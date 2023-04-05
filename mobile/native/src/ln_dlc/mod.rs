@@ -128,15 +128,7 @@ pub fn run(data_dir: String) -> Result<()> {
 
         runtime.spawn({
             let node = node.clone();
-            async move {
-                if let Err(e) = node
-                    .inner
-                    .keep_connected(config::get_coordinator_info())
-                    .await
-                {
-                    tracing::error!("Failed to keep connection with coordinator alive: {e:#}");
-                };
-            }
+            async move { node.keep_connected(config::get_coordinator_info()).await }
         });
 
         runtime.spawn({

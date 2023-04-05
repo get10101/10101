@@ -171,7 +171,7 @@ pub async fn create_channel(
     let channel_amount = channel_params.local_balance;
     let initial_send_amount = channel_params.remote_balance.unwrap_or_default();
 
-    state.node.connect_to_peer(peer).await.map_err(|e| {
+    state.node.connect(peer).await.map_err(|e| {
         AppError::InternalServerError(format!("Could not connect to target node {e:#}"))
     })?;
 

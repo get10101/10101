@@ -48,7 +48,7 @@ pub async fn create_dlc_channel(
     let app = Node::start_test_app("app").await?;
     let coordinator = Node::start_test_coordinator("coordinator").await?;
 
-    app.keep_connected(coordinator.info).await?;
+    app.connect(coordinator.info).await?;
 
     coordinator.fund(Amount::from_sat(fund_amount)).await?;
 

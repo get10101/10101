@@ -16,8 +16,8 @@ async fn just_in_time_channel_with_multiple_payments() {
     let coordinator = Node::start_test_coordinator("coordinator").await.unwrap();
     let user_b = Node::start_test_app("user_b").await.unwrap();
 
-    user_a.connect_to_peer(coordinator.info).await.unwrap();
-    user_b.connect_to_peer(coordinator.info).await.unwrap();
+    user_a.connect(coordinator.info).await.unwrap();
+    user_b.connect(coordinator.info).await.unwrap();
 
     coordinator.fund(Amount::from_sat(100_000)).await.unwrap();
 

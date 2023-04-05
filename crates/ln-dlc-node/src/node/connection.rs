@@ -1,6 +1,7 @@
 use crate::node::Node;
 use crate::node::NodeInfo;
 use crate::PeerManager;
+use anyhow::anyhow;
 use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
@@ -11,72 +12,51 @@ use std::sync::Arc;
 use std::time::Duration;
 
 impl Node {
-    async fn connect(
-        peer_manager: Arc<PeerManager>,
-        peer: NodeInfo,
-    ) -> Result<Pin<Box<impl Future<Output = ()>>>> {
-        let connection_closed_future =
-            lightning_net_tokio::connect_outbound(peer_manager.clone(), peer.pubkey, peer.address)
+    pub async fn connect(&self, peer: NodeInfo) -> Result<Pin<Box<impl Future<Output = ()>>>> {
+        #[allow(clippy::async_yields_async)] // We want to poll this future in a loop elsewhere
+        let connection_closed_future = tokio::time::timeout(Duration::from_secs(30), async {
+            loop {
+                tracing::debug!(%peer, "Setting up connection");
+
+                if let Some(fut) = lightning_net_tokio::connect_outbound(
+                    self.peer_manager.clone(),
+                    peer.pubkey,
+                    peer.address,
+                )
                 .await
-                .context("Failed to connect to counterparty")?;
+                {
+                    return fut;
+                };
+
+                let retry_interval = Duration::from_secs(1);
+                tracing::debug!(%peer, ?retry_interval, "Connection setup failed; retrying");
+                tokio::time::sleep(retry_interval).await;
+            }
+        })
+        .await
+        .with_context(|| format!("Failed to connect to peer: {peer}"))?;
+
+        tracing::debug!(%peer, "Connection setup completed");
 
         let mut connection_closed_future = Box::pin(connection_closed_future);
-        while !Self::is_connected(&peer_manager, peer.pubkey) {
-            if futures::poll!(&mut connection_closed_future).is_ready() {
-                bail!("Peer disconnected before we finished the handshake");
+
+        tokio::time::timeout(Duration::from_secs(30), async {
+            while !Self::is_connected(&self.peer_manager, peer.pubkey) {
+                if futures::poll!(&mut connection_closed_future).is_ready() {
+                    bail!("Peer disconnected before we finished the handshake");
+                }
+
+                tracing::debug!(%peer, "Waiting to confirm established connection");
+                tokio::time::sleep(Duration::from_secs(1)).await;
             }
 
-            tracing::debug!(%peer, "Waiting to establish connection");
-            tokio::time::sleep(Duration::from_secs(1)).await;
-        }
+            Ok(())
+        })
+        .await
+        .map_err(|e| anyhow!(e.to_string()))??;
 
         tracing::info!(%peer, "Connection established");
         Ok(connection_closed_future)
-    }
-
-    pub async fn connect_to_peer(&self, peer: NodeInfo) -> Result<()> {
-        Self::connect(self.peer_manager.clone(), peer).await?;
-        Ok(())
-    }
-
-    pub async fn keep_connected(&self, peer: NodeInfo) -> Result<()> {
-        // TODO: Let this time out
-        let connection_closed_future = loop {
-            tracing::debug!(%peer, "Attempting to establish initial connection");
-
-            if let Ok(fut) = Self::connect(self.peer_manager.clone(), peer).await {
-                break fut;
-            }
-
-            tokio::time::sleep(Duration::from_secs(1)).await;
-        };
-
-        let peer_manager = self.peer_manager.clone();
-        tokio::spawn({
-            async move {
-                let mut connection_closed_future = connection_closed_future;
-
-                loop {
-                    tracing::debug!(%peer, "Keeping connection alive");
-
-                    connection_closed_future.await;
-                    tracing::debug!(%peer, "Connection lost");
-
-                    loop {
-                        tracing::debug!(%peer, "Attempting to reconnect");
-
-                        if let Ok(fut) = Self::connect(peer_manager.clone(), peer).await {
-                            connection_closed_future = fut;
-                            break;
-                        }
-
-                        tokio::time::sleep(Duration::from_secs(1)).await;
-                    }
-                }
-            }
-        });
-
-        Ok(())
     }
 
     fn is_connected(peer_manager: &Arc<PeerManager>, pubkey: PublicKey) -> bool {
