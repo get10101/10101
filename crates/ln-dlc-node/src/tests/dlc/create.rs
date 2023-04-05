@@ -83,13 +83,12 @@ pub async fn create_dlc_channel(
         let sub_channels = coordinator
             .dlc_manager
             .get_store()
-            .get_sub_channels() // `get_offered_sub_channels` appears to have a bug
+            .get_offered_sub_channels()
             .map_err(|e| anyhow!(e.to_string()))?;
 
-        let sub_channel = sub_channels.iter().find(|sub_channel| {
-            sub_channel.counter_party == app.info.pubkey
-                && matches!(&sub_channel.state, SubChannelState::Offered(_))
-        });
+        let sub_channel = sub_channels
+            .iter()
+            .find(|sub_channel| sub_channel.counter_party == app.info.pubkey);
 
         Ok(sub_channel.cloned())
     })
