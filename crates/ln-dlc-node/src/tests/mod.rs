@@ -190,6 +190,13 @@ impl Node {
     pub fn disconnect(&self, peer: NodeInfo) {
         self.peer_manager.disconnect_by_node_id(peer.pubkey, false)
     }
+
+    pub async fn reconnect(&self, peer: NodeInfo) -> Result<()> {
+        self.disconnect(peer);
+        tokio::time::sleep(Duration::from_secs(1)).await;
+        self.connect(peer).await?;
+        Ok(())
+    }
 }
 
 async fn fund_and_mine(address: Address, amount: Amount) -> Result<()> {
