@@ -16,10 +16,26 @@ impl Node {
         peer_manager: Arc<PeerManager>,
         peer: NodeInfo,
     ) -> Result<Pin<Box<impl Future<Output = ()>>>> {
-        let connection_closed_future =
-            lightning_net_tokio::connect_outbound(peer_manager.clone(), peer.pubkey, peer.address)
+        #[allow(clippy::async_yields_async)] // We want to poll this future in a loop elsewhere
+        let connection_closed_future = tokio::time::timeout(Duration::from_secs(30), async {
+            loop {
+                if let Some(fut) = lightning_net_tokio::connect_outbound(
+                    peer_manager.clone(),
+                    peer.pubkey,
+                    peer.address,
+                )
                 .await
-                .context("Failed to connect to counterparty")?;
+                {
+                    return fut;
+                };
+
+                tokio::time::sleep(Duration::from_secs(1)).await;
+            }
+        })
+        .await
+        .with_context(|| format!("Failed to connect to peer: {peer}"))?;
+
+        tracing::debug!(%peer, "Connection setup completed");
 
         let mut connection_closed_future = Box::pin(connection_closed_future);
 
@@ -29,7 +45,7 @@ impl Node {
                     bail!("Peer disconnected before we finished the handshake");
                 }
 
-                tracing::debug!(%peer, "Waiting to establish connection");
+                tracing::debug!(%peer, "Waiting to confirm established connection");
                 tokio::time::sleep(Duration::from_secs(1)).await;
             }
 
