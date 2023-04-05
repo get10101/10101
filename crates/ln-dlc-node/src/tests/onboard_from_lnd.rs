@@ -14,7 +14,7 @@ async fn onboard_from_lnd() {
     let payee = Node::start_test_app("payee").await.unwrap();
     let payer = LndNode::new();
 
-    payee.keep_connected(coordinator.info).await.unwrap();
+    payee.connect_to_peer(coordinator.info).await.unwrap();
 
     // Fund the on-chain wallets of the nodes who will open a channel
     coordinator.fund(Amount::from_sat(100_000)).await.unwrap();

@@ -19,8 +19,8 @@ async fn just_in_time_channel() {
     let coordinator = Node::start_test_coordinator("coordinator").await.unwrap();
     let payee = Node::start_test_app("payee").await.unwrap();
 
-    payer.keep_connected(coordinator.info).await.unwrap();
-    payee.keep_connected(coordinator.info).await.unwrap();
+    payer.connect_to_peer(coordinator.info).await.unwrap();
+    payee.connect_to_peer(coordinator.info).await.unwrap();
 
     coordinator.fund(Amount::from_sat(100_000)).await.unwrap();
 

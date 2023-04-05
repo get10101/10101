@@ -12,7 +12,7 @@ async fn single_hop_payment() {
     let payer = Node::start_test_app("payer").await.unwrap();
     let payee = Node::start_test_app("payee").await.unwrap();
 
-    payer.keep_connected(payee.info).await.unwrap();
+    payer.connect_to_peer(payee.info).await.unwrap();
 
     payer.fund(Amount::from_btc(0.1).unwrap()).await.unwrap();
 
