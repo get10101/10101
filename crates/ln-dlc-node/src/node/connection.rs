@@ -1,6 +1,7 @@
 use crate::node::Node;
 use crate::node::NodeInfo;
 use crate::PeerManager;
+use anyhow::anyhow;
 use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
@@ -21,14 +22,21 @@ impl Node {
                 .context("Failed to connect to counterparty")?;
 
         let mut connection_closed_future = Box::pin(connection_closed_future);
-        while !Self::is_connected(&peer_manager, peer.pubkey) {
-            if futures::poll!(&mut connection_closed_future).is_ready() {
-                bail!("Peer disconnected before we finished the handshake");
+
+        tokio::time::timeout(Duration::from_secs(30), async {
+            while !Self::is_connected(&peer_manager, peer.pubkey) {
+                if futures::poll!(&mut connection_closed_future).is_ready() {
+                    bail!("Peer disconnected before we finished the handshake");
+                }
+
+                tracing::debug!(%peer, "Waiting to establish connection");
+                tokio::time::sleep(Duration::from_secs(1)).await;
             }
 
-            tracing::debug!(%peer, "Waiting to establish connection");
-            tokio::time::sleep(Duration::from_secs(1)).await;
-        }
+            Ok(())
+        })
+        .await
+        .map_err(|e| anyhow!(e.to_string()))??;
 
         tracing::info!(%peer, "Connection established");
         Ok(connection_closed_future)
@@ -40,13 +48,15 @@ impl Node {
     }
 
     pub async fn keep_connected(&self, peer: NodeInfo) -> Result<()> {
-        // TODO: Let this time out
         let connection_closed_future = loop {
             tracing::debug!(%peer, "Attempting to establish initial connection");
 
-            if let Ok(fut) = Self::connect(self.peer_manager.clone(), peer).await {
-                break fut;
-            }
+            let error = match Self::connect(self.peer_manager.clone(), peer).await {
+                Ok(fut) => break fut,
+                Err(e) => e,
+            };
+
+            tracing::warn!(%peer, "Failed to establish initial connection: {error:#}");
 
             tokio::time::sleep(Duration::from_secs(1)).await;
         };
