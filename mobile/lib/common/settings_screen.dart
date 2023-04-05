@@ -27,6 +27,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget build(BuildContext context) {
     final bridge.Config config = context.read<bridge.Config>();
 
+    String commit = const String.fromEnvironment('COMMIT', defaultValue: 'not available');
+    String branch = const String.fromEnvironment('BRANCH', defaultValue: 'not available');
+
     return Scaffold(
       appBar: AppBar(title: const Text("Settings")),
       body: SafeArea(
@@ -77,6 +80,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 Center(
                   child: SelectableText(
                       "${config.coordinatorPubkey}@${config.host}:${config.p2PPort}"),
+                ),
+              ],
+            ),
+            TableRow(
+              children: [
+                const Center(
+                  child: Text('Branch'),
+                ),
+                Center(
+                  child: SelectableText(branch),
+                ),
+              ],
+            ),
+            TableRow(
+              children: [
+                const Center(
+                  child: Text('Commit'),
+                ),
+                Center(
+                  child: SelectableText(commit),
                 ),
               ],
             ),
