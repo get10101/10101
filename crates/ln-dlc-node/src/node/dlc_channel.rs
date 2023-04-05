@@ -116,11 +116,13 @@ impl Node {
     }
 
     pub fn get_dlc_channel_offer(&self, pubkey: &PublicKey) -> Result<Option<SubChannel>> {
-        let matcher = |dlc_channel: &&SubChannel| {
-            dlc_channel.counter_party == *pubkey
-                && matches!(&dlc_channel.state, SubChannelState::Offered(_))
-        };
-        let dlc_channel = self.get_dlc_channel(&matcher)?; // `get_offered_sub_channels` appears to have a bug
+        let dlc_channel = self
+            .dlc_manager
+            .get_store()
+            .get_offered_sub_channels()
+            .map_err(|e| anyhow!(e.to_string()))?
+            .into_iter()
+            .find(|dlc_channel| dlc_channel.counter_party == *pubkey);
 
         Ok(dlc_channel)
     }
