@@ -10,9 +10,11 @@ use ln_dlc_node::node::rust_dlc_manager::contract::Contract;
 use ln_dlc_node::node::rust_dlc_manager::Storage;
 use ln_dlc_node::node::sub_channel_message_as_str;
 use ln_dlc_node::node::DlcManager;
+use ln_dlc_node::node::NodeInfo;
 use ln_dlc_node::node::PaymentDetails;
 use ln_dlc_node::Dlc;
 use std::sync::Arc;
+use std::time::Duration;
 
 #[derive(Clone)]
 pub struct Node {
@@ -183,6 +185,34 @@ impl Node {
         }
 
         Ok(())
+    }
+
+    pub async fn keep_connected(&self, peer: NodeInfo) {
+        let reconnect_interval = Duration::from_secs(1);
+        loop {
+            let connection_closed_future = match self.inner.connect(peer).await {
+                Ok(fut) => fut,
+                Err(e) => {
+                    tracing::warn!(
+                        %peer,
+                        ?reconnect_interval,
+                        "Connection failed: {e:#}; reconnecting"
+                    );
+
+                    tokio::time::sleep(reconnect_interval).await;
+                    continue;
+                }
+            };
+
+            connection_closed_future.await;
+            tracing::debug!(
+                %peer,
+                ?reconnect_interval,
+                "Connection lost; reconnecting"
+            );
+
+            tokio::time::sleep(reconnect_interval).await;
+        }
     }
 }
 

@@ -14,8 +14,8 @@ async fn multi_hop_payment() {
     let coordinator = Node::start_test_coordinator("coordinator").await.unwrap();
     let payee = Node::start_test_app("payee").await.unwrap();
 
-    payer.connect_to_peer(coordinator.info).await.unwrap();
-    payee.connect_to_peer(coordinator.info).await.unwrap();
+    payer.connect(coordinator.info).await.unwrap();
+    payee.connect(coordinator.info).await.unwrap();
 
     coordinator.fund(Amount::from_sat(50_000)).await.unwrap();
 
