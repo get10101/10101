@@ -28,7 +28,7 @@ async fn just_in_time_channel() {
     let coordinator_outbound_liquidity_sat =
         min_outbound_liquidity_channel_creator(&payer, payer_outbound_liquidity_sat);
 
-    let payer_coordinator_channel_details = coordinator
+    coordinator
         .open_channel(
             &payer,
             coordinator_outbound_liquidity_sat,
@@ -36,14 +36,6 @@ async fn just_in_time_channel() {
         )
         .await
         .unwrap();
-
-    let payer_balance_before = payer.get_ldk_balance();
-    let coordinator_balance_before = coordinator.get_ldk_balance();
-    let payee_balance_before = payee.get_ldk_balance();
-
-    // Act
-
-    let intercept_scid = coordinator.create_intercept_scid(payee.info.pubkey);
 
     // This comment should be removed once the implementation of
     // `Node` is improved.
@@ -70,14 +62,49 @@ async fn just_in_time_channel() {
     // configuration value for said channel.
     let invoice_amount = 1_000;
 
+    send_interceptable_payment(
+        &payer,
+        &payee,
+        &coordinator,
+        invoice_amount,
+        Some(JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT),
+    )
+    .await
+    .unwrap();
+}
+
+pub(crate) async fn send_interceptable_payment(
+    payer: &Node,
+    payee: &Node,
+    coordinator: &Node,
+    invoice_amount: u64,
+    coordinator_just_in_time_channel_creation_outbound_liquidity: Option<u64>,
+) -> Result<()> {
+    payer.sync()?;
+    coordinator.sync()?;
+    payee.sync()?;
+
+    let payer_balance_before = payer.get_ldk_balance();
+    let coordinator_balance_before = coordinator.get_ldk_balance();
+    let payee_balance_before = payee.get_ldk_balance();
+
+    // Act
+
+    let intercept_scid = coordinator.create_intercept_scid(payee.info.pubkey);
+
     let flat_routing_fee = 1; // according to the default `ChannelConfig`
     let liquidity_routing_fee =
         (invoice_amount * LIQUIDITY_ROUTING_FEE_MILLIONTHS as u64) / 1_000_000;
 
     assert!(
         does_inbound_htlc_fit_as_percent_of_channel(
-            &coordinator,
-            &payer_coordinator_channel_details.channel_id,
+            coordinator,
+            &payer
+                .channel_manager
+                .list_channels()
+                .first()
+                .expect("payer channel should be created.")
+                .channel_id,
             invoice_amount + flat_routing_fee + liquidity_routing_fee
         )
         .unwrap(),
@@ -85,29 +112,26 @@ async fn just_in_time_channel() {
     );
 
     let invoice_expiry = 0; // an expiry of 0 means the invoice never expires
-    let invoice = payee
-        .create_interceptable_invoice(
-            Some(invoice_amount),
-            intercept_scid,
-            coordinator.info.pubkey,
-            invoice_expiry,
-            "interceptable-invoice".to_string(),
-        )
-        .unwrap();
+    let invoice = payee.create_interceptable_invoice(
+        Some(invoice_amount),
+        intercept_scid,
+        coordinator.info.pubkey,
+        invoice_expiry,
+        "interceptable-invoice".to_string(),
+    )?;
 
-    payer.send_payment(&invoice).unwrap();
+    payer.send_payment(&invoice)?;
 
     payee
         .wait_for_payment_claimed(invoice.payment_hash())
-        .await
-        .unwrap();
+        .await?;
 
     // Assert
 
     // Sync LN wallet after payment is claimed to update the balances
-    payer.sync().unwrap();
-    coordinator.sync().unwrap();
-    payee.sync().unwrap();
+    payer.sync()?;
+    coordinator.sync()?;
+    payee.sync()?;
 
     let payer_balance_after = payer.get_ldk_balance();
     let coordinator_balance_after = coordinator.get_ldk_balance();
@@ -120,13 +144,17 @@ async fn just_in_time_channel() {
 
     assert_eq!(
         coordinator_balance_after.available - coordinator_balance_before.available,
-        JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT + flat_routing_fee + liquidity_routing_fee
+        coordinator_just_in_time_channel_creation_outbound_liquidity.unwrap_or_default()
+            + flat_routing_fee
+            + liquidity_routing_fee
     );
 
     assert_eq!(
         payee_balance_after.available - payee_balance_before.available,
         invoice_amount
     );
+
+    Ok(())
 }
 
 /// Used to ascertain if a payment will be routed through a channel
