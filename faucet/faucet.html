@@ -109,8 +109,22 @@
         xhr.send();
       }
 
+      function clearMissionControl() {
+        const xhr = new XMLHttpRequest();
+        xhr.open('post', '/lnd/v2/router/mc/reset', false);
+        xhr.setRequestHeader('Content-Type', 'application/json');
+        xhr.send();
+        if (xhr.status === 200) {
+          console.log("Successfully cleared mission control.");
+        } else {
+          console.warn("Failed to clear mission control.")
+        }
+      }
+
       function sendPayment() {
         const encoded_invoice = document.getElementById("inputInvoice").value;
+
+        clearMissionControl();
 
         const xhr = new XMLHttpRequest();
         xhr.onload = function() {
