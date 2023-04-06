@@ -16,7 +16,10 @@ jobs:
     outputs:
       ANDROID_APK_NAME: ${{ steps.build.outputs.ANDROID_APK_NAME }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
+        with:
+          # fetch the complete history to correctly calculate build_number
+          fetch-depth: 0
 
       # #499, https://github.com/actions/virtual-environments/issues/5595
       - name: Configure ndk
