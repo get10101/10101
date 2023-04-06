@@ -33,6 +33,10 @@ jobs:
           # fetch the complete history to correctly calculate build_number
           fetch-depth: 0
 
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: "14.2"
+
       - uses: subosito/flutter-action@v2
         with:
           channel: "stable"
