@@ -28,6 +28,7 @@ use orderbook_commons::OrderType;
 use orderbook_commons::OrderbookMsg;
 use orderbook_commons::OrderbookRequest;
 use orderbook_commons::Signature;
+use rust_decimal::Decimal;
 use serde::Deserialize;
 use serde::Serialize;
 use std::sync::Arc;
@@ -82,6 +83,12 @@ pub async fn post_order(
     State(state): State<Arc<AppState>>,
     Json(new_order): Json<NewOrder>,
 ) -> Result<Json<Order>, AppError> {
+    if new_order.price == Decimal::ZERO {
+        return Err(AppError::InvalidOrder(
+            "Order with zero price not allowed".to_string(),
+        ));
+    }
+
     let mut conn = get_db_connection(&state)?;
     let order = orderbook::db::orders::insert(&mut conn, new_order.clone()).map_err(|e| {
         AppError::InternalServerError(format!("Failed to insert new order into db: {e:#}"))
