@@ -240,7 +240,12 @@ fn min_outbound_liquidity_channel_creator(peer: &Node, peer_balance: u64) -> u64
 }
 
 fn random_tmp_dir() -> PathBuf {
-    let tmp = temp_dir();
+    let tmp = if let Ok(tmp) = std::env::var("RUNNER_TEMP") {
+        tracing::debug!("Running test on github actions - using temporary directory at {tmp}");
+        PathBuf::from(tmp)
+    } else {
+        temp_dir()
+    };
 
     let rand_string = thread_rng()
         .sample_iter(&Alphanumeric)
