@@ -1,4 +1,4 @@
-name: "Build and push docker image for latest main"
+name: "Build and push deliverables for latest main"
 
 on:
   push:
@@ -13,3 +13,9 @@ jobs:
     uses: ./.github/workflows/docker.yml
     with:
       tag: main
+
+  build_and_release_ios_app_for_latest_main:
+    permissions:
+      packages: write
+      contents: read
+    uses: ./.github/workflows/ios.yml

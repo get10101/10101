@@ -16,7 +16,10 @@ jobs:
     outputs:
       ANDROID_APK_NAME: ${{ steps.build.outputs.ANDROID_APK_NAME }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
+        with:
+          # fetch the complete history to correctly calculate build_number
+          fetch-depth: 0
 
       # #499, https://github.com/actions/virtual-environments/issues/5595
       - name: Configure ndk
@@ -94,7 +97,7 @@ jobs:
           BUILD_NAME=${{ steps.version.outputs.data }}
           BUILD_NUMBER=$(git rev-list HEAD --count)
           cd mobile
-          flutter build apk --dart-define="ELECTRS_ENDPOINT=${{ env.ELECTRS_ENDPOINT }}" --dart-define="COORDINATOR_P2P_ENDPOINT=${{ env.COORDINATOR_P2P_ENDPOINT }}" --build-name=$BUILD_NAME --build-number=$BUILD_NUMBER --release
+          flutter build apk --dart-define="ELECTRS_ENDPOINT=${{ env.ELECTRS_ENDPOINT }}" --dart-define="COORDINATOR_P2P_ENDPOINT=${{ env.COORDINATOR_P2P_ENDPOINT }}" --dart-define="COMMIT=$(git rev-parse HEAD)" --dart-define="BRANCH=$(git rev-parse --abbrev-ref HEAD)" --build-name=$BUILD_NAME --build-number=$BUILD_NUMBER --release
           mv build/app/outputs/flutter-apk/app-release.apk build/app/outputs/flutter-apk/get10101-$BUILD_NAME.apk
           echo "ANDROID_APK_NAME=$(echo get10101-$BUILD_NAME.apk)" >> $GITHUB_OUTPUT
         env:
@@ -102,6 +105,8 @@ jobs:
           SIGNING_KEY_PASSWORD: ${{ secrets.ANDROID_UPLOAD_SIGNING_KEY_PASSWORD }}
           SIGNING_STORE_PASSWORD: ${{ secrets.ANDROID_UPLOAD_SIGNING_STORE_PASSWORD }}
           ENCODED_KEYSTORE: ${{ secrets.ANDROID_UPLOAD_KEYSTORE }}
+          ELECTRS_ENDPOINT: 35.189.57.114:50000
+          COORDINATOR_P2P_ENDPOINT: 026e1de0e76902d71d2c27bfdda9d48c19c4c550f08bb4189d7208246e0e3af97e@35.189.57.114:9045
 
       - name: Upload APK to job
         uses: actions/upload-artifact@v3
