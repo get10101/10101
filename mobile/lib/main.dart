@@ -218,6 +218,9 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
           tradeValuesChangeNotifier, bridge.Event.priceUpdateNotification(Price.apiDummy()));
 
       eventService.subscribe(
+          positionChangeNotifier, bridge.Event.priceUpdateNotification(Price.apiDummy()));
+
+      eventService.subscribe(
           AnonSubscriber((event) => FLog.info(text: event.field0)), const bridge.Event.log(""));
 
       final appSupportDir = await getApplicationSupportDirectory();
