@@ -126,8 +126,8 @@ pub fn match_order(
 /// sorts the provided list of orders
 ///
 /// For matching market order and limit order we have to
-/// - take the highest rate if the market order is long
-/// - take the lowest rate if the market order is short
+/// - take the highest rate if the market order is short
+/// - take the lowest rate if the market order is long
 /// hence, we sort the orders here accordingly
 /// - if long is needed: the resulting vec is ordered ascending.
 /// - if short is needed: the resulting vec is ordered descending.
@@ -140,9 +140,9 @@ fn sort_orders(mut orders: Vec<Order>, is_long: bool) -> Vec<Order> {
             return a.timestamp.cmp(&b.timestamp);
         }
         if is_long {
-            b.price.cmp(&a.price)
-        } else {
             a.price.cmp(&b.price)
+        } else {
+            b.price.cmp(&a.price)
         }
     });
     orders
@@ -266,9 +266,9 @@ pub mod tests {
         let orders = vec![order3.clone(), order1.clone(), order2.clone()];
 
         let orders = sort_orders(orders, false);
-        assert_eq!(orders[0], order1);
+        assert_eq!(orders[0], order2);
         assert_eq!(orders[1], order3);
-        assert_eq!(orders[2], order2);
+        assert_eq!(orders[2], order1);
     }
 
     #[test]
@@ -295,9 +295,9 @@ pub mod tests {
         let orders = vec![order3.clone(), order1.clone(), order2.clone()];
 
         let orders = sort_orders(orders, true);
-        assert_eq!(orders[0], order2);
+        assert_eq!(orders[0], order1);
         assert_eq!(orders[1], order3);
-        assert_eq!(orders[2], order1);
+        assert_eq!(orders[2], order2);
     }
 
     #[test]
@@ -410,7 +410,7 @@ pub mod tests {
         let order1 = dumm_long_order(
             dec!(20_000),
             Uuid::new_v4(),
-            dec!(100),
+            dec!(400),
             Duration::seconds(0),
         );
         let order2 = dumm_long_order(
@@ -422,7 +422,7 @@ pub mod tests {
         let order3 = dumm_long_order(
             dec!(22_000),
             Uuid::new_v4(),
-            dec!(400),
+            dec!(100),
             Duration::seconds(0),
         );
         let order4 = dumm_long_order(
