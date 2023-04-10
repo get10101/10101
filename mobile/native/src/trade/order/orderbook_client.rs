@@ -24,7 +24,7 @@ impl OrderbookClient {
             Ok(response)
         } else {
             tracing::error!("Could not create new order");
-            bail!("Could not create new order ")
+            bail!("Could not create new order: {response:?}")
         }
     }
 }
