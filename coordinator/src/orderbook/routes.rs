@@ -83,7 +83,7 @@ pub async fn post_order(
     State(state): State<Arc<AppState>>,
     Json(new_order): Json<NewOrder>,
 ) -> Result<Json<Order>, AppError> {
-    if new_order.price == Decimal::ZERO {
+    if new_order.order_type == OrderType::Limit && new_order.price == Decimal::ZERO {
         return Err(AppError::InvalidOrder(
             "Order with zero price not allowed".to_string(),
         ));
