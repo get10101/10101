@@ -124,7 +124,7 @@ jobs:
           BUILD_NAME=${{ steps.version.outputs.data }}
           BUILD_NUMBER=$(git rev-list HEAD --count)
           cd mobile
-          flutter build ipa --export-options-plist=ios/exportOptions.plist --dart-define="ELECTRS_ENDPOINT=${{ env.ELECTRS_ENDPOINT }}" --dart-define="COORDINATOR_P2P_ENDPOINT=${{ env.COORDINATOR_P2P_ENDPOINT }}" --dart-define="COMMIT=$(git rev-parse HEAD)" --dart-define="BRANCH=$(git rev-parse --abbrev-ref HEAD)" --build-name=$BUILD_NAME --build-number=$BUILD_NUMBER
+          flutter build ipa --export-options-plist=ios/exportOptions.plist --dart-define="ELECTRS_ENDPOINT=$ELECTRS_ENDPOINT" --dart-define="COORDINATOR_P2P_ENDPOINT=$COORDINATOR_P2P_ENDPOINT" --dart-define="COMMIT=$(git rev-parse HEAD)" --dart-define="BRANCH=$(git rev-parse --abbrev-ref HEAD)" --build-name=$BUILD_NAME --build-number=$BUILD_NUMBER
         env:
           ELECTRS_ENDPOINT: 35.189.57.114:50000
           COORDINATOR_P2P_ENDPOINT: 026e1de0e76902d71d2c27bfdda9d48c19c4c550f08bb4189d7208246e0e3af97e@35.189.57.114:9045
