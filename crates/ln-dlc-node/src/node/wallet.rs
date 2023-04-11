@@ -20,6 +20,10 @@ pub struct OffChainBalance {
 }
 
 impl Node {
+    pub fn get_seed_phrase(&self) -> Vec<String> {
+        self.wallet.get_seed_phrase()
+    }
+
     pub fn sync(&self) -> Result<()> {
         let confirmables = vec![
             &*self.channel_manager as &dyn Confirm,

@@ -225,6 +225,7 @@ impl Node {
                 Arc::new(blockchain_client),
                 on_chain_wallet.inner,
                 storage.clone(),
+                seed.clone(),
             ))
         };
 

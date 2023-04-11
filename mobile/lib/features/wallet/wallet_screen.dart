@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_speed_dial/flutter_speed_dial.dart';
 import 'package:get_10101/common/amount_text.dart';
+import 'package:get_10101/features/wallet/seed_screen.dart';
+import 'package:get_10101/util/preferences.dart';
 import 'package:get_10101/features/wallet/balance_row.dart';
 import 'package:get_10101/features/wallet/create_invoice_screen.dart';
 import 'package:get_10101/features/wallet/domain/wallet_history.dart';
@@ -51,9 +53,8 @@ class _WalletScreenState extends State<WalletScreen> {
                       return Row(
                         children: [
                           // https://stackoverflow.com/a/70192038 - do not know if this is principled
-                          const SizedBox(
-                              width:
-                                  64), // ExpansionPanelList IconContainer size: end margin 8 + padding 16*2 + size 24),
+                          const SizedBox(width: 64),
+                          // ExpansionPanelList IconContainer size: end margin 8 + padding 16*2 + size 24),
                           Expanded(
                             child: Center(
                                 child: AmountText(
@@ -92,6 +93,20 @@ class _WalletScreenState extends State<WalletScreen> {
                   },
                   child: const Text("Fund Wallet"),
                 ),
+              FutureBuilder(
+                  future: Preferences.instance.isUserSeedBackupConfirmed(),
+                  builder: (BuildContext context, AsyncSnapshot<bool> snapshot) {
+                    if (snapshot.connectionState == ConnectionState.done && !snapshot.data!) {
+                      return ElevatedButton(
+                        onPressed: () {
+                          context.go(SeedScreen.route);
+                        },
+                        child: const Text("Backup Wallet"),
+                      );
+                    }
+                    // return an empty box if the wallet has already been backed up or the data has not been fetched yet.
+                    return const SizedBox(height: 0);
+                  }),
               const SizedBox(
                 height: 10,
               ),
