@@ -5,6 +5,11 @@ const gradientColors = <Color>[Colors.green, Colors.deepOrange];
 
 const LinearGradient gradient = LinearGradient(colors: gradientColors);
 
+const double minLeverage = 1.0;
+const double maxLeverage = 5.0;
+
+/// Slider that allows the user to select a leverage between minLeverage and maxLeverage.
+/// It uses linear scale and fractional leverage values are rounded to the nearest integer.
 class LeverageSlider extends StatefulWidget {
   final double initialValue;
   final Function(double) onLeverageChanged;
@@ -33,7 +38,7 @@ class _LeverageSliderState extends State<LeverageSlider> {
         LeverageButton(
             label: "-",
             onPressed: () {
-              if (_leverage > 1) {
+              if (_leverage > minLeverage) {
                 updateLeverage(--_leverage);
               }
             }),
@@ -55,8 +60,8 @@ class _LeverageSliderState extends State<LeverageSlider> {
                 child: Slider(
                   value: _leverage,
                   min: 1,
-                  max: 10,
-                  divisions: 9,
+                  max: maxLeverage,
+                  divisions: (maxLeverage - 1).toInt(),
                   label: "x${_leverage.round().toString()}",
                   onChanged: (double value) {
                     updateLeverage(value);
@@ -69,7 +74,7 @@ class _LeverageSliderState extends State<LeverageSlider> {
         LeverageButton(
             label: "+",
             onPressed: () {
-              if (_leverage < 10) {
+              if (_leverage < maxLeverage) {
                 updateLeverage(++_leverage);
               }
             })
