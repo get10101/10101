@@ -212,3 +212,8 @@ pub fn update_last_login() -> Result<LastLogin> {
     let last_login = db::update_last_login()?;
     Ok(last_login)
 }
+
+pub fn get_seed_phrase() -> Result<SyncReturn<Vec<String>>> {
+    let seed_phrase = ln_dlc::get_seed_phrase()?;
+    Ok(SyncReturn(seed_phrase))
+}

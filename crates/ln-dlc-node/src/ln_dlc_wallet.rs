@@ -1,3 +1,4 @@
+use crate::seed::Bip39Seed;
 use anyhow::Context;
 use anyhow::Result;
 use bdk::blockchain::ElectrumBlockchain;
@@ -36,6 +37,7 @@ pub struct LnDlcWallet {
     electrum: Arc<ElectrumBlockchain>,
     storage: Arc<SledStorageProvider>,
     secp: Secp256k1<All>,
+    seed: Bip39Seed,
 }
 
 impl LnDlcWallet {
@@ -43,13 +45,19 @@ impl LnDlcWallet {
         blockchain_client: Arc<ElectrumBlockchain>,
         wallet: bdk::Wallet<bdk::sled::Tree>,
         storage: Arc<SledStorageProvider>,
+        seed: Bip39Seed,
     ) -> Self {
         Self {
             ln_wallet: bdk_ldk::LightningWallet::new(blockchain_client.clone(), wallet),
             electrum: blockchain_client,
             storage,
             secp: Secp256k1::new(),
+            seed,
         }
+    }
+
+    pub(crate) fn get_seed_phrase(&self) -> Vec<String> {
+        self.seed.get_seed_phrase()
     }
 
     // TODO: Better to keep this private and expose the necessary APIs instead.

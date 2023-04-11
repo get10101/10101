@@ -48,6 +48,11 @@ pub async fn refresh_wallet_info() -> Result<()> {
     Ok(())
 }
 
+pub fn get_seed_phrase() -> Result<Vec<String>> {
+    let node = NODE.try_get().context("failed to get ln dlc node")?;
+    Ok(node.get_seed_phrase())
+}
+
 pub fn get_node_key() -> Result<SecretKey> {
     NODE.try_get()
         .context("failed to get ln dlc node")?
