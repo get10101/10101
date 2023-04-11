@@ -1,5 +1,6 @@
 use self::node::WalletHistories;
 use crate::api;
+use crate::calculations;
 use crate::config;
 use crate::event;
 use crate::event::EventInternal;
@@ -21,6 +22,7 @@ use itertools::Itertools;
 use lightning_invoice::Invoice;
 use ln_dlc_node::node::NodeInfo;
 use ln_dlc_node::seed::Bip39Seed;
+use rust_decimal::Decimal;
 use state::Storage;
 use std::net::IpAddr;
 use std::net::Ipv4Addr;
@@ -245,36 +247,67 @@ async fn keep_wallet_balance_and_history_up_to_date(node: &Node) -> Result<()> {
         })
     });
 
-    let trades = {
-        let orders = crate::db::get_filled_orders()
-            .context("Failed to get filled orders; skipping update")?;
+    let mut trades = vec![];
+    let orders =
+        crate::db::get_filled_orders().context("Failed to get filled orders; skipping update")?;
 
-        orders.into_iter().enumerate().map(|(i, order)| {
-            let flow = if i % 2 == 0 {
-                api::PaymentFlow::Outbound
-            } else {
-                api::PaymentFlow::Inbound
-            };
-
-            let amount_sats = order
+    let mut open_order = None;
+    for (i, order) in orders.into_iter().enumerate() {
+        // this works because we currently only open and close a position.
+        // that means the second one is always the closing (inbound) transaction.
+        // note: this logic might not work in case of liquidation
+        let (flow, amount_sats) = if i % 2 == 0 {
+            open_order = Some(order);
+            (
+                api::PaymentFlow::Outbound,
+                order
+                    .trader_margin()
+                    .expect("Filled order to have a margin"),
+            )
+        } else {
+            let open_order = open_order.expect("export open order");
+            let trader_margin = open_order
                 .trader_margin()
                 .expect("Filled order to have a margin");
+            let execution_price = Decimal::try_from(
+                order
+                    .execution_price()
+                    .expect("execution price to be set on a filled order"),
+            )?;
 
-            let timestamp = order.creation_timestamp.unix_timestamp() as u64;
+            let opening_price = open_order
+                .execution_price()
+                .expect("initial execution price to be set on a filled order");
 
-            let wallet_type = api::WalletType::Trade {
-                order_id: order.id.to_string(),
-            };
+            let pnl = calculations::calculate_pnl(
+                opening_price,
+                trade::Price {
+                    ask: execution_price,
+                    bid: execution_price,
+                },
+                open_order.quantity,
+                open_order.leverage,
+                open_order.direction,
+            )?;
+            let amount_sats = trader_margin as i64 + pnl;
 
-            api::WalletHistoryItem {
-                flow,
-                amount_sats,
-                timestamp,
-                status: api::Status::Confirmed, // TODO: Support other order/trade statuses
-                wallet_type,
-            }
-        })
-    };
+            (api::PaymentFlow::Inbound, amount_sats as u64)
+        };
+
+        let timestamp = order.creation_timestamp.unix_timestamp() as u64;
+
+        let wallet_type = api::WalletType::Trade {
+            order_id: order.id.to_string(),
+        };
+
+        trades.push(api::WalletHistoryItem {
+            flow,
+            amount_sats,
+            timestamp,
+            status: api::Status::Confirmed, // TODO: Support other order/trade statuses
+            wallet_type,
+        });
+    }
 
     let history = chain![on_chain, off_chain, trades]
         .sorted_by(|a, b| b.timestamp.cmp(&a.timestamp))
