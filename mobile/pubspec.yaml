@@ -32,7 +32,7 @@ dependencies:
   timeago: ^3.3.0
 
 dev_dependencies:
-  flutter_launcher_icons: "^0.11.0"
+  flutter_launcher_icons: "^0.13.0"
   flutter_test:
     sdk: flutter
   flutter_lints: ^2.0.1
@@ -58,14 +58,14 @@ flutter_native_splash:
 flutter_icons:
   android: true
   ios: true
-  image_path: assets/10101_logo.png
+  image_path: assets/10101_logo_icon.png
   min_sdk_android: 21
   remove_alpha_ios: true
   web:
     generate: false
   macos:
     generate: true
-    image_path: assets/10101_logo.png
+    image_path: assets/10101_logo_icon.png
   windows:
     generate: true
-    image_path: assets/10101_logo.png
+    image_path: assets/10101_logo_icon.png
