@@ -19,3 +19,4 @@ jobs:
       packages: write
       contents: read
     uses: ./.github/workflows/ios.yml
+    secrets: inherit
