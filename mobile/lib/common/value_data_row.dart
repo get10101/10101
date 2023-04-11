@@ -8,6 +8,7 @@ enum ValueType { amount, fiat, percentage, contracts, loading }
 class ValueDataRow extends StatelessWidget {
   final ValueType type;
   final String label;
+  final String sublabel;
   final dynamic value;
   final TextStyle valueTextStyle;
   final TextStyle labelTextStyle;
@@ -17,6 +18,7 @@ class ValueDataRow extends StatelessWidget {
       required this.type,
       required this.value,
       required this.label,
+      this.sublabel = "",
       this.valueTextStyle = const TextStyle(),
       this.labelTextStyle = const TextStyle()});
 
@@ -48,10 +50,14 @@ class ValueDataRow extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(
-          label,
-          style: labelTextStyle,
-        ),
+        Row(children: [
+          Text(
+            label,
+            style: labelTextStyle,
+          ),
+          const SizedBox(width: 2),
+          Text(sublabel, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+        ]),
         widget
       ],
     );
