@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:get_10101/common/modal_bottom_sheet_info.dart';
 import 'package:get_10101/features/trade/domain/direction.dart';
 import 'package:get_10101/features/trade/trade_bottom_sheet_tab.dart';
 import 'package:get_10101/features/trade/trade_tabs.dart';
@@ -66,48 +67,17 @@ class TradeBottomSheet extends StatelessWidget {
         ],
         selectedIndex: direction == Direction.long ? 0 : 1,
         topRightWidget: Row(
-          children: [
-            const Text(
+          children: const [
+            Text(
               "Market Order",
               style: TextStyle(color: Colors.grey),
             ),
-            IconButton(
-                onPressed: () {
-                  showModalBottomSheet<void>(
-                    shape: const RoundedRectangleBorder(
-                      borderRadius: BorderRadius.vertical(
-                        top: Radius.circular(20),
-                      ),
-                    ),
-                    clipBehavior: Clip.antiAliasWithSaveLayer,
-                    useRootNavigator: true,
-                    context: context,
-                    builder: (BuildContext context) {
-                      return Container(
-                        height: 300,
-                        padding: const EdgeInsets.all(20.0),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            // TODO: Add link to FAQ
-                            const Text(
-                                "For the beta phase only market orders are enabled in the 10101 app.\n\n"
-                                "Market orders are executed at the best market price. \n\nPlease note that the displayed "
-                                "price is the best market price at the time but due to fast market "
-                                "movements the market price for order fulfillment can be slightly different."),
-                            ElevatedButton(
-                                onPressed: () => Navigator.pop(context),
-                                child: const Text("Back to order..."))
-                          ],
-                        ),
-                      );
-                    },
-                  );
-                },
-                icon: Icon(
-                  Icons.info,
-                  color: Theme.of(context).colorScheme.primary,
-                ))
+            ModalBottomSheetInfo(
+                infoText: "While in beta only market orders are enabled in the 10101 app.\n\n"
+                    "Market orders are executed at the best market price. \n\nPlease note that the displayed "
+                    "price is the best market price at the time but due to fast market "
+                    "movements the market price for order fulfillment can be slightly different.",
+                buttonText: "Back to order...")
           ],
         ),
       ),
