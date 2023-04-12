@@ -32,7 +32,9 @@ pub struct Order {
     #[serde(with = "rust_decimal::serde::float")]
     pub quantity: Decimal,
     pub order_type: OrderType,
+    #[serde(with = "time::serde::rfc3339")]
     pub timestamp: OffsetDateTime,
+    #[serde(with = "time::serde::rfc3339")]
     pub expiry: OffsetDateTime,
 }
 
