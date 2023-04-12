@@ -77,11 +77,11 @@ pub enum Status {
     Confirmed,
 }
 
-pub fn calculate_margin(price: f64, quantity: f64, leverage: f64) -> SyncReturn<u64> {
+pub fn calculate_margin(price: f32, quantity: f32, leverage: f32) -> SyncReturn<u64> {
     SyncReturn(calculations::calculate_margin(price, quantity, leverage))
 }
 
-pub fn calculate_quantity(price: f64, margin: u64, leverage: f64) -> SyncReturn<f64> {
+pub fn calculate_quantity(price: f32, margin: u64, leverage: f32) -> SyncReturn<f32> {
     SyncReturn(calculations::calculate_quantity(price, margin, leverage))
 }
 
@@ -101,20 +101,20 @@ pub enum _Direction {
 }
 
 pub fn calculate_liquidation_price(
-    price: f64,
-    leverage: f64,
+    price: f32,
+    leverage: f32,
     direction: Direction,
-) -> SyncReturn<f64> {
+) -> SyncReturn<f32> {
     SyncReturn(calculations::calculate_liquidation_price(
         price, leverage, direction,
     ))
 }
 
 pub fn calculate_pnl(
-    opening_price: f64,
+    opening_price: f32,
     closing_price: Price,
-    quantity: f64,
-    leverage: f64,
+    quantity: f32,
+    leverage: f32,
     direction: Direction,
 ) -> SyncReturn<i64> {
     // TODO: Handle the result and don't just return 0

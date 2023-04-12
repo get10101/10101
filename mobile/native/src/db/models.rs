@@ -102,15 +102,15 @@ impl LastLogin {
 #[diesel(table_name = orders)]
 pub(crate) struct Order {
     pub id: String,
-    pub leverage: f64,
-    pub quantity: f64,
+    pub leverage: f32,
+    pub quantity: f32,
     pub contract_symbol: ContractSymbol,
     pub direction: Direction,
     pub order_type: OrderType,
     pub state: OrderState,
     pub creation_timestamp: i64,
-    pub limit_price: Option<f64>,
-    pub execution_price: Option<f64>,
+    pub limit_price: Option<f32>,
+    pub execution_price: Option<f32>,
     pub failure_reason: Option<FailureReason>,
 }
 
@@ -131,7 +131,7 @@ impl Order {
     /// updates the status of the given order in the db
     pub fn update_state(
         order_id: String,
-        status: (OrderState, Option<f64>, Option<FailureReason>),
+        status: (OrderState, Option<f32>, Option<FailureReason>),
         conn: &mut SqliteConnection,
     ) -> Result<()> {
         conn.transaction::<(), _, _>(|conn| {
@@ -251,14 +251,16 @@ impl TryFrom<Order> for crate::trade::order::Order {
 #[diesel(table_name = positions)]
 pub(crate) struct Position {
     pub contract_symbol: ContractSymbol,
-    pub leverage: f64,
-    pub quantity: f64,
+    pub leverage: f32,
+    pub quantity: f32,
     pub direction: Direction,
-    pub average_entry_price: f64,
-    pub liquidation_price: f64,
+    pub average_entry_price: f32,
+    pub liquidation_price: f32,
     pub state: PositionState,
     pub collateral: i64,
     pub creation_timestamp: i64,
+    pub expiry_timestamp: i64,
+    pub updated_timestamp: i64,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, FromSqlRow, AsExpression)]
@@ -322,6 +324,12 @@ impl From<Position> for crate::trade::position::Position {
             liquidation_price: value.liquidation_price,
             position_state: value.state.into(),
             collateral: value.collateral as u64,
+            expiry: OffsetDateTime::from_unix_timestamp(value.expiry_timestamp)
+                .expect("to fit into unix timestamp"),
+            updated: OffsetDateTime::from_unix_timestamp(value.updated_timestamp)
+                .expect("to fit into unix timestamp"),
+            created: OffsetDateTime::from_unix_timestamp(value.creation_timestamp)
+                .expect("to fit into unix timestamp"),
         }
     }
 }
@@ -338,6 +346,8 @@ impl From<crate::trade::position::Position> for Position {
             state: value.position_state.into(),
             collateral: value.collateral as i64,
             creation_timestamp: OffsetDateTime::now_utc().unix_timestamp(),
+            updated_timestamp: OffsetDateTime::now_utc().unix_timestamp(),
+            expiry_timestamp: value.expiry.unix_timestamp(),
         }
     }
 }
@@ -414,7 +424,7 @@ pub enum OrderType {
     Limit,
 }
 
-impl From<crate::trade::order::OrderType> for (OrderType, Option<f64>) {
+impl From<crate::trade::order::OrderType> for (OrderType, Option<f32>) {
     fn from(value: crate::trade::order::OrderType) -> Self {
         match value {
             crate::trade::order::OrderType::Market => (OrderType::Market, None),
@@ -423,10 +433,10 @@ impl From<crate::trade::order::OrderType> for (OrderType, Option<f64>) {
     }
 }
 
-impl TryFrom<(OrderType, Option<f64>)> for crate::trade::order::OrderType {
+impl TryFrom<(OrderType, Option<f32>)> for crate::trade::order::OrderType {
     type Error = Error;
 
-    fn try_from(value: (OrderType, Option<f64>)) -> std::result::Result<Self, Self::Error> {
+    fn try_from(value: (OrderType, Option<f32>)) -> std::result::Result<Self, Self::Error> {
         let order_type = match value.0 {
             OrderType::Market => crate::trade::order::OrderType::Market,
             OrderType::Limit => match value.1 {
@@ -450,7 +460,7 @@ pub enum OrderState {
     Filled,
 }
 
-impl From<crate::trade::order::OrderState> for (OrderState, Option<f64>, Option<FailureReason>) {
+impl From<crate::trade::order::OrderState> for (OrderState, Option<f32>, Option<FailureReason>) {
     fn from(value: crate::trade::order::OrderState) -> Self {
         match value {
             crate::trade::order::OrderState::Initial => (OrderState::Initial, None, None),
@@ -469,11 +479,11 @@ impl From<crate::trade::order::OrderState> for (OrderState, Option<f64>, Option<
     }
 }
 
-impl TryFrom<(OrderState, Option<f64>, Option<FailureReason>)> for crate::trade::order::OrderState {
+impl TryFrom<(OrderState, Option<f32>, Option<FailureReason>)> for crate::trade::order::OrderState {
     type Error = Error;
 
     fn try_from(
-        value: (OrderState, Option<f64>, Option<FailureReason>),
+        value: (OrderState, Option<f32>, Option<FailureReason>),
     ) -> std::result::Result<Self, Self::Error> {
         let order_state = match value.0 {
             OrderState::Initial => crate::trade::order::OrderState::Initial,

@@ -15,6 +15,8 @@ use coordinator_commons::TradeParams;
 use orderbook_commons::FilledWith;
 use orderbook_commons::Prices;
 use rust_decimal::prelude::ToPrimitive;
+use time::Duration;
+use time::OffsetDateTime;
 use trade::ContractSymbol;
 
 /// Sets up a trade with the counterparty
@@ -38,8 +40,8 @@ pub async fn trade(filled: FilledWith) -> Result<()> {
 
     let execution_price = trade_params
         .average_execution_price()
-        .to_f64()
-        .expect("to fit into f64");
+        .to_f32()
+        .expect("to fit into f32");
     order::handler::order_filling(order.id, execution_price)
         .context("Could not update order to filling")?;
 
@@ -86,6 +88,10 @@ pub fn update_position_after_dlc_creation(filled_order: Order, collateral: u64) 
     tracing::debug!(order = ?filled_order, %collateral, "Creating position after DLC channel creation");
 
     let average_entry_price = filled_order.execution_price().unwrap_or(0.0);
+
+    let tomorrow = OffsetDateTime::now_utc().date() + Duration::days(1);
+    let expiry = tomorrow.midnight().assume_utc();
+
     let have_a_position = Position {
         leverage: filled_order.leverage,
         quantity: filled_order.quantity,
@@ -103,6 +109,9 @@ pub fn update_position_after_dlc_creation(filled_order: Order, collateral: u64) 
         // TODO: Remove the PnL, that has to be calculated in the UI
         position_state: PositionState::Open,
         collateral,
+        expiry,
+        updated: OffsetDateTime::now_utc(),
+        created: OffsetDateTime::now_utc(),
     };
 
     let position = db::insert_position(have_a_position)?;
