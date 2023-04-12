@@ -74,9 +74,20 @@ class TradeValuesChangeNotifier extends ChangeNotifier implements Subscriber {
 
   // Orderbook price updates both directions
   void updatePrice(Price price) {
-    _buyTradeValues.updatePrice(price.ask);
-    _sellTradeValues.updatePrice(price.bid);
-    notifyListeners();
+    bool update = false;
+
+    if (price.ask != _buyTradeValues.price) {
+      _buyTradeValues.updatePrice(price.ask);
+      update = true;
+    }
+    if (price.bid != _sellTradeValues.price) {
+      _sellTradeValues.updatePrice(price.bid);
+      update = true;
+    }
+
+    if (update) {
+      notifyListeners();
+    }
   }
 
   TradeValues fromDirection(Direction direction) =>
