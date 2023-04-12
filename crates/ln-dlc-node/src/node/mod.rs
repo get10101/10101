@@ -11,7 +11,6 @@ use crate::util;
 use crate::ChainMonitor;
 use crate::FakeChannelPaymentRequests;
 use crate::InvoicePayer;
-use crate::PaymentInfoStorage;
 use crate::PeerManager;
 use anyhow::ensure;
 use anyhow::Context;
@@ -60,6 +59,7 @@ mod dlc_manager;
 pub(crate) mod invoice;
 mod ln_channel;
 mod oracle_client;
+mod payment_persister;
 mod sub_channel_manager;
 mod wallet;
 
@@ -68,20 +68,21 @@ pub use ::dlc_manager as rust_dlc_manager;
 pub use channel_manager::ChannelManager;
 pub use dlc_channel::sub_channel_message_as_str;
 pub use invoice::HTLCStatus;
+pub use payment_persister::PaymentMap;
+pub use payment_persister::PaymentPersister;
 pub use sub_channel_manager::SubChannelManager;
 pub use wallet::PaymentDetails;
-pub use wallet::PaymentFlow;
 
 // TODO: These intervals are quite arbitrary at the moment, come up with more sensible values
 const BROADCAST_NODE_ANNOUNCEMENT_INTERVAL: Duration = Duration::from_secs(60);
 
 /// An LN-DLC node.
-pub struct Node {
+pub struct Node<P> {
     network: Network,
 
     pub(crate) wallet: Arc<LnDlcWallet>,
     pub peer_manager: Arc<PeerManager>,
-    invoice_payer: Arc<InvoicePayer<EventHandler>>,
+    invoice_payer: Arc<InvoicePayer<EventHandler<P>>>,
     pub(crate) channel_manager: Arc<ChannelManager>,
     chain_monitor: Arc<ChainMonitor>,
     keys_manager: Arc<CustomKeysManager>,
@@ -98,8 +99,7 @@ pub struct Node {
     pub sub_channel_manager: Arc<SubChannelManager>,
     oracle: Arc<P2PDOracleClient>,
     pub dlc_message_handler: Arc<DlcMessageHandler>,
-    inbound_payments: PaymentInfoStorage,
-    outbound_payments: PaymentInfoStorage,
+    payment_persister: Arc<P>,
 
     pub(crate) user_config: UserConfig,
 }
@@ -114,13 +114,17 @@ pub struct NodeInfo {
 /// other words, 10000 is 1%.
 pub(crate) const LIQUIDITY_ROUTING_FEE_MILLIONTHS: u32 = 20_000;
 
-impl Node {
+impl<P> Node<P>
+where
+    P: PaymentPersister + Send + Sync + 'static,
+{
     /// Constructs a new node to be run as the app
     #[allow(clippy::too_many_arguments)]
     pub async fn new_app(
         alias: &str,
         network: Network,
         data_dir: &Path,
+        payment_persister: P,
         announcement_address: SocketAddr,
         listen_address: SocketAddr,
         electrs_origin: String,
@@ -132,6 +136,7 @@ impl Node {
             alias,
             network,
             data_dir,
+            payment_persister,
             announcement_address,
             listen_address,
             vec![util::build_net_address(
@@ -155,6 +160,7 @@ impl Node {
         alias: &str,
         network: Network,
         data_dir: &Path,
+        payment_persister: P,
         announcement_address: SocketAddr,
         listen_address: SocketAddr,
         announcements: Vec<NetAddress>,
@@ -174,6 +180,7 @@ impl Node {
             alias,
             network,
             data_dir,
+            payment_persister,
             announcement_address,
             listen_address,
             announcements,
@@ -190,6 +197,7 @@ impl Node {
         alias: &str,
         network: Network,
         data_dir: &Path,
+        payment_persister: P,
         announcement_address: SocketAddr,
         listen_address: SocketAddr,
         announcements: Vec<NetAddress>,
@@ -307,11 +315,7 @@ impl Node {
         let fake_channel_payments: FakeChannelPaymentRequests =
             Arc::new(Mutex::new(HashMap::new()));
 
-        // TODO: Persist inbound payment info to disk
-        let inbound_payments: PaymentInfoStorage = Arc::new(Mutex::new(HashMap::new()));
-        // TODO: Persist outbound payment info to disk
-        let outbound_payments: PaymentInfoStorage = Arc::new(Mutex::new(HashMap::new()));
-
+        let payment_persister = Arc::new(payment_persister);
         let event_handler = {
             let runtime_handle = tokio::runtime::Handle::current();
 
@@ -321,8 +325,7 @@ impl Node {
                 ln_dlc_wallet.clone(),
                 network_graph,
                 keys_manager.clone(),
-                inbound_payments.clone(),
-                outbound_payments.clone(),
+                payment_persister.clone(),
                 fake_channel_payments.clone(),
                 Arc::new(Mutex::new(HashMap::new())),
             )
@@ -447,8 +450,7 @@ impl Node {
             oracle: oracle_client,
             dlc_message_handler,
             dlc_manager,
-            inbound_payments,
-            outbound_payments,
+            payment_persister,
             user_config: ldk_user_config,
             _background_processor: background_processor,
             _connection_manager_handle: connection_manager_handle,

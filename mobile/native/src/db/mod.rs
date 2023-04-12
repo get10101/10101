@@ -1,18 +1,23 @@
 use crate::api;
+use crate::db::models::base64_engine;
 use crate::db::models::Order;
 use crate::db::models::OrderState;
+use crate::db::models::PaymentInsertable;
+use crate::db::models::PaymentQueryable;
 use crate::db::models::Position;
 use crate::trade;
 use anyhow::anyhow;
 use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
+use base64::Engine;
 use bdk::bitcoin;
 use diesel::connection::SimpleConnection;
 use diesel::r2d2;
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::Pool;
 use diesel::r2d2::PooledConnection;
+use diesel::OptionalExtension;
 use diesel::SqliteConnection;
 use diesel_migrations::embed_migrations;
 use diesel_migrations::EmbeddedMigrations;
@@ -212,4 +217,73 @@ pub fn update_position_state(
         .context("Failed to update position state")?;
 
     Ok(())
+}
+
+pub fn insert_payment(
+    payment_hash: lightning::ln::PaymentHash,
+    info: ln_dlc_node::PaymentInfo,
+) -> Result<()> {
+    tracing::info!(?payment_hash, "Inserting payment");
+
+    let mut db = connection()?;
+
+    PaymentInsertable::insert((payment_hash, info).into(), &mut db)?;
+
+    Ok(())
+}
+
+pub fn update_payment(
+    payment_hash: lightning::ln::PaymentHash,
+    htlc_status: ln_dlc_node::HTLCStatus,
+    amt_msat: ln_dlc_node::MillisatAmount,
+    preimage: Option<lightning::ln::PaymentPreimage>,
+    secret: Option<lightning::ln::PaymentSecret>,
+) -> Result<()> {
+    tracing::info!(?payment_hash, "Updating payment");
+
+    let mut db = connection()?;
+
+    let base64 = base64_engine();
+
+    let preimage = preimage.map(|preimage| base64.encode(preimage.0));
+    let secret = secret.map(|secret| base64.encode(secret.0));
+
+    PaymentInsertable::update(
+        base64.encode(payment_hash.0),
+        htlc_status.into(),
+        amt_msat.to_inner().map(|amt| amt as i64),
+        preimage,
+        secret,
+        &mut db,
+    )?;
+
+    Ok(())
+}
+
+pub fn get_payment(
+    payment_hash: lightning::ln::PaymentHash,
+) -> Result<Option<(lightning::ln::PaymentHash, ln_dlc_node::PaymentInfo)>> {
+    tracing::info!(?payment_hash, "Getting payment");
+
+    let mut db = connection()?;
+
+    let payment =
+        PaymentQueryable::get(base64_engine().encode(payment_hash.0), &mut db).optional()?;
+
+    payment.map(|payment| payment.try_into()).transpose()
+}
+
+pub fn get_payments() -> Result<Vec<(lightning::ln::PaymentHash, ln_dlc_node::PaymentInfo)>> {
+    let mut db = connection()?;
+    let payments = PaymentQueryable::get_all(&mut db)?;
+    let payments = payments
+        .into_iter()
+        .map(|payment| payment.try_into())
+        .collect::<Result<Vec<_>>>()?;
+
+    let payment_hashes = payments.iter().map(|(a, _)| a).collect::<Vec<_>>();
+
+    tracing::info!(?payment_hashes, "Getting all payments");
+
+    Ok(payments)
 }

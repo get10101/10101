@@ -1,3 +1,4 @@
+use crate::db;
 use crate::trade::order;
 use crate::trade::position;
 use anyhow::anyhow;
@@ -6,19 +7,28 @@ use anyhow::Result;
 use bdk::TransactionDetails;
 use dlc_messages::Message;
 use dlc_messages::SubChannelMessage;
+use lightning::ln::PaymentHash;
+use lightning::ln::PaymentPreimage;
+use lightning::ln::PaymentSecret;
 use ln_dlc_node::node::rust_dlc_manager::contract::Contract;
 use ln_dlc_node::node::rust_dlc_manager::Storage;
 use ln_dlc_node::node::sub_channel_message_as_str;
 use ln_dlc_node::node::DlcManager;
 use ln_dlc_node::node::NodeInfo;
 use ln_dlc_node::node::PaymentDetails;
+use ln_dlc_node::node::PaymentPersister;
 use ln_dlc_node::Dlc;
+use ln_dlc_node::HTLCStatus;
+use ln_dlc_node::MillisatAmount;
+use ln_dlc_node::PaymentFlow;
+use ln_dlc_node::PaymentInfo;
 use std::sync::Arc;
 use std::time::Duration;
+use time::OffsetDateTime;
 
 #[derive(Clone)]
 pub struct Node {
-    pub inner: Arc<ln_dlc_node::node::Node>,
+    pub inner: Arc<ln_dlc_node::node::Node<Payments>>,
 }
 
 pub struct Balances {
@@ -57,7 +67,7 @@ impl Node {
 
     pub fn get_wallet_histories(&self) -> Result<WalletHistories> {
         let on_chain = self.inner.get_on_chain_history()?;
-        let off_chain = self.inner.get_off_chain_history();
+        let off_chain = self.inner.get_off_chain_history()?;
 
         Ok(WalletHistories {
             on_chain,
@@ -253,4 +263,49 @@ fn get_first_confirmed_dlc(dlc_manager: &DlcManager) -> Result<Dlc> {
         .first()
         .context("No confirmed DLC found")
         .copied()
+}
+
+#[derive(Clone)]
+pub struct Payments;
+
+impl PaymentPersister for Payments {
+    fn insert(&self, payment_hash: PaymentHash, info: PaymentInfo) -> Result<()> {
+        db::insert_payment(payment_hash, info)
+    }
+    fn merge(
+        &self,
+        payment_hash: &PaymentHash,
+        flow: PaymentFlow,
+        amt_msat: MillisatAmount,
+        htlc_status: HTLCStatus,
+        preimage: Option<PaymentPreimage>,
+        secret: Option<PaymentSecret>,
+    ) -> Result<()> {
+        match db::get_payment(*payment_hash)? {
+            Some(_) => {
+                db::update_payment(*payment_hash, htlc_status, amt_msat, preimage, secret)?;
+            }
+            None => {
+                db::insert_payment(
+                    *payment_hash,
+                    PaymentInfo {
+                        preimage,
+                        secret,
+                        status: htlc_status,
+                        amt_msat,
+                        flow,
+                        timestamp: OffsetDateTime::now_utc(),
+                    },
+                )?;
+            }
+        }
+
+        Ok(())
+    }
+    fn get(&self, payment_hash: &PaymentHash) -> Result<Option<(PaymentHash, PaymentInfo)>> {
+        db::get_payment(*payment_hash)
+    }
+    fn all(&self) -> Result<Vec<(PaymentHash, PaymentInfo)>> {
+        db::get_payments()
+    }
 }

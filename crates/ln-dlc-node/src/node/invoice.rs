@@ -1,6 +1,8 @@
 use crate::node::Node;
+use crate::node::PaymentPersister;
 use crate::node::LIQUIDITY_ROUTING_FEE_MILLIONTHS;
 use crate::MillisatAmount;
+use crate::PaymentFlow;
 use crate::PaymentInfo;
 use anyhow::anyhow;
 use anyhow::Context;
@@ -26,7 +28,10 @@ use std::time::Duration;
 use std::time::SystemTime;
 use time::OffsetDateTime;
 
-impl Node {
+impl<P> Node<P>
+where
+    P: PaymentPersister,
+{
     pub fn create_invoice(&self, amount_in_sats: u64) -> Result<Invoice> {
         lightning_invoice::utils::create_invoice_from_channelmanager(
             &self.channel_manager,
@@ -148,16 +153,17 @@ impl Node {
             }
         };
 
-        self.outbound_payments.lock().unwrap().insert(
+        self.payment_persister.insert(
             PaymentHash(invoice.payment_hash().into_inner()),
             PaymentInfo {
                 preimage: None,
                 secret: None,
                 status,
                 amt_msat: MillisatAmount(invoice.amount_milli_satoshis()),
+                flow: PaymentFlow::Outbound,
                 timestamp: OffsetDateTime::now_utc(),
             },
-        );
+        )?;
 
         Ok(())
     }
@@ -172,23 +178,33 @@ impl Node {
             loop {
                 tokio::time::sleep(Duration::from_secs(1)).await;
 
-                match self.inbound_payments.lock().unwrap().get(&payment_hash) {
-                    Some(PaymentInfo {
-                        status: HTLCStatus::Succeeded,
-                        ..
-                    }) => return,
-                    Some(PaymentInfo { status, .. }) => {
+                match self.payment_persister.get(&payment_hash) {
+                    Ok(Some((
+                        _,
+                        PaymentInfo {
+                            status: HTLCStatus::Succeeded,
+                            ..
+                        },
+                    ))) => return,
+                    Ok(Some((_, PaymentInfo { status, .. }))) => {
                         tracing::debug!(
                             payment_hash = %hex::encode(hash),
                             ?status,
                             "Checking if payment has been claimed"
                         );
                     }
-                    None => {
+                    Ok(None) => {
                         tracing::debug!(
                             payment_hash = %hex::encode(hash),
                             status = "unknown",
                             "Checking if payment has been claimed"
+                        );
+                    }
+                    Err(e) => {
+                        tracing::error!(
+                            payment_hash = %hex::encode(hash),
+                            status = "error",
+                            "Can't access payment persister: {e:#}"
                         );
                     }
                 }

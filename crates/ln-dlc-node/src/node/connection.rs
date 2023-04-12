@@ -11,7 +11,7 @@ use std::pin::Pin;
 use std::sync::Arc;
 use std::time::Duration;
 
-impl Node {
+impl<P> Node<P> {
     pub async fn connect(&self, peer: NodeInfo) -> Result<Pin<Box<impl Future<Output = ()>>>> {
         #[allow(clippy::async_yields_async)] // We want to poll this future in a loop elsewhere
         let connection_closed_future = tokio::time::timeout(Duration::from_secs(30), async {

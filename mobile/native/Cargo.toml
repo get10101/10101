@@ -8,6 +8,7 @@ crate-type = ["cdylib", "staticlib"]
 
 [dependencies]
 anyhow = "1"
+base64 = "0.21.0"
 bdk = { version = "0.24.0", features = ["key-value-db"] }
 coordinator-commons = { path = "../../crates/coordinator-commons" }
 diesel = { version = "2.0.0", features = ["sqlite", "r2d2", "extras"] }
@@ -18,6 +19,7 @@ futures = "0.3"
 hex = "0.4"
 itertools = "0.10"
 libsqlite3-sys = { version = "0.25.2", features = ["bundled"] }
+lightning = { version = "0.0.113" }
 lightning-invoice = { version = "0.21" }
 ln-dlc-node = { path = "../../crates/ln-dlc-node" }
 openssl = { version = "0.10.45", features = ["vendored"] }

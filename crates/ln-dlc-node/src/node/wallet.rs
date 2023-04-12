@@ -1,5 +1,7 @@
 use crate::node::HTLCStatus;
 use crate::node::Node;
+use crate::node::PaymentPersister;
+use crate::PaymentFlow;
 use anyhow::anyhow;
 use anyhow::bail;
 use anyhow::Context;
@@ -19,7 +21,10 @@ pub struct OffChainBalance {
     pub pending_close: u64,
 }
 
-impl Node {
+impl<P> Node<P>
+where
+    P: PaymentPersister,
+{
     pub fn get_seed_phrase(&self) -> Vec<String> {
         self.wallet.get_seed_phrase()
     }
@@ -122,50 +127,31 @@ impl Node {
             .context("Failed to retrieve on-chain transaction history")
     }
 
-    pub fn get_off_chain_history(&self) -> Vec<PaymentDetails> {
-        let inbound_payments = self
-            .inbound_payments
-            .lock()
-            .expect("to be able to acquire lock");
-        let inbound_payments = inbound_payments.iter().map(|(hash, info)| PaymentDetails {
-            payment_hash: *hash,
-            status: info.status,
-            flow: PaymentFlow::Inbound,
-            amount_msat: info.amt_msat.0,
-            timestamp: info.timestamp,
-        });
-
-        let outbound_payments = self
-            .outbound_payments
-            .lock()
-            .expect("to be able to acquire lock");
-        let outbound_payments = outbound_payments.iter().map(|(hash, info)| PaymentDetails {
-            payment_hash: *hash,
-            status: info.status,
-            flow: PaymentFlow::Outbound,
-            amount_msat: info.amt_msat.0,
-            timestamp: info.timestamp,
-        });
-
-        let mut payments = inbound_payments
-            .chain(outbound_payments)
+    pub fn get_off_chain_history(&self) -> Result<Vec<PaymentDetails>> {
+        let mut payments = self
+            .payment_persister
+            .all()?
+            .iter()
+            .map(|(hash, info)| PaymentDetails {
+                payment_hash: *hash,
+                status: info.status,
+                flow: info.flow,
+                amount_msat: info.amt_msat.0,
+                timestamp: info.timestamp,
+            })
             .collect::<Vec<_>>();
 
         payments.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
 
-        payments
+        Ok(payments)
     }
 }
 
+#[derive(Debug)]
 pub struct PaymentDetails {
     pub payment_hash: PaymentHash,
     pub status: HTLCStatus,
     pub flow: PaymentFlow,
     pub amount_msat: Option<u64>,
     pub timestamp: OffsetDateTime,
-}
-
-pub enum PaymentFlow {
-    Inbound,
-    Outbound,
 }

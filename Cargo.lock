@@ -1774,6 +1774,7 @@ name = "native"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "base64 0.21.0",
  "bdk",
  "coordinator-commons",
  "diesel",
@@ -1784,6 +1785,7 @@ dependencies = [
  "hex",
  "itertools",
  "libsqlite3-sys",
+ "lightning",
  "lightning-invoice",
  "ln-dlc-node",
  "openssl",

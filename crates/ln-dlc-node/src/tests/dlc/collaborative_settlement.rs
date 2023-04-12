@@ -1,4 +1,5 @@
 use crate::node::Node;
+use crate::node::PaymentMap;
 use crate::tests::dlc::create::create_dlc_channel;
 use crate::tests::dlc::create::DlcChannelCreated;
 use crate::tests::dummy_contract_input;
@@ -30,7 +31,7 @@ async fn dlc_collaborative_settlement_test() {
 async fn dlc_collaborative_settlement(
     app_dlc_collateral: u64,
     coordinator_dlc_collateral: u64,
-) -> Result<(Node, Node)> {
+) -> Result<(Node<PaymentMap>, Node<PaymentMap>)> {
     // Arrange
 
     let DlcChannelCreated {

@@ -20,6 +20,7 @@ use dlc_messages::Message;
 use lightning::ln::channelmanager::ChannelDetails;
 use ln_dlc_node::node::sub_channel_message_as_str;
 use ln_dlc_node::node::DlcManager;
+use ln_dlc_node::node::PaymentMap;
 use ln_dlc_node::node::SubChannelManager;
 use ln_dlc_node::PeerManager;
 use rust_decimal::prelude::ToPrimitive;
@@ -39,7 +40,7 @@ use trade::Direction;
 const COORDINATOR_LEVERAGE: f64 = 1.0;
 
 pub struct Node {
-    pub inner: Arc<ln_dlc_node::node::Node>,
+    pub inner: Arc<ln_dlc_node::node::Node<PaymentMap>>,
     pub positions: Mutex<HashMap<String, Position>>,
 }
 
