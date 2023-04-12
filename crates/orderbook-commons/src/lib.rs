@@ -13,9 +13,13 @@ use serde::Serialize;
 use sha2::digest::FixedOutput;
 use sha2::Digest;
 use sha2::Sha256;
+use time::Duration;
 use time::OffsetDateTime;
 use trade::Direction;
 use uuid::Uuid;
+
+// For now we hardcode a global expiry for all newly created orders.
+pub const DEFAULT_ORDER_EXPIRY: Duration = Duration::minutes(1);
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct Order {
@@ -28,7 +32,10 @@ pub struct Order {
     #[serde(with = "rust_decimal::serde::float")]
     pub quantity: Decimal,
     pub order_type: OrderType,
+    #[serde(with = "time::serde::rfc3339")]
     pub timestamp: OffsetDateTime,
+    #[serde(with = "time::serde::rfc3339")]
+    pub expiry: OffsetDateTime,
 }
 
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
@@ -56,6 +63,7 @@ pub struct NewOrder {
     pub trader_id: PublicKey,
     pub direction: Direction,
     pub order_type: OrderType,
+    pub expiry: OffsetDateTime,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]

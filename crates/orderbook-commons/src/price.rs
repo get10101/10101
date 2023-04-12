@@ -97,6 +97,7 @@ mod test {
             quantity: 100.into(),
             order_type: OrderType::Market,
             timestamp: OffsetDateTime::now_utc(),
+            expiry: OffsetDateTime::now_utc(),
         }
     }
 

@@ -1,5 +1,6 @@
 use crate::calculations::calculate_margin;
 use crate::ln_dlc;
+use orderbook_commons::DEFAULT_ORDER_EXPIRY;
 use rust_decimal::Decimal;
 use time::OffsetDateTime;
 use trade::ContractSymbol;
@@ -150,6 +151,7 @@ impl From<Order> for orderbook_commons::NewOrder {
             trader_id,
             direction: order.direction,
             order_type: order.order_type.into(),
+            expiry: OffsetDateTime::now_utc() + DEFAULT_ORDER_EXPIRY,
         }
     }
 }
