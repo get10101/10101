@@ -41,7 +41,7 @@ class TradeValues {
         price: price, leverage: leverage, direction: direction);
 
     // TODO: Calculate fee based on price, quantity and funding rate
-    Amount fee = Amount(30);
+    Amount fee = Amount(0);
 
     return TradeValues(
         direction: direction,
