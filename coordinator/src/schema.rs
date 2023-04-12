@@ -25,5 +25,6 @@ diesel::table! {
         quantity -> Float4,
         timestamp -> Timestamptz,
         order_type -> OrderTypeType,
+        expiry -> Timestamptz,
     }
 }

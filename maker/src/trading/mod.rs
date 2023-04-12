@@ -8,6 +8,8 @@ use orderbook_commons::OrderType;
 use reqwest::Url;
 use rust_decimal::Decimal;
 use rust_decimal_macros::dec;
+use time::Duration;
+use time::OffsetDateTime;
 use trade::Direction;
 use uuid::Uuid;
 
@@ -74,6 +76,7 @@ async fn update_order(
             trader_id: maker_id,
             direction,
             order_type: OrderType::Limit,
+            expiry: OffsetDateTime::now_utc() + Duration::minutes(1),
         },
     )
     .await

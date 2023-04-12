@@ -38,7 +38,7 @@ use uuid::Uuid;
 
 pub async fn get_orders(State(state): State<Arc<AppState>>) -> Result<Json<Vec<Order>>, AppError> {
     let mut conn = get_db_connection(&state)?;
-    let order = orderbook::db::orders::all(&mut conn)
+    let order = orderbook::db::orders::all(&mut conn, true)
         .map_err(|e| AppError::InternalServerError(format!("Failed to load all orders: {e:#}")))?;
 
     Ok(Json(order))
@@ -101,14 +101,15 @@ pub async fn post_order(
         return Ok(Json(order));
     }
 
-    let all_orders = orders::all_by_direction_and_type(
+    let all_non_expired_orders = orders::all_by_direction_and_type(
         &mut conn,
         order.direction.opposite(),
         OrderType::Limit,
         false,
+        true,
     )
     .map_err(|e| AppError::InternalServerError(format!("Failed to load all orders: {e:#}")))?;
-    let matched_orders = match_order(order.clone(), all_orders)
+    let matched_orders = match_order(order.clone(), all_non_expired_orders)
         .map_err(|e| AppError::InternalServerError(format!("Failed to match order: {e:#}")))?;
 
     let authenticated_users = state.authenticated_users.lock().await;
@@ -211,7 +212,7 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>) {
         }
     };
 
-    let orders = match orderbook::db::orders::all(&mut conn) {
+    let orders = match orderbook::db::orders::all(&mut conn, true) {
         Ok(orders) => orders,
         Err(error) => {
             tracing::error!("Could not load all orders from db {error:#}");

@@ -63,6 +63,7 @@ struct Order {
     pub quantity: f32,
     pub timestamp: OffsetDateTime,
     pub order_type: OrderType,
+    pub expiry: OffsetDateTime,
 }
 
 impl From<Order> for OrderbookOrder {
@@ -77,6 +78,7 @@ impl From<Order> for OrderbookOrder {
                 .expect("To be able to convert f32 to decimal"),
             order_type: value.order_type.into(),
             timestamp: value.timestamp,
+            expiry: value.expiry,
         }
     }
 }
@@ -91,6 +93,7 @@ struct NewOrder {
     pub direction: Direction,
     pub quantity: f32,
     pub order_type: OrderType,
+    pub expiry: OffsetDateTime,
 }
 
 impl From<OrderbookNewOrder> for NewOrder {
@@ -111,12 +114,19 @@ impl From<OrderbookNewOrder> for NewOrder {
                 .to_f32()
                 .expect("To be able to convert decimal to f32"),
             order_type: value.order_type.into(),
+            expiry: value.expiry,
         }
     }
 }
 
-pub fn all(conn: &mut PgConnection) -> QueryResult<Vec<OrderbookOrder>> {
-    let orders: Vec<Order> = orders::dsl::orders.load::<Order>(conn)?;
+pub fn all(conn: &mut PgConnection, show_expired: bool) -> QueryResult<Vec<OrderbookOrder>> {
+    let orders: Vec<Order> = if show_expired {
+        orders::dsl::orders.load::<Order>(conn)?
+    } else {
+        orders::table
+            .filter(orders::expiry.gt(OffsetDateTime::now_utc()))
+            .load::<Order>(conn)?
+    };
 
     Ok(orders.into_iter().map(OrderbookOrder::from).collect())
 }
@@ -127,12 +137,19 @@ pub fn all_by_direction_and_type(
     direction: OrderbookDirection,
     order_type: OrderBookOrderType,
     taken: bool,
+    filter_expired: bool,
 ) -> QueryResult<Vec<OrderbookOrder>> {
-    let orders: Vec<Order> = orders::table
+    let filters = orders::table
         .filter(orders::direction.eq(Direction::from(direction)))
         .filter(orders::order_type.eq(OrderType::from(order_type)))
-        .filter(orders::taken.eq(taken))
-        .load::<Order>(conn)?;
+        .filter(orders::taken.eq(taken));
+    let orders: Vec<Order> = if filter_expired {
+        filters
+            .filter(orders::expiry.gt(OffsetDateTime::now_utc()))
+            .load::<Order>(conn)?
+    } else {
+        filters.load::<Order>(conn)?
+    };
 
     Ok(orders.into_iter().map(OrderbookOrder::from).collect())
 }

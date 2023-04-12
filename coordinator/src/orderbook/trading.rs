@@ -239,6 +239,7 @@ pub mod tests {
             quantity,
             order_type: OrderType::Limit,
             timestamp: OffsetDateTime::now_utc() + timestamp_delay,
+            expiry: OffsetDateTime::now_utc() + Duration::minutes(1),
         }
     }
 
@@ -375,6 +376,7 @@ pub mod tests {
             quantity: dec!(100),
             order_type: OrderType::Market,
             timestamp: OffsetDateTime::now_utc(),
+            expiry: OffsetDateTime::now_utc() + Duration::minutes(1),
         };
 
         let matched_orders = match_order(order.clone(), all_orders).unwrap().unwrap();
@@ -445,6 +447,7 @@ pub mod tests {
             quantity: dec!(200),
             order_type: OrderType::Market,
             timestamp: OffsetDateTime::now_utc(),
+            expiry: OffsetDateTime::now_utc() + Duration::minutes(1),
         };
 
         assert!(match_order(order, all_orders).is_err());
@@ -491,6 +494,7 @@ pub mod tests {
             quantity: dec!(200),
             order_type: OrderType::Market,
             timestamp: OffsetDateTime::now_utc(),
+            expiry: OffsetDateTime::now_utc() + Duration::minutes(1),
         };
 
         let matched_orders = match_order(order, all_orders).unwrap();
