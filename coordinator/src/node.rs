@@ -109,7 +109,7 @@ impl Node {
         let contract_input = ContractInput {
             offer_collateral: margin_coordinator,
             accept_collateral: margin_trader,
-            fee_rate: 2,
+            fee_rate: 4,
             contract_infos: vec![ContractInputInfo {
                 contract_descriptor,
                 oracles: OracleInput {
