@@ -10,6 +10,8 @@ import 'package:get_10101/features/trade/submit_order_change_notifier.dart';
 import 'package:get_10101/features/trade/trade_screen.dart';
 import 'package:get_10101/features/trade/trade_theme.dart';
 import 'package:get_10101/features/trade/trade_value_change_notifier.dart';
+import 'package:get_10101/features/wallet/domain/wallet_balances.dart';
+import 'package:get_10101/features/wallet/domain/wallet_info.dart';
 import 'package:get_10101/features/wallet/wallet_change_notifier.dart';
 import 'package:get_10101/util/constants.dart';
 import 'package:go_router/go_router.dart';
@@ -82,7 +84,7 @@ void main() {
             price: anyNamed('price'),
             quantity: anyNamed('quantity'),
             leverage: anyNamed('leverage')))
-        .thenReturn(Amount(2000));
+        .thenReturn(Amount(1000));
     when(tradeValueService.calculateLiquidationPrice(
             price: anyNamed('price'),
             leverage: anyNamed('leverage'),
@@ -90,7 +92,15 @@ void main() {
         .thenReturn(10000);
     when(tradeValueService.calculateQuantity(
             price: anyNamed('price'), leverage: anyNamed('leverage'), margin: anyNamed('margin')))
-        .thenReturn(100);
+        .thenReturn(0.1);
+
+    when(tradeValueService.getLightningChannelCapacity()).thenReturn(20000);
+
+    when(tradeValueService.getMinTradeMargin()).thenReturn(1000);
+
+    when(tradeValueService.getChannelReserve()).thenReturn(1000);
+
+    when(tradeValueService.getFeeReserve()).thenReturn(1666);
 
     when(candlestickService.fetchCandles(1000)).thenAnswer((_) async {
       return getDummyCandles(1000);
@@ -105,6 +115,8 @@ void main() {
 
     SubmitOrderChangeNotifier submitOrderChangeNotifier = SubmitOrderChangeNotifier(orderService);
 
+    WalletChangeNotifier walletChangeNotifier = WalletChangeNotifier(walletService);
+
     await tester.pumpWidget(MultiProvider(providers: [
       ChangeNotifierProvider(create: (context) => TradeValuesChangeNotifier(tradeValueService)),
       ChangeNotifierProvider(create: (context) => submitOrderChangeNotifier),
@@ -112,9 +124,13 @@ void main() {
       ChangeNotifierProvider(
           create: (context) => PositionChangeNotifier(positionService, orderService)),
       ChangeNotifierProvider(create: (context) => AmountDenominationChangeNotifier()),
-      ChangeNotifierProvider(create: (context) => WalletChangeNotifier(walletService)),
+      ChangeNotifierProvider(create: (context) => walletChangeNotifier),
       ChangeNotifierProvider(create: (context) => candlestickChangeNotifier)
     ], child: const TestWrapperWithTradeTheme(child: TradeScreen())));
+
+    // We have to pretend that we have a balance, because otherwise the trade bottom sheet validation will not allow us to go to the confirmation screen
+    walletChangeNotifier.update(WalletInfo(
+        balances: WalletBalances(onChain: Amount(0), lightning: Amount(10000)), history: []));
 
     await tester.pumpAndSettle();
 
