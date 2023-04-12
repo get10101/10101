@@ -1,4 +1,5 @@
 use crate::node::Node;
+use crate::node::JUST_IN_TIME_CHANNEL_FEE_MSATS;
 use crate::node::LIQUIDITY_ROUTING_FEE_MILLIONTHS;
 use crate::MillisatAmount;
 use crate::PaymentInfo;
@@ -54,7 +55,10 @@ impl Node {
         invoice_expiry: u32,
         description: String,
     ) -> Result<Invoice> {
-        let amount_msat = amount_in_sats.map(|x| x * 1000);
+        let amount_msat = amount_in_sats
+            .map(|x| x * 1000)
+            .map(|x| x - JUST_IN_TIME_CHANNEL_FEE_MSATS as u64);
+
         let (payment_hash, payment_secret) = self
             .channel_manager
             .create_inbound_payment(amount_msat, invoice_expiry)
@@ -76,7 +80,10 @@ impl Node {
                 // QUESTION: What happens if these differ with the actual values
                 // in the `ChannelConfig` for the private channel?
                 fees: RoutingFees {
-                    base_msat: 1000,
+                    // FIXME: This works for LDK, but LND appears to ignore nodes with large
+                    // `base_msat` routing fees for path-finding, so it comes back with a highly
+                    // descriptive `no_route` error if we attempt to pay this invoice.
+                    base_msat: 1000 + JUST_IN_TIME_CHANNEL_FEE_MSATS,
                     proportional_millionths: LIQUIDITY_ROUTING_FEE_MILLIONTHS,
                 },
                 cltv_expiry_delta: MIN_CLTV_EXPIRY_DELTA,

@@ -1,5 +1,6 @@
 use crate::ln::JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT;
 use crate::node::Node;
+use crate::node::JUST_IN_TIME_CHANNEL_FEE_MSATS;
 use crate::node::LIQUIDITY_ROUTING_FEE_MILLIONTHS;
 use crate::tests::init_tracing;
 use crate::tests::min_outbound_liquidity_channel_creator;
@@ -10,7 +11,7 @@ use rust_decimal::Decimal;
 
 #[tokio::test]
 #[ignore]
-async fn just_in_time_channel() {
+async fn just_in_time_channel_single() {
     init_tracing();
 
     // Arrange
@@ -60,7 +61,7 @@ async fn just_in_time_channel() {
     // than the payee's
     // `max_inbound_htlc_value_in_flight_percent_of_channel`
     // configuration value for said channel.
-    let invoice_amount = 1_000;
+    let invoice_amount = 5_000;
 
     send_interceptable_payment(
         &payer,
@@ -93,8 +94,10 @@ pub(crate) async fn send_interceptable_payment(
     let intercept_scid = coordinator.create_intercept_scid(payee.info.pubkey);
 
     let flat_routing_fee = 1; // according to the default `ChannelConfig`
-    let liquidity_routing_fee =
-        (invoice_amount * LIQUIDITY_ROUTING_FEE_MILLIONTHS as u64) / 1_000_000;
+    let just_in_time_channel_fee_sats = JUST_IN_TIME_CHANNEL_FEE_MSATS as u64 / 1_000;
+    let liquidity_routing_fee = ((invoice_amount - just_in_time_channel_fee_sats)
+        * LIQUIDITY_ROUTING_FEE_MILLIONTHS as u64)
+        / 1_000_000;
 
     assert!(
         does_inbound_htlc_fit_as_percent_of_channel(
@@ -146,12 +149,13 @@ pub(crate) async fn send_interceptable_payment(
         coordinator_balance_after.available - coordinator_balance_before.available,
         coordinator_just_in_time_channel_creation_outbound_liquidity.unwrap_or_default()
             + flat_routing_fee
+            + just_in_time_channel_fee_sats
             + liquidity_routing_fee
     );
 
     assert_eq!(
         payee_balance_after.available - payee_balance_before.available,
-        invoice_amount
+        invoice_amount - just_in_time_channel_fee_sats
     );
 
     Ok(())

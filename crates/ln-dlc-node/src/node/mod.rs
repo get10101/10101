@@ -112,7 +112,12 @@ pub struct NodeInfo {
 
 /// Liquidity-based routing fee in millionths of a routed amount. In
 /// other words, 10000 is 1%.
-pub(crate) const LIQUIDITY_ROUTING_FEE_MILLIONTHS: u32 = 20_000;
+pub(crate) const LIQUIDITY_ROUTING_FEE_MILLIONTHS: u32 = 10_000;
+
+/// We have to cover our costs for broadcasting the funding transactions on chain. In order to
+/// simplify things we simply charge a fee of 1000 sats instead of substracting the actual
+/// transaction fees that have been used ot broadcast the funding transaction.
+pub(crate) const JUST_IN_TIME_CHANNEL_FEE_MSATS: u32 = 1_000 * 1_000;
 
 impl Node {
     /// Constructs a new node to be run as the app

@@ -1,4 +1,5 @@
 use crate::node::Node;
+use crate::node::JUST_IN_TIME_CHANNEL_FEE_MSATS;
 use crate::tests::init_tracing;
 use crate::tests::lnd::LndNode;
 use crate::tests::log_channel_id;
@@ -30,7 +31,7 @@ async fn onboard_from_lnd() {
     coordinator.sync().unwrap();
     payee.sync().unwrap();
 
-    let invoice_amount = 1000;
+    let invoice_amount = 5_000;
 
     let fake_scid = coordinator.create_intercept_scid(payee.info.pubkey);
     let invoice = payee
@@ -55,5 +56,10 @@ async fn onboard_from_lnd() {
     // Assert
 
     let payee_balance = payee.get_ldk_balance();
-    assert_eq!(invoice_amount, payee_balance.available);
+    let just_in_time_channel_fee_sats = JUST_IN_TIME_CHANNEL_FEE_MSATS as u64 / 1_000;
+
+    assert_eq!(
+        invoice_amount - just_in_time_channel_fee_sats,
+        payee_balance.available
+    );
 }
