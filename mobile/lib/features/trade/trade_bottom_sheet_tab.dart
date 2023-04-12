@@ -36,6 +36,8 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
 
   final _formKey = GlobalKey<FormState>();
 
+  bool showCapacityInfo = false;
+
   @override
   void initState() {
     provider = context.read<TradeValuesChangeNotifier>();
@@ -174,6 +176,19 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
                             try {
                               int margin = int.parse(value);
 
+                              // This condition has to stay as the first thing to check, so we reset showing the info
+                              if (margin > provider.availableTradingCapacity(widget.direction)) {
+                                setState(() {
+                                  showCapacityInfo = true;
+                                });
+
+                                return "Insufficient capacity";
+                              } else if (showCapacityInfo) {
+                                setState(() {
+                                  showCapacityInfo = false;
+                                });
+                              }
+
                               if (usableBalance < margin) {
                                 return "Insufficient balance";
                               }
@@ -194,6 +209,14 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
                       },
                     ),
                   ),
+                  if (showCapacityInfo)
+                    ModalBottomSheetInfo(
+                        infoText:
+                            "While in beta channel capacity is limited to ${provider.capacity} sats. "
+                            "In order to trade with higher margin you have to reduce your balance"
+                            "\n\nYour current usable balance is $usableBalance."
+                            "Please send ${usableBalance - (provider.capacity / 2)} out of your wallet to free up capacity.",
+                        buttonText: "Back to order...")
                 ],
               ),
               LeverageSlider(

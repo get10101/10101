@@ -41,4 +41,9 @@ class TradeValuesService {
     // This value is an arbitrary number; we only allow trades with a minimum of 1000 sats margin.
     return 1000;
   }
+
+  int getLightningChannelCapacity() {
+    // This value is what we agree on as channel capacity cap for the beta
+    return 200000;
+  }
 }

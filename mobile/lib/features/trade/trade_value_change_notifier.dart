@@ -20,6 +20,7 @@ class TradeValuesChangeNotifier extends ChangeNotifier implements Subscriber {
   late final int _feeReserve;
   late final int _channelReserve;
   late final int _minimumTradeMargin;
+  late final int _channelCapacity;
 
   TradeValuesChangeNotifier(this.tradeValuesService) {
     _buyTradeValues = _initOrder(Direction.long);
@@ -28,6 +29,7 @@ class TradeValuesChangeNotifier extends ChangeNotifier implements Subscriber {
     _feeReserve = tradeValuesService.getFeeReserve();
     _channelReserve = tradeValuesService.getChannelReserve();
     _minimumTradeMargin = tradeValuesService.getMinTradeMargin();
+    _channelCapacity = tradeValuesService.getLightningChannelCapacity();
   }
 
   TradeValues _initOrder(Direction direction) {
@@ -58,6 +60,38 @@ class TradeValuesChangeNotifier extends ChangeNotifier implements Subscriber {
   int get reserve => _feeReserve + _channelReserve;
   int get channelReserve => _channelReserve;
   int get feeReserve => _feeReserve;
+  int get capacity => _channelCapacity;
+
+  /// Defines the amount of sats the user can actually use for trading
+  /// Defined as:
+  /// available_trading_capacity = channel_capacity - total_reserve - counterparty_margin
+  int availableTradingCapacity(Direction direction) {
+    int counterpartyMargin = 0;
+
+    switch (direction) {
+      case Direction.long:
+        counterpartyMargin = tradeValuesService
+            .calculateMargin(
+                price: _buyTradeValues.price,
+                quantity: _buyTradeValues.quantity,
+                leverage: Leverage(1))
+            .sats;
+        break;
+      case Direction.short:
+        counterpartyMargin = tradeValuesService
+            .calculateMargin(
+                price: _sellTradeValues.price,
+                quantity: _sellTradeValues.quantity,
+                leverage: Leverage(1))
+            .sats;
+        break;
+    }
+
+    int channelCapacity = tradeValuesService.getLightningChannelCapacity();
+    int totalReserve = reserve * 2;
+
+    return channelCapacity - totalReserve - counterpartyMargin;
+  }
 
   void updateQuantity(Direction direction, double quantity) {
     fromDirection(direction).updateQuantity(quantity);
