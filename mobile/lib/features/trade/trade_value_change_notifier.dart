@@ -17,9 +17,17 @@ class TradeValuesChangeNotifier extends ChangeNotifier implements Subscriber {
   late final TradeValues _buyTradeValues;
   late final TradeValues _sellTradeValues;
 
+  late final int _feeReserve;
+  late final int _channelReserve;
+  late final int _minimumTradeMargin;
+
   TradeValuesChangeNotifier(this.tradeValuesService) {
     _buyTradeValues = _initOrder(Direction.long);
     _sellTradeValues = _initOrder(Direction.short);
+
+    _feeReserve = tradeValuesService.getFeeReserve();
+    _channelReserve = tradeValuesService.getChannelReserve();
+    _minimumTradeMargin = tradeValuesService.getMinTradeMargin();
   }
 
   TradeValues _initOrder(Direction direction) {
@@ -45,6 +53,9 @@ class TradeValuesChangeNotifier extends ChangeNotifier implements Subscriber {
             tradeValuesService: tradeValuesService);
     }
   }
+
+  int get minMargin => _minimumTradeMargin;
+  int get reserve => _feeReserve + _channelReserve;
 
   void updateQuantity(Direction direction, double quantity) {
     fromDirection(direction).updateQuantity(quantity);
