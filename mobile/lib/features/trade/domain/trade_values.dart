@@ -29,14 +29,14 @@ class TradeValues {
       required this.tradeValuesService});
 
   factory TradeValues.create(
-      {required double quantity,
+      {required Amount margin,
       required Leverage leverage,
       required double price,
       required double fundingRate,
       required Direction direction,
       required TradeValuesService tradeValuesService}) {
-    Amount margin =
-        tradeValuesService.calculateMargin(price: price, quantity: quantity, leverage: leverage);
+    double quantity =
+        tradeValuesService.calculateQuantity(price: price, margin: margin, leverage: leverage);
     double liquidationPrice = tradeValuesService.calculateLiquidationPrice(
         price: price, leverage: leverage, direction: direction);
 
@@ -67,7 +67,7 @@ class TradeValues {
 
   updatePrice(double price) {
     this.price = price;
-    _recalculateMargin();
+    _recalculateQuantity();
     _recalculateLiquidationPrice();
   }
 

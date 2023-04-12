@@ -33,22 +33,22 @@ class TradeValuesChangeNotifier extends ChangeNotifier implements Subscriber {
   }
 
   TradeValues _initOrder(Direction direction) {
-    double defaultQuantity = 100;
-    double defaultLeverage = 2;
+    Amount defaultMargin = Amount(tradeValuesService.getMinTradeMargin());
+    Leverage defaultLeverage = Leverage(2);
 
     switch (direction) {
       case Direction.long:
         return TradeValues.create(
-            quantity: defaultQuantity,
-            leverage: Leverage(defaultLeverage),
+            margin: defaultMargin,
+            leverage: defaultLeverage,
             price: dummyAskPrice,
             fundingRate: fundingRateBuy,
             direction: direction,
             tradeValuesService: tradeValuesService);
       case Direction.short:
         return TradeValues.create(
-            quantity: defaultQuantity,
-            leverage: Leverage(defaultLeverage),
+            margin: defaultMargin,
+            leverage: defaultLeverage,
             price: dummyBidPrice,
             fundingRate: fundingRateSell,
             direction: direction,
