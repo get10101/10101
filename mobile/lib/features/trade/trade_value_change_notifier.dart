@@ -56,6 +56,8 @@ class TradeValuesChangeNotifier extends ChangeNotifier implements Subscriber {
 
   int get minMargin => _minimumTradeMargin;
   int get reserve => _feeReserve + _channelReserve;
+  int get channelReserve => _channelReserve;
+  int get feeReserve => _feeReserve;
 
   void updateQuantity(Direction direction, double quantity) {
     fromDirection(direction).updateQuantity(quantity);

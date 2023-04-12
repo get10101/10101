@@ -6,6 +6,7 @@ import 'package:get_10101/common/amount_text_input_form_field.dart';
 import 'package:get_10101/common/domain/model.dart';
 import 'package:get_10101/common/double_text_input_form_field.dart';
 import 'package:get_10101/common/fiat_text.dart';
+import 'package:get_10101/common/modal_bottom_sheet_info.dart';
 import 'package:get_10101/features/trade/domain/direction.dart';
 import 'package:get_10101/features/trade/domain/leverage.dart';
 import 'package:get_10101/features/trade/leverage_slider.dart';
@@ -79,7 +80,19 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
                   children: [
                     const Flexible(child: Text("Usable Balance:")),
                     const SizedBox(width: 5),
-                    Flexible(child: AmountText(amount: Amount(usableBalance)))
+                    Flexible(child: AmountText(amount: Amount(usableBalance))),
+                    const SizedBox(
+                      width: 5,
+                    ),
+                    ModalBottomSheetInfo(
+                      infoText:
+                          "Your usable balance of $usableBalance sats takes a fixed reserve of ${provider.reserve} sats into account. "
+                          "\n${provider.channelReserve} is the minimum amount that has to stay in the Lightning channel. "
+                          "\n${provider.feeReserve} is reserved for fees per trade that is needed for publishing on-chain transactions in a worst case scenario. This is needed for the self-custodial setup"
+                          "\n\nWe are working on optimizing the reserve and it might be subject to change after the beta.",
+                      buttonText: "Back to order...",
+                      padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                    )
                   ],
                 ),
               ),
