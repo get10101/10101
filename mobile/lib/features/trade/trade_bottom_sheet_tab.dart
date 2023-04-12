@@ -147,12 +147,10 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
                               context
                                   .read<TradeValuesChangeNotifier>()
                                   .updateMargin(widget.direction, margin);
-                              _formKey.currentState!.validate();
                             } on Exception {
                               context
                                   .read<TradeValuesChangeNotifier>()
                                   .updateMargin(widget.direction, Amount.zero());
-                              _formKey.currentState!.validate();
                             }
                           },
                           validator: (value) {
