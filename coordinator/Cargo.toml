@@ -6,7 +6,7 @@ edition = "2021"
 [dependencies]
 anyhow = { version = "1", features = ["backtrace"] }
 atty = "0.2.14"
-axum = { version = "0.6.7", features = ["ws"] }
+axum = { version = "0.6.7", features = ["ws", "query"] }
 bdk = { version = "0.24.0", features = ["key-value-db"] }
 bitcoin = "0.29"
 clap = { version = "4", features = ["derive"] }

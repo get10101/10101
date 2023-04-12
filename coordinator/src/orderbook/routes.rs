@@ -11,6 +11,7 @@ use axum::extract::ws::Message;
 use axum::extract::ws::WebSocket;
 use axum::extract::ws::WebSocketUpgrade;
 use axum::extract::Path;
+use axum::extract::Query;
 use axum::extract::State;
 use axum::response::IntoResponse;
 use axum::Json;
@@ -29,16 +30,44 @@ use orderbook_commons::OrderbookMsg;
 use orderbook_commons::OrderbookRequest;
 use orderbook_commons::Signature;
 use rust_decimal::Decimal;
+use serde::de;
 use serde::Deserialize;
+use serde::Deserializer;
 use serde::Serialize;
+use std::fmt;
+use std::str::FromStr;
 use std::sync::Arc;
 use tokio::sync::broadcast::Sender;
 use tokio::sync::mpsc;
 use uuid::Uuid;
 
-pub async fn get_orders(State(state): State<Arc<AppState>>) -> Result<Json<Vec<Order>>, AppError> {
+#[derive(Debug, Deserialize)]
+pub struct AllOrdersParams {
+    #[serde(default, deserialize_with = "empty_string_as_none")]
+    show_expired: Option<bool>,
+}
+
+/// Serde deserialization decorator to map empty Strings to None,
+fn empty_string_as_none<'de, D, T>(de: D) -> Result<Option<T>, D::Error>
+where
+    D: Deserializer<'de>,
+    T: FromStr,
+    T::Err: fmt::Display,
+{
+    let opt = Option::<String>::deserialize(de)?;
+    match opt.as_deref() {
+        None | Some("") => Ok(None),
+        Some(s) => FromStr::from_str(s).map_err(de::Error::custom).map(Some),
+    }
+}
+
+pub async fn get_orders(
+    State(state): State<Arc<AppState>>,
+    Query(params): Query<AllOrdersParams>,
+) -> Result<Json<Vec<Order>>, AppError> {
     let mut conn = get_db_connection(&state)?;
-    let order = orderbook::db::orders::all(&mut conn, true)
+    let show_expired = params.show_expired.unwrap_or_default();
+    let order = orderbook::db::orders::all(&mut conn, show_expired)
         .map_err(|e| AppError::InternalServerError(format!("Failed to load all orders: {e:#}")))?;
 
     Ok(Json(order))
@@ -212,7 +241,7 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>) {
         }
     };
 
-    let orders = match orderbook::db::orders::all(&mut conn, true) {
+    let orders = match orderbook::db::orders::all(&mut conn, false) {
         Ok(orders) => orders,
         Err(error) => {
             tracing::error!("Could not load all orders from db {error:#}");
