@@ -31,7 +31,7 @@ pub async fn run(orderbook_url: Url, maker_id: PublicKey, network: Network) -> R
 
         last_bid = update_order(
             orderbook_url.clone(),
-            quote.ask(),
+            quote.bid(),
             Direction::Long,
             maker_id,
             last_bid,
@@ -40,7 +40,7 @@ pub async fn run(orderbook_url: Url, maker_id: PublicKey, network: Network) -> R
         .await;
         last_ask = update_order(
             orderbook_url.clone(),
-            quote.bid(),
+            quote.ask(),
             Direction::Short,
             maker_id,
             last_ask,
