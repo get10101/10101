@@ -16,7 +16,6 @@ use orderbook_commons::FilledWith;
 use orderbook_commons::Prices;
 use rust_decimal::prelude::ToPrimitive;
 use trade::ContractSymbol;
-use trade::Direction;
 
 /// Sets up a trade with the counterparty
 ///
@@ -30,10 +29,10 @@ pub async fn trade(filled: FilledWith) -> Result<()> {
 
     let trade_params = TradeParams {
         pubkey: ln_dlc::get_node_info()?.pubkey,
-        contract_symbol: ContractSymbol::BtcUsd,
+        contract_symbol: order.contract_symbol,
         leverage: order.leverage,
         quantity: order.quantity,
-        direction: Direction::Long,
+        direction: order.direction,
         filled_with: filled,
     };
 
