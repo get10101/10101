@@ -67,7 +67,7 @@ pub fn router(node: Node, pool: Pool<ConnectionManager<PgConnection>>) -> Router
         )
         .route("/api/orderbook/websocket", get(websocket_handler))
         .route("/api/trade", post(post_trade))
-        .route("/api/channels", get(list_channels))
+        .route("/api/channels", get(list_channels).post(open_channel))
         .route("/api/channels/:channel_id", delete(close_channel))
         .route("/api/peers", get(list_peers))
         .route("/api/dlc_channels", get(list_dlc_channels))
@@ -238,4 +238,53 @@ pub async fn close_channel(
         .inner
         .close_channel(fixed_length_array, params.force.unwrap_or_default())
         .map_err(|error| AppError::InternalServerError(error.to_string()))
+}
+
+#[derive(Deserialize)]
+pub struct ChannelParams {
+    target: TargetInfo,
+    local_balance: u64,
+    remote_balance: Option<u64>,
+}
+
+#[derive(Deserialize)]
+pub struct TargetInfo {
+    pubkey: String,
+    address: Option<String>,
+}
+
+pub async fn open_channel(
+    State(state): State<Arc<AppState>>,
+    channel_params: Json<ChannelParams>,
+) -> Result<Json<String>, AppError> {
+    let pubkey = PublicKey::from_str(channel_params.0.target.pubkey.as_str())
+        .map_err(|e| AppError::BadRequest(format!("Invalid target node pubkey provided {e:#}")))?;
+    if let Some(address) = channel_params.target.address.clone() {
+        let target_address = address.parse().map_err(|e| {
+            AppError::BadRequest(format!("Invalid target node address provided {e:#}"))
+        })?;
+        let peer = NodeInfo {
+            pubkey,
+            address: target_address,
+        };
+        state.node.inner.connect(peer).await.map_err(|e| {
+            AppError::InternalServerError(format!("Could not connect to target node {e:#}"))
+        })?;
+    }
+
+    let channel_amount = channel_params.local_balance;
+    let initial_send_amount = channel_params.remote_balance.unwrap_or_default();
+
+    let channel_id = state
+        .node
+        .inner
+        .initiate_open_channel(pubkey, channel_amount, initial_send_amount)
+        .map_err(|e| AppError::InternalServerError(format!("Failed to open channel: {e:#}")))?;
+
+    tracing::debug!(
+        "Successfully opened channel with {pubkey}. Funding tx: {}",
+        hex::encode(channel_id)
+    );
+
+    Ok(Json(hex::encode(channel_id)))
 }
