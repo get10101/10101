@@ -32,7 +32,12 @@ impl<P> Node<P>
 where
     P: PaymentPersister,
 {
-    pub fn create_invoice(&self, amount_in_sats: u64, description: String) -> Result<Invoice> {
+    pub fn create_invoice(
+        &self,
+        amount_in_sats: u64,
+        description: String,
+        expiry: u32,
+    ) -> Result<Invoice> {
         lightning_invoice::utils::create_invoice_from_channelmanager(
             &self.channel_manager,
             self.keys_manager.clone(),
@@ -40,7 +45,7 @@ where
             self.get_currency(),
             Some(amount_in_sats * 1000),
             description,
-            180,
+            expiry,
         )
         .map_err(|e| anyhow!(e))
     }
