@@ -62,6 +62,7 @@ pub fn router(node: Node, pool: Pool<ConnectionManager<PgConnection>>) -> Router
         .route("/api/orderbook/websocket", get(websocket_handler))
         .route("/api/trade", post(post_trade))
         .route("/api/channels", get(list_channels))
+        .route("/api/peers", get(list_peers))
         .route("/api/dlc_channels", get(list_dlc_channels))
         .with_state(app_state)
 }
@@ -177,4 +178,9 @@ pub async fn list_dlc_channels(
         .collect::<Vec<_>>();
 
     Ok(Json(dlc_channels))
+}
+
+pub async fn list_peers(State(state): State<Arc<AppState>>) -> Json<Vec<PublicKey>> {
+    let peers = state.node.inner.list_peers();
+    Json(peers)
 }

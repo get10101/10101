@@ -3,6 +3,7 @@ use crate::node::NodeInfo;
 use anyhow::anyhow;
 use anyhow::Context;
 use anyhow::Result;
+use bitcoin::secp256k1::PublicKey;
 use lightning::ln::channelmanager::ChannelDetails;
 
 impl<P> Node<P> {
@@ -45,5 +46,9 @@ impl<P> Node<P> {
 
     pub fn list_channels(&self) -> Vec<ChannelDetails> {
         self.channel_manager.list_channels()
+    }
+
+    pub fn list_peers(&self) -> Vec<PublicKey> {
+        self.peer_manager.get_peer_node_ids()
     }
 }
