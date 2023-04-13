@@ -5,7 +5,7 @@ use anyhow::Context;
 use anyhow::Result;
 use lightning::ln::channelmanager::ChannelDetails;
 
-impl Node {
+impl<P> Node<P> {
     /// Initiates the open private channel protocol.
     ///
     /// Returns a temporary channel ID as a 32-byte long array.

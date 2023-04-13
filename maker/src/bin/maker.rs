@@ -4,6 +4,7 @@ use diesel::r2d2;
 use diesel::r2d2::ConnectionManager;
 use diesel::PgConnection;
 use ln_dlc_node::node::Node;
+use ln_dlc_node::node::PaymentMap;
 use ln_dlc_node::seed::Bip39Seed;
 use maker::cli::Opts;
 use maker::logger;
@@ -61,6 +62,7 @@ async fn main() -> Result<()> {
             "maker",
             network,
             data_dir.as_path(),
+            PaymentMap::default(),
             address,
             SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), address.port()),
             opts.electrum,

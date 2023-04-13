@@ -1,4 +1,5 @@
 use crate::node::Node;
+use crate::node::PaymentMap;
 use crate::tests;
 use crate::tests::bitcoind;
 use anyhow::anyhow;
@@ -42,7 +43,11 @@ impl LndNode {
     /// 2. Open channel to the target node.
     /// 3. Wait for the channel to become usable on the target node. Note, this logic assumes that
     /// there is no other channel.
-    pub async fn open_channel(&self, target: &Node, amount: bitcoin::Amount) -> Result<()> {
+    pub async fn open_channel(
+        &self,
+        target: &Node<PaymentMap>,
+        amount: bitcoin::Amount,
+    ) -> Result<()> {
         let port = target.info.address.port();
         let ip_address = local_ip()?;
         let host = format!("{ip_address}:{port}");

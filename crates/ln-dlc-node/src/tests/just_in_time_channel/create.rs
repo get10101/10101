@@ -1,5 +1,6 @@
 use crate::ln::JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT;
 use crate::node::Node;
+use crate::node::PaymentMap;
 use crate::node::LIQUIDITY_ROUTING_FEE_MILLIONTHS;
 use crate::tests::init_tracing;
 use crate::tests::min_outbound_liquidity_channel_creator;
@@ -74,9 +75,9 @@ async fn just_in_time_channel() {
 }
 
 pub(crate) async fn send_interceptable_payment(
-    payer: &Node,
-    payee: &Node,
-    coordinator: &Node,
+    payer: &Node<PaymentMap>,
+    payee: &Node<PaymentMap>,
+    coordinator: &Node<PaymentMap>,
     invoice_amount: u64,
     coordinator_just_in_time_channel_creation_outbound_liquidity: Option<u64>,
 ) -> Result<()> {
@@ -162,7 +163,7 @@ pub(crate) async fn send_interceptable_payment(
 /// `max_inbound_htlc_value_in_flight_percent_of_channel`
 /// configuration flag of the receiving end of the channel.
 fn does_inbound_htlc_fit_as_percent_of_channel(
-    receiving_node: &Node,
+    receiving_node: &Node<PaymentMap>,
     channel_id: &[u8; 32],
     htlc_amount_sat: u64,
 ) -> Result<bool> {

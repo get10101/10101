@@ -24,6 +24,20 @@ diesel::table! {
 }
 
 diesel::table! {
+    payments (id) {
+        id -> Integer,
+        payment_hash -> Text,
+        preimage -> Nullable<Text>,
+        secret -> Nullable<Text>,
+        htlc_status -> Text,
+        amount_msat -> Nullable<BigInt>,
+        flow -> Text,
+        created_at -> BigInt,
+        updated_at -> BigInt,
+    }
+}
+
+diesel::table! {
     positions (contract_symbol) {
         contract_symbol -> Text,
         leverage -> Double,
@@ -37,4 +51,4 @@ diesel::table! {
     }
 }
 
-diesel::allow_tables_to_appear_in_same_query!(last_login, orders, positions,);
+diesel::allow_tables_to_appear_in_same_query!(last_login, orders, payments, positions,);

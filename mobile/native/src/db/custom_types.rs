@@ -1,16 +1,18 @@
 use crate::db::models::ContractSymbol;
 use crate::db::models::Direction;
 use crate::db::models::FailureReason;
+use crate::db::models::Flow;
+use crate::db::models::HtlcStatus;
 use crate::db::models::OrderState;
 use crate::db::models::OrderType;
 use crate::db::models::PositionState;
 use diesel::backend;
+use diesel::deserialize;
 use diesel::deserialize::FromSql;
-use diesel::deserialize::{self};
+use diesel::serialize;
 use diesel::serialize::IsNull;
 use diesel::serialize::Output;
 use diesel::serialize::ToSql;
-use diesel::serialize::{self};
 use diesel::sql_types::Text;
 use diesel::sqlite::Sqlite;
 
@@ -163,6 +165,54 @@ impl FromSql<Text, Sqlite> for PositionState {
         return match string.as_str() {
             "Open" => Ok(PositionState::Open),
             "Closing" => Ok(PositionState::Closing),
+            _ => Err("Unrecognized enum variant".into()),
+        };
+    }
+}
+
+impl ToSql<Text, Sqlite> for HtlcStatus {
+    fn to_sql(&self, out: &mut Output<Sqlite>) -> serialize::Result {
+        let text = match *self {
+            HtlcStatus::Pending => "Pending",
+            HtlcStatus::Succeeded => "Succeeded",
+            HtlcStatus::Failed => "Failed",
+        };
+        out.set_value(text);
+        Ok(IsNull::No)
+    }
+}
+
+impl FromSql<Text, Sqlite> for HtlcStatus {
+    fn from_sql(bytes: backend::RawValue<Sqlite>) -> deserialize::Result<Self> {
+        let string = <String as FromSql<Text, Sqlite>>::from_sql(bytes)?;
+
+        return match string.as_str() {
+            "Pending" => Ok(HtlcStatus::Pending),
+            "Succeeded" => Ok(HtlcStatus::Succeeded),
+            "Failed" => Ok(HtlcStatus::Failed),
+            _ => Err("Unrecognized enum variant".into()),
+        };
+    }
+}
+
+impl ToSql<Text, Sqlite> for Flow {
+    fn to_sql(&self, out: &mut Output<Sqlite>) -> serialize::Result {
+        let text = match *self {
+            Flow::Inbound => "Inbound",
+            Flow::Outbound => "Outbound",
+        };
+        out.set_value(text);
+        Ok(IsNull::No)
+    }
+}
+
+impl FromSql<Text, Sqlite> for Flow {
+    fn from_sql(bytes: backend::RawValue<Sqlite>) -> deserialize::Result<Self> {
+        let string = <String as FromSql<Text, Sqlite>>::from_sql(bytes)?;
+
+        return match string.as_str() {
+            "Inbound" => Ok(Flow::Inbound),
+            "Outbound" => Ok(Flow::Outbound),
             _ => Err("Unrecognized enum variant".into()),
         };
     }

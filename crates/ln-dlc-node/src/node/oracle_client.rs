@@ -14,7 +14,7 @@ pub async fn build() -> Result<P2PDOracleClient> {
     .map_err(|e| anyhow!(e))
 }
 
-impl Node {
+impl<P> Node<P> {
     pub fn oracle_pk(&self) -> XOnlyPublicKey {
         self.oracle.get_public_key()
     }

@@ -19,7 +19,7 @@ pub struct Dlc {
     pub accept_pk: PublicKey,
 }
 
-impl Node {
+impl<P> Node<P> {
     pub async fn propose_dlc_channel(
         &self,
         channel_details: &ChannelDetails,

@@ -5,6 +5,7 @@ use crate::config;
 use crate::event;
 use crate::event::EventInternal;
 use crate::ln_dlc::node::Node;
+use crate::ln_dlc::node::Payments;
 use crate::trade::order::FailureReason;
 use crate::trade::position;
 use anyhow::anyhow;
@@ -123,6 +124,7 @@ pub fn run(data_dir: String) -> Result<()> {
                 "10101",
                 network,
                 data_dir.as_path(),
+                Payments,
                 address,
                 SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), address.port()),
                 config::get_electrs_endpoint().to_string(),
@@ -219,6 +221,8 @@ async fn keep_wallet_balance_and_history_up_to_date(node: &Node) -> Result<()> {
     });
 
     let off_chain = off_chain.iter().filter_map(|details| {
+        tracing::info!(?details, "Off-chain payment details");
+
         let amount_sats = match details.amount_msat {
             Some(msat) => msat / 1_000,
             // Skip payments that don't yet have an amount associated
@@ -233,8 +237,8 @@ async fn keep_wallet_balance_and_history_up_to_date(node: &Node) -> Result<()> {
         };
 
         let flow = match details.flow {
-            ln_dlc_node::node::PaymentFlow::Inbound => api::PaymentFlow::Inbound,
-            ln_dlc_node::node::PaymentFlow::Outbound => api::PaymentFlow::Outbound,
+            ln_dlc_node::PaymentFlow::Inbound => api::PaymentFlow::Inbound,
+            ln_dlc_node::PaymentFlow::Outbound => api::PaymentFlow::Outbound,
         };
 
         let timestamp = details.timestamp.unix_timestamp() as u64;

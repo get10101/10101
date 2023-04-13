@@ -8,7 +8,6 @@ use lightning::chain::channelmonitor::ChannelMonitor;
 use lightning::chain::Filter;
 use lightning::ln::channelmanager::InterceptId;
 use lightning::ln::peer_handler::IgnoringMessageHandler;
-use lightning::ln::PaymentHash;
 use lightning::ln::PaymentPreimage;
 use lightning::ln::PaymentSecret;
 use lightning::routing::gossip;
@@ -19,7 +18,6 @@ use lightning_invoice::payment;
 use lightning_net_tokio::SocketDescriptor;
 use lightning_persister::FilesystemPersister;
 use ln_dlc_wallet::LnDlcWallet;
-use node::invoice::HTLCStatus;
 use node::ChannelManager;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -42,6 +40,7 @@ mod tests;
 pub use ln::ChannelDetails;
 pub use ln::DlcChannelDetails;
 pub use node::dlc_channel::Dlc;
+pub use node::invoice::HTLCStatus;
 
 type ConfirmableMonitor = (
     ChannelMonitor<CustomSigner>,
@@ -86,17 +85,34 @@ type Router = DefaultRouter<
 type NetworkGraph = gossip::NetworkGraph<Arc<TracingLogger>>;
 
 type RequestedScid = u64;
-type PaymentInfoStorage = Arc<Mutex<HashMap<PaymentHash, PaymentInfo>>>;
 type FakeChannelPaymentRequests = Arc<Mutex<HashMap<RequestedScid, PublicKey>>>;
 type PendingInterceptedHtlcs = Arc<Mutex<HashMap<PublicKey, (InterceptId, u64)>>>;
 
-struct PaymentInfo {
-    preimage: Option<PaymentPreimage>,
-    secret: Option<PaymentSecret>,
-    status: HTLCStatus,
-    amt_msat: MillisatAmount,
-    timestamp: OffsetDateTime,
+#[derive(Clone, Copy)]
+pub struct PaymentInfo {
+    pub preimage: Option<PaymentPreimage>,
+    pub secret: Option<PaymentSecret>,
+    pub status: HTLCStatus,
+    pub amt_msat: MillisatAmount,
+    pub flow: PaymentFlow,
+    pub timestamp: OffsetDateTime,
 }
 
 #[derive(Debug, Clone, Copy)]
-struct MillisatAmount(Option<u64>);
+pub enum PaymentFlow {
+    Inbound,
+    Outbound,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct MillisatAmount(Option<u64>);
+
+impl MillisatAmount {
+    pub fn new(amount: Option<u64>) -> Self {
+        Self(amount)
+    }
+
+    pub fn to_inner(&self) -> Option<u64> {
+        self.0
+    }
+}

@@ -4,12 +4,13 @@ use crate::ln::JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT;
 use crate::ln_dlc_wallet::LnDlcWallet;
 use crate::node::invoice::HTLCStatus;
 use crate::node::ChannelManager;
+use crate::node::PaymentPersister;
 use crate::util;
 use crate::FakeChannelPaymentRequests;
 use crate::MillisatAmount;
 use crate::NetworkGraph;
+use crate::PaymentFlow;
 use crate::PaymentInfo;
-use crate::PaymentInfoStorage;
 use crate::PendingInterceptedHtlcs;
 use anyhow::anyhow;
 use anyhow::Context;
@@ -24,34 +25,34 @@ use lightning::util::events::PaymentPurpose;
 use rand::thread_rng;
 use rand::Rng;
 use std::cmp;
-use std::collections::hash_map::Entry;
 use std::sync::Arc;
 use std::time::Duration;
 use time::OffsetDateTime;
 use tokio::runtime;
 
-pub struct EventHandler {
+pub struct EventHandler<P> {
     runtime_handle: runtime::Handle,
     channel_manager: Arc<ChannelManager>,
     wallet: Arc<LnDlcWallet>,
     network_graph: Arc<NetworkGraph>,
     keys_manager: Arc<CustomKeysManager>,
-    inbound_payments: PaymentInfoStorage,
-    outbound_payments: PaymentInfoStorage,
+    payment_persister: Arc<P>,
     fake_channel_payments: FakeChannelPaymentRequests,
     pending_intercepted_htlcs: PendingInterceptedHtlcs,
 }
 
 #[allow(clippy::too_many_arguments)]
-impl EventHandler {
+impl<P> EventHandler<P>
+where
+    P: PaymentPersister,
+{
     pub(crate) fn new(
         runtime_handle: runtime::Handle,
         channel_manager: Arc<ChannelManager>,
         wallet: Arc<LnDlcWallet>,
         network_graph: Arc<NetworkGraph>,
         keys_manager: Arc<CustomKeysManager>,
-        inbound_payments: PaymentInfoStorage,
-        outbound_payments: PaymentInfoStorage,
+        payment_persister: Arc<P>,
         fake_channel_payments: FakeChannelPaymentRequests,
         pending_intercepted_htlcs: PendingInterceptedHtlcs,
     ) -> Self {
@@ -61,8 +62,7 @@ impl EventHandler {
             wallet,
             network_graph,
             keys_manager,
-            inbound_payments,
-            outbound_payments,
+            payment_persister,
             fake_channel_payments,
             pending_intercepted_htlcs,
         }
@@ -132,23 +132,17 @@ impl EventHandler {
                     } => (payment_preimage, Some(payment_secret)),
                     PaymentPurpose::SpontaneousPayment(preimage) => (Some(preimage), None),
                 };
-                let mut payments = self.inbound_payments.lock().unwrap();
-                match payments.entry(payment_hash) {
-                    Entry::Occupied(mut e) => {
-                        let payment = e.get_mut();
-                        payment.status = HTLCStatus::Succeeded;
-                        payment.preimage = payment_preimage;
-                        payment.secret = payment_secret;
-                    }
-                    Entry::Vacant(e) => {
-                        e.insert(PaymentInfo {
-                            preimage: payment_preimage,
-                            secret: payment_secret,
-                            status: HTLCStatus::Succeeded,
-                            amt_msat: MillisatAmount(Some(amount_msat)),
-                            timestamp: OffsetDateTime::now_utc(),
-                        });
-                    }
+
+                let amount_msat = MillisatAmount(Some(amount_msat));
+                if let Err(e) = self.payment_persister.merge(
+                    &payment_hash,
+                    PaymentFlow::Inbound,
+                    amount_msat,
+                    HTLCStatus::Succeeded,
+                    payment_preimage,
+                    payment_secret,
+                ) {
+                    tracing::error!(payment_hash = %hex::encode(payment_hash.0), "Failed to update claimed payment: {e:#}")
                 }
             }
             Event::PaymentSent {
@@ -157,30 +151,56 @@ impl EventHandler {
                 fee_paid_msat,
                 ..
             } => {
-                let mut payments = self.outbound_payments.lock().unwrap();
-                let amount_msat = match payments.entry(payment_hash) {
-                    Entry::Occupied(mut e) => {
-                        let payment = e.get_mut();
-                        payment.preimage = Some(payment_preimage);
-                        payment.status = HTLCStatus::Succeeded;
+                let amount_msat = match self.payment_persister.get(&payment_hash) {
+                    Ok(Some((_, PaymentInfo { amt_msat, .. }))) => {
+                        let amount_msat = MillisatAmount(None);
+                        if let Err(e) = self.payment_persister.merge(
+                            &payment_hash,
+                            PaymentFlow::Outbound,
+                            amount_msat,
+                            HTLCStatus::Succeeded,
+                            Some(payment_preimage),
+                            None,
+                        ) {
+                            tracing::error!(payment_hash = %hex::encode(payment_hash.0), "Failed to update sent payment: {e:#}");
 
-                        payment.amt_msat
+                            return Ok(());
+                        }
+
+                        amt_msat
                     }
-                    Entry::Vacant(e) => {
+                    Ok(None) => {
                         tracing::warn!(
                             "Got PaymentSent event without matching outbound payment on record"
                         );
 
                         let amt_msat = MillisatAmount(None);
-                        e.insert(PaymentInfo {
-                            preimage: Some(payment_preimage),
-                            secret: None,
-                            status: HTLCStatus::Succeeded,
-                            amt_msat,
-                            timestamp: OffsetDateTime::now_utc(),
-                        });
+                        if let Err(e) = self.payment_persister.insert(
+                            payment_hash,
+                            PaymentInfo {
+                                preimage: Some(payment_preimage),
+                                secret: None,
+                                status: HTLCStatus::Succeeded,
+                                amt_msat,
+                                flow: PaymentFlow::Outbound,
+                                timestamp: OffsetDateTime::now_utc(),
+                            },
+                        ) {
+                            tracing::error!(
+                                payment_hash = %hex::encode(payment_hash.0),
+                                "Failed to insert sent payment: {e:#}"
+                            );
+                        }
 
                         amt_msat
+                    }
+                    Err(e) => {
+                        tracing::error!(
+                            payment_hash = %hex::encode(payment_hash.0),
+                            "Failed to verify payment state before handling sent payment: {e:#}"
+                        );
+
+                        return Ok(());
                     }
                 };
 
@@ -227,21 +247,16 @@ impl EventHandler {
                     "Failed to send payment to payment hash: exhausted payment retry attempts",
                 );
 
-                let mut payments = self.outbound_payments.lock().unwrap();
-                match payments.entry(payment_hash) {
-                    Entry::Occupied(mut e) => {
-                        let payment = e.get_mut();
-                        payment.status = HTLCStatus::Failed;
-                    }
-                    Entry::Vacant(e) => {
-                        e.insert(PaymentInfo {
-                            preimage: None,
-                            secret: None,
-                            status: HTLCStatus::Failed,
-                            amt_msat: MillisatAmount(None),
-                            timestamp: OffsetDateTime::now_utc(),
-                        });
-                    }
+                let amount_msat = MillisatAmount(None);
+                if let Err(e) = self.payment_persister.merge(
+                    &payment_hash,
+                    PaymentFlow::Outbound,
+                    amount_msat,
+                    HTLCStatus::Failed,
+                    None,
+                    None,
+                ) {
+                    tracing::error!(payment_hash = %hex::encode(payment_hash.0), "Failed to update failed payment: {e:#}")
                 }
             }
             Event::PaymentForwarded {
@@ -546,7 +561,10 @@ impl EventHandler {
     }
 }
 
-impl lightning::util::events::EventHandler for EventHandler {
+impl<P> lightning::util::events::EventHandler for EventHandler<P>
+where
+    P: PaymentPersister,
+{
     fn handle_event(&self, event: Event) {
         tracing::info!(?event, "Received event");
 

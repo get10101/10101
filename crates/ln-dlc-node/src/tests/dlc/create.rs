@@ -1,4 +1,5 @@
 use crate::node::Node;
+use crate::node::PaymentMap;
 use crate::tests::dummy_contract_input;
 use crate::tests::init_tracing;
 use crate::tests::wait_until;
@@ -25,10 +26,10 @@ async fn given_lightning_channel_then_can_add_dlc_channel() {
 }
 
 pub struct DlcChannelCreated {
-    pub coordinator: Node,
+    pub coordinator: Node<PaymentMap>,
     /// Available balance for the coordinator after the LN channel was created. In sats.
     pub coordinator_balance_channel_creation: u64,
-    pub app: Node,
+    pub app: Node<PaymentMap>,
     /// Available balance for the app after the LN channel was created. In sats.
     pub app_balance_channel_creation: u64,
     pub channel_id: ChannelId,
