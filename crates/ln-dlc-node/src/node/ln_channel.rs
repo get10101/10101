@@ -1,6 +1,7 @@
 use crate::node::Node;
 use crate::node::NodeInfo;
 use anyhow::anyhow;
+use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
@@ -50,5 +51,43 @@ impl<P> Node<P> {
 
     pub fn list_peers(&self) -> Vec<PublicKey> {
         self.peer_manager.get_peer_node_ids()
+    }
+
+    pub fn close_channel(&self, channel_id: [u8; 32], force_close: bool) -> Result<()> {
+        let channel_manager = self.channel_manager.clone();
+        let all_channels = channel_manager.list_channels();
+        let channels_to_close = all_channels
+            .iter()
+            .find(|channel| channel.channel_id == channel_id);
+
+        match channels_to_close {
+            Some(cd) => {
+                if force_close {
+                    tracing::debug!(
+                        "Force closing channel {} with peer {} ",
+                        hex::encode(cd.channel_id),
+                        cd.counterparty.node_id
+                    );
+                    channel_manager
+                        .force_close_broadcasting_latest_txn(
+                            &cd.channel_id,
+                            &cd.counterparty.node_id,
+                        )
+                        .map_err(|e| anyhow!("Could not force close channel {e:?}"))
+                } else {
+                    tracing::info!(
+                        "Collaboratively closing channel {} with peer {} ",
+                        hex::encode(cd.channel_id),
+                        cd.counterparty.node_id
+                    );
+                    channel_manager
+                        .close_channel(&cd.channel_id, &cd.counterparty.node_id)
+                        .map_err(|e| anyhow!("Could not collaboratively close channel {e:?}"))
+                }
+            }
+            None => {
+                bail!("No channel found with ID {}", hex::encode(channel_id))
+            }
+        }
     }
 }

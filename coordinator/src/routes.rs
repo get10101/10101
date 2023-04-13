@@ -7,8 +7,10 @@ use crate::orderbook::routes::put_order;
 use crate::orderbook::routes::websocket_handler;
 use crate::AppError;
 use axum::extract::Path;
+use axum::extract::Query;
 use axum::extract::State;
 use axum::response::IntoResponse;
+use axum::routing::delete;
 use axum::routing::get;
 use axum::routing::post;
 use axum::Json;
@@ -22,9 +24,13 @@ use ln_dlc_node::node::NodeInfo;
 use ln_dlc_node::ChannelDetails;
 use ln_dlc_node::DlcChannelDetails;
 use orderbook_commons::OrderbookMsg;
+use serde::de;
 use serde::Deserialize;
+use serde::Deserializer;
 use serde::Serialize;
 use std::collections::HashMap;
+use std::fmt;
+use std::str::FromStr;
 use std::sync::Arc;
 use tokio::sync::broadcast;
 use tokio::sync::mpsc;
@@ -62,6 +68,7 @@ pub fn router(node: Node, pool: Pool<ConnectionManager<PgConnection>>) -> Router
         .route("/api/orderbook/websocket", get(websocket_handler))
         .route("/api/trade", post(post_trade))
         .route("/api/channels", get(list_channels))
+        .route("/api/channels/:channel_id", delete(close_channel))
         .route("/api/peers", get(list_peers))
         .route("/api/dlc_channels", get(list_dlc_channels))
         .with_state(app_state)
@@ -183,4 +190,52 @@ pub async fn list_dlc_channels(
 pub async fn list_peers(State(state): State<Arc<AppState>>) -> Json<Vec<PublicKey>> {
     let peers = state.node.inner.list_peers();
     Json(peers)
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CloseChanelParams {
+    #[serde(default, deserialize_with = "empty_string_as_none")]
+    force: Option<bool>,
+}
+
+fn empty_string_as_none<'de, D, T>(de: D) -> Result<Option<T>, D::Error>
+where
+    D: Deserializer<'de>,
+    T: FromStr,
+    T::Err: fmt::Display,
+{
+    let opt = Option::<String>::deserialize(de)?;
+    match opt.as_deref() {
+        None | Some("") => Ok(None),
+        Some(s) => FromStr::from_str(s).map_err(de::Error::custom).map(Some),
+    }
+}
+
+pub async fn close_channel(
+    Path(channel_id): Path<String>,
+    Query(params): Query<CloseChanelParams>,
+    State(state): State<Arc<AppState>>,
+) -> Result<(), AppError> {
+    let byte_array =
+        hex::decode(channel_id.clone()).map_err(|err| AppError::BadRequest(err.to_string()))?;
+
+    if byte_array.len() > 32 {
+        return Err(AppError::BadRequest(
+            "Provided channel id was invalid".to_string(),
+        ));
+    }
+    // Create a fixed-length byte array of size 8
+    let mut fixed_length_array = [0u8; 32];
+
+    // Copy the decoded bytes to the fixed-length array
+    let length = std::cmp::min(byte_array.len(), fixed_length_array.len());
+    fixed_length_array[..length].copy_from_slice(&byte_array[..length]);
+
+    tracing::debug!("Attempting to close channel {channel_id}");
+
+    state
+        .node
+        .inner
+        .close_channel(fixed_length_array, params.force.unwrap_or_default())
+        .map_err(|error| AppError::InternalServerError(error.to_string()))
 }
