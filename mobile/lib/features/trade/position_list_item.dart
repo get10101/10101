@@ -84,6 +84,13 @@ class PositionListItem extends StatelessWidget {
                       labelTextStyle: dataRowStyle,
                     ),
                     ValueDataRow(
+                      type: ValueType.date,
+                      value: notNullPosition.expiry,
+                      label: "Expiry",
+                      valueTextStyle: dataRowStyle,
+                      labelTextStyle: dataRowStyle,
+                    ),
+                    ValueDataRow(
                       type: ValueType.contracts,
                       value: notNullPosition.quantity,
                       label: "Quantity",

@@ -27,10 +27,12 @@ class Position {
   final Direction direction;
   final double averageEntryPrice;
   final double liquidationPrice;
+
   // The unrealized PnL is calculated from the current price
   Amount? unrealizedPnl;
   final PositionState positionState;
   final Amount collateral;
+  final DateTime expiry;
 
   Position(
       {required this.averageEntryPrice,
@@ -41,18 +43,21 @@ class Position {
       required this.direction,
       required this.positionState,
       this.unrealizedPnl,
-      required this.collateral});
+      required this.collateral,
+      required this.expiry});
 
   static Position fromApi(bridge.Position position) {
     return Position(
-        leverage: Leverage(position.leverage),
-        quantity: position.quantity,
-        contractSymbol: ContractSymbol.fromApi(position.contractSymbol),
-        direction: Direction.fromApi(position.direction),
-        positionState: PositionState.fromApi(position.positionState),
-        averageEntryPrice: position.averageEntryPrice,
-        liquidationPrice: position.liquidationPrice,
-        collateral: Amount(position.collateral));
+      leverage: Leverage(position.leverage),
+      quantity: position.quantity,
+      contractSymbol: ContractSymbol.fromApi(position.contractSymbol),
+      direction: Direction.fromApi(position.direction),
+      positionState: PositionState.fromApi(position.positionState),
+      averageEntryPrice: position.averageEntryPrice,
+      liquidationPrice: position.liquidationPrice,
+      collateral: Amount(position.collateral),
+      expiry: DateTime.fromMillisecondsSinceEpoch(position.expiry * 1000),
+    );
   }
 
   static bridge.Position apiDummy() {
@@ -65,6 +70,7 @@ class Position {
       averageEntryPrice: 0,
       liquidationPrice: 0,
       collateral: 0,
+      expiry: 0,
     );
   }
 }
