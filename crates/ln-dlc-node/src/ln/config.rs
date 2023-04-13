@@ -55,7 +55,7 @@ pub fn coordinator_config() -> UserConfig {
         channel_handshake_limits: ChannelHandshakeLimits {
             // The minimum amount of confirmations before the outbound channel is deemed useable,
             // between the counterparties
-            max_minimum_depth: 1,
+            max_minimum_depth: 3,
             trust_own_funding_0conf: true,
             // Enforces incoming channels to the coordinator to be public! We
             // only want to open private channels to our 10101 app.
