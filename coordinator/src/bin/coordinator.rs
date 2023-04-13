@@ -14,12 +14,10 @@ use ln_dlc_node::seed::Bip39Seed;
 use rand::thread_rng;
 use rand::RngCore;
 use std::backtrace::Backtrace;
-use std::collections::HashMap;
 use std::net::IpAddr;
 use std::net::Ipv4Addr;
 use std::net::SocketAddr;
 use std::sync::Arc;
-use std::sync::Mutex;
 use std::time::Duration;
 use tracing::metadata::LevelFilter;
 
@@ -126,7 +124,7 @@ async fn main() -> Result<()> {
     let app = router(
         Node {
             inner: node,
-            positions: Mutex::new(HashMap::new()),
+            pool: pool.clone(),
         },
         pool,
     );

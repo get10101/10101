@@ -9,7 +9,7 @@ use uuid::Uuid;
 #[derive(Debug, Clone, Copy)]
 pub enum OrderType {
     Market,
-    Limit { price: f64 },
+    Limit { price: f32 },
 }
 
 /// State of an order
@@ -27,9 +27,9 @@ pub enum OrderState {
 #[derive(Debug, Clone)]
 pub struct NewOrder {
     #[frb(non_final)]
-    pub leverage: f64,
+    pub leverage: f32,
     #[frb(non_final)]
-    pub quantity: f64,
+    pub quantity: f32,
     #[frb(non_final)]
     pub contract_symbol: ContractSymbol,
     #[frb(non_final)]
@@ -44,13 +44,13 @@ pub struct NewOrder {
 #[derive(Debug, Clone)]
 pub struct Order {
     pub id: String,
-    pub leverage: f64,
-    pub quantity: f64,
+    pub leverage: f32,
+    pub quantity: f32,
     pub contract_symbol: ContractSymbol,
     pub direction: Direction,
     pub order_type: Box<OrderType>,
     pub state: OrderState,
-    pub execution_price: Option<f64>,
+    pub execution_price: Option<f32>,
     pub creation_timestamp: i64,
 }
 

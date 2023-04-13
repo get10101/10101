@@ -10,8 +10,8 @@ use std::ops::Neg;
 
 pub const BTCUSD_MAX_PRICE: u64 = 1_048_575;
 
-/// Calculate the colleteral in BTC.
-pub fn calculate_margin(open_price: Decimal, quantity: f64, leverage: f64) -> u64 {
+/// Calculate the collateral in BTC.
+pub fn calculate_margin(open_price: Decimal, quantity: f32, leverage: f32) -> u64 {
     let quantity = Decimal::try_from(quantity).expect("quantity to fit into decimal");
     let leverage = Decimal::try_from(leverage).expect("leverage to fix into decimal");
 
@@ -25,25 +25,25 @@ pub fn calculate_margin(open_price: Decimal, quantity: f64, leverage: f64) -> u6
     // TODO: Shift the decimal without going into float
     let margin =
         margin.round_dp_with_strategy(8, rust_decimal::RoundingStrategy::MidpointAwayFromZero);
-    let margin = margin.to_f64().expect("colleteral to fit into f64");
+    let margin = margin.to_f64().expect("collateral to fit into f64");
 
     bitcoin::Amount::from_btc(margin)
-        .expect("colleteral to fit in amount")
+        .expect("collateral to fit in amount")
         .to_sat()
 }
 
-/// Calculate the quantity from price, colleteral and leverage
+/// Calculate the quantity from price, collateral and leverage
 /// Margin in sats, calculation in BTC
-pub fn calculate_quantity(opening_price: f64, margin: u64, leverage: f64) -> f64 {
+pub fn calculate_quantity(opening_price: f32, margin: u64, leverage: f32) -> f32 {
     let margin_amount = bitcoin::Amount::from_sat(margin);
 
     let margin = Decimal::try_from(margin_amount.to_float_in(Denomination::Bitcoin))
-        .expect("colleteral to fit into decimal");
+        .expect("collateral to fit into decimal");
     let open_price = Decimal::try_from(opening_price).expect("price to fit into decimal");
     let leverage = Decimal::try_from(leverage).expect("leverage to fit into decimal");
 
     let quantity = margin * open_price * leverage;
-    quantity.to_f64().expect("quantity to fit into f64")
+    quantity.to_f32().expect("quantity to fit into f32")
 }
 
 pub fn calculate_long_liquidation_price(leverage: Decimal, price: Decimal) -> Decimal {
@@ -73,9 +73,9 @@ pub fn calculate_short_liquidation_price(leverage: Decimal, price: Decimal) -> D
 pub fn calculate_pnl(
     opening_price: Decimal,
     closing_price: Decimal,
-    quantity: f64,
-    long_leverage: f64,
-    short_leverage: f64,
+    quantity: f32,
+    long_leverage: f32,
+    short_leverage: f32,
     direction: Direction,
 ) -> Result<i64> {
     let long_margin = calculate_margin(opening_price, quantity, long_leverage);

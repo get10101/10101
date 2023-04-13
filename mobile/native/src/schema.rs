@@ -10,15 +10,15 @@ diesel::table! {
 diesel::table! {
     orders (id) {
         id -> Text,
-        leverage -> Double,
-        quantity -> Double,
+        leverage -> Float,
+        quantity -> Float,
         contract_symbol -> Text,
         direction -> Text,
         order_type -> Text,
         state -> Text,
         creation_timestamp -> BigInt,
-        limit_price -> Nullable<Double>,
-        execution_price -> Nullable<Double>,
+        limit_price -> Nullable<Float>,
+        execution_price -> Nullable<Float>,
         failure_reason -> Nullable<Text>,
     }
 }
@@ -40,14 +40,16 @@ diesel::table! {
 diesel::table! {
     positions (contract_symbol) {
         contract_symbol -> Text,
-        leverage -> Double,
-        quantity -> Double,
+        leverage -> Float,
+        quantity -> Float,
         direction -> Text,
-        average_entry_price -> Double,
-        liquidation_price -> Double,
+        average_entry_price -> Float,
+        liquidation_price -> Float,
         state -> Text,
         collateral -> BigInt,
         creation_timestamp -> BigInt,
+        expiry_timestamp -> BigInt,
+        updated_timestamp -> BigInt,
     }
 }
 

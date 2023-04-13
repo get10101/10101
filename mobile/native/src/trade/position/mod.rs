@@ -1,3 +1,4 @@
+use time::OffsetDateTime;
 use trade::ContractSymbol;
 use trade::Direction;
 
@@ -28,12 +29,15 @@ pub enum PositionState {
 
 #[derive(Debug, Clone)]
 pub struct Position {
-    pub leverage: f64,
-    pub quantity: f64,
+    pub leverage: f32,
+    pub quantity: f32,
     pub contract_symbol: ContractSymbol,
     pub direction: Direction,
-    pub average_entry_price: f64,
-    pub liquidation_price: f64,
+    pub average_entry_price: f32,
+    pub liquidation_price: f32,
     pub position_state: PositionState,
     pub collateral: u64,
+    pub expiry: OffsetDateTime,
+    pub updated: OffsetDateTime,
+    pub created: OffsetDateTime,
 }

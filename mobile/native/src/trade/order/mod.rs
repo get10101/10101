@@ -17,7 +17,7 @@ mod orderbook_client;
 #[derive(Debug, Clone, Copy)]
 pub enum OrderType {
     Market,
-    Limit { price: f64 },
+    Limit { price: f32 },
 }
 
 /// Internal type so we still have Copy on order
@@ -74,7 +74,7 @@ pub enum OrderState {
     /// Filling->Filled (if we eventually end up with a DLC)
     /// Filling->Failed (if we experience an error when executing the trade or the DLC manager
     /// reported back failure/rejection)
-    Filling { execution_price: f64 },
+    Filling { execution_price: f32 },
 
     /// The order failed to be filled
     ///
@@ -93,15 +93,15 @@ pub enum OrderState {
     /// This is a final state
     Filled {
         /// The execution price that the order was filled with
-        execution_price: f64,
+        execution_price: f32,
     },
 }
 
 #[derive(Debug, Clone, Copy)]
 pub struct Order {
     pub id: Uuid,
-    pub leverage: f64,
-    pub quantity: f64,
+    pub leverage: f32,
+    pub quantity: f32,
     pub contract_symbol: ContractSymbol,
     pub direction: Direction,
     pub order_type: OrderType,
@@ -114,7 +114,7 @@ impl Order {
     ///
     /// Logs an error if this function is called on a state where the execution price is not know
     /// yet.
-    pub fn execution_price(&self) -> Option<f64> {
+    pub fn execution_price(&self) -> Option<f32> {
         match self.state {
             OrderState::Filling { execution_price } | OrderState::Filled { execution_price } => {
                 Some(execution_price)

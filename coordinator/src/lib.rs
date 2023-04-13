@@ -1,7 +1,9 @@
 pub mod cli;
+pub mod db;
 pub mod logger;
 pub mod node;
 pub mod orderbook;
+pub mod position;
 pub mod routes;
 pub mod schema;
 

@@ -36,7 +36,7 @@ pub async fn submit_order(order: Order) -> Result<()> {
     Ok(())
 }
 
-pub(crate) fn order_filling(order_id: Uuid, execution_price: f64) -> Result<()> {
+pub(crate) fn order_filling(order_id: Uuid, execution_price: f32) -> Result<()> {
     let filling_state = OrderState::Filling { execution_price };
 
     if let Err(e) = db::update_order_state(order_id, filling_state) {

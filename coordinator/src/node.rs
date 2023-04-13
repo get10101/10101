@@ -1,8 +1,14 @@
+use crate::db;
+use crate::position::models::NewPosition;
 use anyhow::anyhow;
+use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
 use coordinator_commons::TradeParams;
+use diesel::r2d2::ConnectionManager;
+use diesel::r2d2::Pool;
+use diesel::PgConnection;
 use dlc_manager::contract::contract_input::ContractInput;
 use dlc_manager::contract::contract_input::ContractInputInfo;
 use dlc_manager::contract::contract_input::OracleInput;
@@ -25,9 +31,9 @@ use ln_dlc_node::node::SubChannelManager;
 use ln_dlc_node::PeerManager;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
-use std::collections::HashMap;
 use std::sync::Arc;
-use std::sync::Mutex;
+use time::Duration;
+use time::OffsetDateTime;
 use trade::cfd;
 use trade::cfd::calculate_long_liquidation_price;
 use trade::cfd::calculate_margin;
@@ -37,20 +43,11 @@ use trade::ContractSymbol;
 use trade::Direction;
 
 /// The leverage used by the coordinator for all trades.
-const COORDINATOR_LEVERAGE: f64 = 1.0;
+const COORDINATOR_LEVERAGE: f32 = 1.0;
 
 pub struct Node {
     pub inner: Arc<ln_dlc_node::node::Node<PaymentMap>>,
-    pub positions: Mutex<HashMap<String, Position>>,
-}
-
-pub struct Position {
-    pub contract_symbol: ContractSymbol,
-    pub leverage: f64,
-    pub quantity: f64,
-    pub direction: Direction,
-    pub trader: PublicKey,
-    pub average_entry_price: f64,
+    pub pool: Pool<ConnectionManager<PgConnection>>,
 }
 
 impl Node {
@@ -66,25 +63,31 @@ impl Node {
     async fn open_position(&self, trade_params: &TradeParams) -> Result<()> {
         tracing::info!("Opening position");
 
-        // todo: Revisit position model and store to database.
-        let position = Position {
-            contract_symbol: trade_params.contract_symbol,
+        let margin_trader = margin_trader(trade_params);
+        let margin_coordinator = margin_coordinator(trade_params);
+
+        let tomorrow = OffsetDateTime::now_utc().date() + Duration::days(1);
+        let expiry = tomorrow.midnight().assume_utc();
+
+        let liquidation_price = liquidation_price(trade_params);
+
+        let new_position = NewPosition {
+            contract_symbol: ContractSymbol::BtcUsd,
             leverage: trade_params.leverage,
             quantity: trade_params.quantity,
             direction: trade_params.direction,
             trader: trade_params.pubkey,
             average_entry_price: trade_params
                 .average_execution_price()
-                .to_f64()
-                .expect("to fit into f64"),
+                .to_f32()
+                .expect("to fit into f32"),
+            liquidation_price,
+            collateral: margin_coordinator as i64,
+            expiry_timestamp: expiry,
         };
-        self.positions
-            .lock()
-            .expect("to get lock on positions")
-            .insert(trade_params.pubkey.to_string(), position);
 
-        let margin_trader = margin_trader(trade_params);
-        let margin_coordinator = margin_coordinator(trade_params);
+        let connection = &mut self.pool.get()?;
+        db::positions::Position::insert(connection, new_position)?;
 
         let leverage_long = leverage_long(trade_params);
         let leverage_short = leverage_short(trade_params);
@@ -147,21 +150,16 @@ impl Node {
 
         let closing_price = trade_params.average_execution_price();
 
-        let opening_price = match self
-            .positions
-            .lock()
-            .expect("to get lock on positions")
-            .remove(&trade_params.pubkey.to_string())
-        {
-            Some(position) => Decimal::try_from(position.average_entry_price)?,
-            None => {
-                tracing::warn!("Did not find position in memory, thus we do not have the opening price to calculate a correct accept settlement amount. Using the closing price.");
-                // FIXME: This is wrong as we cannot use the closing price to calculated the
-                // `accept_settlement_amount`. We must save the initial price when creating the
-                // position and use it here again for closing.
-                closing_price
-            }
+        let mut connection = self.pool.get()?;
+        let position = match db::positions::Position::get_open_position_by_trader(
+            &mut connection,
+            trade_params.pubkey.to_string(),
+        )? {
+            Some(position) => position,
+            None => bail!("Failed to find open position : {}", trade_params.pubkey),
         };
+
+        let opening_price = Decimal::try_from(position.average_entry_price)?;
 
         let accept_settlement_amount = calculate_accept_settlement_amount(
             opening_price,
@@ -179,6 +177,11 @@ impl Node {
 
         self.inner
             .propose_dlc_channel_collaborative_settlement(&channel_id, accept_settlement_amount)?;
+
+        db::positions::Position::set_open_position_to_closing(
+            &mut connection,
+            trade_params.pubkey.to_string(),
+        )?;
 
         Ok(())
     }
@@ -238,9 +241,9 @@ enum TradeAction {
 fn calculate_accept_settlement_amount(
     opening_price: Decimal,
     closing_price: Decimal,
-    quantity: f64,
-    long_leverage: f64,
-    short_leverage: f64,
+    quantity: f32,
+    long_leverage: f32,
+    short_leverage: f32,
     direction: Direction,
 ) -> Result<u64> {
     let pnl = cfd::calculate_pnl(
@@ -285,14 +288,26 @@ fn margin_coordinator(trade_params: &TradeParams) -> u64 {
     )
 }
 
-fn leverage_long(trade_params: &TradeParams) -> f64 {
+fn liquidation_price(trade_params: &TradeParams) -> f32 {
+    let price = trade_params.average_execution_price();
+    let leverage = Decimal::try_from(trade_params.leverage).expect("to fit into decimal");
+
+    match trade_params.direction {
+        Direction::Long => calculate_long_liquidation_price(leverage, price),
+        Direction::Short => calculate_short_liquidation_price(leverage, price),
+    }
+    .to_f32()
+    .expect("to fit into f32")
+}
+
+fn leverage_long(trade_params: &TradeParams) -> f32 {
     match trade_params.direction {
         Direction::Long => trade_params.leverage,
         Direction::Short => COORDINATOR_LEVERAGE,
     }
 }
 
-fn leverage_short(trade_params: &TradeParams) -> f64 {
+fn leverage_short(trade_params: &TradeParams) -> f32 {
     match trade_params.direction {
         Direction::Long => COORDINATOR_LEVERAGE,
         Direction::Short => trade_params.leverage,
@@ -312,8 +327,8 @@ fn get_rounding_intervals() -> RoundingIntervals {
 fn build_contract_descriptor(
     total_collateral: u64,
     initial_price: Decimal,
-    leverage_long: f64,
-    leverage_short: f64,
+    leverage_long: f32,
+    leverage_short: f32,
 ) -> Result<ContractDescriptor> {
     Ok(ContractDescriptor::Numerical(NumericalDescriptor {
         payout_function: build_payout_function(
@@ -339,8 +354,8 @@ fn build_contract_descriptor(
 fn build_payout_function(
     total_collateral: u64,
     initial_price: Decimal,
-    leverage_long: f64,
-    leverage_short: f64,
+    leverage_long: f32,
+    leverage_short: f32,
 ) -> Result<PayoutFunction> {
     let leverage_short = Decimal::try_from(leverage_short)?;
     let liquidation_price_short = calculate_short_liquidation_price(leverage_short, initial_price);
@@ -479,7 +494,7 @@ pub mod tests {
     fn given_a_long_position_and_a_larger_closing_price() {
         let opening_price = Decimal::from(22000);
         let closing_price = Decimal::from(23000);
-        let quantity: f64 = 1.0;
+        let quantity: f32 = 1.0;
         let accept_settlement_amount = calculate_accept_settlement_amount(
             opening_price,
             closing_price,
@@ -498,7 +513,7 @@ pub mod tests {
     fn given_a_short_position_and_a_larger_closing_price() {
         let opening_price = Decimal::from(22000);
         let closing_price = Decimal::from(23000);
-        let quantity: f64 = 1.0;
+        let quantity: f32 = 1.0;
         let accept_settlement_amount = calculate_accept_settlement_amount(
             opening_price,
             closing_price,
@@ -517,7 +532,7 @@ pub mod tests {
     fn given_a_long_position_and_a_smaller_closing_price() {
         let opening_price = Decimal::from(23000);
         let closing_price = Decimal::from(22000);
-        let quantity: f64 = 1.0;
+        let quantity: f32 = 1.0;
         let accept_settlement_amount = calculate_accept_settlement_amount(
             opening_price,
             closing_price,
@@ -536,7 +551,7 @@ pub mod tests {
     fn given_a_short_position_and_a_smaller_closing_price() {
         let opening_price = Decimal::from(23000);
         let closing_price = Decimal::from(22000);
-        let quantity: f64 = 1.0;
+        let quantity: f32 = 1.0;
         let accept_settlement_amount = calculate_accept_settlement_amount(
             opening_price,
             closing_price,

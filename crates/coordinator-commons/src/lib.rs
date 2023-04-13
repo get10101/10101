@@ -22,13 +22,13 @@ pub struct TradeParams {
     /// The leverage of the trader
     ///
     /// This has to correspond to our order's leverage.
-    pub leverage: f64,
+    pub leverage: f32,
 
     /// The quantity of the trader
     ///
     /// For the trade set up with the coordinator it is the quantity of the contract.
     /// This quantity may be the complete quantity of an order or a fraction.
-    pub quantity: f64,
+    pub quantity: f32,
 
     /// The direction of the trader
     ///

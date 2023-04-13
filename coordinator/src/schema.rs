@@ -2,12 +2,20 @@
 
 pub mod sql_types {
     #[derive(diesel::sql_types::SqlType)]
+    #[diesel(postgres_type(name = "ContractSymbol_Type"))]
+    pub struct ContractSymbolType;
+
+    #[derive(diesel::sql_types::SqlType)]
     #[diesel(postgres_type(name = "Direction_Type"))]
     pub struct DirectionType;
 
     #[derive(diesel::sql_types::SqlType)]
     #[diesel(postgres_type(name = "OrderType_Type"))]
     pub struct OrderTypeType;
+
+    #[derive(diesel::sql_types::SqlType)]
+    #[diesel(postgres_type(name = "PositionState_Type"))]
+    pub struct PositionStateType;
 }
 
 diesel::table! {
@@ -28,3 +36,28 @@ diesel::table! {
         expiry -> Timestamptz,
     }
 }
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use super::sql_types::ContractSymbolType;
+    use super::sql_types::DirectionType;
+    use super::sql_types::PositionStateType;
+
+    positions (id) {
+        id -> Int4,
+        contract_symbol -> ContractSymbolType,
+        leverage -> Float4,
+        quantity -> Float4,
+        direction -> DirectionType,
+        average_entry_price -> Float4,
+        liquidation_price -> Float4,
+        position_state -> PositionStateType,
+        collateral -> Int8,
+        creation_timestamp -> Timestamptz,
+        expiry_timestamp -> Timestamptz,
+        update_timestamp -> Timestamptz,
+        trader_pubkey -> Text,
+    }
+}
+
+diesel::allow_tables_to_appear_in_same_query!(orders, positions,);
