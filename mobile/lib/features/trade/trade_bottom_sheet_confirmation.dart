@@ -96,7 +96,7 @@ class TradeBottomSheetConfirmation extends StatelessWidget {
                       children: [
                         ValueDataRow(
                             type: ValueType.date,
-                            value: DateTime.utc(now.year, now.month, now.day + 1).toLocal(),
+                            value: DateTime.utc(now.year, now.month, now.day + 2).toLocal(),
                             label: 'Expiry'),
                         ValueDataRow(
                             type: ValueType.amount, value: tradeValues.margin, label: 'Margin'),
