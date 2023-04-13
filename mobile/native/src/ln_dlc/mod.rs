@@ -347,7 +347,7 @@ pub fn open_channel() -> Result<()> {
     let node = NODE.try_get().context("failed to get ln dlc node")?;
 
     node.inner
-        .initiate_open_channel(config::get_coordinator_info(), 500000, 250000)?;
+        .initiate_open_channel(config::get_coordinator_info().pubkey, 500000, 250000)?;
 
     Ok(())
 }

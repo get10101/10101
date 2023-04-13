@@ -1,5 +1,4 @@
 use crate::node::Node;
-use crate::node::NodeInfo;
 use anyhow::anyhow;
 use anyhow::bail;
 use anyhow::Context;
@@ -13,7 +12,7 @@ impl<P> Node<P> {
     /// Returns a temporary channel ID as a 32-byte long array.
     pub fn initiate_open_channel(
         &self,
-        peer: NodeInfo,
+        counterparty_node_id: PublicKey,
         channel_amount_sat: u64,
         initial_send_amount_sats: u64,
     ) -> Result<[u8; 32]> {
@@ -23,17 +22,17 @@ impl<P> Node<P> {
         let temp_channel_id = self
             .channel_manager
             .create_channel(
-                peer.pubkey,
+                counterparty_node_id,
                 channel_amount_sat,
                 initial_send_amount_sats * 1000,
                 0,
                 Some(user_config),
             )
             .map_err(|e| anyhow!("{e:?}"))
-            .with_context(|| format!("Could not create channel with {peer}"))?;
+            .with_context(|| format!("Could not create channel with {counterparty_node_id}"))?;
 
         tracing::info!(
-            %peer,
+            %counterparty_node_id,
             temp_channel_id = %hex::encode(temp_channel_id),
             "Started channel creation"
         );
