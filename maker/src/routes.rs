@@ -67,7 +67,7 @@ pub async fn index(State(app_state): State<Arc<AppState>>) -> Result<Json<Index>
     let amount = 2000;
     let invoice = app_state
         .node
-        .create_invoice(amount)
+        .create_invoice(amount, "".to_string())
         .map_err(|e| AppError::InternalServerError(format!("Failed to create invoice: {e:#}")))?;
 
     Ok(Json(Index {
@@ -114,7 +114,7 @@ pub async fn get_balance(State(state): State<Arc<AppState>>) -> Result<Json<Bala
 pub async fn get_invoice(State(state): State<Arc<AppState>>) -> Result<Json<String>, AppError> {
     let invoice = state
         .node
-        .create_invoice(2000)
+        .create_invoice(2000, "".to_string())
         .map_err(|e| AppError::InternalServerError(format!("Failed to create invoice: {e:#}")))?;
 
     Ok(Json(invoice.to_string()))

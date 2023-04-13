@@ -27,7 +27,9 @@ async fn single_hop_payment() {
     // Act
 
     let invoice_amount = 3_000;
-    let invoice = payee.create_invoice(invoice_amount).unwrap();
+    let invoice = payee
+        .create_invoice(invoice_amount, "".to_string())
+        .unwrap();
 
     payer.send_payment(&invoice).unwrap();
 
