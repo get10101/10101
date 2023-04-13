@@ -189,10 +189,9 @@ pub async fn list_channels(State(state): State<Arc<AppState>>) -> Json<Vec<Chann
 pub async fn list_dlc_channels(
     State(state): State<Arc<AppState>>,
 ) -> Result<Json<Vec<DlcChannelDetails>>, AppError> {
-    let dlc_channels =
-        state.node.inner.list_dlc_channels().map_err(|e| {
-            AppError::InternalServerError(format!("Failed to get new address: {e:#}"))
-        })?;
+    let dlc_channels = state.node.inner.list_dlc_channels().map_err(|e| {
+        AppError::InternalServerError(format!("Failed to list DLC channels: {e:#}"))
+    })?;
 
     let dlc_channels = dlc_channels
         .into_iter()
