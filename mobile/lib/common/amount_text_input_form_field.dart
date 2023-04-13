@@ -10,13 +10,16 @@ class AmountInputField extends StatelessWidget {
       required this.label,
       required this.hint,
       required this.onChanged,
-      required this.value});
+      required this.value,
+      this.validator});
 
   final Amount value;
   final TextEditingController controller;
   final String label;
   final String hint;
   final Function(String) onChanged;
+
+  final String? Function(String?)? validator;
 
   @override
   Widget build(BuildContext context) {
@@ -46,6 +49,13 @@ class AmountInputField extends StatelessWidget {
       ),
       inputFormatters: <TextInputFormatter>[FilteringTextInputFormatter.digitsOnly],
       onChanged: (value) => onChanged(value),
+      validator: (value) {
+        if (validator != null) {
+          return validator!(value);
+        }
+
+        return null;
+      },
     );
   }
 }

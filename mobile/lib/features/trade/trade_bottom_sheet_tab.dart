@@ -1,9 +1,12 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:get_10101/common/amount_text.dart';
 import 'package:get_10101/common/amount_text_input_form_field.dart';
 import 'package:get_10101/common/domain/model.dart';
 import 'package:get_10101/common/double_text_input_form_field.dart';
 import 'package:get_10101/common/fiat_text.dart';
+import 'package:get_10101/common/modal_bottom_sheet_info.dart';
 import 'package:get_10101/features/trade/domain/direction.dart';
 import 'package:get_10101/features/trade/domain/leverage.dart';
 import 'package:get_10101/features/trade/leverage_slider.dart';
@@ -14,11 +17,41 @@ import 'package:get_10101/features/wallet/domain/wallet_info.dart';
 import 'package:get_10101/features/wallet/wallet_change_notifier.dart';
 import 'package:provider/provider.dart';
 
-class TradeBottomSheetTab extends StatelessWidget {
+class TradeBottomSheetTab extends StatefulWidget {
   final Direction direction;
   final Key buttonKey;
 
   const TradeBottomSheetTab({required this.direction, super.key, required this.buttonKey});
+
+  @override
+  State<TradeBottomSheetTab> createState() => _TradeBottomSheetTabState();
+}
+
+class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
+  late final TradeValuesChangeNotifier provider;
+
+  TextEditingController marginController = TextEditingController();
+  TextEditingController quantityController = TextEditingController();
+  TextEditingController priceController = TextEditingController();
+
+  final _formKey = GlobalKey<FormState>();
+
+  bool showCapacityInfo = false;
+
+  @override
+  void initState() {
+    provider = context.read<TradeValuesChangeNotifier>();
+    super.initState();
+  }
+
+  @override
+  void dispose() {
+    marginController.dispose();
+    quantityController.dispose();
+    priceController.dispose();
+
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -26,142 +59,208 @@ class TradeBottomSheetTab extends StatelessWidget {
 
     WalletInfo walletInfo = context.watch<WalletChangeNotifier>().walletInfo;
 
-    String label = direction == Direction.long ? "Buy" : "Sell";
-    Color color = direction == Direction.long ? tradeTheme.buy : tradeTheme.sell;
+    String label = widget.direction == Direction.long ? "Buy" : "Sell";
+    Color color = widget.direction == Direction.long ? tradeTheme.buy : tradeTheme.sell;
 
-    TradeValuesChangeNotifier provider = context.read<TradeValuesChangeNotifier>();
+    int minMargin = provider.minMargin;
+    int usableBalance = max(walletInfo.balances.lightning.sats - provider.reserve, 0);
+    int maxMargin = usableBalance;
 
-    TextEditingController marginController =
-        TextEditingController(text: provider.fromDirection(direction).margin.toString());
-    TextEditingController quantityController =
-        TextEditingController(text: provider.fromDirection(direction).quantity.toString());
-    TextEditingController priceController =
-        TextEditingController(text: provider.fromDirection(direction).price.toString());
-
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      crossAxisAlignment: CrossAxisAlignment.center,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Wrap(
-          runSpacing: 15,
-          children: [
-            Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: Row(
+    return Form(
+      key: _formKey,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Wrap(
+            runSpacing: 15,
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: Row(
+                  children: [
+                    const Flexible(child: Text("Usable Balance:")),
+                    const SizedBox(width: 5),
+                    Flexible(child: AmountText(amount: Amount(usableBalance))),
+                    const SizedBox(
+                      width: 5,
+                    ),
+                    ModalBottomSheetInfo(
+                      infoText:
+                          "Your usable balance of $usableBalance sats takes a fixed reserve of ${provider.reserve} sats into account. "
+                          "\n${provider.channelReserve} is the minimum amount that has to stay in the Lightning channel. "
+                          "\n${provider.feeReserve} is reserved for fees per trade that is needed for publishing on-chain transactions in a worst case scenario. This is needed for the self-custodial setup"
+                          "\n\nWe are working on optimizing the reserve and it might be subject to change after the beta.",
+                      buttonText: "Back to order...",
+                      padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                    )
+                  ],
+                ),
+              ),
+              Selector<TradeValuesChangeNotifier, double>(
+                  selector: (_, provider) => provider.fromDirection(widget.direction).price,
+                  builder: (context, price, child) {
+                    return DoubleTextInputFormField(
+                      value: price,
+                      controller: priceController,
+                      enabled: false,
+                      label: "Market Price",
+                    );
+                  }),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Flexible(child: Text("Available Balance:")),
-                  const SizedBox(width: 5),
-                  Flexible(child: AmountText(amount: walletInfo.balances.lightning))
+                  Flexible(
+                    child: Selector<TradeValuesChangeNotifier, double>(
+                      selector: (_, provider) => provider.fromDirection(widget.direction).quantity,
+                      builder: (context, quantity, child) {
+                        return DoubleTextInputFormField(
+                          value: quantity,
+                          hint: "e.g. 100 USD",
+                          label: "Quantity (USD)",
+                          controller: quantityController,
+                          onChanged: (value) {
+                            if (value.isEmpty) {
+                              return;
+                            }
+
+                            try {
+                              double quantity = double.parse(value);
+                              context
+                                  .read<TradeValuesChangeNotifier>()
+                                  .updateQuantity(widget.direction, quantity);
+                            } on Exception {
+                              context
+                                  .read<TradeValuesChangeNotifier>()
+                                  .updateQuantity(widget.direction, 0);
+                            }
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(
+                    width: 10,
+                  ),
+                  Flexible(
+                    child: Selector<TradeValuesChangeNotifier, Amount>(
+                      selector: (_, provider) => provider.fromDirection(widget.direction).margin,
+                      builder: (context, margin, child) {
+                        return AmountInputField(
+                          value: margin,
+                          hint: "e.g. 2000 sats",
+                          label: "Margin (sats)",
+                          controller: marginController,
+                          onChanged: (value) {
+                            if (value.isEmpty) {
+                              return;
+                            }
+
+                            try {
+                              Amount margin = Amount.parse(value);
+                              context
+                                  .read<TradeValuesChangeNotifier>()
+                                  .updateMargin(widget.direction, margin);
+                            } on Exception {
+                              context
+                                  .read<TradeValuesChangeNotifier>()
+                                  .updateMargin(widget.direction, Amount.zero());
+                            }
+                          },
+                          validator: (value) {
+                            if (value == null) {
+                              return "Enter margin";
+                            }
+
+                            try {
+                              int margin = int.parse(value);
+
+                              // This condition has to stay as the first thing to check, so we reset showing the info
+                              if (margin > provider.availableTradingCapacity(widget.direction)) {
+                                setState(() {
+                                  showCapacityInfo = true;
+                                });
+
+                                return "Insufficient capacity";
+                              } else if (showCapacityInfo) {
+                                setState(() {
+                                  showCapacityInfo = false;
+                                });
+                              }
+
+                              if (usableBalance < margin) {
+                                return "Insufficient balance";
+                              }
+
+                              if (margin > maxMargin) {
+                                return "Max margin is $maxMargin";
+                              }
+                              if (margin < minMargin) {
+                                return "Min margin is $minMargin";
+                              }
+                            } on Exception {
+                              return "Enter a number";
+                            }
+
+                            return null;
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                  if (showCapacityInfo)
+                    ModalBottomSheetInfo(
+                        infoText:
+                            "While in beta channel capacity is limited to ${provider.capacity} sats. "
+                            "In order to trade with higher margin you have to reduce your balance"
+                            "\n\nYour current usable balance is $usableBalance."
+                            "Please send ${usableBalance - (provider.capacity / 2)} out of your wallet to free up capacity.",
+                        buttonText: "Back to order...")
                 ],
               ),
-            ),
-            DoubleTextInputFormField(
-              controller: priceController,
-              enabled: false,
-              label: "Market Price",
-            ),
-            Row(
-              children: [
-                Flexible(
-                  child: Selector<TradeValuesChangeNotifier, double>(
-                    selector: (_, provider) => provider.fromDirection(direction).quantity,
-                    builder: (context, quantity, child) {
-                      return DoubleTextInputFormField(
-                        value: quantity,
-                        hint: "e.g. 100 USD",
-                        label: "Quantity (USD)",
-                        controller: quantityController,
-                        onChanged: (value) {
-                          if (value.isEmpty) {
-                            return;
-                          }
-
-                          try {
-                            double quantity = double.parse(value);
-                            context
-                                .read<TradeValuesChangeNotifier>()
-                                .updateQuantity(direction, quantity);
-                          } on Exception {
-                            context.read<TradeValuesChangeNotifier>().updateQuantity(direction, 0);
-                          }
-                        },
-                      );
-                    },
-                  ),
-                ),
-                const SizedBox(
-                  width: 10,
-                ),
-                Flexible(
-                  child: Selector<TradeValuesChangeNotifier, Amount>(
-                    selector: (_, provider) => provider.fromDirection(direction).margin,
-                    builder: (context, margin, child) {
-                      return AmountInputField(
-                        value: margin,
-                        hint: "e.g. 2000 sats",
-                        label: "Margin (sats)",
-                        controller: marginController,
-                        onChanged: (value) {
-                          if (value.isEmpty) {
-                            return;
-                          }
-
-                          try {
-                            Amount margin = Amount.parse(value);
-                            context
-                                .read<TradeValuesChangeNotifier>()
-                                .updateMargin(direction, margin);
-                          } on Exception {
-                            context
-                                .read<TradeValuesChangeNotifier>()
-                                .updateMargin(direction, Amount.zero());
-                          }
-                        },
-                      );
-                    },
-                  ),
-                ),
-              ],
-            ),
-            LeverageSlider(
-                initialValue: context
-                    .read<TradeValuesChangeNotifier>()
-                    .fromDirection(direction)
-                    .leverage
-                    .leverage,
-                onLeverageChanged: (value) {
-                  context
+              LeverageSlider(
+                  initialValue: context
                       .read<TradeValuesChangeNotifier>()
-                      .updateLeverage(direction, Leverage(value));
-                }),
-            Row(
-              children: [
-                const Flexible(child: Text("Liquidation Price:")),
-                const SizedBox(width: 5),
-                Selector<TradeValuesChangeNotifier, double>(
-                    selector: (_, provider) => provider.fromDirection(direction).liquidationPrice,
-                    builder: (context, liquidationPrice, child) {
-                      return Flexible(child: FiatText(amount: liquidationPrice));
-                    }),
-              ],
-            )
-          ],
-        ),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            ElevatedButton(
-                key: buttonKey,
-                onPressed: () {
-                  tradeBottomSheetConfirmation(context: context, direction: direction);
-                },
-                style: ElevatedButton.styleFrom(
-                    backgroundColor: color, minimumSize: const Size.fromHeight(50)),
-                child: Text(label)),
-          ],
-        )
-      ],
+                      .fromDirection(widget.direction)
+                      .leverage
+                      .leverage,
+                  onLeverageChanged: (value) {
+                    context
+                        .read<TradeValuesChangeNotifier>()
+                        .updateLeverage(widget.direction, Leverage(value));
+                  }),
+              Row(
+                children: [
+                  const Flexible(child: Text("Liquidation Price:")),
+                  const SizedBox(width: 5),
+                  Selector<TradeValuesChangeNotifier, double>(
+                      selector: (_, provider) =>
+                          provider.fromDirection(widget.direction).liquidationPrice,
+                      builder: (context, liquidationPrice, child) {
+                        return Flexible(child: FiatText(amount: liquidationPrice));
+                      }),
+                ],
+              )
+            ],
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              ElevatedButton(
+                  key: widget.buttonKey,
+                  onPressed: () {
+                    if (_formKey.currentState!.validate()) {
+                      tradeBottomSheetConfirmation(context: context, direction: widget.direction);
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                      backgroundColor: color, minimumSize: const Size.fromHeight(50)),
+                  child: Text(label)),
+            ],
+          )
+        ],
+      ),
     );
   }
 }
