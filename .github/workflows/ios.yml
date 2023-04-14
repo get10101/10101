@@ -25,30 +25,9 @@ on:
       description: "The branch, tag or SHA to checkout."
       type: string
 
-
 jobs:
-  # job to run change detection
-  changes:
-    runs-on: ubuntu-latest
-    # Set job outputs to values from filter step
-    outputs:
-      ios-app: ${{ steps.filter.outputs.ios-app }}
-    steps:
-      - uses: actions/checkout@v3
-      - uses: dorny/paths-filter@v2
-        id: filter
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          filters: |
-            ios-app:
-              - '.github/workflows/ios.yml'
-              - 'crates/**'
-              - 'mobile/**'
-              - 'Cargo.*'
   build:
     runs-on: macos-latest
-    needs: changes
-    if: ${{ needs.changes.outputs.ios-app == 'true' }}
     steps:
       - uses: actions/checkout@v3
         with:
@@ -149,7 +128,7 @@ jobs:
           cd mobile
           flutter build ipa --export-options-plist=ios/exportOptions.plist --dart-define="ELECTRS_ENDPOINT=$ELECTRS_ENDPOINT" --dart-define="COORDINATOR_P2P_ENDPOINT=$COORDINATOR_P2P_ENDPOINT" --dart-define="COMMIT=$(git rev-parse HEAD)" --dart-define="BRANCH=$(git rev-parse --abbrev-ref HEAD)" --build-name=$BUILD_NAME --build-number=$BUILD_NUMBER
         env:
-          ELECTRS_ENDPOINT: ${{ inputs.electrs_endpoint }} 35.189.57.114:50000
+          ELECTRS_ENDPOINT: ${{ inputs.electrs_endpoint }}
           COORDINATOR_P2P_ENDPOINT: ${{ inputs.coordinator_p2p_endpoint }}
 
       - name: Release to TestFlight

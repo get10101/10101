@@ -14,7 +14,28 @@ jobs:
     with:
       tag: main
 
+  # job to run change detection
+  changes:
+    runs-on: ubuntu-latest
+    # Set job outputs to values from filter step
+    outputs:
+      ios-app: ${{ steps.filter.outputs.ios-app }}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dorny/paths-filter@v2
+        id: filter
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          filters: |
+            ios-app:
+              - '.github/workflows/ios.yml'
+              - 'crates/**'
+              - 'mobile/**'
+              - 'Cargo.*'
+
   build_and_release_ios_app_for_latest_main:
+    needs: changes
+    if: ${{ needs.changes.outputs.ios-app == 'true' }}
     permissions:
       packages: write
       contents: read
