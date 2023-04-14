@@ -217,3 +217,8 @@ pub fn get_seed_phrase() -> Result<SyncReturn<Vec<String>>> {
     let seed_phrase = ln_dlc::get_seed_phrase()?;
     Ok(SyncReturn(seed_phrase))
 }
+
+pub fn register_beta(email: String) -> Result<()> {
+    tracing::debug!("Registering beta user: {}", email);
+    Ok(())
+}
