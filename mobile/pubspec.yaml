@@ -1,11 +1,9 @@
 name: get_10101
 description: 10101 combines the power of a self-custodial on-chain and off-chain wallet with the vast world of trading.
-
-publish_to: "none" # Remove this line if you wish to publish to pub.dev
-version: 1.0.2
+publish_to: none
+version: 1.0.3
 environment:
   sdk: ">=2.17.5 <3.0.0"
-
 dependencies:
   flutter:
     sdk: flutter
@@ -31,9 +29,8 @@ dependencies:
   http: ^0.13.5
   timeago: ^3.3.0
   shared_preferences: ^2.1.0
-
 dev_dependencies:
-  flutter_launcher_icons: "^0.13.0"
+  flutter_launcher_icons: ^0.13.0
   flutter_test:
     sdk: flutter
   flutter_lints: ^2.0.1
@@ -41,7 +38,6 @@ dev_dependencies:
   freezed: ^2.2.1
   build_runner: ^2.2.0
   mockito: ^5.3.2
-
 flutter:
   uses-material-design: true
   assets:
@@ -50,12 +46,10 @@ flutter:
     - family: SendReceiveIcons
       fonts:
         - asset: fonts/SendReceiveIcons.ttf
-
 flutter_native_splash:
   color: "#FFFFFF"
   image: assets/10101.finance_logo_1500x1500.png
   android_12: null
-
 flutter_icons:
   android: true
   ios: true
