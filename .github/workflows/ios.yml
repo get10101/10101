@@ -9,6 +9,10 @@ on:
       coordinator_p2p_endpoint:
         required: true
         type: string
+      tag:
+        required: true
+        description: "The branch, tag or SHA to checkout."
+        type: string
   workflow_dispatch:
     electrs_endpoint:
       required: true
@@ -16,6 +20,11 @@ on:
     coordinator_p2p_endpoint:
       required: true
       type: string
+    tag:
+      required: true
+      description: "The branch, tag or SHA to checkout."
+      type: string
+
 
 jobs:
   # job to run change detection
@@ -45,6 +54,7 @@ jobs:
         with:
           # fetch the complete history to correctly calculate build_number
           fetch-depth: 0
+          ref: ${{ inputs.tag }}
 
       - uses: maxim-lobanov/setup-xcode@v1
         with:
