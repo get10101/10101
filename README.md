@@ -1,5 +1,5 @@
 <p align="center">
-  <img height="300" src="./logos/logo.png">
+  <img height="300" src="./logos/1500x1500.png" alt="10101 Logo">
 </p>
 
 # 10101 - One app, all things bitcoin
