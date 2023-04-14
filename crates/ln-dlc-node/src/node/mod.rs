@@ -83,7 +83,7 @@ pub struct Node<P> {
     pub(crate) wallet: Arc<LnDlcWallet>,
     pub peer_manager: Arc<PeerManager>,
     invoice_payer: Arc<InvoicePayer<EventHandler<P>>>,
-    pub(crate) channel_manager: Arc<ChannelManager>,
+    pub channel_manager: Arc<ChannelManager>,
     chain_monitor: Arc<ChainMonitor>,
     keys_manager: Arc<CustomKeysManager>,
     _background_processor: BackgroundProcessor,

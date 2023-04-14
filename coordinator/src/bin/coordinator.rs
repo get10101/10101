@@ -151,6 +151,12 @@ async fn main() -> Result<()> {
 
                         for position in positions.iter() {
                             tracing::debug!(%position.expiry_timestamp, "Attempting to closed expired position with {}", position.trader);
+
+                            if !node.is_connected(&position.trader) {
+                                tracing::info!("Could not close expired position with {} as trader is not connected.", position.trader);
+                                continue;
+                            }
+
                             let channel_id = match node.decide_trade_action(&position.trader) {
                                 Ok(TradeAction::Close(channel_id)) => channel_id,
                                 Ok(_) => {

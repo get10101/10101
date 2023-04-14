@@ -53,6 +53,21 @@ pub struct Node {
 }
 
 impl Node {
+    /// Returns true or false, whether we can find an useable channel with the provider trader.
+    ///
+    /// Note, we use the useable channel to implicitely check if the user is connected, as it
+    /// wouldn't be useable otherwise.
+    pub fn is_connected(&self, trader: &PublicKey) -> bool {
+        let useable_channels = self.inner.channel_manager.list_usable_channels();
+        let useable_channels = useable_channels
+            .iter()
+            .filter(|channel| channel.is_usable && channel.counterparty.node_id == *trader)
+            .collect::<Vec<_>>();
+
+        // should be exactly 1
+        !useable_channels.is_empty()
+    }
+
     pub async fn trade(&self, trade_params: &TradeParams) -> Result<()> {
         match self.decide_trade_action(&trade_params.pubkey)? {
             TradeAction::Open => self.open_position(trade_params).await?,
