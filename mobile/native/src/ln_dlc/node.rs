@@ -1,6 +1,13 @@
 use crate::db;
+use crate::event;
+use crate::event::EventInternal;
 use crate::trade::order;
+use crate::trade::order::Order;
+use crate::trade::order::OrderState;
+use crate::trade::order::OrderType;
 use crate::trade::position;
+use crate::trade::position::Position;
+use crate::trade::position::PositionState;
 use anyhow::anyhow;
 use anyhow::Context;
 use anyhow::Result;
@@ -25,6 +32,7 @@ use ln_dlc_node::PaymentInfo;
 use std::sync::Arc;
 use std::time::Duration;
 use time::OffsetDateTime;
+use uuid::Uuid;
 
 #[derive(Clone)]
 pub struct Node {
@@ -171,7 +179,68 @@ impl Node {
                                 let filled_order = match order::handler::order_filled() {
                                     Ok(filled_order) => filled_order,
                                     Err(e) => {
-                                        tracing::error!("Critical Error! We have closed a DLC but were unable to set the order to filled: {e:#}");
+                                        // fixme: This is not ideal, but closing the position after
+                                        // the position has expired is not triggered by the app
+                                        // through an order. Instead the coordinator simply proposes
+                                        // a close position. In order to fixup the ui, we are
+                                        // creating an order here and store it to the database.
+                                        tracing::warn!("Could not find a filling position in the database. This might be, because the coordinator closed an expired position. Error: {e:?}");
+
+                                        tokio::spawn({
+                                            async {
+                                                let positions =
+                                                    match position::handler::get_positions().await {
+                                                        Ok(positions) => positions,
+                                                        Err(e) => {
+                                                            tracing::error!(
+                                                            "Failed to get positions. Error {e:?}"
+                                                        );
+                                                            return;
+                                                        }
+                                                    };
+                                                let positions = positions
+                                                    .into_iter()
+                                                    .filter(|p| {
+                                                        p.position_state == PositionState::Open
+                                                    })
+                                                    .map(Position::from)
+                                                    .collect::<Vec<Position>>();
+
+                                                if let Some(position) = positions.first() {
+                                                    tracing::debug!("Adding order for the expired closed position");
+
+                                                    let order = Order {
+                                                        id: Uuid::new_v4(),
+                                                        leverage: position.leverage,
+                                                        quantity: position.quantity,
+                                                        contract_symbol: position.contract_symbol,
+                                                        direction: position.direction.opposite(),
+                                                        order_type: OrderType::Market,
+                                                        state: OrderState::Filled {
+                                                            // todo: update execution price
+                                                            execution_price: 0.0,
+                                                        },
+                                                        creation_timestamp: OffsetDateTime::now_utc(
+                                                        ),
+                                                    };
+
+                                                    event::publish(
+                                                        &EventInternal::OrderUpdateNotification(
+                                                            order,
+                                                        ),
+                                                    );
+
+                                                    if let Err(e) = db::insert_order(order) {
+                                                        tracing::error!("{e:?}");
+                                                    } else if let Err(e) = position::handler::update_position_after_dlc_closure(order) {
+                                                        tracing::error!("Failed to update position after dlc closure. Error: {e:?}");
+                                                    }
+                                                } else {
+                                                    tracing::error!("Critical Error! We have a DLC but were unable to set the order to filled.");
+                                                }
+                                            }
+                                        });
+
                                         continue;
                                     }
                                 };

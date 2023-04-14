@@ -6,7 +6,7 @@ pub mod api;
 pub mod handler;
 pub mod subscriber;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum PositionState {
     /// The position is open
     ///
