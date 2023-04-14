@@ -9,6 +9,15 @@ env:
   RUST_VERSION: "1.68.0"
 
 jobs:
+  build_docker_image_for_release:
+    permissions:
+      packages: write
+      contents: read
+    uses: ./.github/workflows/docker.yml
+    secrets: inherit
+    with:
+      tag: ${{ github.event.release.target_commitish }}
+
   build_testflight_release:
     permissions:
       packages: write
