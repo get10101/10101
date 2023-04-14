@@ -33,8 +33,6 @@ use ln_dlc_node::PeerManager;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use std::sync::Arc;
-use time::Duration;
-use time::OffsetDateTime;
 use trade::cfd;
 use trade::cfd::calculate_long_liquidation_price;
 use trade::cfd::calculate_margin;
@@ -104,9 +102,6 @@ impl Node {
         let margin_trader = margin_trader(trade_params);
         let margin_coordinator = margin_coordinator(trade_params);
 
-        let tomorrow = OffsetDateTime::now_utc().date() + Duration::days(2);
-        let expiry = tomorrow.midnight().assume_utc();
-
         let liquidation_price = liquidation_price(trade_params);
 
         let new_position = NewPosition {
@@ -121,7 +116,7 @@ impl Node {
                 .expect("to fit into f32"),
             liquidation_price,
             collateral: margin_coordinator as i64,
-            expiry_timestamp: expiry,
+            expiry_timestamp: trade_params.filled_with.expiry_timestamp,
         };
 
         let connection = &mut self.pool.get()?;
