@@ -1,3 +1,5 @@
+extern crate core;
+
 use crate::ln::TracingLogger;
 use bitcoin::secp256k1::PublicKey;
 use dlc_custom_signer::CustomSigner;

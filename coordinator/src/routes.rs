@@ -15,6 +15,7 @@ use axum::routing::get;
 use axum::routing::post;
 use axum::Json;
 use axum::Router;
+use bitcoin::secp256k1::ecdsa::Signature;
 use bitcoin::secp256k1::PublicKey;
 use coordinator_commons::TradeParams;
 use diesel::r2d2::ConnectionManager;
@@ -71,6 +72,7 @@ pub fn router(node: Node, pool: Pool<ConnectionManager<PgConnection>>) -> Router
         .route("/api/channels/:channel_id", delete(close_channel))
         .route("/api/peers", get(list_peers))
         .route("/api/dlc_channels", get(list_dlc_channels))
+        .route("/api/sign/:msg", get(sign_message))
         .with_state(app_state)
 }
 
@@ -301,4 +303,23 @@ pub async fn open_channel(
     );
 
     Ok(Json(hex::encode(channel_id)))
+}
+
+#[derive(Deserialize)]
+pub struct SignParams {
+    #[serde(default, deserialize_with = "empty_string_as_none")]
+    double_sign: Option<bool>,
+}
+
+pub async fn sign_message(
+    Path(msg): Path<String>,
+    State(state): State<Arc<AppState>>,
+    Query(sign_params): Query<SignParams>,
+) -> Result<Json<Signature>, AppError> {
+    let signature = state
+        .node
+        .inner
+        .sign_message(msg, sign_params.double_sign.unwrap_or_default())
+        .map_err(|err| AppError::InternalServerError(format!("Could not sign message {err}")))?;
+    Ok(Json(signature))
 }
