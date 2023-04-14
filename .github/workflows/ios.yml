@@ -2,7 +2,20 @@ name: "Build and release ios app to TestFlight"
 
 on:
   workflow_call:
+    inputs:
+      electrs_endpoint:
+        required: true
+        type: string
+      coordinator_p2p_endpoint:
+        required: true
+        type: string
   workflow_dispatch:
+    electrs_endpoint:
+      required: true
+      type: string
+    coordinator_p2p_endpoint:
+      required: true
+      type: string
 
 jobs:
   # job to run change detection
@@ -126,8 +139,8 @@ jobs:
           cd mobile
           flutter build ipa --export-options-plist=ios/exportOptions.plist --dart-define="ELECTRS_ENDPOINT=$ELECTRS_ENDPOINT" --dart-define="COORDINATOR_P2P_ENDPOINT=$COORDINATOR_P2P_ENDPOINT" --dart-define="COMMIT=$(git rev-parse HEAD)" --dart-define="BRANCH=$(git rev-parse --abbrev-ref HEAD)" --build-name=$BUILD_NAME --build-number=$BUILD_NUMBER
         env:
-          ELECTRS_ENDPOINT: 35.189.57.114:50000
-          COORDINATOR_P2P_ENDPOINT: 026e1de0e76902d71d2c27bfdda9d48c19c4c550f08bb4189d7208246e0e3af97e@35.189.57.114:9045
+          ELECTRS_ENDPOINT: ${{ inputs.electrs_endpoint }} 35.189.57.114:50000
+          COORDINATOR_P2P_ENDPOINT: ${{ inputs.coordinator_p2p_endpoint }}
 
       - name: Release to TestFlight
         env:

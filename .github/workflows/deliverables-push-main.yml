@@ -20,3 +20,6 @@ jobs:
       contents: read
     uses: ./.github/workflows/ios.yml
     secrets: inherit
+    with:
+      electrs_endpoint: 35.189.57.114:50000
+      coordinator_p2p_endpoint: 026e1de0e76902d71d2c27bfdda9d48c19c4c550f08bb4189d7208246e0e3af97e@35.189.57.114:9045
