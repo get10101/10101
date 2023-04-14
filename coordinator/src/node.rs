@@ -51,7 +51,7 @@ pub struct Node {
 }
 
 impl Node {
-    /// Returns true or false, whether we can find an useable channel with the provider trader.
+    /// Returns true or false, whether we can find an useable channel with the provided trader.
     ///
     /// Note, we use the useable channel to implicitely check if the user is connected, as it
     /// wouldn't be useable otherwise.

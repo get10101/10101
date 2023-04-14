@@ -9,6 +9,8 @@ description = "A common library for the shared model and functions for trading"
 [dependencies]
 anyhow = "1"
 bdk = { version = "0.24.0" }
+reqwest = { version = "0.11", default-features = false, features = ["json"] }
 rust_decimal = { version = "1", features = ["serde-with-float"] }
 rust_decimal_macros = "1.26"
 serde = { version = "1.0.152", features = ["serde_derive"] }
+time = { version = "0.3", features = ["serde", "parsing", "std", "formatting", "macros", "serde-well-known"] }

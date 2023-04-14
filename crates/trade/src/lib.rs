@@ -6,6 +6,7 @@ use std::fmt;
 use std::fmt::Formatter;
 use std::str::FromStr;
 
+pub mod bitmex_client;
 pub mod cfd;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]

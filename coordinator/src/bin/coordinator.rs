@@ -10,7 +10,6 @@ use coordinator::position::models::Position;
 use coordinator::position::models::PositionState;
 use coordinator::routes::router;
 use coordinator::run_migration;
-use coordinator::trade::bitmex_client::BitmexClient;
 use diesel::r2d2;
 use diesel::r2d2::ConnectionManager;
 use diesel::PgConnection;
@@ -26,6 +25,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use time::OffsetDateTime;
 use tracing::metadata::LevelFilter;
+use trade::bitmex_client::BitmexClient;
 
 const PROCESS_INCOMING_MESSAGES_INTERVAL: Duration = Duration::from_secs(5);
 
@@ -156,7 +156,7 @@ async fn main() -> Result<()> {
                     .collect::<Vec<Position>>();
 
                 for position in positions.iter() {
-                    tracing::debug!(%position.expiry_timestamp, "Attempting to close expired position with {}", position.trader);
+                    tracing::debug!(trader_pk=%position.trader, %position.expiry_timestamp, "Attempting to close expired position");
 
                     if !node.is_connected(&position.trader) {
                         tracing::info!(
@@ -205,7 +205,7 @@ async fn main() -> Result<()> {
                         .await
                     {
                         Ok(_) => tracing::info!(
-                            "Successfully closed expired position with {}",
+                            "Successfully proposed to close expired position with {}",
                             position.trader
                         ),
                         Err(e) => tracing::warn!(
