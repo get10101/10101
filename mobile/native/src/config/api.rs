@@ -1,6 +1,7 @@
 use crate::config::ConfigInternal;
 use bdk::bitcoin::Network;
 use flutter_rust_bridge::frb;
+use url::Url;
 
 #[frb]
 #[derive(Debug)]
@@ -17,9 +18,7 @@ impl From<Config> for ConfigInternal {
     fn from(config: Config) -> Self {
         Self {
             coordinator_pubkey: config.coordinator_pubkey.parse().expect("PK to be valid"),
-            electrs_endpoint: config
-                .electrs_endpoint
-                .parse()
+            electrs_endpoint: Url::parse(config.electrs_endpoint.as_str())
                 .expect("electrs endpoint to be valid"),
             http_endpoint: format!("{}:{}", config.host, config.http_port)
                 .parse()

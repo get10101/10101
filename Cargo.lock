@@ -1803,6 +1803,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "trade",
+ "url",
  "uuid",
 ]
 
