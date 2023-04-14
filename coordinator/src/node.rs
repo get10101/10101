@@ -89,8 +89,8 @@ impl Node {
         let connection = &mut self.pool.get()?;
         db::positions::Position::insert(connection, new_position)?;
 
-        let leverage_long = leverage_long(trade_params);
-        let leverage_short = leverage_short(trade_params);
+        let leverage_long = leverage_long(trade_params.direction, trade_params.leverage);
+        let leverage_short = leverage_short(trade_params.direction, trade_params.leverage);
 
         let total_collateral = margin_coordinator + margin_trader;
 
@@ -145,9 +145,6 @@ impl Node {
             "Closing position"
         );
 
-        let leverage_long = leverage_long(trade_params);
-        let leverage_short = leverage_short(trade_params);
-
         let closing_price = trade_params.average_execution_price();
 
         let mut connection = self.pool.get()?;
@@ -161,13 +158,16 @@ impl Node {
 
         let opening_price = Decimal::try_from(position.average_entry_price)?;
 
+        let leverage_long = leverage_long(position.direction, position.leverage);
+        let leverage_short = leverage_short(position.direction, position.leverage);
+
         let accept_settlement_amount = calculate_accept_settlement_amount(
             opening_price,
             closing_price,
             trade_params.quantity,
             leverage_long,
             leverage_short,
-            trade_params.direction,
+            position.direction,
         )?;
 
         tracing::debug!(
@@ -300,17 +300,17 @@ fn liquidation_price(trade_params: &TradeParams) -> f32 {
     .expect("to fit into f32")
 }
 
-fn leverage_long(trade_params: &TradeParams) -> f32 {
-    match trade_params.direction {
-        Direction::Long => trade_params.leverage,
+fn leverage_long(direction: Direction, trader_leverage: f32) -> f32 {
+    match direction {
+        Direction::Long => trader_leverage,
         Direction::Short => COORDINATOR_LEVERAGE,
     }
 }
 
-fn leverage_short(trade_params: &TradeParams) -> f32 {
-    match trade_params.direction {
+fn leverage_short(direction: Direction, trader_leverage: f32) -> f32 {
+    match direction {
         Direction::Long => COORDINATOR_LEVERAGE,
-        Direction::Short => trade_params.leverage,
+        Direction::Short => trader_leverage,
     }
 }
 
@@ -563,6 +563,82 @@ pub mod tests {
         .unwrap();
 
         let margin_trader = calculate_margin(opening_price, quantity, 1.0);
+        assert!(accept_settlement_amount > margin_trader);
+    }
+
+    #[test]
+    fn given_a_long_position_and_a_larger_closing_price_different_leverages() {
+        let opening_price = Decimal::from(22000);
+        let closing_price = Decimal::from(23000);
+        let quantity: f32 = 1.0;
+        let accept_settlement_amount = calculate_accept_settlement_amount(
+            opening_price,
+            closing_price,
+            quantity,
+            1.0,
+            2.0,
+            Direction::Long,
+        )
+        .unwrap();
+
+        let margin_trader = calculate_margin(opening_price, quantity, 2.0);
+        assert!(accept_settlement_amount > margin_trader);
+    }
+
+    #[test]
+    fn given_a_short_position_and_a_larger_closing_price_different_leverages() {
+        let opening_price = Decimal::from(22000);
+        let closing_price = Decimal::from(23000);
+        let quantity: f32 = 1.0;
+        let accept_settlement_amount = calculate_accept_settlement_amount(
+            opening_price,
+            closing_price,
+            quantity,
+            2.0,
+            1.0,
+            Direction::Short,
+        )
+        .unwrap();
+
+        let margin_trader = calculate_margin(opening_price, quantity, 1.0);
+        assert!(accept_settlement_amount < margin_trader);
+    }
+
+    #[test]
+    fn given_a_long_position_and_a_smaller_closing_price_different_leverages() {
+        let opening_price = Decimal::from(23000);
+        let closing_price = Decimal::from(22000);
+        let quantity: f32 = 1.0;
+        let accept_settlement_amount = calculate_accept_settlement_amount(
+            opening_price,
+            closing_price,
+            quantity,
+            2.0,
+            1.0,
+            Direction::Long,
+        )
+        .unwrap();
+
+        let margin_trader = calculate_margin(opening_price, quantity, 2.0);
+        assert!(accept_settlement_amount < margin_trader);
+    }
+
+    #[test]
+    fn given_a_short_position_and_a_smaller_closing_price_different_leverages() {
+        let opening_price = Decimal::from(23000);
+        let closing_price = Decimal::from(22000);
+        let quantity: f32 = 1.0;
+        let accept_settlement_amount = calculate_accept_settlement_amount(
+            opening_price,
+            closing_price,
+            quantity,
+            1.0,
+            2.0,
+            Direction::Short,
+        )
+        .unwrap();
+
+        let margin_trader = calculate_margin(opening_price, quantity, 2.0);
         assert!(accept_settlement_amount > margin_trader);
     }
 }
