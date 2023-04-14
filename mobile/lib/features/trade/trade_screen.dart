@@ -5,6 +5,7 @@ import 'package:get_10101/features/trade/candlestick_change_notifier.dart';
 import 'package:get_10101/features/trade/contract_symbol_icon.dart';
 import 'package:get_10101/features/trade/domain/contract_symbol.dart';
 import 'package:get_10101/features/trade/domain/direction.dart';
+import 'package:get_10101/features/trade/domain/order.dart';
 import 'package:get_10101/features/trade/domain/position.dart';
 import 'package:get_10101/features/trade/order_change_notifier.dart';
 import 'package:get_10101/features/trade/order_list_item.dart';
@@ -130,13 +131,57 @@ class TradeScreen extends StatelessWidget {
                     "Positions",
                     "Orders",
                   ],
+                  selectedIndex: positionChangeNotifier.positions.isEmpty ? 1 : 0,
                   keys: const [tradeScreenTabsPositions, tradeScreenTabsOrders],
                   tabBarViewChildren: [
                     ListView.builder(
                       shrinkWrap: true,
                       physics: const ClampingScrollPhysics(),
-                      itemCount: positionChangeNotifier.positions.length + 1,
+                      itemCount: positionChangeNotifier.positions.isEmpty
+                          ? 1
+                          : positionChangeNotifier.positions.length + 1,
                       itemBuilder: (BuildContext context, int index) {
+                        // If there are no positions we early-return with placeholder
+                        if (positionChangeNotifier.positions.isEmpty) {
+                          // If we have an open order then let the user know
+                          if (orderChangeNotifier.orders.values
+                              .where((element) => element.state == OrderState.open)
+                              .isNotEmpty) {
+                            return RichText(
+                                text: TextSpan(
+                                    style: DefaultTextStyle.of(context).style,
+                                    children: const <TextSpan>[
+                                  TextSpan(
+                                      text: "Your order is being filled...\n\nCheck the ",
+                                      style: TextStyle(color: Colors.grey)),
+                                  TextSpan(text: "Orders", style: TextStyle(color: Colors.black)),
+                                  TextSpan(
+                                      text: " tab to see the status!",
+                                      style: TextStyle(color: Colors.grey)),
+                                ]));
+                          }
+
+                          return RichText(
+                              text: TextSpan(
+                                  style: DefaultTextStyle.of(context).style,
+                                  children: <TextSpan>[
+                                const TextSpan(
+                                    text: "You currently don't have an open position...\n\n",
+                                    style: TextStyle(color: Colors.grey)),
+                                TextSpan(
+                                    text: "Buy",
+                                    style: TextStyle(
+                                        color: tradeTheme.buy, fontWeight: FontWeight.bold)),
+                                const TextSpan(text: " or ", style: TextStyle(color: Colors.grey)),
+                                TextSpan(
+                                    text: "Sell",
+                                    style: TextStyle(
+                                        color: tradeTheme.sell, fontWeight: FontWeight.bold)),
+                                const TextSpan(
+                                    text: " to open one!", style: TextStyle(color: Colors.grey)),
+                              ]));
+                        }
+
                         // Spacer at the bottom of the list
                         if (index == positionChangeNotifier.positions.length) {
                           return listBottomScrollSpace;
@@ -155,8 +200,33 @@ class TradeScreen extends StatelessWidget {
                     ListView.builder(
                       shrinkWrap: true,
                       physics: const ClampingScrollPhysics(),
-                      itemCount: orderChangeNotifier.orders.length + 1,
+                      itemCount: orderChangeNotifier.orders.isEmpty
+                          ? 1
+                          : orderChangeNotifier.orders.length + 1,
                       itemBuilder: (BuildContext context, int index) {
+                        // If there are no positions we early-return with placeholder
+                        if (orderChangeNotifier.orders.isEmpty) {
+                          return RichText(
+                              text: TextSpan(
+                                  style: DefaultTextStyle.of(context).style,
+                                  children: <TextSpan>[
+                                const TextSpan(
+                                    text: "You don't have any orders yet...\n\n",
+                                    style: TextStyle(color: Colors.grey)),
+                                TextSpan(
+                                    text: "Buy",
+                                    style: TextStyle(
+                                        color: tradeTheme.buy, fontWeight: FontWeight.bold)),
+                                const TextSpan(text: " or ", style: TextStyle(color: Colors.grey)),
+                                TextSpan(
+                                    text: "Sell",
+                                    style: TextStyle(
+                                        color: tradeTheme.sell, fontWeight: FontWeight.bold)),
+                                const TextSpan(
+                                    text: " to create one!", style: TextStyle(color: Colors.grey)),
+                              ]));
+                        }
+
                         // Spacer at the bottom of the list
                         if (index == orderChangeNotifier.orders.length) {
                           return listBottomScrollSpace;
