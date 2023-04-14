@@ -6,13 +6,14 @@ use bdk::bitcoin::secp256k1::PublicKey;
 use ln_dlc_node::node::NodeInfo;
 use state::Storage;
 use std::net::SocketAddr;
+use url::Url;
 
 static CONFIG: Storage<ConfigInternal> = Storage::new();
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 struct ConfigInternal {
     coordinator_pubkey: PublicKey,
-    electrs_endpoint: SocketAddr,
+    electrs_endpoint: Url,
     http_endpoint: SocketAddr,
     p2p_endpoint: SocketAddr,
     network: bitcoin::Network,
@@ -30,8 +31,8 @@ pub fn get_coordinator_info() -> NodeInfo {
     }
 }
 
-pub fn get_electrs_endpoint() -> SocketAddr {
-    CONFIG.get().electrs_endpoint
+pub fn get_electrs_endpoint() -> Url {
+    CONFIG.get().electrs_endpoint.clone()
 }
 
 pub fn get_http_endpoint() -> SocketAddr {
