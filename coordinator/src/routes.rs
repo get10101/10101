@@ -7,8 +7,10 @@ use crate::orderbook::routes::put_order;
 use crate::orderbook::routes::websocket_handler;
 use crate::AppError;
 use axum::extract::Path;
+use axum::extract::Query;
 use axum::extract::State;
 use axum::response::IntoResponse;
+use axum::routing::delete;
 use axum::routing::get;
 use axum::routing::post;
 use axum::Json;
@@ -22,9 +24,13 @@ use ln_dlc_node::node::NodeInfo;
 use ln_dlc_node::ChannelDetails;
 use ln_dlc_node::DlcChannelDetails;
 use orderbook_commons::OrderbookMsg;
+use serde::de;
 use serde::Deserialize;
+use serde::Deserializer;
 use serde::Serialize;
 use std::collections::HashMap;
+use std::fmt;
+use std::str::FromStr;
 use std::sync::Arc;
 use tokio::sync::broadcast;
 use tokio::sync::mpsc;
@@ -61,7 +67,9 @@ pub fn router(node: Node, pool: Pool<ConnectionManager<PgConnection>>) -> Router
         )
         .route("/api/orderbook/websocket", get(websocket_handler))
         .route("/api/trade", post(post_trade))
-        .route("/api/channels", get(list_channels))
+        .route("/api/channels", get(list_channels).post(open_channel))
+        .route("/api/channels/:channel_id", delete(close_channel))
+        .route("/api/peers", get(list_peers))
         .route("/api/dlc_channels", get(list_dlc_channels))
         .with_state(app_state)
 }
@@ -129,11 +137,26 @@ pub async fn get_balance(State(state): State<Arc<AppState>>) -> Result<Json<Bala
     }))
 }
 
-pub async fn get_invoice(State(state): State<Arc<AppState>>) -> Result<Json<String>, AppError> {
-    let invoice =
-        state.node.inner.create_invoice(2000).map_err(|e| {
-            AppError::InternalServerError(format!("Failed to create invoice: {e:#}"))
-        })?;
+#[derive(Debug, Deserialize)]
+pub struct InvoiceParams {
+    amount: Option<u64>,
+    description: Option<String>,
+    expiry: Option<u32>,
+}
+
+pub async fn get_invoice(
+    Query(params): Query<InvoiceParams>,
+    State(state): State<Arc<AppState>>,
+) -> Result<Json<String>, AppError> {
+    let invoice = state
+        .node
+        .inner
+        .create_invoice(
+            params.amount.unwrap_or_default(),
+            params.description.unwrap_or_default(),
+            params.expiry.unwrap_or(180),
+        )
+        .map_err(|e| AppError::InternalServerError(format!("Failed to create invoice: {e:#}")))?;
 
     Ok(Json(invoice.to_string()))
 }
@@ -166,10 +189,9 @@ pub async fn list_channels(State(state): State<Arc<AppState>>) -> Json<Vec<Chann
 pub async fn list_dlc_channels(
     State(state): State<Arc<AppState>>,
 ) -> Result<Json<Vec<DlcChannelDetails>>, AppError> {
-    let dlc_channels =
-        state.node.inner.list_dlc_channels().map_err(|e| {
-            AppError::InternalServerError(format!("Failed to get new address: {e:#}"))
-        })?;
+    let dlc_channels = state.node.inner.list_dlc_channels().map_err(|e| {
+        AppError::InternalServerError(format!("Failed to list DLC channels: {e:#}"))
+    })?;
 
     let dlc_channels = dlc_channels
         .into_iter()
@@ -177,4 +199,106 @@ pub async fn list_dlc_channels(
         .collect::<Vec<_>>();
 
     Ok(Json(dlc_channels))
+}
+
+pub async fn list_peers(State(state): State<Arc<AppState>>) -> Json<Vec<PublicKey>> {
+    let peers = state.node.inner.list_peers();
+    Json(peers)
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CloseChanelParams {
+    #[serde(default, deserialize_with = "empty_string_as_none")]
+    force: Option<bool>,
+}
+
+fn empty_string_as_none<'de, D, T>(de: D) -> Result<Option<T>, D::Error>
+where
+    D: Deserializer<'de>,
+    T: FromStr,
+    T::Err: fmt::Display,
+{
+    let opt = Option::<String>::deserialize(de)?;
+    match opt.as_deref() {
+        None | Some("") => Ok(None),
+        Some(s) => FromStr::from_str(s).map_err(de::Error::custom).map(Some),
+    }
+}
+
+pub async fn close_channel(
+    Path(channel_id): Path<String>,
+    Query(params): Query<CloseChanelParams>,
+    State(state): State<Arc<AppState>>,
+) -> Result<(), AppError> {
+    let byte_array =
+        hex::decode(channel_id.clone()).map_err(|err| AppError::BadRequest(err.to_string()))?;
+
+    if byte_array.len() > 32 {
+        return Err(AppError::BadRequest(
+            "Provided channel id was invalid".to_string(),
+        ));
+    }
+    // Create a fixed-length byte array of size 8
+    let mut fixed_length_array = [0u8; 32];
+
+    // Copy the decoded bytes to the fixed-length array
+    let length = std::cmp::min(byte_array.len(), fixed_length_array.len());
+    fixed_length_array[..length].copy_from_slice(&byte_array[..length]);
+
+    tracing::debug!("Attempting to close channel {channel_id}");
+
+    state
+        .node
+        .inner
+        .close_channel(fixed_length_array, params.force.unwrap_or_default())
+        .map_err(|error| AppError::InternalServerError(error.to_string()))
+}
+
+#[derive(Deserialize)]
+pub struct ChannelParams {
+    target: TargetInfo,
+    local_balance: u64,
+    remote_balance: Option<u64>,
+}
+
+#[derive(Deserialize)]
+pub struct TargetInfo {
+    pubkey: String,
+    address: Option<String>,
+}
+
+pub async fn open_channel(
+    State(state): State<Arc<AppState>>,
+    channel_params: Json<ChannelParams>,
+) -> Result<Json<String>, AppError> {
+    let pubkey = PublicKey::from_str(channel_params.0.target.pubkey.as_str())
+        .map_err(|e| AppError::BadRequest(format!("Invalid target node pubkey provided {e:#}")))?;
+    if let Some(address) = channel_params.target.address.clone() {
+        let target_address = address.parse().map_err(|e| {
+            AppError::BadRequest(format!("Invalid target node address provided {e:#}"))
+        })?;
+        let peer = NodeInfo {
+            pubkey,
+            address: target_address,
+        };
+        state.node.inner.connect(peer).await.map_err(|e| {
+            AppError::InternalServerError(format!("Could not connect to target node {e:#}"))
+        })?;
+    }
+
+    let channel_amount = channel_params.local_balance;
+    let initial_send_amount = channel_params.remote_balance.unwrap_or_default();
+
+    let channel_id = state
+        .node
+        .inner
+        .initiate_open_channel(pubkey, channel_amount, initial_send_amount)
+        .map_err(|e| AppError::InternalServerError(format!("Failed to open channel: {e:#}")))?;
+
+    tracing::debug!(
+        "Successfully opened channel with {pubkey}. Funding tx: {}",
+        hex::encode(channel_id)
+    );
+
+    Ok(Json(hex::encode(channel_id)))
 }
