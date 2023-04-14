@@ -9,21 +9,30 @@ on:
       coordinator_p2p_endpoint:
         required: true
         type: string
+      network:
+        required: true
+        type: string
+        description: "The target network for the release, e.g. mainnet/regtest"
       tag:
         required: true
         description: "The branch, tag or SHA to checkout."
         type: string
   workflow_dispatch:
-    electrs_endpoint:
-      required: true
-      type: string
-    coordinator_p2p_endpoint:
-      required: true
-      type: string
-    tag:
-      required: true
-      description: "The branch, tag or SHA to checkout."
-      type: string
+    inputs:
+      electrs_endpoint:
+        required: true
+        type: string
+      coordinator_p2p_endpoint:
+        required: true
+        type: string
+      network:
+        required: true
+        type: string
+        description: "The target network for the release, e.g. mainnet/regtest"
+      tag:
+        required: true
+        description: "The branch, tag or SHA to checkout."
+        type: string
 
 jobs:
   build:
@@ -126,10 +135,18 @@ jobs:
           BUILD_NAME=${{ steps.version.outputs.data }}
           BUILD_NUMBER=$(git rev-list HEAD --count)
           cd mobile
-          flutter build ipa --export-options-plist=ios/exportOptions.plist --dart-define="ELECTRS_ENDPOINT=$ELECTRS_ENDPOINT" --dart-define="COORDINATOR_P2P_ENDPOINT=$COORDINATOR_P2P_ENDPOINT" --dart-define="COMMIT=$(git rev-parse HEAD)" --dart-define="BRANCH=$(git rev-parse --abbrev-ref HEAD)" --build-name=$BUILD_NAME --build-number=$BUILD_NUMBER
+          flutter build ipa --export-options-plist=ios/exportOptions.plist \
+                            --dart-define="ELECTRS_ENDPOINT=$ELECTRS_ENDPOINT" \
+                            --dart-define="COORDINATOR_P2P_ENDPOINT=$COORDINATOR_P2P_ENDPOINT" \
+                            --dart-define="NETWORK=$NETWORK" \
+                            --dart-define="COMMIT=$(git rev-parse HEAD)" \
+                            --dart-define="BRANCH=$(git rev-parse --abbrev-ref HEAD)" \
+                            --build-name=$BUILD_NAME \
+                            --build-number=$BUILD_NUMBER
         env:
           ELECTRS_ENDPOINT: ${{ inputs.electrs_endpoint }}
           COORDINATOR_P2P_ENDPOINT: ${{ inputs.coordinator_p2p_endpoint }}
+          NETWORK: ${{ inputs.network }}
 
       - name: Release to TestFlight
         env:
