@@ -1,9 +1,13 @@
 use anyhow::Context;
 use anyhow::Result;
 use coordinator::cli::Opts;
+use coordinator::db;
 use coordinator::logger;
 use coordinator::node;
 use coordinator::node::Node;
+use coordinator::node::TradeAction;
+use coordinator::position::models::Position;
+use coordinator::position::models::PositionState;
 use coordinator::routes::router;
 use coordinator::run_migration;
 use diesel::r2d2;
@@ -13,12 +17,14 @@ use ln_dlc_node::node::PaymentMap;
 use ln_dlc_node::seed::Bip39Seed;
 use rand::thread_rng;
 use rand::RngCore;
+use rust_decimal::Decimal;
 use std::backtrace::Backtrace;
 use std::net::IpAddr;
 use std::net::Ipv4Addr;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
+use time::OffsetDateTime;
 use tracing::metadata::LevelFilter;
 
 const PROCESS_INCOMING_MESSAGES_INTERVAL: Duration = Duration::from_secs(5);
@@ -121,13 +127,77 @@ async fn main() -> Result<()> {
     let mut conn = pool.get().unwrap();
     run_migration(&mut conn);
 
-    let app = router(
-        Node {
-            inner: node,
-            pool: pool.clone(),
-        },
-        pool,
-    );
+    let node = Node {
+        inner: node,
+        pool: pool.clone(),
+    };
+
+    tokio::spawn({
+        let node = node.clone();
+        async move {
+            loop {
+                tokio::time::sleep(Duration::from_secs(300)).await;
+
+                let mut conn = node.pool.get().unwrap();
+                match db::positions::Position::get_all_open_positions(&mut conn) {
+                    Ok(positions) => {
+                        let positions = positions
+                            .into_iter()
+                            .filter(|p| {
+                                p.position_state == PositionState::Open
+                                    && OffsetDateTime::now_utc().ge(&p.expiry_timestamp)
+                            })
+                            .collect::<Vec<Position>>();
+
+                        for position in positions.iter() {
+                            tracing::debug!(%position.expiry_timestamp, "Attempting to closed expired position with {}", position.trader);
+                            let channel_id = match node.decide_trade_action(&position.trader) {
+                                Ok(TradeAction::Close(channel_id)) => channel_id,
+                                Ok(_) => {
+                                    tracing::error!(
+                                        ?position,
+                                        "Unable to find sub channel of expired position."
+                                    );
+                                    continue;
+                                }
+                                Err(e) => {
+                                    tracing::error!(
+                                        ?position,
+                                        "Failed to decide trade action. Error: {e:?}"
+                                    );
+                                    continue;
+                                }
+                            };
+
+                            // todo: fetch closing price from bitmex
+                            let closing_price = Decimal::from(30000);
+
+                            match node
+                                .close_position(position, closing_price, channel_id)
+                                .await
+                            {
+                                Ok(_) => tracing::info!(
+                                    "Successfully closed expired position with {}",
+                                    position.trader
+                                ),
+                                Err(e) => tracing::warn!(
+                                    ?position,
+                                    "Failed to close expired position with {}. Error: {e:?}",
+                                    position.trader
+                                ),
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        tracing::error!("Failed to get positions. Error: {e:?}");
+                    }
+                }
+                tokio::time::sleep(Duration::from_secs(600)).await;
+            }
+        }
+    });
+
+    let app = router(node, pool);
 
     tracing::debug!("listening on http://{}", http_address);
     axum::Server::bind(&http_address)

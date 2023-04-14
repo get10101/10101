@@ -15,11 +15,13 @@ pub struct NewPosition {
     pub expiry_timestamp: OffsetDateTime,
 }
 
+#[derive(PartialEq, Debug)]
 pub enum PositionState {
     Open,
     Closing,
 }
 
+#[derive(Debug)]
 pub struct Position {
     pub id: i32,
     pub contract_symbol: ContractSymbol,

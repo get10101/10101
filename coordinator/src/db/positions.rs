@@ -13,7 +13,7 @@ use std::any::TypeId;
 use time::OffsetDateTime;
 
 #[derive(Queryable, Debug, Clone)]
-pub(crate) struct Position {
+pub struct Position {
     pub id: i32,
     pub contract_symbol: ContractSymbol,
     pub leverage: f32,
@@ -42,6 +42,21 @@ impl Position {
             .optional()?;
 
         Ok(x.map(crate::position::models::Position::from))
+    }
+
+    pub fn get_all_open_positions(
+        conn: &mut PgConnection,
+    ) -> QueryResult<Vec<crate::position::models::Position>> {
+        let positions = positions::table
+            .filter(positions::position_state.eq(PositionState::Open))
+            .load::<Position>(conn)?;
+
+        let positions = positions
+            .into_iter()
+            .map(crate::position::models::Position::from)
+            .collect();
+
+        Ok(positions)
     }
 
     /// sets the status of all open position to closing (note, we expect that number to be always
