@@ -259,7 +259,9 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
       // TODO: this should not be required if we enable mobile loggers for FLog.
       if (Platform.isAndroid || Platform.isIOS) {
         FLog.logThis(
-            text: event.target != "" ? '${event.target}: ${event.msg}' : event.msg,
+            text: event.target != ""
+                ? '${event.target}: ${event.msg} ${event.data}'
+                : '${event.msg} ${event.data}',
             type: mapLogLevel(event.level));
       }
     });

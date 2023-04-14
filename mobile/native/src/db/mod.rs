@@ -114,6 +114,23 @@ pub fn insert_order(order: trade::order::Order) -> Result<trade::order::Order> {
 
 pub fn update_order_state(order_id: Uuid, order_state: trade::order::OrderState) -> Result<()> {
     let mut db = connection()?;
+
+    // We should not walk back the state of orders in general. Here we specifically want to prevent
+    // `Filling` orders from going back to `Open`.
+    if let trade::order::OrderState::Open = order_state {
+        let order = get_order(order_id)?;
+        let current_state = order.state;
+
+        use crate::trade::order::OrderState::*;
+        if let Rejected | Open | Filling { .. } | Failed { .. } | Filled { .. } = current_state {
+            tracing::debug!(
+                ?current_state,
+                "Ignoring order update; Open state is old news"
+            );
+            return Ok(());
+        };
+    }
+
     Order::update_state(order_id.to_string(), order_state.into(), &mut db)
         .context("Failed to update order state")?;
 
