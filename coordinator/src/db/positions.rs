@@ -30,13 +30,13 @@ pub(crate) struct Position {
 }
 
 impl Position {
-    /// Returns the position by id
+    /// Returns the position by trader pub key
     pub fn get_open_position_by_trader(
         conn: &mut PgConnection,
-        trader: String,
+        trader_pubkey: String,
     ) -> QueryResult<Option<crate::position::models::Position>> {
         let x = positions::table
-            .filter(positions::trader_pubkey.eq(trader))
+            .filter(positions::trader_pubkey.eq(trader_pubkey))
             .filter(positions::position_state.eq(PositionState::Open))
             .first::<Position>(conn)
             .optional()?;
