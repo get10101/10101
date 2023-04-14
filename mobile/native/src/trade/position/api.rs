@@ -36,6 +36,7 @@ pub struct Position {
     pub liquidation_price: f32,
     pub position_state: PositionState,
     pub collateral: u64,
+    pub expiry: i64,
 }
 
 impl From<position::PositionState> for PositionState {
@@ -58,6 +59,7 @@ impl From<position::Position> for Position {
             liquidation_price: value.liquidation_price,
             position_state: value.position_state.into(),
             collateral: value.collateral,
+            expiry: value.expiry.unix_timestamp(),
         }
     }
 }

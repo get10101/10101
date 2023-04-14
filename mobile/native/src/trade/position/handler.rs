@@ -89,7 +89,7 @@ pub fn update_position_after_dlc_creation(filled_order: Order, collateral: u64) 
 
     let average_entry_price = filled_order.execution_price().unwrap_or(0.0);
 
-    let tomorrow = OffsetDateTime::now_utc().date() + Duration::days(1);
+    let tomorrow = OffsetDateTime::now_utc().date() + Duration::days(2);
     let expiry = tomorrow.midnight().assume_utc();
 
     let have_a_position = Position {

@@ -66,7 +66,7 @@ impl Node {
         let margin_trader = margin_trader(trade_params);
         let margin_coordinator = margin_coordinator(trade_params);
 
-        let tomorrow = OffsetDateTime::now_utc().date() + Duration::days(1);
+        let tomorrow = OffsetDateTime::now_utc().date() + Duration::days(2);
         let expiry = tomorrow.midnight().assume_utc();
 
         let liquidation_price = liquidation_price(trade_params);

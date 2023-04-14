@@ -77,6 +77,7 @@ class TradeBottomSheetConfirmation extends StatelessWidget {
         Provider.of<TradeValuesChangeNotifier>(context).fromDirection(direction);
 
     Amount total = Amount(tradeValues.fee.sats + tradeValues.margin.sats);
+    DateTime now = DateTime.now().toUtc();
 
     return Container(
         padding: const EdgeInsets.all(20),
@@ -93,6 +94,10 @@ class TradeBottomSheetConfirmation extends StatelessWidget {
                     Wrap(
                       runSpacing: 10,
                       children: [
+                        ValueDataRow(
+                            type: ValueType.date,
+                            value: DateTime.utc(now.year, now.month, now.day + 2).toLocal(),
+                            label: 'Expiry'),
                         ValueDataRow(
                             type: ValueType.amount, value: tradeValues.margin, label: 'Margin'),
                         ValueDataRow(
