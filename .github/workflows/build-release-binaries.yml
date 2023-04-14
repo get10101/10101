@@ -131,7 +131,7 @@ jobs:
           SIGNING_STORE_PASSWORD: ${{ secrets.ANDROID_UPLOAD_SIGNING_STORE_PASSWORD }}
           ENCODED_KEYSTORE: ${{ secrets.ANDROID_UPLOAD_KEYSTORE }}
           ELECTRS_ENDPOINT: tcp://blockstream.info:110
-          COORDINATOR_P2P_ENDPOINT: 026e1de0e76902d71d2c27bfdda9d48c19c4c550f08bb4189d7208246e0e3af97e@35.189.57.114:9045
+          COORDINATOR_P2P_ENDPOINT: 022ae8dbec1caa4dac93f07f2ebf5ad7a5dd08d375b79f11095e81b065c2155156@34.30.20.202:9045
 
       - name: Upload APK to job
         uses: actions/upload-artifact@v3
