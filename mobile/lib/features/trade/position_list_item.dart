@@ -114,15 +114,6 @@ class PositionListItem extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.end,
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              OutlinedButton(
-                onPressed: () {
-                  // TODO: Navigate to details child screen (that also includes close button at the bottom)
-                },
-                child: const Text("Show Details"),
-              ),
-              const SizedBox(
-                width: 10,
-              ),
               ElevatedButton(
                 onPressed: notNullPosition.positionState == PositionState.closing
                     ? null
