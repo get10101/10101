@@ -32,7 +32,7 @@ log = "0.4.17"
 p2pd-oracle-client = { version = "0.1.0" }
 rand = "0.8.5"
 reqwest = { version = "0.11", default-features = false, features = ["json"] }
-secp256k1-zkp = { version = "0.7.0" }
+secp256k1-zkp = { version = "0.7.0", features = ["global-context"] }
 serde = "1.0.147"
 sha2 = "0.10"
 simple-wallet = "0.1.0"
