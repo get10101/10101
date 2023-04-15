@@ -171,7 +171,14 @@ impl Node {
                                 let filled_order = match order::handler::order_filled() {
                                     Ok(filled_order) => filled_order,
                                     Err(e) => {
-                                        tracing::error!("Critical Error! We have closed a DLC but were unable to set the order to filled: {e:#}");
+                                        tracing::warn!("Could not find a filling position in the database. This might be, because the coordinator closed an expired position. Error: {e:?}");
+
+                                        tokio::spawn(async {
+                                            match position::handler::close_position().await {
+                                                Ok(_) => tracing::info!("Successfully closed expired position."),
+                                                Err(e) => tracing::error!("Critical Error! We have a DLC but were unable to set the order to filled. Error: {e:?}")
+                                            }
+                                        });
                                         continue;
                                     }
                                 };

@@ -5,6 +5,8 @@ use crate::event::EventInternal;
 use crate::ln_dlc;
 use crate::trade::order;
 use crate::trade::order::Order;
+use crate::trade::order::OrderState;
+use crate::trade::order::OrderType;
 use crate::trade::position::Position;
 use crate::trade::position::PositionState;
 use anyhow::bail;
@@ -17,7 +19,9 @@ use orderbook_commons::Prices;
 use rust_decimal::prelude::ToPrimitive;
 use time::Duration;
 use time::OffsetDateTime;
+use trade::bitmex_client::BitmexClient;
 use trade::ContractSymbol;
+use uuid::Uuid;
 
 /// Sets up a trade with the counterparty
 ///
@@ -140,4 +144,48 @@ pub fn update_position_after_dlc_closure(filled_order: Order) -> Result<()> {
 pub fn price_update(prices: Prices) -> Result<()> {
     event::publish(&EventInternal::PriceUpdateNotification(prices));
     Ok(())
+}
+
+// fixme: This is not ideal, but closing the position after
+// the position has expired is not triggered by the app
+// through an order. Instead the coordinator simply proposes
+// a close position. In order to fixup the ui, we are
+// creating an order here and store it to the database.
+pub async fn close_position() -> Result<()> {
+    let positions = get_positions()
+        .await?
+        .into_iter()
+        .filter(|p| p.position_state == PositionState::Open)
+        .map(Position::from)
+        .collect::<Vec<Position>>();
+
+    let position = positions
+        .first()
+        .context("Exactly one positions should be open when trying to close a position")?;
+
+    tracing::debug!("Adding order for the expired closed position");
+
+    let quote = BitmexClient::get_quote(&position.expiry).await?;
+    let closing_price = match position.direction {
+        trade::Direction::Long => quote.bid_price,
+        trade::Direction::Short => quote.ask_price,
+    };
+
+    let order = Order {
+        id: Uuid::new_v4(),
+        leverage: position.leverage,
+        quantity: position.quantity,
+        contract_symbol: position.contract_symbol,
+        direction: position.direction.opposite(),
+        order_type: OrderType::Market,
+        state: OrderState::Filled {
+            execution_price: closing_price.to_f32().expect("to fit into f32"),
+        },
+        creation_timestamp: OffsetDateTime::now_utc(),
+    };
+
+    event::publish(&EventInternal::OrderUpdateNotification(order));
+
+    db::insert_order(order)?;
+    update_position_after_dlc_closure(order)
 }

@@ -3105,9 +3105,11 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "bdk",
+ "reqwest",
  "rust_decimal",
  "rust_decimal_macros",
  "serde",
+ "time 0.3.20",
 ]
 
 [[package]]

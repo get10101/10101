@@ -1,5 +1,6 @@
 use crate::db;
 use crate::position::models::NewPosition;
+use crate::position::models::Position;
 use anyhow::anyhow;
 use anyhow::bail;
 use anyhow::Context;
@@ -32,8 +33,6 @@ use ln_dlc_node::PeerManager;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use std::sync::Arc;
-use time::Duration;
-use time::OffsetDateTime;
 use trade::cfd;
 use trade::cfd::calculate_long_liquidation_price;
 use trade::cfd::calculate_margin;
@@ -45,16 +44,53 @@ use trade::Direction;
 /// The leverage used by the coordinator for all trades.
 const COORDINATOR_LEVERAGE: f32 = 1.0;
 
+#[derive(Clone)]
 pub struct Node {
     pub inner: Arc<ln_dlc_node::node::Node<PaymentMap>>,
     pub pool: Pool<ConnectionManager<PgConnection>>,
 }
 
 impl Node {
+    /// Returns true or false, whether we can find an useable channel with the provided trader.
+    ///
+    /// Note, we use the useable channel to implicitely check if the user is connected, as it
+    /// wouldn't be useable otherwise.
+    pub fn is_connected(&self, trader: &PublicKey) -> bool {
+        let useable_channels = self.inner.channel_manager.list_usable_channels();
+        let useable_channels = useable_channels
+            .iter()
+            .filter(|channel| channel.is_usable && channel.counterparty.node_id == *trader)
+            .collect::<Vec<_>>();
+
+        // should be exactly 1
+        !useable_channels.is_empty()
+    }
+
     pub async fn trade(&self, trade_params: &TradeParams) -> Result<()> {
-        match self.decide_trade_action(trade_params)? {
+        match self.decide_trade_action(&trade_params.pubkey)? {
             TradeAction::Open => self.open_position(trade_params).await?,
-            TradeAction::Close(channel_id) => self.close_position(trade_params, channel_id).await?,
+            TradeAction::Close(channel_id) => {
+                let trader_pk = trade_params.pubkey;
+                tracing::info!(
+                    order_id = %trade_params.filled_with.order_id,
+                    %trader_pk,
+                    "Closing position"
+                );
+
+                let closing_price = trade_params.average_execution_price();
+
+                let mut connection = self.pool.get()?;
+                let position = match db::positions::Position::get_open_position_by_trader(
+                    &mut connection,
+                    trade_params.pubkey.to_string(),
+                )? {
+                    Some(position) => position,
+                    None => bail!("Failed to find open position : {}", trade_params.pubkey),
+                };
+
+                self.close_position(&position, closing_price, channel_id)
+                    .await?
+            }
         };
 
         Ok(())
@@ -65,9 +101,6 @@ impl Node {
 
         let margin_trader = margin_trader(trade_params);
         let margin_coordinator = margin_coordinator(trade_params);
-
-        let tomorrow = OffsetDateTime::now_utc().date() + Duration::days(2);
-        let expiry = tomorrow.midnight().assume_utc();
 
         let liquidation_price = liquidation_price(trade_params);
 
@@ -83,7 +116,7 @@ impl Node {
                 .expect("to fit into f32"),
             liquidation_price,
             collateral: margin_coordinator as i64,
-            expiry_timestamp: expiry,
+            expiry_timestamp: trade_params.filled_with.expiry_timestamp,
         };
 
         let connection = &mut self.pool.get()?;
@@ -132,30 +165,12 @@ impl Node {
         Ok(())
     }
 
-    async fn close_position(
+    pub async fn close_position(
         &self,
-        trade_params: &TradeParams,
+        position: &Position,
+        closing_price: Decimal,
         channel_id: ChannelId,
     ) -> Result<()> {
-        let trader_pk = trade_params.pubkey;
-
-        tracing::info!(
-            order_id = %trade_params.filled_with.order_id,
-            %trader_pk,
-            "Closing position"
-        );
-
-        let closing_price = trade_params.average_execution_price();
-
-        let mut connection = self.pool.get()?;
-        let position = match db::positions::Position::get_open_position_by_trader(
-            &mut connection,
-            trade_params.pubkey.to_string(),
-        )? {
-            Some(position) => position,
-            None => bail!("Failed to find open position : {}", trade_params.pubkey),
-        };
-
         let opening_price = Decimal::try_from(position.average_entry_price)?;
 
         let leverage_long = leverage_long(position.direction, position.leverage);
@@ -164,7 +179,7 @@ impl Node {
         let accept_settlement_amount = calculate_accept_settlement_amount(
             opening_price,
             closing_price,
-            trade_params.quantity,
+            position.quantity,
             leverage_long,
             leverage_short,
             position.direction,
@@ -172,18 +187,17 @@ impl Node {
 
         tracing::debug!(
             "Settling position of {accept_settlement_amount} with {}",
-            trade_params.pubkey
+            position.trader.to_string()
         );
 
         self.inner
             .propose_dlc_channel_collaborative_settlement(&channel_id, accept_settlement_amount)?;
 
+        let mut connection = self.pool.get()?;
         db::positions::Position::set_open_position_to_closing(
             &mut connection,
-            trade_params.pubkey.to_string(),
-        )?;
-
-        Ok(())
+            position.trader.to_string(),
+        )
     }
 
     /// Decides what trade action should be performed according to the
@@ -201,8 +215,8 @@ impl Node {
     /// 3. If a position of differing quantity is found, we direct the
     /// caller to extend or reduce the position. _This is currently
     /// not supported_.
-    fn decide_trade_action(&self, trade_params: &TradeParams) -> Result<TradeAction> {
-        let action = match self.inner.get_dlc_channel_signed(&trade_params.pubkey)? {
+    pub fn decide_trade_action(&self, trader: &PublicKey) -> Result<TradeAction> {
+        let action = match self.inner.get_dlc_channel_signed(trader)? {
             Some(subchannel) => {
                 // FIXME: Should query the database for more
                 // information
@@ -230,7 +244,7 @@ impl Node {
     }
 }
 
-enum TradeAction {
+pub enum TradeAction {
     Open,
     Close(ChannelId),
     // Extend,

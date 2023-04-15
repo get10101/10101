@@ -63,9 +63,8 @@ pub fn match_order(
         return Ok(None);
     }
 
-    // For now we go for 1 week contracts, this has been chosen randomly and should be chosen wisely
-    // once we move to perpetuals
-    let expiry_timestamp = OffsetDateTime::now_utc() + Duration::days(7);
+    let tomorrow = OffsetDateTime::now_utc().date() + Duration::days(2);
+    let expiry_timestamp = tomorrow.midnight().assume_utc();
 
     // For now we hardcode the oracle pubkey here
     let oracle_pk = XOnlyPublicKey::from_str(
