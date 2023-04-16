@@ -68,7 +68,7 @@ async fn main() -> Result<()> {
 
     let node = Arc::new(
         ln_dlc_node::node::Node::new_coordinator(
-            "coordinator",
+            "10101.finance",
             network,
             data_dir.as_path(),
             PaymentMap::default(),
