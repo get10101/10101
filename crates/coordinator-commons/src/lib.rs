@@ -48,3 +48,17 @@ impl TradeParams {
         self.filled_with.average_execution_price()
     }
 }
+
+/// Registration details for enrolling into the beta program
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RegisterParams {
+    pub pubkey: PublicKey,
+    pub email: Option<String>,
+    pub nostr: Option<String>,
+}
+
+impl RegisterParams {
+    pub fn is_valid(&self) -> bool {
+        self.email.is_some() || self.nostr.is_some()
+    }
+}

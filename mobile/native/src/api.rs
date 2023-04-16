@@ -218,7 +218,8 @@ pub fn get_seed_phrase() -> Result<SyncReturn<Vec<String>>> {
     Ok(SyncReturn(seed_phrase))
 }
 
-pub fn register_beta(email: String) -> Result<()> {
-    tracing::debug!("Registering beta user: {}", email);
-    Ok(())
+/// Enroll a user in the beta program
+#[tokio::main(flavor = "current_thread")]
+pub async fn register_beta(email: String) -> Result<()> {
+    order::register_beta(email).await
 }

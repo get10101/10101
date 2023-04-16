@@ -1,3 +1,4 @@
+use crate::node::process_incoming_messages_internal;
 use crate::node::Node;
 use crate::orderbook::routes::delete_order;
 use crate::orderbook::routes::get_order;
@@ -16,6 +17,7 @@ use axum::routing::post;
 use axum::Json;
 use axum::Router;
 use bitcoin::secp256k1::PublicKey;
+use coordinator_commons::RegisterParams;
 use coordinator_commons::TradeParams;
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::Pool;
@@ -68,6 +70,7 @@ pub fn router(node: Node, pool: Pool<ConnectionManager<PgConnection>>) -> Router
         )
         .route("/api/orderbook/websocket", get(websocket_handler))
         .route("/api/trade", post(post_trade))
+        .route("/api/register", post(post_register))
         .route("/api/admin/channels", get(list_channels).post(open_channel))
         .route("/api/admin/channels/:channel_id", delete(close_channel))
         .route("/api/admin/peers", get(list_peers))
@@ -173,5 +176,19 @@ pub async fn post_trade(
         AppError::InternalServerError(format!("Could not handle trade request: {e:#}"))
     })?;
 
+    Ok(())
+}
+
+pub async fn post_register(
+    State(_state): State<Arc<AppState>>,
+    params: Json<RegisterParams>,
+) -> Result<(), AppError> {
+    let register_params = params.0;
+    if !register_params.is_valid() {
+        return Err(AppError::BadRequest(format!(
+            "Invalid registration parameters: {register_params:?}"
+        )));
+    }
+    tracing::info!(?register_params, "Registered new user");
     Ok(())
 }
