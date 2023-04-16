@@ -8,8 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [1.0.5] - 2023-04-16
-
+- Announce coordinator with 10101.finance
 ## [1.0.4] - 2023-04-14
+- Add new api to sign text with node
+- Auto settle expired positions
 
 ## [1.0.3] - 2023-04-14
 
