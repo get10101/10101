@@ -11,14 +11,6 @@ use dlc_messages::Message;
 use dlc_messages::SubChannelMessage;
 use lightning::ln::channelmanager::ChannelDetails;
 
-#[derive(Debug, Copy, Clone)]
-pub struct Dlc {
-    pub id: [u8; 32],
-    pub offer_collateral: u64,
-    pub accept_collateral: u64,
-    pub accept_pk: PublicKey,
-}
-
 impl<P> Node<P> {
     pub async fn propose_dlc_channel(
         &self,

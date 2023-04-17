@@ -5,19 +5,19 @@ use anyhow::anyhow;
 use anyhow::Context;
 use anyhow::Result;
 use bdk::TransactionDetails;
+use dlc_messages::sub_channel::SubChannelFinalize;
 use dlc_messages::Message;
 use dlc_messages::SubChannelMessage;
 use lightning::ln::PaymentHash;
 use lightning::ln::PaymentPreimage;
 use lightning::ln::PaymentSecret;
+use ln_dlc_node::node::rust_dlc_manager::contract::signed_contract::SignedContract;
 use ln_dlc_node::node::rust_dlc_manager::contract::Contract;
 use ln_dlc_node::node::rust_dlc_manager::Storage;
 use ln_dlc_node::node::sub_channel_message_as_str;
-use ln_dlc_node::node::DlcManager;
 use ln_dlc_node::node::NodeInfo;
 use ln_dlc_node::node::PaymentDetails;
 use ln_dlc_node::node::PaymentPersister;
-use ln_dlc_node::Dlc;
 use ln_dlc_node::HTLCStatus;
 use ln_dlc_node::MillisatAmount;
 use ln_dlc_node::PaymentFlow;
@@ -142,10 +142,32 @@ impl Node {
                             .send_message(node_id, Message::SubChannel(reply_msg.clone()));
 
                         match reply_msg {
-                            SubChannelMessage::Finalize(_) => {
-                                let accept_collateral =
-                                    get_first_confirmed_dlc(&self.inner.dlc_manager)?
-                                        .accept_collateral;
+                            SubChannelMessage::Finalize(SubChannelFinalize {
+                                channel_id, ..
+                            }) => {
+                                let contract = self
+                                    .inner
+                                    .dlc_manager
+                                    .get_store()
+                                    .get_contract(&channel_id)
+                                    .map_err(|e| anyhow!("{e:#}"))?
+                                    .with_context(|| {
+                                        format!(
+                                            "Contract not found for channel ID: {}",
+                                            hex::encode(channel_id)
+                                        )
+                                    })?;
+
+                                let accept_collateral = match contract {
+                                    Contract::Confirmed(SignedContract {
+                                        accepted_contract,
+                                        ..
+                                    }) => accepted_contract.accept_params.collateral,
+                                    state => {
+                                        tracing::error!(actual = ?state, "Expected contract in confirmed state");
+                                        continue;
+                                    }
+                                };
 
                                 let filled_order = match order::handler::order_filled() {
                                     Ok(filled_order) => filled_order,
@@ -235,41 +257,6 @@ impl Node {
             tokio::time::sleep(reconnect_interval).await;
         }
     }
-}
-
-fn get_first_confirmed_dlc(dlc_manager: &DlcManager) -> Result<Dlc> {
-    let contracts = dlc_manager
-        .get_store()
-        .get_contracts()
-        .map_err(|e| anyhow!("Unable to get contracts from manager: {e:#}"))?;
-
-    tracing::debug!(
-        ?contracts,
-        "Looking for latest confirmed DLC among all contracts"
-    );
-
-    let confirmed_dlcs = contracts
-        .iter()
-        .filter_map(|contract| match contract {
-            Contract::Confirmed(signed) => Some((contract.get_id(), signed)),
-            _ => None,
-        })
-        .map(|(id, signed)| Dlc {
-            id,
-            offer_collateral: signed
-                .accepted_contract
-                .offered_contract
-                .offer_params
-                .collateral,
-            accept_collateral: signed.accepted_contract.accept_params.collateral,
-            accept_pk: signed.accepted_contract.offered_contract.counter_party,
-        })
-        .collect::<Vec<_>>();
-
-    confirmed_dlcs
-        .first()
-        .context("No confirmed DLC found")
-        .copied()
 }
 
 #[derive(Clone)]
