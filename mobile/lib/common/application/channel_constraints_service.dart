@@ -2,6 +2,7 @@ class ChannelConstraintsService {
   const ChannelConstraintsService();
 
   int getLightningChannelCapacity() {
+    // TODO: Fetch from backend
     // This value is what we agree on as channel capacity cap for the beta
     return 200000;
   }
