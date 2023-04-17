@@ -46,9 +46,13 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
     // it can go below 0 if the user has an unbalanced channel
     int maxAmount = max(usableChannelCapacity - balance, 0);
 
-    int minAmount = channelConstraintsService.getChannelReserve() +
-        channelConstraintsService.getFeeReserve() +
-        channelConstraintsService.getMinTradeMargin();
+    // if we already have a balance that is > 5666 then 1 is the minimum to receive
+    int minAmount = max(
+        channelConstraintsService.getChannelReserve() +
+            channelConstraintsService.getFeeReserve() +
+            channelConstraintsService.getMinTradeMargin() -
+            balance,
+        1);
 
     return Scaffold(
       appBar: AppBar(title: const Text("Receive funds")),

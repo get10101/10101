@@ -4,7 +4,7 @@ import 'package:intl/intl.dart';
 import 'amount_text.dart';
 import 'fiat_text.dart';
 
-enum ValueType { date, amount, fiat, percentage, contracts, loading }
+enum ValueType { date, amount, fiat, percentage, contracts, loading, text }
 
 class ValueDataRow extends StatelessWidget {
   final ValueType type;
@@ -48,6 +48,10 @@ class ValueDataRow extends StatelessWidget {
         break;
       case ValueType.date:
         widget = Text(DateFormat('dd.MM.yy-kk:mm').format(value), style: valueTextStyle);
+        break;
+      case ValueType.text:
+        widget = SizedBox(
+            width: 100, child: Text(value, style: valueTextStyle, overflow: TextOverflow.ellipsis));
         break;
     }
 

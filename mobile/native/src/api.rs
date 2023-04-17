@@ -14,11 +14,18 @@ use crate::trade::order::api::NewOrder;
 use crate::trade::order::api::Order;
 use crate::trade::position;
 use crate::trade::position::api::Position;
+use anyhow::Context;
 use anyhow::Result;
 use flutter_rust_bridge::frb;
 use flutter_rust_bridge::StreamSink;
 use flutter_rust_bridge::SyncReturn;
+use lightning_invoice::Invoice;
+use lightning_invoice::InvoiceDescription;
 use std::backtrace::Backtrace;
+use std::ops::Add;
+use std::str::FromStr;
+use std::time::Duration;
+use std::time::SystemTime;
 pub use trade::ContractSymbol;
 pub use trade::Direction;
 
@@ -222,4 +229,45 @@ pub fn get_seed_phrase() -> Result<SyncReturn<Vec<String>>> {
 #[tokio::main(flavor = "current_thread")]
 pub async fn register_beta(email: String) -> Result<()> {
     order::register_beta(email).await
+}
+
+pub struct LightningInvoice {
+    pub description: String,
+    pub amount_sats: u64,
+    pub timestamp: u64,
+    pub payee: String,
+    pub expiry: u64,
+}
+
+pub fn decode_invoice(invoice: String) -> Result<LightningInvoice> {
+    anyhow::ensure!(!invoice.is_empty(), "received empty invoice");
+    let invoice = &Invoice::from_str(&invoice).context("Could not parse invoice string")?;
+    let description = match invoice.description() {
+        InvoiceDescription::Direct(direct) => direct.to_string(),
+        InvoiceDescription::Hash(_) => "".to_string(),
+    };
+
+    let timestamp = invoice.timestamp();
+
+    let expiry = timestamp
+        .add(Duration::from_secs(invoice.expiry_time().as_secs()))
+        .duration_since(SystemTime::UNIX_EPOCH)?
+        .as_secs();
+
+    let timestamp = timestamp.duration_since(SystemTime::UNIX_EPOCH)?.as_secs();
+
+    let payee = match invoice.payee_pub_key() {
+        Some(pubkey) => pubkey.to_string(),
+        None => invoice.recover_payee_pub_key().to_string(),
+    };
+
+    let amount_sats = (invoice.amount_milli_satoshis().unwrap_or(0) as f64 / 1000.0) as u64;
+
+    Ok(LightningInvoice {
+        description,
+        timestamp,
+        expiry,
+        amount_sats,
+        payee,
+    })
 }
