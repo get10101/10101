@@ -115,7 +115,7 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
                               "While in beta, channel capacity is limited to $channelCapacity sats; payments above this capacity might get rejected."
                               "\n\nYour current balance is $balance, so you can receive up to $maxAmount sats."
                               "\nIf you hold less than $minAmount or more than $totalMaxAmount in your wallet you might not be able to trade."
-                              "\n\nThis restriction is only enforced initially to ensure users only trade with small stakes until the software has proven to be stable.",
+                              "\n\nThe maximum is enforced initially to ensure users only trade with small stakes until the software has proven to be stable.",
                           buttonText: "Back to Receive..."),
                   ],
                 ),
