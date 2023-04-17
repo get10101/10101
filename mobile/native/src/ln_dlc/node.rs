@@ -199,12 +199,6 @@ impl Node {
             }
         }
 
-        // NOTE: According to the docs of `process_events` we shouldn't have to call this since we
-        // use `lightning-net-tokio`. But we copied this from `p2pderivatives/ldk-sample`
-        if self.inner.dlc_message_handler.has_pending_messages() {
-            self.inner.peer_manager.process_events();
-        }
-
         Ok(())
     }
 

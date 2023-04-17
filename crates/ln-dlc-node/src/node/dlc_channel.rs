@@ -171,7 +171,6 @@ impl<P> Node<P> {
         let dlc_message_handler = &self.dlc_message_handler;
         let dlc_manager = &self.dlc_manager;
         let sub_channel_manager = &self.sub_channel_manager;
-        let peer_manager = &self.peer_manager;
         let messages = dlc_message_handler.get_and_clear_received_messages();
 
         for (node_id, msg) in messages {
@@ -207,13 +206,6 @@ impl<P> Node<P> {
                     }
                 }
             }
-        }
-
-        // NOTE: According to the docs of `process_events` we shouldn't have to call this since
-        // we use `lightning-net-tokio`. But we copied this from
-        // `p2pderivatives/ldk-sample`
-        if dlc_message_handler.has_pending_messages() {
-            peer_manager.process_events();
         }
 
         Ok(())
