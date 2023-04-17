@@ -2,7 +2,6 @@ use crate::db;
 use crate::trade::order;
 use crate::trade::position;
 use anyhow::anyhow;
-use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
 use bdk::bitcoin::secp256k1::PublicKey;
@@ -174,27 +173,31 @@ impl Node {
 
                     match reply_msg {
                         SubChannelMessage::Finalize(SubChannelFinalize { channel_id, .. }) => {
-                            let contract = self
+                            let contracts = self
                                 .inner
                                 .dlc_manager
                                 .get_store()
-                                .get_contract(&channel_id)
-                                .map_err(|e| anyhow!("{e:#}"))?
+                                .get_contracts()
+                                .map_err(|e| anyhow!("{e:#}"))?;
+
+                            let accept_collateral = contracts
+                                .iter()
+                                .find_map(|contract| match contract {
+                                    Contract::Confirmed(SignedContract {
+                                        accepted_contract,
+                                        channel_id: Some(candidate_channel_id),
+                                        ..
+                                    }) if &channel_id == candidate_channel_id => {
+                                        Some(accepted_contract.accept_params.collateral)
+                                    }
+                                    _ => None,
+                                })
                                 .with_context(|| {
                                     format!(
-                                        "Contract not found for channel ID: {}",
+                                        "Confirmed contract not found for channel ID: {}",
                                         hex::encode(channel_id)
                                     )
                                 })?;
-
-                            let accept_collateral = match contract {
-                                Contract::Confirmed(SignedContract {
-                                    accepted_contract, ..
-                                }) => accepted_contract.accept_params.collateral,
-                                state => {
-                                    bail!("Expected contract in confirmed state, got {state:?}");
-                                }
-                            };
 
                             let filled_order = order::handler::order_filled()
                                 .context("Cannot mark order as filled for confirmed DLC")?;
