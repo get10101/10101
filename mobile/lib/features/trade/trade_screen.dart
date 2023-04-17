@@ -118,7 +118,7 @@ class TradeScreen extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   SizedBox(
-                    height: 300,
+                    height: 250,
                     child: Candlesticks(
                       candles: candlestickChangeNotifier.candles,
                     ),

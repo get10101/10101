@@ -27,7 +27,7 @@ class PositionListItem extends StatelessWidget {
 
     // dart cannot promote...
     Position notNullPosition = position!;
-    TextStyle dataRowStyle = const TextStyle(fontSize: 16);
+    TextStyle dataRowStyle = const TextStyle(fontSize: 14);
 
     return Card(
       child: Padding(
@@ -66,7 +66,7 @@ class PositionListItem extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 10),
                 child: Wrap(
-                  runSpacing: 10,
+                  runSpacing: 5,
                   children: [
                     notNullPosition.unrealizedPnl == null
                         ? const ValueDataRow(
