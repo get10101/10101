@@ -217,3 +217,9 @@ pub fn get_seed_phrase() -> Result<SyncReturn<Vec<String>>> {
     let seed_phrase = ln_dlc::get_seed_phrase()?;
     Ok(SyncReturn(seed_phrase))
 }
+
+/// Enroll a user in the beta program
+#[tokio::main(flavor = "current_thread")]
+pub async fn register_beta(email: String) -> Result<()> {
+    order::register_beta(email).await
+}

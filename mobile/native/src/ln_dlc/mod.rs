@@ -400,7 +400,7 @@ pub async fn trade(trade_params: TradeParams) -> Result<(), (FailureReason, anyh
         .json(&trade_params)
         .send()
         .await
-        .context("Failed to request trade with coordinator")
+        .context("Failed to register with coordinator")
         .map_err(|e| (FailureReason::TradeRequest, e))?;
 
     if !response.status().is_success() {

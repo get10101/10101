@@ -28,6 +28,9 @@ pub async fn submit_order(order: Order) -> Result<()> {
         let order_id = order.id.to_string();
         tracing::error!(order_id, "Failed to post new order. Error: {err:#}");
         update_order_state_in_db_and_ui(order.id, OrderState::Rejected)?;
+        if let Err(e) = position::handler::set_position_to_open() {
+            bail!("Could not reset position to open because of {e:#}");
+        }
         bail!("Could not post order to orderbook");
     }
 

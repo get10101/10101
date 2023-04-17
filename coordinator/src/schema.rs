@@ -60,4 +60,13 @@ diesel::table! {
     }
 }
 
-diesel::allow_tables_to_appear_in_same_query!(orders, positions,);
+diesel::table! {
+    users (id) {
+        id -> Int4,
+        pubkey -> Text,
+        email -> Text,
+        nostr -> Text,
+    }
+}
+
+diesel::allow_tables_to_appear_in_same_query!(orders, positions, users,);

@@ -29,8 +29,10 @@ import 'package:get_10101/features/wallet/wallet_change_notifier.dart';
 import 'package:get_10101/features/wallet/wallet_screen.dart';
 import 'package:get_10101/common/app_bar_wrapper.dart';
 import 'package:get_10101/features/wallet/wallet_theme.dart';
+import 'package:get_10101/features/welcome/welcome_screen.dart';
 import 'package:get_10101/util/constants.dart';
 import 'package:get_10101/util/environment.dart';
+import 'package:get_10101/util/preferences.dart';
 import 'package:go_router/go_router.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
@@ -84,91 +86,110 @@ class TenTenOneApp extends StatefulWidget {
 
 class _TenTenOneAppState extends State<TenTenOneApp> {
   final GoRouter _router = GoRouter(
-    navigatorKey: _rootNavigatorKey,
-    initialLocation: WalletScreen.route,
-    routes: <RouteBase>[
-      ShellRoute(
-        navigatorKey: _shellNavigatorKey,
-        builder: (BuildContext context, GoRouterState state, Widget child) {
-          return ScaffoldWithNavBar(child: child);
-        },
-        routes: <RouteBase>[
-          GoRoute(
-            path: WalletScreen.route,
-            builder: (BuildContext context, GoRouterState state) {
-              return const WalletScreen();
-            },
-            routes: <RouteBase>[
-              GoRoute(
-                path: SendScreen.subRouteName,
-                // Use root navigator so the screen overlays the application shell
-                parentNavigatorKey: _rootNavigatorKey,
-                builder: (BuildContext context, GoRouterState state) {
-                  return const SendScreen();
-                },
-              ),
-              GoRoute(
-                path: SeedScreen.subRouteName,
-                // Use root navigator so the screen overlays the application shell
-                parentNavigatorKey: _rootNavigatorKey,
-                builder: (BuildContext context, GoRouterState state) {
-                  return const SeedScreen();
-                },
-              ),
-              GoRoute(
-                  path: CreateInvoiceScreen.subRouteName,
+      navigatorKey: _rootNavigatorKey,
+      initialLocation: WalletScreen.route,
+      routes: <RouteBase>[
+        ShellRoute(
+          navigatorKey: _shellNavigatorKey,
+          builder: (BuildContext context, GoRouterState state, Widget child) {
+            return ScaffoldWithNavBar(
+              child: child,
+            );
+          },
+          routes: <RouteBase>[
+            GoRoute(
+              path: WalletScreen.route,
+              builder: (BuildContext context, GoRouterState state) {
+                return const WalletScreen();
+              },
+              routes: <RouteBase>[
+                GoRoute(
+                  path: SendScreen.subRouteName,
                   // Use root navigator so the screen overlays the application shell
                   parentNavigatorKey: _rootNavigatorKey,
                   builder: (BuildContext context, GoRouterState state) {
-                    return const CreateInvoiceScreen();
+                    return const SendScreen();
                   },
-                  routes: [
-                    GoRoute(
-                      path: ShareInvoiceScreen.subRouteName,
-                      // Use root navigator so the screen overlays the application shell
-                      parentNavigatorKey: _rootNavigatorKey,
-                      builder: (BuildContext context, GoRouterState state) {
-                        return ShareInvoiceScreen(invoice: state.extra as String);
-                      },
-                    ),
-                  ]),
-              GoRoute(
-                path: ScannerScreen.subRouteName,
-                parentNavigatorKey: _rootNavigatorKey,
-                builder: (BuildContext context, GoRouterState state) {
-                  return const ScannerScreen();
-                },
-              ),
-              GoRoute(
-                  path: WalletSettingsScreen.subRouteName,
+                ),
+                GoRoute(
+                  path: SeedScreen.subRouteName,
+                  // Use root navigator so the screen overlays the application shell
                   parentNavigatorKey: _rootNavigatorKey,
                   builder: (BuildContext context, GoRouterState state) {
-                    return const WalletSettingsScreen();
-                  })
-            ],
-          ),
-          GoRoute(
-            path: TradeScreen.route,
+                    return const SeedScreen();
+                  },
+                ),
+                GoRoute(
+                    path: CreateInvoiceScreen.subRouteName,
+                    // Use root navigator so the screen overlays the application shell
+                    parentNavigatorKey: _rootNavigatorKey,
+                    builder: (BuildContext context, GoRouterState state) {
+                      return const CreateInvoiceScreen();
+                    },
+                    routes: [
+                      GoRoute(
+                        path: ShareInvoiceScreen.subRouteName,
+                        // Use root navigator so the screen overlays the application shell
+                        parentNavigatorKey: _rootNavigatorKey,
+                        builder: (BuildContext context, GoRouterState state) {
+                          return ShareInvoiceScreen(invoice: state.extra as String);
+                        },
+                      ),
+                    ]),
+                GoRoute(
+                  path: ScannerScreen.subRouteName,
+                  parentNavigatorKey: _rootNavigatorKey,
+                  builder: (BuildContext context, GoRouterState state) {
+                    return const ScannerScreen();
+                  },
+                ),
+                GoRoute(
+                    path: WalletSettingsScreen.subRouteName,
+                    parentNavigatorKey: _rootNavigatorKey,
+                    builder: (BuildContext context, GoRouterState state) {
+                      return const WalletSettingsScreen();
+                    })
+              ],
+            ),
+            GoRoute(
+              path: TradeScreen.route,
+              builder: (BuildContext context, GoRouterState state) {
+                return const TradeScreen();
+              },
+              routes: <RouteBase>[
+                GoRoute(
+                    path: TradeSettingsScreen.subRouteName,
+                    parentNavigatorKey: _rootNavigatorKey,
+                    builder: (BuildContext context, GoRouterState state) {
+                      return const TradeSettingsScreen();
+                    })
+              ],
+            ),
+          ],
+        ),
+        GoRoute(
+            path: WelcomeScreen.route,
+            parentNavigatorKey: _rootNavigatorKey,
             builder: (BuildContext context, GoRouterState state) {
-              return const TradeScreen();
+              return const WelcomeScreen();
             },
-            routes: <RouteBase>[
-              GoRoute(
-                  path: TradeSettingsScreen.subRouteName,
-                  parentNavigatorKey: _rootNavigatorKey,
-                  builder: (BuildContext context, GoRouterState state) {
-                    return const TradeSettingsScreen();
-                  })
-            ],
-          ),
-        ],
-      ),
-    ],
-  );
+            routes: const []),
+      ],
+      redirect: (BuildContext context, GoRouterState state) async {
+        // TODO: It's not optimal that we read this from shared prefs every time, should probably be set through a provider
+        final hasEmailAddress = await Preferences.instance.hasEmailAddress();
+        if (!hasEmailAddress) {
+          FLog.info(text: "adding the email...");
+          return WelcomeScreen.route;
+        }
+
+        return null;
+      });
 
   @override
   void initState() {
     super.initState();
+
     init(
         context.read<bridge.Config>(),
         context.read<OrderChangeNotifier>(),

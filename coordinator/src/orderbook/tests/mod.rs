@@ -1,3 +1,4 @@
+mod registration_test;
 mod sample_test;
 
 use crate::run_migration;
@@ -6,11 +7,23 @@ use diesel::r2d2;
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::PooledConnection;
 use diesel::PgConnection;
+use std::sync::Once;
 use testcontainers::clients::Cli;
 use testcontainers::core::WaitFor;
 use testcontainers::images;
 use testcontainers::images::generic::GenericImage;
 use testcontainers::Container;
+
+pub fn init_tracing() {
+    static TRACING_TEST_SUBSCRIBER: Once = Once::new();
+
+    TRACING_TEST_SUBSCRIBER.call_once(|| {
+        tracing_subscriber::fmt()
+            .with_env_filter("debug")
+            .with_test_writer()
+            .init()
+    })
+}
 
 pub fn start_postgres(docker: &Cli) -> Result<(Container<GenericImage>, String)> {
     let db = "postgres-db-test";
