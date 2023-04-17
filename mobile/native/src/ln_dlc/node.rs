@@ -182,14 +182,15 @@ impl Node {
 
                             let accept_collateral = contracts
                                 .iter()
+                                // Taking the first `Confirmed` contract we find is just a
+                                // heuristic. Ideally we would be able to match against the
+                                // `ContractId` or the `ChannelId`, but the information is not
+                                // guaranteed to be there
                                 .find_map(|contract| match contract {
                                     Contract::Confirmed(SignedContract {
                                         accepted_contract,
-                                        channel_id: Some(candidate_channel_id),
                                         ..
-                                    }) if &channel_id == candidate_channel_id => {
-                                        Some(accepted_contract.accept_params.collateral)
-                                    }
+                                    }) => Some(accepted_contract.accept_params.collateral),
                                     _ => None,
                                 })
                                 .with_context(|| {
