@@ -48,7 +48,7 @@ flutter:
         - asset: fonts/SendReceiveIcons.ttf
 flutter_native_splash:
   color: "#FFFFFF"
-  image: assets/10101.finance_logo_1500x1500.png
+  image: assets/LaunchImage.png
   android_12: null
 flutter_icons:
   android: true
