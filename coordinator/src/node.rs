@@ -29,7 +29,6 @@ use ln_dlc_node::node::sub_channel_message_as_str;
 use ln_dlc_node::node::DlcManager;
 use ln_dlc_node::node::PaymentMap;
 use ln_dlc_node::node::SubChannelManager;
-use ln_dlc_node::PeerManager;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use std::sync::Arc;
@@ -446,7 +445,6 @@ pub fn process_incoming_messages_internal(
     dlc_message_handler: &DlcMessageHandler,
     dlc_manager: &DlcManager,
     sub_channel_manager: &SubChannelManager,
-    peer_manager: &PeerManager,
 ) -> Result<()> {
     let messages = dlc_message_handler.get_and_clear_received_messages();
 
@@ -483,12 +481,6 @@ pub fn process_incoming_messages_internal(
                 }
             }
         }
-    }
-
-    // NOTE: According to the docs of `process_events` we shouldn't have to call this since we
-    // use `lightning-net-tokio`. But we copied this from `p2pderivatives/ldk-sample`
-    if dlc_message_handler.has_pending_messages() {
-        peer_manager.process_events();
     }
 
     Ok(())

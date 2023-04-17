@@ -99,15 +99,12 @@ async fn main() -> Result<()> {
         let sub_channel_manager = node.sub_channel_manager.clone();
         tokio::spawn({
             let dlc_message_handler = node.dlc_message_handler.clone();
-            let peer_manager = node.peer_manager.clone();
-
             async move {
                 loop {
                     if let Err(e) = node::process_incoming_messages_internal(
                         &dlc_message_handler,
                         &dlc_manager,
                         &sub_channel_manager,
-                        &peer_manager,
                     ) {
                         tracing::error!("Unable to process internal message: {e:#}");
                     }
