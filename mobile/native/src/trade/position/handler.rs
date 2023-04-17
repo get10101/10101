@@ -82,6 +82,19 @@ pub fn update_position_after_order_submitted(submitted_order: Order) -> Result<(
     Ok(())
 }
 
+/// Resets the position to open again
+///
+/// This should be called if a went in a dirty state, e.g. the position is currently in
+/// `PositionState::Closing` but we didn't find a match.
+pub fn set_position_to_open() -> Result<()> {
+    if let Some(position) = db::get_positions()?.first() {
+        db::update_position_state(position.contract_symbol, PositionState::Open)?;
+        event::publish(&EventInternal::PositionUpdateNotification(position.clone()));
+    }
+
+    Ok(())
+}
+
 /// Create a position after the creation of a DLC channel.
 pub fn update_position_after_dlc_creation(filled_order: Order, collateral: u64) -> Result<()> {
     ensure!(
