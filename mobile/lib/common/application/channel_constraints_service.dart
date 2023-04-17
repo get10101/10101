@@ -8,8 +8,11 @@ class ChannelConstraintsService {
 
   int getChannelReserve() {
     // TODO: Fetch from backend
-    // This is the minimum value that has to remain in the channel. It is defined in rust-lightning and we should fetch this value from the corresponding constant in the backend.
-    return 1000;
+    // This is the minimum value that has to remain in the channel.
+    // It is defined by the transaction fees needed to close the channel (commit tx).
+    // This fee is dynamically calculated when opening the channel, but for the beta we define a maximum of 20 sats/vbyte.
+    // For simplicity we use this maximum value as hardcoded channel reserve.
+    return 3100;
   }
 
   int getFeeReserve() {
