@@ -73,7 +73,9 @@ pub fn update_position_after_order_submitted(submitted_order: Order) -> Result<(
             && position.quantity == submitted_order.quantity
         {
             db::update_position_state(position.contract_symbol, PositionState::Closing)?;
-            event::publish(&EventInternal::PositionUpdateNotification(position.clone()));
+            let mut position = position.clone();
+            position.position_state = PositionState::Closing;
+            event::publish(&EventInternal::PositionUpdateNotification(position));
         } else {
             bail!("Currently not possible to extend or reduce a position, you can only close the position with a counter-order");
         }
