@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:get_10101/common/application/channel_constraints_service.dart';
 import 'package:get_10101/common/domain/model.dart';
 import 'package:get_10101/features/trade/application/trade_values_service.dart';
 import 'package:get_10101/features/trade/domain/direction.dart';
@@ -12,6 +13,7 @@ import 'domain/trade_values.dart';
 
 class TradeValuesChangeNotifier extends ChangeNotifier implements Subscriber {
   final TradeValuesService tradeValuesService;
+  final ChannelConstraintsService _channelConstraintsService;
 
   // The trade values are represented as Order domain, because that's essentially what they are
   late final TradeValues _buyTradeValues;
@@ -22,18 +24,18 @@ class TradeValuesChangeNotifier extends ChangeNotifier implements Subscriber {
   late final int _minimumTradeMargin;
   late final int _channelCapacity;
 
-  TradeValuesChangeNotifier(this.tradeValuesService) {
+  TradeValuesChangeNotifier(this.tradeValuesService, this._channelConstraintsService) {
     _buyTradeValues = _initOrder(Direction.long);
     _sellTradeValues = _initOrder(Direction.short);
 
-    _feeReserve = tradeValuesService.getFeeReserve();
-    _channelReserve = tradeValuesService.getChannelReserve();
-    _minimumTradeMargin = tradeValuesService.getMinTradeMargin();
-    _channelCapacity = tradeValuesService.getLightningChannelCapacity();
+    _feeReserve = _channelConstraintsService.getFeeReserve();
+    _channelReserve = _channelConstraintsService.getChannelReserve();
+    _minimumTradeMargin = _channelConstraintsService.getMinTradeMargin();
+    _channelCapacity = _channelConstraintsService.getLightningChannelCapacity();
   }
 
   TradeValues _initOrder(Direction direction) {
-    Amount defaultMargin = Amount(tradeValuesService.getMinTradeMargin());
+    Amount defaultMargin = Amount(_channelConstraintsService.getMinTradeMargin());
     Leverage defaultLeverage = Leverage(2);
 
     switch (direction) {
@@ -87,7 +89,7 @@ class TradeValuesChangeNotifier extends ChangeNotifier implements Subscriber {
         break;
     }
 
-    int channelCapacity = tradeValuesService.getLightningChannelCapacity();
+    int channelCapacity = _channelConstraintsService.getLightningChannelCapacity();
     int totalReserve = reserve * 2;
 
     return channelCapacity - totalReserve - counterpartyMargin;

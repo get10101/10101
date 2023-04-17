@@ -22,6 +22,9 @@ import 'package:provider/provider.dart';
 @GenerateNiceMocks([MockSpec<TradeValuesService>()])
 import 'package:get_10101/features/trade/application/trade_values_service.dart';
 
+@GenerateNiceMocks([MockSpec<ChannelConstraintsService>()])
+import 'package:get_10101/common/application/channel_constraints_service.dart';
+
 @GenerateNiceMocks([MockSpec<OrderService>()])
 import 'package:get_10101/features/trade/application/order_service.dart';
 
@@ -75,6 +78,7 @@ void main() {
     MockOrderService orderService = MockOrderService();
     MockPositionService positionService = MockPositionService();
     MockTradeValuesService tradeValueService = MockTradeValuesService();
+    MockChannelConstraintsService channelConstraintsService = MockChannelConstraintsService();
     MockWalletService walletService = MockWalletService();
     MockCandlestickService candlestickService = MockCandlestickService();
 
@@ -94,13 +98,13 @@ void main() {
             price: anyNamed('price'), leverage: anyNamed('leverage'), margin: anyNamed('margin')))
         .thenReturn(0.1);
 
-    when(tradeValueService.getLightningChannelCapacity()).thenReturn(20000);
+    when(channelConstraintsService.getLightningChannelCapacity()).thenReturn(20000);
 
-    when(tradeValueService.getMinTradeMargin()).thenReturn(1000);
+    when(channelConstraintsService.getMinTradeMargin()).thenReturn(1000);
 
-    when(tradeValueService.getChannelReserve()).thenReturn(1000);
+    when(channelConstraintsService.getChannelReserve()).thenReturn(1000);
 
-    when(tradeValueService.getFeeReserve()).thenReturn(1666);
+    when(channelConstraintsService.getFeeReserve()).thenReturn(1666);
 
     when(candlestickService.fetchCandles(1000)).thenAnswer((_) async {
       return getDummyCandles(1000);
@@ -118,7 +122,9 @@ void main() {
     WalletChangeNotifier walletChangeNotifier = WalletChangeNotifier(walletService);
 
     await tester.pumpWidget(MultiProvider(providers: [
-      ChangeNotifierProvider(create: (context) => TradeValuesChangeNotifier(tradeValueService)),
+      ChangeNotifierProvider(
+          create: (context) =>
+              TradeValuesChangeNotifier(tradeValueService, channelConstraintsService)),
       ChangeNotifierProvider(create: (context) => submitOrderChangeNotifier),
       ChangeNotifierProvider(create: (context) => OrderChangeNotifier(orderService)),
       ChangeNotifierProvider(
