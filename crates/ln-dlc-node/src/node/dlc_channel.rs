@@ -184,7 +184,7 @@ impl<P> Node<P> {
                 Message::SubChannel(msg) => {
                     tracing::debug!(
                         from = %node_id,
-                        msg = %sub_channel_message_as_str(&msg),
+                        msg = %sub_channel_message_name(&msg),
                         "Processing DLC channel message"
                     );
                     let resp = sub_channel_manager
@@ -194,7 +194,7 @@ impl<P> Node<P> {
                     if let Some(msg) = resp {
                         tracing::debug!(
                             to = %node_id,
-                            msg = %sub_channel_message_as_str(&msg),
+                            msg = %sub_channel_message_name(&msg),
                             "Sending DLC channel message"
                         );
                         dlc_message_handler.send_message(node_id, Message::SubChannel(msg));
@@ -248,7 +248,7 @@ pub fn dlc_message_name(msg: &Message) -> String {
     name.to_string()
 }
 
-pub fn sub_channel_message_as_str(msg: &SubChannelMessage) -> &str {
+pub fn sub_channel_message_name(msg: &SubChannelMessage) -> &str {
     use SubChannelMessage::*;
 
     match msg {

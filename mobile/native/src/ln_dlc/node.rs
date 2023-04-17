@@ -17,7 +17,7 @@ use ln_dlc_node::node::dlc_message_name;
 use ln_dlc_node::node::rust_dlc_manager::contract::signed_contract::SignedContract;
 use ln_dlc_node::node::rust_dlc_manager::contract::Contract;
 use ln_dlc_node::node::rust_dlc_manager::Storage;
-use ln_dlc_node::node::sub_channel_message_as_str;
+use ln_dlc_node::node::sub_channel_message_name;
 use ln_dlc_node::node::NodeInfo;
 use ln_dlc_node::node::PaymentDetails;
 use ln_dlc_node::node::PaymentPersister;
@@ -123,7 +123,7 @@ impl Node {
             Message::SubChannel(incoming_msg) => {
                 tracing::debug!(
                     from = %node_id,
-                    msg = %sub_channel_message_as_str(&incoming_msg),
+                    msg = %sub_channel_message_name(&incoming_msg),
                     "Processing DLC channel message"
                 );
                 let reply_msg = self
@@ -165,7 +165,7 @@ impl Node {
                 if let Some(reply_msg) = reply_msg {
                     tracing::debug!(
                         to = %node_id,
-                        msg = %sub_channel_message_as_str(&reply_msg),
+                        msg = %sub_channel_message_name(&reply_msg),
                         "Sending DLC channel message"
                     );
                     self.inner

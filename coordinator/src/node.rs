@@ -25,7 +25,7 @@ use dlc_manager::ChannelId;
 use dlc_messages::message_handler::MessageHandler as DlcMessageHandler;
 use dlc_messages::Message;
 use lightning::ln::channelmanager::ChannelDetails;
-use ln_dlc_node::node::sub_channel_message_as_str;
+use ln_dlc_node::node::sub_channel_message_name;
 use ln_dlc_node::node::DlcManager;
 use ln_dlc_node::node::PaymentMap;
 use ln_dlc_node::node::SubChannelManager;
@@ -466,7 +466,7 @@ pub fn process_incoming_messages_internal(
             Message::SubChannel(msg) => {
                 tracing::debug!(
                     from = %node_id,
-                    msg = %sub_channel_message_as_str(&msg),
+                    msg = %sub_channel_message_name(&msg),
                     "Processing DLC channel message"
                 );
                 let resp = sub_channel_manager
@@ -476,7 +476,7 @@ pub fn process_incoming_messages_internal(
                 if let Some(msg) = resp {
                     tracing::debug!(
                         to = %node_id,
-                        msg = %sub_channel_message_as_str(&msg),
+                        msg = %sub_channel_message_name(&msg),
                         "Sending DLC channel message"
                     );
                     dlc_message_handler.send_message(node_id, Message::SubChannel(msg));
