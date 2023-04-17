@@ -3,9 +3,6 @@ use anyhow::anyhow;
 use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
-use bitcoin::hashes::Hash;
-use bitcoin::secp256k1::ecdsa::Signature;
-use bitcoin::secp256k1::Message;
 use bitcoin::secp256k1::PublicKey;
 use lightning::chain::keysinterface::KeysInterface;
 use lightning::chain::keysinterface::Recipient;
@@ -95,19 +92,12 @@ impl<P> Node<P> {
         }
     }
 
-    pub fn sign_message(&self, data: String, double_sign: bool) -> Result<Signature> {
+    pub fn sign_message(&self, data: String) -> Result<String> {
         let secret = self
             .keys_manager
             .get_node_secret(Recipient::Node)
             .map_err(|_| anyhow!("Could not get nodes secret"))?;
-        if double_sign {
-            let hash = bitcoin::hashes::sha256d::Hash::hash(data.as_bytes());
-            let msg = Message::from_slice(hash.as_ref())?;
-            Ok(secret.sign_ecdsa(msg))
-        } else {
-            let hash = bitcoin::hashes::sha256::Hash::hash(data.as_bytes());
-            let msg = Message::from_slice(hash.as_ref())?;
-            Ok(secret.sign_ecdsa(msg))
-        }
+        let signature = lightning::util::message_signing::sign(data.as_bytes(), &secret)?;
+        Ok(signature)
     }
 }

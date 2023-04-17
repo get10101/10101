@@ -4,7 +4,6 @@ use axum::extract::Path;
 use axum::extract::Query;
 use axum::extract::State;
 use axum::Json;
-use bitcoin::secp256k1::ecdsa::Signature;
 use bitcoin::secp256k1::PublicKey;
 use ln_dlc_node::node::NodeInfo;
 use ln_dlc_node::ChannelDetails;
@@ -145,21 +144,14 @@ pub async fn open_channel(
     Ok(Json(hex::encode(channel_id)))
 }
 
-#[derive(Deserialize)]
-pub struct SignParams {
-    #[serde(default, deserialize_with = "empty_string_as_none")]
-    double_sign: Option<bool>,
-}
-
 pub async fn sign_message(
     Path(msg): Path<String>,
     State(state): State<Arc<AppState>>,
-    Query(sign_params): Query<SignParams>,
-) -> Result<Json<Signature>, AppError> {
-    let signature = state
-        .node
-        .inner
-        .sign_message(msg, sign_params.double_sign.unwrap_or_default())
-        .map_err(|err| AppError::InternalServerError(format!("Could not sign message {err}")))?;
+) -> Result<Json<String>, AppError> {
+    let signature =
+        state.node.inner.sign_message(msg).map_err(|err| {
+            AppError::InternalServerError(format!("Could not sign message {err}"))
+        })?;
+
     Ok(Json(signature))
 }
