@@ -1,4 +1,4 @@
-use crate::node::process_incoming_messages_internal;
+use crate::db::user;
 use crate::node::Node;
 use crate::orderbook::routes::delete_order;
 use crate::orderbook::routes::get_order;
@@ -180,7 +180,7 @@ pub async fn post_trade(
 }
 
 pub async fn post_register(
-    State(_state): State<Arc<AppState>>,
+    State(state): State<Arc<AppState>>,
     params: Json<RegisterParams>,
 ) -> Result<(), AppError> {
     let register_params = params.0;
@@ -190,5 +190,14 @@ pub async fn post_register(
         )));
     }
     tracing::info!(?register_params, "Registered new user");
+
+    let mut conn = state
+        .pool
+        .get()
+        .map_err(|e| AppError::InternalServerError(format!("Could not get connection: {e:#}")))?;
+
+    user::insert(&mut conn, register_params.into())
+        .map_err(|e| AppError::InternalServerError(format!("Could not insert user: {e:#}")))?;
+
     Ok(())
 }

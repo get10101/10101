@@ -1,4 +1,5 @@
 use crate::orderbook::db::orders;
+use crate::orderbook::tests::init_tracing;
 use crate::orderbook::tests::setup_db;
 use crate::orderbook::tests::start_postgres;
 use bitcoin::secp256k1::PublicKey;
@@ -6,23 +7,11 @@ use orderbook_commons::NewOrder;
 use orderbook_commons::OrderType;
 use rust_decimal_macros::dec;
 use std::str::FromStr;
-use std::sync::Once;
 use testcontainers::clients::Cli;
 use time::Duration;
 use time::OffsetDateTime;
 use trade::Direction;
 use uuid::Uuid;
-
-fn init_tracing() {
-    static TRACING_TEST_SUBSCRIBER: Once = Once::new();
-
-    TRACING_TEST_SUBSCRIBER.call_once(|| {
-        tracing_subscriber::fmt()
-            .with_env_filter("debug")
-            .with_test_writer()
-            .init()
-    })
-}
 
 #[tokio::test]
 async fn crud_test() {
