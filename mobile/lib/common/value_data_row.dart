@@ -47,7 +47,7 @@ class ValueDataRow extends StatelessWidget {
         widget = const SizedBox(width: 20, height: 20, child: CircularProgressIndicator());
         break;
       case ValueType.date:
-        widget = Text(DateFormat('dd.MM.yy-kk:mm').format(value));
+        widget = Text(DateFormat('dd.MM.yy-kk:mm').format(value), style: valueTextStyle);
         break;
     }
 
