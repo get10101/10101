@@ -66,8 +66,7 @@ void main() {
     ChangeNotifierProvider(create: (context) => AmountDenominationChangeNotifier()),
     ChangeNotifierProvider(create: (context) => SubmitOrderChangeNotifier(OrderService())),
     ChangeNotifierProvider(create: (context) => OrderChangeNotifier(OrderService())),
-    ChangeNotifierProvider(
-        create: (context) => PositionChangeNotifier(PositionService(), OrderService())),
+    ChangeNotifierProvider(create: (context) => PositionChangeNotifier(PositionService())),
     ChangeNotifierProvider(create: (context) => WalletChangeNotifier(const WalletService())),
     ChangeNotifierProvider(
         create: (context) => CandlestickChangeNotifier(const CandlestickService())),

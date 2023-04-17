@@ -3,17 +3,21 @@ import 'package:get_10101/common/amount_text.dart';
 import 'package:get_10101/common/domain/model.dart';
 import 'package:get_10101/common/value_data_row.dart';
 import 'package:get_10101/features/trade/contract_symbol_icon.dart';
+import 'package:get_10101/features/trade/domain/contract_symbol.dart';
 import 'package:get_10101/features/trade/domain/direction.dart';
 import 'package:get_10101/features/trade/domain/trade_values.dart';
-import 'package:get_10101/features/trade/submit_order_change_notifier.dart';
+import 'package:get_10101/features/trade/position_change_notifier.dart';
 import 'package:get_10101/features/trade/trade_theme.dart';
 import 'package:get_10101/features/trade/trade_value_change_notifier.dart';
 import 'package:get_10101/util/constants.dart';
-import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:slide_to_confirm/slide_to_confirm.dart';
 
-tradeBottomSheetConfirmation({required BuildContext context, required Direction direction}) {
+tradeBottomSheetConfirmation(
+    {required BuildContext context,
+    required Direction direction,
+    required Function() onConfirmation,
+    bool close = false}) {
   final sliderKey = direction == Direction.long
       ? tradeScreenBottomSheetConfirmationSliderBuy
       : tradeScreenBottomSheetConfirmationSliderSell;
@@ -52,6 +56,8 @@ tradeBottomSheetConfirmation({required BuildContext context, required Direction 
                   direction: direction,
                   sliderButtonKey: sliderButtonKey,
                   sliderKey: sliderKey,
+                  onConfirmation: onConfirmation,
+                  close: close,
                 )),
           ),
         ),
@@ -64,9 +70,16 @@ class TradeBottomSheetConfirmation extends StatelessWidget {
   final Direction direction;
   final Key sliderKey;
   final Key sliderButtonKey;
+  final Function() onConfirmation;
+  final bool close;
 
   const TradeBottomSheetConfirmation(
-      {required this.direction, super.key, required this.sliderButtonKey, required this.sliderKey});
+      {required this.direction,
+      super.key,
+      required this.sliderButtonKey,
+      required this.sliderKey,
+      required this.onConfirmation,
+      required this.close});
 
   @override
   Widget build(BuildContext context) {
@@ -77,7 +90,14 @@ class TradeBottomSheetConfirmation extends StatelessWidget {
         Provider.of<TradeValuesChangeNotifier>(context).fromDirection(direction);
 
     Amount total = Amount(tradeValues.fee.sats + tradeValues.margin.sats);
+    Amount pnl = Amount(0);
+    if (context.read<PositionChangeNotifier>().positions.containsKey(ContractSymbol.btcusd)) {
+      final position = context.read<PositionChangeNotifier>().positions[ContractSymbol.btcusd];
+      pnl = position!.unrealizedPnl != null ? position.unrealizedPnl! : Amount(0);
+    }
+
     DateTime now = DateTime.now().toUtc();
+    TextStyle dataRowStyle = const TextStyle(fontSize: 14);
 
     return Container(
         padding: const EdgeInsets.all(20),
@@ -94,17 +114,31 @@ class TradeBottomSheetConfirmation extends StatelessWidget {
                     Wrap(
                       runSpacing: 10,
                       children: [
-                        ValueDataRow(
-                            type: ValueType.date,
-                            value: DateTime.utc(now.year, now.month, now.day + 2).toLocal(),
-                            label: 'Expiry'),
-                        ValueDataRow(
-                            type: ValueType.amount, value: tradeValues.margin, label: 'Margin'),
-                        ValueDataRow(
-                          type: ValueType.fiat,
-                          value: tradeValues.liquidationPrice,
-                          label: 'Liquidation Price',
-                        ),
+                        if (!close)
+                          ValueDataRow(
+                              type: ValueType.date,
+                              value: DateTime.utc(now.year, now.month, now.day + 2).toLocal(),
+                              label: 'Expiry'),
+                        close
+                            ? ValueDataRow(
+                                type: ValueType.fiat,
+                                value: tradeValues.price,
+                                label: 'Market Price')
+                            : ValueDataRow(
+                                type: ValueType.amount, value: tradeValues.margin, label: 'Margin'),
+                        close
+                            ? ValueDataRow(
+                                type: ValueType.amount,
+                                value: pnl,
+                                label: 'Unrealized P/L',
+                                valueTextStyle: dataRowStyle.apply(
+                                    color:
+                                        pnl.sats.isNegative ? tradeTheme.loss : tradeTheme.profit))
+                            : ValueDataRow(
+                                type: ValueType.fiat,
+                                value: tradeValues.liquidationPrice,
+                                label: 'Liquidation Price',
+                              ),
                         ValueDataRow(
                           type: ValueType.amount,
                           value: tradeValues.fee,
@@ -113,24 +147,32 @@ class TradeBottomSheetConfirmation extends StatelessWidget {
                         ),
                       ],
                     ),
-                    const Divider(),
-                    ValueDataRow(type: ValueType.amount, value: total, label: "Total")
+                    !close ? const Divider() : const SizedBox(height: 0),
+                    !close
+                        ? ValueDataRow(type: ValueType.amount, value: total, label: "Total")
+                        : const SizedBox(height: 0),
                   ],
                 ),
               ),
             ),
-            RichText(
-              text: TextSpan(
-                text: 'By confirming a new order will be created. Once the order is matched ',
-                style: DefaultTextStyle.of(context).style,
-                children: <TextSpan>[
-                  TextSpan(
-                      text: formatAmount(AmountDenomination.satoshi, total),
-                      style: const TextStyle(fontWeight: FontWeight.bold)),
-                  const TextSpan(text: ' will be locked up in a Lightning channel!'),
-                ],
-              ),
-            ),
+            close
+                ? RichText(
+                    text: TextSpan(
+                        text:
+                            '\nBy confirming, a closing market order will be created. Once the order is matched your position will be closed.',
+                        style: DefaultTextStyle.of(context).style))
+                : RichText(
+                    text: TextSpan(
+                      text: 'By confirming a new order will be created. Once the order is matched ',
+                      style: DefaultTextStyle.of(context).style,
+                      children: <TextSpan>[
+                        TextSpan(
+                            text: formatAmount(AmountDenomination.satoshi, total),
+                            style: const TextStyle(fontWeight: FontWeight.bold)),
+                        const TextSpan(text: ' will be locked up in a Lightning channel!'),
+                      ],
+                    ),
+                  ),
             const Spacer(),
             ConfirmationSlider(
               key: sliderKey,
@@ -146,14 +188,7 @@ class TradeBottomSheetConfirmation extends StatelessWidget {
                   size: 20,
                 ),
               ),
-              onConfirmation: () async {
-                context.read<SubmitOrderChangeNotifier>().submitPendingOrder(tradeValues);
-
-                // TODO: Explore if it would be easier / better handle the popups as routes
-                // Pop twice to navigate back to the trade screen.
-                GoRouter.of(context).pop();
-                GoRouter.of(context).pop();
-              },
+              onConfirmation: onConfirmation,
             )
           ],
         ));
