@@ -14,6 +14,7 @@ use bdk::wallet::Wallet;
 use bdk::Balance;
 use bdk::SignOptions;
 use bdk::SyncOptions;
+use std::cmp::min;
 
 pub use indexed_chain::IndexedChain;
 pub use indexed_chain::TxStatus;
@@ -33,6 +34,14 @@ pub type TransactionWithPosition = (usize, Transaction);
 pub type TransactionWithHeightAndPosition = (u32, Transaction, usize);
 
 mod indexed_chain;
+
+/// Max TX fee for all transactions
+///
+/// At times it might happen that the blockchain is congested and hence the fee/vbyte is high.
+/// To be able to predict how much sats we have to reserve for tx fee we hardcode an upper limit.
+/// We pick 20 sats/vbyte because at the time of writing this was the requirement to get into the
+/// next block.
+const MAX_SATS_PER_V_BYTE: u32 = 20;
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
@@ -395,6 +404,7 @@ where
 
         let estimate = self.client.estimate_fee(target_blocks).unwrap_or_default();
         let sats_per_vbyte = estimate.as_sat_per_vb() as u32;
+        let sats_per_vbyte = min(MAX_SATS_PER_V_BYTE, sats_per_vbyte);
         sats_per_vbyte * 253
     }
 }
