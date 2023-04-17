@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get_10101/common/value_data_row.dart';
 import 'package:get_10101/features/trade/domain/position.dart';
 import 'package:get_10101/features/trade/trade_theme.dart';
+import 'package:intl/intl.dart';
 
 import 'contract_symbol_icon.dart';
 
@@ -17,6 +18,10 @@ class PositionListItem extends StatelessWidget {
     if (position == null) {
       return const NoPositionsListItem();
     }
+
+    final formatter = NumberFormat();
+    formatter.minimumFractionDigits = 2;
+    formatter.maximumFractionDigits = 2;
 
     TradeTheme tradeTheme = Theme.of(context).extension<TradeTheme>()!;
 
@@ -92,7 +97,7 @@ class PositionListItem extends StatelessWidget {
                     ),
                     ValueDataRow(
                       type: ValueType.contracts,
-                      value: notNullPosition.quantity,
+                      value: formatter.format(notNullPosition.quantity),
                       label: "Quantity",
                       valueTextStyle: dataRowStyle,
                       labelTextStyle: dataRowStyle,
