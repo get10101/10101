@@ -1,3 +1,4 @@
+pub mod admin;
 pub mod cli;
 pub mod db;
 pub mod logger;
