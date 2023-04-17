@@ -27,6 +27,7 @@ jobs:
     with:
       electrs_endpoint: tcp://blockstream.info:110
       coordinator_p2p_endpoint: 022ae8dbec1caa4dac93f07f2ebf5ad7a5dd08d375b79f11095e81b065c2155156@34.30.20.202:9045
+      coordinator_port_http: 80
       network: mainnet
       tag: ${{ github.ref_name }}
 
@@ -119,6 +120,8 @@ jobs:
           cd mobile
           flutter build apk --dart-define="ELECTRS_ENDPOINT=$ELECTRS_ENDPOINT" \
                             --dart-define="COORDINATOR_P2P_ENDPOINT=$COORDINATOR_P2P_ENDPOINT" \
+                            --dart-define="COORDINATOR_PORT_HTTP=$COORDINATOR_PORT_HTTP" \
+                            --dart-define="NETWORK=$NETWORK" \
                             --dart-define="COMMIT=$(git rev-parse HEAD)" \
                             --dart-define="BRANCH=$(git rev-parse --abbrev-ref HEAD)" \
                             --build-name=$BUILD_NAME --build-number=$BUILD_NUMBER \
@@ -132,6 +135,8 @@ jobs:
           ENCODED_KEYSTORE: ${{ secrets.ANDROID_UPLOAD_KEYSTORE }}
           ELECTRS_ENDPOINT: tcp://blockstream.info:110
           COORDINATOR_P2P_ENDPOINT: 022ae8dbec1caa4dac93f07f2ebf5ad7a5dd08d375b79f11095e81b065c2155156@34.30.20.202:9045
+          NETWORK: regtest
+          COORDINATOR_PORT_HTTP: 80
 
       - name: Upload APK to job
         uses: actions/upload-artifact@v3
