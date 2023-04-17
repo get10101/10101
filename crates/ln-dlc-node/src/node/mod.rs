@@ -66,6 +66,7 @@ mod wallet;
 pub use self::dlc_manager::DlcManager;
 pub use ::dlc_manager as rust_dlc_manager;
 pub use channel_manager::ChannelManager;
+pub use dlc_channel::dlc_message_name;
 pub use dlc_channel::sub_channel_message_as_str;
 pub use invoice::HTLCStatus;
 pub use payment_persister::PaymentMap;

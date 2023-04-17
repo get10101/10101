@@ -7,7 +7,9 @@ use dlc_manager::subchannel::SubChannel;
 use dlc_manager::subchannel::SubChannelState;
 use dlc_manager::Oracle;
 use dlc_manager::Storage;
+use dlc_messages::ChannelMessage;
 use dlc_messages::Message;
+use dlc_messages::OnChainMessage;
 use dlc_messages::SubChannelMessage;
 use lightning::ln::channelmanager::ChannelDetails;
 
@@ -210,6 +212,40 @@ impl<P> Node<P> {
 
         Ok(())
     }
+}
+
+pub fn dlc_message_name(msg: &Message) -> String {
+    let name = match msg {
+        Message::OnChain(OnChainMessage::Offer(_)) => "Offer",
+        Message::OnChain(OnChainMessage::Accept(_)) => "Accept",
+        Message::OnChain(OnChainMessage::Sign(_)) => "Sign",
+        Message::Channel(ChannelMessage::Offer(_)) => "ChannelOffer",
+        Message::Channel(ChannelMessage::Accept(_)) => "ChannelAccept",
+        Message::Channel(ChannelMessage::Sign(_)) => "ChannelSign",
+        Message::Channel(ChannelMessage::SettleOffer(_)) => "ChannelSettleOffer",
+        Message::Channel(ChannelMessage::SettleAccept(_)) => "ChannelSettleAccept",
+        Message::Channel(ChannelMessage::SettleConfirm(_)) => "ChannelSettleConfirm",
+        Message::Channel(ChannelMessage::SettleFinalize(_)) => "ChannelSettleFinalize",
+        Message::Channel(ChannelMessage::RenewOffer(_)) => "ChannelRenewOffer",
+        Message::Channel(ChannelMessage::RenewAccept(_)) => "ChannelRenewAccept",
+        Message::Channel(ChannelMessage::RenewConfirm(_)) => "ChannelRenewConfirm",
+        Message::Channel(ChannelMessage::RenewFinalize(_)) => "ChannelRenewFinalize",
+        Message::Channel(ChannelMessage::CollaborativeCloseOffer(_)) => {
+            "ChannelCollaborativeCloseOffer"
+        }
+        Message::Channel(ChannelMessage::Reject(_)) => "ChannelReject",
+        Message::SubChannel(SubChannelMessage::Offer(_)) => "Offer",
+        Message::SubChannel(SubChannelMessage::Accept(_)) => "Accept",
+        Message::SubChannel(SubChannelMessage::Confirm(_)) => "Confirm",
+        Message::SubChannel(SubChannelMessage::Finalize(_)) => "Finalize",
+        Message::SubChannel(SubChannelMessage::CloseOffer(_)) => "CloseOffer",
+        Message::SubChannel(SubChannelMessage::CloseAccept(_)) => "CloseAccept",
+        Message::SubChannel(SubChannelMessage::CloseConfirm(_)) => "CloseConfirm",
+        Message::SubChannel(SubChannelMessage::CloseFinalize(_)) => "CloseFinalize",
+        Message::SubChannel(SubChannelMessage::Reject(_)) => "Reject",
+    };
+
+    name.to_string()
 }
 
 pub fn sub_channel_message_as_str(msg: &SubChannelMessage) -> &str {
