@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.0.6] - 2023-04-17
 
 - Change environment port to 80
+
 ## [1.0.5] - 2023-04-16
 
 - Announce coordinator with 10101.finance
