@@ -26,13 +26,13 @@ use ln_dlc_node::node::NodeInfo;
 use orderbook_commons::OrderbookMsg;
 
 use crate::admin::close_channel;
+use crate::admin::get_balance;
 use crate::admin::list_channels;
 use crate::admin::list_dlc_channels;
 use crate::admin::list_peers;
 use crate::admin::open_channel;
 use crate::admin::sign_message;
 use serde::Deserialize;
-use serde::Serialize;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::broadcast;
@@ -61,7 +61,6 @@ pub fn router(node: Node, pool: Pool<ConnectionManager<PgConnection>>) -> Router
         .route("/api/fake_scid/:target_node", post(post_fake_scid))
         .route("/api/newaddress", get(get_new_address))
         .route("/api/node", get(get_node_info))
-        .route("/api/balance", get(get_balance))
         .route("/api/invoice", get(get_invoice))
         .route("/api/orderbook/orders", get(get_orders).post(post_order))
         .route(
@@ -71,6 +70,7 @@ pub fn router(node: Node, pool: Pool<ConnectionManager<PgConnection>>) -> Router
         .route("/api/orderbook/websocket", get(websocket_handler))
         .route("/api/trade", post(post_trade))
         .route("/api/register", post(post_register))
+        .route("/api/admin/balance", get(get_balance))
         .route("/api/admin/channels", get(list_channels).post(open_channel))
         .route("/api/admin/channels/:channel_id", delete(close_channel))
         .route("/api/admin/peers", get(list_peers))
@@ -121,25 +121,6 @@ pub async fn get_node_info(
 ) -> Result<Json<NodeInfo>, AppError> {
     let node_info = app_state.node.inner.info;
     Ok(Json(node_info))
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct Balance {
-    offchain: u64,
-    onchain: u64,
-}
-
-pub async fn get_balance(State(state): State<Arc<AppState>>) -> Result<Json<Balance>, AppError> {
-    let offchain = state.node.inner.get_ldk_balance();
-    let onchain = state
-        .node
-        .inner
-        .get_on_chain_balance()
-        .map_err(|e| AppError::InternalServerError(format!("Failed to get balance: {e:#}")))?;
-    Ok(Json(Balance {
-        offchain: offchain.available,
-        onchain: onchain.confirmed,
-    }))
 }
 
 #[derive(Debug, Deserialize)]
