@@ -24,7 +24,6 @@ use lightning::util::events::Event;
 use lightning::util::events::PaymentPurpose;
 use rand::thread_rng;
 use rand::Rng;
-use std::cmp;
 use std::sync::Arc;
 use std::time::Duration;
 use time::OffsetDateTime;
@@ -494,15 +493,8 @@ where
                     return Ok(());
                 }
 
-                // FIXME: This will set the channel capacity to twice the amount that is
-                // transferred or the `JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT` ensuring there
-                // is enough liquidity in the channel. This is arbitrary and needs
-                // to be computed, but good enough for our test cases to support any
-                // amount to be sent.
-                let channel_value = cmp::max(
-                    JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT,
-                    expected_outbound_amount_msat * 2 / 1000,
-                );
+                // Currently the channel capacity is fixed for the beta program
+                let channel_value = JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT;
 
                 let mut user_config = coordinator_config();
                 // We are overwriting the coordinators channel handshake configuration to prevent

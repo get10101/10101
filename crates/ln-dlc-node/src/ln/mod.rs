@@ -21,4 +21,4 @@ pub(crate) use logger::TracingLogger;
 /// liquidity they desire, and charge them for it.
 ///
 /// This constant only applies to the coordinator.
-pub(crate) const JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT: u64 = 10_000;
+pub(crate) const JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT: u64 = 200_000;
