@@ -11,9 +11,29 @@ use ln_dlc_node::DlcChannelDetails;
 use serde::de;
 use serde::Deserialize;
 use serde::Deserializer;
+use serde::Serialize;
 use std::fmt;
 use std::str::FromStr;
 use std::sync::Arc;
+
+#[derive(Serialize, Deserialize)]
+pub struct Balance {
+    offchain: u64,
+    onchain: u64,
+}
+
+pub async fn get_balance(State(state): State<Arc<AppState>>) -> Result<Json<Balance>, AppError> {
+    let offchain = state.node.inner.get_ldk_balance();
+    let onchain = state
+        .node
+        .inner
+        .get_on_chain_balance()
+        .map_err(|e| AppError::InternalServerError(format!("Failed to get balance: {e:#}")))?;
+    Ok(Json(Balance {
+        offchain: offchain.available,
+        onchain: onchain.confirmed,
+    }))
+}
 
 pub async fn list_channels(State(state): State<Arc<AppState>>) -> Json<Vec<ChannelDetails>> {
     let channels = state

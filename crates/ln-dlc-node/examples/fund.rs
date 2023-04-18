@@ -29,7 +29,7 @@ async fn fund_everything() -> Result<()> {
     fund(&coord_addr, Amount::ONE_BTC).await?;
     mine(20).await?;
 
-    let coordinator_balance = get_text(&format!("{COORDINATOR}/api/balance")).await?;
+    let coordinator_balance = get_text(&format!("{COORDINATOR}/api/admin/balance")).await?;
     tracing::info!("coordinator BTC balance: {}", coordinator_balance);
 
     let node: NodeInfo = reqwest::get(format!("{COORDINATOR}/api/node"))
