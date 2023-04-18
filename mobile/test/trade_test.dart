@@ -127,8 +127,7 @@ void main() {
               TradeValuesChangeNotifier(tradeValueService, channelConstraintsService)),
       ChangeNotifierProvider(create: (context) => submitOrderChangeNotifier),
       ChangeNotifierProvider(create: (context) => OrderChangeNotifier(orderService)),
-      ChangeNotifierProvider(
-          create: (context) => PositionChangeNotifier(positionService, orderService)),
+      ChangeNotifierProvider(create: (context) => PositionChangeNotifier(positionService)),
       ChangeNotifierProvider(create: (context) => AmountDenominationChangeNotifier()),
       ChangeNotifierProvider(create: (context) => walletChangeNotifier),
       ChangeNotifierProvider(create: (context) => candlestickChangeNotifier)

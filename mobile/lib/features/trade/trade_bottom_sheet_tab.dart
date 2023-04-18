@@ -9,12 +9,15 @@ import 'package:get_10101/common/fiat_text.dart';
 import 'package:get_10101/common/modal_bottom_sheet_info.dart';
 import 'package:get_10101/features/trade/domain/direction.dart';
 import 'package:get_10101/features/trade/domain/leverage.dart';
+import 'package:get_10101/features/trade/domain/trade_values.dart';
 import 'package:get_10101/features/trade/leverage_slider.dart';
+import 'package:get_10101/features/trade/submit_order_change_notifier.dart';
 import 'package:get_10101/features/trade/trade_bottom_sheet_confirmation.dart';
 import 'package:get_10101/features/trade/trade_value_change_notifier.dart';
 import 'package:get_10101/features/trade/trade_theme.dart';
 import 'package:get_10101/features/wallet/domain/wallet_info.dart';
 import 'package:get_10101/features/wallet/wallet_change_notifier.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 class TradeBottomSheetTab extends StatefulWidget {
@@ -251,7 +254,20 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
                   key: widget.buttonKey,
                   onPressed: () {
                     if (_formKey.currentState!.validate()) {
-                      tradeBottomSheetConfirmation(context: context, direction: widget.direction);
+                      TradeValues tradeValues =
+                          context.read<TradeValuesChangeNotifier>().fromDirection(widget.direction);
+                      final submitOrderChangeNotifier = context.read<SubmitOrderChangeNotifier>();
+                      tradeBottomSheetConfirmation(
+                          context: context,
+                          direction: widget.direction,
+                          onConfirmation: () {
+                            submitOrderChangeNotifier.submitPendingOrder(tradeValues, false);
+
+                            // TODO: Explore if it would be easier / better handle the popups as routes
+                            // Pop twice to navigate back to the trade screen.
+                            GoRouter.of(context).pop();
+                            GoRouter.of(context).pop();
+                          });
                     }
                   },
                   style: ElevatedButton.styleFrom(

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get_10101/features/trade/domain/direction.dart';
 import 'package:get_10101/features/trade/trade_theme.dart';
+import 'package:intl/intl.dart';
 
 import 'contract_symbol_icon.dart';
 import 'domain/order.dart';
@@ -13,6 +14,10 @@ class OrderListItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     TradeTheme tradeTheme = Theme.of(context).extension<TradeTheme>()!;
+
+    final formatter = NumberFormat();
+    formatter.minimumFractionDigits = 2;
+    formatter.maximumFractionDigits = 2;
 
     const double iconSize = 18;
     Icon statusIcon = () {
@@ -52,7 +57,8 @@ class OrderListItem extends StatelessWidget {
                       color: order.direction == Direction.long ? tradeTheme.buy : tradeTheme.sell,
                       fontWeight: FontWeight.bold)),
               TextSpan(
-                  text: " ${order.quantity} ", style: const TextStyle(fontWeight: FontWeight.bold)),
+                  text: " ${formatter.format(order.quantity)} ",
+                  style: const TextStyle(fontWeight: FontWeight.bold)),
               const TextSpan(text: "contracts")
             ],
           ),

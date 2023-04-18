@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:get_10101/common/domain/model.dart';
 import 'package:get_10101/common/submission_status_dialog.dart';
 import 'package:get_10101/common/value_data_row.dart';
 import 'package:get_10101/features/trade/candlestick_change_notifier.dart';
@@ -14,8 +15,11 @@ import 'package:get_10101/features/trade/position_list_item.dart';
 import 'package:get_10101/features/trade/submit_order_change_notifier.dart';
 import 'package:get_10101/features/trade/trade_bottom_sheet.dart';
 import 'package:candlesticks/candlesticks.dart';
+import 'package:get_10101/features/trade/trade_bottom_sheet_confirmation.dart';
 import 'package:get_10101/features/trade/trade_tabs.dart';
 import 'package:get_10101/features/trade/trade_theme.dart';
+import 'package:get_10101/features/trade/trade_value_change_notifier.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:get_10101/util/constants.dart';
 
@@ -42,6 +46,15 @@ class TradeScreen extends StatelessWidget {
 
     if (submitOrderChangeNotifier.pendingOrder != null &&
         submitOrderChangeNotifier.pendingOrder!.state == PendingOrderState.submitting) {
+      final pendingOrder = submitOrderChangeNotifier.pendingOrder;
+
+      Amount pnl = Amount(0);
+      if (pendingOrder!.close &&
+          context.read<PositionChangeNotifier>().positions.containsKey(ContractSymbol.btcusd)) {
+        final position = context.read<PositionChangeNotifier>().positions[ContractSymbol.btcusd];
+        pnl = position!.unrealizedPnl != null ? position.unrealizedPnl! : Amount(0);
+      }
+
       WidgetsBinding.instance.addPostFrameCallback((_) async {
         return await showDialog(
             context: context,
@@ -59,10 +72,13 @@ class TradeScreen extends StatelessWidget {
                         child: Wrap(
                           runSpacing: 10,
                           children: [
-                            ValueDataRow(
-                                type: ValueType.amount,
-                                value: submitOrderChangeNotifier.pendingOrderValues?.margin,
-                                label: "Margin"),
+                            pendingOrder.close
+                                ? ValueDataRow(
+                                    type: ValueType.amount, value: pnl, label: "Unrealized P/L")
+                                : ValueDataRow(
+                                    type: ValueType.amount,
+                                    value: submitOrderChangeNotifier.pendingOrderValues?.margin,
+                                    label: "Margin"),
                             ValueDataRow(
                                 type: ValueType.amount,
                                 value: submitOrderChangeNotifier.pendingOrderValues?.fee,
@@ -73,7 +89,9 @@ class TradeScreen extends StatelessWidget {
                       Padding(
                         padding: const EdgeInsets.only(top: 20, left: 10, right: 10, bottom: 5),
                         child: Text(
-                            "Your Position will be shown automatically in the Orders tab once your ${submitOrderChangeNotifier.pendingOrderValues?.direction.name} order has been filled!",
+                            pendingOrder.close
+                                ? "Your Position will be removed automatically once your ${submitOrderChangeNotifier.pendingOrderValues?.direction.name} order has been filled!"
+                                : "Your Position will be shown automatically in the Positions tab once your ${submitOrderChangeNotifier.pendingOrderValues?.direction.name} order has been filled!",
                             style: DefaultTextStyle.of(context).style.apply(fontSizeFactor: 1.0)),
                       )
                     ],
@@ -101,6 +119,7 @@ class TradeScreen extends StatelessWidget {
     PositionChangeNotifier positionChangeNotifier = context.watch<PositionChangeNotifier>();
     CandlestickChangeNotifier candlestickChangeNotifier =
         context.watch<CandlestickChangeNotifier>();
+    TradeValuesChangeNotifier tradeValuesChangeNotifier = context.read<TradeValuesChangeNotifier>();
 
     SizedBox listBottomScrollSpace = const SizedBox(
       height: 60,
@@ -118,7 +137,7 @@ class TradeScreen extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   SizedBox(
-                    height: 300,
+                    height: 250,
                     child: Candlesticks(
                       candles: candlestickChangeNotifier.candles,
                     ),
@@ -192,7 +211,18 @@ class TradeScreen extends StatelessWidget {
                         return PositionListItem(
                           position: position,
                           onClose: () async {
-                            await positionChangeNotifier.closePosition(position.contractSymbol);
+                            tradeValuesChangeNotifier.updateLeverage(
+                                position.direction.opposite(), position.leverage);
+                            tradeValuesChangeNotifier.updateQuantity(
+                                position.direction.opposite(), position.quantity);
+                            tradeBottomSheetConfirmation(
+                                context: context,
+                                direction: position.direction.opposite(),
+                                onConfirmation: () {
+                                  submitOrderChangeNotifier.closePosition(position);
+                                  GoRouter.of(context).pop();
+                                },
+                                close: true);
                           },
                         );
                       },
