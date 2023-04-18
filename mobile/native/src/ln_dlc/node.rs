@@ -131,34 +131,36 @@ impl Node {
                     .on_sub_channel_message(&incoming_msg, &node_id)
                     .map_err(|e| anyhow!(e.to_string()))?;
 
-                if let SubChannelMessage::Offer(offer) = &incoming_msg {
-                    let channel_id = offer.channel_id;
+                match &incoming_msg {
+                    SubChannelMessage::Offer(offer) => {
+                        let channel_id = offer.channel_id;
 
-                    // TODO: We should probably verify that: (1) the counterparty is the
-                    // coordinator and (2) the DLC channel offer is expected and correct.
-                    self.inner
-                        .accept_dlc_channel_offer(&channel_id)
-                        .with_context(|| {
-                            format!(
-                                "Failed to accept DLC channel offer for channel {}",
-                                hex::encode(channel_id)
-                            )
-                        })?
-                }
+                        // TODO: We should probably verify that: (1) the counterparty is the
+                        // coordinator and (2) the DLC channel offer is expected and correct.
+                        self.inner
+                            .accept_dlc_channel_offer(&channel_id)
+                            .with_context(|| {
+                                format!(
+                                    "Failed to accept DLC channel offer for channel {}",
+                                    hex::encode(channel_id)
+                                )
+                            })?
+                    }
+                    SubChannelMessage::CloseOffer(offer) => {
+                        let channel_id = offer.channel_id;
 
-                if let SubChannelMessage::CloseOffer(offer) = &incoming_msg {
-                    let channel_id = offer.channel_id;
-
-                    // TODO: We should probably verify that: (1) the counterparty is the
-                    // coordinator and (2) the DLC channel close offer is expected and correct.
-                    self.inner
-                        .accept_dlc_channel_collaborative_settlement(&channel_id)
-                        .with_context(|| {
-                            format!(
-                                "Failed to accept DLC channel close offer for channel {}",
-                                hex::encode(channel_id)
-                            )
-                        })?;
+                        // TODO: We should probably verify that: (1) the counterparty is the
+                        // coordinator and (2) the DLC channel close offer is expected and correct.
+                        self.inner
+                            .accept_dlc_channel_collaborative_settlement(&channel_id)
+                            .with_context(|| {
+                                format!(
+                                    "Failed to accept DLC channel close offer for channel {}",
+                                    hex::encode(channel_id)
+                                )
+                            })?;
+                    }
+                    _ => (),
                 }
 
                 if let Some(reply_msg) = reply_msg {
