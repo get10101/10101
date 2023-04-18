@@ -42,7 +42,7 @@ pub async fn submit_order(order: Order) -> Result<()> {
 pub(crate) fn order_filling(order_id: Uuid, execution_price: f32) -> Result<()> {
     let filling_state = OrderState::Filling { execution_price };
 
-    if let Err(e) = db::update_order_state(order_id, filling_state) {
+    if let Err(e) = update_order_state_in_db_and_ui(order_id, filling_state) {
         tracing::error!("Failed to update state of {order_id} to {filling_state:?}: {e:#}");
         order_failed(Some(order_id), FailureReason::FailedToSetToFilling, e)?;
 
