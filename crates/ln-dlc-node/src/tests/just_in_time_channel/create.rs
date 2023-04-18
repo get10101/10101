@@ -23,7 +23,7 @@ async fn just_in_time_channel() {
     payer.connect(coordinator.info).await.unwrap();
     payee.connect(coordinator.info).await.unwrap();
 
-    coordinator.fund(Amount::from_sat(100_000)).await.unwrap();
+    coordinator.fund(Amount::from_sat(1_000_000)).await.unwrap();
 
     let payer_outbound_liquidity_sat = 25_000;
     let coordinator_outbound_liquidity_sat =

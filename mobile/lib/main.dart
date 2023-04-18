@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge.dart';
 import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
+import 'package:get_10101/common/application/channel_constraints_service.dart';
 import 'package:get_10101/common/application/event_service.dart';
 import 'package:get_10101/features/trade/application/candlestick_service.dart';
 import 'package:get_10101/features/trade/application/order_service.dart';
@@ -64,7 +65,9 @@ void main() {
 
   FLog.applyConfigurations(config);
   runApp(MultiProvider(providers: [
-    ChangeNotifierProvider(create: (context) => TradeValuesChangeNotifier(TradeValuesService())),
+    ChangeNotifierProvider(
+        create: (context) =>
+            TradeValuesChangeNotifier(TradeValuesService(), const ChannelConstraintsService())),
     ChangeNotifierProvider(create: (context) => AmountDenominationChangeNotifier()),
     ChangeNotifierProvider(create: (context) => SubmitOrderChangeNotifier(OrderService())),
     ChangeNotifierProvider(create: (context) => OrderChangeNotifier(OrderService())),

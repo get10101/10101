@@ -19,7 +19,7 @@ async fn just_in_time_channel_with_multiple_payments() {
     user_a.connect(coordinator.info).await.unwrap();
     user_b.connect(coordinator.info).await.unwrap();
 
-    coordinator.fund(Amount::from_sat(100_000)).await.unwrap();
+    coordinator.fund(Amount::from_sat(1_000_000)).await.unwrap();
 
     let payer_outbound_liquidity_sat = 25_000;
     let coordinator_outbound_liquidity_sat =

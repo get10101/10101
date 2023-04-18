@@ -17,8 +17,8 @@ async fn onboard_from_lnd() {
     payee.connect(coordinator.info).await.unwrap();
 
     // Fund the on-chain wallets of the nodes who will open a channel
-    coordinator.fund(Amount::from_sat(100_000)).await.unwrap();
-    payer.fund(Amount::from_sat(100_000)).await.unwrap();
+    coordinator.fund(Amount::from_sat(1_000_000)).await.unwrap();
+    payer.fund(Amount::from_sat(1_000_000)).await.unwrap();
 
     payer
         .open_channel(&coordinator, Amount::from_sat(50_000))
