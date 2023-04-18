@@ -133,40 +133,59 @@ impl Order {
         order_id: String,
         status: (OrderState, Option<f32>, Option<FailureReason>),
         conn: &mut SqliteConnection,
-    ) -> Result<()> {
-        conn.transaction::<(), _, _>(|conn| {
-            let effected_rows = diesel::update(orders::table)
+    ) -> Result<Order> {
+        conn.exclusive_transaction::<Order, _, _>(|conn| {
+            let order: Order = orders::table
                 .filter(schema::orders::id.eq(order_id.clone()))
-                .set(schema::orders::state.eq(status.0))
-                .execute(conn)?;
+                .first(conn)?;
 
-            if effected_rows == 0 {
-                bail!("Could not update order")
+            let current_state = order.state;
+            let candidate = status.0;
+            match current_state.next_state(candidate) {
+                Some(next_state) => {
+                    let effected_rows = diesel::update(orders::table)
+                        .filter(schema::orders::id.eq(order_id.clone()))
+                        .set(schema::orders::state.eq(next_state))
+                        .execute(conn)?;
+
+                    if effected_rows == 0 {
+                        bail!("Could not update order state")
+                    }
+
+                    tracing::info!(new_state = ?next_state, %order_id, "Updated order state");
+                }
+                None => {
+                    tracing::debug!(?current_state, ?candidate, "Ignoring latest state update");
+                }
             }
 
             if let Some(execution_price) = status.1 {
-                diesel::update(orders::table)
+                let effected_rows = diesel::update(orders::table)
                     .filter(schema::orders::id.eq(order_id.clone()))
                     .set(schema::orders::execution_price.eq(execution_price))
                     .execute(conn)?;
 
                 if effected_rows == 0 {
-                    bail!("Could not update order")
+                    bail!("Could not update order execution price")
                 }
             }
 
             if let Some(failure_reason) = status.2 {
-                diesel::update(orders::table)
-                    .filter(schema::orders::id.eq(order_id))
+                let effected_rows = diesel::update(orders::table)
+                    .filter(schema::orders::id.eq(order_id.clone()))
                     .set(schema::orders::failure_reason.eq(failure_reason))
                     .execute(conn)?;
 
                 if effected_rows == 0 {
-                    bail!("Could not update order")
+                    bail!("Could not update order failure reason")
                 }
             }
 
-            Ok(())
+            let order = orders::table
+                .filter(schema::orders::id.eq(order_id.clone()))
+                .first(conn)?;
+
+            Ok(order)
         })
     }
 
@@ -458,6 +477,33 @@ pub enum OrderState {
     Filling,
     Failed,
     Filled,
+}
+
+impl OrderState {
+    /// Determines what state to go to after learning about the latest [`OrderState`] update.
+    ///
+    /// If the state should remain unchanged [`None`] is returned.
+    ///
+    /// TODO: It might be a good idea to introduce a different type that models `OrderUpdates`
+    /// explicitly.
+    fn next_state(&self, latest: Self) -> Option<Self> {
+        match (self, latest) {
+            // We can go from `Initial` to any other state
+            (OrderState::Initial, latest) => Some(latest),
+            // `Rejected` is a final state
+            (OrderState::Rejected, _) => None,
+            // We cannnot go back to `Initial` if the order is already `Open`
+            (OrderState::Open, OrderState::Initial) => None,
+            (OrderState::Open, latest) => Some(latest),
+            // We cannot go back to `Initial` or `Open` if the order is already `Filling`
+            (OrderState::Filling, OrderState::Initial | OrderState::Open) => None,
+            (OrderState::Filling, latest) => Some(latest),
+            // `Failed` is a final state
+            (OrderState::Failed, _) => None,
+            // `Filled` is a final state
+            (OrderState::Filled, _) => None,
+        }
+    }
 }
 
 impl From<crate::trade::order::OrderState> for (OrderState, Option<f32>, Option<FailureReason>) {

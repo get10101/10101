@@ -32,10 +32,12 @@ mod custom_types;
 pub mod models;
 
 pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!();
+
 /// Sets the number of max connections to the DB.
 ///
-/// This number was arbitrarily chosen and can be adapted if needed.
-const MAX_DB_POOL_SIZE: u32 = 16;
+/// We are only allowing 1 connection at a time because given the simplicity of the app currently
+/// there is no need for concurrent access to the database.
+const MAX_DB_POOL_SIZE: u32 = 1;
 
 static DB: Storage<Arc<Pool<ConnectionManager<SqliteConnection>>>> = Storage::new();
 
@@ -49,17 +51,17 @@ pub struct ConnectionOptions {
 impl r2d2::CustomizeConnection<SqliteConnection, r2d2::Error> for ConnectionOptions {
     fn on_acquire(&self, conn: &mut SqliteConnection) -> Result<(), r2d2::Error> {
         (|| {
-            if self.enable_wal {
-                conn.batch_execute("PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL;")?;
-            }
-            if self.enable_foreign_keys {
-                conn.batch_execute("PRAGMA foreign_keys = ON;")?;
-            }
             if let Some(d) = self.busy_timeout {
                 conn.batch_execute(&format!(
                     "PRAGMA busy_timeout = {};",
                     d.whole_milliseconds()
                 ))?;
+            }
+            if self.enable_wal {
+                conn.batch_execute("PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL; PRAGMA wal_autocheckpoint = 1000; PRAGMA wal_checkpoint(TRUNCATE);")?;
+            }
+            if self.enable_foreign_keys {
+                conn.batch_execute("PRAGMA foreign_keys = ON;")?;
             }
             Ok(())
         })()
@@ -112,29 +114,16 @@ pub fn insert_order(order: trade::order::Order) -> Result<trade::order::Order> {
     Ok(order.try_into()?)
 }
 
-pub fn update_order_state(order_id: Uuid, order_state: trade::order::OrderState) -> Result<()> {
+pub fn update_order_state(
+    order_id: Uuid,
+    order_state: trade::order::OrderState,
+) -> Result<trade::order::Order> {
     let mut db = connection()?;
 
-    // We should not walk back the state of orders in general. Here we specifically want to prevent
-    // `Filling` orders from going back to `Open`.
-    if let trade::order::OrderState::Open = order_state {
-        let order = get_order(order_id)?;
-        let current_state = order.state;
-
-        use crate::trade::order::OrderState::*;
-        if let Rejected | Open | Filling { .. } | Failed { .. } | Filled { .. } = current_state {
-            tracing::debug!(
-                ?current_state,
-                "Ignoring order update; Open state is old news"
-            );
-            return Ok(());
-        };
-    }
-
-    Order::update_state(order_id.to_string(), order_state.into(), &mut db)
+    let order = Order::update_state(order_id.to_string(), order_state.into(), &mut db)
         .context("Failed to update order state")?;
 
-    Ok(())
+    Ok(order.try_into()?)
 }
 
 pub fn get_order(order_id: Uuid) -> Result<trade::order::Order> {
