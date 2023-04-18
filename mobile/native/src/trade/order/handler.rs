@@ -114,12 +114,8 @@ fn get_order_being_filled() -> Result<Order> {
 }
 
 fn update_order_state_in_db_and_ui(order_id: Uuid, state: OrderState) -> Result<Order> {
-    db::update_order_state(order_id, state)
+    let order = db::update_order_state(order_id, state)
         .with_context(|| format!("Failed to update order {order_id} with state {state:?}"))?;
-
-    let order = db::get_order(order_id).with_context(|| {
-        format!("Failed to load order {order_id} after updating it to state {state:?}")
-    })?;
 
     ui_update(order);
 
