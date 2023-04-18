@@ -41,7 +41,6 @@ mod tests;
 
 pub use ln::ChannelDetails;
 pub use ln::DlcChannelDetails;
-pub use node::dlc_channel::Dlc;
 pub use node::invoice::HTLCStatus;
 
 type ConfirmableMonitor = (

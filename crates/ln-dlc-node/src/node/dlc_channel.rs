@@ -7,17 +7,11 @@ use dlc_manager::subchannel::SubChannel;
 use dlc_manager::subchannel::SubChannelState;
 use dlc_manager::Oracle;
 use dlc_manager::Storage;
+use dlc_messages::ChannelMessage;
 use dlc_messages::Message;
+use dlc_messages::OnChainMessage;
 use dlc_messages::SubChannelMessage;
 use lightning::ln::channelmanager::ChannelDetails;
-
-#[derive(Debug, Copy, Clone)]
-pub struct Dlc {
-    pub id: [u8; 32],
-    pub offer_collateral: u64,
-    pub accept_collateral: u64,
-    pub accept_pk: PublicKey,
-}
 
 impl<P> Node<P> {
     pub async fn propose_dlc_channel(
@@ -189,7 +183,7 @@ impl<P> Node<P> {
                 Message::SubChannel(msg) => {
                     tracing::debug!(
                         from = %node_id,
-                        msg = %sub_channel_message_as_str(&msg),
+                        msg = %sub_channel_message_name(&msg),
                         "Processing DLC channel message"
                     );
                     let resp = sub_channel_manager
@@ -199,7 +193,7 @@ impl<P> Node<P> {
                     if let Some(msg) = resp {
                         tracing::debug!(
                             to = %node_id,
-                            msg = %sub_channel_message_as_str(&msg),
+                            msg = %sub_channel_message_name(&msg),
                             "Sending DLC channel message"
                         );
                         dlc_message_handler.send_message(node_id, Message::SubChannel(msg));
@@ -212,7 +206,41 @@ impl<P> Node<P> {
     }
 }
 
-pub fn sub_channel_message_as_str(msg: &SubChannelMessage) -> &str {
+pub fn dlc_message_name(msg: &Message) -> String {
+    let name = match msg {
+        Message::OnChain(OnChainMessage::Offer(_)) => "Offer",
+        Message::OnChain(OnChainMessage::Accept(_)) => "Accept",
+        Message::OnChain(OnChainMessage::Sign(_)) => "Sign",
+        Message::Channel(ChannelMessage::Offer(_)) => "ChannelOffer",
+        Message::Channel(ChannelMessage::Accept(_)) => "ChannelAccept",
+        Message::Channel(ChannelMessage::Sign(_)) => "ChannelSign",
+        Message::Channel(ChannelMessage::SettleOffer(_)) => "ChannelSettleOffer",
+        Message::Channel(ChannelMessage::SettleAccept(_)) => "ChannelSettleAccept",
+        Message::Channel(ChannelMessage::SettleConfirm(_)) => "ChannelSettleConfirm",
+        Message::Channel(ChannelMessage::SettleFinalize(_)) => "ChannelSettleFinalize",
+        Message::Channel(ChannelMessage::RenewOffer(_)) => "ChannelRenewOffer",
+        Message::Channel(ChannelMessage::RenewAccept(_)) => "ChannelRenewAccept",
+        Message::Channel(ChannelMessage::RenewConfirm(_)) => "ChannelRenewConfirm",
+        Message::Channel(ChannelMessage::RenewFinalize(_)) => "ChannelRenewFinalize",
+        Message::Channel(ChannelMessage::CollaborativeCloseOffer(_)) => {
+            "ChannelCollaborativeCloseOffer"
+        }
+        Message::Channel(ChannelMessage::Reject(_)) => "ChannelReject",
+        Message::SubChannel(SubChannelMessage::Offer(_)) => "Offer",
+        Message::SubChannel(SubChannelMessage::Accept(_)) => "Accept",
+        Message::SubChannel(SubChannelMessage::Confirm(_)) => "Confirm",
+        Message::SubChannel(SubChannelMessage::Finalize(_)) => "Finalize",
+        Message::SubChannel(SubChannelMessage::CloseOffer(_)) => "CloseOffer",
+        Message::SubChannel(SubChannelMessage::CloseAccept(_)) => "CloseAccept",
+        Message::SubChannel(SubChannelMessage::CloseConfirm(_)) => "CloseConfirm",
+        Message::SubChannel(SubChannelMessage::CloseFinalize(_)) => "CloseFinalize",
+        Message::SubChannel(SubChannelMessage::Reject(_)) => "Reject",
+    };
+
+    name.to_string()
+}
+
+pub fn sub_channel_message_name(msg: &SubChannelMessage) -> &str {
     use SubChannelMessage::*;
 
     match msg {
