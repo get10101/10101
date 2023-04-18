@@ -34,47 +34,59 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
         body: SafeArea(
             child: Form(
           key: _formKey,
-          child: Column(
-            children: <Widget>[
-              Column(
-                children: const <Widget>[
-                  Text("Please be patient with us as we work out the rough edges."),
-                  Text("Any feedback is welcome!"),
-                  SizedBox(height: 10),
-                  Text("Please enter your email address to continue:"),
-                ],
-              ),
-              const SizedBox(height: 20),
-              TextFormField(
-                keyboardType: TextInputType.emailAddress,
-                initialValue: _email,
-                decoration: const InputDecoration(
-                  labelText: 'Email',
-                  hintText: 'Enter your email address',
+          child: Container(
+            color: Colors.white,
+            padding: const EdgeInsets.all(20.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: <Widget>[
+                Center(
+                  child: Image.asset('assets/10101_logo_icon.png', width: 150, height: 150),
                 ),
-                validator: (value) {
-                  if (value == null || value.isEmpty || !isEmailValid(value)) {
-                    return 'Please enter a valid email address';
-                  }
-                  return null;
-                },
-                onSaved: (value) {
-                  _email = value ?? "";
-                },
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  if (_formKey.currentState != null && _formKey.currentState!.validate()) {
-                    _formKey.currentState?.save();
-                    Preferences.instance.setEmailAddress(_email);
-                    FLog.info(text: "Successfully stored the email address $_email .");
-                    api.registerBeta(email: _email);
-                    context.go(WalletScreen.route);
-                  }
-                },
-                child: const Text('Start'),
-              ),
-            ],
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: const <Widget>[
+                    Text(
+                      "As we are in closed beta, there may be bugs. To assist with any issues, please provide your email.",
+                      style: TextStyle(fontSize: 16, color: Colors.black54),
+                    )
+                  ],
+                ),
+                const SizedBox(height: 20),
+                TextFormField(
+                  keyboardType: TextInputType.emailAddress,
+                  initialValue: _email,
+                  decoration: const InputDecoration(
+                    labelText: 'Email',
+                    hintText: 'Enter your email address to continue',
+                  ),
+                  validator: (value) {
+                    if (value == null || value.isEmpty || !isEmailValid(value)) {
+                      return 'Please enter a valid email address';
+                    }
+                    return null;
+                  },
+                  onSaved: (value) {
+                    _email = value ?? "";
+                  },
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    if (_formKey.currentState != null && _formKey.currentState!.validate()) {
+                      _formKey.currentState?.save();
+                      Preferences.instance.setEmailAddress(_email);
+                      FLog.info(text: "Successfully stored the email address $_email .");
+                      api.registerBeta(email: _email);
+                      context.go(WalletScreen.route);
+                    }
+                  },
+                  child: const Text(
+                    'Continue',
+                    style: TextStyle(fontSize: 16),
+                  ),
+                ),
+              ],
+            ),
           ),
         )));
   }
