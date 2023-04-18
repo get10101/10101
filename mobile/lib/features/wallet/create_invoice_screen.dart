@@ -9,8 +9,7 @@ import 'package:get_10101/features/wallet/wallet_change_notifier.dart';
 import 'package:get_10101/features/wallet/wallet_screen.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-
-import '../../common/modal_bottom_sheet_info.dart';
+import 'package:get_10101/common/modal_bottom_sheet_info.dart';
 import 'application/wallet_service.dart';
 
 class CreateInvoiceScreen extends StatefulWidget {
@@ -42,9 +41,10 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
   @override
   Widget build(BuildContext context) {
     int channelCapacity = channelConstraintsService.getLightningChannelCapacity();
-    int totalMaxAmount = (channelCapacity / 2).floor();
+    int usableChannelCapacity = channelConstraintsService.getUsableChannelCapacity();
     int balance = context.watch<WalletChangeNotifier>().walletInfo.balances.lightning.sats;
-    int maxAmount = max(totalMaxAmount - balance, 0);
+    // it can go below 0 if the user has an unbalanced channel
+    int maxAmount = max(usableChannelCapacity - balance, 0);
 
     int minAmount = channelConstraintsService.getChannelReserve() +
         channelConstraintsService.getFeeReserve() +
@@ -90,7 +90,7 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
                           try {
                             int amount = int.parse(value);
 
-                            if (balance > totalMaxAmount) {
+                            if (balance > usableChannelCapacity) {
                               return "Maximum beta balance exceeded";
                             }
 
@@ -114,7 +114,7 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
                           infoText:
                               "While in beta, channel capacity is limited to $channelCapacity sats; payments above this capacity might get rejected."
                               "\n\nYour current balance is $balance, so you can receive up to $maxAmount sats."
-                              "\nIf you hold less than $minAmount or more than $totalMaxAmount in your wallet you might not be able to trade."
+                              "\nIf you hold less than $minAmount or more than $usableChannelCapacity in your wallet you might not be able to trade."
                               "\n\nThe maximum is enforced initially to ensure users only trade with small stakes until the software has proven to be stable.",
                           buttonText: "Back to Receive..."),
                   ],
