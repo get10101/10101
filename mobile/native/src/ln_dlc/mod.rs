@@ -333,6 +333,18 @@ pub fn open_channel() -> Result<()> {
     Ok(())
 }
 
+pub fn close_channel(is_force_close: bool) -> Result<()> {
+    let node = NODE.try_get().context("failed to get ln dlc node")?;
+
+    let channels = node.inner.list_channels();
+    let channel_details = channels.first().context("No channel to close")?;
+
+    node.inner
+        .close_channel(channel_details.channel_id, is_force_close)?;
+
+    Ok(())
+}
+
 pub fn create_invoice(amount_sats: Option<u64>) -> Result<Invoice> {
     let runtime = runtime()?;
 
