@@ -10,9 +10,9 @@ dlc-sled-storage-provider = { git = "https://github.com/get10101/rust-dlc", rev 
 p2pd-oracle-client = { git = "https://github.com/get10101/rust-dlc", rev = "f1627dbec11ac2ed062c841bd70d243c62743e6f" }
 dlc-trie = { git = "https://github.com/get10101/rust-dlc", rev = "f1627dbec11ac2ed062c841bd70d243c62743e6f" }
 simple-wallet = { git = "https://github.com/get10101/rust-dlc", rev = "f1627dbec11ac2ed062c841bd70d243c62743e6f" }
-lightning = { git = "https://github.com/p2pderivatives/rust-lightning/", rev = "dff302382d04700f23d79fb3275c1798d775fef6" }
-lightning-background-processor = { git = "https://github.com/p2pderivatives/rust-lightning/", rev = "dff302382d04700f23d79fb3275c1798d775fef6" }
-lightning-block-sync = { git = "https://github.com/p2pderivatives/rust-lightning/", rev = "dff302382d04700f23d79fb3275c1798d775fef6" }
-lightning-net-tokio = { git = "https://github.com/p2pderivatives/rust-lightning/", rev = "dff302382d04700f23d79fb3275c1798d775fef6" }
-lightning-persister = { git = "https://github.com/p2pderivatives/rust-lightning/", rev = "dff302382d04700f23d79fb3275c1798d775fef6" }
-lightning-rapid-gossip-sync = { git = "https://github.com/p2pderivatives/rust-lightning/", rev = "dff302382d04700f23d79fb3275c1798d775fef6" }
+lightning = { git = "https://github.com/p2pderivatives/rust-lightning/", rev = "91434931df734bb59307a30b847836b7752a1999" }
+lightning-background-processor = { git = "https://github.com/p2pderivatives/rust-lightning/", rev = "91434931df734bb59307a30b847836b7752a1999" }
+lightning-block-sync = { git = "https://github.com/p2pderivatives/rust-lightning/", rev = "91434931df734bb59307a30b847836b7752a1999" }
+lightning-net-tokio = { git = "https://github.com/p2pderivatives/rust-lightning/", rev = "91434931df734bb59307a30b847836b7752a1999" }
+lightning-persister = { git = "https://github.com/p2pderivatives/rust-lightning/", rev = "91434931df734bb59307a30b847836b7752a1999" }
+lightning-rapid-gossip-sync = { git = "https://github.com/p2pderivatives/rust-lightning/", rev = "91434931df734bb59307a30b847836b7752a1999" }
