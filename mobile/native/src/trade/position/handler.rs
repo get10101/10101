@@ -91,7 +91,9 @@ pub fn update_position_after_order_submitted(submitted_order: Order) -> Result<(
 pub fn set_position_to_open() -> Result<()> {
     if let Some(position) = db::get_positions()?.first() {
         db::update_position_state(position.contract_symbol, PositionState::Open)?;
-        event::publish(&EventInternal::PositionUpdateNotification(position.clone()));
+        let mut position = position.clone();
+        position.position_state = PositionState::Open;
+        event::publish(&EventInternal::PositionUpdateNotification(position));
     }
 
     Ok(())
