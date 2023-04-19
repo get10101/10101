@@ -92,6 +92,10 @@ pub(crate) fn order_failed(
 
     update_order_state_in_db_and_ui(order_id, OrderState::Failed { reason })?;
 
+    if let Err(e) = position::handler::set_position_to_open() {
+        bail!("Could not reset position to open because of {e:#}");
+    }
+
     Ok(())
 }
 
