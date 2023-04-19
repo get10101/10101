@@ -67,6 +67,10 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
 
     int minMargin = provider.minMargin;
     int usableBalance = max(walletInfo.balances.lightning.sats - provider.reserve, 0);
+    // the assumed balance of the counterparty based on the channel and our balance
+    // this is needed to make sure that the counterparty can fulfil the trade
+    int counterpartyUsableBalance =
+        max(provider.capacity - (walletInfo.balances.lightning.sats + provider.reserve), 0);
     int maxMargin = usableBalance;
 
     return Form(
@@ -179,8 +183,15 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
                             try {
                               int margin = int.parse(value);
 
+                              // the trading capacity does not take into account if the channel is balanced or not
+                              int tradingCapacity =
+                                  provider.availableTradingCapacity(widget.direction);
+                              int counterpartyMargin =
+                                  provider.counterpartyMargin(widget.direction);
+
                               // This condition has to stay as the first thing to check, so we reset showing the info
-                              if (margin > provider.availableTradingCapacity(widget.direction)) {
+                              if (margin > tradingCapacity ||
+                                  counterpartyMargin > counterpartyUsableBalance) {
                                 setState(() {
                                   showCapacityInfo = true;
                                 });
