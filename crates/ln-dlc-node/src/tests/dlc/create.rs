@@ -76,7 +76,6 @@ pub async fn create_dlc_channel(
         .await?;
 
     // Processs the app's offer to close the channel
-    // TODO: Spawn a task that does this work periodically
     tokio::time::sleep(Duration::from_secs(2)).await;
     coordinator.process_incoming_messages()?;
 
