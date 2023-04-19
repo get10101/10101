@@ -64,35 +64,34 @@ class TradeValuesChangeNotifier extends ChangeNotifier implements Subscriber {
   int get feeReserve => _feeReserve;
   int get capacity => _channelCapacity;
 
-  /// Defines the amount of sats the user can actually use for trading
-  /// Defined as:
-  /// available_trading_capacity = channel_capacity - total_reserve - counterparty_margin
-  int availableTradingCapacity(Direction direction) {
-    int counterpartyMargin = 0;
-
+  /// Calculates the counterparty margin based on leverage one
+  int counterpartyMargin(Direction direction) {
     switch (direction) {
       case Direction.long:
-        counterpartyMargin = tradeValuesService
+        return tradeValuesService
             .calculateMargin(
                 price: _buyTradeValues.price,
                 quantity: _buyTradeValues.quantity,
                 leverage: Leverage(1))
             .sats;
-        break;
       case Direction.short:
-        counterpartyMargin = tradeValuesService
+        return tradeValuesService
             .calculateMargin(
                 price: _sellTradeValues.price,
                 quantity: _sellTradeValues.quantity,
                 leverage: Leverage(1))
             .sats;
-        break;
     }
+  }
 
+  /// Defines the amount of sats the user can actually use for trading
+  /// Defined as:
+  /// available_trading_capacity = channel_capacity - total_reserve - counterparty_margin
+  int availableTradingCapacity(Direction direction) {
     int channelCapacity = _channelConstraintsService.getLightningChannelCapacity();
     int totalReserve = reserve * 2;
 
-    return channelCapacity - totalReserve - counterpartyMargin;
+    return channelCapacity - totalReserve - counterpartyMargin(direction);
   }
 
   void updateQuantity(Direction direction, double quantity) {
