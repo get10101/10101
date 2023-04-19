@@ -271,3 +271,7 @@ pub fn decode_invoice(invoice: String) -> Result<LightningInvoice> {
         payee,
     })
 }
+
+pub fn get_node_id() -> Result<SyncReturn<String>> {
+    ln_dlc::get_node_info().map(|info| SyncReturn(info.pubkey.to_string()))
+}

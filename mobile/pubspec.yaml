@@ -29,6 +29,7 @@ dependencies:
   http: ^0.13.5
   timeago: ^3.3.0
   shared_preferences: ^2.1.0
+  package_info_plus: ^3.1.0
 dev_dependencies:
   flutter_launcher_icons: ^0.13.0
   flutter_test:
