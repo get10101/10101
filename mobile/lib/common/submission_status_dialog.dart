@@ -9,6 +9,7 @@ class SubmissionStatusDialog extends StatelessWidget {
   final Widget content;
   final String buttonText;
   final EdgeInsets insetPadding;
+  final String navigateToRoute;
 
   const SubmissionStatusDialog(
       {super.key,
@@ -16,7 +17,8 @@ class SubmissionStatusDialog extends StatelessWidget {
       required this.type,
       required this.content,
       this.buttonText = "Close",
-      this.insetPadding = const EdgeInsets.all(50)});
+      this.insetPadding = const EdgeInsets.all(50),
+      this.navigateToRoute = ""});
 
   @override
   Widget build(BuildContext context) {
@@ -53,6 +55,10 @@ class SubmissionStatusDialog extends StatelessWidget {
         ElevatedButton(
             onPressed: () {
               GoRouter.of(context).pop();
+
+              if (navigateToRoute.isNotEmpty) {
+                GoRouter.of(context).go(navigateToRoute);
+              }
             },
             child: Text(buttonText))
       ],

@@ -71,6 +71,7 @@ where
             .unwrap();
         let node_secret = self.keys_manager.get_node_secret(Recipient::Node).unwrap();
         let invoice_builder = InvoiceBuilder::new(self.get_currency())
+            .payee_pub_key(self.info.pubkey)
             .description(description)
             .payment_hash(sha256::Hash::from_slice(&payment_hash.0)?)
             .payment_secret(payment_secret)
@@ -137,7 +138,11 @@ where
     pub fn send_payment(&self, invoice: &Invoice) -> Result<()> {
         let status = match self.invoice_payer.pay_invoice(invoice) {
             Ok(_) => {
-                let payee_pubkey = invoice.recover_payee_pub_key();
+                let payee_pubkey = match invoice.payee_pub_key() {
+                    Some(pubkey) => *pubkey,
+                    None => invoice.recover_payee_pub_key(),
+                };
+
                 let amt_msat = invoice
                     .amount_milli_satoshis()
                     .context("invalid msat amount in the invoice")?;

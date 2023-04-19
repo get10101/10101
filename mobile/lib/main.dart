@@ -21,6 +21,7 @@ import 'package:get_10101/features/trade/trade_theme.dart';
 import 'package:get_10101/features/wallet/application/wallet_service.dart';
 import 'package:get_10101/features/wallet/create_invoice_screen.dart';
 import 'package:get_10101/features/wallet/seed_screen.dart';
+import 'package:get_10101/features/wallet/send_payment_change_notifier.dart';
 import 'package:get_10101/features/wallet/share_invoice_screen.dart';
 import 'package:get_10101/features/wallet/scanner_screen.dart';
 import 'package:get_10101/features/wallet/send_screen.dart';
@@ -73,6 +74,7 @@ void main() {
     ChangeNotifierProvider(create: (context) => OrderChangeNotifier(OrderService())),
     ChangeNotifierProvider(create: (context) => PositionChangeNotifier(PositionService())),
     ChangeNotifierProvider(create: (context) => WalletChangeNotifier(const WalletService())),
+    ChangeNotifierProvider(create: (context) => SendPaymentChangeNotifier(const WalletService())),
     ChangeNotifierProvider(
         create: (context) => CandlestickChangeNotifier(const CandlestickService())),
     Provider(create: (context) => Environment.parse()),
