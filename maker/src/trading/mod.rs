@@ -60,15 +60,8 @@ async fn update_order(
     last_order: Option<OrderResponse>,
     quantity: Decimal,
 ) -> Option<OrderResponse> {
-    if let Some(last_order) = last_order {
-        let order_id = last_order.id;
-        if let Err(err) = orderbook_client::delete_order(orderbook_url.clone(), order_id).await {
-            tracing::error!("Failed deleting old order `{order_id}` because of {err:#}");
-        }
-    };
-
-    match orderbook_client::post_new_order(
-        orderbook_url,
+    let order = match orderbook_client::post_new_order(
+        orderbook_url.clone(),
         NewOrder {
             id: Uuid::new_v4(),
             price,
@@ -86,5 +79,12 @@ async fn update_order(
             tracing::error!("Failed posting new order {err:#}");
             None
         }
-    }
+    };
+    if let Some(last_order) = last_order {
+        let order_id = last_order.id;
+        if let Err(err) = orderbook_client::delete_order(orderbook_url, order_id).await {
+            tracing::error!("Failed deleting old order `{order_id}` because of {err:#}");
+        }
+    };
+    order
 }
