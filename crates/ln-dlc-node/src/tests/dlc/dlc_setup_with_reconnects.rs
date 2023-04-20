@@ -3,7 +3,6 @@ use crate::node::Node;
 use crate::tests::dummy_contract_input;
 use crate::tests::init_tracing;
 use crate::tests::wait_until;
-use anyhow::anyhow;
 use anyhow::Context;
 use bitcoin::Amount;
 use dlc_manager::subchannel::SubChannelState;
@@ -56,8 +55,7 @@ async fn reconnecting_during_dlc_channel_setup() {
         let sub_channels = coordinator
             .dlc_manager
             .get_store()
-            .get_offered_sub_channels()
-            .map_err(|e| anyhow!(e.to_string()))?;
+            .get_offered_sub_channels()?;
 
         let sub_channel = sub_channels
             .iter()
@@ -118,7 +116,6 @@ async fn reconnecting_during_dlc_channel_setup() {
         .dlc_manager
         .get_store()
         .get_sub_channels()
-        .map_err(|e| anyhow!("{e}"))
         .unwrap()
         .into_iter()
         .find(|sc| sc.channel_id == sub_channel.channel_id)

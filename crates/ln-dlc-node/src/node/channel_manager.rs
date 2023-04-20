@@ -112,10 +112,7 @@ pub(crate) fn build(
         .collect();
 
     // Sync our channel monitors and channel manager to chain tip
-    ln_dlc_wallet
-        .inner()
-        .sync(confirmables)
-        .map_err(|e| anyhow::anyhow!("{e:?}"))?;
+    ln_dlc_wallet.inner().sync(confirmables)?;
 
     // Give ChannelMonitors to ChainMonitor to watch
     for confirmable_monitor in confirmable_monitors.drain(..) {

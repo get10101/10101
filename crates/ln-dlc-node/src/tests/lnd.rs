@@ -2,7 +2,6 @@ use crate::node::Node;
 use crate::node::PaymentMap;
 use crate::tests;
 use crate::tests::bitcoind;
-use anyhow::anyhow;
 use anyhow::bail;
 use anyhow::Result;
 use lightning_invoice::Invoice;
@@ -96,8 +95,7 @@ impl LndNode {
                 tokio::time::sleep(Duration::from_millis(500)).await;
             }
         })
-        .await
-        .map_err(|e| anyhow!(e))?;
+        .await?;
 
         // todo: fetch channel status from lnd api instead of timeout.
         // wait for lnd to process the channel opening.

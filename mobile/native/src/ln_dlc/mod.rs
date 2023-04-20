@@ -332,10 +332,7 @@ async fn keep_wallet_balance_and_history_up_to_date(node: &Node) -> Result<()> {
 
 pub fn get_new_address() -> Result<String> {
     let node = NODE.try_get().context("failed to get ln dlc node")?;
-    let address = node
-        .inner
-        .get_new_address()
-        .map_err(|e| anyhow!("Failed to get new address: {e}"))?;
+    let address = node.inner.get_new_address()?;
     Ok(address.to_string())
 }
 

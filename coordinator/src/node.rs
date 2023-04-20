@@ -1,7 +1,6 @@
 use crate::db;
 use crate::position::models::NewPosition;
 use crate::position::models::Position;
-use anyhow::anyhow;
 use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
@@ -235,8 +234,7 @@ impl Node {
         let channel_details = channel_details
             .into_iter()
             .find(|c| c.counterparty.node_id == trader_pubkey)
-            .context("Channel details not found")
-            .map_err(|e| anyhow!("{e:#}"))?;
+            .context("Channel details not found")?;
         Ok(channel_details)
     }
 
@@ -456,8 +454,7 @@ fn build_payout_function(
             outcome_payout: 0,
             extra_precision: 0,
         },
-    ])
-    .map_err(|e| anyhow!("{e:#}"))?;
+    ])?;
 
     let middle_range = PolynomialPayoutCurvePiece::new(vec![
         PayoutPoint {
@@ -470,8 +467,7 @@ fn build_payout_function(
             outcome_payout: total_collateral,
             extra_precision: 0,
         },
-    ])
-    .map_err(|e| anyhow!("{e:#}"))?;
+    ])?;
 
     let mut pieces = vec![
         PayoutFunctionPiece::PolynomialPayoutCurvePiece(lower_range),
@@ -492,13 +488,14 @@ fn build_payout_function(
                 outcome_payout: total_collateral,
                 extra_precision: 0,
             },
-        ])
-        .map_err(|e| anyhow!("{e:#}"))?;
+        ])?;
 
         pieces.push(PayoutFunctionPiece::PolynomialPayoutCurvePiece(upper_range));
     }
 
-    PayoutFunction::new(pieces).map_err(|e| anyhow!("{e:#}"))
+    let payout_function = PayoutFunction::new(pieces)?;
+
+    Ok(payout_function)
 }
 
 #[cfg(test)]

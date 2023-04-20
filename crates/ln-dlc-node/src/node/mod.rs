@@ -13,6 +13,7 @@ use crate::ChainMonitor;
 use crate::FakeChannelPaymentRequests;
 use crate::InvoicePayer;
 use crate::PeerManager;
+use anyhow::anyhow;
 use anyhow::ensure;
 use anyhow::Context;
 use anyhow::Result;
@@ -308,7 +309,7 @@ where
             lightning_msg_handler,
             keys_manager
                 .get_node_secret(Recipient::Node)
-                .map_err(|e| anyhow::anyhow!("{e:?}"))?,
+                .map_err(|_| anyhow!("Could not get node's secret"))?,
             time_since_unix_epoch.as_secs() as u32,
             &ephemeral_randomness,
             logger.clone(),

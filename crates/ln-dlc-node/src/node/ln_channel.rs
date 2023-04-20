@@ -96,7 +96,7 @@ impl<P> Node<P> {
         let secret = self
             .keys_manager
             .get_node_secret(Recipient::Node)
-            .map_err(|_| anyhow!("Could not get nodes secret"))?;
+            .map_err(|_| anyhow!("Could not get node's secret"))?;
         let signature = lightning::util::message_signing::sign(data.as_bytes(), &secret)?;
         Ok(signature)
     }
