@@ -11,7 +11,8 @@ async fn main() -> Result<Never> {
     tracing_subscriber::fmt()
         .with_env_filter("info,orderbook_client=trace")
         .init();
-    let secret_key = SecretKey::from_slice(&b"bring sally up, bring sally down"[..]).unwrap();
+    let secret_key =
+        SecretKey::from_slice(&b"bring sally up, bring sally down"[..]).expect("valid secret key");
 
     let url = "ws://localhost:8000/api/orderbook/websocket".to_string();
 

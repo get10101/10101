@@ -368,14 +368,20 @@ where
                     .expect("Failed to bind to listen port");
                 loop {
                     let peer_manager = peer_manager.clone();
-                    let (tcp_stream, addr) = listener.accept().await.unwrap();
+                    let (tcp_stream, addr) = match listener.accept().await {
+                        Ok(ret) => ret,
+                        Err(e) => {
+                            tracing::error!("Failed to accept incoming connection: {e:#}");
+                            continue;
+                        }
+                    };
 
                     tracing::debug!(%addr, "Received inbound connection");
 
                     let (fut, connection_handle) = async move {
                         lightning_net_tokio::setup_inbound(
                             peer_manager.clone(),
-                            tcp_stream.into_std().unwrap(),
+                            tcp_stream.into_std().expect("Stream conversion to succeed"),
                         )
                         .await;
                     }

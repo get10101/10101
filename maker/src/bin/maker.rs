@@ -104,7 +104,7 @@ async fn main() -> Result<()> {
         .build(manager)
         .expect("Failed to create pool.");
 
-    let mut conn = pool.get().unwrap();
+    let mut conn = pool.get().expect("to get connection from pool");
     run_migration(&mut conn);
 
     let app = router(node, pool);

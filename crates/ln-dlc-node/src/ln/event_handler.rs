@@ -12,19 +12,24 @@ use crate::NetworkGraph;
 use crate::PaymentFlow;
 use crate::PaymentInfo;
 use crate::PendingInterceptedHtlcs;
+use crate::RequestedScid;
 use anyhow::anyhow;
 use anyhow::Context;
 use anyhow::Result;
+use bitcoin::secp256k1::PublicKey;
 use bitcoin::secp256k1::Secp256k1;
 use lightning::chain::chaininterface::BroadcasterInterface;
 use lightning::chain::chaininterface::ConfirmationTarget;
 use lightning::chain::chaininterface::FeeEstimator;
+use lightning::ln::channelmanager::InterceptId;
 use lightning::routing::gossip::NodeId;
 use lightning::util::events::Event;
 use lightning::util::events::PaymentPurpose;
 use rand::thread_rng;
 use rand::Rng;
+use std::collections::HashMap;
 use std::sync::Arc;
+use std::sync::MutexGuard;
 use std::time::Duration;
 use time::OffsetDateTime;
 use tokio::runtime;
@@ -378,7 +383,7 @@ where
                     "Channel ready"
                 );
 
-                let pending_intercepted_htlcs = self.pending_intercepted_htlcs.lock().unwrap();
+                let pending_intercepted_htlcs = self.pending_intercepted_htlcs_lock();
 
                 if let Some((intercept_id, expected_outbound_amount_msat)) =
                     pending_intercepted_htlcs.get(&counterparty_node_id)
@@ -447,7 +452,7 @@ where
                 );
 
                 let target_node_id = {
-                    let fake_channel_payments = self.fake_channel_payments.lock().unwrap();
+                    let fake_channel_payments = self.fake_channel_payments_lock();
                     match fake_channel_payments.get(&requested_next_hop_scid) {
                         None => {
                             tracing::warn!(fake_scid = requested_next_hop_scid, "Could not forward the intercepted HTLC because we didn't have a node registered with said fake scid");
@@ -540,8 +545,7 @@ where
                     "Started channel creation for in-flight payment"
                 );
 
-                let pending_intercepted_htlcs = self.pending_intercepted_htlcs.clone();
-                let mut pending_intercepted_htlcs = pending_intercepted_htlcs.lock().unwrap();
+                let mut pending_intercepted_htlcs = self.pending_intercepted_htlcs_lock();
                 pending_intercepted_htlcs.insert(
                     target_node_id,
                     (intercept_id, expected_outbound_amount_msat),
@@ -568,5 +572,19 @@ where
                 Err(e) => tracing::error!("Failed to handle event. Error {e:#}"),
             }
         })
+    }
+}
+
+impl<P> EventHandler<P> {
+    fn fake_channel_payments_lock(&self) -> MutexGuard<HashMap<RequestedScid, PublicKey>> {
+        self.fake_channel_payments
+            .lock()
+            .expect("Mutex to not be poisoned")
+    }
+
+    fn pending_intercepted_htlcs_lock(&self) -> MutexGuard<HashMap<PublicKey, (InterceptId, u64)>> {
+        self.pending_intercepted_htlcs
+            .lock()
+            .expect("Mutex to not be poisoned")
     }
 }

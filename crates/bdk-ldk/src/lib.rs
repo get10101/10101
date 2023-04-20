@@ -151,7 +151,7 @@ where
     /// this is useful when you need to sweep funds from a channel
     /// back into your onchain wallet.
     pub fn get_unused_address(&self) -> Result<Address, Error> {
-        let wallet = self.get_wallet_lock()?;
+        let wallet = self.wallet_lock();
         let address_info = wallet.get_address(AddressIndex::LastUnused)?;
         Ok(address_info.address)
     }
@@ -164,7 +164,7 @@ where
         value: u64,
         target_blocks: usize,
     ) -> Result<Transaction, Error> {
-        let wallet = self.get_wallet_lock()?;
+        let wallet = self.wallet_lock();
         let mut tx_builder = wallet.build_tx();
         let fee_rate = self.client.estimate_fee(target_blocks)?;
 
@@ -182,7 +182,7 @@ where
 
     /// get the balance of the inner onchain bdk wallet
     pub fn get_balance(&self) -> Result<Balance, Error> {
-        let wallet = self.get_wallet_lock()?;
+        let wallet = self.wallet_lock();
         wallet.get_balance().map_err(Error::Bdk)
     }
 
@@ -191,12 +191,12 @@ where
     /// on the inner wallet until the guard is dropped
     /// this is useful if you need methods on the wallet that
     /// are not yet exposed on LightningWallet
-    pub fn get_wallet(&self) -> Result<MutexGuard<Wallet<D>>, Error> {
-        Ok(self.get_wallet_lock()?)
+    pub fn get_wallet(&self) -> MutexGuard<Wallet<D>> {
+        self.wallet_lock()
     }
 
     fn sync_onchain_wallet(&self) -> Result<(), Error> {
-        let wallet = self.get_wallet_lock()?;
+        let wallet = self.wallet_lock();
         wallet.sync(self.client.as_ref(), SyncOptions::default())?;
         Ok(())
     }
@@ -217,7 +217,7 @@ where
     ) -> Result<Vec<(u32, BlockHeader, Vec<TransactionWithPosition>)>, Error> {
         let mut txs_by_block: HashMap<u32, Vec<TransactionWithPosition>> = HashMap::new();
 
-        let filter = self.filter.lock().unwrap();
+        let filter = self.tx_filter_lock();
 
         tracing::info!(watched_transactions = ?filter.watched_transactions);
 
@@ -281,15 +281,12 @@ where
         txid: &Txid,
         script: &Script,
     ) -> Result<Option<TransactionWithHeight>, Error> {
-        self.client
-            .get_script_tx_history(script)
-            .map(|history| {
-                history
-                    .into_iter()
-                    .find(|(status, tx)| status.confirmed && tx.txid().eq(txid))
-                    .map(|(status, tx)| (status.block_height.unwrap(), tx))
-            })
-            .map_err(Error::Bdk)
+        let history = self.client.get_script_tx_history(script)?;
+
+        Ok(history
+            .into_iter()
+            .filter(|(status, tx)| status.confirmed && tx.txid().eq(txid))
+            .find_map(|(status, tx)| status.block_height.map(|block_height| (block_height, tx))))
     }
 
     fn get_confirmed_txs_from_script_history(
@@ -299,7 +296,7 @@ where
         history
             .into_iter()
             .filter(|(status, _tx)| status.confirmed)
-            .map(|(status, tx)| (status.block_height.unwrap(), tx))
+            .filter_map(|(status, tx)| status.block_height.map(|block_height| (block_height, tx)))
             .collect::<Vec<TransactionWithHeight>>()
     }
 
@@ -374,19 +371,22 @@ where
         Ok(sats_per_vbyte)
     }
 
-    // Proxy call to wrap lock into anyhow Error
-    fn get_wallet_lock(&self) -> anyhow::Result<MutexGuard<Wallet<D>>> {
-        self.wallet
-            .lock()
-            .map_err(|e| anyhow::anyhow!("could not lock wallet: {e:#}"))
-    }
-
     /// Unlike `broadcast_transaction`, this one allows the client to inspect the errors
     pub fn broadcast(&self, tx: &Transaction) -> Result<(), Error> {
         self.client
             .broadcast(tx)
             .context("Failed to broadcast transaction")?;
         Ok(())
+    }
+}
+
+impl<B, D> LightningWallet<B, D> {
+    fn wallet_lock(&self) -> MutexGuard<Wallet<D>> {
+        self.wallet.lock().expect("Mutex to not be poisoned")
+    }
+
+    fn tx_filter_lock(&self) -> MutexGuard<TxFilter> {
+        self.filter.lock().expect("Mutex to not be poisoned")
     }
 }
 
@@ -427,12 +427,12 @@ where
     D: BatchDatabase,
 {
     fn register_tx(&self, txid: &Txid, script_pubkey: &Script) {
-        let mut filter = self.filter.lock().unwrap();
+        let mut filter = self.tx_filter_lock();
         filter.register_tx(*txid, script_pubkey.clone());
     }
 
     fn register_output(&self, output: WatchedOutput) {
-        let mut filter = self.filter.lock().unwrap();
+        let mut filter = self.tx_filter_lock();
         filter.register_output(output);
         // TODO: do we need to check for tx here or wait for next sync?
     }

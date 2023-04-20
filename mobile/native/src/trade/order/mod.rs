@@ -146,7 +146,7 @@ impl Order {
 impl From<Order> for orderbook_commons::NewOrder {
     fn from(order: Order) -> Self {
         let quantity = Decimal::try_from(order.quantity).expect("to parse into decimal");
-        let trader_id = ln_dlc::get_node_info().unwrap().pubkey;
+        let trader_id = ln_dlc::get_node_info().pubkey;
         orderbook_commons::NewOrder {
             id: order.id,
             // todo: this is left out intentionally as market orders do not set a price. this field
@@ -173,7 +173,7 @@ impl From<OrderType> for orderbook_commons::OrderType {
 /// Enroll the user in the beta program
 pub async fn register_beta(email: String) -> Result<()> {
     let register = RegisterParams {
-        pubkey: ln_dlc::get_node_info()?.pubkey,
+        pubkey: ln_dlc::get_node_info().pubkey,
         email: Some(email),
         nostr: None,
     };

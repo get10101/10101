@@ -177,8 +177,7 @@ pub fn taken(conn: &mut PgConnection, id: Uuid, is_taken: bool) -> QueryResult<O
 pub fn get_with_id(conn: &mut PgConnection, uid: Uuid) -> QueryResult<Option<OrderbookOrder>> {
     let x = orders::table
         .filter(orders::trader_order_id.eq(uid))
-        .load::<Order>(conn)
-        .unwrap();
+        .load::<Order>(conn)?;
 
     let option = x.get(0).map(|order| OrderbookOrder::from(order.clone()));
     Ok(option)

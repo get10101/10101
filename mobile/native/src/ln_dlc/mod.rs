@@ -42,41 +42,27 @@ static NODE: Storage<Arc<Node>> = Storage::new();
 const PROCESS_INCOMING_MESSAGES_INTERVAL: Duration = Duration::from_secs(5);
 
 pub async fn refresh_wallet_info() -> Result<()> {
-    let node = NODE.try_get().context("failed to get ln dlc node")?;
-
-    keep_wallet_balance_and_history_up_to_date(node).await?;
+    keep_wallet_balance_and_history_up_to_date(NODE.get()).await?;
 
     Ok(())
 }
 
-pub fn get_seed_phrase() -> Result<Vec<String>> {
-    let node = NODE.try_get().context("failed to get ln dlc node")?;
-    Ok(node.get_seed_phrase())
+pub fn get_seed_phrase() -> Vec<String> {
+    NODE.get().get_seed_phrase()
 }
 
 pub fn get_node_key() -> Result<SecretKey> {
-    NODE.try_get()
-        .context("failed to get ln dlc node")?
-        .inner
-        .node_key()
+    NODE.get().inner.node_key()
 }
 
-pub fn get_node_info() -> Result<NodeInfo> {
-    Ok(NODE
-        .try_get()
-        .context("failed to get ln dlc node")?
-        .inner
-        .info)
+pub fn get_node_info() -> NodeInfo {
+    NODE.get().inner.info
 }
 
 // TODO: should we also wrap the oracle as `NodeInfo`. It would fit the required attributes pubkey
 // and address.
-pub fn get_oracle_pubkey() -> Result<XOnlyPublicKey> {
-    Ok(NODE
-        .try_get()
-        .context("failed to get ln dlc node")?
-        .inner
-        .oracle_pk())
+pub fn get_oracle_pubkey() -> XOnlyPublicKey {
+    NODE.get().inner.oracle_pk()
 }
 
 /// Lazily creates a multi threaded runtime with the the number of worker threads corresponding to
@@ -331,18 +317,18 @@ async fn keep_wallet_balance_and_history_up_to_date(node: &Node) -> Result<()> {
 }
 
 pub fn get_new_address() -> Result<String> {
-    let node = NODE.try_get().context("failed to get ln dlc node")?;
-    let address = node.inner.get_new_address()?;
+    let address = NODE.get().inner.get_new_address()?;
     Ok(address.to_string())
 }
 
 /// TODO: remove this function once the lightning faucet is more stable. This is only added for
 /// testing purposes - so that we can quickly get funds into the lightning wallet.
 pub fn open_channel() -> Result<()> {
-    let node = NODE.try_get().context("failed to get ln dlc node")?;
-
-    node.inner
-        .initiate_open_channel(config::get_coordinator_info().pubkey, 500000, 250000)?;
+    NODE.get().inner.initiate_open_channel(
+        config::get_coordinator_info().pubkey,
+        500000,
+        250000,
+    )?;
 
     Ok(())
 }
@@ -351,7 +337,7 @@ pub fn create_invoice(amount_sats: Option<u64>) -> Result<Invoice> {
     let runtime = runtime()?;
 
     runtime.block_on(async {
-        let node = NODE.try_get().context("failed to get ln dlc node")?;
+        let node = NODE.get();
         let client = reqwest::Client::new();
         let response = client
             .post(format!(
@@ -383,9 +369,8 @@ pub fn create_invoice(amount_sats: Option<u64>) -> Result<Invoice> {
 }
 
 pub fn send_payment(invoice: &str) -> Result<()> {
-    let node = NODE.try_get().context("failed to get ln dlc node")?;
     let invoice = Invoice::from_str(invoice).context("Could not parse Invoice string")?;
-    node.inner.send_payment(&invoice)
+    NODE.get().inner.send_payment(&invoice)
 }
 
 pub async fn trade(trade_params: TradeParams) -> Result<(), (FailureReason, anyhow::Error)> {

@@ -21,7 +21,8 @@ use serde_json::json;
 pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!();
 
 pub fn run_migration(conn: &mut PgConnection) {
-    conn.run_pending_migrations(MIGRATIONS).unwrap();
+    conn.run_pending_migrations(MIGRATIONS)
+        .expect("migrations to succeed");
 }
 
 /// Our app's top level error type.

@@ -45,7 +45,6 @@ where
             .wallet
             .inner()
             .get_wallet()
-            .unwrap()
             .get_address(AddressIndex::LastUnused)?;
 
         Ok(address.address)
