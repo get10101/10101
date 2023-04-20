@@ -164,8 +164,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
               var logsAsString = await file.readAsString();
               final List<int> bytes = utf8.encode(logsAsString);
               final Directory tempDir = await getTemporaryDirectory();
-              String now = DateFormat('yyyy-MM-dd_HH:mm:ss').format(DateTime.now());
-              final String filePath = '${tempDir.path}/$now.logs';
+              String now = DateFormat('yyyy-MM-dd_HHmmss').format(DateTime.now());
+              final String filePath = '${tempDir.path}/$now.log';
               await File(filePath).writeAsBytes(bytes);
               final XFile logFile = XFile(filePath);
               Share.shareXFiles([logFile], text: 'Logs from $now');
