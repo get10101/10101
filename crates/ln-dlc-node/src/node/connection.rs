@@ -1,6 +1,5 @@
 use crate::node::Node;
 use crate::node::NodeInfo;
-use crate::PeerManager;
 use anyhow::anyhow;
 use anyhow::bail;
 use anyhow::Context;
@@ -8,7 +7,6 @@ use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
 use futures::Future;
 use std::pin::Pin;
-use std::sync::Arc;
 use std::time::Duration;
 
 impl<P> Node<P> {
@@ -41,7 +39,7 @@ impl<P> Node<P> {
         let mut connection_closed_future = Box::pin(connection_closed_future);
 
         tokio::time::timeout(Duration::from_secs(30), async {
-            while !Self::is_connected(&self.peer_manager, peer.pubkey) {
+            while !self.is_connected(peer.pubkey) {
                 if futures::poll!(&mut connection_closed_future).is_ready() {
                     bail!("Peer disconnected before we finished the handshake");
                 }
@@ -59,8 +57,8 @@ impl<P> Node<P> {
         Ok(connection_closed_future)
     }
 
-    fn is_connected(peer_manager: &Arc<PeerManager>, pubkey: PublicKey) -> bool {
-        peer_manager
+    pub fn is_connected(&self, pubkey: PublicKey) -> bool {
+        self.peer_manager
             .get_peer_node_ids()
             .iter()
             .any(|id| *id == pubkey)

@@ -1,4 +1,5 @@
 use crate::node::Node;
+use crate::node::SubChannelManager;
 use anyhow::anyhow;
 use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
@@ -7,6 +8,7 @@ use dlc_manager::subchannel::SubChannel;
 use dlc_manager::subchannel::SubChannelState;
 use dlc_manager::Oracle;
 use dlc_manager::Storage;
+use dlc_messages::message_handler::MessageHandler as DlcMessageHandler;
 use dlc_messages::ChannelMessage;
 use dlc_messages::Message;
 use dlc_messages::OnChainMessage;
@@ -203,6 +205,25 @@ impl<P> Node<P> {
         }
 
         Ok(())
+    }
+}
+
+pub(crate) fn process_pending_dlc_actions(
+    sub_channel_manager: &SubChannelManager,
+    dlc_message_handler: &DlcMessageHandler,
+) {
+    let messages = sub_channel_manager.process_actions();
+    for (msg, node_id) in messages {
+        let msg = Message::SubChannel(msg);
+        let msg_name = dlc_message_name(&msg);
+
+        tracing::info!(
+            to = %node_id,
+            kind = %msg_name,
+            "Queuing up DLC channel message tied to pending action"
+        );
+
+        dlc_message_handler.send_message(node_id, msg);
     }
 }
 

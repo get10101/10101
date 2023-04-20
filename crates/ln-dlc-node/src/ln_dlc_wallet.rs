@@ -102,7 +102,7 @@ impl dlc_manager::Blockchain for LnDlcWallet {
     fn send_transaction(&self, transaction: &Transaction) -> Result<(), Error> {
         self.ln_wallet
             .broadcast(transaction)
-            .map_err(|_| Error::BlockchainError)
+            .map_err(|e| Error::BlockchainError(e.to_string()))
     }
 
     fn get_network(&self) -> Result<Network, Error> {
@@ -118,7 +118,7 @@ impl dlc_manager::Blockchain for LnDlcWallet {
         Ok(self
             .ln_wallet
             .get_tip()
-            .map_err(|_| Error::BlockchainError)?
+            .map_err(|e| Error::BlockchainError(e.to_string()))?
             .0 as u64)
     }
 

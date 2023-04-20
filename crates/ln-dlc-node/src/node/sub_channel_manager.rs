@@ -26,5 +26,5 @@ pub(crate) fn build(
     Ok(Arc::new(SubChannelManager::new(
         channel_manager.clone(),
         dlc_manager,
-    )))
+    )?))
 }

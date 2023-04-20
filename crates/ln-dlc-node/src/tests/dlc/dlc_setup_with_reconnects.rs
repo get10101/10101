@@ -1,3 +1,4 @@
+use crate::node::dlc_channel::process_pending_dlc_actions;
 use crate::node::Node;
 use crate::tests::dummy_contract_input;
 use crate::tests::init_tracing;
@@ -5,12 +6,13 @@ use crate::tests::wait_until;
 use anyhow::anyhow;
 use anyhow::Context;
 use bitcoin::Amount;
+use dlc_manager::subchannel::SubChannelState;
 use dlc_manager::Storage;
 use std::time::Duration;
 
 #[tokio::test]
 #[ignore]
-async fn reconnecting_during_dlc_channel_setup_leads_to_ln_channel_closure() {
+async fn reconnecting_during_dlc_channel_setup() {
     init_tracing();
 
     // Arrange
@@ -36,7 +38,7 @@ async fn reconnecting_during_dlc_channel_setup_leads_to_ln_channel_closure() {
         .context("No usable channels for app")
         .unwrap();
 
-    // Act/Assert
+    // Act
 
     let oracle_pk = app.oracle_pk();
     let contract_input = dummy_contract_input(20_000, 20_000, oracle_pk);
@@ -49,12 +51,6 @@ async fn reconnecting_during_dlc_channel_setup_leads_to_ln_channel_closure() {
     coordinator.process_incoming_messages().unwrap();
 
     app.reconnect(coordinator.info).await.unwrap();
-
-    // Check if channel is still open
-    app.list_channels()
-        .iter()
-        .find(|channel| channel.channel_id == channel_details.channel_id)
-        .expect("LN channel to be open");
 
     let sub_channel = wait_until(Duration::from_secs(30), || async {
         let sub_channels = coordinator
@@ -76,16 +72,57 @@ async fn reconnecting_during_dlc_channel_setup_leads_to_ln_channel_closure() {
         .accept_dlc_channel_offer(&sub_channel.channel_id)
         .unwrap();
 
-    // This reconnect leads to the channel being force-closed. This issue is tracked here:
-    // https://github.com/get10101/10101/issues/352
+    // This is the point of this test: to verify that reconnecting during DLC channel setup can be
+    // fixed by processing pending DLC actions
     app.reconnect(coordinator.info).await.unwrap();
 
-    // Channel is missing due to bug
+    // Instruct coordinator to re-send the accept message
+    process_pending_dlc_actions(
+        &coordinator.sub_channel_manager,
+        &coordinator.dlc_message_handler,
+    );
+
+    // Process the coordinator's accept message _and_ send the confirm message
+    tokio::time::sleep(Duration::from_secs(2)).await;
+    app.process_incoming_messages().unwrap();
+
+    // Process the confirm message _and_ send the finalize message
+    tokio::time::sleep(Duration::from_secs(2)).await;
+    coordinator.process_incoming_messages().unwrap();
+
+    // Process the finalize message
+    tokio::time::sleep(Duration::from_secs(2)).await;
+    app.process_incoming_messages().unwrap();
+
+    // Assert
+
     let channel = app
         .list_channels()
         .into_iter()
         .find(|channel| channel.channel_id == channel_details.channel_id);
 
-    // todo: adapt this assertion to expect some channel once https://github.com/get10101/10101/issues/352 is fixed.
-    assert!(channel.is_none());
+    assert!(channel.is_some());
+
+    let sub_channel_coordinator = coordinator
+        .dlc_manager
+        .get_store()
+        .get_sub_channels()
+        .unwrap()
+        .into_iter()
+        .find(|sc| sc.channel_id == sub_channel.channel_id)
+        .unwrap();
+
+    matches!(sub_channel_coordinator.state, SubChannelState::Signed(_));
+
+    let sub_channel_app = app
+        .dlc_manager
+        .get_store()
+        .get_sub_channels()
+        .map_err(|e| anyhow!("{e}"))
+        .unwrap()
+        .into_iter()
+        .find(|sc| sc.channel_id == sub_channel.channel_id)
+        .unwrap();
+
+    matches!(sub_channel_app.state, SubChannelState::Signed(_));
 }

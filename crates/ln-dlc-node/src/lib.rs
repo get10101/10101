@@ -39,6 +39,7 @@ pub mod seed;
 #[cfg(test)]
 mod tests;
 
+use crate::node::SubChannelManager;
 pub use ln::ChannelDetails;
 pub use ln::DlcChannelDetails;
 pub use node::invoice::HTLCStatus;
@@ -61,7 +62,7 @@ type ChainMonitor = chainmonitor::ChainMonitor<
 
 pub type PeerManager = lightning::ln::peer_handler::PeerManager<
     SocketDescriptor,
-    Arc<ChannelManager>,
+    Arc<SubChannelManager>,
     Arc<
         P2PGossipSync<
             Arc<gossip::NetworkGraph<Arc<TracingLogger>>>,
