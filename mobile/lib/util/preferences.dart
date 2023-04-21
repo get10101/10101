@@ -7,6 +7,17 @@ class Preferences {
 
   static const userSeedBackupConfirmed = "userSeedBackupConfirmed";
   static const emailAddress = "emailAddress";
+  static const openedPosition = "openedPosition";
+
+  setOpenedPosition(bool value) async {
+    SharedPreferences preferences = await SharedPreferences.getInstance();
+    preferences.setBool(openedPosition, value);
+  }
+
+  Future<bool> isOpenedPosition() async {
+    SharedPreferences preferences = await SharedPreferences.getInstance();
+    return preferences.getBool(openedPosition) ?? false;
+  }
 
   setUserSeedBackupConfirmed(bool value) async {
     SharedPreferences preferences = await SharedPreferences.getInstance();

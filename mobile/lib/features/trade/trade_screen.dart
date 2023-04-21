@@ -19,15 +19,23 @@ import 'package:get_10101/features/trade/trade_bottom_sheet_confirmation.dart';
 import 'package:get_10101/features/trade/trade_tabs.dart';
 import 'package:get_10101/features/trade/trade_theme.dart';
 import 'package:get_10101/features/trade/trade_value_change_notifier.dart';
+import 'package:get_10101/util/preferences.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:get_10101/util/constants.dart';
 
-class TradeScreen extends StatelessWidget {
+class TradeScreen extends StatefulWidget {
   static const route = "/trade";
   static const label = "Trade";
 
   const TradeScreen({Key? key}) : super(key: key);
+
+  @override
+  State<TradeScreen> createState() => _TradeScreenState();
+}
+
+class _TradeScreenState extends State<TradeScreen> {
+  bool showBuySellButtons = false;
 
   @override
   Widget build(BuildContext context) {
@@ -124,6 +132,12 @@ class TradeScreen extends StatelessWidget {
     SizedBox listBottomScrollSpace = const SizedBox(
       height: 60,
     );
+
+    Preferences.instance.isOpenedPosition().then((value) {
+      if (showBuySellButtons != !value) {
+        setState(() => showBuySellButtons = !value);
+      }
+    });
 
     return Scaffold(
         body: Container(
@@ -283,12 +297,12 @@ class TradeScreen extends StatelessWidget {
                   child: FloatingActionButton.extended(
                     key: tradeScreenButtonBuy,
                     heroTag: "btnBuy",
-                    onPressed: () {
-                      tradeBottomSheet(context: context, direction: Direction.long);
-                    },
+                    onPressed: showBuySellButtons
+                        ? () => tradeBottomSheet(context: context, direction: Direction.long)
+                        : null,
                     label: const Text("Buy"),
                     shape: tradeButtonShape,
-                    backgroundColor: tradeTheme.buy,
+                    backgroundColor: showBuySellButtons ? tradeTheme.buy : Colors.grey,
                   )),
               const SizedBox(width: 20),
               SizedBox(
@@ -296,12 +310,12 @@ class TradeScreen extends StatelessWidget {
                   child: FloatingActionButton.extended(
                     key: tradeScreenButtonSell,
                     heroTag: "btnSell",
-                    onPressed: () {
-                      tradeBottomSheet(context: context, direction: Direction.short);
-                    },
+                    onPressed: showBuySellButtons
+                        ? () => tradeBottomSheet(context: context, direction: Direction.short)
+                        : null,
                     label: const Text("Sell"),
                     shape: tradeButtonShape,
-                    backgroundColor: tradeTheme.sell,
+                    backgroundColor: showBuySellButtons ? tradeTheme.sell : Colors.grey,
                   )),
             ],
           ),
