@@ -3,7 +3,6 @@ use crate::node::PaymentMap;
 use crate::tests::dummy_contract_input;
 use crate::tests::init_tracing;
 use crate::tests::wait_until;
-use anyhow::anyhow;
 use anyhow::Context;
 use anyhow::Result;
 use bitcoin::Amount;
@@ -83,8 +82,7 @@ pub async fn create_dlc_channel(
         let sub_channels = coordinator
             .dlc_manager
             .get_store()
-            .get_offered_sub_channels()
-            .map_err(|e| anyhow!(e.to_string()))?;
+            .get_offered_sub_channels()?;
 
         let sub_channel = sub_channels
             .iter()
@@ -113,8 +111,7 @@ pub async fn create_dlc_channel(
     let sub_channel_coordinator = coordinator
         .dlc_manager
         .get_store()
-        .get_sub_channels()
-        .map_err(|e| anyhow!("{e}"))?
+        .get_sub_channels()?
         .into_iter()
         .find(|sc| sc.channel_id == sub_channel.channel_id)
         .context("No DLC channel for coordinator")?;
@@ -124,8 +121,7 @@ pub async fn create_dlc_channel(
     let sub_channel_app = app
         .dlc_manager
         .get_store()
-        .get_sub_channels()
-        .map_err(|e| anyhow!("{e}"))?
+        .get_sub_channels()?
         .into_iter()
         .find(|sc| sc.channel_id == sub_channel.channel_id)
         .context("No DLC channel for app")?;

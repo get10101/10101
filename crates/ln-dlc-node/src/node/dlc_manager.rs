@@ -1,4 +1,5 @@
 use crate::ln_dlc_wallet::LnDlcWallet;
+use anyhow::Context;
 use anyhow::Result;
 use dlc_manager::Oracle;
 use dlc_manager::SystemTimeProvider;
@@ -38,5 +39,5 @@ pub fn build(
         Arc::new(SystemTimeProvider {}),
         ln_dlc_wallet,
     )
-    .map_err(|e| anyhow::anyhow!("{e:?}"))
+    .context("Failed to initialise DlcManager")
 }

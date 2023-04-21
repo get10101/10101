@@ -1,6 +1,5 @@
 use crate::node::Node;
 use crate::node::SubChannelManager;
-use anyhow::anyhow;
 use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
 use dlc_manager::contract::contract_input::ContractInput;
@@ -24,22 +23,15 @@ impl<P> Node<P> {
         let announcement = tokio::task::spawn_blocking({
             let oracle = self.oracle.clone();
             let event_id = contract_input.contract_infos[0].oracles.event_id.clone();
-            move || {
-                oracle
-                    .get_announcement(&event_id)
-                    .map_err(|e| anyhow!(e.to_string()))
-            }
+            move || oracle.get_announcement(&event_id)
         })
         .await??;
 
-        let sub_channel_offer = self
-            .sub_channel_manager
-            .offer_sub_channel(
-                &channel_details.channel_id,
-                contract_input,
-                &[vec![announcement]],
-            )
-            .map_err(|e| anyhow!("{e:#}"))?;
+        let sub_channel_offer = self.sub_channel_manager.offer_sub_channel(
+            &channel_details.channel_id,
+            contract_input,
+            &[vec![announcement]],
+        )?;
 
         self.dlc_message_handler.send_message(
             channel_details.counterparty.node_id,
@@ -54,10 +46,8 @@ impl<P> Node<P> {
 
         tracing::info!(channel_id = %channel_id_hex, "Accepting DLC channel offer");
 
-        let (node_id, accept_sub_channel) = self
-            .sub_channel_manager
-            .accept_sub_channel(channel_id)
-            .map_err(|e| anyhow!(e.to_string()))?;
+        let (node_id, accept_sub_channel) =
+            self.sub_channel_manager.accept_sub_channel(channel_id)?;
 
         self.dlc_message_handler.send_message(
             node_id,
@@ -82,8 +72,7 @@ impl<P> Node<P> {
 
         let (sub_channel_close_offer, counterparty_pk) = self
             .sub_channel_manager
-            .offer_subchannel_close(channel_id, accept_settlement_amount)
-            .map_err(|e| anyhow!("{e}"))?;
+            .offer_subchannel_close(channel_id, accept_settlement_amount)?;
 
         self.dlc_message_handler.send_message(
             counterparty_pk,
@@ -100,8 +89,7 @@ impl<P> Node<P> {
 
         let (sub_channel_close_accept, counterparty_pk) = self
             .sub_channel_manager
-            .accept_subchannel_close_offer(channel_id)
-            .map_err(|e| anyhow!(e.to_string()))?;
+            .accept_subchannel_close_offer(channel_id)?;
 
         self.dlc_message_handler.send_message(
             counterparty_pk,
@@ -115,8 +103,7 @@ impl<P> Node<P> {
         let dlc_channel = self
             .dlc_manager
             .get_store()
-            .get_offered_sub_channels()
-            .map_err(|e| anyhow!(e.to_string()))?
+            .get_offered_sub_channels()?
             .into_iter()
             .find(|dlc_channel| dlc_channel.counter_party == *pubkey);
 
@@ -143,11 +130,7 @@ impl<P> Node<P> {
     }
 
     pub fn list_dlc_channels(&self) -> Result<Vec<SubChannel>> {
-        let dlc_channels = self
-            .dlc_manager
-            .get_store()
-            .get_sub_channels()
-            .map_err(|e| anyhow!(e.to_string()))?;
+        let dlc_channels = self.dlc_manager.get_store().get_sub_channels()?;
 
         Ok(dlc_channels)
     }
@@ -173,9 +156,7 @@ impl<P> Node<P> {
             match msg {
                 Message::OnChain(_) | Message::Channel(_) => {
                     tracing::debug!(from = %node_id, "Processing DLC-manager message");
-                    let resp = dlc_manager
-                        .on_dlc_message(&msg, node_id)
-                        .map_err(|e| anyhow!(e.to_string()))?;
+                    let resp = dlc_manager.on_dlc_message(&msg, node_id)?;
 
                     if let Some(msg) = resp {
                         tracing::debug!(to = %node_id, "Sending DLC-manager message");
@@ -188,9 +169,7 @@ impl<P> Node<P> {
                         msg = %sub_channel_message_name(&msg),
                         "Processing DLC channel message"
                     );
-                    let resp = sub_channel_manager
-                        .on_sub_channel_message(&msg, &node_id)
-                        .map_err(|e| anyhow!(e.to_string()))?;
+                    let resp = sub_channel_manager.on_sub_channel_message(&msg, &node_id)?;
 
                     if let Some(msg) = resp {
                         tracing::debug!(

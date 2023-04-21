@@ -68,8 +68,11 @@ where
         let (payment_hash, payment_secret) = self
             .channel_manager
             .create_inbound_payment(amount_msat, invoice_expiry)
-            .unwrap();
-        let node_secret = self.keys_manager.get_node_secret(Recipient::Node).unwrap();
+            .map_err(|_| anyhow!("Failed to create inbound payment"))?;
+        let node_secret = self
+            .keys_manager
+            .get_node_secret(Recipient::Node)
+            .map_err(|_| anyhow!("Could not get node's secret"))?;
         let invoice_builder = InvoiceBuilder::new(self.get_currency())
             .payee_pub_key(self.info.pubkey)
             .description(description)
@@ -101,14 +104,13 @@ where
         };
 
         let signed_invoice = invoice_builder
-            .build_raw()
-            .unwrap()
+            .build_raw()?
             .sign::<_, ()>(|hash| {
                 let secp_ctx = Secp256k1::new();
                 Ok(secp_ctx.sign_ecdsa_recoverable(hash, &node_secret))
             })
-            .unwrap();
-        let invoice = Invoice::from_signed(signed_invoice).unwrap();
+            .map_err(|_| anyhow!("Failed to sign invoice"))?;
+        let invoice = Invoice::from_signed(signed_invoice)?;
         Ok(invoice)
     }
 
@@ -130,7 +132,7 @@ where
         let intercept_scid = self.channel_manager.get_intercept_scid();
         self.fake_channel_payments
             .lock()
-            .unwrap()
+            .expect("Mutex to not be poisoned")
             .insert(intercept_scid, target_node);
         intercept_scid
     }

@@ -74,8 +74,7 @@ impl Bip39Seed {
     fn read_from(path: &Path) -> Result<Self> {
         let bytes = std::fs::read(path)?;
 
-        let seed: Bip39Seed = TryInto::try_into(bytes)
-            .map_err(|_| anyhow::anyhow!("Cannot read the stored entropy"))?;
+        let seed: Bip39Seed = TryInto::try_into(bytes)?;
         Ok(seed)
     }
 

@@ -9,6 +9,7 @@ use lightning::ln::PaymentSecret;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::Mutex;
+use std::sync::MutexGuard;
 use time::OffsetDateTime;
 
 /// Interface which defines what a persister of Lightning payments should be able to do.
@@ -42,7 +43,7 @@ pub struct PaymentMap(Arc<Mutex<HashMap<PaymentHash, PaymentInfo>>>);
 
 impl PaymentPersister for PaymentMap {
     fn insert(&self, payment_hash: PaymentHash, info: PaymentInfo) -> Result<()> {
-        self.0.lock().unwrap().insert(payment_hash, info);
+        self.lock().insert(payment_hash, info);
 
         Ok(())
     }
@@ -56,7 +57,7 @@ impl PaymentPersister for PaymentMap {
         preimage: Option<PaymentPreimage>,
         secret: Option<PaymentSecret>,
     ) -> Result<()> {
-        let mut payments = self.0.lock().unwrap();
+        let mut payments = self.lock();
         match payments.get_mut(payment_hash) {
             Some(mut payment) => {
                 payment.status = htlc_status;
@@ -92,7 +93,7 @@ impl PaymentPersister for PaymentMap {
     }
 
     fn get(&self, payment_hash: &PaymentHash) -> Result<Option<(PaymentHash, PaymentInfo)>> {
-        let payments = self.0.lock().unwrap();
+        let payments = self.lock();
         let info = payments.get(payment_hash);
 
         let payment = info.map(|info| (*payment_hash, *info));
@@ -101,9 +102,15 @@ impl PaymentPersister for PaymentMap {
     }
 
     fn all(&self) -> Result<Vec<(PaymentHash, PaymentInfo)>> {
-        let payments = self.0.lock().unwrap();
+        let payments = self.lock();
         let payments = payments.iter().map(|(a, b)| (*a, *b)).collect();
 
         Ok(payments)
+    }
+}
+
+impl PaymentMap {
+    fn lock(&self) -> MutexGuard<HashMap<PaymentHash, PaymentInfo>> {
+        self.0.lock().expect("Mutex to not be poisoned")
     }
 }

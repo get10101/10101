@@ -80,9 +80,9 @@ impl LastLogin {
         .load::<LastLogin>(conn)?;
         let maybe_last_login = old_login.get(0).cloned();
 
-        let format = format_description::parse(SQLITE_DATETIME_FMT).unwrap();
+        let format = format_description::parse(SQLITE_DATETIME_FMT).expect("valid format");
 
-        let date = last_login.format(&format).unwrap();
+        let date = last_login.format(&format).expect("login to be formatted");
         diesel::insert_into(last_login::table)
             .values(&NewLastLogin {
                 id: 1,

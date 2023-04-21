@@ -190,8 +190,8 @@ pub fn run(config: Config, app_dir: String) -> Result<()> {
     orderbook::subscribe(ln_dlc::get_node_key()?)
 }
 
-pub fn get_new_address() -> SyncReturn<String> {
-    SyncReturn(ln_dlc::get_new_address().unwrap())
+pub fn get_new_address() -> Result<SyncReturn<String>> {
+    ln_dlc::get_new_address().map(SyncReturn)
 }
 
 pub fn open_channel() -> Result<()> {
@@ -220,9 +220,8 @@ pub fn update_last_login() -> Result<LastLogin> {
     Ok(last_login)
 }
 
-pub fn get_seed_phrase() -> Result<SyncReturn<Vec<String>>> {
-    let seed_phrase = ln_dlc::get_seed_phrase()?;
-    Ok(SyncReturn(seed_phrase))
+pub fn get_seed_phrase() -> SyncReturn<Vec<String>> {
+    SyncReturn(ln_dlc::get_seed_phrase())
 }
 
 /// Enroll a user in the beta program
@@ -272,6 +271,6 @@ pub fn decode_invoice(invoice: String) -> Result<LightningInvoice> {
     })
 }
 
-pub fn get_node_id() -> Result<SyncReturn<String>> {
-    ln_dlc::get_node_info().map(|info| SyncReturn(info.pubkey.to_string()))
+pub fn get_node_id() -> SyncReturn<String> {
+    SyncReturn(ln_dlc::get_node_info().pubkey.to_string())
 }

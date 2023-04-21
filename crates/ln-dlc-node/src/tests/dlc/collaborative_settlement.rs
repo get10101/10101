@@ -5,7 +5,6 @@ use crate::tests::dlc::create::DlcChannelCreated;
 use crate::tests::dummy_contract_input;
 use crate::tests::init_tracing;
 use crate::tests::wait_until;
-use anyhow::anyhow;
 use anyhow::Context;
 use anyhow::Result;
 use dlc_manager::subchannel::SubChannelState;
@@ -57,11 +56,7 @@ async fn dlc_collaborative_settlement(
     coordinator.process_incoming_messages()?;
 
     let sub_channel = wait_until(Duration::from_secs(30), || async {
-        let sub_channels = coordinator
-            .dlc_manager
-            .get_store()
-            .get_sub_channels()
-            .map_err(|e| anyhow!(e.to_string()))?;
+        let sub_channels = coordinator.dlc_manager.get_store().get_sub_channels()?;
 
         let sub_channel = sub_channels.iter().find(|sub_channel| {
             sub_channel.counter_party == app.info.pubkey
@@ -92,8 +87,7 @@ async fn dlc_collaborative_settlement(
     let sub_channel_coordinator = coordinator
         .dlc_manager
         .get_store()
-        .get_sub_channels()
-        .map_err(|e| anyhow!(e.to_string()))?
+        .get_sub_channels()?
         .into_iter()
         .find(|sc| sc.channel_id == sub_channel.channel_id)
         .context("No DLC channel for coordinator")?;
@@ -106,8 +100,7 @@ async fn dlc_collaborative_settlement(
     let sub_channel_app = app
         .dlc_manager
         .get_store()
-        .get_sub_channels()
-        .map_err(|e| anyhow!(e.to_string()))?
+        .get_sub_channels()?
         .into_iter()
         .find(|sc| sc.channel_id == sub_channel.channel_id)
         .context("No DLC channel for app")?;
@@ -173,8 +166,7 @@ async fn open_dlc_channel_after_closing_dlc_channel() {
         let sub_channels = coordinator
             .dlc_manager
             .get_store()
-            .get_offered_sub_channels()
-            .map_err(|e| anyhow!(e.to_string()))?;
+            .get_offered_sub_channels()?;
 
         let sub_channel = sub_channels
             .iter()
@@ -204,7 +196,6 @@ async fn open_dlc_channel_after_closing_dlc_channel() {
         .dlc_manager
         .get_store()
         .get_sub_channels()
-        .map_err(|e| anyhow!("{e}"))
         .unwrap()
         .into_iter()
         .find(|sc| sc.channel_id == sub_channel.channel_id)
@@ -217,7 +208,6 @@ async fn open_dlc_channel_after_closing_dlc_channel() {
         .dlc_manager
         .get_store()
         .get_sub_channels()
-        .map_err(|e| anyhow!("{e}"))
         .unwrap()
         .into_iter()
         .find(|sc| sc.channel_id == sub_channel.channel_id)

@@ -2,7 +2,6 @@ use crate::node::HTLCStatus;
 use crate::node::Node;
 use crate::node::PaymentPersister;
 use crate::PaymentFlow;
-use anyhow::anyhow;
 use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
@@ -38,7 +37,7 @@ where
         self.wallet
             .inner()
             .sync(confirmables)
-            .map_err(|e| anyhow!("{e:#}"))
+            .context("Failed to sync wallet")
     }
 
     pub fn get_new_address(&self) -> Result<Address> {
@@ -46,14 +45,16 @@ where
             .wallet
             .inner()
             .get_wallet()
-            .unwrap()
             .get_address(AddressIndex::LastUnused)?;
 
         Ok(address.address)
     }
 
     pub fn get_on_chain_balance(&self) -> Result<bdk::Balance> {
-        self.wallet.inner().get_balance().map_err(|e| anyhow!(e))
+        self.wallet
+            .inner()
+            .get_balance()
+            .context("Failed to get on-chain balance")
     }
 
     pub fn node_key(&self) -> Result<SecretKey> {

@@ -99,7 +99,7 @@ async fn main() -> Result<()> {
         .build(manager)
         .expect("Failed to create pool.");
 
-    let mut conn = pool.get().unwrap();
+    let mut conn = pool.get()?;
     run_migration(&mut conn);
 
     let node = Node {
@@ -124,7 +124,14 @@ async fn main() -> Result<()> {
             loop {
                 tokio::time::sleep(Duration::from_secs(300)).await;
 
-                let mut conn = node.pool.get().unwrap();
+                let mut conn = match node.pool.get() {
+                    Ok(conn) => conn,
+                    Err(e) => {
+                        tracing::error!("Failed to get pool connection. Error: {e:?}");
+                        continue;
+                    }
+                };
+
                 let positions = match db::positions::Position::get_all_open_positions(&mut conn) {
                     Ok(positions) => positions,
                     Err(e) => {

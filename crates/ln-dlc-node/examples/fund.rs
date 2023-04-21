@@ -79,9 +79,9 @@ async fn get_coordinator_address() -> Result<String> {
         .await?
         .strip_prefix('"')
         .to_owned()
-        .unwrap()
+        .expect("prefix")
         .strip_suffix('"')
-        .unwrap()
+        .expect("suffix")
         .to_owned())
 }
 

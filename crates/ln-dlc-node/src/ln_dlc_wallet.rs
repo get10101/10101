@@ -1,5 +1,4 @@
 use crate::seed::Bip39Seed;
-use anyhow::Context;
 use anyhow::Result;
 use bdk::blockchain::ElectrumBlockchain;
 use bdk::sled;
@@ -80,12 +79,7 @@ impl LnDlcWallet {
     /// This list won't be up-to-date unless the wallet has previously been synchronised with the
     /// blockchain.
     pub(crate) fn on_chain_transactions(&self) -> Result<Vec<TransactionDetails>> {
-        let mut txs = self
-            .ln_wallet
-            .get_wallet()
-            .context("Can't acquire lock on bdk_ldk wallet")?
-            .list_transactions(false)
-            .context("bar")?;
+        let mut txs = self.ln_wallet.get_wallet().list_transactions(false)?;
 
         txs.sort_by(|a, b| {
             b.confirmation_time
@@ -106,12 +100,7 @@ impl dlc_manager::Blockchain for LnDlcWallet {
     }
 
     fn get_network(&self) -> Result<Network, Error> {
-        let network = self
-            .ln_wallet
-            .get_wallet()
-            .map_err(|e| WalletError(Box::new(e)))?
-            .network();
-        Ok(network)
+        Ok(self.ln_wallet.get_wallet().network())
     }
 
     fn get_blockchain_height(&self) -> Result<u64, Error> {
@@ -168,7 +157,6 @@ impl dlc_manager::Wallet for LnDlcWallet {
         let address_info = self
             .ln_wallet
             .get_wallet()
-            .unwrap()
             .get_address(AddressIndex::New)
             .map_err(|e| WalletError(Box::new(e)))?;
         Ok(address_info.address)

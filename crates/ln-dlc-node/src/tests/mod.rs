@@ -5,7 +5,6 @@ use crate::node::NodeInfo;
 use crate::node::PaymentMap;
 use crate::seed::Bip39Seed;
 use crate::util;
-use anyhow::anyhow;
 use anyhow::Result;
 use bitcoin::Address;
 use bitcoin::Amount;
@@ -108,10 +107,7 @@ impl Node<PaymentMap> {
         let starting_balance = self.get_confirmed_balance()?;
         let expected_balance = starting_balance + amount.to_sat();
 
-        let address = self
-            .wallet
-            .get_new_address()
-            .map_err(|_| anyhow!("Failed to get new address"))?;
+        let address = self.wallet.get_new_address()?;
 
         fund_and_mine(address, amount).await?;
 

@@ -77,7 +77,7 @@ impl fmt::Debug for Quote {
         let rfc3339_timestamp = self
             .timestamp
             .format(&time::format_description::well_known::Rfc3339)
-            .unwrap();
+            .expect("Timestamp to be formatted");
 
         f.debug_struct("Quote")
             .field("timestamp", &rfc3339_timestamp)

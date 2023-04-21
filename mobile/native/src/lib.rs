@@ -13,5 +13,10 @@ pub mod event;
 pub mod logger;
 mod orderbook;
 
-#[allow(clippy::all, unused_import_braces, unused_qualifications)]
+#[allow(
+    clippy::all,
+    clippy::unwrap_used,
+    unused_import_braces,
+    unused_qualifications
+)]
 mod bridge_generated;

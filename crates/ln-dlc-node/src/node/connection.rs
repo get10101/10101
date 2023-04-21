@@ -1,6 +1,5 @@
 use crate::node::Node;
 use crate::node::NodeInfo;
-use anyhow::anyhow;
 use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
@@ -50,8 +49,7 @@ impl<P> Node<P> {
 
             Ok(())
         })
-        .await
-        .map_err(|e| anyhow!(e.to_string()))??;
+        .await??;
 
         tracing::info!(%peer, "Connection established");
         Ok(connection_closed_future)
