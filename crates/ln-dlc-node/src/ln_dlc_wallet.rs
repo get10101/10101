@@ -19,6 +19,7 @@ use bitcoin::TxOut;
 use bitcoin::Txid;
 use dlc_manager::error::Error;
 use dlc_manager::error::Error::WalletError;
+use dlc_manager::Blockchain;
 use dlc_manager::Signer;
 use dlc_manager::Utxo;
 use dlc_sled_storage_provider::SledStorageProvider;
@@ -92,7 +93,7 @@ impl LnDlcWallet {
     }
 }
 
-impl dlc_manager::Blockchain for LnDlcWallet {
+impl Blockchain for LnDlcWallet {
     fn send_transaction(&self, transaction: &Transaction) -> Result<(), Error> {
         self.ln_wallet
             .broadcast(transaction)
@@ -137,12 +138,26 @@ impl Filter for LnDlcWallet {
 impl Signer for LnDlcWallet {
     fn sign_tx_input(
         &self,
-        _tx: &mut Transaction,
-        _input_index: usize,
-        _tx_out: &TxOut,
-        _redeem_script: Option<Script>,
+        tx: &mut Transaction,
+        input_index: usize,
+        tx_out: &TxOut,
+        _: Option<Script>,
     ) -> Result<(), Error> {
-        todo!()
+        let address = Address::from_script(&tx_out.script_pubkey, self.get_network()?)
+            .expect("a valid scriptpubkey");
+        let seckey = self
+            .storage
+            .get_priv_key_for_address(&address)?
+            .expect("to have the requested private key");
+        dlc::util::sign_p2wpkh_input(
+            &self.secp,
+            &seckey,
+            tx,
+            input_index,
+            bitcoin::EcdsaSighashType::All,
+            tx_out.value,
+        )?;
+        Ok(())
     }
 
     fn get_secret_key_for_pubkey(&self, pubkey: &PublicKey) -> Result<SecretKey, Error> {
