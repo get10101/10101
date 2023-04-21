@@ -5,6 +5,7 @@ use crate::ln::coordinator_config;
 use crate::ln::EventHandler;
 use crate::ln::TracingLogger;
 use crate::ln_dlc_wallet::LnDlcWallet;
+use crate::node::dlc_channel::process_pending_dlc_actions;
 use crate::on_chain_wallet::OnChainWallet;
 use crate::seed::Bip39Seed;
 use crate::util;
@@ -90,6 +91,7 @@ pub struct Node<P> {
     _background_processor: BackgroundProcessor,
     _connection_manager_handle: RemoteHandle<()>,
     _broadcast_node_announcement_handle: RemoteHandle<()>,
+    _pending_dlc_actions_handle: RemoteHandle<()>,
 
     logger: Arc<TracingLogger>,
 
@@ -280,8 +282,22 @@ where
             logger.clone(),
         ));
 
+        let oracle_client = oracle_client::build().await?;
+        let oracle_client = Arc::new(oracle_client);
+
+        let dlc_manager = dlc_manager::build(
+            data_dir,
+            ln_dlc_wallet.clone(),
+            storage,
+            oracle_client.clone(),
+        )?;
+        let dlc_manager = Arc::new(dlc_manager);
+
+        let sub_channel_manager =
+            sub_channel_manager::build(channel_manager.clone(), dlc_manager.clone())?;
+
         let lightning_msg_handler = MessageHandler {
-            chan_handler: channel_manager.clone(),
+            chan_handler: sub_channel_manager.clone(),
             route_handler: gossip_sync.clone(),
             onion_message_handler: Arc::new(IgnoringMessageHandler {}),
         };
@@ -340,20 +356,6 @@ where
             payment::Retry::Timeout(Duration::from_secs(10)),
         ));
 
-        let oracle_client = oracle_client::build().await?;
-        let oracle_client = Arc::new(oracle_client);
-
-        let dlc_manager = dlc_manager::build(
-            data_dir,
-            ln_dlc_wallet.clone(),
-            storage,
-            oracle_client.clone(),
-        )?;
-        let dlc_manager = Arc::new(dlc_manager);
-
-        let sub_channel_manager =
-            sub_channel_manager::build(channel_manager.clone(), dlc_manager.clone())?;
-
         // Connection manager
         let connection_manager_handle = {
             let peer_manager = peer_manager.clone();
@@ -403,7 +405,7 @@ where
             GossipSync::p2p(gossip_sync.clone()),
             peer_manager.clone(),
             logger.clone(),
-            Some(scorer.clone()),
+            Some(scorer),
         );
 
         let broadcast_node_announcement_handle = {
@@ -420,6 +422,25 @@ where
                     let announcements = announcements.clone();
                     peer_manager.broadcast_node_announcement([0; 3], alias, announcements);
                     interval.tick().await;
+                }
+            }
+            .remote_handle();
+
+            tokio::spawn(fut);
+
+            remote_handle
+        };
+
+        let pending_dlc_actions_handle = {
+            let sub_channel_manager = sub_channel_manager.clone();
+            let dlc_message_handler = dlc_message_handler.clone();
+            let (fut, remote_handle) = {
+                async move {
+                    loop {
+                        process_pending_dlc_actions(&sub_channel_manager, &dlc_message_handler);
+
+                        tokio::time::sleep(Duration::from_secs(10)).await;
+                    }
                 }
             }
             .remote_handle();
@@ -456,6 +477,7 @@ where
             _background_processor: background_processor,
             _connection_manager_handle: connection_manager_handle,
             _broadcast_node_announcement_handle: broadcast_node_announcement_handle,
+            _pending_dlc_actions_handle: pending_dlc_actions_handle,
         })
     }
 }

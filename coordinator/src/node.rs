@@ -22,13 +22,11 @@ use dlc_manager::payout_curve::PolynomialPayoutCurvePiece;
 use dlc_manager::payout_curve::RoundingInterval;
 use dlc_manager::payout_curve::RoundingIntervals;
 use dlc_manager::ChannelId;
-use dlc_messages::message_handler::MessageHandler as DlcMessageHandler;
 use dlc_messages::Message;
 use lightning::ln::channelmanager::ChannelDetails;
+use ln_dlc_node::node::dlc_message_name;
 use ln_dlc_node::node::sub_channel_message_name;
-use ln_dlc_node::node::DlcManager;
 use ln_dlc_node::node::PaymentMap;
-use ln_dlc_node::node::SubChannelManager;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use std::sync::Arc;
@@ -241,6 +239,68 @@ impl Node {
             .map_err(|e| anyhow!("{e:#}"))?;
         Ok(channel_details)
     }
+
+    pub fn process_incoming_dlc_messages(&self) {
+        let messages = self
+            .inner
+            .dlc_message_handler
+            .get_and_clear_received_messages();
+
+        for (node_id, msg) in messages {
+            let msg_name = dlc_message_name(&msg);
+            if let Err(e) = self.process_dlc_message(node_id, msg) {
+                tracing::error!(
+                    from = %node_id,
+                    kind = %msg_name,
+                    "Failed to process message: {e:#}"
+                );
+            }
+        }
+    }
+
+    fn process_dlc_message(&self, node_id: PublicKey, msg: Message) -> Result<()> {
+        tracing::info!(
+            from = %node_id,
+            kind = %dlc_message_name(&msg),
+            "Processing message"
+        );
+
+        let resp = match msg {
+            Message::OnChain(_) | Message::Channel(_) => self
+                .inner
+                .dlc_manager
+                .on_dlc_message(&msg, node_id)
+                .with_context(|| {
+                    format!(
+                        "Failed to handle {} message from {node_id}",
+                        dlc_message_name(&msg)
+                    )
+                })?,
+            Message::SubChannel(msg) => self
+                .inner
+                .sub_channel_manager
+                .on_sub_channel_message(&msg, &node_id)
+                .with_context(|| {
+                    format!(
+                        "Failed to handle {} message from {node_id}",
+                        sub_channel_message_name(&msg)
+                    )
+                })?
+                .map(Message::SubChannel),
+        };
+
+        if let Some(msg) = resp {
+            tracing::info!(
+                to = %node_id,
+                kind = %dlc_message_name(&msg),
+                "Sending message"
+            );
+
+            self.inner.dlc_message_handler.send_message(node_id, msg);
+        }
+
+        Ok(())
+    }
 }
 
 pub enum TradeAction {
@@ -439,51 +499,6 @@ fn build_payout_function(
     }
 
     PayoutFunction::new(pieces).map_err(|e| anyhow!("{e:#}"))
-}
-
-pub fn process_incoming_messages_internal(
-    dlc_message_handler: &DlcMessageHandler,
-    dlc_manager: &DlcManager,
-    sub_channel_manager: &SubChannelManager,
-) -> Result<()> {
-    let messages = dlc_message_handler.get_and_clear_received_messages();
-
-    for (node_id, msg) in messages {
-        match msg {
-            Message::OnChain(_) | Message::Channel(_) => {
-                tracing::debug!(from = %node_id, "Processing DLC-manager message");
-                let resp = dlc_manager
-                    .on_dlc_message(&msg, node_id)
-                    .map_err(|e| anyhow!(e.to_string()))?;
-
-                if let Some(msg) = resp {
-                    tracing::debug!(to = %node_id, "Sending DLC-manager message");
-                    dlc_message_handler.send_message(node_id, msg);
-                }
-            }
-            Message::SubChannel(msg) => {
-                tracing::debug!(
-                    from = %node_id,
-                    msg = %sub_channel_message_name(&msg),
-                    "Processing DLC channel message"
-                );
-                let resp = sub_channel_manager
-                    .on_sub_channel_message(&msg, &node_id)
-                    .map_err(|e| anyhow!(e.to_string()))?;
-
-                if let Some(msg) = resp {
-                    tracing::debug!(
-                        to = %node_id,
-                        msg = %sub_channel_message_name(&msg),
-                        "Sending DLC channel message"
-                    );
-                    dlc_message_handler.send_message(node_id, Message::SubChannel(msg));
-                }
-            }
-        }
-    }
-
-    Ok(())
 }
 
 #[cfg(test)]

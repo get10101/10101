@@ -3,7 +3,6 @@ use anyhow::Result;
 use coordinator::cli::Opts;
 use coordinator::db;
 use coordinator::logger;
-use coordinator::node;
 use coordinator::node::Node;
 use coordinator::node::TradeAction;
 use coordinator::position::models::Position;
@@ -94,27 +93,6 @@ async fn main() -> Result<()> {
         }
     });
 
-    {
-        let dlc_manager = node.dlc_manager.clone();
-        let sub_channel_manager = node.sub_channel_manager.clone();
-        tokio::spawn({
-            let dlc_message_handler = node.dlc_message_handler.clone();
-            async move {
-                loop {
-                    if let Err(e) = node::process_incoming_messages_internal(
-                        &dlc_message_handler,
-                        &dlc_manager,
-                        &sub_channel_manager,
-                    ) {
-                        tracing::error!("Unable to process internal message: {e:#}");
-                    }
-
-                    tokio::time::sleep(PROCESS_INCOMING_MESSAGES_INTERVAL).await;
-                }
-            }
-        })
-    };
-
     // set up database connection pool
     let manager = ConnectionManager::<PgConnection>::new(opts.database);
     let pool = r2d2::Pool::builder()
@@ -128,6 +106,17 @@ async fn main() -> Result<()> {
         inner: node,
         pool: pool.clone(),
     };
+
+    tokio::spawn({
+        let node = node.clone();
+        async move {
+            loop {
+                node.process_incoming_dlc_messages();
+
+                tokio::time::sleep(PROCESS_INCOMING_MESSAGES_INTERVAL).await;
+            }
+        }
+    });
 
     tokio::spawn({
         let node = node.clone();

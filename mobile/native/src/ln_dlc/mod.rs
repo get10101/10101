@@ -144,9 +144,7 @@ pub fn run(data_dir: String) -> Result<()> {
             let node = node.clone();
             async move {
                 loop {
-                    if let Err(e) = node.process_incoming_messages() {
-                        tracing::error!("Unable to process incoming messages: {e:#}");
-                    }
+                    node.process_incoming_dlc_messages();
 
                     tokio::time::sleep(PROCESS_INCOMING_MESSAGES_INTERVAL).await;
                 }

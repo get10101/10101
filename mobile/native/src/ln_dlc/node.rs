@@ -1,7 +1,6 @@
 use crate::db;
 use crate::trade::order;
 use crate::trade::position;
-use anyhow::anyhow;
 use anyhow::Context;
 use anyhow::Result;
 use bdk::bitcoin::secp256k1::PublicKey;
@@ -77,7 +76,7 @@ impl Node {
         })
     }
 
-    pub fn process_incoming_messages(&self) -> Result<()> {
+    pub fn process_incoming_dlc_messages(&self) {
         let messages = self
             .inner
             .dlc_message_handler
@@ -85,47 +84,50 @@ impl Node {
 
         for (node_id, msg) in messages {
             let msg_name = dlc_message_name(&msg);
-            if let Err(e) = self.process_incoming_message(node_id, msg) {
+            if let Err(e) = self.process_dlc_message(node_id, msg) {
                 tracing::error!(
                     from = %node_id,
-                    msg = %msg_name,
-                    "Failed to process incoming message: {e:#}"
+                    kind = %msg_name,
+                    "Failed to process message: {e:#}"
                 );
-                continue;
             }
         }
-
-        Ok(())
     }
 
-    fn process_incoming_message(&self, node_id: PublicKey, msg: Message) -> Result<()> {
-        match msg {
-            Message::OnChain(_) | Message::Channel(_) => {
-                tracing::debug!(from = %node_id, "Processing DLC-manager message");
+    fn process_dlc_message(&self, node_id: PublicKey, msg: Message) -> Result<()> {
+        tracing::info!(
+            from = %node_id,
+            kind = %dlc_message_name(&msg),
+            "Processing message"
+        );
+
+        let resp = match msg {
+            Message::OnChain(_) | Message::Channel(_) => self
+                .inner
+                .dlc_manager
+                .on_dlc_message(&msg, node_id)
+                .with_context(|| {
+                    format!(
+                        "Failed to handle {} message from {node_id}",
+                        dlc_message_name(&msg)
+                    )
+                })?,
+            Message::SubChannel(msg) => {
                 let resp = self
                     .inner
-                    .dlc_manager
-                    .on_dlc_message(&msg, node_id)
-                    .map_err(|e| anyhow!(e.to_string()))?;
-
-                if let Some(msg) = resp {
-                    tracing::debug!(to = %node_id, "Sending DLC-manager message");
-                    self.inner.dlc_message_handler.send_message(node_id, msg);
-                }
-            }
-            Message::SubChannel(incoming_msg) => {
-                tracing::debug!(
-                    from = %node_id,
-                    msg = %sub_channel_message_name(&incoming_msg),
-                    "Processing DLC channel message"
-                );
-                let reply_msg = self
-                    .inner
                     .sub_channel_manager
-                    .on_sub_channel_message(&incoming_msg, &node_id)
-                    .map_err(|e| anyhow!(e.to_string()))?;
+                    .on_sub_channel_message(&msg, &node_id)
+                    .with_context(|| {
+                        format!(
+                            "Failed to handle {} message from {node_id}",
+                            sub_channel_message_name(&msg)
+                        )
+                    })?
+                    .map(Message::SubChannel);
 
-                match &incoming_msg {
+                // Some incoming messages require extra action from our part for the protocol to
+                // continue
+                match &msg {
                     SubChannelMessage::Offer(offer) => {
                         let channel_id = offer.channel_id;
 
@@ -155,85 +157,86 @@ impl Node {
                             })?;
                     }
                     _ => (),
-                }
+                };
 
-                if let Some(reply_msg) = reply_msg {
-                    tracing::debug!(
-                        to = %node_id,
-                        msg = %sub_channel_message_name(&reply_msg),
-                        "Sending DLC channel message"
-                    );
-                    self.inner
-                        .dlc_message_handler
-                        .send_message(node_id, Message::SubChannel(reply_msg.clone()));
-
-                    match reply_msg {
-                        SubChannelMessage::Finalize(SubChannelFinalize { channel_id, .. }) => {
-                            let contracts = self
-                                .inner
-                                .dlc_manager
-                                .get_store()
-                                .get_contracts()
-                                .map_err(|e| anyhow!("{e:#}"))?;
-
-                            let accept_collateral = contracts
-                                .iter()
-                                // Taking the first `Confirmed` contract we find is just a
-                                // heuristic. Ideally we would be able to match against the
-                                // `ContractId` or the `ChannelId`, but the information is not
-                                // guaranteed to be there
-                                .find_map(|contract| match contract {
-                                    Contract::Confirmed(SignedContract {
-                                        accepted_contract,
-                                        ..
-                                    }) => Some(accepted_contract.accept_params.collateral),
-                                    _ => None,
-                                })
-                                .with_context(|| {
-                                    format!(
-                                        "Confirmed contract not found for channel ID: {}",
-                                        hex::encode(channel_id)
-                                    )
-                                })?;
-
-                            let filled_order = order::handler::order_filled()
-                                .context("Cannot mark order as filled for confirmed DLC")?;
-
-                            position::handler::update_position_after_dlc_creation(
-                                filled_order,
-                                accept_collateral,
-                            )
-                            .context("Failed to update position after DLC creation")?
-                        }
-                        SubChannelMessage::CloseFinalize(_) => {
-                            match order::handler::order_filled() {
-                                Ok(filled_order) => {
-                                    position::handler::update_position_after_dlc_closure(
-                                        filled_order,
-                                    )
-                                    .context("Failed to update position after DLC closure")?;
-                                }
-                                Err(e) => {
-                                    tracing::warn!(
-                                        "Could not find a filling position in the database.
-                                         Maybe because the coordinator closed an expired position.
-                                         Error: {e:#}"
-                                    );
-
-                                    tokio::spawn(async {
-                                        match position::handler::close_position().await {
-                                                Ok(_) => tracing::info!("Successfully closed expired position."),
-                                                Err(e) => tracing::error!("Critical Error! We have a DLC but were unable to set the order to filled. Error: {e:?}")
-                                            }
-                                    });
-                                }
-                            };
-                        }
-                        _ => (),
-                    }
-                }
+                resp
             }
+        };
+
+        if let Some(msg) = resp {
+            self.send_dlc_message(node_id, msg)?;
         }
+
+        Ok(())
+    }
+
+    pub fn send_dlc_message(&self, node_id: PublicKey, msg: Message) -> Result<()> {
+        tracing::info!(
+            to = %node_id,
+            kind = %dlc_message_name(&msg),
+            "Sending message"
+        );
+
+        self.inner
+            .dlc_message_handler
+            .send_message(node_id, msg.clone());
+
+        // After sending certain messages, we need to do some post-processing
+        match msg {
+            Message::SubChannel(SubChannelMessage::Finalize(SubChannelFinalize {
+                channel_id,
+                ..
+            })) => {
+                let contracts = self.inner.dlc_manager.get_store().get_contracts()?;
+
+                let accept_collateral = contracts
+                    .iter()
+                    // Taking the first `Confirmed` contract we find is just a
+                    // heuristic. Ideally we would be able to match against the
+                    // `ContractId` or the `ChannelId`, but the information is not
+                    // guaranteed to be there
+                    .find_map(|contract| match contract {
+                        Contract::Confirmed(SignedContract {
+                            accepted_contract, ..
+                        }) => Some(accepted_contract.accept_params.collateral),
+                        _ => None,
+                    })
+                    .with_context(|| {
+                        format!(
+                            "Confirmed contract not found for channel ID: {}",
+                            hex::encode(channel_id)
+                        )
+                    })?;
+
+                let filled_order = order::handler::order_filled()
+                    .context("Cannot mark order as filled for confirmed DLC")?;
+
+                position::handler::update_position_after_dlc_creation(
+                    filled_order,
+                    accept_collateral,
+                )
+                .context("Failed to update position after DLC creation")?
+            }
+            Message::SubChannel(SubChannelMessage::CloseFinalize(_)) => {
+                match order::handler::order_filled() {
+                    Ok(filled_order) => {
+                        position::handler::update_position_after_dlc_closure(filled_order)
+                            .context("Failed to update position after DLC closure")?;
+                    }
+                    Err(e) => {
+                        tracing::warn!("Could not find a filling position in the database. Maybe because the coordinator closed an expired position. Error: {e:#}");
+
+                        tokio::spawn(async {
+                            match position::handler::close_position().await {
+                                Ok(_) => tracing::info!("Successfully closed expired position."),
+                                Err(e) => tracing::error!("Critical Error! We have a DLC but were unable to set the order to filled. Error: {e:?}")
+                            }
+                        });
+                    }
+                };
+            }
+            _ => (),
+        };
 
         Ok(())
     }

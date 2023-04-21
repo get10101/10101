@@ -1,4 +1,5 @@
 use crate::node::Node;
+use crate::node::SubChannelManager;
 use anyhow::anyhow;
 use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
@@ -7,6 +8,7 @@ use dlc_manager::subchannel::SubChannel;
 use dlc_manager::subchannel::SubChannelState;
 use dlc_manager::Oracle;
 use dlc_manager::Storage;
+use dlc_messages::message_handler::MessageHandler as DlcMessageHandler;
 use dlc_messages::ChannelMessage;
 use dlc_messages::Message;
 use dlc_messages::OnChainMessage;
@@ -206,11 +208,30 @@ impl<P> Node<P> {
     }
 }
 
+pub(crate) fn process_pending_dlc_actions(
+    sub_channel_manager: &SubChannelManager,
+    dlc_message_handler: &DlcMessageHandler,
+) {
+    let messages = sub_channel_manager.process_actions();
+    for (msg, node_id) in messages {
+        let msg = Message::SubChannel(msg);
+        let msg_name = dlc_message_name(&msg);
+
+        tracing::info!(
+            to = %node_id,
+            kind = %msg_name,
+            "Queuing up DLC channel message tied to pending action"
+        );
+
+        dlc_message_handler.send_message(node_id, msg);
+    }
+}
+
 pub fn dlc_message_name(msg: &Message) -> String {
     let name = match msg {
-        Message::OnChain(OnChainMessage::Offer(_)) => "Offer",
-        Message::OnChain(OnChainMessage::Accept(_)) => "Accept",
-        Message::OnChain(OnChainMessage::Sign(_)) => "Sign",
+        Message::OnChain(OnChainMessage::Offer(_)) => "OnChainOffer",
+        Message::OnChain(OnChainMessage::Accept(_)) => "OnChainAccept",
+        Message::OnChain(OnChainMessage::Sign(_)) => "OnChainSign",
         Message::Channel(ChannelMessage::Offer(_)) => "ChannelOffer",
         Message::Channel(ChannelMessage::Accept(_)) => "ChannelAccept",
         Message::Channel(ChannelMessage::Sign(_)) => "ChannelSign",
@@ -226,15 +247,7 @@ pub fn dlc_message_name(msg: &Message) -> String {
             "ChannelCollaborativeCloseOffer"
         }
         Message::Channel(ChannelMessage::Reject(_)) => "ChannelReject",
-        Message::SubChannel(SubChannelMessage::Offer(_)) => "Offer",
-        Message::SubChannel(SubChannelMessage::Accept(_)) => "Accept",
-        Message::SubChannel(SubChannelMessage::Confirm(_)) => "Confirm",
-        Message::SubChannel(SubChannelMessage::Finalize(_)) => "Finalize",
-        Message::SubChannel(SubChannelMessage::CloseOffer(_)) => "CloseOffer",
-        Message::SubChannel(SubChannelMessage::CloseAccept(_)) => "CloseAccept",
-        Message::SubChannel(SubChannelMessage::CloseConfirm(_)) => "CloseConfirm",
-        Message::SubChannel(SubChannelMessage::CloseFinalize(_)) => "CloseFinalize",
-        Message::SubChannel(SubChannelMessage::Reject(_)) => "Reject",
+        Message::SubChannel(msg) => sub_channel_message_name(msg),
     };
 
     name.to_string()
@@ -242,16 +255,15 @@ pub fn dlc_message_name(msg: &Message) -> String {
 
 pub fn sub_channel_message_name(msg: &SubChannelMessage) -> &str {
     use SubChannelMessage::*;
-
     match msg {
-        Offer(_) => "Offer",
-        Accept(_) => "Accept",
-        Confirm(_) => "Confirm",
-        Finalize(_) => "Finalize",
-        CloseOffer(_) => "CloseOffer",
-        CloseAccept(_) => "CloseAccept",
-        CloseConfirm(_) => "CloseConfirm",
-        CloseFinalize(_) => "CloseFinalize",
-        Reject(_) => "Reject",
+        Offer(_) => "SubChannelOffer",
+        Accept(_) => "SubChannelAccept",
+        Confirm(_) => "SubChannelConfirm",
+        Finalize(_) => "SubChannelFinalize",
+        CloseOffer(_) => "SubChannelCloseOffer",
+        CloseAccept(_) => "SubChannelCloseAccept",
+        CloseConfirm(_) => "SubChannelCloseConfirm",
+        CloseFinalize(_) => "SubChannelCloseFinalize",
+        Reject(_) => "SubChannelReject",
     }
 }
