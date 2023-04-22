@@ -100,6 +100,6 @@ The app currently works only on `regtest`, which means that the wallet needs to 
 3. Create an invoice in your 10101 app by navigating to the receive screen.
    _Note, that you have to provide the coordinator host to the mobile app like that `just run`_
 
-4. Open `http://localhost:8080/faucet/` (note: ensure to add the trailing `/` as otherwise nginx will try to redirect the call)
+4. Open `http://localhost:8080/faucet/` (note: ensure to add the trailing `/` as otherwise nginx will try to redirect the request)
 
 5. Copy the invoice and enter it on the lightning faucet. Hit send and you will receive your funds momentarily.
