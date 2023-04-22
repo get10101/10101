@@ -22,3 +22,10 @@ pub(crate) use logger::TracingLogger;
 ///
 /// This constant only applies to the coordinator.
 pub(crate) const JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT: u64 = 200_000;
+
+/// When handling the [`Event::HTLCIntercepted`], the user might not be online right away. This
+/// could be because she is funding the wallet through another wallet. In order to give the user
+/// some time to open 10101 again we wait for a bit to see if we can establish a connection.
+///
+/// This constant specifies the amount of time (in seconds) we are willing to delay a payment.
+pub(crate) const HTLC_INTERCEPTED_CONNECTION_TIMEOUT: u64 = 30;

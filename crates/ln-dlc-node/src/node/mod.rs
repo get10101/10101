@@ -346,6 +346,7 @@ where
                 payment_persister.clone(),
                 fake_channel_payments.clone(),
                 Arc::new(Mutex::new(HashMap::new())),
+                peer_manager.clone(),
             )
         };
 

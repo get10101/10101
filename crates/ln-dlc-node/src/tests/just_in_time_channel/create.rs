@@ -3,11 +3,13 @@ use crate::node::Node;
 use crate::node::PaymentMap;
 use crate::node::LIQUIDITY_ROUTING_FEE_MILLIONTHS;
 use crate::tests::init_tracing;
+use crate::tests::just_in_time_channel::TestPath;
 use crate::tests::min_outbound_liquidity_channel_creator;
 use anyhow::Context;
 use anyhow::Result;
 use bitcoin::Amount;
 use rust_decimal::Decimal;
+use std::time::Duration;
 
 #[tokio::test]
 #[ignore]
@@ -64,6 +66,7 @@ async fn just_in_time_channel() {
     let invoice_amount = 1_000;
 
     send_interceptable_payment(
+        TestPath::OnlineFunding,
         &payer,
         &payee,
         &coordinator,
@@ -75,6 +78,7 @@ async fn just_in_time_channel() {
 }
 
 pub(crate) async fn send_interceptable_payment(
+    test_path: TestPath,
     payer: &Node<PaymentMap>,
     payee: &Node<PaymentMap>,
     coordinator: &Node<PaymentMap>,
@@ -122,6 +126,19 @@ pub(crate) async fn send_interceptable_payment(
     )?;
 
     payer.send_payment(&invoice)?;
+
+    if TestPath::MobileFunding == test_path {
+        // simulate the user switching from another app to 10101
+
+        // Note, hopefully Breez, Phoenix or any other non-custodial wallet is able to run in the
+        // background when sending a payment as otherwise a disconnect on their side would happen
+        // when switching to 10101 resulting into a failed payment.
+
+        // line below is commented out on purpose
+        // payer.disconnect(coordinator.info);
+        tokio::time::sleep(Duration::from_secs(5)).await;
+        payee.connect(coordinator.info).await?;
+    }
 
     payee
         .wait_for_payment_claimed(invoice.payment_hash())

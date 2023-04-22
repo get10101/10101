@@ -1,5 +1,6 @@
 use crate::dlc_custom_signer::CustomKeysManager;
 use crate::ln::coordinator_config;
+use crate::ln::HTLC_INTERCEPTED_CONNECTION_TIMEOUT;
 use crate::ln::JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT;
 use crate::ln_dlc_wallet::LnDlcWallet;
 use crate::node::invoice::HTLCStatus;
@@ -11,6 +12,7 @@ use crate::MillisatAmount;
 use crate::NetworkGraph;
 use crate::PaymentFlow;
 use crate::PaymentInfo;
+use crate::PeerManager;
 use crate::PendingInterceptedHtlcs;
 use crate::RequestedScid;
 use anyhow::anyhow;
@@ -43,6 +45,7 @@ pub struct EventHandler<P> {
     payment_persister: Arc<P>,
     fake_channel_payments: FakeChannelPaymentRequests,
     pending_intercepted_htlcs: PendingInterceptedHtlcs,
+    peer_manager: Arc<PeerManager>,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -59,6 +62,7 @@ where
         payment_persister: Arc<P>,
         fake_channel_payments: FakeChannelPaymentRequests,
         pending_intercepted_htlcs: PendingInterceptedHtlcs,
+        peer_manager: Arc<PeerManager>,
     ) -> Self {
         Self {
             runtime_handle,
@@ -69,10 +73,11 @@ where
             payment_persister,
             fake_channel_payments,
             pending_intercepted_htlcs,
+            peer_manager,
         }
     }
 
-    fn match_event(&self, event: Event) -> Result<()> {
+    async fn match_event(&self, event: Event) -> Result<()> {
         match event {
             Event::FundingGenerationReady {
                 temporary_channel_id,
@@ -469,6 +474,24 @@ where
                     }
                 };
 
+                // FIXME: This is only a temporary quick fix for the MVP and should be fixed
+                // properly. Ideally the app would run in the background. Not necessarily for ever
+                // but for at least a couple of seconds / minutes
+                tokio::time::timeout(Duration::from_secs(HTLC_INTERCEPTED_CONNECTION_TIMEOUT), async {
+                    loop {
+                        if self.peer_manager
+                            .get_peer_node_ids()
+                            .iter()
+                            .any(|id| *id == target_node_id) {
+                            tracing::info!(%target_node_id, "Found connection to target peer. Continuing HTLCIntercepted event.");
+
+                            return;
+                        }
+                        tracing::debug!(%target_node_id, "Waiting for target node to come online.");
+                        tokio::time::sleep(Duration::from_secs(2)).await;
+                    }
+                }).await?;
+
                 // if we have already a channel with them, we try to forward the payment.
                 if let Some(channel) = self
                     .channel_manager
@@ -567,7 +590,7 @@ where
         self.runtime_handle.block_on(async {
             let event_str = format!("{event:?}");
 
-            match self.match_event(event) {
+            match self.match_event(event).await {
                 Ok(()) => tracing::debug!(event = ?event_str, "Successfully handled event"),
                 Err(e) => tracing::error!("Failed to handle event. Error {e:#}"),
             }
