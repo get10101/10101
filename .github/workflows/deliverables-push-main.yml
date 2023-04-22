@@ -43,7 +43,7 @@ jobs:
     secrets: inherit
     with:
       electrs_endpoint: tcp://35.189.57.114:50000
-      coordinator_p2p_endpoint: 026e1de0e76902d71d2c27bfdda9d48c19c4c550f08bb4189d7208246e0e3af97e@35.189.57.114:9045
+      coordinator_p2p_endpoint: 03507b924dae6595cfb78492489978127c5f1e3877848564de2015cd6d41375802@35.189.57.114:9045
       coordinator_port_http: 80
       network: regtest
       tag: main
