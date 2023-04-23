@@ -26,7 +26,9 @@ use ln_dlc_node::node::NodeInfo;
 use orderbook_commons::OrderbookMsg;
 
 use crate::admin::close_channel;
+use crate::admin::connect_to_peer;
 use crate::admin::get_balance;
+use crate::admin::is_connected;
 use crate::admin::list_channels;
 use crate::admin::list_dlc_channels;
 use crate::admin::list_peers;
@@ -76,6 +78,8 @@ pub fn router(node: Node, pool: Pool<ConnectionManager<PgConnection>>) -> Router
         .route("/api/admin/peers", get(list_peers))
         .route("/api/admin/dlc_channels", get(list_dlc_channels))
         .route("/api/admin/sign/:msg", get(sign_message))
+        .route("/api/admin/connect", post(connect_to_peer))
+        .route("/api/admin/is_connected/:target_pubkey", get(is_connected))
         .with_state(app_state)
 }
 

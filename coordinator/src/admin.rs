@@ -175,3 +175,24 @@ pub async fn sign_message(
 
     Ok(Json(signature))
 }
+
+pub async fn connect_to_peer(
+    State(state): State<Arc<AppState>>,
+    target: Json<NodeInfo>,
+) -> Result<(), AppError> {
+    let target = target.0;
+    state.node.inner.connect(target).await.map_err(|err| {
+        AppError::InternalServerError(format!("Could not connect to {target}. Error: {err}"))
+    })?;
+    Ok(())
+}
+
+pub async fn is_connected(
+    State(state): State<Arc<AppState>>,
+    Path(target_pubkey): Path<String>,
+) -> Result<Json<bool>, AppError> {
+    let target = target_pubkey.parse().map_err(|err| {
+        AppError::BadRequest(format!("Invalid public key {target_pubkey}. Error: {err}"))
+    })?;
+    Ok(Json(state.node.is_connected(&target)))
+}
