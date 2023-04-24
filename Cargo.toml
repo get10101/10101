@@ -3,13 +3,13 @@ members = ["coordinator", "maker", "mobile/native", "crates/*"]
 resolver = "2"
 
 [patch.crates-io]
-dlc-manager = { git = "https://github.com/get10101/rust-dlc", rev = "87c3f8b69884dbdfa4e0404de0bb6ec5aea3ff79" }
-dlc-messages = { git = "https://github.com/get10101/rust-dlc", rev = "87c3f8b69884dbdfa4e0404de0bb6ec5aea3ff79" }
-dlc = { git = "https://github.com/get10101/rust-dlc", rev = "87c3f8b69884dbdfa4e0404de0bb6ec5aea3ff79" }
-dlc-sled-storage-provider = { git = "https://github.com/get10101/rust-dlc", rev = "87c3f8b69884dbdfa4e0404de0bb6ec5aea3ff79" }
-p2pd-oracle-client = { git = "https://github.com/get10101/rust-dlc", rev = "87c3f8b69884dbdfa4e0404de0bb6ec5aea3ff79" }
-dlc-trie = { git = "https://github.com/get10101/rust-dlc", rev = "87c3f8b69884dbdfa4e0404de0bb6ec5aea3ff79" }
-simple-wallet = { git = "https://github.com/get10101/rust-dlc", rev = "87c3f8b69884dbdfa4e0404de0bb6ec5aea3ff79" }
+dlc-manager = { git = "https://github.com/get10101/rust-dlc", rev = "9a8b0aff6b55b4b0903944359421ab63522e833c" }
+dlc-messages = { git = "https://github.com/get10101/rust-dlc", rev = "9a8b0aff6b55b4b0903944359421ab63522e833c" }
+dlc = { git = "https://github.com/get10101/rust-dlc", rev = "9a8b0aff6b55b4b0903944359421ab63522e833c" }
+dlc-sled-storage-provider = { git = "https://github.com/get10101/rust-dlc", rev = "9a8b0aff6b55b4b0903944359421ab63522e833c" }
+p2pd-oracle-client = { git = "https://github.com/get10101/rust-dlc", rev = "9a8b0aff6b55b4b0903944359421ab63522e833c" }
+dlc-trie = { git = "https://github.com/get10101/rust-dlc", rev = "9a8b0aff6b55b4b0903944359421ab63522e833c" }
+simple-wallet = { git = "https://github.com/get10101/rust-dlc", rev = "9a8b0aff6b55b4b0903944359421ab63522e833c" }
 lightning = { git = "https://github.com/p2pderivatives/rust-lightning/", rev = "6df5761cfc4a27c35ca26a547ff90f656d50d85f" }
 lightning-background-processor = { git = "https://github.com/p2pderivatives/rust-lightning/", rev = "6df5761cfc4a27c35ca26a547ff90f656d50d85f" }
 lightning-block-sync = { git = "https://github.com/p2pderivatives/rust-lightning/", rev = "6df5761cfc4a27c35ca26a547ff90f656d50d85f" }
