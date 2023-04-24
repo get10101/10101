@@ -64,16 +64,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ? FontWeight.bold
                   : FontWeight.normal),
         ),
-        ElevatedButton(
-            onPressed: () {
-              rust.api.closeChannel();
-            },
-            child: const Text("Close channel")),
-        ElevatedButton(
-            onPressed: () {
-              rust.api.forceCloseChannel();
-            },
-            child: const Text("Force-close channel")),
+        Visibility(
+          visible: config.network == "regtest",
+          child: Column(
+            children: [
+              ElevatedButton(
+                  onPressed: () {
+                    rust.api.closeChannel();
+                  },
+                  child: const Text("Close channel")),
+              ElevatedButton(
+                  onPressed: () {
+                    rust.api.forceCloseChannel();
+                  },
+                  child: const Text("Force-close channel")),
+            ],
+          ),
+        ),
         const Divider(),
         Text("Trade Settings",
             style: TextStyle(
