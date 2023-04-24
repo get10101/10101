@@ -3,6 +3,7 @@ use anyhow::Result;
 use coordinator::cli::Opts;
 use coordinator::db;
 use coordinator::logger;
+use coordinator::node::connection;
 use coordinator::node::Node;
 use coordinator::node::TradeAction;
 use coordinator::position::models::Position;
@@ -210,6 +211,11 @@ async fn main() -> Result<()> {
                 }
             }
         }
+    });
+
+    tokio::spawn({
+        let node = node.clone();
+        connection::keep_public_channel_peers_connected(node.inner)
     });
 
     let app = router(node, pool);
