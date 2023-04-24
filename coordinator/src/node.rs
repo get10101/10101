@@ -37,6 +37,8 @@ use trade::cfd::BTCUSD_MAX_PRICE;
 use trade::ContractSymbol;
 use trade::Direction;
 
+pub mod connection;
+
 /// The leverage used by the coordinator for all trades.
 const COORDINATOR_LEVERAGE: f32 = 1.0;
 

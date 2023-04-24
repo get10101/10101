@@ -12,6 +12,7 @@ use crate::util;
 use crate::ChainMonitor;
 use crate::FakeChannelPaymentRequests;
 use crate::InvoicePayer;
+use crate::NetworkGraph;
 use crate::PeerManager;
 use anyhow::anyhow;
 use anyhow::ensure;
@@ -89,6 +90,7 @@ pub struct Node<P> {
     pub channel_manager: Arc<ChannelManager>,
     chain_monitor: Arc<ChainMonitor>,
     keys_manager: Arc<CustomKeysManager>,
+    pub network_graph: Arc<NetworkGraph>,
     _background_processor: BackgroundProcessor,
     _connection_manager_handle: RemoteHandle<()>,
     _broadcast_node_announcement_handle: RemoteHandle<()>,
@@ -341,7 +343,7 @@ where
                 runtime_handle,
                 channel_manager.clone(),
                 ln_dlc_wallet.clone(),
-                network_graph,
+                network_graph.clone(),
                 keys_manager.clone(),
                 payment_persister.clone(),
                 fake_channel_payments.clone(),
@@ -486,6 +488,7 @@ where
             _connection_manager_handle: connection_manager_handle,
             _broadcast_node_announcement_handle: broadcast_node_announcement_handle,
             _pending_dlc_actions_handle: pending_dlc_actions_handle,
+            network_graph,
         })
     }
 }
