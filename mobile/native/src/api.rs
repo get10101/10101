@@ -198,6 +198,14 @@ pub fn open_channel() -> Result<()> {
     ln_dlc::open_channel()
 }
 
+pub fn close_channel() -> Result<()> {
+    ln_dlc::close_channel(false)
+}
+
+pub fn force_close_channel() -> Result<()> {
+    ln_dlc::close_channel(true)
+}
+
 pub fn create_invoice_with_amount(amount_sats: u64) -> Result<String> {
     Ok(ln_dlc::create_invoice(Some(amount_sats))?.to_string())
 }
