@@ -321,18 +321,6 @@ pub fn get_new_address() -> Result<String> {
     Ok(address.to_string())
 }
 
-/// TODO: remove this function once the lightning faucet is more stable. This is only added for
-/// testing purposes - so that we can quickly get funds into the lightning wallet.
-pub fn open_channel() -> Result<()> {
-    NODE.get().inner.initiate_open_channel(
-        config::get_coordinator_info().pubkey,
-        500000,
-        250000,
-    )?;
-
-    Ok(())
-}
-
 pub fn close_channel(is_force_close: bool) -> Result<()> {
     let node = NODE.try_get().context("failed to get ln dlc node")?;
 

@@ -17,9 +17,10 @@ impl<P> Node<P> {
         counterparty_node_id: PublicKey,
         channel_amount_sat: u64,
         initial_send_amount_sats: u64,
+        public_channel: bool,
     ) -> Result<[u8; 32]> {
         let mut user_config = self.user_config;
-        user_config.channel_handshake_config.announced_channel = false;
+        user_config.channel_handshake_config.announced_channel = public_channel;
 
         let temp_channel_id = self
             .channel_manager

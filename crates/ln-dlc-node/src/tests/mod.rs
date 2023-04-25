@@ -140,8 +140,12 @@ impl Node<PaymentMap> {
         amount_us: u64,
         amount_them: u64,
     ) -> Result<ChannelDetails> {
-        let temp_channel_id =
-            self.initiate_open_channel(peer.info.pubkey, amount_us + amount_them, amount_them)?;
+        let temp_channel_id = self.initiate_open_channel(
+            peer.info.pubkey,
+            amount_us + amount_them,
+            amount_them,
+            false,
+        )?;
 
         // The config flag
         // `user_config.manually_accept_inbound_channels` implies that
