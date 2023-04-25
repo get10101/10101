@@ -18,6 +18,7 @@ use crate::RequestedScid;
 use anyhow::anyhow;
 use anyhow::Context;
 use anyhow::Result;
+use bitcoin::consensus::encode::serialize_hex;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::secp256k1::Secp256k1;
 use lightning::chain::chaininterface::BroadcasterInterface;
@@ -93,6 +94,12 @@ where
                 output_script,
                 ..
             } => {
+                tracing::info!(
+                    %counterparty_node_id,
+                    "Funding generation ready for channel with counterparty {}",
+                    counterparty_node_id
+                );
+
                 let target_blocks = 2;
 
                 // Have wallet put the inputs into the transaction such that the output
@@ -244,7 +251,7 @@ where
                     counterparty,
                     funding_satoshis,
                     push_msat,
-                    "Accepting 0-conf channel request"
+                    "Accepting open channel request"
                 );
                 self.channel_manager
                     .accept_inbound_channel_from_trusted_peer_0conf(
@@ -255,8 +262,18 @@ where
                     .map_err(|e| anyhow!("{e:?}"))
                     .context("To be able to accept a 0-conf channel")?;
             }
-            Event::PaymentPathSuccessful { .. } => {}
-            Event::PaymentPathFailed { .. } => {}
+            Event::PaymentPathSuccessful {
+                payment_id,
+                payment_hash,
+                path,
+            } => {
+                tracing::info!(?payment_id, ?payment_hash, ?path, "Payment path successful");
+            }
+            Event::PaymentPathFailed { payment_hash, .. } => {
+                tracing::warn!(
+                payment_hash = %hex::encode(payment_hash.0),
+                "Payment path failed");
+            }
             Event::PaymentFailed { payment_hash, .. } => {
                 tracing::warn!(
                     payment_hash = %hex::encode(payment_hash.0),
@@ -342,6 +359,10 @@ where
                 }
             }
             Event::PendingHTLCsForwardable { time_forwardable } => {
+                tracing::debug!(
+                    time_forwardable = ?time_forwardable,
+                    "Pending HTLCs are forwardable"
+                );
                 let forwarding_channel_manager = self.channel_manager.clone();
                 let min = time_forwardable.as_millis() as u64;
                 tokio::spawn(async move {
@@ -351,6 +372,7 @@ where
                 });
             }
             Event::SpendableOutputs { outputs } => {
+                tracing::debug!(?outputs, "Spendable outputs");
                 let destination_address = self.wallet.inner().get_unused_address()?;
                 let output_descriptors = &outputs.iter().collect::<Vec<_>>();
                 let tx_feerate = self
@@ -377,7 +399,16 @@ where
                     "\nChannel closed",
                 );
             }
-            Event::DiscardFunding { .. } => {
+            Event::DiscardFunding {
+                channel_id,
+                transaction,
+            } => {
+                let tx_hex = serialize_hex(&transaction);
+                tracing::info!(
+                    channel_id = %hex::encode(channel_id),
+                    %tx_hex,
+                    "Discarding funding transaction"
+                );
                 // A "real" node should probably "lock" the UTXOs spent in funding transactions
                 // until the funding transaction either confirms, or this event is
                 // generated.
@@ -436,7 +467,16 @@ where
                         .context("Failed to forward intercepted HTLC")?;
                 }
             }
-            Event::HTLCHandlingFailed { .. } => {}
+            Event::HTLCHandlingFailed {
+                prev_channel_id,
+                failed_next_destination,
+            } => {
+                tracing::info!(
+                    prev_channel_id = %hex::encode(prev_channel_id),
+                    failed_next_destination = ?failed_next_destination,
+                    "HTLC handling failed"
+                );
+            }
             Event::PaymentClaimable {
                 receiver_node_id: _,
                 payment_hash,
