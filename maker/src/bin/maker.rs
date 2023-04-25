@@ -40,7 +40,7 @@ async fn main() -> Result<()> {
     let http_address = opts.http_address;
     let network = opts.network();
 
-    logger::init_tracing(LevelFilter::DEBUG, false)?;
+    logger::init_tracing(LevelFilter::DEBUG, opts.json)?;
 
     let mut ephemeral_randomness = [0; 32];
     thread_rng().fill_bytes(&mut ephemeral_randomness);
