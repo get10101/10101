@@ -153,7 +153,7 @@ pub async fn open_channel(
     let channel_id = state
         .node
         .inner
-        .initiate_open_channel(pubkey, channel_amount, initial_send_amount)
+        .initiate_open_channel(pubkey, channel_amount, initial_send_amount, true)
         .map_err(|e| AppError::InternalServerError(format!("Failed to open channel: {e:#}")))?;
 
     tracing::debug!(

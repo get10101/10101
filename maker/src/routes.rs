@@ -178,7 +178,7 @@ pub async fn create_channel(
 
     let channel_id = state
         .node
-        .initiate_open_channel(peer.pubkey, channel_amount, initial_send_amount)
+        .initiate_open_channel(peer.pubkey, channel_amount, initial_send_amount, false)
         .map_err(|e| AppError::InternalServerError(format!("Failed to open channel: {e:#}")))?;
 
     Ok(Json(hex::encode(channel_id)))
