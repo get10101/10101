@@ -35,8 +35,20 @@ pub fn router(node: Arc<Node<PaymentMap>>, pool: Pool<ConnectionManager<PgConnec
         .route("/api/balance", get(get_balance))
         .route("/api/invoice", get(get_invoice))
         .route("/api/channels", get(list_channels).post(create_channel))
+        .route("/api/connect", post(connect_to_peer))
         .route("/api/pay-invoice/:invoice", post(pay_invoice))
         .with_state(app_state)
+}
+
+pub async fn connect_to_peer(
+    State(state): State<Arc<AppState>>,
+    target: Json<NodeInfo>,
+) -> Result<(), AppError> {
+    let target = target.0;
+    state.node.connect(target).await.map_err(|err| {
+        AppError::InternalServerError(format!("Could not connect to {target}. Error: {err}"))
+    })?;
+    Ok(())
 }
 
 #[derive(serde::Serialize)]
