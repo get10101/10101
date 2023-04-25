@@ -374,6 +374,9 @@ where
 
     /// Unlike `broadcast_transaction`, this one allows the client to inspect the errors
     pub fn broadcast(&self, tx: &Transaction) -> Result<(), Error> {
+        let tx_hex = serialize_hex(tx);
+        let txid = tx.txid();
+        tracing::info!(%tx_hex, %txid, "Broadcasting transaction");
         self.client
             .broadcast(tx)
             .context("Failed to broadcast transaction")?;
