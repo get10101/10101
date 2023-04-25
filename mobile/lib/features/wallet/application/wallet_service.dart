@@ -14,15 +14,6 @@ class WalletService {
     }
   }
 
-  Future<void> openChannel() async {
-    try {
-      await rust.api.openChannel();
-      FLog.info(text: "Open Channel successfully started.");
-    } catch (error) {
-      FLog.error(text: "Error: $error", exception: error);
-    }
-  }
-
   Future<String?> createInvoice(Amount? amount) async {
     try {
       String invoice;

@@ -194,10 +194,6 @@ pub fn get_new_address() -> Result<SyncReturn<String>> {
     ln_dlc::get_new_address().map(SyncReturn)
 }
 
-pub fn open_channel() -> Result<()> {
-    ln_dlc::open_channel()
-}
-
 pub fn close_channel() -> Result<()> {
     ln_dlc::close_channel(false)
 }
