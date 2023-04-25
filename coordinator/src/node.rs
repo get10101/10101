@@ -34,7 +34,6 @@ use trade::cfd::calculate_long_liquidation_price;
 use trade::cfd::calculate_margin;
 use trade::cfd::calculate_short_liquidation_price;
 use trade::cfd::BTCUSD_MAX_PRICE;
-use trade::ContractSymbol;
 use trade::Direction;
 
 pub mod connection;
@@ -60,7 +59,9 @@ impl Node {
             .filter(|channel| channel.is_usable && channel.counterparty.node_id == *trader)
             .collect::<Vec<_>>();
 
-        // should be exactly 1
+        if useable_channels.len() > 1 {
+            tracing::warn!(%trader, "Found more than one useable channel with trader");
+        }
         !useable_channels.is_empty()
     }
 
@@ -68,12 +69,8 @@ impl Node {
         match self.decide_trade_action(&trade_params.pubkey)? {
             TradeAction::Open => self.open_position(trade_params).await?,
             TradeAction::Close(channel_id) => {
-                let trader_pk = trade_params.pubkey;
-                tracing::info!(
-                    order_id = %trade_params.filled_with.order_id,
-                    %trader_pk,
-                    "Closing position"
-                );
+                let peer_id = trade_params.pubkey;
+                tracing::info!(?trade_params, ?channel_id, ?peer_id, "Closing position");
 
                 let closing_price = trade_params.average_execution_price();
 
@@ -95,7 +92,8 @@ impl Node {
     }
 
     async fn open_position(&self, trade_params: &TradeParams) -> Result<()> {
-        tracing::info!("Opening position");
+        let peer_id = trade_params.pubkey;
+        tracing::info!(?peer_id, ?trade_params, "Opening position");
 
         let margin_trader = margin_trader(trade_params);
         let margin_coordinator = margin_coordinator(trade_params);
@@ -103,7 +101,7 @@ impl Node {
         let liquidation_price = liquidation_price(trade_params);
 
         let new_position = NewPosition {
-            contract_symbol: ContractSymbol::BtcUsd,
+            contract_symbol: trade_params.contract_symbol,
             leverage: trade_params.leverage,
             quantity: trade_params.quantity,
             direction: trade_params.direction,
@@ -116,6 +114,7 @@ impl Node {
             collateral: margin_coordinator as i64,
             expiry_timestamp: trade_params.filled_with.expiry_timestamp,
         };
+        tracing::debug!(?new_position, "Inserting new position into db");
 
         let connection = &mut self.pool.get()?;
         db::positions::Position::insert(connection, new_position)?;
@@ -184,7 +183,10 @@ impl Node {
         )?;
 
         tracing::debug!(
-            "Settling position of {accept_settlement_amount} with {}",
+            ?position,
+            ?channel_id,
+            %accept_settlement_amount,
+            "Closing position of {accept_settlement_amount} with {}",
             position.trader.to_string()
         );
 

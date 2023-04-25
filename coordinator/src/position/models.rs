@@ -3,6 +3,7 @@ use time::OffsetDateTime;
 use trade::ContractSymbol;
 use trade::Direction;
 
+#[derive(Debug)]
 pub struct NewPosition {
     pub contract_symbol: ContractSymbol,
     pub leverage: f32,
