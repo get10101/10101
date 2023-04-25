@@ -99,7 +99,10 @@ impl LndNode {
 
         // todo: fetch channel status from lnd api instead of timeout.
         // wait for lnd to process the channel opening.
-        tokio::time::sleep(Duration::from_secs(35)).await;
+        tokio::time::sleep(Duration::from_secs(
+            crate::ln::BROADCAST_NODE_ANNOUNCEMENT_DELAY + 5,
+        ))
+        .await;
         Ok(())
     }
 
