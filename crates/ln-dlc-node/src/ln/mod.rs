@@ -29,3 +29,6 @@ pub(crate) const JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT: u64 = 200_000;
 ///
 /// This constant specifies the amount of time (in seconds) we are willing to delay a payment.
 pub(crate) const HTLC_INTERCEPTED_CONNECTION_TIMEOUT: u64 = 30;
+
+/// The delay before sending the node announcement after the [`Event::ChannelReady`] event.
+pub(crate) const BROADCAST_NODE_ANNOUNCEMENT_DELAY: u64 = 10;
