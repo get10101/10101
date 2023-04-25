@@ -27,7 +27,10 @@ use time::OffsetDateTime;
 use tracing::metadata::LevelFilter;
 use trade::bitmex_client::BitmexClient;
 
-const PROCESS_INCOMING_MESSAGES_INTERVAL: Duration = Duration::from_secs(5);
+const PROCESS_INCOMING_DLC_MESSAGES_INTERVAL: Duration = Duration::from_secs(5);
+const NODE_SYNC_INTERVAL: Duration = Duration::from_secs(10);
+const POSITION_SYNC_INTERVAL: Duration = Duration::from_secs(300);
+const CONNECTION_CHECK_INTERVAL: Duration = Duration::from_secs(30);
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -89,7 +92,7 @@ async fn main() -> Result<()> {
                 if let Err(e) = node.sync() {
                     tracing::error!("Failed to sync node. Error: {e:#}");
                 }
-                tokio::time::sleep(std::time::Duration::from_secs(10)).await;
+                tokio::time::sleep(NODE_SYNC_INTERVAL).await;
             }
         }
     });
@@ -114,7 +117,7 @@ async fn main() -> Result<()> {
             loop {
                 node.process_incoming_dlc_messages();
 
-                tokio::time::sleep(PROCESS_INCOMING_MESSAGES_INTERVAL).await;
+                tokio::time::sleep(PROCESS_INCOMING_DLC_MESSAGES_INTERVAL).await;
             }
         }
     });
@@ -123,7 +126,7 @@ async fn main() -> Result<()> {
         let node = node.clone();
         async move {
             loop {
-                tokio::time::sleep(Duration::from_secs(300)).await;
+                tokio::time::sleep(POSITION_SYNC_INTERVAL).await;
 
                 let mut conn = match node.pool.get() {
                     Ok(conn) => conn,
@@ -215,7 +218,7 @@ async fn main() -> Result<()> {
 
     tokio::spawn({
         let node = node.clone();
-        connection::keep_public_channel_peers_connected(node.inner)
+        connection::keep_public_channel_peers_connected(node.inner, CONNECTION_CHECK_INTERVAL)
     });
 
     let app = router(node, pool);
