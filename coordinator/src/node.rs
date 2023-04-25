@@ -48,21 +48,21 @@ pub struct Node {
 }
 
 impl Node {
-    /// Returns true or false, whether we can find an useable channel with the provided trader.
+    /// Returns true or false, whether we can find an usable channel with the provided trader.
     ///
-    /// Note, we use the useable channel to implicitely check if the user is connected, as it
-    /// wouldn't be useable otherwise.
+    /// Note, we use the usable channel to implicitely check if the user is connected, as it
+    /// wouldn't be usable otherwise.
     pub fn is_connected(&self, trader: &PublicKey) -> bool {
-        let useable_channels = self.inner.channel_manager.list_usable_channels();
-        let useable_channels = useable_channels
+        let usable_channels = self.inner.channel_manager.list_usable_channels();
+        let usable_channels = usable_channels
             .iter()
             .filter(|channel| channel.is_usable && channel.counterparty.node_id == *trader)
             .collect::<Vec<_>>();
 
-        if useable_channels.len() > 1 {
-            tracing::warn!(%trader, "Found more than one useable channel with trader");
+        if usable_channels.len() > 1 {
+            tracing::warn!(%trader, "Found more than one usable channel with trader");
         }
-        !useable_channels.is_empty()
+        !usable_channels.is_empty()
     }
 
     pub async fn trade(&self, trade_params: &TradeParams) -> Result<()> {
