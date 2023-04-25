@@ -28,6 +28,10 @@ pub struct Opts {
     #[clap(value_enum, default_value = "regtest")]
     pub network: Network,
 
+    /// If enabled logs will be in json format
+    #[clap(short, long)]
+    pub json: bool,
+
     /// The address where to find the database inclding username and password
     #[clap(
         long,

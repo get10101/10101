@@ -36,6 +36,10 @@ pub struct Opts {
     /// The address to connect electrum to
     #[clap(long, default_value = "tcp://localhost:50000")]
     pub electrum: String,
+
+    /// If enabled logs will be in json format
+    #[clap(short, long)]
+    pub json: bool,
 }
 
 #[derive(Debug, Clone, Copy, clap::ValueEnum)]
