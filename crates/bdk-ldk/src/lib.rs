@@ -1,4 +1,5 @@
 use anyhow::Context;
+use bdk::bitcoin::consensus::encode::serialize_hex;
 use bdk::bitcoin::Address;
 use bdk::bitcoin::BlockHash;
 use bdk::bitcoin::BlockHeader;
@@ -415,6 +416,8 @@ where
     D: BatchDatabase,
 {
     fn broadcast_transaction(&self, tx: &Transaction) {
+        let tx_hex = serialize_hex(tx);
+        tracing::info!(%tx_hex, "Broadcasting transaction");
         if let Err(e) = self.client.broadcast(tx) {
             tracing::error!("Error broadcasting transaction: {e:#}");
         }
