@@ -28,7 +28,7 @@ use tracing::metadata::LevelFilter;
 use trade::bitmex_client::BitmexClient;
 
 const PROCESS_INCOMING_DLC_MESSAGES_INTERVAL: Duration = Duration::from_secs(5);
-const NODE_SYNC_INTERVAL: Duration = Duration::from_secs(10);
+const NODE_SYNC_INTERVAL: Duration = Duration::from_secs(300);
 const POSITION_SYNC_INTERVAL: Duration = Duration::from_secs(300);
 const CONNECTION_CHECK_INTERVAL: Duration = Duration::from_secs(30);
 
