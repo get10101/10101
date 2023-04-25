@@ -417,7 +417,8 @@ where
 {
     fn broadcast_transaction(&self, tx: &Transaction) {
         let tx_hex = serialize_hex(tx);
-        tracing::info!(%tx_hex, "Broadcasting transaction");
+        let txid = tx.txid();
+        tracing::info!(%tx_hex, %txid, "Broadcasting transaction");
         if let Err(e) = self.client.broadcast(tx) {
             tracing::error!("Error broadcasting transaction: {e:#}");
         }

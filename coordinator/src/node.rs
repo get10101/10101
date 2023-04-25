@@ -60,7 +60,7 @@ impl Node {
             .collect::<Vec<_>>();
 
         if usable_channels.len() > 1 {
-            tracing::warn!(%trader, "Found more than one usable channel with trader");
+            tracing::warn!(peer_id=%trader, "Found more than one usable channel with trader");
         }
         !usable_channels.is_empty()
     }
@@ -70,7 +70,7 @@ impl Node {
             TradeAction::Open => self.open_position(trade_params).await?,
             TradeAction::Close(channel_id) => {
                 let peer_id = trade_params.pubkey;
-                tracing::info!(?trade_params, ?channel_id, ?peer_id, "Closing position");
+                tracing::info!(?trade_params, channel_id = %hex::encode(channel_id), %peer_id, "Closing position");
 
                 let closing_price = trade_params.average_execution_price();
 
@@ -93,7 +93,7 @@ impl Node {
 
     async fn open_position(&self, trade_params: &TradeParams) -> Result<()> {
         let peer_id = trade_params.pubkey;
-        tracing::info!(?peer_id, ?trade_params, "Opening position");
+        tracing::info!(%peer_id, ?trade_params, "Opening position");
 
         let margin_trader = margin_trader(trade_params);
         let margin_coordinator = margin_coordinator(trade_params);
@@ -184,7 +184,7 @@ impl Node {
 
         tracing::debug!(
             ?position,
-            ?channel_id,
+            channel_id = %hex::encode(channel_id),
             %accept_settlement_amount,
             "Closing position of {accept_settlement_amount} with {}",
             position.trader.to_string()
