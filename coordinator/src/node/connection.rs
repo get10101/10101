@@ -9,13 +9,14 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
 
-const CONNECTION_CHECK_INTERVAL: Duration = Duration::from_secs(30);
-
-pub async fn keep_public_channel_peers_connected(node: Arc<Node<PaymentMap>>) {
+pub async fn keep_public_channel_peers_connected(
+    node: Arc<Node<PaymentMap>>,
+    check_interval: Duration,
+) {
     loop {
         reconnect_to_disconnected_public_channel_peers(node.clone());
 
-        tokio::time::sleep(CONNECTION_CHECK_INTERVAL).await;
+        tokio::time::sleep(check_interval).await;
     }
 }
 
