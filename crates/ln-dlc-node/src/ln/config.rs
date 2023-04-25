@@ -45,7 +45,7 @@ pub fn coordinator_config() -> UserConfig {
             // Note, public channels need 6 confirmations to get announced (and usable for multi-hop
             // payments) this is a requirement of BOLT 7.
             announced_channel: true,
-            // The minimum amount of confirmations before the inbound channel is deemed useable,
+            // The minimum amount of confirmations before the inbound channel is deemed usable,
             // between the counterparties
             minimum_depth: 1,
             // We set this 100% as the coordinator is online 24/7 and can take the risk.
@@ -53,7 +53,7 @@ pub fn coordinator_config() -> UserConfig {
             ..Default::default()
         },
         channel_handshake_limits: ChannelHandshakeLimits {
-            // The minimum amount of confirmations before the outbound channel is deemed useable,
+            // The minimum amount of confirmations before the outbound channel is deemed usable,
             // between the counterparties
             max_minimum_depth: 3,
             trust_own_funding_0conf: true,
