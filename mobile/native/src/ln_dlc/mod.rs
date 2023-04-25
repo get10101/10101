@@ -375,7 +375,7 @@ pub fn create_invoice(amount_sats: Option<u64>) -> Result<Invoice> {
             fake_channel_id,
             config::get_coordinator_info().pubkey,
             0,
-            "test".to_string(),
+            "Fund your 10101 wallet".to_string(),
         )
     })
 }
