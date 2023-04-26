@@ -11,7 +11,8 @@ use std::time::Duration;
 impl<P> Node<P> {
     pub async fn connect(&self, peer: NodeInfo) -> Result<Pin<Box<impl Future<Output = ()>>>> {
         #[allow(clippy::async_yields_async)] // We want to poll this future in a loop elsewhere
-        let connection_closed_future = tokio::time::timeout(Duration::from_secs(30), async {
+        let connection_closed_future = tokio::time::timeout(Duration::from_secs(15), async {
+            let mut round = 1;
             loop {
                 tracing::debug!(%peer, "Setting up connection");
 
@@ -25,9 +26,10 @@ impl<P> Node<P> {
                     return fut;
                 };
 
-                let retry_interval = Duration::from_secs(1);
+                let retry_interval = Duration::from_secs(1) * round;
                 tracing::debug!(%peer, ?retry_interval, "Connection setup failed; retrying");
                 tokio::time::sleep(retry_interval).await;
+                round *= 2;
             }
         })
         .await
