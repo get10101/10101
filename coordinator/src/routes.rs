@@ -32,6 +32,7 @@ use crate::admin::get_balance;
 use crate::admin::is_connected;
 use crate::admin::list_channels;
 use crate::admin::list_dlc_channels;
+use crate::admin::list_on_chain_transactions;
 use crate::admin::list_peers;
 use crate::admin::open_channel;
 use crate::admin::sign_message;
@@ -78,6 +79,7 @@ pub fn router(node: Node, pool: Pool<ConnectionManager<PgConnection>>) -> Router
         .route("/api/admin/channels/:channel_id", delete(close_channel))
         .route("/api/admin/peers", get(list_peers))
         .route("/api/admin/dlc_channels", get(list_dlc_channels))
+        .route("/api/admin/transactions", get(list_on_chain_transactions))
         .route(
             "/api/admin/dlc_channels/:channel_id",
             delete(delete_subchannel),
