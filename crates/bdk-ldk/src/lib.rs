@@ -418,9 +418,16 @@ where
     fn broadcast_transaction(&self, tx: &Transaction) {
         let tx_hex = serialize_hex(tx);
         let txid = tx.txid();
-        tracing::info!(%tx_hex, %txid, "Broadcasting transaction");
-        if let Err(e) = self.client.broadcast(tx) {
-            tracing::error!("Error broadcasting transaction: {e:#}");
+
+        cfg_if::cfg_if! {
+            if #[cfg(feature = "no_broadcast")] {
+                tracing::info!(%tx_hex, %txid, "Would have broadcast transaction");
+            } else {
+                tracing::info!(%tx_hex, %txid, "Broadcasting transaction");
+                if let Err(e) = self.client.broadcast(tx) {
+                    tracing::error!("Error broadcasting transaction: {e:#}");
+                }
+            }
         }
     }
 }

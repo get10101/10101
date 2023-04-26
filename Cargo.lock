@@ -240,6 +240,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "bdk",
+ "cfg-if",
  "lightning",
  "serde_json",
  "thiserror",

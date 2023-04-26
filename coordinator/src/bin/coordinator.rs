@@ -111,6 +111,10 @@ async fn main() -> Result<()> {
         pool: pool.clone(),
     };
 
+    node.inner
+        .sub_channel_manager
+        .initiate_force_close_sub_channel(channel_id);
+
     tokio::spawn({
         let node = node.clone();
         async move {

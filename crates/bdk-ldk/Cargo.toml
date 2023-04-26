@@ -14,7 +14,11 @@ description = "Use your bdk wallet to implement ldk lightning functionality"
 [dependencies]
 anyhow = "1.0"
 bdk = "0.24"
+cfg-if = "1"
 lightning = { version = "0.0.113", features = ["max_level_trace"] }
 serde_json = "1.0.87"
 thiserror = "1"
 tracing = "0.1"
+
+[features]
+no_broadcast = []
