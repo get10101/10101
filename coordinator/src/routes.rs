@@ -77,9 +77,10 @@ pub fn router(node: Node, pool: Pool<ConnectionManager<PgConnection>>) -> Router
         .route("/api/admin/channels", get(list_channels).post(open_channel))
         .route("/api/admin/channels/:channel_id", delete(close_channel))
         .route("/api/admin/peers", get(list_peers))
+        .route("/api/admin/dlc_channels", get(list_dlc_channels))
         .route(
             "/api/admin/dlc_channels/:channel_id",
-            get(list_dlc_channels).delete(delete_subchannel),
+            delete(delete_subchannel),
         )
         .route("/api/admin/sign/:msg", get(sign_message))
         .route("/api/admin/connect", post(connect_to_peer))
