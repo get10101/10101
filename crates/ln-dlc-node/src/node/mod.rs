@@ -77,6 +77,9 @@ pub use payment_persister::PaymentPersister;
 pub use sub_channel_manager::SubChannelManager;
 pub use wallet::PaymentDetails;
 
+// TODO: These intervals are quite arbitrary at the moment, come up with more sensible values
+const BROADCAST_NODE_ANNOUNCEMENT_INTERVAL: Duration = Duration::from_secs(60);
+
 /// An LN-DLC node.
 pub struct Node<P> {
     network: Network,
@@ -90,6 +93,7 @@ pub struct Node<P> {
     pub network_graph: Arc<NetworkGraph>,
     _background_processor: BackgroundProcessor,
     _connection_manager_handle: RemoteHandle<()>,
+    _broadcast_node_announcement_handle: RemoteHandle<()>,
     _pending_dlc_actions_handle: RemoteHandle<()>,
 
     logger: Arc<TracingLogger>,
@@ -331,11 +335,6 @@ where
         let fake_channel_payments: FakeChannelPaymentRequests =
             Arc::new(Mutex::new(HashMap::new()));
 
-        tracing::debug!("Announcing node on {:?}", announcements);
-        let announcements = announcements.clone();
-        let alias = alias_as_bytes(alias)?;
-        peer_manager.broadcast_node_announcement([0; 3], alias, announcements.clone());
-
         let payment_persister = Arc::new(payment_persister);
         let event_handler = {
             let runtime_handle = tokio::runtime::Handle::current();
@@ -350,8 +349,6 @@ where
                 fake_channel_payments.clone(),
                 Arc::new(Mutex::new(HashMap::new())),
                 peer_manager.clone(),
-                alias,
-                announcements,
             )
         };
 
@@ -421,6 +418,29 @@ where
             Some(scorer),
         );
 
+        let broadcast_node_announcement_handle = {
+            let alias = alias_as_bytes(alias)?;
+            let peer_manager = peer_manager.clone();
+            let (fut, remote_handle) = async move {
+                // TODO: Check why we need to announce the node of the mobile app as otherwise the
+                // just-in-time channel creation will fail with a `unable to decode own hop data`
+                // error.
+                let mut interval = tokio::time::interval(BROADCAST_NODE_ANNOUNCEMENT_INTERVAL);
+
+                loop {
+                    tracing::debug!("Announcing node on {:?}", announcements);
+                    let announcements = announcements.clone();
+                    peer_manager.broadcast_node_announcement([0; 3], alias, announcements);
+                    interval.tick().await;
+                }
+            }
+            .remote_handle();
+
+            tokio::spawn(fut);
+
+            remote_handle
+        };
+
         let pending_dlc_actions_handle = {
             let sub_channel_manager = sub_channel_manager.clone();
             let dlc_message_handler = dlc_message_handler.clone();
@@ -466,6 +486,7 @@ where
             user_config: ldk_user_config,
             _background_processor: background_processor,
             _connection_manager_handle: connection_manager_handle,
+            _broadcast_node_announcement_handle: broadcast_node_announcement_handle,
             _pending_dlc_actions_handle: pending_dlc_actions_handle,
             network_graph,
         })

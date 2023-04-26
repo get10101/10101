@@ -25,7 +25,6 @@ use lightning::chain::chaininterface::BroadcasterInterface;
 use lightning::chain::chaininterface::ConfirmationTarget;
 use lightning::chain::chaininterface::FeeEstimator;
 use lightning::ln::channelmanager::InterceptId;
-use lightning::ln::msgs::NetAddress;
 use lightning::routing::gossip::NodeId;
 use lightning::util::events::Event;
 use lightning::util::events::PaymentPurpose;
@@ -48,8 +47,6 @@ pub struct EventHandler<P> {
     fake_channel_payments: FakeChannelPaymentRequests,
     pending_intercepted_htlcs: PendingInterceptedHtlcs,
     peer_manager: Arc<PeerManager>,
-    alias: [u8; 32],
-    announcements: Vec<NetAddress>,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -67,8 +64,6 @@ where
         fake_channel_payments: FakeChannelPaymentRequests,
         pending_intercepted_htlcs: PendingInterceptedHtlcs,
         peer_manager: Arc<PeerManager>,
-        alias: [u8; 32],
-        announcements: Vec<NetAddress>,
     ) -> Self {
         Self {
             runtime_handle,
@@ -80,8 +75,6 @@ where
             fake_channel_payments,
             pending_intercepted_htlcs,
             peer_manager,
-            alias,
-            announcements,
         }
     }
 
@@ -425,24 +418,6 @@ where
                     counterparty = %counterparty_node_id.to_string(),
                     "Channel ready"
                 );
-
-                tokio::spawn({
-                    let announcements = self.announcements.clone();
-                    let peer_manager = self.peer_manager.clone();
-                    let alias = self.alias;
-                    async move {
-                        tokio::time::sleep(Duration::from_secs(
-                            crate::ln::BROADCAST_NODE_ANNOUNCEMENT_DELAY,
-                        ))
-                        .await;
-                        tracing::debug!("Announcing node on {:?}", announcements);
-                        peer_manager.broadcast_node_announcement(
-                            [0; 3],
-                            alias,
-                            announcements.clone(),
-                        );
-                    }
-                });
 
                 let pending_intercepted_htlcs = self.pending_intercepted_htlcs_lock();
 
