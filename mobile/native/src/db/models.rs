@@ -27,7 +27,7 @@ const SQLITE_DATETIME_FMT: &str = "[year]-[month]-[day] [hour]:[minute]:[second]
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
-    #[error("Invalid id when converting string to uuid")]
+    #[error("Invalid id when converting string to uuid: {0}")]
     InvalidId(#[from] uuid::Error),
     #[error("Limit order has to have a price")]
     MissingPriceForLimitOrder,
