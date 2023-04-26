@@ -4,6 +4,7 @@ use axum::extract::Path;
 use axum::extract::Query;
 use axum::extract::State;
 use axum::Json;
+use bdk::TransactionDetails;
 use bitcoin::secp256k1::PublicKey;
 use dlc_manager::Storage;
 use ln_dlc_node::node::NodeInfo;
@@ -61,6 +62,16 @@ pub async fn list_dlc_channels(
         .collect::<Vec<_>>();
 
     Ok(Json(dlc_channels))
+}
+
+pub async fn list_on_chain_transactions(
+    State(state): State<Arc<AppState>>,
+) -> Result<Json<Vec<TransactionDetails>>, AppError> {
+    let transactions = state.node.inner.get_on_chain_history().map_err(|e| {
+        AppError::InternalServerError(format!("Failed to list transactions: {e:#}"))
+    })?;
+
+    Ok(Json(transactions))
 }
 
 pub async fn list_peers(State(state): State<Arc<AppState>>) -> Json<Vec<PublicKey>> {
