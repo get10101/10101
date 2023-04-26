@@ -135,7 +135,7 @@ pub async fn delete_subchannel(
     let length = std::cmp::min(byte_array.len(), fixed_length_array.len());
     fixed_length_array[..length].copy_from_slice(&byte_array[..length]);
 
-    tracing::debug!("Attempting to delete channel {channel_id}");
+    tracing::debug!(%channel_id, "Attempting to delete DLC channel");
 
     state
         .node
@@ -146,7 +146,11 @@ pub async fn delete_subchannel(
         .delete_subchannel(&fixed_length_array)
         .map_err(|error| {
             AppError::InternalServerError(format!("Unable to delete channel: {error:#}"))
-        })
+        })?;
+
+    tracing::info!(%channel_id, "Deleted DLC channel");
+
+    Ok(())
 }
 
 #[derive(Deserialize)]
