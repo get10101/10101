@@ -124,8 +124,8 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
                     ),
                     if (showValidationHint)
                       ModalBottomSheetInfo(
-                          infoText:
-                              "While in beta, channel capacity is limited to $channelCapacity sats; payments above this capacity might get rejected."
+                          infoText: "Receiving funds is subject to a 3% fee."
+                              "\n\nWhile in beta, channel capacity is limited to $channelCapacity sats; payments above this capacity might get rejected."
                               "\n\nYour current balance is $balance, so you can receive up to $maxAmount sats."
                               "\nIf you hold less than $minAmount or more than $usableChannelCapacity in your wallet you might not be able to trade."
                               "\n\nThe maximum is enforced initially to ensure users only trade with small stakes until the software has proven to be stable.",
