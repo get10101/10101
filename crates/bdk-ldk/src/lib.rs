@@ -46,9 +46,9 @@ const MAX_SATS_PER_V_BYTE: u32 = 20;
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
-    #[error("BDK wallet error")]
+    #[error("BDK wallet error: {0}")]
     Bdk(#[from] bdk::Error),
-    #[error("Other")]
+    #[error("Other: {0}")]
     Other(#[from] anyhow::Error),
 }
 
