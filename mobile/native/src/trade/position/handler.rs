@@ -172,7 +172,6 @@ pub async fn close_position() -> Result<()> {
     let positions = get_positions()
         .await?
         .into_iter()
-        .filter(|p| p.position_state == PositionState::Open)
         .map(Position::from)
         .collect::<Vec<Position>>();
 
