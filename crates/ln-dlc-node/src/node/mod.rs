@@ -422,9 +422,6 @@ where
             let alias = alias_as_bytes(alias)?;
             let peer_manager = peer_manager.clone();
             let (fut, remote_handle) = async move {
-                // TODO: Check why we need to announce the node of the mobile app as otherwise the
-                // just-in-time channel creation will fail with a `unable to decode own hop data`
-                // error.
                 let mut interval = tokio::time::interval(BROADCAST_NODE_ANNOUNCEMENT_INTERVAL);
 
                 loop {
