@@ -4,6 +4,7 @@ use crate::tests;
 use crate::tests::bitcoind;
 use anyhow::bail;
 use anyhow::Result;
+use bitcoin::secp256k1::PublicKey;
 use lightning_invoice::Invoice;
 use local_ip_address::local_ip;
 use reqwest::Response;
@@ -13,11 +14,6 @@ use tests::FAUCET_ORIGIN;
 
 pub struct LndNode {}
 
-#[derive(Deserialize, Debug)]
-struct LndResponse {
-    address: String,
-}
-
 impl LndNode {
     pub fn new() -> LndNode {
         LndNode {}
@@ -25,8 +21,13 @@ impl LndNode {
 
     /// Funds the lnd onchain wallet.
     pub async fn fund(&self, amount: bitcoin::Amount) -> Result<()> {
+        #[derive(Deserialize, Debug)]
+        struct NewAddressResponse {
+            address: String,
+        }
+
         let response = self.get("lnd/v1/newaddress").await?;
-        let response: LndResponse = response.json().await.unwrap();
+        let response: NewAddressResponse = response.json().await.unwrap();
 
         bitcoind::fund(response.address, amount).await?;
         bitcoind::mine(1).await?;
@@ -76,16 +77,9 @@ impl LndNode {
         bitcoind::mine(1).await?;
         target.sync().unwrap();
 
-        tokio::time::timeout(Duration::from_secs(10), async {
+        tokio::time::timeout(Duration::from_secs(60), async {
             loop {
-                // todo: it would be nicer if this logic would look for a channel open with the lnd
-                // node.
-                if target
-                    .channel_manager
-                    .list_usable_channels()
-                    .first()
-                    .is_some()
-                {
+                if self.is_channel_active(target.info.pubkey).await? {
                     break;
                 }
 
@@ -94,12 +88,11 @@ impl LndNode {
                 tracing::debug!("Waiting for channel to be usable");
                 tokio::time::sleep(Duration::from_millis(500)).await;
             }
-        })
-        .await?;
 
-        // todo: fetch channel status from lnd api instead of timeout.
-        // wait for lnd to process the channel opening.
-        tokio::time::sleep(Duration::from_secs(35)).await;
+            anyhow::Ok(())
+        })
+        .await??;
+
         Ok(())
     }
 
@@ -110,6 +103,27 @@ impl LndNode {
             format!(r#"{{"payment_request": "{invoice}"}}"#),
         )
         .await
+    }
+
+    async fn is_channel_active(&self, remote_pubkey: PublicKey) -> Result<bool> {
+        #[derive(Debug, Deserialize)]
+        struct ListChannelsResponse {
+            channels: Vec<LndChannel>,
+        }
+
+        #[derive(Debug, Deserialize)]
+        struct LndChannel {
+            remote_pubkey: String,
+            active: bool,
+        }
+
+        let response = self.get("lnd/v1/channels").await?;
+        let channels: ListChannelsResponse = response.json().await.unwrap();
+
+        Ok(channels
+            .channels
+            .iter()
+            .any(|c| c.remote_pubkey == remote_pubkey.to_string() && c.active))
     }
 
     async fn post(&self, path: &str, body: String) -> Result<Response> {

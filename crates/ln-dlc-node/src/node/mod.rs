@@ -6,6 +6,7 @@ use crate::ln::EventHandler;
 use crate::ln::TracingLogger;
 use crate::ln_dlc_wallet::LnDlcWallet;
 use crate::node::dlc_channel::process_pending_dlc_actions;
+use crate::node::peer_manager::broadcast_node_announcement;
 use crate::on_chain_wallet::OnChainWallet;
 use crate::seed::Bip39Seed;
 use crate::util;
@@ -63,6 +64,7 @@ pub(crate) mod invoice;
 mod ln_channel;
 mod oracle_client;
 mod payment_persister;
+mod peer_manager;
 mod sub_channel_manager;
 mod wallet;
 
@@ -110,6 +112,10 @@ pub struct Node<P> {
     payment_persister: Arc<P>,
 
     pub(crate) user_config: UserConfig,
+    #[cfg(test)]
+    pub(crate) alias: [u8; 32],
+    #[cfg(test)]
+    pub(crate) node_announcements: Vec<NetAddress>,
 }
 
 #[derive(Debug, Clone, Copy, Deserialize, Serialize)]
@@ -420,16 +426,15 @@ where
             Some(scorer),
         );
 
+        let alias = alias_as_bytes(alias)?;
         let broadcast_node_announcement_handle = {
-            let alias = alias_as_bytes(alias)?;
+            let announcements = announcements.clone();
             let peer_manager = peer_manager.clone();
             let (fut, remote_handle) = async move {
                 let mut interval = tokio::time::interval(BROADCAST_NODE_ANNOUNCEMENT_INTERVAL);
-
                 loop {
-                    tracing::debug!("Announcing node on {:?}", announcements);
-                    let announcements = announcements.clone();
-                    peer_manager.broadcast_node_announcement([0; 3], alias, announcements);
+                    broadcast_node_announcement(&peer_manager, alias, announcements.clone());
+
                     interval.tick().await;
                 }
             }
@@ -488,6 +493,10 @@ where
             _broadcast_node_announcement_handle: broadcast_node_announcement_handle,
             _pending_dlc_actions_handle: pending_dlc_actions_handle,
             network_graph,
+            #[cfg(test)]
+            node_announcements: announcements,
+            #[cfg(test)]
+            alias,
         })
     }
 }

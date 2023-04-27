@@ -30,6 +30,12 @@ async fn onboard_from_lnd() {
     coordinator.sync().unwrap();
     payee.sync().unwrap();
 
+    // The coordinator must send a `NodeAnnouncement` to LND before LND sends the payment, as
+    // otherwise we will encounter an error in the coordinator when processing the incoming HTLC:
+    // `Unable to decode our hop data` because of a `DecodeError::InvalidValue`.
+    coordinator.broadcast_node_announcement();
+    tokio::time::sleep(Duration::from_secs(2)).await;
+
     let invoice_amount = 1000;
 
     let fake_scid = coordinator.create_intercept_scid(payee.info.pubkey);
