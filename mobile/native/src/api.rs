@@ -285,5 +285,5 @@ pub fn get_node_id() -> SyncReturn<String> {
 /// preventing the user from trading. Only use this if you know what you are doing.
 #[tokio::main(flavor = "current_thread")]
 pub async fn close_position() -> Result<()> {
-    position::handler::close_position().await
+    position::handler::close_position(true).await
 }

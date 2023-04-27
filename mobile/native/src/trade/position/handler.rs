@@ -17,6 +17,7 @@ use coordinator_commons::TradeParams;
 use orderbook_commons::FilledWith;
 use orderbook_commons::Prices;
 use rust_decimal::prelude::ToPrimitive;
+use std::ops::Sub;
 use time::Duration;
 use time::OffsetDateTime;
 use trade::bitmex_client::BitmexClient;
@@ -168,7 +169,7 @@ pub fn price_update(prices: Prices) -> Result<()> {
 // through an order. Instead the coordinator simply proposes
 // a close position. In order to fixup the ui, we are
 // creating an order here and store it to the database.
-pub async fn close_position() -> Result<()> {
+pub async fn close_position(force: bool) -> Result<()> {
     let positions = get_positions()
         .await?
         .into_iter()
@@ -181,7 +182,13 @@ pub async fn close_position() -> Result<()> {
 
     tracing::debug!("Adding order for the expired closed position");
 
-    let quote = BitmexClient::get_quote(&position.expiry).await?;
+    let timestamp = if force {
+        OffsetDateTime::now_utc().sub(Duration::seconds(5))
+    } else {
+        position.expiry
+    };
+
+    let quote = BitmexClient::get_quote(&timestamp).await?;
     let closing_price = match position.direction {
         trade::Direction::Long => quote.bid_price,
         trade::Direction::Short => quote.ask_price,

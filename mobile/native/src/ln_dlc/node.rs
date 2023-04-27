@@ -227,7 +227,7 @@ impl Node {
                         tracing::warn!("Could not find a filling position in the database. Maybe because the coordinator closed an expired position. Error: {e:#}");
 
                         tokio::spawn(async {
-                            match position::handler::close_position().await {
+                            match position::handler::close_position(false).await {
                                 Ok(_) => tracing::info!("Successfully closed expired position."),
                                 Err(e) => tracing::error!("Critical Error! We have a DLC but were unable to set the order to filled. Error: {e:?}")
                             }
