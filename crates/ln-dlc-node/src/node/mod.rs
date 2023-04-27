@@ -115,7 +115,7 @@ pub struct Node<P> {
     #[cfg(test)]
     pub(crate) alias: [u8; 32],
     #[cfg(test)]
-    pub(crate) node_announcements: Vec<NetAddress>,
+    pub(crate) announcement_addresses: Vec<NetAddress>,
 }
 
 #[derive(Debug, Clone, Copy, Deserialize, Serialize)]
@@ -177,7 +177,7 @@ where
         payment_persister: P,
         announcement_address: SocketAddr,
         listen_address: SocketAddr,
-        announcements: Vec<NetAddress>,
+        announcement_addresses: Vec<NetAddress>,
         electrs_origin: String,
         seed: Bip39Seed,
         ephemeral_randomness: [u8; 32],
@@ -197,7 +197,7 @@ where
             payment_persister,
             announcement_address,
             listen_address,
-            announcements,
+            announcement_addresses,
             electrs_origin,
             seed,
             ephemeral_randomness,
@@ -214,7 +214,7 @@ where
         payment_persister: P,
         announcement_address: SocketAddr,
         listen_address: SocketAddr,
-        announcements: Vec<NetAddress>,
+        announcement_addresses: Vec<NetAddress>,
         electrs_origin: String,
         seed: Bip39Seed,
         ephemeral_randomness: [u8; 32],
@@ -428,12 +428,16 @@ where
 
         let alias = alias_as_bytes(alias)?;
         let broadcast_node_announcement_handle = {
-            let announcements = announcements.clone();
+            let announcement_addresses = announcement_addresses.clone();
             let peer_manager = peer_manager.clone();
             let (fut, remote_handle) = async move {
                 let mut interval = tokio::time::interval(BROADCAST_NODE_ANNOUNCEMENT_INTERVAL);
                 loop {
-                    broadcast_node_announcement(&peer_manager, alias, announcements.clone());
+                    broadcast_node_announcement(
+                        &peer_manager,
+                        alias,
+                        announcement_addresses.clone(),
+                    );
 
                     interval.tick().await;
                 }
@@ -494,7 +498,7 @@ where
             _pending_dlc_actions_handle: pending_dlc_actions_handle,
             network_graph,
             #[cfg(test)]
-            node_announcements: announcements,
+            announcement_addresses,
             #[cfg(test)]
             alias,
         })

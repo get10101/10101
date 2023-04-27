@@ -21,7 +21,7 @@ impl<P> Node<P> {
         broadcast_node_announcement(
             &self.peer_manager,
             self.alias,
-            self.node_announcements.clone(),
+            self.announcement_addresses.clone(),
         )
     }
 }
