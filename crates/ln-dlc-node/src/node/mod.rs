@@ -6,6 +6,7 @@ use crate::ln::EventHandler;
 use crate::ln::TracingLogger;
 use crate::ln_dlc_wallet::LnDlcWallet;
 use crate::node::dlc_channel::process_pending_dlc_actions;
+use crate::node::peer_manager::broadcast_node_announcement;
 use crate::on_chain_wallet::OnChainWallet;
 use crate::seed::Bip39Seed;
 use crate::util;
@@ -63,6 +64,7 @@ pub(crate) mod invoice;
 mod ln_channel;
 mod oracle_client;
 mod payment_persister;
+mod peer_manager;
 mod sub_channel_manager;
 mod wallet;
 
@@ -77,6 +79,11 @@ pub use payment_persister::PaymentPersister;
 pub use sub_channel_manager::SubChannelManager;
 pub use wallet::PaymentDetails;
 
+/// The interval at which the [`lightning::ln::msgs::NodeAnnouncement`] is broadcast.
+///
+/// According to the LDK team, a value of up to 1 hour should be fine.
+const BROADCAST_NODE_ANNOUNCEMENT_INTERVAL: Duration = Duration::from_secs(600);
+
 /// An LN-DLC node.
 pub struct Node<P> {
     network: Network,
@@ -90,6 +97,7 @@ pub struct Node<P> {
     pub network_graph: Arc<NetworkGraph>,
     _background_processor: BackgroundProcessor,
     _connection_manager_handle: RemoteHandle<()>,
+    _broadcast_node_announcement_handle: RemoteHandle<()>,
     _pending_dlc_actions_handle: RemoteHandle<()>,
 
     logger: Arc<TracingLogger>,
@@ -104,6 +112,10 @@ pub struct Node<P> {
     payment_persister: Arc<P>,
 
     pub(crate) user_config: UserConfig,
+    #[cfg(test)]
+    pub(crate) alias: [u8; 32],
+    #[cfg(test)]
+    pub(crate) announcement_addresses: Vec<NetAddress>,
 }
 
 #[derive(Debug, Clone, Copy, Deserialize, Serialize)]
@@ -165,7 +177,7 @@ where
         payment_persister: P,
         announcement_address: SocketAddr,
         listen_address: SocketAddr,
-        announcements: Vec<NetAddress>,
+        announcement_addresses: Vec<NetAddress>,
         electrs_origin: String,
         seed: Bip39Seed,
         ephemeral_randomness: [u8; 32],
@@ -185,7 +197,7 @@ where
             payment_persister,
             announcement_address,
             listen_address,
-            announcements,
+            announcement_addresses,
             electrs_origin,
             seed,
             ephemeral_randomness,
@@ -202,7 +214,7 @@ where
         payment_persister: P,
         announcement_address: SocketAddr,
         listen_address: SocketAddr,
-        announcements: Vec<NetAddress>,
+        announcement_addresses: Vec<NetAddress>,
         electrs_origin: String,
         seed: Bip39Seed,
         ephemeral_randomness: [u8; 32],
@@ -331,11 +343,6 @@ where
         let fake_channel_payments: FakeChannelPaymentRequests =
             Arc::new(Mutex::new(HashMap::new()));
 
-        tracing::debug!("Announcing node on {:?}", announcements);
-        let announcements = announcements.clone();
-        let alias = alias_as_bytes(alias)?;
-        peer_manager.broadcast_node_announcement([0; 3], alias, announcements.clone());
-
         let payment_persister = Arc::new(payment_persister);
         let event_handler = {
             let runtime_handle = tokio::runtime::Handle::current();
@@ -350,8 +357,6 @@ where
                 fake_channel_payments.clone(),
                 Arc::new(Mutex::new(HashMap::new())),
                 peer_manager.clone(),
-                alias,
-                announcements,
             )
         };
 
@@ -421,6 +426,29 @@ where
             Some(scorer),
         );
 
+        let alias = alias_as_bytes(alias)?;
+        let broadcast_node_announcement_handle = {
+            let announcement_addresses = announcement_addresses.clone();
+            let peer_manager = peer_manager.clone();
+            let (fut, remote_handle) = async move {
+                let mut interval = tokio::time::interval(BROADCAST_NODE_ANNOUNCEMENT_INTERVAL);
+                loop {
+                    broadcast_node_announcement(
+                        &peer_manager,
+                        alias,
+                        announcement_addresses.clone(),
+                    );
+
+                    interval.tick().await;
+                }
+            }
+            .remote_handle();
+
+            tokio::spawn(fut);
+
+            remote_handle
+        };
+
         let pending_dlc_actions_handle = {
             let sub_channel_manager = sub_channel_manager.clone();
             let dlc_message_handler = dlc_message_handler.clone();
@@ -466,8 +494,13 @@ where
             user_config: ldk_user_config,
             _background_processor: background_processor,
             _connection_manager_handle: connection_manager_handle,
+            _broadcast_node_announcement_handle: broadcast_node_announcement_handle,
             _pending_dlc_actions_handle: pending_dlc_actions_handle,
             network_graph,
+            #[cfg(test)]
+            announcement_addresses,
+            #[cfg(test)]
+            alias,
         })
     }
 }
