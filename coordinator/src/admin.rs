@@ -124,7 +124,11 @@ pub async fn close_channel(
         .node
         .inner
         .close_channel(fixed_length_array, params.force.unwrap_or_default())
-        .map_err(|error| AppError::InternalServerError(error.to_string()))
+        .map_err(|error| AppError::InternalServerError(error.to_string()))?;
+
+    tracing::info!(%channel_id, "Deleted DLC channel");
+
+    Ok(())
 }
 
 pub async fn delete_subchannel(
