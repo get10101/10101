@@ -77,8 +77,10 @@ pub use payment_persister::PaymentPersister;
 pub use sub_channel_manager::SubChannelManager;
 pub use wallet::PaymentDetails;
 
-// TODO: These intervals are quite arbitrary at the moment, come up with more sensible values
-const BROADCAST_NODE_ANNOUNCEMENT_INTERVAL: Duration = Duration::from_secs(60);
+/// The interval at which the [`lightning::ln::msgs::NodeAnnouncement`] is broadcast.
+///
+/// According to the LDK team, a value of up to 1 hour should be fine.
+const BROADCAST_NODE_ANNOUNCEMENT_INTERVAL: Duration = Duration::from_secs(600);
 
 /// An LN-DLC node.
 pub struct Node<P> {
