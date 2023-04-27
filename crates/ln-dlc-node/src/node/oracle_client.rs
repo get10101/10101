@@ -4,11 +4,35 @@ use anyhow::Result;
 use bitcoin::secp256k1::XOnlyPublicKey;
 use dlc_manager::Oracle;
 use p2pd_oracle_client::P2PDOracleClient;
+use std::thread::sleep;
+use std::time::Duration;
+
+// TODO: This should come from the configuration.
+const ORACLE_ENDPOINT: &str = "https://oracle.holzeis.me/";
+const ORACLE_CONNECT_RETRY_INTERVAL: Duration = Duration::from_secs(1);
+const ORACLE_CONNECT_RETRY_LIMIT: i32 = 10;
 
 pub async fn build() -> Result<P2PDOracleClient> {
     tokio::task::spawn_blocking(|| {
-        // TODO: This should come from the configuration.
-        P2PDOracleClient::new("https://oracle.holzeis.me/").context("Failed to build oracle client")
+        let mut count = 0;
+        tracing::debug!("Building oracle client...");
+        loop {
+            count += 1;
+            match P2PDOracleClient::new(ORACLE_ENDPOINT).context("Failed to build oracle client") {
+                Ok(oracle) => return Ok(oracle),
+                Err(e) if count == ORACLE_CONNECT_RETRY_LIMIT => {
+                    anyhow::bail!(
+                        "Failed to build oracle client due to {e:#}, retry limit {} reached",
+                        count
+                    );
+                }
+                Err(_) => tracing::debug!(
+                    "Retrying building oracle client..., attempts remaining {}",
+                    ORACLE_CONNECT_RETRY_LIMIT - count
+                ),
+            }
+            sleep(ORACLE_CONNECT_RETRY_INTERVAL);
+        }
     })
     .await
     .context("Failed to spawn oracle client")?
