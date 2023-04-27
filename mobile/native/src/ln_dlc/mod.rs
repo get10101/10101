@@ -78,7 +78,12 @@ fn runtime() -> Result<&'static Runtime> {
     Ok(RUNTIME.get())
 }
 
-pub fn run(data_dir: String) -> Result<()> {
+/// Start the node
+///
+/// Allows specifying a data directory and a seed directory to decouple
+/// data and seed storage (e.g. data is useful for debugging, seed location
+/// should be more protected).
+pub fn run(data_dir: String, seed_dir: String) -> Result<()> {
     let network = config::get_network();
     let runtime = runtime()?;
 
@@ -94,6 +99,14 @@ pub fn run(data_dir: String) -> Result<()> {
                 .context(format!("Could not create data dir for {network}"))?;
         }
 
+        // TODO: Consider using the same seed dir for all networks, and instead
+        // change the filename, e.g. having `mainnet-seed` or `regtest-seed`
+        let seed_dir = Path::new(&seed_dir).join(network.to_string());
+        if !seed_dir.exists() {
+            std::fs::create_dir_all(&seed_dir)
+                .context(format!("Could not create data dir for {network}"))?;
+        }
+
         event::subscribe(position::subscriber::Subscriber {});
         // TODO: Subscribe to events from the orderbook and publish OrderFilledWith event
 
@@ -102,8 +115,7 @@ pub fn run(data_dir: String) -> Result<()> {
             listener.local_addr().expect("To get a free local address")
         };
 
-        let seed_path = data_dir.join("seed");
-        let seed = Bip39Seed::initialize(&seed_path)?;
+        let seed = Bip39Seed::initialize(&seed_dir)?;
 
         let node = Arc::new(
             ln_dlc_node::node::Node::new_app(

@@ -171,7 +171,7 @@ pub fn subscribe(stream: StreamSink<event::api::Event>) {
     event::subscribe(FlutterSubscriber::new(stream))
 }
 
-pub fn run(config: Config, app_dir: String) -> Result<()> {
+pub fn run(config: Config, app_dir: String, seed_dir: String) -> Result<()> {
     std::panic::set_hook(
         #[allow(clippy::print_stderr)]
         Box::new(|info| {
@@ -186,7 +186,7 @@ pub fn run(config: Config, app_dir: String) -> Result<()> {
 
     config::set(config);
     db::init_db(&app_dir, get_network())?;
-    ln_dlc::run(app_dir)?;
+    ln_dlc::run(app_dir, seed_dir)?;
     orderbook::subscribe(ln_dlc::get_node_key()?)
 }
 

@@ -260,7 +260,7 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
       final appSupportDir = await getApplicationSupportDirectory();
       FLog.info(text: "App data will be stored in: $appSupportDir");
 
-      await rust.api.run(config: config, appDir: appSupportDir.path);
+      await rust.api.run(config: config, appDir: appSupportDir.path, seedDir: appSupportDir.path);
 
       await orderChangeNotifier.initialize();
       await positionChangeNotifier.initialize();
