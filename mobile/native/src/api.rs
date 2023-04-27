@@ -278,3 +278,12 @@ pub fn decode_invoice(invoice: String) -> Result<LightningInvoice> {
 pub fn get_node_id() -> SyncReturn<String> {
     SyncReturn(ln_dlc::get_node_info().pubkey.to_string())
 }
+
+/// Manually close the position.
+///
+/// The motivation to call this is to fix an incorrect trading state in the app, which might be
+/// preventing the user from trading. Only use this if you know what you are doing.
+#[tokio::main(flavor = "current_thread")]
+pub async fn close_position() -> Result<()> {
+    position::handler::close_position().await
+}

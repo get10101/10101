@@ -6,11 +6,13 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge.dart';
 import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
 import 'package:get_10101/common/application/channel_constraints_service.dart';
 import 'package:get_10101/common/application/event_service.dart';
+import 'package:get_10101/common/dev_mode/dev_mode_screen.dart';
 import 'package:get_10101/features/trade/application/candlestick_service.dart';
 import 'package:get_10101/features/trade/application/order_service.dart';
 import 'package:get_10101/features/trade/application/position_service.dart';
 import 'package:get_10101/features/trade/application/trade_values_service.dart';
 import 'package:get_10101/features/trade/candlestick_change_notifier.dart';
+import 'package:get_10101/features/trade/dev_mode_screen.dart';
 import 'package:get_10101/features/trade/domain/position.dart';
 import 'package:get_10101/features/trade/order_change_notifier.dart';
 import 'package:get_10101/features/trade/position_change_notifier.dart';
@@ -166,7 +168,21 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
                     parentNavigatorKey: _rootNavigatorKey,
                     builder: (BuildContext context, GoRouterState state) {
                       return const TradeSettingsScreen();
-                    })
+                    }),
+                GoRoute(
+                    path: TradeDevModeScreen.subRouteName,
+                    parentNavigatorKey: _rootNavigatorKey,
+                    builder: (BuildContext context, GoRouterState state) {
+                      return const TradeDevModeScreen();
+                    },
+                    routes: <RouteBase>[
+                      GoRoute(
+                          path: DevClosePositionScreen.subRouteName,
+                          parentNavigatorKey: _rootNavigatorKey,
+                          builder: (BuildContext context, GoRouterState state) {
+                            return const DevClosePositionScreen();
+                          })
+                    ]),
               ],
             ),
           ],
