@@ -1472,7 +1472,7 @@ dependencies = [
 [[package]]
 name = "lightning"
 version = "0.0.113"
-source = "git+https://github.com/p2pderivatives/rust-lightning/?rev=6df5761cfc4a27c35ca26a547ff90f656d50d85f#6df5761cfc4a27c35ca26a547ff90f656d50d85f"
+source = "git+https://github.com/get10101/rust-lightning/?rev=6df5761cfc4a27c35ca26a547ff90f656d50d85f#6df5761cfc4a27c35ca26a547ff90f656d50d85f"
 dependencies = [
  "bitcoin",
 ]
@@ -1480,7 +1480,7 @@ dependencies = [
 [[package]]
 name = "lightning-background-processor"
 version = "0.0.113"
-source = "git+https://github.com/p2pderivatives/rust-lightning/?rev=6df5761cfc4a27c35ca26a547ff90f656d50d85f#6df5761cfc4a27c35ca26a547ff90f656d50d85f"
+source = "git+https://github.com/get10101/rust-lightning/?rev=6df5761cfc4a27c35ca26a547ff90f656d50d85f#6df5761cfc4a27c35ca26a547ff90f656d50d85f"
 dependencies = [
  "bitcoin",
  "lightning",
@@ -1490,7 +1490,7 @@ dependencies = [
 [[package]]
 name = "lightning-block-sync"
 version = "0.0.113"
-source = "git+https://github.com/p2pderivatives/rust-lightning/?rev=6df5761cfc4a27c35ca26a547ff90f656d50d85f#6df5761cfc4a27c35ca26a547ff90f656d50d85f"
+source = "git+https://github.com/get10101/rust-lightning/?rev=6df5761cfc4a27c35ca26a547ff90f656d50d85f#6df5761cfc4a27c35ca26a547ff90f656d50d85f"
 dependencies = [
  "bitcoin",
  "chunked_transfer",
@@ -1516,7 +1516,7 @@ dependencies = [
 [[package]]
 name = "lightning-net-tokio"
 version = "0.0.113"
-source = "git+https://github.com/p2pderivatives/rust-lightning/?rev=6df5761cfc4a27c35ca26a547ff90f656d50d85f#6df5761cfc4a27c35ca26a547ff90f656d50d85f"
+source = "git+https://github.com/get10101/rust-lightning/?rev=6df5761cfc4a27c35ca26a547ff90f656d50d85f#6df5761cfc4a27c35ca26a547ff90f656d50d85f"
 dependencies = [
  "bitcoin",
  "lightning",
@@ -1526,7 +1526,7 @@ dependencies = [
 [[package]]
 name = "lightning-persister"
 version = "0.0.113"
-source = "git+https://github.com/p2pderivatives/rust-lightning/?rev=6df5761cfc4a27c35ca26a547ff90f656d50d85f#6df5761cfc4a27c35ca26a547ff90f656d50d85f"
+source = "git+https://github.com/get10101/rust-lightning/?rev=6df5761cfc4a27c35ca26a547ff90f656d50d85f#6df5761cfc4a27c35ca26a547ff90f656d50d85f"
 dependencies = [
  "bitcoin",
  "libc",
@@ -1537,7 +1537,7 @@ dependencies = [
 [[package]]
 name = "lightning-rapid-gossip-sync"
 version = "0.0.113"
-source = "git+https://github.com/p2pderivatives/rust-lightning/?rev=6df5761cfc4a27c35ca26a547ff90f656d50d85f#6df5761cfc4a27c35ca26a547ff90f656d50d85f"
+source = "git+https://github.com/get10101/rust-lightning/?rev=6df5761cfc4a27c35ca26a547ff90f656d50d85f#6df5761cfc4a27c35ca26a547ff90f656d50d85f"
 dependencies = [
  "bitcoin",
  "lightning",
