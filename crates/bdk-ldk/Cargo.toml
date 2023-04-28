@@ -13,8 +13,9 @@ description = "Use your bdk wallet to implement ldk lightning functionality"
 
 [dependencies]
 anyhow = "1.0"
-bdk = "0.24"
+bdk = { version = "0.24.0", default-features = false, features = ["key-value-db", "async-interface", "use-esplora-async"] }
 lightning = { version = "0.0.113", features = ["max_level_trace"] }
 serde_json = "1.0.87"
 thiserror = "1"
+tokio = { version = "1", features = ["macros", "time", "tracing"] }
 tracing = "0.1"
