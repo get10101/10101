@@ -8,7 +8,7 @@ description = "A common interface for using Lightning and DLC channels side-by-s
 
 [dependencies]
 anyhow = { version = "1", features = ["backtrace"] }
-bdk = { version = "0.24.0", features = ["key-value-db"] }
+bdk = { version = "0.27.0", features = ["key-value-db"] }
 bdk-ldk = { path = "../bdk-ldk" }
 bip39 = { version = "2", features = ["rand_core"] }
 bitcoin = "0.29"

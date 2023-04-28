@@ -215,9 +215,9 @@ checksum = "a4a4ddaa51a5bc52a6948f74c06d20aaaddb71924eab79b8c97a8c556e942d6a"
 
 [[package]]
 name = "bdk"
-version = "0.24.0"
+version = "0.27.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c50e3f08fbcd7eb34f11e066a1353986d583f1f87af70f7cd50bff9fce97c817"
+checksum = "51c878ac60a45c41523ff790df555ccb1fbfd634a667220104dcae3e64d7ed9f"
 dependencies = [
  "async-trait",
  "bdk-macros",
@@ -226,7 +226,7 @@ dependencies = [
  "getrandom",
  "js-sys",
  "log",
- "miniscript",
+ "miniscript 9.0.1",
  "rand",
  "serde",
  "serde_json",
@@ -828,7 +828,7 @@ version = "0.4.0"
 source = "git+https://github.com/get10101/rust-dlc?rev=c8bbafaab705425f6b6bf0acb2735330b74a4224#c8bbafaab705425f6b6bf0acb2735330b74a4224"
 dependencies = [
  "bitcoin",
- "miniscript",
+ "miniscript 8.0.0",
  "secp256k1-sys",
  "secp256k1-zkp",
  "serde",
@@ -1743,6 +1743,15 @@ name = "miniscript"
 version = "8.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f4975078076f0b7b914a3044ad7432d2a7fcec38edb855afdc672e24ca35b69"
+dependencies = [
+ "bitcoin",
+]
+
+[[package]]
+name = "miniscript"
+version = "9.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b9601439f168c13bdc5bf84349c2e61c815be4a4dcebe8c4ff4af58f4e8a6d20"
 dependencies = [
  "bitcoin",
  "serde",
