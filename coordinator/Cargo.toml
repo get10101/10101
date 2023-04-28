@@ -7,7 +7,7 @@ edition = "2021"
 anyhow = { version = "1", features = ["backtrace"] }
 atty = "0.2.14"
 axum = { version = "0.6.7", features = ["ws", "query"] }
-bdk = { version = "0.27.0", features = ["key-value-db"] }
+bdk = { version = "0.27.0", default-features = false, features = ["key-value-db", "async-interface", "use-esplora-async"] }
 bitcoin = "0.29"
 clap = { version = "4", features = ["derive"] }
 coordinator-commons = { path = "../crates/coordinator-commons" }
