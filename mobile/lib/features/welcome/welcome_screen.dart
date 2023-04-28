@@ -74,9 +74,9 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                   onPressed: () {
                     if (_formKey.currentState != null && _formKey.currentState!.validate()) {
                       _formKey.currentState?.save();
+                      api.registerBeta(email: _email);
                       Preferences.instance.setEmailAddress(_email);
                       FLog.info(text: "Successfully stored the email address $_email .");
-                      api.registerBeta(email: _email);
                       context.go(WalletScreen.route);
                     }
                   },
