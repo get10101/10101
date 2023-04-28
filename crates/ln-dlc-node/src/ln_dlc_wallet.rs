@@ -4,8 +4,6 @@ use crate::TracingLogger;
 use anyhow::Result;
 use bdk::blockchain::EsploraBlockchain;
 use bdk::sled;
-use bdk::template::Bip84;
-use bdk::wallet::AddressIndex;
 use bdk::TransactionDetails;
 use bitcoin::secp256k1::All;
 use bitcoin::secp256k1::PublicKey;
@@ -13,7 +11,7 @@ use bitcoin::secp256k1::Secp256k1;
 use bitcoin::secp256k1::SecretKey;
 use bitcoin::Address;
 use bitcoin::Block;
-use bitcoin::BlockHeader;
+use bitcoin::BlockHash;
 use bitcoin::KeyPair;
 use bitcoin::Network;
 use bitcoin::Script;
@@ -21,11 +19,11 @@ use bitcoin::Transaction;
 use bitcoin::TxOut;
 use bitcoin::Txid;
 use dlc_manager::error::Error;
-use dlc_manager::error::Error::WalletError;
 use dlc_manager::Blockchain;
 use dlc_manager::Signer;
 use dlc_manager::Utxo;
 use dlc_sled_storage_provider::SledStorageProvider;
+use lightning::chain::chaininterface::BroadcasterInterface;
 use lightning::chain::Filter;
 use lightning::chain::WatchedOutput;
 use lightning_transaction_sync::EsploraSyncClient;
@@ -58,17 +56,18 @@ impl LnDlcWallet {
         on_chain_wallet: bdk::Wallet<bdk::sled::Tree>,
         storage: Arc<SledStorageProvider>,
         seed: Bip39Seed,
-        logger: Arc<TracingLogger>,
     ) -> Self {
-        let blockchain = EsploraBlockchain::from_client(tx_sync.client(), BDK_CLIENT_STOP_GAP)
-            .with_concurrency(BDK_CLIENT_CONCURRENCY);
+        // TODO: Upgrade bdk so we can agree on using esplora client 0.3.0!
+        let blockchain =
+            EsploraBlockchain::from_client(tx_sync.client().clone(), BDK_CLIENT_STOP_GAP)
+                .with_concurrency(BDK_CLIENT_CONCURRENCY);
 
+        // TODO: Can we get rid of this runtime?
         let runtime = Arc::new(RwLock::new(None));
         let wallet = Arc::new(ldk_node_wallet::Wallet::new(
             blockchain,
             on_chain_wallet,
             Arc::clone(&runtime),
-            Arc::clone(&logger),
         ));
 
         Self {
@@ -88,8 +87,8 @@ impl LnDlcWallet {
         &self.ln_wallet
     }
 
-    pub(crate) fn tip(&self) -> Result<(u32, BlockHeader)> {
-        let (height, header) = self.ln_wallet.get_tip()?;
+    pub(crate) async fn tip(&self) -> Result<(u32, BlockHash)> {
+        let (height, header) = self.ln_wallet.tip().await?;
         Ok((height, header))
     }
 
@@ -99,7 +98,7 @@ impl LnDlcWallet {
     /// This list won't be up-to-date unless the wallet has previously been synchronised with the
     /// blockchain.
     pub(crate) fn on_chain_transactions(&self) -> Result<Vec<TransactionDetails>> {
-        let mut txs = self.ln_wallet.get_wallet().list_transactions(false)?;
+        let mut txs = self.ln_wallet.on_chain_transaction_list()?;
 
         txs.sort_by(|a, b| {
             b.confirmation_time
@@ -114,43 +113,63 @@ impl LnDlcWallet {
 
 impl Blockchain for LnDlcWallet {
     fn send_transaction(&self, transaction: &Transaction) -> Result<(), Error> {
-        self.ln_wallet
-            .broadcast(transaction)
-            .map_err(|e| Error::BlockchainError(e.to_string()))
+        self.ln_wallet.broadcast_transaction(transaction);
+
+        Ok(())
     }
 
     fn get_network(&self) -> Result<Network, Error> {
-        Ok(self.ln_wallet.get_wallet().network())
+        self.ln_wallet
+            .network()
+            .map_err(|e| Error::BlockchainError(e.to_string()))
     }
 
+    #[allow(useless_deprecated)]
+    #[deprecated(
+        since = "0.1.0",
+        note = "We only use the on-chain wallet to determine the network and broadcast"
+    )]
     fn get_blockchain_height(&self) -> Result<u64, Error> {
-        Ok(self
-            .ln_wallet
-            .get_tip()
-            .map_err(|e| Error::BlockchainError(e.to_string()))?
-            .0 as u64)
+        unreachable!("This is not used")
     }
 
+    #[allow(useless_deprecated)]
+    #[deprecated(
+        since = "0.1.0",
+        note = "We only use the on-chain wallet to determine the network and broadcast"
+    )]
     fn get_block_at_height(&self, _height: u64) -> Result<Block, Error> {
-        todo!()
+        unreachable!("This is not used")
     }
 
+    #[allow(useless_deprecated)]
+    #[deprecated(
+        since = "0.1.0",
+        note = "We only use the on-chain wallet to determine the network and broadcast"
+    )]
     fn get_transaction(&self, _txid: &Txid) -> Result<Transaction, Error> {
-        todo!()
+        unreachable!("This is not used")
     }
 
+    #[allow(useless_deprecated)]
+    #[deprecated(
+        since = "0.1.0",
+        note = "We only use the on-chain wallet to determine the network and broadcast"
+    )]
     fn get_transaction_confirmations(&self, _txid: &Txid) -> Result<u32, Error> {
-        todo!()
+        unreachable!("This is not used")
     }
 }
 
+// TODO: We can likely remove this; it is only used in the tests
+// Not sure why this was implemented in the fist place
 impl Filter for LnDlcWallet {
     fn register_tx(&self, txid: &Txid, script_pubkey: &Script) {
-        self.inner().register_tx(txid, script_pubkey)
+        unreachable!("We are not using this functionality")
     }
 
-    fn register_output(&self, output: WatchedOutput) {
-        self.inner().register_output(output);
+    fn register_output(&self, _output: WatchedOutput) {
+        unreachable!("We are not using this functionality")
     }
 }
 
@@ -188,12 +207,9 @@ impl Signer for LnDlcWallet {
 
 impl dlc_manager::Wallet for LnDlcWallet {
     fn get_new_address(&self) -> Result<Address, Error> {
-        let address_info = self
-            .ln_wallet
-            .get_wallet()
-            .get_address(AddressIndex::New)
-            .map_err(|e| WalletError(Box::new(e)))?;
-        Ok(address_info.address)
+        // TODO: Fix unwrap: error mapping
+        let address = self.ln_wallet.get_new_address().unwrap();
+        Ok(address)
     }
 
     fn get_new_secret_key(&self) -> Result<SecretKey, Error> {
@@ -219,7 +235,7 @@ impl dlc_manager::Wallet for LnDlcWallet {
     }
 }
 
-impl lightning::chain::chaininterface::BroadcasterInterface for LnDlcWallet {
+impl BroadcasterInterface for LnDlcWallet {
     fn broadcast_transaction(&self, tx: &Transaction) {
         self.ln_wallet.broadcast_transaction(tx)
     }

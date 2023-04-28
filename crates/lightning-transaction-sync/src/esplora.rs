@@ -208,7 +208,7 @@ where
     ) -> Result<(), InternalError> {
         // Inform the interface of the new block.
         let tip_header = maybe_await!(self.client.get_header_by_hash(tip_hash))?;
-        let tip_status = maybe_await!(self.client.get_block_status(&tip_hash))?;
+        let tip_status = maybe_await!(self.client.get_block_status(tip_hash))?;
         if tip_status.in_best_chain {
             if let Some(tip_height) = tip_status.height {
                 for c in confirmables {
@@ -255,7 +255,7 @@ where
         let mut confirmed_txs = Vec::new();
 
         for txid in &sync_state.watched_transactions {
-            if let Some(confirmed_tx) = maybe_await!(self.get_confirmed_tx(&txid, None, None))? {
+            if let Some(confirmed_tx) = maybe_await!(self.get_confirmed_tx(txid, None, None))? {
                 confirmed_txs.push(confirmed_tx);
             }
         }
@@ -297,7 +297,7 @@ where
         expected_block_hash: Option<BlockHash>,
         known_block_height: Option<u32>,
     ) -> Result<Option<ConfirmedTx>, InternalError> {
-        if let Some(merkle_block) = maybe_await!(self.client.get_merkle_block(&txid))? {
+        if let Some(merkle_block) = maybe_await!(self.client.get_merkle_block(txid))? {
             let block_header = merkle_block.header;
             let block_hash = block_header.block_hash();
             if let Some(expected_block_hash) = expected_block_hash {
@@ -321,8 +321,8 @@ where
                 return Err(InternalError::Failed);
             }
 
-            let pos = *indexes.get(0).ok_or(InternalError::Failed)? as usize;
-            if let Some(tx) = maybe_await!(self.client.get_tx(&txid))? {
+            let pos = *indexes.first().ok_or(InternalError::Failed)? as usize;
+            if let Some(tx) = maybe_await!(self.client.get_tx(txid))? {
                 if let Some(block_height) = known_block_height {
                     // We can take a shortcut here if a previous call already gave us the height.
                     return Ok(Some(ConfirmedTx {
@@ -359,7 +359,7 @@ where
     #[maybe_async]
     fn get_unconfirmed_transactions(
         &self,
-        confirmables: &Vec<&(dyn Confirm + Sync + Send)>,
+        confirmables: &[&(dyn Confirm + Sync + Send)],
     ) -> Result<Vec<Txid>, InternalError> {
         // Query the interface for relevant txids and check whether the relevant blocks are still
         // in the best chain, mark them unconfirmed otherwise

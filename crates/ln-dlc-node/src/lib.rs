@@ -28,7 +28,6 @@ use time::OffsetDateTime;
 
 mod disk;
 mod dlc_custom_signer;
-mod ldk_node_error;
 mod ldk_node_wallet;
 mod ln;
 mod ln_dlc_wallet;

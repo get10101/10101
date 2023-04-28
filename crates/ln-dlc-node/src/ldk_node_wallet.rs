@@ -1,18 +1,18 @@
-use bitcoin::bech32::u5;
-use bitcoin::secp256k1::ecdh::SharedSecret;
-use bitcoin::secp256k1::ecdsa::RecoverableSignature;
-use bitcoin::secp256k1::ecdsa::Signature;
-use bitcoin::secp256k1::PublicKey;
-use bitcoin::secp256k1::Scalar;
 use bitcoin::secp256k1::Secp256k1;
 use bitcoin::secp256k1::Signing;
+use bitcoin::BlockHash;
+use bitcoin::Network;
 use bitcoin::Script;
 use bitcoin::Transaction;
 use bitcoin::TxOut;
 use bitcoin::Txid;
 
-use crate::ldk_node_error::Error;
 use crate::TracingLogger;
+use anyhow::anyhow;
+use anyhow::bail;
+use anyhow::Context;
+use anyhow::Error;
+use anyhow::Result;
 use bdk::blockchain::Blockchain;
 use bdk::blockchain::EsploraBlockchain;
 use bdk::database::BatchDatabase;
@@ -20,15 +20,12 @@ use bdk::wallet::AddressIndex;
 use bdk::FeeRate;
 use bdk::SignOptions;
 use bdk::SyncOptions;
+use bdk::TransactionDetails;
 use lightning::chain::chaininterface::BroadcasterInterface;
 use lightning::chain::chaininterface::ConfirmationTarget;
 use lightning::chain::chaininterface::FeeEstimator;
 use lightning::chain::chaininterface::FEERATE_FLOOR_SATS_PER_KW;
-use lightning::chain::keysinterface::InMemorySigner;
-use lightning::chain::keysinterface::KeyMaterial;
-use lightning::chain::keysinterface::KeysInterface;
 use lightning::chain::keysinterface::KeysManager;
-use lightning::chain::keysinterface::Recipient;
 use lightning::chain::keysinterface::SpendableOutputDescriptor;
 use lightning::ln::msgs::DecodeError;
 use lightning::ln::script::ShutdownScript;
@@ -51,7 +48,6 @@ where
     fee_rate_cache: RwLock<HashMap<ConfirmationTarget, FeeRate>>,
     runtime: Arc<RwLock<Option<tokio::runtime::Runtime>>>,
     sync_lock: (Mutex<()>, Condvar),
-    logger: Arc<TracingLogger>,
 }
 
 impl<D> Wallet<D>
@@ -62,7 +58,6 @@ where
         blockchain: EsploraBlockchain,
         wallet: bdk::Wallet<D>,
         runtime: Arc<RwLock<Option<tokio::runtime::Runtime>>>,
-        logger: Arc<FilesystemLogger>,
     ) -> Self {
         let inner = Mutex::new(wallet);
         let fee_rate_cache = RwLock::new(HashMap::new());
@@ -73,17 +68,16 @@ where
             fee_rate_cache,
             runtime,
             sync_lock,
-            logger,
         }
     }
 
-    pub(crate) async fn sync(&self) -> Result<(), Error> {
+    pub(crate) async fn sync(&self) -> Result<()> {
         let (lock, cvar) = &self.sync_lock;
 
         let guard = match lock.try_lock() {
             Ok(guard) => guard,
             Err(_) => {
-                tracing::info!(self.logger, "Sync in progress, skipping.");
+                tracing::info!("Sync in progress, skipping.");
                 let guard = cvar.wait(lock.lock().unwrap());
                 drop(guard);
                 cvar.notify_all();
@@ -94,8 +88,8 @@ where
         match self.update_fee_estimates().await {
             Ok(()) => (),
             Err(e) => {
-                tracing::error!(self.logger, "Fee estimation error: {}", e);
-                return Err(e);
+                tracing::error!("Fee estimation error: {}", e);
+                anyhow!(e);
             }
         }
 
@@ -108,7 +102,6 @@ where
                     bdk::blockchain::esplora::EsploraError::Reqwest(_) => {
                         tokio::time::sleep(Duration::from_secs(1)).await;
                         tracing::error!(
-                            self.logger,
                             "Sync failed due to HTTP connection error, retrying: {}",
                             e
                         );
@@ -116,16 +109,16 @@ where
                         wallet_lock
                             .sync(&self.blockchain, sync_options)
                             .await
-                            .map_err(|e| From::from(e))
+                            .context("Sync failed due to HTTP connection error")
                     }
                     _ => {
-                        tracing::error!(self.logger, "Sync failed due to Esplora error: {}", e);
-                        Err(From::from(e))
+                        tracing::error!("Sync failed due to Esplora error: {}", e);
+                        Err(anyhow!(e))
                     }
                 },
                 _ => {
-                    tracing::error!(self.logger, "Wallet sync error: {}", e);
-                    Err(From::from(e))
+                    tracing::error!("Wallet sync error: {}", e);
+                    Err(anyhow!(e))
                 }
             },
         };
@@ -135,7 +128,7 @@ where
         res
     }
 
-    pub(crate) async fn update_fee_estimates(&self) -> Result<(), Error> {
+    pub(crate) async fn update_fee_estimates(&self) -> Result<()> {
         let mut locked_fee_rate_cache = self.fee_rate_cache.write().unwrap();
 
         let confirmation_targets = vec![
@@ -156,13 +149,12 @@ where
                 Ok(rate) => {
                     locked_fee_rate_cache.insert(target, rate);
                     tracing::trace!(
-                        self.logger,
                         "Fee rate estimation updated: {} sats/kwu",
                         rate.fee_wu(1000)
                     );
                 }
                 Err(e) => {
-                    tracing::error!(self.logger, "Failed to update fee rate estimation: {}", e);
+                    tracing::error!("Failed to update fee rate estimation: {}", e);
                 }
             }
         }
@@ -187,11 +179,11 @@ where
 
         let mut psbt = match tx_builder.finish() {
             Ok((psbt, _)) => {
-                tracing::trace!(self.logger, "Created funding PSBT: {:?}", psbt);
+                tracing::trace!("Created funding PSBT: {:?}", psbt);
                 psbt
             }
             Err(err) => {
-                tracing::error!(self.logger, "Failed to create funding transaction: {}", err);
+                tracing::error!("Failed to create funding transaction: {}", err);
                 return Err(err.into());
             }
         };
@@ -199,11 +191,11 @@ where
         match locked_wallet.sign(&mut psbt, SignOptions::default()) {
             Ok(finalized) => {
                 if !finalized {
-                    return Err(Error::OnchainTxCreationFailed);
+                    bail!("Onchain transaction failed");
                 }
             }
             Err(err) => {
-                tracing::error!(self.logger, "Failed to create funding transaction: {}", err);
+                tracing::error!("Failed to create funding transaction: {}", err);
                 return Err(err.into());
             }
         }
@@ -213,6 +205,15 @@ where
 
     pub(crate) fn get_new_address(&self) -> Result<bitcoin::Address, Error> {
         let address_info = self.inner.lock().unwrap().get_address(AddressIndex::New)?;
+        Ok(address_info.address)
+    }
+
+    pub(crate) fn get_last_used_address(&self) -> Result<bitcoin::Address, Error> {
+        let address_info = self
+            .inner
+            .lock()
+            .unwrap()
+            .get_address(AddressIndex::LastUnused)?;
         Ok(address_info.address)
     }
 
@@ -228,7 +229,7 @@ where
         &self,
         address: &bitcoin::Address,
         amount_msat_or_drain: Option<u64>,
-    ) -> Result<Txid, Error> {
+    ) -> Result<Txid> {
         let confirmation_target = ConfirmationTarget::Normal;
         let fee_rate = self.estimate_fee_rate(confirmation_target);
 
@@ -251,24 +252,24 @@ where
 
             let mut psbt = match tx_builder.finish() {
                 Ok((psbt, _)) => {
-                    tracing::trace!(self.logger, "Created PSBT: {:?}", psbt);
+                    tracing::trace!("Created PSBT: {:?}", psbt);
                     psbt
                 }
                 Err(err) => {
-                    tracing::error!(self.logger, "Failed to create transaction: {}", err);
-                    return Err(err.into());
+                    tracing::error!("Failed to create transaction: {}", err);
+                    bail!(err)
                 }
             };
 
             match locked_wallet.sign(&mut psbt, SignOptions::default()) {
                 Ok(finalized) => {
                     if !finalized {
-                        return Err(Error::OnchainTxCreationFailed);
+                        bail!("On chain creation failed");
                     }
                 }
                 Err(err) => {
-                    tracing::error!(self.logger, "Failed to create transaction: {}", err);
-                    return Err(err.into());
+                    tracing::error!("Failed to create transaction: {}", err);
+                    bail!(err)
                 }
             }
             psbt.extract_tx()
@@ -280,7 +281,6 @@ where
 
         if let Some(amount_sats) = amount_msat_or_drain {
             tracing::info!(
-                self.logger,
                 "Created new transaction {} sending {}sats on-chain to address {}",
                 txid,
                 amount_sats,
@@ -288,7 +288,6 @@ where
             );
         } else {
             tracing::info!(
-                self.logger,
                 "Created new transaction {} sending all available on-chain funds to address {}",
                 txid,
                 address
@@ -314,6 +313,33 @@ where
             .get(&confirmation_target)
             .unwrap_or(&fallback_rate)
     }
+
+    pub async fn tip(&self) -> Result<(u32, BlockHash)> {
+        let hash = self
+            .blockchain
+            .get_tip_hash()
+            .await
+            .context("Failed to fetch tip hash")?;
+        let height = self
+            .blockchain
+            .get_height()
+            .await
+            .context("Failed to fetch block height")?;
+
+        Ok((height, hash))
+    }
+
+    pub fn on_chain_transaction_list(&self) -> Result<Vec<TransactionDetails>> {
+        let wallet_lock = self.inner.lock().unwrap();
+        wallet_lock
+            .list_transactions(false)
+            .context("Failed to list on chain transactions")
+    }
+
+    pub fn network(&self) -> Result<Network> {
+        let wallet_lock = self.inner.lock().unwrap();
+        Ok(wallet_lock.network())
+    }
 }
 
 impl<D> FeeEstimator for Wallet<D>
@@ -333,7 +359,7 @@ where
     fn broadcast_transaction(&self, tx: &Transaction) {
         let locked_runtime = self.runtime.read().unwrap();
         if locked_runtime.as_ref().is_none() {
-            tracing::error!(self.logger, "Failed to broadcast transaction: No runtime.");
+            tracing::error!("Failed to broadcast transaction: No runtime.");
             return;
         }
 
@@ -347,7 +373,7 @@ where
         match res {
             Ok(_) => {}
             Err(err) => {
-                tracing::error!(self.logger, "Failed to broadcast transaction: {}", err);
+                tracing::error!("Failed to broadcast transaction: {}", err);
             }
         }
     }

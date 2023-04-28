@@ -31,6 +31,7 @@ use lightning::chain::chainmonitor;
 use lightning::chain::keysinterface::KeysInterface;
 use lightning::chain::keysinterface::KeysManager;
 use lightning::chain::keysinterface::Recipient;
+use lightning::chain::Confirm;
 use lightning::ln::msgs::NetAddress;
 use lightning::ln::peer_handler::IgnoringMessageHandler;
 use lightning::ln::peer_handler::MessageHandler;
@@ -50,9 +51,12 @@ use std::fmt::Display;
 use std::fmt::Formatter;
 use std::net::SocketAddr;
 use std::path::Path;
+use std::sync::atomic::AtomicBool;
+use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::time::Duration;
+use std::time::Instant;
 use std::time::SystemTime;
 
 mod channel_manager;
@@ -83,6 +87,7 @@ pub use wallet::PaymentDetails;
 ///
 /// According to the LDK team, a value of up to 1 hour should be fine.
 const BROADCAST_NODE_ANNOUNCEMENT_INTERVAL: Duration = Duration::from_secs(600);
+const CONFIRMABLE_SYNC_INTERVAL: Duration = Duration::from_secs(5);
 
 /// An LN-DLC node.
 pub struct Node<P> {
@@ -224,6 +229,8 @@ where
 
         let logger = Arc::new(TracingLogger);
 
+        let stop_running = Arc::new(AtomicBool::new(false));
+
         if !data_dir.exists() {
             std::fs::create_dir_all(data_dir)
                 .context(format!("Could not create data dir ({data_dir:?})"))?;
@@ -247,16 +254,47 @@ where
 
         let ln_dlc_wallet = {
             Arc::new(LnDlcWallet::new(
-                tx_sync,
+                tx_sync.clone(),
                 on_chain_wallet.inner,
                 storage.clone(),
                 seed.clone(),
-                logger.clone(),
             ))
         };
 
+        let stop_sync = Arc::clone(&stop_running);
+
+        let sync_wallet = ln_dlc_wallet.clone();
+        // TODO: Evaluate if this makes sense; can we just use tokio? Will this work in the app?
+        std::thread::spawn(move || {
+            tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .unwrap()
+                .block_on(async move {
+                    loop {
+                        if stop_sync.load(Ordering::Acquire) {
+                            return;
+                        }
+                        let now = Instant::now();
+                        match sync_wallet.inner().sync().await {
+                            Ok(()) => tracing::info!(
+                                "Background sync of on-chain wallet finished in {}ms.",
+                                now.elapsed().as_millis()
+                            ),
+                            Err(err) => {
+                                tracing::error!(
+                                    "Background sync of on-chain wallet failed: {}",
+                                    err
+                                )
+                            }
+                        }
+                        tokio::time::sleep(Duration::from_secs(20)).await;
+                    }
+                });
+        });
+
         let chain_monitor: Arc<ChainMonitor> = Arc::new(chainmonitor::ChainMonitor::new(
-            Some(Arc::clone(&tx_sync)),
+            Some(ln_dlc_wallet.clone()),
             ln_dlc_wallet.clone(),
             logger.clone(),
             ln_dlc_wallet.clone(),
@@ -280,8 +318,36 @@ where
             ldk_user_config,
             network,
             persister.clone(),
-        )?;
+        )
+        .await?;
         let channel_manager = Arc::new(channel_manager);
+
+        let sync_cman = channel_manager.clone();
+        let sync_cmon = chain_monitor.clone();
+        let stop_sync = Arc::clone(&stop_running);
+        let sync_tx_sync = tx_sync.clone();
+        tokio::spawn(async move {
+            loop {
+                if stop_sync.load(Ordering::Acquire) {
+                    return;
+                }
+                let now = Instant::now();
+                let confirmables = vec![
+                    &*sync_cman as &(dyn Confirm + Sync + Send),
+                    &*sync_cmon as &(dyn Confirm + Sync + Send),
+                ];
+                match sync_tx_sync.sync(confirmables).await {
+                    Ok(()) => tracing::info!(
+                        "Background sync of Lightning wallet finished in {}ms.",
+                        now.elapsed().as_millis()
+                    ),
+                    Err(e) => {
+                        tracing::error!("Background sync of Lightning wallet failed: {e:#}")
+                    }
+                }
+                tokio::time::sleep(CONFIRMABLE_SYNC_INTERVAL).await;
+            }
+        });
 
         let genesis = genesis_block(network).header.block_hash();
         let network_graph_path = format!("{ldk_data_dir}/network_graph");
@@ -413,7 +479,6 @@ where
 
             remote_handle
         };
-        // TODO: Call sync(?) in a loop
 
         tracing::info!("Listening on {listen_address}");
 

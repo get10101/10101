@@ -5,12 +5,10 @@ use crate::PaymentFlow;
 use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
-use bdk::wallet::AddressIndex;
 use bitcoin::secp256k1::SecretKey;
 use bitcoin::Address;
 use lightning::chain::keysinterface::KeysInterface;
 use lightning::chain::keysinterface::Recipient;
-use lightning::chain::Confirm;
 use lightning::ln::PaymentHash;
 use time::OffsetDateTime;
 
@@ -28,26 +26,18 @@ where
         self.wallet.get_seed_phrase()
     }
 
-    pub fn sync(&self) -> Result<()> {
-        let confirmables = vec![
-            &*self.channel_manager as &dyn Confirm,
-            &*self.chain_monitor as &dyn Confirm,
-        ];
-
+    pub async fn sync(&self) -> Result<()> {
         self.wallet
             .inner()
-            .sync(confirmables)
+            .sync()
+            .await
             .context("Failed to sync wallet")
     }
 
     pub fn get_new_address(&self) -> Result<Address> {
-        let address = self
-            .wallet
-            .inner()
-            .get_wallet()
-            .get_address(AddressIndex::LastUnused)?;
+        let address = self.wallet.inner().get_last_used_address()?;
 
-        Ok(address.address)
+        Ok(address)
     }
 
     pub fn get_on_chain_balance(&self) -> Result<bdk::Balance> {
