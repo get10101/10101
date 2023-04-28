@@ -1,8 +1,10 @@
-use crate::ln::TracingLogger;
+use crate::ldk_node_wallet;
 use crate::seed::Bip39Seed;
+use crate::TracingLogger;
 use anyhow::Result;
-use bdk::blockchain::{ElectrumBlockchain, EsploraBlockchain};
+use bdk::blockchain::EsploraBlockchain;
 use bdk::sled;
+use bdk::template::Bip84;
 use bdk::wallet::AddressIndex;
 use bdk::TransactionDetails;
 use bitcoin::secp256k1::All;
@@ -29,13 +31,22 @@ use lightning::chain::WatchedOutput;
 use lightning_transaction_sync::EsploraSyncClient;
 use simple_wallet::WalletStorage;
 use std::sync::Arc;
+use tokio::sync::RwLock;
+
+// Copied from ldk_node
+// The 'stop gap' parameter used by BDK's wallet sync. This seems to configure the threshold
+// number of blocks after which BDK stops looking for scripts belonging to the wallet.
+const BDK_CLIENT_STOP_GAP: usize = 20;
+// Copied from ldk_node
+// The number of concurrent requests made against the API provider.
+const BDK_CLIENT_CONCURRENCY: u8 = 8;
 
 /// This is a wrapper type introduced to be able to implement traits from `rust-dlc` on the
-/// `bdk_ldk::LightningWallet`.
+/// `ldk_node::LightningWallet`.
 ///
 /// We want to eventually get rid of the dependency on `bdk-ldk`, because it's a dead project.
 pub struct LnDlcWallet {
-    ln_wallet: bdk_ldk::LightningWallet<EsploraBlockchain, sled::Tree>,
+    ln_wallet: Arc<ldk_node_wallet::Wallet<sled::Tree>>,
     storage: Arc<SledStorageProvider>,
     secp: Secp256k1<All>,
     seed: Bip39Seed,
@@ -43,13 +54,25 @@ pub struct LnDlcWallet {
 
 impl LnDlcWallet {
     pub fn new(
-        blockchain_client: Arc<EsploraSyncClient<Arc<TracingLogger>>>,
-        wallet: bdk::Wallet<bdk::sled::Tree>,
+        tx_sync: Arc<EsploraSyncClient<Arc<TracingLogger>>>,
+        on_chain_wallet: bdk::Wallet<bdk::sled::Tree>,
         storage: Arc<SledStorageProvider>,
         seed: Bip39Seed,
+        logger: Arc<TracingLogger>,
     ) -> Self {
+        let blockchain = EsploraBlockchain::from_client(tx_sync.client(), BDK_CLIENT_STOP_GAP)
+            .with_concurrency(BDK_CLIENT_CONCURRENCY);
+
+        let runtime = Arc::new(RwLock::new(None));
+        let wallet = Arc::new(ldk_node_wallet::Wallet::new(
+            blockchain,
+            on_chain_wallet,
+            Arc::clone(&runtime),
+            Arc::clone(&logger),
+        ));
+
         Self {
-            ln_wallet: bdk_ldk::LightningWallet::new(blockchain_client.clone(), wallet),
+            ln_wallet: wallet,
             storage,
             secp: Secp256k1::new(),
             seed,
@@ -61,7 +84,7 @@ impl LnDlcWallet {
     }
 
     // TODO: Better to keep this private and expose the necessary APIs instead.
-    pub(crate) fn inner(&self) -> &bdk_ldk::LightningWallet<ElectrumBlockchain, sled::Tree> {
+    pub(crate) fn inner(&self) -> &ldk_node_wallet::Wallet<sled::Tree> {
         &self.ln_wallet
     }
 

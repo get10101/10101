@@ -93,12 +93,13 @@ where
                     counterparty_node_id
                 );
 
-                let target_blocks = 2;
+                // TODO: Was set to 2 before which should correspond to high prio
+                let target_blocks = ConfirmationTarget::HighPriority;
 
                 // Have wallet put the inputs into the transaction such that the output
                 // is satisfied and then sign the funding transaction
-                let funding_tx_result = self.wallet.inner().construct_funding_transaction(
-                    &output_script,
+                let funding_tx_result = self.wallet.inner().create_funding_transaction(
+                    output_script,
                     channel_value_satoshis,
                     target_blocks,
                 );
@@ -366,7 +367,7 @@ where
             }
             Event::SpendableOutputs { outputs } => {
                 tracing::debug!(?outputs, "Spendable outputs");
-                let destination_address = self.wallet.inner().get_unused_address()?;
+                let destination_address = self.wallet.inner().get_new_address()?;
                 let output_descriptors = &outputs.iter().collect::<Vec<_>>();
                 let tx_feerate = self
                     .wallet

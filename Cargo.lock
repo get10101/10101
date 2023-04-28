@@ -236,20 +236,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "bdk-ldk"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "bdk",
- "lightning",
- "serde_json",
- "thiserror",
- "tokio",
- "tracing",
-]
-
-[[package]]
 name = "bdk-macros"
 version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1595,7 +1581,6 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "bdk",
- "bdk-ldk",
  "bip39",
  "bitcoin",
  "bitcoin-bech32",

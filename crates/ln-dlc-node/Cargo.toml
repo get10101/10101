@@ -9,7 +9,6 @@ description = "A common interface for using Lightning and DLC channels side-by-s
 [dependencies]
 anyhow = { version = "1", features = ["backtrace"] }
 bdk = { version = "0.24.0", default-features = false, features = ["key-value-db", "async-interface", "use-esplora-async"] }
-bdk-ldk = { path = "../bdk-ldk" }
 bip39 = { version = "2", features = ["rand_core"] }
 bitcoin = "0.29"
 bitcoin-bech32 = "0.12"
@@ -28,7 +27,7 @@ lightning-invoice = { version = "0.21" }
 lightning-net-tokio = { version = "0.0.113" }
 lightning-persister = { version = "0.0.113" }
 lightning-rapid-gossip-sync = { version = "0.0.113" }
-lightning-transaction-sync = { path = "../lightning-transaction-sync" }
+lightning-transaction-sync = { path = "../lightning-transaction-sync", features = ["esplora-async", "async-interface"] }
 log = "0.4.17"
 p2pd-oracle-client = { version = "0.1.0" }
 rand = "0.8.5"

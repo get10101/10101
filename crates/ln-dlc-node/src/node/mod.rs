@@ -19,7 +19,6 @@ use anyhow::anyhow;
 use anyhow::ensure;
 use anyhow::Context;
 use anyhow::Result;
-use bdk::blockchain::ElectrumBlockchain;
 use bitcoin::blockdata::constants::genesis_block;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::Network;
@@ -216,7 +215,7 @@ where
         announcement_address: SocketAddr,
         listen_address: SocketAddr,
         announcement_addresses: Vec<NetAddress>,
-        electrs_origin: String,
+        esplora_server_url: String,
         seed: Bip39Seed,
         ephemeral_randomness: [u8; 32],
         ldk_user_config: UserConfig,
@@ -241,20 +240,18 @@ where
         let on_chain_wallet =
             OnChainWallet::new(on_chain_dir.as_path(), network, seed.wallet_seed())?;
 
-        let esplora_server_url = "https://blockstream.info/testnet/api".to_string();
         let tx_sync = Arc::new(EsploraSyncClient::new(
             esplora_server_url,
             Arc::clone(&logger),
         ));
 
         let ln_dlc_wallet = {
-            let blockchain_client =
-                ElectrumBlockchain::from(bdk::electrum_client::Client::new(&electrs_origin)?);
             Arc::new(LnDlcWallet::new(
                 tx_sync,
                 on_chain_wallet.inner,
                 storage.clone(),
                 seed.clone(),
+                logger.clone(),
             ))
         };
 
