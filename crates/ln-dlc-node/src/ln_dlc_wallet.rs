@@ -28,8 +28,7 @@ use lightning::chain::Filter;
 use lightning::chain::WatchedOutput;
 use lightning_transaction_sync::EsploraSyncClient;
 use simple_wallet::WalletStorage;
-use std::sync::Arc;
-use tokio::sync::RwLock;
+use std::sync::{Arc, RwLock};
 
 // Copied from ldk_node
 // The 'stop gap' parameter used by BDK's wallet sync. This seems to configure the threshold

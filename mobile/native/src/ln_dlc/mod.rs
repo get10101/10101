@@ -169,7 +169,7 @@ pub fn run(data_dir: String, seed_dir: String) -> Result<()> {
 }
 
 async fn keep_wallet_balance_and_history_up_to_date(node: &Node) -> Result<()> {
-    node.inner.sync()?;
+    node.inner.sync().await?;
 
     let wallet_balances = node
         .get_wallet_balances()
