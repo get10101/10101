@@ -5,6 +5,7 @@ use bdk::bitcoin::Txid;
 use bdk::blockchain::EsploraBlockchain;
 use bdk::esplora_client;
 use bdk::Error;
+use async_trait::async_trait;
 
 /// The height and confirmation status of a transaction
 pub struct TxStatus {
@@ -15,77 +16,66 @@ pub struct TxStatus {
 }
 
 /// A trait Blockchains can implement if they support querying chain data
+#[async_trait]
 pub trait IndexedChain {
     /// Get the block header for a given block height
-    fn get_header(&self, height: u32) -> Result<BlockHeader, Error>;
+    async fn get_header(&self, height: u32) -> Result<BlockHeader, Error>;
 
     /// Get the position of a specific transaction in a block
-    fn get_position_in_block(&self, txid: &Txid, height: usize) -> Result<Option<usize>, Error>;
+    async fn get_position_in_block(&self, txid: &Txid, height: usize) -> Result<Option<usize>, Error>;
 
     /// Get the confirmation status and height of a transaction by Txid
-    fn get_tx_status(&self, txid: &Txid) -> Result<Option<TxStatus>, Error>;
+    async fn get_tx_status(&self, txid: &Txid) -> Result<Option<TxStatus>, Error>;
 
     /// Get all transactions that spend or fund a certain Script
     /// Includes the confirmation status and height for each transaction
-    fn get_script_tx_history(&self, script: &Script)
+    async fn get_script_tx_history(&self, script: &Script)
         -> Result<Vec<(TxStatus, Transaction)>, Error>;
 }
 
 impl IndexedChain for EsploraBlockchain {
-    fn get_header(&self, height: u32) -> Result<BlockHeader, Error> {
-        Ok(self.block_header(height as usize)?)
+    async fn get_header(&self, height: u32) -> Result<BlockHeader, Error> {
+        todo!("Figure out how to do this")
     }
 
-    fn get_position_in_block(&self, txid: &Txid, height: usize) -> Result<Option<usize>, Error> {
-        Ok(Some(self.transaction_get_merkle(txid, height)?.pos))
+    async fn get_position_in_block(&self, txid: &Txid, height: usize) -> Result<Option<usize>, Error> {
+        let proof = self.get_merkle_proof(txid).await.map_err(|e| Error::Esplora(Box::new(e)))?.map(|merkle_proof| merkle_proof.pos);
+        Ok(proof)
     }
 
     // TODO: This isn't great and I'm not even sure it works correctly
     //       it requires support for fetching `verbose` tx from electrum
     //       so that we can check for confirmations / confirmation height
-    fn get_tx_status(&self, txid: &Txid) -> Result<Option<TxStatus>, Error> {
-        match self.transaction_get(txid) {
+    async fn get_tx_status(&self, txid: &Txid) -> Result<Option<TxStatus>, Error> {
+        match self.get_tx(txid).await {
             Ok(_tx) => Ok(Some(TxStatus {
                 confirmed: true,
                 block_height: None,
             })),
             Err(e) => match e {
-                esplora_client::Error::TransactionNotFound(serde_json::Value::String(str))
-                    if str.eq("missing transaction") =>
+                esplora_client::Error::TransactionNotFound(_) =>
                 {
                     Ok(None)
                 }
-                _ => Err(Error::Electrum(e)),
+                _ => Err(Error::Esplora(Box::new(e))),
             },
         }
     }
 
-    fn get_script_tx_history(
+    async fn get_script_tx_history(
         &self,
         script: &Script,
     ) -> Result<Vec<(TxStatus, Transaction)>, Error> {
-        let histories = self.script_get_history(script)?;
+        let histories = self.scripthash_txs(script, None).await?;
 
         let res: Result<Vec<(TxStatus, Transaction)>, Error> = histories
-            .iter()
+            .into_iter()
             .map(|history| {
-                let status = {
-                    if history.height <= 0 {
-                        TxStatus {
-                            confirmed: false,
-                            block_height: None,
-                        }
-                    } else {
-                        TxStatus {
-                            confirmed: true,
-                            block_height: Some(history.height as u32),
-                        }
-                    }
-                };
+                let status = history.status;
 
-                match self.transaction_get(&history.tx_hash) {
+                match self.get_tx(&history.tx_hash) {
                     Ok(tx) => Ok((status, tx)),
-                    Err(e) => Err(Error::Electrum(e)),
+                    Err(e) => Err(Error::Esplora(Box::new(e))),
                 }
             })
             .collect();

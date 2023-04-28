@@ -196,24 +196,25 @@ where
         self.wallet_lock()
     }
 
-    fn sync_onchain_wallet(&self) -> Result<(), Error> {
+    async fn sync_onchain_wallet(&self) -> Result<(), Error> {
         let wallet = self.wallet_lock();
-        wallet.sync(self.client.as_ref(), SyncOptions::default())?;
+        wallet.sync(self.client.as_ref(), SyncOptions::default()).await?;
         Ok(())
     }
 
-    fn get_unconfirmed(&self, txids: Vec<(Txid, Option<BlockHash>)>) -> Result<Vec<Txid>, Error> {
-        Ok(txids
-            .into_iter()
-            .map(|txid| self.augment_txid_with_confirmation_status(txid.0))
-            .collect::<Result<Vec<(Txid, bool)>, Error>>()?
-            .into_iter()
-            .filter(|(_txid, confirmed)| !*confirmed)
-            .map(|(txid, _)| txid)
-            .collect())
+    async fn get_unconfirmed(&self, txids: Vec<(Txid, Option<BlockHash>)>) -> Result<Vec<Txid>, Error> {
+        let mut unconfirmed = Vec::new();
+        for (txid, _blockhash) in txids.into_iter() {
+            let (txid, confirmed) = self.augment_txid_with_confirmation_status(txid).await?;
+
+            if (!confirmed) {
+                unconfirmed.push(txid)
+            }
+        }
+        Ok(unconfirmed)
     }
 
-    fn get_confirmed_txs_by_block(
+    async fn get_confirmed_txs_by_block(
         &self,
     ) -> Result<Vec<(u32, BlockHeader, Vec<TransactionWithPosition>)>, Error> {
         let mut txs_by_block: HashMap<u32, Vec<TransactionWithPosition>> = HashMap::new();
@@ -222,25 +223,16 @@ where
 
         tracing::info!(watched_transactions = ?filter.watched_transactions);
 
-        let mut confirmed_txs = filter
-            .watched_transactions
-            .iter()
-            .map(|(txid, script)| self.get_confirmed_tx(txid, script))
-            .collect::<Result<Vec<Option<TransactionWithHeight>>, Error>>()?
-            .into_iter()
-            .flatten()
-            .collect::<Vec<TransactionWithHeight>>();
+        let mut confirmed_txs = Vec::new();
+        for (txid, script) in filter.watched_transactions.iter() {
+            let confirmed = self.get_confirmed_tx(txid, script).await?;
+            confirmed_txs.push(confirmed);
+        }
 
-        let mut confirmed_spent = filter
-            .watched_outputs
-            .iter()
-            .map(|output| self.get_confirmed_txs(output))
-            .collect::<Result<Vec<Vec<TransactionWithHeight>>, Error>>()?
-            .into_iter()
-            .flatten()
-            .collect::<Vec<TransactionWithHeight>>();
-
-        confirmed_txs.append(&mut confirmed_spent);
+        for output in filter.watched_outputs.iter() {
+            let confirmed = self.get_confirmed_txs(output).await?;
+            confirmed_txs.push(confirmed);
+        }
 
         let confirmed_txs_with_position = confirmed_txs
             .into_iter()
@@ -267,9 +259,9 @@ where
         Ok((tip_height, tip_header))
     }
 
-    fn augment_txid_with_confirmation_status(&self, txid: Txid) -> Result<(Txid, bool), Error> {
+    async fn augment_txid_with_confirmation_status(&self, txid: Txid) -> Result<(Txid, bool), Error> {
         self.client
-            .get_tx_status(&txid)
+            .get_tx_status(&txid).await
             .map(|status| match status {
                 Some(status) => (txid, status.confirmed),
                 None => (txid, false),
@@ -277,12 +269,12 @@ where
             .map_err(Error::Bdk)
     }
 
-    fn get_confirmed_tx(
+    async fn get_confirmed_tx(
         &self,
         txid: &Txid,
         script: &Script,
     ) -> Result<Option<TransactionWithHeight>, Error> {
-        let history = self.client.get_script_tx_history(script)?;
+        let history = self.client.get_script_tx_history(script).await?;
 
         Ok(history
             .into_iter()
@@ -301,17 +293,17 @@ where
             .collect::<Vec<TransactionWithHeight>>()
     }
 
-    fn get_confirmed_txs(
+    async fn get_confirmed_txs(
         &self,
         output: &WatchedOutput,
     ) -> Result<Vec<TransactionWithHeight>, Error> {
         self.client
             .get_script_tx_history(&output.script_pubkey)
             .map(|history| self.get_confirmed_txs_from_script_history(history))
-            .map_err(Error::Bdk)
+            .map_err(Error::Bdk).await
     }
 
-    fn augment_with_position(
+    async fn augment_with_position(
         &self,
         height: u32,
         tx: Transaction,
@@ -319,10 +311,10 @@ where
         self.client
             .get_position_in_block(&tx.txid(), height as usize)
             .map(|position| position.map(|pos| (height, tx, pos)))
-            .map_err(Error::Bdk)
+            .map_err(Error::Bdk).await
     }
 
-    fn augment_with_header(
+    async fn augment_with_header(
         &self,
         height: u32,
         tx_list: Vec<TransactionWithPosition>,
@@ -330,7 +322,7 @@ where
         self.client
             .get_header(height)
             .map(|header| (height, header, tx_list))
-            .map_err(Error::Bdk)
+            .map_err(Error::Bdk).await
     }
 
     pub fn get_tx_status_for_script(

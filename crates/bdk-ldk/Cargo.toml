@@ -13,6 +13,7 @@ description = "Use your bdk wallet to implement ldk lightning functionality"
 
 [dependencies]
 anyhow = "1.0"
+async-trait = "0.1"
 bdk = { version = "0.24.0", default-features = false, features = ["key-value-db", "async-interface", "use-esplora-async"] }
 lightning = { version = "0.0.113", features = ["max_level_trace"] }
 serde_json = "1.0.87"

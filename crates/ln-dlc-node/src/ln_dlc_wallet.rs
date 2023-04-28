@@ -1,7 +1,7 @@
 use crate::ln::TracingLogger;
 use crate::seed::Bip39Seed;
 use anyhow::Result;
-use bdk::blockchain::ElectrumBlockchain;
+use bdk::blockchain::{ElectrumBlockchain, EsploraBlockchain};
 use bdk::sled;
 use bdk::wallet::AddressIndex;
 use bdk::TransactionDetails;
@@ -35,7 +35,7 @@ use std::sync::Arc;
 ///
 /// We want to eventually get rid of the dependency on `bdk-ldk`, because it's a dead project.
 pub struct LnDlcWallet {
-    ln_wallet: bdk_ldk::LightningWallet<ElectrumBlockchain, sled::Tree>,
+    ln_wallet: bdk_ldk::LightningWallet<EsploraBlockchain, sled::Tree>,
     storage: Arc<SledStorageProvider>,
     secp: Secp256k1<All>,
     seed: Bip39Seed,
