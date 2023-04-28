@@ -272,11 +272,24 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
       await walletChangeNotifier.refreshWalletInfo();
     } on FfiException catch (error) {
       FLog.error(text: "Failed to initialise: Error: ${error.message}", exception: error);
+      exitAppAfterErrors();
     } catch (error) {
       FLog.error(text: "Failed to initialise: $error", exception: error);
+      exitAppAfterErrors();
     } finally {
       FlutterNativeSplash.remove();
     }
+  }
+
+  exitAppAfterErrors() {
+    FLog.info(text: "Exiting app due to startup errors");
+
+    // Add arbitrary amount of sleep to allow accepting permission dialogs if
+    // lack of permissions caused the app to crash, so that the user can start the app next time
+    var duration = const Duration(seconds: 10);
+    sleep(duration);
+
+    exit(1); // Hopefully this triggers TestFlight crash report
   }
 
   setupRustLogging() {
