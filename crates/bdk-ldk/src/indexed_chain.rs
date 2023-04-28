@@ -2,9 +2,8 @@ use bdk::bitcoin::BlockHeader;
 use bdk::bitcoin::Script;
 use bdk::bitcoin::Transaction;
 use bdk::bitcoin::Txid;
-use bdk::blockchain::ElectrumBlockchain;
-use bdk::electrum_client::ElectrumApi;
-use bdk::electrum_client::{self};
+use bdk::blockchain::EsploraBlockchain;
+use bdk::esplora_client;
 use bdk::Error;
 
 /// The height and confirmation status of a transaction
@@ -32,7 +31,7 @@ pub trait IndexedChain {
         -> Result<Vec<(TxStatus, Transaction)>, Error>;
 }
 
-impl IndexedChain for ElectrumBlockchain {
+impl IndexedChain for EsploraBlockchain {
     fn get_header(&self, height: u32) -> Result<BlockHeader, Error> {
         Ok(self.block_header(height as usize)?)
     }
@@ -51,7 +50,7 @@ impl IndexedChain for ElectrumBlockchain {
                 block_height: None,
             })),
             Err(e) => match e {
-                electrum_client::Error::Protocol(serde_json::Value::String(str))
+                esplora_client::Error::TransactionNotFound(serde_json::Value::String(str))
                     if str.eq("missing transaction") =>
                 {
                     Ok(None)

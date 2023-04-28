@@ -1,3 +1,4 @@
+use crate::ln::TracingLogger;
 use crate::seed::Bip39Seed;
 use anyhow::Result;
 use bdk::blockchain::ElectrumBlockchain;
@@ -25,6 +26,7 @@ use dlc_manager::Utxo;
 use dlc_sled_storage_provider::SledStorageProvider;
 use lightning::chain::Filter;
 use lightning::chain::WatchedOutput;
+use lightning_transaction_sync::EsploraSyncClient;
 use simple_wallet::WalletStorage;
 use std::sync::Arc;
 
@@ -34,7 +36,6 @@ use std::sync::Arc;
 /// We want to eventually get rid of the dependency on `bdk-ldk`, because it's a dead project.
 pub struct LnDlcWallet {
     ln_wallet: bdk_ldk::LightningWallet<ElectrumBlockchain, sled::Tree>,
-    electrum: Arc<ElectrumBlockchain>,
     storage: Arc<SledStorageProvider>,
     secp: Secp256k1<All>,
     seed: Bip39Seed,
@@ -42,14 +43,13 @@ pub struct LnDlcWallet {
 
 impl LnDlcWallet {
     pub fn new(
-        blockchain_client: Arc<ElectrumBlockchain>,
+        blockchain_client: Arc<EsploraSyncClient<Arc<TracingLogger>>>,
         wallet: bdk::Wallet<bdk::sled::Tree>,
         storage: Arc<SledStorageProvider>,
         seed: Bip39Seed,
     ) -> Self {
         Self {
             ln_wallet: bdk_ldk::LightningWallet::new(blockchain_client.clone(), wallet),
-            electrum: blockchain_client,
             storage,
             secp: Secp256k1::new(),
             seed,
@@ -63,10 +63,6 @@ impl LnDlcWallet {
     // TODO: Better to keep this private and expose the necessary APIs instead.
     pub(crate) fn inner(&self) -> &bdk_ldk::LightningWallet<ElectrumBlockchain, sled::Tree> {
         &self.ln_wallet
-    }
-
-    pub fn electrum(&self) -> Arc<ElectrumBlockchain> {
-        self.electrum.clone()
     }
 
     pub(crate) fn tip(&self) -> Result<(u32, BlockHeader)> {
