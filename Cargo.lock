@@ -232,6 +232,8 @@ dependencies = [
  "bdk-macros",
  "bitcoin",
  "electrum-client",
+ "esplora-client 0.2.0",
+ "futures",
  "getrandom",
  "js-sys",
  "log",
@@ -1029,6 +1031,18 @@ dependencies = [
 
 [[package]]
 name = "esplora-client"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4b94400573de17e346ab91ec08ad13d37e871e400b9930d4cb2b6b02253e760e"
+dependencies = [
+ "bitcoin",
+ "log",
+ "reqwest",
+ "serde",
+]
+
+[[package]]
+name = "esplora-client"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "38bbba572d03ca4d628b653f01e60ba6947c67df65ee8910c79daaf252897924"
@@ -1685,7 +1699,7 @@ dependencies = [
  "bitcoin",
  "electrsd",
  "electrum-client",
- "esplora-client",
+ "esplora-client 0.3.0",
  "futures",
  "lightning",
  "once_cell",
@@ -1732,6 +1746,7 @@ dependencies = [
  "lightning-net-tokio",
  "lightning-persister",
  "lightning-rapid-gossip-sync",
+ "lightning-transaction-sync",
  "local-ip-address",
  "log",
  "p2pd-oracle-client",

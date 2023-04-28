@@ -74,6 +74,7 @@ pub use channel_manager::ChannelManager;
 pub use dlc_channel::dlc_message_name;
 pub use dlc_channel::sub_channel_message_name;
 pub use invoice::HTLCStatus;
+use lightning_transaction_sync::EsploraSyncClient;
 pub use payment_persister::PaymentMap;
 pub use payment_persister::PaymentPersister;
 pub use sub_channel_manager::SubChannelManager;
@@ -240,11 +241,17 @@ where
         let on_chain_wallet =
             OnChainWallet::new(on_chain_dir.as_path(), network, seed.wallet_seed())?;
 
+        let esplora_server_url = "https://blockstream.info/testnet/api".to_string();
+        let tx_sync = Arc::new(EsploraSyncClient::new(
+            esplora_server_url,
+            Arc::clone(&logger),
+        ));
+
         let ln_dlc_wallet = {
             let blockchain_client =
                 ElectrumBlockchain::from(bdk::electrum_client::Client::new(&electrs_origin)?);
             Arc::new(LnDlcWallet::new(
-                Arc::new(blockchain_client),
+                tx_sync,
                 on_chain_wallet.inner,
                 storage.clone(),
                 seed.clone(),
@@ -252,7 +259,7 @@ where
         };
 
         let chain_monitor: Arc<ChainMonitor> = Arc::new(chainmonitor::ChainMonitor::new(
-            Some(ln_dlc_wallet.clone()),
+            Some(Arc::clone(&tx_sync)),
             ln_dlc_wallet.clone(),
             logger.clone(),
             ln_dlc_wallet.clone(),

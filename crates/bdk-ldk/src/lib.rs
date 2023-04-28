@@ -7,6 +7,7 @@ use bdk::bitcoin::Script;
 use bdk::bitcoin::Transaction;
 use bdk::bitcoin::Txid;
 use bdk::blockchain::Blockchain;
+use bdk::blockchain::EsploraBlockchain;
 use bdk::blockchain::GetHeight;
 use bdk::blockchain::WalletSync;
 use bdk::database::BatchDatabase;
@@ -29,6 +30,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::sync::MutexGuard;
+use std::time::Duration;
 
 pub type TransactionWithHeight = (u32, Transaction);
 pub type TransactionWithPosition = (usize, Transaction);
@@ -85,19 +87,18 @@ impl Default for TxFilter {
 /// A wrapper around a bdk::Wallet to fulfill many of the requirements
 /// needed to use lightning with LDK.  Note: The bdk::Blockchain you use
 /// must implement the IndexedChain trait.
-pub struct LightningWallet<B, D> {
-    client: Arc<B>,
+pub struct LightningWallet<D> {
+    client: Arc<EsploraBlockchain>,
     wallet: Mutex<Wallet<D>>,
     filter: Mutex<TxFilter>,
 }
 
-impl<B, D> LightningWallet<B, D>
+impl<D> LightningWallet<D>
 where
-    B: Blockchain + GetHeight + WalletSync + IndexedChain,
     D: BatchDatabase,
 {
     /// create a new lightning wallet from your bdk wallet
-    pub fn new(client: Arc<B>, wallet: Wallet<D>) -> Self {
+    pub fn new(client: Arc<EsploraBlockchain>, wallet: Wallet<D>) -> Self {
         LightningWallet {
             client,
             wallet: Mutex::new(wallet),
@@ -107,45 +108,75 @@ where
 
     /// syncs both your onchain and lightning wallet to current tip
     /// utilizes ldk's Confirm trait to provide chain data
-    pub fn sync(&self, confirmables: Vec<&dyn Confirm>) -> Result<(), Error> {
-        self.sync_onchain_wallet()?;
+    pub async fn sync(&self, confirmables: Vec<&dyn Confirm>) -> Result<(), Error> {
+        let sync_options = SyncOptions { progress: None };
+        let wallet_lock = self.wallet.lock().unwrap();
+        let res = match wallet_lock.sync(&self.blockchain, sync_options).await {
+            Ok(()) => Ok(()),
+            Err(e) => match e {
+                bdk::Error::Esplora(ref be) => match **be {
+                    bdk::blockchain::esplora::EsploraError::Reqwest(_) => {
+                        tokio::time::sleep(Duration::from_secs(1)).await;
+                        tracing::error!(
+                            "Sync failed due to HTTP connection error, retrying: {e:#}",
+                        );
+                        let sync_options = SyncOptions { progress: None };
+                        wallet_lock
+                            .sync(&self.blockchain, sync_options)
+                            .await
+                            .map_err(|e| From::from(e))
+                    }
+                    _ => {
+                        tracing::error!("Sync failed due to Esplora error: {e:#}");
+                        Err(From::from(e))
+                    }
+                },
+                _ => {
+                    tracing::error!("Wallet sync error: {e:#}");
+                    Err(From::from(e))
+                }
+            },
+        };
 
-        let (tip_height, tip_header) = self.get_tip()?;
-
-        for confirmable in confirmables.iter() {
-            confirmable.best_block_updated(&tip_header, tip_height);
-        }
-
-        let mut relevant_txids = confirmables
-            .iter()
-            .flat_map(|confirmable| confirmable.get_relevant_txids())
-            .collect::<Vec<(Txid, Option<BlockHash>)>>();
-
-        tracing::info!(?relevant_txids);
-
-        relevant_txids.sort_unstable();
-        relevant_txids.dedup();
-
-        let unconfirmed_txids = self.get_unconfirmed(relevant_txids)?;
-        for unconfirmed_txid in unconfirmed_txids {
-            for confirmable in confirmables.iter() {
-                confirmable.transaction_unconfirmed(&unconfirmed_txid);
-            }
-        }
-
-        let confirmed_txs = self.get_confirmed_txs_by_block()?;
-        for (height, header, tx_list) in confirmed_txs {
-            let tx_list_ref = tx_list
-                .iter()
-                .map(|(height, tx)| (height.to_owned(), tx))
-                .collect::<Vec<(usize, &Transaction)>>();
-
-            for confirmable in confirmables.iter() {
-                confirmable.transactions_confirmed(&header, tx_list_ref.as_slice(), height);
-            }
-        }
-
-        Ok(())
+        drop(guard);
+        cvar.notify_all();
+        res
+        // let (tip_height, tip_header) = self.get_tip()?;
+        //
+        // for confirmable in confirmables.iter() {
+        //     confirmable.best_block_updated(&tip_header, tip_height);
+        // }
+        //
+        // let mut relevant_txids = confirmables
+        //     .iter()
+        //     .flat_map(|confirmable| confirmable.get_relevant_txids())
+        //     .collect::<Vec<(Txid, Option<BlockHash>)>>();
+        //
+        // tracing::info!(?relevant_txids);
+        //
+        // relevant_txids.sort_unstable();
+        // relevant_txids.dedup();
+        //
+        // let unconfirmed_txids = self.get_unconfirmed(relevant_txids)?;
+        // for unconfirmed_txid in unconfirmed_txids {
+        //     for confirmable in confirmables.iter() {
+        //         confirmable.transaction_unconfirmed(&unconfirmed_txid);
+        //     }
+        // }
+        //
+        // let confirmed_txs = self.get_confirmed_txs_by_block()?;
+        // for (height, header, tx_list) in confirmed_txs {
+        //     let tx_list_ref = tx_list
+        //         .iter()
+        //         .map(|(height, tx)| (height.to_owned(), tx))
+        //         .collect::<Vec<(usize, &Transaction)>>();
+        //
+        //     for confirmable in confirmables.iter() {
+        //         confirmable.transactions_confirmed(&header, tx_list_ref.as_slice(), height);
+        //     }
+        // }
+        //
+        // Ok(())
     }
 
     /// returns the AddressIndex::LastUnused address for your wallet
