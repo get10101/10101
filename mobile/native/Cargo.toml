@@ -9,7 +9,7 @@ crate-type = ["cdylib", "staticlib"]
 [dependencies]
 anyhow = "1"
 base64 = "0.21.0"
-bdk = { version = "0.24.0", default-features = false, features = ["key-value-db", "async-interface", "use-esplora-async"] }
+bdk = { version = "0.27.0", default-features = false, features = ["key-value-db", "async-interface", "use-esplora-async"] }
 coordinator-commons = { path = "../../crates/coordinator-commons" }
 diesel = { version = "2.0.0", features = ["sqlite", "r2d2", "extras"] }
 diesel_migrations = "2.0.0"
