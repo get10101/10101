@@ -13,6 +13,7 @@ use bdk::database::BatchDatabase;
 use bdk::wallet::AddressIndex;
 use bdk::wallet::Wallet;
 use bdk::Balance;
+use bdk::FeeRate;
 use bdk::SignOptions;
 use bdk::SyncOptions;
 use std::cmp::min;
@@ -406,7 +407,18 @@ where
             ConfirmationTarget::HighPriority => 1,
         };
 
-        let estimate = self.client.estimate_fee(target_blocks).unwrap_or_default();
+        let estimate = match self.client.estimate_fee(target_blocks) {
+            Ok(estimate) => estimate,
+            Err(e) => {
+                tracing::warn!("Failed to get fee estimate. Using max sats per v byte {MAX_SATS_PER_V_BYTE} instead. Error: {e:?}");
+
+                // FIXME: Setting the fee rate to the maximum is a safe guard to prevent the channel
+                // from getting force-closed due to a `Peer's feerate much too low` error during
+                // update channel fees event.
+                FeeRate::from_sat_per_vb(MAX_SATS_PER_V_BYTE as f32)
+            }
+        };
+
         let sats_per_vbyte = estimate.as_sat_per_vb() as u32;
         let sats_per_vbyte = min(MAX_SATS_PER_V_BYTE, sats_per_vbyte);
         sats_per_vbyte * 253
