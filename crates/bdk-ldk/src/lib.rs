@@ -481,7 +481,8 @@ fn estimate_fee_rate(target_blocks: u32, fee_estimator: &MempoolFeeEstimator) ->
 mod tests {
     #[test]
     fn it_works() {
-        let result = 2 + 2;
-        assert_eq!(result, 4);
+        let ten_ten_one = "10101";
+        let ten_ten_one = isize::from_str_radix(ten_ten_one, 2).unwrap();
+        assert_eq!(ten_ten_one, 21);
     }
 }
