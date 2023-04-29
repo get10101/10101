@@ -13,6 +13,7 @@ use bdk::database::BatchDatabase;
 use bdk::wallet::AddressIndex;
 use bdk::wallet::Wallet;
 use bdk::Balance;
+use bdk::FeeRate;
 use bdk::SignOptions;
 use bdk::SyncOptions;
 use std::cmp::min;
@@ -25,6 +26,7 @@ use lightning::chain::chaininterface::FeeEstimator;
 use lightning::chain::Confirm;
 use lightning::chain::Filter;
 use lightning::chain::WatchedOutput;
+use mempool_space::MempoolFeeEstimator;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::Mutex;
@@ -43,6 +45,12 @@ mod indexed_chain;
 /// We pick 20 sats/vbyte because at the time of writing this was the requirement to get into the
 /// next block.
 const MAX_SATS_PER_V_BYTE: u32 = 20;
+
+/// Min TX fee for all transactions
+///
+/// If our fee estimator throws an error we want to return a min fee rate. At the time of writing,
+/// the min relay fee was 1 sat/vbyte which generally is the lower limit for transactions fees.
+const MIN_SATS_PER_V_BYTE: u32 = 1;
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
@@ -86,6 +94,7 @@ impl Default for TxFilter {
 /// needed to use lightning with LDK.  Note: The bdk::Blockchain you use
 /// must implement the IndexedChain trait.
 pub struct LightningWallet<B, D> {
+    fee_estimator: MempoolFeeEstimator,
     client: Arc<B>,
     wallet: Mutex<Wallet<D>>,
     filter: Mutex<TxFilter>,
@@ -97,8 +106,9 @@ where
     D: BatchDatabase,
 {
     /// create a new lightning wallet from your bdk wallet
-    pub fn new(client: Arc<B>, wallet: Wallet<D>) -> Self {
+    pub fn new(client: Arc<B>, wallet: Wallet<D>, fee_estimator: MempoolFeeEstimator) -> Self {
         LightningWallet {
+            fee_estimator,
             client,
             wallet: Mutex::new(wallet),
             filter: Mutex::new(TxFilter::new()),
@@ -167,7 +177,11 @@ where
     ) -> Result<Transaction, Error> {
         let wallet = self.wallet_lock();
         let mut tx_builder = wallet.build_tx();
-        let fee_rate = self.client.estimate_fee(target_blocks)?;
+
+        let fee_rate = self
+            .fee_estimator
+            .estimate_fee_blocking(target_blocks as u32)?;
+        let fee_rate = FeeRate::from_sat_per_vb(fee_rate as f32);
 
         tx_builder
             .add_recipient(output_script.clone(), value)
@@ -366,10 +380,7 @@ where
             ConfirmationTarget::HighPriority => 1,
         };
 
-        let estimate = self.client.estimate_fee(target_blocks).unwrap_or_default();
-        let sats_per_vbyte = estimate.as_sat_per_vb() as u32;
-
-        Ok(sats_per_vbyte)
+        Ok(estimate_fee_rate(target_blocks, &self.fee_estimator))
     }
 
     /// Unlike `broadcast_transaction`, this one allows the client to inspect the errors
@@ -406,8 +417,8 @@ where
             ConfirmationTarget::HighPriority => 1,
         };
 
-        let estimate = self.client.estimate_fee(target_blocks).unwrap_or_default();
-        let sats_per_vbyte = estimate.as_sat_per_vb() as u32;
+        let sats_per_vbyte = estimate_fee_rate(target_blocks, &self.fee_estimator);
+
         let sats_per_vbyte = min(MAX_SATS_PER_V_BYTE, sats_per_vbyte);
         sats_per_vbyte * 253
     }
@@ -451,6 +462,19 @@ pub enum ScriptStatus {
     InMempool,
     Confirmed { block_height: Option<u32> },
     Retrying,
+}
+
+fn estimate_fee_rate(target_blocks: u32, fee_estimator: &MempoolFeeEstimator) -> u32 {
+    match fee_estimator.estimate_fee_blocking(target_blocks) {
+        Ok(sats_per_vbyte) => sats_per_vbyte,
+        Err(err) => {
+            tracing::error!(
+                default_fee_rate = MIN_SATS_PER_V_BYTE,
+                "Could not retrieve fee rate from mempool {err}. Falling back to default rate"
+            );
+            1
+        }
+    }
 }
 
 #[cfg(test)]

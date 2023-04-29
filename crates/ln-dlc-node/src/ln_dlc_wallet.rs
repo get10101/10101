@@ -25,6 +25,7 @@ use dlc_manager::Utxo;
 use dlc_sled_storage_provider::SledStorageProvider;
 use lightning::chain::Filter;
 use lightning::chain::WatchedOutput;
+use mempool_space::MempoolFeeEstimator;
 use simple_wallet::WalletStorage;
 use std::sync::Arc;
 
@@ -45,10 +46,15 @@ impl LnDlcWallet {
         blockchain_client: Arc<ElectrumBlockchain>,
         wallet: bdk::Wallet<bdk::sled::Tree>,
         storage: Arc<SledStorageProvider>,
+        fee_estimator: MempoolFeeEstimator,
         seed: Bip39Seed,
     ) -> Self {
         Self {
-            ln_wallet: bdk_ldk::LightningWallet::new(blockchain_client.clone(), wallet),
+            ln_wallet: bdk_ldk::LightningWallet::new(
+                blockchain_client.clone(),
+                wallet,
+                fee_estimator,
+            ),
             electrum: blockchain_client,
             storage,
             secp: Secp256k1::new(),

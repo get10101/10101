@@ -29,6 +29,7 @@ lightning-net-tokio = { version = "0.0.113" }
 lightning-persister = { version = "0.0.113" }
 lightning-rapid-gossip-sync = { version = "0.0.113" }
 log = "0.4.17"
+mempool_space = { path = "../mempool-space" }
 p2pd-oracle-client = { version = "0.1.0" }
 rand = "0.8.5"
 reqwest = { version = "0.11", default-features = false, features = ["json"] }

@@ -74,6 +74,7 @@ pub use channel_manager::ChannelManager;
 pub use dlc_channel::dlc_message_name;
 pub use dlc_channel::sub_channel_message_name;
 pub use invoice::HTLCStatus;
+use mempool_space::MempoolFeeEstimator;
 pub use payment_persister::PaymentMap;
 pub use payment_persister::PaymentPersister;
 pub use sub_channel_manager::SubChannelManager;
@@ -247,6 +248,7 @@ where
                 Arc::new(blockchain_client),
                 on_chain_wallet.inner,
                 storage.clone(),
+                MempoolFeeEstimator::new(to_mempool_space_network(network)),
                 seed.clone(),
             ))
         };
@@ -521,4 +523,13 @@ fn alias_as_bytes(alias: &str) -> Result<[u8; 32]> {
     bytes[..alias.len()].copy_from_slice(alias.as_bytes());
 
     Ok(bytes)
+}
+
+fn to_mempool_space_network(value: Network) -> mempool_space::Network {
+    match value {
+        Network::Bitcoin => mempool_space::Network::Mainnet,
+        Network::Testnet => mempool_space::Network::Testnet,
+        Network::Signet => mempool_space::Network::Testnet,
+        Network::Regtest => mempool_space::Network::Regtest,
+    }
 }

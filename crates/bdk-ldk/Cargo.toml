@@ -15,6 +15,7 @@ description = "Use your bdk wallet to implement ldk lightning functionality"
 anyhow = "1.0"
 bdk = "0.24"
 lightning = { version = "0.0.113", features = ["max_level_trace"] }
+mempool_space = { path = "../mempool-space" }
 serde_json = "1.0.87"
 thiserror = "1"
 tracing = "0.1"
