@@ -55,6 +55,36 @@ pub async fn create_dlc_channel(
     coordinator
         .open_channel(&app, coordinator_ln_balance, app_ln_balance)
         .await?;
+
+    // Act
+    let (coordinator_balance_channel_creation, app_balance_channel_creation, channel_id) =
+        process_dlc(
+            &app,
+            &coordinator,
+            app_dlc_collateral,
+            coordinator_dlc_collateral,
+        )
+        .await?;
+
+    Ok(DlcChannelCreated {
+        coordinator,
+        coordinator_balance_channel_creation,
+        app,
+        app_balance_channel_creation,
+        channel_id,
+    })
+}
+
+pub async fn process_dlc(
+    app: &Node<PaymentMap>,
+    coordinator: &Node<PaymentMap>,
+    app_dlc_collateral: u64,
+    coordinator_dlc_collateral: u64,
+) -> Result<(u64, u64, [u8; 32])> {
+    let oracle_pk = app.oracle_pk();
+    let contract_input =
+        dummy_contract_input(app_dlc_collateral, coordinator_dlc_collateral, oracle_pk);
+
     let channel_details = app.channel_manager.list_usable_channels();
     let channel_details = channel_details
         .iter()
@@ -65,16 +95,10 @@ pub async fn create_dlc_channel(
     let app_balance_channel_creation = app.get_ldk_balance().available;
     let coordinator_balance_channel_creation = coordinator.get_ldk_balance().available;
 
-    // Act
-
-    let oracle_pk = app.oracle_pk();
-    let contract_input =
-        dummy_contract_input(app_dlc_collateral, coordinator_dlc_collateral, oracle_pk);
-
     app.propose_dlc_channel(channel_details, &contract_input)
         .await?;
 
-    // Processs the app's offer to close the channel
+    // Process the app's offer to close the channel
     tokio::time::sleep(Duration::from_secs(2)).await;
     coordinator.process_incoming_messages()?;
 
@@ -128,11 +152,9 @@ pub async fn create_dlc_channel(
 
     matches!(sub_channel_app.state, SubChannelState::Signed(_));
 
-    Ok(DlcChannelCreated {
-        coordinator,
+    Ok((
         coordinator_balance_channel_creation,
-        app,
         app_balance_channel_creation,
         channel_id,
-    })
+    ))
 }

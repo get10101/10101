@@ -13,6 +13,6 @@ pub enum TestPathFunding {
 
 #[derive(PartialEq)]
 pub enum TestPathChannelClose {
-    Force,
-    Collaborative,
+    Force { with_dlc: bool },
+    Collaborative { with_dlc: bool },
 }
