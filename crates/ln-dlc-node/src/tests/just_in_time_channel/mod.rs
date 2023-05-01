@@ -1,4 +1,5 @@
 mod create;
+mod force_close;
 mod multiple_payments;
 mod offline_receiver;
 
