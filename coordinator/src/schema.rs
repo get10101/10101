@@ -61,6 +61,25 @@ diesel::table! {
 }
 
 diesel::table! {
+    use diesel::sql_types::*;
+    use super::sql_types::ContractSymbolType;
+    use super::sql_types::DirectionType;
+
+    trades (id) {
+        id -> Int4,
+        position_id -> Nullable<Int4>,
+        contract_symbol -> ContractSymbolType,
+        trader_pubkey -> Text,
+        quantity -> Float4,
+        leverage -> Float4,
+        our_collateral -> Int8,
+        direction -> DirectionType,
+        average_price -> Float4,
+        timestamp -> Timestamptz,
+    }
+}
+
+diesel::table! {
     users (id) {
         id -> Int4,
         pubkey -> Text,
@@ -70,4 +89,6 @@ diesel::table! {
     }
 }
 
-diesel::allow_tables_to_appear_in_same_query!(orders, positions, users,);
+diesel::joinable!(trades -> positions (position_id));
+
+diesel::allow_tables_to_appear_in_same_query!(orders, positions, trades, users,);

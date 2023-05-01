@@ -1,4 +1,5 @@
 use crate::db;
+use crate::db::trades::Trade;
 use crate::position::models::NewPosition;
 use crate::position::models::Position;
 use anyhow::bail;
@@ -100,16 +101,17 @@ impl Node {
 
         let liquidation_price = liquidation_price(trade_params);
 
+        let average_entry_price = trade_params
+            .average_execution_price()
+            .to_f32()
+            .expect("to fit into f32");
         let new_position = NewPosition {
             contract_symbol: trade_params.contract_symbol,
             leverage: trade_params.leverage,
             quantity: trade_params.quantity,
             direction: trade_params.direction,
             trader: trade_params.pubkey,
-            average_entry_price: trade_params
-                .average_execution_price()
-                .to_f32()
-                .expect("to fit into f32"),
+            average_entry_price,
             liquidation_price,
             collateral: margin_coordinator as i64,
             expiry_timestamp: trade_params.filled_with.expiry_timestamp,
@@ -117,7 +119,20 @@ impl Node {
         tracing::debug!(?new_position, "Inserting new position into db");
 
         let connection = &mut self.pool.get()?;
-        db::positions::Position::insert(connection, new_position)?;
+        let position = db::positions::Position::insert(connection, new_position.clone())?;
+        db::trades::insert(
+            connection,
+            Trade {
+                position_id: position.id,
+                contract_symbol: new_position.contract_symbol.into(),
+                trader_pubkey: new_position.trader.to_string(),
+                quantity: new_position.quantity,
+                leverage: new_position.leverage,
+                our_collateral: new_position.collateral,
+                direction: new_position.direction.into(),
+                average_price: average_entry_price,
+            },
+        )?;
 
         let leverage_long = leverage_long(trade_params.direction, trade_params.leverage);
         let leverage_short = leverage_short(trade_params.direction, trade_params.leverage);
@@ -194,6 +209,20 @@ impl Node {
             .propose_dlc_channel_collaborative_settlement(&channel_id, accept_settlement_amount)?;
 
         let mut connection = self.pool.get()?;
+        db::trades::insert(
+            &mut connection,
+            Trade {
+                position_id: position.id,
+                contract_symbol: position.contract_symbol.into(),
+                trader_pubkey: position.trader.to_string(),
+                quantity: position.quantity,
+                leverage: position.leverage,
+                our_collateral: position.collateral,
+                direction: position.direction.opposite().into(),
+                average_price: closing_price.to_f32().expect("To fit into f32"),
+            },
+        )?;
+
         db::positions::Position::set_open_position_to_closing(
             &mut connection,
             position.trader.to_string(),
