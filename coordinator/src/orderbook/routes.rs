@@ -158,7 +158,7 @@ pub async fn post_order(
             notify_traders(matched_orders, authenticated_users.clone()).await;
 
             for order_id in orders_to_set_taken {
-                if let Err(err) = db::orders::taken(&mut conn, order_id, true) {
+                if let Err(err) = db::orders::set_is_taken(&mut conn, order_id, true) {
                     let order_id = order_id.to_string();
                     tracing::error!(order_id, "Could not set order to taken {err:#}");
                 }
@@ -192,7 +192,7 @@ pub async fn put_order(
     Json(updated_order): Json<UpdateOrder>,
 ) -> Result<Json<Order>, AppError> {
     let mut conn = get_db_connection(&state)?;
-    let order = orderbook::db::orders::taken(&mut conn, order_id, updated_order.taken)
+    let order = orderbook::db::orders::set_is_taken(&mut conn, order_id, updated_order.taken)
         .map_err(|e| AppError::InternalServerError(format!("Failed to update order: {e:#}")))?;
     let sender = state.tx_pricefeed.clone();
     update_pricefeed(OrderbookMsg::Update(order.clone()), sender);
