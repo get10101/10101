@@ -58,7 +58,7 @@ pub async fn trade(filled: FilledWith) -> Result<()> {
 }
 
 /// Fetch the positions from the database
-pub async fn get_positions() -> Result<Vec<Position>> {
+pub fn get_positions() -> Result<Vec<Position>> {
     db::get_positions()
 }
 
@@ -169,8 +169,7 @@ pub fn price_update(prices: Prices) -> Result<()> {
 // a close position. In order to fixup the ui, we are
 // creating an order here and store it to the database.
 pub async fn close_position() -> Result<()> {
-    let positions = get_positions()
-        .await?
+    let positions = get_positions()?
         .into_iter()
         .filter(|p| p.position_state == PositionState::Open)
         .map(Position::from)
