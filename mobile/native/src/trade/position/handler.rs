@@ -50,7 +50,7 @@ pub async fn trade(filled: FilledWith) -> Result<()> {
         .context("Could not update order to filling")?;
 
     if let Err((reason, e)) = ln_dlc::trade(trade_params).await {
-        order::handler::order_failed(Some(order.id), reason, e)
+        order::handler::order_failed(Some(order.id), reason, &e)
             .context("Could not set order to failed")?;
     }
 

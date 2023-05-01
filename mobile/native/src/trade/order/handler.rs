@@ -17,9 +17,12 @@ pub async fn submit_order(order: Order) -> Result<()> {
     let url = format!("http://{}", config::get_http_endpoint());
     let orderbook_client = OrderbookClient::new(Url::parse(&url)?);
 
-    if let Err(e) = position::handler::update_position_after_order_submitted(order) {
-        order_failed(Some(order.id), FailureReason::OrderNotAcceptable, e)?;
-        bail!("Could not submit order because extending/reducing the position is not part of the MVP scope");
+    let position = position::handler::get_current_position()?;
+
+    if !position::handler::is_order_acceptable_for_position(&position, &order)? {
+        let err = anyhow::anyhow!("Could not submit order because extending/reducing the position is not part of the MVP scope");
+        order_failed(Some(order.id), FailureReason::OrderNotAcceptable, &err)?;
+        return Err(err);
     }
 
     db::insert_order(order)?;
@@ -35,6 +38,7 @@ pub async fn submit_order(order: Order) -> Result<()> {
     }
 
     update_order_state_in_db_and_ui(order.id, OrderState::Open)?;
+    position::handler::update_position_after_order_submitted(order)?;
 
     Ok(())
 }
@@ -45,7 +49,7 @@ pub(crate) fn order_filling(order_id: Uuid, execution_price: f32) -> Result<()> 
 
     if let Err(e) = update_order_state_in_db_and_ui(order_id, state) {
         let e_string = format!("{e:#}");
-        match order_failed(Some(order_id), FailureReason::FailedToSetToFilling, e) {
+        match order_failed(Some(order_id), FailureReason::FailedToSetToFilling, &e) {
             Ok(()) => {
                 tracing::debug!(%order_id, "Set order to failed, after failing to set it to filling");
             }
@@ -81,7 +85,7 @@ pub(crate) fn order_filled() -> Result<Order> {
 pub(crate) fn order_failed(
     order_id: Option<Uuid>,
     reason: FailureReason,
-    error: anyhow::Error,
+    error: &anyhow::Error,
 ) -> Result<()> {
     tracing::error!("Failed to execute trade for order {order_id:?}: {reason:?}: {error:#}");
 
