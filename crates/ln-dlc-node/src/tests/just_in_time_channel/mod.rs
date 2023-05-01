@@ -1,5 +1,5 @@
+mod channel_close;
 mod create;
-mod force_close;
 mod multiple_payments;
 mod offline_receiver;
 
@@ -9,4 +9,6 @@ pub enum TestPath {
     OnlineFunding,
     // funding through a mobile lightning node (on the same phone)
     MobileFunding,
+    ForceClose,
+    CollabClose,
 }
