@@ -13,7 +13,7 @@ static CONFIG: Storage<ConfigInternal> = Storage::new();
 #[derive(Clone)]
 struct ConfigInternal {
     coordinator_pubkey: PublicKey,
-    electrs_endpoint: Url,
+    esplora_endpoint: Url,
     http_endpoint: SocketAddr,
     p2p_endpoint: SocketAddr,
     network: bitcoin::Network,
@@ -31,8 +31,8 @@ pub fn get_coordinator_info() -> NodeInfo {
     }
 }
 
-pub fn get_electrs_endpoint() -> Url {
-    CONFIG.get().electrs_endpoint.clone()
+pub fn get_esplora_endpoint() -> Url {
+    CONFIG.get().esplora_endpoint.clone()
 }
 
 pub fn get_http_endpoint() -> SocketAddr {

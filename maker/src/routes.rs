@@ -74,6 +74,7 @@ pub async fn index(State(app_state): State<Arc<AppState>>) -> Result<Json<Index>
     let onchain = app_state
         .node
         .get_on_chain_balance()
+        .await
         .map_err(|e| AppError::InternalServerError(format!("Failed to get balance: {e:#}")))?;
 
     let amount = 2000;
@@ -116,6 +117,7 @@ pub async fn get_balance(State(state): State<Arc<AppState>>) -> Result<Json<Bala
     let onchain = state
         .node
         .get_on_chain_balance()
+        .await
         .map_err(|e| AppError::InternalServerError(format!("Failed to get balance: {e:#}")))?;
     Ok(Json(Balance {
         offchain: offchain.available,

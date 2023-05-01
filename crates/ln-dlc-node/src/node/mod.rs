@@ -19,7 +19,6 @@ use anyhow::anyhow;
 use anyhow::ensure;
 use anyhow::Context;
 use anyhow::Result;
-use bdk::blockchain::ElectrumBlockchain;
 use bitcoin::blockdata::constants::genesis_block;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::Network;
@@ -32,6 +31,7 @@ use lightning::chain::chainmonitor;
 use lightning::chain::keysinterface::KeysInterface;
 use lightning::chain::keysinterface::KeysManager;
 use lightning::chain::keysinterface::Recipient;
+use lightning::chain::Confirm;
 use lightning::ln::msgs::NetAddress;
 use lightning::ln::peer_handler::IgnoringMessageHandler;
 use lightning::ln::peer_handler::MessageHandler;
@@ -42,6 +42,7 @@ use lightning_background_processor::BackgroundProcessor;
 use lightning_background_processor::GossipSync;
 use lightning_invoice::payment;
 use lightning_persister::FilesystemPersister;
+use lightning_transaction_sync::EsploraSyncClient;
 use p2pd_oracle_client::P2PDOracleClient;
 use serde::Deserialize;
 use serde::Serialize;
@@ -51,9 +52,12 @@ use std::fmt::Display;
 use std::fmt::Formatter;
 use std::net::SocketAddr;
 use std::path::Path;
+use std::sync::atomic::AtomicBool;
+use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::time::Duration;
+use std::time::Instant;
 use std::time::SystemTime;
 
 mod channel_manager;
@@ -83,12 +87,15 @@ pub use wallet::PaymentDetails;
 ///
 /// According to the LDK team, a value of up to 1 hour should be fine.
 const BROADCAST_NODE_ANNOUNCEMENT_INTERVAL: Duration = Duration::from_secs(600);
+const OFF_CHAIN_SYNC_INTERVAL: Duration = Duration::from_secs(5);
+const ON_CHAIN_SYNC_INTERVAL: Duration = Duration::from_secs(20);
 
 /// An LN-DLC node.
 pub struct Node<P> {
     network: Network,
 
     pub(crate) wallet: Arc<LnDlcWallet>,
+
     pub peer_manager: Arc<PeerManager>,
     invoice_payer: Arc<InvoicePayer<EventHandler<P>>>,
     pub channel_manager: Arc<ChannelManager>,
@@ -145,7 +152,7 @@ where
         payment_persister: P,
         announcement_address: SocketAddr,
         listen_address: SocketAddr,
-        electrs_origin: String,
+        esplora_server_url: String,
         seed: Bip39Seed,
         ephemeral_randomness: [u8; 32],
     ) -> Result<Self> {
@@ -161,7 +168,7 @@ where
                 announcement_address.ip(),
                 announcement_address.port(),
             )],
-            electrs_origin,
+            esplora_server_url,
             seed,
             ephemeral_randomness,
             user_config,
@@ -183,7 +190,7 @@ where
         announcement_address: SocketAddr,
         listen_address: SocketAddr,
         announcement_addresses: Vec<NetAddress>,
-        electrs_origin: String,
+        esplora_server_url: String,
         seed: Bip39Seed,
         ephemeral_randomness: [u8; 32],
         jit_funding_rate_millionth: u32,
@@ -204,7 +211,7 @@ where
             announcement_address,
             listen_address,
             announcement_addresses,
-            electrs_origin,
+            esplora_server_url,
             seed,
             ephemeral_randomness,
             user_config,
@@ -222,7 +229,7 @@ where
         announcement_address: SocketAddr,
         listen_address: SocketAddr,
         announcement_addresses: Vec<NetAddress>,
-        electrs_origin: String,
+        esplora_server_url: String,
         seed: Bip39Seed,
         ephemeral_randomness: [u8; 32],
         ldk_user_config: UserConfig,
@@ -231,6 +238,8 @@ where
         let time_since_unix_epoch = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH)?;
 
         let logger = Arc::new(TracingLogger);
+
+        let stop_running = Arc::new(AtomicBool::new(false));
 
         if !data_dir.exists() {
             std::fs::create_dir_all(data_dir)
@@ -248,19 +257,55 @@ where
         let on_chain_wallet =
             OnChainWallet::new(on_chain_dir.as_path(), network, seed.wallet_seed())?;
 
+        let esplora_client = Arc::new(EsploraSyncClient::new(
+            esplora_server_url,
+            Arc::clone(&logger),
+        ));
+
+        let runtime_handle = tokio::runtime::Handle::current();
         let ln_dlc_wallet = {
-            let blockchain_client =
-                ElectrumBlockchain::from(bdk::electrum_client::Client::new(&electrs_origin)?);
             Arc::new(LnDlcWallet::new(
-                Arc::new(blockchain_client),
+                esplora_client.clone(),
                 on_chain_wallet.inner,
                 storage.clone(),
                 seed.clone(),
+                runtime_handle.clone(),
             ))
         };
 
+        let stop_sync = Arc::clone(&stop_running);
+
+        let sync_wallet = ln_dlc_wallet.clone();
+        std::thread::spawn(move || {
+            tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .expect("to be able to create a runtime")
+                .block_on(async move {
+                    loop {
+                        if stop_sync.load(Ordering::Acquire) {
+                            return;
+                        }
+                        let now = Instant::now();
+                        match sync_wallet.inner().sync().await {
+                            Ok(()) => tracing::info!(
+                                "Background sync of on-chain wallet finished in {}ms.",
+                                now.elapsed().as_millis()
+                            ),
+                            Err(err) => {
+                                tracing::error!(
+                                    "Background sync of on-chain wallet failed: {}",
+                                    err
+                                )
+                            }
+                        }
+                        tokio::time::sleep(ON_CHAIN_SYNC_INTERVAL).await;
+                    }
+                });
+        });
+
         let chain_monitor: Arc<ChainMonitor> = Arc::new(chainmonitor::ChainMonitor::new(
-            Some(ln_dlc_wallet.clone()),
+            Some(esplora_client.clone()),
             ln_dlc_wallet.clone(),
             logger.clone(),
             ln_dlc_wallet.clone(),
@@ -279,13 +324,44 @@ where
             &ldk_data_dir,
             keys_manager.clone(),
             ln_dlc_wallet.clone(),
+            esplora_client.clone(),
             logger.clone(),
             chain_monitor.clone(),
             ldk_user_config,
             network,
             persister.clone(),
-        )?;
+        )
+        .await?;
         let channel_manager = Arc::new(channel_manager);
+
+        tokio::spawn({
+            let channel_manager = channel_manager.clone();
+            let chain_monitor = chain_monitor.clone();
+            let stop_sync = Arc::clone(&stop_running);
+            let esplora_client = esplora_client.clone();
+            async move {
+                loop {
+                    if stop_sync.load(Ordering::Acquire) {
+                        return;
+                    }
+                    let now = Instant::now();
+                    let confirmables = vec![
+                        &*channel_manager as &(dyn Confirm + Sync + Send),
+                        &*chain_monitor as &(dyn Confirm + Sync + Send),
+                    ];
+                    match esplora_client.sync(confirmables).await {
+                        Ok(()) => tracing::info!(
+                            "Background sync of Lightning wallet finished in {}ms.",
+                            now.elapsed().as_millis()
+                        ),
+                        Err(e) => {
+                            tracing::error!("Background sync of Lightning wallet failed: {e:#}")
+                        }
+                    }
+                    tokio::time::sleep(OFF_CHAIN_SYNC_INTERVAL).await;
+                }
+            }
+        });
 
         let genesis = genesis_block(network).header.block_hash();
         let network_graph_path = format!("{ldk_data_dir}/network_graph");
@@ -352,21 +428,17 @@ where
             Arc::new(Mutex::new(HashMap::new()));
 
         let payment_persister = Arc::new(payment_persister);
-        let event_handler = {
-            let runtime_handle = tokio::runtime::Handle::current();
-
-            EventHandler::new(
-                runtime_handle,
-                channel_manager.clone(),
-                ln_dlc_wallet.clone(),
-                network_graph.clone(),
-                keys_manager.clone(),
-                payment_persister.clone(),
-                fake_channel_payments.clone(),
-                Arc::new(Mutex::new(HashMap::new())),
-                peer_manager.clone(),
-            )
-        };
+        let event_handler = EventHandler::new(
+            runtime_handle,
+            channel_manager.clone(),
+            ln_dlc_wallet.clone(),
+            network_graph.clone(),
+            keys_manager.clone(),
+            payment_persister.clone(),
+            fake_channel_payments.clone(),
+            Arc::new(Mutex::new(HashMap::new())),
+            peer_manager.clone(),
+        );
 
         let invoice_payer = Arc::new(InvoicePayer::new(
             channel_manager.clone(),
@@ -417,7 +489,6 @@ where
 
             remote_handle
         };
-        // TODO: Call sync(?) in a loop
 
         tracing::info!("Listening on {listen_address}");
 

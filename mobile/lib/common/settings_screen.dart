@@ -95,10 +95,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
             TableRow(
               children: [
                 const Center(
-                  child: Text('Electrum'),
+                  child: Text('Esplora'),
                 ),
                 Center(
-                  child: SelectableText(config.electrsEndpoint),
+                  child: SelectableText(config.esploraEndpoint),
                 ),
               ],
             ),

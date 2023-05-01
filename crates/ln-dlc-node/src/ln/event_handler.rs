@@ -37,6 +37,11 @@ use std::time::Duration;
 use time::OffsetDateTime;
 use tokio::runtime;
 
+///  The speed at which we want a transaction to confirm used for feerate estimation.
+///
+/// We set it to high priority because the channel funding transaction should be included fast.
+const CONFIRMATION_TARGET: ConfirmationTarget = ConfirmationTarget::HighPriority;
+
 pub struct EventHandler<P> {
     runtime_handle: runtime::Handle,
     channel_manager: Arc<ChannelManager>,
@@ -93,15 +98,19 @@ where
                     counterparty_node_id
                 );
 
-                let target_blocks = 2;
+                let target_blocks = CONFIRMATION_TARGET;
 
                 // Have wallet put the inputs into the transaction such that the output
                 // is satisfied and then sign the funding transaction
-                let funding_tx_result = self.wallet.inner().construct_funding_transaction(
-                    &output_script,
-                    channel_value_satoshis,
-                    target_blocks,
-                );
+                let funding_tx_result = self
+                    .wallet
+                    .inner()
+                    .create_funding_transaction(
+                        output_script,
+                        channel_value_satoshis,
+                        target_blocks,
+                    )
+                    .await;
 
                 let funding_tx = match funding_tx_result {
                     Ok(funding_tx) => funding_tx,
@@ -366,7 +375,7 @@ where
             }
             Event::SpendableOutputs { outputs } => {
                 tracing::debug!(?outputs, "Spendable outputs");
-                let destination_address = self.wallet.inner().get_unused_address()?;
+                let destination_address = self.wallet.inner().get_last_unused_address()?;
                 let output_descriptors = &outputs.iter().collect::<Vec<_>>();
                 let tx_feerate = self
                     .wallet

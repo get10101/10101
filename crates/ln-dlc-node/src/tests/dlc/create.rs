@@ -11,7 +11,7 @@ use dlc_manager::ChannelId;
 use dlc_manager::Storage;
 use std::time::Duration;
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 10)]
 #[ignore]
 async fn given_lightning_channel_then_can_add_dlc_channel() {
     init_tracing();

@@ -1,7 +1,7 @@
 // Related issue: https://github.com/get10101/10101/issues/51.
-#[test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 10)]
 #[ignore]
-fn given_dlc_channel_present_when_dlc_settled_non_collaboratively_then_sibling_channel_operational()
-{
+async fn given_dlc_channel_present_when_dlc_settled_non_collaboratively_then_sibling_channel_operational(
+) {
     // todo
 }

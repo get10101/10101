@@ -6,7 +6,6 @@ use dlc_custom_signer::CustomSigner;
 use dlc_messages::message_handler::MessageHandler as DlcMessageHandler;
 use lightning::chain;
 use lightning::chain::chainmonitor;
-use lightning::chain::channelmonitor::ChannelMonitor;
 use lightning::chain::Filter;
 use lightning::ln::channelmanager::InterceptId;
 use lightning::ln::peer_handler::IgnoringMessageHandler;
@@ -28,6 +27,7 @@ use time::OffsetDateTime;
 
 mod disk;
 mod dlc_custom_signer;
+mod ldk_node_wallet;
 mod ln;
 mod ln_dlc_wallet;
 mod on_chain_wallet;
@@ -43,13 +43,6 @@ use crate::node::SubChannelManager;
 pub use ln::ChannelDetails;
 pub use ln::DlcChannelDetails;
 pub use node::invoice::HTLCStatus;
-
-type ConfirmableMonitor = (
-    ChannelMonitor<CustomSigner>,
-    Arc<LnDlcWallet>,
-    Arc<LnDlcWallet>,
-    Arc<TracingLogger>,
-);
 
 type ChainMonitor = chainmonitor::ChainMonitor<
     CustomSigner,

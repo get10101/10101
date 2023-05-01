@@ -1,8 +1,9 @@
+use crate::ldk_node_wallet;
 use crate::seed::Bip39Seed;
+use crate::TracingLogger;
 use anyhow::Result;
-use bdk::blockchain::ElectrumBlockchain;
+use bdk::blockchain::EsploraBlockchain;
 use bdk::sled;
-use bdk::wallet::AddressIndex;
 use bdk::TransactionDetails;
 use bitcoin::secp256k1::All;
 use bitcoin::secp256k1::PublicKey;
@@ -10,7 +11,7 @@ use bitcoin::secp256k1::Secp256k1;
 use bitcoin::secp256k1::SecretKey;
 use bitcoin::Address;
 use bitcoin::Block;
-use bitcoin::BlockHeader;
+use bitcoin::BlockHash;
 use bitcoin::KeyPair;
 use bitcoin::Network;
 use bitcoin::Script;
@@ -18,23 +19,29 @@ use bitcoin::Transaction;
 use bitcoin::TxOut;
 use bitcoin::Txid;
 use dlc_manager::error::Error;
-use dlc_manager::error::Error::WalletError;
 use dlc_manager::Blockchain;
 use dlc_manager::Signer;
 use dlc_manager::Utxo;
 use dlc_sled_storage_provider::SledStorageProvider;
-use lightning::chain::Filter;
-use lightning::chain::WatchedOutput;
+use lightning::chain::chaininterface::BroadcasterInterface;
+use lightning_transaction_sync::EsploraSyncClient;
 use simple_wallet::WalletStorage;
 use std::sync::Arc;
 
+/// The 'stop gap' parameter used by BDK's wallet sync. This seems to configure the threshold
+/// number of blocks after which BDK stops looking for scripts belonging to the wallet.
+/// Note: This constant and value was copied from ldk_node
+const BDK_CLIENT_STOP_GAP: usize = 20;
+/// The number of concurrent requests made against the API provider.
+/// Note: This constant and value was copied from ldk_node
+const BDK_CLIENT_CONCURRENCY: u8 = 8;
+
 /// This is a wrapper type introduced to be able to implement traits from `rust-dlc` on the
-/// `bdk_ldk::LightningWallet`.
+/// `ldk_node::LightningWallet`.
 ///
 /// We want to eventually get rid of the dependency on `bdk-ldk`, because it's a dead project.
 pub struct LnDlcWallet {
-    ln_wallet: bdk_ldk::LightningWallet<ElectrumBlockchain, sled::Tree>,
-    electrum: Arc<ElectrumBlockchain>,
+    ln_wallet: Arc<ldk_node_wallet::Wallet<sled::Tree>>,
     storage: Arc<SledStorageProvider>,
     secp: Secp256k1<All>,
     seed: Bip39Seed,
@@ -42,14 +49,24 @@ pub struct LnDlcWallet {
 
 impl LnDlcWallet {
     pub fn new(
-        blockchain_client: Arc<ElectrumBlockchain>,
-        wallet: bdk::Wallet<bdk::sled::Tree>,
+        esplora_client: Arc<EsploraSyncClient<Arc<TracingLogger>>>,
+        on_chain_wallet: bdk::Wallet<bdk::sled::Tree>,
         storage: Arc<SledStorageProvider>,
         seed: Bip39Seed,
+        runtime_handle: tokio::runtime::Handle,
     ) -> Self {
+        let blockchain =
+            EsploraBlockchain::from_client(esplora_client.client().clone(), BDK_CLIENT_STOP_GAP)
+                .with_concurrency(BDK_CLIENT_CONCURRENCY);
+
+        let wallet = Arc::new(ldk_node_wallet::Wallet::new(
+            blockchain,
+            on_chain_wallet,
+            runtime_handle,
+        ));
+
         Self {
-            ln_wallet: bdk_ldk::LightningWallet::new(blockchain_client.clone(), wallet),
-            electrum: blockchain_client,
+            ln_wallet: wallet,
             storage,
             secp: Secp256k1::new(),
             seed,
@@ -61,16 +78,12 @@ impl LnDlcWallet {
     }
 
     // TODO: Better to keep this private and expose the necessary APIs instead.
-    pub(crate) fn inner(&self) -> &bdk_ldk::LightningWallet<ElectrumBlockchain, sled::Tree> {
-        &self.ln_wallet
+    pub(crate) fn inner(&self) -> Arc<ldk_node_wallet::Wallet<sled::Tree>> {
+        self.ln_wallet.clone()
     }
 
-    pub fn electrum(&self) -> Arc<ElectrumBlockchain> {
-        self.electrum.clone()
-    }
-
-    pub(crate) fn tip(&self) -> Result<(u32, BlockHeader)> {
-        let (height, header) = self.ln_wallet.get_tip()?;
+    pub(crate) async fn tip(&self) -> Result<(u32, BlockHash)> {
+        let (height, header) = self.ln_wallet.fetch_tip().await?;
         Ok((height, header))
     }
 
@@ -79,8 +92,8 @@ impl LnDlcWallet {
     ///
     /// This list won't be up-to-date unless the wallet has previously been synchronised with the
     /// blockchain.
-    pub(crate) fn on_chain_transactions(&self) -> Result<Vec<TransactionDetails>> {
-        let mut txs = self.ln_wallet.get_wallet().list_transactions(false)?;
+    pub(crate) async fn on_chain_transactions(&self) -> Result<Vec<TransactionDetails>> {
+        let mut txs = self.ln_wallet.on_chain_transaction_list().await?;
 
         txs.sort_by(|a, b| {
             b.confirmation_time
@@ -95,43 +108,38 @@ impl LnDlcWallet {
 
 impl Blockchain for LnDlcWallet {
     fn send_transaction(&self, transaction: &Transaction) -> Result<(), Error> {
-        self.ln_wallet
-            .broadcast(transaction)
-            .map_err(|e| Error::BlockchainError(e.to_string()))
+        self.ln_wallet.broadcast_transaction(transaction);
+
+        Ok(())
     }
 
     fn get_network(&self) -> Result<Network, Error> {
-        Ok(self.ln_wallet.get_wallet().network())
+        self.ln_wallet
+            .network()
+            .map_err(|e| Error::BlockchainError(e.to_string()))
     }
 
     fn get_blockchain_height(&self) -> Result<u64, Error> {
-        Ok(self
+        let height = self
             .ln_wallet
-            .get_tip()
+            .tip()
             .map_err(|e| Error::BlockchainError(e.to_string()))?
-            .0 as u64)
+            .context("Tip has not been set yet")
+            .map_err(|e| Error::BlockchainError(e.to_string()))?
+            .0;
+        Ok(height as u64)
     }
 
     fn get_block_at_height(&self, _height: u64) -> Result<Block, Error> {
-        todo!()
+        unreachable!("This function is not meant to be called by us")
     }
 
     fn get_transaction(&self, _txid: &Txid) -> Result<Transaction, Error> {
-        todo!()
+        unreachable!("This function is not meant to be called by us")
     }
 
     fn get_transaction_confirmations(&self, _txid: &Txid) -> Result<u32, Error> {
-        todo!()
-    }
-}
-
-impl Filter for LnDlcWallet {
-    fn register_tx(&self, txid: &Txid, script_pubkey: &Script) {
-        self.inner().register_tx(txid, script_pubkey)
-    }
-
-    fn register_output(&self, output: WatchedOutput) {
-        self.inner().register_output(output);
+        unreachable!("This function is not meant to be called by us")
     }
 }
 
@@ -169,12 +177,11 @@ impl Signer for LnDlcWallet {
 
 impl dlc_manager::Wallet for LnDlcWallet {
     fn get_new_address(&self) -> Result<Address, Error> {
-        let address_info = self
+        let address = self
             .ln_wallet
-            .get_wallet()
-            .get_address(AddressIndex::New)
-            .map_err(|e| WalletError(Box::new(e)))?;
-        Ok(address_info.address)
+            .get_new_address()
+            .map_err(|e| Error::BlockchainError(e.to_string()))?;
+        Ok(address)
     }
 
     fn get_new_secret_key(&self) -> Result<SecretKey, Error> {
@@ -200,7 +207,7 @@ impl dlc_manager::Wallet for LnDlcWallet {
     }
 }
 
-impl lightning::chain::chaininterface::BroadcasterInterface for LnDlcWallet {
+impl BroadcasterInterface for LnDlcWallet {
     fn broadcast_transaction(&self, tx: &Transaction) {
         self.ln_wallet.broadcast_transaction(tx)
     }
