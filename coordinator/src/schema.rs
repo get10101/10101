@@ -66,6 +66,7 @@ diesel::table! {
         pubkey -> Text,
         email -> Text,
         nostr -> Text,
+        timestamp -> Timestamptz,
     }
 }
 

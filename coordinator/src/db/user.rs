@@ -2,6 +2,7 @@ use coordinator_commons::RegisterParams;
 use diesel::prelude::*;
 use serde::Deserialize;
 use serde::Serialize;
+use time::OffsetDateTime;
 
 use crate::schema::users;
 
@@ -13,6 +14,7 @@ pub struct User {
     pub pubkey: String,
     pub email: String,
     pub nostr: String,
+    pub timestamp: OffsetDateTime,
 }
 
 impl From<RegisterParams> for User {
@@ -22,6 +24,7 @@ impl From<RegisterParams> for User {
             pubkey: value.pubkey.to_string(),
             email: value.email.unwrap_or("".to_owned()),
             nostr: value.nostr.unwrap_or("".to_owned()),
+            timestamp: OffsetDateTime::now_utc(),
         }
     }
 }
