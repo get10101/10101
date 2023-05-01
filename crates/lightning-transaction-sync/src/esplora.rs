@@ -64,7 +64,7 @@ where
         #[cfg(not(feature = "async-interface"))]
         let client = builder.build_blocking().unwrap();
         #[cfg(feature = "async-interface")]
-        let client = builder.build_async().unwrap();
+        let client = builder.build_async().expect("Async client to build");
 
         EsploraSyncClient::from_client(client, logger)
     }
@@ -105,7 +105,13 @@ where
         let mut tip_hash = maybe_await!(self.client.get_tip_hash())?;
 
         loop {
-            let pending_registrations = self.queue.lock().unwrap().process_queues(&mut sync_state);
+            // TODO(Daniel): Changed unwrap to expect here; evaluate if we actually have to catch
+            // this error and continue the loop
+            let pending_registrations = self
+                .queue
+                .lock()
+                .expect("to be able to lock filter queue")
+                .process_queues(&mut sync_state);
             let tip_is_new = Some(tip_hash) != sync_state.last_sync_hash;
 
             // We loop until any registered transactions have been processed at least once, or the
@@ -260,7 +266,7 @@ where
             }
         }
 
-        for (_, output) in &sync_state.watched_outputs {
+        for output in sync_state.watched_outputs.values() {
             if let Some(output_status) = maybe_await!(self
                 .client
                 .get_output_status(&output.outpoint.txid, output.outpoint.index as u64))?
@@ -424,12 +430,12 @@ where
     L::Target: Logger,
 {
     fn register_tx(&self, txid: &Txid, _script_pubkey: &Script) {
-        let mut locked_queue = self.queue.lock().unwrap();
+        let mut locked_queue = self.queue.lock().expect("to be able to lock filter queue");
         locked_queue.transactions.insert(*txid);
     }
 
     fn register_output(&self, output: WatchedOutput) {
-        let mut locked_queue = self.queue.lock().unwrap();
+        let mut locked_queue = self.queue.lock().expect("to be able to lock filter queue");
         locked_queue
             .outputs
             .insert(output.outpoint.into_bitcoin_outpoint(), output);

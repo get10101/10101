@@ -39,9 +39,9 @@ pub struct Opts {
     )]
     pub database: String,
 
-    /// The address to connect electrum to
-    #[clap(long, default_value = "tcp://localhost:50000")]
-    pub electrum: String,
+    /// The address to connect esplora API to
+    #[clap(long, default_value = "http://localhost:3000")]
+    pub esplora: String,
 }
 
 #[derive(Debug, Clone, Copy, clap::ValueEnum)]

@@ -33,4 +33,4 @@ data/**
 .idea/
 
 # env file
-.env
+.env_safecopy

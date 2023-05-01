@@ -1,3 +1,4 @@
+use crate::ldk_node_wallet;
 use crate::node::HTLCStatus;
 use crate::node::Node;
 use crate::node::PaymentPersister;
@@ -5,11 +6,13 @@ use crate::PaymentFlow;
 use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
+use bdk::sled;
 use bitcoin::secp256k1::SecretKey;
 use bitcoin::Address;
 use lightning::chain::keysinterface::KeysInterface;
 use lightning::chain::keysinterface::Recipient;
 use lightning::ln::PaymentHash;
+use std::sync::Arc;
 use time::OffsetDateTime;
 
 #[derive(Debug, Clone)]
@@ -26,12 +29,8 @@ where
         self.wallet.get_seed_phrase()
     }
 
-    pub async fn sync(&self) -> Result<()> {
-        self.wallet
-            .inner()
-            .sync()
-            .await
-            .context("Failed to sync wallet")
+    pub fn wallet(&self) -> Arc<ldk_node_wallet::Wallet<sled::Tree>> {
+        self.wallet.inner()
     }
 
     pub fn get_new_address(&self) -> Result<Address> {

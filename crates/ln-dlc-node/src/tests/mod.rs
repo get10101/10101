@@ -45,7 +45,7 @@ mod multi_hop_payment;
 mod onboard_from_lnd;
 mod single_hop_payment;
 
-const ELECTRS_ORIGIN: &str = "tcp://localhost:50000";
+const ESPLORA_ORIGIN: &str = "http://localhost:3000";
 const FAUCET_ORIGIN: &str = "http://localhost:8080";
 
 fn init_tracing() {
@@ -91,7 +91,7 @@ impl Node<PaymentMap> {
             address,
             address,
             vec![util::build_net_address(address.ip(), address.port())],
-            ELECTRS_ORIGIN.to_string(),
+            ESPLORA_ORIGIN.to_string(),
             seed,
             ephemeral_randomness,
             user_config,
@@ -114,7 +114,7 @@ impl Node<PaymentMap> {
         while self.get_confirmed_balance()? < expected_balance {
             let interval = Duration::from_millis(200);
 
-            self.sync().unwrap();
+            self.wallet().sync().await.unwrap();
 
             tokio::time::sleep(interval).await;
             tracing::debug!(
@@ -172,8 +172,8 @@ impl Node<PaymentMap> {
                     // We need to sync both parties, even if
                     // `trust_own_funding_0conf` is true for the creator
                     // of the channel (`self`)
-                    self.sync().unwrap();
-                    peer.sync().unwrap();
+                    self.wallet().sync().await.unwrap();
+                    peer.wallet().sync().await.unwrap();
                 }
 
                 tracing::debug!(

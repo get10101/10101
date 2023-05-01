@@ -9,7 +9,7 @@ class Environment {
     int lightningPort = const int.fromEnvironment("COORDINATOR_PORT_LIGHTNING", defaultValue: 9045);
     int httpPort = const int.fromEnvironment("COORDINATOR_PORT_HTTP", defaultValue: 8000);
     String electrsEndpoint =
-        const String.fromEnvironment("ELECTRS_ENDPOINT", defaultValue: "tcp://127.0.0.1:50000");
+        const String.fromEnvironment("ESPLORA_ENDPOINT", defaultValue: "http://127.0.0.1:3000");
     String network = const String.fromEnvironment('NETWORK', defaultValue: "regtest");
 
     String p2pEndpoint = const String.fromEnvironment('COORDINATOR_P2P_ENDPOINT');

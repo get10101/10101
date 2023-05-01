@@ -1,6 +1,7 @@
 use crate::ldk_node_wallet;
 use crate::seed::Bip39Seed;
 use crate::TracingLogger;
+use anyhow::Context;
 use anyhow::Result;
 use bdk::blockchain::EsploraBlockchain;
 use bdk::sled;
@@ -28,7 +29,8 @@ use lightning::chain::Filter;
 use lightning::chain::WatchedOutput;
 use lightning_transaction_sync::EsploraSyncClient;
 use simple_wallet::WalletStorage;
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
+use std::sync::RwLock;
 
 // Copied from ldk_node
 // The 'stop gap' parameter used by BDK's wallet sync. This seems to configure the threshold
@@ -56,7 +58,6 @@ impl LnDlcWallet {
         storage: Arc<SledStorageProvider>,
         seed: Bip39Seed,
     ) -> Self {
-        // TODO: Upgrade bdk so we can agree on using esplora client 0.3.0!
         let blockchain =
             EsploraBlockchain::from_client(tx_sync.client().clone(), BDK_CLIENT_STOP_GAP)
                 .with_concurrency(BDK_CLIENT_CONCURRENCY);
@@ -82,12 +83,12 @@ impl LnDlcWallet {
     }
 
     // TODO: Better to keep this private and expose the necessary APIs instead.
-    pub(crate) fn inner(&self) -> &ldk_node_wallet::Wallet<sled::Tree> {
-        &self.ln_wallet
+    pub(crate) fn inner(&self) -> Arc<ldk_node_wallet::Wallet<sled::Tree>> {
+        self.ln_wallet.clone()
     }
 
     pub(crate) async fn tip(&self) -> Result<(u32, BlockHash)> {
-        let (height, header) = self.ln_wallet.tip().await?;
+        let (height, header) = self.ln_wallet.fetch_tip().await?;
         Ok((height, header))
     }
 
@@ -123,13 +124,15 @@ impl Blockchain for LnDlcWallet {
             .map_err(|e| Error::BlockchainError(e.to_string()))
     }
 
-    #[allow(useless_deprecated)]
-    #[deprecated(
-        since = "0.1.0",
-        note = "We only use the on-chain wallet to determine the network and broadcast"
-    )]
     fn get_blockchain_height(&self) -> Result<u64, Error> {
-        unreachable!("This is not used")
+        let height = self
+            .ln_wallet
+            .tip()
+            .map_err(|e| Error::BlockchainError(e.to_string()))?
+            .context("Tip has not been set yet")
+            .map_err(|e| Error::BlockchainError(e.to_string()))?
+            .0;
+        Ok(height as u64)
     }
 
     #[allow(useless_deprecated)]
@@ -157,18 +160,6 @@ impl Blockchain for LnDlcWallet {
     )]
     fn get_transaction_confirmations(&self, _txid: &Txid) -> Result<u32, Error> {
         unreachable!("This is not used")
-    }
-}
-
-// TODO: We can likely remove this; it is only used in the tests
-// Not sure why this was implemented in the fist place
-impl Filter for LnDlcWallet {
-    fn register_tx(&self, txid: &Txid, script_pubkey: &Script) {
-        unreachable!("We are not using this functionality")
-    }
-
-    fn register_output(&self, _output: WatchedOutput) {
-        unreachable!("We are not using this functionality")
     }
 }
 
@@ -206,8 +197,10 @@ impl Signer for LnDlcWallet {
 
 impl dlc_manager::Wallet for LnDlcWallet {
     fn get_new_address(&self) -> Result<Address, Error> {
-        // TODO: Fix unwrap: error mapping
-        let address = self.ln_wallet.get_new_address().unwrap();
+        let address = self
+            .ln_wallet
+            .get_new_address()
+            .map_err(|e| Error::BlockchainError(e.to_string()))?;
         Ok(address)
     }
 

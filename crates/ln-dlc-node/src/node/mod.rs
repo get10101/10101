@@ -87,13 +87,15 @@ pub use wallet::PaymentDetails;
 ///
 /// According to the LDK team, a value of up to 1 hour should be fine.
 const BROADCAST_NODE_ANNOUNCEMENT_INTERVAL: Duration = Duration::from_secs(600);
-const CONFIRMABLE_SYNC_INTERVAL: Duration = Duration::from_secs(5);
+const OFF_CHAIN_SYNC_INTERVAL: Duration = Duration::from_secs(5);
+const ON_CHAIN_SYNC_INTERVAL: Duration = Duration::from_secs(20);
 
 /// An LN-DLC node.
 pub struct Node<P> {
     network: Network,
 
     pub(crate) wallet: Arc<LnDlcWallet>,
+
     pub peer_manager: Arc<PeerManager>,
     invoice_payer: Arc<InvoicePayer<EventHandler<P>>>,
     pub channel_manager: Arc<ChannelManager>,
@@ -146,7 +148,7 @@ where
         payment_persister: P,
         announcement_address: SocketAddr,
         listen_address: SocketAddr,
-        electrs_origin: String,
+        esplora_server_url: String,
         seed: Bip39Seed,
         ephemeral_randomness: [u8; 32],
     ) -> Result<Self> {
@@ -162,7 +164,7 @@ where
                 announcement_address.ip(),
                 announcement_address.port(),
             )],
-            electrs_origin,
+            esplora_server_url,
             seed,
             ephemeral_randomness,
             user_config,
@@ -183,7 +185,7 @@ where
         announcement_address: SocketAddr,
         listen_address: SocketAddr,
         announcement_addresses: Vec<NetAddress>,
-        electrs_origin: String,
+        esplora_server_url: String,
         seed: Bip39Seed,
         ephemeral_randomness: [u8; 32],
     ) -> Result<Self> {
@@ -203,7 +205,7 @@ where
             announcement_address,
             listen_address,
             announcement_addresses,
-            electrs_origin,
+            esplora_server_url,
             seed,
             ephemeral_randomness,
             user_config,
@@ -264,7 +266,6 @@ where
         let stop_sync = Arc::clone(&stop_running);
 
         let sync_wallet = ln_dlc_wallet.clone();
-        // TODO: Evaluate if this makes sense; can we just use tokio? Will this work in the app?
         std::thread::spawn(move || {
             tokio::runtime::Builder::new_current_thread()
                 .enable_all()
@@ -288,13 +289,13 @@ where
                                 )
                             }
                         }
-                        tokio::time::sleep(Duration::from_secs(20)).await;
+                        tokio::time::sleep(ON_CHAIN_SYNC_INTERVAL).await;
                     }
                 });
         });
 
         let chain_monitor: Arc<ChainMonitor> = Arc::new(chainmonitor::ChainMonitor::new(
-            Some(ln_dlc_wallet.clone()),
+            Some(tx_sync.clone()),
             ln_dlc_wallet.clone(),
             logger.clone(),
             ln_dlc_wallet.clone(),
@@ -313,6 +314,7 @@ where
             &ldk_data_dir,
             keys_manager.clone(),
             ln_dlc_wallet.clone(),
+            tx_sync.clone(),
             logger.clone(),
             chain_monitor.clone(),
             ldk_user_config,
@@ -345,7 +347,7 @@ where
                         tracing::error!("Background sync of Lightning wallet failed: {e:#}")
                     }
                 }
-                tokio::time::sleep(CONFIRMABLE_SYNC_INTERVAL).await;
+                tokio::time::sleep(OFF_CHAIN_SYNC_INTERVAL).await;
             }
         });
 

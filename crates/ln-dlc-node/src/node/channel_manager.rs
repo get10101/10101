@@ -2,7 +2,6 @@ use crate::dlc_custom_signer::CustomKeysManager;
 use crate::ln::TracingLogger;
 use crate::ln_dlc_wallet::LnDlcWallet;
 use crate::ChainMonitor;
-use crate::ConfirmableMonitor;
 use anyhow::Result;
 use bitcoin::BlockHash;
 use lightning::chain::BestBlock;
@@ -11,6 +10,7 @@ use lightning::ln::channelmanager::ChannelManagerReadArgs;
 use lightning::util::config::UserConfig;
 use lightning::util::ser::ReadableArgs;
 use lightning_persister::FilesystemPersister;
+use lightning_transaction_sync::EsploraSyncClient;
 use std::sync::Arc;
 
 pub type ChannelManager = lightning::ln::channelmanager::ChannelManager<
@@ -26,6 +26,7 @@ pub(crate) async fn build(
     ldk_data_dir: &str,
     keys_manager: Arc<CustomKeysManager>,
     ln_dlc_wallet: Arc<LnDlcWallet>,
+    tx_sync: Arc<EsploraSyncClient<Arc<TracingLogger>>>,
     logger: Arc<TracingLogger>,
     chain_monitor: Arc<ChainMonitor>,
     ldk_user_config: UserConfig,
@@ -44,6 +45,8 @@ pub(crate) async fn build(
                 "Did not find channel manager data on disk. Initializing new channel manager"
             );
 
+            // TODO: the wallet is overloaded, we should separate the FeeEstimator and
+            // BroadcasterInterface
             let (height, block_hash) = ln_dlc_wallet.tip().await?;
             return Ok(ChannelManager::new(
                 ln_dlc_wallet.clone(),
@@ -82,7 +85,7 @@ pub(crate) async fn build(
     // Make sure our filter is initialized with all the txs and outputs
     // that we need to be watching based on our set of channel monitors
     for (_, monitor) in channelmonitors.iter() {
-        monitor.load_outputs_to_watch(&ln_dlc_wallet.clone());
+        monitor.load_outputs_to_watch(&tx_sync.clone());
     }
 
     Ok(channel_manager)

@@ -85,9 +85,9 @@ pub(crate) async fn send_interceptable_payment(
     invoice_amount: u64,
     coordinator_just_in_time_channel_creation_outbound_liquidity: Option<u64>,
 ) -> Result<()> {
-    payer.sync()?;
-    coordinator.sync()?;
-    payee.sync()?;
+    payer.wallet().sync().await?;
+    coordinator.wallet().sync().await?;
+    payee.wallet().sync().await?;
 
     let payer_balance_before = payer.get_ldk_balance();
     let coordinator_balance_before = coordinator.get_ldk_balance();
@@ -147,9 +147,9 @@ pub(crate) async fn send_interceptable_payment(
     // Assert
 
     // Sync LN wallet after payment is claimed to update the balances
-    payer.sync()?;
-    coordinator.sync()?;
-    payee.sync()?;
+    payer.wallet().sync().await?;
+    coordinator.wallet().sync().await?;
+    payee.wallet().sync().await?;
 
     let payer_balance_after = payer.get_ldk_balance();
     let coordinator_balance_after = coordinator.get_ldk_balance();

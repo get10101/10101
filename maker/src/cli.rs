@@ -33,9 +33,9 @@ pub struct Opts {
     )]
     pub database: String,
 
-    /// The address to connect electrum to
-    #[clap(long, default_value = "tcp://localhost:50000")]
-    pub electrum: String,
+    /// The address to connect esplora API to
+    #[clap(long, default_value = "tcp://localhost:3000")]
+    pub esplora: String,
 
     /// If enabled logs will be in json format
     #[clap(short, long)]

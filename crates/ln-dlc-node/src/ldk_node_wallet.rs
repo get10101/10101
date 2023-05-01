@@ -7,7 +7,6 @@ use bitcoin::Transaction;
 use bitcoin::TxOut;
 use bitcoin::Txid;
 
-use crate::TracingLogger;
 use anyhow::anyhow;
 use anyhow::bail;
 use anyhow::Context;
@@ -27,8 +26,7 @@ use lightning::chain::chaininterface::FeeEstimator;
 use lightning::chain::chaininterface::FEERATE_FLOOR_SATS_PER_KW;
 use lightning::chain::keysinterface::KeysManager;
 use lightning::chain::keysinterface::SpendableOutputDescriptor;
-use lightning::ln::msgs::DecodeError;
-use lightning::ln::script::ShutdownScript;
+use lightning::util::ser::Writeable;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::Condvar;
@@ -41,11 +39,13 @@ where
     D: BatchDatabase,
 {
     // A BDK blockchain used for wallet sync.
-    blockchain: EsploraBlockchain,
+    blockchain: Arc<EsploraBlockchain>,
     // A BDK on-chain wallet.
     inner: Mutex<bdk::Wallet<D>>,
     // A cache storing the most recently retrieved fee rate estimations.
     fee_rate_cache: RwLock<HashMap<ConfirmationTarget, FeeRate>>,
+    // A cache storing the most recently retrieved fee rate estimations.
+    tip_cache: RwLock<Option<(u32, BlockHash)>>,
     runtime: Arc<RwLock<Option<tokio::runtime::Runtime>>>,
     sync_lock: (Mutex<()>, Condvar),
 }
@@ -61,17 +61,19 @@ where
     ) -> Self {
         let inner = Mutex::new(wallet);
         let fee_rate_cache = RwLock::new(HashMap::new());
+        let tip_cache = RwLock::new(None);
         let sync_lock = (Mutex::new(()), Condvar::new());
         Self {
-            blockchain,
+            blockchain: Arc::new(blockchain),
             inner,
             fee_rate_cache,
+            tip_cache,
             runtime,
             sync_lock,
         }
     }
 
-    pub(crate) async fn sync(&self) -> Result<()> {
+    pub async fn sync(&self) -> Result<()> {
         let (lock, cvar) = &self.sync_lock;
 
         let guard = match lock.try_lock() {
@@ -89,7 +91,15 @@ where
             Ok(()) => (),
             Err(e) => {
                 tracing::error!("Fee estimation error: {}", e);
-                anyhow!(e);
+                bail!(e);
+            }
+        }
+
+        match self.update_tip().await {
+            Ok(()) => (),
+            Err(e) => {
+                tracing::error!("Update tip error: {}", e);
+                bail!(e);
             }
         }
 
@@ -158,6 +168,14 @@ where
                 }
             }
         }
+        Ok(())
+    }
+
+    async fn update_tip(&self) -> Result<()> {
+        let mut locked_tip_cache = self.tip_cache.write().unwrap();
+        let tip = self.fetch_tip().await?;
+        *locked_tip_cache = Some(tip);
+
         Ok(())
     }
 
@@ -314,7 +332,13 @@ where
             .unwrap_or(&fallback_rate)
     }
 
-    pub async fn tip(&self) -> Result<(u32, BlockHash)> {
+    pub fn tip(&self) -> Result<Option<(u32, BlockHash)>> {
+        // TODO: Fix unwrap - was unable to use context and return an error
+        let tip = self.tip_cache.read().unwrap().clone();
+        Ok(tip)
+    }
+
+    pub async fn fetch_tip(&self) -> Result<(u32, BlockHash)> {
         let hash = self
             .blockchain
             .get_tip_hash()
@@ -379,6 +403,9 @@ where
     }
 }
 
+// TODO: Remove this WalletKeysManager once we actioned the TODO below
+// TODO: This is not used at the moment because we use cld_custom_signer::CustomKeysManager - but it
+// sounds like we might want to add this functionality to our impl?
 /// Similar to [`KeysManager`], but overrides the destination and shutdown scripts so they are
 /// directly spendable by the BDK wallet.
 pub struct WalletKeysManager<D>

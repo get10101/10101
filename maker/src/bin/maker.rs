@@ -18,7 +18,11 @@ use std::net::IpAddr;
 use std::net::Ipv4Addr;
 use std::net::SocketAddr;
 use std::sync::Arc;
+use std::time::Duration;
+use std::time::Instant;
 use tracing::metadata::LevelFilter;
+
+const NODE_SYNC_INTERVAL: Duration = Duration::from_secs(20);
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -65,23 +69,35 @@ async fn main() -> Result<()> {
             PaymentMap::default(),
             address,
             SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), address.port()),
-            opts.electrum,
+            opts.esplora,
             seed,
             ephemeral_randomness,
         )
         .await?,
     );
 
-    tokio::spawn({
-        let node = node.clone();
-        async move {
-            loop {
-                if let Err(e) = node.sync().await {
-                    tracing::error!("Failed to sync node. Error: {e:#}");
+    // TODO: We should move the sync into the node
+    let wallet = node.wallet();
+    std::thread::spawn(move || {
+        tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap()
+            .block_on(async move {
+                loop {
+                    let now = Instant::now();
+                    match wallet.sync().await {
+                        Ok(()) => tracing::info!(
+                            "Background sync of on-chain wallet finished in {}ms.",
+                            now.elapsed().as_millis()
+                        ),
+                        Err(err) => {
+                            tracing::error!("Background sync of on-chain wallet failed: {}", err)
+                        }
+                    }
+                    tokio::time::sleep(NODE_SYNC_INTERVAL).await;
                 }
-                tokio::time::sleep(std::time::Duration::from_secs(10)).await;
-            }
-        }
+            });
     });
 
     let node_pubkey = node.info.pubkey;

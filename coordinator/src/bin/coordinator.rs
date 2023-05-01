@@ -28,7 +28,6 @@ use tracing::metadata::LevelFilter;
 use trade::bitmex_client::BitmexClient;
 
 const PROCESS_INCOMING_DLC_MESSAGES_INTERVAL: Duration = Duration::from_secs(5);
-const NODE_SYNC_INTERVAL: Duration = Duration::from_secs(300);
 const POSITION_SYNC_INTERVAL: Duration = Duration::from_secs(300);
 const CONNECTION_CHECK_INTERVAL: Duration = Duration::from_secs(30);
 
@@ -78,24 +77,12 @@ async fn main() -> Result<()> {
             address,
             SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), address.port()),
             opts.p2p_announcement_addresses(),
-            opts.electrum,
+            opts.esplora,
             seed,
             ephemeral_randomness,
         )
         .await?,
     );
-
-    tokio::spawn({
-        let node = node.clone();
-        async move {
-            loop {
-                if let Err(e) = node.sync().await {
-                    tracing::error!("Failed to sync node. Error: {e:#}");
-                }
-                tokio::time::sleep(NODE_SYNC_INTERVAL).await;
-            }
-        }
-    });
 
     // set up database connection pool
     let manager = ConnectionManager::<PgConnection>::new(opts.database);

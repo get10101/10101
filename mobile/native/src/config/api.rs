@@ -18,7 +18,7 @@ impl From<Config> for ConfigInternal {
     fn from(config: Config) -> Self {
         Self {
             coordinator_pubkey: config.coordinator_pubkey.parse().expect("PK to be valid"),
-            electrs_endpoint: Url::parse(config.electrs_endpoint.as_str())
+            esplora_endpoint: Url::parse(config.electrs_endpoint.as_str())
                 .expect("electrs endpoint to be valid"),
             http_endpoint: format!("{}:{}", config.host, config.http_port)
                 .parse()
