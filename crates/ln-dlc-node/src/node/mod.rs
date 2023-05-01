@@ -254,12 +254,14 @@ where
             Arc::clone(&logger),
         ));
 
+        let runtime_handle = tokio::runtime::Handle::current();
         let ln_dlc_wallet = {
             Arc::new(LnDlcWallet::new(
                 tx_sync.clone(),
                 on_chain_wallet.inner,
                 storage.clone(),
                 seed.clone(),
+                runtime_handle.clone(),
             ))
         };
 
@@ -416,21 +418,17 @@ where
             Arc::new(Mutex::new(HashMap::new()));
 
         let payment_persister = Arc::new(payment_persister);
-        let event_handler = {
-            let runtime_handle = tokio::runtime::Handle::current();
-
-            EventHandler::new(
-                runtime_handle,
-                channel_manager.clone(),
-                ln_dlc_wallet.clone(),
-                network_graph.clone(),
-                keys_manager.clone(),
-                payment_persister.clone(),
-                fake_channel_payments.clone(),
-                Arc::new(Mutex::new(HashMap::new())),
-                peer_manager.clone(),
-            )
-        };
+        let event_handler = EventHandler::new(
+            runtime_handle,
+            channel_manager.clone(),
+            ln_dlc_wallet.clone(),
+            network_graph.clone(),
+            keys_manager.clone(),
+            payment_persister.clone(),
+            fake_channel_payments.clone(),
+            Arc::new(Mutex::new(HashMap::new())),
+            peer_manager.clone(),
+        );
 
         let invoice_payer = Arc::new(InvoicePayer::new(
             channel_manager.clone(),

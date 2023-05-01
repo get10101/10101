@@ -26,7 +26,6 @@ use lightning::chain::chaininterface::FeeEstimator;
 use lightning::chain::chaininterface::FEERATE_FLOOR_SATS_PER_KW;
 use lightning::chain::keysinterface::KeysManager;
 use lightning::chain::keysinterface::SpendableOutputDescriptor;
-use lightning::util::ser::Writeable;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::Condvar;
@@ -46,7 +45,7 @@ where
     fee_rate_cache: RwLock<HashMap<ConfirmationTarget, FeeRate>>,
     // A cache storing the most recently retrieved fee rate estimations.
     tip_cache: RwLock<Option<(u32, BlockHash)>>,
-    runtime: Arc<RwLock<Option<tokio::runtime::Runtime>>>,
+    runtime_handle: tokio::runtime::Handle,
     sync_lock: (Mutex<()>, Condvar),
 }
 
@@ -57,18 +56,19 @@ where
     pub(crate) fn new(
         blockchain: EsploraBlockchain,
         wallet: bdk::Wallet<D>,
-        runtime: Arc<RwLock<Option<tokio::runtime::Runtime>>>,
+        runtime_handle: tokio::runtime::Handle,
     ) -> Self {
         let inner = Mutex::new(wallet);
         let fee_rate_cache = RwLock::new(HashMap::new());
         let tip_cache = RwLock::new(None);
         let sync_lock = (Mutex::new(()), Condvar::new());
+
         Self {
             blockchain: Arc::new(blockchain),
             inner,
             fee_rate_cache,
             tip_cache,
-            runtime,
+            runtime_handle,
             sync_lock,
         }
     }
@@ -381,16 +381,8 @@ where
     D: BatchDatabase,
 {
     fn broadcast_transaction(&self, tx: &Transaction) {
-        let locked_runtime = self.runtime.read().unwrap();
-        if locked_runtime.as_ref().is_none() {
-            tracing::error!("Failed to broadcast transaction: No runtime.");
-            return;
-        }
-
         let res = tokio::task::block_in_place(move || {
-            locked_runtime
-                .as_ref()
-                .unwrap()
+            self.runtime_handle
                 .block_on(async move { self.blockchain.broadcast(tx).await })
         });
 

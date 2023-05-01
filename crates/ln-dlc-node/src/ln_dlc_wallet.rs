@@ -25,8 +25,6 @@ use dlc_manager::Signer;
 use dlc_manager::Utxo;
 use dlc_sled_storage_provider::SledStorageProvider;
 use lightning::chain::chaininterface::BroadcasterInterface;
-use lightning::chain::Filter;
-use lightning::chain::WatchedOutput;
 use lightning_transaction_sync::EsploraSyncClient;
 use simple_wallet::WalletStorage;
 use std::sync::Arc;
@@ -57,17 +55,16 @@ impl LnDlcWallet {
         on_chain_wallet: bdk::Wallet<bdk::sled::Tree>,
         storage: Arc<SledStorageProvider>,
         seed: Bip39Seed,
+        runtime_handle: tokio::runtime::Handle,
     ) -> Self {
         let blockchain =
             EsploraBlockchain::from_client(tx_sync.client().clone(), BDK_CLIENT_STOP_GAP)
                 .with_concurrency(BDK_CLIENT_CONCURRENCY);
 
-        // TODO: Can we get rid of this runtime?
-        let runtime = Arc::new(RwLock::new(None));
         let wallet = Arc::new(ldk_node_wallet::Wallet::new(
             blockchain,
             on_chain_wallet,
-            Arc::clone(&runtime),
+            runtime_handle,
         ));
 
         Self {

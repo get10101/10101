@@ -376,7 +376,7 @@ where
 
         let mut unconfirmed_txs = Vec::new();
 
-        for (txid, block_hash_opt) in relevant_txids {
+        for (txid, block_hash_opt) in dbg!(relevant_txids) {
             if let Some(block_hash) = block_hash_opt {
                 let block_status = maybe_await!(self.client.get_block_status(&block_hash))?;
                 if block_status.in_best_chain {

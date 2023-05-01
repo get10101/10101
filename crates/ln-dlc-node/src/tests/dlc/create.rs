@@ -1,5 +1,6 @@
 use crate::node::Node;
 use crate::node::PaymentMap;
+use crate::tests::bitcoind::mine;
 use crate::tests::dummy_contract_input;
 use crate::tests::init_tracing;
 use crate::tests::wait_until;
