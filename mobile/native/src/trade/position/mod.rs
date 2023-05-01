@@ -24,6 +24,11 @@ pub enum PositionState {
     /// Once this order has been filled the "closed" the position is not shown in the user
     /// interface, so we don't have a "closed" state because no position data will be provided to
     /// the user interface.
+    ///
+    /// A position that failed to close should be brought back to the "Open" state.
+    ///
+    /// Transitions:
+    /// Closing->Open
     Closing,
 }
 

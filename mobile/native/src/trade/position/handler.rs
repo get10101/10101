@@ -62,25 +62,29 @@ pub async fn get_positions() -> Result<Vec<Position>> {
     db::get_positions()
 }
 
+pub fn is_order_acceptable_for_position(
+    position: &Position,
+    submitted_order: &Order,
+) -> Result<bool> {
+    Ok(position.direction == submitted_order.direction.opposite()
+        && position.quantity == submitted_order.quantity)
+}
+
 /// Update the position once an order was submitted
 ///
 /// If the new order submitted is an order that closes the current position, then the position will
 /// be updated to `Closing` state.
 pub fn update_position_after_order_submitted(submitted_order: Order) -> Result<()> {
-    if let Some(position) = db::get_positions()?.first() {
-        // closing the position
-        if position.direction == submitted_order.direction.opposite()
-            && position.quantity == submitted_order.quantity
-        {
-            db::update_position_state(position.contract_symbol, PositionState::Closing)?;
-            let mut position = position.clone();
-            position.position_state = PositionState::Closing;
-            event::publish(&EventInternal::PositionUpdateNotification(position));
-        } else {
-            bail!("Currently not possible to extend or reduce a position, you can only close the position with a counter-order");
-        }
-    }
+    let position = get_current_position()?;
 
+    if is_order_acceptable_for_position(&position, &submitted_order)? {
+        db::update_position_state(position.contract_symbol, PositionState::Closing)?;
+        let mut position = position;
+        position.position_state = PositionState::Closing;
+        event::publish(&EventInternal::PositionUpdateNotification(position));
+    } else {
+        bail!("Currently not possible to extend or reduce a position, you can only close the position with a counter-order");
+    }
     Ok(())
 }
 
@@ -89,9 +93,9 @@ pub fn update_position_after_order_submitted(submitted_order: Order) -> Result<(
 /// This should be called if a went in a dirty state, e.g. the position is currently in
 /// `PositionState::Closing` but we didn't find a match.
 pub fn set_position_to_open() -> Result<()> {
-    if let Some(position) = db::get_positions()?.first() {
+    if let Ok(position) = get_current_position() {
         db::update_position_state(position.contract_symbol, PositionState::Open)?;
-        let mut position = position.clone();
+        let mut position = position;
         position.position_state = PositionState::Open;
         event::publish(&EventInternal::PositionUpdateNotification(position));
     }
@@ -205,4 +209,15 @@ pub async fn close_position() -> Result<()> {
 
     db::insert_order(order)?;
     update_position_after_dlc_closure(order)
+}
+
+/// Get the current position
+///
+/// FIXME: We are assuming that there is only one position open. This will
+/// change when we support multiple trading pairs.
+pub fn get_current_position() -> Result<Position> {
+    Ok(db::get_positions()?
+        .first()
+        .context("No position found")?
+        .clone())
 }
