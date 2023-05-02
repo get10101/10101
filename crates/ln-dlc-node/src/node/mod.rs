@@ -125,8 +125,8 @@ pub struct NodeInfo {
 }
 
 /// Liquidity-based routing fee in millionths of a routed amount. In
-/// other words, 10000 is 1%.
-pub(crate) const LIQUIDITY_ROUTING_FEE_MILLIONTHS: u32 = 20_000;
+/// other words, 10000 is 1% and 5_000 is 0.5%
+pub(crate) const LIQUIDITY_ROUTING_FEE_MILLIONTHS: u32 = 5_000;
 
 impl<P> Node<P>
 where
