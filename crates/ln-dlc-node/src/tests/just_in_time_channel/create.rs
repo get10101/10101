@@ -3,7 +3,7 @@ use crate::node::Node;
 use crate::node::PaymentMap;
 use crate::node::LIQUIDITY_ROUTING_FEE_MILLIONTHS;
 use crate::tests::init_tracing;
-use crate::tests::just_in_time_channel::TestPath;
+use crate::tests::just_in_time_channel::TestPathFunding;
 use crate::tests::min_outbound_liquidity_channel_creator;
 use anyhow::Context;
 use anyhow::Result;
@@ -66,7 +66,7 @@ async fn just_in_time_channel() {
     let invoice_amount = 1_000;
 
     send_interceptable_payment(
-        TestPath::OnlineFunding,
+        TestPathFunding::Online,
         &payer,
         &payee,
         &coordinator,
@@ -78,7 +78,7 @@ async fn just_in_time_channel() {
 }
 
 pub(crate) async fn send_interceptable_payment(
-    test_path: TestPath,
+    test_path: TestPathFunding,
     payer: &Node<PaymentMap>,
     payee: &Node<PaymentMap>,
     coordinator: &Node<PaymentMap>,
@@ -127,7 +127,7 @@ pub(crate) async fn send_interceptable_payment(
 
     payer.send_payment(&invoice)?;
 
-    if TestPath::MobileFunding == test_path {
+    if TestPathFunding::Mobile == test_path {
         // simulate the user switching from another app to 10101
 
         // Note, hopefully Breez, Phoenix or any other non-custodial wallet is able to run in the

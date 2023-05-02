@@ -2,7 +2,7 @@ use crate::ln::JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT;
 use crate::node::Node;
 use crate::tests::init_tracing;
 use crate::tests::just_in_time_channel::create::send_interceptable_payment;
-use crate::tests::just_in_time_channel::TestPath;
+use crate::tests::just_in_time_channel::TestPathFunding;
 use crate::tests::min_outbound_liquidity_channel_creator;
 use bitcoin::Amount;
 
@@ -37,7 +37,7 @@ async fn just_in_time_channel_with_multiple_payments() {
 
     // this creates the just in time channel between the coordinator and user_b
     send_interceptable_payment(
-        TestPath::OnlineFunding,
+        TestPathFunding::Online,
         &user_a,
         &user_b,
         &coordinator,
@@ -51,7 +51,7 @@ async fn just_in_time_channel_with_multiple_payments() {
     assert_eq!(coordinator.channel_manager.list_channels().len(), 2);
 
     send_interceptable_payment(
-        TestPath::OnlineFunding,
+        TestPathFunding::Online,
         &user_a,
         &user_b,
         &coordinator,
@@ -65,7 +65,7 @@ async fn just_in_time_channel_with_multiple_payments() {
     assert_eq!(coordinator.channel_manager.list_channels().len(), 2);
 
     send_interceptable_payment(
-        TestPath::OnlineFunding,
+        TestPathFunding::Online,
         &user_b,
         &user_a,
         &coordinator,
@@ -79,7 +79,7 @@ async fn just_in_time_channel_with_multiple_payments() {
     assert_eq!(coordinator.channel_manager.list_channels().len(), 2);
 
     send_interceptable_payment(
-        TestPath::OnlineFunding,
+        TestPathFunding::Online,
         &user_a,
         &user_b,
         &coordinator,

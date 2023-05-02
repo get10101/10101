@@ -14,6 +14,8 @@ pub fn app_config() -> UserConfig {
             minimum_depth: 1,
             // There is no risk in the leaf channel to receive 100% of the channel capacity.
             max_inbound_htlc_value_in_flight_percent_of_channel: 100,
+            // the delay before the fund of a force closed channel can be claimed again
+            our_to_self_delay: 144,
             ..Default::default()
         },
         channel_handshake_limits: ChannelHandshakeLimits {
@@ -50,6 +52,8 @@ pub fn coordinator_config() -> UserConfig {
             minimum_depth: 1,
             // We set this 100% as the coordinator is online 24/7 and can take the risk.
             max_inbound_htlc_value_in_flight_percent_of_channel: 100,
+            // the delay before the fund of a force closed channel can be claimed again
+            our_to_self_delay: 144,
             ..Default::default()
         },
         channel_handshake_limits: ChannelHandshakeLimits {

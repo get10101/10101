@@ -48,7 +48,7 @@ jobs:
         run: |
           curl -d '{"address":"bcrt1qylgu6ffkp3p0m8tw8kp4tt2dmdh755f4r5dq7s", "amount":"0.1"}' -H "Content-Type: application/json" -X POST http://localhost:3000/faucet
       - name: Run slow tests
-        run: cargo test -p ln-dlc-node -j 1 -- --ignored --nocapture
+        run: cargo test -p ln-dlc-node -j 1 -- --ignored --nocapture --test-threads=2
 
   tests-ln-dlc-node:
     runs-on: ubuntu-latest
