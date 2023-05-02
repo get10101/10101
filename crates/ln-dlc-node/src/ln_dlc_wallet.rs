@@ -83,7 +83,7 @@ impl LnDlcWallet {
     }
 
     pub(crate) async fn tip(&self) -> Result<(u32, BlockHash)> {
-        let (height, header) = self.ln_wallet.fetch_tip().await?;
+        let (height, header) = self.ln_wallet.tip()?;
         Ok((height, header))
     }
 
@@ -123,8 +123,6 @@ impl Blockchain for LnDlcWallet {
         let height = self
             .ln_wallet
             .tip()
-            .map_err(|e| Error::BlockchainError(e.to_string()))?
-            .context("Tip has not been set yet")
             .map_err(|e| Error::BlockchainError(e.to_string()))?
             .0;
         Ok(height as u64)
