@@ -13,6 +13,7 @@ use lightning::log_given_level;
 use lightning::log_info;
 use lightning::log_internal;
 use lightning::log_trace;
+use lightning::log_warn;
 use lightning::util::logger::Logger;
 
 use bitcoin::BlockHash;
@@ -384,8 +385,12 @@ where
 
                 unconfirmed_txs.push(txid);
             } else {
-                log_error!(self.logger, "Untracked confirmation of funding transaction. Please ensure none of your channels had been created with LDK prior to version 0.0.113!");
-                panic!("Untracked confirmation of funding transaction. Please ensure none of your channels had been created with LDK prior to version 0.0.113!");
+                // TODO: This error was downgraded to be a warning so we don't spam the logs with
+                // errors
+                log_warn!(self.logger, "Untracked confirmation of funding transaction. Please ensure none of your channels had been created with LDK prior to version 0.0.113!");
+                // TODO: We removed a panic! here because we keep running into this code path even
+                // though we should. We have to re-evaluate this after upgrading to a higher version
+                // of `rust-lightning`. See: https://github.com/lightningdevkit/rust-lightning/issues/2254
             }
         }
         Ok(unconfirmed_txs)
