@@ -23,6 +23,7 @@ use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::Pool;
 use diesel::PgConnection;
 use ln_dlc_node::node::NodeInfo;
+use orderbook_commons::FakeScidResponse;
 use orderbook_commons::OrderbookMsg;
 
 use crate::admin::close_channel;
@@ -63,6 +64,10 @@ pub fn router(node: Node, pool: Pool<ConnectionManager<PgConnection>>) -> Router
     Router::new()
         .route("/", get(index))
         .route("/api/fake_scid/:target_node", post(post_fake_scid))
+        .route(
+            "/api/fake_scid/v2/:target_node",
+            post(post_fake_scid_with_fee_hint),
+        )
         .route("/api/newaddress", get(get_new_address))
         .route("/api/node", get(get_node_info))
         .route("/api/invoice", get(get_invoice))
@@ -112,9 +117,26 @@ pub async fn post_fake_scid(
         ))
     })?;
 
-    Ok(Json(
-        app_state.node.inner.create_intercept_scid(target_node),
-    ))
+    let (fscid, _) = app_state.node.inner.create_intercept_scid(target_node);
+    Ok(Json(fscid))
+}
+
+pub async fn post_fake_scid_with_fee_hint(
+    target_node: Path<String>,
+    State(app_state): State<Arc<AppState>>,
+) -> Result<Json<FakeScidResponse>, AppError> {
+    let target_node = target_node.0;
+    let target_node: PublicKey = target_node.parse().map_err(|e| {
+        AppError::BadRequest(format!(
+            "Provided public key {target_node} was not valid: {e:#}"
+        ))
+    })?;
+
+    let (scid, fee_rate_millionth) = app_state.node.inner.create_intercept_scid(target_node);
+    Ok(Json(FakeScidResponse {
+        scid,
+        fee_rate_millionth,
+    }))
 }
 
 pub async fn get_new_address(

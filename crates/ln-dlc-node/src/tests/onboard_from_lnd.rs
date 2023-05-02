@@ -38,7 +38,7 @@ async fn onboard_from_lnd() {
 
     let invoice_amount = 1000;
 
-    let fake_scid = coordinator.create_intercept_scid(payee.info.pubkey);
+    let (fake_scid, fee_millionth) = coordinator.create_intercept_scid(payee.info.pubkey);
     let invoice = payee
         .create_interceptable_invoice(
             Some(invoice_amount),
@@ -46,6 +46,7 @@ async fn onboard_from_lnd() {
             coordinator.info.pubkey,
             0,
             "".to_string(),
+            fee_millionth,
         )
         .unwrap();
 

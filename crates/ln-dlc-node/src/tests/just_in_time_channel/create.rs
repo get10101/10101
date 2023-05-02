@@ -8,7 +8,12 @@ use crate::tests::min_outbound_liquidity_channel_creator;
 use anyhow::Context;
 use anyhow::Result;
 use bitcoin::Amount;
+use rust_decimal::prelude::FromPrimitive;
+use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
+use rust_decimal::RoundingStrategy;
+use std::ops::Div;
+use std::ops::Mul;
 use std::time::Duration;
 
 #[tokio::test]
@@ -95,11 +100,21 @@ pub(crate) async fn send_interceptable_payment(
 
     // Act
 
-    let intercept_scid = coordinator.create_intercept_scid(payee.info.pubkey);
+    let (intercept_scid, fee_millionth) = coordinator.create_intercept_scid(payee.info.pubkey);
 
     let flat_routing_fee = 1; // according to the default `ChannelConfig`
-    let liquidity_routing_fee =
-        (invoice_amount * LIQUIDITY_ROUTING_FEE_MILLIONTHS as u64) / 1_000_000;
+    let liquidity_rounding_fee = Decimal::from_u64(invoice_amount)
+        .unwrap()
+        .mul(Decimal::from_u32(LIQUIDITY_ROUTING_FEE_MILLIONTHS).unwrap())
+        .div(Decimal::from_u64(1_000_000).unwrap());
+    let liquidity_routing_fee_payer = liquidity_rounding_fee
+        .round_dp_with_strategy(0, RoundingStrategy::MidpointAwayFromZero)
+        .to_u64()
+        .unwrap();
+    let liquidity_routing_fee_receiver = liquidity_rounding_fee
+        .round_dp_with_strategy(0, RoundingStrategy::MidpointTowardZero)
+        .to_u64()
+        .unwrap();
 
     assert!(
         does_inbound_htlc_fit_as_percent_of_channel(
@@ -110,7 +125,7 @@ pub(crate) async fn send_interceptable_payment(
                 .first()
                 .expect("payer channel should be created.")
                 .channel_id,
-            invoice_amount + flat_routing_fee + liquidity_routing_fee
+            invoice_amount + flat_routing_fee + liquidity_routing_fee_receiver
         )
         .unwrap(),
         "Invoice amount larger than maximum inbound HTLC in payer-coordinator channel"
@@ -123,6 +138,7 @@ pub(crate) async fn send_interceptable_payment(
         coordinator.info.pubkey,
         invoice_expiry,
         "interceptable-invoice".to_string(),
+        fee_millionth,
     )?;
 
     payer.send_payment(&invoice)?;
@@ -157,14 +173,14 @@ pub(crate) async fn send_interceptable_payment(
 
     assert_eq!(
         payer_balance_before.available - payer_balance_after.available,
-        invoice_amount + flat_routing_fee + liquidity_routing_fee
+        invoice_amount + flat_routing_fee + liquidity_routing_fee_payer
     );
 
     assert_eq!(
         coordinator_balance_after.available - coordinator_balance_before.available,
         coordinator_just_in_time_channel_creation_outbound_liquidity.unwrap_or_default()
             + flat_routing_fee
-            + liquidity_routing_fee
+            + liquidity_routing_fee_receiver
     );
 
     assert_eq!(

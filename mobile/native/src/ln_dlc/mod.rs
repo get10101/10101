@@ -23,6 +23,7 @@ use itertools::Itertools;
 use lightning_invoice::Invoice;
 use ln_dlc_node::node::NodeInfo;
 use ln_dlc_node::seed::Bip39Seed;
+use orderbook_commons::FakeScidResponse;
 use rust_decimal::Decimal;
 use state::Storage;
 use std::net::IpAddr;
@@ -354,7 +355,7 @@ pub fn create_invoice(amount_sats: Option<u64>) -> Result<Invoice> {
         let client = reqwest::Client::new();
         let response = client
             .post(format!(
-                "http://{}/api/fake_scid/{}",
+                "http://{}/api/fake_scid/v2/{}",
                 config::get_http_endpoint(),
                 node.inner.info.pubkey
             )) // TODO: make host configurable
@@ -366,17 +367,20 @@ pub fn create_invoice(amount_sats: Option<u64>) -> Result<Invoice> {
             bail!("Failed to fetch fake scid from coordinator: {text}")
         }
 
-        let text = response.text().await?;
-        tracing::info!("Fetch fake channel id: {}", text);
-
-        let fake_channel_id: u64 = text.parse()?;
+        let fake_channel_id: FakeScidResponse = response.json().await?;
+        tracing::info!(
+            fscid = fake_channel_id.scid,
+            feerate = fake_channel_id.fee_rate_millionth,
+            "Received fake channel id and feerate"
+        );
 
         node.inner.create_interceptable_invoice(
             amount_sats,
-            fake_channel_id,
+            fake_channel_id.scid,
             config::get_coordinator_info().pubkey,
             0,
             "Fund your 10101 wallet".to_string(),
+            fake_channel_id.fee_rate_millionth,
         )
     })
 }

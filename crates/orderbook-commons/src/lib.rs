@@ -197,6 +197,12 @@ impl FilledWith {
     }
 }
 
+#[derive(Serialize, Deserialize)]
+pub struct FakeScidResponse {
+    pub scid: u64,
+    pub fee_rate_millionth: u32,
+}
+
 #[cfg(test)]
 mod test {
     use crate::FilledWith;
