@@ -175,9 +175,11 @@ async fn open_channel(node_info: &NodeInfo, amount: Amount) -> Result<()> {
 
     mine(10).await?;
     tracing::info!("connected to channel");
-    Ok(())
+
+    tracing::info!("You can now use the lightning faucet {FAUCET}/faucet/");
 
     // TODO: Inspect the channel manager to wait until channel is usable before returning
+    Ok(())
 }
 
 // Configure and initialise tracing subsystem
