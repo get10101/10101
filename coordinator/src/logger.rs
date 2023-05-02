@@ -25,6 +25,7 @@ pub fn init_tracing(level: LevelFilter, json_format: bool) -> Result<()> {
         .add_directive("rustls=warn".parse()?)
         .add_directive("sled=warn".parse()?)
         .add_directive("bdk=warn".parse()?) // bdk is quite spamy on debug
+        .add_directive("lightning::ln::peer_handler=trace".parse()?)
         .add_directive("lightning::chain=info".parse()?);
 
     // Parse additional log directives from env variable
