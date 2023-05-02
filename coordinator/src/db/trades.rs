@@ -12,7 +12,7 @@ pub struct Trade {
     pub trader_pubkey: String,
     pub quantity: f32,
     pub leverage: f32,
-    pub our_collateral: i64,
+    pub collateral: i64,
     pub direction: Direction,
     pub average_price: f32,
 }
