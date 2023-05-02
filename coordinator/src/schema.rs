@@ -72,7 +72,7 @@ diesel::table! {
         trader_pubkey -> Text,
         quantity -> Float4,
         leverage -> Float4,
-        our_collateral -> Int8,
+        collateral -> Int8,
         direction -> DirectionType,
         average_price -> Float4,
         timestamp -> Timestamptz,
