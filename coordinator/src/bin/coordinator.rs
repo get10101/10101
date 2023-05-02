@@ -92,7 +92,7 @@ async fn main() -> Result<()> {
                 if let Err(e) = node.sync() {
                     tracing::error!("Failed to sync node. Error: {e:#}");
                 }
-                tokio::time::sleep(NODE_SYNC_INTERVAL).await;
+                tokio::time::sleep(node_sync_interval(network)).await;
             }
         }
     });
@@ -231,4 +231,12 @@ async fn main() -> Result<()> {
     tracing::trace!("Server has had been launched");
 
     Ok(())
+}
+
+fn node_sync_interval(network: bitcoin::Network) -> Duration {
+    match network {
+        // We want to be able to test things quickly on regtest
+        bitcoin::Network::Regtest => Duration::from_secs(10),
+        _ => NODE_SYNC_INTERVAL,
+    }
 }
