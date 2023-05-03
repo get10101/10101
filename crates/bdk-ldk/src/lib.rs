@@ -13,6 +13,7 @@ use bdk::database::BatchDatabase;
 use bdk::wallet::AddressIndex;
 use bdk::wallet::Wallet;
 use bdk::Balance;
+use bdk::FeeRate;
 use bdk::SignOptions;
 use bdk::SyncOptions;
 use std::cmp::min;
@@ -167,7 +168,11 @@ where
     ) -> Result<Transaction, Error> {
         let wallet = self.wallet_lock();
         let mut tx_builder = wallet.build_tx();
+
         let fee_rate = self.client.estimate_fee(target_blocks)?;
+        let sats_per_vbyte = fee_rate.as_sat_per_vb();
+        let sats_per_vbyte = min(MAX_SATS_PER_V_BYTE, sats_per_vbyte as u32);
+        let fee_rate = FeeRate::from_sat_per_vb(sats_per_vbyte as f32);
 
         tx_builder
             .add_recipient(output_script.clone(), value)
@@ -357,19 +362,6 @@ where
                 }
             }
         }
-    }
-
-    pub fn estimate_fee(&self, confirmation_target: ConfirmationTarget) -> Result<u32, Error> {
-        let target_blocks = match confirmation_target {
-            ConfirmationTarget::Background => 6,
-            ConfirmationTarget::Normal => 3,
-            ConfirmationTarget::HighPriority => 1,
-        };
-
-        let estimate = self.client.estimate_fee(target_blocks).unwrap_or_default();
-        let sats_per_vbyte = estimate.as_sat_per_vb() as u32;
-
-        Ok(sats_per_vbyte)
     }
 
     /// Unlike `broadcast_transaction`, this one allows the client to inspect the errors
