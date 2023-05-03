@@ -66,7 +66,7 @@ pub fn router(node: Node, pool: Pool<ConnectionManager<PgConnection>>) -> Router
         .route("/api/fake_scid/:target_node", post(post_fake_scid))
         .route(
             "/api/fake_scid/v2/:target_node",
-            post(post_fake_scid_with_fee_hint),
+            post(register_interceptable_invoice),
         )
         .route("/api/newaddress", get(get_new_address))
         .route("/api/node", get(get_node_info))
@@ -122,7 +122,7 @@ pub async fn post_fake_scid(
     ))
 }
 
-pub async fn post_fake_scid_with_fee_hint(
+pub async fn register_interceptable_invoice(
     target_node: Path<String>,
     State(app_state): State<Arc<AppState>>,
 ) -> Result<Json<FakeScidResponse>, AppError> {
