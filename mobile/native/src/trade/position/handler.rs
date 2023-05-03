@@ -9,7 +9,6 @@ use crate::trade::order::OrderState;
 use crate::trade::order::OrderType;
 use crate::trade::position::Position;
 use crate::trade::position::PositionState;
-use anyhow::bail;
 use anyhow::ensure;
 use anyhow::Context;
 use anyhow::Result;
@@ -66,22 +65,26 @@ pub fn get_positions() -> Result<Vec<Position>> {
 ///
 /// If the new order submitted is an order that closes the current position, then the position will
 /// be updated to `Closing` state.
-pub fn update_position_after_order_submitted(submitted_order: Order) -> Result<()> {
-    if let Some(position) = db::get_positions()?.first() {
-        // closing the position
-        if position.direction == submitted_order.direction.opposite()
-            && position.quantity == submitted_order.quantity
-        {
-            db::update_position_state(position.contract_symbol, PositionState::Closing)?;
-            let mut position = position.clone();
-            position.position_state = PositionState::Closing;
-            event::publish(&EventInternal::PositionUpdateNotification(position));
-        } else {
-            bail!("Currently not possible to extend or reduce a position, you can only close the position with a counter-order");
-        }
+pub fn update_position_after_order_submitted(submitted_order: &Order) -> Result<()> {
+    if let Some(position) = get_position_matching_order(submitted_order)? {
+        db::update_position_state(position.contract_symbol, PositionState::Closing)?;
+        let mut position = position;
+        position.position_state = PositionState::Closing;
+        event::publish(&EventInternal::PositionUpdateNotification(position));
     }
-
     Ok(())
+}
+
+/// Returns the position that would be closed by submitted, if there is any
+pub fn get_position_matching_order(order: &Order) -> Result<Option<Position>> {
+    Ok(if let Some(position) = db::get_positions()?.first() {
+        // closing the position
+        ensure!(position.direction == order.direction.opposite()
+                && position.quantity == order.quantity, "Currently not possible to extend or reduce a position, you can only close the position with a counter-order");
+        Some(position.clone())
+    } else {
+        None
+    })
 }
 
 /// Resets the position to open again
