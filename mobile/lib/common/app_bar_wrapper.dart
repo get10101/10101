@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:get_10101/common/color.dart';
 import 'package:get_10101/features/trade/settings_screen.dart';
 import 'package:get_10101/features/trade/trade_screen.dart';
 import 'package:get_10101/features/wallet/scanner_screen.dart';
@@ -51,7 +52,9 @@ class AppBarWrapper extends StatelessWidget {
     return AppBar(
       elevation: 0,
       backgroundColor: Colors.transparent,
-      iconTheme: const IconThemeData(color: Colors.black),
+        iconTheme: IconThemeData(
+           color: tenTenOnePurple.shade800,
+       ),
       leading: leadingButton,
       actions: actionButtons,
     );

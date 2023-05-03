@@ -211,7 +211,11 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
     return MaterialApp.router(
       title: "10101",
       theme: ThemeData(
-        primarySwatchb common common: swatch,
+        primarySwatch: swatch,
+        iconTheme: IconThemeData(
+          color: tenTenOnePurple.shade800,
+          size: 32,
+        ),
         extensions: <ThemeExtension<dynamic>>[
           const TradeTheme(),
           WalletTheme(colors: ColorScheme.fromSwatch(primarySwatch: swatch)),
