@@ -6,6 +6,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge.dart';
 import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
 import 'package:get_10101/common/application/channel_constraints_service.dart';
 import 'package:get_10101/common/application/event_service.dart';
+import 'package:get_10101/common/color.dart';
 import 'package:get_10101/features/trade/application/candlestick_service.dart';
 import 'package:get_10101/features/trade/application/order_service.dart';
 import 'package:get_10101/features/trade/application/position_service.dart';
@@ -205,12 +206,12 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
 
   @override
   Widget build(BuildContext context) {
-    MaterialColor swatch = Colors.blue;
+    MaterialColor swatch = tenTenOnePurple;
 
     return MaterialApp.router(
       title: "10101",
       theme: ThemeData(
-        primarySwatch: swatch,
+        primarySwatchb common common: swatch,
         extensions: <ThemeExtension<dynamic>>[
           const TradeTheme(),
           WalletTheme(colors: ColorScheme.fromSwatch(primarySwatch: swatch)),
