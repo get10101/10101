@@ -1,6 +1,5 @@
 use crate::node::Node;
 use crate::node::PaymentPersister;
-use crate::node::LIQUIDITY_ROUTING_FEE_MILLIONTHS;
 use crate::MillisatAmount;
 use crate::PaymentFlow;
 use crate::PaymentInfo;
@@ -131,7 +130,7 @@ where
     /// This is mainly used for instant payments where the receiver does not have a lightning
     /// channel yet, e.g. Alice does not have a channel with Bob yet but wants to
     /// receive a LN payment. Clair pays to Bob who opens a channel to Alice and pays her.
-    pub fn create_intercept_scid(&self, target_node: PublicKey) -> (u64, u32) {
+    pub fn create_intercept_scid(&self, target_node: PublicKey) -> InterceptableScidDetails {
         let intercept_scid = self.channel_manager.get_intercept_scid();
         self.fake_channel_payments
             .lock()
@@ -139,8 +138,10 @@ where
             .insert(intercept_scid, target_node);
 
         tracing::info!(peer_id=%target_node, %intercept_scid, "Successfully created intercept scid for payment routing");
-
-        (intercept_scid, LIQUIDITY_ROUTING_FEE_MILLIONTHS)
+        InterceptableScidDetails {
+            scid: intercept_scid,
+            jit_routing_fee_millionth: self.jit_funding_rate_millionth,
+        }
     }
 
     pub fn send_payment(&self, invoice: &Invoice) -> Result<()> {
@@ -237,4 +238,9 @@ pub enum HTLCStatus {
     Pending,
     Succeeded,
     Failed,
+}
+
+pub struct InterceptableScidDetails {
+    pub scid: u64,
+    pub jit_routing_fee_millionth: u32,
 }

@@ -117,8 +117,9 @@ pub async fn post_fake_scid(
         ))
     })?;
 
-    let (fscid, _) = app_state.node.inner.create_intercept_scid(target_node);
-    Ok(Json(fscid))
+    Ok(Json(
+        app_state.node.inner.create_intercept_scid(target_node).scid,
+    ))
 }
 
 pub async fn post_fake_scid_with_fee_hint(
@@ -132,7 +133,9 @@ pub async fn post_fake_scid_with_fee_hint(
         ))
     })?;
 
-    let (scid, fee_rate_millionth) = app_state.node.inner.create_intercept_scid(target_node);
+    let details = app_state.node.inner.create_intercept_scid(target_node);
+    let scid = details.scid;
+    let fee_rate_millionth = details.jit_routing_fee_millionth;
     Ok(Json(FakeScidResponse {
         scid,
         fee_rate_millionth,

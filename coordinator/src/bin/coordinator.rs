@@ -81,6 +81,7 @@ async fn main() -> Result<()> {
             opts.electrum,
             seed,
             ephemeral_randomness,
+            opts.jit_fee_rate_basis_point * 100,
         )
         .await?,
     );

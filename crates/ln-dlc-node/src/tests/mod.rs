@@ -3,6 +3,7 @@ use crate::ln::coordinator_config;
 use crate::node::Node;
 use crate::node::NodeInfo;
 use crate::node::PaymentMap;
+use crate::node::DEFAULT_LIQUIDITY_ROUTING_FEE_MILLIONTHS;
 use crate::seed::Bip39Seed;
 use crate::util;
 use anyhow::Result;
@@ -63,14 +64,23 @@ fn init_tracing() {
 
 impl Node<PaymentMap> {
     async fn start_test_app(name: &str) -> Result<Self> {
-        Self::start_test(name, app_config()).await
+        Self::start_test(name, app_config(), DEFAULT_LIQUIDITY_ROUTING_FEE_MILLIONTHS).await
     }
 
     async fn start_test_coordinator(name: &str) -> Result<Self> {
-        Self::start_test(name, coordinator_config()).await
+        Self::start_test(
+            name,
+            coordinator_config(),
+            DEFAULT_LIQUIDITY_ROUTING_FEE_MILLIONTHS,
+        )
+        .await
     }
 
-    async fn start_test(name: &str, user_config: UserConfig) -> Result<Self> {
+    async fn start_test(
+        name: &str,
+        user_config: UserConfig,
+        jit_funding_rate_millionth: u32,
+    ) -> Result<Self> {
         let data_dir = random_tmp_dir().join(name);
 
         let seed = Bip39Seed::new().expect("A valid bip39 seed");
@@ -95,6 +105,7 @@ impl Node<PaymentMap> {
             seed,
             ephemeral_randomness,
             user_config,
+            jit_funding_rate_millionth,
         )
         .await?;
 
