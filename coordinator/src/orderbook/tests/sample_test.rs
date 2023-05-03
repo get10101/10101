@@ -31,7 +31,7 @@ async fn crud_test() {
     )
     .unwrap();
 
-    let order = orders::taken(&mut conn, order.id, true).unwrap();
+    let order = orders::set_is_taken(&mut conn, order.id, true).unwrap();
     assert!(order.taken);
 
     let deleted = orders::delete_with_id(&mut conn, order.id).unwrap();
