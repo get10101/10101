@@ -257,10 +257,19 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
       eventService.subscribe(
           AnonSubscriber((event) => FLog.info(text: event.field0)), const bridge.Event.log(""));
 
-      final appSupportDir = await getApplicationSupportDirectory();
-      FLog.info(text: "App data will be stored in: $appSupportDir");
+      final seedDir = (await getApplicationSupportDirectory()).path;
+      String appDir = (await getApplicationDocumentsDirectory()).path;
 
-      await rust.api.run(config: config, appDir: appSupportDir.path, seedDir: appSupportDir.path);
+      if (File('$seedDir/${config.network}/db').existsSync()) {
+        FLog.info(
+            text:
+                "App has already data in the seed dir. For compatibility reasons we will not switch to the new app dir.");
+        appDir = seedDir;
+      }
+
+      FLog.info(text: "App data will be stored in: $appDir");
+      FLog.info(text: "Seed data will be stored in: $seedDir");
+      await rust.api.run(config: config, appDir: appDir, seedDir: seedDir);
 
       await orderChangeNotifier.initialize();
       await positionChangeNotifier.initialize();

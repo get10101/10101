@@ -115,7 +115,7 @@ pub fn run(data_dir: String, seed_dir: String) -> Result<()> {
             listener.local_addr().expect("To get a free local address")
         };
 
-        let seed_path = data_dir.join("seed");
+        let seed_path = seed_dir.join("seed");
         let seed = Bip39Seed::initialize(&seed_path)?;
 
         let node = Arc::new(
