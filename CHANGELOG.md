@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.15] - 2023-05-03
+
 ## [1.0.14] - 2023-05-01
 
 ## [1.0.13] - 2023-04-28
@@ -42,7 +44,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Self-Custodial CFD Trading based on DLC and lightning
 
-[Unreleased]: https://github.com/get10101/10101/compare/1.0.14...HEAD
+[Unreleased]: https://github.com/get10101/10101/compare/1.0.15...HEAD
+[1.0.15]: https://github.com/get10101/10101/compare/1.0.14...1.0.15
 [1.0.14]: https://github.com/get10101/10101/compare/1.0.13...1.0.14
 [1.0.13]: https://github.com/get10101/10101/compare/1.0.12...1.0.13
 [1.0.12]: https://github.com/get10101/10101/compare/1.0.11...1.0.12
