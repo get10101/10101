@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:get_10101/common/color.dart';
 
 @immutable
 class TradeTheme extends ThemeExtension<TradeTheme> {
@@ -25,7 +26,7 @@ class TradeTheme extends ThemeExtension<TradeTheme> {
       this.sell = red600,
       this.profit = Colors.green,
       this.loss = Colors.red,
-      this.tabColor = Colors.grey,
+      this.tabColor = tenTenOnePurple,
       this.leveragePlusButtonColor = Colors.grey,
       this.leverageMinusButtonColor = Colors.grey,
       this.leverageInactiveSliderTrackColor = Colors.grey,
