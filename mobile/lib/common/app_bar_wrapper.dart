@@ -15,6 +15,7 @@ class AppBarWrapper extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final currentRoute = GoRouter.of(context).location;
+    const appBarHeight = 32.0;
 
     var actionButtons = <Widget>[];
     Widget? leadingButton;
@@ -52,10 +53,15 @@ class AppBarWrapper extends StatelessWidget {
     return AppBar(
       elevation: 0,
       backgroundColor: Colors.transparent,
-        iconTheme: IconThemeData(
-           color: tenTenOnePurple.shade800,
-       ),
+      iconTheme: const IconThemeData(
+          color: tenTenOnePurple,
+          // Without adjustment, the icon appears off-center from the title (logo)
+          size: appBarHeight - 4.0),
       leading: leadingButton,
+      title: SizedBox(
+        height: appBarHeight,
+        child: Image.asset('assets/10101_logo_icon.png'),
+      ),
       actions: actionButtons,
     );
   }
