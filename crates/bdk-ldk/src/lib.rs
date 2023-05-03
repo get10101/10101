@@ -13,6 +13,7 @@ use bdk::database::BatchDatabase;
 use bdk::wallet::AddressIndex;
 use bdk::wallet::Wallet;
 use bdk::Balance;
+use bdk::FeeRate;
 use bdk::SignOptions;
 use bdk::SyncOptions;
 use std::cmp::min;
@@ -167,7 +168,11 @@ where
     ) -> Result<Transaction, Error> {
         let wallet = self.wallet_lock();
         let mut tx_builder = wallet.build_tx();
+
         let fee_rate = self.client.estimate_fee(target_blocks)?;
+        let sats_per_vbyte = fee_rate.as_sat_per_vb();
+        let sats_per_vbyte = min(MAX_SATS_PER_V_BYTE, sats_per_vbyte as u32);
+        let fee_rate = FeeRate::from_sat_per_vb(sats_per_vbyte as f32);
 
         tx_builder
             .add_recipient(output_script.clone(), value)
