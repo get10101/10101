@@ -65,7 +65,7 @@ pub fn router(node: Node, pool: Pool<ConnectionManager<PgConnection>>) -> Router
         .route("/", get(index))
         .route("/api/fake_scid/:target_node", post(post_fake_scid))
         .route(
-            "/api/fake_scid/v2/:target_node",
+            "/api/register_invoice/:target_node",
             post(register_interceptable_invoice),
         )
         .route("/api/newaddress", get(get_new_address))
