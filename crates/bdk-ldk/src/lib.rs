@@ -359,19 +359,6 @@ where
         }
     }
 
-    pub fn estimate_fee(&self, confirmation_target: ConfirmationTarget) -> Result<u32, Error> {
-        let target_blocks = match confirmation_target {
-            ConfirmationTarget::Background => 6,
-            ConfirmationTarget::Normal => 3,
-            ConfirmationTarget::HighPriority => 1,
-        };
-
-        let estimate = self.client.estimate_fee(target_blocks).unwrap_or_default();
-        let sats_per_vbyte = estimate.as_sat_per_vb() as u32;
-
-        Ok(sats_per_vbyte)
-    }
-
     /// Unlike `broadcast_transaction`, this one allows the client to inspect the errors
     pub fn broadcast(&self, tx: &Transaction) -> Result<(), Error> {
         let tx_hex = serialize_hex(tx);
