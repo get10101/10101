@@ -30,7 +30,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        appBar: AppBar(title: const Text("Welcome to 10101 beta!")),
+        appBar: AppBar(title: const Text("Welcome to 10101 beta.")),
         body: SafeArea(
             child: Form(
           key: _formKey,
