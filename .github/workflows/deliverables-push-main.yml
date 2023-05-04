@@ -35,7 +35,7 @@ jobs:
 
   build_and_release_ios_app_for_latest_main:
     needs: changes
-    if: needs.changes.outputs.ios-app == 'true' && !startsWith(github.event.head_commit.message, 'Prepare release')
+    if: needs.changes.outputs.ios-app == 'true' && !contains(github.event.head_commit.message, 'release') && !contains(github.event.head_commit.message, 'Merge'))
     permissions:
       packages: write
       contents: read
