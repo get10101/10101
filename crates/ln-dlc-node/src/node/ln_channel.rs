@@ -82,7 +82,7 @@ impl<P> Node<P> {
                     if let Some(SubChannel { state, .. }) = self.list_dlc_channels()?.first() {
                         if *state != SubChannelState::OffChainClosed {
                             // this is a safeguard to not close a ln channel with
-                            // an open dlc, as we would loose the funds otherwise.
+                            // an open dlc, as we would lose the funds otherwise.
 
                             //TODO: Ideally we would start to collaborative close the dlc
                             // channel here first and then close the ln
