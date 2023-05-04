@@ -4,6 +4,8 @@ use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
+use dlc_manager::subchannel::SubChannel;
+use dlc_manager::subchannel::SubChannelState;
 use lightning::chain::keysinterface::KeysInterface;
 use lightning::chain::keysinterface::Recipient;
 use lightning::ln::channelmanager::ChannelDetails;
@@ -77,6 +79,18 @@ impl<P> Node<P> {
                         )
                         .map_err(|e| anyhow!("Could not force close channel {e:?}"))
                 } else {
+                    if let Some(SubChannel { state, .. }) = self.list_dlc_channels()?.first() {
+                        if *state != SubChannelState::OffChainClosed {
+                            // this is a safeguard to not close a ln channel with
+                            // an open dlc, as we would loose the funds otherwise.
+
+                            // todo: Ideally we would start to collaborative close the dlc
+                            // channel here first and then close the ln
+                            // channel once done.
+                            bail!("Cannot close ln channel with an open dlc.");
+                        }
+                    }
+
                     tracing::info!(
                         "Collaboratively closing channel {} with peer {} ",
                         hex::encode(cd.channel_id),
