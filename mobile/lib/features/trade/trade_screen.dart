@@ -131,6 +131,7 @@ class TradeScreen extends StatelessWidget {
           child: Column(
             children: [
               Row(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [const ContractSymbolIcon(), Text(ContractSymbol.btcusd.label)],
               ),
               Column(
