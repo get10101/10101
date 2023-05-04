@@ -274,7 +274,7 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
 
       FLog.info(text: "App data will be stored in: $appDir");
       FLog.info(text: "Seed data will be stored in: $seedDir");
-      await rust.api.run(config: config, appDir: appDir, seedDir: seedDir);
+      await rust.api.runInFlutter(config: config, appDir: appDir, seedDir: seedDir);
 
       await orderChangeNotifier.initialize();
       await positionChangeNotifier.initialize();
