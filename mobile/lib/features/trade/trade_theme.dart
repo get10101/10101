@@ -27,8 +27,8 @@ class TradeTheme extends ThemeExtension<TradeTheme> {
       this.profit = Colors.green,
       this.loss = Colors.red,
       this.tabColor = tenTenOnePurple,
-      this.leveragePlusButtonColor = Colors.grey,
-      this.leverageMinusButtonColor = Colors.grey,
+      this.leveragePlusButtonColor = tenTenOnePurple,
+      this.leverageMinusButtonColor = tenTenOnePurple,
       this.leverageInactiveSliderTrackColor = Colors.grey,
       this.leverageInactiveTicksColor = Colors.grey});
 

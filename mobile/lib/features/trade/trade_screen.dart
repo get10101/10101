@@ -90,8 +90,8 @@ class TradeScreen extends StatelessWidget {
                         padding: const EdgeInsets.only(top: 20, left: 10, right: 10, bottom: 5),
                         child: Text(
                             pendingOrder.close
-                                ? "Your Position will be removed automatically once your ${submitOrderChangeNotifier.pendingOrderValues?.direction.name} order has been filled!"
-                                : "Your Position will be shown automatically in the Positions tab once your ${submitOrderChangeNotifier.pendingOrderValues?.direction.name} order has been filled!",
+                                ? "Your Position will be removed automatically once your ${submitOrderChangeNotifier.pendingOrderValues?.direction.name} order has been filled."
+                                : "Your Position will be shown automatically in the Positions tab once your ${submitOrderChangeNotifier.pendingOrderValues?.direction.name} order has been filled.",
                             style: DefaultTextStyle.of(context).style.apply(fontSizeFactor: 1.0)),
                       )
                     ],
@@ -131,6 +131,7 @@ class TradeScreen extends StatelessWidget {
           child: Column(
             children: [
               Row(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [const ContractSymbolIcon(), Text(ContractSymbol.btcusd.label)],
               ),
               Column(

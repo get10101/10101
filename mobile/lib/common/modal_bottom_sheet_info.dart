@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:get_10101/common/color.dart';
 
 class ModalBottomSheetInfo extends StatelessWidget {
   final String infoText;
@@ -45,7 +46,7 @@ class ModalBottomSheetInfo extends StatelessWidget {
         constraints: const BoxConstraints(),
         icon: Icon(
           Icons.info,
-          color: Colors.blue.shade400,
+          color: tenTenOnePurple.shade200,
         ));
   }
 }
