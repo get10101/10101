@@ -84,7 +84,7 @@ impl<P> Node<P> {
                             // this is a safeguard to not close a ln channel with
                             // an open dlc, as we would loose the funds otherwise.
 
-                            // todo: Ideally we would start to collaborative close the dlc
+                            //TODO: Ideally we would start to collaborative close the dlc
                             // channel here first and then close the ln
                             // channel once done.
                             bail!("Cannot close ln channel with an open dlc.");
