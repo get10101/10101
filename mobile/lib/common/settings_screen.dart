@@ -196,15 +196,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
               });
             },
             child: const Text("Print logs")),
-        if (logs != null)
-          Expanded(
-              child: SingleChildScrollView(
-                  scrollDirection: Axis.vertical,
-                  child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: SelectableText.rich(
-                        TextSpan(children: logs!.toList()),
-                      )))),
+        Expanded(
+            child: logs != null
+                ? SingleChildScrollView(
+                    scrollDirection: Axis.vertical,
+                    child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: SelectableText.rich(
+                          TextSpan(children: logs!.toList()),
+                        )))
+                : Center(
+                    child: Image.asset('assets/10101_logo_icon.png', width: 150, height: 150),
+                  ))
       ])),
     );
   }
