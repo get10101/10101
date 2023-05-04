@@ -104,6 +104,12 @@ impl LnDlcWallet {
 
         Ok(txs)
     }
+
+    pub fn get_last_unused_address(&self) -> Result<Address> {
+        let address = self.inner().get_last_unused_address()?;
+
+        Ok(address)
+    }
 }
 
 impl Blockchain for LnDlcWallet {

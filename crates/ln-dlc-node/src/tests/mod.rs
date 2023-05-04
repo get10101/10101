@@ -22,7 +22,6 @@ use dlc_manager::payout_curve::PayoutPoint;
 use dlc_manager::payout_curve::PolynomialPayoutCurvePiece;
 use dlc_manager::payout_curve::RoundingInterval;
 use dlc_manager::payout_curve::RoundingIntervals;
-use dlc_manager::Wallet;
 use futures::Future;
 use lightning::ln::channelmanager::ChannelDetails;
 use lightning::util::config::UserConfig;
@@ -118,7 +117,7 @@ impl Node<PaymentMap> {
         let starting_balance = self.get_confirmed_balance().await?;
         let expected_balance = starting_balance + amount.to_sat();
 
-        let address = self.wallet.get_new_address()?;
+        let address = self.wallet.get_last_unused_address()?;
 
         fund_and_mine(address, amount).await?;
 

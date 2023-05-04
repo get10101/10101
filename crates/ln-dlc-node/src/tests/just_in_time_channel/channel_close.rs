@@ -1,21 +1,16 @@
 use crate::ln::JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT;
 use crate::node::Node;
-use crate::node::PaymentMap;
 use crate::tests::bitcoind;
 use crate::tests::init_tracing;
 use crate::tests::just_in_time_channel::create::send_interceptable_payment;
-use crate::tests::just_in_time_channel::TestPathChannelClose;
 use crate::tests::just_in_time_channel::TestPathFunding;
 use crate::tests::min_outbound_liquidity_channel_creator;
-use anyhow::anyhow;
-use anyhow::Result;
 use bitcoin::Amount;
-use dlc_manager::subchannel::LNChannelManager;
 use std::time::Duration;
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 10)]
 #[ignore]
-async fn collab_close() {
+async fn ln_collab_close() {
     init_tracing();
 
     // Arrange
@@ -55,74 +50,12 @@ async fn collab_close() {
     .await
     .unwrap();
 
-    close_channel(
-        TestPathChannelClose::Collaborative,
-        &payee,
-        &coordinator,
-        invoice_amount,
-    )
-    .await
-    .unwrap();
-}
+    assert_eq!(payee.get_on_chain_balance().await.unwrap().confirmed, 0);
+    assert_eq!(payee.get_ldk_balance().available, invoice_amount);
+    assert_eq!(payee.get_ldk_balance().pending_close, 0);
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 10)]
-#[ignore]
-async fn force_close() {
-    init_tracing();
+    // Act
 
-    // Arrange
-
-    let payer = Node::start_test_app("payer").await.unwrap();
-    let coordinator = Node::start_test_coordinator("coordinator").await.unwrap();
-    let payee = Node::start_test_app("payee").await.unwrap();
-
-    payer.connect(coordinator.info).await.unwrap();
-    payee.connect(coordinator.info).await.unwrap();
-
-    coordinator.fund(Amount::from_sat(1_000_000)).await.unwrap();
-
-    let payer_outbound_liquidity_sat = 25_000;
-    let coordinator_outbound_liquidity_sat =
-        min_outbound_liquidity_channel_creator(&payer, payer_outbound_liquidity_sat);
-
-    coordinator
-        .open_channel(
-            &payer,
-            coordinator_outbound_liquidity_sat,
-            payer_outbound_liquidity_sat,
-        )
-        .await
-        .unwrap();
-
-    let invoice_amount = 1_000;
-
-    send_interceptable_payment(
-        TestPathFunding::Online,
-        &payer,
-        &payee,
-        &coordinator,
-        invoice_amount,
-        Some(JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT),
-    )
-    .await
-    .unwrap();
-
-    close_channel(
-        TestPathChannelClose::Force,
-        &payee,
-        &coordinator,
-        invoice_amount,
-    )
-    .await
-    .unwrap();
-}
-
-async fn close_channel(
-    test_path: TestPathChannelClose,
-    payee: &Node<PaymentMap>,
-    coordinator: &Node<PaymentMap>,
-    lightning_balance: u64,
-) -> Result<()> {
     let channel_id = payee
         .channel_manager
         .list_usable_channels()
@@ -130,64 +63,132 @@ async fn close_channel(
         .unwrap()
         .channel_id;
 
-    assert_eq!(payee.get_on_chain_balance().await?.confirmed, 0);
-    assert_eq!(payee.get_ldk_balance().available, lightning_balance);
-    assert_eq!(payee.get_ldk_balance().pending_close, 0);
+    payee
+        .channel_manager
+        .close_channel(&channel_id, &coordinator.info.pubkey)
+        .unwrap();
 
-    match test_path {
-        TestPathChannelClose::Force => {
-            payee
-                .channel_manager
-                .force_close_channel(&channel_id, &coordinator.info.pubkey)
-                .map_err(|e| anyhow!("{e:?}"))?;
-        }
-        TestPathChannelClose::Collaborative => {
-            payee
-                .channel_manager
-                .close_channel(&channel_id, &coordinator.info.pubkey)
-                .map_err(|e| anyhow!("{e:?}"))?;
-
-            // wait for the collaboration closure to complete.
-            // todo: it would be nice if we could simply assert the channel close event.
-            tokio::time::sleep(Duration::from_secs(5)).await;
-        }
+    while !payee.list_channels().is_empty() {
+        tokio::time::sleep(Duration::from_millis(500)).await;
     }
 
-    payee.wallet().sync().await?;
+    payee.wallet().sync().await.unwrap();
 
-    assert_eq!(payee.get_on_chain_balance().await?.confirmed, 0);
+    assert_eq!(payee.get_on_chain_balance().await.unwrap().confirmed, 0);
     assert_eq!(payee.get_ldk_balance().available, 0);
-    assert_eq!(payee.get_ldk_balance().pending_close, lightning_balance);
+    assert_eq!(payee.get_ldk_balance().pending_close, invoice_amount);
 
-    // transaction fees for the on-chain transaction
-    let tx_fees = match test_path {
-        TestPathChannelClose::Force => {
-            // the delay we have to wait before the fund can be claimed on chain again.
-            bitcoind::mine(144).await?;
-            122
-        }
-        TestPathChannelClose::Collaborative => {
-            // mine six block after broadcasting the commit transaction.
-            bitcoind::mine(6).await?;
-            110
-        }
-    };
+    // Mine one block to confirm the close transaction
+    bitcoind::mine(1).await.unwrap();
+    payee.wallet().sync().await.unwrap();
 
-    // this sync triggers the `[Event::SpendableOutputs]` broadcasting the transaction to claim
-    // the payees coins.
-    payee.wallet().sync().await?;
+    // Assert
 
-    // mine a single block to claim the spendable output after waiting for the force close delay.
-    bitcoind::mine(1).await?;
-    payee.wallet().sync().await?;
+    let ln_balance = payee.get_ldk_balance();
+    assert_eq!(ln_balance.available, 0);
+    assert_eq!(ln_balance.pending_close, 0);
 
-    assert_eq!(payee.get_ldk_balance().available, 0);
-    assert_eq!(payee.get_ldk_balance().pending_close, 0);
-    // the confirmed balance is greater 0. No exact match as the fee rates vary the result.
     assert_eq!(
-        payee.get_on_chain_balance().await?.confirmed,
-        lightning_balance - tx_fees
+        payee.get_on_chain_balance().await.unwrap().confirmed,
+        invoice_amount
     );
+}
 
-    Ok(())
+#[tokio::test(flavor = "multi_thread", worker_threads = 10)]
+#[ignore]
+async fn ln_force_close() {
+    init_tracing();
+
+    // Arrange
+
+    let payer = Node::start_test_app("payer").await.unwrap();
+    let coordinator = Node::start_test_coordinator("coordinator").await.unwrap();
+    let payee = Node::start_test_app("payee").await.unwrap();
+
+    payer.connect(coordinator.info).await.unwrap();
+    payee.connect(coordinator.info).await.unwrap();
+
+    coordinator.fund(Amount::from_sat(1_000_000)).await.unwrap();
+
+    let payer_outbound_liquidity_sat = 25_000;
+    let coordinator_outbound_liquidity_sat =
+        min_outbound_liquidity_channel_creator(&payer, payer_outbound_liquidity_sat);
+
+    coordinator
+        .open_channel(
+            &payer,
+            coordinator_outbound_liquidity_sat,
+            payer_outbound_liquidity_sat,
+        )
+        .await
+        .unwrap();
+
+    let invoice_amount = 1_000;
+
+    send_interceptable_payment(
+        TestPathFunding::Online,
+        &payer,
+        &payee,
+        &coordinator,
+        invoice_amount,
+        Some(JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT),
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(payee.get_on_chain_balance().await.unwrap().confirmed, 0);
+    assert_eq!(payee.get_ldk_balance().available, invoice_amount);
+    assert_eq!(payee.get_ldk_balance().pending_close, 0);
+
+    // Act
+
+    let channel_id = payee
+        .channel_manager
+        .list_usable_channels()
+        .first()
+        .unwrap()
+        .channel_id;
+    payee
+        .channel_manager
+        .force_close_broadcasting_latest_txn(&channel_id, &coordinator.info.pubkey)
+        .unwrap();
+
+    payee.wallet().sync().await.unwrap();
+
+    assert_eq!(payee.get_on_chain_balance().await.unwrap().confirmed, 0);
+    assert_eq!(payee.get_ldk_balance().available, 0);
+    assert_eq!(payee.get_ldk_balance().pending_close, invoice_amount);
+
+    // Mine enough blocks so that the payee's revocable output in the commitment transaction
+    // is spendable
+    bitcoind::mine(
+        coordinator
+            .user_config
+            .channel_handshake_config
+            .our_to_self_delay,
+    )
+    .await
+    .unwrap();
+
+    // Syncing the payee's wallet should now trigger a `SpendableOutputs` event
+    // corresponding to their revocable output in the commitment transaction, which they
+    // will subsequently spend in a new transaction paying to their on-chain wallet
+    payee.wallet().sync().await.unwrap();
+
+    // Mine one more block to confirm the transaction spending the payee's revocable output
+    // in the commitment transaction
+    bitcoind::mine(1).await.unwrap();
+    payee.wallet().sync().await.unwrap();
+
+    // Assert
+
+    let ln_balance = payee.get_ldk_balance();
+    assert_eq!(ln_balance.available, 0);
+    assert_eq!(ln_balance.pending_close, 0);
+
+    assert_eq!(
+        payee.get_on_chain_balance().await.unwrap().confirmed,
+        // TODO: Do not hard-code the fee
+        invoice_amount - 122
+    );
 }

@@ -21,16 +21,19 @@ pub async fn fund(address: String, amount: bitcoin::Amount) -> Result<Response> 
 }
 
 /// Instructs `bitcoind` to generate to address.
-pub async fn mine(n: u16) -> Result<()> {
+pub async fn mine(n_blocks: u16) -> Result<()> {
+    tracing::debug!(n_blocks, "Mining");
+
     let response =
         query(r#"{"jsonrpc": "1.0", "method": "getnewaddress", "params": []}"#.to_string()).await?;
     let response: BitcoindResponse = response.json().await.unwrap();
 
     query(format!(
         r#"{{"jsonrpc": "1.0", "method": "generatetoaddress", "params": [{}, "{}"]}}"#,
-        n, response.result
+        n_blocks, response.result
     ))
     .await?;
+
     // For the mined blocks to be picked up by the subsequent wallet
     // syncs
     tokio::time::sleep(Duration::from_secs(5)).await;
