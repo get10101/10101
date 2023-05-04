@@ -263,7 +263,12 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
           AnonSubscriber((event) => FLog.info(text: event.field0)), const bridge.Event.log(""));
 
       final seedDir = (await getApplicationSupportDirectory()).path;
-      String appDir = (await getApplicationDocumentsDirectory()).path;
+
+      // We use the app documents dir on iOS to easily access logs and DB from
+      // the device. On other plaftorms we use the seed dir.
+      String appDir = Platform.isIOS
+          ? (await getApplicationDocumentsDirectory()).path
+          : (await getApplicationSupportDirectory()).path;
 
       if (File('$seedDir/${config.network}/db').existsSync()) {
         FLog.info(
