@@ -1,4 +1,5 @@
 use crate::calculations::calculate_margin;
+use crate::commons::reqwest_client;
 use crate::config;
 use crate::ln_dlc;
 use anyhow::anyhow;
@@ -178,7 +179,7 @@ pub async fn register_beta(email: String) -> Result<()> {
         nostr: None,
     };
 
-    let client = reqwest::Client::new();
+    let client = reqwest_client();
     let response = client
         .post(format!(
             "http://{}/api/register",
