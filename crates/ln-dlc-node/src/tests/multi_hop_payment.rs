@@ -3,7 +3,7 @@ use crate::tests::init_tracing;
 use crate::tests::min_outbound_liquidity_channel_creator;
 use bitcoin::Amount;
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 10)]
 #[ignore]
 async fn multi_hop_payment() {
     init_tracing();
@@ -37,9 +37,9 @@ async fn multi_hop_payment() {
     let coordinator_balance_before = coordinator.get_ldk_balance();
     let payee_balance_before = payee.get_ldk_balance();
 
-    payer.sync().unwrap();
-    coordinator.sync().unwrap();
-    payee.sync().unwrap();
+    payer.wallet().sync().await.unwrap();
+    coordinator.wallet().sync().await.unwrap();
+    payee.wallet().sync().await.unwrap();
 
     // Act
 
@@ -58,9 +58,9 @@ async fn multi_hop_payment() {
     // Assert
 
     // Sync LN wallet after payment is claimed to update the balances
-    payer.sync().unwrap();
-    coordinator.sync().unwrap();
-    payee.sync().unwrap();
+    payer.wallet().sync().await.unwrap();
+    coordinator.wallet().sync().await.unwrap();
+    payee.wallet().sync().await.unwrap();
 
     let payer_balance_after = payer.get_ldk_balance();
     let coordinator_balance_after = coordinator.get_ldk_balance();

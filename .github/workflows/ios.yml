@@ -6,7 +6,7 @@ on:
       coordinator_port_http:
         required: true
         type: string
-      electrs_endpoint:
+      esplora_endpoint:
         required: true
         type: string
       coordinator_p2p_endpoint:
@@ -25,7 +25,7 @@ on:
       coordinator_port_http:
         required: true
         type: string
-      electrs_endpoint:
+      esplora_endpoint:
         required: true
         type: string
       coordinator_p2p_endpoint:
@@ -142,7 +142,7 @@ jobs:
           BUILD_NUMBER=$(git rev-list HEAD --count)
           cd mobile
           flutter build ipa --export-options-plist=ios/exportOptions.plist \
-                            --dart-define="ELECTRS_ENDPOINT=$ELECTRS_ENDPOINT" \
+                            --dart-define="ESPLORA_ENDPOINT=ESPLORA_ENDPOINT" \
                             --dart-define="COORDINATOR_P2P_ENDPOINT=$COORDINATOR_P2P_ENDPOINT" \
                             --dart-define="NETWORK=$NETWORK" \
                             --dart-define="COMMIT=$(git rev-parse HEAD)" \
@@ -151,7 +151,7 @@ jobs:
                             --build-name=$BUILD_NAME \
                             --build-number=$BUILD_NUMBER
         env:
-          ELECTRS_ENDPOINT: ${{ inputs.electrs_endpoint }}
+          ESPLORA_ENDPOINT: ${{ inputs.esplora_endpoint }}
           COORDINATOR_P2P_ENDPOINT: ${{ inputs.coordinator_p2p_endpoint }}
           NETWORK: ${{ inputs.network }}
           COORDINATOR_PORT_HTTP: ${{ inputs.coordinator_port_http }}

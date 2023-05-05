@@ -5,7 +5,7 @@ use crate::tests::log_channel_id;
 use bitcoin::Amount;
 use std::time::Duration;
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 10)]
 #[ignore]
 async fn onboard_from_lnd() {
     init_tracing();
@@ -27,8 +27,8 @@ async fn onboard_from_lnd() {
 
     log_channel_id(&coordinator, 0, "lnd-coordinator");
 
-    coordinator.sync().unwrap();
-    payee.sync().unwrap();
+    coordinator.wallet().sync().await.unwrap();
+    payee.wallet().sync().await.unwrap();
 
     // The coordinator must send a `NodeAnnouncement` to LND before LND sends the payment, as
     // otherwise we will encounter an error in the coordinator when processing the incoming HTLC:
@@ -58,8 +58,8 @@ async fn onboard_from_lnd() {
     // For the payment to be claimed before the wallets sync
     tokio::time::sleep(Duration::from_secs(3)).await;
 
-    coordinator.sync().unwrap();
-    payee.sync().unwrap();
+    coordinator.wallet().sync().await.unwrap();
+    payee.wallet().sync().await.unwrap();
 
     // Assert
 

@@ -147,8 +147,12 @@ native-test:
 test: flutter-test native-test
 
 # Run expensive tests from the `ln-dlc-node` crate. To run them you will have to start certain Docker containers via `just docker`.
-ln-dlc-node-test:
-    cargo test -p ln-dlc-node -- --ignored
+ln-dlc-node-test: docker
+    # wait a few seconds to ensure that Docker containers started
+    sleep 2
+    # adjust the max amount of available file descriptors - we're making a lot of requests, and it might go over the limit
+    ulimit -n 1024
+    cargo test -p ln-dlc-node -- --ignored --test-threads=1
 
 # Runs background Docker services
 docker:
@@ -225,7 +229,7 @@ wait-for-electrs-to-be-ready:
 
 build-ipa:
     #!/usr/bin/env bash
-    cd mobile && flutter build ipa --dart-define="ELECTRS_ENDPOINT=${ELECTRS_ENDPOINT}" --dart-define="COORDINATOR_P2P_ENDPOINT=${COORDINATOR_P2P_ENDPOINT}" --dart-define="COMMIT=$(git rev-parse HEAD)" --dart-define="BRANCH=$(git rev-parse --abbrev-ref HEAD)"
+    cd mobile && flutter build ipa --dart-define="ESPLORA_ENDPOINT=${ESPLORA_ENDPOINT}" --dart-define="COORDINATOR_P2P_ENDPOINT=${COORDINATOR_P2P_ENDPOINT}" --dart-define="COMMIT=$(git rev-parse HEAD)" --dart-define="BRANCH=$(git rev-parse --abbrev-ref HEAD)"
 
 publish-testflight:
     cd mobile && xcrun altool --upload-app --type ios --file ./build/ios/ipa/10101.ipa --apiKey ${ALTOOL_API_KEY} --apiIssuer ${ALTOOL_API_ISSUER}

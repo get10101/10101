@@ -39,9 +39,9 @@ pub struct Opts {
     )]
     pub database: String,
 
-    /// The address to connect electrum to
-    #[clap(long, default_value = "tcp://localhost:50000")]
-    pub electrum: String,
+    /// The address to connect esplora API to
+    #[clap(long, default_value = "http://localhost:3000")]
+    pub esplora: String,
 
     /// Fee rate to be charged for opening just in time channels. Rate is in basis points, i.e.
     /// 100 basis point=1% or 50=0.5%

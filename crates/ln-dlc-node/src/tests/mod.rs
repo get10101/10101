@@ -46,7 +46,7 @@ mod multi_hop_payment;
 mod onboard_from_lnd;
 mod single_hop_payment;
 
-const ELECTRS_ORIGIN: &str = "tcp://localhost:50000";
+const ESPLORA_ORIGIN: &str = "http://localhost:3000";
 const FAUCET_ORIGIN: &str = "http://localhost:8080";
 
 fn init_tracing() {
@@ -101,7 +101,7 @@ impl Node<PaymentMap> {
             address,
             address,
             vec![util::build_net_address(address.ip(), address.port())],
-            ELECTRS_ORIGIN.to_string(),
+            ESPLORA_ORIGIN.to_string(),
             seed,
             ephemeral_randomness,
             user_config,
@@ -115,17 +115,17 @@ impl Node<PaymentMap> {
     }
 
     async fn fund(&self, amount: Amount) -> Result<()> {
-        let starting_balance = self.get_confirmed_balance()?;
+        let starting_balance = self.get_confirmed_balance().await?;
         let expected_balance = starting_balance + amount.to_sat();
 
         let address = self.wallet.get_new_address()?;
 
         fund_and_mine(address, amount).await?;
 
-        while self.get_confirmed_balance()? < expected_balance {
+        while self.get_confirmed_balance().await? < expected_balance {
             let interval = Duration::from_millis(200);
 
-            self.sync().unwrap();
+            self.wallet().sync().await.unwrap();
 
             tokio::time::sleep(interval).await;
             tracing::debug!(
@@ -137,8 +137,8 @@ impl Node<PaymentMap> {
         Ok(())
     }
 
-    fn get_confirmed_balance(&self) -> Result<u64> {
-        let balance = self.wallet.inner().get_balance()?;
+    async fn get_confirmed_balance(&self) -> Result<u64> {
+        let balance = self.wallet.inner().get_balance().await?;
 
         Ok(balance.confirmed)
     }
@@ -183,8 +183,8 @@ impl Node<PaymentMap> {
                     // We need to sync both parties, even if
                     // `trust_own_funding_0conf` is true for the creator
                     // of the channel (`self`)
-                    self.sync().unwrap();
-                    peer.sync().unwrap();
+                    self.wallet().sync().await.unwrap();
+                    peer.wallet().sync().await.unwrap();
                 }
 
                 tracing::debug!(

@@ -1,3 +1,4 @@
+use crate::ldk_node_wallet;
 use crate::node::HTLCStatus;
 use crate::node::Node;
 use crate::node::PaymentPersister;
@@ -5,13 +6,13 @@ use crate::PaymentFlow;
 use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
-use bdk::wallet::AddressIndex;
+use bdk::sled;
 use bitcoin::secp256k1::SecretKey;
 use bitcoin::Address;
 use lightning::chain::keysinterface::KeysInterface;
 use lightning::chain::keysinterface::Recipient;
-use lightning::chain::Confirm;
 use lightning::ln::PaymentHash;
+use std::sync::Arc;
 use time::OffsetDateTime;
 
 #[derive(Debug, Clone)]
@@ -28,32 +29,21 @@ where
         self.wallet.get_seed_phrase()
     }
 
-    pub fn sync(&self) -> Result<()> {
-        let confirmables = vec![
-            &*self.channel_manager as &dyn Confirm,
-            &*self.chain_monitor as &dyn Confirm,
-        ];
-
-        self.wallet
-            .inner()
-            .sync(confirmables)
-            .context("Failed to sync wallet")
+    pub fn wallet(&self) -> Arc<ldk_node_wallet::Wallet<sled::Tree>> {
+        self.wallet.inner()
     }
 
     pub fn get_new_address(&self) -> Result<Address> {
-        let address = self
-            .wallet
-            .inner()
-            .get_wallet()
-            .get_address(AddressIndex::LastUnused)?;
+        let address = self.wallet.inner().get_new_address()?;
 
-        Ok(address.address)
+        Ok(address)
     }
 
-    pub fn get_on_chain_balance(&self) -> Result<bdk::Balance> {
+    pub async fn get_on_chain_balance(&self) -> Result<bdk::Balance> {
         self.wallet
             .inner()
             .get_balance()
+            .await
             .context("Failed to get on-chain balance")
     }
 
@@ -122,9 +112,10 @@ where
         }
     }
 
-    pub fn get_on_chain_history(&self) -> Result<Vec<bdk::TransactionDetails>> {
+    pub async fn get_on_chain_history(&self) -> Result<Vec<bdk::TransactionDetails>> {
         self.wallet
             .on_chain_transactions()
+            .await
             .context("Failed to retrieve on-chain transaction history")
     }
 

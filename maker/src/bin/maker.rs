@@ -65,24 +65,12 @@ async fn main() -> Result<()> {
             PaymentMap::default(),
             address,
             SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), address.port()),
-            opts.electrum,
+            opts.esplora,
             seed,
             ephemeral_randomness,
         )
         .await?,
     );
-
-    tokio::spawn({
-        let node = node.clone();
-        async move {
-            loop {
-                if let Err(e) = node.sync() {
-                    tracing::error!("Failed to sync node. Error: {e:#}");
-                }
-                tokio::time::sleep(std::time::Duration::from_secs(10)).await;
-            }
-        }
-    });
 
     let node_pubkey = node.info.pubkey;
     tokio::spawn(async move {

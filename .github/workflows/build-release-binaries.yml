@@ -25,7 +25,7 @@ jobs:
     uses: ./.github/workflows/ios.yml
     secrets: inherit
     with:
-      electrs_endpoint: tcp://blockstream.info:110
+      esplora_endpoint: https://blockstream.info/api
       coordinator_p2p_endpoint: 022ae8dbec1caa4dac93f07f2ebf5ad7a5dd08d375b79f11095e81b065c2155156@34.30.20.202:9045
       coordinator_port_http: 80
       network: mainnet
@@ -119,7 +119,7 @@ jobs:
           BUILD_NAME=${{ steps.version.outputs.data }}
           BUILD_NUMBER=$(git rev-list HEAD --count)
           cd mobile
-          flutter build apk --dart-define="ELECTRS_ENDPOINT=$ELECTRS_ENDPOINT" \
+          flutter build apk --dart-define="ESPLORA_ENDPOINT=ESPLORA_ENDPOINT" \
                             --dart-define="COORDINATOR_P2P_ENDPOINT=$COORDINATOR_P2P_ENDPOINT" \
                             --dart-define="COORDINATOR_PORT_HTTP=$COORDINATOR_PORT_HTTP" \
                             --dart-define="NETWORK=$NETWORK" \
@@ -134,7 +134,7 @@ jobs:
           SIGNING_KEY_PASSWORD: ${{ secrets.ANDROID_UPLOAD_SIGNING_KEY_PASSWORD }}
           SIGNING_STORE_PASSWORD: ${{ secrets.ANDROID_UPLOAD_SIGNING_STORE_PASSWORD }}
           ENCODED_KEYSTORE: ${{ secrets.ANDROID_UPLOAD_KEYSTORE }}
-          ELECTRS_ENDPOINT: tcp://blockstream.info:110
+          ESPLORA_ENDPOINT: https://blockstream.info/api/
           COORDINATOR_P2P_ENDPOINT: 022ae8dbec1caa4dac93f07f2ebf5ad7a5dd08d375b79f11095e81b065c2155156@34.30.20.202:9045
           NETWORK: regtest
           COORDINATOR_PORT_HTTP: 80

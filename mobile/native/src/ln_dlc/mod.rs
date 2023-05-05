@@ -41,9 +41,14 @@ mod node;
 
 static NODE: Storage<Arc<Node>> = Storage::new();
 const PROCESS_INCOMING_MESSAGES_INTERVAL: Duration = Duration::from_secs(5);
+const UPDATE_WALLET_HISTORY_INTERVAL: Duration = Duration::from_secs(5);
 
 pub async fn refresh_wallet_info() -> Result<()> {
-    keep_wallet_balance_and_history_up_to_date(NODE.get()).await?;
+    let node = NODE.get();
+    let wallet = node.inner.wallet();
+
+    wallet.sync().await?;
+    keep_wallet_balance_and_history_up_to_date(node).await?;
 
     Ok(())
 }
@@ -127,7 +132,7 @@ pub fn run(data_dir: String, seed_dir: String) -> Result<()> {
                 Payments,
                 address,
                 SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), address.port()),
-                config::get_electrs_endpoint().to_string(),
+                config::get_esplora_endpoint().to_string(),
                 seed,
                 ephemeral_randomness,
             )
@@ -159,7 +164,7 @@ pub fn run(data_dir: String, seed_dir: String) -> Result<()> {
                         tracing::error!("Failed to sync balance and wallet history: {e:#}");
                     }
 
-                    tokio::time::sleep(Duration::from_secs(10)).await;
+                    tokio::time::sleep(UPDATE_WALLET_HISTORY_INTERVAL).await;
                 }
             }
         });
@@ -171,10 +176,9 @@ pub fn run(data_dir: String, seed_dir: String) -> Result<()> {
 }
 
 async fn keep_wallet_balance_and_history_up_to_date(node: &Node) -> Result<()> {
-    node.inner.sync()?;
-
     let wallet_balances = node
         .get_wallet_balances()
+        .await
         .context("Failed to get wallet balances")?;
 
     let WalletHistories {
@@ -182,6 +186,7 @@ async fn keep_wallet_balance_and_history_up_to_date(node: &Node) -> Result<()> {
         off_chain,
     } = node
         .get_wallet_histories()
+        .await
         .context("Failed to get wallet histories")?;
 
     let on_chain = on_chain.iter().map(|details| {

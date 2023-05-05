@@ -13,7 +13,7 @@ use bitcoin::Amount;
 use dlc_manager::subchannel::LNChannelManager;
 use std::time::Duration;
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 10)]
 #[ignore]
 async fn collab_close() {
     init_tracing();
@@ -65,7 +65,7 @@ async fn collab_close() {
     .unwrap();
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 10)]
 #[ignore]
 async fn force_close() {
     init_tracing();
@@ -130,7 +130,7 @@ async fn close_channel(
         .unwrap()
         .channel_id;
 
-    assert_eq!(payee.get_on_chain_balance()?.confirmed, 0);
+    assert_eq!(payee.get_on_chain_balance().await?.confirmed, 0);
     assert_eq!(payee.get_ldk_balance().available, lightning_balance);
     assert_eq!(payee.get_ldk_balance().pending_close, 0);
 
@@ -153,9 +153,9 @@ async fn close_channel(
         }
     }
 
-    payee.sync()?;
+    payee.wallet().sync().await?;
 
-    assert_eq!(payee.get_on_chain_balance()?.confirmed, 0);
+    assert_eq!(payee.get_on_chain_balance().await?.confirmed, 0);
     assert_eq!(payee.get_ldk_balance().available, 0);
     assert_eq!(payee.get_ldk_balance().pending_close, lightning_balance);
 
@@ -175,17 +175,17 @@ async fn close_channel(
 
     // this sync triggers the `[Event::SpendableOutputs]` broadcasting the transaction to claim
     // the payees coins.
-    payee.sync()?;
+    payee.wallet().sync().await?;
 
     // mine a single block to claim the spendable output after waiting for the force close delay.
     bitcoind::mine(1).await?;
-    payee.sync()?;
+    payee.wallet().sync().await?;
 
     assert_eq!(payee.get_ldk_balance().available, 0);
     assert_eq!(payee.get_ldk_balance().pending_close, 0);
     // the confirmed balance is greater 0. No exact match as the fee rates vary the result.
     assert_eq!(
-        payee.get_on_chain_balance()?.confirmed,
+        payee.get_on_chain_balance().await?.confirmed,
         lightning_balance - tx_fees
     );
 
