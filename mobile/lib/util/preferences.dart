@@ -14,8 +14,10 @@ class Preferences {
   }
 
   Future<bool> isUserSeedBackupConfirmed() async {
-    SharedPreferences preferences = await SharedPreferences.getInstance();
-    return preferences.getBool(userSeedBackupConfirmed) ?? false;
+    // FIXME: disabling the user seed backup confirmed preference so that the backup button is always visible. Eventually, we should think about how we want to make the seed backup accessible to the user at all times.
+    // SharedPreferences preferences = await SharedPreferences.getInstance();
+    // return preferences.getBool(userSeedBackupConfirmed) ?? false;
+    return false;
   }
 
   setEmailAddress(String value) async {
