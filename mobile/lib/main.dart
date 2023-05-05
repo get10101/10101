@@ -270,7 +270,8 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
           ? (await getApplicationDocumentsDirectory()).path
           : (await getApplicationSupportDirectory()).path;
 
-      if (File('$seedDir/${config.network}/db').existsSync()) {
+      final network = config.network == "mainnet" ? "bitcoin" : config.network;
+      if (File('$seedDir/$network/db').existsSync()) {
         FLog.info(
             text:
                 "App has already data in the seed dir. For compatibility reasons we will not switch to the new app dir.");
