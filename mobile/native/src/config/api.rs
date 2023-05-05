@@ -16,6 +16,7 @@ pub struct Config {
 
 impl From<Config> for ConfigInternal {
     fn from(config: Config) -> Self {
+        tracing::debug!(?config, "Parsing config from flutter");
         Self {
             coordinator_pubkey: config.coordinator_pubkey.parse().expect("PK to be valid"),
             esplora_endpoint: Url::parse(config.esplora_endpoint.as_str())
