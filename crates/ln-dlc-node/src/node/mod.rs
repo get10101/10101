@@ -313,11 +313,14 @@ where
         ));
 
         let keys_manager = {
-            Arc::new(CustomKeysManager::new(KeysManager::new(
-                &seed.lightning_seed(),
-                time_since_unix_epoch.as_secs(),
-                time_since_unix_epoch.subsec_nanos(),
-            )))
+            Arc::new(CustomKeysManager::new(
+                KeysManager::new(
+                    &seed.lightning_seed(),
+                    time_since_unix_epoch.as_secs(),
+                    time_since_unix_epoch.subsec_nanos(),
+                ),
+                ln_dlc_wallet.clone(),
+            ))
         };
 
         let channel_manager = channel_manager::build(

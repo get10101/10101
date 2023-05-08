@@ -14,7 +14,8 @@ pub fn app_config() -> UserConfig {
             minimum_depth: 1,
             // There is no risk in the leaf channel to receive 100% of the channel capacity.
             max_inbound_htlc_value_in_flight_percent_of_channel: 100,
-            // the delay before the fund of a force closed channel can be claimed again
+            // We want the coordinator to recover force-close funds as soon as possible. We choose
+            // 144 because we can't go any lower according to LDK.
             our_to_self_delay: 144,
             ..Default::default()
         },
@@ -23,8 +24,9 @@ pub fn app_config() -> UserConfig {
             trust_own_funding_0conf: true,
             // Enforces that incoming channels will be private.
             force_announced_channel_preference: true,
-            // lnd's max to_self_delay is 2016, so we want to be compatible.
-            their_to_self_delay: 2016,
+            // We want app users to only have to wait ~24 hours in case of a force-close. We choose
+            // 144 because we can't go any lower according to LDK.
+            their_to_self_delay: 144,
             ..Default::default()
         },
         channel_config: ChannelConfig {
@@ -52,7 +54,8 @@ pub fn coordinator_config() -> UserConfig {
             minimum_depth: 1,
             // We set this 100% as the coordinator is online 24/7 and can take the risk.
             max_inbound_htlc_value_in_flight_percent_of_channel: 100,
-            // the delay before the fund of a force closed channel can be claimed again
+            // Our channel peers are allowed to get back their funds ~24 hours after a
+            // force-closure.
             our_to_self_delay: 144,
             ..Default::default()
         },
@@ -64,7 +67,7 @@ pub fn coordinator_config() -> UserConfig {
             // Enforces incoming channels to the coordinator to be public! We
             // only want to open private channels to our 10101 app.
             force_announced_channel_preference: true,
-            // lnd's max to_self_delay is 2016, so we want to be compatible.
+            // LND's max to_self_delay is 2016, so we want to be compatible.
             their_to_self_delay: 2016,
             ..Default::default()
         },

@@ -20,16 +20,17 @@ use anyhow::Context;
 use anyhow::Result;
 use bitcoin::consensus::encode::serialize_hex;
 use bitcoin::secp256k1::PublicKey;
-use bitcoin::secp256k1::Secp256k1;
 use lightning::chain::chaininterface::BroadcasterInterface;
 use lightning::chain::chaininterface::ConfirmationTarget;
 use lightning::chain::chaininterface::FeeEstimator;
+use lightning::chain::keysinterface::SpendableOutputDescriptor;
 use lightning::ln::channelmanager::InterceptId;
 use lightning::routing::gossip::NodeId;
 use lightning::util::events::Event;
 use lightning::util::events::PaymentPurpose;
 use rand::thread_rng;
 use rand::Rng;
+use secp256k1_zkp::Secp256k1;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::MutexGuard;
@@ -374,16 +375,22 @@ where
                 });
             }
             Event::SpendableOutputs { outputs } => {
-                tracing::debug!(?outputs, "Spendable outputs");
-                let destination_address = self.wallet.inner().get_last_unused_address()?;
-                let output_descriptors = &outputs.iter().collect::<Vec<_>>();
+                let ldk_outputs = outputs
+                    .iter()
+                    .filter(|output| {
+                        // `StaticOutput`s are sent to the node's on-chain wallet directly
+                        !matches!(output, SpendableOutputDescriptor::StaticOutput { .. })
+                    })
+                    .collect::<Vec<_>>();
+
+                let destination_script = self.wallet.inner().get_last_unused_address()?;
                 let tx_feerate = self
                     .wallet
                     .get_est_sat_per_1000_weight(ConfirmationTarget::Normal);
                 let spending_tx = self.keys_manager.spend_spendable_outputs(
-                    output_descriptors,
-                    Vec::new(),
-                    destination_address.script_pubkey(),
+                    &ldk_outputs,
+                    vec![],
+                    destination_script.script_pubkey(),
                     tx_feerate,
                     &Secp256k1::new(),
                 )?;

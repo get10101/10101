@@ -1,6 +1,7 @@
 //! This file has temporarily been copied from `https://github.com/p2pderivatives/rust-dlc/pull/97`.
 //! We should reimplement some of these traits for production.
 
+use crate::ln_dlc_wallet::LnDlcWallet;
 use anyhow::anyhow;
 use anyhow::Result;
 use bitcoin::Script;
@@ -250,11 +251,15 @@ impl Sign for CustomSigner {}
 
 pub struct CustomKeysManager {
     keys_manager: KeysManager,
+    wallet: Arc<LnDlcWallet>,
 }
 
 impl CustomKeysManager {
-    pub fn new(keys_manager: KeysManager) -> Self {
-        Self { keys_manager }
+    pub fn new(keys_manager: KeysManager, wallet: Arc<LnDlcWallet>) -> Self {
+        Self {
+            keys_manager,
+            wallet,
+        }
     }
 }
 
@@ -292,11 +297,25 @@ impl KeysInterface for CustomKeysManager {
     }
 
     fn get_destination_script(&self) -> Script {
-        self.keys_manager.get_destination_script()
+        let address = self
+            .wallet
+            .get_last_unused_address()
+            .expect("Failed to retrieve new address from wallet.");
+        address.script_pubkey()
     }
 
     fn get_shutdown_scriptpubkey(&self) -> ShutdownScript {
-        self.keys_manager.get_shutdown_scriptpubkey()
+        let address = self
+            .wallet
+            .get_last_unused_address()
+            .expect("Failed to retrieve new address from wallet.");
+        match address.payload {
+            bitcoin::util::address::Payload::WitnessProgram { version, program } => {
+                ShutdownScript::new_witness_program(version, &program)
+                    .expect("Invalid shutdown script.")
+            }
+            _ => panic!("Tried to use a non-witness address. This must not ever happen."),
+        }
     }
 
     fn get_secure_random_bytes(&self) -> [u8; 32] {

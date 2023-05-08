@@ -70,16 +70,12 @@ where
         };
 
         let pending_close = claimable_channel_balances.iter().fold(0, |acc, balance| {
-            tracing::trace!("Pending on-chain balance from channel closure: {balance:?}");
+            tracing::debug!("Pending on-chain balance from channel closure: {balance:?}");
 
             use ::lightning::chain::channelmonitor::Balance::*;
             match balance {
                 ClaimableOnChannelClose {
                     claimable_amount_satoshis,
-                }
-                | ClaimableAwaitingConfirmations {
-                    claimable_amount_satoshis,
-                    ..
                 }
                 | ContentiousClaimable {
                     claimable_amount_satoshis,
@@ -96,6 +92,12 @@ where
                 | CounterpartyRevokedOutputClaimable {
                     claimable_amount_satoshis,
                 } => acc + claimable_amount_satoshis,
+                ClaimableAwaitingConfirmations { .. } => {
+                    // we can safely ignore this type of balance because we override the
+                    // `destination_script` for the channel closure so that it's owned by our
+                    // on-chain wallet
+                    acc
+                }
             }
         });
 

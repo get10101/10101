@@ -10,9 +10,3 @@ pub enum TestPathFunding {
     // funding through a mobile lightning node (on the same phone)
     Mobile,
 }
-
-#[derive(PartialEq)]
-pub enum TestPathChannelClose {
-    Force,
-    Collaborative,
-}
