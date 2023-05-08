@@ -68,6 +68,10 @@ run-regtest args="":
 fund:
     cargo run --example fund
 
+# Fund remote regtest instance
+fund-regtest:
+    cargo run --example fund -- --faucet=http://35.189.57.114:8080 --coordinator=http://35.189.57.114:80
+
 clean:
     #!/usr/bin/env bash
     set -euxo pipefail

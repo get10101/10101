@@ -1572,6 +1572,7 @@ dependencies = [
  "bip39",
  "bitcoin",
  "bitcoin-bech32",
+ "clap",
  "dlc",
  "dlc-manager",
  "dlc-messages",
