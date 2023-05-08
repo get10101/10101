@@ -2,6 +2,7 @@ use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::Network;
 use futures::TryStreamExt;
+use orderbook_client::OrderbookClient;
 use orderbook_commons::NewOrder;
 use orderbook_commons::OrderResponse;
 use orderbook_commons::OrderType;
@@ -23,6 +24,8 @@ pub async fn run(orderbook_url: Url, maker_id: PublicKey, network: Network) -> R
     };
     let mut price_stream = bitmex_client::bitmex(network).await;
 
+    let orderbook_client = OrderbookClient::new();
+
     let mut last_bid = None;
     let mut last_ask = None;
 
@@ -30,6 +33,7 @@ pub async fn run(orderbook_url: Url, maker_id: PublicKey, network: Network) -> R
         tracing::debug!("Received new quote {quote:?}");
 
         last_bid = update_order(
+            &orderbook_client,
             orderbook_url.clone(),
             quote.bid(),
             Direction::Long,
@@ -39,6 +43,7 @@ pub async fn run(orderbook_url: Url, maker_id: PublicKey, network: Network) -> R
         )
         .await;
         last_ask = update_order(
+            &orderbook_client,
             orderbook_url.clone(),
             quote.ask(),
             Direction::Short,
@@ -53,6 +58,7 @@ pub async fn run(orderbook_url: Url, maker_id: PublicKey, network: Network) -> R
 }
 
 async fn update_order(
+    orderbook_client: &OrderbookClient,
     orderbook_url: Url,
     price: Decimal,
     direction: Direction,
@@ -60,19 +66,20 @@ async fn update_order(
     last_order: Option<OrderResponse>,
     quantity: Decimal,
 ) -> Option<OrderResponse> {
-    let order = match orderbook_client::post_new_order(
-        orderbook_url.clone(),
-        NewOrder {
-            id: Uuid::new_v4(),
-            price,
-            quantity,
-            trader_id: maker_id,
-            direction,
-            order_type: OrderType::Limit,
-            expiry: OffsetDateTime::now_utc() + Duration::minutes(1),
-        },
-    )
-    .await
+    let order = match orderbook_client
+        .post_new_order(
+            orderbook_url.clone(),
+            NewOrder {
+                id: Uuid::new_v4(),
+                price,
+                quantity,
+                trader_id: maker_id,
+                direction,
+                order_type: OrderType::Limit,
+                expiry: OffsetDateTime::now_utc() + Duration::minutes(1),
+            },
+        )
+        .await
     {
         Ok(order) => Some(order),
         Err(err) => {
@@ -82,7 +89,7 @@ async fn update_order(
     };
     if let Some(last_order) = last_order {
         let order_id = last_order.id;
-        if let Err(err) = orderbook_client::delete_order(orderbook_url, order_id).await {
+        if let Err(err) = orderbook_client.delete_order(orderbook_url, order_id).await {
             tracing::error!("Failed deleting old order `{order_id}` because of {err:#}");
         }
     };

@@ -1,6 +1,7 @@
 use self::node::WalletHistories;
 use crate::api;
 use crate::calculations;
+use crate::commons::reqwest_client;
 use crate::config;
 use crate::event;
 use crate::event::EventInternal;
@@ -357,7 +358,7 @@ pub fn create_invoice(amount_sats: Option<u64>) -> Result<Invoice> {
 
     runtime.block_on(async {
         let node = NODE.get();
-        let client = reqwest::Client::new();
+        let client = reqwest_client();
         let response = client
             .post(format!(
                 "http://{}/api/register_invoice/{}",
@@ -396,7 +397,7 @@ pub fn send_payment(invoice: &str) -> Result<()> {
 }
 
 pub async fn trade(trade_params: TradeParams) -> Result<(), (FailureReason, anyhow::Error)> {
-    let client = reqwest::Client::new();
+    let client = reqwest_client();
     let response = client
         .post(format!("http://{}/api/trade", config::get_http_endpoint()))
         .json(&trade_params)

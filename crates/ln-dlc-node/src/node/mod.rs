@@ -537,7 +537,7 @@ where
                     loop {
                         process_pending_dlc_actions(&sub_channel_manager, &dlc_message_handler);
 
-                        tokio::time::sleep(Duration::from_secs(10)).await;
+                        tokio::time::sleep(Duration::from_secs(30)).await;
                     }
                 }
             }
