@@ -40,7 +40,7 @@ async fn main() {
 async fn fund_everything(faucet: &str, coordinator: &str) -> Result<()> {
     let coord_addr = get_coordinator_address(coordinator).await?;
     fund(&coord_addr, Amount::ONE_BTC, faucet).await?;
-    mine(20, faucet).await?;
+    mine(10, faucet).await?;
 
     let coordinator_balance = get_text(&format!("{coordinator}/api/admin/balance")).await?;
     tracing::info!("coordinator BTC balance: {}", coordinator_balance);
@@ -64,7 +64,7 @@ async fn fund_everything(faucet: &str, coordinator: &str) -> Result<()> {
         faucet,
     )
     .await?;
-    mine(20, faucet).await?;
+    mine(10, faucet).await?;
 
     let lnd_balance = get_text(&format!("{faucet}/lnd/v1/balance/blockchain")).await?;
     tracing::info!("coordinator lightning balance: {}", lnd_balance);
