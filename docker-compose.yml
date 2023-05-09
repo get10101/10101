@@ -104,7 +104,7 @@ services:
 
   lnd:
     container_name: lnd
-    image: lightninglabs/lnd:v0.15.5-beta
+    image: lightninglabs/lnd:v0.16.2-beta
     depends_on:
       - bitcoin
     command:
