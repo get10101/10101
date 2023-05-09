@@ -1,5 +1,7 @@
 use crate::node::Node;
 use crate::node::SubChannelManager;
+use anyhow::anyhow;
+use anyhow::bail;
 use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
 use dlc_manager::contract::contract_input::ContractInput;
@@ -133,6 +135,48 @@ impl<P> Node<P> {
         let dlc_channels = self.dlc_manager.get_store().get_sub_channels()?;
 
         Ok(dlc_channels)
+    }
+
+    /// Check if it is safe to close the LN channel collaboratively.
+    ///
+    /// In general, it is NOT safe to close an LN channel if there still is a DLC channel attached
+    /// to it. This is because this can lead to loss of funds.
+    pub fn is_safe_to_close_ln_channel_collaboratively(&self, channel_id: &[u8; 32]) -> Result<()> {
+        let dlc_channels = self
+            .dlc_manager
+            .get_store()
+            .get_sub_channels()
+            .map_err(|e| anyhow!("{e:#}"))?;
+
+        let state = match dlc_channels
+            .iter()
+            .find(|channel| &channel.channel_id == channel_id)
+        {
+            Some(channel) => &channel.state,
+            // It's safe to close the LN channel if there is no associated DLC channel
+            None => return Ok(()),
+        };
+
+        tracing::debug!(
+            channel_id = %hex::encode(channel_id),
+            dlc_channel_state = ?state,
+            "Checking if it's safe to close LN channel"
+        );
+
+        use SubChannelState::*;
+        match state {
+            // The channel is in an opening state
+            Offered(_) | Accepted(_) | Confirmed(_) => bail!("It's unsafe to collaboratively close LN channel when the DLC channel is being opened"),
+            // The channel is open,
+            Signed(_) => bail!("It's unsafe to collaboratively close LN channel when the DLC channel is open"),
+            // The channel is being closed,
+            Closing(_) | CloseOffered(_) | CloseAccepted(_) | CloseConfirmed(_) => bail!("It's unsafe to collaboratively close LN channel when the DLC channel is being closed"),
+            // It's safe to close the LN channel if there is no associated DLC channel
+            OffChainClosed | ClosedPunished(_) | Rejected | CounterOnChainClosed
+            | OnChainClosed => {},
+        };
+
+        Ok(())
     }
 
     fn get_dlc_channel(

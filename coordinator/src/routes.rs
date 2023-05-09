@@ -1,3 +1,14 @@
+use crate::admin::close_channel;
+use crate::admin::connect_to_peer;
+use crate::admin::delete_subchannel;
+use crate::admin::finalize_force_close_ln_dlc_channel;
+use crate::admin::get_balance;
+use crate::admin::is_connected;
+use crate::admin::list_channels;
+use crate::admin::list_dlc_channels;
+use crate::admin::list_on_chain_transactions;
+use crate::admin::list_peers;
+use crate::admin::sign_message;
 use crate::db::user;
 use crate::node::Node;
 use crate::orderbook::routes::delete_order;
@@ -27,18 +38,6 @@ use diesel::PgConnection;
 use ln_dlc_node::node::NodeInfo;
 use orderbook_commons::FakeScidResponse;
 use orderbook_commons::OrderbookMsg;
-use tokio::sync::RwLock;
-
-use crate::admin::close_channel;
-use crate::admin::connect_to_peer;
-use crate::admin::delete_subchannel;
-use crate::admin::get_balance;
-use crate::admin::is_connected;
-use crate::admin::list_channels;
-use crate::admin::list_dlc_channels;
-use crate::admin::list_on_chain_transactions;
-use crate::admin::list_peers;
-use crate::admin::sign_message;
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::str::FromStr;
@@ -46,6 +45,7 @@ use std::sync::Arc;
 use tokio::sync::broadcast;
 use tokio::sync::mpsc;
 use tokio::sync::Mutex;
+use tokio::sync::RwLock;
 
 pub struct AppState {
     pub node: Node,
@@ -92,6 +92,10 @@ pub fn router(
         .route("/api/admin/channels", get(list_channels))
         .route("/api/channels", post(open_channel))
         .route("/api/admin/channels/:channel_id", delete(close_channel))
+        .route(
+            "/api/admin/channels/finalize_force_close/:channel_id",
+            delete(finalize_force_close_ln_dlc_channel),
+        )
         .route("/api/admin/peers", get(list_peers))
         .route("/api/admin/dlc_channels", get(list_dlc_channels))
         .route("/api/admin/transactions", get(list_on_chain_transactions))

@@ -1,3 +1,4 @@
+use crate::ln::TracingLogger;
 use anyhow::bail;
 use anyhow::Context;
 use anyhow::Error;
@@ -21,6 +22,10 @@ use lightning::chain::chaininterface::BroadcasterInterface;
 use lightning::chain::chaininterface::ConfirmationTarget;
 use lightning::chain::chaininterface::FeeEstimator;
 use lightning::chain::chaininterface::FEERATE_FLOOR_SATS_PER_KW;
+use lightning::chain::transaction::OutPoint;
+use lightning::chain::Filter;
+use lightning::chain::WatchedOutput;
+use lightning_transaction_sync::EsploraSyncClient;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
@@ -38,6 +43,7 @@ where
     // A cache storing the most recently retrieved fee rate estimations.
     fee_rate_cache: RwLock<HashMap<ConfirmationTarget, FeeRate>>,
     settings: RwLock<WalletSettings>,
+    esplora_sync_client: Arc<EsploraSyncClient<Arc<TracingLogger>>>,
     runtime_handle: tokio::runtime::Handle,
 }
 
@@ -64,6 +70,7 @@ where
         blockchain: EsploraBlockchain,
         wallet: bdk::Wallet<D>,
         runtime_handle: tokio::runtime::Handle,
+        esplora_sync_client: Arc<EsploraSyncClient<Arc<TracingLogger>>>,
     ) -> Self {
         let inner = Mutex::new(wallet);
         let fee_rate_cache = RwLock::new(HashMap::new());
@@ -75,6 +82,7 @@ where
             fee_rate_cache,
             runtime_handle,
             settings,
+            esplora_sync_client,
         }
     }
 
@@ -361,7 +369,11 @@ where
     D: BatchDatabase,
 {
     fn broadcast_transaction(&self, tx: &Transaction) {
-        tracing::info!(txid = %tx.txid(), raw_tx = %serialize_hex(&tx), "Broadcasting transaction");
+        let txid = tx.txid();
+
+        tracing::info!(%txid, raw_tx = %serialize_hex(&tx), "Broadcasting transaction");
+
+        let txos = tx.output.clone();
 
         tokio::task::block_in_place(move || {
             self.runtime_handle.block_on(async move {
@@ -370,5 +382,23 @@ where
                 }
             })
         });
+
+        // FIXME: We've added this to ensure that we watch the outputs of any commitment transaction
+        // we publish. This is incredibly hacky and probably doesn't scale, as we simply register
+        // _every_ transaction output we ever publish. Obviously not all these outputs will be
+        // spendable by us, so it might result in some weirdness, but it should be safe.
+        //
+        // Also, this doesn't cover the counterparty, which unfortunately is only able to find the
+        // commitment transaction on-chain after a restart.
+        for (i, output) in txos.into_iter().enumerate() {
+            self.esplora_sync_client.register_output(WatchedOutput {
+                block_hash: None,
+                outpoint: OutPoint {
+                    txid,
+                    index: i as u16,
+                },
+                script_pubkey: output.script_pubkey,
+            });
+        }
     }
 }
