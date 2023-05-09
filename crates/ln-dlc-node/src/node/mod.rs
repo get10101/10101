@@ -82,8 +82,11 @@ pub use wallet::PaymentDetails;
 ///
 /// According to the LDK team, a value of up to 1 hour should be fine.
 const BROADCAST_NODE_ANNOUNCEMENT_INTERVAL: Duration = Duration::from_secs(600);
+
 const OFF_CHAIN_SYNC_INTERVAL: Duration = Duration::from_secs(5);
 const ON_CHAIN_SYNC_INTERVAL: Duration = Duration::from_secs(20);
+
+const DLC_MANAGER_PERIODIC_CHECK_INTERVAL: Duration = Duration::from_secs(20);
 
 /// An LN-DLC node.
 pub struct Node<P> {
@@ -100,6 +103,7 @@ pub struct Node<P> {
     _connection_manager_handle: RemoteHandle<()>,
     _broadcast_node_announcement_handle: RemoteHandle<()>,
     _pending_dlc_actions_handle: RemoteHandle<()>,
+    _dlc_manager_periodic_check_handle: RemoteHandle<()>,
 
     logger: Arc<TracingLogger>,
 
@@ -518,6 +522,26 @@ where
             remote_handle
         };
 
+        let dlc_manager_periodic_check_handle = {
+            let dlc_manager = dlc_manager.clone();
+            let (fut, remote_handle) = {
+                async move {
+                    loop {
+                        if let Err(e) = dlc_manager.periodic_check() {
+                            tracing::error!("Failed DLC manager periodic check: {e:#}");
+                        }
+
+                        tokio::time::sleep(DLC_MANAGER_PERIODIC_CHECK_INTERVAL).await;
+                    }
+                }
+            }
+            .remote_handle();
+
+            tokio::spawn(fut);
+
+            remote_handle
+        };
+
         let node_info = NodeInfo {
             pubkey: channel_manager.get_our_node_id(),
             address: announcement_address,
@@ -545,6 +569,7 @@ where
             _connection_manager_handle: connection_manager_handle,
             _broadcast_node_announcement_handle: broadcast_node_announcement_handle,
             _pending_dlc_actions_handle: pending_dlc_actions_handle,
+            _dlc_manager_periodic_check_handle: dlc_manager_periodic_check_handle,
             network_graph,
             #[cfg(test)]
             announcement_addresses,

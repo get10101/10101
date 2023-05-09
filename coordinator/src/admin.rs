@@ -132,6 +132,37 @@ pub async fn close_channel(
     Ok(())
 }
 
+#[instrument(skip_all, err(Debug))]
+pub async fn finalize_force_close_ln_dlc_channel(
+    Path(channel_id): Path<String>,
+    State(state): State<Arc<AppState>>,
+) -> Result<(), AppError> {
+    let byte_array =
+        hex::decode(channel_id.clone()).map_err(|err| AppError::BadRequest(err.to_string()))?;
+
+    if byte_array.len() > 32 {
+        return Err(AppError::BadRequest(
+            "Provided channel id was invalid".to_string(),
+        ));
+    }
+    // Create a fixed-length byte array of size 8
+    let mut fixed_length_array = [0u8; 32];
+
+    // Copy the decoded bytes to the fixed-length array
+    let length = std::cmp::min(byte_array.len(), fixed_length_array.len());
+    fixed_length_array[..length].copy_from_slice(&byte_array[..length]);
+
+    tracing::info!(%channel_id, "Attempting to finalize channel force-close");
+
+    state
+        .node
+        .inner
+        .finalize_force_close_ln_dlc_channel(fixed_length_array)
+        .map_err(|e| AppError::InternalServerError(format!("{e:#}")))?;
+
+    Ok(())
+}
+
 pub async fn delete_subchannel(
     Path(channel_id): Path<String>,
     State(state): State<Arc<AppState>>,

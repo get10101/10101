@@ -7,8 +7,8 @@ use anyhow::Context;
 use anyhow::Result;
 use bitcoin::Amount;
 use dlc_manager::subchannel::SubChannelState;
-use dlc_manager::ChannelId;
 use dlc_manager::Storage;
+use lightning::ln::channelmanager::ChannelDetails;
 use std::time::Duration;
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 10)]
@@ -31,7 +31,7 @@ pub struct DlcChannelCreated {
     pub app: Node<PaymentMap>,
     /// Available balance for the app after the LN channel was created. In sats.
     pub app_balance_channel_creation: u64,
-    pub channel_id: ChannelId,
+    pub channel_details: ChannelDetails,
 }
 
 pub async fn create_dlc_channel(
@@ -57,10 +57,9 @@ pub async fn create_dlc_channel(
         .await?;
     let channel_details = app.channel_manager.list_usable_channels();
     let channel_details = channel_details
-        .iter()
+        .into_iter()
         .find(|c| c.counterparty.node_id == coordinator.info.pubkey)
         .context("No usable channels for app")?;
-    let channel_id = channel_details.channel_id;
 
     let app_balance_channel_creation = app.get_ldk_balance().available;
     let coordinator_balance_channel_creation = coordinator.get_ldk_balance().available;
@@ -71,7 +70,7 @@ pub async fn create_dlc_channel(
     let contract_input =
         dummy_contract_input(app_dlc_collateral, coordinator_dlc_collateral, oracle_pk);
 
-    app.propose_dlc_channel(channel_details, &contract_input)
+    app.propose_dlc_channel(&channel_details, &contract_input)
         .await?;
 
     // Processs the app's offer to close the channel
@@ -133,6 +132,6 @@ pub async fn create_dlc_channel(
         coordinator_balance_channel_creation,
         app,
         app_balance_channel_creation,
-        channel_id,
+        channel_details,
     })
 }
