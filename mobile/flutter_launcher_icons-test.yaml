@@ -1,0 +1,12 @@
+flutter_icons:
+  android: false
+  ios: true
+  image_path: assets/10101_test_logo_icon.png
+  min_sdk_android: 21
+  remove_alpha_ios: true
+  web:
+    generate: false
+  macos:
+    generate: false
+  windows:
+    generate: false
