@@ -1,9 +1,11 @@
 name: Slow ln-dlc-node tests
 
 on:
+  pull_request:
   push:
     branches:
       - "staging"
+      - "main"
 
 env:
   CARGO_INCREMENTAL: 0
