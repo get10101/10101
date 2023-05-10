@@ -44,5 +44,6 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 trade = { path = "../trade" }
 
 [dev-dependencies]
+clap = { version = "4", features = ["derive"] }
 local-ip-address = "0.5.1"
 rust_decimal = "1"

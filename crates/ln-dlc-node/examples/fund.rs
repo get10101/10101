@@ -3,6 +3,7 @@ use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
 use bitcoin::Amount;
+use clap::Parser;
 use ln_dlc_node::node::NodeInfo;
 use local_ip_address::local_ip;
 use reqwest::Response;
@@ -15,30 +16,42 @@ use tracing_subscriber::util::SubscriberInitExt;
 use tracing_subscriber::EnvFilter;
 
 const RUST_LOG_ENV: &str = "RUST_LOG";
-const FAUCET: &str = "http://localhost:8080";
-const COORDINATOR: &str = "http://localhost:8000";
+
+#[derive(Parser)]
+pub struct Opts {
+    /// Faucet address
+    #[clap(long, default_value = "http://localhost:8080")]
+    pub faucet: String,
+
+    /// Coordinator addres
+    #[clap(long, default_value = "http://localhost:8000")]
+    pub coordinator: String,
+}
 
 #[tokio::main]
 async fn main() {
     init_tracing(LevelFilter::DEBUG).expect("tracing to initialise");
-    fund_everything().await.expect("to be able to fund");
+    let opts = Opts::parse();
+    fund_everything(&opts.faucet, &opts.coordinator)
+        .await
+        .expect("to be able to fund");
 }
 
-async fn fund_everything() -> Result<()> {
-    let coord_addr = get_coordinator_address().await?;
-    fund(&coord_addr, Amount::ONE_BTC).await?;
-    mine(20).await?;
+async fn fund_everything(faucet: &str, coordinator: &str) -> Result<()> {
+    let coord_addr = get_coordinator_address(coordinator).await?;
+    fund(&coord_addr, Amount::ONE_BTC, faucet).await?;
+    mine(10, faucet).await?;
 
-    let coordinator_balance = get_text(&format!("{COORDINATOR}/api/admin/balance")).await?;
+    let coordinator_balance = get_text(&format!("{coordinator}/api/admin/balance")).await?;
     tracing::info!("coordinator BTC balance: {}", coordinator_balance);
 
-    let node: NodeInfo = reqwest::get(format!("{COORDINATOR}/api/node"))
+    let node: NodeInfo = reqwest::get(format!("{coordinator}/api/node"))
         .await?
         .json()
         .await?;
     tracing::info!("lightning node: {}", node);
 
-    let lnd_addr: LndAddr = reqwest::get(&format!("{FAUCET}/lnd/v1/newaddress"))
+    let lnd_addr: LndAddr = reqwest::get(&format!("{faucet}/lnd/v1/newaddress"))
         .await?
         .json()
         .await?;
@@ -48,11 +61,12 @@ async fn fund_everything() -> Result<()> {
         Amount::ONE_BTC
             .checked_mul(2)
             .expect("small integers to multiply"),
+        faucet,
     )
     .await?;
-    mine(20).await?;
+    mine(10, faucet).await?;
 
-    let lnd_balance = get_text(&format!("{FAUCET}/lnd/v1/balance/blockchain")).await?;
+    let lnd_balance = get_text(&format!("{faucet}/lnd/v1/balance/blockchain")).await?;
     tracing::info!("coordinator lightning balance: {}", lnd_balance);
 
     open_channel(
@@ -60,10 +74,11 @@ async fn fund_everything() -> Result<()> {
         Amount::ONE_BTC
             .checked_div(10)
             .expect("small integers to divide"),
+        faucet,
     )
     .await?;
 
-    let lnd_channels = get_text(&format!("{FAUCET}/lnd/v1/channels")).await?;
+    let lnd_channels = get_text(&format!("{faucet}/lnd/v1/channels")).await?;
     tracing::info!("open LND channels: {}", lnd_channels);
     Ok(())
 }
@@ -74,8 +89,8 @@ struct LndAddr {
 }
 
 // Includes some bespoke text processing that ensures we can deserialise the response properly
-async fn get_coordinator_address() -> Result<String> {
-    Ok(get_text(&format!("{COORDINATOR}/api/newaddress"))
+async fn get_coordinator_address(coordinator: &str) -> Result<String> {
+    Ok(get_text(&format!("{coordinator}/api/newaddress"))
         .await?
         .strip_prefix('"')
         .to_owned()
@@ -94,7 +109,7 @@ struct BitcoindResponse {
     result: String,
 }
 
-async fn fund(address: &str, amount: Amount) -> Result<Response> {
+async fn fund(address: &str, amount: Amount, faucet: &str) -> Result<Response> {
     post_query(
         "bitcoin",
         format!(
@@ -102,15 +117,17 @@ async fn fund(address: &str, amount: Amount) -> Result<Response> {
             address,
             amount.to_btc()
         ),
+        faucet,
     )
     .await
 }
 
 /// Instructs `bitcoind` to generate to address.
-async fn mine(n: u16) -> Result<()> {
+async fn mine(n: u16, faucet: &str) -> Result<()> {
     let response = post_query(
         "bitcoin",
         r#"{"jsonrpc": "1.0", "method": "getnewaddress", "params": []}"#.to_string(),
+        faucet,
     )
     .await?;
     let response: BitcoindResponse = response.json().await?;
@@ -121,6 +138,7 @@ async fn mine(n: u16) -> Result<()> {
             r#"{{"jsonrpc": "1.0", "method": "generatetoaddress", "params": [{}, "{}"]}}"#,
             n, response.result
         ),
+        faucet,
     )
     .await?;
     // For the mined blocks to be picked up by the subsequent wallet syncs
@@ -129,10 +147,11 @@ async fn mine(n: u16) -> Result<()> {
     Ok(())
 }
 
-async fn post_query(path: &str, body: String) -> Result<Response> {
+async fn post_query(path: &str, body: String, faucet: &str) -> Result<Response> {
+    let faucet = faucet.to_string();
     let client = reqwest::Client::new();
     let response = client
-        .post(format!("{FAUCET}/{path}"))
+        .post(format!("{faucet}/{path}"))
         .body(body)
         .send()
         .await?;
@@ -146,10 +165,18 @@ async fn post_query(path: &str, body: String) -> Result<Response> {
 /// Instructs lnd to open a public channel with the target node.
 /// 1. Connect to the target node.
 /// 2. Open channel to the target node.
-async fn open_channel(node_info: &NodeInfo, amount: Amount) -> Result<()> {
-    let port = node_info.address.port();
-    let ip_address = local_ip()?;
-    let host = format!("{ip_address}:{port}");
+async fn open_channel(node_info: &NodeInfo, amount: Amount, faucet: &str) -> Result<()> {
+    // XXX Hacky way of checking whether we need to patch the coordinator
+    // address when running locally
+    let host = if faucet.to_string().contains("localhost") {
+        let port = node_info.address.port();
+        let ip_address = local_ip()?;
+        let host = format!("{ip_address}:{port}");
+        tracing::info!("Running locally, patching host to {host}");
+        host
+    } else {
+        node_info.address.to_string()
+    };
     tracing::info!("Connecting lnd to {host}");
     post_query(
         "lnd/v1/peers",
@@ -157,6 +184,7 @@ async fn open_channel(node_info: &NodeInfo, amount: Amount) -> Result<()> {
             r#"{{"addr": {{ "pubkey": "{}", "host": "{host}" }}, "perm":false }}"]"#,
             node_info.pubkey
         ),
+        faucet,
     )
     .await?;
 
@@ -170,13 +198,14 @@ async fn open_channel(node_info: &NodeInfo, amount: Amount) -> Result<()> {
             node_info.pubkey,
             amount.to_sat()
         ),
+        faucet,
     )
     .await?;
 
-    mine(10).await?;
+    mine(10, faucet).await?;
     tracing::info!("connected to channel");
 
-    tracing::info!("You can now use the lightning faucet {FAUCET}/faucet/");
+    tracing::info!("You can now use the lightning faucet {faucet}/faucet/");
 
     // TODO: Inspect the channel manager to wait until channel is usable before returning
     Ok(())
