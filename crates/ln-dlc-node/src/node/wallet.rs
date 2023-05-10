@@ -3,14 +3,11 @@ use crate::node::HTLCStatus;
 use crate::node::Node;
 use crate::node::PaymentPersister;
 use crate::PaymentFlow;
-use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
 use bdk::sled;
 use bitcoin::secp256k1::SecretKey;
 use bitcoin::Address;
-use lightning::chain::keysinterface::KeysInterface;
-use lightning::chain::keysinterface::Recipient;
 use lightning::ln::PaymentHash;
 use std::sync::Arc;
 use time::OffsetDateTime;
@@ -47,13 +44,8 @@ where
             .context("Failed to get on-chain balance")
     }
 
-    pub fn node_key(&self) -> Result<SecretKey> {
-        match self.keys_manager.get_node_secret(Recipient::Node) {
-            Ok(key) => Ok(key),
-            Err(()) => {
-                bail!("Could not get secret key from node")
-            }
-        }
+    pub fn node_key(&self) -> SecretKey {
+        self.keys_manager.get_node_secret_key()
     }
 
     /// The LDK [`OffChain`] balance keeps track of:

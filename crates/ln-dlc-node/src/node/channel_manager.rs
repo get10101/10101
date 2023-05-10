@@ -2,6 +2,7 @@ use crate::dlc_custom_signer::CustomKeysManager;
 use crate::ln::TracingLogger;
 use crate::ln_dlc_wallet::LnDlcWallet;
 use crate::ChainMonitor;
+use crate::Router;
 use anyhow::Result;
 use bitcoin::BlockHash;
 use lightning::chain::BestBlock;
@@ -19,7 +20,10 @@ pub type ChannelManager = lightning::ln::channelmanager::ChannelManager<
     Arc<ChainMonitor>,
     Arc<LnDlcWallet>,
     Arc<CustomKeysManager>,
+    Arc<CustomKeysManager>,
+    Arc<CustomKeysManager>,
     Arc<LnDlcWallet>,
+    Arc<Router>,
     Arc<TracingLogger>,
 >;
 
@@ -34,6 +38,7 @@ pub(crate) async fn build(
     ldk_user_config: UserConfig,
     network: bitcoin::Network,
     persister: Arc<FilesystemPersister>,
+    router: Arc<Router>,
 ) -> Result<ChannelManager> {
     let file = std::fs::File::open(format!("{ldk_data_dir}/manager")).ok();
 
@@ -52,7 +57,10 @@ pub(crate) async fn build(
                 ln_dlc_wallet.clone(),
                 chain_monitor.clone(),
                 ln_dlc_wallet,
+                router.clone(),
                 logger,
+                keys_manager.clone(),
+                keys_manager.clone(),
                 keys_manager,
                 ldk_user_config,
                 ChainParameters {
@@ -63,17 +71,21 @@ pub(crate) async fn build(
         }
     };
 
-    let mut channelmonitors = persister.read_channelmonitors(keys_manager.clone())?;
+    let mut channelmonitors =
+        persister.read_channelmonitors(keys_manager.clone(), keys_manager.clone())?;
 
     let mut channel_monitor_mut_references = Vec::new();
     for (_, channel_monitor) in channelmonitors.iter_mut() {
         channel_monitor_mut_references.push(channel_monitor);
     }
     let read_args = ChannelManagerReadArgs::new(
+        keys_manager.clone(),
+        keys_manager.clone(),
         keys_manager,
         ln_dlc_wallet.clone(),
         chain_monitor.clone(),
         ln_dlc_wallet.clone(),
+        router,
         logger.clone(),
         ldk_user_config,
         channel_monitor_mut_references,

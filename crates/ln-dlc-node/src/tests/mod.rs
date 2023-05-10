@@ -53,7 +53,7 @@ fn init_tracing() {
     TRACING_TEST_SUBSCRIBER.call_once(|| {
         tracing_subscriber::fmt()
             .with_env_filter(
-                "debug,hyper=warn,reqwest=warn,rustls=warn,bdk=info,lightning=debug,sled=info",
+                "debug,hyper=warn,reqwest=warn,rustls=warn,bdk=info,lightning=debug,sled=info,lightning::chain::channelmonitor=trace",
             )
             .with_test_writer()
             .init()
@@ -189,7 +189,7 @@ impl Node<PaymentMap> {
     }
 
     pub fn disconnect(&self, peer: NodeInfo) {
-        self.peer_manager.disconnect_by_node_id(peer.pubkey, false)
+        self.peer_manager.disconnect_by_node_id(peer.pubkey)
     }
 
     pub async fn reconnect(&self, peer: NodeInfo) -> Result<()> {

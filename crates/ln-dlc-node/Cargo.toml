@@ -20,18 +20,19 @@ dlc-trie = { version = "0.4.0" }
 futures = "0.3"
 hex = "0.4"
 hkdf = "0.12"
-lightning = { version = "0.0.113", features = ["max_level_trace"] }
-lightning-background-processor = { version = "0.0.113" }
-lightning-block-sync = { version = "0.0.113", features = ["rpc-client"] }
-lightning-invoice = { version = "0.21" }
-lightning-net-tokio = { version = "0.0.113" }
-lightning-persister = { version = "0.0.113" }
-lightning-rapid-gossip-sync = { version = "0.0.113" }
-lightning-transaction-sync = { path = "../lightning-transaction-sync", features = ["esplora-async", "async-interface"] }
+lightning = { version = "0.0.114", features = ["max_level_trace"] }
+lightning-background-processor = { version = "0.0.114" }
+lightning-block-sync = { version = "0.0.114", features = ["rpc-client"] }
+lightning-invoice = { version = "0.22" }
+lightning-net-tokio = { version = "0.0.114" }
+lightning-persister = { version = "0.0.114" }
+lightning-rapid-gossip-sync = { version = "0.0.114" }
+lightning-transaction-sync = { version = "0.0.114", features = ["esplora-async"] }
 log = "0.4.17"
 p2pd-oracle-client = { version = "0.1.0" }
 rand = "0.8.5"
 reqwest = { version = "0.11", default-features = false, features = ["json"] }
+rust-bitcoin-coin-selection = { version = "0.1.0", git = "https://github.com/p2pderivatives/rust-bitcoin-coin-selection", features = ["rand"] }
 secp256k1-zkp = { version = "0.7.0", features = ["global-context"] }
 serde = "1.0.147"
 sha2 = "0.10"

@@ -538,7 +538,7 @@ where
                         if self.peer_manager
                             .get_peer_node_ids()
                             .iter()
-                            .any(|id| *id == target_node_id) {
+                            .any(|(id, _)| *id == target_node_id) {
                             tracing::info!(%target_node_id, "Found connection to target peer. Continuing HTLCIntercepted event.");
 
                             return;

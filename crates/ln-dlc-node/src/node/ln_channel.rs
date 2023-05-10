@@ -6,8 +6,6 @@ use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
 use dlc_manager::subchannel::SubChannel;
 use dlc_manager::subchannel::SubChannelState;
-use lightning::chain::keysinterface::KeysInterface;
-use lightning::chain::keysinterface::Recipient;
 use lightning::ln::channelmanager::ChannelDetails;
 
 impl<P> Node<P> {
@@ -54,7 +52,11 @@ impl<P> Node<P> {
     }
 
     pub fn list_peers(&self) -> Vec<PublicKey> {
-        self.peer_manager.get_peer_node_ids()
+        self.peer_manager
+            .get_peer_node_ids()
+            .into_iter()
+            .map(|(peer, _)| peer)
+            .collect()
     }
 
     pub fn close_channel(&self, channel_id: [u8; 32], force_close: bool) -> Result<()> {
@@ -108,10 +110,7 @@ impl<P> Node<P> {
     }
 
     pub fn sign_message(&self, data: String) -> Result<String> {
-        let secret = self
-            .keys_manager
-            .get_node_secret(Recipient::Node)
-            .map_err(|_| anyhow!("Could not get node's secret"))?;
+        let secret = self.keys_manager.get_node_secret_key();
         let signature = lightning::util::message_signing::sign(data.as_bytes(), &secret)?;
         Ok(signature)
     }

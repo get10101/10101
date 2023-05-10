@@ -61,6 +61,6 @@ impl<P> Node<P> {
         self.peer_manager
             .get_peer_node_ids()
             .iter()
-            .any(|id| *id == pubkey)
+            .any(|(id, _)| *id == pubkey)
     }
 }
