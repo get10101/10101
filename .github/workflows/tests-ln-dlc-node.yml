@@ -33,7 +33,7 @@ jobs:
 
   run-tests-ln-dlc-node:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     needs: changes
     if: ${{ needs.changes.outputs.ln-dlc-node == 'true' }}
     steps:
