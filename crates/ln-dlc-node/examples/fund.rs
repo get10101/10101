@@ -178,7 +178,7 @@ async fn open_channel(node_info: &NodeInfo, amount: Amount, faucet: &str) -> Res
         node_info.address.to_string()
     };
     tracing::info!("Connecting lnd to {host}");
-    post_query(
+    let res = post_query(
         "lnd/v1/peers",
         format!(
             r#"{{"addr": {{ "pubkey": "{}", "host": "{host}" }}, "perm":false }}"]"#,
@@ -186,7 +186,9 @@ async fn open_channel(node_info: &NodeInfo, amount: Amount, faucet: &str) -> Res
         ),
         faucet,
     )
-    .await?;
+    .await;
+
+    tracing::debug!(?res, "Response after attempting to connect lnd to {host}");
 
     tokio::time::sleep(Duration::from_secs(5)).await;
 
