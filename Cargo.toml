@@ -3,13 +3,13 @@ members = ["coordinator", "maker", "mobile/native", "crates/*"]
 resolver = "2"
 
 [patch.crates-io]
-dlc-manager = { git = "https://github.com/get10101/rust-dlc", rev = "227cbd748adc44916c30311ae9434716f24d7a04" }
-dlc-messages = { git = "https://github.com/get10101/rust-dlc", rev = "227cbd748adc44916c30311ae9434716f24d7a04" }
-dlc = { git = "https://github.com/get10101/rust-dlc", rev = "227cbd748adc44916c30311ae9434716f24d7a04" }
-dlc-sled-storage-provider = { git = "https://github.com/get10101/rust-dlc", rev = "227cbd748adc44916c30311ae9434716f24d7a04" }
-p2pd-oracle-client = { git = "https://github.com/get10101/rust-dlc", rev = "227cbd748adc44916c30311ae9434716f24d7a04" }
-dlc-trie = { git = "https://github.com/get10101/rust-dlc", rev = "227cbd748adc44916c30311ae9434716f24d7a04" }
-simple-wallet = { git = "https://github.com/get10101/rust-dlc", rev = "227cbd748adc44916c30311ae9434716f24d7a04" }
+dlc-manager = { git = "https://github.com/get10101/rust-dlc", rev = "1cabe22839a8aa6b86cf23b7e48c3367e255ee30" }
+dlc-messages = { git = "https://github.com/get10101/rust-dlc", rev = "1cabe22839a8aa6b86cf23b7e48c3367e255ee30" }
+dlc = { git = "https://github.com/get10101/rust-dlc", rev = "1cabe22839a8aa6b86cf23b7e48c3367e255ee30" }
+dlc-sled-storage-provider = { git = "https://github.com/get10101/rust-dlc", rev = "1cabe22839a8aa6b86cf23b7e48c3367e255ee30" }
+p2pd-oracle-client = { git = "https://github.com/get10101/rust-dlc", rev = "1cabe22839a8aa6b86cf23b7e48c3367e255ee30" }
+dlc-trie = { git = "https://github.com/get10101/rust-dlc", rev = "1cabe22839a8aa6b86cf23b7e48c3367e255ee30" }
+simple-wallet = { git = "https://github.com/get10101/rust-dlc", rev = "1cabe22839a8aa6b86cf23b7e48c3367e255ee30" }
 lightning = { git = "https://github.com/get10101/rust-lightning/", rev = "0516b51eb9987d5f215e4098c7fae9a48e90296a" }
 lightning-background-processor = { git = "https://github.com/get10101/rust-lightning/", rev = "0516b51eb9987d5f215e4098c7fae9a48e90296a" }
 lightning-block-sync = { git = "https://github.com/get10101/rust-lightning/", rev = "0516b51eb9987d5f215e4098c7fae9a48e90296a" }
