@@ -1,9 +1,3 @@
-use bitcoin::BlockHash;
-use bitcoin::Network;
-use bitcoin::Script;
-use bitcoin::Transaction;
-use bitcoin::Txid;
-
 use anyhow::anyhow;
 use anyhow::bail;
 use anyhow::Context;
@@ -18,6 +12,12 @@ use bdk::FeeRate;
 use bdk::SignOptions;
 use bdk::SyncOptions;
 use bdk::TransactionDetails;
+use bitcoin::consensus::encode::serialize_hex;
+use bitcoin::BlockHash;
+use bitcoin::Network;
+use bitcoin::Script;
+use bitcoin::Transaction;
+use bitcoin::Txid;
 use lightning::chain::chaininterface::BroadcasterInterface;
 use lightning::chain::chaininterface::ConfirmationTarget;
 use lightning::chain::chaininterface::FeeEstimator;
@@ -337,6 +337,8 @@ where
     D: BatchDatabase,
 {
     fn broadcast_transaction(&self, tx: &Transaction) {
+        tracing::info!(txid = %tx.txid(), raw_tx = %serialize_hex(&tx), "Broadcasting transaction");
+
         let res = tokio::task::block_in_place(move || {
             self.runtime_handle
                 .block_on(async move { self.blockchain.broadcast(tx).await })
