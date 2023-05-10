@@ -4,6 +4,7 @@ import 'dart:developer';
 import 'package:f_logs/f_logs.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:get_10101/common/snack_bar.dart';
 import 'package:get_10101/features/wallet/create_invoice_screen.dart';
 import 'package:get_10101/features/wallet/domain/wallet_info.dart';
 import 'package:get_10101/features/wallet/wallet_change_notifier.dart';
@@ -17,7 +18,7 @@ import 'package:share_plus/share_plus.dart';
 
 import 'application/wallet_service.dart';
 
-class ShareInvoiceScreen extends StatelessWidget {
+class ShareInvoiceScreen extends StatefulWidget {
   static const route = "${WalletScreen.route}/${CreateInvoiceScreen.subRouteName}/$subRouteName";
   static const subRouteName = "share_invoice";
   final WalletService walletService;
@@ -25,6 +26,13 @@ class ShareInvoiceScreen extends StatelessWidget {
 
   const ShareInvoiceScreen(
       {super.key, this.walletService = const WalletService(), required this.invoice});
+
+  @override
+  State<ShareInvoiceScreen> createState() => _ShareInvoiceScreenState();
+}
+
+class _ShareInvoiceScreenState extends State<ShareInvoiceScreen> {
+  bool _isPayInvoiceButtonDisabled = false;
 
   @override
   Widget build(BuildContext context) {
@@ -55,7 +63,7 @@ class ShareInvoiceScreen extends StatelessWidget {
                 Expanded(
                   child: Center(
                     child: QrImage(
-                      data: invoice,
+                      data: widget.invoice,
                       version: QrVersions.auto,
                       size: 200.0,
                     ),
@@ -67,13 +75,27 @@ class ShareInvoiceScreen extends StatelessWidget {
             Visibility(
               visible: config.network == "regtest",
               child: OutlinedButton(
-                onPressed: () {
-                  payInvoiceWithFaucet(invoice);
-                  // Pop both create invoice screen and share invoice screen to
-                  // get back to main screen
-                  GoRouter.of(context).pop();
-                  GoRouter.of(context).pop();
-                },
+                onPressed: _isPayInvoiceButtonDisabled
+                    ? null
+                    : () async {
+                        setState(() {
+                          _isPayInvoiceButtonDisabled = true;
+                        });
+
+                        final router = GoRouter.of(context);
+                        try {
+                          await payInvoiceWithFaucet(widget.invoice);
+                          // Pop both create invoice screen and share invoice screen
+                          router.pop();
+                          router.pop();
+                        } catch (error) {
+                          showSnackBar(context, error.toString());
+                        } finally {
+                          setState(() {
+                            _isPayInvoiceButtonDisabled = false;
+                          });
+                        }
+                      },
                 style: ElevatedButton.styleFrom(
                   shape: const RoundedRectangleBorder(
                       borderRadius: BorderRadius.all(Radius.circular(5.0))),
@@ -88,7 +110,7 @@ class ShareInvoiceScreen extends StatelessWidget {
                   padding: buttonSpacing,
                   child: OutlinedButton(
                     onPressed: () {
-                      Clipboard.setData(ClipboardData(text: invoice)).then((_) {
+                      Clipboard.setData(ClipboardData(text: widget.invoice)).then((_) {
                         ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(content: Text('Invoice copied to clipboard')));
                       });
@@ -115,7 +137,7 @@ class ShareInvoiceScreen extends StatelessWidget {
                 child: Padding(
                   padding: buttonSpacing,
                   child: OutlinedButton(
-                    onPressed: () => Share.share(invoice),
+                    onPressed: () => Share.share(widget.invoice),
                     style: ElevatedButton.styleFrom(
                       shape: const RoundedRectangleBorder(
                           borderRadius: BorderRadius.all(Radius.circular(5.0))),
@@ -166,7 +188,6 @@ class ShareInvoiceScreen extends StatelessWidget {
   }
 
 // Pay the generated invoice with 10101 faucet
-// XXX: This is in not in Rust as this is not production-related
   Future<void> payInvoiceWithFaucet(String invoice) async {
     // Default to the faucet on the 10101 server, but allow to override it
     // locally if needed for dev testing
@@ -183,10 +204,9 @@ class ShareInvoiceScreen extends StatelessWidget {
       body: encodedData,
     );
 
-    if (response.statusCode == 200) {
-      FLog.info(text: response.body);
-    } else {
-      FLog.error(text: "error: ${response.statusCode} body: ${response.body}");
+    if (response.statusCode != 200) {
+      throw Exception("Payment failed: Received ${response.statusCode} ${response.body}");
     }
+    FLog.info(text: "Paying invoice succeeded: ${response.body}");
   }
 }
