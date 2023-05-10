@@ -1,11 +1,15 @@
+import 'dart:convert';
 import 'dart:developer';
 
+import 'package:f_logs/f_logs.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get_10101/features/wallet/create_invoice_screen.dart';
 import 'package:get_10101/features/wallet/domain/wallet_info.dart';
 import 'package:get_10101/features/wallet/wallet_change_notifier.dart';
+import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
 import 'package:get_10101/features/wallet/wallet_screen.dart';
+import 'package:http/http.dart' as http;
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
@@ -25,6 +29,7 @@ class ShareInvoiceScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     WalletInfo info = context.watch<WalletChangeNotifier>().walletInfo;
+    final bridge.Config config = context.read<bridge.Config>();
 
     log("Refresh receive screen: ${info.balances.onChain}");
 
@@ -57,6 +62,24 @@ class ShareInvoiceScreen extends StatelessWidget {
                   ),
                 ),
               ]),
+            ),
+            // Faucet button, only available if we are on regtest
+            Visibility(
+              visible: config.network == "regtest",
+              child: OutlinedButton(
+                onPressed: () {
+                  payInvoiceWithFaucet(invoice);
+                  // Pop both create invoice screen and share invoice screen to
+                  // get back to main screen
+                  GoRouter.of(context).pop();
+                  GoRouter.of(context).pop();
+                },
+                style: ElevatedButton.styleFrom(
+                  shape: const RoundedRectangleBorder(
+                      borderRadius: BorderRadius.all(Radius.circular(5.0))),
+                ),
+                child: const Text("Pay the invoice with 10101 faucet"),
+              ),
             ),
             Row(children: [
               Flexible(
@@ -140,5 +163,30 @@ class ShareInvoiceScreen extends StatelessWidget {
         ),
       )),
     );
+  }
+
+// Pay the generated invoice with 10101 faucet
+// XXX: This is in not in Rust as this is not production-related
+  Future<void> payInvoiceWithFaucet(String invoice) async {
+    // Default to the faucet on the 10101 server, but allow to override it
+    // locally if needed for dev testing
+    // It's not populated in Config struct, as it's not used in production
+    String faucet =
+        const String.fromEnvironment("REGTEST_FAUCET", defaultValue: "http://35.189.57.114:8080");
+
+    final data = {'payment_request': invoice};
+    final encodedData = json.encode(data);
+
+    final response = await http.post(
+      Uri.parse('$faucet/lnd/v1/channels/transactions'),
+      headers: <String, String>{'Content-Type': 'application/json'},
+      body: encodedData,
+    );
+
+    if (response.statusCode == 200) {
+      FLog.info(text: response.body);
+    } else {
+      FLog.error(text: "error: ${response.statusCode} body: ${response.body}");
+    }
   }
 }
