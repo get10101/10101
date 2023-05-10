@@ -57,7 +57,8 @@ ios:
 
 run args="":
     #!/usr/bin/env bash
-    cd mobile && flutter run {{args}} --dart-define="COMMIT=$(git rev-parse HEAD)" --dart-define="BRANCH=$(git rev-parse --abbrev-ref HEAD)"
+    cd mobile && flutter run {{args}} --dart-define="COMMIT=$(git rev-parse HEAD)" --dart-define="BRANCH=$(git rev-parse --abbrev-ref HEAD)" \
+    --dart-define="REGTEST_FAUCET=http://localhost:8080"
 
 # Run against our public regtest server
 run-regtest args="":
