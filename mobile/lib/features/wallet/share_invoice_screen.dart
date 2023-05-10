@@ -53,33 +53,45 @@ class ShareInvoiceScreen extends StatelessWidget {
                   ),
                 ),
                 Expanded(
-                  child: Center(
+                    child: Column(children: [
+                  Center(
                     child: QrImage(
                       data: invoice,
                       version: QrVersions.auto,
-                      size: 200.0,
+                      size: 250.0,
                     ),
                   ),
-                ),
+
+                  // Faucet button, only available if we are on regtest
+                  Visibility(
+                    visible: config.network == "regtest",
+                    child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 35.0, vertical: 8.0),
+                        child: Column(
+                          children: [
+                            ElevatedButton(
+                              onPressed: () {
+                                payInvoiceWithFaucet(invoice);
+                                // Pop both create invoice screen and share invoice screen to
+                                // get back to main screen
+                                GoRouter.of(context).pop();
+                                GoRouter.of(context).pop();
+                              },
+                              style: ElevatedButton.styleFrom(
+                                shape: const RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.all(Radius.circular(5.0))),
+                              ),
+                              child: const Text("Pay with 10101 faucet"),
+                            ),
+                            const Text(
+                              "It will take a few seconds until the payment arrives in your wallet",
+                              textAlign: TextAlign.center,
+                            )
+                          ],
+                        )),
+                  ),
+                ])),
               ]),
-            ),
-            // Faucet button, only available if we are on regtest
-            Visibility(
-              visible: config.network == "regtest",
-              child: OutlinedButton(
-                onPressed: () {
-                  payInvoiceWithFaucet(invoice);
-                  // Pop both create invoice screen and share invoice screen to
-                  // get back to main screen
-                  GoRouter.of(context).pop();
-                  GoRouter.of(context).pop();
-                },
-                style: ElevatedButton.styleFrom(
-                  shape: const RoundedRectangleBorder(
-                      borderRadius: BorderRadius.all(Radius.circular(5.0))),
-                ),
-                child: const Text("Pay the invoice with 10101 faucet"),
-              ),
             ),
             Row(children: [
               Flexible(
