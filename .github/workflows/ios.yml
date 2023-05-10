@@ -75,7 +75,7 @@ jobs:
         env:
           BUILD_CERTIFICATE_BASE64: ${{ secrets.APPSTORE_CERT_BASE64 }}
           P12_PASSWORD: ${{ secrets.APPSTORE_CERT_PASSWORD }}
-          BUILD_PROVISION_PROFILE_BASE64: ${{ secrets.MOBILEPROVISION_BASE64 }}
+          BUILD_PROVISION_PROFILE_BASE64: ${{ secrets.TEST_MOBILEPROVISION_BASE64 }}
           KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
         run: |
           # create variables

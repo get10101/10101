@@ -9,7 +9,7 @@
         <key>provisioningProfiles</key>
         <dict>
             <key>finance.get10101.app</key>
-            <string>TestFlight Get10101 Provisioning</string>
+            <string>TestFlight Get10101 Test Provisioning</string>
         </dict>
     </dict>
 </plist>
