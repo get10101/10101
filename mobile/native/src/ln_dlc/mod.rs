@@ -58,7 +58,7 @@ pub fn get_seed_phrase() -> Vec<String> {
     NODE.get().get_seed_phrase()
 }
 
-pub fn get_node_key() -> Result<SecretKey> {
+pub fn get_node_key() -> SecretKey {
     NODE.get().inner.node_key()
 }
 

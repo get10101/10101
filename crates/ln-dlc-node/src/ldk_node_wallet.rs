@@ -1,4 +1,3 @@
-use anyhow::anyhow;
 use anyhow::bail;
 use anyhow::Context;
 use anyhow::Error;
@@ -33,7 +32,7 @@ where
     D: BatchDatabase,
 {
     // A BDK blockchain used for wallet sync.
-    blockchain: Arc<EsploraBlockchain>,
+    pub(crate) blockchain: Arc<EsploraBlockchain>,
     // A BDK on-chain wallet.
     inner: Mutex<bdk::Wallet<D>>,
     // A cache storing the most recently retrieved fee rate estimations.
@@ -83,38 +82,38 @@ where
         *self.settings.write().await = settings;
     }
 
+    /// Update fee estimates and the internal BDK wallet database with
+    /// the blockchain.
     pub async fn sync(&self) -> Result<()> {
         self.update_fee_estimates().await?;
 
-        let sync_options = SyncOptions { progress: None };
         let wallet_lock = self.inner.lock().await;
-        match wallet_lock.sync(&self.blockchain, sync_options).await {
-            Ok(()) => Ok(()),
-            Err(e) => match e {
-                bdk::Error::Esplora(ref be) => match **be {
-                    bdk::blockchain::esplora::EsploraError::Reqwest(_) => {
-                        tokio::time::sleep(Duration::from_secs(1)).await;
-                        tracing::error!(
-                            "Sync failed due to HTTP connection error, retrying: {}",
-                            e
-                        );
-                        let sync_options = SyncOptions { progress: None };
-                        wallet_lock
-                            .sync(&self.blockchain, sync_options)
-                            .await
-                            .context("Sync failed due to HTTP connection error")
-                    }
-                    _ => {
-                        tracing::error!("Sync failed due to Esplora error: {}", e);
-                        Err(anyhow!(e))
-                    }
-                },
-                _ => {
-                    tracing::error!("Wallet sync error: {}", e);
-                    Err(anyhow!(e))
+        match wallet_lock
+            .sync(&self.blockchain, SyncOptions { progress: None })
+            .await
+        {
+            Err(bdk::Error::Esplora(e)) => match *e {
+                bdk::blockchain::esplora::EsploraError::Reqwest(e) => {
+                    tracing::error!(
+                        "Sync failed due to HTTP connection error, retrying once: {}",
+                        e
+                    );
+
+                    tokio::time::sleep(Duration::from_secs(1)).await;
+                    wallet_lock
+                        .sync(&self.blockchain, SyncOptions { progress: None })
+                        .await
+                        .context("Sync failed due to HTTP connection error after retry")?
                 }
+                _ => bail!(e),
             },
-        }
+            Err(e) => {
+                bail!(e);
+            }
+            Ok(()) => {}
+        };
+
+        Ok(())
     }
 
     pub(crate) async fn update_fee_estimates(&self) -> Result<()> {
@@ -318,17 +317,16 @@ where
     }
 
     pub fn tip(&self) -> Result<(u32, BlockHash)> {
-        let block_hash = tokio::task::block_in_place(move || {
-            self.runtime_handle
-                .block_on(async move { self.blockchain.get_tip_hash().await })
+        let ret = tokio::task::block_in_place(move || {
+            self.runtime_handle.block_on(async move {
+                anyhow::Ok((
+                    self.blockchain.get_height().await?,
+                    self.blockchain.get_tip_hash().await?,
+                ))
+            })
         })?;
 
-        let height = tokio::task::block_in_place(move || {
-            self.runtime_handle
-                .block_on(async move { self.blockchain.get_height().await })
-        })?;
-
-        Ok((height, block_hash))
+        Ok(ret)
     }
 
     pub async fn on_chain_transaction_list(&self) -> Result<Vec<TransactionDetails>> {
@@ -365,16 +363,12 @@ where
     fn broadcast_transaction(&self, tx: &Transaction) {
         tracing::info!(txid = %tx.txid(), raw_tx = %serialize_hex(&tx), "Broadcasting transaction");
 
-        let res = tokio::task::block_in_place(move || {
-            self.runtime_handle
-                .block_on(async move { self.blockchain.broadcast(tx).await })
+        tokio::task::block_in_place(move || {
+            self.runtime_handle.block_on(async move {
+                if let Err(err) = self.blockchain.broadcast(tx).await {
+                    tracing::error!("Failed to broadcast transaction: {err:#}");
+                }
+            })
         });
-
-        match res {
-            Ok(_) => {}
-            Err(err) => {
-                tracing::error!("Failed to broadcast transaction: {}", err);
-            }
-        }
     }
 }

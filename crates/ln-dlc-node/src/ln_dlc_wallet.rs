@@ -2,6 +2,7 @@ use crate::ldk_node_wallet;
 use crate::seed::Bip39Seed;
 use crate::TracingLogger;
 use anyhow::Result;
+use bdk::blockchain::esplora;
 use bdk::blockchain::EsploraBlockchain;
 use bdk::sled;
 use bdk::TransactionDetails;
@@ -25,6 +26,7 @@ use dlc_manager::Utxo;
 use dlc_sled_storage_provider::SledStorageProvider;
 use lightning::chain::chaininterface::BroadcasterInterface;
 use lightning_transaction_sync::EsploraSyncClient;
+use rust_bitcoin_coin_selection::select_coins;
 use simple_wallet::WalletStorage;
 use std::sync::Arc;
 
@@ -45,6 +47,7 @@ pub struct LnDlcWallet {
     storage: Arc<SledStorageProvider>,
     secp: Secp256k1<All>,
     seed: Bip39Seed,
+    runtime_handle: tokio::runtime::Handle,
 }
 
 impl LnDlcWallet {
@@ -62,7 +65,7 @@ impl LnDlcWallet {
         let wallet = Arc::new(ldk_node_wallet::Wallet::new(
             blockchain,
             on_chain_wallet,
-            runtime_handle,
+            runtime_handle.clone(),
         ));
 
         Self {
@@ -70,6 +73,7 @@ impl LnDlcWallet {
             storage,
             secp: Secp256k1::new(),
             seed,
+            runtime_handle,
         }
     }
 
@@ -134,12 +138,48 @@ impl Blockchain for LnDlcWallet {
         Ok(height as u64)
     }
 
-    fn get_block_at_height(&self, _height: u64) -> Result<Block, Error> {
-        unreachable!("This function is not meant to be called by us")
+    fn get_block_at_height(&self, height: u64) -> Result<Block, Error> {
+        let block = tokio::task::block_in_place(move || {
+            self.runtime_handle.block_on(async {
+                let block_hash = self
+                    .ln_wallet
+                    .blockchain
+                    .get_block_hash(height as u32)
+                    .await?;
+                let block = self
+                    .ln_wallet
+                    .blockchain
+                    .get_block_by_hash(&block_hash)
+                    .await?;
+
+                Result::<_, esplora::EsploraError>::Ok(block)
+            })
+        })
+        .map_err(|e| {
+            Error::BlockchainError(format!("Could not find block at height {height}: {e:#}"))
+        })?
+        .ok_or_else(|| {
+            Error::BlockchainError(format!("Could not find block at height {height}"))
+        })?;
+
+        Ok(block)
     }
 
-    fn get_transaction(&self, _txid: &Txid) -> Result<Transaction, Error> {
-        unreachable!("This function is not meant to be called by us")
+    fn get_transaction(&self, txid: &Txid) -> Result<Transaction, Error> {
+        tokio::task::block_in_place(move || {
+            self.runtime_handle.block_on(async {
+                self.ln_wallet
+                    .blockchain
+                    .get_tx(txid)
+                    .await
+                    .map_err(|e| {
+                        Error::BlockchainError(format!("Could not find transaction {txid}: {e:#}"))
+                    })?
+                    .ok_or_else(|| {
+                        Error::BlockchainError(format!("Could not get transaction body {txid}"))
+                    })
+            })
+        })
     }
 
     fn get_transaction_confirmations(&self, _txid: &Txid) -> Result<u32, Error> {
@@ -199,11 +239,29 @@ impl dlc_manager::Wallet for LnDlcWallet {
 
     fn get_utxos_for_amount(
         &self,
-        _amount: u64,
-        _fee_rate: Option<u64>,
-        _lock_utxos: bool,
+        amount: u64,
+        _: Option<u64>,
+        lock_utxos: bool,
     ) -> Result<Vec<Utxo>, Error> {
-        todo!()
+        let mut utxos = self
+            .storage
+            .get_utxos()?
+            .into_iter()
+            .filter(|x| !x.reserved)
+            .map(|x| UtxoWrap { utxo: x })
+            .collect::<Vec<_>>();
+        let selection = select_coins(amount, 20, &mut utxos)
+            .ok_or_else(|| Error::InvalidState("Not enough fund in utxos".to_string()))?;
+        if lock_utxos {
+            for utxo in selection.clone() {
+                let updated = Utxo {
+                    reserved: true,
+                    ..utxo.utxo
+                };
+                self.storage.upsert_utxo(&updated)?;
+            }
+        }
+        Ok(selection.into_iter().map(|x| x.utxo).collect::<Vec<_>>())
     }
 
     fn import_address(&self, _address: &Address) -> Result<(), Error> {
@@ -224,5 +282,16 @@ impl lightning::chain::chaininterface::FeeEstimator for LnDlcWallet {
     ) -> u32 {
         self.ln_wallet
             .get_est_sat_per_1000_weight(confirmation_target)
+    }
+}
+
+#[derive(Clone)]
+struct UtxoWrap {
+    utxo: Utxo,
+}
+
+impl rust_bitcoin_coin_selection::Utxo for UtxoWrap {
+    fn get_value(&self) -> u64 {
+        self.utxo.tx_out.value
     }
 }
