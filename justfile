@@ -4,6 +4,9 @@ line_length := "100"
 coordinator_log_file := "$PWD/data/coordinator/regtest.log"
 maker_log_file := "$PWD/data/maker/regtest.log"
 
+# location of pubspec
+pubspec := "$PWD/mobile/pubspec.yaml"
+
 # public regtest constants
 public_regtest_coordinator := "03507b924dae6595cfb78492489978127c5f1e3877848564de2015cd6d41375802@35.189.57.114:9045"
 public_regtest_esplora := "http://35.189.57.114:3000"
@@ -269,5 +272,16 @@ release-testflight: gen ios build-ipa publish-testflight
 
 version:
     cargo --version && rustc --version && flutter --version
+
+build-apk-regtest:
+    #!/usr/bin/env bash
+    BUILD_NAME=$(yq -r .version {{pubspec}})
+    BUILD_NUMBER=$(git rev-list HEAD --count)
+    echo "build name: ${BUILD_NAME}"
+    echo "build number: ${BUILD_NUMBER}"
+    cd mobile && flutter build apk  --build-name=${BUILD_NAME} --build-number=${BUILD_NUMBER} --release --dart-define="COMMIT=$(git rev-parse HEAD)" --dart-define="BRANCH=$(git rev-parse --abbrev-ref HEAD)" \
+                                       --dart-define="ESPLORA_ENDPOINT={{public_regtest_esplora}}" --dart-define="COORDINATOR_P2P_ENDPOINT={{public_regtest_coordinator}}" \
+                                       --dart-define="COORDINATOR_PORT_HTTP={{public_coordinator_http_port}}"
+release-apk-regtest: gen android build-apk-regtest
 
 # vim:expandtab:sw=4:ts=4
