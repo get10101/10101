@@ -10,6 +10,7 @@ use coordinator::position::models::Position;
 use coordinator::position::models::PositionState;
 use coordinator::routes::router;
 use coordinator::run_migration;
+use coordinator::settings::Settings;
 use diesel::r2d2;
 use diesel::r2d2::ConnectionManager;
 use diesel::PgConnection;
@@ -209,7 +210,8 @@ async fn main() -> Result<()> {
         connection::keep_public_channel_peers_connected(node.inner, CONNECTION_CHECK_INTERVAL)
     });
 
-    let app = router(node, pool);
+    let settings = Settings::new().await;
+    let app = router(node, pool, settings);
 
     tracing::debug!("listening on http://{}", http_address);
     axum::Server::bind(&http_address)

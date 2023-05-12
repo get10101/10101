@@ -34,3 +34,6 @@ data/**
 
 # env file
 .env
+
+# coordinator settings
+coordinator-settings.toml
