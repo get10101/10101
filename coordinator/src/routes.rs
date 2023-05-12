@@ -257,6 +257,12 @@ pub async fn open_channel(
         )));
     }
 
+    if !state.settings.read().await.jit_channels_enabled {
+        return Err(AppError::BadRequest(
+            "JIT channels are not enabled".to_string(),
+        ));
+    }
+
     let pubkey = PublicKey::from_str(channel_params.0.target.pubkey.as_str())
         .map_err(|e| AppError::BadRequest(format!("Invalid target node pubkey provided {e:#}")))?;
     if let Some(address) = channel_params.target.address.clone() {
@@ -316,11 +322,15 @@ async fn update_settings(
     // Update settings in memory
     *state.settings.write().await = updated_settings.clone();
 
-    // TODO: remove the expect
     updated_settings
         .write_to_file()
         .await
-        .expect("to be able to write settings to file");
+        .map_err(|e| AppError::InternalServerError(format!("Could not write settings: {e:#}")))?;
 
+    // Forward relevant settings down to the node
+    state
+        .node
+        .update_settings(updated_settings.as_node_settings())
+        .await;
     Ok(())
 }

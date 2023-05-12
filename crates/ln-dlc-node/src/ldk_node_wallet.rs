@@ -279,6 +279,7 @@ where
 
         let fallback_sats_kwu = match confirmation_target {
             ConfirmationTarget::Background => FEERATE_FLOOR_SATS_PER_KW,
+            // TODO: Make these configurable
             ConfirmationTarget::Normal => 2000,
             ConfirmationTarget::HighPriority => 5000,
         };

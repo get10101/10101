@@ -59,4 +59,11 @@ impl Settings {
         file.flush().await?;
         Ok(())
     }
+
+    /// Return the node settings part of the settings file
+    pub fn as_node_settings(&self) -> NodeSettings {
+        NodeSettings {
+            allow_opening_positions: self.new_positions_enabled,
+        }
+    }
 }

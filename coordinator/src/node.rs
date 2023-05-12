@@ -3,6 +3,7 @@ use crate::db::trades::Trade;
 use crate::position::models::NewPosition;
 use crate::position::models::Position;
 use anyhow::bail;
+use anyhow::ensure;
 use anyhow::Context;
 use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
@@ -29,7 +30,10 @@ use ln_dlc_node::node::sub_channel_message_name;
 use ln_dlc_node::node::PaymentMap;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
+use serde::Deserialize;
+use serde::Serialize;
 use std::sync::Arc;
+use tokio::sync::RwLock;
 use trade::cfd;
 use trade::cfd::calculate_long_liquidation_price;
 use trade::cfd::calculate_margin;
@@ -42,13 +46,46 @@ pub mod connection;
 /// The leverage used by the coordinator for all trades.
 const COORDINATOR_LEVERAGE: f32 = 1.0;
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NodeSettings {
+    // At times, we want to disallow opening new positions (e.g. before
+    // scheduled upgrade)
+    pub allow_opening_positions: bool,
+}
+
+impl Default for NodeSettings {
+    fn default() -> Self {
+        Self {
+            allow_opening_positions: true,
+        }
+    }
+}
+
+pub type SharedNodeSettings = Arc<RwLock<NodeSettings>>;
+
 #[derive(Clone)]
 pub struct Node {
     pub inner: Arc<ln_dlc_node::node::Node<PaymentMap>>,
     pub pool: Pool<ConnectionManager<PgConnection>>,
+    pub settings: SharedNodeSettings,
 }
 
 impl Node {
+    pub fn new(
+        inner: Arc<ln_dlc_node::node::Node<PaymentMap>>,
+        pool: Pool<ConnectionManager<PgConnection>>,
+    ) -> Self {
+        Self {
+            inner,
+            pool,
+            settings: Arc::new(RwLock::new(NodeSettings::default())),
+        }
+    }
+
+    pub async fn update_settings(&self, settings: NodeSettings) {
+        *self.settings.write().await = settings;
+    }
+
     /// Returns true or false, whether we can find an usable channel with the provided trader.
     ///
     /// Note, we use the usable channel to implicitely check if the user is connected, as it
@@ -68,7 +105,13 @@ impl Node {
 
     pub async fn trade(&self, trade_params: &TradeParams) -> Result<()> {
         match self.decide_trade_action(&trade_params.pubkey)? {
-            TradeAction::Open => self.open_position(trade_params).await?,
+            TradeAction::Open => {
+                ensure!(
+                    self.settings.read().await.allow_opening_positions,
+                    "Opening positions is disabled"
+                );
+                self.open_position(trade_params).await?
+            }
             TradeAction::Close(channel_id) => {
                 let peer_id = trade_params.pubkey;
                 tracing::info!(?trade_params, channel_id = %hex::encode(channel_id), %peer_id, "Closing position");
