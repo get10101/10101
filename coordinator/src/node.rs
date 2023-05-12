@@ -28,10 +28,9 @@ use lightning::ln::channelmanager::ChannelDetails;
 use ln_dlc_node::node::dlc_message_name;
 use ln_dlc_node::node::sub_channel_message_name;
 use ln_dlc_node::node::PaymentMap;
+use ln_dlc_node::WalletSettings;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
-use serde::Deserialize;
-use serde::Serialize;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use trade::cfd;
@@ -46,28 +45,39 @@ pub mod connection;
 /// The leverage used by the coordinator for all trades.
 const COORDINATOR_LEVERAGE: f32 = 1.0;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct NodeSettings {
     // At times, we want to disallow opening new positions (e.g. before
     // scheduled upgrade)
     pub allow_opening_positions: bool,
+    pub fallback_tx_fee_rate_normal: u32,
+    pub fallback_tx_fee_rate_high_priority: u32,
+}
+
+impl NodeSettings {
+    pub fn as_wallet_settings(&self) -> WalletSettings {
+        WalletSettings {
+            fallback_tx_fee_rate_normal: self.fallback_tx_fee_rate_normal,
+            fallback_tx_fee_rate_high_priority: self.fallback_tx_fee_rate_high_priority,
+        }
+    }
 }
 
 impl Default for NodeSettings {
     fn default() -> Self {
         Self {
             allow_opening_positions: true,
+            fallback_tx_fee_rate_normal: 2000,
+            fallback_tx_fee_rate_high_priority: 5000,
         }
     }
 }
-
-pub type SharedNodeSettings = Arc<RwLock<NodeSettings>>;
 
 #[derive(Clone)]
 pub struct Node {
     pub inner: Arc<ln_dlc_node::node::Node<PaymentMap>>,
     pub pool: Pool<ConnectionManager<PgConnection>>,
-    pub settings: SharedNodeSettings,
+    pub settings: Arc<RwLock<NodeSettings>>,
 }
 
 impl Node {
@@ -83,7 +93,11 @@ impl Node {
     }
 
     pub async fn update_settings(&self, settings: NodeSettings) {
-        *self.settings.write().await = settings;
+        *self.settings.write().await = settings.clone();
+
+        // Forward relevant settings down to the wallet
+        let wallet_settings = settings.as_wallet_settings();
+        self.inner.wallet().update_settings(wallet_settings).await;
     }
 
     /// Returns true or false, whether we can find an usable channel with the provided trader.

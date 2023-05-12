@@ -117,7 +117,6 @@ pub struct Node<P> {
     oracle: Arc<P2PDOracleClient>,
     pub dlc_message_handler: Arc<DlcMessageHandler>,
     payment_persister: Arc<P>,
-
     pub(crate) user_config: UserConfig,
     #[cfg(test)]
     pub(crate) alias: [u8; 32],

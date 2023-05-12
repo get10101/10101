@@ -19,6 +19,9 @@ pub struct Settings {
     /// Fee rate to be charged for opening just in time channels. Rate is in basis points, i.e.
     /// 100 basis point=1% or 50=0.5%
     pub jit_fee_rate_basis_points: u32,
+
+    pub fallback_tx_fee_rate_normal: u32,
+    pub fallback_tx_fee_rate_high_priority: u32,
 }
 
 impl Default for Settings {
@@ -28,6 +31,8 @@ impl Default for Settings {
             new_positions_enabled: true,
             max_tx_fee: 20,
             jit_fee_rate_basis_points: 50,
+            fallback_tx_fee_rate_normal: 2000,
+            fallback_tx_fee_rate_high_priority: 5000,
         }
     }
 }
@@ -64,6 +69,8 @@ impl Settings {
     pub fn as_node_settings(&self) -> NodeSettings {
         NodeSettings {
             allow_opening_positions: self.new_positions_enabled,
+            fallback_tx_fee_rate_normal: self.fallback_tx_fee_rate_normal,
+            fallback_tx_fee_rate_high_priority: self.fallback_tx_fee_rate_high_priority,
         }
     }
 }

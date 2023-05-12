@@ -38,7 +38,23 @@ where
     inner: Mutex<bdk::Wallet<D>>,
     // A cache storing the most recently retrieved fee rate estimations.
     fee_rate_cache: RwLock<HashMap<ConfirmationTarget, FeeRate>>,
+    settings: RwLock<WalletSettings>,
     runtime_handle: tokio::runtime::Handle,
+}
+
+#[derive(Clone)]
+pub struct WalletSettings {
+    pub fallback_tx_fee_rate_normal: u32,
+    pub fallback_tx_fee_rate_high_priority: u32,
+}
+
+impl Default for WalletSettings {
+    fn default() -> Self {
+        Self {
+            fallback_tx_fee_rate_normal: 2000,
+            fallback_tx_fee_rate_high_priority: 5000,
+        }
+    }
 }
 
 impl<D> Wallet<D>
@@ -52,13 +68,19 @@ where
     ) -> Self {
         let inner = Mutex::new(wallet);
         let fee_rate_cache = RwLock::new(HashMap::new());
+        let settings = RwLock::new(WalletSettings::default());
 
         Self {
             blockchain: Arc::new(blockchain),
             inner,
             fee_rate_cache,
             runtime_handle,
+            settings,
         }
+    }
+
+    pub async fn update_settings(&self, settings: WalletSettings) {
+        *self.settings.write().await = settings;
     }
 
     pub async fn sync(&self) -> Result<()> {
@@ -272,16 +294,19 @@ where
     }
 
     fn estimate_fee_rate(&self, confirmation_target: ConfirmationTarget) -> FeeRate {
-        let locked_fee_rate_cache = tokio::task::block_in_place(move || {
-            self.runtime_handle
-                .block_on(async move { self.fee_rate_cache.read().await })
+        let (locked_fee_rate_cache, settings) = tokio::task::block_in_place(move || {
+            self.runtime_handle.block_on(async move {
+                (
+                    self.fee_rate_cache.read().await,
+                    self.settings.read().await.clone(),
+                )
+            })
         });
 
         let fallback_sats_kwu = match confirmation_target {
             ConfirmationTarget::Background => FEERATE_FLOOR_SATS_PER_KW,
-            // TODO: Make these configurable
-            ConfirmationTarget::Normal => 2000,
-            ConfirmationTarget::HighPriority => 5000,
+            ConfirmationTarget::Normal => settings.fallback_tx_fee_rate_normal,
+            ConfirmationTarget::HighPriority => settings.fallback_tx_fee_rate_high_priority,
         };
 
         // We'll fall back on this, if we really don't have any other information.
