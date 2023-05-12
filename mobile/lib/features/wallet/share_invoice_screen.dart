@@ -15,6 +15,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:get_10101/ffi.dart' as rust;
 
 import 'application/wallet_service.dart';
 
@@ -84,7 +85,7 @@ class _ShareInvoiceScreenState extends State<ShareInvoiceScreen> {
 
                         final router = GoRouter.of(context);
                         try {
-                          await payInvoiceWithFaucet(widget.invoice);
+                          await openCoordinatorChannel();
                           // Pop both create invoice screen and share invoice screen
                           router.pop();
                           router.pop();
@@ -187,7 +188,7 @@ class _ShareInvoiceScreenState extends State<ShareInvoiceScreen> {
     );
   }
 
-// Pay the generated invoice with 10101 faucet
+  // Pay the generated invoice with 10101 faucet
   Future<void> payInvoiceWithFaucet(String invoice) async {
     // Default to the faucet on the 10101 server, but allow to override it
     // locally if needed for dev testing
@@ -208,6 +209,40 @@ class _ShareInvoiceScreenState extends State<ShareInvoiceScreen> {
       throw Exception("Payment failed: Received ${response.statusCode} ${response.body}");
     } else {
       FLog.info(text: "Paying invoice succeeded: ${response.body}");
+    }
+  }
+
+  // Open channel directly between coordinator and app.
+  //
+  // Just for regtest.
+  Future<void> openCoordinatorChannel() async {
+    String coordinatorHost =
+        const String.fromEnvironment('COORDINATOR_HOST', defaultValue: '127.0.0.1');
+    int coordinatorPort = const int.fromEnvironment("COORDINATOR_PORT_HTTP", defaultValue: 8000);
+    var coordinator = 'http://$coordinatorHost:$coordinatorPort';
+
+    final requestBody = {
+      'target': {'pubkey': rust.api.getNodeId(), 'address': rust.api.getNodeAddress()},
+      'local_balance': 200000,
+      'remote_balance': 100000,
+      'is_public': false
+    };
+    final jsonString = json.encode(requestBody).toString();
+
+    FLog.info(text: jsonString);
+    FLog.info(text: coordinator);
+
+    final response = await http.post(
+      Uri.parse('$coordinator/api/channels'),
+      headers: <String, String>{'Content-Type': 'application/json'},
+      body: jsonString,
+    );
+
+    if (response.statusCode != 200 || response.body.contains("payment_error")) {
+      throw Exception(
+          "Failed to open channel with coordinator: Received ${response.statusCode} ${response.body}");
+    } else {
+      FLog.info(text: "Initiating channel open with coordinator succeeded: ${response.body}");
     }
   }
 }
