@@ -261,6 +261,7 @@ build-ipa:
            --dart-define="COMMIT=$(git rev-parse HEAD)" \
            --dart-define="BRANCH=$(git rev-parse --abbrev-ref HEAD)" \
            --dart-define="COORDINATOR_PORT_HTTP=${COORDINATOR_PORT_HTTP}" \
+           --dart-define="COORDINATOR_HOST={{public_coordinator_host}}" \
            --build-number=${BUILD_NUMBER}
 
 publish-testflight:
