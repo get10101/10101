@@ -92,7 +92,7 @@ const ON_CHAIN_SYNC_INTERVAL: Duration = Duration::from_secs(20);
 
 /// An LN-DLC node.
 pub struct Node<P> {
-    network: Network,
+    pub network: Network,
 
     pub(crate) wallet: Arc<LnDlcWallet>,
 
