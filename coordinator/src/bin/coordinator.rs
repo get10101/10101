@@ -81,7 +81,6 @@ async fn main() -> Result<()> {
             opts.esplora,
             seed,
             ephemeral_randomness,
-            opts.jit_fee_rate_basis_point * 100,
         )
         .await?,
     );

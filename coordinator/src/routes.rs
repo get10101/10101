@@ -130,9 +130,14 @@ pub async fn post_fake_scid(
             "Provided public key {target_node} was not valid: {e:#}"
         ))
     })?;
+    let jit_fee = app_state.settings.read().await.jit_fee_rate_basis_points;
 
     Ok(Json(
-        app_state.node.inner.create_intercept_scid(target_node).scid,
+        app_state
+            .node
+            .inner
+            .create_intercept_scid(target_node, jit_fee)
+            .scid,
     ))
 }
 
@@ -147,7 +152,11 @@ pub async fn register_interceptable_invoice(
         ))
     })?;
 
-    let details = app_state.node.inner.create_intercept_scid(target_node);
+    let jit_fee = app_state.settings.read().await.jit_fee_rate_basis_points;
+    let details = app_state
+        .node
+        .inner
+        .create_intercept_scid(target_node, jit_fee);
     let scid = details.scid;
     let fee_rate_millionth = details.jit_routing_fee_millionth;
     Ok(Json(FakeScidResponse {
