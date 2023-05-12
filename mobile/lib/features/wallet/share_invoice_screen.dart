@@ -222,7 +222,7 @@ class _ShareInvoiceScreenState extends State<ShareInvoiceScreen> {
     var coordinator = 'http://$coordinatorHost:$coordinatorPort';
 
     final requestBody = {
-      'target': {'pubkey': rust.api.getNodeId(), 'address': rust.api.getNodeAddress()},
+      'target': {'pubkey': rust.api.getNodeId()},
       'local_balance': 200000,
       'remote_balance': 100000,
       'is_public': false

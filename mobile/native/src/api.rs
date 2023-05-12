@@ -285,7 +285,3 @@ pub fn decode_invoice(invoice: String) -> Result<LightningInvoice> {
 pub fn get_node_id() -> SyncReturn<String> {
     SyncReturn(ln_dlc::get_node_info().pubkey.to_string())
 }
-
-pub fn get_node_address() -> SyncReturn<String> {
-    SyncReturn(ln_dlc::get_node_info().address.to_string())
-}
