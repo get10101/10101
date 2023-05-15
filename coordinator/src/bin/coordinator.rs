@@ -10,6 +10,7 @@ use coordinator::position::models::Position;
 use coordinator::position::models::PositionState;
 use coordinator::routes::router;
 use coordinator::run_migration;
+use coordinator::settings::Settings;
 use diesel::r2d2;
 use diesel::r2d2::ConnectionManager;
 use diesel::PgConnection;
@@ -80,7 +81,6 @@ async fn main() -> Result<()> {
             opts.esplora,
             seed,
             ephemeral_randomness,
-            opts.jit_fee_rate_basis_point * 100,
         )
         .await?,
     );
@@ -94,10 +94,9 @@ async fn main() -> Result<()> {
     let mut conn = pool.get()?;
     run_migration(&mut conn);
 
-    let node = Node {
-        inner: node,
-        pool: pool.clone(),
-    };
+    let settings = Settings::new().await;
+    let node = Node::new(node, pool.clone());
+    node.update_settings(settings.as_node_settings()).await;
 
     tokio::spawn({
         let node = node.clone();
@@ -209,7 +208,7 @@ async fn main() -> Result<()> {
         connection::keep_public_channel_peers_connected(node.inner, CONNECTION_CHECK_INTERVAL)
     });
 
-    let app = router(node, pool);
+    let app = router(node, pool, settings);
 
     tracing::debug!("listening on http://{}", http_address);
     axum::Server::bind(&http_address)

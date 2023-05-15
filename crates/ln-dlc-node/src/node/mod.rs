@@ -117,16 +117,11 @@ pub struct Node<P> {
     oracle: Arc<P2PDOracleClient>,
     pub dlc_message_handler: Arc<DlcMessageHandler>,
     payment_persister: Arc<P>,
-
     pub(crate) user_config: UserConfig,
     #[cfg(test)]
     pub(crate) alias: [u8; 32],
     #[cfg(test)]
     pub(crate) announcement_addresses: Vec<NetAddress>,
-
-    /// Liquidity-based routing fee in millionths of a routed amount. In
-    /// other words, 10000 is 1% and 5_000 is 0.5%
-    jit_funding_rate_millionth: u32,
 }
 
 #[derive(Debug, Clone, Copy, Deserialize, Serialize)]
@@ -134,10 +129,6 @@ pub struct NodeInfo {
     pub pubkey: PublicKey,
     pub address: SocketAddr,
 }
-
-/// Liquidity-based routing fee in millionths of a routed amount. In
-/// other words, 10000 is 1% and 5_000 is 0.5%
-pub(crate) const DEFAULT_LIQUIDITY_ROUTING_FEE_MILLIONTHS: u32 = 5_000;
 
 impl<P> Node<P>
 where
@@ -172,7 +163,6 @@ where
             seed,
             ephemeral_randomness,
             user_config,
-            DEFAULT_LIQUIDITY_ROUTING_FEE_MILLIONTHS,
         )
         .await
     }
@@ -193,7 +183,6 @@ where
         esplora_server_url: String,
         seed: Bip39Seed,
         ephemeral_randomness: [u8; 32],
-        jit_funding_rate_millionth: u32,
     ) -> Result<Self> {
         let mut user_config = coordinator_config();
 
@@ -215,7 +204,6 @@ where
             seed,
             ephemeral_randomness,
             user_config,
-            jit_funding_rate_millionth,
         )
         .await
     }
@@ -233,7 +221,6 @@ where
         seed: Bip39Seed,
         ephemeral_randomness: [u8; 32],
         ldk_user_config: UserConfig,
-        jit_funding_rate_millionth: u32,
     ) -> Result<Self> {
         let time_since_unix_epoch = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH)?;
 
@@ -584,7 +571,6 @@ where
             announcement_addresses,
             #[cfg(test)]
             alias,
-            jit_funding_rate_millionth,
         })
     }
 }

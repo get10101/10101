@@ -37,8 +37,9 @@ async fn onboard_from_lnd() {
     tokio::time::sleep(Duration::from_secs(2)).await;
 
     let invoice_amount = 1000;
+    let jit_fee = 50;
 
-    let intercepted_scid_details = coordinator.create_intercept_scid(payee.info.pubkey);
+    let intercepted_scid_details = coordinator.create_intercept_scid(payee.info.pubkey, jit_fee);
     let fake_scid = intercepted_scid_details.scid;
     let fee_millionth = intercepted_scid_details.jit_routing_fee_millionth;
     let invoice = payee

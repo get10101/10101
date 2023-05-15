@@ -42,11 +42,6 @@ pub struct Opts {
     /// The address to connect esplora API to
     #[clap(long, default_value = "http://localhost:3000")]
     pub esplora: String,
-
-    /// Fee rate to be charged for opening just in time channels. Rate is in basis points, i.e.
-    /// 100 basis point=1% or 50=0.5%
-    #[clap(long, default_value = "50")]
-    pub jit_fee_rate_basis_point: u32,
 }
 
 #[derive(Debug, Clone, Copy, clap::ValueEnum)]

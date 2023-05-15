@@ -130,7 +130,15 @@ where
     /// This is mainly used for instant payments where the receiver does not have a lightning
     /// channel yet, e.g. Alice does not have a channel with Bob yet but wants to
     /// receive a LN payment. Clair pays to Bob who opens a channel to Alice and pays her.
-    pub fn create_intercept_scid(&self, target_node: PublicKey) -> InterceptableScidDetails {
+    ///
+    /// - `jit_fee_rate_basis_points`
+    /// Fee rate to be charged for opening just in time channels. Rate is in basis points, i.e.
+    /// 100 basis point=1% or 50=0.5%
+    pub fn create_intercept_scid(
+        &self,
+        target_node: PublicKey,
+        jit_fee_rate_basis_point: u32,
+    ) -> InterceptableScidDetails {
         let intercept_scid = self.channel_manager.get_intercept_scid();
         self.fake_channel_payments
             .lock()
@@ -140,7 +148,7 @@ where
         tracing::info!(peer_id=%target_node, %intercept_scid, "Successfully created intercept scid for payment routing");
         InterceptableScidDetails {
             scid: intercept_scid,
-            jit_routing_fee_millionth: self.jit_funding_rate_millionth,
+            jit_routing_fee_millionth: jit_fee_rate_basis_point * 100,
         }
     }
 

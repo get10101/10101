@@ -1,7 +1,6 @@
 use crate::ln::JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT;
 use crate::node::Node;
 use crate::node::PaymentMap;
-use crate::node::DEFAULT_LIQUIDITY_ROUTING_FEE_MILLIONTHS;
 use crate::tests::init_tracing;
 use crate::tests::just_in_time_channel::TestPathFunding;
 use crate::tests::min_outbound_liquidity_channel_creator;
@@ -100,14 +99,15 @@ pub(crate) async fn send_interceptable_payment(
 
     // Act
 
-    let intercepted_scid_details = coordinator.create_intercept_scid(payee.info.pubkey);
+    let jit_fee = 50;
+    let intercepted_scid_details = coordinator.create_intercept_scid(payee.info.pubkey, jit_fee);
     let intercept_scid = intercepted_scid_details.scid;
     let fee_millionth = intercepted_scid_details.jit_routing_fee_millionth;
 
     let flat_routing_fee = 1; // according to the default `ChannelConfig`
     let liquidity_routing_fee = Decimal::from_u64(invoice_amount)
         .unwrap()
-        .mul(Decimal::from_u32(DEFAULT_LIQUIDITY_ROUTING_FEE_MILLIONTHS).unwrap())
+        .mul(Decimal::from_u32(fee_millionth).unwrap())
         .div(Decimal::from_u64(1_000_000).unwrap());
     let liquidity_routing_fee_payer = liquidity_routing_fee
         .round_dp_with_strategy(0, RoundingStrategy::MidpointAwayFromZero)

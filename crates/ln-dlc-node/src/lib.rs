@@ -40,6 +40,7 @@ pub mod seed;
 mod tests;
 
 use crate::node::SubChannelManager;
+pub use ldk_node_wallet::WalletSettings;
 pub use ln::ChannelDetails;
 pub use ln::DlcChannelDetails;
 pub use node::invoice::HTLCStatus;

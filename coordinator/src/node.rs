@@ -3,6 +3,7 @@ use crate::db::trades::Trade;
 use crate::position::models::NewPosition;
 use crate::position::models::Position;
 use anyhow::bail;
+use anyhow::ensure;
 use anyhow::Context;
 use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
@@ -27,9 +28,11 @@ use lightning::ln::channelmanager::ChannelDetails;
 use ln_dlc_node::node::dlc_message_name;
 use ln_dlc_node::node::sub_channel_message_name;
 use ln_dlc_node::node::PaymentMap;
+use ln_dlc_node::WalletSettings;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use std::sync::Arc;
+use tokio::sync::RwLock;
 use trade::cfd;
 use trade::cfd::calculate_long_liquidation_price;
 use trade::cfd::calculate_margin;
@@ -42,13 +45,61 @@ pub mod connection;
 /// The leverage used by the coordinator for all trades.
 const COORDINATOR_LEVERAGE: f32 = 1.0;
 
+#[derive(Debug, Clone)]
+pub struct NodeSettings {
+    // At times, we want to disallow opening new positions (e.g. before
+    // scheduled upgrade)
+    pub allow_opening_positions: bool,
+    pub fallback_tx_fee_rate_normal: u32,
+    pub fallback_tx_fee_rate_high_priority: u32,
+}
+
+impl NodeSettings {
+    pub fn as_wallet_settings(&self) -> WalletSettings {
+        WalletSettings {
+            fallback_tx_fee_rate_normal: self.fallback_tx_fee_rate_normal,
+            fallback_tx_fee_rate_high_priority: self.fallback_tx_fee_rate_high_priority,
+        }
+    }
+}
+
+impl Default for NodeSettings {
+    fn default() -> Self {
+        Self {
+            allow_opening_positions: true,
+            fallback_tx_fee_rate_normal: 2000,
+            fallback_tx_fee_rate_high_priority: 5000,
+        }
+    }
+}
+
 #[derive(Clone)]
 pub struct Node {
     pub inner: Arc<ln_dlc_node::node::Node<PaymentMap>>,
     pub pool: Pool<ConnectionManager<PgConnection>>,
+    pub settings: Arc<RwLock<NodeSettings>>,
 }
 
 impl Node {
+    pub fn new(
+        inner: Arc<ln_dlc_node::node::Node<PaymentMap>>,
+        pool: Pool<ConnectionManager<PgConnection>>,
+    ) -> Self {
+        Self {
+            inner,
+            pool,
+            settings: Arc::new(RwLock::new(NodeSettings::default())),
+        }
+    }
+
+    pub async fn update_settings(&self, settings: NodeSettings) {
+        *self.settings.write().await = settings.clone();
+
+        // Forward relevant settings down to the wallet
+        let wallet_settings = settings.as_wallet_settings();
+        self.inner.wallet().update_settings(wallet_settings).await;
+    }
+
     /// Returns true or false, whether we can find an usable channel with the provided trader.
     ///
     /// Note, we use the usable channel to implicitely check if the user is connected, as it
@@ -68,7 +119,13 @@ impl Node {
 
     pub async fn trade(&self, trade_params: &TradeParams) -> Result<()> {
         match self.decide_trade_action(&trade_params.pubkey)? {
-            TradeAction::Open => self.open_position(trade_params).await?,
+            TradeAction::Open => {
+                ensure!(
+                    self.settings.read().await.allow_opening_positions,
+                    "Opening positions is disabled"
+                );
+                self.open_position(trade_params).await?
+            }
             TradeAction::Close(channel_id) => {
                 let peer_id = trade_params.pubkey;
                 tracing::info!(?trade_params, channel_id = %hex::encode(channel_id), %peer_id, "Closing position");

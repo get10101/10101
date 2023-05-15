@@ -6,6 +6,7 @@ use crate::orderbook::routes::get_orders;
 use crate::orderbook::routes::post_order;
 use crate::orderbook::routes::put_order;
 use crate::orderbook::routes::websocket_handler;
+use crate::settings::Settings;
 use crate::AppError;
 use axum::extract::Path;
 use axum::extract::Query;
@@ -26,6 +27,7 @@ use diesel::PgConnection;
 use ln_dlc_node::node::NodeInfo;
 use orderbook_commons::FakeScidResponse;
 use orderbook_commons::OrderbookMsg;
+use tokio::sync::RwLock;
 
 use crate::admin::close_channel;
 use crate::admin::connect_to_peer;
@@ -51,13 +53,19 @@ pub struct AppState {
     pub tx_pricefeed: broadcast::Sender<OrderbookMsg>,
     pub pool: Pool<ConnectionManager<PgConnection>>,
     pub authenticated_users: Arc<Mutex<HashMap<PublicKey, mpsc::Sender<OrderbookMsg>>>>,
+    pub settings: RwLock<Settings>,
 }
 
-pub fn router(node: Node, pool: Pool<ConnectionManager<PgConnection>>) -> Router {
+pub fn router(
+    node: Node,
+    pool: Pool<ConnectionManager<PgConnection>>,
+    settings: Settings,
+) -> Router {
     let (tx, _rx) = broadcast::channel(100);
     let app_state = Arc::new(AppState {
         node,
         pool,
+        settings: RwLock::new(settings),
         tx_pricefeed: tx,
         authenticated_users: Default::default(),
     });
@@ -94,6 +102,10 @@ pub fn router(node: Node, pool: Pool<ConnectionManager<PgConnection>>) -> Router
         .route("/api/admin/sign/:msg", get(sign_message))
         .route("/api/admin/connect", post(connect_to_peer))
         .route("/api/admin/is_connected/:target_pubkey", get(is_connected))
+        .route(
+            "/api/admin/settings",
+            get(get_settings).put(update_settings),
+        )
         .with_state(app_state)
 }
 
@@ -118,9 +130,14 @@ pub async fn post_fake_scid(
             "Provided public key {target_node} was not valid: {e:#}"
         ))
     })?;
+    let jit_fee = app_state.settings.read().await.jit_fee_rate_basis_points;
 
     Ok(Json(
-        app_state.node.inner.create_intercept_scid(target_node).scid,
+        app_state
+            .node
+            .inner
+            .create_intercept_scid(target_node, jit_fee)
+            .scid,
     ))
 }
 
@@ -135,7 +152,11 @@ pub async fn register_interceptable_invoice(
         ))
     })?;
 
-    let details = app_state.node.inner.create_intercept_scid(target_node);
+    let jit_fee = app_state.settings.read().await.jit_fee_rate_basis_points;
+    let details = app_state
+        .node
+        .inner
+        .create_intercept_scid(target_node, jit_fee);
     let scid = details.scid;
     let fee_rate_millionth = details.jit_routing_fee_millionth;
     Ok(Json(FakeScidResponse {
@@ -236,6 +257,12 @@ pub async fn open_channel(
         )));
     }
 
+    if !state.settings.read().await.jit_channels_enabled {
+        return Err(AppError::BadRequest(
+            "JIT channels are not enabled".to_string(),
+        ));
+    }
+
     let pubkey = PublicKey::from_str(channel_params.0.target.pubkey.as_str())
         .map_err(|e| AppError::BadRequest(format!("Invalid target node pubkey provided {e:#}")))?;
     if let Some(address) = channel_params.target.address.clone() {
@@ -281,4 +308,29 @@ pub struct ChannelParams {
 pub struct TargetInfo {
     pubkey: String,
     address: Option<String>,
+}
+
+async fn get_settings(State(state): State<Arc<AppState>>) -> impl IntoResponse {
+    let settings = state.settings.read().await;
+    serde_json::to_string(&*settings).expect("to be able to serialise settings")
+}
+
+async fn update_settings(
+    State(state): State<Arc<AppState>>,
+    Json(updated_settings): Json<Settings>,
+) -> Result<(), AppError> {
+    // Update settings in memory
+    *state.settings.write().await = updated_settings.clone();
+
+    updated_settings
+        .write_to_file()
+        .await
+        .map_err(|e| AppError::InternalServerError(format!("Could not write settings: {e:#}")))?;
+
+    // Forward relevant settings down to the node
+    state
+        .node
+        .update_settings(updated_settings.as_node_settings())
+        .await;
+    Ok(())
 }
