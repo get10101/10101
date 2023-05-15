@@ -27,7 +27,6 @@ orderbook-client = { path = "../../crates/orderbook-client" }
 orderbook-commons = { path = "../../crates/orderbook-commons" }
 reqwest = { version = "0.11", default-features = false, features = ["json"] }
 rust_decimal = { version = "1", features = ["serde-with-float"] }
-rust_decimal_macros = "1.26"
 serde = { version = "1.0.152", features = ["serde_derive"] }
 serde_json = "1"
 state = "0.5.3"
