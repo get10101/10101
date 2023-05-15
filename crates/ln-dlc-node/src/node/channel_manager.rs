@@ -5,6 +5,8 @@ use crate::ChainMonitor;
 use anyhow::Result;
 use bitcoin::BlockHash;
 use lightning::chain::BestBlock;
+use lightning::chain::ChannelMonitorUpdateStatus;
+use lightning::chain::Watch;
 use lightning::ln::channelmanager::ChainParameters;
 use lightning::ln::channelmanager::ChannelManagerReadArgs;
 use lightning::util::config::UserConfig;
@@ -84,6 +86,20 @@ pub(crate) async fn build(
     // that we need to be watching based on our set of channel monitors
     for (_, monitor) in channelmonitors.iter() {
         monitor.load_outputs_to_watch(&explora_client.clone());
+    }
+
+    for (_, monitor) in channelmonitors.drain(..) {
+        // ATTENTION: This must be `get_original_funding_txo` and _not_ `get_funding_txo`, because
+        // we are using LN-DLC channels. `rust-dlc` is manipulating the funding TXO so that LDK
+        // considers the `glue_transaction` as the `funding_transaction` for certain purposes.
+        //
+        // For other purposes, LDK must still refer back to the original `funding_transaction`. This
+        // is one such case.
+        let funding_txo = monitor.get_original_funding_txo().0;
+        assert_eq!(
+            chain_monitor.watch_channel(funding_txo, monitor),
+            ChannelMonitorUpdateStatus::Completed
+        );
     }
 
     Ok(channel_manager)
