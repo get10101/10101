@@ -248,12 +248,6 @@ dependencies = [
 
 [[package]]
 name = "bech32"
-version = "0.8.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cf9ff0bbfd639f15c74af777d81383cf53efb7c93613f6cab67c6c11e05bbf8b"
-
-[[package]]
-name = "bech32"
 version = "0.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d86b93f97252c47b41663388e6d155714a9d0c398b99f1005cbc5f978b29f445"
@@ -288,19 +282,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0694ea59225b0c5f3cb405ff3f670e4828358ed26aec49dc352f730f0cb1a8a3"
 dependencies = [
  "base64 0.13.1",
- "bech32 0.9.1",
+ "bech32",
  "bitcoin_hashes",
  "secp256k1",
  "serde",
-]
-
-[[package]]
-name = "bitcoin-bech32"
-version = "0.12.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "754eb4c7f35c031f33c95cc257b4c4192a5c9d3de637d3ee78ab052a3f35da57"
-dependencies = [
- "bech32 0.8.1",
 ]
 
 [[package]]
@@ -481,12 +466,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "chunked_transfer"
-version = "1.4.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cca491388666e04d7248af3f60f0c40cfb0991c72205595d7c396e3510207d1a"
-
-[[package]]
 name = "clap"
 version = "4.1.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -565,7 +544,6 @@ dependencies = [
  "ln-dlc-node",
  "local-ip-address",
  "openssl",
- "orderbook-client",
  "orderbook-commons",
  "rand",
  "rust_decimal",
@@ -592,7 +570,6 @@ dependencies = [
  "bdk",
  "orderbook-commons",
  "rust_decimal",
- "rust_decimal_macros",
  "serde",
  "time 0.3.20",
  "trade",
@@ -1472,25 +1449,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "lightning-block-sync"
-version = "0.0.114"
-source = "git+https://github.com/get10101/rust-lightning/?rev=cb1c096e#cb1c096e74ace33f8ea87316ede9902ba66cada7"
-dependencies = [
- "bitcoin",
- "chunked_transfer",
- "futures-util",
- "lightning",
- "serde",
- "serde_json",
-]
-
-[[package]]
 name = "lightning-invoice"
 version = "0.22.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "adfb59c6d13e130aece30fc72a7c17d74b201aed0ffb201b740f36e07aaece32"
 dependencies = [
- "bech32 0.9.1",
+ "bech32",
  "bitcoin_hashes",
  "lightning",
  "num-traits",
@@ -1530,8 +1494,7 @@ dependencies = [
 [[package]]
 name = "lightning-transaction-sync"
 version = "0.0.114"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f7095f2bf734c03c5ed13714d90a951f39860cf58b65f887a16f32377774464b"
+source = "git+https://github.com/get10101/rust-lightning/?rev=cb1c096e#cb1c096e74ace33f8ea87316ede9902ba66cada7"
 dependencies = [
  "bdk-macros",
  "bitcoin",
@@ -1563,7 +1526,6 @@ dependencies = [
  "bdk",
  "bip39",
  "bitcoin",
- "bitcoin-bech32",
  "clap",
  "dlc",
  "dlc-manager",
@@ -1575,11 +1537,9 @@ dependencies = [
  "hkdf",
  "lightning",
  "lightning-background-processor",
- "lightning-block-sync",
  "lightning-invoice",
  "lightning-net-tokio",
  "lightning-persister",
- "lightning-rapid-gossip-sync",
  "lightning-transaction-sync",
  "local-ip-address",
  "log",
@@ -1597,7 +1557,6 @@ dependencies = [
  "tracing",
  "tracing-log",
  "tracing-subscriber",
- "trade",
 ]
 
 [[package]]
@@ -1801,7 +1760,6 @@ dependencies = [
  "orderbook-commons",
  "reqwest",
  "rust_decimal",
- "rust_decimal_macros",
  "serde",
  "serde_json",
  "state",
@@ -1970,9 +1928,7 @@ dependencies = [
  "anyhow",
  "async-stream",
  "futures",
- "hex",
  "orderbook-commons",
- "ring",
  "secp256k1",
  "serde",
  "serde_json",
@@ -3160,7 +3116,6 @@ dependencies = [
  "bdk",
  "reqwest",
  "rust_decimal",
- "rust_decimal_macros",
  "serde",
  "time 0.3.20",
 ]
