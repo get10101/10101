@@ -14,8 +14,6 @@ const SETTINGS_FILE_PATH: &str = "coordinator-settings.toml";
 pub struct Settings {
     pub jit_channels_enabled: bool,
     pub new_positions_enabled: bool,
-    /// in sats per vbyte
-    pub max_tx_fee: u64,
     /// Fee rate to be charged for opening just in time channels. Rate is in basis points, i.e.
     /// 100 basis point=1% or 50=0.5%
     pub jit_fee_rate_basis_points: u32,
@@ -29,7 +27,6 @@ impl Default for Settings {
         Self {
             jit_channels_enabled: true,
             new_positions_enabled: true,
-            max_tx_fee: 20,
             jit_fee_rate_basis_points: 50,
             fallback_tx_fee_rate_normal: 2000,
             fallback_tx_fee_rate_high_priority: 5000,
