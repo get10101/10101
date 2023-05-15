@@ -85,7 +85,7 @@ class _ShareInvoiceScreenState extends State<ShareInvoiceScreen> {
 
                         final router = GoRouter.of(context);
                         try {
-                          await openCoordinatorChannel();
+                          await openCoordinatorChannel(config.host);
                           // Pop both create invoice screen and share invoice screen
                           router.pop();
                           router.pop();
@@ -215,9 +215,7 @@ class _ShareInvoiceScreenState extends State<ShareInvoiceScreen> {
   // Open channel directly between coordinator and app.
   //
   // Just for regtest.
-  Future<void> openCoordinatorChannel() async {
-    String coordinatorHost =
-        const String.fromEnvironment('COORDINATOR_HOST', defaultValue: '127.0.0.1');
+  Future<void> openCoordinatorChannel(String coordinatorHost) async {
     int coordinatorPort = const int.fromEnvironment("COORDINATOR_PORT_HTTP", defaultValue: 8000);
     var coordinator = 'http://$coordinatorHost:$coordinatorPort';
 
