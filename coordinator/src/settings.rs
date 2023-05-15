@@ -20,6 +20,11 @@ pub struct Settings {
 
     pub fallback_tx_fee_rate_normal: u32,
     pub fallback_tx_fee_rate_high_priority: u32,
+
+    /// At times, we might want to prevent opening new channels if the fee rate is too high.
+    /// If set to `None`, no limit is enforced.
+    //  In sats/kWU (weight unit)
+    pub max_allowed_tx_fee_rate_when_opening_channel: Option<u32>,
 }
 
 impl Default for Settings {
@@ -30,6 +35,7 @@ impl Default for Settings {
             jit_fee_rate_basis_points: 50,
             fallback_tx_fee_rate_normal: 2000,
             fallback_tx_fee_rate_high_priority: 5000,
+            max_allowed_tx_fee_rate_when_opening_channel: None,
         }
     }
 }
@@ -68,6 +74,8 @@ impl Settings {
             allow_opening_positions: self.new_positions_enabled,
             fallback_tx_fee_rate_normal: self.fallback_tx_fee_rate_normal,
             fallback_tx_fee_rate_high_priority: self.fallback_tx_fee_rate_high_priority,
+            max_allowed_tx_fee_rate_when_opening_channel: self
+                .max_allowed_tx_fee_rate_when_opening_channel,
         }
     }
 }

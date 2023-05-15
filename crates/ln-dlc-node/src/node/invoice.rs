@@ -199,6 +199,19 @@ where
         &self,
         hash: &sha256::Hash,
     ) -> Result<(), tokio::time::error::Elapsed> {
+        self.wait_for_payment(HTLCStatus::Succeeded, hash).await
+    }
+
+    pub async fn wait_for_payment(
+        &self,
+        expected_status: HTLCStatus,
+        hash: &sha256::Hash,
+    ) -> Result<(), tokio::time::error::Elapsed> {
+        assert_ne!(
+            expected_status,
+            HTLCStatus::Pending,
+            "Waiting for pending is not a valid status"
+        );
         let payment_hash = PaymentHash(hash.into_inner());
 
         tokio::time::timeout(Duration::from_secs(6), async {
@@ -206,19 +219,15 @@ where
                 tokio::time::sleep(Duration::from_secs(1)).await;
 
                 match self.payment_persister.get(&payment_hash) {
-                    Ok(Some((
-                        _,
-                        PaymentInfo {
-                            status: HTLCStatus::Succeeded,
-                            ..
-                        },
-                    ))) => return,
                     Ok(Some((_, PaymentInfo { status, .. }))) => {
                         tracing::debug!(
                             payment_hash = %hex::encode(hash),
                             ?status,
                             "Checking if payment has been claimed"
                         );
+                        if expected_status == status {
+                            return;
+                        }
                     }
                     Ok(None) => {
                         tracing::debug!(
@@ -241,7 +250,7 @@ where
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum HTLCStatus {
     Pending,
     Succeeded,

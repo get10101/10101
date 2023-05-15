@@ -46,6 +46,7 @@ where
 pub struct WalletSettings {
     pub fallback_tx_fee_rate_normal: u32,
     pub fallback_tx_fee_rate_high_priority: u32,
+    pub max_allowed_tx_fee_rate_when_opening_channel: Option<u32>,
 }
 
 impl Default for WalletSettings {
@@ -53,6 +54,7 @@ impl Default for WalletSettings {
         Self {
             fallback_tx_fee_rate_normal: 2000,
             fallback_tx_fee_rate_high_priority: 5000,
+            max_allowed_tx_fee_rate_when_opening_channel: None,
         }
     }
 }
@@ -81,6 +83,10 @@ where
 
     pub async fn update_settings(&self, settings: WalletSettings) {
         *self.settings.write().await = settings;
+    }
+
+    pub async fn settings(&self) -> WalletSettings {
+        self.settings.read().await.clone()
     }
 
     pub async fn sync(&self) -> Result<()> {

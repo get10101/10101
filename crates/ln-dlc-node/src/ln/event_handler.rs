@@ -577,6 +577,28 @@ where
                     return Ok(());
                 }
 
+                let opt_max_allowed_fee = self
+                    .wallet
+                    .inner()
+                    .settings()
+                    .await
+                    .max_allowed_tx_fee_rate_when_opening_channel;
+
+                // Do not open a channel if the fee is too high for us
+                if let Some(max_allowed_tx_fee) = opt_max_allowed_fee {
+                    let current_fee = self
+                        .wallet
+                        .inner()
+                        .get_est_sat_per_1000_weight(CONFIRMATION_TARGET);
+                    if max_allowed_tx_fee < current_fee {
+                        tracing::warn!(%max_allowed_tx_fee, %current_fee, "Not opening a channel because the fee is too high");
+                        if let Err(err) = self.channel_manager.fail_intercepted_htlc(intercept_id) {
+                            tracing::error!("Could not fail intercepted htlc {err:?}")
+                        }
+                        return Ok(());
+                    }
+                }
+
                 // Currently the channel capacity is fixed for the beta program
                 let channel_value = JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT;
 
