@@ -294,10 +294,10 @@ where
     }
 
     fn estimate_fee_rate(&self, confirmation_target: ConfirmationTarget) -> FeeRate {
-        let (locked_fee_rate_cache, settings) = tokio::task::block_in_place(move || {
+        let (fee_rate_cache, settings) = tokio::task::block_in_place(move || {
             self.runtime_handle.block_on(async move {
                 (
-                    self.fee_rate_cache.read().await,
+                    self.fee_rate_cache.read().await.clone(),
                     self.settings.read().await.clone(),
                 )
             })
@@ -312,7 +312,7 @@ where
         // We'll fall back on this, if we really don't have any other information.
         let fallback_rate = FeeRate::from_sat_per_kwu(fallback_sats_kwu as f32);
 
-        *locked_fee_rate_cache
+        *fee_rate_cache
             .get(&confirmation_target)
             .unwrap_or(&fallback_rate)
     }
