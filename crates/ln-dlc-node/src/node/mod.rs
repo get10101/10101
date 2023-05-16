@@ -301,7 +301,12 @@ where
             ))
         };
 
-        let network_graph = Arc::new(NetworkGraph::new(network, logger.clone()));
+        let network_graph_path = format!("{ldk_data_dir}/network_graph");
+        let network_graph = Arc::new(disk::read_network(
+            Path::new(&network_graph_path),
+            network,
+            logger.clone(),
+        ));
 
         let scorer_path = data_dir.join("scorer");
         let scorer = Arc::new(Mutex::new(disk::read_scorer(
