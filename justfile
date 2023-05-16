@@ -282,6 +282,7 @@ build-apk-regtest:
     cd mobile && flutter build apk  --build-name=${BUILD_NAME} --build-number=${BUILD_NUMBER} --release --dart-define="COMMIT=$(git rev-parse HEAD)" --dart-define="BRANCH=$(git rev-parse --abbrev-ref HEAD)" \
                                        --dart-define="ESPLORA_ENDPOINT={{public_regtest_esplora}}" --dart-define="COORDINATOR_P2P_ENDPOINT={{public_regtest_coordinator}}" \
                                        --dart-define="COORDINATOR_PORT_HTTP={{public_coordinator_http_port}}"
+
 release-apk-regtest: gen android build-apk-regtest
 
 # vim:expandtab:sw=4:ts=4
