@@ -77,6 +77,11 @@ where
             .payment_hash(sha256::Hash::from_slice(&payment_hash.0)?)
             .payment_secret(payment_secret)
             .timestamp(SystemTime::now())
+            // lnd defaults the min final cltv to 9 (according to BOLT 11 - the recommendation has
+            // changed to 18) 9 is not safe to use for ldk, because ldk mandates that
+            // the `cltv_expiry_delta` has to be greater than `HTLC_FAIL_BACK_BUFFER`
+            // (23).
+            .min_final_cltv_expiry_delta(MIN_CLTV_EXPIRY_DELTA.into())
             .private_route(RouteHint(vec![RouteHintHop {
                 src_node_id: hop_before_me,
                 short_channel_id: intercepted_channel_id,
