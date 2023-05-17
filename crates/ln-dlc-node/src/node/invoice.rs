@@ -208,7 +208,7 @@ where
         );
         let payment_hash = PaymentHash(hash.into_inner());
 
-        tokio::time::timeout(Duration::from_secs(6), async {
+        tokio::time::timeout(Duration::from_secs(10), async {
             loop {
                 tokio::time::sleep(Duration::from_secs(1)).await;
 
