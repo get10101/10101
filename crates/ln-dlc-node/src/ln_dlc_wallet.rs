@@ -38,8 +38,6 @@ const BDK_CLIENT_CONCURRENCY: u8 = 8;
 
 /// This is a wrapper type introduced to be able to implement traits from `rust-dlc` on the
 /// `ldk_node::LightningWallet`.
-///
-/// We want to eventually get rid of the dependency on `bdk-ldk`, because it's a dead project.
 pub struct LnDlcWallet {
     ln_wallet: Arc<ldk_node_wallet::Wallet<sled::Tree>>,
     storage: Arc<SledStorageProvider>,

@@ -2,7 +2,7 @@ use crate::ln::JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT;
 use crate::node::Node;
 use crate::tests::init_tracing;
 use crate::tests::just_in_time_channel::create::send_interceptable_payment;
-use crate::tests::just_in_time_channel::TestPathFunding;
+use crate::tests::just_in_time_channel::TestPath;
 use crate::tests::min_outbound_liquidity_channel_creator;
 use bitcoin::Amount;
 
@@ -37,7 +37,7 @@ async fn offline_receiver() {
     let invoice_amount = 1_000;
 
     send_interceptable_payment(
-        TestPathFunding::Mobile,
+        TestPath::FundingThroughMobile,
         &payer,
         &payee,
         &coordinator,

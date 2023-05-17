@@ -52,6 +52,7 @@ pub struct NodeSettings {
     pub allow_opening_positions: bool,
     pub fallback_tx_fee_rate_normal: u32,
     pub fallback_tx_fee_rate_high_priority: u32,
+    pub max_allowed_tx_fee_rate_when_opening_channel: Option<u32>,
 }
 
 impl NodeSettings {
@@ -59,6 +60,8 @@ impl NodeSettings {
         WalletSettings {
             fallback_tx_fee_rate_normal: self.fallback_tx_fee_rate_normal,
             fallback_tx_fee_rate_high_priority: self.fallback_tx_fee_rate_high_priority,
+            max_allowed_tx_fee_rate_when_opening_channel: self
+                .max_allowed_tx_fee_rate_when_opening_channel,
         }
     }
 }
@@ -69,6 +72,7 @@ impl Default for NodeSettings {
             allow_opening_positions: true,
             fallback_tx_fee_rate_normal: 2000,
             fallback_tx_fee_rate_high_priority: 5000,
+            max_allowed_tx_fee_rate_when_opening_channel: None,
         }
     }
 }
