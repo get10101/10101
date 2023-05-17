@@ -49,8 +49,11 @@ native:
     cd mobile/native && cargo build
 
 # Build Rust library for Android native targets
-android:
-    cd mobile/native && cargo ndk -o ../android/app/src/main/jniLibs build
+android args="":
+    cd mobile/native && cargo ndk -o ../android/app/src/main/jniLibs build {{args}}
+
+android-release:
+    cd mobile/native && cargo ndk -o ../android/app/src/main/jniLibs build --release
 
 # Build Rust library for iOS
 ios args="":
@@ -283,6 +286,6 @@ build-apk-regtest:
                                        --dart-define="ESPLORA_ENDPOINT={{public_regtest_esplora}}" --dart-define="COORDINATOR_P2P_ENDPOINT={{public_regtest_coordinator}}" \
                                        --dart-define="COORDINATOR_PORT_HTTP={{public_coordinator_http_port}}"
 
-release-apk-regtest: gen android build-apk-regtest
+release-apk-regtest: gen android-release build-apk-regtest
 
 # vim:expandtab:sw=4:ts=4
