@@ -12,35 +12,30 @@ use crate::seed::Bip39Seed;
 use crate::util;
 use crate::ChainMonitor;
 use crate::FakeChannelPaymentRequests;
-use crate::InvoicePayer;
 use crate::NetworkGraph;
 use crate::PeerManager;
-use anyhow::anyhow;
 use anyhow::ensure;
 use anyhow::Context;
 use anyhow::Result;
-use bitcoin::blockdata::constants::genesis_block;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::Network;
 use dlc_messages::message_handler::MessageHandler as DlcMessageHandler;
 use dlc_sled_storage_provider::SledStorageProvider;
 use futures::future::RemoteHandle;
 use futures::FutureExt;
-use lightning::chain;
 use lightning::chain::chainmonitor;
-use lightning::chain::keysinterface::KeysInterface;
+use lightning::chain::keysinterface::EntropySource;
 use lightning::chain::keysinterface::KeysManager;
-use lightning::chain::keysinterface::Recipient;
 use lightning::chain::Confirm;
 use lightning::ln::msgs::NetAddress;
 use lightning::ln::peer_handler::IgnoringMessageHandler;
 use lightning::ln::peer_handler::MessageHandler;
 use lightning::routing::gossip::P2PGossipSync;
 use lightning::routing::router::DefaultRouter;
+use lightning::routing::utxo::UtxoLookup;
 use lightning::util::config::UserConfig;
 use lightning_background_processor::BackgroundProcessor;
 use lightning_background_processor::GossipSync;
-use lightning_invoice::payment;
 use lightning_persister::FilesystemPersister;
 use lightning_transaction_sync::EsploraSyncClient;
 use p2pd_oracle_client::P2PDOracleClient;
@@ -97,7 +92,6 @@ pub struct Node<P> {
     pub(crate) wallet: Arc<LnDlcWallet>,
 
     pub peer_manager: Arc<PeerManager>,
-    invoice_payer: Arc<InvoicePayer<EventHandler<P>>>,
     pub channel_manager: Arc<ChannelManager>,
     chain_monitor: Arc<ChainMonitor>,
     keys_manager: Arc<CustomKeysManager>,
@@ -226,8 +220,6 @@ where
 
         let logger = Arc::new(TracingLogger);
 
-        let stop_running = Arc::new(AtomicBool::new(false));
-
         if !data_dir.exists() {
             std::fs::create_dir_all(data_dir)
                 .context(format!("Could not create data dir ({data_dir:?})"))?;
@@ -244,10 +236,7 @@ where
         let on_chain_wallet =
             OnChainWallet::new(on_chain_dir.as_path(), network, seed.wallet_seed())?;
 
-        let esplora_client = Arc::new(EsploraSyncClient::new(
-            esplora_server_url,
-            Arc::clone(&logger),
-        ));
+        let esplora_client = Arc::new(EsploraSyncClient::new(esplora_server_url, logger.clone()));
 
         let runtime_handle = tokio::runtime::Handle::current();
         let ln_dlc_wallet = {
@@ -260,35 +249,37 @@ where
             ))
         };
 
-        let stop_sync = Arc::clone(&stop_running);
-
-        let sync_wallet = ln_dlc_wallet.clone();
-        std::thread::spawn(move || {
-            tokio::runtime::Builder::new_current_thread()
-                .enable_all()
-                .build()
-                .expect("to be able to create a runtime")
-                .block_on(async move {
-                    loop {
-                        if stop_sync.load(Ordering::Acquire) {
-                            return;
-                        }
-                        let now = Instant::now();
-                        match sync_wallet.inner().sync().await {
-                            Ok(()) => tracing::info!(
-                                "Background sync of on-chain wallet finished in {}ms.",
-                                now.elapsed().as_millis()
-                            ),
-                            Err(err) => {
-                                tracing::error!(
-                                    "Background sync of on-chain wallet failed: {}",
-                                    err
-                                )
+        let stop_sync = Arc::new(AtomicBool::new(false));
+        std::thread::spawn({
+            let ln_dlc_wallet = ln_dlc_wallet.clone();
+            let stop_sync = stop_sync.clone();
+            move || {
+                tokio::runtime::Builder::new_current_thread()
+                    .enable_all()
+                    .build()
+                    .expect("to be able to create a runtime")
+                    .block_on(async move {
+                        loop {
+                            if stop_sync.load(Ordering::Acquire) {
+                                return;
                             }
+                            let now = Instant::now();
+                            match ln_dlc_wallet.inner().sync().await {
+                                Ok(()) => tracing::info!(
+                                    "Background sync of on-chain wallet finished in {}ms.",
+                                    now.elapsed().as_millis()
+                                ),
+                                Err(err) => {
+                                    tracing::error!(
+                                        "Background sync of on-chain wallet failed: {}",
+                                        err
+                                    )
+                                }
+                            }
+                            tokio::time::sleep(ON_CHAIN_SYNC_INTERVAL).await;
                         }
-                        tokio::time::sleep(ON_CHAIN_SYNC_INTERVAL).await;
-                    }
-                });
+                    });
+            }
         });
 
         let chain_monitor: Arc<ChainMonitor> = Arc::new(chainmonitor::ChainMonitor::new(
@@ -310,6 +301,27 @@ where
             ))
         };
 
+        let network_graph_path = format!("{ldk_data_dir}/network_graph");
+        let network_graph = Arc::new(disk::read_network(
+            Path::new(&network_graph_path),
+            network,
+            logger.clone(),
+        ));
+
+        let scorer_path = data_dir.join("scorer");
+        let scorer = Arc::new(Mutex::new(disk::read_scorer(
+            scorer_path.as_path(),
+            network_graph.clone(),
+            logger.clone(),
+        )));
+
+        let router = Arc::new(DefaultRouter::new(
+            network_graph.clone(),
+            logger.clone(),
+            keys_manager.get_secure_random_bytes(),
+            scorer.clone(),
+        ));
+
         let channel_manager = channel_manager::build(
             &ldk_data_dir,
             keys_manager.clone(),
@@ -320,6 +332,7 @@ where
             ldk_user_config,
             network,
             persister.clone(),
+            router,
         )
         .await?;
         let channel_manager = Arc::new(channel_manager);
@@ -327,7 +340,7 @@ where
         tokio::spawn({
             let channel_manager = channel_manager.clone();
             let chain_monitor = chain_monitor.clone();
-            let stop_sync = Arc::clone(&stop_running);
+            let stop_sync = stop_sync.clone();
             let esplora_client = esplora_client.clone();
             async move {
                 loop {
@@ -353,17 +366,9 @@ where
             }
         });
 
-        let genesis = genesis_block(network).header.block_hash();
-        let network_graph_path = format!("{ldk_data_dir}/network_graph");
-        let network_graph = Arc::new(disk::read_network(
-            Path::new(&network_graph_path),
-            genesis,
-            logger.clone(),
-        ));
-
         let gossip_sync = Arc::new(P2PGossipSync::new(
             network_graph.clone(),
-            None::<Arc<dyn chain::Access + Send + Sync>>,
+            None::<Arc<dyn UtxoLookup + Send + Sync>>,
             logger.clone(),
         ));
 
@@ -391,28 +396,12 @@ where
 
         let peer_manager: Arc<PeerManager> = Arc::new(PeerManager::new(
             lightning_msg_handler,
-            keys_manager
-                .get_node_secret(Recipient::Node)
-                .map_err(|_| anyhow!("Could not get node's secret"))?,
             time_since_unix_epoch.as_secs() as u32,
             &ephemeral_randomness,
             logger.clone(),
             dlc_message_handler.clone(),
+            keys_manager.clone(),
         ));
-
-        let scorer_path = data_dir.join("scorer");
-        let scorer = Arc::new(Mutex::new(disk::read_scorer(
-            scorer_path.as_path(),
-            network_graph.clone(),
-            logger.clone(),
-        )));
-
-        let router = DefaultRouter::new(
-            network_graph.clone(),
-            logger.clone(),
-            keys_manager.get_secure_random_bytes(),
-            scorer.clone(),
-        );
 
         let fake_channel_payments: FakeChannelPaymentRequests =
             Arc::new(Mutex::new(HashMap::new()));
@@ -429,14 +418,6 @@ where
             Arc::new(Mutex::new(HashMap::new())),
             peer_manager.clone(),
         );
-
-        let invoice_payer = Arc::new(InvoicePayer::new(
-            channel_manager.clone(),
-            router,
-            logger.clone(),
-            event_handler,
-            payment::Retry::Timeout(Duration::from_secs(10)),
-        ));
 
         // Connection manager
         let connection_manager_handle = {
@@ -486,7 +467,7 @@ where
 
         let background_processor = BackgroundProcessor::start(
             persister.clone(),
-            invoice_payer.clone(),
+            event_handler,
             chain_monitor.clone(),
             channel_manager.clone(),
             GossipSync::p2p(gossip_sync.clone()),
@@ -549,7 +530,6 @@ where
             network,
             wallet: ln_dlc_wallet,
             peer_manager,
-            invoice_payer,
             keys_manager,
             chain_monitor,
             logger,

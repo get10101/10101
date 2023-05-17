@@ -11,14 +11,13 @@ use bitcoin::hashes::Hash;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::secp256k1::Secp256k1;
 use bitcoin::Network;
-use lightning::chain::keysinterface::KeysInterface;
-use lightning::chain::keysinterface::Recipient;
+use lightning::ln::channelmanager::Retry;
 use lightning::ln::channelmanager::MIN_CLTV_EXPIRY_DELTA;
-use lightning::ln::channelmanager::MIN_FINAL_CLTV_EXPIRY;
 use lightning::ln::PaymentHash;
 use lightning::routing::gossip::RoutingFees;
 use lightning::routing::router::RouteHint;
 use lightning::routing::router::RouteHintHop;
+use lightning_invoice::payment::pay_invoice;
 use lightning_invoice::payment::PaymentError;
 use lightning_invoice::Currency;
 use lightning_invoice::Invoice;
@@ -45,6 +44,7 @@ where
             Some(amount_in_sats * 1000),
             description,
             expiry,
+            None,
         )
         .map_err(|e| anyhow!(e))
     }
@@ -69,12 +69,8 @@ where
         let amount_msat = amount_in_sats.map(|x| x * 1000);
         let (payment_hash, payment_secret) = self
             .channel_manager
-            .create_inbound_payment(amount_msat, invoice_expiry)
+            .create_inbound_payment(amount_msat, invoice_expiry, None)
             .map_err(|_| anyhow!("Failed to create inbound payment"))?;
-        let node_secret = self
-            .keys_manager
-            .get_node_secret(Recipient::Node)
-            .map_err(|_| anyhow!("Could not get node's secret"))?;
         let invoice_builder = InvoiceBuilder::new(self.get_currency())
             .payee_pub_key(self.info.pubkey)
             .description(description)
@@ -85,7 +81,7 @@ where
             // changed to 18) 9 is not safe to use for ldk, because ldk mandates that
             // the `cltv_expiry_delta` has to be greater than `HTLC_FAIL_BACK_BUFFER`
             // (23).
-            .min_final_cltv_expiry(MIN_FINAL_CLTV_EXPIRY as u64)
+            .min_final_cltv_expiry_delta(MIN_CLTV_EXPIRY_DELTA.into())
             .private_route(RouteHint(vec![RouteHintHop {
                 src_node_id: hop_before_me,
                 short_channel_id: intercepted_channel_id,
@@ -104,6 +100,8 @@ where
             Some(msats) => invoice_builder.amount_milli_satoshis(msats),
             None => invoice_builder,
         };
+
+        let node_secret = self.keys_manager.get_node_secret_key();
 
         let signed_invoice = invoice_builder
             .build_raw()?
@@ -153,7 +151,7 @@ where
     }
 
     pub fn send_payment(&self, invoice: &Invoice) -> Result<()> {
-        let status = match self.invoice_payer.pay_invoice(invoice) {
+        let status = match pay_invoice(invoice, Retry::Attempts(10), &self.channel_manager) {
             Ok(_) => {
                 let payee_pubkey = match invoice.payee_pub_key() {
                     Some(pubkey) => *pubkey,
@@ -169,10 +167,6 @@ where
             Err(PaymentError::Invoice(err)) => {
                 tracing::error!(%err, "Invalid invoice");
                 anyhow::bail!(err);
-            }
-            Err(PaymentError::Routing(err)) => {
-                tracing::error!(?err, "Failed to find route");
-                anyhow::bail!("{:?}", err);
             }
             Err(PaymentError::Sending(err)) => {
                 tracing::error!(?err, "Failed to send payment");
@@ -214,7 +208,7 @@ where
         );
         let payment_hash = PaymentHash(hash.into_inner());
 
-        tokio::time::timeout(Duration::from_secs(6), async {
+        tokio::time::timeout(Duration::from_secs(10), async {
             loop {
                 tokio::time::sleep(Duration::from_secs(1)).await;
 

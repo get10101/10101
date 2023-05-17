@@ -1,6 +1,6 @@
 use crate::ln::TracingLogger;
 use crate::NetworkGraph;
-use bitcoin::BlockHash;
+use bitcoin::Network;
 use lightning::routing::scoring::ProbabilisticScorer;
 use lightning::routing::scoring::ProbabilisticScoringParameters;
 use lightning::util::ser::ReadableArgs;
@@ -27,7 +27,7 @@ pub(crate) fn read_scorer(
 
 pub(crate) fn read_network(
     path: &Path,
-    genesis_hash: BlockHash,
+    network: Network,
     logger: Arc<TracingLogger>,
 ) -> NetworkGraph {
     if let Ok(file) = File::open(path) {
@@ -36,5 +36,5 @@ pub(crate) fn read_network(
             Err(e) => tracing::error!("Failed to read network graph from disk: {e}"),
         }
     }
-    NetworkGraph::new(genesis_hash, logger)
+    NetworkGraph::new(network, logger)
 }

@@ -18,7 +18,7 @@ pub async fn build() -> Result<P2PDOracleClient> {
         tracing::debug!("Building oracle client...");
         loop {
             count += 1;
-            match P2PDOracleClient::new(ORACLE_ENDPOINT).context("Failed to build oracle client") {
+            match P2PDOracleClient::new(ORACLE_ENDPOINT) {
                 Ok(oracle) => return Ok(oracle),
                 Err(e) if count == ORACLE_CONNECT_RETRY_LIMIT => {
                     anyhow::bail!(
@@ -26,8 +26,8 @@ pub async fn build() -> Result<P2PDOracleClient> {
                         count
                     );
                 }
-                Err(_) => tracing::debug!(
-                    "Retrying building oracle client..., attempts remaining {}",
+                Err(e) => tracing::debug!(
+                    "Retrying building oracle client..., attempts remaining {}: {e:#}",
                     ORACLE_CONNECT_RETRY_LIMIT - count
                 ),
             }

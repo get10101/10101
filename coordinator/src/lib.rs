@@ -27,6 +27,7 @@ pub fn run_migration(conn: &mut PgConnection) {
 }
 
 /// Our app's top level error type.
+#[derive(Debug)]
 pub enum AppError {
     InternalServerError(String),
     BadRequest(String),

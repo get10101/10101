@@ -196,7 +196,7 @@ dependencies = [
  "cc",
  "cfg-if",
  "libc",
- "miniz_oxide 0.6.2",
+ "miniz_oxide",
  "object",
  "rustc-demangle",
 ]
@@ -248,12 +248,6 @@ dependencies = [
 
 [[package]]
 name = "bech32"
-version = "0.8.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cf9ff0bbfd639f15c74af777d81383cf53efb7c93613f6cab67c6c11e05bbf8b"
-
-[[package]]
-name = "bech32"
 version = "0.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d86b93f97252c47b41663388e6d155714a9d0c398b99f1005cbc5f978b29f445"
@@ -288,19 +282,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0694ea59225b0c5f3cb405ff3f670e4828358ed26aec49dc352f730f0cb1a8a3"
 dependencies = [
  "base64 0.13.1",
- "bech32 0.9.1",
+ "bech32",
  "bitcoin_hashes",
  "secp256k1",
  "serde",
-]
-
-[[package]]
-name = "bitcoin-bech32"
-version = "0.12.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "754eb4c7f35c031f33c95cc257b4c4192a5c9d3de637d3ee78ab052a3f35da57"
-dependencies = [
- "bech32 0.8.1",
 ]
 
 [[package]]
@@ -481,12 +466,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "chunked_transfer"
-version = "1.4.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cca491388666e04d7248af3f60f0c40cfb0991c72205595d7c396e3510207d1a"
-
-[[package]]
 name = "clap"
 version = "4.1.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -565,7 +544,6 @@ dependencies = [
  "ln-dlc-node",
  "local-ip-address",
  "openssl",
- "orderbook-client",
  "orderbook-commons",
  "rand",
  "rust_decimal",
@@ -592,7 +570,6 @@ dependencies = [
  "bdk",
  "orderbook-commons",
  "rust_decimal",
- "rust_decimal_macros",
  "serde",
  "time 0.3.20",
  "trade",
@@ -815,7 +792,7 @@ dependencies = [
 [[package]]
 name = "dlc"
 version = "0.4.0"
-source = "git+https://github.com/get10101/rust-dlc?rev=0bd1996e51973b35b9e352f93965890f90d37b5f#0bd1996e51973b35b9e352f93965890f90d37b5f"
+source = "git+https://github.com/get10101/rust-dlc?rev=ce78c25#ce78c253a22173c7f38b979d2187161aadb42451"
 dependencies = [
  "bitcoin",
  "miniscript 8.0.0",
@@ -827,7 +804,7 @@ dependencies = [
 [[package]]
 name = "dlc-manager"
 version = "0.4.0"
-source = "git+https://github.com/get10101/rust-dlc?rev=0bd1996e51973b35b9e352f93965890f90d37b5f#0bd1996e51973b35b9e352f93965890f90d37b5f"
+source = "git+https://github.com/get10101/rust-dlc?rev=ce78c25#ce78c253a22173c7f38b979d2187161aadb42451"
 dependencies = [
  "async-trait",
  "bitcoin",
@@ -843,7 +820,7 @@ dependencies = [
 [[package]]
 name = "dlc-messages"
 version = "0.4.0"
-source = "git+https://github.com/get10101/rust-dlc?rev=0bd1996e51973b35b9e352f93965890f90d37b5f#0bd1996e51973b35b9e352f93965890f90d37b5f"
+source = "git+https://github.com/get10101/rust-dlc?rev=ce78c25#ce78c253a22173c7f38b979d2187161aadb42451"
 dependencies = [
  "bitcoin",
  "dlc",
@@ -855,7 +832,7 @@ dependencies = [
 [[package]]
 name = "dlc-sled-storage-provider"
 version = "0.1.0"
-source = "git+https://github.com/get10101/rust-dlc?rev=0bd1996e51973b35b9e352f93965890f90d37b5f#0bd1996e51973b35b9e352f93965890f90d37b5f"
+source = "git+https://github.com/get10101/rust-dlc?rev=ce78c25#ce78c253a22173c7f38b979d2187161aadb42451"
 dependencies = [
  "bitcoin",
  "dlc-manager",
@@ -868,7 +845,7 @@ dependencies = [
 [[package]]
 name = "dlc-trie"
 version = "0.4.0"
-source = "git+https://github.com/get10101/rust-dlc?rev=0bd1996e51973b35b9e352f93965890f90d37b5f#0bd1996e51973b35b9e352f93965890f90d37b5f"
+source = "git+https://github.com/get10101/rust-dlc?rev=ce78c25#ce78c253a22173c7f38b979d2187161aadb42451"
 dependencies = [
  "bitcoin",
  "dlc",
@@ -922,7 +899,6 @@ dependencies = [
  "log",
  "reqwest",
  "serde",
- "ureq",
 ]
 
 [[package]]
@@ -932,16 +908,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e51093e27b0797c359783294ca4f0a911c270184cb10f85783b118614a1501be"
 dependencies = [
  "instant",
-]
-
-[[package]]
-name = "flate2"
-version = "1.0.26"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3b9429470923de8e8cbd4d2dc513535400b4b3fef0319fb5c4e1f520a7bef743"
-dependencies = [
- "crc32fast",
- "miniz_oxide 0.7.1",
 ]
 
 [[package]]
@@ -1466,16 +1432,16 @@ dependencies = [
 
 [[package]]
 name = "lightning"
-version = "0.0.113"
-source = "git+https://github.com/get10101/rust-lightning/?rev=5329979edb415c0dfa6c310677f2575ad6bd5f06#5329979edb415c0dfa6c310677f2575ad6bd5f06"
+version = "0.0.114"
+source = "git+https://github.com/get10101/rust-lightning/?rev=cb1c096e#cb1c096e74ace33f8ea87316ede9902ba66cada7"
 dependencies = [
  "bitcoin",
 ]
 
 [[package]]
 name = "lightning-background-processor"
-version = "0.0.113"
-source = "git+https://github.com/get10101/rust-lightning/?rev=5329979edb415c0dfa6c310677f2575ad6bd5f06#5329979edb415c0dfa6c310677f2575ad6bd5f06"
+version = "0.0.114"
+source = "git+https://github.com/get10101/rust-lightning/?rev=cb1c096e#cb1c096e74ace33f8ea87316ede9902ba66cada7"
 dependencies = [
  "bitcoin",
  "lightning",
@@ -1483,25 +1449,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "lightning-block-sync"
-version = "0.0.113"
-source = "git+https://github.com/get10101/rust-lightning/?rev=5329979edb415c0dfa6c310677f2575ad6bd5f06#5329979edb415c0dfa6c310677f2575ad6bd5f06"
-dependencies = [
- "bitcoin",
- "chunked_transfer",
- "futures-util",
- "lightning",
- "serde",
- "serde_json",
-]
-
-[[package]]
 name = "lightning-invoice"
-version = "0.21.0"
+version = "0.22.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e9680857590c3529cf8c7d32b04501f215f2bf1e029fdfa22f4112f66c1741e4"
+checksum = "adfb59c6d13e130aece30fc72a7c17d74b201aed0ffb201b740f36e07aaece32"
 dependencies = [
- "bech32 0.9.1",
+ "bech32",
  "bitcoin_hashes",
  "lightning",
  "num-traits",
@@ -1510,8 +1463,8 @@ dependencies = [
 
 [[package]]
 name = "lightning-net-tokio"
-version = "0.0.113"
-source = "git+https://github.com/get10101/rust-lightning/?rev=5329979edb415c0dfa6c310677f2575ad6bd5f06#5329979edb415c0dfa6c310677f2575ad6bd5f06"
+version = "0.0.114"
+source = "git+https://github.com/get10101/rust-lightning/?rev=cb1c096e#cb1c096e74ace33f8ea87316ede9902ba66cada7"
 dependencies = [
  "bitcoin",
  "lightning",
@@ -1520,8 +1473,8 @@ dependencies = [
 
 [[package]]
 name = "lightning-persister"
-version = "0.0.113"
-source = "git+https://github.com/get10101/rust-lightning/?rev=5329979edb415c0dfa6c310677f2575ad6bd5f06#5329979edb415c0dfa6c310677f2575ad6bd5f06"
+version = "0.0.114"
+source = "git+https://github.com/get10101/rust-lightning/?rev=cb1c096e#cb1c096e74ace33f8ea87316ede9902ba66cada7"
 dependencies = [
  "bitcoin",
  "libc",
@@ -1531,8 +1484,8 @@ dependencies = [
 
 [[package]]
 name = "lightning-rapid-gossip-sync"
-version = "0.0.113"
-source = "git+https://github.com/get10101/rust-lightning/?rev=5329979edb415c0dfa6c310677f2575ad6bd5f06#5329979edb415c0dfa6c310677f2575ad6bd5f06"
+version = "0.0.114"
+source = "git+https://github.com/get10101/rust-lightning/?rev=cb1c096e#cb1c096e74ace33f8ea87316ede9902ba66cada7"
 dependencies = [
  "bitcoin",
  "lightning",
@@ -1541,6 +1494,7 @@ dependencies = [
 [[package]]
 name = "lightning-transaction-sync"
 version = "0.0.114"
+source = "git+https://github.com/get10101/rust-lightning/?rev=cb1c096e#cb1c096e74ace33f8ea87316ede9902ba66cada7"
 dependencies = [
  "bdk-macros",
  "bitcoin",
@@ -1572,7 +1526,6 @@ dependencies = [
  "bdk",
  "bip39",
  "bitcoin",
- "bitcoin-bech32",
  "clap",
  "dlc",
  "dlc-manager",
@@ -1584,17 +1537,16 @@ dependencies = [
  "hkdf",
  "lightning",
  "lightning-background-processor",
- "lightning-block-sync",
  "lightning-invoice",
  "lightning-net-tokio",
  "lightning-persister",
- "lightning-rapid-gossip-sync",
  "lightning-transaction-sync",
  "local-ip-address",
  "log",
  "p2pd-oracle-client",
  "rand",
  "reqwest",
+ "rust-bitcoin-coin-selection",
  "rust_decimal",
  "secp256k1-zkp",
  "serde",
@@ -1605,7 +1557,6 @@ dependencies = [
  "tracing",
  "tracing-log",
  "tracing-subscriber",
- "trade",
 ]
 
 [[package]]
@@ -1774,15 +1725,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "miniz_oxide"
-version = "0.7.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e7810e0be55b428ada41041c41f32c9f1a42817901b4ccf45fa3d4b6561e74c7"
-dependencies = [
- "adler",
-]
-
-[[package]]
 name = "mio"
 version = "0.8.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1818,7 +1760,6 @@ dependencies = [
  "orderbook-commons",
  "reqwest",
  "rust_decimal",
- "rust_decimal_macros",
  "serde",
  "serde_json",
  "state",
@@ -1987,9 +1928,7 @@ dependencies = [
  "anyhow",
  "async-stream",
  "futures",
- "hex",
  "orderbook-commons",
- "ring",
  "secp256k1",
  "serde",
  "serde_json",
@@ -2032,7 +1971,7 @@ checksum = "b15813163c1d831bf4a13c3610c05c0d03b39feb07f7e09fa234dac9b15aaf39"
 [[package]]
 name = "p2pd-oracle-client"
 version = "0.1.0"
-source = "git+https://github.com/get10101/rust-dlc?rev=0bd1996e51973b35b9e352f93965890f90d37b5f#0bd1996e51973b35b9e352f93965890f90d37b5f"
+source = "git+https://github.com/get10101/rust-dlc?rev=ce78c25#ce78c253a22173c7f38b979d2187161aadb42451"
 dependencies = [
  "chrono",
  "dlc-manager",
@@ -2438,18 +2377,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "rustls"
-version = "0.20.8"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fff78fc74d175294f4e83b28343315ffcfb114b156f0185e9741cb5570f50e2f"
-dependencies = [
- "log",
- "ring",
- "sct",
- "webpki",
-]
-
-[[package]]
 name = "rustversion"
 version = "1.0.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2496,16 +2423,6 @@ name = "scratch"
 version = "1.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ddccb15bcce173023b3fedd9436f882a0739b8dfb45e4f6b6002bee5929f61b2"
-
-[[package]]
-name = "sct"
-version = "0.7.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d53dcdb7c9f8158937a7981b48accfd39a43af418591a5d008c7b22b5e1b7ca4"
-dependencies = [
- "ring",
- "untrusted",
-]
 
 [[package]]
 name = "seahash"
@@ -2705,7 +2622,7 @@ dependencies = [
 [[package]]
 name = "simple-wallet"
 version = "0.1.0"
-source = "git+https://github.com/get10101/rust-dlc?rev=0bd1996e51973b35b9e352f93965890f90d37b5f#0bd1996e51973b35b9e352f93965890f90d37b5f"
+source = "git+https://github.com/get10101/rust-dlc?rev=ce78c25#ce78c253a22173c7f38b979d2187161aadb42451"
 dependencies = [
  "bitcoin",
  "dlc",
@@ -2752,17 +2669,6 @@ version = "0.4.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "02e2d2db9033d13a1567121ddd7a095ee144db4e1ca1b1bda3419bc0da294ebd"
 dependencies = [
- "libc",
- "winapi",
-]
-
-[[package]]
-name = "socks"
-version = "0.3.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f0c3dbbd9ae980613c6dd8e28a9407b50509d3803b57624d5dfe8315218cd58b"
-dependencies = [
- "byteorder",
  "libc",
  "winapi",
 ]
@@ -3210,7 +3116,6 @@ dependencies = [
  "bdk",
  "reqwest",
  "rust_decimal",
- "rust_decimal_macros",
  "serde",
  "time 0.3.20",
 ]
@@ -3279,25 +3184,6 @@ name = "untrusted"
 version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a156c684c91ea7d62626509bce3cb4e1d9ed5c4d978f7b4352658f96a4c26b4a"
-
-[[package]]
-name = "ureq"
-version = "2.6.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "338b31dd1314f68f3aabf3ed57ab922df95ffcd902476ca7ba3c4ce7b908c46d"
-dependencies = [
- "base64 0.13.1",
- "flate2",
- "log",
- "once_cell",
- "rustls",
- "serde",
- "serde_json",
- "socks",
- "url",
- "webpki",
- "webpki-roots",
-]
 
 [[package]]
 name = "url"
@@ -3453,25 +3339,6 @@ checksum = "e33b99f4b23ba3eec1a53ac264e35a755f00e966e0065077d6027c0f575b0b97"
 dependencies = [
  "js-sys",
  "wasm-bindgen",
-]
-
-[[package]]
-name = "webpki"
-version = "0.22.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f095d78192e208183081cc07bc5515ef55216397af48b873e5edcd72637fa1bd"
-dependencies = [
- "ring",
- "untrusted",
-]
-
-[[package]]
-name = "webpki-roots"
-version = "0.22.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b6c71e40d7d2c34a5106301fb632274ca37242cd0c9d3e64dbece371a40a2d87"
-dependencies = [
- "webpki",
 ]
 
 [[package]]

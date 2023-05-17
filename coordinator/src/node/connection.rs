@@ -21,7 +21,12 @@ pub async fn keep_public_channel_peers_connected(
 }
 
 fn reconnect_to_disconnected_public_channel_peers(node: Arc<Node<PaymentMap>>) {
-    let connected_peers = node.peer_manager.get_peer_node_ids();
+    let connected_peers = node
+        .peer_manager
+        .get_peer_node_ids()
+        .into_iter()
+        .map(|(peer, _)| peer)
+        .collect::<Vec<_>>();
 
     let channels = node.channel_manager.list_channels();
     let peers_with_public_channel = channels

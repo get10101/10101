@@ -17,6 +17,7 @@ use serde::Serialize;
 use std::fmt;
 use std::str::FromStr;
 use std::sync::Arc;
+use tracing::instrument;
 
 #[derive(Serialize, Deserialize)]
 pub struct Balance {
@@ -99,6 +100,7 @@ where
     }
 }
 
+#[instrument(skip_all, err(Debug))]
 pub async fn close_channel(
     Path(channel_id): Path<String>,
     Query(params): Query<CloseChanelParams>,
@@ -119,15 +121,13 @@ pub async fn close_channel(
     let length = std::cmp::min(byte_array.len(), fixed_length_array.len());
     fixed_length_array[..length].copy_from_slice(&byte_array[..length]);
 
-    tracing::debug!("Attempting to close channel {channel_id}");
+    tracing::info!(%channel_id, "Attempting to close channel");
 
     state
         .node
         .inner
         .close_channel(fixed_length_array, params.force.unwrap_or_default())
-        .map_err(|error| AppError::InternalServerError(error.to_string()))?;
-
-    tracing::info!(%channel_id, "Deleted lightning channel");
+        .map_err(|e| AppError::InternalServerError(format!("{e:#}")))?;
 
     Ok(())
 }

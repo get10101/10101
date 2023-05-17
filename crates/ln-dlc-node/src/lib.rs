@@ -1,10 +1,9 @@
-extern crate core;
-
 use crate::ln::TracingLogger;
+use crate::node::SubChannelManager;
 use bitcoin::secp256k1::PublicKey;
+use dlc_custom_signer::CustomKeysManager;
 use dlc_custom_signer::CustomSigner;
 use dlc_messages::message_handler::MessageHandler as DlcMessageHandler;
-use lightning::chain;
 use lightning::chain::chainmonitor;
 use lightning::chain::Filter;
 use lightning::ln::channelmanager::InterceptId;
@@ -15,11 +14,10 @@ use lightning::routing::gossip;
 use lightning::routing::gossip::P2PGossipSync;
 use lightning::routing::router::DefaultRouter;
 use lightning::routing::scoring::ProbabilisticScorer;
-use lightning_invoice::payment;
+use lightning::routing::utxo::UtxoLookup;
 use lightning_net_tokio::SocketDescriptor;
 use lightning_persister::FilesystemPersister;
 use ln_dlc_wallet::LnDlcWallet;
-use node::ChannelManager;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::Mutex;
@@ -39,7 +37,6 @@ pub mod seed;
 #[cfg(test)]
 mod tests;
 
-use crate::node::SubChannelManager;
 pub use ldk_node_wallet::WalletSettings;
 pub use ln::ChannelDetails;
 pub use ln::DlcChannelDetails;
@@ -60,19 +57,17 @@ pub type PeerManager = lightning::ln::peer_handler::PeerManager<
     Arc<
         P2PGossipSync<
             Arc<gossip::NetworkGraph<Arc<TracingLogger>>>,
-            Arc<dyn chain::Access + Send + Sync>,
+            Arc<dyn UtxoLookup + Send + Sync>,
             Arc<TracingLogger>,
         >,
     >,
     Arc<IgnoringMessageHandler>,
     Arc<TracingLogger>,
     Arc<DlcMessageHandler>,
+    Arc<CustomKeysManager>,
 >;
 
-pub(crate) type InvoicePayer<E> =
-    payment::InvoicePayer<Arc<ChannelManager>, Router, Arc<TracingLogger>, E>;
-
-type Router = DefaultRouter<
+pub(crate) type Router = DefaultRouter<
     Arc<NetworkGraph>,
     Arc<TracingLogger>,
     Arc<Mutex<ProbabilisticScorer<Arc<NetworkGraph>, Arc<TracingLogger>>>>,
