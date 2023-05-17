@@ -126,7 +126,7 @@ jobs:
         run: just gen
 
       - name: Build iOS Rust lib in release mode
-        run: just ios --release
+        run: just ios-release
 
       - name: Parse version from pubspec.yaml
         id: version
