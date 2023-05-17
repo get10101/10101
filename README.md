@@ -27,6 +27,11 @@ echo "ANDROID_NDK=.." >> ~/.gradle/gradle.properties
 
 You can see whether you have all the sufficient dependencies for your platform by running `flutter doctor`.
 
+## Contributing
+
+We encourage community contributions whether it be a bug fix or an improvement to the documentation.
+Please have a look at the [contributing guidelines](./CONTRIBUTING.md).
+
 ## Dependencies
 
 A lot of complexity for building the app has been encapsulated in a [just](justfile)-file.
