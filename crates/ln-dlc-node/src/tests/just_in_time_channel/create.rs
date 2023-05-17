@@ -2,11 +2,14 @@ use crate::ln::JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT;
 use crate::node::Node;
 use crate::node::PaymentMap;
 use crate::tests::init_tracing;
-use crate::tests::just_in_time_channel::TestPathFunding;
+use crate::tests::just_in_time_channel::TestPath;
 use crate::tests::min_outbound_liquidity_channel_creator;
+use crate::HTLCStatus;
+use crate::WalletSettings;
 use anyhow::Context;
 use anyhow::Result;
 use bitcoin::Amount;
+use lightning::chain::chaininterface::FEERATE_FLOOR_SATS_PER_KW;
 use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
@@ -15,11 +18,39 @@ use std::ops::Div;
 use std::ops::Mul;
 use std::time::Duration;
 
+/// Based on hard-coded 1sat/vbyte fee rate in `btc-fee-estimates.json`
+const CURRENT_FEE_RATE: u32 = FEERATE_FLOOR_SATS_PER_KW;
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 10)]
 #[ignore]
-async fn just_in_time_channel() {
+async fn just_in_time_channel_fails_if_fee_too_low() {
     init_tracing();
+    let low_fee_limit = WalletSettings {
+        max_allowed_tx_fee_rate_when_opening_channel: Some(CURRENT_FEE_RATE - 1),
+        ..WalletSettings::default()
+    };
 
+    create_just_in_time_channel(low_fee_limit, TestPath::ExpectFundingFailure)
+        .await
+        .unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 10)]
+#[ignore]
+async fn just_in_time_channel_works_with_correct_fee() {
+    init_tracing();
+    let high_fee_limit = WalletSettings {
+        // We set our fee limit to above the current fee rate
+        max_allowed_tx_fee_rate_when_opening_channel: Some(CURRENT_FEE_RATE + 10),
+        ..WalletSettings::default()
+    };
+
+    create_just_in_time_channel(high_fee_limit, TestPath::FundingAlwaysOnline)
+        .await
+        .unwrap();
+}
+
+async fn create_just_in_time_channel(settings: WalletSettings, test_path: TestPath) -> Result<()> {
     // Arrange
 
     let payer = Node::start_test_app("payer").await.unwrap();
@@ -34,6 +65,8 @@ async fn just_in_time_channel() {
     let payer_outbound_liquidity_sat = 25_000;
     let coordinator_outbound_liquidity_sat =
         min_outbound_liquidity_channel_creator(&payer, payer_outbound_liquidity_sat);
+
+    coordinator.wallet().update_settings(settings).await;
 
     coordinator
         .open_channel(
@@ -70,7 +103,7 @@ async fn just_in_time_channel() {
     let invoice_amount = 1_000;
 
     send_interceptable_payment(
-        TestPathFunding::Online,
+        test_path,
         &payer,
         &payee,
         &coordinator,
@@ -79,10 +112,11 @@ async fn just_in_time_channel() {
     )
     .await
     .unwrap();
+    Ok(())
 }
 
 pub(crate) async fn send_interceptable_payment(
-    test_path: TestPathFunding,
+    test_path: TestPath,
     payer: &Node<PaymentMap>,
     payee: &Node<PaymentMap>,
     coordinator: &Node<PaymentMap>,
@@ -145,7 +179,7 @@ pub(crate) async fn send_interceptable_payment(
 
     payer.send_payment(&invoice)?;
 
-    if TestPathFunding::Mobile == test_path {
+    if TestPath::FundingThroughMobile == test_path {
         // simulate the user switching from another app to 10101
 
         // Note, hopefully Breez, Phoenix or any other non-custodial wallet is able to run in the
@@ -158,9 +192,24 @@ pub(crate) async fn send_interceptable_payment(
         payee.connect(coordinator.info).await?;
     }
 
-    payee
-        .wait_for_payment_claimed(invoice.payment_hash())
-        .await?;
+    let expected_payment_status = if test_path == TestPath::ExpectFundingFailure {
+        HTLCStatus::Failed
+    } else {
+        HTLCStatus::Succeeded
+    };
+
+    // Note: We assert on the *payer* side, because this is the side that will
+    // know both when a payment succeeded and when it failed.
+    if let Err(e) = payer
+        .wait_for_payment(expected_payment_status, invoice.payment_hash())
+        .await
+    {
+        panic!("Unexpected error: {}", e);
+    }
+    if test_path == TestPath::ExpectFundingFailure {
+        // Further assertions are only relevant if the payment didn't fail
+        return Ok(());
+    }
 
     // Assert
 
