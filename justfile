@@ -53,8 +53,8 @@ android:
     cd mobile/native && cargo ndk -o ../android/app/src/main/jniLibs build
 
 # Build Rust library for iOS
-ios:
-    cd mobile/native && cargo lipo
+ios args="":
+    cd mobile/native && cargo lipo {{args}}
     cp target/universal/debug/libnative.a mobile/ios/Runner
 
 
