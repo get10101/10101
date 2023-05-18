@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:expandable/expandable.dart';
 import 'package:flutter/material.dart';
 import 'package:get_10101/common/value_data_row.dart';
@@ -7,15 +9,34 @@ import 'package:intl/intl.dart';
 
 import 'contract_symbol_icon.dart';
 
-class PositionListItem extends StatelessWidget {
+class PositionListItem extends StatefulWidget {
   const PositionListItem({super.key, required this.position, required this.onClose});
 
   final Position? position;
   final Function onClose;
 
   @override
+  State<PositionListItem> createState() => _PositionListItemState();
+}
+
+class _PositionListItemState extends State<PositionListItem> {
+  bool isPositionExpired = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.position != null) {
+      Position notNullPosition = widget.position!;
+
+      if (DateTime.now().toUtc().isAfter(notNullPosition.expiry)) {
+        isPositionExpired = true;
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    if (position == null) {
+    if (widget.position == null) {
       return const NoPositionsListItem();
     }
 
@@ -26,7 +47,16 @@ class PositionListItem extends StatelessWidget {
     TradeTheme tradeTheme = Theme.of(context).extension<TradeTheme>()!;
 
     // dart cannot promote...
-    Position notNullPosition = position!;
+    Position notNullPosition = widget.position!;
+
+    if (!isPositionExpired) {
+      Timer(notNullPosition.expiry.difference(DateTime.now().toUtc()), () {
+        setState(() {
+          isPositionExpired = true;
+        });
+      });
+    }
+
     TextStyle dataRowStyle = const TextStyle(fontSize: 14);
 
     return Card(
@@ -127,12 +157,13 @@ class PositionListItem extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               ElevatedButton(
-                onPressed: notNullPosition.positionState == PositionState.closing
-                    ? null
-                    : () async {
-                        await onClose();
-                      },
-                child: notNullPosition.positionState == PositionState.closing
+                onPressed:
+                    notNullPosition.positionState == PositionState.closing || isPositionExpired
+                        ? null
+                        : () async {
+                            await widget.onClose();
+                          },
+                child: notNullPosition.positionState == PositionState.closing || isPositionExpired
                     ? Row(
                         children: const [
                           SizedBox(
