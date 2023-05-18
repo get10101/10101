@@ -271,8 +271,7 @@ where
                                 ),
                                 Err(err) => {
                                     tracing::error!(
-                                        "Background sync of on-chain wallet failed: {}",
-                                        err
+                                        "Background sync of on-chain wallet failed: {err:#}",
                                     )
                                 }
                             }
