@@ -4,7 +4,6 @@ use crate::node::PaymentMap;
 use crate::tests::init_tracing;
 use crate::tests::just_in_time_channel::TestPath;
 use crate::tests::min_outbound_liquidity_channel_creator;
-use crate::HTLCStatus;
 use crate::WalletSettings;
 use anyhow::Context;
 use anyhow::Result;
@@ -192,23 +191,12 @@ pub(crate) async fn send_interceptable_payment(
         payee.connect(coordinator.info).await?;
     }
 
-    let expected_payment_status = if test_path == TestPath::ExpectFundingFailure {
-        HTLCStatus::Failed
-    } else {
-        HTLCStatus::Succeeded
-    };
-
-    // Note: We assert on the *payer* side, because this is the side that will
-    // know both when a payment succeeded and when it failed.
-    if let Err(e) = payer
-        .wait_for_payment(expected_payment_status, invoice.payment_hash())
-        .await
-    {
+    if let Err(e) = payee.wait_for_payment_claimed(invoice.payment_hash()).await {
+        if test_path == TestPath::ExpectFundingFailure {
+            // Further assertions are only relevant if the payment didn't fail
+            return Ok(());
+        }
         panic!("Unexpected error: {}", e);
-    }
-    if test_path == TestPath::ExpectFundingFailure {
-        // Further assertions are only relevant if the payment didn't fail
-        return Ok(());
     }
 
     // Assert
