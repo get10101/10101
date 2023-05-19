@@ -22,6 +22,7 @@ import 'package:get_10101/features/trade/trade_value_change_notifier.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:get_10101/util/constants.dart';
+import 'package:share_plus/share_plus.dart';
 
 class TradeScreen extends StatelessWidget {
   static const route = "/trade";
@@ -49,7 +50,7 @@ class TradeScreen extends StatelessWidget {
       final pendingOrder = submitOrderChangeNotifier.pendingOrder;
 
       Amount pnl = Amount(0);
-      if (pendingOrder!.close &&
+      if (pendingOrder!.positionAction == PositionAction.close &&
           context.read<PositionChangeNotifier>().positions.containsKey(ContractSymbol.btcusd)) {
         final position = context.read<PositionChangeNotifier>().positions[ContractSymbol.btcusd];
         pnl = position!.unrealizedPnl != null ? position.unrealizedPnl! : Amount(0);
@@ -64,38 +65,8 @@ class TradeScreen extends StatelessWidget {
                 selector: (_, provider) => provider.pendingOrder!.state,
                 builder: (context, state, child) {
                   const String title = "Submit Order";
-                  Widget body = Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      SizedBox(
-                        width: 200,
-                        child: Wrap(
-                          runSpacing: 10,
-                          children: [
-                            pendingOrder.close
-                                ? ValueDataRow(
-                                    type: ValueType.amount, value: pnl, label: "Unrealized P/L")
-                                : ValueDataRow(
-                                    type: ValueType.amount,
-                                    value: submitOrderChangeNotifier.pendingOrderValues?.margin,
-                                    label: "Margin"),
-                            ValueDataRow(
-                                type: ValueType.amount,
-                                value: submitOrderChangeNotifier.pendingOrderValues?.fee,
-                                label: "Fee")
-                          ],
-                        ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.only(top: 20, left: 10, right: 10, bottom: 5),
-                        child: Text(
-                            pendingOrder.close
-                                ? "Your Position will be removed automatically once your ${submitOrderChangeNotifier.pendingOrderValues?.direction.name} order has been filled."
-                                : "Your Position will be shown automatically in the Positions tab once your ${submitOrderChangeNotifier.pendingOrderValues?.direction.name} order has been filled.",
-                            style: DefaultTextStyle.of(context).style.apply(fontSizeFactor: 1.0)),
-                      )
-                    ],
-                  );
+                  Widget body =
+                      createSubmitWidget(pendingOrder, pnl, submitOrderChangeNotifier, context);
 
                   switch (state) {
                     case PendingOrderState.submitting:
@@ -307,5 +278,55 @@ class TradeScreen extends StatelessWidget {
             ],
           ),
         ));
+  }
+
+  Widget createSubmitWidget(PendingOrder pendingOrder, Amount pnl,
+      SubmitOrderChangeNotifier submitOrderChangeNotifier, BuildContext context) {
+    Widget body = Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SizedBox(
+          width: 200,
+          child: Wrap(
+            runSpacing: 10,
+            children: [
+              pendingOrder.positionAction == PositionAction.close
+                  ? ValueDataRow(type: ValueType.amount, value: pnl, label: "Unrealized P/L")
+                  : ValueDataRow(
+                      type: ValueType.amount,
+                      value: submitOrderChangeNotifier.pendingOrderValues?.margin,
+                      label: "Margin"),
+              ValueDataRow(
+                  type: ValueType.amount,
+                  value: submitOrderChangeNotifier.pendingOrderValues?.fee,
+                  label: "Fee")
+            ],
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.only(top: 20, left: 10, right: 10, bottom: 5),
+          child: Text(
+              pendingOrder.positionAction == PositionAction.close
+                  ? "Your Position will be removed automatically once your ${submitOrderChangeNotifier.pendingOrderValues?.direction.name} order has been filled."
+                  : "Your Position will be shown automatically in the Positions tab once your ${submitOrderChangeNotifier.pendingOrderValues?.direction.name} order has been filled.",
+              style: DefaultTextStyle.of(context).style.apply(fontSizeFactor: 1.0)),
+        ),
+        Padding(
+          padding: const EdgeInsets.only(top: 20, left: 10, right: 10, bottom: 5),
+          child: ElevatedButton(
+              onPressed: () async {
+                await shareText(pendingOrder.positionAction);
+              },
+              child: const Text("Share on Twitter")),
+        ),
+      ],
+    );
+    return body;
+  }
+
+  Future<void> shareText(PositionAction action) async {
+    String actionStr = action == PositionAction.open ? "opened" : "closed";
+    await Share.share(
+        "Just $actionStr a #selfcustodial position using #DLC with @get10101 🚀. The future of decentralised finance starts now! #BTC");
   }
 }
