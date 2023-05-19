@@ -99,10 +99,6 @@ where
     /// Update fee estimates and the internal BDK wallet database with
     /// the blockchain.
     pub async fn sync(&self) -> Result<()> {
-        self.update_fee_estimates()
-            .await
-            .context("Failed to update fee estimates")?;
-
         let wallet_lock = self.inner.lock().await;
         match wallet_lock
             .sync(&self.blockchain, SyncOptions { progress: None })
