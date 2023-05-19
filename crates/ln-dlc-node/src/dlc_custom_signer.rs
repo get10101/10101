@@ -184,6 +184,23 @@ impl EcdsaChannelSigner for CustomSigner {
         self.in_memory_signer_lock()
             .sign_channel_announcement_with_funding_key(msg, secp_ctx)
     }
+
+    // LDK hides this behind the `anchors` feature flag, so we should too for consistency
+    #[cfg(anchors)]
+    fn sign_holder_htlc_transaction(
+        &self,
+        htlc_tx: &Transaction,
+        input: usize,
+        htlc_descriptor: &lightning::util::events::HTLCDescriptor,
+        secp_ctx: &Secp256k1<bitcoin::secp256k1::All>,
+    ) -> Result<secp256k1_zkp::ecdsa::Signature, ()> {
+        self.in_memory_signer_lock().sign_holder_htlc_transaction(
+            htlc_tx,
+            input,
+            htlc_descriptor,
+            secp_ctx,
+        )
+    }
 }
 
 impl ChannelSigner for CustomSigner {

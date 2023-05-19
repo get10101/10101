@@ -652,6 +652,27 @@ where
                     (intercept_id, expected_outbound_amount_msat),
                 );
             }
+            #[cfg(anchors)]
+            Event::BumpTransaction(bump_event) => {
+                tracing::info!(?bump_event, "Received BumpTransaction event");
+                match bump_event {
+                    lightning::util::events::BumpTransactionEvent::ChannelClose {
+                        package_target_feerate_sat_per_1000_weight,
+                        commitment_tx,
+                        commitment_tx_fee_satoshis,
+                        anchor_descriptor,
+                        pending_htlcs,
+                    } => {
+                        todo!("Handle BumpTransaction event");
+                    }
+                    lightning::util::events::BumpTransactionEvent::HTLCResolution {
+                        target_feerate_sat_per_1000_weight,
+                        htlc_descriptors,
+                    } => {
+                        todo!("Handle BumpTransaction event");
+                    }
+                }
+            }
         };
 
         Ok(())

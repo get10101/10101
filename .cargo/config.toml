@@ -8,6 +8,8 @@ rustflags = [
   "-Wunused-import-braces",
   "-Wunused-qualifications",
   "-Wclippy::unwrap_used",
+  # Enable LDK anchor outputs
+  "--cfg=anchors",
 ]
 
 [target.'cfg(feature = "cargo-clippy")']
@@ -19,6 +21,8 @@ rustflags = [
   "-Wunused-import-braces",
   "-Wunused-qualifications",
   "-Wclippy::unwrap_used",
+  # Enable LDK anchor outputs
+  "--cfg=anchors",
 ]
 
 [target.armv7-unknown-linux-musleabihf]
