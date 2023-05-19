@@ -84,7 +84,7 @@ pub use wallet::PaymentDetails;
 const BROADCAST_NODE_ANNOUNCEMENT_INTERVAL: Duration = Duration::from_secs(600);
 
 const OFF_CHAIN_SYNC_INTERVAL: Duration = Duration::from_secs(5);
-const ON_CHAIN_SYNC_INTERVAL: Duration = Duration::from_secs(20);
+const ON_CHAIN_SYNC_INTERVAL: Duration = Duration::from_secs(300);
 const FEE_RATE_SYNC_INTERVAL: Duration = Duration::from_secs(20);
 
 const DLC_MANAGER_PERIODIC_CHECK_INTERVAL: Duration = Duration::from_secs(20);
