@@ -162,6 +162,23 @@ where
         Ok(())
     }
 
+    pub(crate) async fn create_bumped_anchor_transaction_psbt(
+        &self,
+        outpoint: bitcoin::OutPoint,
+        confirmation_target: ConfirmationTarget,
+    ) -> Result<bitcoin::psbt::PartiallySignedTransaction, Error> {
+        let fee_rate = self.estimate_fee_rate(confirmation_target);
+
+        let locked_wallet = self.inner.lock().await;
+        let mut tx_builder = locked_wallet.build_tx();
+        let (psbt, _) = tx_builder
+            .add_utxo(outpoint)?
+            .enable_rbf()
+            .fee_rate(fee_rate)
+            .finish()?;
+        Ok(psbt)
+    }
+
     pub(crate) async fn create_funding_transaction(
         &self,
         output_script: Script,
@@ -213,6 +230,7 @@ where
         Ok(address_info.address)
     }
 
+    // TODO: Make non-fallible (always access the contents of the lock, even if it's poisoned)
     pub(crate) fn get_last_unused_address(&self) -> Result<bitcoin::Address, Error> {
         let address_info = tokio::task::block_in_place(move || {
             self.runtime_handle.block_on(async move {

@@ -663,7 +663,68 @@ where
                         anchor_descriptor,
                         pending_htlcs,
                     } => {
-                        todo!("Handle BumpTransaction event");
+                        let bg_estimated_fee = self
+                            .wallet
+                            .inner()
+                            .get_est_sat_per_1000_weight(ConfirmationTarget::Background);
+
+                        if bg_estimated_fee > package_target_feerate_sat_per_1000_weight {
+                            tracing::info!("Bumping transaction for channel close");
+
+                            let value = commitment_tx_fee_satoshis;
+
+                            // TODO: set see for miner
+                            // let fee_for_miner = self
+                            //     .wallet
+                            //     .inner()
+                            //     .get_est_sat_per_1000_weight(ConfirmationTarget::Background);
+
+                            // let script_p2wpkh = self
+                            //     .wallet
+                            //     .inner()
+                            //     .get_last_unused_address()
+                            //     .expect("can't acquire the lock")
+                            //     .script_pubkey();
+
+                            // let mut anchor_tx = bitcoin::Transaction {
+                            //     version: 2,
+                            //     lock_time: bitcoin::PackedLockTime::ZERO,
+                            //     input: vec![bitcoin::TxIn {
+                            //         previous_output: anchor_descriptor.outpoint,
+                            //         ..Default::default()
+                            //     }],
+                            //     output: vec![bitcoin::TxOut {
+                            //         value: value - fee_for_miner,
+                            //         script_pubkey: script_p2wpkh,
+                            //     }],
+                            // };
+
+                            // self.wallet.inner().lock().bu
+
+                            let psbt = self
+                                .wallet
+                                .inner()
+                                .create_bumped_anchor_transaction_psbt(
+                                    anchor_descriptor.outpoint,
+                                    ConfirmationTarget::Normal,
+                                )
+                                .await
+                                .unwrap();
+                            let mut anchor_tx = psbt.unsigned_tx;
+
+                            let (funding_pubkey, funding_sig) = self
+                                .keys_manager
+                                .sign_anchor_channel_close(anchor_descriptor, &mut anchor_tx)
+                                .expect("this API to not implement any errors");
+                            anchor_tx.input[0].witness =
+                                lightning::ln::chan_utils::build_anchor_input_witness(
+                                    &funding_pubkey,
+                                    &funding_sig,
+                                );
+
+                            self.wallet.inner().broadcast_transaction(&anchor_tx);
+                            self.wallet.inner().broadcast_transaction(&commitment_tx);
+                        }
                     }
                     lightning::util::events::BumpTransactionEvent::HTLCResolution {
                         target_feerate_sat_per_1000_weight,
