@@ -84,7 +84,8 @@ pub use wallet::PaymentDetails;
 const BROADCAST_NODE_ANNOUNCEMENT_INTERVAL: Duration = Duration::from_secs(600);
 
 const OFF_CHAIN_SYNC_INTERVAL: Duration = Duration::from_secs(5);
-const ON_CHAIN_SYNC_INTERVAL: Duration = Duration::from_secs(20);
+const ON_CHAIN_SYNC_INTERVAL: Duration = Duration::from_secs(300);
+const FEE_RATE_SYNC_INTERVAL: Duration = Duration::from_secs(20);
 
 const DLC_MANAGER_PERIODIC_CHECK_INTERVAL: Duration = Duration::from_secs(20);
 
@@ -280,6 +281,30 @@ where
                                 }
                             }
                             tokio::time::sleep(ON_CHAIN_SYNC_INTERVAL).await;
+                        }
+                    });
+            }
+        });
+
+        std::thread::spawn({
+            let ln_dlc_wallet = ln_dlc_wallet.clone();
+            let stop_sync = stop_sync.clone();
+            move || {
+                tokio::runtime::Builder::new_current_thread()
+                    .enable_all()
+                    .build()
+                    .expect("to be able to create a runtime")
+                    .block_on(async move {
+                        loop {
+                            if stop_sync.load(Ordering::Acquire) {
+                                return;
+                            }
+
+                            if let Err(err) = ln_dlc_wallet.inner().update_fee_estimates().await {
+                                tracing::error!("Fee rate sync failed: {err:#}");
+                            }
+
+                            tokio::time::sleep(FEE_RATE_SYNC_INTERVAL).await;
                         }
                     });
             }
