@@ -38,7 +38,7 @@ async fn dlc_collaborative_settlement(
         coordinator_balance_channel_creation,
         app,
         app_balance_channel_creation,
-        channel_id,
+        channel_details,
     } = create_dlc_channel(app_dlc_collateral, coordinator_dlc_collateral).await?;
 
     // Act
@@ -49,7 +49,10 @@ async fn dlc_collaborative_settlement(
     let coordinator_settlement_amount = coordinator_dlc_collateral / 2;
     let coordinator_loss_amount = coordinator_dlc_collateral - coordinator_settlement_amount;
 
-    app.propose_dlc_channel_collaborative_settlement(&channel_id, coordinator_settlement_amount)?;
+    app.propose_dlc_channel_collaborative_settlement(
+        &channel_details.channel_id,
+        coordinator_settlement_amount,
+    )?;
 
     // Processs the app's offer to close the channel
     tokio::time::sleep(Duration::from_secs(2)).await;

@@ -4,6 +4,7 @@ use crate::TracingLogger;
 use anyhow::Result;
 use bdk::blockchain::esplora;
 use bdk::blockchain::EsploraBlockchain;
+use bdk::esplora_client::TxStatus;
 use bdk::sled;
 use bdk::TransactionDetails;
 use bitcoin::secp256k1::All;
@@ -64,6 +65,7 @@ impl LnDlcWallet {
             blockchain,
             on_chain_wallet,
             runtime_handle.clone(),
+            esplora_client,
         ));
 
         Self {
@@ -180,8 +182,27 @@ impl Blockchain for LnDlcWallet {
         })
     }
 
-    fn get_transaction_confirmations(&self, _txid: &Txid) -> Result<u32, Error> {
-        unreachable!("This function is not meant to be called by us")
+    fn get_transaction_confirmations(&self, txid: &Txid) -> Result<u32, Error> {
+        let confirmations = tokio::task::block_in_place(move || {
+            self.runtime_handle.block_on(async {
+                let confirmation_height =
+                    match self.ln_wallet.blockchain.get_tx_status(txid).await? {
+                        Some(TxStatus {
+                            block_height: Some(height),
+                            ..
+                        }) => height,
+                        _ => return Ok(0),
+                    };
+
+                let tip = self.ln_wallet.blockchain.get_height().await?;
+                let confirmations = tip.checked_sub(confirmation_height).unwrap_or_default();
+
+                Result::<_, esplora::EsploraError>::Ok(confirmations)
+            })
+        })
+        .map_err(|e| Error::BlockchainError(e.to_string()))?;
+
+        Ok(confirmations)
     }
 }
 

@@ -1,11 +1,8 @@
 use crate::node::Node;
 use anyhow::anyhow;
-use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
-use dlc_manager::subchannel::SubChannel;
-use dlc_manager::subchannel::SubChannelState;
 use lightning::ln::channelmanager::ChannelDetails;
 
 impl<P> Node<P> {
@@ -60,53 +57,90 @@ impl<P> Node<P> {
     }
 
     pub fn close_channel(&self, channel_id: [u8; 32], force_close: bool) -> Result<()> {
-        let channel_manager = self.channel_manager.clone();
-        let all_channels = channel_manager.list_channels();
-        let channels_to_close = all_channels
+        let channel_id_str = hex::encode(channel_id);
+
+        let channels = self.channel_manager.list_channels();
+        let channel = channels
             .iter()
-            .find(|channel| channel.channel_id == channel_id);
+            .find(|channel| channel.channel_id == channel_id)
+            .with_context(|| format!("Cannot close non-existent channel {channel_id_str}"))?;
 
-        match channels_to_close {
-            Some(cd) => {
-                if force_close {
-                    tracing::debug!(
-                        "Force closing channel {} with peer {} ",
-                        hex::encode(cd.channel_id),
-                        cd.counterparty.node_id
-                    );
-                    channel_manager
-                        .force_close_broadcasting_latest_txn(
-                            &cd.channel_id,
-                            &cd.counterparty.node_id,
-                        )
-                        .map_err(|e| anyhow!("Could not force close channel {e:?}"))
-                } else {
-                    if let Some(SubChannel { state, .. }) = self.list_dlc_channels()?.first() {
-                        if *state != SubChannelState::OffChainClosed {
-                            // this is a safeguard to not close a ln channel with
-                            // an open dlc, as we would lose the funds otherwise.
-
-                            //TODO: Ideally we would start to collaborative close the dlc
-                            // channel here first and then close the ln
-                            // channel once done.
-                            bail!("Cannot close ln channel with an open dlc.");
-                        }
-                    }
-
-                    tracing::info!(
-                        "Collaboratively closing channel {} with peer {} ",
-                        hex::encode(cd.channel_id),
-                        cd.counterparty.node_id
-                    );
-                    channel_manager
-                        .close_channel(&cd.channel_id, &cd.counterparty.node_id)
-                        .map_err(|e| anyhow!("Could not collaboratively close channel {e:?}"))
-                }
-            }
-            None => {
-                bail!("No channel found with ID {}", hex::encode(channel_id))
-            }
+        if force_close {
+            self.force_close_channel(channel)?;
+        } else {
+            self.collab_close_channel(channel)?;
         }
+
+        Ok(())
+    }
+
+    fn collab_close_channel(&self, channel: &ChannelDetails) -> Result<()> {
+        let channel_id = channel.channel_id;
+        let channel_id_str = hex::encode(channel_id);
+        let peer = channel.counterparty.node_id;
+
+        tracing::info!(channel_id = %hex::encode(channel_id), %peer, "Collaboratively closing channel");
+
+        self.is_safe_to_close_ln_channel_collaboratively(&channel_id)
+            .with_context(|| {
+                format!("Could not collaboratively close LN channel {channel_id_str}")
+            })?;
+
+        self.channel_manager
+            .close_channel(&channel_id, &peer)
+            .map_err(|e| {
+                anyhow!("Could not collaboratively close channel {channel_id_str}: {e:?}")
+            })?;
+
+        Ok(())
+    }
+
+    pub(crate) fn force_close_channel(&self, channel: &ChannelDetails) -> Result<()> {
+        let channel_id = channel.channel_id;
+        let channel_id_str = hex::encode(channel_id);
+        let peer = channel.counterparty.node_id;
+
+        let has_dlc_channel = self
+            .list_dlc_channels()?
+            .iter()
+            .any(|channel| channel.channel_id == channel_id);
+
+        if has_dlc_channel {
+            tracing::info!(
+                channel_id = %hex::encode(channel_id),
+                %peer,
+                "Initiating force-closure of LN-DLC channel"
+            );
+
+            self.sub_channel_manager
+                .initiate_force_close_sub_channel(&channel_id)
+                .map_err(|e| anyhow!("Failed to initiate force-close: {e:#}"))?;
+        } else {
+            tracing::info!(channel_id = %hex::encode(channel_id), %peer, "Force-closing LN channel");
+
+            self.channel_manager
+                .force_close_broadcasting_latest_txn(&channel_id, &peer)
+                .map_err(|e| anyhow!("Could not force-close channel {channel_id_str}: {e:?}"))?;
+        };
+
+        Ok(())
+    }
+
+    pub fn finalize_force_close_ln_dlc_channel(&self, channel_id: [u8; 32]) -> Result<()> {
+        let channel_id_str = hex::encode(channel_id);
+
+        tracing::info!(
+            channel_id = %channel_id_str,
+            "Finalizing force-closure of LN-DLC channel"
+        );
+
+        self.sub_channel_manager
+            .finalize_force_close_sub_channels(&channel_id)
+            .map_err(|e| {
+                anyhow!("Failed to finalize force-close of channel {channel_id_str}: {e:#}")
+            })?;
+
+        Ok(())
     }
 
     pub fn sign_message(&self, data: String) -> Result<String> {
