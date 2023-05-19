@@ -277,6 +277,21 @@ impl CustomKeysManager {
     pub fn get_node_secret_key(&self) -> SecretKey {
         self.keys_manager.get_node_secret_key()
     }
+
+    #[cfg(anchors)]
+    pub fn sign_anchor_channel_close(
+        &self,
+        anchor_descriptor: lightning::util::events::AnchorDescriptor,
+        anchor_tx: &mut Transaction,
+    ) -> Result<(secp256k1_zkp::PublicKey, secp256k1_zkp::ecdsa::Signature), ()> {
+        let signer = self.keys_manager.derive_channel_signer(
+            anchor_descriptor.channel_value_satoshis,
+            anchor_descriptor.channel_keys_id,
+        );
+        let funding_pubkey = signer.pubkeys().funding_pubkey;
+        let funding_sig = signer.sign_holder_anchor_input(anchor_tx, 0, self.wallet.secp())?;
+        Ok((funding_pubkey, funding_sig))
+    }
 }
 
 impl CustomKeysManager {

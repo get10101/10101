@@ -90,6 +90,10 @@ impl LnDlcWallet {
         self.seed.get_seed_phrase()
     }
 
+    pub(crate) fn secp(&self) -> &Secp256k1<All> {
+        &self.secp
+    }
+
     // TODO: Better to keep this private and expose the necessary APIs instead.
     pub fn inner(&self) -> Arc<ldk_node_wallet::Wallet<sled::Tree>> {
         self.ln_wallet.clone()

@@ -83,7 +83,24 @@ where
         Ok(())
     }
 
-    #[autometrics]
+    pub(crate) async fn create_bumped_anchor_transaction_psbt(
+        &self,
+        outpoint: bitcoin::OutPoint,
+        confirmation_target: ConfirmationTarget,
+    ) -> Result<bitcoin::psbt::PartiallySignedTransaction, Error> {
+        let fee_rate = self.fee_rate_estimator.get(confirmation_target);
+
+        let locked_wallet = self.bdk_lock();
+        let mut tx_builder = locked_wallet.build_tx();
+        tx_builder
+            .add_utxo(outpoint)?
+            .fee_rate(fee_rate)
+            .enable_rbf();
+
+        let (psbt, _) = tx_builder.finish()?;
+        Ok(psbt)
+    }
+
     pub(crate) async fn create_funding_transaction(
         &self,
         output_script: Script,
