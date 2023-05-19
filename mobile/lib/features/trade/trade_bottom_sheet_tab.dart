@@ -272,7 +272,8 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
                           context: context,
                           direction: widget.direction,
                           onConfirmation: () {
-                            submitOrderChangeNotifier.submitPendingOrder(tradeValues, false);
+                            submitOrderChangeNotifier.submitPendingOrder(
+                                tradeValues, PositionAction.open);
 
                             // TODO: Explore if it would be easier / better handle the popups as routes
                             // Pop twice to navigate back to the trade screen.

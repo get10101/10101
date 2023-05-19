@@ -13,13 +13,18 @@ enum PendingOrderState {
   submissionFailed,
 }
 
+enum PositionAction {
+  close,
+  open,
+}
+
 class PendingOrder {
   final TradeValues _tradeValues;
   PendingOrderState state = PendingOrderState.submitting;
   String? pendingOrderError;
-  final bool close;
+  final PositionAction positionAction;
 
-  PendingOrder(this._tradeValues, this.close);
+  PendingOrder(this._tradeValues, this.positionAction);
 }
 
 class SubmitOrderChangeNotifier extends ChangeNotifier {
@@ -28,8 +33,8 @@ class SubmitOrderChangeNotifier extends ChangeNotifier {
 
   SubmitOrderChangeNotifier(this.orderService);
 
-  submitPendingOrder(TradeValues tradeValues, bool close) async {
-    _pendingOrder = PendingOrder(tradeValues, close);
+  submitPendingOrder(TradeValues tradeValues, PositionAction positionAction) async {
+    _pendingOrder = PendingOrder(tradeValues, positionAction);
 
     // notify listeners about pending order in state "pending"
     notifyListeners();
@@ -59,7 +64,7 @@ class SubmitOrderChangeNotifier extends ChangeNotifier {
             fee: Amount.zero(),
             fundingRate: 0,
             tradeValuesService: TradeValuesService()),
-        true);
+        PositionAction.close);
   }
 
   PendingOrder? get pendingOrder => _pendingOrder;
