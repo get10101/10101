@@ -121,10 +121,18 @@ class _WalletScreenState extends State<WalletScreen> {
                           // ExpansionPanelList IconContainer size: end margin 8 + padding 16*2 + size 24),
                           Expanded(
                             child: Center(
-                                child: AmountText(
-                                    amount: walletChangeNotifier.total(),
-                                    textStyle: const TextStyle(
-                                        fontSize: 20.0, fontWeight: FontWeight.bold))),
+                                child: walletChangeNotifier.syncing
+                                    ? const Text(
+                                        'Wallet syncing',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontStyle: FontStyle.italic,
+                                        ),
+                                      )
+                                    : AmountText(
+                                        amount: walletChangeNotifier.total(),
+                                        textStyle: const TextStyle(
+                                            fontSize: 20.0, fontWeight: FontWeight.bold))),
                           )
                         ],
                       );

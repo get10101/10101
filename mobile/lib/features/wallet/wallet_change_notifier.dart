@@ -14,6 +14,7 @@ class WalletChangeNotifier extends ChangeNotifier implements Subscriber {
     balances: WalletBalances(onChain: Amount(0), lightning: Amount(0)),
     history: List.empty(),
   );
+  bool syncing = true;
 
   WalletChangeNotifier(this._service);
 
@@ -23,13 +24,16 @@ class WalletChangeNotifier extends ChangeNotifier implements Subscriber {
       return;
     }
     this.walletInfo = walletInfo;
+    syncing = false;
 
     FLog.trace(text: 'Successfully synced payment history');
     super.notifyListeners();
   }
 
   Future<void> refreshWalletInfo() async {
+    syncing = true;
     await _service.refreshWalletInfo();
+    syncing = false;
   }
 
   Amount total() => Amount(onChain().sats + lightning().sats);
