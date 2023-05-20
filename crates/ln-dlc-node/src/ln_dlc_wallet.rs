@@ -37,7 +37,7 @@ use std::sync::Arc;
 const BDK_CLIENT_STOP_GAP: usize = 20;
 /// The number of concurrent requests made against the API provider.
 /// Note: This constant and value was copied from ldk_node
-const BDK_CLIENT_CONCURRENCY: u8 = 8;
+const BDK_CLIENT_CONCURRENCY: u8 = 1;
 
 /// This is a wrapper type introduced to be able to implement traits from `rust-dlc` on the
 /// `ldk_node::LightningWallet`.
