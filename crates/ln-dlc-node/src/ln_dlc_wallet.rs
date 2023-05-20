@@ -31,14 +31,6 @@ use rust_bitcoin_coin_selection::select_coins;
 use simple_wallet::WalletStorage;
 use std::sync::Arc;
 
-/// The 'stop gap' parameter used by BDK's wallet sync. This seems to configure the threshold
-/// number of blocks after which BDK stops looking for scripts belonging to the wallet.
-/// Note: This constant and value was copied from ldk_node
-const BDK_CLIENT_STOP_GAP: usize = 20;
-/// The number of concurrent requests made against the API provider.
-/// Note: This constant and value was copied from ldk_node
-const BDK_CLIENT_CONCURRENCY: u8 = 1;
-
 /// This is a wrapper type introduced to be able to implement traits from `rust-dlc` on the
 /// `ldk_node::LightningWallet`.
 pub struct LnDlcWallet {
@@ -56,10 +48,12 @@ impl LnDlcWallet {
         storage: Arc<SledStorageProvider>,
         seed: Bip39Seed,
         runtime_handle: tokio::runtime::Handle,
+        bdk_client_stop_gap: usize,
+        bdk_client_concurrency: u8,
     ) -> Self {
         let blockchain =
-            EsploraBlockchain::from_client(esplora_client.client().clone(), BDK_CLIENT_STOP_GAP)
-                .with_concurrency(BDK_CLIENT_CONCURRENCY);
+            EsploraBlockchain::from_client(esplora_client.client().clone(), bdk_client_stop_gap)
+                .with_concurrency(bdk_client_concurrency);
 
         let wallet = Arc::new(ldk_node_wallet::Wallet::new(
             blockchain,

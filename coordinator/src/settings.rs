@@ -5,10 +5,11 @@ use ln_dlc_node::node::LnDlcNodeSettings;
 use serde::Deserialize;
 use serde::Serialize;
 use std::path::Path;
+use std::path::PathBuf;
 use tokio::fs;
 use tokio::io::AsyncWriteExt;
 
-const SETTINGS_FILE_PATH: &str = "coordinator-settings.toml";
+const SETTINGS_FILE_NAME: &str = "coordinator-settings.toml";
 
 /// Top level settings
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -28,6 +29,8 @@ pub struct Settings {
     pub max_allowed_tx_fee_rate_when_opening_channel: Option<u32>,
 
     pub ln_dlc: LnDlcNodeSettings,
+    // Special parameter, where the settings file is located
+    pub path: Option<PathBuf>,
 }
 
 impl Default for Settings {
@@ -40,25 +43,31 @@ impl Default for Settings {
             fallback_tx_fee_rate_high_priority: 5000,
             max_allowed_tx_fee_rate_when_opening_channel: None,
             ln_dlc: LnDlcNodeSettings::default(),
+            path: None,
         }
     }
 }
 
-async fn read_settings() -> Result<Settings> {
-    let settings_path = Path::new(SETTINGS_FILE_PATH);
+async fn read_settings(data_dir: &Path) -> Result<Settings> {
+    let settings_path = data_dir.join(SETTINGS_FILE_NAME);
     let data = fs::read_to_string(settings_path).await?;
     toml::from_str(&data).context("Unable to parse settings file")
 }
 
 impl Settings {
-    pub async fn new() -> Self {
-        match read_settings().await {
+    pub async fn new(data_dir: &Path) -> Self {
+        match read_settings(data_dir).await {
             Ok(settings) => settings,
             Err(e) => {
-                tracing::warn!("Unable to read {SETTINGS_FILE_PATH} file, using defaults: {e}");
-                let new = Settings::default();
+                tracing::warn!("Unable to read {SETTINGS_FILE_NAME} file, using defaults: {e}");
+                let new = Settings {
+                    path: Some(data_dir.join(SETTINGS_FILE_NAME)),
+                    ..Settings::default()
+                };
                 if let Err(e) = new.write_to_file().await {
                     tracing::error!("Unable to write default settings to file: {e}");
+                } else {
+                    tracing::info!("Default settings written to file");
                 }
                 new
             }
@@ -69,7 +78,7 @@ impl Settings {
         let data =
             toml::to_string_pretty(&self).context("Unable to serialize settings to TOML format")?;
 
-        let settings_path = Path::new(SETTINGS_FILE_PATH);
+        let settings_path = self.path.as_ref().context("Settings path not set")?.clone();
         let mut file = fs::File::create(settings_path).await?;
         file.write_all(data.as_bytes()).await?;
         file.flush().await?;
