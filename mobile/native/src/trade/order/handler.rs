@@ -1,5 +1,6 @@
 use crate::config;
 use crate::db;
+use crate::db::maybe_get_open_order;
 use crate::event;
 use crate::event::EventInternal;
 use crate::trade::order::orderbook_client::OrderbookClient;
@@ -8,11 +9,16 @@ use crate::trade::order::Order;
 use crate::trade::order::OrderState;
 use crate::trade::position;
 use crate::trade::position::handler::update_position_after_order_submitted;
+use anyhow::anyhow;
 use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
 use reqwest::Url;
+use time::Duration;
+use time::OffsetDateTime;
 use uuid::Uuid;
+
+const ORDER_OUTDATED_AFTER: Duration = Duration::minutes(5);
 
 pub async fn submit_order(order: Order) -> Result<()> {
     let url = format!("http://{}", config::get_http_endpoint());
@@ -117,6 +123,32 @@ fn get_order_being_filled() -> Result<Order> {
     };
 
     Ok(order_being_filled)
+}
+
+pub fn check_open_orders() -> Result<()> {
+    let order_being_filled = match maybe_get_open_order() {
+        Ok(Some(order_being_filled)) => order_being_filled,
+        Ok(None) => {
+            tracing::trace!("No open orders in the database");
+            return Ok(());
+        }
+        Err(e) => {
+            bail!("Error when loading open orders from database: {e:#}");
+        }
+    };
+
+    let now = OffsetDateTime::now_utc();
+    if order_being_filled.creation_timestamp + ORDER_OUTDATED_AFTER < now {
+        order_failed(
+            Some(order_being_filled.id),
+            FailureReason::TimedOut,
+            anyhow!("Order was not matched within {ORDER_OUTDATED_AFTER:?}"),
+        )?;
+    } else {
+        tracing::debug!("Waiting for order {} to get filled", order_being_filled.id);
+    }
+
+    Ok(())
 }
 
 fn update_order_state_in_db_and_ui(order_id: Uuid, state: OrderState) -> Result<Order> {

@@ -569,6 +569,7 @@ pub enum FailureReason {
     NoUsableChannel,
     ProposeDlcChannel,
     OrderNotAcceptable,
+    TimedOut,
 }
 
 impl From<FailureReason> for crate::trade::order::FailureReason {
@@ -587,6 +588,7 @@ impl From<FailureReason> for crate::trade::order::FailureReason {
             FailureReason::OrderNotAcceptable => {
                 crate::trade::order::FailureReason::OrderNotAcceptable
             }
+            FailureReason::TimedOut => crate::trade::order::FailureReason::TimedOut,
         }
     }
 }
@@ -607,6 +609,7 @@ impl From<crate::trade::order::FailureReason> for FailureReason {
             crate::trade::order::FailureReason::OrderNotAcceptable => {
                 FailureReason::OrderNotAcceptable
             }
+            crate::trade::order::FailureReason::TimedOut => FailureReason::TimedOut,
         }
     }
 }
