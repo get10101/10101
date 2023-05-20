@@ -54,6 +54,7 @@ use std::sync::Mutex;
 use std::time::Duration;
 use std::time::Instant;
 use std::time::SystemTime;
+use tokio::sync::RwLock;
 
 mod channel_manager;
 mod connection;
@@ -83,14 +84,11 @@ pub use wallet::PaymentDetails;
 /// According to the LDK team, a value of up to 1 hour should be fine.
 const BROADCAST_NODE_ANNOUNCEMENT_INTERVAL: Duration = Duration::from_secs(600);
 
-const OFF_CHAIN_SYNC_INTERVAL: Duration = Duration::from_secs(5);
-const ON_CHAIN_SYNC_INTERVAL: Duration = Duration::from_secs(300);
-const FEE_RATE_SYNC_INTERVAL: Duration = Duration::from_secs(20);
-
 const DLC_MANAGER_PERIODIC_CHECK_INTERVAL: Duration = Duration::from_secs(20);
 
 /// An LN-DLC node.
 pub struct Node<P> {
+    pub settings: Arc<RwLock<LnDlcNodeSettings>>,
     pub network: Network,
 
     pub(crate) wallet: Arc<LnDlcWallet>,
@@ -129,6 +127,26 @@ pub struct NodeInfo {
     pub address: SocketAddr,
 }
 
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct LnDlcNodeSettings {
+    /// How often we sync the LDK wallet
+    pub off_chain_sync_interval: Duration,
+    /// How often we sync the BDK wallet
+    pub on_chain_sync_interval: Duration,
+    /// How often we update the fee rate
+    pub fee_rate_sync_interval: Duration,
+}
+
+impl Default for LnDlcNodeSettings {
+    fn default() -> Self {
+        Self {
+            off_chain_sync_interval: Duration::from_secs(5),
+            on_chain_sync_interval: Duration::from_secs(300),
+            fee_rate_sync_interval: Duration::from_secs(20),
+        }
+    }
+}
+
 impl<P> Node<P>
 where
     P: PaymentPersister + Send + Sync + 'static,
@@ -162,6 +180,7 @@ where
             seed,
             ephemeral_randomness,
             user_config,
+            LnDlcNodeSettings::default(),
         )
         .await
     }
@@ -182,6 +201,7 @@ where
         esplora_server_url: String,
         seed: Bip39Seed,
         ephemeral_randomness: [u8; 32],
+        settings: LnDlcNodeSettings,
     ) -> Result<Self> {
         let mut user_config = coordinator_config();
 
@@ -203,8 +223,14 @@ where
             seed,
             ephemeral_randomness,
             user_config,
+            settings,
         )
         .await
+    }
+
+    pub async fn update_settings(&self, new_settings: LnDlcNodeSettings) {
+        tracing::info!(?new_settings, "Updating LnDlcNode settings");
+        *self.settings.write().await = new_settings;
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -220,6 +246,7 @@ where
         seed: Bip39Seed,
         ephemeral_randomness: [u8; 32],
         ldk_user_config: UserConfig,
+        settings: LnDlcNodeSettings,
     ) -> Result<Self> {
         let time_since_unix_epoch = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH)?;
 
@@ -254,8 +281,11 @@ where
             ))
         };
 
+        let settings = Arc::new(RwLock::new(settings));
+
         let stop_sync = Arc::new(AtomicBool::new(false));
         std::thread::spawn({
+            let settings = settings.clone();
             let ln_dlc_wallet = ln_dlc_wallet.clone();
             let stop_sync = stop_sync.clone();
             move || {
@@ -280,13 +310,14 @@ where
                                     )
                                 }
                             }
-                            tokio::time::sleep(ON_CHAIN_SYNC_INTERVAL).await;
+                            tokio::time::sleep(settings.read().await.on_chain_sync_interval).await;
                         }
                     });
             }
         });
 
         std::thread::spawn({
+            let settings = settings.clone();
             let ln_dlc_wallet = ln_dlc_wallet.clone();
             let stop_sync = stop_sync.clone();
             move || {
@@ -304,7 +335,7 @@ where
                                 tracing::error!("Fee rate sync failed: {err:#}");
                             }
 
-                            tokio::time::sleep(FEE_RATE_SYNC_INTERVAL).await;
+                            tokio::time::sleep(settings.read().await.fee_rate_sync_interval).await;
                         }
                     });
             }
@@ -370,6 +401,7 @@ where
             let chain_monitor = chain_monitor.clone();
             let stop_sync = stop_sync.clone();
             let esplora_client = esplora_client.clone();
+            let settings = settings.clone();
             async move {
                 loop {
                     if stop_sync.load(Ordering::Acquire) {
@@ -389,7 +421,7 @@ where
                             tracing::error!("Background sync of Lightning wallet failed: {e:#}")
                         }
                     }
-                    tokio::time::sleep(OFF_CHAIN_SYNC_INTERVAL).await;
+                    tokio::time::sleep(settings.read().await.off_chain_sync_interval).await;
                 }
             }
         });
@@ -600,6 +632,7 @@ where
             announcement_addresses,
             #[cfg(test)]
             alias,
+            settings,
         })
     }
 }

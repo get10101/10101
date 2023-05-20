@@ -97,6 +97,7 @@ impl Node {
     }
 
     pub async fn update_settings(&self, settings: NodeSettings) {
+        tracing::info!(?settings, "Updating node settings");
         *self.settings.write().await = settings.clone();
 
         // Forward relevant settings down to the wallet
