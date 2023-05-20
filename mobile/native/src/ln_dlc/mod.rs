@@ -7,6 +7,7 @@ use crate::event;
 use crate::event::EventInternal;
 use crate::ln_dlc::node::Node;
 use crate::ln_dlc::node::Payments;
+use crate::trade::order;
 use crate::trade::order::FailureReason;
 use crate::trade::position;
 use anyhow::anyhow;
@@ -44,6 +45,7 @@ mod node;
 static NODE: Storage<Arc<Node>> = Storage::new();
 const PROCESS_INCOMING_MESSAGES_INTERVAL: Duration = Duration::from_secs(5);
 const UPDATE_WALLET_HISTORY_INTERVAL: Duration = Duration::from_secs(5);
+const CHECK_OPEN_ORDERS_INTERVAL: Duration = Duration::from_secs(60);
 
 pub async fn refresh_wallet_info() -> Result<()> {
     let node = NODE.get();
@@ -173,6 +175,16 @@ pub fn run(data_dir: String, seed_dir: String) -> Result<()> {
 
                     tokio::time::sleep(UPDATE_WALLET_HISTORY_INTERVAL).await;
                 }
+            }
+        });
+
+        runtime.spawn(async move {
+            loop {
+                if let Err(e) = order::handler::check_open_orders() {
+                    tracing::error!("Error while checking open orders: {e:#}");
+                }
+
+                tokio::time::sleep(CHECK_OPEN_ORDERS_INTERVAL).await;
             }
         });
 

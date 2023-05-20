@@ -162,6 +162,26 @@ pub fn get_filled_orders() -> Result<Vec<trade::order::Order>> {
     Ok(orders)
 }
 
+/// Returns an order of there is currently an order that is open
+pub fn maybe_get_open_order() -> Result<Option<trade::order::Order>> {
+    let mut db = connection()?;
+    let orders = Order::get_by_state(OrderState::Open, &mut db)?;
+
+    if orders.is_empty() {
+        return Ok(None);
+    }
+
+    if orders.len() > 1 {
+        bail!("More than one order is being open at the same time, this should not happen.")
+    }
+
+    let first = orders
+        .get(0)
+        .expect("at this point we know there is exactly one order");
+
+    Ok(Some(first.clone().try_into()?))
+}
+
 /// Returns an order of there is currently an order that is being filled
 pub fn maybe_get_order_in_filling() -> Result<Option<trade::order::Order>> {
     let mut db = connection()?;

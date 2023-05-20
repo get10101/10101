@@ -37,6 +37,7 @@ pub enum FailureReason {
     ProposeDlcChannel,
     /// MVP scope: Can only close the order, not reduce or extend
     OrderNotAcceptable,
+    TimedOut,
 }
 
 #[derive(Debug, Clone, Copy)]
