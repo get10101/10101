@@ -142,7 +142,7 @@ jobs:
           BUILD_NUMBER=$(git rev-list HEAD --count)
           cd mobile
           flutter build ipa --export-options-plist=ios/exportOptions.plist \
-                            --dart-define="ESPLORA_ENDPOINT=ESPLORA_ENDPOINT" \
+                            --dart-define="ESPLORA_ENDPOINT=$ESPLORA_ENDPOINT" \
                             --dart-define="COORDINATOR_P2P_ENDPOINT=$COORDINATOR_P2P_ENDPOINT" \
                             --dart-define="NETWORK=$NETWORK" \
                             --dart-define="COMMIT=$(git rev-parse HEAD)" \
