@@ -69,7 +69,7 @@ async fn main() -> Result<()> {
     let seed_path = data_dir.join("seed");
     let seed = Bip39Seed::initialize(&seed_path)?;
 
-    let settings = Settings::new().await;
+    let settings = Settings::new(&data_dir).await;
 
     let node = Arc::new(
         ln_dlc_node::node::Node::new_coordinator(
