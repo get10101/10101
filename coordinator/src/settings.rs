@@ -56,7 +56,11 @@ impl Settings {
             Ok(settings) => settings,
             Err(e) => {
                 tracing::warn!("Unable to read {SETTINGS_FILE_PATH} file, using defaults: {e}");
-                Settings::default()
+                let new = Settings::default();
+                if let Err(e) = new.write_to_file().await {
+                    tracing::error!("Unable to write default settings to file: {e}");
+                }
+                new
             }
         }
     }
