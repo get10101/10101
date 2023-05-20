@@ -69,6 +69,8 @@ async fn main() -> Result<()> {
     let seed_path = data_dir.join("seed");
     let seed = Bip39Seed::initialize(&seed_path)?;
 
+    let settings = Settings::new().await;
+
     let node = Arc::new(
         ln_dlc_node::node::Node::new_coordinator(
             "10101.finance",
@@ -81,6 +83,7 @@ async fn main() -> Result<()> {
             opts.esplora,
             seed,
             ephemeral_randomness,
+            settings.ln_dlc.clone(),
         )
         .await?,
     );
@@ -94,7 +97,6 @@ async fn main() -> Result<()> {
     let mut conn = pool.get()?;
     run_migration(&mut conn);
 
-    let settings = Settings::new().await;
     let node = Node::new(node, pool.clone());
     node.update_settings(settings.as_node_settings()).await;
 

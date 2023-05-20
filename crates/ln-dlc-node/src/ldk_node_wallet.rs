@@ -47,7 +47,7 @@ where
     runtime_handle: tokio::runtime::Handle,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct WalletSettings {
     pub fallback_tx_fee_rate_normal: u32,
     pub fallback_tx_fee_rate_high_priority: u32,
@@ -89,6 +89,7 @@ where
     }
 
     pub async fn update_settings(&self, settings: WalletSettings) {
+        tracing::info!(?settings, "Updating wallet settings");
         *self.settings.write().await = settings;
     }
 

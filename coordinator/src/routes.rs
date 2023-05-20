@@ -336,5 +336,13 @@ async fn update_settings(
         .node
         .update_settings(updated_settings.as_node_settings())
         .await;
+
+    // Forward relevant settings down to the wallet
+    state
+        .node
+        .inner
+        .update_settings(updated_settings.ln_dlc)
+        .await;
+
     Ok(())
 }

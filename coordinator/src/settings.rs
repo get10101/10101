@@ -1,6 +1,7 @@
 use crate::node::NodeSettings;
 use anyhow::Context;
 use anyhow::Result;
+use ln_dlc_node::node::LnDlcNodeSettings;
 use serde::Deserialize;
 use serde::Serialize;
 use std::path::Path;
@@ -25,6 +26,8 @@ pub struct Settings {
     /// If set to `None`, no limit is enforced.
     //  In sats/kWU (weight unit)
     pub max_allowed_tx_fee_rate_when_opening_channel: Option<u32>,
+
+    pub ln_dlc: LnDlcNodeSettings,
 }
 
 impl Default for Settings {
@@ -36,6 +39,7 @@ impl Default for Settings {
             fallback_tx_fee_rate_normal: 2000,
             fallback_tx_fee_rate_high_priority: 5000,
             max_allowed_tx_fee_rate_when_opening_channel: None,
+            ln_dlc: LnDlcNodeSettings::default(),
         }
     }
 }

@@ -1,5 +1,6 @@
 use crate::ln::app_config;
 use crate::ln::coordinator_config;
+use crate::node::LnDlcNodeSettings;
 use crate::node::Node;
 use crate::node::NodeInfo;
 use crate::node::PaymentMap;
@@ -94,6 +95,7 @@ impl Node<PaymentMap> {
             seed,
             ephemeral_randomness,
             user_config,
+            LnDlcNodeSettings::default(),
         )
         .await?;
 
