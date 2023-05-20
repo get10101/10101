@@ -1,5 +1,6 @@
 use crate::routes::AppState;
 use crate::AppError;
+use anyhow::Context;
 use axum::extract::Path;
 use axum::extract::Query;
 use axum::extract::State;
@@ -7,6 +8,7 @@ use axum::Json;
 use bdk::TransactionDetails;
 use bitcoin::secp256k1::PublicKey;
 use dlc_manager::Storage;
+use lightning_invoice::Invoice;
 use ln_dlc_node::node::NodeInfo;
 use ln_dlc_node::ChannelDetails;
 use ln_dlc_node::DlcChannelDetails;
@@ -98,6 +100,22 @@ where
         None | Some("") => Ok(None),
         Some(s) => FromStr::from_str(s).map_err(de::Error::custom).map(Some),
     }
+}
+
+pub async fn send_payment(
+    Path(invoice): Path<String>,
+    State(state): State<Arc<AppState>>,
+) -> Result<(), AppError> {
+    let invoice = Invoice::from_str(invoice.as_str())
+        .context("Could not parse Invoice string")
+        .map_err(|e| AppError::BadRequest(format!("{e:#}")))?;
+    state
+        .node
+        .inner
+        .send_payment(&invoice)
+        .map_err(|e| AppError::InternalServerError(format!("{e:#}")))?;
+
+    Ok(())
 }
 
 #[instrument(skip_all, err(Debug))]

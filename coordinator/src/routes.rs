@@ -8,6 +8,7 @@ use crate::admin::list_channels;
 use crate::admin::list_dlc_channels;
 use crate::admin::list_on_chain_transactions;
 use crate::admin::list_peers;
+use crate::admin::send_payment;
 use crate::admin::sign_message;
 use crate::db::user;
 use crate::node::Node;
@@ -97,6 +98,7 @@ pub fn router(
             delete(finalize_force_close_ln_dlc_channel),
         )
         .route("/api/admin/peers", get(list_peers))
+        .route("/api/admin/send_payment/:invoice", post(send_payment))
         .route("/api/admin/dlc_channels", get(list_dlc_channels))
         .route("/api/admin/transactions", get(list_on_chain_transactions))
         .route(

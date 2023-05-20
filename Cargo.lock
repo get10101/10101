@@ -540,6 +540,7 @@ dependencies = [
  "futures",
  "hex",
  "lightning",
+ "lightning-invoice",
  "ln-dlc-node",
  "local-ip-address",
  "openssl",
