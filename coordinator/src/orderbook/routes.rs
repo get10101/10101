@@ -39,6 +39,7 @@ use std::str::FromStr;
 use std::sync::Arc;
 use tokio::sync::broadcast::Sender;
 use tokio::sync::mpsc;
+use tracing::instrument;
 use uuid::Uuid;
 
 #[derive(Debug, Deserialize)]
@@ -108,6 +109,7 @@ pub struct TraderMatchParams {
     pub filled_with: FilledWith,
 }
 
+#[instrument(skip_all, err(Debug))]
 pub async fn post_order(
     State(state): State<Arc<AppState>>,
     Json(new_order): Json<NewOrder>,
