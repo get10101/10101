@@ -154,7 +154,7 @@ impl Default for LnDlcNodeSettings {
             on_chain_sync_interval: Duration::from_secs(300),
             fee_rate_sync_interval: Duration::from_secs(20),
             bdk_client_stop_gap: 20,
-            bdk_client_concurrency: 1,
+            bdk_client_concurrency: 4,
         }
     }
 }
