@@ -135,6 +135,16 @@ pub struct LnDlcNodeSettings {
     pub on_chain_sync_interval: Duration,
     /// How often we update the fee rate
     pub fee_rate_sync_interval: Duration,
+
+    /// The 'stop gap' parameter used by BDK's wallet sync. This seems to configure the threshold
+    /// number of blocks after which BDK stops looking for scripts belonging to the wallet.
+    /// Note: This constant and value was copied from ldk_node
+    /// XXX: Requires restart of the node to take effect
+    pub bdk_client_stop_gap: usize,
+    /// The number of concurrent requests made against the API provider.
+    /// Note: This constant and value was copied from ldk_node
+    /// XXX: Requires restart of the node to take effect
+    pub bdk_client_concurrency: u8,
 }
 
 impl Default for LnDlcNodeSettings {
@@ -143,6 +153,8 @@ impl Default for LnDlcNodeSettings {
             off_chain_sync_interval: Duration::from_secs(5),
             on_chain_sync_interval: Duration::from_secs(300),
             fee_rate_sync_interval: Duration::from_secs(20),
+            bdk_client_stop_gap: 20,
+            bdk_client_concurrency: 1,
         }
     }
 }
@@ -278,6 +290,8 @@ where
                 storage.clone(),
                 seed.clone(),
                 runtime_handle.clone(),
+                settings.bdk_client_stop_gap,
+                settings.bdk_client_concurrency,
             ))
         };
 
