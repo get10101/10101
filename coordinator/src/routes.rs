@@ -47,6 +47,7 @@ use tokio::sync::broadcast;
 use tokio::sync::mpsc;
 use tokio::sync::Mutex;
 use tokio::sync::RwLock;
+use tracing::instrument;
 
 pub struct AppState {
     pub node: Node,
@@ -214,6 +215,7 @@ pub async fn get_invoice(
 
 // TODO: We might want to have our own ContractInput type here so we can potentially map fields if
 // the library changes?
+#[instrument(skip_all, err(Debug))]
 pub async fn post_trade(
     State(state): State<Arc<AppState>>,
     trade_params: Json<TradeParams>,
@@ -225,6 +227,7 @@ pub async fn post_trade(
     Ok(())
 }
 
+#[instrument(skip_all, err(Debug))]
 pub async fn post_register(
     State(state): State<Arc<AppState>>,
     params: Json<RegisterParams>,

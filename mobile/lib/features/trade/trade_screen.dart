@@ -327,6 +327,6 @@ class TradeScreen extends StatelessWidget {
   Future<void> shareText(PositionAction action) async {
     String actionStr = action == PositionAction.open ? "opened" : "closed";
     await Share.share(
-        "Just $actionStr a #selfcustodial position using #DLC with @get10101 🚀. The future of decentralised finance starts now! #BTC");
+        "Just $actionStr a #selfcustodial position using #DLC with @get10101 🚀. The future of decentralised finance starts now! #Bitcoin");
   }
 }
