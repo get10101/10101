@@ -293,4 +293,18 @@ build-apk-regtest:
 
 release-apk-regtest: gen android-release build-apk-regtest
 
+# Run prometheus for local debugging (needs it installed, e.g. `brew install prometheus`)
+prometheus:
+    #!/usr/bin/env bash
+    set -euxo pipefail
+    cd services/prometheus
+    prometheus
+
+# Reset gathered prometheus metrics
+wipe-prometheus:
+    #!/usr/bin/env bash
+    set -euxo pipefail
+    cd services/prometheus
+    rm -rf data
+
 # vim:expandtab:sw=4:ts=4

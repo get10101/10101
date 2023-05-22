@@ -1,6 +1,7 @@
 use crate::routes::AppState;
 use crate::AppError;
 use anyhow::Context;
+use autometrics::autometrics;
 use axum::extract::Path;
 use axum::extract::Query;
 use axum::extract::State;
@@ -27,6 +28,7 @@ pub struct Balance {
     onchain: u64,
 }
 
+#[autometrics]
 pub async fn get_balance(State(state): State<Arc<AppState>>) -> Result<Json<Balance>, AppError> {
     let offchain = state.node.inner.get_ldk_balance();
     let onchain = state
@@ -41,6 +43,7 @@ pub async fn get_balance(State(state): State<Arc<AppState>>) -> Result<Json<Bala
     }))
 }
 
+#[autometrics]
 pub async fn list_channels(State(state): State<Arc<AppState>>) -> Json<Vec<ChannelDetails>> {
     let channels = state
         .node
@@ -53,6 +56,7 @@ pub async fn list_channels(State(state): State<Arc<AppState>>) -> Json<Vec<Chann
     Json(channels)
 }
 
+#[autometrics]
 pub async fn list_dlc_channels(
     State(state): State<Arc<AppState>>,
 ) -> Result<Json<Vec<DlcChannelDetails>>, AppError> {
@@ -102,6 +106,7 @@ where
     }
 }
 
+#[autometrics]
 pub async fn send_payment(
     Path(invoice): Path<String>,
     State(state): State<Arc<AppState>>,
@@ -119,6 +124,7 @@ pub async fn send_payment(
 }
 
 #[instrument(skip_all, err(Debug))]
+#[autometrics]
 pub async fn close_channel(
     Path(channel_id): Path<String>,
     Query(params): Query<CloseChanelParams>,
@@ -151,6 +157,7 @@ pub async fn close_channel(
 }
 
 #[instrument(skip_all, err(Debug))]
+#[autometrics]
 pub async fn finalize_force_close_ln_dlc_channel(
     Path(channel_id): Path<String>,
     State(state): State<Arc<AppState>>,
@@ -181,6 +188,7 @@ pub async fn finalize_force_close_ln_dlc_channel(
     Ok(())
 }
 
+#[autometrics]
 pub async fn delete_subchannel(
     Path(channel_id): Path<String>,
     State(state): State<Arc<AppState>>,
@@ -218,6 +226,7 @@ pub async fn delete_subchannel(
     Ok(())
 }
 
+#[autometrics]
 pub async fn sign_message(
     Path(msg): Path<String>,
     State(state): State<Arc<AppState>>,
@@ -230,6 +239,7 @@ pub async fn sign_message(
     Ok(Json(signature))
 }
 
+#[autometrics]
 pub async fn connect_to_peer(
     State(state): State<Arc<AppState>>,
     target: Json<NodeInfo>,
@@ -241,6 +251,7 @@ pub async fn connect_to_peer(
     Ok(())
 }
 
+#[autometrics]
 pub async fn is_connected(
     State(state): State<Arc<AppState>>,
     Path(target_pubkey): Path<String>,

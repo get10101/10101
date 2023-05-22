@@ -210,6 +210,9 @@ async fn main() -> Result<()> {
 
     let app = router(node, pool, settings);
 
+    // Start the metrics exporter
+    let _exporter = autometrics::global_metrics_exporter();
+
     tracing::debug!("listening on http://{}", http_address);
     axum::Server::bind(&http_address)
         .serve(app.into_make_service())

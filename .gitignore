@@ -34,3 +34,6 @@ data/**
 
 # env file
 .env
+
+# prometheus data
+services/prometheus/data
