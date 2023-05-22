@@ -380,13 +380,12 @@ where
 
         let txos = tx.output.clone();
 
-        tokio::task::block_in_place(move || {
-            self.runtime_handle.block_on(async move {
-                if let Err(err) = self.blockchain.broadcast(tx).await {
-                    tracing::error!("Failed to broadcast transaction: {err:#}");
-                }
-            })
-        });
+        if let Err(err) = tokio::task::block_in_place(move || {
+            self.runtime_handle
+                .block_on(async move { self.blockchain.broadcast(tx).await })
+        }) {
+            tracing::error!("Failed to broadcast transaction: {err:#}");
+        }
 
         // FIXME: We've added this to ensure that we watch the outputs of any commitment transaction
         // we publish. This is incredibly hacky and probably doesn't scale, as we simply register
