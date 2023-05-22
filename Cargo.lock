@@ -1433,7 +1433,7 @@ dependencies = [
 [[package]]
 name = "lightning"
 version = "0.0.114"
-source = "git+https://github.com/get10101/rust-lightning/?rev=2a7dcfce#2a7dcfce9895eadc37bef28ddd164ac96fb7c1f1"
+source = "git+https://github.com/get10101/rust-lightning/?rev=be430fbc#be430fbc187af02c227c4cf4b200e4e63acd9fc4"
 dependencies = [
  "bitcoin",
 ]
@@ -1441,7 +1441,7 @@ dependencies = [
 [[package]]
 name = "lightning-background-processor"
 version = "0.0.114"
-source = "git+https://github.com/get10101/rust-lightning/?rev=2a7dcfce#2a7dcfce9895eadc37bef28ddd164ac96fb7c1f1"
+source = "git+https://github.com/get10101/rust-lightning/?rev=be430fbc#be430fbc187af02c227c4cf4b200e4e63acd9fc4"
 dependencies = [
  "bitcoin",
  "lightning",
@@ -1464,7 +1464,7 @@ dependencies = [
 [[package]]
 name = "lightning-net-tokio"
 version = "0.0.114"
-source = "git+https://github.com/get10101/rust-lightning/?rev=2a7dcfce#2a7dcfce9895eadc37bef28ddd164ac96fb7c1f1"
+source = "git+https://github.com/get10101/rust-lightning/?rev=be430fbc#be430fbc187af02c227c4cf4b200e4e63acd9fc4"
 dependencies = [
  "bitcoin",
  "lightning",
@@ -1474,7 +1474,7 @@ dependencies = [
 [[package]]
 name = "lightning-persister"
 version = "0.0.114"
-source = "git+https://github.com/get10101/rust-lightning/?rev=2a7dcfce#2a7dcfce9895eadc37bef28ddd164ac96fb7c1f1"
+source = "git+https://github.com/get10101/rust-lightning/?rev=be430fbc#be430fbc187af02c227c4cf4b200e4e63acd9fc4"
 dependencies = [
  "bitcoin",
  "libc",
@@ -1485,7 +1485,7 @@ dependencies = [
 [[package]]
 name = "lightning-rapid-gossip-sync"
 version = "0.0.114"
-source = "git+https://github.com/get10101/rust-lightning/?rev=2a7dcfce#2a7dcfce9895eadc37bef28ddd164ac96fb7c1f1"
+source = "git+https://github.com/get10101/rust-lightning/?rev=be430fbc#be430fbc187af02c227c4cf4b200e4e63acd9fc4"
 dependencies = [
  "bitcoin",
  "lightning",
@@ -1494,7 +1494,7 @@ dependencies = [
 [[package]]
 name = "lightning-transaction-sync"
 version = "0.0.114"
-source = "git+https://github.com/get10101/rust-lightning/?rev=2a7dcfce#2a7dcfce9895eadc37bef28ddd164ac96fb7c1f1"
+source = "git+https://github.com/get10101/rust-lightning/?rev=be430fbc#be430fbc187af02c227c4cf4b200e4e63acd9fc4"
 dependencies = [
  "bdk-macros",
  "bitcoin",
