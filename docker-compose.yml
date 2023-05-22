@@ -41,7 +41,9 @@ services:
       - --network
       - regtest
       - --daemon-dir
-      - /config
+      - /home/user/.bitcoin
+      - --db-dir
+      - /home/user/db
       - --daemon-rpc-addr
       - 10.5.0.2:18443
       - --cookie
@@ -53,6 +55,9 @@ services:
       - --cors
       - "*"
       - --jsonrpc-import
+    volumes:
+      - bitcoin:/home/user/.bitcoin:ro
+      - electrs:/home/user/db
     depends_on:
       - bitcoin
     ports:
@@ -170,3 +175,4 @@ volumes:
   bitcoin:
   postgres:
   lnd:
+  electrs:
