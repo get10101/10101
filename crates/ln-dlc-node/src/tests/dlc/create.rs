@@ -38,15 +38,38 @@ pub async fn create_dlc_channel(
     app_dlc_collateral: u64,
     coordinator_dlc_collateral: u64,
 ) -> Result<DlcChannelCreated> {
+    let app = Node::start_test_app("app").await?;
+    let coordinator = Node::start_test_coordinator("coordinator").await?;
+    let (coordinator_balance_channel_creation, app_balance_channel_creation, channel_details) =
+        create_dlc_channel_with_nodes(
+            app_dlc_collateral,
+            coordinator_dlc_collateral,
+            &app,
+            &coordinator,
+        )
+        .await?;
+
+    Ok(DlcChannelCreated {
+        coordinator,
+        coordinator_balance_channel_creation,
+        app,
+        app_balance_channel_creation,
+        channel_details,
+    })
+}
+
+pub async fn create_dlc_channel_with_nodes(
+    app_dlc_collateral: u64,
+    coordinator_dlc_collateral: u64,
+    app: &Node<PaymentMap>,
+    coordinator: &Node<PaymentMap>,
+) -> Result<(u64, u64, ChannelDetails)> {
     // Arrange
 
     let app_ln_balance = app_dlc_collateral * 2;
     let coordinator_ln_balance = coordinator_dlc_collateral * 2;
 
     let fund_amount = (app_ln_balance + coordinator_ln_balance) * 2;
-
-    let app = Node::start_test_app("app").await?;
-    let coordinator = Node::start_test_coordinator("coordinator").await?;
 
     app.connect(coordinator.info).await?;
 
@@ -127,11 +150,9 @@ pub async fn create_dlc_channel(
 
     matches!(sub_channel_app.state, SubChannelState::Signed(_));
 
-    Ok(DlcChannelCreated {
-        coordinator,
+    Ok((
         coordinator_balance_channel_creation,
-        app,
         app_balance_channel_creation,
         channel_details,
-    })
+    ))
 }

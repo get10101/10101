@@ -6,9 +6,11 @@ use crate::tests::dummy_contract_input;
 use crate::tests::init_tracing;
 use crate::tests::wait_until;
 use anyhow::Context;
+use anyhow::Error;
 use anyhow::Result;
 use dlc_manager::subchannel::SubChannelState;
 use dlc_manager::Storage;
+use lightning::ln::channelmanager::ChannelDetails;
 use std::time::Duration;
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 10)]
@@ -43,6 +45,27 @@ async fn dlc_collaborative_settlement(
 
     // Act
 
+    collaborative_settlement(
+        coordinator_dlc_collateral,
+        &coordinator,
+        coordinator_balance_channel_creation,
+        &app,
+        app_balance_channel_creation,
+        &channel_details,
+    )
+    .await?;
+
+    Ok((app, coordinator))
+}
+
+pub async fn collaborative_settlement(
+    coordinator_dlc_collateral: u64,
+    coordinator: &Node<PaymentMap>,
+    coordinator_balance_channel_creation: u64,
+    app: &Node<PaymentMap>,
+    app_balance_channel_creation: u64,
+    channel_details: &ChannelDetails,
+) -> Result<(), Error> {
     // The underlying API expects the settlement amount of the party who originally _accepted_ the
     // channel. Since we know in this case that the coordinator accepted the DLC channel, here we
     // specify the coordinator's settlement amount.
@@ -123,7 +146,7 @@ async fn dlc_collaborative_settlement(
         coordinator_balance_after + coordinator_loss_amount
     );
 
-    Ok((app, coordinator))
+    Ok(())
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 10)]
