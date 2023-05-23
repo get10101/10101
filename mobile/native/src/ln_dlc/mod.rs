@@ -154,14 +154,12 @@ pub fn run(data_dir: String, seed_dir: String) -> Result<()> {
             async move { node.keep_connected(config::get_coordinator_info()).await }
         });
 
-        runtime.spawn({
+        runtime.spawn_blocking({
             let node = node.clone();
-            async move {
-                loop {
-                    node.process_incoming_dlc_messages();
+            move || loop {
+                node.process_incoming_dlc_messages();
 
-                    tokio::time::sleep(PROCESS_INCOMING_MESSAGES_INTERVAL).await;
-                }
+                std::thread::sleep(PROCESS_INCOMING_MESSAGES_INTERVAL);
             }
         });
 

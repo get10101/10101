@@ -35,14 +35,15 @@ async fn reconnecting_during_dlc_channel_setup() {
         .iter()
         .find(|c| c.counterparty.node_id == coordinator.info.pubkey)
         .context("No usable channels for app")
-        .unwrap();
+        .unwrap()
+        .clone();
 
     // Act
 
     let oracle_pk = app.oracle_pk();
     let contract_input = dummy_contract_input(20_000, 20_000, oracle_pk);
 
-    app.propose_dlc_channel(channel_details, &contract_input)
+    app.propose_dlc_channel(channel_details.clone(), contract_input)
         .await
         .unwrap();
 
@@ -76,9 +77,11 @@ async fn reconnecting_during_dlc_channel_setup() {
 
     // Instruct coordinator to re-send the accept message
     process_pending_dlc_actions(
-        &coordinator.sub_channel_manager,
+        coordinator.sub_channel_manager.clone(),
         &coordinator.dlc_message_handler,
-    );
+    )
+    .await
+    .unwrap();
 
     // Process the coordinator's accept message _and_ send the confirm message
     tokio::time::sleep(Duration::from_secs(2)).await;

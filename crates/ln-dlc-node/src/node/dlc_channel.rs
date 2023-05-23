@@ -15,32 +15,40 @@ use dlc_messages::Message;
 use dlc_messages::OnChainMessage;
 use dlc_messages::SubChannelMessage;
 use lightning::ln::channelmanager::ChannelDetails;
+use std::sync::Arc;
 
-impl<P> Node<P> {
+impl<P> Node<P>
+where
+    P: Send + Sync,
+{
     pub async fn propose_dlc_channel(
         &self,
-        channel_details: &ChannelDetails,
-        contract_input: &ContractInput,
+        channel_details: ChannelDetails,
+        contract_input: ContractInput,
     ) -> Result<()> {
-        let announcement = tokio::task::spawn_blocking({
+        tokio::task::spawn_blocking({
             let oracle = self.oracle.clone();
+            let sub_channel_manager = self.sub_channel_manager.clone();
             let event_id = contract_input.contract_infos[0].oracles.event_id.clone();
-            move || oracle.get_announcement(&event_id)
+            let dlc_message_handler = self.dlc_message_handler.clone();
+            move || {
+                let announcement = oracle.get_announcement(&event_id)?;
+
+                let sub_channel_offer = sub_channel_manager.offer_sub_channel(
+                    &channel_details.channel_id,
+                    &contract_input,
+                    &[vec![announcement]],
+                )?;
+
+                dlc_message_handler.send_message(
+                    channel_details.counterparty.node_id,
+                    Message::SubChannel(SubChannelMessage::Offer(sub_channel_offer)),
+                );
+
+                Ok(())
+            }
         })
-        .await??;
-
-        let sub_channel_offer = self.sub_channel_manager.offer_sub_channel(
-            &channel_details.channel_id,
-            contract_input,
-            &[vec![announcement]],
-        )?;
-
-        self.dlc_message_handler.send_message(
-            channel_details.counterparty.node_id,
-            Message::SubChannel(SubChannelMessage::Offer(sub_channel_offer)),
-        );
-
-        Ok(())
+        .await?
     }
 
     pub fn accept_dlc_channel_offer(&self, channel_id: &[u8; 32]) -> Result<()> {
@@ -59,9 +67,9 @@ impl<P> Node<P> {
         Ok(())
     }
 
-    pub fn propose_dlc_channel_collaborative_settlement(
+    pub async fn propose_dlc_channel_collaborative_settlement(
         &self,
-        channel_id: &[u8; 32],
+        channel_id: [u8; 32],
         accept_settlement_amount: u64,
     ) -> Result<()> {
         let channel_id_hex = hex::encode(channel_id);
@@ -72,16 +80,22 @@ impl<P> Node<P> {
             "Settling DLC channel collaboratively"
         );
 
-        let (sub_channel_close_offer, counterparty_pk) = self
-            .sub_channel_manager
-            .offer_subchannel_close(channel_id, accept_settlement_amount)?;
+        tokio::task::spawn_blocking({
+            let sub_channel_manager = self.sub_channel_manager.clone();
+            let dlc_message_handler = self.dlc_message_handler.clone();
+            move || {
+                let (sub_channel_close_offer, counterparty_pk) = sub_channel_manager
+                    .offer_subchannel_close(&channel_id, accept_settlement_amount)?;
 
-        self.dlc_message_handler.send_message(
-            counterparty_pk,
-            Message::SubChannel(SubChannelMessage::CloseOffer(sub_channel_close_offer)),
-        );
+                dlc_message_handler.send_message(
+                    counterparty_pk,
+                    Message::SubChannel(SubChannelMessage::CloseOffer(sub_channel_close_offer)),
+                );
 
-        Ok(())
+                Ok(())
+            }
+        })
+        .await?
     }
 
     pub fn accept_dlc_channel_collaborative_settlement(&self, channel_id: &[u8; 32]) -> Result<()> {
@@ -231,11 +245,13 @@ impl<P> Node<P> {
     }
 }
 
-pub(crate) fn process_pending_dlc_actions(
-    sub_channel_manager: &SubChannelManager,
+pub(crate) async fn process_pending_dlc_actions(
+    sub_channel_manager: Arc<SubChannelManager>,
     dlc_message_handler: &DlcMessageHandler,
-) {
-    let messages = sub_channel_manager.process_actions();
+) -> Result<()> {
+    let messages =
+        tokio::task::spawn_blocking(move || sub_channel_manager.process_actions()).await?;
+
     for (msg, node_id) in messages {
         let msg = Message::SubChannel(msg);
         let msg_name = dlc_message_name(&msg);
@@ -248,6 +264,8 @@ pub(crate) fn process_pending_dlc_actions(
 
         dlc_message_handler.send_message(node_id, msg);
     }
+
+    Ok(())
 }
 
 pub fn dlc_message_name(msg: &Message) -> String {
