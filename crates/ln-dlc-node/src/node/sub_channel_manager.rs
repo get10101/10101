@@ -1,4 +1,3 @@
-use crate::dlc_custom_signer::CustomSigner;
 use crate::ln_dlc_wallet::LnDlcWallet;
 use crate::node::channel_manager::ChannelManager;
 use crate::node::dlc_manager::DlcManager;
@@ -18,7 +17,6 @@ pub type SubChannelManager = sub_channel_manager::SubChannelManager<
     Arc<SystemTimeProvider>,
     Arc<LnDlcWallet>,
     Arc<DlcManager>,
-    CustomSigner,
 >;
 
 pub(crate) fn build(
