@@ -71,22 +71,19 @@ async fn main() -> Result<()> {
 
     let settings = Settings::new(&data_dir).await;
 
-    let node = Arc::new(
-        ln_dlc_node::node::Node::new_coordinator(
-            "10101.finance",
-            network,
-            data_dir.as_path(),
-            PaymentMap::default(),
-            address,
-            SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), address.port()),
-            opts.p2p_announcement_addresses(),
-            opts.esplora,
-            seed,
-            ephemeral_randomness,
-            settings.ln_dlc.clone(),
-        )
-        .await?,
-    );
+    let node = Arc::new(ln_dlc_node::node::Node::new_coordinator(
+        "10101.finance",
+        network,
+        data_dir.as_path(),
+        PaymentMap::default(),
+        address,
+        SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), address.port()),
+        opts.p2p_announcement_addresses(),
+        opts.esplora,
+        seed,
+        ephemeral_randomness,
+        settings.ln_dlc.clone(),
+    )?);
 
     // set up database connection pool
     let manager = ConnectionManager::<PgConnection>::new(opts.database);

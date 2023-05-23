@@ -80,7 +80,7 @@ impl LnDlcWallet {
         self.ln_wallet.clone()
     }
 
-    pub(crate) async fn tip(&self) -> Result<(u32, BlockHash)> {
+    pub(crate) fn tip(&self) -> Result<(u32, BlockHash)> {
         let (height, header) = self.ln_wallet.tip()?;
         Ok((height, header))
     }

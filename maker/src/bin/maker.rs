@@ -57,20 +57,17 @@ async fn main() -> Result<()> {
     let seed_path = data_dir.join("seed");
     let seed = Bip39Seed::initialize(&seed_path)?;
 
-    let node = Arc::new(
-        Node::new_app(
-            "maker",
-            network,
-            data_dir.as_path(),
-            PaymentMap::default(),
-            address,
-            SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), address.port()),
-            opts.esplora,
-            seed,
-            ephemeral_randomness,
-        )
-        .await?,
-    );
+    let node = Arc::new(Node::new_app(
+        "maker",
+        network,
+        data_dir.as_path(),
+        PaymentMap::default(),
+        address,
+        SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), address.port()),
+        opts.esplora,
+        seed,
+        ephemeral_randomness,
+    )?);
 
     let node_pubkey = node.info.pubkey;
     tokio::spawn(async move {

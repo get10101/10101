@@ -28,7 +28,7 @@ pub type ChannelManager = lightning::ln::channelmanager::ChannelManager<
 >;
 
 #[allow(clippy::too_many_arguments)]
-pub(crate) async fn build(
+pub(crate) fn build(
     ldk_data_dir: &str,
     keys_manager: Arc<CustomKeysManager>,
     ln_dlc_wallet: Arc<LnDlcWallet>,
@@ -52,12 +52,12 @@ pub(crate) async fn build(
                 "Did not find channel manager data on disk. Initializing new channel manager"
             );
 
-            let (height, block_hash) = ln_dlc_wallet.tip().await?;
+            let (height, block_hash) = ln_dlc_wallet.tip()?;
             return Ok(ChannelManager::new(
                 ln_dlc_wallet.clone(),
                 chain_monitor.clone(),
                 ln_dlc_wallet,
-                router.clone(),
+                router,
                 logger,
                 keys_manager.clone(),
                 keys_manager.clone(),
@@ -84,9 +84,9 @@ pub(crate) async fn build(
         keys_manager,
         ln_dlc_wallet.clone(),
         chain_monitor.clone(),
-        ln_dlc_wallet.clone(),
+        ln_dlc_wallet,
         router,
-        logger.clone(),
+        logger,
         ldk_user_config,
         channel_monitor_mut_references,
     );
