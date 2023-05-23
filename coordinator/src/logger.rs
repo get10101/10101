@@ -12,14 +12,14 @@ use tracing_subscriber::Layer;
 const RUST_LOG_ENV: &str = "RUST_LOG";
 
 // Configure and initialise tracing subsystem
-pub fn init_tracing(level: LevelFilter, json_format: bool) -> Result<()> {
+pub fn init_tracing(level: LevelFilter, json_format: bool, tokio_console: bool) -> Result<()> {
     if level == LevelFilter::OFF {
         return Ok(());
     }
 
     let is_terminal = atty::is(atty::Stream::Stderr);
 
-    let mut filter = EnvFilter::new("")
+    let filter = EnvFilter::new("")
         .add_directive(Directive::from(level))
         .add_directive("hyper=warn".parse()?)
         .add_directive("rustls=warn".parse()?)
@@ -27,6 +27,20 @@ pub fn init_tracing(level: LevelFilter, json_format: bool) -> Result<()> {
         .add_directive("bdk=warn".parse()?) // bdk is quite spamy on debug
         .add_directive("lightning::ln::peer_handler=debug".parse()?)
         .add_directive("lightning::chain=info".parse()?);
+
+    let mut filter = if tokio_console {
+        filter
+            .add_directive("tokio=trace".parse()?)
+            .add_directive("runtime=trace".parse()?)
+    } else {
+        filter
+    };
+
+    let console_layer = if tokio_console {
+        Some(console_subscriber::spawn())
+    } else {
+        None
+    };
 
     // Parse additional log directives from env variable
     let filter = match std::env::var_os(RUST_LOG_ENV).map(|s| s.into_string()) {
@@ -59,6 +73,7 @@ pub fn init_tracing(level: LevelFilter, json_format: bool) -> Result<()> {
 
     tracing_subscriber::registry()
         .with(filter)
+        .with(console_layer)
         .with(fmt_layer)
         .try_init()
         .context("Failed to init tracing")?;

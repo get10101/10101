@@ -35,7 +35,7 @@ serde = "1.0.147"
 sha2 = "0.10"
 simple-wallet = "0.1.0"
 time = "0.3"
-tokio = { version = "1", default-features = false, features = ["io-util", "macros", "rt", "rt-multi-thread", "sync", "net", "time"] }
+tokio = { version = "1", default-features = false, features = ["io-util", "macros", "rt", "rt-multi-thread", "sync", "net", "time", "tracing"] }
 tracing = "0.1.37"
 tracing-log = "0.1.3"
 
