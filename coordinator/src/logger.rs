@@ -37,7 +37,11 @@ pub fn init_tracing(level: LevelFilter, json_format: bool, tokio_console: bool) 
     };
 
     let console_layer = if tokio_console {
-        Some(console_subscriber::spawn())
+        Some(
+            console_subscriber::ConsoleLayer::builder()
+                .server_addr(([0, 0, 0, 0], 6669))
+                .spawn(),
+        )
     } else {
         None
     };
