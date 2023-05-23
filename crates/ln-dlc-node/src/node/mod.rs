@@ -303,7 +303,7 @@ where
             let ln_dlc_wallet = ln_dlc_wallet.clone();
             let stop_sync = stop_sync.clone();
             move || {
-                tokio::runtime::Builder::new_current_thread()
+                tokio::runtime::Builder::new_multi_thread()
                     .enable_all()
                     .build()
                     .expect("to be able to create a runtime")
@@ -335,7 +335,7 @@ where
             let ln_dlc_wallet = ln_dlc_wallet.clone();
             let stop_sync = stop_sync.clone();
             move || {
-                tokio::runtime::Builder::new_current_thread()
+                tokio::runtime::Builder::new_multi_thread()
                     .enable_all()
                     .build()
                     .expect("to be able to create a runtime")
