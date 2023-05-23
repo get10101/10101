@@ -133,20 +133,17 @@ pub fn run(data_dir: String, seed_dir: String) -> Result<()> {
         let seed_path = seed_dir.join("seed");
         let seed = Bip39Seed::initialize(&seed_path)?;
 
-        let node = Arc::new(
-            ln_dlc_node::node::Node::new_app(
-                "10101",
-                network,
-                data_dir.as_path(),
-                Payments,
-                address,
-                SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), address.port()),
-                config::get_esplora_endpoint().to_string(),
-                seed,
-                ephemeral_randomness,
-            )
-            .await?,
-        );
+        let node = Arc::new(ln_dlc_node::node::Node::new_app(
+            "10101",
+            network,
+            data_dir.as_path(),
+            Payments,
+            address,
+            SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), address.port()),
+            config::get_esplora_endpoint().to_string(),
+            seed,
+            ephemeral_randomness,
+        )?);
         let node = Arc::new(Node { inner: node });
 
         runtime.spawn({

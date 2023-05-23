@@ -165,7 +165,7 @@ where
 {
     /// Constructs a new node to be run as the app
     #[allow(clippy::too_many_arguments)]
-    pub async fn new_app(
+    pub fn new_app(
         alias: &str,
         network: Network,
         data_dir: &Path,
@@ -194,7 +194,6 @@ where
             user_config,
             LnDlcNodeSettings::default(),
         )
-        .await
     }
 
     /// Constructs a new node to be run for the coordinator
@@ -202,7 +201,7 @@ where
     /// The main difference between this and `new_app` is that the user config is different to
     /// be able to create just-in-time channels and 0-conf channels towards our peers.
     #[allow(clippy::too_many_arguments)]
-    pub async fn new_coordinator(
+    pub fn new_coordinator(
         alias: &str,
         network: Network,
         data_dir: &Path,
@@ -237,7 +236,6 @@ where
             user_config,
             settings,
         )
-        .await
     }
 
     pub async fn update_settings(&self, new_settings: LnDlcNodeSettings) {
@@ -246,7 +244,7 @@ where
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub(crate) async fn new(
+    pub(crate) fn new(
         alias: &str,
         network: Network,
         data_dir: &Path,
@@ -406,15 +404,14 @@ where
             network,
             persister.clone(),
             router,
-        )
-        .await?;
+        )?;
+
         let channel_manager = Arc::new(channel_manager);
 
         tokio::spawn({
             let channel_manager = channel_manager.clone();
             let chain_monitor = chain_monitor.clone();
-            let stop_sync = stop_sync.clone();
-            let esplora_client = esplora_client.clone();
+            let stop_sync = stop_sync;
             let settings = settings.clone();
             async move {
                 loop {
@@ -446,7 +443,7 @@ where
             logger.clone(),
         ));
 
-        let oracle_client = oracle_client::build().await?;
+        let oracle_client = oracle_client::build()?;
         let oracle_client = Arc::new(oracle_client);
 
         let dlc_manager = dlc_manager::build(
@@ -540,7 +537,7 @@ where
         tracing::info!("Starting background processor");
 
         let background_processor = BackgroundProcessor::start(
-            persister.clone(),
+            persister,
             event_handler,
             chain_monitor.clone(),
             channel_manager.clone(),
@@ -553,7 +550,10 @@ where
         let alias = alias_as_bytes(alias)?;
         let node_announcement_interval = node_announcement_interval(network);
         let broadcast_node_announcement_handle = {
+            #[cfg(test)]
             let announcement_addresses = announcement_addresses.clone();
+            #[cfg(not(test))]
+            let announcement_addresses = announcement_addresses;
             let peer_manager = peer_manager.clone();
             let (fut, remote_handle) = async move {
                 let mut interval = tokio::time::interval(node_announcement_interval);

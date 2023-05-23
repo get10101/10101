@@ -96,8 +96,7 @@ impl Node<PaymentMap> {
             ephemeral_randomness,
             user_config,
             LnDlcNodeSettings::default(),
-        )
-        .await?;
+        )?;
 
         tracing::debug!(%name, info = %node.info, "Node started");
 

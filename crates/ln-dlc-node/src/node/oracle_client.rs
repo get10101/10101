@@ -1,5 +1,4 @@
 use crate::node::Node;
-use anyhow::Context;
 use anyhow::Result;
 use bitcoin::secp256k1::XOnlyPublicKey;
 use dlc_manager::Oracle;
@@ -12,30 +11,26 @@ const ORACLE_ENDPOINT: &str = "https://oracle.holzeis.me/";
 const ORACLE_CONNECT_RETRY_INTERVAL: Duration = Duration::from_secs(1);
 const ORACLE_CONNECT_RETRY_LIMIT: i32 = 10;
 
-pub async fn build() -> Result<P2PDOracleClient> {
-    tokio::task::spawn_blocking(|| {
-        let mut count = 0;
-        tracing::debug!("Building oracle client...");
-        loop {
-            count += 1;
-            match P2PDOracleClient::new(ORACLE_ENDPOINT) {
-                Ok(oracle) => return Ok(oracle),
-                Err(e) if count == ORACLE_CONNECT_RETRY_LIMIT => {
-                    anyhow::bail!(
-                        "Failed to build oracle client due to {e:#}, retry limit {} reached",
-                        count
-                    );
-                }
-                Err(e) => tracing::debug!(
-                    "Retrying building oracle client..., attempts remaining {}: {e:#}",
-                    ORACLE_CONNECT_RETRY_LIMIT - count
-                ),
+pub fn build() -> Result<P2PDOracleClient> {
+    let mut count = 0;
+    tracing::debug!("Building oracle client...");
+    loop {
+        count += 1;
+        match P2PDOracleClient::new(ORACLE_ENDPOINT) {
+            Ok(oracle) => return Ok(oracle),
+            Err(e) if count == ORACLE_CONNECT_RETRY_LIMIT => {
+                anyhow::bail!(
+                    "Failed to build oracle client due to {e:#}, retry limit {} reached",
+                    count
+                );
             }
-            sleep(ORACLE_CONNECT_RETRY_INTERVAL);
+            Err(e) => tracing::debug!(
+                "Retrying building oracle client..., attempts remaining {}: {e:#}",
+                ORACLE_CONNECT_RETRY_LIMIT - count
+            ),
         }
-    })
-    .await
-    .context("Failed to spawn oracle client")?
+        sleep(ORACLE_CONNECT_RETRY_INTERVAL);
+    }
 }
 
 impl<P> Node<P> {
