@@ -42,6 +42,10 @@ pub struct Opts {
     /// The address to connect esplora API to
     #[clap(long, default_value = "http://localhost:3000")]
     pub esplora: String,
+
+    /// If enabled, tokio runtime can be locally debugged with tokio_console
+    #[clap(long)]
+    pub tokio_console: bool,
 }
 
 #[derive(Debug, Clone, Copy, clap::ValueEnum)]

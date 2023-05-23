@@ -1,6 +1,9 @@
 # Inspired by https://github.com/EmbarkStudios/rust-ecosystem/pull/68.
+# tokio_unstable enabled for tokio_console and tokio_metrics only
 [build]
 rustflags = [
+  "--cfg",
+  "tokio_unstable",
   "-Wclippy::disallowed_methods",
   "-Wclippy::dbg_macro",
   "-Wclippy::print_stderr",
