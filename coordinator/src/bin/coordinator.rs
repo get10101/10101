@@ -100,14 +100,12 @@ async fn main() -> Result<()> {
     let node = Node::new(node, pool.clone());
     node.update_settings(settings.as_node_settings()).await;
 
-    tokio::spawn({
+    tokio::task::spawn_blocking({
         let node = node.clone();
-        async move {
-            loop {
-                node.process_incoming_dlc_messages();
+        move || loop {
+            node.process_incoming_dlc_messages();
 
-                tokio::time::sleep(PROCESS_INCOMING_DLC_MESSAGES_INTERVAL).await;
-            }
+            std::thread::sleep(PROCESS_INCOMING_DLC_MESSAGES_INTERVAL);
         }
     });
 
