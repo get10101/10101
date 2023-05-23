@@ -5,7 +5,10 @@ use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
 use lightning::ln::channelmanager::ChannelDetails;
 
-impl<P> Node<P> {
+impl<P> Node<P>
+where
+    P: Send + Sync,
+{
     /// Initiates the open private channel protocol.
     ///
     /// Returns a temporary channel ID as a 32-byte long array.

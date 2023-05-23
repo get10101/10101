@@ -233,7 +233,7 @@ impl Node {
 
         let channel_details = self.get_counterparty_channel(trade_params.pubkey)?;
         self.inner
-            .propose_dlc_channel(&channel_details, &contract_input)
+            .propose_dlc_channel(channel_details, contract_input)
             .await
             .context("Could not propose dlc channel")?;
         Ok(())
@@ -268,7 +268,8 @@ impl Node {
         );
 
         self.inner
-            .propose_dlc_channel_collaborative_settlement(&channel_id, accept_settlement_amount)?;
+            .propose_dlc_channel_collaborative_settlement(channel_id, accept_settlement_amount)
+            .await?;
 
         let mut connection = self.pool.get()?;
         db::trades::insert(

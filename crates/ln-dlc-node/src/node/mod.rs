@@ -580,7 +580,14 @@ where
             let (fut, remote_handle) = {
                 async move {
                     loop {
-                        process_pending_dlc_actions(&sub_channel_manager, &dlc_message_handler);
+                        if let Err(e) = process_pending_dlc_actions(
+                            sub_channel_manager.clone(),
+                            &dlc_message_handler,
+                        )
+                        .await
+                        {
+                            tracing::error!("Failed to process pending DLC actions: {e:#}");
+                        };
 
                         tokio::time::sleep(Duration::from_secs(30)).await;
                     }

@@ -50,9 +50,10 @@ async fn dlc_collaborative_settlement(
     let coordinator_loss_amount = coordinator_dlc_collateral - coordinator_settlement_amount;
 
     app.propose_dlc_channel_collaborative_settlement(
-        &channel_details.channel_id,
+        channel_details.channel_id,
         coordinator_settlement_amount,
-    )?;
+    )
+    .await?;
 
     // Processs the app's offer to close the channel
     tokio::time::sleep(Duration::from_secs(2)).await;
@@ -146,7 +147,8 @@ async fn open_dlc_channel_after_closing_dlc_channel() {
         .iter()
         .find(|c| c.counterparty.node_id == coordinator.info.pubkey)
         .context("No usable channels for app")
-        .unwrap();
+        .unwrap()
+        .clone();
 
     // Act
 
@@ -157,7 +159,7 @@ async fn open_dlc_channel_after_closing_dlc_channel() {
     let contract_input =
         dummy_contract_input(app_dlc_collateral, coordinator_dlc_collateral, oracle_pk);
 
-    app.propose_dlc_channel(channel_details, &contract_input)
+    app.propose_dlc_channel(channel_details, contract_input)
         .await
         .unwrap();
 
