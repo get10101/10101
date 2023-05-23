@@ -10,8 +10,8 @@ use std::time::Duration;
 async fn onboard_from_lnd() {
     init_tracing();
 
-    let coordinator = Node::start_test_coordinator("coordinator").await.unwrap();
-    let payee = Node::start_test_app("payee").await.unwrap();
+    let coordinator = Node::start_test_coordinator("coordinator").unwrap();
+    let payee = Node::start_test_app("payee").unwrap();
     let payer = LndNode::new();
 
     payee.connect(coordinator.info).await.unwrap();

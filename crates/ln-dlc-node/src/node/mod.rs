@@ -84,8 +84,6 @@ pub use wallet::PaymentDetails;
 /// According to the LDK team, a value of up to 1 hour should be fine.
 const BROADCAST_NODE_ANNOUNCEMENT_INTERVAL: Duration = Duration::from_secs(600);
 
-const DLC_MANAGER_PERIODIC_CHECK_INTERVAL: Duration = Duration::from_secs(20);
-
 /// An LN-DLC node.
 pub struct Node<P> {
     pub settings: Arc<RwLock<LnDlcNodeSettings>>,
@@ -442,7 +440,7 @@ where
             logger.clone(),
         ));
 
-        let oracle_client = oracle_client::build()?;
+        let oracle_client = oracle_client::build();
         let oracle_client = Arc::new(oracle_client);
 
         let dlc_manager = dlc_manager::build(
@@ -599,16 +597,19 @@ where
             remote_handle
         };
 
-        tokio::task::spawn_blocking({
-            let dlc_manager = dlc_manager.clone();
-            move || loop {
-                if let Err(e) = dlc_manager.periodic_check() {
-                    tracing::error!("Failed DLC manager periodic check: {e:#}");
-                }
+        // FIXME: We want to be able to run this periodic check, but we seem to run into deadlocks
+        // because of it.
 
-                std::thread::sleep(DLC_MANAGER_PERIODIC_CHECK_INTERVAL);
-            }
-        });
+        // tokio::task::spawn_blocking({
+        //     let dlc_manager = dlc_manager.clone();
+        //     move || loop {
+        //         if let Err(e) = dlc_manager.periodic_check() {
+        //             tracing::error!("Failed DLC manager periodic check: {e:#}");
+        //         }
+
+        //         std::thread::sleep(DLC_MANAGER_PERIODIC_CHECK_INTERVAL);
+        //     }
+        // });
 
         let node_info = NodeInfo {
             pubkey: channel_manager.get_our_node_id(),

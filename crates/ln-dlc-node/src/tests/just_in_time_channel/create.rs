@@ -52,9 +52,9 @@ async fn just_in_time_channel_works_with_correct_fee() {
 async fn create_just_in_time_channel(settings: WalletSettings, test_path: TestPath) -> Result<()> {
     // Arrange
 
-    let payer = Node::start_test_app("payer").await.unwrap();
-    let coordinator = Node::start_test_coordinator("coordinator").await.unwrap();
-    let payee = Node::start_test_app("payee").await.unwrap();
+    let payer = Node::start_test_app("payer").unwrap();
+    let coordinator = Node::start_test_coordinator("coordinator").unwrap();
+    let payee = Node::start_test_app("payee").unwrap();
 
     payer.connect(coordinator.info).await.unwrap();
     payee.connect(coordinator.info).await.unwrap();

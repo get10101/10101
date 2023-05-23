@@ -13,9 +13,9 @@ async fn just_in_time_channel_with_multiple_payments() {
 
     // Arrange
 
-    let user_a = Node::start_test_app("user_a").await.unwrap();
-    let coordinator = Node::start_test_coordinator("coordinator").await.unwrap();
-    let user_b = Node::start_test_app("user_b").await.unwrap();
+    let user_a = Node::start_test_app("user_a").unwrap();
+    let coordinator = Node::start_test_coordinator("coordinator").unwrap();
+    let user_b = Node::start_test_app("user_b").unwrap();
 
     user_a.connect(coordinator.info).await.unwrap();
     user_b.connect(coordinator.info).await.unwrap();
