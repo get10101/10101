@@ -15,9 +15,9 @@ async fn ln_collab_close() {
 
     // Arrange
 
-    let payer = Node::start_test_app("payer").await.unwrap();
-    let coordinator = Node::start_test_coordinator("coordinator").await.unwrap();
-    let payee = Node::start_test_app("payee").await.unwrap();
+    let payer = Node::start_test_app("payer").unwrap();
+    let coordinator = Node::start_test_coordinator("coordinator").unwrap();
+    let payee = Node::start_test_app("payee").unwrap();
 
     payer.connect(coordinator.info).await.unwrap();
     payee.connect(coordinator.info).await.unwrap();
@@ -101,9 +101,9 @@ async fn ln_force_close() {
 
     // Arrange
 
-    let payer = Node::start_test_app("payer").await.unwrap();
-    let coordinator = Node::start_test_coordinator("coordinator").await.unwrap();
-    let payee = Node::start_test_app("payee").await.unwrap();
+    let payer = Node::start_test_app("payer").unwrap();
+    let coordinator = Node::start_test_coordinator("coordinator").unwrap();
+    let payee = Node::start_test_app("payee").unwrap();
 
     payer.connect(coordinator.info).await.unwrap();
     payee.connect(coordinator.info).await.unwrap();

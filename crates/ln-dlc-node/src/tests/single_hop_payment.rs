@@ -9,8 +9,8 @@ async fn single_hop_payment() {
 
     // Arrange
 
-    let payer = Node::start_test_app("payer").await.unwrap();
-    let payee = Node::start_test_app("payee").await.unwrap();
+    let payer = Node::start_test_app("payer").unwrap();
+    let payee = Node::start_test_app("payee").unwrap();
 
     payer.connect(payee.info).await.unwrap();
 

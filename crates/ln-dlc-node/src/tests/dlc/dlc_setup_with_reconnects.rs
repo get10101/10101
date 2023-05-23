@@ -16,8 +16,8 @@ async fn reconnecting_during_dlc_channel_setup() {
 
     // Arrange
 
-    let app = Node::start_test_app("app").await.unwrap();
-    let coordinator = Node::start_test_coordinator("coordinator").await.unwrap();
+    let app = Node::start_test_app("app").unwrap();
+    let coordinator = Node::start_test_coordinator("coordinator").unwrap();
 
     app.connect(coordinator.info).await.unwrap();
 

@@ -62,15 +62,15 @@ fn init_tracing() {
 }
 
 impl Node<PaymentMap> {
-    async fn start_test_app(name: &str) -> Result<Self> {
-        Self::start_test(name, app_config()).await
+    fn start_test_app(name: &str) -> Result<Self> {
+        Self::start_test(name, app_config())
     }
 
-    async fn start_test_coordinator(name: &str) -> Result<Self> {
-        Self::start_test(name, coordinator_config()).await
+    fn start_test_coordinator(name: &str) -> Result<Self> {
+        Self::start_test(name, coordinator_config())
     }
 
-    async fn start_test(name: &str, user_config: UserConfig) -> Result<Self> {
+    fn start_test(name: &str, user_config: UserConfig) -> Result<Self> {
         let data_dir = random_tmp_dir().join(name);
 
         let seed = Bip39Seed::new().expect("A valid bip39 seed");

@@ -84,8 +84,6 @@ pub use wallet::PaymentDetails;
 /// According to the LDK team, a value of up to 1 hour should be fine.
 const BROADCAST_NODE_ANNOUNCEMENT_INTERVAL: Duration = Duration::from_secs(600);
 
-const DLC_MANAGER_PERIODIC_CHECK_INTERVAL: Duration = Duration::from_secs(20);
-
 /// An LN-DLC node.
 pub struct Node<P> {
     pub settings: Arc<RwLock<LnDlcNodeSettings>>,
@@ -442,7 +440,7 @@ where
             logger.clone(),
         ));
 
-        let oracle_client = oracle_client::build()?;
+        let oracle_client = oracle_client::build();
         let oracle_client = Arc::new(oracle_client);
 
         let dlc_manager = dlc_manager::build(

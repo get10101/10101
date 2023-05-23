@@ -45,8 +45,8 @@ pub async fn create_dlc_channel(
 
     let fund_amount = (app_ln_balance + coordinator_ln_balance) * 2;
 
-    let app = Node::start_test_app("app").await?;
-    let coordinator = Node::start_test_coordinator("coordinator").await?;
+    let app = Node::start_test_app("app")?;
+    let coordinator = Node::start_test_coordinator("coordinator")?;
 
     app.connect(coordinator.info).await?;
 
