@@ -3,6 +3,7 @@ use anyhow::bail;
 use anyhow::Context;
 use anyhow::Error;
 use anyhow::Result;
+use autometrics::autometrics;
 use bdk::blockchain::Blockchain;
 use bdk::blockchain::EsploraBlockchain;
 use bdk::blockchain::GetHeight;
@@ -97,6 +98,7 @@ where
         self.settings.read().await.clone()
     }
 
+    #[autometrics]
     /// Update fee estimates and the internal BDK wallet database with
     /// the blockchain.
     pub async fn sync(&self) -> Result<()> {
@@ -129,6 +131,7 @@ where
         Ok(())
     }
 
+    #[autometrics]
     pub(crate) async fn update_fee_estimates(&self) -> Result<()> {
         let mut locked_fee_rate_cache = self.fee_rate_cache.write().await;
 

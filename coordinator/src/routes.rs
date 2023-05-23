@@ -20,9 +20,11 @@ use crate::orderbook::routes::put_order;
 use crate::orderbook::routes::websocket_handler;
 use crate::settings::Settings;
 use crate::AppError;
+use autometrics::autometrics;
 use axum::extract::Path;
 use axum::extract::Query;
 use axum::extract::State;
+use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::routing::delete;
 use axum::routing::get;
@@ -113,6 +115,7 @@ pub fn router(
             "/api/admin/settings",
             get(get_settings).put(update_settings),
         )
+        .route("/metrics", get(get_metrics))
         .with_state(app_state)
 }
 
@@ -127,6 +130,7 @@ pub async fn index() -> impl IntoResponse {
     })
 }
 
+#[autometrics]
 pub async fn post_fake_scid(
     target_node: Path<String>,
     State(app_state): State<Arc<AppState>>,
@@ -182,6 +186,7 @@ pub async fn get_new_address(
     Ok(Json(address.to_string()))
 }
 
+#[autometrics]
 pub async fn get_node_info(
     State(app_state): State<Arc<AppState>>,
 ) -> Result<Json<NodeInfo>, AppError> {
@@ -216,6 +221,7 @@ pub async fn get_invoice(
 // TODO: We might want to have our own ContractInput type here so we can potentially map fields if
 // the library changes?
 #[instrument(skip_all, err(Debug))]
+#[autometrics]
 pub async fn post_trade(
     State(state): State<Arc<AppState>>,
     trade_params: Json<TradeParams>,
@@ -228,6 +234,7 @@ pub async fn post_trade(
 }
 
 #[instrument(skip_all, err(Debug))]
+#[autometrics]
 pub async fn post_register(
     State(state): State<Arc<AppState>>,
     params: Json<RegisterParams>,
@@ -255,6 +262,7 @@ pub async fn post_register(
 /// specified in [`ChannelParams`].
 ///
 /// Can only be used on [`Network::Regtest`].
+#[autometrics]
 pub async fn open_channel(
     State(state): State<Arc<AppState>>,
     channel_params: Json<ChannelParams>,
@@ -324,6 +332,7 @@ async fn get_settings(State(state): State<Arc<AppState>>) -> impl IntoResponse {
     serde_json::to_string(&*settings).expect("to be able to serialise settings")
 }
 
+#[autometrics]
 async fn update_settings(
     State(state): State<Arc<AppState>>,
     Json(updated_settings): Json<Settings>,
@@ -350,4 +359,11 @@ async fn update_settings(
         .await;
 
     Ok(())
+}
+
+pub async fn get_metrics() -> impl IntoResponse {
+    match autometrics::encode_global_metrics() {
+        Ok(metrics) => (StatusCode::OK, metrics),
+        Err(err) => (StatusCode::INTERNAL_SERVER_ERROR, format!("{:?}", err)),
+    }
 }
