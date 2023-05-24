@@ -47,8 +47,6 @@ use std::fmt::Display;
 use std::fmt::Formatter;
 use std::net::SocketAddr;
 use std::path::Path;
-use std::sync::atomic::AtomicBool;
-use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::time::Duration;
@@ -292,11 +290,9 @@ where
 
         let settings = Arc::new(RwLock::new(settings));
 
-        let stop_sync = Arc::new(AtomicBool::new(false));
         std::thread::spawn({
             let settings = settings.clone();
             let ln_dlc_wallet = ln_dlc_wallet.clone();
-            let stop_sync = stop_sync.clone();
             move || {
                 tokio::runtime::Builder::new_multi_thread()
                     .enable_all()
@@ -304,9 +300,6 @@ where
                     .expect("to be able to create a runtime")
                     .block_on(async move {
                         loop {
-                            if stop_sync.load(Ordering::Acquire) {
-                                return;
-                            }
                             let now = Instant::now();
                             match ln_dlc_wallet.inner().sync().await {
                                 Ok(()) => tracing::info!(
@@ -328,7 +321,6 @@ where
         std::thread::spawn({
             let settings = settings.clone();
             let ln_dlc_wallet = ln_dlc_wallet.clone();
-            let stop_sync = stop_sync.clone();
             move || {
                 tokio::runtime::Builder::new_multi_thread()
                     .enable_all()
@@ -336,10 +328,6 @@ where
                     .expect("to be able to create a runtime")
                     .block_on(async move {
                         loop {
-                            if stop_sync.load(Ordering::Acquire) {
-                                return;
-                            }
-
                             if let Err(err) = ln_dlc_wallet.inner().update_fee_estimates().await {
                                 tracing::error!("Fee rate sync failed: {err:#}");
                             }
@@ -408,13 +396,9 @@ where
         tokio::spawn({
             let channel_manager = channel_manager.clone();
             let chain_monitor = chain_monitor.clone();
-            let stop_sync = stop_sync;
             let settings = settings.clone();
             async move {
                 loop {
-                    if stop_sync.load(Ordering::Acquire) {
-                        return;
-                    }
                     let now = Instant::now();
                     let confirmables = vec![
                         &*channel_manager as &(dyn Confirm + Sync + Send),
