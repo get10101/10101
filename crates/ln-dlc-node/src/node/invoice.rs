@@ -6,6 +6,7 @@ use crate::PaymentInfo;
 use anyhow::anyhow;
 use anyhow::Context;
 use anyhow::Result;
+use autometrics::autometrics;
 use bitcoin::hashes::sha256;
 use bitcoin::hashes::Hash;
 use bitcoin::secp256k1::PublicKey;
@@ -30,6 +31,7 @@ impl<P> Node<P>
 where
     P: PaymentPersister,
 {
+    #[autometrics]
     pub fn create_invoice(
         &self,
         amount_in_sats: u64,
@@ -57,6 +59,7 @@ where
     /// invoice.
     /// This is only used by the app to create the interchangeable invoice once we received the
     /// intercept scid from the coordinator,
+    #[autometrics]
     pub fn create_interceptable_invoice(
         &self,
         amount_in_sats: Option<u64>,
@@ -132,6 +135,7 @@ where
     /// - `jit_fee_rate_basis_points`
     /// Fee rate to be charged for opening just in time channels. Rate is in basis points, i.e.
     /// 100 basis point=1% or 50=0.5%
+    #[autometrics]
     pub fn create_intercept_scid(
         &self,
         target_node: PublicKey,
@@ -150,6 +154,7 @@ where
         }
     }
 
+    #[autometrics]
     pub fn send_payment(&self, invoice: &Invoice) -> Result<()> {
         let status = match pay_invoice(invoice, Retry::Attempts(10), &self.channel_manager) {
             Ok(_) => {
@@ -189,6 +194,7 @@ where
         Ok(())
     }
 
+    #[autometrics]
     pub async fn wait_for_payment_claimed(
         &self,
         hash: &sha256::Hash,
@@ -196,6 +202,7 @@ where
         self.wait_for_payment(HTLCStatus::Succeeded, hash).await
     }
 
+    #[autometrics]
     pub async fn wait_for_payment(
         &self,
         expected_status: HTLCStatus,

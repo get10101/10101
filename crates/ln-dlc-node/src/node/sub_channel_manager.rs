@@ -2,6 +2,7 @@ use crate::ln_dlc_wallet::LnDlcWallet;
 use crate::node::channel_manager::ChannelManager;
 use crate::node::dlc_manager::DlcManager;
 use anyhow::Result;
+use autometrics::autometrics;
 use dlc_manager::sub_channel_manager;
 use dlc_manager::SystemTimeProvider;
 use dlc_sled_storage_provider::SledStorageProvider;
@@ -19,6 +20,7 @@ pub type SubChannelManager = sub_channel_manager::SubChannelManager<
     Arc<DlcManager>,
 >;
 
+#[autometrics]
 pub(crate) fn build(
     channel_manager: Arc<ChannelManager>,
     dlc_manager: Arc<DlcManager>,

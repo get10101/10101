@@ -2,6 +2,7 @@ use crate::node::Node;
 use anyhow::anyhow;
 use anyhow::Context;
 use anyhow::Result;
+use autometrics::autometrics;
 use bitcoin::secp256k1::PublicKey;
 use lightning::ln::channelmanager::ChannelDetails;
 
@@ -12,6 +13,7 @@ where
     /// Initiates the open private channel protocol.
     ///
     /// Returns a temporary channel ID as a 32-byte long array.
+    #[autometrics]
     pub fn initiate_open_channel(
         &self,
         counterparty_node_id: PublicKey,
@@ -59,6 +61,7 @@ where
             .collect()
     }
 
+    #[autometrics]
     pub fn close_channel(&self, channel_id: [u8; 32], force_close: bool) -> Result<()> {
         let channel_id_str = hex::encode(channel_id);
 
@@ -77,6 +80,7 @@ where
         Ok(())
     }
 
+    #[autometrics]
     fn collab_close_channel(&self, channel: &ChannelDetails) -> Result<()> {
         let channel_id = channel.channel_id;
         let channel_id_str = hex::encode(channel_id);
@@ -98,6 +102,7 @@ where
         Ok(())
     }
 
+    #[autometrics]
     pub(crate) fn force_close_channel(&self, channel: &ChannelDetails) -> Result<()> {
         let channel_id = channel.channel_id;
         let channel_id_str = hex::encode(channel_id);
@@ -129,6 +134,7 @@ where
         Ok(())
     }
 
+    #[autometrics]
     pub fn finalize_force_close_ln_dlc_channel(&self, channel_id: [u8; 32]) -> Result<()> {
         let channel_id_str = hex::encode(channel_id);
 
@@ -146,6 +152,7 @@ where
         Ok(())
     }
 
+    #[autometrics]
     pub fn sign_message(&self, data: String) -> Result<String> {
         let secret = self.keys_manager.get_node_secret_key();
         let signature = lightning::util::message_signing::sign(data.as_bytes(), &secret)?;

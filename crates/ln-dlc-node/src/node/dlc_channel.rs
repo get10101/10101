@@ -3,6 +3,7 @@ use crate::node::SubChannelManager;
 use anyhow::anyhow;
 use anyhow::bail;
 use anyhow::Result;
+use autometrics::autometrics;
 use bitcoin::secp256k1::PublicKey;
 use dlc_manager::contract::contract_input::ContractInput;
 use dlc_manager::subchannel::SubChannel;
@@ -21,6 +22,7 @@ impl<P> Node<P>
 where
     P: Send + Sync,
 {
+    #[autometrics]
     pub async fn propose_dlc_channel(
         &self,
         channel_details: ChannelDetails,
@@ -51,6 +53,7 @@ where
         .await?
     }
 
+    #[autometrics]
     pub fn accept_dlc_channel_offer(&self, channel_id: &[u8; 32]) -> Result<()> {
         let channel_id_hex = hex::encode(channel_id);
 
@@ -67,6 +70,7 @@ where
         Ok(())
     }
 
+    #[autometrics]
     pub async fn propose_dlc_channel_collaborative_settlement(
         &self,
         channel_id: [u8; 32],
@@ -98,6 +102,7 @@ where
         .await?
     }
 
+    #[autometrics]
     pub fn accept_dlc_channel_collaborative_settlement(&self, channel_id: &[u8; 32]) -> Result<()> {
         let channel_id_hex = hex::encode(channel_id);
 
@@ -115,6 +120,7 @@ where
         Ok(())
     }
 
+    #[autometrics]
     pub fn get_dlc_channel_offer(&self, pubkey: &PublicKey) -> Result<Option<SubChannel>> {
         let dlc_channel = self
             .dlc_manager
@@ -126,6 +132,7 @@ where
         Ok(dlc_channel)
     }
 
+    #[autometrics]
     pub fn get_dlc_channel_signed(&self, pubkey: &PublicKey) -> Result<Option<SubChannel>> {
         let matcher = |dlc_channel: &&SubChannel| {
             dlc_channel.counter_party == *pubkey
@@ -135,6 +142,7 @@ where
         Ok(dlc_channel)
     }
 
+    #[autometrics]
     pub fn get_dlc_channel_close_offer(&self, pubkey: &PublicKey) -> Result<Option<SubChannel>> {
         let matcher = |dlc_channel: &&SubChannel| {
             dlc_channel.counter_party == *pubkey
@@ -145,6 +153,7 @@ where
         Ok(dlc_channel)
     }
 
+    #[autometrics]
     pub fn list_dlc_channels(&self) -> Result<Vec<SubChannel>> {
         let dlc_channels = self.dlc_manager.get_store().get_sub_channels()?;
 
@@ -155,6 +164,7 @@ where
     ///
     /// In general, it is NOT safe to close an LN channel if there still is a DLC channel attached
     /// to it. This is because this can lead to loss of funds.
+    #[autometrics]
     pub fn is_safe_to_close_ln_channel_collaboratively(&self, channel_id: &[u8; 32]) -> Result<()> {
         let dlc_channels = self
             .dlc_manager
@@ -193,6 +203,7 @@ where
         Ok(())
     }
 
+    #[autometrics]
     fn get_dlc_channel(
         &self,
         matcher: impl FnMut(&&SubChannel) -> bool,
@@ -204,6 +215,7 @@ where
     }
 
     #[cfg(test)]
+    #[autometrics]
     pub fn process_incoming_messages(&self) -> Result<()> {
         let dlc_message_handler = &self.dlc_message_handler;
         let dlc_manager = &self.dlc_manager;
@@ -245,6 +257,7 @@ where
     }
 }
 
+#[autometrics]
 pub(crate) async fn process_pending_dlc_actions(
     sub_channel_manager: Arc<SubChannelManager>,
     dlc_message_handler: &DlcMessageHandler,

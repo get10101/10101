@@ -18,6 +18,7 @@ use crate::RequestedScid;
 use anyhow::anyhow;
 use anyhow::Context;
 use anyhow::Result;
+use autometrics::autometrics;
 use bitcoin::consensus::encode::serialize_hex;
 use bitcoin::secp256k1::PublicKey;
 use lightning::chain::chaininterface::BroadcasterInterface;
@@ -84,6 +85,7 @@ where
         }
     }
 
+    #[autometrics]
     async fn match_event(&self, event: Event) -> Result<()> {
         match event {
             Event::FundingGenerationReady {
@@ -677,12 +679,14 @@ where
 }
 
 impl<P> EventHandler<P> {
+    #[autometrics]
     fn fake_channel_payments_lock(&self) -> MutexGuard<HashMap<RequestedScid, PublicKey>> {
         self.fake_channel_payments
             .lock()
             .expect("Mutex to not be poisoned")
     }
 
+    #[autometrics]
     fn pending_intercepted_htlcs_lock(&self) -> MutexGuard<HashMap<PublicKey, (InterceptId, u64)>> {
         self.pending_intercepted_htlcs
             .lock()

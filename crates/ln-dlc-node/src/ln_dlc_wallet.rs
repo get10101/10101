@@ -2,6 +2,7 @@ use crate::ldk_node_wallet;
 use crate::seed::Bip39Seed;
 use crate::TracingLogger;
 use anyhow::Result;
+use autometrics::autometrics;
 use bdk::blockchain::esplora;
 use bdk::blockchain::EsploraBlockchain;
 use bdk::esplora_client::TxStatus;
@@ -80,6 +81,7 @@ impl LnDlcWallet {
         self.ln_wallet.clone()
     }
 
+    #[autometrics]
     pub(crate) fn tip(&self) -> Result<(u32, BlockHash)> {
         let (height, header) = self.ln_wallet.tip()?;
         Ok((height, header))
@@ -90,6 +92,7 @@ impl LnDlcWallet {
     ///
     /// This list won't be up-to-date unless the wallet has previously been synchronised with the
     /// blockchain.
+    #[autometrics]
     pub(crate) async fn on_chain_transactions(&self) -> Result<Vec<TransactionDetails>> {
         let mut txs = self.ln_wallet.on_chain_transaction_list().await?;
 
@@ -103,6 +106,7 @@ impl LnDlcWallet {
         Ok(txs)
     }
 
+    #[autometrics]
     pub fn get_last_unused_address(&self) -> Result<Address> {
         let address = self.inner().get_last_unused_address()?;
 
@@ -117,12 +121,14 @@ impl Blockchain for LnDlcWallet {
         Ok(())
     }
 
+    #[autometrics]
     fn get_network(&self) -> Result<Network, Error> {
         self.ln_wallet
             .network()
             .map_err(|e| Error::BlockchainError(e.to_string()))
     }
 
+    #[autometrics]
     fn get_blockchain_height(&self) -> Result<u64, Error> {
         let height = self
             .ln_wallet
@@ -132,6 +138,7 @@ impl Blockchain for LnDlcWallet {
         Ok(height as u64)
     }
 
+    #[autometrics]
     fn get_block_at_height(&self, height: u64) -> Result<Block, Error> {
         let block = tokio::task::block_in_place(move || {
             self.runtime_handle.block_on(async {
@@ -159,6 +166,7 @@ impl Blockchain for LnDlcWallet {
         Ok(block)
     }
 
+    #[autometrics]
     fn get_transaction(&self, txid: &Txid) -> Result<Transaction, Error> {
         tokio::task::block_in_place(move || {
             self.runtime_handle.block_on(async {
@@ -176,6 +184,7 @@ impl Blockchain for LnDlcWallet {
         })
     }
 
+    #[autometrics]
     fn get_transaction_confirmations(&self, txid: &Txid) -> Result<u32, Error> {
         let confirmations = tokio::task::block_in_place(move || {
             self.runtime_handle.block_on(async {
@@ -201,6 +210,7 @@ impl Blockchain for LnDlcWallet {
 }
 
 impl Signer for LnDlcWallet {
+    #[autometrics]
     fn sign_tx_input(
         &self,
         tx: &mut Transaction,
@@ -225,6 +235,7 @@ impl Signer for LnDlcWallet {
         Ok(())
     }
 
+    #[autometrics]
     fn get_secret_key_for_pubkey(&self, pubkey: &PublicKey) -> Result<SecretKey, Error> {
         self.storage
             .get_priv_key_for_pubkey(pubkey)?
@@ -233,6 +244,7 @@ impl Signer for LnDlcWallet {
 }
 
 impl dlc_manager::Wallet for LnDlcWallet {
+    #[autometrics]
     fn get_new_address(&self) -> Result<Address, Error> {
         let address = self
             .ln_wallet
@@ -241,6 +253,7 @@ impl dlc_manager::Wallet for LnDlcWallet {
         Ok(address)
     }
 
+    #[autometrics]
     fn get_new_secret_key(&self) -> Result<SecretKey, Error> {
         let kp = KeyPair::new(&self.secp, &mut rand::thread_rng());
         let sk = kp.secret_key();
@@ -250,6 +263,7 @@ impl dlc_manager::Wallet for LnDlcWallet {
         Ok(sk)
     }
 
+    #[autometrics]
     fn get_utxos_for_amount(
         &self,
         amount: u64,
@@ -277,18 +291,21 @@ impl dlc_manager::Wallet for LnDlcWallet {
         Ok(selection.into_iter().map(|x| x.utxo).collect::<Vec<_>>())
     }
 
+    #[autometrics]
     fn import_address(&self, _address: &Address) -> Result<(), Error> {
         Ok(())
     }
 }
 
 impl BroadcasterInterface for LnDlcWallet {
+    #[autometrics]
     fn broadcast_transaction(&self, tx: &Transaction) {
         self.ln_wallet.broadcast_transaction(tx)
     }
 }
 
 impl lightning::chain::chaininterface::FeeEstimator for LnDlcWallet {
+    #[autometrics]
     fn get_est_sat_per_1000_weight(
         &self,
         confirmation_target: lightning::chain::chaininterface::ConfirmationTarget,
