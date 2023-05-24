@@ -1,6 +1,6 @@
 use crate::config;
 use crate::db;
-use crate::db::maybe_get_open_order;
+use crate::db::maybe_get_open_orders;
 use crate::event;
 use crate::event::EventInternal;
 use crate::trade::order::orderbook_client::OrderbookClient;
@@ -126,26 +126,23 @@ fn get_order_being_filled() -> Result<Order> {
 }
 
 pub fn check_open_orders() -> Result<()> {
-    let order_being_filled = match maybe_get_open_order() {
-        Ok(Some(order_being_filled)) => order_being_filled,
-        Ok(None) => {
-            tracing::trace!("No open orders in the database");
-            return Ok(());
-        }
+    let orders_being_filled = match maybe_get_open_orders() {
+        Ok(orders_being_filled) => orders_being_filled,
         Err(e) => {
             bail!("Error when loading open orders from database: {e:#}");
         }
     };
 
     let now = OffsetDateTime::now_utc();
-    if order_being_filled.creation_timestamp + ORDER_OUTDATED_AFTER < now {
-        order_failed(
-            Some(order_being_filled.id),
-            FailureReason::TimedOut,
-            anyhow!("Order was not matched within {ORDER_OUTDATED_AFTER:?}"),
-        )?;
-    } else {
-        tracing::debug!("Waiting for order {} to get filled", order_being_filled.id);
+
+    for order_being_filled in orders_being_filled {
+        if order_being_filled.creation_timestamp + ORDER_OUTDATED_AFTER < now {
+            order_failed(
+                Some(order_being_filled.id),
+                FailureReason::TimedOut,
+                anyhow!("Order was not matched within {ORDER_OUTDATED_AFTER:?}"),
+            )?;
+        }
     }
 
     Ok(())
