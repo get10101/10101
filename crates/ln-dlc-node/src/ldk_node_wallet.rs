@@ -165,6 +165,7 @@ where
         Ok(())
     }
 
+    #[autometrics]
     pub(crate) async fn create_funding_transaction(
         &self,
         output_script: Script,
@@ -207,6 +208,7 @@ where
         Ok(psbt.extract_tx())
     }
 
+    #[autometrics]
     pub(crate) fn get_new_address(&self) -> Result<bitcoin::Address, Error> {
         let address_info = tokio::task::block_in_place(move || {
             self.runtime_handle
@@ -216,6 +218,7 @@ where
         Ok(address_info.address)
     }
 
+    #[autometrics]
     pub(crate) fn get_last_unused_address(&self) -> Result<bitcoin::Address, Error> {
         let address_info = tokio::task::block_in_place(move || {
             self.runtime_handle.block_on(async move {
@@ -229,6 +232,7 @@ where
         Ok(address_info.address)
     }
 
+    #[autometrics]
     pub(crate) async fn get_balance(&self) -> Result<bdk::Balance, Error> {
         Ok(self.inner.lock().await.get_balance()?)
     }
@@ -238,6 +242,7 @@ where
     /// If `amount_msat_or_drain` is `None` the wallet will be drained, i.e., all available funds
     /// will be spent.
     #[allow(dead_code)]
+    #[autometrics]
     pub(crate) async fn send_to_address(
         &self,
         address: &bitcoin::Address,
@@ -308,6 +313,7 @@ where
         Ok(txid)
     }
 
+    #[autometrics]
     fn estimate_fee_rate(&self, confirmation_target: ConfirmationTarget) -> FeeRate {
         let (fee_rate_cache, settings) = tokio::task::block_in_place(move || {
             self.runtime_handle.block_on(async move {
@@ -332,6 +338,7 @@ where
             .unwrap_or(&fallback_rate)
     }
 
+    #[autometrics]
     pub fn tip(&self) -> Result<(u32, BlockHash)> {
         let ret = tokio::task::block_in_place(move || {
             self.runtime_handle.block_on(async move {
@@ -345,6 +352,7 @@ where
         Ok(ret)
     }
 
+    #[autometrics]
     pub async fn on_chain_transaction_list(&self) -> Result<Vec<TransactionDetails>> {
         let wallet_lock = self.inner.lock().await;
         wallet_lock
@@ -352,6 +360,7 @@ where
             .context("Failed to list on chain transactions")
     }
 
+    #[autometrics]
     pub fn network(&self) -> Result<Network> {
         let network = tokio::task::block_in_place(move || {
             self.runtime_handle
