@@ -147,7 +147,7 @@ pub async fn post_order(
     let matched_orders = match_order(order.clone(), all_non_expired_orders)
         .map_err(|e| AppError::InternalServerError(format!("Failed to match order: {e:#}")))?;
 
-    let authenticated_users = state.authenticated_users.lock().await;
+    let authenticated_users = state.authenticated_users.lock().await.clone();
     match matched_orders {
         Some(matched_orders) => {
             let mut orders_to_set_taken = vec![matched_orders.taker_matches.filled_with.order_id];
@@ -161,7 +161,7 @@ pub async fn post_order(
 
             orders_to_set_taken.append(&mut order_ids);
 
-            notify_traders(matched_orders, authenticated_users.clone()).await;
+            notify_traders(matched_orders, &authenticated_users).await;
 
             for order_id in orders_to_set_taken {
                 if let Err(err) = db::orders::set_is_taken(&mut conn, order_id, true) {
