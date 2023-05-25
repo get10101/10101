@@ -2,6 +2,7 @@ use crate::orderbook::routes::MatchParams;
 use crate::orderbook::routes::TraderMatchParams;
 use anyhow::bail;
 use anyhow::Result;
+use autometrics::autometrics;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::XOnlyPublicKey;
 use orderbook_commons::FilledWith;
@@ -25,6 +26,7 @@ use trade::Direction;
 ///
 /// Note: `opposite_direction_orders` should contain only relevant orders. For safety this function
 /// will filter it again though
+#[autometrics]
 pub fn match_order(
     order: Order,
     opposite_direction_orders: Vec<Order>,
@@ -147,6 +149,7 @@ fn sort_orders(mut orders: Vec<Order>, is_long: bool) -> Vec<Order> {
     orders
 }
 
+#[autometrics]
 pub async fn notify_traders(
     matched_orders: MatchParams,
     authenticated_users: HashMap<PublicKey, Sender<OrderbookMsg>>,
