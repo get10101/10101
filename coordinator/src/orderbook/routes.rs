@@ -38,10 +38,13 @@ use serde::Serialize;
 use std::fmt;
 use std::str::FromStr;
 use std::sync::Arc;
+use std::time::Duration;
 use tokio::sync::broadcast::Sender;
 use tokio::sync::mpsc;
 use tracing::instrument;
 use uuid::Uuid;
+
+const WEBSOCKET_SEND_TIMEOUT: Duration = Duration::from_secs(5);
 
 #[derive(Debug, Deserialize)]
 pub struct AllOrdersParams {
@@ -268,7 +271,12 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>) {
         while let Some(local_msg) = local_receiver.recv().await {
             match serde_json::to_string(&local_msg) {
                 Ok(msg) => {
-                    if let Err(err) = sender.send(Message::Text(msg.clone())).await {
+                    if let Err(err) = tokio::time::timeout(
+                        WEBSOCKET_SEND_TIMEOUT,
+                        sender.send(Message::Text(msg.clone())),
+                    )
+                    .await
+                    {
                         tracing::error!("Could not forward message {msg} : {err:#}");
                         return;
                     }
