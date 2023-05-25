@@ -59,6 +59,14 @@ android {
         }
     }
 
+    productFlavors {
+        local {
+            dimension "default"
+            resValue "string", "app_name", "10101 (local)"
+            applicationIdSuffix ".local"
+        }
+    }
+
     buildTypes {
         release {
             // TODO: Add your own signing config for the release build.
