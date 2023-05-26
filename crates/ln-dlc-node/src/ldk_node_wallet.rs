@@ -29,8 +29,9 @@ use lightning::chain::WatchedOutput;
 use lightning_transaction_sync::EsploraSyncClient;
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::sync::Mutex;
+use std::sync::MutexGuard;
 use std::time::Duration;
-use tokio::sync::Mutex;
 use tokio::sync::RwLock;
 
 pub struct Wallet<D>
@@ -89,6 +90,10 @@ where
         }
     }
 
+    fn bdk_lock(&self) -> MutexGuard<bdk::Wallet<D>> {
+        self.inner.lock().expect("mutex not to be poisoned")
+    }
+
     pub async fn update_settings(&self, settings: WalletSettings) {
         tracing::info!(?settings, "Updating wallet settings");
         *self.settings.write().await = settings;
@@ -102,7 +107,7 @@ where
     /// Update fee estimates and the internal BDK wallet database with
     /// the blockchain.
     pub async fn sync(&self) -> Result<()> {
-        let wallet_lock = self.inner.lock().await;
+        let wallet_lock = self.bdk_lock();
         match wallet_lock
             .sync(&self.blockchain, SyncOptions { progress: None })
             .await
@@ -174,7 +179,7 @@ where
     ) -> Result<Transaction, Error> {
         let fee_rate = self.estimate_fee_rate(confirmation_target);
 
-        let locked_wallet = self.inner.lock().await;
+        let locked_wallet = self.bdk_lock();
         let mut tx_builder = locked_wallet.build_tx();
 
         tx_builder
@@ -210,31 +215,20 @@ where
 
     #[autometrics]
     pub(crate) fn get_new_address(&self) -> Result<bitcoin::Address, Error> {
-        let address_info = tokio::task::block_in_place(move || {
-            self.runtime_handle
-                .block_on(async move { self.inner.lock().await.get_address(AddressIndex::New) })
-        })?;
-
-        Ok(address_info.address)
+        Ok(self.bdk_lock().get_address(AddressIndex::New)?.address)
     }
 
     #[autometrics]
     pub(crate) fn get_last_unused_address(&self) -> Result<bitcoin::Address, Error> {
-        let address_info = tokio::task::block_in_place(move || {
-            self.runtime_handle.block_on(async move {
-                self.inner
-                    .lock()
-                    .await
-                    .get_address(AddressIndex::LastUnused)
-            })
-        })?;
-
-        Ok(address_info.address)
+        Ok(self
+            .bdk_lock()
+            .get_address(AddressIndex::LastUnused)?
+            .address)
     }
 
     #[autometrics]
     pub(crate) async fn get_balance(&self) -> Result<bdk::Balance, Error> {
-        Ok(self.inner.lock().await.get_balance()?)
+        Ok(self.bdk_lock().get_balance()?)
     }
 
     /// Send funds to the given address.
@@ -252,7 +246,7 @@ where
         let fee_rate = self.estimate_fee_rate(confirmation_target);
 
         let tx = {
-            let locked_wallet = self.inner.lock().await;
+            let locked_wallet = self.bdk_lock();
             let mut tx_builder = locked_wallet.build_tx();
 
             if let Some(amount_sats) = amount_msat_or_drain {
@@ -354,7 +348,7 @@ where
 
     #[autometrics]
     pub async fn on_chain_transaction_list(&self) -> Result<Vec<TransactionDetails>> {
-        let wallet_lock = self.inner.lock().await;
+        let wallet_lock = self.bdk_lock();
         wallet_lock
             .list_transactions(false)
             .context("Failed to list on chain transactions")
@@ -362,12 +356,8 @@ where
 
     #[autometrics]
     pub fn network(&self) -> Result<Network> {
-        let network = tokio::task::block_in_place(move || {
-            self.runtime_handle
-                .block_on(async move { self.inner.lock().await.network() })
-        });
-
-        Ok(network)
+        // TODO: Store network separately, so we don't have to lock mutex here.
+        Ok(self.bdk_lock().network())
     }
 }
 

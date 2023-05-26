@@ -45,9 +45,9 @@ use serde::Deserialize;
 use std::collections::HashMap;
 use std::str::FromStr;
 use std::sync::Arc;
+use std::sync::Mutex;
 use tokio::sync::broadcast;
 use tokio::sync::mpsc;
-use tokio::sync::Mutex;
 use tokio::sync::RwLock;
 use tracing::instrument;
 
