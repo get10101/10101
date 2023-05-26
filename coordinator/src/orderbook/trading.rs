@@ -152,7 +152,7 @@ fn sort_orders(mut orders: Vec<Order>, is_long: bool) -> Vec<Order> {
 #[autometrics]
 pub async fn notify_traders(
     matched_orders: MatchParams,
-    authenticated_users: HashMap<PublicKey, Sender<OrderbookMsg>>,
+    authenticated_users: &HashMap<PublicKey, Sender<OrderbookMsg>>,
 ) {
     for maker_match in matched_orders.makers_matches {
         match authenticated_users.get(&maker_match.trader_id) {
@@ -554,7 +554,7 @@ pub mod tests {
         traders.insert(maker_pub_key, maker_sender);
         traders.insert(trader_pub_key, trader_sender);
 
-        notify_traders(matched_orders, traders).await;
+        notify_traders(matched_orders, &traders).await;
 
         let maker_msg = maker_receiver.recv().await.unwrap();
         let trader_msg = trader_receiver.recv().await.unwrap();
