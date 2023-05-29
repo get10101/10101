@@ -56,8 +56,8 @@ impl Node {
         self.inner.get_seed_phrase()
     }
 
-    pub async fn get_wallet_balances(&self) -> Result<Balances> {
-        let on_chain = self.inner.get_on_chain_balance().await?.confirmed;
+    pub fn get_wallet_balances(&self) -> Result<Balances> {
+        let on_chain = self.inner.get_on_chain_balance()?.confirmed;
         let off_chain = self.inner.get_ldk_balance().available;
 
         Ok(Balances {
@@ -66,8 +66,8 @@ impl Node {
         })
     }
 
-    pub async fn get_wallet_histories(&self) -> Result<WalletHistories> {
-        let on_chain = self.inner.get_on_chain_history().await?;
+    pub fn get_wallet_histories(&self) -> Result<WalletHistories> {
+        let on_chain = self.inner.get_on_chain_history()?;
         let off_chain = self.inner.get_off_chain_history()?;
 
         Ok(WalletHistories {

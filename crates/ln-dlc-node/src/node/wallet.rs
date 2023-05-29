@@ -36,11 +36,10 @@ where
         Ok(address)
     }
 
-    pub async fn get_on_chain_balance(&self) -> Result<bdk::Balance> {
+    pub fn get_on_chain_balance(&self) -> Result<bdk::Balance> {
         self.wallet
             .inner()
             .get_balance()
-            .await
             .context("Failed to get on-chain balance")
     }
 
@@ -106,10 +105,9 @@ where
         }
     }
 
-    pub async fn get_on_chain_history(&self) -> Result<Vec<bdk::TransactionDetails>> {
+    pub fn get_on_chain_history(&self) -> Result<Vec<bdk::TransactionDetails>> {
         self.wallet
             .on_chain_transactions()
-            .await
             .context("Failed to retrieve on-chain transaction history")
     }
 

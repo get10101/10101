@@ -104,14 +104,14 @@ impl Node<PaymentMap> {
     }
 
     async fn fund(&self, amount: Amount) -> Result<()> {
-        let starting_balance = self.get_confirmed_balance().await?;
+        let starting_balance = self.get_confirmed_balance()?;
         let expected_balance = starting_balance + amount.to_sat();
 
         let address = self.wallet.get_last_unused_address()?;
 
         fund_and_mine(address, amount).await?;
 
-        while self.get_confirmed_balance().await? < expected_balance {
+        while self.get_confirmed_balance()? < expected_balance {
             let interval = Duration::from_millis(200);
 
             self.wallet().sync().await.unwrap();
@@ -126,8 +126,8 @@ impl Node<PaymentMap> {
         Ok(())
     }
 
-    async fn get_confirmed_balance(&self) -> Result<u64> {
-        let balance = self.wallet.inner().get_balance().await?;
+    fn get_confirmed_balance(&self) -> Result<u64> {
+        let balance = self.wallet.inner().get_balance()?;
 
         Ok(balance.confirmed)
     }

@@ -227,7 +227,7 @@ where
     }
 
     #[autometrics]
-    pub(crate) async fn get_balance(&self) -> Result<bdk::Balance, Error> {
+    pub(crate) fn get_balance(&self) -> Result<bdk::Balance, Error> {
         Ok(self.bdk_lock().get_balance()?)
     }
 
@@ -347,9 +347,8 @@ where
     }
 
     #[autometrics]
-    pub async fn on_chain_transaction_list(&self) -> Result<Vec<TransactionDetails>> {
-        let wallet_lock = self.bdk_lock();
-        wallet_lock
+    pub fn on_chain_transaction_list(&self) -> Result<Vec<TransactionDetails>> {
+        self.bdk_lock()
             .list_transactions(false)
             .context("Failed to list on chain transactions")
     }

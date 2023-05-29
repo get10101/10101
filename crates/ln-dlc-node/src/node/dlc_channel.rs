@@ -274,7 +274,6 @@ pub(crate) async fn process_pending_dlc_actions(
             kind = %msg_name,
             "Queuing up DLC channel message tied to pending action"
         );
-
         dlc_message_handler.send_message(node_id, msg);
     }
 

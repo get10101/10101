@@ -35,7 +35,6 @@ pub async fn get_balance(State(state): State<Arc<AppState>>) -> Result<Json<Bala
         .node
         .inner
         .get_on_chain_balance()
-        .await
         .map_err(|e| AppError::InternalServerError(format!("Failed to get balance: {e:#}")))?;
     Ok(Json(Balance {
         offchain: offchain.available,
@@ -75,7 +74,7 @@ pub async fn list_dlc_channels(
 pub async fn list_on_chain_transactions(
     State(state): State<Arc<AppState>>,
 ) -> Result<Json<Vec<TransactionDetails>>, AppError> {
-    let transactions = state.node.inner.get_on_chain_history().await.map_err(|e| {
+    let transactions = state.node.inner.get_on_chain_history().map_err(|e| {
         AppError::InternalServerError(format!("Failed to list transactions: {e:#}"))
     })?;
 
