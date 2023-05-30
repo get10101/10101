@@ -7,27 +7,12 @@ use futures::TryStreamExt;
 use orderbook_commons::best_current_price;
 use orderbook_commons::OrderbookMsg;
 use orderbook_commons::Signature;
-use state::Storage;
 use std::time::Duration;
-use tokio::runtime::Runtime;
 
 const WS_RECONNECT_TIMEOUT_SECS: u64 = 2;
 
-fn runtime() -> Result<&'static Runtime> {
-    static RUNTIME: Storage<Runtime> = Storage::new();
-
-    if RUNTIME.try_get().is_none() {
-        let runtime = Runtime::new()?;
-        RUNTIME.set(runtime);
-    }
-
-    Ok(RUNTIME.get())
-}
-
 pub fn subscribe(secret_key: SecretKey) -> Result<()> {
-    let runtime = runtime()?;
-
-    runtime.spawn(async move {
+    tokio::spawn(async move {
         let url = format!(
             "ws://{}/api/orderbook/websocket",
             config::get_http_endpoint()
@@ -43,6 +28,7 @@ pub fn subscribe(secret_key: SecretKey) -> Result<()> {
         let mut orders = Vec::new();
 
         loop {
+            // TODO: spawn_blocking
             let mut stream =
                 orderbook_client::subscribe_with_authentication(url.clone(), &authenticate);
 
@@ -66,25 +52,34 @@ pub fn subscribe(secret_key: SecretKey) -> Result<()> {
                                 tracing::info!(order_id = %filled.order_id, "Received match from orderbook");
 
                                 if let Err(e) = position::handler::trade(filled).await {
-                                    tracing::error!("Trade request sent to coordinator failed. Error: {e:#}");
+                                    tracing::error!(
+                                        "Trade request sent to coordinator failed. Error: {e:#}"
+                                    );
                                 }
-                            },
+                            }
                             OrderbookMsg::AllOrders(initial_orders) => {
                                 if !orders.is_empty() {
                                     tracing::debug!("Received new set of initial orders from orderbook, replacing the previously stored orders");
-                                }
-                                else {
+                                } else {
                                     tracing::debug!(?orders, "Received all orders from orderbook");
                                 }
                                 orders = initial_orders;
-                                if let Err(e) = position::handler::price_update(best_current_price(&orders)) {
-                                    tracing::error!("Price update from the orderbook failed. Error: {e:#}");
+                                if let Err(e) =
+                                    position::handler::price_update(best_current_price(&orders))
+                                {
+                                    tracing::error!(
+                                        "Price update from the orderbook failed. Error: {e:#}"
+                                    );
                                 }
-                            },
+                            }
                             OrderbookMsg::NewOrder(order) => {
                                 orders.push(order);
-                                if let Err(e) = position::handler::price_update(best_current_price(&orders)) {
-                                    tracing::error!("Price update from the orderbook failed. Error: {e:#}");
+                                if let Err(e) =
+                                    position::handler::price_update(best_current_price(&orders))
+                                {
+                                    tracing::error!(
+                                        "Price update from the orderbook failed. Error: {e:#}"
+                                    );
                                 }
                             }
                             OrderbookMsg::DeleteOrder(order_id) => {
@@ -99,10 +94,14 @@ pub fn subscribe(secret_key: SecretKey) -> Result<()> {
                                 if !found {
                                     tracing::warn!(%order_id, "Could not remove non-existing order");
                                 }
-                                if let Err(e) = position::handler::price_update(best_current_price(&orders)) {
-                                    tracing::error!("Price update from the orderbook failed. Error: {e:#}");
+                                if let Err(e) =
+                                    position::handler::price_update(best_current_price(&orders))
+                                {
+                                    tracing::error!(
+                                        "Price update from the orderbook failed. Error: {e:#}"
+                                    );
                                 }
-                            },
+                            }
                             OrderbookMsg::Update(updated_order) => {
                                 let mut found = false;
                                 for (index, element) in orders.iter().enumerate() {
@@ -113,13 +112,20 @@ pub fn subscribe(secret_key: SecretKey) -> Result<()> {
                                     }
                                 }
                                 if !found {
-                                    tracing::warn!(?updated_order, "Update without prior knowledge of order");
+                                    tracing::warn!(
+                                        ?updated_order,
+                                        "Update without prior knowledge of order"
+                                    );
                                 }
                                 orders.push(updated_order);
-                                if let Err(e) = position::handler::price_update(best_current_price(&orders)) {
-                                    tracing::error!("Price update from the orderbook failed. Error: {e:#}");
+                                if let Err(e) =
+                                    position::handler::price_update(best_current_price(&orders))
+                                {
+                                    tracing::error!(
+                                        "Price update from the orderbook failed. Error: {e:#}"
+                                    );
                                 }
-                            },
+                            }
                             _ => tracing::debug!(?msg, "Skipping message from orderbook"),
                         }
                     }
@@ -132,7 +138,7 @@ pub fn subscribe(secret_key: SecretKey) -> Result<()> {
                         break;
                     }
                 }
-            };
+            }
 
             let timeout = Duration::from_secs(WS_RECONNECT_TIMEOUT_SECS);
 
