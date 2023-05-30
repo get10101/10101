@@ -44,7 +44,7 @@ use tokio::task::spawn_blocking;
 mod node;
 
 static NODE: Storage<Arc<Node>> = Storage::new();
-const PROCESS_INCOMING_MESSAGES_INTERVAL: Duration = Duration::from_secs(5);
+const PROCESS_INCOMING_MESSAGES_INTERVAL: Duration = Duration::from_secs(2);
 const UPDATE_WALLET_HISTORY_INTERVAL: Duration = Duration::from_secs(5);
 const CHECK_OPEN_ORDERS_INTERVAL: Duration = Duration::from_secs(60);
 
@@ -153,14 +153,15 @@ pub fn run(data_dir: String, seed_dir: String) -> Result<()> {
         });
 
         // spawn a dedicated thread as this one might be CPU-heavy
-        std::thread::spawn({
-            let node = node.clone();
-            move || loop {
-                node.process_incoming_dlc_messages();
-
-                std::thread::sleep(PROCESS_INCOMING_MESSAGES_INTERVAL);
-            }
-        });
+        runtime
+            .spawn_blocking({
+                let node = node.clone();
+                move || loop {
+                    node.process_incoming_dlc_messages();
+                    std::thread::sleep(PROCESS_INCOMING_MESSAGES_INTERVAL);
+                }
+            })
+            .await?;
 
         runtime.spawn_blocking({
             let node = node.clone();
