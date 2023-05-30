@@ -39,6 +39,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use time::OffsetDateTime;
 use tokio::runtime::Runtime;
+use tokio::task::spawn_blocking;
 
 mod node;
 
@@ -146,12 +147,13 @@ pub fn run(data_dir: String, seed_dir: String) -> Result<()> {
         )?);
         let node = Arc::new(Node { inner: node });
 
-        runtime.spawn({
+        runtime.spawn_blocking({
             let node = node.clone();
-            async move { node.keep_connected(config::get_coordinator_info()).await }
+            move || async move { node.keep_connected(config::get_coordinator_info()).await }
         });
 
-        runtime.spawn_blocking({
+        // spawn a dedicated thread as this one might be CPU-heavy
+        std::thread::spawn({
             let node = node.clone();
             move || loop {
                 node.process_incoming_dlc_messages();
@@ -160,9 +162,9 @@ pub fn run(data_dir: String, seed_dir: String) -> Result<()> {
             }
         });
 
-        runtime.spawn({
+        runtime.spawn_blocking({
             let node = node.clone();
-            async move {
+            move || async move {
                 loop {
                     if let Err(e) = keep_wallet_balance_and_history_up_to_date(&node) {
                         tracing::error!("Failed to sync balance and wallet history: {e:#}");
@@ -175,7 +177,7 @@ pub fn run(data_dir: String, seed_dir: String) -> Result<()> {
 
         runtime.spawn(async move {
             loop {
-                if let Err(e) = order::handler::check_open_orders() {
+                if let Err(e) = spawn_blocking(order::handler::check_open_orders).await {
                     tracing::error!("Error while checking open orders: {e:#}");
                 }
 
