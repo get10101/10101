@@ -9,6 +9,7 @@ use orderbook_commons::OrderbookMsg;
 use orderbook_commons::Signature;
 use std::time::Duration;
 use tokio::runtime::Runtime;
+use tokio::task::spawn_blocking;
 
 const WS_RECONNECT_TIMEOUT_SECS: u64 = 2;
 
@@ -20,7 +21,7 @@ pub fn subscribe(secret_key: SecretKey, runtime: &Runtime) -> Result<()> {
         );
 
         let pubkey = secret_key.public_key(SECP256K1);
-        let authenticate = |msg| {
+        let authenticate = move |msg| {
             let signature = secret_key.sign_ecdsa(msg);
             Signature { pubkey, signature }
         };
@@ -29,8 +30,10 @@ pub fn subscribe(secret_key: SecretKey, runtime: &Runtime) -> Result<()> {
         let mut orders = Vec::new();
 
         loop {
+            let url = url.clone();
+            let authenticate = authenticate;
             let mut stream =
-                orderbook_client::subscribe_with_authentication(url.clone(), &authenticate);
+                spawn_blocking(move || orderbook_client::subscribe_with_authentication(url, authenticate)).await.expect("joined task not to panic");
 
             loop {
                 match stream.try_next().await {
