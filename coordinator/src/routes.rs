@@ -52,7 +52,7 @@ use tokio::sync::RwLock;
 use tracing::instrument;
 
 pub struct AppState {
-    pub node: Node,
+    pub node: Arc<Node>,
     // Channel used to send messages to all connected clients.
     pub tx_pricefeed: broadcast::Sender<OrderbookMsg>,
     pub pool: Pool<ConnectionManager<PgConnection>>,
@@ -61,7 +61,7 @@ pub struct AppState {
 }
 
 pub fn router(
-    node: Node,
+    node: Arc<Node>,
     pool: Pool<ConnectionManager<PgConnection>>,
     settings: Settings,
 ) -> Router {

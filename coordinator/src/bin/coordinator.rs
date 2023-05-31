@@ -1,13 +1,10 @@
 use anyhow::Context;
 use anyhow::Result;
 use coordinator::cli::Opts;
-use coordinator::db;
 use coordinator::logger;
 use coordinator::node::connection;
 use coordinator::node::Node;
-use coordinator::node::TradeAction;
-use coordinator::position::models::Position;
-use coordinator::position::models::PositionState;
+use coordinator::position::sync_positions;
 use coordinator::routes::router;
 use coordinator::run_migration;
 use coordinator::settings::Settings;
@@ -24,9 +21,7 @@ use std::net::Ipv4Addr;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
-use time::OffsetDateTime;
 use tracing::metadata::LevelFilter;
-use trade::bitmex_client::BitmexClient;
 
 const PROCESS_INCOMING_DLC_MESSAGES_INTERVAL: Duration = Duration::from_secs(5);
 const POSITION_SYNC_INTERVAL: Duration = Duration::from_secs(300);
@@ -94,7 +89,7 @@ async fn main() -> Result<()> {
     let mut conn = pool.get()?;
     run_migration(&mut conn);
 
-    let node = Node::new(node, pool.clone());
+    let node = Arc::new(Node::new(node, pool.clone()));
     node.update_settings(settings.as_node_settings()).await;
 
     tokio::task::spawn_blocking({
@@ -111,90 +106,8 @@ async fn main() -> Result<()> {
         async move {
             loop {
                 tokio::time::sleep(POSITION_SYNC_INTERVAL).await;
-
-                let mut conn = match node.pool.get() {
-                    Ok(conn) => conn,
-                    Err(e) => {
-                        tracing::error!("Failed to get pool connection. Error: {e:?}");
-                        continue;
-                    }
-                };
-
-                let positions = match db::positions::Position::get_all_open_positions(&mut conn) {
-                    Ok(positions) => positions,
-                    Err(e) => {
-                        tracing::error!("Failed to get positions. Error: {e:?}");
-                        continue;
-                    }
-                };
-
-                let positions = positions
-                    .into_iter()
-                    .filter(|p| {
-                        p.position_state == PositionState::Open
-                            && OffsetDateTime::now_utc().ge(&p.expiry_timestamp)
-                    })
-                    .collect::<Vec<Position>>();
-
-                for position in positions.iter() {
-                    tracing::debug!(trader_pk=%position.trader, %position.expiry_timestamp, "Attempting to close expired position");
-
-                    if !node.is_connected(&position.trader) {
-                        tracing::info!(
-                            "Could not close expired position with {} as trader is not connected.",
-                            position.trader
-                        );
-                        continue;
-                    }
-
-                    let channel_id = match node.decide_trade_action(&position.trader) {
-                        Ok(TradeAction::Close(channel_id)) => channel_id,
-                        Ok(_) => {
-                            tracing::error!(
-                                ?position,
-                                "Unable to find sub channel of expired position."
-                            );
-                            continue;
-                        }
-                        Err(e) => {
-                            tracing::error!(
-                                ?position,
-                                "Failed to decide trade action. Error: {e:?}"
-                            );
-                            continue;
-                        }
-                    };
-
-                    let closing_price =
-                        match BitmexClient::get_quote(&position.expiry_timestamp).await {
-                            Ok(quote) => match position.direction {
-                                trade::Direction::Long => quote.bid_price,
-                                trade::Direction::Short => quote.ask_price,
-                            },
-                            Err(e) => {
-                                tracing::warn!(
-                                    "Failed to get quote from bitmex for {} at {}. Error: {e:?}",
-                                    position.trader,
-                                    position.expiry_timestamp
-                                );
-                                continue;
-                            }
-                        };
-
-                    match node
-                        .close_position(position, closing_price, channel_id)
-                        .await
-                    {
-                        Ok(_) => tracing::info!(
-                            "Successfully proposed to close expired position with {}",
-                            position.trader
-                        ),
-                        Err(e) => tracing::warn!(
-                            ?position,
-                            "Failed to close expired position with {}. Error: {e:?}",
-                            position.trader
-                        ),
-                    }
+                if let Err(e) = sync_positions(node.clone()).await {
+                    tracing::error!(%e, "Error syncing positions");
                 }
             }
         }
@@ -202,7 +115,10 @@ async fn main() -> Result<()> {
 
     tokio::spawn({
         let node = node.clone();
-        connection::keep_public_channel_peers_connected(node.inner, CONNECTION_CHECK_INTERVAL)
+        connection::keep_public_channel_peers_connected(
+            node.inner.clone(),
+            CONNECTION_CHECK_INTERVAL,
+        )
     });
 
     let app = router(node, pool, settings);
