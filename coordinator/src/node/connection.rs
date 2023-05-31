@@ -8,13 +8,19 @@ use std::net::IpAddr;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
+use tokio::task::spawn_blocking;
 
 pub async fn keep_public_channel_peers_connected(
     node: Arc<Node<PaymentMap>>,
     check_interval: Duration,
 ) {
     loop {
-        reconnect_to_disconnected_public_channel_peers(node.clone());
+        spawn_blocking({
+            let node = node.clone();
+            move || reconnect_to_disconnected_public_channel_peers(node)
+        })
+        .await
+        .expect("Failed to spawn blocking task");
 
         tokio::time::sleep(check_interval).await;
     }
