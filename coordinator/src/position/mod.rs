@@ -1,6 +1,7 @@
 pub mod models;
 
 use crate::db;
+use crate::node::decide_trade_action;
 use crate::node::Node;
 use crate::node::TradeAction;
 use crate::position::models::Position;
@@ -31,7 +32,14 @@ pub async fn sync_positions(node: Arc<Node>) -> Result<()> {
             continue;
         }
 
-        let channel_id = match node.decide_trade_action(&position.trader) {
+        let channel_id = match spawn_blocking({
+            let node = node.inner.clone();
+            let trader = position.trader;
+            move || decide_trade_action(node, &trader)
+        })
+        .await
+        .expect("Failed to spawn blocking thread")
+        {
             Ok(TradeAction::Close(channel_id)) => channel_id,
             Ok(_) => {
                 tracing::error!(?position, "Unable to find sub channel of expired position.");

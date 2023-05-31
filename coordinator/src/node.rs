@@ -34,6 +34,7 @@ use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use std::sync::Arc;
 use tokio::sync::RwLock;
+use tokio::task::spawn_blocking;
 use trade::cfd;
 use trade::cfd::calculate_long_liquidation_price;
 use trade::cfd::calculate_margin;
@@ -134,7 +135,14 @@ impl Node {
     }
 
     pub async fn trade(&self, trade_params: &TradeParams) -> Result<()> {
-        match self.decide_trade_action(&trade_params.pubkey)? {
+        match spawn_blocking({
+            let node = self.inner.clone();
+            let trader = trade_params.pubkey;
+            move || decide_trade_action(node, &trader)
+        })
+        .await
+        .context("Failed to spawn blocking thread")??
+        {
             TradeAction::Open => {
                 ensure!(
                     self.settings.read().await.allow_opening_positions,
@@ -146,17 +154,13 @@ impl Node {
                 let peer_id = trade_params.pubkey;
                 tracing::info!(?trade_params, channel_id = %hex::encode(channel_id), %peer_id, "Closing position");
 
+                let position = spawn_blocking({
+                    let pool = self.pool.clone();
+                    move || get_open_position_by_trader(pool, peer_id)
+                })
+                .await??;
+
                 let closing_price = trade_params.average_execution_price();
-
-                let mut connection = self.pool.get()?;
-                let position = match db::positions::Position::get_open_position_by_trader(
-                    &mut connection,
-                    trade_params.pubkey.to_string(),
-                )? {
-                    Some(position) => position,
-                    None => bail!("Failed to find open position : {}", trade_params.pubkey),
-                };
-
                 self.close_position(&position, closing_price, channel_id)
                     .await?
             }
@@ -301,39 +305,6 @@ impl Node {
             &mut connection,
             position.trader.to_string(),
         )
-    }
-
-    /// Decides what trade action should be performed according to the
-    /// coordinator's current trading status with the trader.
-    ///
-    /// We look for a pre-existing position with the trader and
-    /// instruct accordingly:
-    ///
-    /// 1. If a position of equal quantity and opposite direction is
-    /// found, we direct the caller to close the position.
-    ///
-    /// 2. If no position is found, we direct the caller to open a
-    /// position.
-    ///
-    /// 3. If a position of differing quantity is found, we direct the
-    /// caller to extend or reduce the position. _This is currently
-    /// not supported_.
-    pub fn decide_trade_action(&self, trader: &PublicKey) -> Result<TradeAction> {
-        let action = match self.inner.get_dlc_channel_signed(trader)? {
-            Some(subchannel) => {
-                // FIXME: Should query the database for more
-                // information
-
-                // TODO: Detect if the position should be
-                // extended/reduced. Return corresponding error as
-                // this is currently not supported.
-
-                TradeAction::Close(subchannel.channel_id)
-            }
-            None => TradeAction::Open,
-        };
-
-        Ok(action)
     }
 
     fn get_counterparty_channel(&self, trader_pubkey: PublicKey) -> Result<ChannelDetails> {
@@ -603,6 +574,57 @@ fn build_payout_function(
     let payout_function = PayoutFunction::new(pieces)?;
 
     Ok(payout_function)
+}
+
+fn get_open_position_by_trader(
+    pool: Pool<ConnectionManager<PgConnection>>,
+    trader: PublicKey,
+) -> Result<Position> {
+    let mut connection = pool.get()?;
+    let position = match db::positions::Position::get_open_position_by_trader(
+        &mut connection,
+        trader.to_string(),
+    )? {
+        Some(position) => Ok(position),
+        None => bail!("Failed to find open position : {}", trader),
+    };
+    position
+}
+
+/// Decides what trade action should be performed according to the
+/// coordinator's current trading status with the trader.
+///
+/// We look for a pre-existing position with the trader and
+/// instruct accordingly:
+///
+/// 1. If a position of equal quantity and opposite direction is
+/// found, we direct the caller to close the position.
+///
+/// 2. If no position is found, we direct the caller to open a
+/// position.
+///
+/// 3. If a position of differing quantity is found, we direct the
+/// caller to extend or reduce the position. _This is currently
+/// not supported_.
+pub fn decide_trade_action(
+    node: Arc<ln_dlc_node::node::Node<PaymentMap>>,
+    trader: &PublicKey,
+) -> Result<TradeAction> {
+    let action = match node.get_dlc_channel_signed(trader)? {
+        Some(subchannel) => {
+            // FIXME: Should query the database for more
+            // information
+
+            // TODO: Detect if the position should be
+            // extended/reduced. Return corresponding error as
+            // this is currently not supported.
+
+            TradeAction::Close(subchannel.channel_id)
+        }
+        None => TradeAction::Open,
+    };
+
+    Ok(action)
 }
 
 #[cfg(test)]
