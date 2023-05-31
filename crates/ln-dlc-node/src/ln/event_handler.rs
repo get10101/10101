@@ -1,4 +1,5 @@
 use crate::dlc_custom_signer::CustomKeysManager;
+use crate::fee_rate_estimator::FeeRateEstimator;
 use crate::ln::coordinator_config;
 use crate::ln::HTLC_INTERCEPTED_CONNECTION_TIMEOUT;
 use crate::ln::JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT;
@@ -54,6 +55,7 @@ pub struct EventHandler<P> {
     fake_channel_payments: FakeChannelPaymentRequests,
     pending_intercepted_htlcs: PendingInterceptedHtlcs,
     peer_manager: Arc<PeerManager>,
+    fee_rate_estimator: Arc<FeeRateEstimator>,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -71,6 +73,7 @@ where
         fake_channel_payments: FakeChannelPaymentRequests,
         pending_intercepted_htlcs: PendingInterceptedHtlcs,
         peer_manager: Arc<PeerManager>,
+        fee_rate_estimator: Arc<FeeRateEstimator>,
     ) -> Self {
         Self {
             runtime_handle,
@@ -82,6 +85,7 @@ where
             fake_channel_payments,
             pending_intercepted_htlcs,
             peer_manager,
+            fee_rate_estimator,
         }
     }
 
@@ -387,7 +391,7 @@ where
 
                 let destination_script = self.wallet.inner().get_last_unused_address()?;
                 let tx_feerate = self
-                    .wallet
+                    .fee_rate_estimator
                     .get_est_sat_per_1000_weight(ConfirmationTarget::Normal);
                 let spending_tx = self.keys_manager.spend_spendable_outputs(
                     &ldk_outputs,
@@ -589,8 +593,7 @@ where
                 // Do not open a channel if the fee is too high for us
                 if let Some(max_allowed_tx_fee) = opt_max_allowed_fee {
                     let current_fee = self
-                        .wallet
-                        .inner()
+                        .fee_rate_estimator
                         .get_est_sat_per_1000_weight(CONFIRMATION_TARGET);
                     if max_allowed_tx_fee < current_fee {
                         tracing::warn!(%max_allowed_tx_fee, %current_fee, "Not opening a channel because the fee is too high");

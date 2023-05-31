@@ -1,3 +1,4 @@
+use crate::fee_rate_estimator::FeeRateEstimator;
 use crate::ln_dlc_wallet::LnDlcWallet;
 use anyhow::Context;
 use anyhow::Result;
@@ -16,7 +17,7 @@ pub type DlcManager = dlc_manager::manager::Manager<
     Arc<SledStorageProvider>,
     Arc<P2PDOracleClient>,
     Arc<SystemTimeProvider>,
-    Arc<LnDlcWallet>,
+    Arc<FeeRateEstimator>,
 >;
 
 pub fn build(
@@ -24,6 +25,7 @@ pub fn build(
     ln_dlc_wallet: Arc<LnDlcWallet>,
     storage: Arc<SledStorageProvider>,
     p2pdoracle: Arc<P2PDOracleClient>,
+    fee_rate_estimator: Arc<FeeRateEstimator>,
 ) -> Result<DlcManager> {
     let offers_path = data_dir.join("offers");
     fs::create_dir_all(offers_path)?;
@@ -33,11 +35,11 @@ pub fn build(
 
     DlcManager::new(
         ln_dlc_wallet.clone(),
-        ln_dlc_wallet.clone(),
+        ln_dlc_wallet,
         storage,
         oracles,
         Arc::new(SystemTimeProvider {}),
-        ln_dlc_wallet,
+        fee_rate_estimator,
     )
     .context("Failed to initialise DlcManager")
 }

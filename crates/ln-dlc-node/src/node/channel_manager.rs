@@ -1,4 +1,5 @@
 use crate::dlc_custom_signer::CustomKeysManager;
+use crate::fee_rate_estimator::FeeRateEstimator;
 use crate::ln::TracingLogger;
 use crate::ln_dlc_wallet::LnDlcWallet;
 use crate::ChainMonitor;
@@ -22,7 +23,7 @@ pub type ChannelManager = lightning::ln::channelmanager::ChannelManager<
     Arc<CustomKeysManager>,
     Arc<CustomKeysManager>,
     Arc<CustomKeysManager>,
-    Arc<LnDlcWallet>,
+    Arc<FeeRateEstimator>,
     Arc<Router>,
     Arc<TracingLogger>,
 >;
@@ -32,6 +33,7 @@ pub(crate) fn build(
     ldk_data_dir: &str,
     keys_manager: Arc<CustomKeysManager>,
     ln_dlc_wallet: Arc<LnDlcWallet>,
+    fee_rate_estimator: Arc<FeeRateEstimator>,
     explora_client: Arc<EsploraSyncClient<Arc<TracingLogger>>>,
     logger: Arc<TracingLogger>,
     chain_monitor: Arc<ChainMonitor>,
@@ -54,7 +56,7 @@ pub(crate) fn build(
 
             let (height, block_hash) = ln_dlc_wallet.tip()?;
             return Ok(ChannelManager::new(
-                ln_dlc_wallet.clone(),
+                fee_rate_estimator,
                 chain_monitor.clone(),
                 ln_dlc_wallet,
                 router,
@@ -82,7 +84,7 @@ pub(crate) fn build(
         keys_manager.clone(),
         keys_manager.clone(),
         keys_manager,
-        ln_dlc_wallet.clone(),
+        fee_rate_estimator,
         chain_monitor.clone(),
         ln_dlc_wallet,
         router,
