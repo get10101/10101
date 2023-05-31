@@ -5,13 +5,15 @@ use bdk::bitcoin::secp256k1::SecretKey;
 use bdk::bitcoin::secp256k1::SECP256K1;
 use futures::TryStreamExt;
 use orderbook_commons::best_current_price;
+use orderbook_commons::Order;
 use orderbook_commons::OrderbookMsg;
 use orderbook_commons::Signature;
 use std::time::Duration;
 use tokio::runtime::Runtime;
 use tokio::task::spawn_blocking;
+use uuid::Uuid;
 
-const WS_RECONNECT_TIMEOUT_SECS: u64 = 2;
+const WS_RECONNECT_TIMEOUT: Duration = Duration::from_secs(2);
 
 pub fn subscribe(secret_key: SecretKey, runtime: &Runtime) -> Result<()> {
     runtime.spawn(async move {
@@ -77,14 +79,7 @@ pub fn subscribe(secret_key: SecretKey, runtime: &Runtime) -> Result<()> {
                                 }
                             }
                             OrderbookMsg::DeleteOrder(order_id) => {
-                                let mut found = false;
-                                for (index, element) in orders.iter().enumerate() {
-                                    if element.id == order_id {
-                                        found = true;
-                                        orders.remove(index);
-                                        break;
-                                    }
-                                }
+                                let found = remove_order(&mut orders, order_id);
                                 if !found {
                                     tracing::warn!(%order_id, "Could not remove non-existing order");
                                 }
@@ -93,14 +88,7 @@ pub fn subscribe(secret_key: SecretKey, runtime: &Runtime) -> Result<()> {
                                 }
                             },
                             OrderbookMsg::Update(updated_order) => {
-                                let mut found = false;
-                                for (index, element) in orders.iter().enumerate() {
-                                    if element.id == updated_order.id {
-                                        orders.remove(index);
-                                        found = true;
-                                        break;
-                                    }
-                                }
+                                let found = remove_order(&mut orders, updated_order.id);
                                 if !found {
                                     tracing::warn!(?updated_order, "Update without prior knowledge of order");
                                 }
@@ -123,13 +111,23 @@ pub fn subscribe(secret_key: SecretKey, runtime: &Runtime) -> Result<()> {
                 }
             };
 
-            let timeout = Duration::from_secs(WS_RECONNECT_TIMEOUT_SECS);
-
-            tracing::debug!(?timeout, "Reconnecting to orderbook WS after timeout");
-
-            tokio::time::sleep(timeout).await;
+            tokio::time::sleep(WS_RECONNECT_TIMEOUT).await;
+            tracing::debug!(?WS_RECONNECT_TIMEOUT, "Reconnecting to orderbook WS after timeout");
         }
     });
 
     Ok(())
+}
+
+// Returns true if the order was found and removed
+fn remove_order(orders: &mut Vec<Order>, order_id: Uuid) -> bool {
+    let mut found = false;
+    for (index, element) in orders.iter().enumerate() {
+        if element.id == order_id {
+            found = true;
+            orders.remove(index);
+            break;
+        }
+    }
+    found
 }
