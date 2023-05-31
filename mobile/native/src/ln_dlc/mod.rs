@@ -39,6 +39,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use time::OffsetDateTime;
 use tokio::runtime::Runtime;
+use tokio::task::spawn_blocking;
 
 mod node;
 
@@ -174,7 +175,10 @@ pub fn run(data_dir: String, seed_dir: String, runtime: &Runtime) -> Result<()> 
 
         runtime.spawn(async move {
             loop {
-                if let Err(e) = order::handler::check_open_orders() {
+                if let Err(e) = spawn_blocking(move || order::handler::check_open_orders())
+                    .await
+                    .expect("To spawn blocking task")
+                {
                     tracing::error!("Error while checking open orders: {e:#}");
                 }
 
