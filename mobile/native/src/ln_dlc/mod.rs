@@ -82,7 +82,7 @@ pub fn get_oracle_pubkey() -> XOnlyPublicKey {
 
 /// Lazily creates a multi threaded runtime with the the number of worker threads corresponding to
 /// the number of available cores.
-fn runtime() -> Result<&'static Runtime> {
+pub fn get_or_create_tokio_runtime() -> Result<&'static Runtime> {
     static RUNTIME: Storage<Runtime> = Storage::new();
 
     if RUNTIME.try_get().is_none() {
@@ -98,9 +98,8 @@ fn runtime() -> Result<&'static Runtime> {
 /// Allows specifying a data directory and a seed directory to decouple
 /// data and seed storage (e.g. data is useful for debugging, seed location
 /// should be more protected).
-pub fn run(data_dir: String, seed_dir: String) -> Result<()> {
+pub fn run(data_dir: String, seed_dir: String, runtime: &Runtime) -> Result<()> {
     let network = config::get_network();
-    let runtime = runtime()?;
 
     runtime.block_on(async move {
         event::publish(&EventInternal::Init("Starting full ldk node".to_string()));
@@ -367,7 +366,7 @@ pub fn close_channel(is_force_close: bool) -> Result<()> {
 }
 
 pub fn create_invoice(amount_sats: Option<u64>) -> Result<Invoice> {
-    let runtime = runtime()?;
+    let runtime = get_or_create_tokio_runtime()?;
 
     runtime.block_on(async {
         let node = NODE.get();
