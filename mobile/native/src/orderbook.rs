@@ -7,26 +7,12 @@ use futures::TryStreamExt;
 use orderbook_commons::best_current_price;
 use orderbook_commons::OrderbookMsg;
 use orderbook_commons::Signature;
-use state::Storage;
 use std::time::Duration;
 use tokio::runtime::Runtime;
 
 const WS_RECONNECT_TIMEOUT_SECS: u64 = 2;
 
-fn runtime() -> Result<&'static Runtime> {
-    static RUNTIME: Storage<Runtime> = Storage::new();
-
-    if RUNTIME.try_get().is_none() {
-        let runtime = Runtime::new()?;
-        RUNTIME.set(runtime);
-    }
-
-    Ok(RUNTIME.get())
-}
-
-pub fn subscribe(secret_key: SecretKey) -> Result<()> {
-    let runtime = runtime()?;
-
+pub fn subscribe(secret_key: SecretKey, runtime: &Runtime) -> Result<()> {
     runtime.spawn(async move {
         let url = format!(
             "ws://{}/api/orderbook/websocket",
