@@ -1676,6 +1676,7 @@ dependencies = [
  "dlc-messages",
  "dlc-sled-storage-provider",
  "dlc-trie",
+ "esplora-client",
  "futures",
  "hex",
  "hkdf",

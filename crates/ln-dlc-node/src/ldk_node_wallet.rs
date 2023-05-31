@@ -1,3 +1,4 @@
+use crate::fee_rate_estimator::FeeRateEstimator;
 use crate::ln::TracingLogger;
 use anyhow::bail;
 use anyhow::Context;
@@ -9,7 +10,6 @@ use bdk::blockchain::EsploraBlockchain;
 use bdk::blockchain::GetHeight;
 use bdk::database::BatchDatabase;
 use bdk::wallet::AddressIndex;
-use bdk::FeeRate;
 use bdk::SignOptions;
 use bdk::SyncOptions;
 use bdk::TransactionDetails;
@@ -20,13 +20,10 @@ use bitcoin::Transaction;
 use bitcoin::Txid;
 use lightning::chain::chaininterface::BroadcasterInterface;
 use lightning::chain::chaininterface::ConfirmationTarget;
-use lightning::chain::chaininterface::FeeEstimator;
-use lightning::chain::chaininterface::FEERATE_FLOOR_SATS_PER_KW;
 use lightning::chain::transaction::OutPoint;
 use lightning::chain::Filter;
 use lightning::chain::WatchedOutput;
 use lightning_transaction_sync::EsploraSyncClient;
-use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::sync::MutexGuard;
@@ -41,28 +38,15 @@ where
     pub(crate) blockchain: Arc<EsploraBlockchain>,
     // A BDK on-chain wallet.
     inner: Mutex<bdk::Wallet<D>>,
-    // A cache storing the most recently retrieved fee rate estimations.
-    fee_rate_cache: RwLock<HashMap<ConfirmationTarget, FeeRate>>,
     settings: RwLock<WalletSettings>,
     esplora_sync_client: Arc<EsploraSyncClient<Arc<TracingLogger>>>,
     runtime_handle: tokio::runtime::Handle,
+    fee_rate_estimator: Arc<FeeRateEstimator>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct WalletSettings {
-    pub fallback_tx_fee_rate_normal: u32,
-    pub fallback_tx_fee_rate_high_priority: u32,
     pub max_allowed_tx_fee_rate_when_opening_channel: Option<u32>,
-}
-
-impl Default for WalletSettings {
-    fn default() -> Self {
-        Self {
-            fallback_tx_fee_rate_normal: 2000,
-            fallback_tx_fee_rate_high_priority: 5000,
-            max_allowed_tx_fee_rate_when_opening_channel: None,
-        }
-    }
 }
 
 impl<D> Wallet<D>
@@ -74,18 +58,18 @@ where
         wallet: bdk::Wallet<D>,
         runtime_handle: tokio::runtime::Handle,
         esplora_sync_client: Arc<EsploraSyncClient<Arc<TracingLogger>>>,
+        fee_rate_estimator: Arc<FeeRateEstimator>,
     ) -> Self {
         let inner = Mutex::new(wallet);
-        let fee_rate_cache = RwLock::new(HashMap::new());
         let settings = RwLock::new(WalletSettings::default());
 
         Self {
             blockchain: Arc::new(blockchain),
             inner,
-            fee_rate_cache,
             runtime_handle,
             settings,
             esplora_sync_client,
+            fee_rate_estimator,
         }
     }
 
@@ -103,12 +87,11 @@ where
     }
 
     #[autometrics]
-    /// Update fee estimates and the internal BDK wallet database with
-    /// the blockchain.
+    /// Update the internal BDK wallet database with the blockchain.
     pub async fn sync(&self) -> Result<()> {
         let wallet_lock = self.bdk_lock();
         match wallet_lock
-            .sync(&self.blockchain, SyncOptions { progress: None })
+            .sync(&self.blockchain, SyncOptions::default())
             .await
         {
             Err(bdk::Error::Esplora(e)) => match *e {
@@ -136,51 +119,16 @@ where
     }
 
     #[autometrics]
-    pub(crate) async fn update_fee_estimates(&self) -> Result<()> {
-        let mut locked_fee_rate_cache = self.fee_rate_cache.write().await;
-
-        let confirmation_targets = vec![
-            ConfirmationTarget::Background,
-            ConfirmationTarget::Normal,
-            ConfirmationTarget::HighPriority,
-        ];
-        for target in confirmation_targets {
-            let num_blocks = match target {
-                ConfirmationTarget::Background => 12,
-                ConfirmationTarget::Normal => 6,
-                ConfirmationTarget::HighPriority => 3,
-            };
-
-            let est_fee_rate = self.blockchain.estimate_fee(num_blocks).await;
-
-            match est_fee_rate {
-                Ok(rate) => {
-                    locked_fee_rate_cache.insert(target, rate);
-                    tracing::trace!(
-                        "Fee rate estimation updated: {} sats/kwu",
-                        rate.fee_wu(1000)
-                    );
-                }
-                Err(e) => {
-                    tracing::error!("Failed to update fee rate estimation: {}", e);
-                }
-            }
-        }
-        Ok(())
-    }
-
-    #[autometrics]
     pub(crate) async fn create_funding_transaction(
         &self,
         output_script: Script,
         value_sats: u64,
         confirmation_target: ConfirmationTarget,
     ) -> Result<Transaction, Error> {
-        let fee_rate = self.estimate_fee_rate(confirmation_target);
-
         let locked_wallet = self.bdk_lock();
         let mut tx_builder = locked_wallet.build_tx();
 
+        let fee_rate = self.fee_rate_estimator.get(confirmation_target);
         tx_builder
             .add_recipient(output_script, value_sats)
             .fee_rate(fee_rate)
@@ -241,8 +189,7 @@ where
         address: &bitcoin::Address,
         amount_msat_or_drain: Option<u64>,
     ) -> Result<Txid> {
-        let confirmation_target = ConfirmationTarget::Normal;
-        let fee_rate = self.estimate_fee_rate(confirmation_target);
+        let fee_rate = self.fee_rate_estimator.get(ConfirmationTarget::Normal);
 
         let tx = {
             let locked_wallet = self.bdk_lock();
@@ -307,31 +254,6 @@ where
     }
 
     #[autometrics]
-    fn estimate_fee_rate(&self, confirmation_target: ConfirmationTarget) -> FeeRate {
-        let (fee_rate_cache, settings) = tokio::task::block_in_place(move || {
-            self.runtime_handle.block_on(async move {
-                (
-                    self.fee_rate_cache.read().await.clone(),
-                    self.settings.read().await.clone(),
-                )
-            })
-        });
-
-        let fallback_sats_kwu = match confirmation_target {
-            ConfirmationTarget::Background => FEERATE_FLOOR_SATS_PER_KW,
-            ConfirmationTarget::Normal => settings.fallback_tx_fee_rate_normal,
-            ConfirmationTarget::HighPriority => settings.fallback_tx_fee_rate_high_priority,
-        };
-
-        // We'll fall back on this, if we really don't have any other information.
-        let fallback_rate = FeeRate::from_sat_per_kwu(fallback_sats_kwu as f32);
-
-        *fee_rate_cache
-            .get(&confirmation_target)
-            .unwrap_or(&fallback_rate)
-    }
-
-    #[autometrics]
     pub fn tip(&self) -> Result<(u32, BlockHash)> {
         let ret = tokio::task::block_in_place(move || {
             self.runtime_handle.block_on(async move {
@@ -351,16 +273,6 @@ where
         wallet_lock
             .list_transactions(false)
             .context("Failed to list on chain transactions")
-    }
-}
-
-impl<D> FeeEstimator for Wallet<D>
-where
-    D: BatchDatabase,
-{
-    fn get_est_sat_per_1000_weight(&self, confirmation_target: ConfirmationTarget) -> u32 {
-        (self.estimate_fee_rate(confirmation_target).fee_wu(1000) as u32)
-            .max(FEERATE_FLOOR_SATS_PER_KW)
     }
 }
 

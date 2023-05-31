@@ -4,6 +4,7 @@ use bitcoin::secp256k1::PublicKey;
 use dlc_custom_signer::CustomKeysManager;
 use dlc_custom_signer::CustomSigner;
 use dlc_messages::message_handler::MessageHandler as DlcMessageHandler;
+use fee_rate_estimator::FeeRateEstimator;
 use lightning::chain::chainmonitor;
 use lightning::chain::Filter;
 use lightning::ln::channelmanager::InterceptId;
@@ -25,6 +26,7 @@ use time::OffsetDateTime;
 
 mod disk;
 mod dlc_custom_signer;
+mod fee_rate_estimator;
 mod ldk_node_wallet;
 mod ln;
 mod ln_dlc_wallet;
@@ -37,6 +39,7 @@ pub mod seed;
 #[cfg(test)]
 mod tests;
 
+pub use fee_rate_estimator::FeeRateFallbacks;
 pub use ldk_node_wallet::WalletSettings;
 pub use ln::ChannelDetails;
 pub use ln::DlcChannelDetails;
@@ -46,7 +49,7 @@ type ChainMonitor = chainmonitor::ChainMonitor<
     CustomSigner,
     Arc<dyn Filter + Send + Sync>,
     Arc<LnDlcWallet>,
-    Arc<LnDlcWallet>,
+    Arc<FeeRateEstimator>,
     Arc<TracingLogger>,
     Arc<FilesystemPersister>,
 >;

@@ -1,3 +1,4 @@
+use crate::fee_rate_estimator::FeeRateEstimator;
 use crate::ln_dlc_wallet::LnDlcWallet;
 use crate::node::channel_manager::ChannelManager;
 use crate::node::dlc_manager::DlcManager;
@@ -16,7 +17,7 @@ pub type SubChannelManager = sub_channel_manager::SubChannelManager<
     Arc<LnDlcWallet>,
     Arc<P2PDOracleClient>,
     Arc<SystemTimeProvider>,
-    Arc<LnDlcWallet>,
+    Arc<FeeRateEstimator>,
     Arc<DlcManager>,
 >;
 

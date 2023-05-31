@@ -1,5 +1,6 @@
 use crate::disk;
 use crate::dlc_custom_signer::CustomKeysManager;
+use crate::fee_rate_estimator::FeeRateEstimator;
 use crate::ln::app_config;
 use crate::ln::coordinator_config;
 use crate::ln::EventHandler;
@@ -94,6 +95,7 @@ pub struct Node<P> {
     chain_monitor: Arc<ChainMonitor>,
     keys_manager: Arc<CustomKeysManager>,
     pub network_graph: Arc<NetworkGraph>,
+    pub fee_rate_estimator: Arc<FeeRateEstimator>,
     _background_processor: BackgroundProcessor,
     _connection_manager_handle: RemoteHandle<()>,
     _broadcast_node_announcement_handle: RemoteHandle<()>,
@@ -273,13 +275,19 @@ where
         let on_chain_wallet =
             OnChainWallet::new(on_chain_dir.as_path(), network, seed.wallet_seed())?;
 
-        let esplora_client = Arc::new(EsploraSyncClient::new(esplora_server_url, logger.clone()));
+        let esplora_client = Arc::new(EsploraSyncClient::new(
+            esplora_server_url.clone(),
+            logger.clone(),
+        ));
 
         let runtime_handle = tokio::runtime::Handle::current();
+
+        let fee_rate_estimator = Arc::new(FeeRateEstimator::new(esplora_server_url));
         let ln_dlc_wallet = {
             Arc::new(LnDlcWallet::new(
                 esplora_client.clone(),
                 on_chain_wallet.inner,
+                fee_rate_estimator.clone(),
                 storage.clone(),
                 seed.clone(),
                 runtime_handle.clone(),
@@ -294,7 +302,7 @@ where
             let settings = settings.clone();
             let ln_dlc_wallet = ln_dlc_wallet.clone();
             move || {
-                tokio::runtime::Builder::new_multi_thread()
+                tokio::runtime::Builder::new_current_thread()
                     .enable_all()
                     .build()
                     .expect("to be able to create a runtime")
@@ -318,23 +326,17 @@ where
             }
         });
 
-        std::thread::spawn({
+        tokio::spawn({
             let settings = settings.clone();
-            let ln_dlc_wallet = ln_dlc_wallet.clone();
-            move || {
-                tokio::runtime::Builder::new_multi_thread()
-                    .enable_all()
-                    .build()
-                    .expect("to be able to create a runtime")
-                    .block_on(async move {
-                        loop {
-                            if let Err(err) = ln_dlc_wallet.inner().update_fee_estimates().await {
-                                tracing::error!("Fee rate sync failed: {err:#}");
-                            }
+            let fee_rate_estimator = fee_rate_estimator.clone();
+            async move {
+                loop {
+                    if let Err(err) = fee_rate_estimator.update().await {
+                        tracing::error!("Failed to update fee rate estimates: {err:#}");
+                    }
 
-                            tokio::time::sleep(settings.read().await.fee_rate_sync_interval).await;
-                        }
-                    });
+                    tokio::time::sleep(settings.read().await.fee_rate_sync_interval).await;
+                }
             }
         });
 
@@ -342,7 +344,7 @@ where
             Some(esplora_client.clone()),
             ln_dlc_wallet.clone(),
             logger.clone(),
-            ln_dlc_wallet.clone(),
+            fee_rate_estimator.clone(),
             persister.clone(),
         ));
 
@@ -382,6 +384,7 @@ where
             &ldk_data_dir,
             keys_manager.clone(),
             ln_dlc_wallet.clone(),
+            fee_rate_estimator.clone(),
             esplora_client.clone(),
             logger.clone(),
             chain_monitor.clone(),
@@ -432,6 +435,7 @@ where
             ln_dlc_wallet.clone(),
             storage,
             oracle_client.clone(),
+            fee_rate_estimator.clone(),
         )?;
         let dlc_manager = Arc::new(dlc_manager);
 
@@ -469,6 +473,7 @@ where
             fake_channel_payments.clone(),
             Arc::new(Mutex::new(HashMap::new())),
             peer_manager.clone(),
+            fee_rate_estimator.clone(),
         );
 
         // Connection manager
@@ -617,6 +622,7 @@ where
             dlc_message_handler,
             dlc_manager,
             payment_persister,
+            fee_rate_estimator,
             user_config: ldk_user_config,
             _background_processor: background_processor,
             _connection_manager_handle: connection_manager_handle,

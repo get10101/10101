@@ -28,6 +28,7 @@ use lightning::ln::channelmanager::ChannelDetails;
 use ln_dlc_node::node::dlc_message_name;
 use ln_dlc_node::node::sub_channel_message_name;
 use ln_dlc_node::node::PaymentMap;
+use ln_dlc_node::FeeRateFallbacks;
 use ln_dlc_node::WalletSettings;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
@@ -56,12 +57,17 @@ pub struct NodeSettings {
 }
 
 impl NodeSettings {
-    pub fn as_wallet_settings(&self) -> WalletSettings {
+    fn as_wallet_settings(&self) -> WalletSettings {
         WalletSettings {
-            fallback_tx_fee_rate_normal: self.fallback_tx_fee_rate_normal,
-            fallback_tx_fee_rate_high_priority: self.fallback_tx_fee_rate_high_priority,
             max_allowed_tx_fee_rate_when_opening_channel: self
                 .max_allowed_tx_fee_rate_when_opening_channel,
+        }
+    }
+
+    fn as_fee_rate_fallbacks(&self) -> FeeRateFallbacks {
+        FeeRateFallbacks {
+            normal_priority: self.fallback_tx_fee_rate_normal,
+            high_priority: self.fallback_tx_fee_rate_high_priority,
         }
     }
 }
@@ -103,6 +109,11 @@ impl Node {
         // Forward relevant settings down to the wallet
         let wallet_settings = settings.as_wallet_settings();
         self.inner.wallet().update_settings(wallet_settings).await;
+
+        let fee_rate_fallbacks = settings.as_fee_rate_fallbacks();
+        self.inner
+            .fee_rate_estimator
+            .update_fallbacks(fee_rate_fallbacks);
     }
 
     /// Returns true or false, whether we can find an usable channel with the provided trader.

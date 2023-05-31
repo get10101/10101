@@ -1,3 +1,4 @@
+use crate::fee_rate_estimator::FeeRateEstimator;
 use crate::ldk_node_wallet;
 use crate::seed::Bip39Seed;
 use crate::TracingLogger;
@@ -44,9 +45,11 @@ pub struct LnDlcWallet {
 }
 
 impl LnDlcWallet {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         esplora_client: Arc<EsploraSyncClient<Arc<TracingLogger>>>,
         on_chain_wallet: bdk::Wallet<bdk::sled::Tree>,
+        fee_rate_estimator: Arc<FeeRateEstimator>,
         storage: Arc<SledStorageProvider>,
         seed: Bip39Seed,
         runtime_handle: tokio::runtime::Handle,
@@ -64,6 +67,7 @@ impl LnDlcWallet {
             on_chain_wallet,
             runtime_handle.clone(),
             esplora_client,
+            fee_rate_estimator,
         ));
 
         Self {
@@ -303,17 +307,6 @@ impl BroadcasterInterface for LnDlcWallet {
     #[autometrics]
     fn broadcast_transaction(&self, tx: &Transaction) {
         self.ln_wallet.broadcast_transaction(tx)
-    }
-}
-
-impl lightning::chain::chaininterface::FeeEstimator for LnDlcWallet {
-    #[autometrics]
-    fn get_est_sat_per_1000_weight(
-        &self,
-        confirmation_target: lightning::chain::chaininterface::ConfirmationTarget,
-    ) -> u32 {
-        self.ln_wallet
-            .get_est_sat_per_1000_weight(confirmation_target)
     }
 }
 

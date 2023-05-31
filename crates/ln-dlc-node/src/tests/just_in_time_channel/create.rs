@@ -26,7 +26,6 @@ async fn just_in_time_channel_fails_if_fee_too_low() {
     init_tracing();
     let low_fee_limit = WalletSettings {
         max_allowed_tx_fee_rate_when_opening_channel: Some(CURRENT_FEE_RATE - 1),
-        ..WalletSettings::default()
     };
 
     create_just_in_time_channel(low_fee_limit, TestPath::ExpectFundingFailure)
@@ -41,7 +40,6 @@ async fn just_in_time_channel_works_with_correct_fee() {
     let high_fee_limit = WalletSettings {
         // We set our fee limit to above the current fee rate
         max_allowed_tx_fee_rate_when_opening_channel: Some(CURRENT_FEE_RATE + 10),
-        ..WalletSettings::default()
     };
 
     create_just_in_time_channel(high_fee_limit, TestPath::FundingAlwaysOnline)
