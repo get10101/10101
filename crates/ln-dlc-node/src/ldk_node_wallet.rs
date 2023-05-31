@@ -15,7 +15,6 @@ use bdk::SyncOptions;
 use bdk::TransactionDetails;
 use bitcoin::consensus::encode::serialize_hex;
 use bitcoin::BlockHash;
-use bitcoin::Network;
 use bitcoin::Script;
 use bitcoin::Transaction;
 use bitcoin::Txid;
@@ -352,12 +351,6 @@ where
         wallet_lock
             .list_transactions(false)
             .context("Failed to list on chain transactions")
-    }
-
-    #[autometrics]
-    pub fn network(&self) -> Result<Network> {
-        // TODO: Store network separately, so we don't have to lock mutex here.
-        Ok(self.bdk_lock().network())
     }
 }
 

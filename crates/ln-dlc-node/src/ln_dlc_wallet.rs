@@ -39,6 +39,7 @@ pub struct LnDlcWallet {
     storage: Arc<SledStorageProvider>,
     secp: Secp256k1<All>,
     seed: Bip39Seed,
+    network: Network,
     runtime_handle: tokio::runtime::Handle,
 }
 
@@ -56,6 +57,8 @@ impl LnDlcWallet {
             EsploraBlockchain::from_client(esplora_client.client().clone(), bdk_client_stop_gap)
                 .with_concurrency(bdk_client_concurrency);
 
+        let network = on_chain_wallet.network();
+
         let wallet = Arc::new(ldk_node_wallet::Wallet::new(
             blockchain,
             on_chain_wallet,
@@ -68,6 +71,7 @@ impl LnDlcWallet {
             storage,
             secp: Secp256k1::new(),
             seed,
+            network,
             runtime_handle,
         }
     }
@@ -123,9 +127,7 @@ impl Blockchain for LnDlcWallet {
 
     #[autometrics]
     fn get_network(&self) -> Result<Network, Error> {
-        self.ln_wallet
-            .network()
-            .map_err(|e| Error::BlockchainError(e.to_string()))
+        Ok(self.network)
     }
 
     #[autometrics]
