@@ -43,7 +43,7 @@ use tokio::runtime::Runtime;
 mod node;
 
 static NODE: Storage<Arc<Node>> = Storage::new();
-const PROCESS_INCOMING_MESSAGES_INTERVAL: Duration = Duration::from_secs(5);
+const PROCESS_INCOMING_MESSAGES_INTERVAL: Duration = Duration::from_secs(2);
 const UPDATE_WALLET_HISTORY_INTERVAL: Duration = Duration::from_secs(5);
 const CHECK_OPEN_ORDERS_INTERVAL: Duration = Duration::from_secs(60);
 
