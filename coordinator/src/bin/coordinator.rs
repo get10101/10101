@@ -97,7 +97,8 @@ async fn main() -> Result<()> {
     let node = Node::new(node, pool.clone());
     node.update_settings(settings.as_node_settings()).await;
 
-    tokio::task::spawn_blocking({
+    // spawn a dedicated thread as this might be CPU-heavy
+    std::thread::spawn({
         let node = node.clone();
         move || loop {
             node.process_incoming_dlc_messages();

@@ -151,7 +151,8 @@ pub fn run(data_dir: String, seed_dir: String) -> Result<()> {
             async move { node.keep_connected(config::get_coordinator_info()).await }
         });
 
-        runtime.spawn_blocking({
+        // spawn a dedicated thread as this might be CPU-heavy
+        std::thread::spawn({
             let node = node.clone();
             move || loop {
                 node.process_incoming_dlc_messages();
