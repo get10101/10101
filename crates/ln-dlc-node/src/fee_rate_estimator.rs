@@ -10,7 +10,7 @@ use std::sync::RwLockReadGuard;
 use std::sync::RwLockWriteGuard;
 
 pub struct FeeRateEstimator {
-    client: esplora_client::AsyncClient,
+    client: esplora_client::BlockingClient,
     fee_rate_cache: RwLock<HashMap<ConfirmationTarget, FeeRate>>,
     fallbacks: RwLock<FeeRateFallbacks>,
 }
@@ -32,7 +32,7 @@ impl Default for FeeRateFallbacks {
 
 impl FeeRateEstimator {
     pub fn new(esplora_url: String) -> Self {
-        let client = esplora_client::AsyncClient::from_client(esplora_url, reqwest::Client::new());
+        let client = esplora_client::BlockingClient::from_agent(esplora_url, ureq::agent());
 
         let fee_rate_cache = RwLock::new(HashMap::default());
         let fallbacks = RwLock::new(FeeRateFallbacks::default());
@@ -60,7 +60,7 @@ impl FeeRateEstimator {
 
     #[autometrics]
     pub(crate) async fn update(&self) -> Result<()> {
-        let estimates = self.client.get_fee_estimates().await?;
+        let estimates = self.client.get_fee_estimates()?;
 
         let mut locked_fee_rate_cache = self.cache_write_lock();
         for (target, n_blocks) in [

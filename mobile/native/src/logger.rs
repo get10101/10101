@@ -29,7 +29,8 @@ pub fn log_base_directives(env: EnvFilter, level: LevelFilter) -> Result<EnvFilt
         .add_directive("sled=warn".parse()?)
         .add_directive("bdk=warn".parse()?) // bdk is quite spamy on debug
         .add_directive("lightning::ln::peer_handler=debug".parse()?)
-        .add_directive("lightning::chain=info".parse()?);
+        .add_directive("lightning::chain=info".parse()?)
+        .add_directive("ureq=info".parse()?);
     Ok(filter)
 }
 
