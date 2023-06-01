@@ -36,11 +36,10 @@ where
         Ok(address)
     }
 
-    pub async fn get_on_chain_balance(&self) -> Result<bdk::Balance> {
+    pub fn get_on_chain_balance(&self) -> Result<bdk::Balance> {
         self.wallet
             .inner()
             .get_balance()
-            .await
             .context("Failed to get on-chain balance")
     }
 

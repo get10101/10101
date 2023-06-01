@@ -20,6 +20,7 @@ use serde::Serialize;
 use std::fmt;
 use std::str::FromStr;
 use std::sync::Arc;
+use tokio::task::spawn_blocking;
 use tracing::instrument;
 
 #[derive(Serialize, Deserialize)]
@@ -30,17 +31,20 @@ pub struct Balance {
 
 #[autometrics]
 pub async fn get_balance(State(state): State<Arc<AppState>>) -> Result<Json<Balance>, AppError> {
-    let offchain = state.node.inner.get_ldk_balance();
-    let onchain = state
-        .node
-        .inner
-        .get_on_chain_balance()
-        .await
-        .map_err(|e| AppError::InternalServerError(format!("Failed to get balance: {e:#}")))?;
-    Ok(Json(Balance {
-        offchain: offchain.available,
-        onchain: onchain.confirmed,
-    }))
+    spawn_blocking(move || {
+        let offchain = state.node.inner.get_ldk_balance();
+        let onchain =
+            state.node.inner.get_on_chain_balance().map_err(|e| {
+                AppError::InternalServerError(format!("Failed to get balance: {e:#}"))
+            })?;
+
+        Ok(Json(Balance {
+            offchain: offchain.available,
+            onchain: onchain.confirmed,
+        }))
+    })
+    .await
+    .map_err(|e| AppError::InternalServerError(format!("Failed to get balance: {e:#}")))?
 }
 
 #[autometrics]
