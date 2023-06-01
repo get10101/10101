@@ -279,8 +279,7 @@ impl Node {
         );
 
         self.inner
-            .propose_dlc_channel_collaborative_settlement(channel_id, accept_settlement_amount)
-            .await?;
+            .propose_dlc_channel_collaborative_settlement(channel_id, accept_settlement_amount)?;
 
         let mut connection = self.pool.get()?;
         db::trades::insert(

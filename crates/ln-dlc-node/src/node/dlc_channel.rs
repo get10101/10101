@@ -71,7 +71,7 @@ where
     }
 
     #[autometrics]
-    pub async fn propose_dlc_channel_collaborative_settlement(
+    pub fn propose_dlc_channel_collaborative_settlement(
         &self,
         channel_id: [u8; 32],
         accept_settlement_amount: u64,
@@ -84,22 +84,16 @@ where
             "Settling DLC channel collaboratively"
         );
 
-        tokio::task::spawn_blocking({
-            let sub_channel_manager = self.sub_channel_manager.clone();
-            let dlc_message_handler = self.dlc_message_handler.clone();
-            move || {
-                let (sub_channel_close_offer, counterparty_pk) = sub_channel_manager
-                    .offer_subchannel_close(&channel_id, accept_settlement_amount)?;
+        let (sub_channel_close_offer, counterparty_pk) = self
+            .sub_channel_manager
+            .offer_subchannel_close(&channel_id, accept_settlement_amount)?;
 
-                dlc_message_handler.send_message(
-                    counterparty_pk,
-                    Message::SubChannel(SubChannelMessage::CloseOffer(sub_channel_close_offer)),
-                );
+        self.dlc_message_handler.send_message(
+            counterparty_pk,
+            Message::SubChannel(SubChannelMessage::CloseOffer(sub_channel_close_offer)),
+        );
 
-                Ok(())
-            }
-        })
-        .await?
+        Ok(())
     }
 
     #[autometrics]

@@ -52,8 +52,7 @@ async fn dlc_collaborative_settlement(
     app.propose_dlc_channel_collaborative_settlement(
         channel_details.channel_id,
         coordinator_settlement_amount,
-    )
-    .await?;
+    )?;
 
     // Processs the app's offer to close the channel
     tokio::time::sleep(Duration::from_secs(2)).await;
