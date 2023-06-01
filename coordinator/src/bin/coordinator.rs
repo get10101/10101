@@ -96,7 +96,7 @@ async fn main() -> Result<()> {
     run_migration(&mut conn);
 
     let node = Node::new(node, pool.clone());
-    node.update_settings(settings.as_node_settings()).await;
+    node.update_settings(settings.as_node_settings());
 
     tokio::spawn({
         let node = node.clone();

@@ -104,13 +104,13 @@ impl Node {
         }
     }
 
-    pub async fn update_settings(&self, settings: NodeSettings) {
+    pub fn update_settings(&self, settings: NodeSettings) {
         tracing::info!(?settings, "Updating node settings");
         *self.settings_write_lock() = settings.clone();
 
         // Forward relevant settings down to the wallet
         let wallet_settings = settings.as_wallet_settings();
-        self.inner.wallet().update_settings(wallet_settings).await;
+        self.inner.wallet().update_settings(wallet_settings);
 
         let fee_rate_fallbacks = settings.as_fee_rate_fallbacks();
         self.inner

@@ -27,7 +27,7 @@ use lightning_transaction_sync::EsploraSyncClient;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::sync::MutexGuard;
-use tokio::sync::RwLock;
+use std::sync::RwLock;
 
 pub struct Wallet<D>
 where
@@ -69,17 +69,16 @@ where
         }
     }
 
-    fn bdk_lock(&self) -> MutexGuard<bdk::Wallet<D>> {
-        self.inner.lock().expect("mutex not to be poisoned")
-    }
-
-    pub async fn update_settings(&self, settings: WalletSettings) {
+    pub fn update_settings(&self, settings: WalletSettings) {
         tracing::info!(?settings, "Updating wallet settings");
-        *self.settings.write().await = settings;
+        *self.settings.write().expect("RwLock to not be poisoned") = settings;
     }
 
     pub async fn settings(&self) -> WalletSettings {
-        self.settings.read().await.clone()
+        self.settings
+            .read()
+            .expect("RwLock to not be poisoned")
+            .clone()
     }
 
     /// Update the internal BDK wallet database with the blockchain.
@@ -240,6 +239,10 @@ where
         wallet_lock
             .list_transactions(false)
             .context("Failed to list on chain transactions")
+    }
+
+    fn bdk_lock(&self) -> MutexGuard<bdk::Wallet<D>> {
+        self.inner.lock().expect("mutex not to be poisoned")
     }
 }
 

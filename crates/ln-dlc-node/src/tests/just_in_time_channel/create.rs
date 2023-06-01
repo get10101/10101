@@ -101,7 +101,7 @@ async fn fail_to_open_jit_channel_with_fee_rate_over_max() {
         max_allowed_tx_fee_rate_when_opening_channel: Some(background_fee_rate - 1),
     };
 
-    coordinator.wallet().update_settings(settings).await;
+    coordinator.wallet().update_settings(settings);
 
     let intercepted_scid_details = coordinator.create_intercept_scid(payee.info.pubkey, 50);
 
