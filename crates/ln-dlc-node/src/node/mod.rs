@@ -54,6 +54,7 @@ use std::time::Duration;
 use std::time::Instant;
 use std::time::SystemTime;
 use tokio::sync::RwLock;
+use tokio::task::spawn_blocking;
 
 mod channel_manager;
 mod connection;
@@ -586,19 +587,24 @@ where
             remote_handle
         };
 
-        // FIXME: We want to be able to run this periodic check, but we seem to run into deadlocks
-        // because of it.
+        tokio::task::spawn({
+            let dlc_manager = dlc_manager.clone();
+            async move {
+                loop {
+                    if let Err(e) = spawn_blocking({
+                        let dlc_manager = dlc_manager.clone();
+                        move || dlc_manager.periodic_check()
+                    })
+                    .await
+                    .expect("task to complete")
+                    {
+                        tracing::error!("Failed DLC manager periodic check: {e:#}");
+                    }
 
-        // tokio::task::spawn_blocking({
-        //     let dlc_manager = dlc_manager.clone();
-        //     move || loop {
-        //         if let Err(e) = dlc_manager.periodic_check() {
-        //             tracing::error!("Failed DLC manager periodic check: {e:#}");
-        //         }
-
-        //         std::thread::sleep(DLC_MANAGER_PERIODIC_CHECK_INTERVAL);
-        //     }
-        // });
+                    tokio::time::sleep(Duration::from_secs(30)).await;
+                }
+            }
+        });
 
         let node_info = NodeInfo {
             pubkey: channel_manager.get_our_node_id(),
