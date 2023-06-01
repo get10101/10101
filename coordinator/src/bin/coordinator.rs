@@ -25,6 +25,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
 use time::OffsetDateTime;
+use tokio::task::spawn_blocking;
 use tracing::metadata::LevelFilter;
 use trade::bitmex_client::BitmexClient;
 
@@ -97,12 +98,16 @@ async fn main() -> Result<()> {
     let node = Node::new(node, pool.clone());
     node.update_settings(settings.as_node_settings()).await;
 
-    tokio::task::spawn_blocking({
+    tokio::spawn({
         let node = node.clone();
-        move || loop {
-            node.process_incoming_dlc_messages();
-
-            std::thread::sleep(PROCESS_INCOMING_DLC_MESSAGES_INTERVAL);
+        async move {
+            loop {
+                let node = node.clone();
+                spawn_blocking(move || node.process_incoming_dlc_messages())
+                    .await
+                    .expect("To spawn blocking thread");
+                tokio::time::sleep(PROCESS_INCOMING_DLC_MESSAGES_INTERVAL).await;
+            }
         }
     });
 
