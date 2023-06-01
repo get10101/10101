@@ -140,7 +140,7 @@ impl Node {
                     self.settings.read().await.allow_opening_positions,
                     "Opening positions is disabled"
                 );
-                self.open_position(trade_params).await?
+                self.open_position(trade_params)?
             }
             TradeAction::Close(channel_id) => {
                 let peer_id = trade_params.pubkey;
@@ -165,7 +165,7 @@ impl Node {
         Ok(())
     }
 
-    async fn open_position(&self, trade_params: &TradeParams) -> Result<()> {
+    fn open_position(&self, trade_params: &TradeParams) -> Result<()> {
         let peer_id = trade_params.pubkey;
         tracing::info!(%peer_id, ?trade_params, "Opening position");
 
@@ -245,7 +245,6 @@ impl Node {
         let channel_details = self.get_counterparty_channel(trade_params.pubkey)?;
         self.inner
             .propose_dlc_channel(channel_details, contract_input)
-            .await
             .context("Could not propose dlc channel")?;
         Ok(())
     }

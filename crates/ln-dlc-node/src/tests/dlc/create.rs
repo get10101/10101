@@ -70,8 +70,7 @@ pub async fn create_dlc_channel(
     let contract_input =
         dummy_contract_input(app_dlc_collateral, coordinator_dlc_collateral, oracle_pk);
 
-    app.propose_dlc_channel(channel_details.clone(), contract_input)
-        .await?;
+    app.propose_dlc_channel(channel_details.clone(), contract_input)?;
 
     // Processs the app's offer to close the channel
     tokio::time::sleep(Duration::from_secs(2)).await;

@@ -44,7 +44,6 @@ async fn reconnecting_during_dlc_channel_setup() {
     let contract_input = dummy_contract_input(20_000, 20_000, oracle_pk);
 
     app.propose_dlc_channel(channel_details.clone(), contract_input)
-        .await
         .unwrap();
 
     tokio::time::sleep(Duration::from_secs(2)).await;

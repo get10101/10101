@@ -159,7 +159,6 @@ async fn open_dlc_channel_after_closing_dlc_channel() {
         dummy_contract_input(app_dlc_collateral, coordinator_dlc_collateral, oracle_pk);
 
     app.propose_dlc_channel(channel_details, contract_input)
-        .await
         .unwrap();
 
     // Processs the app's offer to close the channel

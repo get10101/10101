@@ -23,34 +23,26 @@ where
     P: Send + Sync,
 {
     #[autometrics]
-    pub async fn propose_dlc_channel(
+    pub fn propose_dlc_channel(
         &self,
         channel_details: ChannelDetails,
         contract_input: ContractInput,
     ) -> Result<()> {
-        tokio::task::spawn_blocking({
-            let oracle = self.oracle.clone();
-            let sub_channel_manager = self.sub_channel_manager.clone();
-            let event_id = contract_input.contract_infos[0].oracles.event_id.clone();
-            let dlc_message_handler = self.dlc_message_handler.clone();
-            move || {
-                let announcement = oracle.get_announcement(&event_id)?;
+        let event_id = &contract_input.contract_infos[0].oracles.event_id;
+        let announcement = self.oracle.get_announcement(event_id)?;
 
-                let sub_channel_offer = sub_channel_manager.offer_sub_channel(
-                    &channel_details.channel_id,
-                    &contract_input,
-                    &[vec![announcement]],
-                )?;
+        let sub_channel_offer = self.sub_channel_manager.offer_sub_channel(
+            &channel_details.channel_id,
+            &contract_input,
+            &[vec![announcement]],
+        )?;
 
-                dlc_message_handler.send_message(
-                    channel_details.counterparty.node_id,
-                    Message::SubChannel(SubChannelMessage::Offer(sub_channel_offer)),
-                );
+        self.dlc_message_handler.send_message(
+            channel_details.counterparty.node_id,
+            Message::SubChannel(SubChannelMessage::Offer(sub_channel_offer)),
+        );
 
-                Ok(())
-            }
-        })
-        .await?
+        Ok(())
     }
 
     #[autometrics]
