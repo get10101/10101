@@ -107,7 +107,7 @@ async fn main() -> Result<()> {
             loop {
                 tokio::time::sleep(POSITION_SYNC_INTERVAL).await;
                 if let Err(e) = sync_positions(node.clone()).await {
-                    tracing::error!(%e, "Error syncing positions");
+                    tracing::error!("Error syncing positions: {e:#}");
                 }
             }
         }
