@@ -79,6 +79,7 @@ impl FeeRateEstimator {
                 "Updated fee rate estimate",
             );
         }
+
         Ok(())
     }
 

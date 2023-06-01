@@ -1,3 +1,5 @@
+use tokio::task::spawn_blocking;
+
 use crate::tests::bitcoind::mine;
 use crate::tests::dlc::create::create_dlc_channel;
 use crate::tests::dlc::create::DlcChannelCreated;
@@ -37,7 +39,7 @@ async fn force_close_ln_dlc_channel() {
     app.wallet().sync().await.unwrap();
 
     let coordinator = std::sync::Arc::new(coordinator);
-    tokio::task::spawn_blocking({
+    spawn_blocking({
         let coordinator = coordinator.clone();
         move || {
             coordinator
