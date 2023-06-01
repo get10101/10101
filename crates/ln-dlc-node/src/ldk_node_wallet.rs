@@ -157,7 +157,7 @@ where
     /// will be spent.
     #[allow(dead_code)]
     #[autometrics]
-    pub(crate) async fn send_to_address(
+    pub(crate) fn send_to_address(
         &self,
         address: &bitcoin::Address,
         amount_msat_or_drain: Option<u64>,
