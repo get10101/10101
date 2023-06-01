@@ -11,6 +11,8 @@ use time::OffsetDateTime;
 use tokio::task::spawn_blocking;
 use trade::bitmex_client::BitmexClient;
 
+pub mod models;
+
 pub async fn sync_positions(node: Arc<Node>) -> Result<()> {
     let positions = spawn_blocking({
         let node = node.clone();
