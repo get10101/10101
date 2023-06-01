@@ -186,10 +186,7 @@ async fn main() -> Result<()> {
                             }
                         };
 
-                    match node
-                        .close_position(position, closing_price, channel_id)
-                        .await
-                    {
+                    match node.close_position(position, closing_price, channel_id) {
                         Ok(_) => tracing::info!(
                             "Successfully proposed to close expired position with {}",
                             position.trader

@@ -116,15 +116,11 @@ where
 
                 // Have wallet put the inputs into the transaction such that the output
                 // is satisfied and then sign the funding transaction
-                let funding_tx_result = self
-                    .wallet
-                    .inner()
-                    .create_funding_transaction(
-                        output_script,
-                        channel_value_satoshis,
-                        target_blocks,
-                    )
-                    .await;
+                let funding_tx_result = self.wallet.inner().create_funding_transaction(
+                    output_script,
+                    channel_value_satoshis,
+                    target_blocks,
+                );
 
                 let funding_tx = match funding_tx_result {
                     Ok(funding_tx) => funding_tx,

@@ -92,7 +92,7 @@ where
     }
 
     #[autometrics]
-    pub(crate) async fn create_funding_transaction(
+    pub(crate) fn create_funding_transaction(
         &self,
         output_script: Script,
         value_sats: u64,

@@ -33,7 +33,9 @@ use ln_dlc_node::WalletSettings;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use std::sync::Arc;
-use tokio::sync::RwLock;
+use std::sync::RwLock;
+use std::sync::RwLockReadGuard;
+use std::sync::RwLockWriteGuard;
 use trade::cfd;
 use trade::cfd::calculate_long_liquidation_price;
 use trade::cfd::calculate_margin;
@@ -104,7 +106,7 @@ impl Node {
 
     pub async fn update_settings(&self, settings: NodeSettings) {
         tracing::info!(?settings, "Updating node settings");
-        *self.settings.write().await = settings.clone();
+        *self.settings_write_lock() = settings.clone();
 
         // Forward relevant settings down to the wallet
         let wallet_settings = settings.as_wallet_settings();
@@ -133,11 +135,11 @@ impl Node {
         !usable_channels.is_empty()
     }
 
-    pub async fn trade(&self, trade_params: &TradeParams) -> Result<()> {
+    pub fn trade(&self, trade_params: &TradeParams) -> Result<()> {
         match self.decide_trade_action(&trade_params.pubkey)? {
             TradeAction::Open => {
                 ensure!(
-                    self.settings.read().await.allow_opening_positions,
+                    self.settings_read_lock().allow_opening_positions,
                     "Opening positions is disabled"
                 );
                 self.open_position(trade_params)?
@@ -157,8 +159,7 @@ impl Node {
                     None => bail!("Failed to find open position : {}", trade_params.pubkey),
                 };
 
-                self.close_position(&position, closing_price, channel_id)
-                    .await?
+                self.close_position(&position, closing_price, channel_id)?
             }
         };
 
@@ -249,7 +250,7 @@ impl Node {
         Ok(())
     }
 
-    pub async fn close_position(
+    pub fn close_position(
         &self,
         position: &Position,
         closing_price: Decimal,
@@ -403,6 +404,14 @@ impl Node {
         }
 
         Ok(())
+    }
+
+    fn settings_read_lock(&self) -> RwLockReadGuard<NodeSettings> {
+        self.settings.read().expect("RwLock to not be poisoned")
+    }
+
+    fn settings_write_lock(&self) -> RwLockWriteGuard<NodeSettings> {
+        self.settings.write().expect("RwLock to not be poisoned")
     }
 }
 

@@ -49,6 +49,7 @@ use std::sync::Mutex;
 use tokio::sync::broadcast;
 use tokio::sync::mpsc;
 use tokio::sync::RwLock;
+use tokio::task::spawn_blocking;
 use tracing::instrument;
 
 pub struct AppState {
@@ -226,9 +227,14 @@ pub async fn post_trade(
     State(state): State<Arc<AppState>>,
     trade_params: Json<TradeParams>,
 ) -> Result<(), AppError> {
-    state.node.trade(&trade_params.0).await.map_err(|e| {
-        AppError::InternalServerError(format!("Could not handle trade request: {e:#}"))
-    })?;
+    spawn_blocking(move || state.node.trade(&trade_params.0))
+        .await
+        .map_err(|e| {
+            AppError::InternalServerError(format!("Could not handle trade request: {e:#}"))
+        })?
+        .map_err(|e| {
+            AppError::InternalServerError(format!("Could not handle trade request: {e:#}"))
+        })?;
 
     Ok(())
 }
