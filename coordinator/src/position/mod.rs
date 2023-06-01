@@ -19,7 +19,8 @@ pub async fn sync_positions(node: Arc<Node>) -> Result<()> {
         move || get_open_positions(node)
     })
     .await
-    .context("Failed to get open positions")??;
+    .context("Failed to spawn blocking thread")?
+    .context("Failed to get open positions")?;
 
     for position in positions.iter() {
         tracing::debug!(trader_pk=%position.trader, %position.expiry_timestamp, "Attempting to close expired position");
