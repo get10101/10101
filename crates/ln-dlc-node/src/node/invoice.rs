@@ -194,7 +194,7 @@ where
         Ok(())
     }
 
-    #[autometrics]
+    #[cfg(test)]
     pub async fn wait_for_payment_claimed(
         &self,
         hash: &sha256::Hash,
