@@ -39,6 +39,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use time::OffsetDateTime;
 use tokio::runtime::Runtime;
+use tokio::task::spawn_blocking;
 
 mod node;
 
@@ -150,12 +151,16 @@ pub fn run(data_dir: String, seed_dir: String, runtime: &Runtime) -> Result<()> 
             async move { node.keep_connected(config::get_coordinator_info()).await }
         });
 
-        runtime.spawn_blocking({
+        runtime.spawn({
             let node = node.clone();
-            move || loop {
-                node.process_incoming_dlc_messages();
-
-                std::thread::sleep(PROCESS_INCOMING_MESSAGES_INTERVAL);
+            async move {
+                loop {
+                    let node = node.clone();
+                    spawn_blocking(move || node.process_incoming_dlc_messages())
+                        .await
+                        .expect("To spawn blocking thread");
+                    tokio::time::sleep(PROCESS_INCOMING_MESSAGES_INTERVAL).await;
+                }
             }
         });
 
