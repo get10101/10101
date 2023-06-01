@@ -66,8 +66,8 @@ impl Node {
         })
     }
 
-    pub async fn get_wallet_histories(&self) -> Result<WalletHistories> {
-        let on_chain = self.inner.get_on_chain_history().await?;
+    pub fn get_wallet_histories(&self) -> Result<WalletHistories> {
+        let on_chain = self.inner.get_on_chain_history()?;
         let off_chain = self.inner.get_off_chain_history()?;
 
         Ok(WalletHistories {
