@@ -50,10 +50,10 @@ use std::net::SocketAddr;
 use std::path::Path;
 use std::sync::Arc;
 use std::sync::Mutex;
+use std::sync::RwLock;
 use std::time::Duration;
 use std::time::Instant;
 use std::time::SystemTime;
-use tokio::sync::RwLock;
 use tokio::task::spawn_blocking;
 
 mod channel_manager;
@@ -236,9 +236,9 @@ where
         )
     }
 
-    pub async fn update_settings(&self, new_settings: LnDlcNodeSettings) {
+    pub fn update_settings(&self, new_settings: LnDlcNodeSettings) {
         tracing::info!(?new_settings, "Updating LnDlcNode settings");
-        *self.settings.write().await = new_settings;
+        *self.settings.write().expect("RwLock to not be poisoned") = new_settings;
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -318,7 +318,13 @@ where
                                     )
                                 }
                             }
-                            tokio::time::sleep(settings.read().await.on_chain_sync_interval).await;
+                            tokio::time::sleep(
+                                settings
+                                    .read()
+                                    .expect("RwLock to not be poisoned")
+                                    .on_chain_sync_interval,
+                            )
+                            .await;
                         }
                     });
             }
@@ -329,11 +335,16 @@ where
             let fee_rate_estimator = fee_rate_estimator.clone();
             async move {
                 loop {
+                    let interval = settings
+                        .read()
+                        .expect("RwLock to not be poisoned")
+                        .fee_rate_sync_interval;
+
                     if let Err(err) = fee_rate_estimator.update().await {
                         tracing::error!("Failed to update fee rate estimates: {err:#}");
                     }
 
-                    tokio::time::sleep(settings.read().await.fee_rate_sync_interval).await;
+                    tokio::time::sleep(interval).await;
                 }
             }
         });
@@ -400,6 +411,11 @@ where
             let settings = settings.clone();
             async move {
                 loop {
+                    let interval = settings
+                        .read()
+                        .expect("RwLock to not be poisoned")
+                        .off_chain_sync_interval;
+
                     let now = Instant::now();
                     let confirmables = vec![
                         &*channel_manager as &(dyn Confirm + Sync + Send),
@@ -414,7 +430,7 @@ where
                             tracing::error!("Background sync of Lightning wallet failed: {e:#}")
                         }
                     }
-                    tokio::time::sleep(settings.read().await.off_chain_sync_interval).await;
+                    tokio::time::sleep(interval).await;
                 }
             }
         });
