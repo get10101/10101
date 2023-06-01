@@ -8,7 +8,7 @@ anyhow = { version = "1", features = ["backtrace"] }
 async-stream = "0.3"
 atty = "0.2.14"
 axum = { version = "0.6.7", features = ["ws"] }
-bdk = { version = "0.27.0", default-features = false, features = ["key-value-db", "async-interface", "use-esplora-async"] }
+bdk = { version = "0.27.0", default-features = false, features = ["key-value-db", "use-esplora-blocking"] }
 bitcoin = "0.29"
 bitmex-stream = { path = "../crates/bitmex-stream" }
 clap = { version = "4", features = ["derive"] }

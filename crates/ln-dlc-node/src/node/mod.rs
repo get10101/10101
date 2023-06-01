@@ -291,7 +291,6 @@ where
                 fee_rate_estimator.clone(),
                 storage.clone(),
                 seed.clone(),
-                runtime_handle.clone(),
                 settings.bdk_client_stop_gap,
                 settings.bdk_client_concurrency,
             ))
@@ -408,7 +407,7 @@ where
                         &*channel_manager as &(dyn Confirm + Sync + Send),
                         &*chain_monitor as &(dyn Confirm + Sync + Send),
                     ];
-                    match esplora_client.sync(confirmables).await {
+                    match esplora_client.sync(confirmables) {
                         Ok(()) => tracing::info!(
                             "Background sync of Lightning wallet finished in {}ms.",
                             now.elapsed().as_millis()

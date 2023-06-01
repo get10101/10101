@@ -8,7 +8,7 @@ description = "A common library for the shared model and functions for trading"
 
 [dependencies]
 anyhow = "1"
-bdk = { version = "0.27.0", default-features = false, features = ["key-value-db", "async-interface", "use-esplora-async"] }
+bdk = { version = "0.27.0", default-features = false, features = ["key-value-db", "use-esplora-blocking"] }
 reqwest = { version = "0.11", default-features = false, features = ["json"] }
 rust_decimal = { version = "1", features = ["serde-with-float"] }
 serde = { version = "1.0.152", features = ["serde_derive"] }

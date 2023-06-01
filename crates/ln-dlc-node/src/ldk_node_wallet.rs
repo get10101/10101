@@ -27,7 +27,6 @@ use lightning_transaction_sync::EsploraSyncClient;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::sync::MutexGuard;
-use std::time::Duration;
 use tokio::sync::RwLock;
 
 pub struct Wallet<D>
@@ -40,7 +39,6 @@ where
     inner: Mutex<bdk::Wallet<D>>,
     settings: RwLock<WalletSettings>,
     esplora_sync_client: Arc<EsploraSyncClient<Arc<TracingLogger>>>,
-    runtime_handle: tokio::runtime::Handle,
     fee_rate_estimator: Arc<FeeRateEstimator>,
 }
 
@@ -56,7 +54,6 @@ where
     pub(crate) fn new(
         blockchain: EsploraBlockchain,
         wallet: bdk::Wallet<D>,
-        runtime_handle: tokio::runtime::Handle,
         esplora_sync_client: Arc<EsploraSyncClient<Arc<TracingLogger>>>,
         fee_rate_estimator: Arc<FeeRateEstimator>,
     ) -> Self {
@@ -66,7 +63,6 @@ where
         Self {
             blockchain: Arc::new(blockchain),
             inner,
-            runtime_handle,
             settings,
             esplora_sync_client,
             fee_rate_estimator,
@@ -89,34 +85,11 @@ where
         self.settings.read().await.clone()
     }
 
-    #[autometrics]
     /// Update the internal BDK wallet database with the blockchain.
     pub async fn sync(&self) -> Result<()> {
         let wallet_lock = self.bdk_lock();
-        match wallet_lock
-            .sync(&self.blockchain, SyncOptions::default())
-            .await
-        {
-            Err(bdk::Error::Esplora(e)) => match *e {
-                bdk::blockchain::esplora::EsploraError::Reqwest(e) => {
-                    tracing::error!(
-                        "Sync failed due to HTTP connection error, retrying once: {}",
-                        e
-                    );
 
-                    tokio::time::sleep(Duration::from_secs(1)).await;
-                    wallet_lock
-                        .sync(&self.blockchain, SyncOptions { progress: None })
-                        .await
-                        .context("Sync failed due to HTTP connection error after retry")?
-                }
-                _ => bail!(e),
-            },
-            Err(e) => {
-                bail!(e);
-            }
-            Ok(()) => {}
-        };
+        wallet_lock.sync(&self.blockchain, SyncOptions::default())?;
 
         Ok(())
     }
@@ -258,16 +231,10 @@ where
 
     #[autometrics]
     pub fn tip(&self) -> Result<(u32, BlockHash)> {
-        let ret = tokio::task::block_in_place(move || {
-            self.runtime_handle.block_on(async move {
-                anyhow::Ok((
-                    self.blockchain.get_height().await?,
-                    self.blockchain.get_tip_hash().await?,
-                ))
-            })
-        })?;
+        let height = self.blockchain.get_height()?;
+        let hash = self.blockchain.get_tip_hash()?;
 
-        Ok(ret)
+        Ok((height, hash))
     }
 
     #[autometrics]
@@ -290,10 +257,7 @@ where
 
         let txos = tx.output.clone();
 
-        if let Err(err) = tokio::task::block_in_place(move || {
-            self.runtime_handle
-                .block_on(async move { self.blockchain.broadcast(tx).await })
-        }) {
+        if let Err(err) = self.blockchain.broadcast(tx) {
             tracing::error!("Failed to broadcast transaction: {err:#}");
         }
 
