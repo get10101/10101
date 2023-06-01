@@ -50,7 +50,7 @@ async fn ln_collab_close() {
     .await
     .unwrap();
 
-    assert_eq!(payee.get_on_chain_balance().await.unwrap().confirmed, 0);
+    assert_eq!(payee.get_on_chain_balance().unwrap().confirmed, 0);
     assert_eq!(payee.get_ldk_balance().available, invoice_amount);
     assert_eq!(payee.get_ldk_balance().pending_close, 0);
 
@@ -74,7 +74,7 @@ async fn ln_collab_close() {
 
     payee.wallet().sync().await.unwrap();
 
-    assert_eq!(payee.get_on_chain_balance().await.unwrap().confirmed, 0);
+    assert_eq!(payee.get_on_chain_balance().unwrap().confirmed, 0);
     assert_eq!(payee.get_ldk_balance().available, 0);
     assert_eq!(payee.get_ldk_balance().pending_close, invoice_amount);
 
@@ -89,7 +89,7 @@ async fn ln_collab_close() {
     assert_eq!(ln_balance.pending_close, 0);
 
     assert_eq!(
-        payee.get_on_chain_balance().await.unwrap().confirmed,
+        payee.get_on_chain_balance().unwrap().confirmed,
         invoice_amount
     );
 }
@@ -136,7 +136,7 @@ async fn ln_force_close() {
     .await
     .unwrap();
 
-    assert_eq!(payee.get_on_chain_balance().await.unwrap().confirmed, 0);
+    assert_eq!(payee.get_on_chain_balance().unwrap().confirmed, 0);
     assert_eq!(payee.get_ldk_balance().available, invoice_amount);
     assert_eq!(payee.get_ldk_balance().pending_close, 0);
 
@@ -155,7 +155,7 @@ async fn ln_force_close() {
 
     payee.wallet().sync().await.unwrap();
 
-    assert_eq!(payee.get_on_chain_balance().await.unwrap().confirmed, 0);
+    assert_eq!(payee.get_on_chain_balance().unwrap().confirmed, 0);
     assert_eq!(payee.get_ldk_balance().available, 0);
     assert_eq!(payee.get_ldk_balance().pending_close, invoice_amount);
 
@@ -187,7 +187,7 @@ async fn ln_force_close() {
     assert_eq!(ln_balance.pending_close, 0);
 
     assert_eq!(
-        payee.get_on_chain_balance().await.unwrap().confirmed,
+        payee.get_on_chain_balance().unwrap().confirmed,
         // TODO: Do not hard-code the fee
         invoice_amount - 122
     );

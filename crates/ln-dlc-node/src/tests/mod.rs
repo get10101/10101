@@ -127,7 +127,7 @@ impl Node<PaymentMap> {
     }
 
     async fn get_confirmed_balance(&self) -> Result<u64> {
-        let balance = self.wallet.inner().get_balance().await?;
+        let balance = self.wallet.inner().get_balance()?;
 
         Ok(balance.confirmed)
     }

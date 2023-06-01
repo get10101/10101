@@ -71,7 +71,7 @@ async fn force_close_ln_dlc_channel() {
     coordinator.wallet().sync().await.unwrap();
 
     let coordinator_on_chain_balance_after_force_close =
-        coordinator.get_on_chain_balance().await.unwrap().confirmed;
+        coordinator.get_on_chain_balance().unwrap().confirmed;
 
     // TODO: The expected value is temporarily a magic number that we should replace with a
     // calculated value based on the inputs to this test

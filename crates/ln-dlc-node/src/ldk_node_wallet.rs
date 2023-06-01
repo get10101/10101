@@ -147,7 +147,7 @@ where
     }
 
     #[autometrics]
-    pub(crate) async fn get_balance(&self) -> Result<bdk::Balance, Error> {
+    pub(crate) fn get_balance(&self) -> Result<bdk::Balance, Error> {
         Ok(self.bdk_lock().get_balance()?)
     }
 

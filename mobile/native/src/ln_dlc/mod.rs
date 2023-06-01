@@ -199,7 +199,6 @@ pub fn run(data_dir: String, seed_dir: String, runtime: &Runtime) -> Result<()> 
 async fn keep_wallet_balance_and_history_up_to_date(node: &Node) -> Result<()> {
     let wallet_balances = node
         .get_wallet_balances()
-        .await
         .context("Failed to get wallet balances")?;
 
     let WalletHistories {
