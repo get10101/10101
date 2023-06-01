@@ -244,12 +244,11 @@ where
 }
 
 #[autometrics]
-pub(crate) async fn process_pending_dlc_actions(
+pub(crate) fn process_pending_dlc_actions(
     sub_channel_manager: Arc<SubChannelManager>,
     dlc_message_handler: &DlcMessageHandler,
-) -> Result<()> {
-    let messages =
-        tokio::task::spawn_blocking(move || sub_channel_manager.process_actions()).await?;
+) {
+    let messages = sub_channel_manager.process_actions();
 
     for (msg, node_id) in messages {
         let msg = Message::SubChannel(msg);
@@ -263,8 +262,6 @@ pub(crate) async fn process_pending_dlc_actions(
 
         dlc_message_handler.send_message(node_id, msg);
     }
-
-    Ok(())
 }
 
 pub fn dlc_message_name(msg: &Message) -> String {

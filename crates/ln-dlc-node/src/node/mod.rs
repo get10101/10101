@@ -587,10 +587,16 @@ where
             let (fut, remote_handle) = {
                 async move {
                     loop {
-                        if let Err(e) = process_pending_dlc_actions(
-                            sub_channel_manager.clone(),
-                            &dlc_message_handler,
-                        )
+                        if let Err(e) = spawn_blocking({
+                            let sub_channel_manager = sub_channel_manager.clone();
+                            let dlc_message_handler = dlc_message_handler.clone();
+                            move || {
+                                process_pending_dlc_actions(
+                                    sub_channel_manager.clone(),
+                                    &dlc_message_handler,
+                                )
+                            }
+                        })
                         .await
                         {
                             tracing::error!("Failed to process pending DLC actions: {e:#}");

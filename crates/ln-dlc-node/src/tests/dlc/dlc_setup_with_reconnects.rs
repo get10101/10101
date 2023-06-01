@@ -78,9 +78,7 @@ async fn reconnecting_during_dlc_channel_setup() {
     process_pending_dlc_actions(
         coordinator.sub_channel_manager.clone(),
         &coordinator.dlc_message_handler,
-    )
-    .await
-    .unwrap();
+    );
 
     // Process the coordinator's accept message _and_ send the confirm message
     tokio::time::sleep(Duration::from_secs(2)).await;
