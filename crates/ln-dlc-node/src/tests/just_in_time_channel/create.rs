@@ -2,13 +2,13 @@ use crate::ln::JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT;
 use crate::node::Node;
 use crate::node::PaymentMap;
 use crate::tests::init_tracing;
-use crate::tests::just_in_time_channel::TestPath;
 use crate::tests::min_outbound_liquidity_channel_creator;
+use crate::HTLCStatus;
 use crate::WalletSettings;
 use anyhow::Context;
 use anyhow::Result;
 use bitcoin::Amount;
-use lightning::chain::chaininterface::FEERATE_FLOOR_SATS_PER_KW;
+use lightning::chain::chaininterface::ConfirmationTarget;
 use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
@@ -17,37 +17,11 @@ use std::ops::Div;
 use std::ops::Mul;
 use std::time::Duration;
 
-/// Based on hard-coded 1sat/vbyte fee rate in `btc-fee-estimates.json`
-const CURRENT_FEE_RATE: u32 = FEERATE_FLOOR_SATS_PER_KW;
-
 #[tokio::test]
 #[ignore]
-async fn just_in_time_channel_fails_if_fee_too_low() {
+async fn open_jit_channel() {
     init_tracing();
-    let low_fee_limit = WalletSettings {
-        max_allowed_tx_fee_rate_when_opening_channel: Some(CURRENT_FEE_RATE - 1),
-    };
 
-    create_just_in_time_channel(low_fee_limit, TestPath::ExpectFundingFailure)
-        .await
-        .unwrap();
-}
-
-#[tokio::test]
-#[ignore]
-async fn just_in_time_channel_works_with_correct_fee() {
-    init_tracing();
-    let high_fee_limit = WalletSettings {
-        // We set our fee limit to above the current fee rate
-        max_allowed_tx_fee_rate_when_opening_channel: Some(CURRENT_FEE_RATE + 10),
-    };
-
-    create_just_in_time_channel(high_fee_limit, TestPath::FundingAlwaysOnline)
-        .await
-        .unwrap();
-}
-
-async fn create_just_in_time_channel(settings: WalletSettings, test_path: TestPath) -> Result<()> {
     // Arrange
 
     let payer = Node::start_test_app("payer").unwrap();
@@ -63,7 +37,47 @@ async fn create_just_in_time_channel(settings: WalletSettings, test_path: TestPa
     let coordinator_outbound_liquidity_sat =
         min_outbound_liquidity_channel_creator(&payer, payer_outbound_liquidity_sat);
 
-    coordinator.wallet().update_settings(settings).await;
+    coordinator
+        .open_channel(
+            &payer,
+            coordinator_outbound_liquidity_sat,
+            payer_outbound_liquidity_sat,
+        )
+        .await
+        .unwrap();
+
+    // Act and assert
+
+    send_interceptable_payment(
+        &payer,
+        &payee,
+        &coordinator,
+        1_000,
+        Some(JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT),
+    )
+    .await
+    .unwrap();
+}
+
+#[tokio::test]
+#[ignore]
+async fn fail_to_open_jit_channel_with_fee_rate_over_max() {
+    init_tracing();
+
+    // Arrange
+
+    let payer = Node::start_test_app("payer").unwrap();
+    let coordinator = Node::start_test_coordinator("coordinator").unwrap();
+    let payee = Node::start_test_app("payee").unwrap();
+
+    payer.connect(coordinator.info).await.unwrap();
+    payee.connect(coordinator.info).await.unwrap();
+
+    coordinator.fund(Amount::from_sat(1_000_000)).await.unwrap();
+
+    let payer_outbound_liquidity_sat = 25_000;
+    let coordinator_outbound_liquidity_sat =
+        min_outbound_liquidity_channel_creator(&payer, payer_outbound_liquidity_sat);
 
     coordinator
         .open_channel(
@@ -74,46 +88,121 @@ async fn create_just_in_time_channel(settings: WalletSettings, test_path: TestPa
         .await
         .unwrap();
 
-    // This comment should be removed once the implementation of
-    // `Node` is improved.
-    //
-    // What values don't work and why:
-    //
-    // Obviously, this amount must be smaller than or equal to the
-    // outbound liquidity of the payer in the payer-coordinator
-    // channel. Similarly, it must be smaller than or equal to the
-    // outbound liquidity of the coordinator in the just-in-time
-    // channel between coordinator and payee.
-    //
-    // But there's more. This value (plus fees) must be a smaller than
-    // or equal percentage of the payer-coordinator channel than the
-    // coordinator's
-    // `max_inbound_htlc_value_in_flight_percent_of_channel`
-    // configuration value for said channel. That is checked by the
-    // assertion below.
-    //
-    // But there is still more! This value must be a smaller than or
-    // equal percentage of the just-in-time coordinator-payee channel
-    // than the payee's
-    // `max_inbound_htlc_value_in_flight_percent_of_channel`
-    // configuration value for said channel.
-    let invoice_amount = 1_000;
+    // Act
 
-    send_interceptable_payment(
-        test_path,
-        &payer,
-        &payee,
-        &coordinator,
-        invoice_amount,
-        Some(JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT),
-    )
-    .await
-    .unwrap();
-    Ok(())
+    let background_fee_rate = coordinator
+        .fee_rate_estimator
+        .get(ConfirmationTarget::Background)
+        .fee_wu(1000) as u32;
+
+    // Set max allowed TX fee rate when opening channel to a value below the current background fee
+    // rate to ensure that opening the JIT channel fails
+    let settings = WalletSettings {
+        max_allowed_tx_fee_rate_when_opening_channel: Some(background_fee_rate - 1),
+    };
+
+    coordinator.wallet().update_settings(settings).await;
+
+    let intercepted_scid_details = coordinator.create_intercept_scid(payee.info.pubkey, 50);
+
+    let invoice = payee
+        .create_interceptable_invoice(
+            Some(1_000),
+            intercepted_scid_details.scid,
+            coordinator.info.pubkey,
+            0,
+            "interceptable-invoice".to_string(),
+            intercepted_scid_details.jit_routing_fee_millionth,
+        )
+        .unwrap();
+
+    payer.send_payment(&invoice).unwrap();
+
+    // Assert
+
+    // We would like to assert on the payment failing, but this is not guaranteed as the payment can
+    // still be retried after the first payment path failure. Thus, we check that it doesn't succeed
+    payee
+        .wait_for_payment(HTLCStatus::Succeeded, invoice.payment_hash())
+        .await
+        .expect_err("payment should not succeed");
 }
 
+#[tokio::test]
+#[ignore]
+async fn open_jit_channel_with_disconnected_payee() {
+    init_tracing();
+
+    // Arrange
+
+    let payer = Node::start_test_app("payer").unwrap();
+    let coordinator = Node::start_test_coordinator("coordinator").unwrap();
+    let payee = Node::start_test_app("payee").unwrap();
+
+    // We purposefully do NOT connect to the payee, so that we can test the ability to open a JIT
+    // channel to a disconnected payee
+    payer.connect(coordinator.info).await.unwrap();
+
+    coordinator.fund(Amount::from_sat(1_000_000)).await.unwrap();
+
+    let payer_outbound_liquidity_sat = 25_000;
+    let coordinator_outbound_liquidity_sat =
+        min_outbound_liquidity_channel_creator(&payer, payer_outbound_liquidity_sat);
+
+    coordinator
+        .open_channel(
+            &payer,
+            coordinator_outbound_liquidity_sat,
+            payer_outbound_liquidity_sat,
+        )
+        .await
+        .unwrap();
+
+    // Act
+
+    let intercepted_scid_details = coordinator.create_intercept_scid(payee.info.pubkey, 50);
+
+    let invoice = payee
+        .create_interceptable_invoice(
+            Some(1_000),
+            intercepted_scid_details.scid,
+            coordinator.info.pubkey,
+            0,
+            "interceptable-invoice".to_string(),
+            intercepted_scid_details.jit_routing_fee_millionth,
+        )
+        .unwrap();
+
+    payer.send_payment(&invoice).unwrap();
+
+    // We wait a little bit until reconnecting to simulate a pending JIT channel on the coordinator
+    tokio::time::sleep(Duration::from_secs(5)).await;
+    payee.connect(coordinator.info).await.unwrap();
+
+    // Assert
+
+    payee
+        .wait_for_payment_claimed(invoice.payment_hash())
+        .await
+        .unwrap();
+}
+
+/// The caller should ensure that the `invoice_amount` is:
+///
+/// - Smaller than or equal to the outbound liquidity of the payer in the payer-coordinator channel.
+///
+/// - Smaller than or equal to the outbound liquidity of the coordinator in the coordinator-payee
+/// JIT channel.
+///
+/// - Smaller than or equal proportion of the payee's
+/// `max_inbound_htlc_value_in_flight_percent_of_channel` configuration value for for the
+/// coordinator-payee JIT channel.
+///
+/// Additionally, the `invoice_amount` (plus routing fees) should be a proportion of the value of
+/// the payer-coordinator channel no larger than the coordinator's
+/// `max_inbound_htlc_value_in_flight_percent_of_channel` configuration value for said channel. This
+/// is verified within this function.
 pub(crate) async fn send_interceptable_payment(
-    test_path: TestPath,
     payer: &Node<PaymentMap>,
     payee: &Node<PaymentMap>,
     coordinator: &Node<PaymentMap>,
@@ -127,8 +216,6 @@ pub(crate) async fn send_interceptable_payment(
     let payer_balance_before = payer.get_ldk_balance();
     let coordinator_balance_before = coordinator.get_ldk_balance();
     let payee_balance_before = payee.get_ldk_balance();
-
-    // Act
 
     let jit_fee = 50;
     let intercepted_scid_details = coordinator.create_intercept_scid(payee.info.pubkey, jit_fee);
@@ -176,26 +263,9 @@ pub(crate) async fn send_interceptable_payment(
 
     payer.send_payment(&invoice)?;
 
-    if TestPath::FundingThroughMobile == test_path {
-        // simulate the user switching from another app to 10101
-
-        // Note, hopefully Breez, Phoenix or any other non-custodial wallet is able to run in the
-        // background when sending a payment as otherwise a disconnect on their side would happen
-        // when switching to 10101 resulting into a failed payment.
-
-        // line below is commented out on purpose
-        // payer.disconnect(coordinator.info);
-        tokio::time::sleep(Duration::from_secs(5)).await;
-        payee.connect(coordinator.info).await?;
-    }
-
-    if let Err(e) = payee.wait_for_payment_claimed(invoice.payment_hash()).await {
-        if test_path == TestPath::ExpectFundingFailure {
-            // Further assertions are only relevant if the payment didn't fail
-            return Ok(());
-        }
-        panic!("Unexpected error: {}", e);
-    }
+    payee
+        .wait_for_payment_claimed(invoice.payment_hash())
+        .await?;
 
     // Assert
 
@@ -228,10 +298,9 @@ pub(crate) async fn send_interceptable_payment(
     Ok(())
 }
 
-/// Used to ascertain if a payment will be routed through a channel
-/// according to the
-/// `max_inbound_htlc_value_in_flight_percent_of_channel`
-/// configuration flag of the receiving end of the channel.
+/// Used to ascertain if a payment will be routed through a channel according to the
+/// `max_inbound_htlc_value_in_flight_percent_of_channel` configuration flag of the receiving end of
+/// the channel.
 fn does_inbound_htlc_fit_as_percent_of_channel(
     receiving_node: &Node<PaymentMap>,
     channel_id: &[u8; 32],
