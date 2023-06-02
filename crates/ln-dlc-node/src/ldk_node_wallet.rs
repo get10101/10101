@@ -70,9 +70,6 @@ where
     }
 
     fn bdk_lock(&self) -> MutexGuard<bdk::Wallet<D>> {
-        // TODO: Remove me: only added for debugging
-        let bt = backtrace::Backtrace::new();
-        tracing::debug!("{bt:?}");
         self.inner.lock().expect("mutex not to be poisoned")
     }
 
