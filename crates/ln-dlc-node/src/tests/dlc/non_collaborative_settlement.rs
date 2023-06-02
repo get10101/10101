@@ -5,7 +5,7 @@ use crate::tests::dlc::create::create_dlc_channel;
 use crate::tests::dlc::create::DlcChannelCreated;
 use crate::tests::init_tracing;
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 10)]
+#[tokio::test]
 #[ignore]
 async fn force_close_ln_dlc_channel() {
     init_tracing();

@@ -20,7 +20,7 @@ use std::time::Duration;
 /// Based on hard-coded 1sat/vbyte fee rate in `btc-fee-estimates.json`
 const CURRENT_FEE_RATE: u32 = FEERATE_FLOOR_SATS_PER_KW;
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 10)]
+#[tokio::test]
 #[ignore]
 async fn just_in_time_channel_fails_if_fee_too_low() {
     init_tracing();
@@ -33,7 +33,7 @@ async fn just_in_time_channel_fails_if_fee_too_low() {
         .unwrap();
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 10)]
+#[tokio::test]
 #[ignore]
 async fn just_in_time_channel_works_with_correct_fee() {
     init_tracing();
