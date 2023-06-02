@@ -185,9 +185,16 @@ async fn ln_force_close() {
     assert_eq!(ln_balance.available, 0);
     assert_eq!(ln_balance.pending_close, 0);
 
-    assert_eq!(
-        payee.get_on_chain_balance().unwrap().confirmed,
-        // TODO: Do not hard-code the fee
-        invoice_amount - 122
-    );
+    let payee_txs = payee.get_on_chain_history().await.unwrap();
+
+    let claim_tx = match payee_txs.as_slice() {
+        [tx] => tx,
+        _ => panic!(
+            "Unexpected number of payee transactions. Expected 1, got {}",
+            payee_txs.len()
+        ),
+    };
+
+    assert_eq!(claim_tx.sent, 0);
+    assert!(claim_tx.received > 0);
 }
