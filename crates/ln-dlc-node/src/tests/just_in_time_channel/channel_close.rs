@@ -70,7 +70,9 @@ async fn ln_collab_close() {
         tokio::time::sleep(Duration::from_millis(500)).await;
     }
 
-    payee.wallet().sync().await.unwrap();
+    // Give some time for the close transaction to be broadcast before trying to include it in a
+    // block
+    tokio::time::sleep(Duration::from_secs(2)).await;
 
     assert_eq!(payee.get_on_chain_balance().unwrap().confirmed, 0);
     assert_eq!(payee.get_ldk_balance().available, 0);
