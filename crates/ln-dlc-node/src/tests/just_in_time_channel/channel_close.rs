@@ -3,7 +3,6 @@ use crate::node::Node;
 use crate::tests::bitcoind;
 use crate::tests::init_tracing;
 use crate::tests::just_in_time_channel::create::send_interceptable_payment;
-use crate::tests::just_in_time_channel::TestPath;
 use crate::tests::min_outbound_liquidity_channel_creator;
 use bitcoin::Amount;
 use std::time::Duration;
@@ -40,7 +39,6 @@ async fn ln_collab_close() {
     let invoice_amount = 1_000;
 
     send_interceptable_payment(
-        TestPath::FundingAlwaysOnline,
         &payer,
         &payee,
         &coordinator,
@@ -126,7 +124,6 @@ async fn ln_force_close() {
     let invoice_amount = 1_000;
 
     send_interceptable_payment(
-        TestPath::FundingAlwaysOnline,
         &payer,
         &payee,
         &coordinator,
