@@ -8,7 +8,7 @@ use crate::tests::min_outbound_liquidity_channel_creator;
 use bitcoin::Amount;
 use std::time::Duration;
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 10)]
+#[tokio::test]
 #[ignore]
 async fn ln_collab_close() {
     init_tracing();
@@ -94,7 +94,7 @@ async fn ln_collab_close() {
     );
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 10)]
+#[tokio::test]
 #[ignore]
 async fn ln_force_close() {
     init_tracing();

@@ -11,7 +11,7 @@ use dlc_manager::subchannel::SubChannelState;
 use dlc_manager::Storage;
 use std::time::Duration;
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 10)]
+#[tokio::test]
 #[ignore]
 async fn dlc_collaborative_settlement_test() {
     init_tracing();
@@ -127,7 +127,7 @@ async fn dlc_collaborative_settlement(
     Ok((app, coordinator))
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 10)]
+#[tokio::test]
 #[ignore]
 async fn open_dlc_channel_after_closing_dlc_channel() {
     init_tracing();

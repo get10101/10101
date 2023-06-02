@@ -2,7 +2,7 @@ use crate::node::Node;
 use crate::tests::init_tracing;
 use bitcoin::Amount;
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 10)]
+#[tokio::test]
 #[ignore]
 async fn single_hop_payment() {
     init_tracing();
