@@ -75,12 +75,13 @@ async fn force_close_ln_dlc_channel() {
     let coordinator_on_chain_balance_after_force_close =
         coordinator.get_on_chain_balance().unwrap().confirmed;
 
-    // TODO: The expected value is temporarily a magic number that we should replace with a
-    // calculated value based on the inputs to this test
-    let coordinator_on_chain_balance_after_force_close_expected = 248709;
+    // Given that we have dynamic transaction fees based on the state of the regtest mempool, it's
+    // less error-prone to choose a conservative lower bound on the funds we expect the coordinator
+    // to get after force-closing the LN-DLC channel
+    let coordinator_on_chain_balance_after_force_close_expected_min = 245_000;
 
-    assert_eq!(
-        coordinator_on_chain_balance_after_force_close,
-        coordinator_on_chain_balance_after_force_close_expected
+    assert!(
+        coordinator_on_chain_balance_after_force_close
+            >= coordinator_on_chain_balance_after_force_close_expected_min
     );
 }
