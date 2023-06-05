@@ -35,7 +35,7 @@ use lightning::routing::gossip::P2PGossipSync;
 use lightning::routing::router::DefaultRouter;
 use lightning::routing::utxo::UtxoLookup;
 use lightning::util::config::UserConfig;
-use lightning_background_processor::BackgroundProcessor;
+use lightning_background_processor::process_events_async;
 use lightning_background_processor::GossipSync;
 use lightning_persister::FilesystemPersister;
 use lightning_transaction_sync::EsploraSyncClient;
@@ -97,7 +97,7 @@ pub struct Node<P> {
     keys_manager: Arc<CustomKeysManager>,
     pub network_graph: Arc<NetworkGraph>,
     pub fee_rate_estimator: Arc<FeeRateEstimator>,
-    _background_processor: BackgroundProcessor,
+    _background_processor_handle: RemoteHandle<()>,
     _connection_manager_handle: RemoteHandle<()>,
     _broadcast_node_announcement_handle: RemoteHandle<()>,
     _pending_dlc_actions_handle: RemoteHandle<()>,
@@ -281,8 +281,6 @@ where
             logger.clone(),
         ));
 
-        let runtime_handle = tokio::runtime::Handle::current();
-
         let fee_rate_estimator = Arc::new(FeeRateEstimator::new(esplora_server_url));
         let ln_dlc_wallet = {
             Arc::new(LnDlcWallet::new(
@@ -464,7 +462,6 @@ where
 
         let payment_persister = Arc::new(payment_persister);
         let event_handler = EventHandler::new(
-            runtime_handle,
             channel_manager.clone(),
             ln_dlc_wallet.clone(),
             network_graph.clone(),
@@ -522,16 +519,40 @@ where
 
         tracing::info!("Starting background processor");
 
-        let background_processor = BackgroundProcessor::start(
-            persister,
-            event_handler,
-            chain_monitor.clone(),
-            channel_manager.clone(),
-            GossipSync::p2p(gossip_sync.clone()),
-            peer_manager.clone(),
-            logger.clone(),
-            Some(scorer),
-        );
+        let background_processor_handle = {
+            let peer_manager = peer_manager.clone();
+            let channel_manager = channel_manager.clone();
+            let chain_monitor = chain_monitor.clone();
+            let logger = logger.clone();
+
+            let (fut, remote_handle) = async move {
+                if let Err(e) = process_events_async(
+                    persister,
+                    |e| event_handler.handle_event(e),
+                    chain_monitor,
+                    channel_manager,
+                    GossipSync::p2p(gossip_sync),
+                    peer_manager,
+                    logger,
+                    Some(scorer),
+                    |d| {
+                        Box::pin(async move {
+                            tokio::time::sleep(d).await;
+                            false
+                        })
+                    },
+                )
+                .await
+                {
+                    tracing::error!("Error running background processor: {e}");
+                }
+            }
+            .remote_handle();
+
+            tokio::spawn(fut);
+
+            remote_handle
+        };
 
         let alias = alias_as_bytes(alias)?;
         let node_announcement_interval = node_announcement_interval(network);
@@ -629,7 +650,7 @@ where
             payment_persister,
             fee_rate_estimator,
             user_config: ldk_user_config,
-            _background_processor: background_processor,
+            _background_processor_handle: background_processor_handle,
             _connection_manager_handle: connection_manager_handle,
             _broadcast_node_announcement_handle: broadcast_node_announcement_handle,
             _pending_dlc_actions_handle: pending_dlc_actions_handle,
