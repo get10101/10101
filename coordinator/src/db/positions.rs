@@ -4,6 +4,7 @@ use crate::schema::sql_types::ContractSymbolType;
 use crate::schema::sql_types::PositionStateType;
 use anyhow::bail;
 use anyhow::Result;
+use autometrics::autometrics;
 use diesel::prelude::*;
 use diesel::query_builder::QueryId;
 use diesel::result::QueryResult;
@@ -31,6 +32,7 @@ pub struct Position {
 
 impl Position {
     /// Returns the position by trader pub key
+    #[autometrics]
     pub fn get_open_position_by_trader(
         conn: &mut PgConnection,
         trader_pubkey: String,
@@ -44,6 +46,7 @@ impl Position {
         Ok(x.map(crate::position::models::Position::from))
     }
 
+    #[autometrics]
     pub fn get_all_open_positions(
         conn: &mut PgConnection,
     ) -> QueryResult<Vec<crate::position::models::Position>> {
@@ -79,6 +82,7 @@ impl Position {
     }
 
     /// inserts the given position into the db. Returns the position if successful
+    #[autometrics]
     pub fn insert(
         conn: &mut PgConnection,
         new_position: crate::position::models::NewPosition,

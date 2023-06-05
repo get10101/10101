@@ -152,6 +152,7 @@ pub async fn post_fake_scid(
     ))
 }
 
+#[autometrics]
 pub async fn register_interceptable_invoice(
     target_node: Path<String>,
     State(app_state): State<Arc<AppState>>,
@@ -176,6 +177,7 @@ pub async fn register_interceptable_invoice(
     }))
 }
 
+#[autometrics]
 pub async fn get_new_address(
     State(app_state): State<Arc<AppState>>,
 ) -> Result<Json<String>, AppError> {
@@ -201,6 +203,7 @@ pub struct InvoiceParams {
     expiry: Option<u32>,
 }
 
+#[autometrics]
 pub async fn get_invoice(
     Query(params): Query<InvoiceParams>,
     State(state): State<Arc<AppState>>,

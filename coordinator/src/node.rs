@@ -6,6 +6,7 @@ use anyhow::bail;
 use anyhow::ensure;
 use anyhow::Context;
 use anyhow::Result;
+use autometrics::autometrics;
 use bitcoin::secp256k1::PublicKey;
 use coordinator_commons::TradeParams;
 use diesel::r2d2::ConnectionManager;
@@ -133,6 +134,7 @@ impl Node {
         !usable_channels.is_empty()
     }
 
+    #[autometrics]
     pub async fn trade(&self, trade_params: &TradeParams) -> Result<()> {
         match self.decide_trade_action(&trade_params.pubkey)? {
             TradeAction::Open => {
@@ -165,6 +167,7 @@ impl Node {
         Ok(())
     }
 
+    #[autometrics]
     async fn open_position(&self, trade_params: &TradeParams) -> Result<()> {
         let peer_id = trade_params.pubkey;
         tracing::info!(%peer_id, ?trade_params, "Opening position");
@@ -250,6 +253,7 @@ impl Node {
         Ok(())
     }
 
+    #[autometrics]
     pub async fn close_position(
         &self,
         position: &Position,
@@ -318,6 +322,7 @@ impl Node {
     /// 3. If a position of differing quantity is found, we direct the
     /// caller to extend or reduce the position. _This is currently
     /// not supported_.
+    #[autometrics]
     pub fn decide_trade_action(&self, trader: &PublicKey) -> Result<TradeAction> {
         let action = match self.inner.get_dlc_channel_signed(trader)? {
             Some(subchannel) => {
@@ -345,6 +350,7 @@ impl Node {
         Ok(channel_details)
     }
 
+    #[autometrics]
     pub fn process_incoming_dlc_messages(&self) {
         let messages = self
             .inner
@@ -363,6 +369,7 @@ impl Node {
         }
     }
 
+    #[autometrics]
     fn process_dlc_message(&self, node_id: PublicKey, msg: Message) -> Result<()> {
         tracing::info!(
             from = %node_id,
