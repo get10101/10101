@@ -1,9 +1,8 @@
-use tokio::task::spawn_blocking;
-
 use crate::tests::bitcoind::mine;
 use crate::tests::dlc::create::create_dlc_channel;
 use crate::tests::dlc::create::DlcChannelCreated;
 use crate::tests::init_tracing;
+use tokio::task::spawn_blocking;
 
 #[tokio::test]
 #[ignore]
