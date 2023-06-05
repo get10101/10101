@@ -3,13 +3,13 @@ members = ["coordinator", "maker", "mobile/native", "crates/*"]
 resolver = "2"
 
 [patch.crates-io]
-dlc-manager = { git = "https://github.com/get10101/rust-dlc", rev = "d9a7a73" }
-dlc-messages = { git = "https://github.com/get10101/rust-dlc", rev = "d9a7a73" }
-dlc = { git = "https://github.com/get10101/rust-dlc", rev = "d9a7a73" }
-dlc-sled-storage-provider = { git = "https://github.com/get10101/rust-dlc", rev = "d9a7a73" }
-p2pd-oracle-client = { git = "https://github.com/get10101/rust-dlc", rev = "d9a7a73" }
-dlc-trie = { git = "https://github.com/get10101/rust-dlc", rev = "d9a7a73" }
-simple-wallet = { git = "https://github.com/get10101/rust-dlc", rev = "d9a7a73" }
+dlc-manager = { git = "https://github.com/get10101/rust-dlc", rev = "cdcddd4" }
+dlc-messages = { git = "https://github.com/get10101/rust-dlc", rev = "cdcddd4" }
+dlc = { git = "https://github.com/get10101/rust-dlc", rev = "cdcddd4" }
+dlc-sled-storage-provider = { git = "https://github.com/get10101/rust-dlc", rev = "cdcddd4" }
+p2pd-oracle-client = { git = "https://github.com/get10101/rust-dlc", rev = "cdcddd4" }
+dlc-trie = { git = "https://github.com/get10101/rust-dlc", rev = "cdcddd4" }
+simple-wallet = { git = "https://github.com/get10101/rust-dlc", rev = "cdcddd4" }
 lightning = { git = "https://github.com/get10101/rust-lightning/", rev = "5de4468d" }
 lightning-background-processor = { git = "https://github.com/get10101/rust-lightning/", rev = "5de4468d" }
 lightning-transaction-sync = { git = "https://github.com/get10101/rust-lightning/", rev = "5de4468d" }
