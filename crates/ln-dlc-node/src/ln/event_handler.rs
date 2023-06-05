@@ -38,7 +38,6 @@ use std::sync::Arc;
 use std::sync::MutexGuard;
 use std::time::Duration;
 use time::OffsetDateTime;
-use tokio::runtime;
 
 ///  The speed at which we want a transaction to confirm used for feerate estimation.
 ///
@@ -46,7 +45,6 @@ use tokio::runtime;
 const CONFIRMATION_TARGET: ConfirmationTarget = ConfirmationTarget::HighPriority;
 
 pub struct EventHandler<P> {
-    runtime_handle: runtime::Handle,
     channel_manager: Arc<ChannelManager>,
     wallet: Arc<LnDlcWallet>,
     network_graph: Arc<NetworkGraph>,
@@ -64,7 +62,6 @@ where
     P: PaymentPersister,
 {
     pub(crate) fn new(
-        runtime_handle: runtime::Handle,
         channel_manager: Arc<ChannelManager>,
         wallet: Arc<LnDlcWallet>,
         network_graph: Arc<NetworkGraph>,
@@ -76,7 +73,6 @@ where
         fee_rate_estimator: Arc<FeeRateEstimator>,
     ) -> Self {
         Self {
-            runtime_handle,
             channel_manager,
             wallet,
             network_graph,
@@ -90,6 +86,17 @@ where
     }
 
     #[autometrics]
+    pub async fn handle_event(&self, event: Event) {
+        tracing::info!(?event, "Received event");
+
+        let event_str = format!("{event:?}");
+
+        match self.match_event(event).await {
+            Ok(()) => tracing::debug!(event = ?event_str, "Successfully handled event"),
+            Err(e) => tracing::error!("Failed to handle event. Error {e:#}"),
+        }
+    }
+
     async fn match_event(&self, event: Event) -> Result<()> {
         match event {
             Event::FundingGenerationReady {
@@ -660,24 +667,6 @@ where
         };
 
         Ok(())
-    }
-}
-
-impl<P> lightning::util::events::EventHandler for EventHandler<P>
-where
-    P: PaymentPersister,
-{
-    fn handle_event(&self, event: Event) {
-        tracing::info!(?event, "Received event");
-
-        self.runtime_handle.block_on(async {
-            let event_str = format!("{event:?}");
-
-            match self.match_event(event).await {
-                Ok(()) => tracing::debug!(event = ?event_str, "Successfully handled event"),
-                Err(e) => tracing::error!("Failed to handle event. Error {e:#}"),
-            }
-        })
     }
 }
 

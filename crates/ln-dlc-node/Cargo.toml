@@ -22,7 +22,7 @@ futures = "0.3"
 hex = "0.4"
 hkdf = "0.12"
 lightning = { version = "0.0.114", features = ["max_level_trace"] }
-lightning-background-processor = { version = "0.0.114" }
+lightning-background-processor = { version = "0.0.114", features = ["futures"] }
 lightning-invoice = { version = "0.22" }
 lightning-net-tokio = { version = "0.0.114" }
 lightning-persister = { version = "0.0.114" }
