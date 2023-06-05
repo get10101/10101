@@ -2,6 +2,7 @@ use crate::db::positions::ContractSymbol;
 use crate::orderbook::db::custom_types::Direction;
 use crate::schema::trades;
 use anyhow::Result;
+use autometrics::autometrics;
 use diesel::prelude::*;
 
 #[derive(Insertable, Debug, Clone)]
@@ -17,6 +18,7 @@ pub struct Trade {
     pub average_price: f32,
 }
 
+#[autometrics]
 pub fn insert(conn: &mut PgConnection, trade: Trade) -> Result<()> {
     diesel::insert_into(trades::table)
         .values(trade)

@@ -200,6 +200,7 @@ pub struct UpdateOrder {
     pub taken: bool,
 }
 
+#[autometrics]
 pub async fn put_order(
     Path(order_id): Path<Uuid>,
     State(state): State<Arc<AppState>>,
