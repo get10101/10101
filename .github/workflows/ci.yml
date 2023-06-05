@@ -97,3 +97,22 @@ jobs:
         run: cargo test
       - name: Running flutter tests
         run: just flutter-test
+
+  ln-dlc-node-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v3
+      - uses: extractions/setup-just@v1
+      - name: Setup rust toolchain
+        run: rustup show
+      - uses: Swatinem/rust-cache@v2.2.0
+      - name: Start containers
+        run: |
+          docker-compose up -d
+          sleep 10 # We need to give docker a bit of time to startup
+      - name: Test containers are up
+        run: |
+          curl -d '{"address":"bcrt1qylgu6ffkp3p0m8tw8kp4tt2dmdh755f4r5dq7s", "amount":"0.1"}' -H "Content-Type: application/json" -X POST http://localhost:3000/faucet
+      - name: Run slow tests
+        run: cargo test -p ln-dlc-node -- --ignored --nocapture --test-threads=1
