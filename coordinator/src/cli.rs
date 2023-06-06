@@ -46,6 +46,10 @@ pub struct Opts {
     /// If enabled, tokio runtime can be locally debugged with tokio_console
     #[clap(long)]
     pub tokio_console: bool,
+
+    /// If enabled, tokio metrics will be enabled
+    #[clap(long)]
+    pub tokio_metrics: bool,
 }
 
 #[derive(Debug, Clone, Copy, clap::ValueEnum)]
