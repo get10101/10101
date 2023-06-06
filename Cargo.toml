@@ -3,16 +3,16 @@ members = ["coordinator", "maker", "mobile/native", "crates/*"]
 resolver = "2"
 
 [patch.crates-io]
-dlc-manager = { git = "https://github.com/get10101/rust-dlc", rev = "37a9265" }
-dlc-messages = { git = "https://github.com/get10101/rust-dlc", rev = "37a9265" }
-dlc = { git = "https://github.com/get10101/rust-dlc", rev = "37a9265" }
-dlc-sled-storage-provider = { git = "https://github.com/get10101/rust-dlc", rev = "37a9265" }
-p2pd-oracle-client = { git = "https://github.com/get10101/rust-dlc", rev = "37a9265" }
-dlc-trie = { git = "https://github.com/get10101/rust-dlc", rev = "37a9265" }
-simple-wallet = { git = "https://github.com/get10101/rust-dlc", rev = "37a9265" }
-lightning = { git = "https://github.com/get10101/rust-lightning/", rev = "5de4468d" }
-lightning-background-processor = { git = "https://github.com/get10101/rust-lightning/", rev = "5de4468d" }
-lightning-transaction-sync = { git = "https://github.com/get10101/rust-lightning/", rev = "5de4468d" }
-lightning-net-tokio = { git = "https://github.com/get10101/rust-lightning/", rev = "5de4468d" }
-lightning-persister = { git = "https://github.com/get10101/rust-lightning/", rev = "5de4468d" }
+dlc-manager = { git = "https://github.com/get10101/rust-dlc", rev = "8fd4965" }
+dlc-messages = { git = "https://github.com/get10101/rust-dlc", rev = "8fd4965" }
+dlc = { git = "https://github.com/get10101/rust-dlc", rev = "8fd4965" }
+dlc-sled-storage-provider = { git = "https://github.com/get10101/rust-dlc", rev = "8fd4965" }
+p2pd-oracle-client = { git = "https://github.com/get10101/rust-dlc", rev = "8fd4965" }
+dlc-trie = { git = "https://github.com/get10101/rust-dlc", rev = "8fd4965" }
+simple-wallet = { git = "https://github.com/get10101/rust-dlc", rev = "8fd4965" }
+lightning = { git = "https://github.com/get10101/rust-lightning/", rev = "5aa1449c" }
+lightning-background-processor = { git = "https://github.com/get10101/rust-lightning/", rev = "5aa1449c" }
+lightning-transaction-sync = { git = "https://github.com/get10101/rust-lightning/", rev = "5aa1449c" }
+lightning-net-tokio = { git = "https://github.com/get10101/rust-lightning/", rev = "5aa1449c" }
+lightning-persister = { git = "https://github.com/get10101/rust-lightning/", rev = "5aa1449c" }
 rust-bitcoin-coin-selection = { git = "https://github.com/p2pderivatives/rust-bitcoin-coin-selection" }
