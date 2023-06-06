@@ -365,7 +365,7 @@ async fn update_settings(
 }
 
 pub async fn get_metrics() -> impl IntoResponse {
-    match autometrics::encode_global_metrics() {
+    match autometrics::prometheus_exporter::encode_to_string() {
         Ok(metrics) => (StatusCode::OK, metrics),
         Err(err) => (StatusCode::INTERNAL_SERVER_ERROR, format!("{:?}", err)),
     }

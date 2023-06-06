@@ -3,14 +3,12 @@ use crate::node::NodeInfo;
 use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
-use autometrics::autometrics;
 use bitcoin::secp256k1::PublicKey;
 use futures::Future;
 use std::pin::Pin;
 use std::time::Duration;
 
 impl<P> Node<P> {
-    #[autometrics]
     pub async fn connect(&self, peer: NodeInfo) -> Result<Pin<Box<impl Future<Output = ()>>>> {
         #[allow(clippy::async_yields_async)] // We want to poll this future in a loop elsewhere
         let connection_closed_future = tokio::time::timeout(Duration::from_secs(15), async {
