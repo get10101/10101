@@ -98,12 +98,11 @@ async fn main() -> Result<()> {
     let node = Node::new(node, pool.clone());
     node.update_settings(settings.as_node_settings()).await;
 
-    if opts.tokio_metrics {
+    // TODO: Pass the tokio metrics into Prometheus
+    if let Some(interval) = opts.tokio_metrics_interval_seconds {
         let handle = tokio::runtime::Handle::current();
         let runtime_monitor = tokio_metrics::RuntimeMonitor::new(&handle);
-        // TODO: Pass the tokio metrics into Prometheus
-        // print runtime metrics every 1s
-        let frequency = std::time::Duration::from_secs(1);
+        let frequency = Duration::from_secs(interval);
         tokio::spawn(async move {
             for metrics in runtime_monitor.intervals() {
                 tracing::debug!(?metrics, "tokio metrics");
