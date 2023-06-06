@@ -47,9 +47,9 @@ pub struct Opts {
     #[clap(long)]
     pub tokio_console: bool,
 
-    /// If enabled, tokio metrics will be enabled
+    /// If specified, metrics will be printed at the given interval
     #[clap(long)]
-    pub tokio_metrics: bool,
+    pub tokio_metrics_interval_seconds: Option<u64>,
 }
 
 #[derive(Debug, Clone, Copy, clap::ValueEnum)]
