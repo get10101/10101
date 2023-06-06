@@ -931,7 +931,7 @@ dependencies = [
 [[package]]
 name = "dlc"
 version = "0.4.0"
-source = "git+https://github.com/get10101/rust-dlc?rev=8fd4965#8fd49651f702c7a3d54c6fb462659db6872a954e"
+source = "git+https://github.com/get10101/rust-dlc?rev=a6fc277#a6fc2777d9b8cd1d0a8619c4ddbaad09e0756bee"
 dependencies = [
  "autometrics 0.5.0",
  "bitcoin",
@@ -944,7 +944,7 @@ dependencies = [
 [[package]]
 name = "dlc-manager"
 version = "0.4.0"
-source = "git+https://github.com/get10101/rust-dlc?rev=8fd4965#8fd49651f702c7a3d54c6fb462659db6872a954e"
+source = "git+https://github.com/get10101/rust-dlc?rev=a6fc277#a6fc2777d9b8cd1d0a8619c4ddbaad09e0756bee"
 dependencies = [
  "async-trait",
  "autometrics 0.5.0",
@@ -961,7 +961,7 @@ dependencies = [
 [[package]]
 name = "dlc-messages"
 version = "0.4.0"
-source = "git+https://github.com/get10101/rust-dlc?rev=8fd4965#8fd49651f702c7a3d54c6fb462659db6872a954e"
+source = "git+https://github.com/get10101/rust-dlc?rev=a6fc277#a6fc2777d9b8cd1d0a8619c4ddbaad09e0756bee"
 dependencies = [
  "bitcoin",
  "dlc",
@@ -973,7 +973,7 @@ dependencies = [
 [[package]]
 name = "dlc-sled-storage-provider"
 version = "0.1.0"
-source = "git+https://github.com/get10101/rust-dlc?rev=8fd4965#8fd49651f702c7a3d54c6fb462659db6872a954e"
+source = "git+https://github.com/get10101/rust-dlc?rev=a6fc277#a6fc2777d9b8cd1d0a8619c4ddbaad09e0756bee"
 dependencies = [
  "bitcoin",
  "dlc-manager",
@@ -986,7 +986,7 @@ dependencies = [
 [[package]]
 name = "dlc-trie"
 version = "0.4.0"
-source = "git+https://github.com/get10101/rust-dlc?rev=8fd4965#8fd49651f702c7a3d54c6fb462659db6872a954e"
+source = "git+https://github.com/get10101/rust-dlc?rev=a6fc277#a6fc2777d9b8cd1d0a8619c4ddbaad09e0756bee"
 dependencies = [
  "bitcoin",
  "dlc",
@@ -2292,7 +2292,7 @@ checksum = "b15813163c1d831bf4a13c3610c05c0d03b39feb07f7e09fa234dac9b15aaf39"
 [[package]]
 name = "p2pd-oracle-client"
 version = "0.1.0"
-source = "git+https://github.com/get10101/rust-dlc?rev=8fd4965#8fd49651f702c7a3d54c6fb462659db6872a954e"
+source = "git+https://github.com/get10101/rust-dlc?rev=a6fc277#a6fc2777d9b8cd1d0a8619c4ddbaad09e0756bee"
 dependencies = [
  "chrono",
  "dlc-manager",
@@ -3048,7 +3048,7 @@ dependencies = [
 [[package]]
 name = "simple-wallet"
 version = "0.1.0"
-source = "git+https://github.com/get10101/rust-dlc?rev=8fd4965#8fd49651f702c7a3d54c6fb462659db6872a954e"
+source = "git+https://github.com/get10101/rust-dlc?rev=a6fc277#a6fc2777d9b8cd1d0a8619c4ddbaad09e0756bee"
 dependencies = [
  "bitcoin",
  "dlc",
