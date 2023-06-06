@@ -135,42 +135,21 @@ checksum = "d468802bab17cbc0cc575e9b053f41e72aa36bfa6b7f55e3529ffa43161b97fa"
 
 [[package]]
 name = "autometrics"
-version = "0.4.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e06501aa216e24523c637bad8498c211e7a932ed4002ad0f62a2834fa5b3c400"
-dependencies = [
- "autometrics-macros 0.4.1",
- "const_format",
- "metrics-exporter-prometheus",
- "once_cell",
- "opentelemetry-prometheus",
- "opentelemetry_api",
- "opentelemetry_sdk",
- "prometheus",
-]
-
-[[package]]
-name = "autometrics"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6fd5718a452b060adfb2402004a5ebd67ea90e926da637259748de0ca654ea37"
 dependencies = [
- "autometrics-macros 0.5.0",
+ "autometrics-macros",
  "cfg_aliases",
+ "http",
+ "metrics-exporter-prometheus",
  "once_cell",
+ "opentelemetry-prometheus",
+ "opentelemetry_sdk",
+ "prometheus",
+ "prometheus-client",
  "spez",
-]
-
-[[package]]
-name = "autometrics-macros"
-version = "0.4.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2edb1335006ff621fe85b2c876f8e77ce31779fce866867b99a300891133aed9"
-dependencies = [
- "percent-encoding",
- "proc-macro2",
- "quote",
- "syn 1.0.109",
+ "thiserror",
 ]
 
 [[package]]
@@ -615,32 +594,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "const_format"
-version = "0.2.30"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7309d9b4d3d2c0641e018d449232f2e28f1b22933c137f157d3dbc14228b8c0e"
-dependencies = [
- "const_format_proc_macros",
-]
-
-[[package]]
-name = "const_format_proc_macros"
-version = "0.2.29"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d897f47bf7270cf70d370f8f98c1abb6d2d4cf60a6845d30e05bfb90c6568650"
-dependencies = [
- "proc-macro2",
- "quote",
- "unicode-xid",
-]
-
-[[package]]
 name = "coordinator"
 version = "0.1.0"
 dependencies = [
  "anyhow",
  "atty",
- "autometrics 0.4.1",
+ "autometrics",
  "axum",
  "bdk",
  "bitcoin",
@@ -933,7 +892,7 @@ name = "dlc"
 version = "0.4.0"
 source = "git+https://github.com/get10101/rust-dlc?rev=a6fc277#a6fc2777d9b8cd1d0a8619c4ddbaad09e0756bee"
 dependencies = [
- "autometrics 0.5.0",
+ "autometrics",
  "bitcoin",
  "miniscript 8.0.0",
  "secp256k1-sys",
@@ -947,7 +906,7 @@ version = "0.4.0"
 source = "git+https://github.com/get10101/rust-dlc?rev=a6fc277#a6fc2777d9b8cd1d0a8619c4ddbaad09e0756bee"
 dependencies = [
  "async-trait",
- "autometrics 0.5.0",
+ "autometrics",
  "bitcoin",
  "dlc",
  "dlc-messages",
@@ -993,6 +952,12 @@ dependencies = [
  "secp256k1-zkp",
  "serde",
 ]
+
+[[package]]
+name = "dtoa"
+version = "1.0.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "65d09067bfacaa79114679b279d7f5885b53295b1e2cfb4e79c8e4bd3d633169"
 
 [[package]]
 name = "either"
@@ -1699,7 +1664,7 @@ name = "ln-dlc-node"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "autometrics 0.4.1",
+ "autometrics",
  "bdk",
  "bip39",
  "bitcoin",
@@ -2187,9 +2152,9 @@ dependencies = [
 
 [[package]]
 name = "opentelemetry"
-version = "0.18.0"
+version = "0.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "69d6c3d7288a106c0a363e4b0e8d308058d56902adefb16f4936f417ffef086e"
+checksum = "5f4b8347cc26099d3aeee044065ecc3ae11469796b4d65d065a23a584ed92a6f"
 dependencies = [
  "opentelemetry_api",
  "opentelemetry_sdk",
@@ -2197,9 +2162,9 @@ dependencies = [
 
 [[package]]
 name = "opentelemetry-prometheus"
-version = "0.11.0"
+version = "0.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "06c3d833835a53cf91331d2cfb27e9121f5a95261f31f08a1f79ab31688b8da8"
+checksum = "9a9f186f6293ebb693caddd0595e66b74a6068fa51048e26e0bf9c95478c639c"
 dependencies = [
  "opentelemetry",
  "prometheus",
@@ -2208,25 +2173,25 @@ dependencies = [
 
 [[package]]
 name = "opentelemetry_api"
-version = "0.18.0"
+version = "0.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c24f96e21e7acc813c7a8394ee94978929db2bcc46cf6b5014fc612bf7760c22"
+checksum = "ed41783a5bf567688eb38372f2b7a8530f5a607a4b49d38dd7573236c23ca7e2"
 dependencies = [
  "fnv",
  "futures-channel",
  "futures-util",
  "indexmap",
- "js-sys",
  "once_cell",
  "pin-project-lite",
  "thiserror",
+ "urlencoding",
 ]
 
 [[package]]
 name = "opentelemetry_sdk"
-version = "0.18.0"
+version = "0.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1ca41c4933371b61c2a2f214bf16931499af4ec90543604ec828f7a625c09113"
+checksum = "8b3a2a91fdbfdd4d212c0dcc2ab540de2c2bcbbd90be17de7a7daf8822d010c1"
 dependencies = [
  "async-trait",
  "crossbeam-channel",
@@ -2470,6 +2435,29 @@ dependencies = [
  "parking_lot 0.12.1",
  "protobuf",
  "thiserror",
+]
+
+[[package]]
+name = "prometheus-client"
+version = "0.21.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "78c2f43e8969d51935d2a7284878ae053ba30034cd563f673cde37ba5205685e"
+dependencies = [
+ "dtoa",
+ "itoa",
+ "parking_lot 0.12.1",
+ "prometheus-client-derive-encode",
+]
+
+[[package]]
+name = "prometheus-client-derive-encode"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "72b6a5217beb0ad503ee7fa752d451c905113d70721b937126158f3106a48cc1"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
 ]
 
 [[package]]
@@ -3667,12 +3655,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c0edd1e5b14653f783770bce4a4dabb4a5108a5370a5f5d8cfe8710c361f6c8b"
 
 [[package]]
-name = "unicode-xid"
-version = "0.2.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f962df74c8c05a667b5ee8bcf162993134c104e96440b663c8daa176dc772d8c"
-
-[[package]]
 name = "untrusted"
 version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3707,6 +3689,12 @@ dependencies = [
  "idna",
  "percent-encoding",
 ]
+
+[[package]]
+name = "urlencoding"
+version = "2.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e8db7427f936968176eaa7cdf81b7f98b980b18495ec28f1b5791ac3bfe3eea9"
 
 [[package]]
 name = "utf-8"
