@@ -139,7 +139,7 @@ version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e06501aa216e24523c637bad8498c211e7a932ed4002ad0f62a2834fa5b3c400"
 dependencies = [
- "autometrics-macros",
+ "autometrics-macros 0.4.1",
  "const_format",
  "metrics-exporter-prometheus",
  "once_cell",
@@ -150,10 +150,34 @@ dependencies = [
 ]
 
 [[package]]
+name = "autometrics"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6fd5718a452b060adfb2402004a5ebd67ea90e926da637259748de0ca654ea37"
+dependencies = [
+ "autometrics-macros 0.5.0",
+ "cfg_aliases",
+ "once_cell",
+ "spez",
+]
+
+[[package]]
 name = "autometrics-macros"
 version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2edb1335006ff621fe85b2c876f8e77ce31779fce866867b99a300891133aed9"
+dependencies = [
+ "percent-encoding",
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
+]
+
+[[package]]
+name = "autometrics-macros"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0beb4214dae229373b9f437afe2c954a1c8cfb8a64ac753a47285a759ae80284"
 dependencies = [
  "percent-encoding",
  "proc-macro2",
@@ -476,6 +500,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
+name = "cfg_aliases"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fd16c4719339c4530435d38e511904438d07cce7950afa3718a84ac36c10e89e"
+
+[[package]]
 name = "chrono"
 version = "0.4.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -610,7 +640,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "atty",
- "autometrics",
+ "autometrics 0.4.1",
  "axum",
  "bdk",
  "bitcoin",
@@ -900,8 +930,9 @@ dependencies = [
 [[package]]
 name = "dlc"
 version = "0.4.0"
-source = "git+https://github.com/get10101/rust-dlc?rev=d9a7a73#d9a7a73cffce92f3fad4961ed8fd4a669bb4f1e3"
+source = "git+https://github.com/get10101/rust-dlc?rev=37a9265#37a9265913e1b2c34fe7c85ca595053f2b0a9533"
 dependencies = [
+ "autometrics 0.5.0",
  "bitcoin",
  "miniscript 8.0.0",
  "secp256k1-sys",
@@ -912,9 +943,10 @@ dependencies = [
 [[package]]
 name = "dlc-manager"
 version = "0.4.0"
-source = "git+https://github.com/get10101/rust-dlc?rev=d9a7a73#d9a7a73cffce92f3fad4961ed8fd4a669bb4f1e3"
+source = "git+https://github.com/get10101/rust-dlc?rev=37a9265#37a9265913e1b2c34fe7c85ca595053f2b0a9533"
 dependencies = [
  "async-trait",
+ "autometrics 0.5.0",
  "bitcoin",
  "dlc",
  "dlc-messages",
@@ -928,7 +960,7 @@ dependencies = [
 [[package]]
 name = "dlc-messages"
 version = "0.4.0"
-source = "git+https://github.com/get10101/rust-dlc?rev=d9a7a73#d9a7a73cffce92f3fad4961ed8fd4a669bb4f1e3"
+source = "git+https://github.com/get10101/rust-dlc?rev=37a9265#37a9265913e1b2c34fe7c85ca595053f2b0a9533"
 dependencies = [
  "bitcoin",
  "dlc",
@@ -940,7 +972,7 @@ dependencies = [
 [[package]]
 name = "dlc-sled-storage-provider"
 version = "0.1.0"
-source = "git+https://github.com/get10101/rust-dlc?rev=d9a7a73#d9a7a73cffce92f3fad4961ed8fd4a669bb4f1e3"
+source = "git+https://github.com/get10101/rust-dlc?rev=37a9265#37a9265913e1b2c34fe7c85ca595053f2b0a9533"
 dependencies = [
  "bitcoin",
  "dlc-manager",
@@ -953,7 +985,7 @@ dependencies = [
 [[package]]
 name = "dlc-trie"
 version = "0.4.0"
-source = "git+https://github.com/get10101/rust-dlc?rev=d9a7a73#d9a7a73cffce92f3fad4961ed8fd4a669bb4f1e3"
+source = "git+https://github.com/get10101/rust-dlc?rev=37a9265#37a9265913e1b2c34fe7c85ca595053f2b0a9533"
 dependencies = [
  "bitcoin",
  "dlc",
@@ -1666,7 +1698,7 @@ name = "ln-dlc-node"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "autometrics",
+ "autometrics 0.4.1",
  "bdk",
  "bip39",
  "bitcoin",
@@ -2259,7 +2291,7 @@ checksum = "b15813163c1d831bf4a13c3610c05c0d03b39feb07f7e09fa234dac9b15aaf39"
 [[package]]
 name = "p2pd-oracle-client"
 version = "0.1.0"
-source = "git+https://github.com/get10101/rust-dlc?rev=d9a7a73#d9a7a73cffce92f3fad4961ed8fd4a669bb4f1e3"
+source = "git+https://github.com/get10101/rust-dlc?rev=37a9265#37a9265913e1b2c34fe7c85ca595053f2b0a9533"
 dependencies = [
  "chrono",
  "dlc-manager",
@@ -3015,7 +3047,7 @@ dependencies = [
 [[package]]
 name = "simple-wallet"
 version = "0.1.0"
-source = "git+https://github.com/get10101/rust-dlc?rev=d9a7a73#d9a7a73cffce92f3fad4961ed8fd4a669bb4f1e3"
+source = "git+https://github.com/get10101/rust-dlc?rev=37a9265#37a9265913e1b2c34fe7c85ca595053f2b0a9533"
 dependencies = [
  "bitcoin",
  "dlc",
@@ -3081,6 +3113,17 @@ dependencies = [
  "byteorder",
  "libc",
  "winapi",
+]
+
+[[package]]
+name = "spez"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c87e960f4dca2788eeb86bbdde8dd246be8948790b7618d656e68f9b720a86e8"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.15",
 ]
 
 [[package]]
