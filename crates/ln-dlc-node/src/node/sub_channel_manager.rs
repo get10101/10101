@@ -1,4 +1,3 @@
-use crate::dlc_custom_signer::CustomSigner;
 use crate::fee_rate_estimator::FeeRateEstimator;
 use crate::ln_dlc_wallet::LnDlcWallet;
 use crate::node::channel_manager::ChannelManager;
@@ -20,7 +19,6 @@ pub type SubChannelManager = sub_channel_manager::SubChannelManager<
     Arc<SystemTimeProvider>,
     Arc<FeeRateEstimator>,
     Arc<DlcManager>,
-    CustomSigner,
 >;
 
 #[autometrics]
