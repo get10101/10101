@@ -44,6 +44,7 @@ tokio-extras = { path = "../tokio-extras", features = ["xtra"] }
 xtra = { version = "0.6", features = ["instrumentation", "sink"] }
 xtra_productivity = { version = "0.1.0", features = ["instrumentation"] }
 xtras = { path = "../xtras" }
+async-trait = "0.1.68"
 
 [dev-dependencies]
 clap = { version = "4", features = ["derive"] }

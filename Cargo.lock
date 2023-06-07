@@ -1681,6 +1681,7 @@ name = "ln-dlc-node"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "autometrics",
  "bdk",
  "bip39",
