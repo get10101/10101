@@ -115,7 +115,10 @@ pub async fn create_dlc_channel(
         .find(|sc| sc.channel_id == sub_channel.channel_id)
         .context("No DLC channel for coordinator")?;
 
-    matches!(sub_channel_coordinator.state, SubChannelState::Signed(_));
+    assert!(matches!(
+        sub_channel_coordinator.state,
+        SubChannelState::Signed(_)
+    ));
 
     let sub_channel_app = app
         .dlc_manager
@@ -125,7 +128,7 @@ pub async fn create_dlc_channel(
         .find(|sc| sc.channel_id == sub_channel.channel_id)
         .context("No DLC channel for app")?;
 
-    matches!(sub_channel_app.state, SubChannelState::Signed(_));
+    assert!(matches!(sub_channel_app.state, SubChannelState::Signed(_)));
 
     Ok(DlcChannelCreated {
         coordinator,

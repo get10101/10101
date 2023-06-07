@@ -113,7 +113,10 @@ async fn reconnecting_during_dlc_channel_setup() {
         .find(|sc| sc.channel_id == sub_channel.channel_id)
         .unwrap();
 
-    matches!(sub_channel_coordinator.state, SubChannelState::Signed(_));
+    assert!(matches!(
+        sub_channel_coordinator.state,
+        SubChannelState::Signed(_)
+    ));
 
     let sub_channel_app = app
         .dlc_manager
@@ -124,5 +127,5 @@ async fn reconnecting_during_dlc_channel_setup() {
         .find(|sc| sc.channel_id == sub_channel.channel_id)
         .unwrap();
 
-    matches!(sub_channel_app.state, SubChannelState::Signed(_));
+    assert!(matches!(sub_channel_app.state, SubChannelState::Signed(_)));
 }
