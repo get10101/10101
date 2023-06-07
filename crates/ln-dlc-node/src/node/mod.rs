@@ -8,7 +8,7 @@ use crate::ln::TracingLogger;
 use crate::ln_dlc_wallet::LnDlcWallet;
 use crate::node::dlc_channel::process_pending_dlc_actions;
 use crate::node::peer_manager::broadcast_node_announcement;
-use crate::on_chain_wallet::OnChainWallet;
+use crate::on_chain_wallet::new_bdk_wallet;
 use crate::seed::Bip39Seed;
 use crate::util;
 use crate::ChainMonitor;
@@ -273,8 +273,7 @@ where
         )?);
 
         let on_chain_dir = data_dir.join("on_chain");
-        let on_chain_wallet =
-            OnChainWallet::new(on_chain_dir.as_path(), network, seed.wallet_seed())?;
+        let on_chain_wallet = new_bdk_wallet(on_chain_dir.as_path(), network, seed.wallet_seed())?;
 
         let esplora_client = Arc::new(EsploraSyncClient::new(
             esplora_server_url.clone(),
@@ -287,7 +286,7 @@ where
         let ln_dlc_wallet = {
             Arc::new(LnDlcWallet::new(
                 esplora_client.clone(),
-                on_chain_wallet.inner,
+                on_chain_wallet,
                 fee_rate_estimator.clone(),
                 storage.clone(),
                 seed.clone(),
