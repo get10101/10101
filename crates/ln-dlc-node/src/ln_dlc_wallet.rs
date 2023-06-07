@@ -4,6 +4,7 @@ use crate::seed::Bip39Seed;
 use crate::TracingLogger;
 use anyhow::Result;
 use autometrics::autometrics;
+use bdk::blockchain::esplora;
 use bdk::blockchain::EsploraBlockchain;
 use bdk::esplora_client::TxStatus;
 use bdk::sled;
@@ -40,6 +41,7 @@ pub struct LnDlcWallet {
     secp: Secp256k1<All>,
     seed: Bip39Seed,
     network: Network,
+    runtime_handle: tokio::runtime::Handle,
 }
 
 impl LnDlcWallet {
@@ -50,6 +52,7 @@ impl LnDlcWallet {
         fee_rate_estimator: Arc<FeeRateEstimator>,
         storage: Arc<SledStorageProvider>,
         seed: Bip39Seed,
+        runtime_handle: tokio::runtime::Handle,
         bdk_client_stop_gap: usize,
         bdk_client_concurrency: u8,
     ) -> Self {
@@ -62,6 +65,7 @@ impl LnDlcWallet {
         let wallet = Arc::new(ldk_node_wallet::Wallet::new(
             blockchain,
             on_chain_wallet,
+            runtime_handle.clone(),
             esplora_client,
             fee_rate_estimator,
         ));
@@ -72,6 +76,7 @@ impl LnDlcWallet {
             secp: Secp256k1::new(),
             seed,
             network,
+            runtime_handle,
         }
     }
 
@@ -141,59 +146,70 @@ impl Blockchain for LnDlcWallet {
 
     #[autometrics]
     fn get_block_at_height(&self, height: u64) -> Result<Block, Error> {
-        let block_hash = self
-            .ln_wallet
-            .blockchain
-            .get_block_hash(height as u32)
-            .map_err(|e| {
-                Error::BlockchainError(format!("Could not find block at height {height}: {e:#}"))
-            })?;
-        let block = self
-            .ln_wallet
-            .blockchain
-            .get_block_by_hash(&block_hash)
-            .map_err(|e| {
-                Error::BlockchainError(format!("Could not find block at height {height}: {e:#}"))
-            })?
-            .ok_or_else(|| {
-                Error::BlockchainError(format!("Could not find block at height {height}"))
-            })?;
+        let block = tokio::task::block_in_place(move || {
+            self.runtime_handle.block_on(async {
+                let block_hash = self
+                    .ln_wallet
+                    .blockchain
+                    .get_block_hash(height as u32)
+                    .await?;
+                let block = self
+                    .ln_wallet
+                    .blockchain
+                    .get_block_by_hash(&block_hash)
+                    .await?;
+
+                Result::<_, esplora::EsploraError>::Ok(block)
+            })
+        })
+        .map_err(|e| {
+            Error::BlockchainError(format!("Could not find block at height {height}: {e:#}"))
+        })?
+        .ok_or_else(|| {
+            Error::BlockchainError(format!("Could not find block at height {height}"))
+        })?;
 
         Ok(block)
     }
 
     #[autometrics]
     fn get_transaction(&self, txid: &Txid) -> Result<Transaction, Error> {
-        self.ln_wallet
-            .blockchain
-            .get_tx(txid)
-            .map_err(|e| {
-                Error::BlockchainError(format!("Could not find transaction {txid}: {e:#}"))
-            })?
-            .ok_or_else(|| Error::BlockchainError(format!("Could not get transaction body {txid}")))
+        tokio::task::block_in_place(move || {
+            self.runtime_handle.block_on(async {
+                self.ln_wallet
+                    .blockchain
+                    .get_tx(txid)
+                    .await
+                    .map_err(|e| {
+                        Error::BlockchainError(format!("Could not find transaction {txid}: {e:#}"))
+                    })?
+                    .ok_or_else(|| {
+                        Error::BlockchainError(format!("Could not get transaction body {txid}"))
+                    })
+            })
+        })
     }
 
     #[autometrics]
     fn get_transaction_confirmations(&self, txid: &Txid) -> Result<u32, Error> {
-        let confirmation_height = match self
-            .ln_wallet
-            .blockchain
-            .get_tx_status(txid)
-            .map_err(|e| Error::BlockchainError(e.to_string()))?
-        {
-            Some(TxStatus {
-                block_height: Some(height),
-                ..
-            }) => height,
-            _ => return Ok(0),
-        };
+        let confirmations = tokio::task::block_in_place(move || {
+            self.runtime_handle.block_on(async {
+                let confirmation_height =
+                    match self.ln_wallet.blockchain.get_tx_status(txid).await? {
+                        Some(TxStatus {
+                            block_height: Some(height),
+                            ..
+                        }) => height,
+                        _ => return Ok(0),
+                    };
 
-        let tip = self
-            .ln_wallet
-            .blockchain
-            .get_height()
-            .map_err(|e| Error::BlockchainError(e.to_string()))?;
-        let confirmations = tip.checked_sub(confirmation_height).unwrap_or_default();
+                let tip = self.ln_wallet.blockchain.get_height().await?;
+                let confirmations = tip.checked_sub(confirmation_height).unwrap_or_default();
+
+                Result::<_, esplora::EsploraError>::Ok(confirmations)
+            })
+        })
+        .map_err(|e| Error::BlockchainError(e.to_string()))?;
 
         Ok(confirmations)
     }

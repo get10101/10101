@@ -281,6 +281,8 @@ where
             logger.clone(),
         ));
 
+        let runtime_handle = tokio::runtime::Handle::current();
+
         let fee_rate_estimator = Arc::new(FeeRateEstimator::new(esplora_server_url));
         let ln_dlc_wallet = {
             Arc::new(LnDlcWallet::new(
@@ -289,6 +291,7 @@ where
                 fee_rate_estimator.clone(),
                 storage.clone(),
                 seed.clone(),
+                runtime_handle,
                 settings.bdk_client_stop_gap,
                 settings.bdk_client_concurrency,
             ))
@@ -405,7 +408,7 @@ where
                         &*channel_manager as &(dyn Confirm + Sync + Send),
                         &*chain_monitor as &(dyn Confirm + Sync + Send),
                     ];
-                    match esplora_client.sync(confirmables) {
+                    match esplora_client.sync(confirmables).await {
                         Ok(()) => tracing::info!(
                             "Background sync of Lightning wallet finished in {}ms.",
                             now.elapsed().as_millis()
