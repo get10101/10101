@@ -1,0 +1,9 @@
+[package]
+name = "quiet-spans"
+version = "0.1.0"
+edition = "2021"
+description = "Helper crate to silence children spans when they would lead to spam"
+
+[dependencies]
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }

@@ -1,0 +1,20 @@
+[package]
+name = "xtras"
+version = "0.1.0"
+edition = "2021"
+description = "Extension trait for the xtra actor framework"
+
+[dependencies]
+anyhow = "1"
+async-trait = "0.1.57"
+futures = { version = "0.3", default-features = false, features = ["std"] }
+quiet-spans = { path = "../quiet-spans" }
+thiserror = "1"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "tracing"] }
+tokio-extras = { path = "../tokio-extras", features = ["xtra"] }
+tracing = { version = "0.1" }
+xtra = { version = "0.6", features = ["instrumentation"] }
+xtra_productivity = { version = "0.1.0", features = ["instrumentation"] }
+
+[dev-dependencies]
+tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt"] }
