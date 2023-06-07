@@ -1714,9 +1714,13 @@ dependencies = [
  "simple-wallet",
  "time 0.3.20",
  "tokio",
+ "tokio-extras",
  "tracing",
  "tracing-log",
  "tracing-subscriber",
+ "xtra",
+ "xtra_productivity",
+ "xtras",
 ]
 
 [[package]]
@@ -4057,6 +4061,7 @@ dependencies = [
  "catty",
  "event-listener",
  "futures-core",
+ "futures-sink",
  "futures-util",
  "pin-project-lite",
  "spin 0.9.8",

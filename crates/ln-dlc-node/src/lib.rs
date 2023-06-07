@@ -38,6 +38,7 @@ pub mod seed;
 
 #[cfg(test)]
 mod tests;
+mod wallet_actor;
 
 pub use fee_rate_estimator::FeeRateFallbacks;
 pub use ldk_node_wallet::WalletSettings;

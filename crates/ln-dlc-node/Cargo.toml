@@ -40,6 +40,10 @@ time = "0.3"
 tokio = { version = "1", default-features = false, features = ["io-util", "macros", "rt", "rt-multi-thread", "sync", "net", "time", "tracing"] }
 tracing = "0.1.37"
 tracing-log = "0.1.3"
+tokio-extras = { path = "../tokio-extras", features = ["xtra"] }
+xtra = { version = "0.6", features = ["instrumentation", "sink"] }
+xtra_productivity = { version = "0.1.0", features = ["instrumentation"] }
+xtras = { path = "../xtras" }
 
 [dev-dependencies]
 clap = { version = "4", features = ["derive"] }
