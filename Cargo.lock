@@ -1710,6 +1710,7 @@ dependencies = [
  "tracing-log",
  "tracing-subscriber",
  "ureq",
+ "uuid",
 ]
 
 [[package]]
