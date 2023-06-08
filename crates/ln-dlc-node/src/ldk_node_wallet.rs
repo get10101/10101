@@ -24,9 +24,9 @@ use lightning::chain::transaction::OutPoint;
 use lightning::chain::Filter;
 use lightning::chain::WatchedOutput;
 use lightning_transaction_sync::EsploraSyncClient;
+use parking_lot::Mutex;
+use parking_lot::MutexGuard;
 use std::sync::Arc;
-use std::sync::Mutex;
-use std::sync::MutexGuard;
 use tokio::sync::RwLock;
 
 pub struct Wallet<D>
@@ -70,7 +70,7 @@ where
     }
 
     fn bdk_lock(&self) -> MutexGuard<bdk::Wallet<D>> {
-        self.inner.lock().expect("mutex not to be poisoned")
+        self.inner.lock()
     }
 
     pub async fn update_settings(&self, settings: WalletSettings) {

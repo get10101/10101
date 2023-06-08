@@ -27,6 +27,7 @@ local-ip-address = "0.5.1"
 # adding this as explicit dependency as we need the "vendored" flag for cross compilation
 openssl = { version = "0.10.45", features = ["vendored"] }
 orderbook-commons = { path = "../crates/orderbook-commons" }
+parking_lot = "0.12.1"
 rand = "0.8.5"
 rust_decimal = { version = "1", features = ["serde-with-float"] }
 serde = "1.0.147"

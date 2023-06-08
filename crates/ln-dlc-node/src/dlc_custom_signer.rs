@@ -23,13 +23,13 @@ use lightning::ln::chan_utils::ChannelPublicKeys;
 use lightning::ln::msgs::DecodeError;
 use lightning::ln::script::ShutdownScript;
 use lightning::util::ser::Writeable;
+use parking_lot::Mutex;
+use parking_lot::MutexGuard;
 use secp256k1_zkp::ecdsa::RecoverableSignature;
 use secp256k1_zkp::Secp256k1;
 use secp256k1_zkp::SecretKey;
 use secp256k1_zkp::Signing;
 use std::sync::Arc;
-use std::sync::Mutex;
-use std::sync::MutexGuard;
 
 pub struct CustomSigner {
     in_memory_signer: Arc<Mutex<InMemorySigner>>,
@@ -46,9 +46,7 @@ impl CustomSigner {
     }
 
     fn in_memory_signer_lock(&self) -> MutexGuard<InMemorySigner> {
-        self.in_memory_signer
-            .lock()
-            .expect("Mutex to not be poisoned")
+        self.in_memory_signer.lock()
     }
 }
 
