@@ -1,12 +1,12 @@
 use crate::event::subscriber::Subscriber;
 use crate::event::EventInternal;
 use crate::event::EventType;
+use parking_lot::Mutex;
+use parking_lot::MutexGuard;
 use state::Storage;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::sync::Arc;
-use std::sync::Mutex;
-use std::sync::MutexGuard;
 use std::vec;
 
 static EVENT_HUB: Storage<Arc<Mutex<EventHub>>> = Storage::new();
@@ -19,7 +19,6 @@ pub(crate) fn get() -> MutexGuard<'static, EventHub> {
             }))
         })
         .lock()
-        .expect("failed to get lock on event hub")
 }
 
 pub struct EventHub {

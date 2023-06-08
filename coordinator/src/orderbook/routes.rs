@@ -150,11 +150,7 @@ pub async fn post_order(
     let matched_orders = match_order(order.clone(), all_non_expired_orders)
         .map_err(|e| AppError::InternalServerError(format!("Failed to match order: {e:#}")))?;
 
-    let authenticated_users = state
-        .authenticated_users
-        .lock()
-        .expect("mutex not to be poisoned")
-        .clone();
+    let authenticated_users = state.authenticated_users.lock().clone();
     match matched_orders {
         Some(matched_orders) => {
             let mut orders_to_set_taken = vec![matched_orders.taker_matches.filled_with.order_id];
@@ -321,10 +317,7 @@ async fn websocket(stream: WebSocket, state: Arc<AppState>) {
                                 return;
                             }
 
-                            let mut authenticated_users = state
-                                .authenticated_users
-                                .lock()
-                                .expect("Mutex not to be poisoned");
+                            let mut authenticated_users = state.authenticated_users.lock();
                             authenticated_users.insert(pubkey, local_sender.clone());
                         }
                         Err(err) => {
