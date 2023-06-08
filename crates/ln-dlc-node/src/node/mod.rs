@@ -1,3 +1,5 @@
+use crate::bdk_actor::BdkActor;
+use crate::bdk_actor::UpdateSyncInterval;
 use crate::disk;
 use crate::dlc_custom_signer::CustomKeysManager;
 use crate::fee_rate_estimator::FeeRateEstimator;
@@ -18,6 +20,7 @@ use crate::PeerManager;
 use anyhow::ensure;
 use anyhow::Context;
 use anyhow::Result;
+use bdk::blockchain::EsploraBlockchain;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::Network;
 use dlc_messages::message_handler::MessageHandler as DlcMessageHandler;
@@ -90,6 +93,7 @@ pub struct Node<P> {
     pub network: Network,
 
     pub(crate) wallet: Arc<LnDlcWallet>,
+    bdk_actor: xtra::Address<BdkActor>,
 
     pub peer_manager: Arc<PeerManager>,
     pub channel_manager: Arc<ChannelManager>,
@@ -236,9 +240,17 @@ where
         )
     }
 
-    pub async fn update_settings(&self, new_settings: LnDlcNodeSettings) {
+    pub async fn update_settings(&self, new_settings: LnDlcNodeSettings) -> Result<()> {
         tracing::info!(?new_settings, "Updating LnDlcNode settings");
+
+        self.bdk_actor
+            .send(UpdateSyncInterval(new_settings.on_chain_sync_interval))
+            .await
+            .context("Failed to update on-chain sync interval")?;
+
         *self.settings.write().await = new_settings;
+
+        Ok(())
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -280,13 +292,25 @@ where
             logger.clone(),
         ));
 
+        let (bdk_actor, mailbox) = xtra::Mailbox::unbounded();
+        let blockchain = EsploraBlockchain::from_client(
+            esplora_client.client().clone(),
+            settings.bdk_client_stop_gap,
+        )
+        .with_concurrency(settings.bdk_client_concurrency);
+        tokio::spawn(xtra::run(
+            mailbox,
+            BdkActor::new(on_chain_wallet, blockchain, settings.on_chain_sync_interval),
+        ));
+
         let fee_rate_estimator = Arc::new(FeeRateEstimator::new(esplora_server_url));
         let ln_dlc_wallet = {
             Arc::new(LnDlcWallet::new(
                 esplora_client.clone(),
-                on_chain_wallet,
+                bdk_actor.clone(),
                 fee_rate_estimator.clone(),
                 storage.clone(),
+                network,
                 seed.clone(),
                 settings.bdk_client_stop_gap,
                 settings.bdk_client_concurrency,
@@ -294,35 +318,6 @@ where
         };
 
         let settings = Arc::new(RwLock::new(settings));
-
-        std::thread::spawn({
-            let settings = settings.clone();
-            let ln_dlc_wallet = ln_dlc_wallet.clone();
-            move || {
-                tokio::runtime::Builder::new_current_thread()
-                    .enable_all()
-                    .build()
-                    .expect("to be able to create a runtime")
-                    .block_on(async move {
-                        loop {
-                            let now = Instant::now();
-                            match ln_dlc_wallet.inner().sync().await {
-                                Ok(()) => tracing::info!(
-                                    "Background sync of on-chain wallet finished in {}ms.",
-                                    now.elapsed().as_millis()
-                                ),
-                                Err(err) => {
-                                    tracing::error!(
-                                        "Background sync of on-chain wallet failed: {err:#}",
-                                    )
-                                }
-                            }
-                            tokio::time::sleep(settings.read().await.on_chain_sync_interval).await;
-                        }
-                    });
-            }
-        });
-
         tokio::spawn({
             let settings = settings.clone();
             let fee_rate_estimator = fee_rate_estimator.clone();
@@ -635,6 +630,7 @@ where
         Ok(Self {
             network,
             wallet: ln_dlc_wallet,
+            bdk_actor,
             peer_manager,
             keys_manager,
             chain_monitor,

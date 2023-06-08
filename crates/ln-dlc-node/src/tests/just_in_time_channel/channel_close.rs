@@ -7,7 +7,7 @@ use crate::tests::min_outbound_liquidity_channel_creator;
 use bitcoin::Amount;
 use std::time::Duration;
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 #[ignore]
 async fn ln_collab_close() {
     init_tracing();
@@ -48,7 +48,7 @@ async fn ln_collab_close() {
     .await
     .unwrap();
 
-    assert_eq!(payee.get_on_chain_balance().unwrap().confirmed, 0);
+    assert_eq!(payee.get_on_chain_balance().await.unwrap().confirmed, 0);
     assert_eq!(payee.get_ldk_balance().available, invoice_amount);
     assert_eq!(payee.get_ldk_balance().pending_close, 0);
 
@@ -74,7 +74,7 @@ async fn ln_collab_close() {
     // block
     tokio::time::sleep(Duration::from_secs(5)).await;
 
-    assert_eq!(payee.get_on_chain_balance().unwrap().confirmed, 0);
+    assert_eq!(payee.get_on_chain_balance().await.unwrap().confirmed, 0);
 
     // Mine one block to confirm the close transaction
     bitcoind::mine(1).await.unwrap();
@@ -87,12 +87,12 @@ async fn ln_collab_close() {
     assert_eq!(ln_balance.pending_close, 0);
 
     assert_eq!(
-        payee.get_on_chain_balance().unwrap().confirmed,
+        payee.get_on_chain_balance().await.unwrap().confirmed,
         invoice_amount
     );
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 #[ignore]
 async fn ln_force_close() {
     init_tracing();
@@ -133,7 +133,7 @@ async fn ln_force_close() {
     .await
     .unwrap();
 
-    assert_eq!(payee.get_on_chain_balance().unwrap().confirmed, 0);
+    assert_eq!(payee.get_on_chain_balance().await.unwrap().confirmed, 0);
     assert_eq!(payee.get_ldk_balance().available, invoice_amount);
     assert_eq!(payee.get_ldk_balance().pending_close, 0);
 
@@ -152,7 +152,7 @@ async fn ln_force_close() {
 
     payee.wallet().sync().await.unwrap();
 
-    assert_eq!(payee.get_on_chain_balance().unwrap().confirmed, 0);
+    assert_eq!(payee.get_on_chain_balance().await.unwrap().confirmed, 0);
     assert_eq!(payee.get_ldk_balance().available, 0);
     assert_eq!(payee.get_ldk_balance().pending_close, invoice_amount);
 

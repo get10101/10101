@@ -5,7 +5,6 @@ use crate::node::PaymentPersister;
 use crate::PaymentFlow;
 use anyhow::Context;
 use anyhow::Result;
-use bdk::sled;
 use bitcoin::secp256k1::SecretKey;
 use bitcoin::Address;
 use lightning::ln::PaymentHash;
@@ -26,20 +25,21 @@ where
         self.wallet.get_seed_phrase()
     }
 
-    pub fn wallet(&self) -> Arc<ldk_node_wallet::Wallet<sled::Tree>> {
+    pub fn wallet(&self) -> Arc<ldk_node_wallet::Wallet> {
         self.wallet.inner()
     }
 
-    pub fn get_new_address(&self) -> Result<Address> {
-        let address = self.wallet.inner().get_new_address()?;
+    pub async fn get_new_address(&self) -> Result<Address> {
+        let address = self.wallet.inner().get_new_address().await?;
 
         Ok(address)
     }
 
-    pub fn get_on_chain_balance(&self) -> Result<bdk::Balance> {
+    pub async fn get_on_chain_balance(&self) -> Result<bdk::Balance> {
         self.wallet
             .inner()
             .get_balance()
+            .await
             .context("Failed to get on-chain balance")
     }
 

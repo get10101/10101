@@ -5,7 +5,7 @@ use crate::tests::dlc::create::create_dlc_channel;
 use crate::tests::dlc::create::DlcChannelCreated;
 use crate::tests::init_tracing;
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 #[ignore]
 async fn force_close_ln_dlc_channel() {
     init_tracing();
@@ -73,7 +73,7 @@ async fn force_close_ln_dlc_channel() {
     coordinator.wallet().sync().await.unwrap();
 
     let coordinator_on_chain_balance_after_force_close =
-        coordinator.get_on_chain_balance().unwrap().confirmed;
+        coordinator.get_on_chain_balance().await.unwrap().confirmed;
 
     // Given that we have dynamic transaction fees based on the state of the regtest mempool, it's
     // less error-prone to choose a conservative lower bound on the funds we expect the coordinator

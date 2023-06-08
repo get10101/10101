@@ -1,3 +1,4 @@
+use crate::bdk_actor::BdkActor;
 use crate::fee_rate_estimator::FeeRateEstimator;
 use crate::ldk_node_wallet;
 use crate::seed::Bip39Seed;
@@ -6,7 +7,6 @@ use anyhow::Result;
 use autometrics::autometrics;
 use bdk::blockchain::EsploraBlockchain;
 use bdk::esplora_client::TxStatus;
-use bdk::sled;
 use bdk::TransactionDetails;
 use bitcoin::secp256k1::All;
 use bitcoin::secp256k1::PublicKey;
@@ -35,7 +35,7 @@ use std::sync::Arc;
 /// This is a wrapper type introduced to be able to implement traits from `rust-dlc` on the
 /// `ldk_node::LightningWallet`.
 pub struct LnDlcWallet {
-    ln_wallet: Arc<ldk_node_wallet::Wallet<sled::Tree>>,
+    ln_wallet: Arc<ldk_node_wallet::Wallet>,
     storage: Arc<SledStorageProvider>,
     secp: Secp256k1<All>,
     seed: Bip39Seed,
@@ -46,9 +46,10 @@ impl LnDlcWallet {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         esplora_client: Arc<EsploraSyncClient<Arc<TracingLogger>>>,
-        on_chain_wallet: bdk::Wallet<bdk::sled::Tree>,
+        bdk_actor: xtra::Address<BdkActor>,
         fee_rate_estimator: Arc<FeeRateEstimator>,
         storage: Arc<SledStorageProvider>,
+        network: Network,
         seed: Bip39Seed,
         bdk_client_stop_gap: usize,
         bdk_client_concurrency: u8,
@@ -57,13 +58,11 @@ impl LnDlcWallet {
             EsploraBlockchain::from_client(esplora_client.client().clone(), bdk_client_stop_gap)
                 .with_concurrency(bdk_client_concurrency);
 
-        let network = on_chain_wallet.network();
-
         let wallet = Arc::new(ldk_node_wallet::Wallet::new(
             blockchain,
-            on_chain_wallet,
             esplora_client,
             fee_rate_estimator,
+            bdk_actor,
         ));
 
         Self {
@@ -80,7 +79,7 @@ impl LnDlcWallet {
     }
 
     // TODO: Better to keep this private and expose the necessary APIs instead.
-    pub(crate) fn inner(&self) -> Arc<ldk_node_wallet::Wallet<sled::Tree>> {
+    pub(crate) fn inner(&self) -> Arc<ldk_node_wallet::Wallet> {
         self.ln_wallet.clone()
     }
 
@@ -110,8 +109,8 @@ impl LnDlcWallet {
     }
 
     #[autometrics]
-    pub fn get_last_unused_address(&self) -> Result<Address> {
-        let address = self.inner().get_last_unused_address()?;
+    pub async fn get_last_unused_address(&self) -> Result<Address> {
+        let address = self.inner().get_last_unused_address().await?;
 
         Ok(address)
     }
@@ -236,10 +235,15 @@ impl Signer for LnDlcWallet {
 impl dlc_manager::Wallet for LnDlcWallet {
     #[autometrics]
     fn get_new_address(&self) -> Result<Address, Error> {
-        let address = self
-            .ln_wallet
-            .get_new_address()
-            .map_err(|e| Error::BlockchainError(e.to_string()))?;
+        let address = tokio::task::block_in_place(|| {
+            tokio::runtime::Handle::current().block_on(async {
+                self.ln_wallet
+                    .get_last_unused_address()
+                    .await
+                    .expect("Failed to retrieve new address from wallet.")
+            })
+        });
+
         Ok(address)
     }
 

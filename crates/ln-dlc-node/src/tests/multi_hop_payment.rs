@@ -3,7 +3,7 @@ use crate::tests::init_tracing;
 use crate::tests::min_outbound_liquidity_channel_creator;
 use bitcoin::Amount;
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 #[ignore]
 async fn multi_hop_payment() {
     init_tracing();

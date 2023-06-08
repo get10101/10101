@@ -107,7 +107,7 @@ impl Node<PaymentMap> {
         let starting_balance = self.get_confirmed_balance().await?;
         let expected_balance = starting_balance + amount.to_sat();
 
-        let address = self.wallet.get_last_unused_address()?;
+        let address = self.wallet.get_last_unused_address().await?;
 
         fund_and_mine(address, amount).await?;
 
@@ -127,7 +127,7 @@ impl Node<PaymentMap> {
     }
 
     async fn get_confirmed_balance(&self) -> Result<u64> {
-        let balance = self.wallet.inner().get_balance()?;
+        let balance = self.wallet.inner().get_balance().await?;
 
         Ok(balance.confirmed)
     }

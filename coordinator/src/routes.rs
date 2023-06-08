@@ -182,7 +182,7 @@ pub async fn get_new_address(
     State(app_state): State<Arc<AppState>>,
 ) -> Result<Json<String>, AppError> {
     let address =
-        app_state.node.inner.get_new_address().map_err(|e| {
+        app_state.node.inner.get_new_address().await.map_err(|e| {
             AppError::InternalServerError(format!("Failed to get new address: {e:#}"))
         })?;
     Ok(Json(address.to_string()))
@@ -359,7 +359,8 @@ async fn update_settings(
         .node
         .inner
         .update_settings(updated_settings.ln_dlc)
-        .await;
+        .await
+        .map_err(|e| AppError::InternalServerError(format!("Could not write settings: {e:#}")))?;
 
     Ok(())
 }

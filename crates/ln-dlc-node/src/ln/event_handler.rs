@@ -396,7 +396,7 @@ where
                     })
                     .collect::<Vec<_>>();
 
-                let destination_script = self.wallet.inner().get_last_unused_address()?;
+                let destination_script = self.wallet.inner().get_last_unused_address().await?;
                 let tx_feerate = self
                     .fee_rate_estimator
                     .get_est_sat_per_1000_weight(ConfirmationTarget::Normal);

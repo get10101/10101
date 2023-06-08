@@ -24,6 +24,7 @@ use std::sync::Arc;
 use std::sync::Mutex;
 use time::OffsetDateTime;
 
+mod bdk_actor;
 mod disk;
 mod dlc_custom_signer;
 mod fee_rate_estimator;

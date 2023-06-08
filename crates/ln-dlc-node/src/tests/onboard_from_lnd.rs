@@ -5,7 +5,7 @@ use crate::tests::log_channel_id;
 use bitcoin::Amount;
 use std::time::Duration;
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 #[ignore]
 async fn onboard_from_lnd() {
     init_tracing();

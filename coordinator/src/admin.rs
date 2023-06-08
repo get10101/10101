@@ -31,20 +31,21 @@ pub struct Balance {
 
 #[autometrics]
 pub async fn get_balance(State(state): State<Arc<AppState>>) -> Result<Json<Balance>, AppError> {
-    spawn_blocking(move || {
-        let offchain = state.node.inner.get_ldk_balance();
-        let onchain =
-            state.node.inner.get_on_chain_balance().map_err(|e| {
-                AppError::InternalServerError(format!("Failed to get balance: {e:#}"))
-            })?;
+    let onchain = state
+        .node
+        .inner
+        .get_on_chain_balance()
+        .await
+        .map_err(|e| AppError::InternalServerError(format!("Failed to get balance: {e:#}")))?;
 
-        Ok(Json(Balance {
-            offchain: offchain.available,
-            onchain: onchain.confirmed,
-        }))
-    })
-    .await
-    .map_err(|e| AppError::InternalServerError(format!("Failed to get balance: {e:#}")))?
+    let offchain = spawn_blocking(move || state.node.inner.get_ldk_balance())
+        .await
+        .map_err(|e| AppError::InternalServerError(format!("Failed to get balance: {e:#}")))?;
+
+    Ok(Json(Balance {
+        offchain: offchain.available,
+        onchain: onchain.confirmed,
+    }))
 }
 
 #[autometrics]

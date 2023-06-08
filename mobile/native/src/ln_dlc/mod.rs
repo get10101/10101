@@ -23,7 +23,6 @@ use coordinator_commons::TradeParams;
 use itertools::chain;
 use itertools::Itertools;
 use lightning_invoice::Invoice;
-use ln_dlc_node::node::LnDlcNodeSettings;
 use ln_dlc_node::node::NodeInfo;
 use ln_dlc_node::seed::Bip39Seed;
 use orderbook_commons::FakeScidResponse;
@@ -68,11 +67,6 @@ pub fn get_node_key() -> SecretKey {
 
 pub fn get_node_info() -> NodeInfo {
     NODE.get().inner.info
-}
-
-pub async fn update_node_settings(settings: LnDlcNodeSettings) {
-    let node = NODE.get();
-    node.inner.update_settings(settings).await;
 }
 
 // TODO: should we also wrap the oracle as `NodeInfo`. It would fit the required attributes pubkey
@@ -199,6 +193,7 @@ pub fn run(data_dir: String, seed_dir: String, runtime: &Runtime) -> Result<()> 
 async fn keep_wallet_balance_and_history_up_to_date(node: &Node) -> Result<()> {
     let wallet_balances = node
         .get_wallet_balances()
+        .await
         .context("Failed to get wallet balances")?;
 
     let WalletHistories {
@@ -355,8 +350,8 @@ async fn keep_wallet_balance_and_history_up_to_date(node: &Node) -> Result<()> {
     Ok(())
 }
 
-pub fn get_new_address() -> Result<String> {
-    let address = NODE.get().inner.get_new_address()?;
+pub async fn get_new_address() -> Result<String> {
+    let address = NODE.get().inner.get_new_address().await?;
     Ok(address.to_string())
 }
 

@@ -5,7 +5,7 @@ use crate::tests::just_in_time_channel::create::send_interceptable_payment;
 use crate::tests::min_outbound_liquidity_channel_creator;
 use bitcoin::Amount;
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 #[ignore]
 async fn just_in_time_channel_with_multiple_payments() {
     init_tracing();

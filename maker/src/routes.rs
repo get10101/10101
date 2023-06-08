@@ -65,15 +65,16 @@ pub struct Invoice {
 }
 
 pub async fn index(State(app_state): State<Arc<AppState>>) -> Result<Json<Index>, AppError> {
-    let address = app_state
-        .node
-        .get_new_address()
-        .map_err(|e| AppError::InternalServerError(format!("Failed to get new address: {e:#}")))?;
+    let address =
+        app_state.node.get_new_address().await.map_err(|e| {
+            AppError::InternalServerError(format!("Failed to get new address: {e:#}"))
+        })?;
 
     let offchain = app_state.node.get_ldk_balance();
     let onchain = app_state
         .node
         .get_on_chain_balance()
+        .await
         .map_err(|e| AppError::InternalServerError(format!("Failed to get balance: {e:#}")))?;
 
     let amount = 2000;
@@ -98,10 +99,10 @@ pub async fn index(State(app_state): State<Arc<AppState>>) -> Result<Json<Index>
 pub async fn get_new_address(
     State(app_state): State<Arc<AppState>>,
 ) -> Result<Json<String>, AppError> {
-    let address = app_state
-        .node
-        .get_new_address()
-        .map_err(|e| AppError::InternalServerError(format!("Failed to get new address: {e:#}")))?;
+    let address =
+        app_state.node.get_new_address().await.map_err(|e| {
+            AppError::InternalServerError(format!("Failed to get new address: {e:#}"))
+        })?;
     Ok(Json(address.to_string()))
 }
 
@@ -116,6 +117,7 @@ pub async fn get_balance(State(state): State<Arc<AppState>>) -> Result<Json<Bala
     let onchain = state
         .node
         .get_on_chain_balance()
+        .await
         .map_err(|e| AppError::InternalServerError(format!("Failed to get balance: {e:#}")))?;
     Ok(Json(Balance {
         offchain: offchain.available,

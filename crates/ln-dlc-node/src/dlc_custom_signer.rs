@@ -288,18 +288,28 @@ impl SignerProvider for CustomKeysManager {
     type Signer = CustomSigner;
 
     fn get_destination_script(&self) -> Script {
-        let address = self
-            .wallet
-            .get_last_unused_address()
-            .expect("Failed to retrieve new address from wallet.");
+        let address = tokio::task::block_in_place(|| {
+            tokio::runtime::Handle::current().block_on(async {
+                self.wallet
+                    .get_last_unused_address()
+                    .await
+                    .expect("Failed to retrieve address from wallet.")
+            })
+        });
+
         address.script_pubkey()
     }
 
     fn get_shutdown_scriptpubkey(&self) -> ShutdownScript {
-        let address = self
-            .wallet
-            .get_last_unused_address()
-            .expect("Failed to retrieve new address from wallet.");
+        let address = tokio::task::block_in_place(|| {
+            tokio::runtime::Handle::current().block_on(async {
+                self.wallet
+                    .get_last_unused_address()
+                    .await
+                    .expect("Failed to retrieve address from wallet.")
+            })
+        });
+
         match address.payload {
             bitcoin::util::address::Payload::WitnessProgram { version, program } => {
                 ShutdownScript::new_witness_program(version, &program)
