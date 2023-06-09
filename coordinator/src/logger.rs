@@ -25,8 +25,9 @@ pub fn init_tracing(level: LevelFilter, json_format: bool, tokio_console: bool) 
         .add_directive("rustls=warn".parse()?)
         .add_directive("sled=warn".parse()?)
         .add_directive("bdk=warn".parse()?) // bdk is quite spamy on debug
-        .add_directive("lightning::ln::peer_handler=debug".parse()?)
-        .add_directive("lightning::chain=info".parse()?)
+        .add_directive("lightning=trace".parse()?)
+        .add_directive("lightning::ln::peer_handler=trace".parse()?)
+        .add_directive("lightning::chain=trace".parse()?)
         .add_directive("ureq=info".parse()?);
 
     let mut filter = if tokio_console {
