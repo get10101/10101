@@ -632,22 +632,18 @@ where
         };
 
         // Create a background task which checks for deadlocks
-        tokio::spawn(async move {
-            loop {
-                let deadlocks = spawn_blocking(parking_lot::deadlock::check_deadlock)
-                    .await
-                    .expect("task to complete");
+        std::thread::spawn(move || loop {
+            let deadlocks = parking_lot::deadlock::check_deadlock();
 
-                for (i, threads) in deadlocks.iter().enumerate() {
-                    tracing::error!(%i, "Deadlock detected");
-                    for t in threads {
-                        tracing::error!(thread_id = %t.thread_id());
-                        tracing::error!("{:#?}", t.backtrace());
-                    }
+            for (i, threads) in deadlocks.iter().enumerate() {
+                tracing::error!(%i, "Deadlock detected");
+                for t in threads {
+                    tracing::error!(thread_id = %t.thread_id());
+                    tracing::error!("{:#?}", t.backtrace());
                 }
-
-                tokio::time::sleep(Duration::from_secs(10)).await;
             }
+
+            std::thread::sleep(Duration::from_secs(10));
         });
 
         tracing::info!("Lightning node started with node ID {}", node_info);
