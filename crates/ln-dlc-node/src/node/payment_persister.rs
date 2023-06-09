@@ -59,7 +59,7 @@ impl PaymentPersister for PaymentMap {
     ) -> Result<()> {
         let mut payments = self.lock();
         match payments.get_mut(payment_hash) {
-            Some(mut payment) => {
+            Some(payment) => {
                 payment.status = htlc_status;
 
                 if let amt_msat @ MillisatAmount(Some(_)) = amt_msat {
