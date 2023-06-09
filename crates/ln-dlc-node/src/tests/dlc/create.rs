@@ -73,7 +73,7 @@ pub async fn create_dlc_channel(
     app.propose_dlc_channel(channel_details.clone(), contract_input)
         .await?;
 
-    // Processs the app's offer to close the channel
+    // Process the app's offer to open the channel
     tokio::time::sleep(Duration::from_secs(2)).await;
     coordinator.process_incoming_messages()?;
 

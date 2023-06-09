@@ -45,6 +45,9 @@ mod multi_hop_payment;
 mod onboard_from_lnd;
 mod single_hop_payment;
 
+#[cfg(feature = "load_tests")]
+mod load;
+
 const ESPLORA_ORIGIN: &str = "http://localhost:3000";
 const FAUCET_ORIGIN: &str = "http://localhost:8080";
 
@@ -63,14 +66,14 @@ fn init_tracing() {
 
 impl Node<PaymentMap> {
     fn start_test_app(name: &str) -> Result<Self> {
-        Self::start_test(name, app_config())
+        Self::start_test(name, app_config(), ESPLORA_ORIGIN.to_string())
     }
 
     fn start_test_coordinator(name: &str) -> Result<Self> {
-        Self::start_test(name, coordinator_config())
+        Self::start_test(name, coordinator_config(), ESPLORA_ORIGIN.to_string())
     }
 
-    fn start_test(name: &str, user_config: UserConfig) -> Result<Self> {
+    fn start_test(name: &str, user_config: UserConfig, esplora_origin: String) -> Result<Self> {
         let data_dir = random_tmp_dir().join(name);
 
         let seed = Bip39Seed::new().expect("A valid bip39 seed");
@@ -91,7 +94,7 @@ impl Node<PaymentMap> {
             address,
             address,
             vec![util::build_net_address(address.ip(), address.port())],
-            ESPLORA_ORIGIN.to_string(),
+            esplora_origin,
             seed,
             ephemeral_randomness,
             user_config,

@@ -1,4 +1,3 @@
-extern crate ln_dlc_node;
 use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
