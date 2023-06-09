@@ -4,8 +4,6 @@
 rustflags = [
   "--cfg",
   "tokio_unstable",
-  "--cfg",
-  "backtrace",
   "-Wclippy::disallowed_methods",
   "-Wclippy::dbg_macro",
   "-Wclippy::print_stderr",
@@ -19,8 +17,6 @@ rustflags = [
 rustflags = [
   "--cfg",
   "tokio_unstable",
-  "--cfg",
-  "backtrace",
   "-Wclippy::disallowed_methods",
   "-Wclippy::dbg_macro",
   "-Wclippy::print_stderr",
