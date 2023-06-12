@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.19] - 2023-06-12
+
 - Fixed a deadlock bug, resulting in the coordinator getting stuck
 - Upgrade our fork to rust-lightning 114
 - Added force closing a dlc channel feature
@@ -31,7 +33,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Self-Custodial CFD Trading based on DLC and lightning
 
-[Unreleased]: https://github.com/get10101/10101/compare/1.0.18...HEAD
+[Unreleased]: https://github.com/get10101/10101/compare/1.0.19...HEAD
+[1.0.19]: https://github.com/get10101/10101/compare/1.0.18...1.0.19
 [1.0.18]: https://github.com/get10101/10101/compare/1.0.17...1.0.18
 [1.0.17]: https://github.com/get10101/10101/compare/1.0.16...1.0.17
 [1.0.16]: https://github.com/get10101/10101/compare/1.0.15...1.0.16
