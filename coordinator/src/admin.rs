@@ -129,31 +129,23 @@ pub async fn send_payment(
 #[instrument(skip_all, err(Debug))]
 #[autometrics]
 pub async fn close_channel(
-    Path(channel_id): Path<String>,
+    Path(channel_id_string): Path<String>,
     Query(params): Query<CloseChanelParams>,
     State(state): State<Arc<AppState>>,
 ) -> Result<(), AppError> {
-    let byte_array =
-        hex::decode(channel_id.clone()).map_err(|err| AppError::BadRequest(err.to_string()))?;
+    let channel_id = hex::decode(channel_id_string.clone())
+        .map_err(|err| AppError::BadRequest(err.to_string()))?;
 
-    if byte_array.len() > 32 {
-        return Err(AppError::BadRequest(
-            "Provided channel id was invalid".to_string(),
-        ));
-    }
-    // Create a fixed-length byte array of size 8
-    let mut fixed_length_array = [0u8; 32];
+    let channel_id: [u8; 32] = channel_id
+        .try_into()
+        .map_err(|_| AppError::BadRequest("Provided channel ID was invalid".to_string()))?;
 
-    // Copy the decoded bytes to the fixed-length array
-    let length = std::cmp::min(byte_array.len(), fixed_length_array.len());
-    fixed_length_array[..length].copy_from_slice(&byte_array[..length]);
-
-    tracing::info!(%channel_id, "Attempting to close channel");
+    tracing::info!(channel_id = %channel_id_string, "Attempting to close channel");
 
     state
         .node
         .inner
-        .close_channel(fixed_length_array, params.force.unwrap_or_default())
+        .close_channel(channel_id, params.force.unwrap_or_default())
         .map_err(|e| AppError::InternalServerError(format!("{e:#}")))?;
 
     Ok(())
