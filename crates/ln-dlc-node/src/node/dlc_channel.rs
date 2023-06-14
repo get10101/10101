@@ -1,7 +1,10 @@
+use crate::node::DlcManager;
 use crate::node::Node;
-use crate::node::SubChannelManager;
+use crate::DlcMessageHandler;
+use crate::SubChannelManager;
 use anyhow::anyhow;
 use anyhow::bail;
+use anyhow::Context;
 use anyhow::Result;
 use autometrics::autometrics;
 use bitcoin::secp256k1::PublicKey;
@@ -10,13 +13,13 @@ use dlc_manager::subchannel::SubChannel;
 use dlc_manager::subchannel::SubChannelState;
 use dlc_manager::Oracle;
 use dlc_manager::Storage;
-use dlc_messages::message_handler::MessageHandler as DlcMessageHandler;
 use dlc_messages::ChannelMessage;
 use dlc_messages::Message;
 use dlc_messages::OnChainMessage;
 use dlc_messages::SubChannelMessage;
 use lightning::ln::channelmanager::ChannelDetails;
 use std::sync::Arc;
+use tokio::task::spawn_blocking;
 
 impl<P> Node<P>
 where
@@ -28,7 +31,7 @@ where
         channel_details: ChannelDetails,
         contract_input: ContractInput,
     ) -> Result<()> {
-        tokio::task::spawn_blocking({
+        spawn_blocking({
             let oracle = self.oracle.clone();
             let sub_channel_manager = self.sub_channel_manager.clone();
             let event_id = contract_input.contract_infos[0].oracles.event_id.clone();
@@ -84,7 +87,7 @@ where
             "Settling DLC channel collaboratively"
         );
 
-        tokio::task::spawn_blocking({
+        spawn_blocking({
             let sub_channel_manager = self.sub_channel_manager.clone();
             let dlc_message_handler = self.dlc_message_handler.clone();
             move || {
@@ -257,13 +260,18 @@ where
     }
 }
 
+pub(crate) async fn dlc_manager_periodic_check(dlc_manager: Arc<DlcManager>) -> Result<()> {
+    spawn_blocking(move || dlc_manager.periodic_check())
+        .await?
+        .context("DLC manager periodic check failed")
+}
+
 #[autometrics]
-pub(crate) async fn process_pending_dlc_actions(
+pub(crate) async fn sub_channel_manager_periodic_check(
     sub_channel_manager: Arc<SubChannelManager>,
     dlc_message_handler: &DlcMessageHandler,
 ) -> Result<()> {
-    let messages =
-        tokio::task::spawn_blocking(move || sub_channel_manager.process_actions()).await?;
+    let messages = spawn_blocking(move || sub_channel_manager.periodic_check()).await?;
 
     for (msg, node_id) in messages {
         let msg = Message::SubChannel(msg);

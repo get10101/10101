@@ -121,7 +121,7 @@ where
             );
 
             self.sub_channel_manager
-                .initiate_force_close_sub_channel(&channel_id)
+                .force_close_sub_channel(&channel_id)
                 .map_err(|e| anyhow!("Failed to initiate force-close: {e:#}"))?;
         } else {
             tracing::info!(channel_id = %hex::encode(channel_id), %peer, "Force-closing LN channel");
@@ -130,24 +130,6 @@ where
                 .force_close_broadcasting_latest_txn(&channel_id, &peer)
                 .map_err(|e| anyhow!("Could not force-close channel {channel_id_str}: {e:?}"))?;
         };
-
-        Ok(())
-    }
-
-    #[autometrics]
-    pub fn finalize_force_close_ln_dlc_channel(&self, channel_id: [u8; 32]) -> Result<()> {
-        let channel_id_str = hex::encode(channel_id);
-
-        tracing::info!(
-            channel_id = %channel_id_str,
-            "Finalizing force-closure of LN-DLC channel"
-        );
-
-        self.sub_channel_manager
-            .finalize_force_close_sub_channels(&channel_id)
-            .map_err(|e| {
-                anyhow!("Failed to finalize force-close of channel {channel_id_str}: {e:#}")
-            })?;
 
         Ok(())
     }

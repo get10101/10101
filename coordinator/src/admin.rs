@@ -8,7 +8,6 @@ use axum::extract::State;
 use axum::Json;
 use bdk::TransactionDetails;
 use bitcoin::secp256k1::PublicKey;
-use dlc_manager::Storage;
 use lightning_invoice::Invoice;
 use ln_dlc_node::node::NodeInfo;
 use ln_dlc_node::ChannelDetails;
@@ -156,76 +155,6 @@ pub async fn close_channel(
         .inner
         .close_channel(fixed_length_array, params.force.unwrap_or_default())
         .map_err(|e| AppError::InternalServerError(format!("{e:#}")))?;
-
-    Ok(())
-}
-
-#[instrument(skip_all, err(Debug))]
-#[autometrics]
-pub async fn finalize_force_close_ln_dlc_channel(
-    Path(channel_id): Path<String>,
-    State(state): State<Arc<AppState>>,
-) -> Result<(), AppError> {
-    let byte_array =
-        hex::decode(channel_id.clone()).map_err(|err| AppError::BadRequest(err.to_string()))?;
-
-    if byte_array.len() > 32 {
-        return Err(AppError::BadRequest(
-            "Provided channel id was invalid".to_string(),
-        ));
-    }
-    // Create a fixed-length byte array of size 8
-    let mut fixed_length_array = [0u8; 32];
-
-    // Copy the decoded bytes to the fixed-length array
-    let length = std::cmp::min(byte_array.len(), fixed_length_array.len());
-    fixed_length_array[..length].copy_from_slice(&byte_array[..length]);
-
-    tracing::info!(%channel_id, "Attempting to finalize channel force-close");
-
-    state
-        .node
-        .inner
-        .finalize_force_close_ln_dlc_channel(fixed_length_array)
-        .map_err(|e| AppError::InternalServerError(format!("{e:#}")))?;
-
-    Ok(())
-}
-
-#[autometrics]
-pub async fn delete_subchannel(
-    Path(channel_id): Path<String>,
-    State(state): State<Arc<AppState>>,
-) -> Result<(), AppError> {
-    let byte_array =
-        hex::decode(channel_id.clone()).map_err(|err| AppError::BadRequest(err.to_string()))?;
-
-    if byte_array.len() > 32 {
-        return Err(AppError::BadRequest(
-            "Provided channel id was invalid".to_string(),
-        ));
-    }
-    // Create a fixed-length byte array of size 8
-    let mut fixed_length_array = [0u8; 32];
-
-    // Copy the decoded bytes to the fixed-length array
-    let length = std::cmp::min(byte_array.len(), fixed_length_array.len());
-    fixed_length_array[..length].copy_from_slice(&byte_array[..length]);
-
-    tracing::debug!(%channel_id, "Attempting to delete DLC channel");
-
-    state
-        .node
-        .inner
-        .sub_channel_manager
-        .get_dlc_manager()
-        .get_store()
-        .delete_subchannel(&fixed_length_array)
-        .map_err(|error| {
-            AppError::InternalServerError(format!("Unable to delete channel: {error:#}"))
-        })?;
-
-    tracing::info!(%channel_id, "Deleted DLC channel");
 
     Ok(())
 }
