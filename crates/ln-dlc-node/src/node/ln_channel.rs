@@ -90,7 +90,7 @@ where
 
         self.is_safe_to_close_ln_channel_collaboratively(&channel_id)
             .with_context(|| {
-                format!("Could not collaboratively close LN channel {channel_id_str}")
+                format!("Could not collaboratively close LN channel {channel_id_str}: must close DLC channel first")
             })?;
 
         self.channel_manager
