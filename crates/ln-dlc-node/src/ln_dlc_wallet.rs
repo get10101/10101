@@ -95,17 +95,17 @@ impl LnDlcWallet {
         }
     }
 
-    pub(crate) fn get_seed_phrase(&self) -> Vec<String> {
+    pub fn get_seed_phrase(&self) -> Vec<String> {
         self.seed.get_seed_phrase()
     }
 
     // TODO: Better to keep this private and expose the necessary APIs instead.
-    pub(crate) fn inner(&self) -> Arc<ldk_node_wallet::Wallet<sled::Tree>> {
+    pub fn inner(&self) -> Arc<ldk_node_wallet::Wallet<sled::Tree>> {
         self.ln_wallet.clone()
     }
 
     #[autometrics]
-    pub(crate) fn tip(&self) -> Result<(u32, BlockHash)> {
+    pub fn tip(&self) -> Result<(u32, BlockHash)> {
         let (height, header) = self.ln_wallet.tip()?;
         Ok((height, header))
     }
@@ -116,7 +116,7 @@ impl LnDlcWallet {
     /// This list won't be up-to-date unless the wallet has previously been synchronised with the
     /// blockchain.
     #[autometrics]
-    pub(crate) async fn on_chain_transactions(&self) -> Result<Vec<TransactionDetails>> {
+    pub async fn on_chain_transactions(&self) -> Result<Vec<TransactionDetails>> {
         let mut txs = self.ln_wallet.on_chain_transaction_list().await?;
 
         txs.sort_by(|a, b| {
