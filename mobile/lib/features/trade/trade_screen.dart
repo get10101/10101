@@ -311,14 +311,17 @@ class TradeScreen extends StatelessWidget {
                   : "Your Position will be shown automatically in the Positions tab once your ${submitOrderChangeNotifier.pendingOrderValues?.direction.name} order has been filled.",
               style: DefaultTextStyle.of(context).style.apply(fontSizeFactor: 1.0)),
         ),
-        Padding(
-          padding: const EdgeInsets.only(top: 20, left: 10, right: 10, bottom: 5),
-          child: ElevatedButton(
-              onPressed: () async {
-                await shareText(pendingOrder.positionAction);
-              },
-              child: const Text("Share on Twitter")),
-        ),
+
+        // FIXME: temporarily removing the share on twitter button, as it would encourage the user to close the app while the order is executed. That could will most likely result in
+        // a broken DLC / app state. A proper fix should be implemented with https://github.com/get10101/10101/issues/714
+        // Padding(
+        //   padding: const EdgeInsets.only(top: 20, left: 10, right: 10, bottom: 5),
+        //   child: ElevatedButton(
+        //       onPressed: () async {
+        //         await shareText(pendingOrder.positionAction);
+        //       },
+        //       child: const Text("Share on Twitter")),
+        // ),
       ],
     );
     return body;
