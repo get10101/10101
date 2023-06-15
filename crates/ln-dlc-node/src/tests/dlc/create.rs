@@ -2,12 +2,11 @@ use crate::node::Node;
 use crate::node::PaymentMap;
 use crate::tests::dummy_contract_input;
 use crate::tests::init_tracing;
-use crate::tests::wait_until;
+use crate::tests::wait_until_dlc_channel_state;
+use crate::tests::SubChannelStateName;
 use anyhow::Context;
 use anyhow::Result;
 use bitcoin::Amount;
-use dlc_manager::subchannel::SubChannelState;
-use dlc_manager::Storage;
 use lightning::ln::channelmanager::ChannelDetails;
 use std::time::Duration;
 
@@ -73,62 +72,49 @@ pub async fn create_dlc_channel(
     app.propose_dlc_channel(channel_details.clone(), contract_input)
         .await?;
 
-    // Process the app's offer to open the channel
-    tokio::time::sleep(Duration::from_secs(2)).await;
-    coordinator.process_incoming_messages()?;
-
-    let sub_channel = wait_until(Duration::from_secs(30), || async {
-        let sub_channels = coordinator
-            .dlc_manager
-            .get_store()
-            .get_offered_sub_channels()?;
-
-        let sub_channel = sub_channels
-            .iter()
-            .find(|sub_channel| sub_channel.counter_party == app.info.pubkey);
-
-        Ok(sub_channel.cloned())
-    })
-    .await?;
+    // Process the app's `Offer`
+    let sub_channel = wait_until_dlc_channel_state(
+        Duration::from_secs(30),
+        &coordinator,
+        app.info.pubkey,
+        SubChannelStateName::Offered,
+    )
+    .await
+    .unwrap();
 
     coordinator.accept_dlc_channel_offer(&sub_channel.channel_id)?;
 
-    // Process the coordinator's accept message _and_ send the confirm message
-    tokio::time::sleep(Duration::from_secs(2)).await;
-    app.process_incoming_messages()?;
-
-    // Process the confirm message _and_ send the finalize message
-    tokio::time::sleep(Duration::from_secs(2)).await;
-    coordinator.process_incoming_messages()?;
-
-    // Process the finalize message
-    tokio::time::sleep(Duration::from_secs(2)).await;
-    app.process_incoming_messages()?;
+    // Process the coordinator's `Accept` and send `Confirm`
+    wait_until_dlc_channel_state(
+        Duration::from_secs(30),
+        &app,
+        coordinator.info.pubkey,
+        SubChannelStateName::Confirmed,
+    )
+    .await
+    .unwrap();
 
     // Assert
 
-    let sub_channel_coordinator = coordinator
-        .dlc_manager
-        .get_store()
-        .get_sub_channels()?
-        .into_iter()
-        .find(|sc| sc.channel_id == sub_channel.channel_id)
-        .context("No DLC channel for coordinator")?;
+    // Process the app's `Confirm` and send `Finalize`
+    wait_until_dlc_channel_state(
+        Duration::from_secs(30),
+        &coordinator,
+        app.info.pubkey,
+        SubChannelStateName::Signed,
+    )
+    .await
+    .unwrap();
 
-    assert!(matches!(
-        sub_channel_coordinator.state,
-        SubChannelState::Signed(_)
-    ));
-
-    let sub_channel_app = app
-        .dlc_manager
-        .get_store()
-        .get_sub_channels()?
-        .into_iter()
-        .find(|sc| sc.channel_id == sub_channel.channel_id)
-        .context("No DLC channel for app")?;
-
-    assert!(matches!(sub_channel_app.state, SubChannelState::Signed(_)));
+    // Process the coordinator's `Finalize`
+    wait_until_dlc_channel_state(
+        Duration::from_secs(30),
+        &app,
+        coordinator.info.pubkey,
+        SubChannelStateName::Signed,
+    )
+    .await
+    .unwrap();
 
     Ok(DlcChannelCreated {
         coordinator,

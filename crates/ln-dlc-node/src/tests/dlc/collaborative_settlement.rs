@@ -4,11 +4,10 @@ use crate::tests::dlc::create::create_dlc_channel;
 use crate::tests::dlc::create::DlcChannelCreated;
 use crate::tests::dummy_contract_input;
 use crate::tests::init_tracing;
-use crate::tests::wait_until;
+use crate::tests::wait_until_dlc_channel_state;
+use crate::tests::SubChannelStateName;
 use anyhow::Context;
 use anyhow::Result;
-use dlc_manager::subchannel::SubChannelState;
-use dlc_manager::Storage;
 use std::time::Duration;
 
 #[tokio::test]
@@ -55,67 +54,48 @@ async fn dlc_collaborative_settlement(
     )
     .await?;
 
-    // Processs the app's offer to close the channel
-    tokio::time::sleep(Duration::from_secs(2)).await;
-    coordinator.process_incoming_messages()?;
-
-    let sub_channel = wait_until(Duration::from_secs(30), || async {
-        let sub_channels = coordinator.dlc_manager.get_store().get_sub_channels()?;
-
-        let sub_channel = sub_channels.iter().find(|sub_channel| {
-            sub_channel.counter_party == app.info.pubkey
-                && matches!(&sub_channel.state, SubChannelState::CloseOffered(_))
-        });
-
-        Ok(sub_channel.cloned())
-    })
+    // Process the app's `CloseOffer`
+    let sub_channel = wait_until_dlc_channel_state(
+        Duration::from_secs(30),
+        &coordinator,
+        app.info.pubkey,
+        SubChannelStateName::CloseOffered,
+    )
     .await?;
 
     coordinator.accept_dlc_channel_collaborative_settlement(&sub_channel.channel_id)?;
 
-    // Process the coordinator's accept message _and_ send the confirm
-    // message
-    tokio::time::sleep(Duration::from_secs(2)).await;
-    app.process_incoming_messages()?;
-
-    // Process the confirm message
-    tokio::time::sleep(Duration::from_secs(2)).await;
-    coordinator.process_incoming_messages()?;
-
-    // Process the close-finalize message
-    tokio::time::sleep(Duration::from_secs(2)).await;
-    app.process_incoming_messages()?;
+    // Process the coordinator's `CloseAccept` and send `CloseConfirm`
+    wait_until_dlc_channel_state(
+        Duration::from_secs(30),
+        &app,
+        coordinator.info.pubkey,
+        SubChannelStateName::CloseConfirmed,
+    )
+    .await?;
 
     // Assert
 
-    let sub_channel_coordinator = coordinator
-        .dlc_manager
-        .get_store()
-        .get_sub_channels()?
-        .into_iter()
-        .find(|sc| sc.channel_id == sub_channel.channel_id)
-        .context("No DLC channel for coordinator")?;
+    // Process the app's `CloseConfirm` and send `CloseFinalize`
+    wait_until_dlc_channel_state(
+        Duration::from_secs(30),
+        &coordinator,
+        app.info.pubkey,
+        SubChannelStateName::OffChainClosed,
+    )
+    .await?;
 
-    assert!(matches!(
-        sub_channel_coordinator.state,
-        SubChannelState::OffChainClosed
-    ));
-
-    let sub_channel_app = app
-        .dlc_manager
-        .get_store()
-        .get_sub_channels()?
-        .into_iter()
-        .find(|sc| sc.channel_id == sub_channel.channel_id)
-        .context("No DLC channel for app")?;
+    // Process the coordinator's `CloseFinalize`
+    wait_until_dlc_channel_state(
+        Duration::from_secs(30),
+        &app,
+        coordinator.info.pubkey,
+        SubChannelStateName::OffChainClosed,
+    )
+    .await?;
 
     let app_balance_after = app.get_ldk_balance().available;
     let coordinator_balance_after = coordinator.get_ldk_balance().available;
-
-    assert!(matches!(
-        sub_channel_app.state,
-        SubChannelState::OffChainClosed
-    ));
 
     assert_eq!(
         app_balance_channel_creation + coordinator_loss_amount,
@@ -166,22 +146,13 @@ async fn open_dlc_channel_after_closing_dlc_channel() {
         .await
         .unwrap();
 
-    // Processs the app's offer to close the channel
-    tokio::time::sleep(Duration::from_secs(2)).await;
-    coordinator.process_incoming_messages().unwrap();
-
-    let sub_channel = wait_until(Duration::from_secs(30), || async {
-        let sub_channels = coordinator
-            .dlc_manager
-            .get_store()
-            .get_offered_sub_channels()?;
-
-        let sub_channel = sub_channels
-            .iter()
-            .find(|sub_channel| sub_channel.counter_party == app.info.pubkey);
-
-        Ok(sub_channel.cloned())
-    })
+    // Process the app's `Offer`
+    let sub_channel = wait_until_dlc_channel_state(
+        Duration::from_secs(30),
+        &coordinator,
+        app.info.pubkey,
+        SubChannelStateName::Offered,
+    )
     .await
     .unwrap();
 
@@ -189,41 +160,35 @@ async fn open_dlc_channel_after_closing_dlc_channel() {
         .accept_dlc_channel_offer(&sub_channel.channel_id)
         .unwrap();
 
-    // Process the coordinator's accept message _and_ send the confirm
-    // message
-    tokio::time::sleep(Duration::from_secs(2)).await;
-    app.process_incoming_messages().unwrap();
-
-    // Process the confirm message
-    tokio::time::sleep(Duration::from_secs(2)).await;
-    coordinator.process_incoming_messages().unwrap();
+    // Process the coordinator's `Accept` and send `Confirm`
+    wait_until_dlc_channel_state(
+        Duration::from_secs(30),
+        &app,
+        coordinator.info.pubkey,
+        SubChannelStateName::Confirmed,
+    )
+    .await
+    .unwrap();
 
     // Assert
 
-    let sub_channel_coordinator = coordinator
-        .dlc_manager
-        .get_store()
-        .get_sub_channels()
-        .unwrap()
-        .into_iter()
-        .find(|sc| sc.channel_id == sub_channel.channel_id)
-        .context("No DLC channel for coordinator")
-        .unwrap();
+    // Process the app's `Confirm` and send `Finalize`
+    wait_until_dlc_channel_state(
+        Duration::from_secs(30),
+        &coordinator,
+        app.info.pubkey,
+        SubChannelStateName::Signed,
+    )
+    .await
+    .unwrap();
 
-    assert!(matches!(
-        sub_channel_coordinator.state,
-        SubChannelState::Signed(_)
-    ));
-
-    let sub_channel_app = app
-        .dlc_manager
-        .get_store()
-        .get_sub_channels()
-        .unwrap()
-        .into_iter()
-        .find(|sc| sc.channel_id == sub_channel.channel_id)
-        .context("No DLC channel for app")
-        .unwrap();
-
-    assert!(matches!(sub_channel_app.state, SubChannelState::Signed(_)));
+    // Process the coordinator's `Finalize`
+    wait_until_dlc_channel_state(
+        Duration::from_secs(30),
+        &app,
+        coordinator.info.pubkey,
+        SubChannelStateName::Signed,
+    )
+    .await
+    .unwrap();
 }

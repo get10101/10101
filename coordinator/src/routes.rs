@@ -1,7 +1,5 @@
 use crate::admin::close_channel;
 use crate::admin::connect_to_peer;
-use crate::admin::delete_subchannel;
-use crate::admin::finalize_force_close_ln_dlc_channel;
 use crate::admin::get_balance;
 use crate::admin::is_connected;
 use crate::admin::list_channels;
@@ -96,18 +94,10 @@ pub fn router(
         .route("/api/admin/channels", get(list_channels))
         .route("/api/channels", post(open_channel))
         .route("/api/admin/channels/:channel_id", delete(close_channel))
-        .route(
-            "/api/admin/channels/finalize_force_close/:channel_id",
-            delete(finalize_force_close_ln_dlc_channel),
-        )
         .route("/api/admin/peers", get(list_peers))
         .route("/api/admin/send_payment/:invoice", post(send_payment))
         .route("/api/admin/dlc_channels", get(list_dlc_channels))
         .route("/api/admin/transactions", get(list_on_chain_transactions))
-        .route(
-            "/api/admin/dlc_channels/:channel_id",
-            delete(delete_subchannel),
-        )
         .route("/api/admin/sign/:msg", get(sign_message))
         .route("/api/admin/connect", post(connect_to_peer))
         .route("/api/admin/is_connected/:target_pubkey", get(is_connected))
