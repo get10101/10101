@@ -6,7 +6,8 @@ use crate::ln::coordinator_config;
 use crate::ln::EventHandler;
 use crate::ln::TracingLogger;
 use crate::ln_dlc_wallet::LnDlcWallet;
-use crate::node::dlc_channel::process_pending_dlc_actions;
+use crate::node::dlc_channel::dlc_manager_periodic_check;
+use crate::node::dlc_channel::sub_channel_manager_periodic_check;
 use crate::node::peer_manager::broadcast_node_announcement;
 use crate::on_chain_wallet::OnChainWallet;
 use crate::seed::Bip39Seed;
@@ -54,7 +55,6 @@ use std::time::Duration;
 use std::time::Instant;
 use std::time::SystemTime;
 use tokio::sync::RwLock;
-use tokio::task::spawn_blocking;
 
 mod channel_manager;
 mod connection;
@@ -100,7 +100,8 @@ pub struct Node<P> {
     _background_processor_handle: RemoteHandle<()>,
     _connection_manager_handle: RemoteHandle<()>,
     _broadcast_node_announcement_handle: RemoteHandle<()>,
-    _pending_dlc_actions_handle: RemoteHandle<()>,
+    _dlc_manager_periodic_check_handle: RemoteHandle<()>,
+    _sub_channel_manager_periodic_check_handle: RemoteHandle<()>,
 
     logger: Arc<TracingLogger>,
 
@@ -133,6 +134,10 @@ pub struct LnDlcNodeSettings {
     pub on_chain_sync_interval: Duration,
     /// How often we update the fee rate
     pub fee_rate_sync_interval: Duration,
+    /// How often we run the [`DlcManager`]'s periodic check.
+    pub dlc_manager_periodic_check_interval: Duration,
+    /// How often we run the [`SubChannelManager`]'s periodic check.
+    pub sub_channel_manager_periodic_check_interval: Duration,
 
     /// The 'stop gap' parameter used by BDK's wallet sync. This seems to configure the threshold
     /// number of blocks after which BDK stops looking for scripts belonging to the wallet.
@@ -151,6 +156,8 @@ impl Default for LnDlcNodeSettings {
             off_chain_sync_interval: Duration::from_secs(5),
             on_chain_sync_interval: Duration::from_secs(300),
             fee_rate_sync_interval: Duration::from_secs(20),
+            dlc_manager_periodic_check_interval: Duration::from_secs(30),
+            sub_channel_manager_periodic_check_interval: Duration::from_secs(30),
             bdk_client_stop_gap: 20,
             bdk_client_concurrency: 4,
         }
@@ -318,7 +325,12 @@ where
                                     )
                                 }
                             }
-                            tokio::time::sleep(settings.read().await.on_chain_sync_interval).await;
+
+                            let interval = {
+                                let guard = settings.read().await;
+                                guard.on_chain_sync_interval
+                            };
+                            tokio::time::sleep(interval).await;
                         }
                     });
             }
@@ -333,7 +345,11 @@ where
                         tracing::error!("Failed to update fee rate estimates: {err:#}");
                     }
 
-                    tokio::time::sleep(settings.read().await.fee_rate_sync_interval).await;
+                    let interval = {
+                        let guard = settings.read().await;
+                        guard.fee_rate_sync_interval
+                    };
+                    tokio::time::sleep(interval).await;
                 }
             }
         });
@@ -414,7 +430,12 @@ where
                             tracing::error!("Background sync of Lightning wallet failed: {e:#}")
                         }
                     }
-                    tokio::time::sleep(settings.read().await.off_chain_sync_interval).await;
+
+                    let interval = {
+                        let guard = settings.read().await;
+                        guard.off_chain_sync_interval
+                    };
+                    tokio::time::sleep(interval).await;
                 }
             }
         });
@@ -581,23 +602,20 @@ where
             remote_handle
         };
 
-        let pending_dlc_actions_handle = {
-            let sub_channel_manager = sub_channel_manager.clone();
-            let dlc_message_handler = dlc_message_handler.clone();
-            let (fut, remote_handle) = {
-                async move {
-                    loop {
-                        if let Err(e) = process_pending_dlc_actions(
-                            sub_channel_manager.clone(),
-                            &dlc_message_handler,
-                        )
-                        .await
-                        {
-                            tracing::error!("Failed to process pending DLC actions: {e:#}");
-                        };
-
-                        tokio::time::sleep(Duration::from_secs(30)).await;
+        let dlc_manager_periodic_check_handle = {
+            let dlc_manager = dlc_manager.clone();
+            let settings = settings.clone();
+            let (fut, remote_handle) = async move {
+                loop {
+                    if let Err(e) = dlc_manager_periodic_check(dlc_manager.clone()).await {
+                        tracing::error!("DLC manager periodic check failed: {e:#}");
                     }
+
+                    let interval = {
+                        let guard = settings.read().await;
+                        guard.dlc_manager_periodic_check_interval
+                    };
+                    tokio::time::sleep(interval).await;
                 }
             }
             .remote_handle();
@@ -607,24 +625,36 @@ where
             remote_handle
         };
 
-        tokio::task::spawn({
-            let dlc_manager = dlc_manager.clone();
-            async move {
-                loop {
-                    if let Err(e) = spawn_blocking({
-                        let dlc_manager = dlc_manager.clone();
-                        move || dlc_manager.periodic_check()
-                    })
-                    .await
-                    .expect("task to complete")
-                    {
-                        tracing::error!("Failed DLC manager periodic check: {e:#}");
-                    }
+        let sub_channel_manager_periodic_check_handle = {
+            let sub_channel_manager = sub_channel_manager.clone();
+            let dlc_message_handler = dlc_message_handler.clone();
+            let settings = settings.clone();
+            let (fut, remote_handle) = {
+                async move {
+                    loop {
+                        if let Err(e) = sub_channel_manager_periodic_check(
+                            sub_channel_manager.clone(),
+                            &dlc_message_handler,
+                        )
+                        .await
+                        {
+                            tracing::error!("Failed to process pending DLC actions: {e:#}");
+                        };
 
-                    tokio::time::sleep(Duration::from_secs(30)).await;
+                        let interval = {
+                            let guard = settings.read().await;
+                            guard.sub_channel_manager_periodic_check_interval
+                        };
+                        tokio::time::sleep(interval).await;
+                    }
                 }
             }
-        });
+            .remote_handle();
+
+            tokio::spawn(fut);
+
+            remote_handle
+        };
 
         let node_info = NodeInfo {
             pubkey: channel_manager.get_our_node_id(),
@@ -668,7 +698,8 @@ where
             _background_processor_handle: background_processor_handle,
             _connection_manager_handle: connection_manager_handle,
             _broadcast_node_announcement_handle: broadcast_node_announcement_handle,
-            _pending_dlc_actions_handle: pending_dlc_actions_handle,
+            _dlc_manager_periodic_check_handle: dlc_manager_periodic_check_handle,
+            _sub_channel_manager_periodic_check_handle: sub_channel_manager_periodic_check_handle,
             network_graph,
             #[cfg(test)]
             announcement_addresses,

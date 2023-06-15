@@ -3,12 +3,11 @@ use crate::node::Node;
 use crate::node::NodeInfo;
 use crate::node::PaymentMap;
 use crate::tests::init_tracing;
-use crate::tests::wait_until;
+use crate::tests::wait_until_dlc_channel_state;
+use crate::tests::SubChannelStateName;
 use anyhow::Result;
 use coordinator::Coordinator;
 use coordinator::Direction;
-use dlc_manager::subchannel::SubChannelState;
-use dlc_manager::Storage;
 use std::borrow::Borrow;
 use std::sync::Arc;
 use std::time::Duration;
@@ -59,56 +58,41 @@ async fn single_app_many_positions_load() {
 async fn open_position(coordinator: &Coordinator, app: &Node<PaymentMap>) -> Result<()> {
     tracing::info!("Opening position");
 
-    loop {
-        tracing::info!("Sending open pre-proposal");
+    tokio::time::timeout(Duration::from_secs(30), async {
+        loop {
+            tracing::info!("Sending open pre-proposal");
 
-        if coordinator.post_trade(app, Direction::Long).await.is_ok() {
-            break;
+            match coordinator.post_trade(app, Direction::Long).await {
+                Ok(_) => break,
+                Err(e) => {
+                    tracing::debug!("Could not yet process open pre-proposal: {e:#}");
+                }
+            }
+
+            tokio::time::sleep(Duration::from_millis(500)).await;
         }
-
-        tokio::time::sleep(Duration::from_millis(500)).await;
-    }
+    })
+    .await
+    .unwrap();
 
     tracing::info!("Open pre-proposal delivered");
 
-    let channel_id = wait_until(Duration::from_secs(60), || async {
-        tracing::info!("Waiting for DLC channel proposal");
-
-        app.process_incoming_messages()?;
-
-        let dlc_channel = app
-            .dlc_manager
-            .get_store()
-            .get_sub_channels()?
-            .first()
-            .cloned();
-
-        Ok(match dlc_channel {
-            Some(dlc_channel) if matches!(dlc_channel.state, SubChannelState::Offered(_)) => {
-                Some(dlc_channel.channel_id)
-            }
-            _ => None,
-        })
-    })
+    let dlc_channel = wait_until_dlc_channel_state(
+        Duration::from_secs(60),
+        app,
+        coordinator.info().pubkey,
+        SubChannelStateName::Offered,
+    )
     .await?;
 
-    app.accept_dlc_channel_offer(&channel_id)?;
+    app.accept_dlc_channel_offer(&dlc_channel.channel_id)?;
 
-    wait_until(Duration::from_secs(60), || async {
-        tracing::info!("Waiting for Signed state");
-
-        app.process_incoming_messages()?;
-
-        let dlc_channel = app
-            .dlc_manager
-            .get_store()
-            .get_sub_channels()?
-            .into_iter()
-            .find(|sc| sc.channel_id == channel_id)
-            .unwrap();
-
-        Ok(matches!(dlc_channel.state, SubChannelState::Signed(_)).then_some(()))
-    })
+    wait_until_dlc_channel_state(
+        Duration::from_secs(60),
+        app,
+        coordinator.info().pubkey,
+        SubChannelStateName::Signed,
+    )
     .await?;
 
     tracing::info!("Position open");
@@ -119,59 +103,42 @@ async fn open_position(coordinator: &Coordinator, app: &Node<PaymentMap>) -> Res
 async fn close_position(coordinator: &Coordinator, app: &Node<PaymentMap>) -> Result<()> {
     tracing::info!("Closing position");
 
-    loop {
-        tracing::info!("Sending close pre-proposal");
+    tokio::time::timeout(Duration::from_secs(30), async {
+        loop {
+            tracing::info!("Sending close pre-proposal");
 
-        if coordinator.post_trade(app, Direction::Short).await.is_ok() {
-            break;
+            match coordinator.post_trade(app, Direction::Short).await {
+                Ok(_) => break,
+                Err(e) => {
+                    tracing::debug!("Could not yet process close pre-proposal: {e:#}");
+                }
+            }
+
+            tokio::time::sleep(Duration::from_millis(500)).await;
         }
-
-        tokio::time::sleep(Duration::from_millis(500)).await;
-    }
+    })
+    .await
+    .unwrap();
 
     tracing::info!("Close pre-proposal delivered");
 
-    let channel_id = wait_until(Duration::from_secs(60), || async {
-        tracing::info!("Waiting for DLC channel close proposal");
-
-        // Process confirm message and send finalize message
-        app.process_incoming_messages()?;
-
-        let dlc_channel = app
-            .dlc_manager
-            .get_store()
-            .get_sub_channels()?
-            .first()
-            .cloned();
-
-        Ok(match dlc_channel {
-            Some(dlc_channel) if matches!(dlc_channel.state, SubChannelState::CloseOffered(_)) => {
-                Some(dlc_channel.channel_id)
-            }
-            _ => None,
-        })
-    })
+    let dlc_channel = wait_until_dlc_channel_state(
+        Duration::from_secs(60),
+        app,
+        coordinator.info().pubkey,
+        SubChannelStateName::CloseOffered,
+    )
     .await?;
 
-    app.accept_dlc_channel_collaborative_settlement(&channel_id)
+    app.accept_dlc_channel_collaborative_settlement(&dlc_channel.channel_id)
         .unwrap();
 
-    wait_until(Duration::from_secs(60), || async {
-        tracing::info!("Waiting for OffChainClosed state");
-
-        // Process confirm message and send finalize message
-        app.process_incoming_messages()?;
-
-        let dlc_channel = app
-            .dlc_manager
-            .get_store()
-            .get_sub_channels()?
-            .into_iter()
-            .find(|sc| sc.channel_id == channel_id)
-            .unwrap();
-
-        Ok(matches!(dlc_channel.state, SubChannelState::OffChainClosed).then_some(()))
-    })
+    wait_until_dlc_channel_state(
+        Duration::from_secs(60),
+        app,
+        coordinator.info().pubkey,
+        SubChannelStateName::OffChainClosed,
+    )
     .await?;
 
     tracing::info!("Position closed");

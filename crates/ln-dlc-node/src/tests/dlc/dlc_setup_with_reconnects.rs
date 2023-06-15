@@ -1,12 +1,11 @@
-use crate::node::dlc_channel::process_pending_dlc_actions;
+use crate::node::dlc_channel::sub_channel_manager_periodic_check;
 use crate::node::Node;
 use crate::tests::dummy_contract_input;
 use crate::tests::init_tracing;
-use crate::tests::wait_until;
+use crate::tests::wait_until_dlc_channel_state;
+use crate::tests::SubChannelStateName;
 use anyhow::Context;
 use bitcoin::Amount;
-use dlc_manager::subchannel::SubChannelState;
-use dlc_manager::Storage;
 use std::time::Duration;
 
 #[tokio::test]
@@ -47,25 +46,19 @@ async fn reconnecting_during_dlc_channel_setup() {
         .await
         .unwrap();
 
-    tokio::time::sleep(Duration::from_secs(2)).await;
-    coordinator.process_incoming_messages().unwrap();
-
-    app.reconnect(coordinator.info).await.unwrap();
-
-    let sub_channel = wait_until(Duration::from_secs(30), || async {
-        let sub_channels = coordinator
-            .dlc_manager
-            .get_store()
-            .get_offered_sub_channels()?;
-
-        let sub_channel = sub_channels
-            .iter()
-            .find(|sub_channel| sub_channel.counter_party == app.info.pubkey);
-
-        Ok(sub_channel.cloned())
-    })
+    // Process the app's `Offer`
+    let sub_channel = wait_until_dlc_channel_state(
+        Duration::from_secs(30),
+        &coordinator,
+        app.info.pubkey,
+        SubChannelStateName::Offered,
+    )
     .await
     .unwrap();
+
+    // This reconnect does not affect the protocol because the `Offer` has already been delivered to
+    // the coordinator
+    app.reconnect(coordinator.info).await.unwrap();
 
     coordinator
         .accept_dlc_channel_offer(&sub_channel.channel_id)
@@ -76,56 +69,47 @@ async fn reconnecting_during_dlc_channel_setup() {
     app.reconnect(coordinator.info).await.unwrap();
 
     // Instruct coordinator to re-send the accept message
-    process_pending_dlc_actions(
+    sub_channel_manager_periodic_check(
         coordinator.sub_channel_manager.clone(),
         &coordinator.dlc_message_handler,
     )
     .await
     .unwrap();
 
-    // Process the coordinator's accept message _and_ send the confirm message
-    tokio::time::sleep(Duration::from_secs(2)).await;
-    app.process_incoming_messages().unwrap();
-
-    // Process the confirm message _and_ send the finalize message
-    tokio::time::sleep(Duration::from_secs(2)).await;
-    coordinator.process_incoming_messages().unwrap();
-
-    // Process the finalize message
-    tokio::time::sleep(Duration::from_secs(2)).await;
-    app.process_incoming_messages().unwrap();
+    // Process the coordinator's `Accept` and send `Confirm`
+    wait_until_dlc_channel_state(
+        Duration::from_secs(30),
+        &app,
+        coordinator.info.pubkey,
+        SubChannelStateName::Confirmed,
+    )
+    .await
+    .unwrap();
 
     // Assert
 
-    let channel = app
+    // Process the app's `Confirm` and send `Finalize`
+    wait_until_dlc_channel_state(
+        Duration::from_secs(30),
+        &coordinator,
+        app.info.pubkey,
+        SubChannelStateName::Signed,
+    )
+    .await
+    .unwrap();
+
+    // Process the coordinator's `Finalize`
+    wait_until_dlc_channel_state(
+        Duration::from_secs(30),
+        &app,
+        coordinator.info.pubkey,
+        SubChannelStateName::Signed,
+    )
+    .await
+    .unwrap();
+
+    assert!(app
         .list_channels()
-        .into_iter()
-        .find(|channel| channel.channel_id == channel_details.channel_id);
-
-    assert!(channel.is_some());
-
-    let sub_channel_coordinator = coordinator
-        .dlc_manager
-        .get_store()
-        .get_sub_channels()
-        .unwrap()
-        .into_iter()
-        .find(|sc| sc.channel_id == sub_channel.channel_id)
-        .unwrap();
-
-    assert!(matches!(
-        sub_channel_coordinator.state,
-        SubChannelState::Signed(_)
-    ));
-
-    let sub_channel_app = app
-        .dlc_manager
-        .get_store()
-        .get_sub_channels()
-        .unwrap()
-        .into_iter()
-        .find(|sc| sc.channel_id == sub_channel.channel_id)
-        .unwrap();
-
-    assert!(matches!(sub_channel_app.state, SubChannelState::Signed(_)));
+        .iter()
+        .any(|channel| channel.channel_id == channel_details.channel_id));
 }

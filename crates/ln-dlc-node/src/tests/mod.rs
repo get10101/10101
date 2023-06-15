@@ -7,6 +7,7 @@ use crate::node::PaymentMap;
 use crate::seed::Bip39Seed;
 use crate::util;
 use anyhow::Result;
+use bitcoin::secp256k1::PublicKey;
 use bitcoin::Address;
 use bitcoin::Amount;
 use bitcoin::Network;
@@ -22,6 +23,9 @@ use dlc_manager::payout_curve::PayoutPoint;
 use dlc_manager::payout_curve::PolynomialPayoutCurvePiece;
 use dlc_manager::payout_curve::RoundingInterval;
 use dlc_manager::payout_curve::RoundingIntervals;
+use dlc_manager::subchannel::SubChannel;
+use dlc_manager::subchannel::SubChannelState;
+use dlc_manager::Storage;
 use futures::Future;
 use lightning::ln::channelmanager::ChannelDetails;
 use lightning::util::config::UserConfig;
@@ -309,6 +313,69 @@ where
         }
     })
     .await?
+}
+
+async fn wait_until_dlc_channel_state(
+    timeout: Duration,
+    node: &Node<PaymentMap>,
+    counterparty_pk: PublicKey,
+    target_state: SubChannelStateName,
+) -> Result<SubChannel> {
+    wait_until(timeout, || async {
+        node.process_incoming_messages()?;
+
+        let dlc_channels = node.dlc_manager.get_store().get_sub_channels()?;
+
+        Ok(dlc_channels
+            .iter()
+            .find(|channel| {
+                let current_state = SubChannelStateName::from(&channel.state);
+
+                tracing::info!(target = ?target_state, current = ?current_state, "Waiting for DLC subchannel to reach state");
+
+                channel.counter_party == counterparty_pk && current_state == target_state
+            })
+            .cloned())
+    })
+    .await
+}
+
+#[derive(PartialEq, Debug)]
+enum SubChannelStateName {
+    Offered,
+    Accepted,
+    Confirmed,
+    Signed,
+    Closing,
+    OnChainClosed,
+    CounterOnChainClosed,
+    CloseOffered,
+    CloseAccepted,
+    CloseConfirmed,
+    OffChainClosed,
+    ClosedPunished,
+    Rejected,
+}
+
+impl From<&SubChannelState> for SubChannelStateName {
+    fn from(value: &SubChannelState) -> Self {
+        use SubChannelState::*;
+        match value {
+            Offered(_) => SubChannelStateName::Offered,
+            Accepted(_) => SubChannelStateName::Accepted,
+            Confirmed(_) => SubChannelStateName::Confirmed,
+            Signed(_) => SubChannelStateName::Signed,
+            Closing(_) => SubChannelStateName::Closing,
+            OnChainClosed => SubChannelStateName::OnChainClosed,
+            CounterOnChainClosed => SubChannelStateName::CounterOnChainClosed,
+            CloseOffered(_) => SubChannelStateName::CloseOffered,
+            CloseAccepted(_) => SubChannelStateName::CloseAccepted,
+            CloseConfirmed(_) => SubChannelStateName::CloseConfirmed,
+            OffChainClosed => SubChannelStateName::OffChainClosed,
+            ClosedPunished(_) => SubChannelStateName::ClosedPunished,
+            Rejected => SubChannelStateName::Rejected,
+        }
+    }
 }
 
 fn dummy_contract_input(
