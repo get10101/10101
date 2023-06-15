@@ -114,7 +114,7 @@ impl Node<PaymentMap> {
         let starting_balance = self.get_confirmed_balance().await?;
         let expected_balance = starting_balance + amount.to_sat();
 
-        let address = self.wallet.get_last_unused_address()?;
+        let address = self.wallet.last_unused_address();
 
         fund_and_mine(address, amount).await?;
 
