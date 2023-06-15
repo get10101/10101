@@ -58,15 +58,22 @@ async fn single_app_many_positions_load() {
 async fn open_position(coordinator: &Coordinator, app: &Node<PaymentMap>) -> Result<()> {
     tracing::info!("Opening position");
 
-    loop {
-        tracing::info!("Sending open pre-proposal");
+    tokio::time::timeout(Duration::from_secs(30), async {
+        loop {
+            tracing::info!("Sending open pre-proposal");
 
-        if coordinator.post_trade(app, Direction::Long).await.is_ok() {
-            break;
+            match coordinator.post_trade(app, Direction::Long).await {
+                Ok(_) => break,
+                Err(e) => {
+                    tracing::debug!("Could not yet process open pre-proposal: {e:#}");
+                }
+            }
+
+            tokio::time::sleep(Duration::from_millis(500)).await;
         }
-
-        tokio::time::sleep(Duration::from_millis(500)).await;
-    }
+    })
+    .await
+    .unwrap();
 
     tracing::info!("Open pre-proposal delivered");
 
@@ -96,15 +103,22 @@ async fn open_position(coordinator: &Coordinator, app: &Node<PaymentMap>) -> Res
 async fn close_position(coordinator: &Coordinator, app: &Node<PaymentMap>) -> Result<()> {
     tracing::info!("Closing position");
 
-    loop {
-        tracing::info!("Sending close pre-proposal");
+    tokio::time::timeout(Duration::from_secs(30), async {
+        loop {
+            tracing::info!("Sending close pre-proposal");
 
-        if coordinator.post_trade(app, Direction::Short).await.is_ok() {
-            break;
+            match coordinator.post_trade(app, Direction::Short).await {
+                Ok(_) => break,
+                Err(e) => {
+                    tracing::debug!("Could not yet process close pre-proposal: {e:#}");
+                }
+            }
+
+            tokio::time::sleep(Duration::from_millis(500)).await;
         }
-
-        tokio::time::sleep(Duration::from_millis(500)).await;
-    }
+    })
+    .await
+    .unwrap();
 
     tracing::info!("Close pre-proposal delivered");
 
