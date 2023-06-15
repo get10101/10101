@@ -62,7 +62,6 @@ impl LnDlcWallet {
         let wallet = Arc::new(ldk_node_wallet::Wallet::new(
             blockchain,
             on_chain_wallet,
-            esplora_client,
             fee_rate_estimator,
         ));
 
