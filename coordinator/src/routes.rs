@@ -168,14 +168,9 @@ pub async fn register_interceptable_invoice(
 }
 
 #[autometrics]
-pub async fn get_new_address(
-    State(app_state): State<Arc<AppState>>,
-) -> Result<Json<String>, AppError> {
-    let address =
-        app_state.node.inner.get_new_address().map_err(|e| {
-            AppError::InternalServerError(format!("Failed to get new address: {e:#}"))
-        })?;
-    Ok(Json(address.to_string()))
+pub async fn get_new_address(State(app_state): State<Arc<AppState>>) -> Json<String> {
+    let address = app_state.node.inner.get_new_address();
+    Json(address.to_string())
 }
 
 #[autometrics]

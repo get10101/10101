@@ -65,10 +65,7 @@ pub struct Invoice {
 }
 
 pub async fn index(State(app_state): State<Arc<AppState>>) -> Result<Json<Index>, AppError> {
-    let address = app_state
-        .node
-        .get_new_address()
-        .map_err(|e| AppError::InternalServerError(format!("Failed to get new address: {e:#}")))?;
+    let address = app_state.node.get_new_address();
 
     let offchain = app_state.node.get_ldk_balance();
     let onchain = app_state
@@ -95,14 +92,10 @@ pub async fn index(State(app_state): State<Arc<AppState>>) -> Result<Json<Index>
     }))
 }
 
-pub async fn get_new_address(
-    State(app_state): State<Arc<AppState>>,
-) -> Result<Json<String>, AppError> {
-    let address = app_state
-        .node
-        .get_new_address()
-        .map_err(|e| AppError::InternalServerError(format!("Failed to get new address: {e:#}")))?;
-    Ok(Json(address.to_string()))
+pub async fn get_new_address(State(app_state): State<Arc<AppState>>) -> Json<String> {
+    let address = app_state.node.get_new_address();
+
+    Json(address.to_string())
 }
 
 #[derive(Serialize, Deserialize)]

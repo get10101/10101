@@ -1,5 +1,4 @@
 use crate::fee_rate_estimator::FeeRateEstimator;
-use crate::ln::TracingLogger;
 use anyhow::bail;
 use anyhow::Context;
 use anyhow::Error;
@@ -20,10 +19,6 @@ use bitcoin::Transaction;
 use bitcoin::Txid;
 use lightning::chain::chaininterface::BroadcasterInterface;
 use lightning::chain::chaininterface::ConfirmationTarget;
-use lightning::chain::transaction::OutPoint;
-use lightning::chain::Filter;
-use lightning::chain::WatchedOutput;
-use lightning_transaction_sync::EsploraSyncClient;
 use parking_lot::Mutex;
 use parking_lot::MutexGuard;
 use std::sync::Arc;
@@ -38,7 +33,6 @@ where
     // A BDK on-chain wallet.
     inner: Mutex<bdk::Wallet<D>>,
     settings: RwLock<WalletSettings>,
-    esplora_sync_client: Arc<EsploraSyncClient<Arc<TracingLogger>>>,
     fee_rate_estimator: Arc<FeeRateEstimator>,
 }
 
@@ -54,7 +48,6 @@ where
     pub(crate) fn new(
         blockchain: EsploraBlockchain,
         wallet: bdk::Wallet<D>,
-        esplora_sync_client: Arc<EsploraSyncClient<Arc<TracingLogger>>>,
         fee_rate_estimator: Arc<FeeRateEstimator>,
     ) -> Self {
         let inner = Mutex::new(wallet);
@@ -64,7 +57,6 @@ where
             blockchain: Arc::new(blockchain),
             inner,
             settings,
-            esplora_sync_client,
             fee_rate_estimator,
         }
     }
@@ -252,28 +244,8 @@ where
 
         tracing::info!(%txid, raw_tx = %serialize_hex(&tx), "Broadcasting transaction");
 
-        let txos = tx.output.clone();
-
         if let Err(err) = self.blockchain.broadcast(tx) {
             tracing::error!("Failed to broadcast transaction: {err:#}");
-        }
-
-        // FIXME: We've added this to ensure that we watch the outputs of any commitment transaction
-        // we publish. This is incredibly hacky and probably doesn't scale, as we simply register
-        // _every_ transaction output we ever publish. Obviously not all these outputs will be
-        // spendable by us, so it might result in some weirdness, but it should be safe.
-        //
-        // Also, this doesn't cover the counterparty, which unfortunately is only able to find the
-        // commitment transaction on-chain after a restart.
-        for (i, output) in txos.into_iter().enumerate() {
-            self.esplora_sync_client.register_output(WatchedOutput {
-                block_hash: None,
-                outpoint: OutPoint {
-                    txid,
-                    index: i as u16,
-                },
-                script_pubkey: output.script_pubkey,
-            });
         }
     }
 }

@@ -30,10 +30,8 @@ where
         self.wallet.inner()
     }
 
-    pub fn get_new_address(&self) -> Result<Address> {
-        let address = self.wallet.inner().get_new_address()?;
-
-        Ok(address)
+    pub fn get_new_address(&self) -> Address {
+        self.wallet.new_address()
     }
 
     pub fn get_on_chain_balance(&self) -> Result<bdk::Balance> {
