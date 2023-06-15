@@ -64,7 +64,7 @@ impl FeeRateEstimator {
 
         let mut locked_fee_rate_cache = self.cache_write_lock();
         for (target, n_blocks) in [
-            (ConfirmationTarget::Background, 12),
+            (ConfirmationTarget::Background, 24),
             (ConfirmationTarget::Normal, 6),
             (ConfirmationTarget::HighPriority, 3),
         ] {
