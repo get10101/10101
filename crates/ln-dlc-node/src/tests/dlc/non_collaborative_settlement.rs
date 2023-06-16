@@ -1,4 +1,3 @@
-use crate::node::dlc_channel::dlc_manager_periodic_check;
 use crate::node::dlc_channel::sub_channel_manager_periodic_check;
 use crate::tests::bitcoind::mine;
 use crate::tests::dlc::create::create_dlc_channel;
@@ -62,9 +61,12 @@ async fn force_close_ln_dlc_channel() {
     app.wallet().sync().await.unwrap();
 
     // Ensure publication of CET (otherwise we need to wait for the periodic task)
-    dlc_manager_periodic_check(coordinator.dlc_manager.clone())
-        .await
-        .unwrap();
+    sub_channel_manager_periodic_check(
+        coordinator.sub_channel_manager.clone(),
+        &coordinator.dlc_message_handler,
+    )
+    .await
+    .unwrap();
 
     // Confirm CET
     mine(1).await.unwrap();

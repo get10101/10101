@@ -1,10 +1,8 @@
-use crate::node::DlcManager;
 use crate::node::Node;
 use crate::DlcMessageHandler;
 use crate::SubChannelManager;
 use anyhow::anyhow;
 use anyhow::bail;
-use anyhow::Context;
 use anyhow::Result;
 use autometrics::autometrics;
 use bitcoin::secp256k1::PublicKey;
@@ -258,12 +256,6 @@ where
 
         Ok(())
     }
-}
-
-pub(crate) async fn dlc_manager_periodic_check(dlc_manager: Arc<DlcManager>) -> Result<()> {
-    spawn_blocking(move || dlc_manager.periodic_check())
-        .await?
-        .context("DLC manager periodic check failed")
 }
 
 #[autometrics]
