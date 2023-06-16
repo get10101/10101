@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.20] - 2023-06-16
+
+- Do not trigger DLC manager periodic check twice
+- Simplify maker binary
+- Prefer unused addresses to new ones (temporarily)
+- chore: Remove share on twitter button temporarily
+- Use address caches in LnDlcWallet
+- Set background transaction priority to 24 blocks
+- Improve error message when trying to collab close LN with DLC channel
+- Simplify deserialisation of channel ID
+- Stabilise key dependencies
+
 ## [1.0.19] - 2023-06-12
 
 - Fixed a deadlock bug, resulting in the coordinator getting stuck
@@ -33,7 +45,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Self-Custodial CFD Trading based on DLC and lightning
 
-[Unreleased]: https://github.com/get10101/10101/compare/1.0.19...HEAD
+[Unreleased]: https://github.com/get10101/10101/compare/1.0.20...HEAD
+[1.0.20]: https://github.com/get10101/10101/compare/1.0.19...1.0.20
 [1.0.19]: https://github.com/get10101/10101/compare/1.0.18...1.0.19
 [1.0.18]: https://github.com/get10101/10101/compare/1.0.17...1.0.18
 [1.0.17]: https://github.com/get10101/10101/compare/1.0.16...1.0.17
