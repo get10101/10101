@@ -47,7 +47,7 @@ class WalletService {
     await rust.api.sendPayment(invoice: invoice);
   }
 
-  String getNewAddress() {
-    return rust.api.getNewAddress();
+  String getUnusedAddress() {
+    return rust.api.getUnusedAddress();
   }
 }

@@ -79,7 +79,7 @@ pub fn router(
             "/api/register_invoice/:target_node",
             post(register_interceptable_invoice),
         )
-        .route("/api/newaddress", get(get_new_address))
+        .route("/api/newaddress", get(get_unused_address))
         .route("/api/node", get(get_node_info))
         .route("/api/invoice", get(get_invoice))
         .route("/api/orderbook/orders", get(get_orders).post(post_order))
@@ -168,9 +168,8 @@ pub async fn register_interceptable_invoice(
 }
 
 #[autometrics]
-pub async fn get_new_address(State(app_state): State<Arc<AppState>>) -> Json<String> {
-    let address = app_state.node.inner.get_new_address();
-    Json(address.to_string())
+pub async fn get_unused_address(State(app_state): State<Arc<AppState>>) -> Json<String> {
+    Json(app_state.node.inner.get_unused_address().to_string())
 }
 
 #[autometrics]

@@ -41,18 +41,12 @@ pub struct LnDlcWallet {
     secp: Secp256k1<All>,
     seed: Bip39Seed,
     network: Network,
-    /// Last unused address according to the latest on-chain sync.
+    /// Cache for the last unused address according to the latest on-chain sync.
     ///
     /// We can run into address reuse if we access this value multiple times between syncs. This is
     /// acceptable as the current alternative is to block the caller until the sync ends, which can
     /// have much more severe consequences.
-    last_unused_address_cache: RwLock<Address>,
-    /// New address according to the latest on-chain sync.
-    ///
-    /// We can run into address reuse if we access this value multiple times between syncs. This is
-    /// acceptable as the current alternative is to block the caller until the sync ends, which can
-    /// have much more severe consequences.
-    new_address_cache: RwLock<Address>,
+    address_cache: RwLock<Address>,
 }
 
 impl LnDlcWallet {
@@ -82,16 +76,13 @@ impl LnDlcWallet {
             .get_last_unused_address()
             .expect("to get the last unused address");
 
-        let new_address = wallet.get_new_address().expect("to get a new address");
-
         Self {
             ln_wallet: wallet,
             storage,
             secp: Secp256k1::new(),
             seed,
             network,
-            last_unused_address_cache: RwLock::new(last_unused_address),
-            new_address_cache: RwLock::new(new_address),
+            address_cache: RwLock::new(last_unused_address),
         }
     }
 
@@ -130,25 +121,13 @@ impl LnDlcWallet {
     }
 
     #[autometrics]
-    pub fn last_unused_address(&self) -> Address {
-        self.last_unused_address_cache.read().clone()
+    pub fn unused_address(&self) -> Address {
+        self.address_cache.read().clone()
     }
 
-    #[autometrics]
-    pub fn new_address(&self) -> Address {
-        self.new_address_cache.read().clone()
-    }
-
-    pub fn update_last_unused_address_cache(&self) -> Result<()> {
+    pub fn update_address_cache(&self) -> Result<()> {
         let address = self.inner().get_last_unused_address()?;
-        *self.last_unused_address_cache.write() = address;
-
-        Ok(())
-    }
-
-    pub fn update_new_address_cache(&self) -> Result<()> {
-        let address = self.inner().get_new_address()?;
-        *self.new_address_cache.write() = address;
+        *self.address_cache.write() = address;
 
         Ok(())
     }
@@ -273,7 +252,7 @@ impl Signer for LnDlcWallet {
 impl dlc_manager::Wallet for LnDlcWallet {
     #[autometrics]
     fn get_new_address(&self) -> Result<Address, Error> {
-        Ok(self.new_address())
+        Ok(self.unused_address())
     }
 
     #[autometrics]

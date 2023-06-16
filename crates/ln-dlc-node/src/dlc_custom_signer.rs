@@ -288,12 +288,12 @@ impl SignerProvider for CustomKeysManager {
     type Signer = CustomSigner;
 
     fn get_destination_script(&self) -> Script {
-        let address = self.wallet.last_unused_address();
+        let address = self.wallet.unused_address();
         address.script_pubkey()
     }
 
     fn get_shutdown_scriptpubkey(&self) -> ShutdownScript {
-        let address = self.wallet.last_unused_address();
+        let address = self.wallet.unused_address();
         match address.payload {
             bitcoin::util::address::Payload::WitnessProgram { version, program } => {
                 ShutdownScript::new_witness_program(version, &program)

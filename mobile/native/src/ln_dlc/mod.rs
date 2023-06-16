@@ -355,8 +355,8 @@ async fn keep_wallet_balance_and_history_up_to_date(node: &Node) -> Result<()> {
     Ok(())
 }
 
-pub fn get_new_address() -> String {
-    NODE.get().inner.get_new_address().to_string()
+pub fn get_unused_address() -> String {
+    NODE.get().inner.get_unused_address().to_string()
 }
 
 pub fn close_channel(is_force_close: bool) -> Result<()> {

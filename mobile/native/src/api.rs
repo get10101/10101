@@ -198,8 +198,8 @@ pub fn run(config: Config, app_dir: String, seed_dir: String) -> Result<()> {
     orderbook::subscribe(ln_dlc::get_node_key(), runtime)
 }
 
-pub fn get_new_address() -> SyncReturn<String> {
-    SyncReturn(ln_dlc::get_new_address())
+pub fn get_unused_address() -> SyncReturn<String> {
+    SyncReturn(ln_dlc::get_unused_address())
 }
 
 pub fn close_channel() -> Result<()> {

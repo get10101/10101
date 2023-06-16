@@ -326,12 +326,8 @@ where
                                 }
                             }
 
-                            if let Err(e) = ln_dlc_wallet.update_last_unused_address_cache() {
-                                tracing::warn!("Failed to update last unused address cache: {e:#}");
-                            }
-
-                            if let Err(e) = ln_dlc_wallet.update_new_address_cache() {
-                                tracing::warn!("Failed to update new address cache: {e:#}");
+                            if let Err(e) = ln_dlc_wallet.update_address_cache() {
+                                tracing::warn!("Failed to update address cache: {e:#}");
                             }
 
                             let interval = {

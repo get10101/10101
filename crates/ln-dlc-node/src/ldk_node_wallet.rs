@@ -126,11 +126,6 @@ where
     }
 
     #[autometrics]
-    pub(crate) fn get_new_address(&self) -> Result<bitcoin::Address, Error> {
-        Ok(self.bdk_lock().get_address(AddressIndex::New)?.address)
-    }
-
-    #[autometrics]
     pub(crate) fn get_last_unused_address(&self) -> Result<bitcoin::Address, Error> {
         Ok(self
             .bdk_lock()
