@@ -6,7 +6,6 @@ use crate::ln::coordinator_config;
 use crate::ln::EventHandler;
 use crate::ln::TracingLogger;
 use crate::ln_dlc_wallet::LnDlcWallet;
-use crate::node::dlc_channel::dlc_manager_periodic_check;
 use crate::node::dlc_channel::sub_channel_manager_periodic_check;
 use crate::node::peer_manager::broadcast_node_announcement;
 use crate::on_chain_wallet::OnChainWallet;
@@ -100,7 +99,6 @@ pub struct Node<P> {
     _background_processor_handle: RemoteHandle<()>,
     _connection_manager_handle: RemoteHandle<()>,
     _broadcast_node_announcement_handle: RemoteHandle<()>,
-    _dlc_manager_periodic_check_handle: RemoteHandle<()>,
     _sub_channel_manager_periodic_check_handle: RemoteHandle<()>,
 
     logger: Arc<TracingLogger>,
@@ -606,29 +604,6 @@ where
             remote_handle
         };
 
-        let dlc_manager_periodic_check_handle = {
-            let dlc_manager = dlc_manager.clone();
-            let settings = settings.clone();
-            let (fut, remote_handle) = async move {
-                loop {
-                    if let Err(e) = dlc_manager_periodic_check(dlc_manager.clone()).await {
-                        tracing::error!("DLC manager periodic check failed: {e:#}");
-                    }
-
-                    let interval = {
-                        let guard = settings.read().await;
-                        guard.dlc_manager_periodic_check_interval
-                    };
-                    tokio::time::sleep(interval).await;
-                }
-            }
-            .remote_handle();
-
-            tokio::spawn(fut);
-
-            remote_handle
-        };
-
         let sub_channel_manager_periodic_check_handle = {
             let sub_channel_manager = sub_channel_manager.clone();
             let dlc_message_handler = dlc_message_handler.clone();
@@ -702,7 +677,6 @@ where
             _background_processor_handle: background_processor_handle,
             _connection_manager_handle: connection_manager_handle,
             _broadcast_node_announcement_handle: broadcast_node_announcement_handle,
-            _dlc_manager_periodic_check_handle: dlc_manager_periodic_check_handle,
             _sub_channel_manager_periodic_check_handle: sub_channel_manager_periodic_check_handle,
             network_graph,
             #[cfg(test)]
