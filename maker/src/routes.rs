@@ -31,7 +31,7 @@ pub fn router(node: Arc<Node<PaymentMap>>, pool: Pool<ConnectionManager<PgConnec
 
     Router::new()
         .route("/", get(index))
-        .route("/api/newaddress", get(get_new_address))
+        .route("/api/newaddress", get(get_unused_address))
         .route("/api/balance", get(get_balance))
         .route("/api/invoice", get(get_invoice))
         .route("/api/channels", get(list_channels).post(create_channel))
@@ -65,7 +65,7 @@ pub struct Invoice {
 }
 
 pub async fn index(State(app_state): State<Arc<AppState>>) -> Result<Json<Index>, AppError> {
-    let address = app_state.node.get_new_address();
+    let address = app_state.node.get_unused_address();
 
     let offchain = app_state.node.get_ldk_balance();
     let onchain = app_state
@@ -92,10 +92,8 @@ pub async fn index(State(app_state): State<Arc<AppState>>) -> Result<Json<Index>
     }))
 }
 
-pub async fn get_new_address(State(app_state): State<Arc<AppState>>) -> Json<String> {
-    let address = app_state.node.get_new_address();
-
-    Json(address.to_string())
+pub async fn get_unused_address(State(app_state): State<Arc<AppState>>) -> Json<String> {
+    Json(app_state.node.get_unused_address().to_string())
 }
 
 #[derive(Serialize, Deserialize)]
