@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.0.20] - 2023-06-16
 
+- Do not trigger DLC manager periodic check twice
+- Simplify maker binary
+- Prefer unused addresses to new ones (temporarily)
+- chore: Remove share on twitter button temporarily
+- Use address caches in LnDlcWallet
+- Set background transaction priority to 24 blocks
+- Improve error message when trying to collab close LN with DLC channel
+- Simplify deserialisation of channel ID
+- Stabilise key dependencies
+
 ## [1.0.19] - 2023-06-12
 
 - Fixed a deadlock bug, resulting in the coordinator getting stuck
