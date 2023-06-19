@@ -56,9 +56,17 @@ async fn reconnecting_during_dlc_channel_setup() {
     .await
     .unwrap();
 
-    // This reconnect does not affect the protocol because the `Offer` has already been delivered to
-    // the coordinator
-    app.reconnect(coordinator.info).await.unwrap();
+    app.disconnect(coordinator.info);
+    // we need to wait a few seconds for the disconnect to get updated to the channel_state.
+    tokio::time::sleep(Duration::from_secs(5)).await;
+
+    // assert that the accept dlc_channel_offer fails if the peers are disconnected (do not
+    // panic as in https://github.com/get10101/10101/issues/760).
+    assert!(coordinator
+        .accept_dlc_channel_offer(&sub_channel.channel_id)
+        .is_err());
+
+    app.connect(coordinator.info).await.unwrap();
 
     coordinator
         .accept_dlc_channel_offer(&sub_channel.channel_id)
