@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Fix panic when processing accept message while peer is disconnected.
+
 ## [1.0.20] - 2023-06-16
 
 - Do not trigger DLC manager periodic check twice
