@@ -141,12 +141,7 @@ pub fn get_orders_for_ui() -> Result<Vec<trade::order::Order>> {
     let mut db = connection()?;
     let orders = Order::get_without_rejected_and_initial(&mut db)?;
 
-    // TODO: Can probably be optimized with combinator
-    let mut mapped = vec![];
-    for order in orders {
-        mapped.push(order.try_into()?)
-    }
-
+    let mapped = orders.into_iter().map(|order| order.try_into()?).collect();
     Ok(mapped)
 }
 
