@@ -40,6 +40,10 @@ pub struct Opts {
     /// If enabled logs will be in json format
     #[clap(short, long)]
     pub json: bool,
+
+    /// If enabled logs will be in json format
+    #[clap(long, default_value = "5")]
+    pub concurrent_orders: usize,
 }
 
 #[derive(Debug, Clone, Copy, clap::ValueEnum)]
