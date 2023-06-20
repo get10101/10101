@@ -12,6 +12,8 @@ use std::time::Duration;
 use time::OffsetDateTime;
 use trade::ContractSymbol;
 
+const BITMEX_RECONNECT_INTERVAL: Duration = Duration::from_secs(10);
+
 pub async fn bitmex(network: Network) -> impl Stream<Item = Result<Quote, Error>> + Unpin {
     let stream = stream! {
         loop {
@@ -34,9 +36,8 @@ pub async fn bitmex(network: Network) -> impl Stream<Item = Result<Quote, Error>
                 }
             }
 
-            let seconds = 10;
-            tracing::warn!("Disconnected from BitMEX. Reconnecting to BitMEX in {seconds}");
-            tokio::time::sleep(Duration::from_secs(seconds)).await;
+            tracing::warn!("Disconnected from BitMEX. Reconnecting to BitMEX in {seconds} seconds", seconds = BITMEX_RECONNECT_INTERVAL.as_secs());
+            tokio::time::sleep(BITMEX_RECONNECT_INTERVAL).await;
         }
     };
 
