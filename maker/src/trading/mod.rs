@@ -17,7 +17,7 @@ use uuid::Uuid;
 mod bitmex_client;
 mod orderbook_client;
 
-pub async fn run(orderbook_url: Url, maker_id: PublicKey, network: Network) -> Result<()> {
+pub async fn run(orderbook_url: &Url, maker_id: PublicKey, network: Network) -> Result<()> {
     let network = match network {
         Network::Bitcoin => bitmex_stream::Network::Mainnet,
         _ => bitmex_stream::Network::Testnet,
@@ -26,49 +26,51 @@ pub async fn run(orderbook_url: Url, maker_id: PublicKey, network: Network) -> R
 
     let orderbook_client = OrderbookClient::new();
 
-    let mut last_bid = None;
-    let mut last_ask = None;
+    let mut orders: Vec<OrderResponse> = Vec::new();
+
+    // Closure to avoid repeating the same code
+    let add_new_order = |price, direction| {
+        add_order(
+            &orderbook_client,
+            orderbook_url,
+            price,
+            direction,
+            maker_id,
+            dec!(1000),
+        )
+    };
 
     while let Some(quote) = price_stream.try_next().await? {
         tracing::debug!("Received new quote {quote:?}");
 
-        last_bid = update_order(
-            &orderbook_client,
-            orderbook_url.clone(),
-            quote.bid(),
-            Direction::Long,
-            maker_id,
-            last_bid,
-            dec!(1000),
-        )
-        .await;
-        last_ask = update_order(
-            &orderbook_client,
-            orderbook_url.clone(),
-            quote.ask(),
-            Direction::Short,
-            maker_id,
-            last_ask,
-            dec!(1000),
-        )
-        .await;
+        for order in orders.iter() {
+            delete_order(&orderbook_client, orderbook_url, order).await;
+        }
+        orders.clear();
+
+        if let Some(order) = add_new_order(quote.bid(), Direction::Long).await {
+            orders.push(order)
+        };
+
+        if let Some(order) = add_new_order(quote.ask(), Direction::Short).await {
+            orders.push(order)
+        };
     }
 
     Ok(())
 }
 
-async fn update_order(
+async fn add_order(
     orderbook_client: &OrderbookClient,
-    orderbook_url: Url,
+    orderbook_url: &Url,
     price: Decimal,
     direction: Direction,
     maker_id: PublicKey,
-    last_order: Option<OrderResponse>,
     quantity: Decimal,
 ) -> Option<OrderResponse> {
-    let order = match orderbook_client
+    orderbook_client
         .post_new_order(
-            orderbook_url.clone(),
+            orderbook_url,
             NewOrder {
                 id: Uuid::new_v4(),
                 price,
@@ -80,18 +82,20 @@ async fn update_order(
             },
         )
         .await
-    {
-        Ok(order) => Some(order),
-        Err(err) => {
+        .map_err(|err| {
             tracing::error!("Failed posting new order {err:#}");
-            None
-        }
-    };
-    if let Some(last_order) = last_order {
-        let order_id = last_order.id;
-        if let Err(err) = orderbook_client.delete_order(orderbook_url, order_id).await {
-            tracing::error!("Failed deleting old order `{order_id}` because of {err:#}");
-        }
-    };
-    order
+            err
+        })
+        .ok()
+}
+
+async fn delete_order(
+    orderbook_client: &OrderbookClient,
+    orderbook_url: &Url,
+    last_order: &OrderResponse,
+) {
+    let order_id = last_order.id;
+    if let Err(err) = orderbook_client.delete_order(orderbook_url, order_id).await {
+        tracing::error!("Failed deleting old order `{order_id}` because of {err:#}");
+    }
 }

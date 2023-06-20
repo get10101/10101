@@ -19,7 +19,7 @@ impl OrderbookClient {
         }
     }
 
-    pub async fn post_new_order(&self, url: Url, order: NewOrder) -> Result<OrderResponse> {
+    pub async fn post_new_order(&self, url: &Url, order: NewOrder) -> Result<OrderResponse> {
         let url = url.join("/api/orderbook/orders")?;
 
         let response = self.client.post(url).json(&order).send().await?;
@@ -33,7 +33,7 @@ impl OrderbookClient {
         }
     }
 
-    pub async fn delete_order(&self, url: Url, order_id: Uuid) -> Result<()> {
+    pub async fn delete_order(&self, url: &Url, order_id: Uuid) -> Result<()> {
         let url = url.join(format!("/api/orderbook/orders/{order_id}").as_str())?;
 
         let response = self.client.delete(url).send().await?;
