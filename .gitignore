@@ -27,6 +27,8 @@ mobile/ios/Runner/libnative.a
 
 # ignore data runtime data
 data/**
+# must be kept so that logfiles can be created in data/maker/
+!data/maker/.gitkeep
 !data/coordinator/regtest/seed
 
 # ignore CLion/Android Studio files
