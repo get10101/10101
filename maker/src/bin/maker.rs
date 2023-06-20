@@ -20,13 +20,19 @@ async fn main() -> Result<()> {
     );
 
     let opts = Opts::read();
-    let network = opts.network();
 
     let node_pubkey =
         PublicKey::from_str("03f75f318471d32d39be3c86c622e2c51bd5731bf95f98aaa3ed5d6e1c0025927f")
             .expect("is a valid public key");
 
-    match trading::run(&opts.orderbook, node_pubkey, network).await {
+    match trading::run(
+        &opts.orderbook,
+        node_pubkey,
+        opts.network(),
+        opts.concurrent_orders,
+    )
+    .await
+    {
         Ok(_) => {
             tracing::error!("Maker stopped trading")
         }
