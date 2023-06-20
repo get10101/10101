@@ -40,6 +40,10 @@ pub struct Opts {
     /// If enabled logs will be in json format
     #[clap(short, long)]
     pub json: bool,
+
+    /// Amount of concurrent orders (buy,sell) that maker will create at a time
+    #[clap(long, default_value = "5")]
+    pub concurrent_orders: usize,
 }
 
 #[derive(Debug, Clone, Copy, clap::ValueEnum)]

@@ -17,7 +17,12 @@ use uuid::Uuid;
 mod bitmex_client;
 mod orderbook_client;
 
-pub async fn run(orderbook_url: &Url, maker_id: PublicKey, network: Network) -> Result<()> {
+pub async fn run(
+    orderbook_url: &Url,
+    maker_id: PublicKey,
+    network: Network,
+    concurrent_orders: usize,
+) -> Result<()> {
     let network = match network {
         Network::Bitcoin => bitmex_stream::Network::Mainnet,
         _ => bitmex_stream::Network::Testnet,
@@ -43,18 +48,21 @@ pub async fn run(orderbook_url: &Url, maker_id: PublicKey, network: Network) -> 
     while let Some(quote) = price_stream.try_next().await? {
         tracing::debug!("Received new quote {quote:?}");
 
+        // Clear stale orders. They should have expired by now.
         for order in orders.iter() {
             delete_order(&orderbook_client, orderbook_url, order).await;
         }
         orders.clear();
 
-        if let Some(order) = add_new_order(quote.bid(), Direction::Long).await {
-            orders.push(order)
-        };
+        for _i in 0..concurrent_orders {
+            if let Some(order) = add_new_order(quote.bid(), Direction::Long).await {
+                orders.push(order)
+            };
 
-        if let Some(order) = add_new_order(quote.ask(), Direction::Short).await {
-            orders.push(order)
-        };
+            if let Some(order) = add_new_order(quote.ask(), Direction::Short).await {
+                orders.push(order)
+            };
+        }
     }
 
     Ok(())
