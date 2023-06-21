@@ -396,6 +396,10 @@ where
                     })
                     .collect::<Vec<_>>();
 
+                if ldk_outputs.is_empty() {
+                    return Ok(());
+                }
+
                 let destination_script = self.wallet.inner().get_last_unused_address()?;
                 let tx_feerate = self
                     .fee_rate_estimator
