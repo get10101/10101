@@ -81,6 +81,8 @@ where
 
         let now = Instant::now();
 
+        tracing::info!("Started on-chain sync");
+
         wallet_lock.sync(&self.blockchain, SyncOptions::default())?;
 
         tracing::info!(
