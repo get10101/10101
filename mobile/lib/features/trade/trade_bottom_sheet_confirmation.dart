@@ -167,7 +167,7 @@ class TradeBottomSheetConfirmation extends StatelessWidget {
                       style: DefaultTextStyle.of(context).style,
                       children: <TextSpan>[
                         TextSpan(
-                            text: formatAmount(AmountDenomination.satoshi, total),
+                            text: formatSats(total),
                             style: const TextStyle(fontWeight: FontWeight.bold)),
                         const TextSpan(text: ' will be locked up in a Lightning channel!'),
                       ],

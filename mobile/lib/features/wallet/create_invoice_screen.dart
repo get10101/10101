@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:get_10101/common/amount_text.dart';
 import 'package:get_10101/common/amount_text_input_form_field.dart';
 import 'package:get_10101/common/application/channel_constraints_service.dart';
 import 'package:get_10101/common/domain/model.dart';
@@ -42,13 +43,13 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
 
   @override
   Widget build(BuildContext context) {
-    int channelCapacity = channelConstraintsService.getLightningChannelCapacity();
-    int usableChannelCapacity = channelConstraintsService.getUsableChannelCapacity();
-    int balance = context.watch<WalletChangeNotifier>().walletInfo.balances.lightning.sats;
+    Amount channelCapacity = Amount(channelConstraintsService.getLightningChannelCapacity());
+    Amount usableChannelCapacity = Amount(channelConstraintsService.getUsableChannelCapacity());
+    Amount balance = context.watch<WalletChangeNotifier>().walletInfo.balances.lightning;
     bool hasOpenPosition =
         context.watch<PositionChangeNotifier>().positions[ContractSymbol.btcusd] != null;
     // it can go below 0 if the user has an unbalanced channel
-    int maxAmount = max(usableChannelCapacity - balance, 0);
+    Amount maxAmount = Amount(max(usableChannelCapacity.sats - balance.sats, 0));
 
     // TODO: Re-enable this once we support anchor outputs
     // if we already have a balance that is > 5666 then 1 is the minimum to receive
@@ -59,7 +60,7 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
     //         balance,
     //     1);
 
-    int minAmount = 50000;
+    Amount minAmount = Amount(50000);
 
     return Scaffold(
       appBar: AppBar(title: const Text("Receive funds")),
@@ -83,7 +84,7 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
                     Expanded(
                       child: AmountInputField(
                         value: amount != null ? amount! : Amount(0),
-                        hint: "e.g. 5000 sats",
+                        hint: "e.g. ${formatSats(Amount(5000))}",
                         label: "Amount",
                         controller: _amountController,
                         onChanged: (value) {
@@ -106,16 +107,16 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
                           try {
                             int amount = int.parse(value);
 
-                            if (balance > usableChannelCapacity) {
+                            if (balance.sats > usableChannelCapacity.sats) {
                               return "Maximum beta balance exceeded";
                             }
 
-                            if (amount < minAmount) {
-                              return "Min amount to receive is $minAmount";
+                            if (amount < minAmount.sats) {
+                              return "Min amount to receive is ${formatSats(minAmount)}";
                             }
 
-                            if (amount > maxAmount) {
-                              return "Max amount to receive is $maxAmount";
+                            if (amount > maxAmount.sats) {
+                              return "Max amount to receive is ${formatSats(maxAmount)}";
                             }
                           } on Exception {
                             return "Enter a number";
@@ -128,9 +129,9 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
                     if (showValidationHint)
                       ModalBottomSheetInfo(
                           infoText:
-                              "While in beta, channel capacity is limited to $channelCapacity sats; payments above this capacity might get rejected."
-                              "\n\nYour current balance is $balance, so you can receive up to $maxAmount sats."
-                              "\nIf you hold less than $minAmount or more than $usableChannelCapacity in your wallet you might not be able to trade."
+                              "While in beta, channel capacity is limited to ${formatSats(channelCapacity)}; payments above this capacity might get rejected."
+                              "\n\nYour current balance is ${formatSats(balance)}, so you can receive up to ${formatSats(maxAmount)}."
+                              "\nIf you hold less than ${formatSats(minAmount)} or more than ${formatSats(usableChannelCapacity)} in your wallet you might not be able to trade."
                               "\n\nThe maximum is enforced initially to ensure users only trade with small stakes until the software has proven to be stable.",
                           buttonText: "Back to Receive..."),
                   ],
@@ -140,9 +141,9 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
                   child: Padding(
                 padding: const EdgeInsets.only(bottom: 10.0, left: 32.0, right: 32.0),
                 child: Text(
-                  "Due to recent channel fees the initial deposit should be at least 50000 sats."
-                  "\nDuring the beta we recommend a maximum wallet balance of 100000 sats."
-                  "\nYour wallet balance is $balance sats so you should only receive up to $maxAmount sats.",
+                  "Due to recent channel fees the initial deposit should be at least ${formatSats(Amount(50000))}."
+                  "\nDuring the beta we recommend a maximum wallet balance of ${formatSats(Amount(100000))}."
+                  "\nYour wallet balance is ${formatSats(balance)} so you should only receive up to ${formatSats(maxAmount)}.",
                   style: const TextStyle(color: Colors.grey),
                 ),
               )),
