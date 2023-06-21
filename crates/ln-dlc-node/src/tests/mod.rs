@@ -129,7 +129,7 @@ impl Node<PaymentMap> {
         while self.get_confirmed_balance().await? < expected_balance {
             let interval = Duration::from_millis(200);
 
-            self.wallet().sync().await.unwrap();
+            self.wallet().sync().unwrap();
 
             tokio::time::sleep(interval).await;
             tracing::debug!(
@@ -187,8 +187,8 @@ impl Node<PaymentMap> {
                     // We need to sync both parties, even if
                     // `trust_own_funding_0conf` is true for the creator
                     // of the channel (`self`)
-                    self.wallet().sync().await.unwrap();
-                    peer.wallet().sync().await.unwrap();
+                    self.wallet().sync().unwrap();
+                    peer.wallet().sync().unwrap();
                 }
 
                 tracing::debug!(

@@ -302,30 +302,24 @@ where
         let settings = Arc::new(RwLock::new(settings));
 
         std::thread::spawn({
+            let handle = tokio::runtime::Handle::current();
             let settings = settings.clone();
             let ln_dlc_wallet = ln_dlc_wallet.clone();
-            move || {
-                tokio::runtime::Builder::new_current_thread()
-                    .enable_all()
-                    .build()
-                    .expect("to be able to create a runtime")
-                    .block_on(async move {
-                        loop {
-                            if let Err(e) = ln_dlc_wallet.inner().sync().await {
-                                tracing::error!("Failed on-chain sync: {e:#}");
-                            }
+            move || loop {
+                if let Err(e) = ln_dlc_wallet.inner().sync() {
+                    tracing::error!("Failed on-chain sync: {e:#}");
+                }
 
-                            if let Err(e) = ln_dlc_wallet.update_address_cache() {
-                                tracing::warn!("Failed to update address cache: {e:#}");
-                            }
+                if let Err(e) = ln_dlc_wallet.update_address_cache() {
+                    tracing::warn!("Failed to update address cache: {e:#}");
+                }
 
-                            let interval = {
-                                let guard = settings.read().await;
-                                guard.on_chain_sync_interval
-                            };
-                            tokio::time::sleep(interval).await;
-                        }
-                    });
+                let interval = handle.block_on(async {
+                    let guard = settings.read().await;
+                    guard.on_chain_sync_interval
+                });
+
+                std::thread::sleep(interval);
             }
         });
 

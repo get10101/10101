@@ -76,7 +76,7 @@ where
     }
 
     /// Update the internal BDK wallet database with the blockchain.
-    pub async fn sync(&self) -> Result<()> {
+    pub fn sync(&self) -> Result<()> {
         let wallet_lock = self.bdk_lock();
 
         let now = Instant::now();
