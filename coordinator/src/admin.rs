@@ -1,3 +1,4 @@
+use crate::db;
 use crate::routes::AppState;
 use crate::AppError;
 use anyhow::Context;
@@ -10,7 +11,6 @@ use bdk::TransactionDetails;
 use bitcoin::secp256k1::PublicKey;
 use lightning_invoice::Invoice;
 use ln_dlc_node::node::NodeInfo;
-use ln_dlc_node::ChannelDetails;
 use ln_dlc_node::DlcChannelDetails;
 use serde::de;
 use serde::Deserialize;
@@ -46,17 +46,49 @@ pub async fn get_balance(State(state): State<Arc<AppState>>) -> Result<Json<Bala
     .map_err(|e| AppError::InternalServerError(format!("Failed to get balance: {e:#}")))?
 }
 
+#[derive(Serialize)]
+pub struct ChannelDetails {
+    #[serde(flatten)]
+    pub channel_details: ln_dlc_node::ChannelDetails,
+    pub user_email: String,
+}
+
+impl From<(lightning::ln::channelmanager::ChannelDetails, String)> for ChannelDetails {
+    fn from(
+        (channel_details, user_email): (lightning::ln::channelmanager::ChannelDetails, String),
+    ) -> Self {
+        ChannelDetails {
+            channel_details: ln_dlc_node::ChannelDetails::from(channel_details),
+            user_email,
+        }
+    }
+}
+
 #[autometrics]
-pub async fn list_channels(State(state): State<Arc<AppState>>) -> Json<Vec<ChannelDetails>> {
+pub async fn list_channels(
+    State(state): State<Arc<AppState>>,
+) -> Result<Json<Vec<ChannelDetails>>, AppError> {
+    let mut conn =
+        state.pool.clone().get().map_err(|e| {
+            AppError::InternalServerError(format!("Failed to acquire db lock: {e:#}"))
+        })?;
+
     let channels = state
         .node
         .inner
         .list_channels()
         .into_iter()
-        .map(ChannelDetails::from)
+        .map(|channel| {
+            let user_email =
+                match db::user::by_id(&mut conn, channel.counterparty.node_id.to_string()) {
+                    Ok(Some(user)) => user.email,
+                    _ => "unknown".to_string(),
+                };
+            ChannelDetails::from((channel, user_email))
+        })
         .collect::<Vec<_>>();
 
-    Json(channels)
+    Ok(Json(channels))
 }
 
 #[autometrics]
