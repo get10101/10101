@@ -20,13 +20,20 @@ class AmountText extends StatelessWidget {
 }
 
 String formatAmount(AmountDenomination denomination, Amount amount) {
-  final formatterSat = NumberFormat("#,###,###,###,###", "en");
-  final formatterBtc = NumberFormat("##,##0.00000000", "en");
-
   switch (denomination) {
     case AmountDenomination.bitcoin:
-      return "${formatterBtc.format(amount.btc)} BTC";
+      return formatBtc(amount);
     case AmountDenomination.satoshi:
-      return "${formatterSat.format(amount.sats)} sats";
+      return formatSats(amount);
   }
+}
+
+String formatBtc(Amount amount) {
+  final formatter = NumberFormat("##,##0.00000000", "en");
+  return "${formatter.format(amount.btc)} BTC";
+}
+
+String formatSats(Amount amount) {
+  final formatter = NumberFormat("#,###,###,###,###", "en");
+  return "${formatter.format(amount.sats)} sats";
 }
