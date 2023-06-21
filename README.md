@@ -10,6 +10,7 @@
 
 To begin, ensure that you have a working installation of the following items:
 
+- [Docker](https://docs.docker.com/) and docker-compose
 - [Flutter SDK](https://docs.flutter.dev/get-started/install)
 - [Rust language](https://rustup.rs/)
 - Appropriate [Rust targets](https://rust-lang.github.io/rustup/cross-compilation.html) for cross-compiling to your device
