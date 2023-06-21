@@ -311,17 +311,8 @@ where
                     .expect("to be able to create a runtime")
                     .block_on(async move {
                         loop {
-                            let now = Instant::now();
-                            match ln_dlc_wallet.inner().sync().await {
-                                Ok(()) => tracing::info!(
-                                    "Background sync of on-chain wallet finished in {}ms.",
-                                    now.elapsed().as_millis()
-                                ),
-                                Err(err) => {
-                                    tracing::error!(
-                                        "Background sync of on-chain wallet failed: {err:#}",
-                                    )
-                                }
+                            if let Err(e) = ln_dlc_wallet.inner().sync().await {
+                                tracing::error!("Failed on-chain sync: {e:#}");
                             }
 
                             if let Err(e) = ln_dlc_wallet.update_address_cache() {
