@@ -84,8 +84,16 @@ class _ShareInvoiceScreenState extends State<ShareInvoiceScreen> {
                         });
 
                         final router = GoRouter.of(context);
+                        const localCoordinatorPubkey =
+                            "02dd6abec97f9a748bf76ad502b004ce05d1b2d1f43a9e76bd7d85e767ffb022c9";
                         try {
-                          await openCoordinatorChannel(config.host);
+                          if (config.coordinatorPubkey == localCoordinatorPubkey) {
+                            await payInvoiceWithFaucet(widget.invoice);
+                          } else {
+                            // For remote coordinator, we open the channel
+                            // directly with the coordinator as it's less error-prone
+                            await openCoordinatorChannel(config.host);
+                          }
                           // Pop both create invoice screen and share invoice screen
                           router.pop();
                           router.pop();
