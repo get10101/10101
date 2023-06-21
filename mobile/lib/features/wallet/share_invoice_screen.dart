@@ -213,7 +213,7 @@ class _ShareInvoiceScreenState extends State<ShareInvoiceScreen> {
       body: encodedData,
     );
 
-    if (response.statusCode != 200 || response.body.contains("payment_error")) {
+    if (response.statusCode != 200 || !response.body.contains('"payment_error":""')) {
       throw Exception("Payment failed: Received ${response.statusCode} ${response.body}");
     } else {
       FLog.info(text: "Paying invoice succeeded: ${response.body}");
