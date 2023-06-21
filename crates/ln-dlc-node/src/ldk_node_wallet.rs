@@ -86,8 +86,8 @@ where
         wallet_lock.sync(&self.blockchain, SyncOptions::default())?;
 
         tracing::info!(
-            "Background sync of on-chain wallet finished in {}ms.",
-            now.elapsed().as_millis()
+            duration = now.elapsed().as_millis(),
+            "Finished on-chain sync",
         );
 
         Ok(())
