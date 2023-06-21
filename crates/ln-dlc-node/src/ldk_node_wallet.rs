@@ -22,6 +22,7 @@ use lightning::chain::chaininterface::ConfirmationTarget;
 use parking_lot::Mutex;
 use parking_lot::MutexGuard;
 use std::sync::Arc;
+use std::time::Instant;
 use tokio::sync::RwLock;
 
 pub struct Wallet<D>
@@ -76,9 +77,15 @@ where
 
     /// Update the internal BDK wallet database with the blockchain.
     pub async fn sync(&self) -> Result<()> {
-        let wallet_lock = self.bdk_lock();
+        let now = Instant::now();
 
+        let wallet_lock = self.bdk_lock();
         wallet_lock.sync(&self.blockchain, SyncOptions::default())?;
+
+        tracing::info!(
+            "Background sync of on-chain wallet finished in {}ms.",
+            now.elapsed().as_millis()
+        );
 
         Ok(())
     }
