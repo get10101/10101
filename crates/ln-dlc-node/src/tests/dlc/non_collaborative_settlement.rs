@@ -5,7 +5,7 @@ use crate::tests::dlc::create::create_dlc_channel;
 use crate::tests::init_tracing;
 use bitcoin::Amount;
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 #[ignore]
 async fn force_close_ln_dlc_channel() {
     init_tracing();
@@ -44,8 +44,8 @@ async fn force_close_ln_dlc_channel() {
     .await
     .unwrap();
 
-    coordinator.wallet().sync().unwrap();
-    app.wallet().sync().unwrap();
+    coordinator.sync_on_chain().await.unwrap();
+    app.sync_on_chain().await.unwrap();
 
     // Act
 
@@ -55,8 +55,8 @@ async fn force_close_ln_dlc_channel() {
     // transactions
     mine(288).await.unwrap();
 
-    coordinator.wallet().sync().unwrap();
-    app.wallet().sync().unwrap();
+    coordinator.sync_on_chain().await.unwrap();
+    app.sync_on_chain().await.unwrap();
 
     // Ensure publication of the glue and buffer transactions (otherwise we need to wait for the
     // periodic task)
@@ -69,8 +69,8 @@ async fn force_close_ln_dlc_channel() {
 
     // Assert
 
-    coordinator.wallet().sync().unwrap();
-    app.wallet().sync().unwrap();
+    coordinator.sync_on_chain().await.unwrap();
+    app.sync_on_chain().await.unwrap();
 
     // Mining 288 blocks ensures that we get:
     // - 144 required confirmations for the delayed output on the LN commitment transaction to be
@@ -78,8 +78,8 @@ async fn force_close_ln_dlc_channel() {
     // - 288 required confirmations for the CET to be published.
     mine(288).await.unwrap();
 
-    coordinator.wallet().sync().unwrap();
-    app.wallet().sync().unwrap();
+    coordinator.sync_on_chain().await.unwrap();
+    app.sync_on_chain().await.unwrap();
 
     // Ensure publication of CET (otherwise we need to wait for the periodic task)
     sub_channel_manager_periodic_check(
@@ -92,8 +92,8 @@ async fn force_close_ln_dlc_channel() {
     // Confirm CET
     mine(1).await.unwrap();
 
-    coordinator.wallet().sync().unwrap();
-    app.wallet().sync().unwrap();
+    coordinator.sync_on_chain().await.unwrap();
+    app.sync_on_chain().await.unwrap();
 
     let coordinator_on_chain_balance_after_force_close =
         coordinator.get_on_chain_balance().unwrap().confirmed;

@@ -17,7 +17,7 @@ use std::ops::Div;
 use std::ops::Mul;
 use std::time::Duration;
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 #[ignore]
 async fn open_jit_channel() {
     init_tracing();
@@ -59,7 +59,7 @@ async fn open_jit_channel() {
     .unwrap();
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 #[ignore]
 async fn fail_to_open_jit_channel_with_fee_rate_over_max() {
     init_tracing();
@@ -128,7 +128,7 @@ async fn fail_to_open_jit_channel_with_fee_rate_over_max() {
         .expect_err("payment should not succeed");
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 #[ignore]
 async fn open_jit_channel_with_disconnected_payee() {
     init_tracing();

@@ -8,7 +8,7 @@ use anyhow::Context;
 use bitcoin::Amount;
 use std::time::Duration;
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 #[ignore]
 async fn reconnecting_during_dlc_channel_setup() {
     init_tracing();
