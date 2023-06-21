@@ -9,9 +9,9 @@ use axum::extract::State;
 use axum::Json;
 use bdk::TransactionDetails;
 use bitcoin::secp256k1::PublicKey;
+use dlc_manager::subchannel::SubChannel;
 use lightning_invoice::Invoice;
 use ln_dlc_node::node::NodeInfo;
-use ln_dlc_node::DlcChannelDetails;
 use serde::de;
 use serde::Deserialize;
 use serde::Deserializer;
@@ -91,17 +91,45 @@ pub async fn list_channels(
     Ok(Json(channels))
 }
 
+#[derive(Serialize)]
+pub struct DlcChannelDetails {
+    #[serde(flatten)]
+    pub channel_details: ln_dlc_node::DlcChannelDetails,
+    pub user_email: String,
+}
+
+impl From<(SubChannel, String)> for DlcChannelDetails {
+    fn from((channel_details, user_email): (SubChannel, String)) -> Self {
+        DlcChannelDetails {
+            channel_details: ln_dlc_node::DlcChannelDetails::from(channel_details),
+            user_email,
+        }
+    }
+}
+
 #[autometrics]
 pub async fn list_dlc_channels(
     State(state): State<Arc<AppState>>,
 ) -> Result<Json<Vec<DlcChannelDetails>>, AppError> {
+    let mut conn =
+        state.pool.clone().get().map_err(|e| {
+            AppError::InternalServerError(format!("Failed to acquire db lock: {e:#}"))
+        })?;
+
     let dlc_channels = state.node.inner.list_dlc_channels().map_err(|e| {
         AppError::InternalServerError(format!("Failed to list DLC channels: {e:#}"))
     })?;
 
     let dlc_channels = dlc_channels
         .into_iter()
-        .map(DlcChannelDetails::from)
+        .map(|subchannel| {
+            let user_email = match db::user::by_id(&mut conn, subchannel.counter_party.to_string())
+            {
+                Ok(Some(user)) => user.email,
+                _ => "unknown".to_string(),
+            };
+            DlcChannelDetails::from((subchannel, user_email))
+        })
         .collect::<Vec<_>>();
 
     Ok(Json(dlc_channels))
