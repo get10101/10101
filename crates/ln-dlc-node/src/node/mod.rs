@@ -312,9 +312,7 @@ where
                     .block_on(async move {
                         loop {
                             if let Err(e) = ln_dlc_wallet.inner().sync().await {
-                                tracing::error!(
-                                    "Background sync of on-chain wallet failed: {e:#}",
-                                );
+                                tracing::error!("Failed on-chain sync: {e:#}");
                             }
 
                             if let Err(e) = ln_dlc_wallet.update_address_cache() {
