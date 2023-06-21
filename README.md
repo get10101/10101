@@ -95,17 +95,12 @@ The app currently works only on `regtest`, which means that the wallet needs to 
 
 #### Setup
 
-0. If you have run the app before, we recommend to clear the dev environment by running `just wipe`
+1. If you have run the app before, we recommend to clear the dev environment by running `just wipe`
 
-1. Start the complete project stack with `just all`.
-
-2. Fund and configure coordinator by running `just fund`
+2. Start the complete project stack with `just all`.
 
 #### Adding funds to 10101 lightning wallet
 
-3. Create an invoice in your 10101 app by navigating to the receive screen.
-   _Note, that you have to provide the coordinator host to the mobile app like that `just run`_
+1. Create an invoice in your 10101 app by navigating to the receive screen.
 
-4. Open `http://localhost:8080/faucet/` (note: ensure to add the trailing `/` as otherwise nginx will try to redirect the request)
-
-5. Copy the invoice and enter it on the lightning faucet. Hit send and you will receive your funds momentarily.
+2. Click on the "pay the invoice with 10101 faucet" button.
