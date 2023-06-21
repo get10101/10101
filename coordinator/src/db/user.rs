@@ -32,6 +32,14 @@ impl From<RegisterParams> for User {
 pub fn all(conn: &mut PgConnection) -> QueryResult<Vec<User>> {
     users::dsl::users.load(conn)
 }
+pub fn by_id(conn: &mut PgConnection, id: String) -> QueryResult<Option<User>> {
+    let x = users::table
+        .filter(users::pubkey.eq(id))
+        .first(conn)
+        .optional()?;
+
+    Ok(x)
+}
 
 pub fn insert(conn: &mut PgConnection, user: User) -> QueryResult<User> {
     let user: User = diesel::insert_into(users::table)
