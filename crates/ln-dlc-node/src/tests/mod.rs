@@ -61,7 +61,7 @@ fn init_tracing() {
     TRACING_TEST_SUBSCRIBER.call_once(|| {
         tracing_subscriber::fmt()
             .with_env_filter(
-                "debug,hyper=warn,reqwest=warn,rustls=warn,bdk=info,lightning=trace,sled=info,lightning::chain::channelmonitor=trace,lightning::ln::peer_handler=debug,ureq=info",
+                "debug,hyper=warn,reqwest=warn,rustls=warn,bdk=info,lightning=trace,sled=info,lightning::ln::peer_handler=debug,ureq=info",
             )
             .with_test_writer()
             .init()
