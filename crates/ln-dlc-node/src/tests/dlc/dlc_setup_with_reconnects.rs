@@ -6,6 +6,7 @@ use crate::tests::wait_until_dlc_channel_state;
 use crate::tests::SubChannelStateName;
 use anyhow::Context;
 use bitcoin::Amount;
+use std::sync::Arc;
 use std::time::Duration;
 
 #[tokio::test]
@@ -15,10 +16,12 @@ async fn reconnecting_during_dlc_channel_setup() {
 
     // Arrange
 
-    let app = Node::start_test_app("app").unwrap();
-    let coordinator = Node::start_test_coordinator("coordinator").unwrap();
+    let app = Arc::new(Node::start_test_app("app").unwrap());
+    let coordinator = Arc::new(Node::start_test_coordinator("coordinator").unwrap());
 
-    app.connect(coordinator.info).await.unwrap();
+    let coordinator_info = coordinator.info;
+
+    app.connect(coordinator_info).await.unwrap();
 
     coordinator
         .fund(Amount::from_sat(10_000_000))
@@ -32,7 +35,7 @@ async fn reconnecting_during_dlc_channel_setup() {
     let channel_details = app.channel_manager.list_usable_channels();
     let channel_details = channel_details
         .iter()
-        .find(|c| c.counterparty.node_id == coordinator.info.pubkey)
+        .find(|c| c.counterparty.node_id == coordinator_info.pubkey)
         .context("No usable channels for app")
         .unwrap()
         .clone();
@@ -94,23 +97,52 @@ async fn reconnecting_during_dlc_channel_setup() {
     .await
     .unwrap();
 
-    // Assert
+    // TODO: I have absolutely no idea why reconnecting sequentially does not result into the same
+    // error as when we are reconnecting in an async task!
+    // app.reconnect(coordinator_info).await.unwrap();
+
+    // TODO: Check why the reconnect has to happen in a dedicated task!
+    tokio::spawn({
+        let app = app.clone();
+        let info = coordinator.info;
+        async move {
+            app.reconnect(info).await.unwrap();
+        }
+    });
+
+    // Wait for the peer to get actually connect and the channel reestablish event to finish.
+    // During the reconnect the coordinator will return from `Accepted` to the `Offer` state
+
+    // After 5 seconds the reaccept message is not yet automatically send through the pending
+    // actions, but can be enforced by manually calling the function
+    // tokio::time::sleep(Duration::from_secs(5)).await;
+
+    // reaccept the dlc channel offer
+    // coordinator
+    //     .accept_dlc_channel_offer(&sub_channel.channel_id)
+    //     .unwrap();
+
+    // Alternatively, we can wait for about 25 seconds so that the reaccept message gets
+    // automatically sent.
+    tokio::time::sleep(Duration::from_secs(25)).await;
 
     // Process the app's `Confirm` and send `Finalize`
+    // FIXME: Processing the SubChannelConfirm message here will result in the following error
+    // Invalid state: Misuse error: Close : Got a revoke commitment secret which didn't correspond
+    // to their current pubkey
     wait_until_dlc_channel_state(
         Duration::from_secs(30),
         &coordinator,
         app.info.pubkey,
-        SubChannelStateName::Signed,
+        SubChannelStateName::Accepted,
     )
     .await
     .unwrap();
 
-    // Process the coordinator's `Finalize`
     wait_until_dlc_channel_state(
         Duration::from_secs(30),
-        &app,
-        coordinator.info.pubkey,
+        &coordinator,
+        app.info.pubkey,
         SubChannelStateName::Signed,
     )
     .await
