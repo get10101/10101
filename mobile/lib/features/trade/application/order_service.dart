@@ -5,8 +5,8 @@ import 'package:get_10101/features/trade/domain/leverage.dart';
 import 'package:get_10101/features/trade/domain/order.dart';
 
 class OrderService {
-  Future<void> submitMarketOrder(Leverage leverage, double quantity, ContractSymbol contractSymbol,
-      Direction direction) async {
+  Future<String> submitMarketOrder(Leverage leverage, double quantity,
+      ContractSymbol contractSymbol, Direction direction) async {
     rust.NewOrder order = rust.NewOrder(
         leverage: leverage.leverage,
         quantity: quantity,
@@ -14,7 +14,7 @@ class OrderService {
         direction: direction.toApi(),
         orderType: const rust.OrderType.market());
 
-    await rust.api.submitOrder(order: order);
+    return await rust.api.submitOrder(order: order);
   }
 
   Future<List<Order>> fetchOrders() async {

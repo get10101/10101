@@ -201,7 +201,8 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
         context.read<PositionChangeNotifier>(),
         context.read<WalletChangeNotifier>(),
         context.read<CandlestickChangeNotifier>(),
-        context.read<TradeValuesChangeNotifier>());
+        context.read<TradeValuesChangeNotifier>(),
+        context.read<SubmitOrderChangeNotifier>());
   }
 
   @override
@@ -232,7 +233,8 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
       PositionChangeNotifier positionChangeNotifier,
       WalletChangeNotifier walletChangeNotifier,
       CandlestickChangeNotifier candlestickChangeNotifier,
-      TradeValuesChangeNotifier tradeValuesChangeNotifier) async {
+      TradeValuesChangeNotifier tradeValuesChangeNotifier,
+      SubmitOrderChangeNotifier submitOrderChangeNotifier) async {
     try {
       setupRustLogging();
 
@@ -241,6 +243,9 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
       final EventService eventService = EventService.create();
       eventService.subscribe(
           orderChangeNotifier, bridge.Event.orderUpdateNotification(Order.apiDummy()));
+
+      eventService.subscribe(
+          submitOrderChangeNotifier, bridge.Event.orderUpdateNotification(Order.apiDummy()));
 
       eventService.subscribe(
           positionChangeNotifier, bridge.Event.positionUpdateNotification(Position.apiDummy()));
