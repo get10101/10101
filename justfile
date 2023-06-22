@@ -231,14 +231,14 @@ maker-logs:
     tail -f {{maker_log_file}}
 
 # Run services in the background
-services: docker run-coordinator-detached run-maker-detached
+services: docker run-coordinator-detached run-maker-detached wait-for-coordinator-to-be-ready fund
 
 # Run everything at once (docker, coordinator, native build)
 # Note: if you have mobile simulator running, it will start that one instead of native, but will *not* rebuild the mobile rust library.
-all: services gen native fund run
+all: services gen native run
 
 # Run everything at once, tailored for iOS development (rebuilds iOS)
-all-ios: services gen ios fund run
+all-ios: services gen ios run
 
 [private]
 wait-for-electrs-to-be-ready:
@@ -261,6 +261,39 @@ wait-for-electrs-to-be-ready:
             sleep 1
         fi
     done
+
+[private]
+wait-for-coordinator-to-be-ready:
+    #!/usr/bin/env bash
+    set +e
+
+    endpoint="http://localhost:8000/api/newaddress"
+    max_attempts=10
+    sleep_duration=1
+
+    check_endpoint() {
+      response=$(curl -s -o /dev/null -w "%{http_code}" "$endpoint")
+      if [ "$response" -eq 200 ]; then
+        echo "Coordinator is ready!"
+        exit 0
+        else
+        echo "Coordinator not ready yet. Retrying..."
+        return 1
+        fi
+        }
+
+    attempt=1
+    while [ "$attempt" -le "$max_attempts" ]; do
+      if check_endpoint; then
+        exit 0
+        fi
+
+      sleep "$sleep_duration"
+      attempt=$((attempt + 1))
+      done
+
+    echo "Max attempts reached. Coordinator is still not ready."
+    exit 1
 
 build-ipa:
     #!/usr/bin/env bash
@@ -313,5 +346,12 @@ wipe-prometheus:
     set -euxo pipefail
     cd services/prometheus
     rm -rf data
+
+
+# end-to-end tests
+e2e: services
+    #!/usr/bin/env bash
+    set -euxo pipefail
+    cargo test -- --test-threads=1
 
 # vim:expandtab:sw=4:ts=4
