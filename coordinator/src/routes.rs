@@ -105,6 +105,7 @@ pub fn router(
             "/api/admin/settings",
             get(get_settings).put(update_settings),
         )
+        .route("/api/admin/sync", post(post_sync))
         .route("/metrics", get(get_metrics))
         .with_state(app_state)
 }
@@ -216,6 +217,21 @@ pub async fn post_trade(
     state.node.trade(&trade_params.0).await.map_err(|e| {
         AppError::InternalServerError(format!("Could not handle trade request: {e:#}"))
     })?;
+
+    Ok(())
+}
+
+/// Internal API for syncing the wallet
+#[instrument(skip_all, err(Debug))]
+#[autometrics]
+pub async fn post_sync(State(state): State<Arc<AppState>>) -> Result<(), AppError> {
+    state
+        .node
+        .inner
+        .wallet()
+        .sync()
+        .await
+        .map_err(|e| AppError::InternalServerError(format!("Could not sync wallet: {e:#}")))?;
 
     Ok(())
 }

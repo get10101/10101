@@ -235,10 +235,10 @@ services: docker run-coordinator-detached run-maker-detached
 
 # Run everything at once (docker, coordinator, native build)
 # Note: if you have mobile simulator running, it will start that one instead of native, but will *not* rebuild the mobile rust library.
-all: services gen native run
+all: services gen native fund run
 
 # Run everything at once, tailored for iOS development (rebuilds iOS)
-all-ios: services gen ios run
+all-ios: services gen ios fund run
 
 [private]
 wait-for-electrs-to-be-ready:

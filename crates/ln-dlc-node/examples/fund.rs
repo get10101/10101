@@ -65,6 +65,10 @@ async fn fund_everything(faucet: &str, coordinator: &str) -> Result<()> {
     .await?;
     mine(10, faucet).await?;
 
+    if let Err(e) = post_sync(&format!("{coordinator}/api/admin/sync")).await {
+        tracing::warn!("failed to sync coordinator: {}", e);
+    }
+
     let lnd_balance = get_text(&format!("{faucet}/lnd/v1/balance/blockchain")).await?;
     tracing::info!("coordinator lightning balance: {}", lnd_balance);
 
@@ -144,6 +148,16 @@ async fn mine(n: u16, faucet: &str) -> Result<()> {
     tokio::time::sleep(Duration::from_secs(5)).await;
 
     Ok(())
+}
+
+async fn post_sync(request: &str) -> Result<Response> {
+    let client = reqwest::Client::new();
+    let response = client.post(request).send().await?;
+
+    if !response.status().is_success() {
+        bail!(response.text().await?)
+    }
+    Ok(response)
 }
 
 async fn post_query(path: &str, body: String, faucet: &str) -> Result<Response> {
