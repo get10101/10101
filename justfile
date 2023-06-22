@@ -182,7 +182,7 @@ native-test:
 test: flutter-test native-test
 
 # Run expensive tests from the `ln-dlc-node` crate. 
-ln-dlc-node-test args="":: docker
+ln-dlc-node-test args="": docker
     # wait a few seconds to ensure that Docker containers started
     sleep 2
     # adjust the max amount of available file descriptors - we're making a lot of requests, and it might go over the limit
@@ -348,10 +348,11 @@ wipe-prometheus:
     rm -rf data
 
 
+alias e2e := tests-e2e
 # end-to-end tests
-e2e: services
+tests-e2e args="": services
     #!/usr/bin/env bash
     set -euxo pipefail
-    cargo test -- --test-threads=1
+    cargo test -p tests-e2e -- --ignored --test-threads=1 {{args}}
 
 # vim:expandtab:sw=4:ts=4
