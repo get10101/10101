@@ -46,10 +46,11 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: const <Widget>[
-                    Text(
+                    Center(
+                        child: Text(
                       "As we are in closed beta, there may be bugs. To assist with any issues, please provide your email.",
                       style: TextStyle(fontSize: 16, color: Colors.black54),
-                    )
+                    ))
                   ],
                 ),
                 const SizedBox(height: 20),
