@@ -9,6 +9,7 @@ use anyhow::Context;
 use bitcoin::Amount;
 use dlc_manager::subchannel::SubChannelState;
 use dlc_manager::Storage;
+use std::sync::Arc;
 use std::time::Duration;
 
 #[tokio::test(flavor = "multi_thread")]
@@ -18,10 +19,12 @@ async fn reconnecting_during_dlc_channel_setup() {
 
     // Arrange
 
-    let app = Node::start_test_app("app").unwrap();
-    let coordinator = Node::start_test_coordinator("coordinator").unwrap();
+    let app = Arc::new(Node::start_test_app("app").unwrap());
+    let coordinator = Arc::new(Node::start_test_coordinator("coordinator").unwrap());
 
-    app.connect(coordinator.info).await.unwrap();
+    let coordinator_info = coordinator.info;
+
+    app.connect(coordinator_info).await.unwrap();
 
     coordinator
         .fund(Amount::from_sat(10_000_000))
@@ -35,7 +38,7 @@ async fn reconnecting_during_dlc_channel_setup() {
     let channel_details = app.channel_manager.list_usable_channels();
     let channel_details = channel_details
         .iter()
-        .find(|c| c.counterparty.node_id == coordinator.info.pubkey)
+        .find(|c| c.counterparty.node_id == coordinator_info.pubkey)
         .context("No usable channels for app")
         .unwrap()
         .clone();
@@ -97,23 +100,41 @@ async fn reconnecting_during_dlc_channel_setup() {
     .await
     .unwrap();
 
-    // Assert
+    // Wait for the `Confirm` message to be delivered
+    tokio::time::sleep(Duration::from_secs(2)).await;
 
-    // Process the app's `Confirm` and send `Finalize`
-    wait_until_dlc_channel_state(
-        Duration::from_secs(30),
-        &coordinator,
-        app.info.pubkey,
-        SubChannelStateName::Signed,
+    app.reconnect(coordinator_info).await.unwrap();
+
+    // Wait for the peers to reconnect and get the `ChannelReestablish` event. During the reconnect
+    // the coordinator will return from `Accepted` to the `Offered` state.
+    tokio::time::sleep(Duration::from_secs(2)).await;
+
+    // The coordinator handles `ReAccept` action. We need this so that the coordinator advances its
+    // state to `Accepted` again, so that it can process the app's old `Confirm` message
+    sub_channel_manager_periodic_check(
+        coordinator.sub_channel_manager.clone(),
+        &coordinator.dlc_message_handler,
     )
     .await
     .unwrap();
 
-    // Process the coordinator's `Finalize`
+    // tracing::info!("---> App processing second `Accept` <---");
+
+    // tokio::time::sleep(Duration::from_secs(2)).await;
+
+    // app.process_incoming_messages().unwrap();
+
+    // tokio::time::sleep(Duration::from_secs(2)).await;
+
+    tracing::info!("---> Coordinator processing app's `Confirm` message now <---");
+
+    // FIXME: Processing the SubChannelConfirm message here will result in the following error
+    // Invalid state: Misuse error: Close : Got a revoke commitment secret which didn't correspond
+    // to their current pubkey
     wait_until_dlc_channel_state(
         Duration::from_secs(30),
-        &app,
-        coordinator.info.pubkey,
+        &coordinator,
+        app.info.pubkey,
         SubChannelStateName::Signed,
     )
     .await
