@@ -31,6 +31,7 @@ dependencies:
   shared_preferences: ^2.1.2
   package_info_plus: ^4.0.2
   uuid: ^3.0.7
+  confetti: ^0.7.0
 dev_dependencies:
   flutter_launcher_icons: ^0.13.1
   flutter_test:
