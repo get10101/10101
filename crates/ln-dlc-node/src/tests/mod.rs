@@ -66,10 +66,9 @@ fn init_tracing() {
                 reqwest=warn,\
                 rustls=warn,\
                 bdk=info,\
+                lightning::ln::peer_handler=debug,\
                 lightning=trace,\
                 sled=info,\
-                lightning::chain::channelmonitor=trace,\
-                lightning::ln::peer_handler=debug,\
                 ureq=info",
             )
             .with_test_writer()
