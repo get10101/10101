@@ -1,9 +1,11 @@
 use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
 use maker::cli::Opts;
+use maker::logger;
 use maker::trading;
 use std::backtrace::Backtrace;
 use std::str::FromStr;
+use tracing::level_filters::LevelFilter;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -24,6 +26,8 @@ async fn main() -> Result<()> {
     let node_pubkey =
         PublicKey::from_str("03f75f318471d32d39be3c86c622e2c51bd5731bf95f98aaa3ed5d6e1c0025927f")
             .expect("is a valid public key");
+
+    logger::init_tracing(LevelFilter::DEBUG, opts.json)?;
 
     match trading::run(
         &opts.orderbook,
