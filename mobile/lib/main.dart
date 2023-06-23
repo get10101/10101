@@ -53,7 +53,7 @@ void main() {
   FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
 
   final config = FLog.getDefaultConfigurations();
-  config.activeLogLevel = LogLevel.DEBUG;
+  config.activeLogLevel = LogLevel.TRACE;
   config.formatType = FormatType.FORMAT_CUSTOM;
   config.timestampFormat = 'yyyy-MM-dd HH:mm:ss.SSS';
   config.fieldOrderFormatCustom = [
