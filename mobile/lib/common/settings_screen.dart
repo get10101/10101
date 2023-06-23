@@ -23,7 +23,6 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  Iterable<TextSpan>? logs;
   String _buildNumber = '';
   String _version = '';
   String _nodeId = "";
@@ -188,75 +187,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               Share.shareXFiles([logFile], text: 'Logs from $now');
             },
             child: const Text("Share logs")),
-        ElevatedButton(
-            onPressed: () async {
-              var list = await FLog.getAllLogs();
-              setState(() {
-                logs = list.reversed.map((e) => logToTextSpan(e));
-              });
-            },
-            child: const Text("Print logs")),
-        Expanded(
-            child: logs != null
-                ? SingleChildScrollView(
-                    scrollDirection: Axis.vertical,
-                    child: Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: SelectableText.rich(
-                          TextSpan(children: logs!.toList()),
-                        )))
-                : Center(
-                    child: Image.asset('assets/10101_logo_icon.png', width: 150, height: 150),
-                  ))
       ])),
     );
   }
-}
-
-TextSpan logToTextSpan(Log log) {
-  List<InlineSpan> children = [];
-
-  children.add(
-      TextSpan(text: '${log.timestamp} ', style: const TextStyle(fontStyle: FontStyle.italic)));
-
-  var level = log.logLevel;
-  if (level != null) {
-    children.add(logLevelToTextSpan(level));
-  }
-
-  children.add(TextSpan(
-      text: ' ${log.text}\n', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)));
-
-  return TextSpan(children: children);
-}
-
-TextSpan logLevelToTextSpan(LogLevel level) {
-  Color color;
-  switch (level) {
-    case LogLevel.TRACE:
-      color = Colors.purpleAccent;
-      break;
-    case LogLevel.DEBUG:
-      color = Colors.blue;
-      break;
-    case LogLevel.INFO:
-      color = Colors.green;
-      break;
-    case LogLevel.WARNING:
-      color = Colors.yellow;
-      break;
-    case LogLevel.ERROR:
-    case LogLevel.SEVERE:
-    case LogLevel.FATAL:
-      color = Colors.red;
-      break;
-    case LogLevel.OFF:
-      color = Colors.brown;
-      break;
-    case LogLevel.ALL:
-      color = Colors.orange;
-      break;
-  }
-
-  return TextSpan(text: level.name, style: TextStyle(color: color));
 }
