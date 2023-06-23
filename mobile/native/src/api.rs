@@ -139,9 +139,10 @@ pub fn calculate_pnl(
 }
 
 #[tokio::main(flavor = "current_thread")]
-pub async fn submit_order(order: NewOrder) -> Result<()> {
-    order::handler::submit_order(order.into()).await?;
-    Ok(())
+pub async fn submit_order(order: NewOrder) -> Result<String> {
+    order::handler::submit_order(order.into())
+        .await
+        .map(|id| id.to_string())
 }
 
 #[tokio::main(flavor = "current_thread")]

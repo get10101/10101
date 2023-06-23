@@ -20,7 +20,7 @@ use uuid::Uuid;
 
 const ORDER_OUTDATED_AFTER: Duration = Duration::minutes(5);
 
-pub async fn submit_order(order: Order) -> Result<()> {
+pub async fn submit_order(order: Order) -> Result<Uuid> {
     let url = format!("http://{}", config::get_http_endpoint());
     let orderbook_client = OrderbookClient::new(Url::parse(&url)?);
 
@@ -44,7 +44,7 @@ pub async fn submit_order(order: Order) -> Result<()> {
     update_order_state_in_db_and_ui(order.id, OrderState::Open)?;
     update_position_after_order_submitted(&order)?;
 
-    Ok(())
+    Ok(order.id)
 }
 
 /// Update order to state [`OrderState::Filling`].

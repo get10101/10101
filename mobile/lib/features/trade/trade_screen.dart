@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:get_10101/common/domain/model.dart';
-import 'package:get_10101/common/submission_status_dialog.dart';
 import 'package:get_10101/common/value_data_row.dart';
 import 'package:get_10101/features/trade/candlestick_change_notifier.dart';
 import 'package:get_10101/features/trade/contract_symbol_icon.dart';
@@ -23,6 +22,8 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:get_10101/util/constants.dart';
 import 'package:share_plus/share_plus.dart';
+
+import 'order_submission_status_dialog.dart';
 
 class TradeScreen extends StatelessWidget {
   static const route = "/trade";
@@ -60,25 +61,41 @@ class TradeScreen extends StatelessWidget {
         return await showDialog(
             context: context,
             useRootNavigator: true,
+            barrierDismissible: false, // Prevent user from leaving
             builder: (BuildContext context) {
               return Selector<SubmitOrderChangeNotifier, PendingOrderState>(
                 selector: (_, provider) => provider.pendingOrder!.state,
                 builder: (context, state, child) {
-                  const String title = "Submit Order";
                   Widget body =
                       createSubmitWidget(pendingOrder, pnl, submitOrderChangeNotifier, context);
 
                   switch (state) {
                     case PendingOrderState.submitting:
-                      return SubmissionStatusDialog(
-                          title: title, type: SubmissionStatusDialogType.pending, content: body);
+                      return OrderSubmissionStatusDialog(
+                          title: "Submit Order",
+                          type: OrderSubmissionStatusDialogType.pendingSubmit,
+                          content: body);
                     case PendingOrderState.submittedSuccessfully:
-                      return SubmissionStatusDialog(
-                          title: title, type: SubmissionStatusDialogType.success, content: body);
+                      return OrderSubmissionStatusDialog(
+                          title: "Fill Order",
+                          type: OrderSubmissionStatusDialogType.successfulSubmit,
+                          content: body);
                     case PendingOrderState.submissionFailed:
                       // TODO: This failure case has to be handled differently; are we planning to show orders that failed to submit in the order history?
-                      return SubmissionStatusDialog(
-                          title: title, type: SubmissionStatusDialogType.failure, content: body);
+                      return OrderSubmissionStatusDialog(
+                          title: "Submit Order",
+                          type: OrderSubmissionStatusDialogType.failedSubmit,
+                          content: body);
+                    case PendingOrderState.orderFilled:
+                      return OrderSubmissionStatusDialog(
+                          title: "Fill Order",
+                          type: OrderSubmissionStatusDialogType.filled,
+                          content: body);
+                    case PendingOrderState.orderFailed:
+                      return OrderSubmissionStatusDialog(
+                          title: "Fill Order",
+                          type: OrderSubmissionStatusDialogType.failedFill,
+                          content: body);
                   }
                 },
               );
@@ -282,7 +299,27 @@ class TradeScreen extends StatelessWidget {
 
   Widget createSubmitWidget(PendingOrder pendingOrder, Amount pnl,
       SubmitOrderChangeNotifier submitOrderChangeNotifier, BuildContext context) {
-    Widget body = Column(
+    String bottomText;
+
+    switch (pendingOrder.state) {
+      case PendingOrderState.submittedSuccessfully:
+      case PendingOrderState.submitting:
+        bottomText = "Please wait while the order is being processed.";
+        break;
+      case PendingOrderState.orderFailed:
+      case PendingOrderState.submissionFailed:
+        bottomText = "Sorry, we couldn't match your order. Please try again later.";
+        break;
+      case PendingOrderState.orderFilled:
+        if (pendingOrder.positionAction == PositionAction.close) {
+          bottomText = "Your position has been closed.";
+        } else {
+          bottomText = "Congratulations! Your position will be shown in the Positions tab.";
+        }
+        break;
+    }
+
+    Column body = Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         SizedBox(
@@ -305,25 +342,38 @@ class TradeScreen extends StatelessWidget {
         ),
         Padding(
           padding: const EdgeInsets.only(top: 20, left: 10, right: 10, bottom: 5),
-          child: Text(
-              pendingOrder.positionAction == PositionAction.close
-                  ? "Your Position will be removed automatically once your ${submitOrderChangeNotifier.pendingOrderValues?.direction.name} order has been filled."
-                  : "Your Position will be shown automatically in the Positions tab once your ${submitOrderChangeNotifier.pendingOrderValues?.direction.name} order has been filled.",
+          child: Text(bottomText,
               style: DefaultTextStyle.of(context).style.apply(fontSizeFactor: 1.0)),
         ),
-
-        // FIXME: temporarily removing the share on twitter button, as it would encourage the user to close the app while the order is executed. That could will most likely result in
-        // a broken DLC / app state. A proper fix should be implemented with https://github.com/get10101/10101/issues/714
-        // Padding(
-        //   padding: const EdgeInsets.only(top: 20, left: 10, right: 10, bottom: 5),
-        //   child: ElevatedButton(
-        //       onPressed: () async {
-        //         await shareText(pendingOrder.positionAction);
-        //       },
-        //       child: const Text("Share on Twitter")),
-        // ),
       ],
     );
+
+    // Add "Do not close the app" while order is pending
+    if (pendingOrder.state == PendingOrderState.submitting ||
+        pendingOrder.state == PendingOrderState.submittedSuccessfully) {
+      body.children.add(
+        Padding(
+          padding: const EdgeInsets.only(left: 10, right: 10, bottom: 5),
+          child: Text("Do not close the app!",
+              style: DefaultTextStyle.of(context)
+                  .style
+                  .apply(fontSizeFactor: 1.0, fontWeightDelta: 1)),
+        ),
+      );
+    }
+
+    // Only display "share on twitter" when order is filled
+    if (pendingOrder.state == PendingOrderState.orderFilled) {
+      body.children.add(Padding(
+        padding: const EdgeInsets.only(top: 20, left: 10, right: 10, bottom: 5),
+        child: ElevatedButton(
+            onPressed: () async {
+              await shareText(pendingOrder.positionAction);
+            },
+            child: const Text("Share on Twitter")),
+      ));
+    }
+
     return body;
   }
 
