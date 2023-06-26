@@ -9,6 +9,12 @@ use std::sync::RwLock;
 use std::sync::RwLockReadGuard;
 use std::sync::RwLockWriteGuard;
 
+const CONFIRMATION_TARGETS: [(ConfirmationTarget, usize); 3] = [
+    (ConfirmationTarget::Background, 24),
+    (ConfirmationTarget::Normal, 6),
+    (ConfirmationTarget::HighPriority, 3),
+];
+
 pub struct FeeRateEstimator {
     client: esplora_client::BlockingClient,
     fee_rate_cache: RwLock<HashMap<ConfirmationTarget, FeeRate>>,
@@ -63,11 +69,7 @@ impl FeeRateEstimator {
         let estimates = self.client.get_fee_estimates()?;
 
         let mut locked_fee_rate_cache = self.cache_write_lock();
-        for (target, n_blocks) in [
-            (ConfirmationTarget::Background, 24),
-            (ConfirmationTarget::Normal, 6),
-            (ConfirmationTarget::HighPriority, 3),
-        ] {
+        for (target, n_blocks) in CONFIRMATION_TARGETS {
             let fee_rate = esplora_client::convert_fee_rate(n_blocks, estimates.clone())?;
 
             let fee_rate = FeeRate::from_sat_per_vb(fee_rate);
