@@ -40,6 +40,7 @@ use std::net::TcpListener;
 use std::path::PathBuf;
 use std::sync::Once;
 use std::time::Duration;
+use tokio::task::block_in_place;
 
 mod bitcoind;
 mod dlc;
@@ -118,6 +119,17 @@ impl Node<PaymentMap> {
         Ok(node)
     }
 
+    /// Trigger on-chain wallet sync.
+    ///
+    /// We wrap the wallet sync with a `block_in_place` to avoid blocking the async task in
+    /// `tokio::test`s.
+    ///
+    /// Because we use `block_in_place`, we must configure the `tokio::test`s with `flavor =
+    /// "multi_thread"`.
+    async fn sync_on_chain(&self) -> Result<()> {
+        block_in_place(|| self.wallet().sync())
+    }
+
     async fn fund(&self, amount: Amount) -> Result<()> {
         let starting_balance = self.get_confirmed_balance().await?;
         let expected_balance = starting_balance + amount.to_sat();
@@ -129,7 +141,7 @@ impl Node<PaymentMap> {
         while self.get_confirmed_balance().await? < expected_balance {
             let interval = Duration::from_millis(200);
 
-            self.wallet().sync().await.unwrap();
+            self.sync_on_chain().await.unwrap();
 
             tokio::time::sleep(interval).await;
             tracing::debug!(
@@ -187,8 +199,8 @@ impl Node<PaymentMap> {
                     // We need to sync both parties, even if
                     // `trust_own_funding_0conf` is true for the creator
                     // of the channel (`self`)
-                    self.wallet().sync().await.unwrap();
-                    peer.wallet().sync().await.unwrap();
+                    self.sync_on_chain().await.unwrap();
+                    peer.sync_on_chain().await.unwrap();
                 }
 
                 tracing::debug!(

@@ -47,6 +47,7 @@ use std::sync::Arc;
 use tokio::sync::broadcast;
 use tokio::sync::mpsc;
 use tokio::sync::RwLock;
+use tokio::task::spawn_blocking;
 use tracing::instrument;
 
 pub struct AppState {
@@ -225,12 +226,9 @@ pub async fn post_trade(
 #[instrument(skip_all, err(Debug))]
 #[autometrics]
 pub async fn post_sync(State(state): State<Arc<AppState>>) -> Result<(), AppError> {
-    state
-        .node
-        .inner
-        .wallet()
-        .sync()
+    spawn_blocking(move || state.node.inner.wallet().sync())
         .await
+        .map_err(|_| AppError::InternalServerError("Could not sync wallet".to_string()))?
         .map_err(|e| AppError::InternalServerError(format!("Could not sync wallet: {e:#}")))?;
 
     Ok(())

@@ -52,7 +52,7 @@ pub async fn refresh_wallet_info() -> Result<()> {
     let node = NODE.get();
     let wallet = node.inner.wallet();
 
-    wallet.sync().await?;
+    spawn_blocking(move || wallet.sync()).await??;
     keep_wallet_balance_and_history_up_to_date(node).await?;
 
     Ok(())

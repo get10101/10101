@@ -7,7 +7,7 @@ use crate::tests::min_outbound_liquidity_channel_creator;
 use bitcoin::Amount;
 use std::time::Duration;
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 #[ignore]
 async fn ln_collab_close() {
     init_tracing();
@@ -78,7 +78,7 @@ async fn ln_collab_close() {
 
     // Mine one block to confirm the close transaction
     bitcoind::mine(1).await.unwrap();
-    payee.wallet().sync().await.unwrap();
+    payee.sync_on_chain().await.unwrap();
 
     // Assert
 
@@ -92,7 +92,7 @@ async fn ln_collab_close() {
     );
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 #[ignore]
 async fn ln_force_close() {
     init_tracing();
@@ -150,7 +150,7 @@ async fn ln_force_close() {
         .force_close_broadcasting_latest_txn(&channel_id, &coordinator.info.pubkey)
         .unwrap();
 
-    payee.wallet().sync().await.unwrap();
+    payee.sync_on_chain().await.unwrap();
 
     assert_eq!(payee.get_on_chain_balance().unwrap().confirmed, 0);
     assert_eq!(payee.get_ldk_balance().available, 0);
@@ -170,12 +170,12 @@ async fn ln_force_close() {
     // Syncing the payee's wallet should now trigger a `SpendableOutputs` event
     // corresponding to their revocable output in the commitment transaction, which they
     // will subsequently spend in a new transaction paying to their on-chain wallet
-    payee.wallet().sync().await.unwrap();
+    payee.sync_on_chain().await.unwrap();
 
     // Mine one more block to confirm the transaction spending the payee's revocable output
     // in the commitment transaction
     bitcoind::mine(1).await.unwrap();
-    payee.wallet().sync().await.unwrap();
+    payee.sync_on_chain().await.unwrap();
 
     // Assert
 

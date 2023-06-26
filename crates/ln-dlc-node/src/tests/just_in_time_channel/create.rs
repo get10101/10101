@@ -17,7 +17,7 @@ use std::ops::Div;
 use std::ops::Mul;
 use std::time::Duration;
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 #[ignore]
 async fn open_jit_channel() {
     init_tracing();
@@ -59,7 +59,7 @@ async fn open_jit_channel() {
     .unwrap();
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 #[ignore]
 async fn fail_to_open_jit_channel_with_fee_rate_over_max() {
     init_tracing();
@@ -128,7 +128,7 @@ async fn fail_to_open_jit_channel_with_fee_rate_over_max() {
         .expect_err("payment should not succeed");
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 #[ignore]
 async fn open_jit_channel_with_disconnected_payee() {
     init_tracing();
@@ -209,9 +209,9 @@ pub(crate) async fn send_interceptable_payment(
     invoice_amount: u64,
     coordinator_just_in_time_channel_creation_outbound_liquidity: Option<u64>,
 ) -> Result<()> {
-    payer.wallet().sync().await?;
-    coordinator.wallet().sync().await?;
-    payee.wallet().sync().await?;
+    payer.wallet().sync()?;
+    coordinator.wallet().sync()?;
+    payee.wallet().sync()?;
 
     let payer_balance_before = payer.get_ldk_balance();
     let coordinator_balance_before = coordinator.get_ldk_balance();
@@ -270,9 +270,9 @@ pub(crate) async fn send_interceptable_payment(
     // Assert
 
     // Sync LN wallet after payment is claimed to update the balances
-    payer.wallet().sync().await?;
-    coordinator.wallet().sync().await?;
-    payee.wallet().sync().await?;
+    payer.wallet().sync()?;
+    coordinator.wallet().sync()?;
+    payee.wallet().sync()?;
 
     let payer_balance_after = payer.get_ldk_balance();
     let coordinator_balance_after = coordinator.get_ldk_balance();
