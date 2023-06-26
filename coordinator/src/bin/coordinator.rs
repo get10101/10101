@@ -155,10 +155,10 @@ async fn main() -> Result<()> {
                     .collect::<Vec<Position>>();
 
                 for position in positions.iter() {
-                    tracing::debug!(trader_pk=%position.trader, %position.expiry_timestamp, "Attempting to close expired position");
+                    tracing::trace!(trader_pk=%position.trader, %position.expiry_timestamp, "Attempting to close expired position");
 
                     if !node.is_connected(&position.trader) {
-                        tracing::info!(
+                        tracing::debug!(
                             "Could not close expired position with {} as trader is not connected.",
                             position.trader
                         );
