@@ -1,8 +1,9 @@
 use crate::node::dlc_channel::sub_channel_manager_periodic_check;
+use crate::node::Node;
 use crate::tests::bitcoind::mine;
 use crate::tests::dlc::create::create_dlc_channel;
-use crate::tests::dlc::create::DlcChannelCreated;
 use crate::tests::init_tracing;
+use bitcoin::Amount;
 
 #[tokio::test]
 #[ignore]
@@ -14,14 +15,34 @@ async fn force_close_ln_dlc_channel() {
     let app_dlc_collateral = 50_000;
     let coordinator_dlc_collateral = 25_000;
 
-    let DlcChannelCreated {
-        coordinator,
-        app,
-        channel_details,
-        ..
-    } = create_dlc_channel(app_dlc_collateral, coordinator_dlc_collateral)
+    let app_ln_balance = app_dlc_collateral * 2;
+    let coordinator_ln_balance = coordinator_dlc_collateral * 2;
+
+    let fund_amount = (app_ln_balance + coordinator_ln_balance) * 2;
+
+    let app = Node::start_test_app("app").unwrap();
+    let coordinator = Node::start_test_coordinator("coordinator").unwrap();
+
+    app.connect(coordinator.info).await.unwrap();
+
+    coordinator
+        .fund(Amount::from_sat(fund_amount))
         .await
         .unwrap();
+
+    let channel_details = coordinator
+        .open_channel(&app, coordinator_ln_balance, app_ln_balance)
+        .await
+        .unwrap();
+
+    create_dlc_channel(
+        &app,
+        &coordinator,
+        app_dlc_collateral,
+        coordinator_dlc_collateral,
+    )
+    .await
+    .unwrap();
 
     coordinator.wallet().sync().await.unwrap();
     app.wallet().sync().await.unwrap();

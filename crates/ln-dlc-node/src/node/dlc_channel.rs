@@ -29,6 +29,8 @@ where
         channel_details: ChannelDetails,
         contract_input: ContractInput,
     ) -> Result<()> {
+        tracing::info!(channel_id = %hex::encode(channel_details.channel_id), "Sending DLC channel offer");
+
         spawn_blocking({
             let oracle = self.oracle.clone();
             let sub_channel_manager = self.sub_channel_manager.clone();
