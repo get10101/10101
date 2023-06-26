@@ -10,7 +10,9 @@ use std::sync::RwLockReadGuard;
 use std::sync::RwLockWriteGuard;
 
 const CONFIRMATION_TARGETS: [(ConfirmationTarget, usize); 3] = [
-    (ConfirmationTarget::Background, 24),
+    // We choose an extremely high background confirmation target to avoid force-closing channels
+    // unnecessarily.
+    (ConfirmationTarget::Background, 1008),
     (ConfirmationTarget::Normal, 6),
     (ConfirmationTarget::HighPriority, 3),
 ];
