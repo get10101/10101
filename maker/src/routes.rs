@@ -11,9 +11,9 @@ use bitcoin::secp256k1::PublicKey;
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::Pool;
 use diesel::PgConnection;
+use ln_dlc_node::node::InMemoryStore;
 use ln_dlc_node::node::Node;
 use ln_dlc_node::node::NodeInfo;
-use ln_dlc_node::node::PaymentMap;
 use ln_dlc_node::ChannelDetails;
 use serde::Deserialize;
 use serde::Serialize;
@@ -22,11 +22,14 @@ use std::str::FromStr;
 use std::sync::Arc;
 
 pub struct AppState {
-    pub node: Arc<Node<PaymentMap>>,
+    pub node: Arc<Node<InMemoryStore>>,
     pub pool: Pool<ConnectionManager<PgConnection>>,
 }
 
-pub fn router(node: Arc<Node<PaymentMap>>, pool: Pool<ConnectionManager<PgConnection>>) -> Router {
+pub fn router(
+    node: Arc<Node<InMemoryStore>>,
+    pool: Pool<ConnectionManager<PgConnection>>,
+) -> Router {
     let app_state = Arc::new(AppState { node, pool });
 
     Router::new()

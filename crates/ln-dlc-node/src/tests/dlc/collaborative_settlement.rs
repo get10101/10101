@@ -1,5 +1,5 @@
+use crate::node::InMemoryStore;
 use crate::node::Node;
-use crate::node::PaymentMap;
 use crate::tests::dlc::create::create_dlc_channel;
 use crate::tests::init_tracing;
 use crate::tests::wait_until_dlc_channel_state;
@@ -137,8 +137,8 @@ async fn open_dlc_channel_after_closing_dlc_channel() {
 }
 
 async fn dlc_collaborative_settlement(
-    app: &Node<PaymentMap>,
-    coordinator: &Node<PaymentMap>,
+    app: &Node<InMemoryStore>,
+    coordinator: &Node<InMemoryStore>,
     coordinator_settlement_amount: u64,
 ) -> Result<()> {
     let channel_details = app

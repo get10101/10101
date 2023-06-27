@@ -1,5 +1,5 @@
+use crate::node::InMemoryStore;
 use crate::node::Node;
-use crate::node::PaymentMap;
 use crate::tests::dummy_contract_input;
 use crate::tests::init_tracing;
 use crate::tests::wait_until_dlc_channel_state;
@@ -54,8 +54,8 @@ async fn given_lightning_channel_then_can_add_dlc_channel() {
 }
 
 pub async fn create_dlc_channel(
-    app: &Node<PaymentMap>,
-    coordinator: &Node<PaymentMap>,
+    app: &Node<InMemoryStore>,
+    coordinator: &Node<InMemoryStore>,
     app_dlc_collateral: u64,
     coordinator_dlc_collateral: u64,
 ) -> Result<()> {

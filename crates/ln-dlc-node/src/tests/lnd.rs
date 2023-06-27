@@ -1,5 +1,5 @@
+use crate::node::InMemoryStore;
 use crate::node::Node;
-use crate::node::PaymentMap;
 use crate::tests;
 use crate::tests::bitcoind;
 use anyhow::bail;
@@ -45,7 +45,7 @@ impl LndNode {
     /// there is no other channel.
     pub async fn open_channel(
         &self,
-        target: &Node<PaymentMap>,
+        target: &Node<InMemoryStore>,
         amount: bitcoin::Amount,
     ) -> Result<()> {
         let port = target.info.address.port();

@@ -12,12 +12,14 @@ use std::sync::Mutex;
 use std::sync::MutexGuard;
 use time::OffsetDateTime;
 
-/// Interface which defines what a persister of Lightning payments should be able to do.
-pub trait PaymentPersister {
+/// Storage layer interface.
+///
+/// It exists so that consumers of [`crate::node::Node`] can define their own storage.
+pub trait Storage {
     /// Add a new payment.
-    fn insert(&self, payment_hash: PaymentHash, info: PaymentInfo) -> Result<()>;
+    fn insert_payment(&self, payment_hash: PaymentHash, info: PaymentInfo) -> Result<()>;
     /// Add a new payment or update an existing one.
-    fn merge(
+    fn merge_payment(
         &self,
         payment_hash: &PaymentHash,
         flow: PaymentFlow,
@@ -30,25 +32,26 @@ pub trait PaymentPersister {
     ///
     /// # Returns
     ///
-    /// A tuple of the form `(PaymentHash, PaymentInfo)` if the payment hash was found in the
-    /// persister; `Ok(None)` if the payment hash was not found in the persister; an error if
-    /// accessing the persister failed.
-    fn get(&self, payment_hash: &PaymentHash) -> Result<Option<(PaymentHash, PaymentInfo)>>;
-    /// Get all payments stored in the persister.
-    fn all(&self) -> Result<Vec<(PaymentHash, PaymentInfo)>>;
+    /// A tuple of the form `(PaymentHash, PaymentInfo)` if the payment hash was found in the store;
+    /// `Ok(None)` if the payment hash was not found in the store; an error if accessing the
+    /// store failed.
+    fn get_payment(&self, payment_hash: &PaymentHash)
+        -> Result<Option<(PaymentHash, PaymentInfo)>>;
+    /// Get all payments stored in the store.
+    fn all_payments(&self) -> Result<Vec<(PaymentHash, PaymentInfo)>>;
 }
 
 #[derive(Default, Clone)]
-pub struct PaymentMap(Arc<Mutex<HashMap<PaymentHash, PaymentInfo>>>);
+pub struct InMemoryStore(Arc<Mutex<HashMap<PaymentHash, PaymentInfo>>>);
 
-impl PaymentPersister for PaymentMap {
-    fn insert(&self, payment_hash: PaymentHash, info: PaymentInfo) -> Result<()> {
+impl Storage for InMemoryStore {
+    fn insert_payment(&self, payment_hash: PaymentHash, info: PaymentInfo) -> Result<()> {
         self.lock().insert(payment_hash, info);
 
         Ok(())
     }
 
-    fn merge(
+    fn merge_payment(
         &self,
         payment_hash: &PaymentHash,
         flow: PaymentFlow,
@@ -92,7 +95,10 @@ impl PaymentPersister for PaymentMap {
         Ok(())
     }
 
-    fn get(&self, payment_hash: &PaymentHash) -> Result<Option<(PaymentHash, PaymentInfo)>> {
+    fn get_payment(
+        &self,
+        payment_hash: &PaymentHash,
+    ) -> Result<Option<(PaymentHash, PaymentInfo)>> {
         let payments = self.lock();
         let info = payments.get(payment_hash);
 
@@ -101,7 +107,7 @@ impl PaymentPersister for PaymentMap {
         Ok(payment)
     }
 
-    fn all(&self) -> Result<Vec<(PaymentHash, PaymentInfo)>> {
+    fn all_payments(&self) -> Result<Vec<(PaymentHash, PaymentInfo)>> {
         let payments = self.lock();
         let payments = payments.iter().map(|(a, b)| (*a, *b)).collect();
 
@@ -109,7 +115,7 @@ impl PaymentPersister for PaymentMap {
     }
 }
 
-impl PaymentMap {
+impl InMemoryStore {
     fn lock(&self) -> MutexGuard<HashMap<PaymentHash, PaymentInfo>> {
         self.0.lock().expect("Mutex to not be poisoned")
     }

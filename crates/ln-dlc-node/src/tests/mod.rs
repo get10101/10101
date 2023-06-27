@@ -1,9 +1,9 @@
 use crate::ln::app_config;
 use crate::ln::coordinator_config;
+use crate::node::InMemoryStore;
 use crate::node::LnDlcNodeSettings;
 use crate::node::Node;
 use crate::node::NodeInfo;
-use crate::node::PaymentMap;
 use crate::seed::Bip39Seed;
 use crate::util;
 use anyhow::Result;
@@ -77,7 +77,7 @@ fn init_tracing() {
     })
 }
 
-impl Node<PaymentMap> {
+impl Node<InMemoryStore> {
     fn start_test_app(name: &str) -> Result<Self> {
         Self::start_test(name, app_config(), ESPLORA_ORIGIN.to_string())
     }
@@ -103,7 +103,7 @@ impl Node<PaymentMap> {
             name,
             Network::Regtest,
             data_dir.as_path(),
-            PaymentMap::default(),
+            InMemoryStore::default(),
             address,
             address,
             vec![util::build_net_address(address.ip(), address.port())],
@@ -163,7 +163,7 @@ impl Node<PaymentMap> {
     /// to be usable.
     async fn open_channel(
         &self,
-        peer: &Node<PaymentMap>,
+        peer: &Node<InMemoryStore>,
         amount_us: u64,
         amount_them: u64,
     ) -> Result<ChannelDetails> {
@@ -242,7 +242,7 @@ async fn fund_and_mine(address: Address, amount: Amount) -> Result<()> {
 ///
 /// This is useful when the channel creator wants to push as many
 /// coins as possible to their peer on channel creation.
-fn min_outbound_liquidity_channel_creator(peer: &Node<PaymentMap>, peer_balance: u64) -> u64 {
+fn min_outbound_liquidity_channel_creator(peer: &Node<InMemoryStore>, peer_balance: u64) -> u64 {
     let min_reserve_millionths_creator = Decimal::from(
         peer.user_config
             .channel_handshake_config
@@ -293,7 +293,7 @@ fn random_tmp_dir() -> PathBuf {
 }
 
 #[allow(dead_code)]
-fn log_channel_id(node: &Node<PaymentMap>, index: usize, pair: &str) {
+fn log_channel_id(node: &Node<InMemoryStore>, index: usize, pair: &str) {
     let details = match node.channel_manager.list_channels().get(index) {
         Some(details) => details.clone(),
         None => {
@@ -337,7 +337,7 @@ where
 
 async fn wait_until_dlc_channel_state(
     timeout: Duration,
-    node: &Node<PaymentMap>,
+    node: &Node<InMemoryStore>,
     counterparty_pk: PublicKey,
     target_state: SubChannelStateName,
 ) -> Result<SubChannel> {

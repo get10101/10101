@@ -1,7 +1,7 @@
 use crate::ldk_node_wallet;
 use crate::node::HTLCStatus;
 use crate::node::Node;
-use crate::node::PaymentPersister;
+use crate::node::Storage;
 use crate::PaymentFlow;
 use anyhow::Context;
 use anyhow::Result;
@@ -20,7 +20,7 @@ pub struct OffChainBalance {
 
 impl<P> Node<P>
 where
-    P: PaymentPersister,
+    P: Storage,
 {
     pub fn get_seed_phrase(&self) -> Vec<String> {
         self.wallet.get_seed_phrase()
@@ -112,8 +112,8 @@ where
 
     pub fn get_off_chain_history(&self) -> Result<Vec<PaymentDetails>> {
         let mut payments = self
-            .payment_persister
-            .all()?
+            .storage
+            .all_payments()?
             .iter()
             .map(|(hash, info)| PaymentDetails {
                 payment_hash: *hash,

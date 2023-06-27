@@ -14,7 +14,7 @@ use coordinator::settings::Settings;
 use diesel::r2d2;
 use diesel::r2d2::ConnectionManager;
 use diesel::PgConnection;
-use ln_dlc_node::node::PaymentMap;
+use ln_dlc_node::node::InMemoryStore;
 use ln_dlc_node::seed::Bip39Seed;
 use rand::thread_rng;
 use rand::RngCore;
@@ -76,7 +76,7 @@ async fn main() -> Result<()> {
         "10101.finance",
         network,
         data_dir.as_path(),
-        PaymentMap::default(),
+        InMemoryStore::default(),
         address,
         SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), address.port()),
         opts.p2p_announcement_addresses(),

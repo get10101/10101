@@ -1,7 +1,7 @@
 use crate::ln::app_config;
+use crate::node::InMemoryStore;
 use crate::node::Node;
 use crate::node::NodeInfo;
-use crate::node::PaymentMap;
 use crate::tests::init_tracing;
 use crate::tests::wait_until_dlc_channel_state;
 use crate::tests::SubChannelStateName;
@@ -55,7 +55,7 @@ async fn single_app_many_positions_load() {
     }
 }
 
-async fn open_position(coordinator: &Coordinator, app: &Node<PaymentMap>) -> Result<()> {
+async fn open_position(coordinator: &Coordinator, app: &Node<InMemoryStore>) -> Result<()> {
     tracing::info!("Opening position");
 
     tokio::time::timeout(Duration::from_secs(30), async {
@@ -100,7 +100,7 @@ async fn open_position(coordinator: &Coordinator, app: &Node<PaymentMap>) -> Res
     Ok(())
 }
 
-async fn close_position(coordinator: &Coordinator, app: &Node<PaymentMap>) -> Result<()> {
+async fn close_position(coordinator: &Coordinator, app: &Node<InMemoryStore>) -> Result<()> {
     tracing::info!("Closing position");
 
     tokio::time::timeout(Duration::from_secs(30), async {
@@ -146,7 +146,7 @@ async fn close_position(coordinator: &Coordinator, app: &Node<PaymentMap>) -> Re
     Ok(())
 }
 
-async fn keep_connected(node: impl Borrow<Node<PaymentMap>>, peer: NodeInfo) {
+async fn keep_connected(node: impl Borrow<Node<InMemoryStore>>, peer: NodeInfo) {
     let reconnect_interval = Duration::from_secs(1);
     loop {
         let connection_closed_future = match node.borrow().connect(peer).await {

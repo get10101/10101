@@ -62,8 +62,8 @@ mod dlc_manager;
 pub(crate) mod invoice;
 mod ln_channel;
 mod oracle_client;
-mod payment_persister;
 mod peer_manager;
+mod storage;
 mod sub_channel_manager;
 mod wallet;
 
@@ -73,8 +73,8 @@ pub use channel_manager::ChannelManager;
 pub use dlc_channel::dlc_message_name;
 pub use dlc_channel::sub_channel_message_name;
 pub use invoice::HTLCStatus;
-pub use payment_persister::PaymentMap;
-pub use payment_persister::PaymentPersister;
+pub use storage::InMemoryStore;
+pub use storage::Storage;
 pub use sub_channel_manager::SubChannelManager;
 pub use wallet::PaymentDetails;
 
@@ -84,7 +84,7 @@ pub use wallet::PaymentDetails;
 const BROADCAST_NODE_ANNOUNCEMENT_INTERVAL: Duration = Duration::from_secs(600);
 
 /// An LN-DLC node.
-pub struct Node<P> {
+pub struct Node<S> {
     pub settings: Arc<RwLock<LnDlcNodeSettings>>,
     pub network: Network,
 
@@ -110,7 +110,7 @@ pub struct Node<P> {
     pub sub_channel_manager: Arc<SubChannelManager>,
     oracle: Arc<P2PDOracleClient>,
     pub dlc_message_handler: Arc<DlcMessageHandler>,
-    payment_persister: Arc<P>,
+    storage: Arc<S>,
     pub(crate) user_config: UserConfig,
     #[cfg(test)]
     pub(crate) alias: [u8; 32],
@@ -162,9 +162,9 @@ impl Default for LnDlcNodeSettings {
     }
 }
 
-impl<P> Node<P>
+impl<S> Node<S>
 where
-    P: PaymentPersister + Send + Sync + 'static,
+    S: Storage + Send + Sync + 'static,
 {
     /// Constructs a new node to be run as the app
     #[allow(clippy::too_many_arguments)]
@@ -172,7 +172,7 @@ where
         alias: &str,
         network: Network,
         data_dir: &Path,
-        payment_persister: P,
+        node_storage: S,
         announcement_address: SocketAddr,
         listen_address: SocketAddr,
         esplora_server_url: String,
@@ -184,7 +184,7 @@ where
             alias,
             network,
             data_dir,
-            payment_persister,
+            node_storage,
             announcement_address,
             listen_address,
             vec![util::build_net_address(
@@ -208,7 +208,7 @@ where
         alias: &str,
         network: Network,
         data_dir: &Path,
-        payment_persister: P,
+        node_storage: S,
         announcement_address: SocketAddr,
         listen_address: SocketAddr,
         announcement_addresses: Vec<NetAddress>,
@@ -229,7 +229,7 @@ where
             alias,
             network,
             data_dir,
-            payment_persister,
+            node_storage,
             announcement_address,
             listen_address,
             announcement_addresses,
@@ -251,7 +251,7 @@ where
         alias: &str,
         network: Network,
         data_dir: &Path,
-        payment_persister: P,
+        node_storage: S,
         announcement_address: SocketAddr,
         listen_address: SocketAddr,
         announcement_addresses: Vec<NetAddress>,
@@ -273,7 +273,7 @@ where
         let ldk_data_dir = data_dir.to_string_lossy().to_string();
         let persister = Arc::new(FilesystemPersister::new(ldk_data_dir.clone()));
 
-        let storage = Arc::new(SledStorageProvider::new(
+        let dlc_storage = Arc::new(SledStorageProvider::new(
             data_dir.to_str().expect("data_dir"),
         )?);
 
@@ -292,7 +292,7 @@ where
                 esplora_client.clone(),
                 on_chain_wallet.inner,
                 fee_rate_estimator.clone(),
-                storage.clone(),
+                dlc_storage.clone(),
                 seed.clone(),
                 settings.bdk_client_stop_gap,
                 settings.bdk_client_concurrency,
@@ -439,7 +439,7 @@ where
         let dlc_manager = dlc_manager::build(
             data_dir,
             ln_dlc_wallet.clone(),
-            storage,
+            dlc_storage,
             oracle_client.clone(),
             fee_rate_estimator.clone(),
         )?;
@@ -468,13 +468,13 @@ where
         let fake_channel_payments: FakeChannelPaymentRequests =
             Arc::new(Mutex::new(HashMap::new()));
 
-        let payment_persister = Arc::new(payment_persister);
+        let node_storage = Arc::new(node_storage);
         let event_handler = EventHandler::new(
             channel_manager.clone(),
             ln_dlc_wallet.clone(),
             network_graph.clone(),
             keys_manager.clone(),
-            payment_persister.clone(),
+            node_storage.clone(),
             fake_channel_payments.clone(),
             Arc::new(Mutex::new(HashMap::new())),
             peer_manager.clone(),
@@ -656,7 +656,7 @@ where
             oracle: oracle_client,
             dlc_message_handler,
             dlc_manager,
-            payment_persister,
+            storage: node_storage,
             fee_rate_estimator,
             user_config: ldk_user_config,
             _background_processor_handle: background_processor_handle,

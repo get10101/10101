@@ -28,7 +28,7 @@ use dlc_messages::Message;
 use lightning::ln::channelmanager::ChannelDetails;
 use ln_dlc_node::node::dlc_message_name;
 use ln_dlc_node::node::sub_channel_message_name;
-use ln_dlc_node::node::PaymentMap;
+use ln_dlc_node::node::InMemoryStore;
 use ln_dlc_node::FeeRateFallbacks;
 use ln_dlc_node::WalletSettings;
 use rust_decimal::prelude::ToPrimitive;
@@ -86,14 +86,14 @@ impl Default for NodeSettings {
 
 #[derive(Clone)]
 pub struct Node {
-    pub inner: Arc<ln_dlc_node::node::Node<PaymentMap>>,
+    pub inner: Arc<ln_dlc_node::node::Node<InMemoryStore>>,
     pub pool: Pool<ConnectionManager<PgConnection>>,
     pub settings: Arc<RwLock<NodeSettings>>,
 }
 
 impl Node {
     pub fn new(
-        inner: Arc<ln_dlc_node::node::Node<PaymentMap>>,
+        inner: Arc<ln_dlc_node::node::Node<InMemoryStore>>,
         pool: Pool<ConnectionManager<PgConnection>>,
     ) -> Self {
         Self {

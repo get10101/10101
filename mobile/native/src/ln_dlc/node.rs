@@ -11,14 +11,14 @@ use dlc_messages::SubChannelMessage;
 use lightning::ln::PaymentHash;
 use lightning::ln::PaymentPreimage;
 use lightning::ln::PaymentSecret;
+use ln_dlc_node::node;
 use ln_dlc_node::node::dlc_message_name;
 use ln_dlc_node::node::rust_dlc_manager::contract::signed_contract::SignedContract;
 use ln_dlc_node::node::rust_dlc_manager::contract::Contract;
-use ln_dlc_node::node::rust_dlc_manager::Storage;
+use ln_dlc_node::node::rust_dlc_manager::Storage as _;
 use ln_dlc_node::node::sub_channel_message_name;
 use ln_dlc_node::node::NodeInfo;
 use ln_dlc_node::node::PaymentDetails;
-use ln_dlc_node::node::PaymentPersister;
 use ln_dlc_node::HTLCStatus;
 use ln_dlc_node::MillisatAmount;
 use ln_dlc_node::PaymentFlow;
@@ -29,7 +29,7 @@ use time::OffsetDateTime;
 
 #[derive(Clone)]
 pub struct Node {
-    pub inner: Arc<ln_dlc_node::node::Node<Payments>>,
+    pub inner: Arc<ln_dlc_node::node::Node<NodeStorage>>,
 }
 
 pub struct Balances {
@@ -271,13 +271,13 @@ impl Node {
 }
 
 #[derive(Clone)]
-pub struct Payments;
+pub struct NodeStorage;
 
-impl PaymentPersister for Payments {
-    fn insert(&self, payment_hash: PaymentHash, info: PaymentInfo) -> Result<()> {
+impl node::Storage for NodeStorage {
+    fn insert_payment(&self, payment_hash: PaymentHash, info: PaymentInfo) -> Result<()> {
         db::insert_payment(payment_hash, info)
     }
-    fn merge(
+    fn merge_payment(
         &self,
         payment_hash: &PaymentHash,
         flow: PaymentFlow,
@@ -307,10 +307,13 @@ impl PaymentPersister for Payments {
 
         Ok(())
     }
-    fn get(&self, payment_hash: &PaymentHash) -> Result<Option<(PaymentHash, PaymentInfo)>> {
+    fn get_payment(
+        &self,
+        payment_hash: &PaymentHash,
+    ) -> Result<Option<(PaymentHash, PaymentInfo)>> {
         db::get_payment(*payment_hash)
     }
-    fn all(&self) -> Result<Vec<(PaymentHash, PaymentInfo)>> {
+    fn all_payments(&self) -> Result<Vec<(PaymentHash, PaymentInfo)>> {
         db::get_payments()
     }
 }
