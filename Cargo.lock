@@ -1970,6 +1970,7 @@ dependencies = [
  "anyhow",
  "base64 0.21.0",
  "bdk",
+ "bitcoin",
  "coordinator-commons",
  "diesel",
  "diesel_migrations",

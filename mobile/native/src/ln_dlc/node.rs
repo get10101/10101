@@ -8,6 +8,10 @@ use bdk::TransactionDetails;
 use dlc_messages::sub_channel::SubChannelFinalize;
 use dlc_messages::Message;
 use dlc_messages::SubChannelMessage;
+use lightning::chain::keysinterface::DelayedPaymentOutputDescriptor;
+use lightning::chain::keysinterface::SpendableOutputDescriptor;
+use lightning::chain::keysinterface::StaticPaymentOutputDescriptor;
+use lightning::chain::transaction::OutPoint;
 use lightning::ln::PaymentHash;
 use lightning::ln::PaymentPreimage;
 use lightning::ln::PaymentSecret;
@@ -274,6 +278,8 @@ impl Node {
 pub struct NodeStorage;
 
 impl node::Storage for NodeStorage {
+    // Payments
+
     fn insert_payment(&self, payment_hash: PaymentHash, info: PaymentInfo) -> Result<()> {
         db::insert_payment(payment_hash, info)
     }
@@ -315,5 +321,31 @@ impl node::Storage for NodeStorage {
     }
     fn all_payments(&self) -> Result<Vec<(PaymentHash, PaymentInfo)>> {
         db::get_payments()
+    }
+
+    // Spendable outputs
+
+    fn insert_spendable_output(&self, descriptor: SpendableOutputDescriptor) -> Result<()> {
+        use SpendableOutputDescriptor::*;
+        let outpoint = match &descriptor {
+            // Static outputs don't need to be persisted because they pay directly to an address
+            // owned by the on-chain wallet
+            StaticOutput { .. } => return Ok(()),
+            DelayedPaymentOutput(DelayedPaymentOutputDescriptor { outpoint, .. }) => outpoint,
+            StaticPaymentOutput(StaticPaymentOutputDescriptor { outpoint, .. }) => outpoint,
+        };
+
+        db::insert_spendable_output(*outpoint, descriptor)
+    }
+
+    fn get_spendable_output(
+        &self,
+        outpoint: &OutPoint,
+    ) -> Result<Option<SpendableOutputDescriptor>> {
+        db::get_spendable_output(*outpoint)
+    }
+
+    fn all_spendable_outputs(&self) -> Result<Vec<SpendableOutputDescriptor>> {
+        db::get_spendable_outputs()
     }
 }

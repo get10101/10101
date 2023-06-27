@@ -400,6 +400,15 @@ where
                     return Ok(());
                 }
 
+                for spendable_output in ldk_outputs.iter() {
+                    if let Err(e) = self
+                        .storage
+                        .insert_spendable_output((*spendable_output).clone())
+                    {
+                        tracing::error!("Failed to persist spendable output: {e:#}")
+                    }
+                }
+
                 let destination_script = self.wallet.inner().get_last_unused_address()?;
                 let tx_feerate = self
                     .fee_rate_estimator

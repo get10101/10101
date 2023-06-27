@@ -53,4 +53,18 @@ diesel::table! {
     }
 }
 
-diesel::allow_tables_to_appear_in_same_query!(last_login, orders, payments, positions,);
+diesel::table! {
+    spendable_outputs (id) {
+        id -> Integer,
+        outpoint -> Text,
+        descriptor -> Text,
+    }
+}
+
+diesel::allow_tables_to_appear_in_same_query!(
+    last_login,
+    orders,
+    payments,
+    positions,
+    spendable_outputs,
+);
