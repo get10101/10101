@@ -126,6 +126,8 @@ jobs:
       - name: Setup rust toolchain
         run: rustup show
       - uses: Swatinem/rust-cache@v2.2.0
+      - name: Build Rust project
+        run: cargo build --examples
       - name: Start containers
         run: |
           docker-compose up -d
