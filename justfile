@@ -147,7 +147,7 @@ clippy:
     cd mobile/native && just cargo-clippy
     cd coordinator && just cargo-clippy
     cd maker && just cargo-clippy
-    for crate in crates/*; do (cd "$crate" && just cargo-clippy); done
+    for crate in crates/*; do (cd "${crate}" && echo "Running clippy on ${crate}" && just cargo-clippy); done
 
 [private]
 cargo-clippy:
