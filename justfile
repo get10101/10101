@@ -46,23 +46,23 @@ gen:
         --dart-format-line-length {{line_length}}
 
 native:
-    cd mobile/native && cargo build
+    cd mobile/native && cargo build --features=flutter
 
 # Build Rust library for Android native targets
 android args="":
-    cd mobile/native && cargo ndk -o ../android/app/src/main/jniLibs build {{args}}
+    cd mobile/native && cargo ndk -o ../android/app/src/main/jniLibs build --features=flutter {{args}}
 
 android-release:
-    cd mobile/native && cargo ndk -o ../android/app/src/main/jniLibs build --release
+    cd mobile/native && cargo ndk -o ../android/app/src/main/jniLibs build --release --features=flutter
 
 # Build Rust library for iOS (debug mode)
 ios:
-    cd mobile/native && cargo lipo
+    cd mobile/native && cargo lipo --features=flutter
     cp target/universal/debug/libnative.a mobile/ios/Runner
 
 # Build Rust library for iOS (release mode)
 ios-release:
-    cd mobile/native && cargo lipo --release
+    cd mobile/native && cargo lipo --release --features=flutter
     cp target/universal/release/libnative.a mobile/ios/Runner
 
 

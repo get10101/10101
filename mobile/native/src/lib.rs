@@ -19,4 +19,5 @@ mod orderbook;
     unused_import_braces,
     unused_qualifications
 )]
+#[cfg(feature = "flutter")]
 mod bridge_generated;

@@ -104,7 +104,7 @@ jobs:
 
       - name: Build Rust lib
         working-directory: ./mobile/native
-        run: cargo ndk -o ../android/app/src/main/jniLibs build
+        run: cargo ndk -o ../android/app/src/main/jniLibs build --features=flutter
 
       - name: Parse version from pubspec.yaml
         id: version
