@@ -50,6 +50,10 @@ pub struct Opts {
     /// If specified, metrics will be printed at the given interval
     #[clap(long)]
     pub tokio_metrics_interval_seconds: Option<u64>,
+
+    // The endpoint of the p2pderivatives oracle
+    #[clap(long, default_value = "http://localhost:8081")]
+    pub oracle: String,
 }
 
 #[derive(Debug, Clone, Copy, clap::ValueEnum)]

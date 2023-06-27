@@ -4,12 +4,11 @@ use dlc_manager::Oracle;
 use p2pd_oracle_client::P2PDOracleClient;
 use std::str::FromStr;
 
-// TODO: This should come from the configuration.
-const ORACLE_ENDPOINT: &str = "https://oracle.holzeis.me/";
+pub fn build(oracle_endpoint: String) -> P2PDOracleClient {
+    // TODO: fetch public key from oracle at ORACLE_ENDPOINT/oracle/publickey
 
-pub fn build() -> P2PDOracleClient {
     P2PDOracleClient {
-        host: ORACLE_ENDPOINT.to_string(),
+        host: oracle_endpoint + "/",
         public_key: XOnlyPublicKey::from_str(
             "16f88cf7d21e6c0f46bcbc983a4e3b19726c6c98858cc31c83551a88fde171c0",
         )

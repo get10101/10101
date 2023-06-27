@@ -84,6 +84,7 @@ async fn main() -> Result<()> {
         seed,
         ephemeral_randomness,
         settings.ln_dlc.clone(),
+        opts.oracle,
     )?);
 
     // set up database connection pool

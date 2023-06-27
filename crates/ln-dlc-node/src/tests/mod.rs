@@ -53,6 +53,7 @@ mod load;
 
 const ESPLORA_ORIGIN: &str = "http://localhost:3000";
 const FAUCET_ORIGIN: &str = "http://localhost:8080";
+const ORACLE_ORIGIN: &str = "http://localhost:8081";
 
 fn init_tracing() {
     static TRACING_TEST_SUBSCRIBER: Once = Once::new();
@@ -77,14 +78,29 @@ fn init_tracing() {
 
 impl Node<InMemoryStore> {
     fn start_test_app(name: &str) -> Result<Self> {
-        Self::start_test(name, app_config(), ESPLORA_ORIGIN.to_string())
+        Self::start_test(
+            name,
+            app_config(),
+            ESPLORA_ORIGIN.to_string(),
+            ORACLE_ORIGIN.to_string(),
+        )
     }
 
     fn start_test_coordinator(name: &str) -> Result<Self> {
-        Self::start_test(name, coordinator_config(), ESPLORA_ORIGIN.to_string())
+        Self::start_test(
+            name,
+            coordinator_config(),
+            ESPLORA_ORIGIN.to_string(),
+            ORACLE_ORIGIN.to_string(),
+        )
     }
 
-    fn start_test(name: &str, user_config: UserConfig, esplora_origin: String) -> Result<Self> {
+    fn start_test(
+        name: &str,
+        user_config: UserConfig,
+        esplora_origin: String,
+        oracle_origin: String,
+    ) -> Result<Self> {
         let data_dir = random_tmp_dir().join(name);
 
         let seed = Bip39Seed::new().expect("A valid bip39 seed");
@@ -110,6 +126,7 @@ impl Node<InMemoryStore> {
             ephemeral_randomness,
             user_config,
             LnDlcNodeSettings::default(),
+            oracle_origin,
         )?;
 
         tracing::debug!(%name, info = %node.info, "Node started");

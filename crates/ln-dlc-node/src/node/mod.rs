@@ -173,6 +173,7 @@ where
         esplora_server_url: String,
         seed: Bip39Seed,
         ephemeral_randomness: [u8; 32],
+        oracle_endpoint: String,
     ) -> Result<Self> {
         let user_config = app_config();
         Node::new(
@@ -191,6 +192,7 @@ where
             ephemeral_randomness,
             user_config,
             LnDlcNodeSettings::default(),
+            oracle_endpoint,
         )
     }
 
@@ -211,6 +213,7 @@ where
         seed: Bip39Seed,
         ephemeral_randomness: [u8; 32],
         settings: LnDlcNodeSettings,
+        oracle_endpoint: String,
     ) -> Result<Self> {
         let mut user_config = coordinator_config();
 
@@ -233,6 +236,7 @@ where
             ephemeral_randomness,
             user_config,
             settings,
+            oracle_endpoint,
         )
     }
 
@@ -255,6 +259,7 @@ where
         ephemeral_randomness: [u8; 32],
         ldk_user_config: UserConfig,
         settings: LnDlcNodeSettings,
+        oracle_endpoint: String,
     ) -> Result<Self> {
         let time_since_unix_epoch = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH)?;
 
@@ -430,7 +435,7 @@ where
             logger.clone(),
         ));
 
-        let oracle_client = oracle_client::build();
+        let oracle_client = oracle_client::build(oracle_endpoint);
         let oracle_client = Arc::new(oracle_client);
 
         let dlc_manager = dlc_manager::build(

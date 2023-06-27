@@ -15,6 +15,7 @@ use std::time::Duration;
 mod coordinator;
 
 const ESPLORA_ORIGIN_PUBLIC_REGTEST: &str = "http://35.189.57.114:3000";
+const ORACLE_ORIGIN_PUBLIC_REGTEST: &str = "http://35.189.57.114:8081";
 
 #[tokio::test(flavor = "multi_thread")]
 async fn single_app_many_positions_load() {
@@ -26,6 +27,7 @@ async fn single_app_many_positions_load() {
             "app",
             app_config(),
             ESPLORA_ORIGIN_PUBLIC_REGTEST.to_string(),
+            ORACLE_ORIGIN_PUBLIC_REGTEST.to_string(),
         )
         .unwrap(),
     );
