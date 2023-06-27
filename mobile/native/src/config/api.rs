@@ -12,6 +12,7 @@ pub struct Config {
     pub p2p_port: u16,
     pub http_port: u16,
     pub network: String,
+    pub oracle_endpoint: String,
 }
 
 impl From<Config> for ConfigInternal {
@@ -28,6 +29,8 @@ impl From<Config> for ConfigInternal {
                 .parse()
                 .expect("host and p2p_port to be valid"),
             network: parse_network(&config.network),
+            oracle_endpoint: Url::parse(config.oracle_endpoint.as_str())
+                .expect("oracle endpoint to be valid"),
         }
     }
 }

@@ -143,6 +143,7 @@ pub fn run(data_dir: String, seed_dir: String, runtime: &Runtime) -> Result<()> 
             config::get_esplora_endpoint().to_string(),
             seed,
             ephemeral_randomness,
+            config::get_oracle_endpoint().to_string(),
         )?);
         let node = Arc::new(Node { inner: node });
 

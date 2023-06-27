@@ -17,6 +17,7 @@ struct ConfigInternal {
     http_endpoint: SocketAddr,
     p2p_endpoint: SocketAddr,
     network: bitcoin::Network,
+    oracle_endpoint: Url,
 }
 
 pub fn set(config: Config) {
@@ -33,6 +34,10 @@ pub fn get_coordinator_info() -> NodeInfo {
 
 pub fn get_esplora_endpoint() -> Url {
     CONFIG.get().esplora_endpoint.clone()
+}
+
+pub fn get_oracle_endpoint() -> Url {
+    CONFIG.get().oracle_endpoint.clone()
 }
 
 pub fn get_http_endpoint() -> SocketAddr {

@@ -55,5 +55,6 @@ fn default_config() -> native::config::api::Config {
         p2p_port: 9045,
         http_port: 8000,
         network: "regtest".to_string(),
+        oracle_endpoint: "http://127.0.0.1:8081".to_string(),
     }
 }
