@@ -39,7 +39,7 @@ use std::sync::MutexGuard;
 use std::time::Duration;
 use time::OffsetDateTime;
 
-///  The speed at which we want a transaction to confirm used for feerate estimation.
+/// The speed at which we want a transaction to confirm used for feerate estimation.
 ///
 /// We set it to high priority because the channel funding transaction should be included fast.
 const CONFIRMATION_TARGET: ConfirmationTarget = ConfirmationTarget::HighPriority;
