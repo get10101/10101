@@ -1,0 +1,62 @@
+server:
+  address: "0.0.0.0:8081"
+oracle:
+  # the private key of the oracle
+  keyFile: /key/key.pem
+log:
+  dir: _log
+  output_stdout: true
+  basename: unittest.log.%Y-%m-%d
+  rotation_interval: PT24H
+  rotation_counts: 7
+  format: json
+  level: info
+database:
+  log: false
+  host: db
+  port: 5432
+  dbuser: postgres
+  dbpassword: mysecretpassword
+  dbname: oracle
+api:
+  # the list of assets provided by this oracle
+  assets:
+    btcusd:
+      # the base date from which the release dates are computed
+      startDate: 2020-01-01T00:00:00Z
+      # frequency at which events are served (ISO8601)
+      frequency: PT1H
+      # maximum period until which events are served (ISO8601)
+      range: P2MT
+      # unit of the asset being served
+      unit: usd/btc
+      # precision for the data being served (see https://github.com/discreetlogcontracts/dlcspecs/blob/master/Oracle.md#digit-decomposition)
+      precision: 0
+      # configuration for digit decomposition (see https://github.com/discreetlogcontracts/dlcspecs/blob/master/Oracle.md#digit-decomposition)
+      signconfig:
+        base: 2
+        nbDigits: 20
+    btcjpy:
+      startDate: 2020-01-01T00:00:00Z
+      frequency: PT1H
+      range: P2MT
+      unit: jpy/btc
+      precision: 0
+      signconfig:
+        base: 2
+        nbDigits: 20
+# configuration for the data feed
+datafeed:
+  cryptoCompare:
+    baseUrl: https://min-api.cryptocompare.com/data
+    # Set your cryptocompare api key here
+    # apiKey: xxxxxxxx
+    # CryptoCompare parameters for each asset. fsym is the cryptocurrency symbol
+    # of interest while tsym is the currency symbol to convert to.
+    assetsConfig:
+      btcusd:
+        fsym: "btc"
+        tsym: "usd"
+      btcjpy:
+        fsym: "btc"
+        tsym: "jpy"
