@@ -89,10 +89,6 @@ jobs:
         with:
           flutter-version: "3.10.5"
           channel: "stable"
-      - name: Install FFI bindings
-        run: just deps-gen
-      - name: Generate FFI bindings
-        run: just gen
       - name: Running cargo tests
         run: cargo test
       - name: Running flutter tests
@@ -130,10 +126,6 @@ jobs:
         with:
           flutter-version: "3.10.5"
           channel: "stable"
-      - name: Install FFI bindings
-        run: just deps-gen
-      - name: Generate FFI bindings
-        run: just gen
       - name: Build Rust project
         run: cargo build --examples
       - name: Start containers
