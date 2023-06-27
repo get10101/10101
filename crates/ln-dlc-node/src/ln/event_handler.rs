@@ -6,7 +6,7 @@ use crate::ln::JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT;
 use crate::ln_dlc_wallet::LnDlcWallet;
 use crate::node::invoice::HTLCStatus;
 use crate::node::ChannelManager;
-use crate::node::PaymentPersister;
+use crate::node::Storage;
 use crate::util;
 use crate::FakeChannelPaymentRequests;
 use crate::MillisatAmount;
@@ -39,17 +39,17 @@ use std::sync::MutexGuard;
 use std::time::Duration;
 use time::OffsetDateTime;
 
-///  The speed at which we want a transaction to confirm used for feerate estimation.
+/// The speed at which we want a transaction to confirm used for feerate estimation.
 ///
 /// We set it to high priority because the channel funding transaction should be included fast.
 const CONFIRMATION_TARGET: ConfirmationTarget = ConfirmationTarget::HighPriority;
 
-pub struct EventHandler<P> {
+pub struct EventHandler<S> {
     channel_manager: Arc<ChannelManager>,
     wallet: Arc<LnDlcWallet>,
     network_graph: Arc<NetworkGraph>,
     keys_manager: Arc<CustomKeysManager>,
-    payment_persister: Arc<P>,
+    storage: Arc<S>,
     fake_channel_payments: FakeChannelPaymentRequests,
     pending_intercepted_htlcs: PendingInterceptedHtlcs,
     peer_manager: Arc<PeerManager>,
@@ -57,16 +57,16 @@ pub struct EventHandler<P> {
 }
 
 #[allow(clippy::too_many_arguments)]
-impl<P> EventHandler<P>
+impl<S> EventHandler<S>
 where
-    P: PaymentPersister,
+    S: Storage,
 {
     pub(crate) fn new(
         channel_manager: Arc<ChannelManager>,
         wallet: Arc<LnDlcWallet>,
         network_graph: Arc<NetworkGraph>,
         keys_manager: Arc<CustomKeysManager>,
-        payment_persister: Arc<P>,
+        storage: Arc<S>,
         fake_channel_payments: FakeChannelPaymentRequests,
         pending_intercepted_htlcs: PendingInterceptedHtlcs,
         peer_manager: Arc<PeerManager>,
@@ -77,7 +77,7 @@ where
             wallet,
             network_graph,
             keys_manager,
-            payment_persister,
+            storage,
             fake_channel_payments,
             pending_intercepted_htlcs,
             peer_manager,
@@ -173,7 +173,7 @@ where
                 };
 
                 let amount_msat = MillisatAmount(Some(amount_msat));
-                if let Err(e) = self.payment_persister.merge(
+                if let Err(e) = self.storage.merge_payment(
                     &payment_hash,
                     PaymentFlow::Inbound,
                     amount_msat,
@@ -190,10 +190,10 @@ where
                 fee_paid_msat,
                 ..
             } => {
-                let amount_msat = match self.payment_persister.get(&payment_hash) {
+                let amount_msat = match self.storage.get_payment(&payment_hash) {
                     Ok(Some((_, PaymentInfo { amt_msat, .. }))) => {
                         let amount_msat = MillisatAmount(None);
-                        if let Err(e) = self.payment_persister.merge(
+                        if let Err(e) = self.storage.merge_payment(
                             &payment_hash,
                             PaymentFlow::Outbound,
                             amount_msat,
@@ -214,7 +214,7 @@ where
                         );
 
                         let amt_msat = MillisatAmount(None);
-                        if let Err(e) = self.payment_persister.insert(
+                        if let Err(e) = self.storage.insert_payment(
                             payment_hash,
                             PaymentInfo {
                                 preimage: Some(payment_preimage),
@@ -297,7 +297,7 @@ where
                 );
 
                 let amount_msat = MillisatAmount(None);
-                if let Err(e) = self.payment_persister.merge(
+                if let Err(e) = self.storage.merge_payment(
                     &payment_hash,
                     PaymentFlow::Outbound,
                     amount_msat,
@@ -398,6 +398,15 @@ where
 
                 if ldk_outputs.is_empty() {
                     return Ok(());
+                }
+
+                for spendable_output in ldk_outputs.iter() {
+                    if let Err(e) = self
+                        .storage
+                        .insert_spendable_output((*spendable_output).clone())
+                    {
+                        tracing::error!("Failed to persist spendable output: {e:#}")
+                    }
                 }
 
                 let destination_script = self.wallet.inner().get_last_unused_address()?;

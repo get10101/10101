@@ -5,6 +5,8 @@ use crate::db::models::OrderState;
 use crate::db::models::PaymentInsertable;
 use crate::db::models::PaymentQueryable;
 use crate::db::models::Position;
+use crate::db::models::SpendableOutputInsertable;
+use crate::db::models::SpendableOutputQueryable;
 use crate::trade;
 use anyhow::anyhow;
 use anyhow::bail;
@@ -306,7 +308,46 @@ pub fn get_payments() -> Result<Vec<(lightning::ln::PaymentHash, ln_dlc_node::Pa
 
     let payment_hashes = payments.iter().map(|(a, _)| a).collect::<Vec<_>>();
 
-    tracing::info!(?payment_hashes, "Getting all payments");
+    tracing::info!(?payment_hashes, "Got all payments");
 
     Ok(payments)
+}
+
+pub fn insert_spendable_output(
+    outpoint: lightning::chain::transaction::OutPoint,
+    descriptor: lightning::chain::keysinterface::SpendableOutputDescriptor,
+) -> Result<()> {
+    tracing::info!(?descriptor, "Inserting spendable output");
+
+    let mut db = connection()?;
+    SpendableOutputInsertable::insert((outpoint, descriptor).into(), &mut db)?;
+
+    Ok(())
+}
+
+pub fn get_spendable_output(
+    outpoint: lightning::chain::transaction::OutPoint,
+) -> Result<Option<lightning::chain::keysinterface::SpendableOutputDescriptor>> {
+    tracing::info!(?outpoint, "Getting spendable output");
+
+    let mut db = connection()?;
+
+    let output = SpendableOutputQueryable::get(outpoint, &mut db).optional()?;
+
+    output.map(|output| output.try_into()).transpose()
+}
+
+pub fn get_spendable_outputs(
+) -> Result<Vec<lightning::chain::keysinterface::SpendableOutputDescriptor>> {
+    let mut db = connection()?;
+    let outputs = SpendableOutputQueryable::get_all(&mut db)?;
+
+    let outputs = outputs
+        .into_iter()
+        .map(|output| output.try_into())
+        .collect::<Result<Vec<_>>>()?;
+
+    tracing::info!(?outputs, "Got all spendable outputs");
+
+    Ok(outputs)
 }

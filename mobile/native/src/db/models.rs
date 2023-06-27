@@ -4,11 +4,14 @@ use crate::schema::last_login;
 use crate::schema::orders;
 use crate::schema::payments;
 use crate::schema::positions;
+use crate::schema::spendable_outputs;
 use anyhow::anyhow;
 use anyhow::bail;
 use anyhow::ensure;
 use anyhow::Result;
 use base64::Engine;
+use bdk::bitcoin::hashes::hex::FromHex;
+use bdk::bitcoin::hashes::hex::ToHex;
 use diesel;
 use diesel::prelude::*;
 use diesel::sql_query;
@@ -17,6 +20,8 @@ use diesel::sql_types::Text;
 use diesel::AsExpression;
 use diesel::FromSqlRow;
 use diesel::Queryable;
+use lightning::util::ser::Readable;
+use lightning::util::ser::Writeable;
 use time::format_description;
 use time::OffsetDateTime;
 use trade;
@@ -875,21 +880,102 @@ pub(crate) fn base64_engine() -> base64::engine::GeneralPurpose {
     )
 }
 
+#[derive(Insertable, Debug, Clone, PartialEq)]
+#[diesel(table_name = spendable_outputs)]
+pub(crate) struct SpendableOutputInsertable {
+    #[diesel(sql_type = Text)]
+    pub outpoint: String,
+    #[diesel(sql_type = Text)]
+    pub descriptor: String,
+}
+
+impl SpendableOutputInsertable {
+    pub fn insert(output: SpendableOutputInsertable, conn: &mut SqliteConnection) -> Result<()> {
+        let affected_rows = diesel::insert_into(spendable_outputs::table)
+            .values(&output)
+            .execute(conn)?;
+
+        ensure!(affected_rows > 0, "Could not insert spendable");
+
+        Ok(())
+    }
+}
+
+#[derive(Queryable, Debug, Clone, PartialEq)]
+#[diesel(table_name = spendable_outputs)]
+pub(crate) struct SpendableOutputQueryable {
+    pub id: i32,
+    pub outpoint: String,
+    pub descriptor: String,
+}
+
+impl SpendableOutputQueryable {
+    pub fn get(
+        outpoint: lightning::chain::transaction::OutPoint,
+        conn: &mut SqliteConnection,
+    ) -> QueryResult<Self> {
+        let outpoint = outpoint_to_string(outpoint);
+
+        spendable_outputs::table
+            .filter(schema::spendable_outputs::outpoint.eq(outpoint))
+            .first(conn)
+    }
+
+    pub fn get_all(conn: &mut SqliteConnection) -> QueryResult<Vec<SpendableOutputQueryable>> {
+        spendable_outputs::table.load(conn)
+    }
+}
+
+fn outpoint_to_string(outpoint: lightning::chain::transaction::OutPoint) -> String {
+    format!("{}:{}", outpoint.txid, outpoint.index)
+}
+
+impl
+    From<(
+        lightning::chain::transaction::OutPoint,
+        lightning::chain::keysinterface::SpendableOutputDescriptor,
+    )> for SpendableOutputInsertable
+{
+    fn from(
+        (outpoint, descriptor): (
+            lightning::chain::transaction::OutPoint,
+            lightning::chain::keysinterface::SpendableOutputDescriptor,
+        ),
+    ) -> Self {
+        let outpoint = outpoint_to_string(outpoint);
+        let descriptor = descriptor.encode().to_hex();
+
+        Self {
+            outpoint,
+            descriptor,
+        }
+    }
+}
+
+impl TryFrom<SpendableOutputQueryable>
+    for lightning::chain::keysinterface::SpendableOutputDescriptor
+{
+    type Error = anyhow::Error;
+
+    fn try_from(value: SpendableOutputQueryable) -> Result<Self, Self::Error> {
+        let bytes = Vec::from_hex(&value.descriptor)?;
+        let descriptor = Self::read(&mut lightning::io::Cursor::new(bytes))
+            .map_err(|e| anyhow!("Failed to decode spendable output descriptor: {e}"))?;
+
+        Ok(descriptor)
+    }
+}
+
 #[cfg(test)]
 pub mod test {
-    use crate::db::models::Flow;
-    use crate::db::models::HtlcStatus;
-    use crate::db::models::LastLogin;
-    use crate::db::models::Order;
-    use crate::db::models::OrderState;
-    use crate::db::models::PaymentInsertable;
-    use crate::db::models::PaymentQueryable;
+    use super::*;
     use crate::db::MIGRATIONS;
     use crate::trade::order::FailureReason;
     use diesel::result::Error;
     use diesel::Connection;
     use diesel::SqliteConnection;
     use diesel_migrations::MigrationHarness;
+    use std::str::FromStr;
     use time::OffsetDateTime;
 
     #[test]
@@ -1200,5 +1286,67 @@ pub mod test {
         };
 
         assert_eq!(expected_payment, loaded_payment);
+    }
+
+    #[test]
+    pub fn spendable_output_round_trip() {
+        let mut connection = SqliteConnection::establish(":memory:").unwrap();
+        connection.run_pending_migrations(MIGRATIONS).unwrap();
+
+        let outpoint = lightning::chain::transaction::OutPoint {
+            txid: bitcoin::hash_types::Txid::from_str(
+                "219fede5479a69d8fc42693ecb8cea67098531087c421b4421d96e2f5acd7de3",
+            )
+            .unwrap(),
+            index: 2,
+        };
+        let descriptor = lightning::chain::keysinterface::SpendableOutputDescriptor::StaticOutput {
+            outpoint,
+            output: bitcoin::TxOut {
+                value: 10_000,
+                script_pubkey: bitcoin::Script::new(),
+            },
+        };
+
+        let spendable_output = (outpoint, descriptor.clone()).into();
+        SpendableOutputInsertable::insert(spendable_output, &mut connection).unwrap();
+
+        // Insert a random spendable output to show that we don't get confused with this one
+        SpendableOutputInsertable::insert(
+            {
+                let outpoint = lightning::chain::transaction::OutPoint {
+                    txid: bitcoin::hash_types::Txid::from_str(
+                        "d0a8d75b352d015b7cd29a06d62c0aa92919927eefe7d6d016d7d01c0b7333a5",
+                    )
+                    .unwrap(),
+                    index: 0,
+                };
+                (
+                    outpoint,
+                    lightning::chain::keysinterface::SpendableOutputDescriptor::StaticOutput {
+                        outpoint,
+                        output: bitcoin::TxOut {
+                            value: 25_000,
+                            script_pubkey: bitcoin::Script::new(),
+                        },
+                    },
+                )
+                    .into()
+            },
+            &mut connection,
+        )
+        .unwrap();
+
+        // Verify that we can load the right spendable output based on its outpoint
+        let loaded = SpendableOutputQueryable::get(outpoint, &mut connection).unwrap();
+
+        let expected = SpendableOutputQueryable {
+            id: 1,
+            outpoint: "219fede5479a69d8fc42693ecb8cea67098531087c421b4421d96e2f5acd7de3:2"
+                .to_string(),
+            descriptor: descriptor.encode().to_hex(),
+        };
+
+        assert_eq!(expected, loaded);
     }
 }

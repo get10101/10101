@@ -1,5 +1,5 @@
 use crate::node::Node;
-use crate::node::PaymentPersister;
+use crate::node::Storage;
 use crate::MillisatAmount;
 use crate::PaymentFlow;
 use crate::PaymentInfo;
@@ -29,7 +29,7 @@ use time::OffsetDateTime;
 
 impl<P> Node<P>
 where
-    P: PaymentPersister,
+    P: Storage,
 {
     #[autometrics]
     pub fn create_invoice(
@@ -179,7 +179,7 @@ where
             }
         };
 
-        self.payment_persister.insert(
+        self.storage.insert_payment(
             PaymentHash(invoice.payment_hash().into_inner()),
             PaymentInfo {
                 preimage: None,
@@ -219,7 +219,7 @@ where
             loop {
                 tokio::time::sleep(Duration::from_secs(1)).await;
 
-                match self.payment_persister.get(&payment_hash) {
+                match self.storage.get_payment(&payment_hash) {
                     Ok(Some((_, PaymentInfo { status, .. }))) => {
                         tracing::debug!(
                             payment_hash = %hex::encode(hash),
@@ -241,7 +241,7 @@ where
                         tracing::error!(
                             payment_hash = %hex::encode(hash),
                             status = "error",
-                            "Can't access payment persister: {e:#}"
+                            "Can't access store to load payment: {e:#}"
                         );
                     }
                 }

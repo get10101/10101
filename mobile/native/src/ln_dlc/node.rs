@@ -8,17 +8,21 @@ use bdk::TransactionDetails;
 use dlc_messages::sub_channel::SubChannelFinalize;
 use dlc_messages::Message;
 use dlc_messages::SubChannelMessage;
+use lightning::chain::keysinterface::DelayedPaymentOutputDescriptor;
+use lightning::chain::keysinterface::SpendableOutputDescriptor;
+use lightning::chain::keysinterface::StaticPaymentOutputDescriptor;
+use lightning::chain::transaction::OutPoint;
 use lightning::ln::PaymentHash;
 use lightning::ln::PaymentPreimage;
 use lightning::ln::PaymentSecret;
+use ln_dlc_node::node;
 use ln_dlc_node::node::dlc_message_name;
 use ln_dlc_node::node::rust_dlc_manager::contract::signed_contract::SignedContract;
 use ln_dlc_node::node::rust_dlc_manager::contract::Contract;
-use ln_dlc_node::node::rust_dlc_manager::Storage;
+use ln_dlc_node::node::rust_dlc_manager::Storage as _;
 use ln_dlc_node::node::sub_channel_message_name;
 use ln_dlc_node::node::NodeInfo;
 use ln_dlc_node::node::PaymentDetails;
-use ln_dlc_node::node::PaymentPersister;
 use ln_dlc_node::HTLCStatus;
 use ln_dlc_node::MillisatAmount;
 use ln_dlc_node::PaymentFlow;
@@ -29,7 +33,7 @@ use time::OffsetDateTime;
 
 #[derive(Clone)]
 pub struct Node {
-    pub inner: Arc<ln_dlc_node::node::Node<Payments>>,
+    pub inner: Arc<ln_dlc_node::node::Node<NodeStorage>>,
 }
 
 pub struct Balances {
@@ -271,13 +275,15 @@ impl Node {
 }
 
 #[derive(Clone)]
-pub struct Payments;
+pub struct NodeStorage;
 
-impl PaymentPersister for Payments {
-    fn insert(&self, payment_hash: PaymentHash, info: PaymentInfo) -> Result<()> {
+impl node::Storage for NodeStorage {
+    // Payments
+
+    fn insert_payment(&self, payment_hash: PaymentHash, info: PaymentInfo) -> Result<()> {
         db::insert_payment(payment_hash, info)
     }
-    fn merge(
+    fn merge_payment(
         &self,
         payment_hash: &PaymentHash,
         flow: PaymentFlow,
@@ -307,10 +313,39 @@ impl PaymentPersister for Payments {
 
         Ok(())
     }
-    fn get(&self, payment_hash: &PaymentHash) -> Result<Option<(PaymentHash, PaymentInfo)>> {
+    fn get_payment(
+        &self,
+        payment_hash: &PaymentHash,
+    ) -> Result<Option<(PaymentHash, PaymentInfo)>> {
         db::get_payment(*payment_hash)
     }
-    fn all(&self) -> Result<Vec<(PaymentHash, PaymentInfo)>> {
+    fn all_payments(&self) -> Result<Vec<(PaymentHash, PaymentInfo)>> {
         db::get_payments()
+    }
+
+    // Spendable outputs
+
+    fn insert_spendable_output(&self, descriptor: SpendableOutputDescriptor) -> Result<()> {
+        use SpendableOutputDescriptor::*;
+        let outpoint = match &descriptor {
+            // Static outputs don't need to be persisted because they pay directly to an address
+            // owned by the on-chain wallet
+            StaticOutput { .. } => return Ok(()),
+            DelayedPaymentOutput(DelayedPaymentOutputDescriptor { outpoint, .. }) => outpoint,
+            StaticPaymentOutput(StaticPaymentOutputDescriptor { outpoint, .. }) => outpoint,
+        };
+
+        db::insert_spendable_output(*outpoint, descriptor)
+    }
+
+    fn get_spendable_output(
+        &self,
+        outpoint: &OutPoint,
+    ) -> Result<Option<SpendableOutputDescriptor>> {
+        db::get_spendable_output(*outpoint)
+    }
+
+    fn all_spendable_outputs(&self) -> Result<Vec<SpendableOutputDescriptor>> {
+        db::get_spendable_outputs()
     }
 }

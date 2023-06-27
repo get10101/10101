@@ -6,7 +6,7 @@ use crate::config;
 use crate::event;
 use crate::event::EventInternal;
 use crate::ln_dlc::node::Node;
-use crate::ln_dlc::node::Payments;
+use crate::ln_dlc::node::NodeStorage;
 use crate::trade::order;
 use crate::trade::order::FailureReason;
 use crate::trade::position;
@@ -137,7 +137,7 @@ pub fn run(data_dir: String, seed_dir: String, runtime: &Runtime) -> Result<()> 
             "10101",
             network,
             data_dir.as_path(),
-            Payments,
+            NodeStorage,
             address,
             SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), address.port()),
             config::get_esplora_endpoint().to_string(),
