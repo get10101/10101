@@ -110,7 +110,7 @@ async fn reconnecting_during_dlc_channel_setup() {
     tokio::time::sleep(Duration::from_secs(2)).await;
 
     // The coordinator handles `ReAccept` action. We need this so that the coordinator advances its
-    // state to `Accepted` again, so that it can process the app's old `Confirm` message
+    // state to `Accepted` again, so that it can process the app's repeated `Confirm` message
     sub_channel_manager_periodic_check(
         coordinator.sub_channel_manager.clone(),
         &coordinator.dlc_message_handler,
@@ -118,19 +118,13 @@ async fn reconnecting_during_dlc_channel_setup() {
     .await
     .unwrap();
 
-    // tracing::info!("---> App processing second `Accept` <---");
+    // Wait for the `Accepted` message to
+    tokio::time::sleep(Duration::from_secs(2)).await;
+    // The app processes the repeated accept message from the coordinator and sends another confirm
+    // message.
+    app.process_incoming_messages().unwrap();
 
-    // tokio::time::sleep(Duration::from_secs(2)).await;
-
-    // app.process_incoming_messages().unwrap();
-
-    // tokio::time::sleep(Duration::from_secs(2)).await;
-
-    tracing::info!("---> Coordinator processing app's `Confirm` message now <---");
-
-    // FIXME: Processing the SubChannelConfirm message here will result in the following error
-    // Invalid state: Misuse error: Close : Got a revoke commitment secret which didn't correspond
-    // to their current pubkey
+    // Process the resend `Confirm` message from the App.
     wait_until_dlc_channel_state(
         Duration::from_secs(30),
         &coordinator,

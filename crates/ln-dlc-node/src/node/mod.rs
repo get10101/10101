@@ -29,7 +29,6 @@ use lightning::chain::keysinterface::EntropySource;
 use lightning::chain::keysinterface::KeysManager;
 use lightning::chain::Confirm;
 use lightning::ln::msgs::NetAddress;
-use lightning::ln::peer_handler::IgnoringMessageHandler;
 use lightning::ln::peer_handler::MessageHandler;
 use lightning::routing::gossip::P2PGossipSync;
 use lightning::routing::router::DefaultRouter;
@@ -450,13 +449,15 @@ where
         let sub_channel_manager =
             sub_channel_manager::build(channel_manager.clone(), dlc_manager.clone())?;
 
+        let dlc_message_handler = Arc::new(DlcMessageHandler::new());
+
         let lightning_msg_handler = MessageHandler {
             chan_handler: sub_channel_manager.clone(),
             route_handler: gossip_sync.clone(),
-            onion_message_handler: Arc::new(IgnoringMessageHandler {}),
+            // Hooking the dlc_message_handler here to intercept the `peer_disconnected` event and
+            // clear all pending unprocessed message from the disconnected peer.
+            onion_message_handler: dlc_message_handler.clone(),
         };
-
-        let dlc_message_handler = Arc::new(DlcMessageHandler::new());
 
         let peer_manager: Arc<PeerManager> = Arc::new(PeerManager::new(
             lightning_msg_handler,
