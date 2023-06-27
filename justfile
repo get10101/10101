@@ -268,7 +268,7 @@ wait-for-coordinator-to-be-ready:
     set +e
 
     endpoint="http://localhost:8000/api/newaddress"
-    max_attempts=10
+    max_attempts=600
     sleep_duration=1
 
     check_endpoint() {
