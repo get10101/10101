@@ -126,6 +126,14 @@ jobs:
       - name: Setup rust toolchain
         run: rustup show
       - uses: Swatinem/rust-cache@v2.2.0
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.7.7"
+          channel: "stable"
+      - name: Install FFI bindings
+        run: just deps-gen
+      - name: Generate FFI bindings
+        run: just gen
       - name: Build Rust project
         run: cargo build --examples
       - name: Start containers
