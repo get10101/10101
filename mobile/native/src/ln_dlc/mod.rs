@@ -192,6 +192,8 @@ pub fn run(data_dir: String, seed_dir: String, runtime: &Runtime) -> Result<()> 
 
         NODE.set(node);
 
+        event::publish(&EventInternal::Init("10101 is ready.".to_string()));
+
         Ok(())
     })
 }

@@ -14,6 +14,8 @@ pub struct Senders {
     order: watch::Sender<Option<Order>>,
     order_filled: watch::Sender<Option<Box<TradeParams>>>,
     position: watch::Sender<Option<Position>>,
+    /// Init messages are simple strings
+    init_msg: watch::Sender<Option<String>>,
 }
 
 /// Subscribes to events destined for the frontend (typically Flutter app) and
@@ -23,6 +25,7 @@ pub struct TestSubscriber {
     order: watch::Receiver<Option<Order>>,
     order_filled: watch::Receiver<Option<Box<TradeParams>>>,
     position: watch::Receiver<Option<Position>>,
+    init_msg: watch::Receiver<Option<String>>,
     // TODO add prices and close position watches
 }
 
@@ -32,12 +35,14 @@ impl TestSubscriber {
         let (order_tx, order_rx) = watch::channel(None);
         let (order_filled_tx, order_filled_rx) = watch::channel(None);
         let (position_tx, position_rx) = watch::channel(None);
+        let (init_msg_tx, init_msg_rx) = watch::channel(None);
 
         let senders = Senders {
             wallet_info: wallet_info_tx,
             order: order_tx,
             order_filled: order_filled_tx,
             position: position_tx,
+            init_msg: init_msg_tx,
         };
 
         let rx = Self {
@@ -45,6 +50,7 @@ impl TestSubscriber {
             order_filled: order_filled_rx,
             order: order_rx,
             position: position_rx,
+            init_msg: init_msg_rx,
         };
         (rx, ThreadSafeSenders(Arc::new(Mutex::new(senders))))
     }
@@ -64,13 +70,20 @@ impl TestSubscriber {
     pub fn position(&self) -> Option<Position> {
         self.position.borrow().as_ref().cloned()
     }
+
+    pub fn init_msg(&self) -> Option<String> {
+        self.init_msg.borrow().as_ref().cloned()
+    }
 }
 
 impl Subscriber for Senders {
     fn notify(&self, event: &native::event::EventInternal) {
         match event {
             native::event::EventInternal::Init(init) => {
-                tracing::info!(%init, "Received init event");
+                tracing::info!(%init, "Received init message");
+                self.init_msg
+                    .send(Some(init.to_string()))
+                    .expect("to be able to send update");
             }
             native::event::EventInternal::Log(_log) => {
                 // Ignore log events for now

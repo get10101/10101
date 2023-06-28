@@ -1,11 +1,14 @@
 use crate::test_subscriber::TestSubscriber;
+use crate::test_subscriber::ThreadSafeSenders;
+use crate::wait_until;
 use tempfile::TempDir;
 
 pub struct AppHandle {
+    pub rx: TestSubscriber,
     _app_dir: TempDir,
     _seed_dir: TempDir,
     _handle: tokio::task::JoinHandle<()>,
-    pub rx: TestSubscriber,
+    _tx: ThreadSafeSenders,
 }
 
 pub async fn run_app() -> AppHandle {
@@ -27,16 +30,17 @@ pub async fn run_app() -> AppHandle {
     };
 
     let (rx, tx) = TestSubscriber::new();
-    native::event::subscribe(tx);
+    native::event::subscribe(tx.clone());
 
-    // TODO: Get rid of the sleep, but wait for the app to be initialised
-    tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
+    wait_until!(rx.init_msg() == Some("10101 is ready.".to_string()));
+    wait_until!(rx.wallet_info().is_some()); // wait for initial wallet sync
 
     AppHandle {
         _app_dir: app_dir,
         _seed_dir: seed_dir,
         _handle: _app_handle,
         rx,
+        _tx: tx,
     }
 }
 
