@@ -48,16 +48,13 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
     // it can go below 0 if the user has an unbalanced channel
     Amount maxAmount = Amount(max(usableChannelCapacity.sats - balance.sats, 0));
 
-    // TODO: Re-enable this once we support anchor outputs
     // if we already have a balance that is > 5666 then 1 is the minimum to receive
-    // int minAmount = max(
-    //     channelConstraintsService.getChannelReserve() +
-    //         channelConstraintsService.getFeeReserve() +
-    //         channelConstraintsService.getMinTradeMargin() -
-    //         balance,
-    //     1);
-
-    Amount minAmount = Amount(50000);
+    Amount minAmount = Amount(max(
+        channelConstraintsService.getChannelReserve() +
+            channelConstraintsService.getFeeReserve() +
+            channelConstraintsService.getMinTradeMargin() -
+            balance.sats,
+        1));
 
     return Scaffold(
       appBar: AppBar(title: const Text("Receive funds")),
@@ -133,10 +130,8 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
                   child: Padding(
                 padding: const EdgeInsets.only(bottom: 10.0, left: 32.0, right: 32.0),
                 child: Text(
-                  "Due to recent channel fees the initial deposit should be at least ${formatSats(Amount(50000))}."
-                  "\nDuring the beta we recommend a maximum wallet balance of ${formatSats(Amount(100000))}."
-                  "\nYour wallet balance is ${formatSats(balance)} so you should only receive up to ${formatSats(maxAmount)}.",
-                  style: const TextStyle(color: Colors.grey),
+                  "Your wallet balance is ${formatSats(balance)} so you should only receive up to ${formatSats(maxAmount)}.",
+                  style: const TextStyle(color: Colors.black),
                 ),
               )),
               Expanded(
