@@ -13,6 +13,8 @@ class Environment {
     String network = const String.fromEnvironment('NETWORK', defaultValue: "regtest");
     String oracleEndpoint =
         const String.fromEnvironment("ORACLE_ENDPOINT", defaultValue: "http://127.0.0.1:8081");
+    String oraclePubkey = const String.fromEnvironment("ORACLE_PUBKEY",
+        defaultValue: "16f88cf7d21e6c0f46bcbc983a4e3b19726c6c98858cc31c83551a88fde171c0");
 
     String p2pEndpoint = const String.fromEnvironment('COORDINATOR_P2P_ENDPOINT');
     if (p2pEndpoint.contains("@")) {
@@ -32,6 +34,7 @@ class Environment {
       httpPort: httpPort,
       network: network,
       oracleEndpoint: oracleEndpoint,
+      oraclePubkey: oraclePubkey,
     );
   }
 }

@@ -60,13 +60,14 @@ pub(crate) mod dlc_channel;
 mod dlc_manager;
 pub(crate) mod invoice;
 mod ln_channel;
-mod oracle_client;
+mod oracle;
 mod peer_manager;
 mod storage;
 mod sub_channel_manager;
 mod wallet;
 
 pub use self::dlc_manager::DlcManager;
+pub use crate::node::oracle::OracleInfo;
 pub use ::dlc_manager as rust_dlc_manager;
 pub use channel_manager::ChannelManager;
 pub use dlc_channel::dlc_message_name;
@@ -173,7 +174,7 @@ where
         esplora_server_url: String,
         seed: Bip39Seed,
         ephemeral_randomness: [u8; 32],
-        oracle_endpoint: String,
+        oracle: OracleInfo,
     ) -> Result<Self> {
         let user_config = app_config();
         Node::new(
@@ -192,7 +193,7 @@ where
             ephemeral_randomness,
             user_config,
             LnDlcNodeSettings::default(),
-            oracle_endpoint,
+            oracle.into(),
         )
     }
 
@@ -213,7 +214,7 @@ where
         seed: Bip39Seed,
         ephemeral_randomness: [u8; 32],
         settings: LnDlcNodeSettings,
-        oracle_endpoint: String,
+        oracle: OracleInfo,
     ) -> Result<Self> {
         let mut user_config = coordinator_config();
 
@@ -236,7 +237,7 @@ where
             ephemeral_randomness,
             user_config,
             settings,
-            oracle_endpoint,
+            oracle.into(),
         )
     }
 
@@ -259,7 +260,7 @@ where
         ephemeral_randomness: [u8; 32],
         ldk_user_config: UserConfig,
         settings: LnDlcNodeSettings,
-        oracle_endpoint: String,
+        oracle_client: P2PDOracleClient,
     ) -> Result<Self> {
         let time_since_unix_epoch = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH)?;
 
@@ -435,7 +436,6 @@ where
             logger.clone(),
         ));
 
-        let oracle_client = oracle_client::build(oracle_endpoint);
         let oracle_client = Arc::new(oracle_client);
 
         let dlc_manager = dlc_manager::build(

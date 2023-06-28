@@ -1,11 +1,14 @@
 use anyhow::Result;
+use bitcoin::XOnlyPublicKey;
 use clap::Parser;
 use lightning::ln::msgs::NetAddress;
+use ln_dlc_node::node::OracleInfo;
 use local_ip_address::local_ip;
 use std::env::current_dir;
 use std::net::IpAddr;
 use std::net::SocketAddr;
 use std::path::PathBuf;
+use std::str::FromStr;
 
 #[derive(Parser)]
 pub struct Opts {
@@ -53,7 +56,14 @@ pub struct Opts {
 
     // The endpoint of the p2pderivatives oracle
     #[clap(long, default_value = "http://localhost:8081")]
-    pub oracle: String,
+    oracle_endpoint: String,
+
+    // The public key of the oracle
+    #[clap(
+        long,
+        default_value = "16f88cf7d21e6c0f46bcbc983a4e3b19726c6c98858cc31c83551a88fde171c0"
+    )]
+    oracle_pubkey: String,
 }
 
 #[derive(Debug, Clone, Copy, clap::ValueEnum)]
@@ -83,6 +93,14 @@ impl Opts {
 
     pub fn network(&self) -> bitcoin::Network {
         self.network.into()
+    }
+
+    pub fn get_oracle_info(&self) -> OracleInfo {
+        OracleInfo {
+            endpoint: self.oracle_endpoint.clone(),
+            public_key: XOnlyPublicKey::from_str(self.oracle_pubkey.as_str())
+                .expect("Valid oracle public key"),
+        }
     }
 
     pub fn data_dir(&self) -> Result<PathBuf> {

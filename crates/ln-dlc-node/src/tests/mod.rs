@@ -4,6 +4,7 @@ use crate::node::InMemoryStore;
 use crate::node::LnDlcNodeSettings;
 use crate::node::Node;
 use crate::node::NodeInfo;
+use crate::node::OracleInfo;
 use crate::seed::Bip39Seed;
 use crate::util;
 use anyhow::Result;
@@ -38,6 +39,8 @@ use rust_decimal::Decimal;
 use std::env::temp_dir;
 use std::net::TcpListener;
 use std::path::PathBuf;
+use std::str::FromStr;
+use std::string::ToString;
 use std::sync::Once;
 use std::time::Duration;
 use tokio::task::block_in_place;
@@ -54,6 +57,7 @@ mod load;
 const ESPLORA_ORIGIN: &str = "http://localhost:3000";
 const FAUCET_ORIGIN: &str = "http://localhost:8080";
 const ORACLE_ORIGIN: &str = "http://localhost:8081";
+const ORACLE_PUBKEY: &str = "16f88cf7d21e6c0f46bcbc983a4e3b19726c6c98858cc31c83551a88fde171c0";
 
 fn init_tracing() {
     static TRACING_TEST_SUBSCRIBER: Once = Once::new();
@@ -82,7 +86,10 @@ impl Node<InMemoryStore> {
             name,
             app_config(),
             ESPLORA_ORIGIN.to_string(),
-            ORACLE_ORIGIN.to_string(),
+            OracleInfo {
+                endpoint: ORACLE_ORIGIN.to_string(),
+                public_key: XOnlyPublicKey::from_str(ORACLE_PUBKEY)?,
+            },
         )
     }
 
@@ -91,7 +98,10 @@ impl Node<InMemoryStore> {
             name,
             coordinator_config(),
             ESPLORA_ORIGIN.to_string(),
-            ORACLE_ORIGIN.to_string(),
+            OracleInfo {
+                endpoint: ORACLE_ORIGIN.to_string(),
+                public_key: XOnlyPublicKey::from_str(ORACLE_PUBKEY)?,
+            },
         )
     }
 
@@ -99,7 +109,7 @@ impl Node<InMemoryStore> {
         name: &str,
         user_config: UserConfig,
         esplora_origin: String,
-        oracle_origin: String,
+        oracle: OracleInfo,
     ) -> Result<Self> {
         let data_dir = random_tmp_dir().join(name);
 
@@ -126,7 +136,7 @@ impl Node<InMemoryStore> {
             ephemeral_randomness,
             user_config,
             LnDlcNodeSettings::default(),
-            oracle_origin,
+            oracle.into(),
         )?;
 
         tracing::debug!(%name, info = %node.info, "Node started");
