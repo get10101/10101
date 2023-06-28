@@ -175,41 +175,6 @@ impl Node {
         let margin_trader = margin_trader(trade_params);
         let margin_coordinator = margin_coordinator(trade_params);
 
-        let liquidation_price = liquidation_price(trade_params);
-
-        let average_entry_price = trade_params
-            .average_execution_price()
-            .to_f32()
-            .expect("to fit into f32");
-        let new_position = NewPosition {
-            contract_symbol: trade_params.contract_symbol,
-            leverage: trade_params.leverage,
-            quantity: trade_params.quantity,
-            direction: trade_params.direction,
-            trader: trade_params.pubkey,
-            average_entry_price,
-            liquidation_price,
-            collateral: margin_coordinator as i64,
-            expiry_timestamp: trade_params.filled_with.expiry_timestamp,
-        };
-        tracing::debug!(?new_position, "Inserting new position into db");
-
-        let connection = &mut self.pool.get()?;
-        let position = db::positions::Position::insert(connection, new_position.clone())?;
-        db::trades::insert(
-            connection,
-            Trade {
-                position_id: position.id,
-                contract_symbol: new_position.contract_symbol.into(),
-                trader_pubkey: new_position.trader.to_string(),
-                quantity: new_position.quantity,
-                leverage: new_position.leverage,
-                collateral: new_position.collateral,
-                direction: new_position.direction.into(),
-                average_price: average_entry_price,
-            },
-        )?;
-
         let leverage_long = leverage_long(trade_params.direction, trade_params.leverage);
         let leverage_short = leverage_short(trade_params.direction, trade_params.leverage);
 
@@ -250,7 +215,56 @@ impl Node {
             .propose_dlc_channel(channel_details, contract_input)
             .await
             .context("Could not propose dlc channel")?;
-        Ok(())
+
+        // After the dlc channel has been proposed the position can be created. Note, this
+        // fixes https://github.com/get10101/10101/issues/537, where the position was created
+        // before the dlc was successfully proposed. Although we may still run into
+        // inconsistencies e.g. if propose dlc succeeds, but inserting the position and trade
+        // into the database doesn't, it is more likely to succeed in the new order.
+        // FIXME: Note, we should not create a shadow representation (position) of the DLC struct,
+        // but rather imply the state from the DLC.
+        self.persist_position_and_trade(trade_params)
+    }
+
+    // Creates a position and a trade from the trade params
+    fn persist_position_and_trade(&self, trade_params: &TradeParams) -> Result<()> {
+        let liquidation_price = liquidation_price(trade_params);
+        let margin_coordinator = margin_coordinator(trade_params);
+
+        let average_entry_price = trade_params
+            .average_execution_price()
+            .to_f32()
+            .expect("to fit into f32");
+
+        let new_position = NewPosition {
+            contract_symbol: trade_params.contract_symbol,
+            leverage: trade_params.leverage,
+            quantity: trade_params.quantity,
+            direction: trade_params.direction,
+            trader: trade_params.pubkey,
+            average_entry_price,
+            liquidation_price,
+            collateral: margin_coordinator as i64,
+            expiry_timestamp: trade_params.filled_with.expiry_timestamp,
+        };
+        tracing::debug!(?new_position, "Inserting new position into db");
+
+        let connection = &mut self.pool.get()?;
+        let position = db::positions::Position::insert(connection, new_position.clone())?;
+
+        db::trades::insert(
+            connection,
+            Trade {
+                position_id: position.id,
+                contract_symbol: new_position.contract_symbol.into(),
+                trader_pubkey: new_position.trader.to_string(),
+                quantity: new_position.quantity,
+                leverage: new_position.leverage,
+                collateral: new_position.collateral,
+                direction: new_position.direction.into(),
+                average_price: average_entry_price,
+            },
+        )
     }
 
     #[autometrics]
