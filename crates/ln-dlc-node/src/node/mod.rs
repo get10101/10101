@@ -263,7 +263,9 @@ where
     ) -> Result<Self> {
         let time_since_unix_epoch = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH)?;
 
-        let logger = Arc::new(TracingLogger);
+        let logger = Arc::new(TracingLogger {
+            alias: alias.to_string(),
+        });
 
         if !data_dir.exists() {
             std::fs::create_dir_all(data_dir)
