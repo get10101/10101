@@ -5,8 +5,6 @@ import 'package:get_10101/common/amount_text.dart';
 import 'package:get_10101/common/amount_text_input_form_field.dart';
 import 'package:get_10101/common/application/channel_constraints_service.dart';
 import 'package:get_10101/common/domain/model.dart';
-import 'package:get_10101/features/trade/domain/contract_symbol.dart';
-import 'package:get_10101/features/trade/position_change_notifier.dart';
 import 'package:get_10101/features/wallet/share_invoice_screen.dart';
 import 'package:get_10101/features/wallet/wallet_change_notifier.dart';
 import 'package:get_10101/features/wallet/wallet_screen.dart';
@@ -46,8 +44,7 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
     Amount channelCapacity = Amount(channelConstraintsService.getLightningChannelCapacity());
     Amount usableChannelCapacity = Amount(channelConstraintsService.getUsableChannelCapacity());
     Amount balance = context.watch<WalletChangeNotifier>().walletInfo.balances.lightning;
-    bool hasOpenPosition =
-        context.watch<PositionChangeNotifier>().positions[ContractSymbol.btcusd] != null;
+
     // it can go below 0 if the user has an unbalanced channel
     Amount maxAmount = Amount(max(usableChannelCapacity.sats - balance.sats, 0));
 
@@ -95,11 +92,6 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
                           setState(() => amount = Amount.parse(value));
                         },
                         validator: (value) {
-                          // FIXME: a temporary stop-gap for https://github.com/get10101/10101/issues/498
-                          if (hasOpenPosition) {
-                            return "Cannot receive funds whilst a position is open";
-                          }
-
                           if (value == null) {
                             return "Enter receive amount";
                           }
