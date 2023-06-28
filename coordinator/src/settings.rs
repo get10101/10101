@@ -89,8 +89,6 @@ impl Settings {
     pub fn as_node_settings(&self) -> NodeSettings {
         NodeSettings {
             allow_opening_positions: self.new_positions_enabled,
-            fallback_tx_fee_rate_normal: self.fallback_tx_fee_rate_normal,
-            fallback_tx_fee_rate_high_priority: self.fallback_tx_fee_rate_high_priority,
             max_allowed_tx_fee_rate_when_opening_channel: self
                 .max_allowed_tx_fee_rate_when_opening_channel,
         }

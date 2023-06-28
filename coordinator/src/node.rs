@@ -29,7 +29,6 @@ use lightning::ln::channelmanager::ChannelDetails;
 use ln_dlc_node::node::dlc_message_name;
 use ln_dlc_node::node::sub_channel_message_name;
 use ln_dlc_node::node::InMemoryStore;
-use ln_dlc_node::FeeRateFallbacks;
 use ln_dlc_node::WalletSettings;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
@@ -52,8 +51,6 @@ pub struct NodeSettings {
     // At times, we want to disallow opening new positions (e.g. before
     // scheduled upgrade)
     pub allow_opening_positions: bool,
-    pub fallback_tx_fee_rate_normal: u32,
-    pub fallback_tx_fee_rate_high_priority: u32,
     pub max_allowed_tx_fee_rate_when_opening_channel: Option<u32>,
 }
 
@@ -64,21 +61,12 @@ impl NodeSettings {
                 .max_allowed_tx_fee_rate_when_opening_channel,
         }
     }
-
-    fn as_fee_rate_fallbacks(&self) -> FeeRateFallbacks {
-        FeeRateFallbacks {
-            normal_priority: self.fallback_tx_fee_rate_normal,
-            high_priority: self.fallback_tx_fee_rate_high_priority,
-        }
-    }
 }
 
 impl Default for NodeSettings {
     fn default() -> Self {
         Self {
             allow_opening_positions: true,
-            fallback_tx_fee_rate_normal: 2000,
-            fallback_tx_fee_rate_high_priority: 5000,
             max_allowed_tx_fee_rate_when_opening_channel: None,
         }
     }
@@ -110,11 +98,6 @@ impl Node {
         // Forward relevant settings down to the wallet
         let wallet_settings = settings.as_wallet_settings();
         self.inner.wallet().update_settings(wallet_settings).await;
-
-        let fee_rate_fallbacks = settings.as_fee_rate_fallbacks();
-        self.inner
-            .fee_rate_estimator
-            .update_fallbacks(fee_rate_fallbacks);
     }
 
     /// Returns true or false, whether we can find an usable channel with the provided trader.
