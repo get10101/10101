@@ -127,7 +127,7 @@ async fn reconnecting_during_dlc_channel_setup() {
 
 #[tokio::test(flavor = "multi_thread")]
 #[ignore]
-async fn repro_792() {
+async fn can_lose_connection_before_processing_subchannel_close_finalize() {
     init_tracing();
 
     // Arrange
@@ -221,8 +221,6 @@ async fn repro_792() {
 
     app.reconnect(coordinator.info).await.unwrap();
 
-    // The test panics here because of a `Got a revoke commitment secret which didn't correspond to
-    // their current pubkey` error
     coordinator.process_incoming_messages().unwrap();
 
     // Assert
