@@ -147,7 +147,7 @@ clippy:
     cd mobile/native && just cargo-clippy
     cd coordinator && just cargo-clippy
     cd maker && just cargo-clippy
-    for crate in crates/*; do (cd "$crate" && just cargo-clippy); done
+    for crate in crates/*; do (cd "${crate}" && echo "Running clippy on ${crate}" && just cargo-clippy); done
 
 [private]
 cargo-clippy:
@@ -181,13 +181,13 @@ native-test:
 
 test: flutter-test native-test
 
-# Run expensive tests from the `ln-dlc-node` crate. To run them you will have to start certain Docker containers via `just docker`.
-ln-dlc-node-test: docker
+# Run expensive tests from the `ln-dlc-node` crate. 
+ln-dlc-node-test args="": docker
     # wait a few seconds to ensure that Docker containers started
     sleep 2
     # adjust the max amount of available file descriptors - we're making a lot of requests, and it might go over the limit
     ulimit -n 1024
-    cargo test -p ln-dlc-node -- --ignored --test-threads=1
+    cargo test -p ln-dlc-node -- --ignored --test-threads=1 {{args}}
 
 # Runs background Docker services
 docker:
@@ -231,14 +231,14 @@ maker-logs:
     tail -f {{maker_log_file}}
 
 # Run services in the background
-services: docker run-coordinator-detached run-maker-detached
+services: docker run-coordinator-detached run-maker-detached wait-for-coordinator-to-be-ready fund
 
 # Run everything at once (docker, coordinator, native build)
 # Note: if you have mobile simulator running, it will start that one instead of native, but will *not* rebuild the mobile rust library.
-all: services gen native fund run
+all: services gen native run
 
 # Run everything at once, tailored for iOS development (rebuilds iOS)
-all-ios: services gen ios fund run
+all-ios: services gen ios run
 
 [private]
 wait-for-electrs-to-be-ready:
@@ -261,6 +261,39 @@ wait-for-electrs-to-be-ready:
             sleep 1
         fi
     done
+
+[private]
+wait-for-coordinator-to-be-ready:
+    #!/usr/bin/env bash
+    set +e
+
+    endpoint="http://localhost:8000/api/newaddress"
+    max_attempts=10
+    sleep_duration=1
+
+    check_endpoint() {
+      response=$(curl -s -o /dev/null -w "%{http_code}" "$endpoint")
+      if [ "$response" -eq 200 ]; then
+        echo "Coordinator is ready!"
+        exit 0
+        else
+        echo "Coordinator not ready yet. Retrying..."
+        return 1
+        fi
+        }
+
+    attempt=1
+    while [ "$attempt" -le "$max_attempts" ]; do
+      if check_endpoint; then
+        exit 0
+        fi
+
+      sleep "$sleep_duration"
+      attempt=$((attempt + 1))
+      done
+
+    echo "Max attempts reached. Coordinator is still not ready."
+    exit 1
 
 build-ipa:
     #!/usr/bin/env bash
@@ -313,5 +346,13 @@ wipe-prometheus:
     set -euxo pipefail
     cd services/prometheus
     rm -rf data
+
+
+alias e2e := tests-e2e
+# end-to-end tests
+tests-e2e args="": services
+    #!/usr/bin/env bash
+    set -euxo pipefail
+    cargo test -p tests-e2e -- --ignored --test-threads=1 {{args}}
 
 # vim:expandtab:sw=4:ts=4
