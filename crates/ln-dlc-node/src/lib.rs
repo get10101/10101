@@ -8,7 +8,6 @@ use fee_rate_estimator::FeeRateEstimator;
 use lightning::chain::chainmonitor;
 use lightning::chain::Filter;
 use lightning::ln::channelmanager::InterceptId;
-use lightning::ln::peer_handler::IgnoringMessageHandler;
 use lightning::ln::PaymentPreimage;
 use lightning::ln::PaymentSecret;
 use lightning::routing::gossip;
@@ -64,7 +63,7 @@ pub type PeerManager = lightning::ln::peer_handler::PeerManager<
             Arc<TracingLogger>,
         >,
     >,
-    Arc<IgnoringMessageHandler>,
+    Arc<DlcMessageHandler>,
     Arc<TracingLogger>,
     Arc<DlcMessageHandler>,
     Arc<CustomKeysManager>,
