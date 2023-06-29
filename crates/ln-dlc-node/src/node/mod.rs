@@ -111,10 +111,6 @@ pub struct Node<S> {
     pub dlc_message_handler: Arc<DlcMessageHandler>,
     storage: Arc<S>,
     pub(crate) user_config: UserConfig,
-    #[cfg(test)]
-    pub(crate) alias: [u8; 32],
-    #[cfg(test)]
-    pub(crate) announcement_addresses: Vec<NetAddress>,
 }
 
 #[derive(Debug, Clone, Copy, Deserialize, Serialize)]
@@ -568,9 +564,6 @@ where
         let alias = alias_as_bytes(alias)?;
         let node_announcement_interval = node_announcement_interval(network);
         let broadcast_node_announcement_handle = {
-            #[cfg(test)]
-            let announcement_addresses = announcement_addresses.clone();
-            #[cfg(not(test))]
             let announcement_addresses = announcement_addresses;
             let peer_manager = peer_manager.clone();
             let (fut, remote_handle) = async move {
@@ -667,10 +660,6 @@ where
             _broadcast_node_announcement_handle: broadcast_node_announcement_handle,
             _sub_channel_manager_periodic_check_handle: sub_channel_manager_periodic_check_handle,
             network_graph,
-            #[cfg(test)]
-            announcement_addresses,
-            #[cfg(test)]
-            alias,
             settings,
         })
     }

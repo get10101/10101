@@ -45,9 +45,7 @@ use tokio::task::block_in_place;
 mod bitcoind;
 mod dlc;
 mod just_in_time_channel;
-mod lnd;
 mod multi_hop_payment;
-mod onboard_from_lnd;
 mod single_hop_payment;
 
 #[cfg(feature = "load_tests")]
