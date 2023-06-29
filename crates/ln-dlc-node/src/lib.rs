@@ -38,7 +38,6 @@ pub mod seed;
 #[cfg(test)]
 mod tests;
 
-pub use fee_rate_estimator::FeeRateFallbacks;
 pub use ldk_node_wallet::WalletSettings;
 pub use ln::ChannelDetails;
 pub use ln::DlcChannelDetails;
