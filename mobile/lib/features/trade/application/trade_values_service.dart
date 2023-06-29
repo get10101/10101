@@ -4,24 +4,39 @@ import 'package:get_10101/common/domain/model.dart';
 import 'package:get_10101/features/trade/domain/direction.dart';
 
 class TradeValuesService {
-  Amount calculateMargin(
-      {required double price, required double quantity, required Leverage leverage, dynamic hint}) {
-    return Amount(
-        rust.api.calculateMargin(price: price, quantity: quantity, leverage: leverage.leverage));
+  Amount? calculateMargin(
+      {required double? price,
+      required double? quantity,
+      required Leverage leverage,
+      dynamic hint}) {
+    if (price == null || quantity == null) {
+      return null;
+    } else {
+      return Amount(
+          rust.api.calculateMargin(price: price, quantity: quantity, leverage: leverage.leverage));
+    }
   }
 
-  double calculateQuantity(
-      {required double price, required Amount margin, required Leverage leverage, dynamic hint}) {
-    return rust.api
-        .calculateQuantity(price: price, margin: margin.sats, leverage: leverage.leverage);
+  double? calculateQuantity(
+      {required double? price, required Amount? margin, required Leverage leverage, dynamic hint}) {
+    if (price == null || margin == null) {
+      return null;
+    } else {
+      return rust.api
+          .calculateQuantity(price: price, margin: margin.sats, leverage: leverage.leverage);
+    }
   }
 
-  double calculateLiquidationPrice(
-      {required double price,
+  double? calculateLiquidationPrice(
+      {required double? price,
       required Leverage leverage,
       required Direction direction,
       dynamic hint}) {
-    return rust.api.calculateLiquidationPrice(
-        price: price, leverage: leverage.leverage, direction: direction.toApi());
+    if (price == null) {
+      return null;
+    } else {
+      return rust.api.calculateLiquidationPrice(
+          price: price, leverage: leverage.leverage, direction: direction.toApi());
+    }
   }
 }

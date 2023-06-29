@@ -2,7 +2,6 @@ import 'dart:developer';
 import 'package:flutter/material.dart';
 import 'package:get_10101/common/application/event_service.dart';
 import 'package:get_10101/common/domain/model.dart';
-import 'package:get_10101/common/dummy_values.dart';
 import 'package:get_10101/features/trade/application/position_service.dart';
 import 'package:get_10101/features/trade/domain/contract_symbol.dart';
 import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
@@ -22,7 +21,6 @@ class PositionChangeNotifier extends ChangeNotifier implements Subscriber {
     for (Position position in positions) {
       this.positions[position.contractSymbol] = position;
     }
-    _price = Price(bid: dummyBidPrice, ask: dummyAskPrice);
 
     notifyListeners();
   }
@@ -37,7 +35,8 @@ class PositionChangeNotifier extends ChangeNotifier implements Subscriber {
       Position position = Position.fromApi(event.field0);
 
       if (_price != null) {
-        position.unrealizedPnl = Amount(_positionService.calculatePnl(position, _price!));
+        final pnl = _positionService.calculatePnl(position, _price!);
+        position.unrealizedPnl = pnl != null ? Amount(pnl) : null;
       } else {
         position.unrealizedPnl = null;
       }
@@ -50,8 +49,8 @@ class PositionChangeNotifier extends ChangeNotifier implements Subscriber {
       for (ContractSymbol symbol in positions.keys) {
         if (_price != null) {
           if (positions[symbol] != null) {
-            positions[symbol]!.unrealizedPnl =
-                Amount(_positionService.calculatePnl(positions[symbol]!, _price!));
+            final pnl = _positionService.calculatePnl(positions[symbol]!, _price!);
+            positions[symbol]!.unrealizedPnl = pnl != null ? Amount(pnl) : null;
           }
         }
       }

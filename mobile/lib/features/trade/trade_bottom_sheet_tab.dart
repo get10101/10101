@@ -106,7 +106,7 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
                 ),
               ),
               Selector<TradeValuesChangeNotifier, double>(
-                  selector: (_, provider) => provider.fromDirection(widget.direction).price,
+                  selector: (_, provider) => provider.fromDirection(widget.direction).price ?? 0,
                   builder: (context, price, child) {
                     return DoubleTextInputFormField(
                       value: price,
@@ -120,7 +120,8 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
                 children: [
                   Flexible(
                     child: Selector<TradeValuesChangeNotifier, double>(
-                      selector: (_, provider) => provider.fromDirection(widget.direction).quantity,
+                      selector: (_, provider) =>
+                          provider.fromDirection(widget.direction).quantity ?? 0.0,
                       builder: (context, quantity, child) {
                         return DoubleTextInputFormField(
                           value: quantity,
@@ -152,7 +153,8 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
                   ),
                   Flexible(
                     child: Selector<TradeValuesChangeNotifier, Amount>(
-                      selector: (_, provider) => provider.fromDirection(widget.direction).margin,
+                      selector: (_, provider) =>
+                          provider.fromDirection(widget.direction).margin ?? Amount(0),
                       builder: (context, margin, child) {
                         return AmountInputField(
                           value: margin,
@@ -186,8 +188,13 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
                               // the trading capacity does not take into account if the channel is balanced or not
                               int tradingCapacity =
                                   provider.availableTradingCapacity(widget.direction);
-                              int counterpartyMargin =
+
+                              int? optCounterPartyMargin =
                                   provider.counterpartyMargin(widget.direction);
+                              if (optCounterPartyMargin == null) {
+                                return "Counterparty margin not available";
+                              }
+                              int counterpartyMargin = optCounterPartyMargin;
 
                               // This condition has to stay as the first thing to check, so we reset showing the info
                               if (margin > tradingCapacity ||
@@ -250,7 +257,7 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
                   const SizedBox(width: 5),
                   Selector<TradeValuesChangeNotifier, double>(
                       selector: (_, provider) =>
-                          provider.fromDirection(widget.direction).liquidationPrice,
+                          provider.fromDirection(widget.direction).liquidationPrice ?? 0.0,
                       builder: (context, liquidationPrice, child) {
                         return Flexible(child: FiatText(amount: liquidationPrice));
                       }),

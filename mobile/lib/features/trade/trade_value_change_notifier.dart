@@ -43,7 +43,7 @@ class TradeValuesChangeNotifier extends ChangeNotifier implements Subscriber {
         return TradeValues.create(
             margin: defaultMargin,
             leverage: defaultLeverage,
-            price: dummyAskPrice,
+            price: null,
             fundingRate: fundingRateBuy,
             direction: direction,
             tradeValuesService: tradeValuesService);
@@ -51,7 +51,7 @@ class TradeValuesChangeNotifier extends ChangeNotifier implements Subscriber {
         return TradeValues.create(
             margin: defaultMargin,
             leverage: defaultLeverage,
-            price: dummyBidPrice,
+            price: null,
             fundingRate: fundingRateSell,
             direction: direction,
             tradeValuesService: tradeValuesService);
@@ -65,7 +65,7 @@ class TradeValuesChangeNotifier extends ChangeNotifier implements Subscriber {
   int get capacity => _channelCapacity;
 
   /// Calculates the counterparty margin based on leverage one
-  int counterpartyMargin(Direction direction) {
+  int? counterpartyMargin(Direction direction) {
     switch (direction) {
       case Direction.long:
         return tradeValuesService
@@ -73,14 +73,14 @@ class TradeValuesChangeNotifier extends ChangeNotifier implements Subscriber {
                 price: _buyTradeValues.price,
                 quantity: _buyTradeValues.quantity,
                 leverage: Leverage(1))
-            .sats;
+            ?.sats;
       case Direction.short:
         return tradeValuesService
             .calculateMargin(
                 price: _sellTradeValues.price,
                 quantity: _sellTradeValues.quantity,
                 leverage: Leverage(1))
-            .sats;
+            ?.sats;
     }
   }
 
@@ -91,7 +91,7 @@ class TradeValuesChangeNotifier extends ChangeNotifier implements Subscriber {
     int channelCapacity = _channelConstraintsService.getLightningChannelCapacity();
     int totalReserve = reserve * 2;
 
-    return channelCapacity - totalReserve - counterpartyMargin(direction);
+    return channelCapacity - totalReserve - (counterpartyMargin(direction) ?? 0);
   }
 
   void updateQuantity(Direction direction, double quantity) {

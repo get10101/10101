@@ -11,13 +11,17 @@ class PositionService {
   }
 
   /// Returns the pnl in sat
-  int calculatePnl(Position position, Price price) {
+  int? calculatePnl(Position position, Price price) {
+    if (!price.isValid()) {
+      return null;
+    }
+    final closingPrice = rust.Price(
+      bid: price.bid!,
+      ask: price.ask!,
+    );
     return rust.api.calculatePnl(
         openingPrice: position.averageEntryPrice,
-        closingPrice: rust.Price(
-          bid: price.bid,
-          ask: price.ask,
-        ),
+        closingPrice: closingPrice,
         quantity: position.quantity,
         leverage: position.leverage.leverage,
         direction: position.direction.toApi());
