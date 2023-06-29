@@ -20,6 +20,13 @@ on:
         required: true
         description: "The branch, tag or SHA to checkout."
         type: string
+      oracle_endpoint:
+        required: true
+        type: string
+      oracle_pubkey:
+        required: true
+        description: "The public key of the oracle. Must match with the public key returned at http://${oracle_endpoint}/oracle/publickey"
+        type: string
   workflow_dispatch:
     inputs:
       coordinator_port_http:
@@ -38,6 +45,13 @@ on:
       tag:
         required: true
         description: "The branch, tag or SHA to checkout."
+        type: string
+      oracle_endpoint:
+        required: true
+        type: string
+      oracle_pubkey:
+        required: true
+        description: "The public key of the oracle. Must match with the public key returned at http://${oracle_endpoint}/oracle/publickey"
         type: string
 
 jobs:
@@ -148,6 +162,8 @@ jobs:
                             --dart-define="COMMIT=$(git rev-parse HEAD)" \
                             --dart-define="BRANCH=$(git rev-parse --abbrev-ref HEAD)" \
                             --dart-define="COORDINATOR_PORT_HTTP=$COORDINATOR_PORT_HTTP" \
+                            --dart-define="ORACLE_ENDPOINT=$ORACLE_ENDPOINT" \
+                            --dart-define="ORACLE_PUBKEY=$ORACLE_PUBKEY" \
                             --build-name=$BUILD_NAME \
                             --build-number=$BUILD_NUMBER
         env:
@@ -155,6 +171,8 @@ jobs:
           COORDINATOR_P2P_ENDPOINT: ${{ inputs.coordinator_p2p_endpoint }}
           NETWORK: ${{ inputs.network }}
           COORDINATOR_PORT_HTTP: ${{ inputs.coordinator_port_http }}
+          ORACLE_ENDPOINT: ${{ inputs.oracle_endpoint }}
+          ORACLE_PUBKEY: ${{ inputs.oracle_pubkey }}
 
       - name: Release to TestFlight
         env:

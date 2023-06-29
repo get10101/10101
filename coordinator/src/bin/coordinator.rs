@@ -80,10 +80,11 @@ async fn main() -> Result<()> {
         address,
         SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), address.port()),
         opts.p2p_announcement_addresses(),
-        opts.esplora,
+        opts.esplora.clone(),
         seed,
         ephemeral_randomness,
         settings.ln_dlc.clone(),
+        opts.get_oracle_info(),
     )?);
 
     // set up database connection pool

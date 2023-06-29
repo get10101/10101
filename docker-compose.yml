@@ -161,6 +161,24 @@ services:
       vtto:
         ipv4_address: 10.5.0.8
 
+  oracle:
+    container_name: oracle
+    image: ghcr.io/holzeis/p2pdoracle:0.4.3
+    depends_on:
+      - db
+    ports:
+      - "8081:8081"
+    environment:
+      P2PDORACLE_DATABASE_HOST: db
+      P2PDORACLE_ORACLE_KEYFILE: /key/key.pem
+      P2PDORACLE_ORACLE_KEYPASS: EFRMPJKf6hQvNjHsgtnjBtKQ2k+YzrTrjcC8vrQegUY=
+    volumes:
+      - ./oracle/default.yml:/config/default.yml
+      - ./oracle/key.pem:/key/key.pem
+    restart: always
+    networks:
+      vtto:
+        ipv4_address: 10.5.0.9
 networks:
   default:
     name: vtto

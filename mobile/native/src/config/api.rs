@@ -1,6 +1,8 @@
 use crate::config::ConfigInternal;
 use bdk::bitcoin::Network;
+use bdk::bitcoin::XOnlyPublicKey;
 use flutter_rust_bridge::frb;
+use std::str::FromStr;
 use url::Url;
 
 #[frb]
@@ -12,6 +14,8 @@ pub struct Config {
     pub p2p_port: u16,
     pub http_port: u16,
     pub network: String,
+    pub oracle_endpoint: String,
+    pub oracle_pubkey: String,
 }
 
 impl From<Config> for ConfigInternal {
@@ -28,6 +32,9 @@ impl From<Config> for ConfigInternal {
                 .parse()
                 .expect("host and p2p_port to be valid"),
             network: parse_network(&config.network),
+            oracle_endpoint: config.oracle_endpoint,
+            oracle_pubkey: XOnlyPublicKey::from_str(config.oracle_pubkey.as_str())
+                .expect("Valid oracle public key"),
         }
     }
 }

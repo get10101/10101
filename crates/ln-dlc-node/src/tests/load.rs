@@ -2,19 +2,25 @@ use crate::ln::app_config;
 use crate::node::InMemoryStore;
 use crate::node::Node;
 use crate::node::NodeInfo;
+use crate::node::OracleInfo;
 use crate::tests::init_tracing;
 use crate::tests::wait_until_dlc_channel_state;
 use crate::tests::SubChannelStateName;
 use anyhow::Result;
+use bitcoin::XOnlyPublicKey;
 use coordinator::Coordinator;
 use coordinator::Direction;
 use std::borrow::Borrow;
+use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
 
 mod coordinator;
 
 const ESPLORA_ORIGIN_PUBLIC_REGTEST: &str = "http://35.189.57.114:3000";
+const ORACLE_ORIGIN_PUBLIC_REGTEST: &str = "http://35.189.57.114:8081";
+const ORACLE_PUBKEY_PUBLIC_REGTEST: &str =
+    "5d12d79f575b8d99523797c46441c0549eb0defb6195fe8a080000cbe3ab3859";
 
 #[tokio::test(flavor = "multi_thread")]
 async fn single_app_many_positions_load() {
@@ -26,6 +32,10 @@ async fn single_app_many_positions_load() {
             "app",
             app_config(),
             ESPLORA_ORIGIN_PUBLIC_REGTEST.to_string(),
+            OracleInfo {
+                endpoint: ORACLE_ORIGIN_PUBLIC_REGTEST.to_string(),
+                public_key: XOnlyPublicKey::from_str(ORACLE_PUBKEY_PUBLIC_REGTEST).unwrap(),
+            },
         )
         .unwrap(),
     );

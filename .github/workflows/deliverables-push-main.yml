@@ -47,3 +47,5 @@ jobs:
       coordinator_port_http: 80
       network: regtest
       tag: main
+      oracle_endpoint: http://api.test.10101.finance:8081
+      oracle_pubkey: 5d12d79f575b8d99523797c46441c0549eb0defb6195fe8a080000cbe3ab3859
