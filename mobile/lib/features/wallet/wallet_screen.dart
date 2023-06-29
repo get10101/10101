@@ -179,15 +179,21 @@ class _WalletScreenState extends State<WalletScreen> {
                     // `snapshot.data` to keep the `Backup Wallet` button visible at all times for
                     // now. We need to rework this.
                     if (snapshot.connectionState == ConnectionState.done) {
-                      return ElevatedButton(
-                        onPressed: () async {
-                          final res = await context.push(SeedScreen.route);
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          const SizedBox(height: 3),
+                          ElevatedButton(
+                            onPressed: () async {
+                              final res = await context.push(SeedScreen.route);
 
-                          setState(() {
-                            isUserSeedBackupConfirmed = Future.value(res as bool);
-                          });
-                        },
-                        child: const Text("Backup Wallet"),
+                              setState(() {
+                                isUserSeedBackupConfirmed = Future.value(res as bool);
+                              });
+                            },
+                            child: const Text("Backup Wallet"),
+                          ),
+                        ],
                       );
                     }
                     // return an empty box if the wallet has already been backed up or the data has not been fetched yet.
