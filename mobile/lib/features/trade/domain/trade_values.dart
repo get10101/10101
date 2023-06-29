@@ -4,13 +4,15 @@ import 'package:get_10101/common/domain/model.dart';
 import 'package:get_10101/features/trade/application/trade_values_service.dart';
 
 class TradeValues {
-  Amount margin;
-  double quantity;
+  Amount? margin;
   Leverage leverage;
   Direction direction;
 
-  double price;
-  double liquidationPrice;
+  // These values  can be null if coordinator is down
+  double? quantity;
+  double? price;
+  double? liquidationPrice;
+
   Amount fee;
   double fundingRate;
 
@@ -29,16 +31,18 @@ class TradeValues {
       required this.tradeValuesService});
 
   factory TradeValues.create(
-      {required Amount margin,
+      {required Amount? margin,
       required Leverage leverage,
-      required double price,
+      required double? price,
       required double fundingRate,
       required Direction direction,
       required TradeValuesService tradeValuesService}) {
-    double quantity =
+    double? quantity =
         tradeValuesService.calculateQuantity(price: price, margin: margin, leverage: leverage);
-    double liquidationPrice = tradeValuesService.calculateLiquidationPrice(
-        price: price, leverage: leverage, direction: direction);
+    double? liquidationPrice = price != null
+        ? tradeValuesService.calculateLiquidationPrice(
+            price: price, leverage: leverage, direction: direction)
+        : null;
 
     // TODO: Calculate fee based on price, quantity and funding rate
     Amount fee = Amount(0);
@@ -65,7 +69,7 @@ class TradeValues {
     _recalculateQuantity();
   }
 
-  updatePrice(double price) {
+  updatePrice(double? price) {
     this.price = price;
     _recalculateQuantity();
     _recalculateLiquidationPrice();
@@ -78,19 +82,19 @@ class TradeValues {
   }
 
   _recalculateMargin() {
-    Amount margin =
+    Amount? margin =
         tradeValuesService.calculateMargin(price: price, quantity: quantity, leverage: leverage);
     this.margin = margin;
   }
 
   _recalculateQuantity() {
-    double quantity =
+    double? quantity =
         tradeValuesService.calculateQuantity(price: price, margin: margin, leverage: leverage);
     this.quantity = quantity;
   }
 
   _recalculateLiquidationPrice() {
-    double liquidationPrice = tradeValuesService.calculateLiquidationPrice(
+    double? liquidationPrice = tradeValuesService.calculateLiquidationPrice(
         price: price, leverage: leverage, direction: direction);
     this.liquidationPrice = liquidationPrice;
   }
