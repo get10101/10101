@@ -89,7 +89,10 @@ class TradeBottomSheetConfirmation extends StatelessWidget {
     TradeValues tradeValues =
         Provider.of<TradeValuesChangeNotifier>(context).fromDirection(direction);
 
-    Amount total = Amount(tradeValues.fee.sats + tradeValues.margin.sats);
+    // Fallback to 0 if we can't get the margin
+    Amount total = tradeValues.margin != null
+        ? Amount(tradeValues.fee.sats + tradeValues.margin!.sats)
+        : Amount(0);
     Amount pnl = Amount(0);
     if (context.read<PositionChangeNotifier>().positions.containsKey(ContractSymbol.btcusd)) {
       final position = context.read<PositionChangeNotifier>().positions[ContractSymbol.btcusd];
@@ -122,7 +125,7 @@ class TradeBottomSheetConfirmation extends StatelessWidget {
                         close
                             ? ValueDataRow(
                                 type: ValueType.fiat,
-                                value: tradeValues.price,
+                                value: tradeValues.price ?? 0.0,
                                 label: 'Market Price')
                             : ValueDataRow(
                                 type: ValueType.amount, value: tradeValues.margin, label: 'Margin'),
@@ -136,7 +139,7 @@ class TradeBottomSheetConfirmation extends StatelessWidget {
                                         pnl.sats.isNegative ? tradeTheme.loss : tradeTheme.profit))
                             : ValueDataRow(
                                 type: ValueType.fiat,
-                                value: tradeValues.liquidationPrice,
+                                value: tradeValues.liquidationPrice ?? 0.0,
                                 label: 'Liquidation Price',
                               ),
                         ValueDataRow(

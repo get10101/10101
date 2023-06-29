@@ -47,8 +47,9 @@ class SubmitOrderChangeNotifier extends ChangeNotifier implements Subscriber {
     notifyListeners();
 
     try {
-      _pendingOrder!.id = await orderService.submitMarketOrder(
-          tradeValues.leverage, tradeValues.quantity, ContractSymbol.btcusd, tradeValues.direction);
+      assert(tradeValues.quantity != null, 'Quantity cannot be null when submitting order');
+      _pendingOrder!.id = await orderService.submitMarketOrder(tradeValues.leverage,
+          tradeValues.quantity!, ContractSymbol.btcusd, tradeValues.direction);
       _pendingOrder!.state = PendingOrderState.submittedSuccessfully;
     } catch (exception) {
       FLog.error(text: "Failed to submit order: $exception");
