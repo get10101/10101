@@ -56,9 +56,16 @@ class WalletHistoryItem extends StatelessWidget {
         case WalletHistoryItemDataType.onChain:
           return data.txid ?? "";
         case WalletHistoryItemDataType.trade:
-          return data.orderId ?? "";
+          final orderId = data.orderId!.substring(0, 8);
+          switch (data.flow) {
+            case PaymentFlow.inbound:
+              return "Closed position with order $orderId";
+            case PaymentFlow.outbound:
+              return "Opened position with order $orderId";
+          }
         case WalletHistoryItemDataType.orderMatchingFee:
-          return data.orderId is String ? "Matching fee for ${data.orderId!.substring(0, 8)}" : "";
+          final orderId = data.orderId!.substring(0, 8);
+          return "Matching fee for $orderId";
       }
     }();
 
