@@ -126,8 +126,8 @@ class _SendScreenState extends State<SeedScreen> {
                       ElevatedButton(
                           onPressed: checked
                               ? () {
-                                  Preferences.instance.setUserSeedBackupConfirmed(true);
-                                  context.go(WalletScreen.route);
+                                  Preferences.instance.setUserSeedBackupConfirmed();
+                                  context.pop(true);
                                 }
                               : null,
                           child: const Text('Done'))

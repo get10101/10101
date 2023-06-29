@@ -8,16 +8,14 @@ class Preferences {
   static const userSeedBackupConfirmed = "userSeedBackupConfirmed";
   static const emailAddress = "emailAddress";
 
-  setUserSeedBackupConfirmed(bool value) async {
+  setUserSeedBackupConfirmed() async {
     SharedPreferences preferences = await SharedPreferences.getInstance();
-    preferences.setBool(userSeedBackupConfirmed, value);
+    preferences.setBool(userSeedBackupConfirmed, true);
   }
 
   Future<bool> isUserSeedBackupConfirmed() async {
-    // FIXME: disabling the user seed backup confirmed preference so that the backup button is always visible. Eventually, we should think about how we want to make the seed backup accessible to the user at all times.
-    // SharedPreferences preferences = await SharedPreferences.getInstance();
-    // return preferences.getBool(userSeedBackupConfirmed) ?? false;
-    return false;
+    SharedPreferences preferences = await SharedPreferences.getInstance();
+    return preferences.getBool(userSeedBackupConfirmed) ?? false;
   }
 
   setEmailAddress(String value) async {
