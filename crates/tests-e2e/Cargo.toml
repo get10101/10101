@@ -8,7 +8,7 @@ edition = "2021"
 [dependencies]
 anyhow = "1"
 coordinator-commons = { path = "../coordinator-commons" }
-flutter_rust_bridge = "1.68.0"
+flutter_rust_bridge = "1.75.3"
 native = { path = "../../mobile/native" }
 quote = "1.0.28"
 reqwest = { version = "0.11", default-features = false, features = ["json"] }

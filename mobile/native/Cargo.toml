@@ -14,7 +14,7 @@ coordinator-commons = { path = "../../crates/coordinator-commons" }
 diesel = { version = "2.0.0", features = ["sqlite", "r2d2", "extras"] }
 diesel_migrations = "2.0.0"
 dlc-messages = { version = "0.4.0" }
-flutter_rust_bridge = "1.68.0"
+flutter_rust_bridge = "1.75.3"
 futures = "0.3"
 hex = "0.4"
 itertools = "0.10"

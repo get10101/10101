@@ -19,7 +19,7 @@ precommit: gen lint
 deps: deps-gen deps-android deps-ios
 
 deps-gen:
-    cargo install flutter_rust_bridge_codegen@1.71.1
+    cargo install flutter_rust_bridge_codegen@1.75.3
 
 # Install dependencies for Android (build targets and cargo-ndk)
 deps-android:
