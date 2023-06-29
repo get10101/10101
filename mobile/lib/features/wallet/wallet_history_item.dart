@@ -31,6 +31,11 @@ class WalletHistoryItem extends StatelessWidget {
           Icons.bar_chart,
           size: flowIconSize,
         );
+      } else if (data.type == WalletHistoryItemDataType.orderMatchingFee) {
+        return const Icon(
+          Icons.toll,
+          size: flowIconSize,
+        );
       }
 
       switch (data.flow) {
@@ -52,6 +57,8 @@ class WalletHistoryItem extends StatelessWidget {
           return data.txid ?? "";
         case WalletHistoryItemDataType.trade:
           return data.orderId ?? "";
+        case WalletHistoryItemDataType.orderMatchingFee:
+          return data.orderId is String ? "Matching fee for ${data.orderId!.substring(0, 8)}" : "";
       }
     }();
 
@@ -59,6 +66,7 @@ class WalletHistoryItem extends StatelessWidget {
       switch (data.type) {
         case WalletHistoryItemDataType.lightning:
         case WalletHistoryItemDataType.trade:
+        case WalletHistoryItemDataType.orderMatchingFee:
           return "off-chain";
         case WalletHistoryItemDataType.onChain:
           return "on-chain";

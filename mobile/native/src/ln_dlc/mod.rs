@@ -32,6 +32,7 @@ use ln_dlc_node::node::LnDlcNodeSettings;
 use ln_dlc_node::node::NodeInfo;
 use ln_dlc_node::seed::Bip39Seed;
 use orderbook_commons::FakeScidResponse;
+use orderbook_commons::FEE_INVOICE_DESCRIPTION_PREFIX_TAKER;
 use rust_decimal::Decimal;
 use state::Storage;
 use std::net::IpAddr;
@@ -303,8 +304,14 @@ async fn keep_wallet_balance_and_history_up_to_date(node: &Node) -> Result<()> {
 
         let timestamp = details.timestamp.unix_timestamp() as u64;
 
-        let wallet_type = api::WalletType::Lightning {
-            payment_hash: hex::encode(details.payment_hash.0),
+        let payment_hash = hex::encode(details.payment_hash.0);
+
+        let description = &details.description;
+        let wallet_type = match description.strip_prefix(FEE_INVOICE_DESCRIPTION_PREFIX_TAKER) {
+            Some(order_id) => api::WalletType::OrderMatchingFee {
+                order_id: order_id.to_string(),
+            },
+            None => api::WalletType::Lightning { payment_hash },
         };
 
         Some(api::WalletHistoryItem {
@@ -482,6 +489,37 @@ pub async fn trade(trade_params: TradeParams) -> Result<(), (FailureReason, anyh
     }
 
     tracing::info!("Sent trade request to coordinator successfully");
+
+    tracing::info!("Paying order-matching fee");
+
+    let order_matching_fee_invoice = response.text().await.map_err(|e| {
+        (
+            FailureReason::TradeResponse,
+            anyhow!("Could not deserialize order-matching fee invoice: {e:#}"),
+        )
+    })?;
+    let order_matching_fee_invoice = order_matching_fee_invoice.parse().map_err(|e| {
+        (
+            FailureReason::TradeResponse,
+            anyhow!("Could not parse order-matching fee invoice: {e:#}"),
+        )
+    })?;
+
+    NODE.get()
+        .inner
+        .send_payment(&order_matching_fee_invoice)
+        .map_err(|e| {
+            (
+                FailureReason::TradeResponse,
+                anyhow!("Could not parse order-matching fee invoice: {e:#}"),
+            )
+        })?;
+
+    tracing::info!(
+        description = ?order_matching_fee_invoice.description(),
+        amount_msat = ?order_matching_fee_invoice.amount_milli_satoshis(),
+        "Triggered payment of order-matching fee"
+    );
 
     Ok(())
 }

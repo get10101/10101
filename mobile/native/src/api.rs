@@ -70,6 +70,7 @@ pub enum WalletType {
     OnChain { txid: String },
     Lightning { payment_hash: String },
     Trade { order_id: String },
+    OrderMatchingFee { order_id: String },
 }
 
 #[derive(Clone, Debug, Default)]

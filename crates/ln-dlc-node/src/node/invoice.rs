@@ -24,6 +24,7 @@ use lightning_invoice::payment::PaymentError;
 use lightning_invoice::Currency;
 use lightning_invoice::Invoice;
 use lightning_invoice::InvoiceBuilder;
+use lightning_invoice::InvoiceDescription;
 use std::time::Duration;
 use std::time::SystemTime;
 use time::OffsetDateTime;
@@ -182,6 +183,11 @@ where
             }
         };
 
+        let description = match invoice.description() {
+            InvoiceDescription::Direct(des) => des.clone().into_inner(),
+            InvoiceDescription::Hash(lightning_invoice::Sha256(des)) => des.to_string(),
+        };
+
         self.storage.insert_payment(
             PaymentHash(invoice.payment_hash().into_inner()),
             PaymentInfo {
@@ -191,6 +197,7 @@ where
                 amt_msat: MillisatAmount(invoice.amount_milli_satoshis()),
                 flow: PaymentFlow::Outbound,
                 timestamp: OffsetDateTime::now_utc(),
+                description,
             },
         )?;
 

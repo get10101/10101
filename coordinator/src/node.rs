@@ -26,6 +26,7 @@ use dlc_manager::payout_curve::RoundingIntervals;
 use dlc_manager::ChannelId;
 use dlc_messages::Message;
 use lightning::ln::channelmanager::ChannelDetails;
+use lightning_invoice::Invoice;
 use ln_dlc_node::node::dlc_message_name;
 use ln_dlc_node::node::sub_channel_message_name;
 use ln_dlc_node::node::InMemoryStore;
@@ -43,6 +44,7 @@ use trade::cfd::BTCUSD_MAX_PRICE;
 use trade::Direction;
 
 pub mod connection;
+pub mod order_matching_fee;
 
 /// The leverage used by the coordinator for all trades.
 const COORDINATOR_LEVERAGE: f32 = 1.0;
@@ -119,14 +121,14 @@ impl Node {
     }
 
     #[autometrics]
-    pub async fn trade(&self, trade_params: &TradeParams) -> Result<()> {
+    pub async fn trade(&self, trade_params: &TradeParams) -> Result<Invoice> {
         match self.decide_trade_action(&trade_params.pubkey)? {
             TradeAction::Open => {
                 ensure!(
                     self.settings.read().await.allow_opening_positions,
                     "Opening positions is disabled"
                 );
-                self.open_position(trade_params).await?
+                self.open_position(trade_params).await?;
             }
             TradeAction::Close(channel_id) => {
                 let peer_id = trade_params.pubkey;
@@ -148,7 +150,9 @@ impl Node {
             }
         };
 
-        Ok(())
+        let invoice = self.fee_invoice_taker(trade_params).await?;
+
+        Ok(invoice)
     }
 
     #[autometrics]

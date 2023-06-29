@@ -34,6 +34,7 @@ diesel::table! {
         flow -> Text,
         created_at -> BigInt,
         updated_at -> BigInt,
+        description -> Text,
     }
 }
 

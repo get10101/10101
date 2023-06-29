@@ -121,6 +121,7 @@ where
                 flow: info.flow,
                 amount_msat: info.amt_msat.0,
                 timestamp: info.timestamp,
+                description: info.description.clone(),
             })
             .collect::<Vec<_>>();
 
@@ -137,4 +138,5 @@ pub struct PaymentDetails {
     pub flow: PaymentFlow,
     pub amount_msat: Option<u64>,
     pub timestamp: OffsetDateTime,
+    pub description: String,
 }

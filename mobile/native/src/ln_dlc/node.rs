@@ -306,6 +306,7 @@ impl node::Storage for NodeStorage {
                         amt_msat,
                         flow,
                         timestamp: OffsetDateTime::now_utc(),
+                        description: "".to_string(),
                     },
                 )?;
             }
