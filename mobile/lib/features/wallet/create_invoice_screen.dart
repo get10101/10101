@@ -60,111 +60,117 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
       appBar: AppBar(title: const Text("Receive funds")),
       body: Form(
         key: _formKey,
-        child: SafeArea(
-          child: Container(
-            constraints: const BoxConstraints.expand(),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-              const Center(
-                  child: Padding(
-                      padding: EdgeInsets.only(top: 25.0),
-                      child: Text(
-                        "What is the amount?",
-                        style: TextStyle(fontSize: 18.0, fontWeight: FontWeight.bold),
-                      ))),
-              Padding(
-                padding: const EdgeInsets.all(32.0),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: AmountInputField(
-                        value: amount != null ? amount! : Amount(0),
-                        hint: "e.g. ${formatSats(Amount(5000))}",
-                        label: "Amount",
-                        controller: _amountController,
-                        onChanged: (value) {
-                          if (value.isEmpty) {
-                            return;
-                          }
-
-                          setState(() => amount = Amount.parse(value));
-                        },
-                        validator: (value) {
-                          if (value == null) {
-                            return "Enter receive amount";
-                          }
-
-                          try {
-                            int amount = int.parse(value);
-
-                            if (balance.sats > usableChannelCapacity.sats) {
-                              return "Maximum beta balance exceeded";
-                            }
-
-                            if (amount < minAmount.sats) {
-                              return "Min amount to receive is ${formatSats(minAmount)}";
-                            }
-
-                            if (amount > maxAmount.sats) {
-                              return "Max amount to receive is ${formatSats(maxAmount)}";
-                            }
-                          } on Exception {
-                            return "Enter a number";
-                          }
-
-                          return null;
-                        },
-                      ),
-                    ),
-                    if (showValidationHint)
-                      ModalBottomSheetInfo(
-                          infoText:
-                              "While in beta, channel capacity is limited to ${formatSats(channelCapacity)}; payments above this capacity might get rejected."
-                              "\n\nYour current balance is ${formatSats(balance)}, so you can receive up to ${formatSats(maxAmount)}."
-                              "\nIf you hold less than ${formatSats(minAmount)} or more than ${formatSats(usableChannelCapacity)} in your wallet you might not be able to trade."
-                              "\n\nThe maximum is enforced initially to ensure users only trade with small stakes until the software has proven to be stable.",
-                          buttonText: "Back to Receive..."),
-                  ],
-                ),
-              ),
-              Center(
-                  child: Padding(
-                padding: const EdgeInsets.only(bottom: 10.0, left: 32.0, right: 32.0),
-                child: Text(
-                  "Your wallet balance is ${formatSats(balance)} so you should only receive up to ${formatSats(maxAmount)}.",
-                  style: const TextStyle(color: Colors.black),
-                ),
-              )),
-              Expanded(
-                child: Padding(
+        child: GestureDetector(
+          onTap: () {
+            FocusScope.of(context).requestFocus(FocusNode());
+          },
+          behavior: HitTestBehavior.opaque,
+          child: SafeArea(
+            child: Container(
+              constraints: const BoxConstraints.expand(),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                const Center(
+                    child: Padding(
+                        padding: EdgeInsets.only(top: 25.0),
+                        child: Text(
+                          "What is the amount?",
+                          style: TextStyle(fontSize: 18.0, fontWeight: FontWeight.bold),
+                        ))),
+                Padding(
                   padding: const EdgeInsets.all(32.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    mainAxisAlignment: MainAxisAlignment.end,
+                  child: Row(
                     children: [
-                      ElevatedButton(
-                          onPressed: (amount == null || amount == Amount(0))
-                              ? null
-                              : () {
-                                  if (_formKey.currentState!.validate()) {
-                                    showValidationHint = false;
-                                    walletService.createInvoice(amount!).then((invoice) {
-                                      if (invoice != null) {
-                                        GoRouter.of(context)
-                                            .go(ShareInvoiceScreen.route, extra: invoice);
-                                      }
-                                    });
-                                  } else {
-                                    setState(() {
-                                      showValidationHint = true;
-                                    });
-                                  }
-                                },
-                          child: const Text("Next")),
+                      Expanded(
+                        child: AmountInputField(
+                          value: amount != null ? amount! : Amount(0),
+                          hint: "e.g. ${formatSats(Amount(5000))}",
+                          label: "Amount",
+                          controller: _amountController,
+                          onChanged: (value) {
+                            if (value.isEmpty) {
+                              return;
+                            }
+
+                            setState(() => amount = Amount.parse(value));
+                          },
+                          validator: (value) {
+                            if (value == null) {
+                              return "Enter receive amount";
+                            }
+
+                            try {
+                              int amount = int.parse(value);
+
+                              if (balance.sats > usableChannelCapacity.sats) {
+                                return "Maximum beta balance exceeded";
+                              }
+
+                              if (amount < minAmount.sats) {
+                                return "Min amount to receive is ${formatSats(minAmount)}";
+                              }
+
+                              if (amount > maxAmount.sats) {
+                                return "Max amount to receive is ${formatSats(maxAmount)}";
+                              }
+                            } on Exception {
+                              return "Enter a number";
+                            }
+
+                            return null;
+                          },
+                        ),
+                      ),
+                      if (showValidationHint)
+                        ModalBottomSheetInfo(
+                            infoText:
+                                "While in beta, channel capacity is limited to ${formatSats(channelCapacity)}; payments above this capacity might get rejected."
+                                "\n\nYour current balance is ${formatSats(balance)}, so you can receive up to ${formatSats(maxAmount)}."
+                                "\nIf you hold less than ${formatSats(minAmount)} or more than ${formatSats(usableChannelCapacity)} in your wallet you might not be able to trade."
+                                "\n\nThe maximum is enforced initially to ensure users only trade with small stakes until the software has proven to be stable.",
+                            buttonText: "Back to Receive..."),
                     ],
                   ),
                 ),
-              )
-            ]),
+                Center(
+                    child: Padding(
+                  padding: const EdgeInsets.only(bottom: 10.0, left: 32.0, right: 32.0),
+                  child: Text(
+                    "Your wallet balance is ${formatSats(balance)} so you should only receive up to ${formatSats(maxAmount)}.",
+                    style: const TextStyle(color: Colors.black),
+                  ),
+                )),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.all(32.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        ElevatedButton(
+                            onPressed: (amount == null || amount == Amount(0))
+                                ? null
+                                : () {
+                                    if (_formKey.currentState!.validate()) {
+                                      showValidationHint = false;
+                                      walletService.createInvoice(amount!).then((invoice) {
+                                        if (invoice != null) {
+                                          GoRouter.of(context)
+                                              .go(ShareInvoiceScreen.route, extra: invoice);
+                                        }
+                                      });
+                                    } else {
+                                      setState(() {
+                                        showValidationHint = true;
+                                      });
+                                    }
+                                  },
+                            child: const Text("Next")),
+                      ],
+                    ),
+                  ),
+                )
+              ]),
+            ),
           ),
         ),
       ),
