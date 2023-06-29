@@ -14,7 +14,7 @@ class AppBarWrapper extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final currentRoute = GoRouter.of(context).location;
+    final currentRoute = GoRouterState.of(context).location;
     const appBarHeight = 32.0;
 
     var actionButtons = <Widget>[];
