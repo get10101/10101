@@ -1,6 +1,7 @@
 use anyhow::Result;
 use native::api;
 use tests_e2e::app::run_app;
+use tests_e2e::coordinator::Coordinator;
 use tests_e2e::fund::fund_app_with_faucet;
 use tests_e2e::http::init_reqwest;
 use tests_e2e::tracing::init_tracing;
@@ -11,15 +12,8 @@ async fn app_can_be_funded_with_lnd_faucet() -> Result<()> {
     init_tracing();
 
     let client = init_reqwest();
-
-    // Check whether the coordinator is running
-    client
-        .get("http://localhost:8000/api/newaddress")
-        .send()
-        .await
-        .expect("Could not send request to coordinator")
-        .error_for_status()
-        .expect("Coordinator did not return 200 OK");
+    let coordinator = Coordinator::new(client.clone());
+    assert!(coordinator.is_running().await);
 
     let app = run_app().await;
 
