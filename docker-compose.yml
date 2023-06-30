@@ -147,11 +147,10 @@ services:
 
   db:
     container_name: db
-    build:
-      context: database
-      dockerfile: Dockerfile
+    image: postgres:15-alpine
     volumes:
       - postgres:/var/lib/postgresql/data
+      - ./database:/docker-entrypoint-initdb.d/
     restart: always
     ports:
       - "5432:5432"
