@@ -1,4 +1,5 @@
 use crate::calculations;
+use crate::channel_fee::ChannelFeePaymentSubscriber;
 use crate::commons::api::Price;
 use crate::config;
 use crate::config::api::Config;
@@ -196,6 +197,7 @@ pub fn run(config: Config, app_dir: String, seed_dir: String) -> Result<()> {
     db::init_db(&app_dir, get_network())?;
     let runtime = ln_dlc::get_or_create_tokio_runtime()?;
     ln_dlc::run(app_dir, seed_dir, runtime)?;
+    event::subscribe(ChannelFeePaymentSubscriber::new());
     orderbook::subscribe(ln_dlc::get_node_key(), runtime)
 }
 

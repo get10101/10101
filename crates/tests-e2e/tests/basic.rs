@@ -26,12 +26,13 @@ async fn app_can_be_funded_with_lnd_faucet() -> Result<()> {
     assert_eq!(app.rx.wallet_info().unwrap().balances.lightning, 0);
 
     let funding_amount = 50_000;
+    let funding_transaction_fees = 153;
     fund_app_with_faucet(&client, funding_amount).await?;
 
     assert_eq!(app.rx.wallet_info().unwrap().balances.on_chain, 0);
     assert_eq!(
         app.rx.wallet_info().unwrap().balances.lightning,
-        funding_amount
+        funding_amount - funding_transaction_fees
     );
     Ok(())
 }

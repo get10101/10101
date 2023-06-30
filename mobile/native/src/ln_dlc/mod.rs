@@ -17,6 +17,7 @@ use anyhow::Result;
 use bdk::bitcoin::secp256k1::rand::thread_rng;
 use bdk::bitcoin::secp256k1::rand::RngCore;
 use bdk::bitcoin::secp256k1::SecretKey;
+use bdk::bitcoin::Txid;
 use bdk::bitcoin::XOnlyPublicKey;
 use bdk::BlockTime;
 use coordinator_commons::TradeParams;
@@ -24,6 +25,8 @@ use itertools::chain;
 use itertools::Itertools;
 use lightning::util::events::Event;
 use lightning_invoice::Invoice;
+use ln_dlc_node::node::rust_dlc_manager::subchannel::LNChannelManager;
+use ln_dlc_node::node::rust_dlc_manager::ChannelId;
 use ln_dlc_node::node::LnDlcNodeSettings;
 use ln_dlc_node::node::NodeInfo;
 use ln_dlc_node::seed::Bip39Seed;
@@ -80,6 +83,27 @@ pub async fn update_node_settings(settings: LnDlcNodeSettings) {
 
 pub fn get_oracle_pubkey() -> XOnlyPublicKey {
     NODE.get().inner.oracle_pk()
+}
+
+pub fn get_funding_transaction(channel_id: &ChannelId) -> Result<Txid> {
+    let node = NODE.get();
+    let channel_details = node.inner.channel_manager.get_channel_details(channel_id);
+
+    let funding_transaction = match channel_details {
+        Some(channel_details) => match channel_details.funding_txo {
+            Some(funding_txo) => funding_txo.txid,
+            None => bail!(
+                "Could not find funding transaction for channel {}",
+                hex::encode(channel_id)
+            ),
+        },
+        None => bail!(
+            "Could not find channel details for {}",
+            hex::encode(channel_id)
+        ),
+    };
+
+    Ok(funding_transaction)
 }
 
 /// Lazily creates a multi threaded runtime with the the number of worker threads corresponding to

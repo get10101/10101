@@ -7,6 +7,7 @@ pub mod schema;
 
 pub mod api;
 pub mod calculations;
+mod channel_fee;
 pub mod commons;
 pub mod config;
 pub mod event;
