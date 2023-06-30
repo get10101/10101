@@ -46,7 +46,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2.2.0
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: "3.7.7"
+          flutter-version: "3.10.5"
           channel: "stable"
       - name: Install FFI bindings
         run: just deps-gen
@@ -61,7 +61,7 @@ jobs:
       - uses: extractions/setup-just@v1
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: "3.7.7"
+          flutter-version: "3.10.5"
           channel: "stable"
       - name: Setup rust toolchain
         run: rustup show
@@ -87,7 +87,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2.2.0
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: "3.7.7"
+          flutter-version: "3.10.5"
           channel: "stable"
       - name: Install FFI bindings
         run: just deps-gen
@@ -128,7 +128,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2.2.0
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: "3.7.7"
+          flutter-version: "3.10.5"
           channel: "stable"
       - name: Install FFI bindings
         run: just deps-gen

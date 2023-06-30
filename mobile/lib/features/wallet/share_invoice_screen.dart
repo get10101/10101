@@ -120,9 +120,9 @@ class _ShareInvoiceScreenState extends State<ShareInvoiceScreen> {
                       shape: const RoundedRectangleBorder(
                           borderRadius: BorderRadius.all(Radius.circular(5.0))),
                     ),
-                    child: Row(
+                    child: const Row(
                       mainAxisAlignment: MainAxisAlignment.center,
-                      children: const [
+                      children: [
                         Padding(
                           padding: EdgeInsets.symmetric(horizontal: 8.0),
                           child: Icon(Icons.copy),
@@ -143,9 +143,9 @@ class _ShareInvoiceScreenState extends State<ShareInvoiceScreen> {
                       shape: const RoundedRectangleBorder(
                           borderRadius: BorderRadius.all(Radius.circular(5.0))),
                     ),
-                    child: Row(
+                    child: const Row(
                       mainAxisAlignment: MainAxisAlignment.center,
-                      children: const [
+                      children: [
                         Padding(
                           padding: EdgeInsets.symmetric(horizontal: 8.0),
                           child: Icon(Icons.send),

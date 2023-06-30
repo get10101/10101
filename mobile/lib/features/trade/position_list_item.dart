@@ -164,8 +164,8 @@ class _PositionListItemState extends State<PositionListItem> {
                             await widget.onClose();
                           },
                 child: notNullPosition.positionState == PositionState.closing || isPositionExpired
-                    ? Row(
-                        children: const [
+                    ? const Row(
+                        children: [
                           SizedBox(
                             width: 10,
                             height: 10,

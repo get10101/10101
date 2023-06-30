@@ -36,9 +36,9 @@ class OrderListItem extends StatelessWidget {
 
     return Card(
       child: ListTile(
-        leading: Column(
+        leading: const Column(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: const [
+          children: [
             ContractSymbolIcon(
               height: 20,
               width: 20,

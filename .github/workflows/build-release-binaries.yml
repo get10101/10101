@@ -5,7 +5,7 @@ on:
     types: [created]
 
 env:
-  FLUTTER_VERSION: "3.7.7"
+  FLUTTER_VERSION: "3.10.5"
   RUST_VERSION: "1.68.0"
 
 jobs:

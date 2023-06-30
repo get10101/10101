@@ -43,9 +43,9 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                 Center(
                   child: Image.asset('assets/10101_logo_icon.png', width: 150, height: 150),
                 ),
-                Column(
+                const Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: const <Widget>[
+                  children: <Widget>[
                     Center(
                         child: Text(
                       "As we are in closed beta, there may be bugs. To assist with any issues, please provide your email.",
