@@ -48,6 +48,7 @@ jobs:
         with:
           flutter-version: "3.10.5"
           channel: "stable"
+          cache: true
       - name: Install FFI bindings
         run: just deps-gen
       - name: Generate FFI bindings
@@ -63,6 +64,7 @@ jobs:
         with:
           flutter-version: "3.10.5"
           channel: "stable"
+          cache: true
       - name: Setup rust toolchain
         run: rustup show
       - name: Install FFI bindings
