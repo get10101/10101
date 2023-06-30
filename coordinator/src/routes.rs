@@ -194,7 +194,7 @@ pub struct InvoiceParams {
 pub async fn get_invoice(
     Query(params): Query<InvoiceParams>,
     State(state): State<Arc<AppState>>,
-) -> Result<Json<String>, AppError> {
+) -> Result<String, AppError> {
     let invoice = state
         .node
         .inner
@@ -205,7 +205,7 @@ pub async fn get_invoice(
         )
         .map_err(|e| AppError::InternalServerError(format!("Failed to create invoice: {e:#}")))?;
 
-    Ok(Json(invoice.to_string()))
+    Ok(invoice.to_string())
 }
 
 // TODO: We might want to have our own ContractInput type here so we can potentially map fields if
