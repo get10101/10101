@@ -144,10 +144,10 @@ class _WalletScreenState extends State<WalletScreen> {
                         ],
                       );
                     },
-                    body: Padding(
-                      padding: const EdgeInsets.only(left: 8.0, right: 8.0, bottom: 16.0),
+                    body: const Padding(
+                      padding: EdgeInsets.only(left: 8.0, right: 8.0, bottom: 16.0),
                       child: Column(
-                        children: const [
+                        children: [
                           Padding(
                             padding: EdgeInsets.symmetric(horizontal: 8.0),
                             child: BalanceRow(walletType: WalletHistoryItemDataType.lightning),

@@ -66,8 +66,8 @@ class TradeBottomSheet extends StatelessWidget {
           ),
         ],
         selectedIndex: direction == Direction.long ? 0 : 1,
-        topRightWidget: Row(
-          children: const [
+        topRightWidget: const Row(
+          children: [
             Text(
               "Market Order",
               style: TextStyle(color: Colors.grey),
