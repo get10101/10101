@@ -70,142 +70,149 @@ class _SendScreenState extends State<SendScreen> {
       appBar: AppBar(title: const Text("Send")),
       body: Form(
         key: _formKey,
-        child: SafeArea(
-          child: Container(
-            constraints: const BoxConstraints.expand(),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-              const Center(
-                  child: Padding(
-                      padding: EdgeInsets.only(top: 25.0),
-                      child: Text(
-                        "Invoice:",
-                        style: TextStyle(fontSize: 18.0, fontWeight: FontWeight.bold),
-                      ))),
-              Padding(
-                padding: const EdgeInsets.all(32.0),
-                child: TextFormField(
-                  decoration: const InputDecoration(
-                    border: OutlineInputBorder(),
-                    hintText: "Paste your invoice here",
-                    labelText: "Invoice",
-                  ),
-                  controller: _textEditingController,
-                  onChanged: (value) async {
-                    FLog.debug(text: value);
+        child: GestureDetector(
+          onTap: () {
+            FocusScope.of(context).requestFocus(FocusNode());
+          },
+          behavior: HitTestBehavior.opaque,
+          child: SafeArea(
+            child: Container(
+              constraints: const BoxConstraints.expand(),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                const Center(
+                    child: Padding(
+                        padding: EdgeInsets.only(top: 25.0),
+                        child: Text(
+                          "Invoice:",
+                          style: TextStyle(fontSize: 18.0, fontWeight: FontWeight.bold),
+                        ))),
+                Padding(
+                  padding: const EdgeInsets.all(32.0),
+                  child: TextFormField(
+                    decoration: const InputDecoration(
+                      border: OutlineInputBorder(),
+                      hintText: "Paste your invoice here",
+                      labelText: "Invoice",
+                    ),
+                    controller: _textEditingController,
+                    onChanged: (value) async {
+                      FLog.debug(text: value);
 
-                    setState(() {
-                      isDecoding = true;
-                    });
-
-                    LightningInvoice? decoded = await walletService.decodeInvoice(value.toString());
-
-                    setState(() {
-                      isDecoding = false;
-                    });
-
-                    if (decoded == null) {
                       setState(() {
-                        decodingFailed = true;
+                        isDecoding = true;
                       });
-                      return;
-                    }
 
-                    setState(() {
-                      decodingFailed = false;
-                      _lightningInvoice = decoded;
-                    });
-                  },
-                  validator: (value) {
-                    if (_lightningInvoice == null) {
-                      return "Failed to decode invoice";
-                    }
+                      LightningInvoice? decoded =
+                          await walletService.decodeInvoice(value.toString());
 
-                    return null;
-                  },
-                ),
-              ),
-              if (isDecoding)
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 32),
-                  child: Text("Decoding invoice, please wait..."),
-                )
-              else if (decodingFailed)
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 32),
-                  child: Text(
-                    "Decoding failed, invalid invoice!",
-                    style: TextStyle(color: Colors.red),
+                      setState(() {
+                        isDecoding = false;
+                      });
+
+                      if (decoded == null) {
+                        setState(() {
+                          decodingFailed = true;
+                        });
+                        return;
+                      }
+
+                      setState(() {
+                        decodingFailed = false;
+                        _lightningInvoice = decoded;
+                      });
+                    },
+                    validator: (value) {
+                      if (_lightningInvoice == null) {
+                        return "Failed to decode invoice";
+                      }
+
+                      return null;
+                    },
                   ),
-                )
-              else if (_lightningInvoice != null)
+                ),
+                if (isDecoding)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 32),
+                    child: Text("Decoding invoice, please wait..."),
+                  )
+                else if (decodingFailed)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 32),
+                    child: Text(
+                      "Decoding failed, invalid invoice!",
+                      style: TextStyle(color: Colors.red),
+                    ),
+                  )
+                else if (_lightningInvoice != null)
+                  Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(32.0),
+                      child: Column(
+                        children: [
+                          const Text("Invoice Data:"),
+                          const SizedBox(
+                            height: 10,
+                          ),
+                          ValueDataRow(
+                            type: ValueType.amount,
+                            value: _lightningInvoice!.amountSats,
+                            label: "Amount",
+                          ),
+                          const SizedBox(
+                            height: 5,
+                          ),
+                          ValueDataRow(
+                            type: ValueType.text,
+                            value: _lightningInvoice!.payee,
+                            label: "Recipient",
+                          ),
+                          const SizedBox(
+                            height: 5,
+                          ),
+                          ValueDataRow(
+                            type: ValueType.date,
+                            value: _lightningInvoice!.expiry,
+                            label: "Expiry",
+                          ),
+                          if (_lightningInvoice!.amountSats == Amount.zero())
+                            const Text("Invoices without amount are not supported yet",
+                                style: TextStyle(color: Colors.red))
+                        ],
+                      ),
+                    ),
+                  ),
                 Center(
+                    child: Padding(
+                  padding: const EdgeInsets.only(bottom: 10.0, left: 32.0, right: 32.0),
+                  child: Text(
+                    "During the beta a minimum of $channelReserve sats have to remain in the wallet."
+                    "\nYour wallet balance is $balance sats so you can send up to $maxSendAmount sats.",
+                    style: const TextStyle(color: Colors.grey),
+                  ),
+                )),
+                Expanded(
                   child: Padding(
                     padding: const EdgeInsets.all(32.0),
                     child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      mainAxisAlignment: MainAxisAlignment.end,
                       children: [
-                        const Text("Invoice Data:"),
-                        const SizedBox(
-                          height: 10,
-                        ),
-                        ValueDataRow(
-                          type: ValueType.amount,
-                          value: _lightningInvoice!.amountSats,
-                          label: "Amount",
-                        ),
-                        const SizedBox(
-                          height: 5,
-                        ),
-                        ValueDataRow(
-                          type: ValueType.text,
-                          value: _lightningInvoice!.payee,
-                          label: "Recipient",
-                        ),
-                        const SizedBox(
-                          height: 5,
-                        ),
-                        ValueDataRow(
-                          type: ValueType.date,
-                          value: _lightningInvoice!.expiry,
-                          label: "Expiry",
-                        ),
-                        if (_lightningInvoice!.amountSats == Amount.zero())
-                          const Text("Invoices without amount are not supported yet",
-                              style: TextStyle(color: Colors.red))
+                        ElevatedButton(
+                            onPressed: () async {
+                              if (_formKey.currentState!.validate()) {
+                                context
+                                    .read<SendPaymentChangeNotifier>()
+                                    .sendPayment(_textEditingController.text, _lightningInvoice!);
+                                GoRouter.of(context).go(WalletScreen.route);
+                              }
+                            },
+                            child: const Text("Send Payment")),
                       ],
                     ),
                   ),
-                ),
-              Center(
-                  child: Padding(
-                padding: const EdgeInsets.only(bottom: 10.0, left: 32.0, right: 32.0),
-                child: Text(
-                  "During the beta a minimum of $channelReserve sats have to remain in the wallet."
-                  "\nYour wallet balance is $balance sats so you can send up to $maxSendAmount sats.",
-                  style: const TextStyle(color: Colors.grey),
-                ),
-              )),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.all(32.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      ElevatedButton(
-                          onPressed: () async {
-                            if (_formKey.currentState!.validate()) {
-                              context
-                                  .read<SendPaymentChangeNotifier>()
-                                  .sendPayment(_textEditingController.text, _lightningInvoice!);
-                              GoRouter.of(context).go(WalletScreen.route);
-                            }
-                          },
-                          child: const Text("Send Payment")),
-                    ],
-                  ),
-                ),
-              )
-            ]),
+                )
+              ]),
+            ),
           ),
         ),
       ),
