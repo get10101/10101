@@ -13,6 +13,8 @@ pub struct ChannelDetails {
     pub counterparty: PublicKey,
     #[serde(serialize_with = "optional_outpoint_to_str")]
     pub funding_txo: Option<OutPoint>,
+    #[serde(serialize_with = "optional_outpoint_to_str")]
+    pub original_funding_txo: Option<OutPoint>,
     #[serde(serialize_with = "optional_channel_type_to_str")]
     pub channel_type: Option<ChannelTypeFeatures>,
     pub channel_value_satoshis: u64,
@@ -48,6 +50,7 @@ impl From<lightning::ln::channelmanager::ChannelDetails> for ChannelDetails {
             channel_id: cd.channel_id,
             counterparty: cd.counterparty.node_id,
             funding_txo: cd.funding_txo,
+            original_funding_txo: cd.original_funding_outpoint,
             channel_type: cd.channel_type,
             channel_value_satoshis: cd.channel_value_satoshis,
             unspendable_punishment_reserve: cd.unspendable_punishment_reserve,
