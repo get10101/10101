@@ -115,7 +115,7 @@ services:
     command:
       - --configfile=/var/lib/lnd/lnd.conf
     volumes:
-      - ./faucet/lnd.conf:/var/lib/lnd/lnd.conf
+      - ./services/faucet/lnd.conf:/var/lib/lnd/lnd.conf
       - lnd:/root/.lnd
     restart: unless-stopped
     stop_grace_period: 5m30s
@@ -133,10 +133,10 @@ services:
     ports:
       - "8080:80"
     volumes:
-      - ./faucet/faucet.html:/usr/share/nginx/html/faucet/index.html
-      - ./faucet/open_channel.html:/usr/share/nginx/html/channel/index.html
-      - ./faucet/default.conf:/etc/nginx/conf.d/default.conf
-      - ./faucet/btc-fee-estimates.json:/usr/share/nginx/html/fee/btc-fee-estimates.json
+      - ./services/faucet/faucet.html:/usr/share/nginx/html/faucet/index.html
+      - ./services/faucet/open_channel.html:/usr/share/nginx/html/channel/index.html
+      - ./services/faucet/default.conf:/etc/nginx/conf.d/default.conf
+      - ./services/faucet/btc-fee-estimates.json:/usr/share/nginx/html/fee/btc-fee-estimates.json
     depends_on:
       - bitcoin
       - lnd
@@ -150,7 +150,7 @@ services:
     image: postgres:15-alpine
     volumes:
       - postgres:/var/lib/postgresql/data
-      - ./database:/docker-entrypoint-initdb.d/
+      - ./services/database:/docker-entrypoint-initdb.d/
     restart: always
     ports:
       - "5432:5432"
@@ -172,8 +172,8 @@ services:
       P2PDORACLE_ORACLE_KEYFILE: /key/key.pem
       P2PDORACLE_ORACLE_KEYPASS: EFRMPJKf6hQvNjHsgtnjBtKQ2k+YzrTrjcC8vrQegUY=
     volumes:
-      - ./oracle/default.yml:/config/default.yml
-      - ./oracle/key.pem:/key/key.pem
+      - ./services/oracle/default.yml:/config/default.yml
+      - ./services/oracle/key.pem:/key/key.pem
     restart: always
     networks:
       vtto:
