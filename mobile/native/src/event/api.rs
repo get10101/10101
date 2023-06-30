@@ -50,6 +50,12 @@ impl From<EventInternal> for Event {
                     .into();
                 Event::PriceUpdateNotification(best_price)
             }
+            EventInternal::ChannelReady(_) => {
+                unreachable!("This internal event is not exposed to the UI")
+            }
+            EventInternal::PaymentClaimed(_) => {
+                unreachable!("This internal event is not exposed to the UI")
+            }
         }
     }
 }

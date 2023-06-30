@@ -119,6 +119,12 @@ impl Subscriber for Senders {
                 tracing::trace!(?prices, "Received price update event");
                 // TODO: Add prices from orderbook_commons
             }
+            native::event::EventInternal::ChannelReady(channel_id) => {
+                tracing::trace!(?channel_id, "Received channel ready event");
+            }
+            native::event::EventInternal::PaymentClaimed(amount_msats) => {
+                tracing::trace!(amount_msats, "Received payment claimed event");
+            }
         }
     }
 

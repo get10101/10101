@@ -43,6 +43,7 @@ use tokio::runtime::Runtime;
 use tokio::sync::watch;
 use tokio::task::spawn_blocking;
 
+mod lightning_subscriber;
 mod node;
 
 static NODE: Storage<Arc<Node>> = Storage::new();
@@ -151,6 +152,11 @@ pub fn run(data_dir: String, seed_dir: String, runtime: &Runtime) -> Result<()> 
             event_sender,
         )?);
         let node = Arc::new(Node { inner: node });
+
+        runtime.spawn({
+            let node = node.clone();
+            async move { node.listen_for_lightning_events(event_receiver).await }
+        });
 
         runtime.spawn({
             let node = node.clone();
