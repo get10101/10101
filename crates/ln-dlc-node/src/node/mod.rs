@@ -52,6 +52,7 @@ use std::sync::Mutex;
 use std::time::Duration;
 use std::time::Instant;
 use std::time::SystemTime;
+use tokio::sync::watch;
 use tokio::sync::RwLock;
 
 mod channel_manager;
@@ -73,6 +74,7 @@ pub use channel_manager::ChannelManager;
 pub use dlc_channel::dlc_message_name;
 pub use dlc_channel::sub_channel_message_name;
 pub use invoice::HTLCStatus;
+use lightning::util::events::Event;
 pub use storage::InMemoryStore;
 pub use storage::Storage;
 pub use sub_channel_manager::SubChannelManager;
@@ -175,6 +177,7 @@ where
         seed: Bip39Seed,
         ephemeral_randomness: [u8; 32],
         oracle: OracleInfo,
+        event_sender: watch::Sender<Option<Event>>,
     ) -> Result<Self> {
         let user_config = app_config();
         Node::new(
@@ -194,6 +197,7 @@ where
             user_config,
             LnDlcNodeSettings::default(),
             oracle.into(),
+            Some(event_sender),
         )
     }
 
@@ -238,6 +242,7 @@ where
             user_config,
             settings,
             oracle.into(),
+            None,
         )
     }
 
@@ -261,6 +266,7 @@ where
         ldk_user_config: UserConfig,
         settings: LnDlcNodeSettings,
         oracle_client: P2PDOracleClient,
+        event_sender: Option<watch::Sender<Option<Event>>>,
     ) -> Result<Self> {
         let time_since_unix_epoch = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH)?;
 
@@ -483,6 +489,7 @@ where
             Arc::new(Mutex::new(HashMap::new())),
             peer_manager.clone(),
             fee_rate_estimator.clone(),
+            event_sender,
         );
 
         // Connection manager

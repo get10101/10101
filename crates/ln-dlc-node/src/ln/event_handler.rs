@@ -38,6 +38,7 @@ use std::sync::Arc;
 use std::sync::MutexGuard;
 use std::time::Duration;
 use time::OffsetDateTime;
+use tokio::sync::watch;
 
 /// The speed at which we want a transaction to confirm used for feerate estimation.
 ///
@@ -54,6 +55,7 @@ pub struct EventHandler<S> {
     pending_intercepted_htlcs: PendingInterceptedHtlcs,
     peer_manager: Arc<PeerManager>,
     fee_rate_estimator: Arc<FeeRateEstimator>,
+    event_sender: Option<watch::Sender<Option<Event>>>,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -71,6 +73,7 @@ where
         pending_intercepted_htlcs: PendingInterceptedHtlcs,
         peer_manager: Arc<PeerManager>,
         fee_rate_estimator: Arc<FeeRateEstimator>,
+        event_sender: Option<watch::Sender<Option<Event>>>,
     ) -> Self {
         Self {
             channel_manager,
@@ -82,6 +85,7 @@ where
             pending_intercepted_htlcs,
             peer_manager,
             fee_rate_estimator,
+            event_sender,
         }
     }
 
@@ -91,9 +95,16 @@ where
 
         let event_str = format!("{event:?}");
 
-        match self.match_event(event).await {
+        match self.match_event(event.clone()).await {
             Ok(()) => tracing::debug!(event = ?event_str, "Successfully handled event"),
             Err(e) => tracing::error!("Failed to handle event. Error {e:#}"),
+        }
+
+        if let Some(event_sender) = &self.event_sender {
+            match event_sender.send(Some(event)) {
+                Ok(()) => tracing::trace!("Sent event to subscriber"),
+                Err(e) => tracing::error!("Failed to send event to subscriber: {e:#}"),
+            }
         }
     }
 

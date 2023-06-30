@@ -137,6 +137,7 @@ impl Node<InMemoryStore> {
             user_config,
             LnDlcNodeSettings::default(),
             oracle.into(),
+            None,
         )?;
 
         tracing::debug!(%name, info = %node.info, "Node started");

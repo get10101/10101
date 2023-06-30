@@ -22,6 +22,7 @@ use bdk::BlockTime;
 use coordinator_commons::TradeParams;
 use itertools::chain;
 use itertools::Itertools;
+use lightning::util::events::Event;
 use lightning_invoice::Invoice;
 use ln_dlc_node::node::LnDlcNodeSettings;
 use ln_dlc_node::node::NodeInfo;
@@ -39,6 +40,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use time::OffsetDateTime;
 use tokio::runtime::Runtime;
+use tokio::sync::watch;
 use tokio::task::spawn_blocking;
 
 mod node;
@@ -133,6 +135,8 @@ pub fn run(data_dir: String, seed_dir: String, runtime: &Runtime) -> Result<()> 
         let seed_path = seed_dir.join("seed");
         let seed = Bip39Seed::initialize(&seed_path)?;
 
+        let (event_sender, event_receiver) = watch::channel::<Option<Event>>(None);
+
         let node = Arc::new(ln_dlc_node::node::Node::new_app(
             "10101",
             network,
@@ -144,6 +148,7 @@ pub fn run(data_dir: String, seed_dir: String, runtime: &Runtime) -> Result<()> 
             seed,
             ephemeral_randomness,
             config::get_oracle_info(),
+            event_sender,
         )?);
         let node = Arc::new(Node { inner: node });
 
