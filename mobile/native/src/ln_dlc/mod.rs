@@ -78,8 +78,6 @@ pub async fn update_node_settings(settings: LnDlcNodeSettings) {
     node.inner.update_settings(settings).await;
 }
 
-// TODO: should we also wrap the oracle as `NodeInfo`. It would fit the required attributes pubkey
-// and address.
 pub fn get_oracle_pubkey() -> XOnlyPublicKey {
     NODE.get().inner.oracle_pk()
 }
@@ -396,7 +394,7 @@ pub fn create_invoice(amount_sats: Option<u64>) -> Result<Invoice> {
                 "http://{}/api/register_invoice/{}",
                 config::get_http_endpoint(),
                 node.inner.info.pubkey
-            )) // TODO: make host configurable
+            ))
             .send()
             .await?;
 
