@@ -5,7 +5,7 @@ use tests_e2e::bitcoind::Bitcoind;
 use tests_e2e::coordinator::Coordinator;
 use tests_e2e::fund::fund_app_with_faucet;
 use tests_e2e::http::init_reqwest;
-use tests_e2e::tracing::init_tracing;
+use tests_e2e::logger::init_tracing;
 
 #[tokio::test]
 #[ignore = "need to be run with 'just e2e' command"]
