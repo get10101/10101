@@ -6,6 +6,7 @@ use crate::admin::list_channels;
 use crate::admin::list_dlc_channels;
 use crate::admin::list_on_chain_transactions;
 use crate::admin::list_peers;
+use crate::admin::open_channel;
 use crate::admin::send_payment;
 use crate::admin::sign_message;
 use crate::db::user;
@@ -92,8 +93,8 @@ pub fn router(
         .route("/api/trade", post(post_trade))
         .route("/api/register", post(post_register))
         .route("/api/admin/balance", get(get_balance))
-        .route("/api/admin/channels", get(list_channels))
-        .route("/api/channels", post(open_channel))
+        .route("/api/admin/channels", get(list_channels).post(open_channel))
+        .route("/api/channels", post(channel_faucet))
         .route("/api/admin/channels/:channel_id", delete(close_channel))
         .route("/api/admin/peers", get(list_peers))
         .route("/api/admin/send_payment/:invoice", post(send_payment))
@@ -264,7 +265,7 @@ pub async fn post_register(
 ///
 /// Can only be used on [`Network::Regtest`].
 #[autometrics]
-pub async fn open_channel(
+pub async fn channel_faucet(
     State(state): State<Arc<AppState>>,
     channel_params: Json<ChannelParams>,
 ) -> Result<Json<String>, AppError> {
