@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.21] - 2023-07-02
+
 - Fix issue where `Next` button on the create invoice screen was hidden behind keyboard. The keyboard can now be closed by tapping outside the text-field.
 - Fix panic when processing accept message while peer is disconnected.
 - Configurable oracle endpoint and public key
@@ -51,7 +53,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Self-Custodial CFD Trading based on DLC and lightning
 
-[Unreleased]: https://github.com/get10101/10101/compare/1.0.20...HEAD
+[Unreleased]: https://github.com/get10101/10101/compare/1.0.21...HEAD
+[1.0.21]: https://github.com/get10101/10101/compare/1.0.20...1.0.21
 [1.0.20]: https://github.com/get10101/10101/compare/1.0.19...1.0.20
 [1.0.19]: https://github.com/get10101/10101/compare/1.0.18...1.0.19
 [1.0.18]: https://github.com/get10101/10101/compare/1.0.17...1.0.18
