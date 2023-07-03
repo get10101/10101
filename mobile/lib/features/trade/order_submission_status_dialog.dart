@@ -1,3 +1,4 @@
+import 'package:confetti/confetti.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -9,7 +10,7 @@ enum OrderSubmissionStatusDialogType {
   failedSubmit
 }
 
-class OrderSubmissionStatusDialog extends StatelessWidget {
+class OrderSubmissionStatusDialog extends StatefulWidget {
   final String title;
   final OrderSubmissionStatusDialogType type;
   final Widget content;
@@ -27,23 +28,46 @@ class OrderSubmissionStatusDialog extends StatelessWidget {
       this.navigateToRoute = ""});
 
   @override
+  State<OrderSubmissionStatusDialog> createState() => _OrderSubmissionStatusDialog();
+}
+
+class _OrderSubmissionStatusDialog extends State<OrderSubmissionStatusDialog> {
+  late final ConfettiController _confettiController;
+
+  @override
+  void initState() {
+    super.initState();
+    _confettiController = ConfettiController(duration: const Duration(seconds: 3));
+  }
+
+  @override
+  void dispose() {
+    _confettiController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    bool isPending = type == OrderSubmissionStatusDialogType.successfulSubmit ||
-        type == OrderSubmissionStatusDialogType.pendingSubmit;
+    bool isPending = widget.type == OrderSubmissionStatusDialogType.successfulSubmit ||
+        widget.type == OrderSubmissionStatusDialogType.pendingSubmit;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _confettiController.play();
+    });
 
     Widget closeButton = ElevatedButton(
         onPressed: () {
           GoRouter.of(context).pop();
 
-          if (navigateToRoute.isNotEmpty) {
-            GoRouter.of(context).go(navigateToRoute);
+          if (widget.navigateToRoute.isNotEmpty) {
+            GoRouter.of(context).go(widget.navigateToRoute);
           }
         },
-        child: Text(buttonText));
+        child: Text(widget.buttonText));
 
     AlertDialog dialog = AlertDialog(
       icon: (() {
-        switch (type) {
+        switch (widget.type) {
           case OrderSubmissionStatusDialogType.pendingSubmit:
           case OrderSubmissionStatusDialogType.successfulSubmit:
             return const Center(
@@ -55,14 +79,29 @@ class OrderSubmissionStatusDialog extends StatelessWidget {
               color: Colors.red,
             );
           case OrderSubmissionStatusDialogType.filled:
-            return const Icon(
-              Icons.check_circle,
-              color: Colors.green,
-            );
+            return Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(
+                    Icons.check_circle,
+                    color: Colors.green,
+                  ),
+                  ConfettiWidget(
+                    confettiController: _confettiController,
+                    blastDirectionality: BlastDirectionality.explosive,
+                    maxBlastForce: 10, // set a lower max blast force
+                    minBlastForce: 9, // set a lower min blast force
+                    emissionFrequency: 0.00001,
+                    numberOfParticles: 20, // a lot of particles at once
+                    gravity: 0.2,
+                    shouldLoop: false,
+                  ),
+                ]);
         }
       })(),
-      title: Text("$title ${(() {
-        switch (type) {
+      title: Text("${widget.title} ${(() {
+        switch (widget.type) {
           case OrderSubmissionStatusDialogType.pendingSubmit:
           case OrderSubmissionStatusDialogType.successfulSubmit:
             return "Pending";
@@ -73,9 +112,9 @@ class OrderSubmissionStatusDialog extends StatelessWidget {
             return "Failure";
         }
       })()}"),
-      content: content,
+      content: widget.content,
       actions: isPending ? null : [closeButton],
-      insetPadding: insetPadding,
+      insetPadding: widget.insetPadding,
     );
 
     // If pending, prevent use of back button
