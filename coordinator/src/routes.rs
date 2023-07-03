@@ -10,6 +10,7 @@ use crate::admin::open_channel;
 use crate::admin::send_payment;
 use crate::admin::sign_message;
 use crate::db::user;
+use crate::metrics::SAMPLE_COUNTER;
 use crate::node::Node;
 use crate::orderbook::routes::delete_order;
 use crate::orderbook::routes::get_order;
@@ -38,9 +39,13 @@ use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::Pool;
 use diesel::PgConnection;
 use ln_dlc_node::node::NodeInfo;
+use opentelemetry::KeyValue;
+use opentelemetry_prometheus::PrometheusExporter;
 use orderbook_commons::FakeScidResponse;
 use orderbook_commons::OrderbookMsg;
 use parking_lot::Mutex;
+use prometheus::Encoder;
+use prometheus::TextEncoder;
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::str::FromStr;
@@ -58,12 +63,14 @@ pub struct AppState {
     pub pool: Pool<ConnectionManager<PgConnection>>,
     pub authenticated_users: Arc<Mutex<HashMap<PublicKey, mpsc::Sender<OrderbookMsg>>>>,
     pub settings: RwLock<Settings>,
+    pub exporter: PrometheusExporter,
 }
 
 pub fn router(
     node: Node,
     pool: Pool<ConnectionManager<PgConnection>>,
     settings: Settings,
+    exporter: PrometheusExporter,
 ) -> Router {
     let (tx, _rx) = broadcast::channel(100);
     let app_state = Arc::new(AppState {
@@ -72,6 +79,7 @@ pub fn router(
         settings: RwLock::new(settings),
         tx_pricefeed: tx,
         authenticated_users: Default::default(),
+        exporter,
     });
 
     Router::new()
@@ -363,9 +371,37 @@ async fn update_settings(
     Ok(())
 }
 
-pub async fn get_metrics() -> impl IntoResponse {
-    match autometrics::prometheus_exporter::encode_to_string() {
-        Ok(metrics) => (StatusCode::OK, metrics),
-        Err(err) => (StatusCode::INTERNAL_SERVER_ERROR, format!("{:?}", err)),
-    }
+pub async fn get_metrics(State(state): State<Arc<AppState>>) -> impl IntoResponse {
+    let cx = opentelemetry::Context::current();
+    SAMPLE_COUNTER.add(&cx, 1, &[KeyValue::new("http_request", "get")]);
+
+    let autometrics = match autometrics::prometheus_exporter::encode_to_string() {
+        Ok(metrics) => metrics,
+        Err(err) => {
+            tracing::error!("Could not collect autometrics {err:#}");
+            return (StatusCode::INTERNAL_SERVER_ERROR, format!("{:?}", err));
+        }
+    };
+
+    let exporter = state.exporter.clone();
+    let encoder = TextEncoder::new();
+    let metric_families = exporter.registry().gather();
+    let mut result = vec![];
+    match encoder.encode(&metric_families, &mut result) {
+        Ok(()) => (),
+        Err(err) => {
+            tracing::error!("Could not collect opentelemetry metrics {err:#}");
+            return (StatusCode::INTERNAL_SERVER_ERROR, format!("{:?}", err));
+        }
+    };
+
+    let open_telemetry_metrics = match String::from_utf8(result) {
+        Ok(s) => s,
+        Err(err) => {
+            tracing::error!("Could not format metrics as string {err:#}");
+            return (StatusCode::INTERNAL_SERVER_ERROR, format!("{:?}", err));
+        }
+    };
+
+    (StatusCode::OK, open_telemetry_metrics + &autometrics)
 }

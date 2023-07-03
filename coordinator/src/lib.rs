@@ -2,6 +2,7 @@ pub mod admin;
 pub mod cli;
 pub mod db;
 pub mod logger;
+pub mod metrics;
 pub mod node;
 pub mod orderbook;
 pub mod position;

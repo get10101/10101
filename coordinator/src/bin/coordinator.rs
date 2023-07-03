@@ -3,6 +3,7 @@ use anyhow::Result;
 use coordinator::cli::Opts;
 use coordinator::db;
 use coordinator::logger;
+use coordinator::metrics::init_meter;
 use coordinator::node::connection;
 use coordinator::node::Node;
 use coordinator::node::TradeAction;
@@ -46,6 +47,8 @@ async fn main() -> Result<()> {
             std::process::abort()
         }),
     );
+
+    let exporter = init_meter();
 
     let opts = Opts::read();
     let data_dir = opts.data_dir()?;
@@ -224,7 +227,7 @@ async fn main() -> Result<()> {
         connection::keep_public_channel_peers_connected(node.inner, CONNECTION_CHECK_INTERVAL)
     });
 
-    let app = router(node, pool, settings);
+    let app = router(node, pool, settings, exporter);
 
     // Start the metrics exporter
     autometrics::prometheus_exporter::init();
