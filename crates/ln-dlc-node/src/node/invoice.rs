@@ -13,6 +13,7 @@ use bitcoin::secp256k1::PublicKey;
 use bitcoin::secp256k1::Secp256k1;
 use bitcoin::Network;
 use lightning::ln::channelmanager::Retry;
+use lightning::ln::channelmanager::RetryableSendFailure;
 use lightning::ln::channelmanager::MIN_CLTV_EXPIRY_DELTA;
 use lightning::ln::PaymentHash;
 use lightning::routing::gossip::RoutingFees;
@@ -156,7 +157,7 @@ where
 
     #[autometrics]
     pub fn send_payment(&self, invoice: &Invoice) -> Result<()> {
-        let status = match pay_invoice(invoice, Retry::Attempts(10), &self.channel_manager) {
+        let (status, err) = match pay_invoice(invoice, Retry::Attempts(10), &self.channel_manager) {
             Ok(_) => {
                 let payee_pubkey = match invoice.payee_pub_key() {
                     Some(pubkey) => *pubkey,
@@ -167,7 +168,7 @@ where
                     .amount_milli_satoshis()
                     .context("invalid msat amount in the invoice")?;
                 tracing::info!(peer_id=%payee_pubkey, "EVENT: initiated sending {amt_msat} msats",);
-                HTLCStatus::Pending
+                (HTLCStatus::Pending, None)
             }
             Err(PaymentError::Invoice(err)) => {
                 tracing::error!(%err, "Invalid invoice");
@@ -175,7 +176,9 @@ where
             }
             Err(PaymentError::Sending(err)) => {
                 tracing::error!(?err, "Failed to send payment");
-                HTLCStatus::Failed
+                let failure_reason = retryable_send_failure_to_string(err);
+
+                (HTLCStatus::Failed, Some(failure_reason))
             }
         };
 
@@ -190,6 +193,10 @@ where
                 timestamp: OffsetDateTime::now_utc(),
             },
         )?;
+
+        if let Some(failure_reason) = err {
+            anyhow::bail!("Failed to send payment: {}, {}", failure_reason, invoice);
+        }
 
         Ok(())
     }
@@ -261,4 +268,12 @@ pub enum HTLCStatus {
 pub struct InterceptableScidDetails {
     pub scid: u64,
     pub jit_routing_fee_millionth: u32,
+}
+
+fn retryable_send_failure_to_string(failure: RetryableSendFailure) -> &'static str {
+    match failure {
+        RetryableSendFailure::DuplicatePayment => "Duplicate payment",
+        RetryableSendFailure::PaymentExpired => "Payment expired",
+        RetryableSendFailure::RouteNotFound => "Route not found",
+    }
 }
