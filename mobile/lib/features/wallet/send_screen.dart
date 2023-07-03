@@ -3,7 +3,8 @@ import 'dart:math';
 import 'package:f_logs/f_logs.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:get_10101/common/application/channel_constraints_service.dart';
+import 'package:get_10101/common/application/channel_info_service.dart';
+import 'package:get_10101/common/domain/channel.dart';
 import 'package:get_10101/common/value_data_row.dart';
 import 'package:get_10101/features/wallet/application/wallet_service.dart';
 import 'package:get_10101/features/wallet/send_payment_change_notifier.dart';
@@ -29,15 +30,22 @@ class _SendScreenState extends State<SendScreen> {
   final TextEditingController _textEditingController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   final WalletService walletService = const WalletService();
-  final ChannelConstraintsService channelConstraintsService = const ChannelConstraintsService();
   LightningInvoice? _lightningInvoice;
   bool isDecoding = false;
   bool decodingFailed = false;
 
+  final ChannelInfoService channelInfoService = const ChannelInfoService();
+  ChannelInfo? channelInfo;
+
   @override
   void initState() {
+    initChannelValues();
     invoiceFromClipboard();
     super.initState();
+  }
+
+  Future<void> initChannelValues() async {
+    channelInfo = await channelInfoService.getChannelInfo();
   }
 
   invoiceFromClipboard() async {
@@ -62,7 +70,8 @@ class _SendScreenState extends State<SendScreen> {
 
   @override
   Widget build(BuildContext context) {
-    int channelReserve = channelConstraintsService.getChannelReserve();
+    Amount initialReserve = channelInfoService.getInitialReserve();
+    int channelReserve = channelInfo?.reserve.sats ?? initialReserve.sats;
     int balance = context.watch<WalletChangeNotifier>().walletInfo.balances.lightning.sats;
     int maxSendAmount = max(balance - channelReserve, 0);
 

@@ -23,6 +23,7 @@ use bdk::BlockTime;
 use coordinator_commons::TradeParams;
 use itertools::chain;
 use itertools::Itertools;
+use lightning::ln::channelmanager::ChannelDetails;
 use lightning::util::events::Event;
 use lightning_invoice::Invoice;
 use ln_dlc_node::node::rust_dlc_manager::subchannel::LNChannelManager;
@@ -405,6 +406,13 @@ pub fn close_channel(is_force_close: bool) -> Result<()> {
         .close_channel(channel_details.channel_id, is_force_close)?;
 
     Ok(())
+}
+
+pub fn get_usable_channel_details() -> Result<Vec<ChannelDetails>> {
+    let node = NODE.try_get().context("failed to get ln dlc node")?;
+    let channels = node.inner.list_usable_channels();
+
+    Ok(channels)
 }
 
 pub fn create_invoice(amount_sats: Option<u64>) -> Result<Invoice> {

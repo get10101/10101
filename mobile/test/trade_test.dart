@@ -22,8 +22,8 @@ import 'package:provider/provider.dart';
 @GenerateNiceMocks([MockSpec<TradeValuesService>()])
 import 'package:get_10101/features/trade/application/trade_values_service.dart';
 
-@GenerateNiceMocks([MockSpec<ChannelConstraintsService>()])
-import 'package:get_10101/common/application/channel_constraints_service.dart';
+@GenerateNiceMocks([MockSpec<ChannelInfoService>()])
+import 'package:get_10101/common/application/channel_info_service.dart';
 
 @GenerateNiceMocks([MockSpec<OrderService>()])
 import 'package:get_10101/features/trade/application/order_service.dart';
@@ -78,7 +78,7 @@ void main() {
     MockOrderService orderService = MockOrderService();
     MockPositionService positionService = MockPositionService();
     MockTradeValuesService tradeValueService = MockTradeValuesService();
-    MockChannelConstraintsService channelConstraintsService = MockChannelConstraintsService();
+    MockChannelInfoService channelConstraintsService = MockChannelInfoService();
     MockWalletService walletService = MockWalletService();
     MockCandlestickService candlestickService = MockCandlestickService();
 
@@ -98,13 +98,18 @@ void main() {
             price: anyNamed('price'), leverage: anyNamed('leverage'), margin: anyNamed('margin')))
         .thenReturn(0.1);
 
-    when(channelConstraintsService.getLightningChannelCapacity()).thenReturn(20000);
+    // assuming this is an initial funding, no channel exists yet
+    when(channelConstraintsService.getChannelInfo()).thenAnswer((_) async {
+      return null;
+    });
 
-    when(channelConstraintsService.getMinTradeMargin()).thenReturn(1000);
+    when(channelConstraintsService.getMaxCapacity()).thenReturn(Amount(20000));
 
-    when(channelConstraintsService.getChannelReserve()).thenReturn(1000);
+    when(channelConstraintsService.getMinTradeMargin()).thenReturn(Amount(1000));
 
-    when(channelConstraintsService.getFeeReserve()).thenReturn(1666);
+    when(channelConstraintsService.getInitialReserve()).thenReturn(Amount(1000));
+
+    when(channelConstraintsService.getTradeFeeReserve()).thenReturn(Amount(1666));
 
     when(candlestickService.fetchCandles(1000)).thenAnswer((_) async {
       return getDummyCandles(1000);
