@@ -10,7 +10,6 @@ use crate::admin::open_channel;
 use crate::admin::send_payment;
 use crate::admin::sign_message;
 use crate::db::user;
-use crate::metrics::SAMPLE_COUNTER;
 use crate::node::Node;
 use crate::orderbook::routes::delete_order;
 use crate::orderbook::routes::get_order;
@@ -39,7 +38,6 @@ use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::Pool;
 use diesel::PgConnection;
 use ln_dlc_node::node::NodeInfo;
-use opentelemetry::KeyValue;
 use opentelemetry_prometheus::PrometheusExporter;
 use orderbook_commons::FakeScidResponse;
 use orderbook_commons::OrderbookMsg;
@@ -372,9 +370,6 @@ async fn update_settings(
 }
 
 pub async fn get_metrics(State(state): State<Arc<AppState>>) -> impl IntoResponse {
-    let cx = opentelemetry::Context::current();
-    SAMPLE_COUNTER.add(&cx, 1, &[KeyValue::new("http_request", "get")]);
-
     let autometrics = match autometrics::prometheus_exporter::encode_to_string() {
         Ok(metrics) => metrics,
         Err(err) => {

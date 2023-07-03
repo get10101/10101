@@ -1,6 +1,5 @@
 use lazy_static::lazy_static;
 use opentelemetry::global;
-use opentelemetry::metrics::Counter;
 use opentelemetry::metrics::Meter;
 use opentelemetry::sdk::export::metrics::aggregation;
 use opentelemetry::sdk::metrics::controllers;
@@ -11,10 +10,6 @@ use std::time::Duration;
 
 lazy_static! {
     pub static ref METER: Meter = global::meter("coordinator");
-    pub static ref SAMPLE_COUNTER: Counter<u64> = METER
-        .u64_counter("a.sample_counter")
-        .with_description("Counts things")
-        .init();
 }
 
 pub fn init_meter() -> PrometheusExporter {
