@@ -1,4 +1,5 @@
 pub mod app;
+pub mod bitcoind;
 pub mod coordinator;
 pub mod fund;
 pub mod http;
