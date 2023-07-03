@@ -25,7 +25,13 @@ pub async fn run_app() -> AppHandle {
         let app_dir = as_string(&app_dir);
         let seed_dir = as_string(&seed_dir);
         tokio::task::spawn_blocking(move || {
-            native::api::run(default_config(), app_dir, seed_dir).expect("Could not run app")
+            native::api::run(
+                default_config(),
+                app_dir,
+                seed_dir,
+                native::api::IncludeBacktraceOnPanic::No,
+            )
+            .expect("Could not run app")
         })
     };
 
