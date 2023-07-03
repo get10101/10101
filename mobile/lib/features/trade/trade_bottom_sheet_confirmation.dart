@@ -171,7 +171,7 @@ class TradeBottomSheetConfirmation extends StatelessWidget {
                         TextSpan(
                             text: formatSats(total),
                             style: const TextStyle(fontWeight: FontWeight.bold)),
-                        const TextSpan(text: ' will be locked up in a Lightning channel!'),
+                        const TextSpan(text: ' will be locked up in a DLC channel!'),
                       ],
                     ),
                   ),
