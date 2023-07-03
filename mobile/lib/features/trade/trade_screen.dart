@@ -200,15 +200,19 @@ class TradeScreen extends StatelessWidget {
                         return PositionListItem(
                           position: position,
                           onClose: () async {
-                            tradeValuesChangeNotifier.updateLeverage(
-                                position.direction.opposite(), position.leverage);
-                            tradeValuesChangeNotifier.updateQuantity(
-                                position.direction.opposite(), position.quantity);
+                            final direction = position.direction.opposite();
+
+                            tradeValuesChangeNotifier.updateLeverage(direction, position.leverage);
+                            tradeValuesChangeNotifier.updateQuantity(direction, position.quantity);
+
+                            final tradeValues = tradeValuesChangeNotifier.fromDirection(direction);
+
                             tradeBottomSheetConfirmation(
                                 context: context,
-                                direction: position.direction.opposite(),
+                                direction: direction,
                                 onConfirmation: () {
-                                  submitOrderChangeNotifier.closePosition(position);
+                                  submitOrderChangeNotifier.closePosition(
+                                      position, tradeValues.price, tradeValues.fee);
                                   GoRouter.of(context).pop();
                                 },
                                 close: true);

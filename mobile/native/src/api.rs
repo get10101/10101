@@ -23,6 +23,9 @@ use flutter_rust_bridge::StreamSink;
 use flutter_rust_bridge::SyncReturn;
 use lightning_invoice::Invoice;
 use lightning_invoice::InvoiceDescription;
+use orderbook_commons::order_matching_fee_taker;
+use rust_decimal::prelude::FromPrimitive;
+use rust_decimal::Decimal;
 use std::backtrace::Backtrace;
 use std::ops::Add;
 use std::str::FromStr;
@@ -139,6 +142,19 @@ pub fn calculate_pnl(
         )
         .unwrap_or(0),
     )
+}
+
+/// Calculate the order matching fee that the app user will have to pay for if the corresponding
+/// trade gets executed.
+///
+/// This is only an estimate as the price may change slightly. Also, the coordinator could choose to
+/// change the fee structure independently.
+pub fn order_matching_fee(quantity: f32, price: f32) -> SyncReturn<u64> {
+    let price = Decimal::from_f32(price).expect("price to fit in Decimal");
+
+    let order_matching_fee = order_matching_fee_taker(quantity, price).to_sat();
+
+    SyncReturn(order_matching_fee)
 }
 
 #[tokio::main(flavor = "current_thread")]

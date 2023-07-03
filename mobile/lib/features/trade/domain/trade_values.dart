@@ -1,3 +1,4 @@
+import 'package:get_10101/ffi.dart' as rust;
 import 'package:get_10101/features/trade/domain/direction.dart';
 import 'package:get_10101/features/trade/domain/leverage.dart';
 import 'package:get_10101/common/domain/model.dart';
@@ -12,8 +13,8 @@ class TradeValues {
   double? quantity;
   double? price;
   double? liquidationPrice;
+  Amount? fee; // This fee is an estimate of the order-matching fee.
 
-  Amount fee;
   double fundingRate;
 
   // no final so it can be mocked in tests
@@ -44,8 +45,7 @@ class TradeValues {
             price: price, leverage: leverage, direction: direction)
         : null;
 
-    // TODO: Calculate fee based on price, quantity and funding rate
-    Amount fee = Amount(0);
+    Amount? fee = orderMatchingFee(quantity, price);
 
     return TradeValues(
         direction: direction,
@@ -62,17 +62,20 @@ class TradeValues {
   updateQuantity(double quantity) {
     this.quantity = quantity;
     _recalculateMargin();
+    _recalculateFee();
   }
 
   updateMargin(Amount margin) {
     this.margin = margin;
     _recalculateQuantity();
+    _recalculateFee();
   }
 
   updatePrice(double? price) {
     this.price = price;
     _recalculateQuantity();
     _recalculateLiquidationPrice();
+    _recalculateFee();
   }
 
   updateLeverage(Leverage leverage) {
@@ -98,4 +101,14 @@ class TradeValues {
         price: price, leverage: leverage, direction: direction);
     this.liquidationPrice = liquidationPrice;
   }
+
+  _recalculateFee() {
+    fee = orderMatchingFee(quantity, price);
+  }
+}
+
+Amount? orderMatchingFee(double? quantity, double? price) {
+  return quantity != null && price != null
+      ? Amount(rust.api.orderMatchingFee(quantity: quantity, price: price))
+      : null;
 }
