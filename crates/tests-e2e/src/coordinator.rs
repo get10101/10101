@@ -1,5 +1,6 @@
 use anyhow::Context;
 use anyhow::Result;
+use coordinator::routes::InvoiceParams;
 use ln_dlc_node::node::NodeInfo;
 use reqwest::Client;
 
@@ -38,15 +39,32 @@ impl Coordinator {
         Ok(result)
     }
 
-    pub async fn sync_wallet(&self) -> Result<bool> {
-        let result = self
-            .client
-            .post(&format!("{}/api/admin/sync", self.host))
-            .send()
+    pub async fn sync_wallet(&self) -> Result<()> {
+        self.post("/api/admin/sync").await?;
+        Ok(())
+    }
+
+    pub async fn pay_invoice(&self, invoice: &str) -> Result<()> {
+        self.post(&format!("/api/admin/send_payment/{invoice}"))
+            .await?;
+        Ok(())
+    }
+
+    pub async fn create_invoice(&self, amount: Option<u64>) -> Result<String> {
+        let invoice_params = InvoiceParams {
+            amount,
+            description: Some("Fee for tests".to_string()),
+            expiry: None,
+        };
+
+        let encoded_params = serde_urlencoded::to_string(&invoice_params)?;
+
+        let invoice = self
+            .get(&format!("/api/invoice?{encoded_params}"))
             .await?
-            .status()
-            .is_success();
-        Ok(result)
+            .text()
+            .await?;
+        Ok(invoice)
     }
 
     // TODO: Introduce strong type
@@ -82,7 +100,17 @@ impl Coordinator {
             .get(format!("{0}{path}", self.host))
             .send()
             .await
-            .context("Could not send request to coordinator")?
+            .context("Could not send GET request to coordinator")?
+            .error_for_status()
+            .context("Coordinator did not return 200 OK")
+    }
+
+    async fn post(&self, path: &str) -> Result<reqwest::Response> {
+        self.client
+            .post(format!("{0}{path}", self.host))
+            .send()
+            .await
+            .context("Could not send POST request to coordinator")?
             .error_for_status()
             .context("Coordinator did not return 200 OK")
     }

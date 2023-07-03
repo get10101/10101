@@ -42,6 +42,7 @@ use orderbook_commons::FakeScidResponse;
 use orderbook_commons::OrderbookMsg;
 use parking_lot::Mutex;
 use serde::Deserialize;
+use serde::Serialize;
 use std::collections::HashMap;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -183,11 +184,11 @@ pub async fn get_node_info(
     Ok(Json(node_info))
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct InvoiceParams {
-    amount: Option<u64>,
-    description: Option<String>,
-    expiry: Option<u32>,
+    pub amount: Option<u64>,
+    pub description: Option<String>,
+    pub expiry: Option<u32>,
 }
 
 #[autometrics]
