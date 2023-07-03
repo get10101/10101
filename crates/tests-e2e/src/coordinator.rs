@@ -31,6 +31,17 @@ impl Coordinator {
         Ok(result)
     }
 
+    pub async fn sync_wallet(&self) -> Result<bool> {
+        let result = self
+            .client
+            .post(&format!("{}/api/admin/sync", self.host))
+            .send()
+            .await?
+            .status()
+            .is_success();
+        Ok(result)
+    }
+
     async fn get(&self, path: &str) -> Result<reqwest::Response> {
         self.client
             .get(format!("{0}{path}", self.host))

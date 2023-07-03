@@ -4,6 +4,7 @@ pub mod subscriber;
 
 use crate::api::WalletInfo;
 use coordinator_commons::TradeParams;
+use ln_dlc_node::node::rust_dlc_manager::ChannelId;
 use orderbook_commons::Prices;
 use std::hash::Hash;
 use trade::ContractSymbol;
@@ -31,6 +32,8 @@ pub enum EventInternal {
     PositionUpdateNotification(Position),
     PositionCloseNotification(ContractSymbol),
     PriceUpdateNotification(Prices),
+    ChannelReady(ChannelId),
+    PaymentClaimed(u64),
 }
 
 impl From<EventInternal> for EventType {
@@ -46,6 +49,8 @@ impl From<EventInternal> for EventType {
             EventInternal::PositionUpdateNotification(_) => EventType::PositionUpdateNotification,
             EventInternal::PositionCloseNotification(_) => EventType::PositionClosedNotification,
             EventInternal::PriceUpdateNotification(_) => EventType::PriceUpdateNotification,
+            EventInternal::ChannelReady(_) => EventType::ChannelReady,
+            EventInternal::PaymentClaimed(_) => EventType::PaymentClaimed,
         }
     }
 }
@@ -60,4 +65,6 @@ pub enum EventType {
     PositionUpdateNotification,
     PositionClosedNotification,
     PriceUpdateNotification,
+    ChannelReady,
+    PaymentClaimed,
 }

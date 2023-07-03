@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Charge funding transaction on-chain fees upon receiving and inbound JIT Channel
+
 ## [1.0.21] - 2023-07-02
 
 - Fix issue where `Next` button on the create invoice screen was hidden behind keyboard. The keyboard can now be closed by tapping outside the text-field.
