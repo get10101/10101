@@ -31,6 +31,7 @@ async fn app_can_be_funded_with_lnd_faucet() -> Result<()> {
 
     // FIXME: Asserting here on >= as this test run on the CI can't find a route when trying to pay
     // immediately after claiming a received payment.
+    // See: https://github.com/get10101/10101/issues/883
     let ln_balance = app.rx.wallet_info().unwrap().balances.lightning;
     tracing::info!(%funded_amount, %ln_balance, "Successfully funded app with faucet");
     assert!(ln_balance >= funded_amount);

@@ -8,7 +8,7 @@ use crate::bitcoind::Bitcoind;
 use crate::coordinator::Coordinator;
 
 // TODO: Fetch these from the app
-const FUNDING_TRANSACTION_FEES: u64 = 153;
+pub const FUNDING_TRANSACTION_FEES: u64 = 153;
 
 /// Pay a lightning invoice using an LND faucet
 ///
