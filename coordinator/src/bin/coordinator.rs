@@ -3,7 +3,10 @@ use anyhow::Result;
 use coordinator::cli::Opts;
 use coordinator::db;
 use coordinator::logger;
-use coordinator::metrics::init_meter;
+use coordinator::metrics::CHANNEL_BALANCE_MSATOSHI;
+use coordinator::metrics::CHANNEL_INBOUND_CAPACITY_MSATOSHI;
+use coordinator::metrics::CHANNEL_OUTBOUND_CAPACITY_MSATOSHI;
+use coordinator::metrics::{init_meter, CHANNEL_IS_USABLE};
 use coordinator::node::connection;
 use coordinator::node::Node;
 use coordinator::node::TradeAction;
@@ -17,6 +20,7 @@ use diesel::r2d2::ConnectionManager;
 use diesel::PgConnection;
 use ln_dlc_node::node::InMemoryStore;
 use ln_dlc_node::seed::Bip39Seed;
+use opentelemetry::KeyValue;
 use rand::thread_rng;
 use rand::RngCore;
 use std::backtrace::Backtrace;
@@ -30,6 +34,7 @@ use tokio::task::spawn_blocking;
 use tracing::metadata::LevelFilter;
 use trade::bitmex_client::BitmexClient;
 
+const PROCESS_PROMETHEUS_METRICS: Duration = Duration::from_secs(10);
 const PROCESS_INCOMING_DLC_MESSAGES_INTERVAL: Duration = Duration::from_secs(5);
 const POSITION_SYNC_INTERVAL: Duration = Duration::from_secs(300);
 const CONNECTION_CHECK_INTERVAL: Duration = Duration::from_secs(30);
@@ -124,6 +129,49 @@ async fn main() -> Result<()> {
                     .await
                     .expect("To spawn blocking thread");
                 tokio::time::sleep(PROCESS_INCOMING_DLC_MESSAGES_INTERVAL).await;
+            }
+        }
+    });
+
+    tokio::spawn({
+        let node = node.clone();
+        async move {
+            loop {
+                let node = node.clone();
+                spawn_blocking(move || {
+                    let cx = opentelemetry::Context::current();
+                    let channels = node.inner.channel_manager.list_channels();
+                    for channel_detail in channels {
+                        let key_values = [
+                            KeyValue::new("channel_id", hex::encode(channel_detail.channel_id)),
+                            KeyValue::new("is_outbound", channel_detail.is_outbound),
+                            KeyValue::new("is_public", channel_detail.is_public),
+                        ];
+                        CHANNEL_BALANCE_MSATOSHI.observe(
+                            &cx,
+                            channel_detail.balance_msat,
+                            &key_values,
+                        );
+                        CHANNEL_OUTBOUND_CAPACITY_MSATOSHI.observe(
+                            &cx,
+                            channel_detail.outbound_capacity_msat,
+                            &key_values,
+                        );
+                        CHANNEL_INBOUND_CAPACITY_MSATOSHI.observe(
+                            &cx,
+                            channel_detail.inbound_capacity_msat,
+                            &key_values,
+                        );
+                        CHANNEL_IS_USABLE.observe(
+                            &cx,
+                            channel_detail.is_usable as u64,
+                            &key_values,
+                        );
+                    }
+                })
+                .await
+                .expect("To spawn blocking thread");
+                tokio::time::sleep(PROCESS_PROMETHEUS_METRICS).await;
             }
         }
     });

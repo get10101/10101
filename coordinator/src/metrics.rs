@@ -1,6 +1,8 @@
 use lazy_static::lazy_static;
 use opentelemetry::global;
 use opentelemetry::metrics::Meter;
+use opentelemetry::metrics::ObservableGauge;
+use opentelemetry::metrics::Unit;
 use opentelemetry::sdk::export::metrics::aggregation;
 use opentelemetry::sdk::metrics::controllers;
 use opentelemetry::sdk::metrics::processors;
@@ -10,6 +12,27 @@ use std::time::Duration;
 
 lazy_static! {
     pub static ref METER: Meter = global::meter("coordinator");
+
+    // channel details metrics
+    pub static ref CHANNEL_BALANCE_MSATOSHI: ObservableGauge<u64> = METER
+        .u64_observable_gauge("channel_balance_msatoshi")
+        .with_description("Current channel balance in msatoshi")
+        .with_unit(Unit::new("msats"))
+        .init();
+    pub static ref CHANNEL_OUTBOUND_CAPACITY_MSATOSHI: ObservableGauge<u64> = METER
+        .u64_observable_gauge("channel_outbound_capacity_msatoshi")
+        .with_description("Channel outbound capacity in msatoshi")
+        .with_unit(Unit::new("msats"))
+        .init();
+    pub static ref CHANNEL_INBOUND_CAPACITY_MSATOSHI: ObservableGauge<u64> = METER
+        .u64_observable_gauge("channel_inbound_capacity_msatoshi")
+        .with_description("Channel inbound capacity in msatoshi")
+        .with_unit(Unit::new("msats"))
+        .init();
+    pub static ref CHANNEL_IS_USABLE: ObservableGauge<u64> = METER
+        .u64_observable_gauge("channel_is_usable")
+        .with_description("If a channel is usable")
+        .init();
 }
 
 pub fn init_meter() -> PrometheusExporter {
