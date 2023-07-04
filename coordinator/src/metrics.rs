@@ -39,6 +39,10 @@ lazy_static! {
         .u64_observable_gauge("node_connected_peers_total")
         .with_description("Total number of connected peers")
         .init();
+    pub static ref NODE_BALANCE_SATOSHI: ObservableGauge<u64> = METER
+        .u64_observable_gauge("node_balance_satoshi")
+        .with_description("Node balance in satoshi")
+        .init();
 }
 
 pub fn init_meter() -> PrometheusExporter {

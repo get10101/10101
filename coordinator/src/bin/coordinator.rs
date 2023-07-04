@@ -9,6 +9,7 @@ use coordinator::metrics::CHANNEL_INBOUND_CAPACITY_MSATOSHI;
 use coordinator::metrics::CHANNEL_IS_USABLE;
 use coordinator::metrics::CHANNEL_OUTBOUND_CAPACITY_MSATOSHI;
 use coordinator::metrics::CONNECTED_PEERS;
+use coordinator::metrics::NODE_BALANCE_SATOSHI;
 use coordinator::node::connection;
 use coordinator::node::Node;
 use coordinator::node::TradeAction;
@@ -173,6 +174,66 @@ async fn main() -> Result<()> {
 
                     let connected_peers = node.inner.list_peers().len();
                     CONNECTED_PEERS.observe(&cx, connected_peers as u64, &[]);
+                    let offchain = node.inner.get_ldk_balance();
+
+                    NODE_BALANCE_SATOSHI.observe(
+                        &cx,
+                        offchain.available,
+                        &[
+                            KeyValue::new("type", "off-chain"),
+                            KeyValue::new("status", "available"),
+                        ],
+                    );
+                    NODE_BALANCE_SATOSHI.observe(
+                        &cx,
+                        offchain.pending_close,
+                        &[
+                            KeyValue::new("type", "off-chain"),
+                            KeyValue::new("status", "pending_close"),
+                        ],
+                    );
+
+                    match node.inner.get_on_chain_balance() {
+                        Ok(onchain) => {
+                            NODE_BALANCE_SATOSHI.observe(
+                                &cx,
+                                onchain.confirmed,
+                                &[
+                                    KeyValue::new("type", "on-chain"),
+                                    KeyValue::new("status", "confirmed"),
+                                ],
+                            );
+                            NODE_BALANCE_SATOSHI.observe(
+                                &cx,
+                                onchain.immature,
+                                &[
+                                    KeyValue::new("type", "on-chain"),
+                                    KeyValue::new("status", "immature"),
+                                ],
+                            );
+                            NODE_BALANCE_SATOSHI.observe(
+                                &cx,
+                                onchain.trusted_pending,
+                                &[
+                                    KeyValue::new("type", "on-chain"),
+                                    KeyValue::new("status", "trusted_pending"),
+                                ],
+                            );
+                            NODE_BALANCE_SATOSHI.observe(
+                                &cx,
+                                onchain.untrusted_pending,
+                                &[
+                                    KeyValue::new("type", "on-chain"),
+                                    KeyValue::new("status", "untrusted_pending"),
+                                ],
+                            );
+                        }
+                        Err(err) => {
+                            tracing::error!(
+                                "Could not retrieve on-chain balance for metrics {err:#}"
+                            )
+                        }
+                    }
                 })
                 .await
                 .expect("To spawn blocking thread");
