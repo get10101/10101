@@ -5,6 +5,7 @@ use anyhow::Context;
 use anyhow::Result;
 use bdk::bitcoin::secp256k1::PublicKey;
 use bdk::TransactionDetails;
+use dlc_messages::sub_channel::SubChannelCloseFinalize;
 use dlc_messages::sub_channel::SubChannelFinalize;
 use dlc_messages::Message;
 use dlc_messages::SubChannelMessage;
@@ -15,6 +16,7 @@ use lightning::chain::transaction::OutPoint;
 use lightning::ln::PaymentHash;
 use lightning::ln::PaymentPreimage;
 use lightning::ln::PaymentSecret;
+use lightning_invoice::Invoice;
 use ln_dlc_node::node;
 use ln_dlc_node::node::dlc_message_name;
 use ln_dlc_node::node::rust_dlc_manager::contract::signed_contract::SignedContract;
@@ -27,6 +29,7 @@ use ln_dlc_node::HTLCStatus;
 use ln_dlc_node::MillisatAmount;
 use ln_dlc_node::PaymentFlow;
 use ln_dlc_node::PaymentInfo;
+use parking_lot::RwLock;
 use std::sync::Arc;
 use std::time::Duration;
 use time::OffsetDateTime;
@@ -34,6 +37,10 @@ use time::OffsetDateTime;
 #[derive(Clone)]
 pub struct Node {
     pub inner: Arc<ln_dlc_node::node::Node<NodeStorage>>,
+    /// The order-matching fee invoice to be paid once the current trade is executed.
+    ///
+    /// We assume that only one trade can be executed at a time.
+    pub order_matching_fee_invoice: Arc<RwLock<Option<Invoice>>>,
 }
 
 pub struct Balances {
@@ -215,18 +222,30 @@ impl Node {
                 let filled_order = order::handler::order_filled()
                     .context("Cannot mark order as filled for confirmed DLC")?;
 
+                if let Err(e) = self.pay_order_matching_fee(&channel_id) {
+                    tracing::error!("{e:#}");
+                }
+
                 position::handler::update_position_after_dlc_creation(
                     filled_order,
                     accept_collateral,
                 )
                 .context("Failed to update position after DLC creation")?
             }
-            Message::SubChannel(SubChannelMessage::CloseFinalize(_)) => {
+            Message::SubChannel(SubChannelMessage::CloseFinalize(SubChannelCloseFinalize {
+                channel_id,
+                ..
+            })) => {
                 match order::handler::order_filled() {
                     Ok(filled_order) => {
                         position::handler::update_position_after_dlc_closure(filled_order)
                             .context("Failed to update position after DLC closure")?;
+
+                        if let Err(e) = self.pay_order_matching_fee(&channel_id) {
+                            tracing::error!("{e:#}");
+                        }
                     }
+                    // TODO: Should we charge for the order-matching fee if there is no order????
                     Err(e) => {
                         tracing::warn!("Could not find a filling position in the database. Maybe because the coordinator closed an expired position. Error: {e:#}");
 
@@ -241,6 +260,36 @@ impl Node {
             }
             _ => (),
         };
+
+        Ok(())
+    }
+
+    fn pay_order_matching_fee(&self, channel_id: &[u8; 32]) -> Result<()> {
+        let channel_id_str = hex::encode(channel_id);
+
+        tracing::info!(channel_id = %channel_id_str, "Paying order-matching fee");
+
+        let invoice = self
+            .order_matching_fee_invoice
+            .write()
+            .take()
+            .context("Expected to have to pay an order-matching fee invoice")?;
+
+        // Without this `sleep` the coordinator can end up not generating the corresponding
+        // `PaymentClaimable` event, leaving the payment in a pending state seemingly forever
+        std::thread::sleep(Duration::from_secs(5));
+
+        self.inner
+            .send_payment(&invoice)
+            .context("Failed order-matching fee invoice payment")?;
+
+        tracing::info!(
+            channel_id = %channel_id_str,
+            payment_hash = %invoice.payment_hash(),
+            description = ?invoice.description(),
+            amount_msat = ?invoice.amount_milli_satoshis(),
+            "Triggered payment of order-matching fee"
+        );
 
         Ok(())
     }

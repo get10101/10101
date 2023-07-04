@@ -33,6 +33,7 @@ use ln_dlc_node::node::NodeInfo;
 use ln_dlc_node::seed::Bip39Seed;
 use orderbook_commons::FakeScidResponse;
 use orderbook_commons::FEE_INVOICE_DESCRIPTION_PREFIX_TAKER;
+use parking_lot::RwLock;
 use rust_decimal::Decimal;
 use state::Storage;
 use std::net::IpAddr;
@@ -175,7 +176,10 @@ pub fn run(data_dir: String, seed_dir: String, runtime: &Runtime) -> Result<()> 
             config::get_oracle_info(),
             event_sender,
         )?);
-        let node = Arc::new(Node { inner: node });
+        let node = Arc::new(Node {
+            inner: node,
+            order_matching_fee_invoice: Arc::new(RwLock::new(None)),
+        });
 
         runtime.spawn({
             let node = node.clone();
@@ -490,36 +494,26 @@ pub async fn trade(trade_params: TradeParams) -> Result<(), (FailureReason, anyh
 
     tracing::info!("Sent trade request to coordinator successfully");
 
-    tracing::info!("Paying order-matching fee");
-
     let order_matching_fee_invoice = response.text().await.map_err(|e| {
         (
             FailureReason::TradeResponse,
             anyhow!("Could not deserialize order-matching fee invoice: {e:#}"),
         )
     })?;
-    let order_matching_fee_invoice = order_matching_fee_invoice.parse().map_err(|e| {
+    let order_matching_fee_invoice: Invoice = order_matching_fee_invoice.parse().map_err(|e| {
         (
             FailureReason::TradeResponse,
             anyhow!("Could not parse order-matching fee invoice: {e:#}"),
         )
     })?;
 
-    NODE.get()
-        .inner
-        .send_payment(&order_matching_fee_invoice)
-        .map_err(|e| {
-            (
-                FailureReason::TradeResponse,
-                anyhow!("Could not parse order-matching fee invoice: {e:#}"),
-            )
-        })?;
+    let payment_hash = *order_matching_fee_invoice.payment_hash();
 
-    tracing::info!(
-        description = ?order_matching_fee_invoice.description(),
-        amount_msat = ?order_matching_fee_invoice.amount_milli_satoshis(),
-        "Triggered payment of order-matching fee"
-    );
+    spawn_blocking(|| {
+        *NODE.get().order_matching_fee_invoice.write() = Some(order_matching_fee_invoice);
+    });
+
+    tracing::info!(%payment_hash, "Registered order-matching fee invoice to be paid later");
 
     Ok(())
 }
