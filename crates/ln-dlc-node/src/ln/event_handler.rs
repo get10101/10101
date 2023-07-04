@@ -2,7 +2,8 @@ use crate::dlc_custom_signer::CustomKeysManager;
 use crate::fee_rate_estimator::FeeRateEstimator;
 use crate::ln::coordinator_config;
 use crate::ln::HTLC_INTERCEPTED_CONNECTION_TIMEOUT;
-use crate::ln::JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT;
+use crate::ln::JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT_MAX;
+use crate::ln::LIQUIDITY_MULTIPLIER;
 use crate::ln_dlc_wallet::LnDlcWallet;
 use crate::node::invoice::HTLCStatus;
 use crate::node::ChannelManager;
@@ -629,14 +630,21 @@ where
                     if max_allowed_tx_fee < current_fee {
                         tracing::warn!(%max_allowed_tx_fee, %current_fee, "Not opening a channel because the fee is too high");
                         if let Err(err) = self.channel_manager.fail_intercepted_htlc(intercept_id) {
-                            tracing::error!("Could not fail intercepted htlc {err:?}")
+                            tracing::error!(%intercepted_id, "Could not fail intercepted htlc {err:?}")
                         }
                         return Ok(());
                     }
                 }
 
-                // Currently the channel capacity is fixed for the beta program
-                let channel_value = JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT;
+                let channel_value = expected_outbound_amount_msat / 1000 * LIQUIDITY_MULTIPLIER;
+
+                if channel_value > JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT_MAX {
+                    tracing::warn!(%intercepted_id, %channel_value, channel_value_maximum=%JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT_MAX, "Failed to open channel because maximum channel value exceeded");
+                    if let Err(err) = self.channel_manager.fail_intercepted_htlc(intercept_id) {
+                        tracing::error!(%intercepted_id, "Could not fail intercepted htlc {err:?}")
+                    }
+                    return Ok(());
+                }
 
                 let mut user_config = coordinator_config();
                 // We are overwriting the coordinators channel handshake configuration to prevent

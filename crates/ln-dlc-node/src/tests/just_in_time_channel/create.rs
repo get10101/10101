@@ -1,13 +1,13 @@
-use crate::ln::JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT;
+use crate::ln::JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT_MAX;
+use crate::ln::LIQUIDITY_MULTIPLIER;
 use crate::node::InMemoryStore;
 use crate::node::Node;
 use crate::tests::init_tracing;
-use crate::tests::min_outbound_liquidity_channel_creator;
+use crate::tests::setup_coordinator_payer_channel;
 use crate::HTLCStatus;
 use crate::WalletSettings;
 use anyhow::Context;
 use anyhow::Result;
-use bitcoin::Amount;
 use lightning::chain::chaininterface::ConfirmationTarget;
 use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::prelude::ToPrimitive;
@@ -31,29 +31,22 @@ async fn open_jit_channel() {
     payer.connect(coordinator.info).await.unwrap();
     payee.connect(coordinator.info).await.unwrap();
 
-    coordinator.fund(Amount::from_sat(1_000_000)).await.unwrap();
+    // Test test covers opening a channel with the maximum channel value that the coordinator allows
+    // Dividing the maximum by the multiplier results in opening the maximum channel
+    let payer_to_payee_invoice_amount =
+        JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT_MAX / LIQUIDITY_MULTIPLIER;
 
-    let payer_outbound_liquidity_sat = 25_000;
-    let coordinator_outbound_liquidity_sat =
-        min_outbound_liquidity_channel_creator(&payer, payer_outbound_liquidity_sat);
-
-    coordinator
-        .open_channel(
-            &payer,
-            coordinator_outbound_liquidity_sat,
-            payer_outbound_liquidity_sat,
-        )
-        .await
-        .unwrap();
+    let expected_coordinator_payee_channel_value =
+        setup_coordinator_payer_channel(payer_to_payee_invoice_amount, &coordinator, &payer).await;
 
     // Act and assert
-
     send_interceptable_payment(
         &payer,
         &payee,
         &coordinator,
-        1_000,
-        Some(JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT),
+        // We are testing with the maximum liquidity
+        payer_to_payee_invoice_amount,
+        Some(expected_coordinator_payee_channel_value),
     )
     .await
     .unwrap();
@@ -73,20 +66,9 @@ async fn fail_to_open_jit_channel_with_fee_rate_over_max() {
     payer.connect(coordinator.info).await.unwrap();
     payee.connect(coordinator.info).await.unwrap();
 
-    coordinator.fund(Amount::from_sat(1_000_000)).await.unwrap();
-
-    let payer_outbound_liquidity_sat = 25_000;
-    let coordinator_outbound_liquidity_sat =
-        min_outbound_liquidity_channel_creator(&payer, payer_outbound_liquidity_sat);
-
-    coordinator
-        .open_channel(
-            &payer,
-            coordinator_outbound_liquidity_sat,
-            payer_outbound_liquidity_sat,
-        )
-        .await
-        .unwrap();
+    let payer_to_payee_invoice_amount = 5_000;
+    let _ =
+        setup_coordinator_payer_channel(payer_to_payee_invoice_amount, &coordinator, &payer).await;
 
     // Act
 
@@ -107,7 +89,7 @@ async fn fail_to_open_jit_channel_with_fee_rate_over_max() {
 
     let invoice = payee
         .create_interceptable_invoice(
-            Some(1_000),
+            Some(payer_to_payee_invoice_amount),
             intercepted_scid_details.scid,
             coordinator.info.pubkey,
             0,
@@ -143,20 +125,9 @@ async fn open_jit_channel_with_disconnected_payee() {
     // channel to a disconnected payee
     payer.connect(coordinator.info).await.unwrap();
 
-    coordinator.fund(Amount::from_sat(1_000_000)).await.unwrap();
-
-    let payer_outbound_liquidity_sat = 25_000;
-    let coordinator_outbound_liquidity_sat =
-        min_outbound_liquidity_channel_creator(&payer, payer_outbound_liquidity_sat);
-
-    coordinator
-        .open_channel(
-            &payer,
-            coordinator_outbound_liquidity_sat,
-            payer_outbound_liquidity_sat,
-        )
-        .await
-        .unwrap();
+    let payer_to_payee_invoice_amount = 5_000;
+    let _ =
+        setup_coordinator_payer_channel(payer_to_payee_invoice_amount, &coordinator, &payer).await;
 
     // Act
 
@@ -164,7 +135,7 @@ async fn open_jit_channel_with_disconnected_payee() {
 
     let invoice = payee
         .create_interceptable_invoice(
-            Some(1_000),
+            Some(payer_to_payee_invoice_amount),
             intercepted_scid_details.scid,
             coordinator.info.pubkey,
             0,

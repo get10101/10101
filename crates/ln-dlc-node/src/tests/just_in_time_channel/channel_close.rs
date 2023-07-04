@@ -1,10 +1,8 @@
-use crate::ln::JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT;
 use crate::node::Node;
 use crate::tests::bitcoind;
 use crate::tests::init_tracing;
 use crate::tests::just_in_time_channel::create::send_interceptable_payment;
-use crate::tests::min_outbound_liquidity_channel_creator;
-use bitcoin::Amount;
+use crate::tests::setup_coordinator_payer_channel;
 use std::time::Duration;
 
 #[tokio::test(flavor = "multi_thread")]
@@ -21,35 +19,25 @@ async fn ln_collab_close() {
     payer.connect(coordinator.info).await.unwrap();
     payee.connect(coordinator.info).await.unwrap();
 
-    coordinator.fund(Amount::from_sat(1_000_000)).await.unwrap();
-
-    let payer_outbound_liquidity_sat = 25_000;
-    let coordinator_outbound_liquidity_sat =
-        min_outbound_liquidity_channel_creator(&payer, payer_outbound_liquidity_sat);
-
-    coordinator
-        .open_channel(
-            &payer,
-            coordinator_outbound_liquidity_sat,
-            payer_outbound_liquidity_sat,
-        )
-        .await
-        .unwrap();
-
-    let invoice_amount = 1_000;
+    let payer_to_payee_invoice_amount = 10_000;
+    let expected_coordinator_payee_channel_value =
+        setup_coordinator_payer_channel(payer_to_payee_invoice_amount, &coordinator, &payer).await;
 
     send_interceptable_payment(
         &payer,
         &payee,
         &coordinator,
-        invoice_amount,
-        Some(JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT),
+        payer_to_payee_invoice_amount,
+        Some(expected_coordinator_payee_channel_value),
     )
     .await
     .unwrap();
 
     assert_eq!(payee.get_on_chain_balance().unwrap().confirmed, 0);
-    assert_eq!(payee.get_ldk_balance().available, invoice_amount);
+    assert_eq!(
+        payee.get_ldk_balance().available,
+        payer_to_payee_invoice_amount
+    );
     assert_eq!(payee.get_ldk_balance().pending_close, 0);
 
     // Act
@@ -88,7 +76,7 @@ async fn ln_collab_close() {
 
     assert_eq!(
         payee.get_on_chain_balance().unwrap().confirmed,
-        invoice_amount
+        payer_to_payee_invoice_amount
     );
 }
 
@@ -106,35 +94,25 @@ async fn ln_force_close() {
     payer.connect(coordinator.info).await.unwrap();
     payee.connect(coordinator.info).await.unwrap();
 
-    coordinator.fund(Amount::from_sat(1_000_000)).await.unwrap();
-
-    let payer_outbound_liquidity_sat = 25_000;
-    let coordinator_outbound_liquidity_sat =
-        min_outbound_liquidity_channel_creator(&payer, payer_outbound_liquidity_sat);
-
-    coordinator
-        .open_channel(
-            &payer,
-            coordinator_outbound_liquidity_sat,
-            payer_outbound_liquidity_sat,
-        )
-        .await
-        .unwrap();
-
-    let invoice_amount = 1_000;
+    let payer_to_payee_invoice_amount = 5_000;
+    let expected_coordinator_payee_channel_value =
+        setup_coordinator_payer_channel(payer_to_payee_invoice_amount, &coordinator, &payer).await;
 
     send_interceptable_payment(
         &payer,
         &payee,
         &coordinator,
-        invoice_amount,
-        Some(JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT),
+        payer_to_payee_invoice_amount,
+        Some(expected_coordinator_payee_channel_value),
     )
     .await
     .unwrap();
 
     assert_eq!(payee.get_on_chain_balance().unwrap().confirmed, 0);
-    assert_eq!(payee.get_ldk_balance().available, invoice_amount);
+    assert_eq!(
+        payee.get_ldk_balance().available,
+        payer_to_payee_invoice_amount
+    );
     assert_eq!(payee.get_ldk_balance().pending_close, 0);
 
     // Act
@@ -154,7 +132,10 @@ async fn ln_force_close() {
 
     assert_eq!(payee.get_on_chain_balance().unwrap().confirmed, 0);
     assert_eq!(payee.get_ldk_balance().available, 0);
-    assert_eq!(payee.get_ldk_balance().pending_close, invoice_amount);
+    assert_eq!(
+        payee.get_ldk_balance().pending_close,
+        payer_to_payee_invoice_amount
+    );
 
     // Mine enough blocks so that the payee's revocable output in the commitment transaction
     // is spendable

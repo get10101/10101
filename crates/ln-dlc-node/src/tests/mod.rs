@@ -1,5 +1,6 @@
 use crate::ln::app_config;
 use crate::ln::coordinator_config;
+use crate::ln::LIQUIDITY_MULTIPLIER;
 use crate::node::InMemoryStore;
 use crate::node::LnDlcNodeSettings;
 use crate::node::Node;
@@ -34,8 +35,6 @@ use rand::distributions::Alphanumeric;
 use rand::thread_rng;
 use rand::Rng;
 use rand::RngCore;
-use rust_decimal::prelude::ToPrimitive;
-use rust_decimal::Decimal;
 use std::env::temp_dir;
 use std::net::TcpListener;
 use std::path::PathBuf;
@@ -260,38 +259,65 @@ async fn fund_and_mine(address: Address, amount: Amount) -> Result<()> {
     Ok(())
 }
 
-/// Calculate the "minimum" acceptable value for the outbound liquidity
-/// of the channel creator.
-///
-/// The value calculated is not guaranteed to be the exact minimum,
-/// but it should be close enough.
-///
-/// This is useful when the channel creator wants to push as many
-/// coins as possible to their peer on channel creation.
-fn min_outbound_liquidity_channel_creator(peer: &Node<InMemoryStore>, peer_balance: u64) -> u64 {
-    let min_reserve_millionths_creator = Decimal::from(
-        peer.user_config
-            .channel_handshake_config
-            .their_channel_reserve_proportional_millionths,
-    );
+async fn setup_coordinator_payer_channel(
+    payer_to_payee_invoice_amount: u64,
+    coordinator: &Node<InMemoryStore>,
+    payer: &Node<InMemoryStore>,
+) -> u64 {
+    let (
+        coordinator_liquidity,
+        coordinator_payer_inbound_liquidity,
+        coordinator_payer_outbound_liquidity,
+        expected_coordinator_payee_channel_value,
+    ) = calculate_intercept_payment_values(payer_to_payee_invoice_amount);
 
-    let min_reserve_percent_creator = min_reserve_millionths_creator / Decimal::from(1_000_000);
+    coordinator
+        .fund(Amount::from_sat(coordinator_liquidity))
+        .await
+        .unwrap();
 
-    // This is an approximation as we assume that `channel_balance ~=
-    // peer_balance`
-    let channel_balance_estimate = Decimal::from(peer_balance);
+    coordinator
+        .open_channel(
+            payer,
+            coordinator_payer_inbound_liquidity,
+            coordinator_payer_outbound_liquidity,
+        )
+        .await
+        .unwrap();
 
-    let min_reserve_creator = min_reserve_percent_creator * channel_balance_estimate;
-    let min_reserve_creator = min_reserve_creator.to_u64().unwrap();
+    expected_coordinator_payee_channel_value
+}
 
-    // The minimum reserve for any party is actually hard-coded to
-    // 1_000 sats by LDK
-    let min_reserve_creator = min_reserve_creator.max(1_000);
+fn calculate_intercept_payment_values(payer_to_payee_invoice_amount: u64) -> (u64, u64, u64, u64) {
+    (
+        // TODO: If we set the coordinator's liquidity precisely the test may fail reporting
+        //  insufficient funds. This is likely because we don't pick up the change
+        //  output correctly; further investigation needed why.
 
-    // This is just an upper bound
-    let commit_transaction_fee = 1_000;
-
-    min_reserve_creator + commit_transaction_fee
+        // coordinator_liquidity
+        // The invoice defines the channel value (invoice * liquidity_multiplier = channel value)
+        // The coordinator has to provide liquidity with the payer and the payee.
+        // For simplicity we give the coordinator a lot of liquidity to ensure the channels can be
+        // opened.
+        payer_to_payee_invoice_amount * LIQUIDITY_MULTIPLIER * 5,
+        // coordinator_payer_inbound_liquidity
+        // The liquidity of the coordinator in the coordinator<>payer channel
+        // This has to be at least as much as the channel that will be opened from coordinator to
+        // payee to allow payments between payer and payee. For simplicity we set this to
+        // the amount that is equal to the channel that will be created between coordinator and
+        // payee.
+        payer_to_payee_invoice_amount * LIQUIDITY_MULTIPLIER,
+        // coordinator_payer_outbound_liquidity
+        // The liquidity of the payer in the coordinator<>payer channel
+        // This has to be at least as much as the channel that will be opened from coordinator to
+        // payee to allow payments between payer and payee. For simplicity we set this to
+        // the amount that is equal to the channel that will be created between coordinator and
+        // payee.
+        payer_to_payee_invoice_amount * LIQUIDITY_MULTIPLIER,
+        // expected_coordinator_payee_channel_value
+        // The expected channel value of the channel between coordinator and payee.
+        payer_to_payee_invoice_amount * LIQUIDITY_MULTIPLIER,
+    )
 }
 
 fn random_tmp_dir() -> PathBuf {
