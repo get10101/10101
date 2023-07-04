@@ -97,6 +97,8 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
     int tradingCapacity =
         channelCapacity.sats - totalReserve - (provider.counterpartyMargin(widget.direction) ?? 0);
 
+    int coordinatorLiquidityMultiplier = channelInfoService.getCoordinatorLiquidityMultiplier();
+
     return Form(
       key: _formKey,
       child: Column(
@@ -256,7 +258,7 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
                             "Your channel capacity is limited to $channelCapacity sats. During the beta channel resize is not available yet"
                             "In order to trade with higher margin you have to reduce your balance"
                             "\n\nYour current usable balance is $usableBalance."
-                            "Please send ${usableBalance - (channelCapacity.sats / 2)} sats out of your wallet to free up capacity.",
+                            "Please send ${usableBalance - (channelCapacity.sats / coordinatorLiquidityMultiplier)} sats out of your wallet to free up capacity.",
                         buttonText: "Back to order...")
                 ],
               ),

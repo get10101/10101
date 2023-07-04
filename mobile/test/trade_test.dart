@@ -111,6 +111,8 @@ void main() {
 
     when(channelConstraintsService.getTradeFeeReserve()).thenReturn(Amount(1666));
 
+    when(channelConstraintsService.getCoordinatorLiquidityMultiplier()).thenReturn(2);
+
     when(candlestickService.fetchCandles(1000)).thenAnswer((_) async {
       return getDummyCandles(1000);
     });

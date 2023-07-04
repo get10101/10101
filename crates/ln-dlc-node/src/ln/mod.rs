@@ -21,14 +21,14 @@ pub(crate) use logger::TracingLogger;
 /// This value is completely arbitrary.
 ///
 /// This constant only applies to the coordinator.
-pub(crate) const JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT_MAX: u64 = 200_000;
+pub const JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT_MAX: u64 = 200_000;
 
 /// The multiplier to be used by the coordinator to define the just in time channel liquidity
 ///
 /// The liquidity provided by the trader will be multiplied with this value to defined the channel
 /// value.
 /// See `JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT_MAX` for the maximum channel value.
-pub(crate) const LIQUIDITY_MULTIPLIER: u64 = 2;
+pub const LIQUIDITY_MULTIPLIER: u64 = 2;
 
 /// When handling the [`Event::HTLCIntercepted`], the user might not be online right away. This
 /// could be because she is funding the wallet through another wallet. In order to give the user

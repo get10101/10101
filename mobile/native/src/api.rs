@@ -222,6 +222,14 @@ pub fn channel_info() -> Result<Option<ChannelInfo>> {
     Ok(channel_details.map(|channel_details| channel_details.into()))
 }
 
+pub fn coordinator_liquidity_multiplier() -> SyncReturn<u64> {
+    SyncReturn(ln_dlc_node::LIQUIDITY_MULTIPLIER)
+}
+
+pub fn max_channel_value() -> SyncReturn<u64> {
+    SyncReturn(ln_dlc_node::JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT_MAX)
+}
+
 pub fn create_invoice_with_amount(amount_sats: u64) -> Result<String> {
     Ok(ln_dlc::create_invoice(Some(amount_sats))?.to_string())
 }

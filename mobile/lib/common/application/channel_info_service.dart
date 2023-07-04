@@ -11,9 +11,15 @@ class ChannelInfoService {
     return channelInfo != null ? ChannelInfo.fromApi(channelInfo) : null;
   }
 
+  int getCoordinatorLiquidityMultiplier() {
+    // This value is the multiplier that is used to determine the coordinator liquidity
+    return rust.api.coordinatorLiquidityMultiplier();
+  }
+
   Amount getMaxCapacity() {
-    // This value is what we agree on as channel capacity cap for the beta
-    return Amount(200000);
+    // This value is what we agree on as max channel capacity for the beta
+    int maxCapacity = rust.api.maxChannelValue();
+    return Amount(maxCapacity);
   }
 
   Amount getInitialReserve() {

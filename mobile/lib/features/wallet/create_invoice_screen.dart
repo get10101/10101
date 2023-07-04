@@ -61,9 +61,12 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
     Amount maxChannelCapacity = channelInfoService.getMaxCapacity();
     Amount initialReserve = channelInfoService.getInitialReserve();
 
+    int coordinatorLiquidityMultiplier = channelInfoService.getCoordinatorLiquidityMultiplier();
+
     // if we already have a channel we base the calculation on the channel capacity, otherwise we use the maximum channel capacity
     Amount channelCapacity = channelInfo?.channelCapacity ?? maxChannelCapacity;
-    Amount maxAllowedOutboundCapacity = Amount((channelCapacity.sats / 2).floor());
+    Amount maxAllowedOutboundCapacity =
+        Amount((channelCapacity.sats / coordinatorLiquidityMultiplier).floor());
 
     // it can go below 0 if the user has an unbalanced channel
     Amount maxReceiveAmount = Amount(max(maxAllowedOutboundCapacity.sats - balance.sats, 0));
