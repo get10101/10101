@@ -1,3 +1,4 @@
+use crate::db;
 use crate::node::Node;
 use lazy_static::lazy_static;
 use lightning::ln::channelmanager::ChannelDetails;
@@ -5,7 +6,6 @@ use ln_dlc_node::node::InMemoryStore;
 use opentelemetry::global;
 use opentelemetry::metrics::Meter;
 use opentelemetry::metrics::ObservableGauge;
-use opentelemetry::metrics::Unit;
 use opentelemetry::sdk::export::metrics::aggregation;
 use opentelemetry::sdk::metrics::controllers;
 use opentelemetry::sdk::metrics::processors;
@@ -15,6 +15,8 @@ use opentelemetry::KeyValue;
 use opentelemetry_prometheus::PrometheusExporter;
 use std::sync::Arc;
 use std::time::Duration;
+use trade::ContractSymbol;
+use trade::Direction;
 
 lazy_static! {
     pub static ref METER: Meter = global::meter("coordinator");
@@ -46,6 +48,16 @@ lazy_static! {
         .u64_observable_gauge("node_balance_satoshi")
         .with_description("Node balance in satoshi")
         .init();
+
+    // position metrics
+    pub static ref POSITION_QUANTITY: ObservableGauge<f64> = METER
+        .f64_observable_gauge("position_quantity_contracts")
+        .with_description("Current open position in contracts")
+        .init();
+    pub static ref POSITION_MARGIN: ObservableGauge<i64> = METER
+        .i64_observable_gauge("position_margin_sats")
+        .with_description("Current open position margin in sats")
+        .init();
 }
 
 pub fn init_meter() -> PrometheusExporter {
@@ -61,10 +73,90 @@ pub fn init_meter() -> PrometheusExporter {
 
 pub fn collect_metrics(node: Node) {
     let cx = opentelemetry::Context::current();
+    position_metrics(&cx, &node);
+
     let inner_node = node.inner;
     let channels = inner_node.channel_manager.list_channels();
     channel_metrics(&cx, channels);
     node_metrics(&cx, inner_node);
+}
+
+fn position_metrics(cx: &Context, node: &Node) {
+    let mut conn = match node.pool.get() {
+        Ok(conn) => conn,
+        Err(e) => {
+            tracing::error!("Failed to get pool connection. Error: {e:?}");
+            return;
+        }
+    };
+
+    let positions = match db::positions::Position::get_all_open_positions(&mut conn) {
+        Ok(positions) => positions,
+        Err(e) => {
+            tracing::error!("Failed to get positions. Error: {e:?}");
+            return;
+        }
+    };
+
+    let mut margin_long = 0;
+    let mut margin_short = 0;
+    let mut quantity_long = 0.0;
+    let mut quantity_short = 0.0;
+
+    // Note: we should filter positions here by BTCUSD once we have multiple contract symbols
+
+    for position in positions {
+        debug_assert!(
+            position.contract_symbol == ContractSymbol::BtcUsd,
+            "We should filter positions here by BTCUSD once we have multiple contract symbols"
+        );
+        match position.direction {
+            Direction::Long => {
+                margin_long += position.collateral;
+                quantity_long += position.quantity;
+            }
+            Direction::Short => {
+                margin_short += position.collateral;
+                quantity_short += position.quantity;
+            }
+        }
+    }
+    POSITION_QUANTITY.observe(
+        cx,
+        quantity_long as f64,
+        &[
+            KeyValue::new("symbol", "BTCUSD"),
+            KeyValue::new("status", "open"),
+            KeyValue::new("direction", "long"),
+        ],
+    );
+    POSITION_QUANTITY.observe(
+        cx,
+        quantity_short as f64,
+        &[
+            KeyValue::new("symbol", "BTCUSD"),
+            KeyValue::new("status", "open"),
+            KeyValue::new("direction", "short"),
+        ],
+    );
+    POSITION_MARGIN.observe(
+        cx,
+        margin_long,
+        &[
+            KeyValue::new("symbol", "BTCUSD"),
+            KeyValue::new("status", "open"),
+            KeyValue::new("direction", "long"),
+        ],
+    );
+    POSITION_MARGIN.observe(
+        cx,
+        margin_short,
+        &[
+            KeyValue::new("symbol", "BTCUSD"),
+            KeyValue::new("status", "open"),
+            KeyValue::new("direction", "short"),
+        ],
+    );
 }
 
 fn channel_metrics(cx: &Context, channels: Vec<ChannelDetails>) {
