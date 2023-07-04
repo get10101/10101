@@ -1,4 +1,7 @@
+use crate::node::Node;
 use lazy_static::lazy_static;
+use lightning::ln::channelmanager::ChannelDetails;
+use ln_dlc_node::node::InMemoryStore;
 use opentelemetry::global;
 use opentelemetry::metrics::Meter;
 use opentelemetry::metrics::ObservableGauge;
@@ -7,27 +10,27 @@ use opentelemetry::sdk::export::metrics::aggregation;
 use opentelemetry::sdk::metrics::controllers;
 use opentelemetry::sdk::metrics::processors;
 use opentelemetry::sdk::metrics::selectors;
+use opentelemetry::Context;
+use opentelemetry::KeyValue;
 use opentelemetry_prometheus::PrometheusExporter;
+use std::sync::Arc;
 use std::time::Duration;
 
 lazy_static! {
     pub static ref METER: Meter = global::meter("coordinator");
 
     // channel details metrics
-    pub static ref CHANNEL_BALANCE_MSATOSHI: ObservableGauge<u64> = METER
-        .u64_observable_gauge("channel_balance_msatoshi")
-        .with_description("Current channel balance in msatoshi")
-        .with_unit(Unit::new("msats"))
+    pub static ref CHANNEL_BALANCE_SATOSHI: ObservableGauge<u64> = METER
+        .u64_observable_gauge("channel_balance_satoshi")
+        .with_description("Current channel balance in satoshi")
         .init();
-    pub static ref CHANNEL_OUTBOUND_CAPACITY_MSATOSHI: ObservableGauge<u64> = METER
-        .u64_observable_gauge("channel_outbound_capacity_msatoshi")
-        .with_description("Channel outbound capacity in msatoshi")
-        .with_unit(Unit::new("msats"))
+    pub static ref CHANNEL_OUTBOUND_CAPACITY_SATOSHI: ObservableGauge<u64> = METER
+        .u64_observable_gauge("channel_outbound_capacity_satoshi")
+        .with_description("Channel outbound capacity in satoshi")
         .init();
-    pub static ref CHANNEL_INBOUND_CAPACITY_MSATOSHI: ObservableGauge<u64> = METER
-        .u64_observable_gauge("channel_inbound_capacity_msatoshi")
-        .with_description("Channel inbound capacity in msatoshi")
-        .with_unit(Unit::new("msats"))
+    pub static ref CHANNEL_INBOUND_CAPACITY_SATOSHI: ObservableGauge<u64> = METER
+        .u64_observable_gauge("channel_inbound_capacity_satoshi")
+        .with_description("Channel inbound capacity in satoshi")
         .init();
     pub static ref CHANNEL_IS_USABLE: ObservableGauge<u64> = METER
         .u64_observable_gauge("channel_is_usable")
@@ -54,4 +57,97 @@ pub fn init_meter() -> PrometheusExporter {
     .build();
 
     opentelemetry_prometheus::exporter(controller).init()
+}
+
+pub fn collect_metrics(node: Node) {
+    let cx = opentelemetry::Context::current();
+    let inner_node = node.inner;
+    let channels = inner_node.channel_manager.list_channels();
+    channel_metrics(&cx, channels);
+    node_metrics(&cx, inner_node);
+}
+
+fn channel_metrics(cx: &Context, channels: Vec<ChannelDetails>) {
+    for channel_detail in channels {
+        let key_values = [
+            KeyValue::new("channel_id", hex::encode(channel_detail.channel_id)),
+            KeyValue::new("is_outbound", channel_detail.is_outbound),
+            KeyValue::new("is_public", channel_detail.is_public),
+        ];
+        CHANNEL_BALANCE_SATOSHI.observe(cx, channel_detail.balance_msat / 1_000, &key_values);
+        CHANNEL_OUTBOUND_CAPACITY_SATOSHI.observe(
+            cx,
+            channel_detail.outbound_capacity_msat / 1_000,
+            &key_values,
+        );
+        CHANNEL_INBOUND_CAPACITY_SATOSHI.observe(
+            cx,
+            channel_detail.inbound_capacity_msat / 1_000,
+            &key_values,
+        );
+        CHANNEL_IS_USABLE.observe(cx, channel_detail.is_usable as u64, &key_values);
+    }
+}
+
+fn node_metrics(cx: &Context, inner_node: Arc<ln_dlc_node::node::Node<InMemoryStore>>) {
+    let connected_peers = inner_node.list_peers().len();
+    CONNECTED_PEERS.observe(cx, connected_peers as u64, &[]);
+    let offchain = inner_node.get_ldk_balance();
+
+    NODE_BALANCE_SATOSHI.observe(
+        cx,
+        offchain.available,
+        &[
+            KeyValue::new("type", "off-chain"),
+            KeyValue::new("status", "available"),
+        ],
+    );
+    NODE_BALANCE_SATOSHI.observe(
+        cx,
+        offchain.pending_close,
+        &[
+            KeyValue::new("type", "off-chain"),
+            KeyValue::new("status", "pending_close"),
+        ],
+    );
+
+    match inner_node.get_on_chain_balance() {
+        Ok(onchain) => {
+            NODE_BALANCE_SATOSHI.observe(
+                cx,
+                onchain.confirmed,
+                &[
+                    KeyValue::new("type", "on-chain"),
+                    KeyValue::new("status", "confirmed"),
+                ],
+            );
+            NODE_BALANCE_SATOSHI.observe(
+                cx,
+                onchain.immature,
+                &[
+                    KeyValue::new("type", "on-chain"),
+                    KeyValue::new("status", "immature"),
+                ],
+            );
+            NODE_BALANCE_SATOSHI.observe(
+                cx,
+                onchain.trusted_pending,
+                &[
+                    KeyValue::new("type", "on-chain"),
+                    KeyValue::new("status", "trusted_pending"),
+                ],
+            );
+            NODE_BALANCE_SATOSHI.observe(
+                cx,
+                onchain.untrusted_pending,
+                &[
+                    KeyValue::new("type", "on-chain"),
+                    KeyValue::new("status", "untrusted_pending"),
+                ],
+            );
+        }
+        Err(err) => {
+            tracing::error!("Could not retrieve on-chain balance for metrics {err:#}")
+        }
+    }
 }
