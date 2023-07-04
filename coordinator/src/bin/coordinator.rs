@@ -3,10 +3,12 @@ use anyhow::Result;
 use coordinator::cli::Opts;
 use coordinator::db;
 use coordinator::logger;
+use coordinator::metrics::init_meter;
 use coordinator::metrics::CHANNEL_BALANCE_MSATOSHI;
 use coordinator::metrics::CHANNEL_INBOUND_CAPACITY_MSATOSHI;
+use coordinator::metrics::CHANNEL_IS_USABLE;
 use coordinator::metrics::CHANNEL_OUTBOUND_CAPACITY_MSATOSHI;
-use coordinator::metrics::{init_meter, CHANNEL_IS_USABLE};
+use coordinator::metrics::CONNECTED_PEERS;
 use coordinator::node::connection;
 use coordinator::node::Node;
 use coordinator::node::TradeAction;
@@ -168,6 +170,9 @@ async fn main() -> Result<()> {
                             &key_values,
                         );
                     }
+
+                    let connected_peers = node.inner.list_peers().len();
+                    CONNECTED_PEERS.observe(&cx, connected_peers as u64, &[]);
                 })
                 .await
                 .expect("To spawn blocking thread");

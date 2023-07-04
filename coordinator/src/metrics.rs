@@ -33,6 +33,12 @@ lazy_static! {
         .u64_observable_gauge("channel_is_usable")
         .with_description("If a channel is usable")
         .init();
+
+    // general node metrics
+    pub static ref CONNECTED_PEERS: ObservableGauge<u64> = METER
+        .u64_observable_gauge("node_connected_peers_total")
+        .with_description("Total number of connected peers")
+        .init();
 }
 
 pub fn init_meter() -> PrometheusExporter {
