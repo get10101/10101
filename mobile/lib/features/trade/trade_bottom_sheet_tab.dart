@@ -78,8 +78,10 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
     Amount maxChannelCapacity = channelInfoService.getMaxCapacity();
     Amount initialReserve = channelInfoService.getInitialReserve();
 
-    String label = widget.direction == Direction.long ? "Buy" : "Sell";
-    Color color = widget.direction == Direction.long ? tradeTheme.buy : tradeTheme.sell;
+    Direction direction = widget.direction;
+
+    String label = direction == Direction.long ? "Buy" : "Sell";
+    Color color = direction == Direction.long ? tradeTheme.buy : tradeTheme.sell;
 
     Amount channelReserve = channelInfo?.reserve ?? initialReserve;
     int totalReserve = channelReserve.sats + tradeFeeReserve.sats;
@@ -131,7 +133,7 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
                 ),
               ),
               Selector<TradeValuesChangeNotifier, double>(
-                  selector: (_, provider) => provider.fromDirection(widget.direction).price ?? 0,
+                  selector: (_, provider) => provider.fromDirection(direction).price ?? 0,
                   builder: (context, price, child) {
                     return DoubleTextInputFormField(
                       value: price,
@@ -145,8 +147,7 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
                 children: [
                   Flexible(
                     child: Selector<TradeValuesChangeNotifier, double>(
-                      selector: (_, provider) =>
-                          provider.fromDirection(widget.direction).quantity ?? 0.0,
+                      selector: (_, provider) => provider.fromDirection(direction).quantity ?? 0.0,
                       builder: (context, quantity, child) {
                         return DoubleTextInputFormField(
                           value: quantity,
@@ -162,11 +163,11 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
                               double quantity = double.parse(value);
                               context
                                   .read<TradeValuesChangeNotifier>()
-                                  .updateQuantity(widget.direction, quantity);
+                                  .updateQuantity(direction, quantity);
                             } on Exception {
                               context
                                   .read<TradeValuesChangeNotifier>()
-                                  .updateQuantity(widget.direction, 0);
+                                  .updateQuantity(direction, 0);
                             }
                           },
                         );
@@ -179,7 +180,7 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
                   Flexible(
                     child: Selector<TradeValuesChangeNotifier, Amount>(
                       selector: (_, provider) =>
-                          provider.fromDirection(widget.direction).margin ?? Amount(0),
+                          provider.fromDirection(direction).margin ?? Amount(0),
                       builder: (context, margin, child) {
                         return AmountInputField(
                           value: margin,
@@ -195,11 +196,11 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
                               Amount margin = Amount.parse(value);
                               context
                                   .read<TradeValuesChangeNotifier>()
-                                  .updateMargin(widget.direction, margin);
+                                  .updateMargin(direction, margin);
                             } on Exception {
                               context
                                   .read<TradeValuesChangeNotifier>()
-                                  .updateMargin(widget.direction, Amount.zero());
+                                  .updateMargin(direction, Amount.zero());
                             }
                           },
                           validator: (value) {
@@ -210,8 +211,7 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
                             try {
                               int margin = int.parse(value);
 
-                              int? optCounterPartyMargin =
-                                  provider.counterpartyMargin(widget.direction);
+                              int? optCounterPartyMargin = provider.counterpartyMargin(direction);
                               if (optCounterPartyMargin == null) {
                                 return "Counterparty margin not available";
                               }
@@ -264,13 +264,13 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
               LeverageSlider(
                   initialValue: context
                       .read<TradeValuesChangeNotifier>()
-                      .fromDirection(widget.direction)
+                      .fromDirection(direction)
                       .leverage
                       .leverage,
                   onLeverageChanged: (value) {
                     context
                         .read<TradeValuesChangeNotifier>()
-                        .updateLeverage(widget.direction, Leverage(value));
+                        .updateLeverage(direction, Leverage(value));
                   }),
               Row(
                 children: [
@@ -278,7 +278,7 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
                   const SizedBox(width: 5),
                   Selector<TradeValuesChangeNotifier, double>(
                       selector: (_, provider) =>
-                          provider.fromDirection(widget.direction).liquidationPrice ?? 0.0,
+                          provider.fromDirection(direction).liquidationPrice ?? 0.0,
                       builder: (context, liquidationPrice, child) {
                         return Flexible(child: FiatText(amount: liquidationPrice));
                       }),
@@ -294,11 +294,11 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
                   onPressed: () {
                     if (_formKey.currentState!.validate()) {
                       TradeValues tradeValues =
-                          context.read<TradeValuesChangeNotifier>().fromDirection(widget.direction);
+                          context.read<TradeValuesChangeNotifier>().fromDirection(direction);
                       final submitOrderChangeNotifier = context.read<SubmitOrderChangeNotifier>();
                       tradeBottomSheetConfirmation(
                           context: context,
-                          direction: widget.direction,
+                          direction: direction,
                           onConfirmation: () {
                             submitOrderChangeNotifier.submitPendingOrder(
                                 tradeValues, PositionAction.open);
