@@ -72,6 +72,8 @@ impl TestSetup {
         wait_until!(rx.position().is_some());
         wait_until!(rx.position().expect("to have position").position_state == PositionState::Open);
 
+        tokio::time::sleep(std::time::Duration::from_secs(10)).await; // wait for coordinator to open position
+
         setup
     }
 }
