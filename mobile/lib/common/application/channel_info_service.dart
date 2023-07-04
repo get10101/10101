@@ -32,9 +32,11 @@ class ChannelInfoService {
   }
 
   Amount getTradeFeeReserve() {
-    // TODO: Fetch from backend
-    // This hardcoded value corresponds to the fee-rate of 4 sats per vbyte. We should relate this value to that fee-rate in the backend.
-    return Amount(1666);
+    double txFeesreserveForForceCloseAtOneSatsPerVbyte = 416.5;
+
+    int satsPerVbyte = rust.api.contractTxFeeRate();
+    int feeReserve = (txFeesreserveForForceCloseAtOneSatsPerVbyte * satsPerVbyte).ceil();
+    return Amount(feeReserve);
   }
 
   Amount getMinTradeMargin() {

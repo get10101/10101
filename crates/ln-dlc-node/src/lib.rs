@@ -35,6 +35,7 @@ mod util;
 pub mod node;
 pub mod seed;
 
+pub use ln::CONTRACT_TX_FEE_RATE;
 pub use ln::JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT_MAX;
 pub use ln::LIQUIDITY_MULTIPLIER;
 

@@ -30,6 +30,11 @@ pub const JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT_MAX: u64 = 200_000;
 /// See `JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT_MAX` for the maximum channel value.
 pub const LIQUIDITY_MULTIPLIER: u64 = 2;
 
+/// Sats/vbyte rate for position
+///
+/// The coordinator and the app have to align on this to agree on the fees.
+pub const CONTRACT_TX_FEE_RATE: u64 = 4;
+
 /// When handling the [`Event::HTLCIntercepted`], the user might not be online right away. This
 /// could be because she is funding the wallet through another wallet. In order to give the user
 /// some time to open 10101 again we wait for a bit to see if we can establish a connection.

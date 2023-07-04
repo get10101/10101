@@ -30,6 +30,7 @@ use ln_dlc_node::node::dlc_message_name;
 use ln_dlc_node::node::sub_channel_message_name;
 use ln_dlc_node::node::InMemoryStore;
 use ln_dlc_node::WalletSettings;
+use ln_dlc_node::CONTRACT_TX_FEE_RATE;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use std::sync::Arc;
@@ -182,7 +183,7 @@ impl Node {
         let contract_input = ContractInput {
             offer_collateral: margin_coordinator,
             accept_collateral: margin_trader,
-            fee_rate: 4,
+            fee_rate: CONTRACT_TX_FEE_RATE,
             contract_infos: vec![ContractInputInfo {
                 contract_descriptor,
                 oracles: OracleInput {
