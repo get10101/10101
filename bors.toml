@@ -3,4 +3,5 @@ status = [
   "lint-commits",
   "lint-flutter",
   "clippy",
+  "e2e-tests",
 ]
