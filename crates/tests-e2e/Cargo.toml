@@ -18,3 +18,7 @@ tempfile = "3.6.0"
 tokio = { version = "1", default-features = false, features = ["io-util", "macros", "rt", "rt-multi-thread", "sync", "net", "time", "tracing"] }
 tracing = "0.1.37"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+[dev-dependencies]
+clap = { version = "4", features = ["derive"] }
+local-ip-address = "0.5.1"
