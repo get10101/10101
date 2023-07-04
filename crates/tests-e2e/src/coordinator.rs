@@ -1,5 +1,6 @@
 use anyhow::Context;
 use anyhow::Result;
+use ln_dlc_node::node::NodeInfo;
 use reqwest::Client;
 
 /// A wrapper over the coordinator HTTP API
@@ -11,9 +12,15 @@ pub struct Coordinator {
 }
 
 impl Coordinator {
-    pub fn new(client: Client) -> Self {
-        let host = "http://localhost:8000".to_string();
-        Self { client, host }
+    pub fn new(client: Client, host: &str) -> Self {
+        Self {
+            client,
+            host: host.to_string(),
+        }
+    }
+
+    pub fn new_local(client: Client) -> Self {
+        Self::new(client, "http://localhost:8000")
     }
 
     /// Check whether the coordinator is running
@@ -40,6 +47,34 @@ impl Coordinator {
             .status()
             .is_success();
         Ok(result)
+    }
+
+    // TODO: Introduce strong type
+    pub async fn get_new_address(&self) -> Result<String> {
+        Ok(self
+            .get("/api/newaddress")
+            .await?
+            .text()
+            .await?
+            .strip_prefix('"')
+            .to_owned()
+            .expect("prefix")
+            .strip_suffix('"')
+            .expect("suffix")
+            .to_owned())
+    }
+
+    // TODO: Introduce strong type
+    pub async fn get_balance(&self) -> Result<String> {
+        Ok(self.get("/api/admin/balance").await?.text().await?)
+    }
+
+    pub async fn get_node_info(&self) -> Result<NodeInfo> {
+        self.get("/api/node")
+            .await?
+            .json()
+            .await
+            .context("could not parse json")
     }
 
     async fn get(&self, path: &str) -> Result<reqwest::Response> {

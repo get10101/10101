@@ -3278,9 +3278,11 @@ name = "tests-e2e"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bitcoin",
  "clap",
  "coordinator-commons",
  "flutter_rust_bridge",
+ "ln-dlc-node",
  "local-ip-address",
  "native",
  "quote",

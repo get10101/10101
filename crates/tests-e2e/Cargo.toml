@@ -9,6 +9,7 @@ edition = "2021"
 anyhow = "1"
 coordinator-commons = { path = "../coordinator-commons" }
 flutter_rust_bridge = "1.78.0"
+ln-dlc-node = { path = "../ln-dlc-node" }
 native = { path = "../../mobile/native" }
 quote = "1.0.28"
 reqwest = { version = "0.11", default-features = false, features = ["json"] }
@@ -20,5 +21,6 @@ tracing = "0.1.37"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 [dev-dependencies]
+bitcoin = "0.29"
 clap = { version = "4", features = ["derive"] }
 local-ip-address = "0.5.1"

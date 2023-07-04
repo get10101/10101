@@ -8,6 +8,8 @@ use local_ip_address::local_ip;
 use reqwest::Response;
 use serde::Deserialize;
 use std::time::Duration;
+use tests_e2e::coordinator::Coordinator;
+use tests_e2e::http::init_reqwest;
 use tracing::metadata::LevelFilter;
 use tracing_subscriber::filter::Directive;
 use tracing_subscriber::layer::SubscriberExt;
@@ -37,17 +39,15 @@ async fn main() {
 }
 
 async fn fund_everything(faucet: &str, coordinator: &str) -> Result<()> {
-    let coord_addr = get_coordinator_address(coordinator).await?;
+    let coordinator = Coordinator::new(init_reqwest(), coordinator);
+    let coord_addr = coordinator.get_new_address().await?;
     fund(&coord_addr, Amount::ONE_BTC, faucet).await?;
     mine(10, faucet).await?;
 
-    let coordinator_balance = get_text(&format!("{coordinator}/api/admin/balance")).await?;
+    let coordinator_balance = coordinator.get_balance().await?;
     tracing::info!("coordinator BTC balance: {}", coordinator_balance);
 
-    let node: NodeInfo = reqwest::get(format!("{coordinator}/api/node"))
-        .await?
-        .json()
-        .await?;
+    let node: NodeInfo = coordinator.get_node_info().await?;
     tracing::info!("lightning node: {}", node);
 
     let lnd_addr: LndAddr = reqwest::get(&format!("{faucet}/lnd/v1/newaddress"))
@@ -65,12 +65,12 @@ async fn fund_everything(faucet: &str, coordinator: &str) -> Result<()> {
     .await?;
     mine(10, faucet).await?;
 
-    if let Err(e) = post_sync(&format!("{coordinator}/api/admin/sync")).await {
+    if let Err(e) = coordinator.sync_wallet().await {
         tracing::warn!("failed to sync coordinator: {}", e);
     }
 
     let lnd_balance = get_text(&format!("{faucet}/lnd/v1/balance/blockchain")).await?;
-    tracing::info!("coordinator lightning balance: {}", lnd_balance);
+    tracing::info!("faucet lightning balance: {}", lnd_balance);
 
     open_channel(
         &node,
@@ -89,18 +89,6 @@ async fn fund_everything(faucet: &str, coordinator: &str) -> Result<()> {
 #[derive(Deserialize)]
 struct LndAddr {
     address: String,
-}
-
-// Includes some bespoke text processing that ensures we can deserialise the response properly
-async fn get_coordinator_address(coordinator: &str) -> Result<String> {
-    Ok(get_text(&format!("{coordinator}/api/newaddress"))
-        .await?
-        .strip_prefix('"')
-        .to_owned()
-        .expect("prefix")
-        .strip_suffix('"')
-        .expect("suffix")
-        .to_owned())
 }
 
 async fn get_text(url: &str) -> Result<String> {
@@ -150,19 +138,9 @@ async fn mine(n: u16, faucet: &str) -> Result<()> {
     Ok(())
 }
 
-async fn post_sync(request: &str) -> Result<Response> {
-    let client = reqwest::Client::new();
-    let response = client.post(request).send().await?;
-
-    if !response.status().is_success() {
-        bail!(response.text().await?)
-    }
-    Ok(response)
-}
-
 async fn post_query(path: &str, body: String, faucet: &str) -> Result<Response> {
     let faucet = faucet.to_string();
-    let client = reqwest::Client::new();
+    let client = init_reqwest();
     let response = client
         .post(format!("{faucet}/{path}"))
         .body(body)
