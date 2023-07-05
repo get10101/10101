@@ -10,23 +10,27 @@ class ChannelInfoService {
     return channelInfo != null ? ChannelInfo.fromApi(channelInfo) : null;
   }
 
+  /// The multiplier that is used to determine the coordinator liquidity
+  ///
+  /// This value is an arbitrary number that may be subject to change.
   int getCoordinatorLiquidityMultiplier() {
-    // This value is the multiplier that is used to determine the coordinator liquidity
     return rust.api.coordinatorLiquidityMultiplier();
   }
 
+  /// The agreed upon maximum channel capacity for the beta
+  ///
+  /// This value is an arbitrary number that may be subject to change.
   Amount getMaxCapacity() {
-    // This value is what we agree on as max channel capacity for the beta
     int maxCapacity = rust.api.maxChannelValue();
     return Amount(maxCapacity);
   }
 
+  /// The assumed channel reserve if no channel was opened yet
+  ///
+  /// The channel reserve is defined by the transaction fees needed to close the channel (commit tx).
+  /// Before we have an actual channel we assume the reserve to be 3066 sats which is maximum at 20 sats/vbyte.
+  /// For simplicity we hard-code the initial channel reserve to a slightly higher value to be on the safe side.
   Amount getInitialReserve() {
-    // This is the minimum value that has to remain in the channel.
-    // It is defined by the transaction fees needed to close the channel (commit tx).
-    // This fee is dynamically calculated when opening the channel, but for the beta we define a maximum of 20 sats/vbyte.
-    // Given only one output a channel force close would require 3066 sats if we assume the maximum of 20 sats/vbyte.
-    // For simplicity we hard-code the channel reserve to a slightly higher value to be on the safe side.
     return Amount(3100);
   }
 
@@ -38,8 +42,10 @@ class ChannelInfoService {
     return Amount(feeReserve);
   }
 
+  /// We only allow trades with a minimum of 1000 sats margin.
+  ///
+  /// This value is an arbitrary number that may be subject to change.
   Amount getMinTradeMargin() {
-    // This value is an arbitrary number; we only allow trades with a minimum of 1000 sats margin.
     return Amount(1000);
   }
 }
