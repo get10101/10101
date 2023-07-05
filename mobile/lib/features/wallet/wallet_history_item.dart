@@ -125,13 +125,13 @@ class WalletHistoryItem extends StatelessWidget {
                         style: TextStyle(
                             color: color,
                             fontFamily: "Courier",
-                            fontSize: 16,
+                            fontSize: 14,
                             fontWeight: FontWeight.bold))
                   ]),
                 ),
                 RichText(
                     text: TextSpan(style: DefaultTextStyle.of(context).style, children: <TextSpan>[
-                  TextSpan(text: onOrOff, style: const TextStyle(color: Colors.grey)),
+                  TextSpan(text: onOrOff, style: const TextStyle(color: Colors.grey, fontSize: 10)),
                 ]))
               ],
             ),
