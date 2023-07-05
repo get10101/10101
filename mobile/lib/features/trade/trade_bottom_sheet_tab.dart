@@ -283,6 +283,15 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
                       builder: (context, liquidationPrice, child) {
                         return Flexible(child: FiatText(amount: liquidationPrice));
                       }),
+                  const SizedBox(width: 20),
+                  const Flexible(child: Text("Estimated fee:")),
+                  const SizedBox(width: 5),
+                  Selector<TradeValuesChangeNotifier, Amount>(
+                      selector: (_, provider) =>
+                          provider.orderMatchingFee(direction) ?? Amount.zero(),
+                      builder: (context, fee, child) {
+                        return Flexible(child: AmountText(amount: fee));
+                      }),
                 ],
               )
             ],
