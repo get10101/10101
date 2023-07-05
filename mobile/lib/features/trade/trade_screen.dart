@@ -300,6 +300,7 @@ class TradeScreen extends StatelessWidget {
   Widget createSubmitWidget(PendingOrder pendingOrder, Amount pnl,
       SubmitOrderChangeNotifier submitOrderChangeNotifier, BuildContext context) {
     String bottomText;
+    String pnlText = "Unrealized P/L";
 
     switch (pendingOrder.state) {
       case PendingOrderState.submittedSuccessfully:
@@ -313,6 +314,9 @@ class TradeScreen extends StatelessWidget {
       case PendingOrderState.orderFilled:
         if (pendingOrder.positionAction == PositionAction.close) {
           bottomText = "Your position has been closed.";
+          // At this point, the position is closed so P/L has been realized
+          // TODO - calculate based on subchannel finalized event
+          pnlText = "P/L";
         } else {
           bottomText = "Congratulations! Your position will be shown in the Positions tab.";
         }
@@ -328,7 +332,7 @@ class TradeScreen extends StatelessWidget {
             runSpacing: 10,
             children: [
               pendingOrder.positionAction == PositionAction.close
-                  ? ValueDataRow(type: ValueType.amount, value: pnl, label: "Unrealized P/L")
+                  ? ValueDataRow(type: ValueType.amount, value: pnl, label: pnlText)
                   : ValueDataRow(
                       type: ValueType.amount,
                       value: submitOrderChangeNotifier.pendingOrderValues?.margin,
