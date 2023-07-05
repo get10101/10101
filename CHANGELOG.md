@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Change the share button after opening to only share to Twitter
+
 ## [1.1.0] - 2023-07-27
 
 - Charge funding transaction on-chain fees upon receiving and inbound JIT Channel
