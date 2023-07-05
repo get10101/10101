@@ -1,8 +1,3 @@
-mod price;
-
-pub use crate::price::best_current_price;
-pub use crate::price::Price;
-pub use crate::price::Prices;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use secp256k1::Message;
@@ -18,8 +13,19 @@ use time::OffsetDateTime;
 use trade::Direction;
 use uuid::Uuid;
 
+mod order_matching_fee;
+mod price;
+
+pub use crate::order_matching_fee::order_matching_fee_taker;
+pub use crate::price::best_current_price;
+pub use crate::price::Price;
+pub use crate::price::Prices;
+
 // For now we hardcode a global expiry for all newly created orders.
 pub const DEFAULT_ORDER_EXPIRY: Duration = Duration::minutes(1);
+
+/// The prefix used in the description field of an order-matching fee invoice to be paid by a taker.
+pub const FEE_INVOICE_DESCRIPTION_PREFIX_TAKER: &str = "taker-fee-";
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct Order {

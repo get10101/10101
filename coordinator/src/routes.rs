@@ -222,12 +222,12 @@ pub async fn get_invoice(
 pub async fn post_trade(
     State(state): State<Arc<AppState>>,
     trade_params: Json<TradeParams>,
-) -> Result<(), AppError> {
-    state.node.trade(&trade_params.0).await.map_err(|e| {
+) -> Result<String, AppError> {
+    let invoice = state.node.trade(&trade_params.0).await.map_err(|e| {
         AppError::InternalServerError(format!("Could not handle trade request: {e:#}"))
     })?;
 
-    Ok(())
+    Ok(invoice.to_string())
 }
 
 /// Internal API for syncing the wallet

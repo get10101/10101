@@ -84,7 +84,7 @@ type RequestedScid = u64;
 type FakeChannelPaymentRequests = Arc<Mutex<HashMap<RequestedScid, PublicKey>>>;
 type PendingInterceptedHtlcs = Arc<Mutex<HashMap<PublicKey, (InterceptId, u64)>>>;
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct PaymentInfo {
     pub preimage: Option<PaymentPreimage>,
     pub secret: Option<PaymentSecret>,
@@ -92,6 +92,7 @@ pub struct PaymentInfo {
     pub amt_msat: MillisatAmount,
     pub flow: PaymentFlow,
     pub timestamp: OffsetDateTime,
+    pub description: String,
 }
 
 #[derive(Debug, Clone, Copy)]

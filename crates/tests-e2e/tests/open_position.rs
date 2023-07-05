@@ -1,5 +1,6 @@
 use native::api;
 use native::api::ContractSymbol;
+use native::api::WalletType;
 use native::trade::order::api::NewOrder;
 use native::trade::order::api::OrderType;
 use native::trade::position::PositionState;
@@ -51,4 +52,14 @@ async fn can_open_position() {
     );
     assert_eq!(app.rx.position().unwrap().leverage, order.leverage);
     wait_until!(app.rx.position().unwrap().position_state == PositionState::Open);
+
+    // Assert that the app has paid an order-matching fee
+    let order_id_original = app.rx.order().unwrap().id.to_string();
+    wait_until!(app
+        .rx
+        .wallet_info()
+        .unwrap()
+        .history
+        .iter()
+        .any(|item| matches!(item.wallet_type, WalletType::OrderMatchingFee { ref order_id } if order_id == &order_id_original)));
 }

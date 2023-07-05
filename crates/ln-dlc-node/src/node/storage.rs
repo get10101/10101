@@ -115,6 +115,7 @@ impl Storage for InMemoryStore {
                         amt_msat: MillisatAmount(None),
                         flow,
                         timestamp: OffsetDateTime::now_utc(),
+                        description: "".to_string(),
                     },
                 );
             }
@@ -130,14 +131,14 @@ impl Storage for InMemoryStore {
         let payments = self.payments_lock();
         let info = payments.get(payment_hash);
 
-        let payment = info.map(|info| (*payment_hash, *info));
+        let payment = info.map(|info| (*payment_hash, info.clone()));
 
         Ok(payment)
     }
 
     fn all_payments(&self) -> Result<Vec<(PaymentHash, PaymentInfo)>> {
         let payments = self.payments_lock();
-        let payments = payments.iter().map(|(a, b)| (*a, *b)).collect();
+        let payments = payments.iter().map(|(a, b)| (*a, b.clone())).collect();
 
         Ok(payments)
     }

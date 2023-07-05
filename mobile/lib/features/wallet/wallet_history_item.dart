@@ -31,6 +31,11 @@ class WalletHistoryItem extends StatelessWidget {
           Icons.bar_chart,
           size: flowIconSize,
         );
+      } else if (data.type == WalletHistoryItemDataType.orderMatchingFee) {
+        return const Icon(
+          Icons.toll,
+          size: flowIconSize,
+        );
       }
 
       switch (data.flow) {
@@ -51,7 +56,16 @@ class WalletHistoryItem extends StatelessWidget {
         case WalletHistoryItemDataType.onChain:
           return data.txid ?? "";
         case WalletHistoryItemDataType.trade:
-          return data.orderId ?? "";
+          final orderId = data.orderId!.substring(0, 8);
+          switch (data.flow) {
+            case PaymentFlow.inbound:
+              return "Closed position with order $orderId";
+            case PaymentFlow.outbound:
+              return "Opened position with order $orderId";
+          }
+        case WalletHistoryItemDataType.orderMatchingFee:
+          final orderId = data.orderId!.substring(0, 8);
+          return "Matching fee for $orderId";
       }
     }();
 
@@ -59,6 +73,7 @@ class WalletHistoryItem extends StatelessWidget {
       switch (data.type) {
         case WalletHistoryItemDataType.lightning:
         case WalletHistoryItemDataType.trade:
+        case WalletHistoryItemDataType.orderMatchingFee:
           return "off-chain";
         case WalletHistoryItemDataType.onChain:
           return "on-chain";

@@ -235,6 +235,7 @@ where
                                 amt_msat,
                                 flow: PaymentFlow::Outbound,
                                 timestamp: OffsetDateTime::now_utc(),
+                                description: "".to_string(),
                             },
                         ) {
                             tracing::error!(

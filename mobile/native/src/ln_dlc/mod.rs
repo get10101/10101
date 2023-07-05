@@ -32,6 +32,8 @@ use ln_dlc_node::node::LnDlcNodeSettings;
 use ln_dlc_node::node::NodeInfo;
 use ln_dlc_node::seed::Bip39Seed;
 use orderbook_commons::FakeScidResponse;
+use orderbook_commons::FEE_INVOICE_DESCRIPTION_PREFIX_TAKER;
+use parking_lot::RwLock;
 use rust_decimal::Decimal;
 use state::Storage;
 use std::net::IpAddr;
@@ -174,7 +176,10 @@ pub fn run(data_dir: String, seed_dir: String, runtime: &Runtime) -> Result<()> 
             config::get_oracle_info(),
             event_sender,
         )?);
-        let node = Arc::new(Node { inner: node });
+        let node = Arc::new(Node {
+            inner: node,
+            order_matching_fee_invoice: Arc::new(RwLock::new(None)),
+        });
 
         runtime.spawn({
             let node = node.clone();
@@ -303,8 +308,14 @@ async fn keep_wallet_balance_and_history_up_to_date(node: &Node) -> Result<()> {
 
         let timestamp = details.timestamp.unix_timestamp() as u64;
 
-        let wallet_type = api::WalletType::Lightning {
-            payment_hash: hex::encode(details.payment_hash.0),
+        let payment_hash = hex::encode(details.payment_hash.0);
+
+        let description = &details.description;
+        let wallet_type = match description.strip_prefix(FEE_INVOICE_DESCRIPTION_PREFIX_TAKER) {
+            Some(order_id) => api::WalletType::OrderMatchingFee {
+                order_id: order_id.to_string(),
+            },
+            None => api::WalletType::Lightning { payment_hash },
         };
 
         Some(api::WalletHistoryItem {
@@ -482,6 +493,27 @@ pub async fn trade(trade_params: TradeParams) -> Result<(), (FailureReason, anyh
     }
 
     tracing::info!("Sent trade request to coordinator successfully");
+
+    let order_matching_fee_invoice = response.text().await.map_err(|e| {
+        (
+            FailureReason::TradeResponse,
+            anyhow!("Could not deserialize order-matching fee invoice: {e:#}"),
+        )
+    })?;
+    let order_matching_fee_invoice: Invoice = order_matching_fee_invoice.parse().map_err(|e| {
+        (
+            FailureReason::TradeResponse,
+            anyhow!("Could not parse order-matching fee invoice: {e:#}"),
+        )
+    })?;
+
+    let payment_hash = *order_matching_fee_invoice.payment_hash();
+
+    spawn_blocking(|| {
+        *NODE.get().order_matching_fee_invoice.write() = Some(order_matching_fee_invoice);
+    });
+
+    tracing::info!(%payment_hash, "Registered order-matching fee invoice to be paid later");
 
     Ok(())
 }

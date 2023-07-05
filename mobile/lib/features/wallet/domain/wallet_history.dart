@@ -2,7 +2,7 @@ import 'package:get_10101/common/domain/model.dart';
 import 'payment_flow.dart';
 import 'package:get_10101/bridge_generated/bridge_definitions.dart' as rust;
 
-enum WalletHistoryItemDataType { lightning, onChain, trade }
+enum WalletHistoryItemDataType { lightning, onChain, trade, orderMatchingFee }
 
 enum WalletHistoryStatus { pending, confirmed }
 
@@ -62,6 +62,18 @@ class WalletHistoryItemData {
           amount: amount,
           status: status,
           type: WalletHistoryItemDataType.trade,
+          timestamp: timestamp,
+          orderId: type.orderId);
+    }
+
+    if (item.walletType is rust.WalletType_OrderMatchingFee) {
+      rust.WalletType_OrderMatchingFee type = item.walletType as rust.WalletType_OrderMatchingFee;
+
+      return WalletHistoryItemData(
+          flow: flow,
+          amount: amount,
+          status: status,
+          type: WalletHistoryItemDataType.orderMatchingFee,
           timestamp: timestamp,
           orderId: type.orderId);
     }

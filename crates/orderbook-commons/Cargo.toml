@@ -7,6 +7,7 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1"
+bitcoin = "0.29"
 rust_decimal = { version = "1", features = ["serde-with-float"] }
 secp256k1 = { version = "0.24.3", features = ["serde"] }
 serde = { version = "1", features = ["derive"] }

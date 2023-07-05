@@ -634,6 +634,8 @@ pub(crate) struct PaymentInsertable {
     pub flow: Flow,
     pub created_at: i64,
     pub updated_at: i64,
+    #[diesel(sql_type = Text)]
+    pub description: String,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, FromSqlRow, AsExpression)]
@@ -743,6 +745,7 @@ pub(crate) struct PaymentQueryable {
     pub flow: Flow,
     pub created_at: i64,
     pub updated_at: i64,
+    pub description: String,
 }
 
 impl PaymentQueryable {
@@ -772,6 +775,7 @@ impl From<(lightning::ln::PaymentHash, ln_dlc_node::PaymentInfo)> for PaymentIns
             flow: info.flow.into(),
             created_at: timestamp,
             updated_at: timestamp,
+            description: info.description,
         }
     }
 }
@@ -821,6 +825,8 @@ impl TryFrom<PaymentQueryable> for (lightning::ln::PaymentHash, ln_dlc_node::Pay
 
         let timestamp = OffsetDateTime::from_unix_timestamp(value.created_at)?;
 
+        let description = value.description;
+
         Ok((
             payment_hash,
             ln_dlc_node::PaymentInfo {
@@ -830,6 +836,7 @@ impl TryFrom<PaymentQueryable> for (lightning::ln::PaymentHash, ln_dlc_node::Pay
                 amt_msat,
                 flow,
                 timestamp,
+                description,
             },
         ))
     }
@@ -1208,6 +1215,7 @@ pub mod test {
         let flow = Flow::Inbound;
         let created_at = 100;
         let updated_at = 100;
+        let description = "payment1".to_string();
 
         let payment = PaymentInsertable {
             payment_hash: payment_hash.to_string(),
@@ -1218,6 +1226,7 @@ pub mod test {
             flow,
             created_at,
             updated_at,
+            description: description.clone(),
         };
 
         PaymentInsertable::insert(payment, &mut connection).unwrap();
@@ -1233,6 +1242,7 @@ pub mod test {
                 flow: Flow::Outbound,
                 created_at: 200,
                 updated_at: 200,
+                description: "payment2".to_string()
             },
             &mut connection,
         )
@@ -1252,6 +1262,7 @@ pub mod test {
             flow,
             created_at,
             updated_at,
+            description,
         };
 
         assert_eq!(expected_payment, loaded_payment);
