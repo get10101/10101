@@ -355,4 +355,10 @@ tests-e2e args="": services
     set -euxo pipefail
     cargo test -p tests-e2e -- --ignored --test-threads=1 {{args}}
 
+# Run a single end-to-end test for debugging purposes
+e2e-single test_name="": services
+    #!/usr/bin/env bash
+    set -euxo pipefail
+    cargo test -p tests-e2e --test {{test_name}} -- --ignored --nocapture
+
 # vim:expandtab:sw=4:ts=4

@@ -25,23 +25,30 @@ pub async fn run_app() -> AppHandle {
         let app_dir = as_string(&app_dir);
         let seed_dir = as_string(&seed_dir);
         tokio::task::spawn_blocking(move || {
-            native::api::run(default_config(), app_dir, seed_dir).expect("Could not run app")
+            native::api::run(
+                default_config(),
+                app_dir,
+                seed_dir,
+                native::api::IncludeBacktraceOnPanic::No,
+            )
+            .expect("Could not run app")
         })
     };
 
     let (rx, tx) = TestSubscriber::new();
-    native::event::subscribe(tx.clone());
-
-    wait_until!(rx.init_msg() == Some("10101 is ready.".to_string()));
-    wait_until!(rx.wallet_info().is_some()); // wait for initial wallet sync
-
-    AppHandle {
+    let app = AppHandle {
         _app_dir: app_dir,
         _seed_dir: seed_dir,
         _handle: _app_handle,
         rx,
-        _tx: tx,
-    }
+        _tx: tx.clone(),
+    };
+
+    native::event::subscribe(tx);
+
+    wait_until!(app.rx.init_msg() == Some("10101 is ready.".to_string()));
+    wait_until!(app.rx.wallet_info().is_some()); // wait for initial wallet sync
+    app
 }
 
 // Values taken from `environment.dart`

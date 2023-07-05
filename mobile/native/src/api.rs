@@ -177,21 +177,35 @@ pub fn subscribe(stream: StreamSink<event::api::Event>) {
 /// There is no recovery possible, and panicking is the only option ensuring
 /// that we will get an adequate crash report.
 pub fn run_in_flutter(config: Config, app_dir: String, seed_dir: String) {
-    run(config, app_dir, seed_dir).expect("Failed to start the backend");
+    run(config, app_dir, seed_dir, IncludeBacktraceOnPanic::Yes)
+        .expect("Failed to start the backend");
 }
 
-pub fn run(config: Config, app_dir: String, seed_dir: String) -> Result<()> {
-    std::panic::set_hook(
-        #[allow(clippy::print_stderr)]
-        Box::new(|info| {
-            let backtrace = Backtrace::force_capture();
+#[derive(PartialEq)]
+pub enum IncludeBacktraceOnPanic {
+    Yes,
+    No,
+}
 
-            tracing::error!(%info, "Aborting after panic in task");
-            eprintln!("{backtrace}");
+pub fn run(
+    config: Config,
+    app_dir: String,
+    seed_dir: String,
+    backtrace_on_panic: IncludeBacktraceOnPanic,
+) -> Result<()> {
+    if backtrace_on_panic == IncludeBacktraceOnPanic::Yes {
+        std::panic::set_hook(
+            #[allow(clippy::print_stderr)]
+            Box::new(|info| {
+                let backtrace = Backtrace::force_capture();
 
-            std::process::abort()
-        }),
-    );
+                tracing::error!(%info, "Aborting after panic in task");
+                eprintln!("{backtrace}");
+
+                std::process::abort()
+            }),
+        );
+    }
 
     config::set(config);
     db::init_db(&app_dir, get_network())?;

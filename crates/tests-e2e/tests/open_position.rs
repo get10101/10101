@@ -1,13 +1,9 @@
+use native::api;
 use native::api::ContractSymbol;
-use native::api::{self};
 use native::trade::order::api::NewOrder;
 use native::trade::order::api::OrderType;
 use native::trade::position::PositionState;
-use tests_e2e::app::run_app;
-use tests_e2e::coordinator::Coordinator;
-use tests_e2e::fund::fund_app_with_faucet;
-use tests_e2e::http::init_reqwest;
-use tests_e2e::tracing::init_tracing;
+use tests_e2e::setup::TestSetup;
 use tests_e2e::wait_until;
 use tokio::task::spawn_blocking;
 
@@ -24,15 +20,8 @@ fn dummy_order() -> NewOrder {
 #[tokio::test]
 #[ignore = "need to be run with 'just e2e' command"]
 async fn can_open_position() {
-    init_tracing();
-    let client = init_reqwest();
-    let coordinator = Coordinator::new_local(client.clone());
-    assert!(coordinator.is_running().await);
-
-    let app = run_app().await;
-
-    fund_app_with_faucet(&client, 50_000).await.unwrap();
-    wait_until!(app.rx.wallet_info().unwrap().balances.lightning == 50_000);
+    let test = TestSetup::new_after_funding().await;
+    let app = &test.app;
 
     let order = dummy_order();
     spawn_blocking({
