@@ -222,13 +222,13 @@ run-maker-detached:
 coordinator-logs:
     #!/usr/bin/env bash
     set -euxo pipefail
-    tail -f {{coordinator_log_file}}
+    less +F {{coordinator_log_file}}
 
 # Attach to the current maker logs
 maker-logs:
     #!/usr/bin/env bash
     set -euxo pipefail
-    tail -f {{maker_log_file}}
+    less +F {{maker_log_file}}
 
 # Run services in the background
 services: docker run-coordinator-detached run-maker-detached wait-for-coordinator-to-be-ready fund
