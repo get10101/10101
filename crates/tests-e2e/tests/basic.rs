@@ -1,5 +1,4 @@
 use anyhow::Result;
-use native::api;
 use tests_e2e::app::run_app;
 use tests_e2e::coordinator::Coordinator;
 use tests_e2e::fund::fund_app_with_faucet;
@@ -16,10 +15,6 @@ async fn app_can_be_funded_with_lnd_faucet() -> Result<()> {
     assert!(coordinator.is_running().await);
 
     let app = run_app().await;
-
-    // this is just to showcase we can retrieve value from a SyncReturn
-    let node_id: String = api::get_node_id().0;
-    tracing::info!("Node ID: {}", node_id);
 
     // Unfunded wallet should be empty
     assert_eq!(app.rx.wallet_info().unwrap().balances.on_chain, 0);
