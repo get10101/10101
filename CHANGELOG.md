@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 - Charge funding transaction on-chain fees upon receiving and inbound JIT Channel
+- Added prometheus metrics to coordinator: `channel_balance_satoshi`, `channel_outbound_capacity_satoshi`, `channel_inbound_capacity_satoshi`, `channel_is_usable`, `node_connected_peers_total`, `node_balance_satoshi`, `position_quantity_contracts`, `position_margin_sats`
 
 ## [1.0.21] - 2023-07-02
 
