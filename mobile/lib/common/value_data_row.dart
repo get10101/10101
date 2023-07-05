@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-
-import 'amount_text.dart';
-import 'fiat_text.dart';
+import 'package:get_10101/common/amount_text.dart';
+import 'package:get_10101/common/fiat_text.dart';
 
 enum ValueType { date, amount, fiat, percentage, contracts, loading, text }
 

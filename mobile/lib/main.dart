@@ -39,11 +39,11 @@ import 'package:get_10101/util/preferences.dart';
 import 'package:go_router/go_router.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
-import 'common/amount_denomination_change_notifier.dart';
-import 'features/trade/domain/order.dart';
-import 'features/trade/domain/price.dart';
-import 'features/wallet/domain/wallet_info.dart';
-import 'ffi.dart' as rust;
+import 'package:get_10101/common/amount_denomination_change_notifier.dart';
+import 'package:get_10101/features/trade/domain/order.dart';
+import 'package:get_10101/features/trade/domain/price.dart';
+import 'package:get_10101/features/wallet/domain/wallet_info.dart';
+import 'package:get_10101/ffi.dart' as rust;
 
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
 final GlobalKey<NavigatorState> _shellNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'shell');

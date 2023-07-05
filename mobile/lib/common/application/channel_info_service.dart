@@ -1,7 +1,6 @@
 import 'package:get_10101/common/domain/channel.dart';
 import 'package:get_10101/ffi.dart' as rust;
-
-import '../domain/model.dart';
+import 'package:get_10101/common/domain/model.dart';
 
 class ChannelInfoService {
   const ChannelInfoService();

@@ -12,9 +12,8 @@ import 'package:get_10101/features/wallet/wallet_change_notifier.dart';
 import 'package:get_10101/features/wallet/wallet_screen.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-
-import '../../common/domain/model.dart';
-import 'domain/lightning_invoice.dart';
+import 'package:get_10101/common/domain/model.dart';
+import 'package:get_10101/features/wallet/domain/lightning_invoice.dart';
 
 class SendScreen extends StatefulWidget {
   static const route = "${WalletScreen.route}/$subRouteName";

@@ -7,9 +7,8 @@ import 'package:get_10101/features/trade/domain/leverage.dart';
 import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
 import 'package:get_10101/common/application/event_service.dart';
 import 'package:get_10101/common/dummy_values.dart';
-
-import 'domain/price.dart';
-import 'domain/trade_values.dart';
+import 'package:get_10101/features/trade/domain/price.dart';
+import 'package:get_10101/features/trade/domain/trade_values.dart';
 
 class TradeValuesChangeNotifier extends ChangeNotifier implements Subscriber {
   final TradeValuesService tradeValuesService;

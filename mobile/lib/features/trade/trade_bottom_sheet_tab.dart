@@ -19,9 +19,8 @@ import 'package:get_10101/features/wallet/domain/wallet_info.dart';
 import 'package:get_10101/features/wallet/wallet_change_notifier.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-
-import '../../common/application/channel_info_service.dart';
-import '../../common/domain/channel.dart';
+import 'package:get_10101/common/application/channel_info_service.dart';
+import 'package:get_10101/common/domain/channel.dart';
 
 class TradeBottomSheetTab extends StatefulWidget {
   final Direction direction;

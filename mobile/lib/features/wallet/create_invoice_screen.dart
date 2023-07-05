@@ -11,8 +11,8 @@ import 'package:get_10101/features/wallet/wallet_screen.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:get_10101/common/modal_bottom_sheet_info.dart';
-import '../../common/domain/channel.dart';
-import 'application/wallet_service.dart';
+import 'package:get_10101/common/domain/channel.dart';
+import 'package:get_10101/features/wallet/application/wallet_service.dart';
 
 class CreateInvoiceScreen extends StatefulWidget {
   static const route = "${WalletScreen.route}/$subRouteName";
