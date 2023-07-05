@@ -3,6 +3,8 @@ use anyhow::Result;
 use coordinator::cli::Opts;
 use coordinator::db;
 use coordinator::logger;
+use coordinator::metrics::collect_metrics;
+use coordinator::metrics::init_meter;
 use coordinator::node::connection;
 use coordinator::node::Node;
 use coordinator::node::TradeAction;
@@ -29,6 +31,7 @@ use tokio::task::spawn_blocking;
 use tracing::metadata::LevelFilter;
 use trade::bitmex_client::BitmexClient;
 
+const PROCESS_PROMETHEUS_METRICS: Duration = Duration::from_secs(10);
 const PROCESS_INCOMING_DLC_MESSAGES_INTERVAL: Duration = Duration::from_secs(5);
 const POSITION_SYNC_INTERVAL: Duration = Duration::from_secs(300);
 const CONNECTION_CHECK_INTERVAL: Duration = Duration::from_secs(30);
@@ -46,6 +49,8 @@ async fn main() -> Result<()> {
             std::process::abort()
         }),
     );
+
+    let exporter = init_meter();
 
     let opts = Opts::read();
     let data_dir = opts.data_dir()?;
@@ -121,6 +126,19 @@ async fn main() -> Result<()> {
                     .await
                     .expect("To spawn blocking thread");
                 tokio::time::sleep(PROCESS_INCOMING_DLC_MESSAGES_INTERVAL).await;
+            }
+        }
+    });
+
+    tokio::spawn({
+        let node = node.clone();
+        async move {
+            loop {
+                let node = node.clone();
+                spawn_blocking(move || collect_metrics(node))
+                    .await
+                    .expect("To spawn blocking thread");
+                tokio::time::sleep(PROCESS_PROMETHEUS_METRICS).await;
             }
         }
     });
@@ -224,7 +242,7 @@ async fn main() -> Result<()> {
         connection::keep_public_channel_peers_connected(node.inner, CONNECTION_CHECK_INTERVAL)
     });
 
-    let app = router(node, pool, settings);
+    let app = router(node, pool, settings, exporter);
 
     // Start the metrics exporter
     autometrics::prometheus_exporter::init();

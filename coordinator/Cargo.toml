@@ -20,14 +20,18 @@ dlc-messages = "0.4.0"
 dlc-trie = "0.4.0"
 futures = "0.3"
 hex = "0.4"
+lazy_static = "1.4.0"
 lightning = { version = "0.0.114", features = ["max_level_trace"] }
 lightning-invoice = { version = "0.22" }
 ln-dlc-node = { path = "../crates/ln-dlc-node" }
 local-ip-address = "0.5.1"
 # adding this as explicit dependency as we need the "vendored" flag for cross compilation
 openssl = { version = "0.10.45", features = ["vendored"] }
+opentelemetry = "0.19.0"
+opentelemetry-prometheus = "0.12.0"
 orderbook-commons = { path = "../crates/orderbook-commons" }
 parking_lot = { version = "0.12.1", features = ["deadlock_detection"] }
+prometheus = "0.13.3"
 rand = "0.8.5"
 rust_decimal = { version = "1", features = ["serde-with-float"] }
 serde = "1.0.147"
