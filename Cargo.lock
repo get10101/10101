@@ -1693,7 +1693,6 @@ dependencies = [
  "bdk",
  "bip39",
  "bitcoin",
- "clap",
  "dlc",
  "dlc-manager",
  "dlc-messages",
@@ -1709,7 +1708,6 @@ dependencies = [
  "lightning-net-tokio",
  "lightning-persister",
  "lightning-transaction-sync",
- "local-ip-address",
  "log",
  "p2pd-oracle-client",
  "parking_lot 0.12.1",
@@ -3280,8 +3278,12 @@ name = "tests-e2e"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bitcoin",
+ "clap",
  "coordinator-commons",
  "flutter_rust_bridge",
+ "ln-dlc-node",
+ "local-ip-address",
  "native",
  "quote",
  "reqwest",

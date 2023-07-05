@@ -26,7 +26,7 @@ fn dummy_order() -> NewOrder {
 async fn can_open_position() {
     init_tracing();
     let client = init_reqwest();
-    let coordinator = Coordinator::new(client.clone());
+    let coordinator = Coordinator::new_local(client.clone());
     assert!(coordinator.is_running().await);
 
     let app = run_app().await;

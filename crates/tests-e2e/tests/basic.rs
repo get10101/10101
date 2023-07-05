@@ -13,7 +13,7 @@ async fn app_can_be_funded_with_lnd_faucet() -> Result<()> {
     init_tracing();
 
     let client = init_reqwest();
-    let coordinator = Coordinator::new(client.clone());
+    let coordinator = Coordinator::new_local(client.clone());
     assert!(coordinator.is_running().await);
 
     let bitcoind = Bitcoind::new(client.clone());
