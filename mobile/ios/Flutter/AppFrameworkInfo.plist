@@ -22,5 +22,9 @@
   <string>1.0</string>
   <key>MinimumOSVersion</key>
   <string>13.0</string>
+  <key>LSApplicationQueriesSchemes</key>
+    <array>
+      <string>twitter</string>
+    </array>
 </dict>
 </plist>
