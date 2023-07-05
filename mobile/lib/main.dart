@@ -4,7 +4,7 @@ import 'dart:io';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge.dart';
 import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
-import 'package:get_10101/common/application/channel_constraints_service.dart';
+import 'package:get_10101/common/application/channel_info_service.dart';
 import 'package:get_10101/common/application/event_service.dart';
 import 'package:get_10101/common/color.dart';
 import 'package:get_10101/features/trade/application/candlestick_service.dart';
@@ -39,11 +39,11 @@ import 'package:get_10101/util/preferences.dart';
 import 'package:go_router/go_router.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
-import 'common/amount_denomination_change_notifier.dart';
-import 'features/trade/domain/order.dart';
-import 'features/trade/domain/price.dart';
-import 'features/wallet/domain/wallet_info.dart';
-import 'ffi.dart' as rust;
+import 'package:get_10101/common/amount_denomination_change_notifier.dart';
+import 'package:get_10101/features/trade/domain/order.dart';
+import 'package:get_10101/features/trade/domain/price.dart';
+import 'package:get_10101/features/wallet/domain/wallet_info.dart';
+import 'package:get_10101/ffi.dart' as rust;
 
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
 final GlobalKey<NavigatorState> _shellNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'shell');
@@ -69,7 +69,7 @@ void main() {
   runApp(MultiProvider(providers: [
     ChangeNotifierProvider(
         create: (context) =>
-            TradeValuesChangeNotifier(TradeValuesService(), const ChannelConstraintsService())),
+            TradeValuesChangeNotifier(TradeValuesService(), const ChannelInfoService())),
     ChangeNotifierProvider(create: (context) => AmountDenominationChangeNotifier()),
     ChangeNotifierProvider(create: (context) => SubmitOrderChangeNotifier(OrderService())),
     ChangeNotifierProvider(create: (context) => OrderChangeNotifier(OrderService())),

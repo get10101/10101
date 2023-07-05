@@ -1,8 +1,7 @@
 import 'package:f_logs/model/flog/flog.dart';
 import 'package:flutter/material.dart';
 import 'package:get_10101/features/wallet/application/wallet_service.dart';
-
-import 'domain/lightning_invoice.dart';
+import 'package:get_10101/features/wallet/domain/lightning_invoice.dart';
 
 enum PendingPaymentState {
   pending,

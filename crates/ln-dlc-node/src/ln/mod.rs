@@ -16,12 +16,24 @@ pub(crate) use logger::TracingLogger;
 /// payment is small enough (< 1000 sats), opening the channel will
 /// fail unless we provide more outbound liquidity.
 ///
-/// This value is completely arbitrary at this stage. Eventually, we
-/// should, for example, let the payee decide how much inbound
-/// liquidity they desire, and charge them for it.
+/// This value defines the maximum channel amount between the coordinator and a user that opens a
+/// channel through an interceptable invoice. Channels that exceed this amount will be rejected.
+/// This value is completely arbitrary.
 ///
 /// This constant only applies to the coordinator.
-pub(crate) const JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT: u64 = 200_000;
+pub const JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT_MAX: u64 = 200_000;
+
+/// The multiplier to be used by the coordinator to define the just in time channel liquidity
+///
+/// The liquidity provided by the trader will be multiplied with this value to defined the channel
+/// value.
+/// See `JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT_MAX` for the maximum channel value.
+pub const LIQUIDITY_MULTIPLIER: u64 = 2;
+
+/// Sats/vbyte rate for position
+///
+/// The coordinator and the app have to align on this to agree on the fees.
+pub const CONTRACT_TX_FEE_RATE: u64 = 4;
 
 /// When handling the [`Event::HTLCIntercepted`], the user might not be online right away. This
 /// could be because she is funding the wallet through another wallet. In order to give the user

@@ -63,7 +63,7 @@ class _ShareInvoiceScreenState extends State<ShareInvoiceScreen> {
                 ),
                 Expanded(
                   child: Center(
-                    child: QrImage(
+                    child: QrImageView(
                       data: widget.invoice,
                       version: QrVersions.auto,
                       size: 200.0,

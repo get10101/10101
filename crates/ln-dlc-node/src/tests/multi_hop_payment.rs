@@ -1,7 +1,9 @@
+use crate::node::InMemoryStore;
 use crate::node::Node;
 use crate::tests::init_tracing;
-use crate::tests::min_outbound_liquidity_channel_creator;
 use bitcoin::Amount;
+use rust_decimal::prelude::ToPrimitive;
+use rust_decimal::Decimal;
 
 #[tokio::test(flavor = "multi_thread")]
 #[ignore]
@@ -82,4 +84,38 @@ async fn multi_hop_payment() {
         payee_balance_after.available - payee_balance_before.available,
         invoice_amount
     );
+}
+
+/// Calculate the "minimum" acceptable value for the outbound liquidity
+/// of the channel creator.
+///
+/// The value calculated is not guaranteed to be the exact minimum,
+/// but it should be close enough.
+///
+/// This is useful when the channel creator wants to push as many
+/// coins as possible to their peer on channel creation.
+fn min_outbound_liquidity_channel_creator(peer: &Node<InMemoryStore>, peer_balance: u64) -> u64 {
+    let min_reserve_millionths_creator = Decimal::from(
+        peer.user_config
+            .channel_handshake_config
+            .their_channel_reserve_proportional_millionths,
+    );
+
+    let min_reserve_percent_creator = min_reserve_millionths_creator / Decimal::from(1_000_000);
+
+    // This is an approximation as we assume that `channel_balance ~=
+    // peer_balance`
+    let channel_balance_estimate = Decimal::from(peer_balance);
+
+    let min_reserve_creator = min_reserve_percent_creator * channel_balance_estimate;
+    let min_reserve_creator = min_reserve_creator.to_u64().unwrap();
+
+    // The minimum reserve for any party is actually hard-coded to
+    // 1_000 sats by LDK
+    let min_reserve_creator = min_reserve_creator.max(1_000);
+
+    // This is just an upper bound
+    let commit_transaction_fee = 1_000;
+
+    min_reserve_creator + commit_transaction_fee
 }

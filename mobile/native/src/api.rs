@@ -1,5 +1,6 @@
 use crate::calculations;
 use crate::channel_fee::ChannelFeePaymentSubscriber;
+use crate::commons::api::ChannelInfo;
 use crate::commons::api::Price;
 use crate::config;
 use crate::config::api::Config;
@@ -225,6 +226,26 @@ pub fn close_channel() -> Result<()> {
 
 pub fn force_close_channel() -> Result<()> {
     ln_dlc::close_channel(true)
+}
+
+/// Returns channel info if we have a channel available already
+///
+/// If no channel is established with the coordinator `None` is returned.
+pub fn channel_info() -> Result<Option<ChannelInfo>> {
+    let channel_details = ln_dlc::get_usable_channel_details()?.first().cloned();
+    Ok(channel_details.map(|channel_details| channel_details.into()))
+}
+
+pub fn coordinator_liquidity_multiplier() -> SyncReturn<u64> {
+    SyncReturn(ln_dlc_node::LIQUIDITY_MULTIPLIER)
+}
+
+pub fn max_channel_value() -> SyncReturn<u64> {
+    SyncReturn(ln_dlc_node::JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT_MAX)
+}
+
+pub fn contract_tx_fee_rate() -> SyncReturn<u64> {
+    SyncReturn(ln_dlc_node::CONTRACT_TX_FEE_RATE)
 }
 
 pub fn create_invoice_with_amount(amount_sats: u64) -> Result<String> {

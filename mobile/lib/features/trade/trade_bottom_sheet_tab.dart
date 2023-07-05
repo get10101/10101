@@ -19,6 +19,8 @@ import 'package:get_10101/features/wallet/domain/wallet_info.dart';
 import 'package:get_10101/features/wallet/wallet_change_notifier.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:get_10101/common/application/channel_info_service.dart';
+import 'package:get_10101/common/domain/channel.dart';
 
 class TradeBottomSheetTab extends StatefulWidget {
   final Direction direction;
@@ -32,6 +34,7 @@ class TradeBottomSheetTab extends StatefulWidget {
 
 class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
   late final TradeValuesChangeNotifier provider;
+  late final ChannelInfoService channelInfoService;
 
   TextEditingController marginController = TextEditingController();
   TextEditingController quantityController = TextEditingController();
@@ -41,10 +44,18 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
 
   bool showCapacityInfo = false;
 
+  ChannelInfo? channelInfo;
+
   @override
   void initState() {
     provider = context.read<TradeValuesChangeNotifier>();
+    channelInfoService = provider.channelInfoService;
+    initChannelInfo(channelInfoService);
     super.initState();
+  }
+
+  Future<void> initChannelInfo(ChannelInfoService channelInfoService) async {
+    channelInfo = await channelInfoService.getChannelInfo();
   }
 
   @override
@@ -62,16 +73,30 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
 
     WalletInfo walletInfo = context.watch<WalletChangeNotifier>().walletInfo;
 
+    Amount minTradeMargin = channelInfoService.getMinTradeMargin();
+    Amount tradeFeeReserve = channelInfoService.getTradeFeeReserve();
+    Amount maxChannelCapacity = channelInfoService.getMaxCapacity();
+    Amount initialReserve = channelInfoService.getInitialReserve();
+
     String label = widget.direction == Direction.long ? "Buy" : "Sell";
     Color color = widget.direction == Direction.long ? tradeTheme.buy : tradeTheme.sell;
 
-    int minMargin = provider.minMargin;
-    int usableBalance = max(walletInfo.balances.lightning.sats - provider.reserve, 0);
+    Amount channelReserve = channelInfo?.reserve ?? initialReserve;
+    int totalReserve = channelReserve.sats + tradeFeeReserve.sats;
+
+    int usableBalance = max(walletInfo.balances.lightning.sats - totalReserve, 0);
+    Amount channelCapacity = channelInfo?.channelCapacity ?? maxChannelCapacity;
     // the assumed balance of the counterparty based on the channel and our balance
     // this is needed to make sure that the counterparty can fulfil the trade
     int counterpartyUsableBalance =
-        max(provider.capacity - (walletInfo.balances.lightning.sats + provider.reserve), 0);
+        max(channelCapacity.sats - (walletInfo.balances.lightning.sats + totalReserve), 0);
     int maxMargin = usableBalance;
+
+    // the trading capacity does not take into account if the channel is balanced or not
+    int tradingCapacity =
+        channelCapacity.sats - totalReserve - (provider.counterpartyMargin(widget.direction) ?? 0);
+
+    int coordinatorLiquidityMultiplier = channelInfoService.getCoordinatorLiquidityMultiplier();
 
     return Form(
       key: _formKey,
@@ -95,9 +120,9 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
                     ),
                     ModalBottomSheetInfo(
                       infoText:
-                          "Your usable balance of $usableBalance sats takes a fixed reserve of ${provider.reserve} sats into account. "
-                          "\n${provider.channelReserve} is the minimum amount that has to stay in the Lightning channel. "
-                          "\n${provider.feeReserve} is reserved for fees per trade that is needed for publishing on-chain transactions in a worst case scenario. This is needed for the self-custodial setup"
+                          "Your usable balance of $usableBalance sats takes a fixed reserve of $totalReserve sats into account. "
+                          "\n${channelReserve.sats} is the minimum amount that has to stay in the Lightning channel. "
+                          "\n${tradeFeeReserve.sats} is reserved for fees per trade that is needed for publishing on-chain transactions in a worst case scenario. This is needed for the self-custodial setup"
                           "\n\nWe are working on optimizing the reserve and it might be subject to change after the beta.",
                       buttonText: "Back to order...",
                       padding: const EdgeInsets.symmetric(horizontal: 8.0),
@@ -185,10 +210,6 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
                             try {
                               int margin = int.parse(value);
 
-                              // the trading capacity does not take into account if the channel is balanced or not
-                              int tradingCapacity =
-                                  provider.availableTradingCapacity(widget.direction);
-
                               int? optCounterPartyMargin =
                                   provider.counterpartyMargin(widget.direction);
                               if (optCounterPartyMargin == null) {
@@ -217,8 +238,8 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
                               if (margin > maxMargin) {
                                 return "Max margin is $maxMargin";
                               }
-                              if (margin < minMargin) {
-                                return "Min margin is $minMargin";
+                              if (margin < minTradeMargin.sats) {
+                                return "Min margin is ${minTradeMargin.sats}";
                               }
                             } on Exception {
                               return "Enter a number";
@@ -233,10 +254,10 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
                   if (showCapacityInfo)
                     ModalBottomSheetInfo(
                         infoText:
-                            "While in beta channel capacity is limited to ${provider.capacity} sats. "
+                            "Your channel capacity is limited to $channelCapacity sats. During the beta channel resize is not available yet"
                             "In order to trade with higher margin you have to reduce your balance"
                             "\n\nYour current usable balance is $usableBalance."
-                            "Please send ${usableBalance - (provider.capacity / 2)} out of your wallet to free up capacity.",
+                            "Please send ${usableBalance - (channelCapacity.sats / coordinatorLiquidityMultiplier)} sats out of your wallet to free up capacity.",
                         buttonText: "Back to order...")
                 ],
               ),
