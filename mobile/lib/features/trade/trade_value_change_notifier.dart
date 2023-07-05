@@ -67,6 +67,10 @@ class TradeValuesChangeNotifier extends ChangeNotifier implements Subscriber {
     }
   }
 
+  Amount? orderMatchingFee(Direction direction) {
+    return fromDirection(direction).fee;
+  }
+
   void updateQuantity(Direction direction, double quantity) {
     fromDirection(direction).updateQuantity(quantity);
     notifyListeners();

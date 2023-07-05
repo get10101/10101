@@ -231,7 +231,8 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
                                 });
                               }
 
-                              if (usableBalance < margin) {
+                              Amount fee = provider.orderMatchingFee(direction) ?? Amount.zero();
+                              if (usableBalance < margin + fee.sats) {
                                 return "Insufficient balance";
                               }
 
