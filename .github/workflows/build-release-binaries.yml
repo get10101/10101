@@ -30,8 +30,8 @@ jobs:
       coordinator_port_http: 80
       network: mainnet
       tag: ${{ github.ref_name }}
-      oracle_endpoint: http://api.10101.finance:8081
-      oracle_pubkey: 67532a288516236e0a6a8018ae6fcd3c59cfcf28da58f4ac2b2b727a59fc6db5
+      oracle_endpoint: https://oracle.holzeis.me
+      oracle_pubkey: 16f88cf7d21e6c0f46bcbc983a4e3b19726c6c98858cc31c83551a88fde171c0
 
   build_android_apk:
     runs-on: macos-latest
