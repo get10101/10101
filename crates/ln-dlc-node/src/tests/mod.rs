@@ -163,17 +163,20 @@ impl Node<InMemoryStore> {
 
         fund_and_mine(address, amount).await?;
 
-        while self.get_confirmed_balance().await? < expected_balance {
-            let interval = Duration::from_millis(200);
+        tokio::time::timeout(Duration::from_secs(30), async {
+            while self.get_confirmed_balance().await.unwrap() < expected_balance {
+                let interval = Duration::from_millis(200);
 
-            self.sync_on_chain().await.unwrap();
+                self.sync_on_chain().await.unwrap();
 
-            tokio::time::sleep(interval).await;
-            tracing::debug!(
-                ?interval,
-                "Checking if wallet has been funded after interval"
-            )
-        }
+                tokio::time::sleep(interval).await;
+                tracing::debug!(
+                    ?interval,
+                    "Checking if wallet has been funded after interval"
+                );
+            }
+        })
+        .await?;
 
         Ok(())
     }
