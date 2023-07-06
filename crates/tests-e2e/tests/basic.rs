@@ -1,5 +1,8 @@
 use anyhow::Result;
+use bitcoin::{Address, Amount};
+use std::str::FromStr;
 use tests_e2e::app::run_app;
+use tests_e2e::bitcoind::Bitcoind;
 use tests_e2e::coordinator::Coordinator;
 use tests_e2e::fund::fund_app_with_faucet;
 use tests_e2e::http::init_reqwest;
@@ -13,6 +16,19 @@ async fn app_can_be_funded_with_lnd_faucet() -> Result<()> {
     let client = init_reqwest();
     let coordinator = Coordinator::new_local(client.clone());
     assert!(coordinator.is_running().await);
+
+    // ensure coordinator has a free UTXO available
+    let address = coordinator.get_new_address().await.unwrap();
+    let bitcoind = Bitcoind::new(client.clone());
+    bitcoind
+        .send_to_address(
+            Address::from_str(address.as_str()).unwrap(),
+            Amount::ONE_BTC,
+        )
+        .await
+        .unwrap();
+    bitcoind.mine(1).await.unwrap();
+    coordinator.sync_wallet().await.unwrap();
 
     let app = run_app().await;
 
