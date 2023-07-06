@@ -27,7 +27,7 @@ impl TestSetup {
         assert!(coordinator.is_running().await);
 
         let app = run_app().await;
-        let funded_amount = fund_app_with_faucet(&coordinator, &client, 50_000)
+        let funded_amount = fund_app_with_faucet(&client, 50_000)
             .await
             .expect("to be able to fund");
 

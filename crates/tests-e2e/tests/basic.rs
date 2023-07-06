@@ -1,5 +1,6 @@
 use anyhow::Result;
-use bitcoin::{Address, Amount};
+use bitcoin::Address;
+use bitcoin::Amount;
 use std::str::FromStr;
 use tests_e2e::app::run_app;
 use tests_e2e::bitcoind::Bitcoind;
@@ -36,7 +37,7 @@ async fn app_can_be_funded_with_lnd_faucet() -> Result<()> {
     assert_eq!(app.rx.wallet_info().unwrap().balances.on_chain, 0);
     assert_eq!(app.rx.wallet_info().unwrap().balances.lightning, 0);
 
-    let funded_amount = fund_app_with_faucet(&coordinator, &client, 50_000).await?;
+    let funded_amount = fund_app_with_faucet(&client, 50_000).await?;
 
     assert_eq!(app.rx.wallet_info().unwrap().balances.on_chain, 0);
 

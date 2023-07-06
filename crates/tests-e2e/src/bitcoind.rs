@@ -1,6 +1,7 @@
 use anyhow::bail;
 use anyhow::Result;
-use bitcoin::{Address, Amount};
+use bitcoin::Address;
+use bitcoin::Amount;
 use reqwest::Client;
 use reqwest::Response;
 use serde::Deserialize;
