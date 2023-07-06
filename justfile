@@ -205,6 +205,7 @@ run-coordinator-detached:
 
     echo "Starting (and building) coordinator"
     cargo run --bin coordinator &> {{coordinator_log_file}} &
+    just wait-for-coordinator-to-be-ready
     echo "Coordinator successfully started. You can inspect the logs at {{coordinator_log_file}}"
 
 # Starts maker process in the background, piping logs to a file (used in other recipes)
