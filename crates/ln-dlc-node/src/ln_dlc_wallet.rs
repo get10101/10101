@@ -36,7 +36,7 @@ use std::sync::Arc;
 /// This is a wrapper type introduced to be able to implement traits from `rust-dlc` on the
 /// `ldk_node::LightningWallet`.
 pub struct LnDlcWallet {
-    ln_wallet: Arc<ldk_node_wallet::Wallet<sled::Tree>>,
+    ln_wallet: Arc<ldk_node_wallet::Wallet<sled::Tree, EsploraBlockchain, FeeRateEstimator>>,
     storage: Arc<SledStorageProvider>,
     secp: Secp256k1<All>,
     seed: Bip39Seed,
@@ -91,7 +91,9 @@ impl LnDlcWallet {
     }
 
     // TODO: Better to keep this private and expose the necessary APIs instead.
-    pub fn inner(&self) -> Arc<ldk_node_wallet::Wallet<sled::Tree>> {
+    pub fn inner(
+        &self,
+    ) -> Arc<ldk_node_wallet::Wallet<sled::Tree, EsploraBlockchain, FeeRateEstimator>> {
         self.ln_wallet.clone()
     }
 

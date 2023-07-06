@@ -1,3 +1,4 @@
+use crate::fee_rate_estimator::FeeRateEstimator;
 use crate::ldk_node_wallet;
 use crate::node::HTLCStatus;
 use crate::node::Node;
@@ -5,6 +6,7 @@ use crate::node::Storage;
 use crate::PaymentFlow;
 use anyhow::Context;
 use anyhow::Result;
+use bdk::blockchain::EsploraBlockchain;
 use bdk::sled;
 use bitcoin::secp256k1::SecretKey;
 use bitcoin::Address;
@@ -26,7 +28,9 @@ where
         self.wallet.get_seed_phrase()
     }
 
-    pub fn wallet(&self) -> Arc<ldk_node_wallet::Wallet<sled::Tree>> {
+    pub fn wallet(
+        &self,
+    ) -> Arc<ldk_node_wallet::Wallet<sled::Tree, EsploraBlockchain, FeeRateEstimator>> {
         self.wallet.inner()
     }
 

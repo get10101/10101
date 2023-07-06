@@ -1,11 +1,11 @@
-use crate::fee_rate_estimator::FeeRateEstimator;
+use crate::fee_rate_estimator::EstimateFeeRate;
 use anyhow::bail;
 use anyhow::Context;
 use anyhow::Error;
 use anyhow::Result;
 use autometrics::autometrics;
 use bdk::blockchain::Blockchain;
-use bdk::blockchain::EsploraBlockchain;
+use bdk::blockchain::GetBlockHash;
 use bdk::blockchain::GetHeight;
 use bdk::database::BatchDatabase;
 use bdk::wallet::AddressIndex;
@@ -25,16 +25,18 @@ use std::sync::Arc;
 use std::time::Instant;
 use tokio::sync::RwLock;
 
-pub struct Wallet<D>
+pub struct Wallet<D, B, F>
 where
     D: BatchDatabase,
+    B: Blockchain,
+    F: EstimateFeeRate,
 {
     // A BDK blockchain used for wallet sync.
-    pub(crate) blockchain: Arc<EsploraBlockchain>,
+    pub(crate) blockchain: Arc<B>,
     // A BDK on-chain wallet.
     inner: Mutex<bdk::Wallet<D>>,
     settings: RwLock<WalletSettings>,
-    fee_rate_estimator: Arc<FeeRateEstimator>,
+    fee_rate_estimator: Arc<F>,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -42,15 +44,13 @@ pub struct WalletSettings {
     pub max_allowed_tx_fee_rate_when_opening_channel: Option<u32>,
 }
 
-impl<D> Wallet<D>
+impl<D, B, F> Wallet<D, B, F>
 where
     D: BatchDatabase,
+    B: Blockchain,
+    F: EstimateFeeRate,
 {
-    pub(crate) fn new(
-        blockchain: EsploraBlockchain,
-        wallet: bdk::Wallet<D>,
-        fee_rate_estimator: Arc<FeeRateEstimator>,
-    ) -> Self {
+    pub(crate) fn new(blockchain: B, wallet: bdk::Wallet<D>, fee_rate_estimator: Arc<F>) -> Self {
         let inner = Mutex::new(wallet);
         let settings = RwLock::new(WalletSettings::default());
 
@@ -103,7 +103,7 @@ where
         let locked_wallet = self.bdk_lock();
         let mut tx_builder = locked_wallet.build_tx();
 
-        let fee_rate = self.fee_rate_estimator.get(confirmation_target);
+        let fee_rate = self.fee_rate_estimator.estimate(confirmation_target);
         tx_builder
             .add_recipient(output_script, value_sats)
             .fee_rate(fee_rate)
@@ -159,7 +159,7 @@ where
         address: &bitcoin::Address,
         amount_msat_or_drain: Option<u64>,
     ) -> Result<Txid> {
-        let fee_rate = self.fee_rate_estimator.get(ConfirmationTarget::Normal);
+        let fee_rate = self.fee_rate_estimator.estimate(ConfirmationTarget::Normal);
 
         let tx = {
             let locked_wallet = self.bdk_lock();
@@ -226,7 +226,7 @@ where
     #[autometrics]
     pub fn tip(&self) -> Result<(u32, BlockHash)> {
         let height = self.blockchain.get_height()?;
-        let hash = self.blockchain.get_tip_hash()?;
+        let hash = self.blockchain.get_block_hash(height as u64)?;
 
         Ok((height, hash))
     }
@@ -240,9 +240,11 @@ where
     }
 }
 
-impl<D> BroadcasterInterface for Wallet<D>
+impl<D, B, F> BroadcasterInterface for Wallet<D, B, F>
 where
     D: BatchDatabase,
+    B: Blockchain,
+    F: EstimateFeeRate,
 {
     fn broadcast_transaction(&self, tx: &Transaction) {
         let txid = tx.txid();

@@ -1,3 +1,4 @@
+use crate::fee_rate_estimator::EstimateFeeRate;
 use crate::ln::JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT_MAX;
 use crate::ln::LIQUIDITY_MULTIPLIER;
 use crate::node::InMemoryStore;
@@ -74,7 +75,7 @@ async fn fail_to_open_jit_channel_with_fee_rate_over_max() {
 
     let background_fee_rate = coordinator
         .fee_rate_estimator
-        .get(ConfirmationTarget::Background)
+        .estimate(ConfirmationTarget::Background)
         .fee_wu(1000) as u32;
 
     // Set max allowed TX fee rate when opening channel to a value below the current background fee
