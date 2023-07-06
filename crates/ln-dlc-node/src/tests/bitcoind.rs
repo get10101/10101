@@ -13,9 +13,9 @@ struct BitcoindResponse {
 
 pub async fn fund(address: String, amount: bitcoin::Amount) -> Result<Response> {
     query(format!(
-        r#"{{"jsonrpc": "1.0", "method": "sendtoaddress", "params": ["{}", "{}"]}}"#,
+        r#"{{"jsonrpc": "1.0", "method": "sendtoaddress", "params": ["{}", "{}", "", "", false, false, null, null, false, 1.0]}}"#,
         address,
-        amount.to_btc()
+        amount.to_btc(),
     ))
     .await
 }
