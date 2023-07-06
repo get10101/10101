@@ -5,6 +5,7 @@ import 'package:f_logs/f_logs.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get_10101/common/snack_bar.dart';
+import 'package:get_10101/common/value_data_row.dart';
 import 'package:get_10101/features/wallet/create_invoice_screen.dart';
 import 'package:get_10101/features/wallet/domain/wallet_info.dart';
 import 'package:get_10101/features/wallet/wallet_change_notifier.dart';
@@ -15,11 +16,12 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:get_10101/features/wallet/domain/share_invoice.dart';
 
 class ShareInvoiceScreen extends StatefulWidget {
   static const route = "${WalletScreen.route}/${CreateInvoiceScreen.subRouteName}/$subRouteName";
   static const subRouteName = "share_invoice";
-  final String invoice;
+  final ShareInvoice invoice;
 
   const ShareInvoiceScreen({super.key, required this.invoice});
 
@@ -50,7 +52,7 @@ class _ShareInvoiceScreenState extends State<ShareInvoiceScreen> {
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.center, children: [
                 const Padding(
-                  padding: EdgeInsets.only(top: 25.0, bottom: 50.0),
+                  padding: EdgeInsets.only(top: 25.0, bottom: 30.0),
                   child: Text(
                     "Share payment request",
                     style: TextStyle(fontSize: 18.0, fontWeight: FontWeight.bold),
@@ -59,11 +61,26 @@ class _ShareInvoiceScreenState extends State<ShareInvoiceScreen> {
                 Expanded(
                   child: Center(
                     child: QrImageView(
-                      data: widget.invoice,
+                      data: widget.invoice.rawInvoice,
                       version: QrVersions.auto,
                       size: 200.0,
+                      padding: const EdgeInsets.all(10.0),
                     ),
                   ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 10.0),
+                  child: Center(
+                      child: SizedBox(
+                          // Size of the qr image minus padding
+                          width: 190,
+                          child: ValueDataRow(
+                            type: ValueType.amount,
+                            value: widget.invoice.invoiceAmount,
+                            label: 'Amount',
+                            labelTextStyle: const TextStyle(color: Colors.grey),
+                            valueTextStyle: const TextStyle(color: Colors.grey),
+                          ))),
                 ),
               ]),
             ),
@@ -80,7 +97,7 @@ class _ShareInvoiceScreenState extends State<ShareInvoiceScreen> {
 
                         final router = GoRouter.of(context);
                         try {
-                          await payInvoiceWithFaucet(widget.invoice);
+                          await payInvoiceWithFaucet(widget.invoice.rawInvoice);
                           // Pop both create invoice screen and share invoice screen
                           router.pop();
                           router.pop();
@@ -106,7 +123,7 @@ class _ShareInvoiceScreenState extends State<ShareInvoiceScreen> {
                   padding: buttonSpacing,
                   child: OutlinedButton(
                     onPressed: () {
-                      Clipboard.setData(ClipboardData(text: widget.invoice)).then((_) {
+                      Clipboard.setData(ClipboardData(text: widget.invoice.rawInvoice)).then((_) {
                         ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(content: Text('Invoice copied to clipboard')));
                       });
@@ -133,7 +150,7 @@ class _ShareInvoiceScreenState extends State<ShareInvoiceScreen> {
                 child: Padding(
                   padding: buttonSpacing,
                   child: OutlinedButton(
-                    onPressed: () => Share.share(widget.invoice),
+                    onPressed: () => Share.share(widget.invoice.rawInvoice),
                     style: ElevatedButton.styleFrom(
                       shape: const RoundedRectangleBorder(
                           borderRadius: BorderRadius.all(Radius.circular(5.0))),

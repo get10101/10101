@@ -5,6 +5,7 @@ import 'package:get_10101/common/amount_text.dart';
 import 'package:get_10101/common/amount_text_input_form_field.dart';
 import 'package:get_10101/common/application/channel_info_service.dart';
 import 'package:get_10101/common/domain/model.dart';
+import 'package:get_10101/features/wallet/domain/share_invoice.dart';
 import 'package:get_10101/features/wallet/share_invoice_screen.dart';
 import 'package:get_10101/features/wallet/wallet_change_notifier.dart';
 import 'package:get_10101/features/wallet/wallet_screen.dart';
@@ -177,8 +178,9 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
                                       showValidationHint = false;
                                       walletService.createInvoice(amount!).then((invoice) {
                                         if (invoice != null) {
-                                          GoRouter.of(context)
-                                              .go(ShareInvoiceScreen.route, extra: invoice);
+                                          GoRouter.of(context).go(ShareInvoiceScreen.route,
+                                              extra: ShareInvoice(
+                                                  rawInvoice: invoice, invoiceAmount: amount!));
                                         }
                                       });
                                     } else {
