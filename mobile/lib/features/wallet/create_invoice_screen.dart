@@ -68,16 +68,16 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
     Amount maxAllowedOutboundCapacity =
         Amount((channelCapacity.sats / coordinatorLiquidityMultiplier).floor());
 
+    // the minimum amount that has to be in the wallet to be able to trade
+    Amount minAmountToBeAbleToTrade = Amount((channelInfo?.reserve.sats ?? initialReserve.sats) +
+        tradeFeeReserve.sats +
+        minTradeMargin.sats);
+
     // it can go below 0 if the user has an unbalanced channel
     Amount maxReceiveAmount = Amount(max(maxAllowedOutboundCapacity.sats - balance.sats, 0));
 
     // we have to at least receive enough to be able to trade with the minimum trade amount
-    Amount minReceiveAmount = Amount(max(
-        (channelInfo?.reserve.sats ?? initialReserve.sats) +
-            tradeFeeReserve.sats +
-            minTradeMargin.sats -
-            balance.sats,
-        1));
+    Amount minReceiveAmount = Amount(max(minAmountToBeAbleToTrade.sats - balance.sats, 1));
 
     return Scaffold(
       appBar: AppBar(title: const Text("Receive funds")),
@@ -149,7 +149,7 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
                                 "While in beta, maximum channel capacity is limited to ${formatSats(maxChannelCapacity)}; channels above this capacity might get rejected."
                                 "\nThe maximum is enforced initially to ensure users only trade with small stakes until the software has proven to be stable."
                                 "\n\nYour current balance is ${formatSats(balance)}, so you can receive up to ${formatSats(maxReceiveAmount)}."
-                                "\nIf you hold less than ${formatSats(minReceiveAmount)} or more than ${formatSats(maxAllowedOutboundCapacity)} in your wallet you might not be able to trade.",
+                                "\nIf you hold less than ${formatSats(minAmountToBeAbleToTrade)} or more than ${formatSats(maxAllowedOutboundCapacity)} in your wallet you might not be able to trade.",
                             buttonText: "Back to Receive..."),
                     ],
                   ),
