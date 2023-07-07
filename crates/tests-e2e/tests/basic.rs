@@ -1,4 +1,6 @@
 use anyhow::Result;
+use assertables::assert_ge;
+use assertables::assert_ge_as_result;
 use bitcoin::Address;
 use bitcoin::Amount;
 use std::str::FromStr;
@@ -46,6 +48,6 @@ async fn app_can_be_funded_with_lnd_faucet() -> Result<()> {
     // See: https://github.com/get10101/10101/issues/883
     let ln_balance = app.rx.wallet_info().unwrap().balances.lightning;
     tracing::info!(%funded_amount, %ln_balance, "Successfully funded app with faucet");
-    assert!(ln_balance >= funded_amount);
+    assert_ge!(ln_balance, funded_amount);
     Ok(())
 }
