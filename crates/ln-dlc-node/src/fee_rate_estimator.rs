@@ -74,7 +74,7 @@ impl FeeRateEstimator {
     }
 
     #[autometrics]
-    pub(crate) async fn update(&self) -> Result<()> {
+    pub(crate) fn update(&self) -> Result<()> {
         let estimates = self.client.get_fee_estimates()?;
 
         let mut locked_fee_rate_cache = self.cache_write_lock();

@@ -54,6 +54,7 @@ use std::time::Instant;
 use std::time::SystemTime;
 use tokio::sync::watch;
 use tokio::sync::RwLock;
+use tokio::task::spawn_blocking;
 
 mod channel_manager;
 mod connection;
@@ -337,7 +338,13 @@ where
             let fee_rate_estimator = fee_rate_estimator.clone();
             async move {
                 loop {
-                    if let Err(err) = fee_rate_estimator.update().await {
+                    if let Err(err) = spawn_blocking({
+                        let fee_rate_estimator = fee_rate_estimator.clone();
+                        move || fee_rate_estimator.update()
+                    })
+                    .await
+                    .expect("the task has panicked")
+                    {
                         tracing::error!("Failed to update fee rate estimates: {err:#}");
                     }
 
