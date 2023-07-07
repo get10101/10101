@@ -38,7 +38,8 @@ impl Default for Settings {
         Self {
             jit_channels_enabled: true,
             new_positions_enabled: true,
-            jit_fee_rate_basis_points: 50,
+            // Configured as zero base fee by default
+            jit_fee_rate_basis_points: 0,
             fallback_tx_fee_rate_normal: 2000,
             fallback_tx_fee_rate_high_priority: 5000,
             max_allowed_tx_fee_rate_when_opening_channel: None,
