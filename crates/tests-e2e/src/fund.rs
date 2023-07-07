@@ -25,6 +25,7 @@ pub async fn fund_app_with_faucet(
     // or unspendable output when broadcasting the funding transaction.
     bitcoind.mine(1).await?;
     coordinator.sync_wallet().await?;
+    tracing::info!("Mined a block and synced coordinator wallet");
 
     let invoice = spawn_blocking(move || {
         api::create_invoice_with_amount(funding_amount).expect("to succeed")
@@ -35,6 +36,7 @@ pub async fn fund_app_with_faucet(
     pay_with_faucet(client, invoice).await?;
 
     // Ensure we sync the wallet info after funding
+    tracing::info!("Syncing app wallet after funding");
     spawn_blocking(move || api::refresh_wallet_info().expect("to succeed")).await?;
 
     // FIXME: We mine a block before funding the app to ensure that all
@@ -42,11 +44,14 @@ pub async fn fund_app_with_faucet(
     // or unspendable output when broadcasting the funding transaction.
     bitcoind.mine(1).await?;
     coordinator.sync_wallet().await?;
+    tracing::info!("Mined a block and synced coordinator wallet");
 
     Ok(funding_amount - FUNDING_TRANSACTION_FEES)
 }
 
 async fn pay_with_faucet(client: &Client, invoice: String) -> Result<Response> {
+    tracing::info!("Paying invoice with faucet: {}", invoice);
+
     #[derive(serde::Serialize)]
     struct PayInvoice {
         payment_request: String,
