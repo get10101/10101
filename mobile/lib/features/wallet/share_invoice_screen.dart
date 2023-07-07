@@ -4,6 +4,8 @@ import 'dart:developer';
 import 'package:f_logs/f_logs.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:get_10101/common/amount_text.dart';
+import 'package:get_10101/common/modal_bottom_sheet_info.dart';
 import 'package:get_10101/common/snack_bar.dart';
 import 'package:get_10101/common/value_data_row.dart';
 import 'package:get_10101/features/wallet/create_invoice_screen.dart';
@@ -41,6 +43,11 @@ class _ShareInvoiceScreenState extends State<ShareInvoiceScreen> {
 
     const EdgeInsets buttonSpacing = EdgeInsets.symmetric(vertical: 8.0, horizontal: 24.0);
 
+    const qrWidth = 200.0;
+    const qrPadding = 5.0;
+    const infoButtonRadius = ModalBottomSheetInfo.buttonRadius;
+    const infoButtonPadding = 5.0;
+
     return Scaffold(
       appBar: AppBar(title: const Text("Receive funds")),
       body: SafeArea(
@@ -63,25 +70,54 @@ class _ShareInvoiceScreenState extends State<ShareInvoiceScreen> {
                     child: QrImageView(
                       data: widget.invoice.rawInvoice,
                       version: QrVersions.auto,
-                      size: 200.0,
-                      padding: const EdgeInsets.all(10.0),
+                      padding: const EdgeInsets.all(qrPadding),
                     ),
                   ),
                 ),
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 10.0),
-                  child: Center(
-                      child: SizedBox(
-                          // Size of the qr image minus padding
-                          width: 190,
-                          child: ValueDataRow(
-                            type: ValueType.amount,
-                            value: widget.invoice.invoiceAmount,
-                            label: 'Amount',
-                            labelTextStyle: const TextStyle(color: Colors.grey),
-                            valueTextStyle: const TextStyle(color: Colors.grey),
-                          ))),
-                ),
+                const SizedBox(height: 10),
+                Center(
+                    child: SizedBox(
+                        // Size of the qr image minus padding
+                        width: qrWidth - 2 * qrPadding,
+                        child: ValueDataRow(
+                          type: ValueType.amount,
+                          value: widget.invoice.invoiceAmount,
+                          label: 'Amount',
+                        ))),
+                if (widget.invoice.channelOpenFee != null)
+                  Padding(
+                    // Set in by size of info button on the right
+                    padding: const EdgeInsets.only(left: infoButtonRadius * 2),
+                    child: SizedBox(
+                      width: qrWidth - 2 * qrPadding + infoButtonRadius * 2,
+                      child: Row(
+                        children: [
+                          Expanded(
+                              child: ValueDataRow(
+                                  type: ValueType.amount,
+                                  value: widget.invoice.channelOpenFee,
+                                  label: "Fee Estimate")),
+                          ModalBottomSheetInfo(
+                              closeButtonText: "Back to Share Invoice",
+                              infoButtonPadding: const EdgeInsets.all(infoButtonPadding),
+                              child: Column(
+                                children: [
+                                  Center(
+                                    child: Text("Understanding Fees",
+                                        style: Theme.of(context).textTheme.headlineSmall),
+                                  ),
+                                  const SizedBox(height: 10),
+                                  Text(
+                                      "Upon receiving your first payment the 10101 LSP will open a Lightning channel with you.\n"
+                                      "To cover the costs for opening the channel the transaction fee is collected after the channel was opened, meaning that an estimated ${formatSats(widget.invoice.channelOpenFee!)} will be collected from your wallet once the channel was opened.\n"
+                                      "The fee estimate is based on a transaction weight with two inputs and the current estimated fee rate."),
+                                ],
+                              )),
+                        ],
+                      ),
+                    ),
+                  ),
+                const SizedBox(height: 10)
               ]),
             ),
             // Faucet button, only available if we are on regtest

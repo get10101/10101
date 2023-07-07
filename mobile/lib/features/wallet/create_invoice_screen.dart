@@ -35,7 +35,16 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
   final WalletService walletService = const WalletService();
 
   final ChannelInfoService channelInfoService = const ChannelInfoService();
+
+  /// The channel info if a channel already exists
+  ///
+  /// If no channel exists yet this field will be null.
   ChannelInfo? channelInfo;
+
+  /// Estimated fees for receiving
+  ///
+  /// These fees have to be added on top of the receive amount because they are collected after receiving the funds.
+  Amount? feeEstimate;
 
   @override
   void dispose() {
@@ -51,6 +60,11 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
 
   Future<void> initChannelInfo() async {
     channelInfo = await channelInfoService.getChannelInfo();
+
+    // initial channel opening
+    if (channelInfo == null) {
+      feeEstimate = await channelInfoService.getChannelOpenFeeEstimate();
+    }
   }
 
   @override
@@ -72,7 +86,9 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
     // the minimum amount that has to be in the wallet to be able to trade
     Amount minAmountToBeAbleToTrade = Amount((channelInfo?.reserve.sats ?? initialReserve.sats) +
         tradeFeeReserve.sats +
-        minTradeMargin.sats);
+        minTradeMargin.sats +
+        // make sure that the amount received covers potential fees as well
+        (feeEstimate?.sats ?? 0));
 
     // it can go below 0 if the user has an unbalanced channel
     Amount maxReceiveAmount = Amount(max(maxAllowedOutboundCapacity.sats - balance.sats, 0));
@@ -176,11 +192,14 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
                                 : () {
                                     if (_formKey.currentState!.validate()) {
                                       showValidationHint = false;
+
                                       walletService.createInvoice(amount!).then((invoice) {
                                         if (invoice != null) {
                                           GoRouter.of(context).go(ShareInvoiceScreen.route,
                                               extra: ShareInvoice(
-                                                  rawInvoice: invoice, invoiceAmount: amount!));
+                                                  rawInvoice: invoice,
+                                                  invoiceAmount: amount!,
+                                                  channelOpenFee: feeEstimate));
                                         }
                                       });
                                     } else {

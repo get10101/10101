@@ -1,6 +1,7 @@
 use crate::dlc_custom_signer::CustomKeysManager;
 use crate::fee_rate_estimator::FeeRateEstimator;
 use crate::ln::coordinator_config;
+use crate::ln::CONFIRMATION_TARGET;
 use crate::ln::HTLC_INTERCEPTED_CONNECTION_TIMEOUT;
 use crate::ln::JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT_MAX;
 use crate::ln::LIQUIDITY_MULTIPLIER;
@@ -40,11 +41,6 @@ use std::sync::MutexGuard;
 use std::time::Duration;
 use time::OffsetDateTime;
 use tokio::sync::watch;
-
-/// The speed at which we want a transaction to confirm used for feerate estimation.
-///
-/// We set it to high priority because the channel funding transaction should be included fast.
-const CONFIRMATION_TARGET: ConfirmationTarget = ConfirmationTarget::HighPriority;
 
 pub struct EventHandler<S> {
     channel_manager: Arc<ChannelManager>,

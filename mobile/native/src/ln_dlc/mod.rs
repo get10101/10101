@@ -20,6 +20,7 @@ use bdk::bitcoin::secp256k1::SecretKey;
 use bdk::bitcoin::Txid;
 use bdk::bitcoin::XOnlyPublicKey;
 use bdk::BlockTime;
+use bdk::FeeRate;
 use coordinator_commons::TradeParams;
 use itertools::chain;
 use itertools::Itertools;
@@ -31,6 +32,7 @@ use ln_dlc_node::node::rust_dlc_manager::ChannelId;
 use ln_dlc_node::node::LnDlcNodeSettings;
 use ln_dlc_node::node::NodeInfo;
 use ln_dlc_node::seed::Bip39Seed;
+use ln_dlc_node::CONFIRMATION_TARGET;
 use orderbook_commons::FakeScidResponse;
 use orderbook_commons::FEE_INVOICE_DESCRIPTION_PREFIX_TAKER;
 use parking_lot::RwLock;
@@ -56,6 +58,15 @@ static NODE: Storage<Arc<Node>> = Storage::new();
 const PROCESS_INCOMING_MESSAGES_INTERVAL: Duration = Duration::from_secs(5);
 const UPDATE_WALLET_HISTORY_INTERVAL: Duration = Duration::from_secs(5);
 const CHECK_OPEN_ORDERS_INTERVAL: Duration = Duration::from_secs(60);
+
+/// The weight estimate of the funding transaction
+///
+/// This weight estimate assumes two inputs.
+/// This value was chosen based on mainnet channel funding transactions with two inputs.
+/// Note that we cannot predict this value precisely, because the app cannot predict what UTXOs the
+/// coordinator will use for the channel opening transaction. Only once the transaction is know the
+/// exact fee will be know.
+pub const FUNDING_TX_WEIGHT_ESTIMATE: u64 = 220;
 
 pub async fn refresh_wallet_info() -> Result<()> {
     let node = NODE.get();
@@ -424,6 +435,11 @@ pub fn get_usable_channel_details() -> Result<Vec<ChannelDetails>> {
     let channels = node.inner.list_usable_channels();
 
     Ok(channels)
+}
+
+pub fn get_fee_rate() -> Result<FeeRate> {
+    let node = NODE.try_get().context("failed to get ln dlc node")?;
+    Ok(node.inner.wallet().get_fee_rate(CONFIRMATION_TARGET))
 }
 
 pub fn create_invoice(amount_sats: Option<u64>) -> Result<Invoice> {

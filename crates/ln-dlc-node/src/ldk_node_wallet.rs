@@ -9,6 +9,7 @@ use bdk::blockchain::GetBlockHash;
 use bdk::blockchain::GetHeight;
 use bdk::database::BatchDatabase;
 use bdk::wallet::AddressIndex;
+use bdk::FeeRate;
 use bdk::SignOptions;
 use bdk::SyncOptions;
 use bdk::TransactionDetails;
@@ -98,6 +99,10 @@ where
         Ok(())
     }
 
+    pub fn get_fee_rate(&self, confirmation_target: ConfirmationTarget) -> FeeRate {
+        self.fee_rate_estimator.estimate(confirmation_target)
+    }
+
     #[autometrics]
     pub(crate) async fn create_funding_transaction(
         &self,
@@ -108,7 +113,7 @@ where
         let locked_wallet = self.bdk_lock();
         let mut tx_builder = locked_wallet.build_tx();
 
-        let fee_rate = self.fee_rate_estimator.estimate(confirmation_target);
+        let fee_rate = self.get_fee_rate(confirmation_target);
         tx_builder
             .add_recipient(output_script, value_sats)
             .fee_rate(fee_rate)
