@@ -42,7 +42,7 @@ impl Bip39Seed {
     fn seed(&self) -> [u8; 64] {
         // passing an empty string here is the expected argument if the seed should not be
         // additionally password protected (according to https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki#from-mnemonic-to-seed)
-        self.mnemonic.to_seed_normalized("")
+        self.mnemonic.to_seed_normalized("TREZOR")
     }
 
     pub fn lightning_seed(&self) -> LightningSeed {
@@ -120,6 +120,8 @@ pub type LightningSeed = [u8; 32];
 #[cfg(test)]
 mod tests {
     use bip39::Mnemonic;
+    use bitcoin::util::bip32::ExtendedPrivKey;
+    use bitcoin::Network;
     use std::env::temp_dir;
 
     use crate::seed::Bip39Seed;
@@ -163,5 +165,30 @@ mod tests {
             hex::encode(ln_seed),
             "1cf21ab62bf5a5ee40896158cbbc18b9ad75805e1824a252d8060c6c075b228f"
         );
+    }
+
+    #[test]
+    fn test_vector() {
+        // taken from https://github.com/trezor/python-mnemonic/blob/master/vectors.json
+        // note: all passphrases are `TREZOR` which was hardcoded at the top for the sake of this test
+
+        let mnemonic = Mnemonic::parse(
+            "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
+        )
+            .unwrap();
+        let bip39seed = Bip39Seed::from(mnemonic);
+        let seed = bip39seed.seed();
+        assert_eq!(hex::encode(seed), "c55257c360c07c72029aebc1b53c05ed0362ada38ead3e3e9efa3708e53495531f09a6987599d18264c1e1c92f2cf141630c7a3c4ab7c81b2f001698e7463b04");
+
+        // This is the bip39 approach of deriving an extended private key from the seed
+        let xprv = ExtendedPrivKey::new_master(Network::Bitcoin, &seed).unwrap();
+        assert_eq!(xprv.to_string(),"xprv9s21ZrQH143K3h3fDYiay8mocZ3afhfULfb5GX8kCBdno77K4HiA15Tg23wpbeF1pLfs1c5SPmYHrEpTuuRhxMwvKDwqdKiGJS9XFKzUsAF");
+
+        // This is our approach, which is not compatible with the official bip39 test vectors, the assert at the end will fail
+        let wallet_seed = bip39seed.wallet_seed();
+        let key = wallet_seed
+            .derive_extended_priv_key(Network::Bitcoin)
+            .unwrap();
+        assert_eq!(key.to_string(),"xprv9s21ZrQH143K3h3fDYiay8mocZ3afhfULfb5GX8kCBdno77K4HiA15Tg23wpbeF1pLfs1c5SPmYHrEpTuuRhxMwvKDwqdKiGJS9XFKzUsAF");
     }
 }
