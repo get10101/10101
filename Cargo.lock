@@ -3291,6 +3291,7 @@ dependencies = [
  "ln-dlc-node",
  "local-ip-address",
  "native",
+ "orderbook-commons",
  "quote",
  "reqwest",
  "serde",

@@ -1,12 +1,13 @@
-use std::sync::Arc;
-use std::sync::Mutex;
-
 use coordinator_commons::TradeParams;
+use native::api::ContractSymbol;
 use native::api::WalletInfo;
 use native::event::subscriber::Subscriber;
 use native::event::EventType;
 use native::trade::order::Order;
 use native::trade::position::Position;
+use orderbook_commons::Prices;
+use std::sync::Arc;
+use std::sync::Mutex;
 use tokio::sync::watch;
 
 pub struct Senders {
@@ -16,6 +17,8 @@ pub struct Senders {
     position: watch::Sender<Option<Position>>,
     /// Init messages are simple strings
     init_msg: watch::Sender<Option<String>>,
+    prices: watch::Sender<Option<Prices>>,
+    position_close: watch::Sender<Option<ContractSymbol>>,
 }
 
 /// Subscribes to events destined for the frontend (typically Flutter app) and
@@ -26,7 +29,8 @@ pub struct TestSubscriber {
     order_filled: watch::Receiver<Option<Box<TradeParams>>>,
     position: watch::Receiver<Option<Position>>,
     init_msg: watch::Receiver<Option<String>>,
-    // TODO add prices and close position watches
+    prices: watch::Receiver<Option<Prices>>,
+    position_close: watch::Receiver<Option<ContractSymbol>>,
 }
 
 impl TestSubscriber {
@@ -36,6 +40,8 @@ impl TestSubscriber {
         let (order_filled_tx, order_filled_rx) = watch::channel(None);
         let (position_tx, position_rx) = watch::channel(None);
         let (init_msg_tx, init_msg_rx) = watch::channel(None);
+        let (prices_tx, prices_rx) = watch::channel(None);
+        let (position_close_tx, position_close_rx) = watch::channel(None);
 
         let senders = Senders {
             wallet_info: wallet_info_tx,
@@ -43,6 +49,8 @@ impl TestSubscriber {
             order_filled: order_filled_tx,
             position: position_tx,
             init_msg: init_msg_tx,
+            prices: prices_tx,
+            position_close: position_close_tx,
         };
 
         let rx = Self {
@@ -51,6 +59,8 @@ impl TestSubscriber {
             order: order_rx,
             position: position_rx,
             init_msg: init_msg_rx,
+            prices: prices_rx,
+            position_close: position_close_rx,
         };
         (rx, ThreadSafeSenders(Arc::new(Mutex::new(senders))))
     }
@@ -73,6 +83,14 @@ impl TestSubscriber {
 
     pub fn init_msg(&self) -> Option<String> {
         self.init_msg.borrow().as_ref().cloned()
+    }
+
+    pub fn prices(&self) -> Option<Prices> {
+        self.prices.borrow().as_ref().cloned()
+    }
+
+    pub fn position_close(&self) -> Option<ContractSymbol> {
+        self.position_close.borrow().as_ref().cloned()
     }
 }
 
@@ -114,10 +132,15 @@ impl Subscriber for Senders {
             }
             native::event::EventInternal::PositionCloseNotification(contract_symbol) => {
                 tracing::trace!(?contract_symbol, "Received position close event");
+                self.position_close
+                    .send(Some(*contract_symbol))
+                    .expect("to be able to send update");
             }
             native::event::EventInternal::PriceUpdateNotification(prices) => {
                 tracing::trace!(?prices, "Received price update event");
-                // TODO: Add prices from orderbook_commons
+                self.prices
+                    .send(Some(prices.clone()))
+                    .expect("to be able to send update");
             }
             native::event::EventInternal::ChannelReady(channel_id) => {
                 tracing::trace!(?channel_id, "Received channel ready event");
