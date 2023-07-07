@@ -121,13 +121,13 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
                       width: 5,
                     ),
                     ModalBottomSheetInfo(
-                      infoText:
+                      closeButtonText: "Back to order...",
+                      infoButtonPadding: const EdgeInsets.symmetric(horizontal: 8.0),
+                      child: Text(
                           "Your usable balance of $usableBalance sats takes a fixed reserve of $totalReserve sats into account. "
                           "\n${channelReserve.sats} is the minimum amount that has to stay in the Lightning channel. "
                           "\n${tradeFeeReserve.sats} is reserved for fees per trade that is needed for publishing on-chain transactions in a worst case scenario. This is needed for the self-custodial setup"
-                          "\n\nWe are working on optimizing the reserve and it might be subject to change after the beta.",
-                      buttonText: "Back to order...",
-                      padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                          "\n\nWe are working on optimizing the reserve and it might be subject to change after the beta."),
                     )
                   ],
                 ),
@@ -254,12 +254,12 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
                   ),
                   if (showCapacityInfo)
                     ModalBottomSheetInfo(
-                        infoText:
+                        closeButtonText: "Back to order...",
+                        child: Text(
                             "Your channel capacity is limited to $channelCapacity sats. During the beta channel resize is not available yet"
                             "In order to trade with higher margin you have to reduce your balance"
                             "\n\nYour current usable balance is $usableBalance."
-                            "Please send ${usableBalance - (channelCapacity.sats / coordinatorLiquidityMultiplier)} sats out of your wallet to free up capacity.",
-                        buttonText: "Back to order...")
+                            "Please send ${usableBalance - (channelCapacity.sats / coordinatorLiquidityMultiplier)} sats out of your wallet to free up capacity."))
                 ],
               ),
               LeverageSlider(

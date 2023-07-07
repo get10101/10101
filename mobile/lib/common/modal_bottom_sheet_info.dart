@@ -2,15 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:get_10101/common/color.dart';
 
 class ModalBottomSheetInfo extends StatelessWidget {
-  final String infoText;
-  final String buttonText;
-  final EdgeInsets padding;
+  final Widget child;
+  final String closeButtonText;
+  final EdgeInsets infoButtonPadding;
+
+  static const double buttonRadius = 20.0;
 
   const ModalBottomSheetInfo(
       {super.key,
-      required this.infoText,
-      required this.buttonText,
-      this.padding = const EdgeInsets.all(8.0)});
+      required this.child,
+      required this.closeButtonText,
+      this.infoButtonPadding = const EdgeInsets.all(8.0)});
 
   @override
   Widget build(BuildContext context) {
@@ -20,7 +22,7 @@ class ModalBottomSheetInfo extends StatelessWidget {
           showModalBottomSheet<void>(
             shape: const RoundedRectangleBorder(
               borderRadius: BorderRadius.vertical(
-                top: Radius.circular(20),
+                top: Radius.circular(buttonRadius),
               ),
             ),
             clipBehavior: Clip.antiAliasWithSaveLayer,
@@ -33,16 +35,16 @@ class ModalBottomSheetInfo extends StatelessWidget {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    // TODO: Add link to FAQ
-                    Text(infoText),
-                    ElevatedButton(onPressed: () => Navigator.pop(context), child: Text(buttonText))
+                    child,
+                    ElevatedButton(
+                        onPressed: () => Navigator.pop(context), child: Text(closeButtonText))
                   ],
                 ),
               );
             },
           );
         },
-        padding: padding,
+        padding: infoButtonPadding,
         constraints: const BoxConstraints(),
         icon: Icon(
           Icons.info,

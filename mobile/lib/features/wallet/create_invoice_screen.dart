@@ -146,12 +146,12 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
                       ),
                       if (showValidationHint)
                         ModalBottomSheetInfo(
-                            infoText:
+                            closeButtonText: "Back to Receive...",
+                            child: Text(
                                 "While in beta, maximum channel capacity is limited to ${formatSats(maxChannelCapacity)}; channels above this capacity might get rejected."
                                 "\nThe maximum is enforced initially to ensure users only trade with small stakes until the software has proven to be stable."
                                 "\n\nYour current balance is ${formatSats(balance)}, so you can receive up to ${formatSats(maxReceiveAmount)}."
-                                "\nIf you hold less than ${formatSats(minAmountToBeAbleToTrade)} or more than ${formatSats(maxAllowedOutboundCapacity)} in your wallet you might not be able to trade.",
-                            buttonText: "Back to Receive..."),
+                                "\nIf you hold less than ${formatSats(minAmountToBeAbleToTrade)} or more than ${formatSats(maxAllowedOutboundCapacity)} in your wallet you might not be able to trade.")),
                     ],
                   ),
                 ),
