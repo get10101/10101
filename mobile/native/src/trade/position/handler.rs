@@ -162,6 +162,7 @@ pub fn update_position_after_dlc_closure(filled_order: Order) -> Result<()> {
 }
 
 pub fn price_update(prices: Prices) -> Result<()> {
+    tracing::debug!(?prices, "Updating prices");
     event::publish(&EventInternal::PriceUpdateNotification(prices));
     Ok(())
 }
