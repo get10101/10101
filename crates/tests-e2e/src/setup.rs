@@ -11,6 +11,7 @@ use crate::coordinator::Coordinator;
 use crate::fund::fund_app_with_faucet;
 use crate::http::init_reqwest;
 use crate::logger::init_tracing;
+use crate::process::is_maker_running;
 use crate::wait_until;
 
 pub struct TestSetup {
@@ -25,6 +26,11 @@ impl TestSetup {
         let client = init_reqwest();
         let coordinator = Coordinator::new_local(client.clone());
         assert!(coordinator.is_running().await);
+
+        assert!(
+            is_maker_running(),
+            "maker process is not running, please run `just e2e` first"
+        );
 
         let app = run_app().await;
         let funded_amount = fund_app_with_faucet(&coordinator, &client, 50_000)
