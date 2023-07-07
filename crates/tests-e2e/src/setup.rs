@@ -1,12 +1,16 @@
+use bitcoin::Address;
+use bitcoin::Amount;
 use native::api;
 use native::api::ContractSymbol;
 use native::trade::order::api::NewOrder;
 use native::trade::order::api::OrderType;
 use native::trade::position::PositionState;
+use std::str::FromStr;
 use tokio::task::spawn_blocking;
 
 use crate::app::run_app;
 use crate::app::AppHandle;
+use crate::bitcoind::Bitcoind;
 use crate::coordinator::Coordinator;
 use crate::fund::fund_app_with_faucet;
 use crate::http::init_reqwest;
@@ -25,6 +29,25 @@ impl TestSetup {
         let client = init_reqwest();
         let coordinator = Coordinator::new_local(client.clone());
         assert!(coordinator.is_running().await);
+        // ensure coordinator has a free UTXO available
+        let address = coordinator
+            .get_new_address()
+            .await
+            .expect("To be able to get a new address from coordinator");
+        let bitcoind = Bitcoind::new(client.clone());
+        bitcoind
+            .send_to_address(
+                Address::from_str(address.as_str())
+                    .expect("To be able to parse address string to address"),
+                Amount::ONE_BTC,
+            )
+            .await
+            .expect("To be able to send to address");
+        bitcoind.mine(1).await.expect("To be able to mine a block");
+        coordinator
+            .sync_wallet()
+            .await
+            .expect("To be able to sync coordinator wallet");
 
         let app = run_app().await;
         let funded_amount = fund_app_with_faucet(&client, 50_000)
