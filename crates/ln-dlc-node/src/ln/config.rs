@@ -73,6 +73,8 @@ pub fn coordinator_config() -> UserConfig {
         },
         channel_config: ChannelConfig {
             cltv_expiry_delta: MIN_CLTV_EXPIRY_DELTA,
+            forwarding_fee_base_msat: 0,
+            forwarding_fee_proportional_millionths: 500,
             ..Default::default()
         },
         // This is needed to intercept payments to open just-in-time channels. This will produce the
