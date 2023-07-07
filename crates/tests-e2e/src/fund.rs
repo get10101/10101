@@ -1,7 +1,8 @@
+use anyhow::bail;
 use anyhow::Result;
 use native::api;
 use reqwest::Client;
-use reqwest::Response;
+use serde::Deserialize;
 use tokio::task::spawn_blocking;
 
 // TODO: Fetch these from the app
@@ -25,21 +26,49 @@ pub async fn fund_app_with_faucet(client: &Client, funding_amount: u64) -> Resul
     Ok(funding_amount - FUNDING_TRANSACTION_FEES)
 }
 
-async fn pay_with_faucet(client: &Client, invoice: String) -> Result<Response> {
+async fn pay_with_faucet(client: &Client, invoice: String) -> Result<()> {
     #[derive(serde::Serialize)]
     struct PayInvoice {
         payment_request: String,
+    }
+    #[derive(Deserialize, Debug)]
+    struct FaucetResponse {
+        payment_error: Option<PaymentError>,
+    }
+    #[derive(Deserialize, Debug)]
+    enum PaymentError {
+        #[serde(rename = "insufficient_balance")]
+        InsufficientBalance,
+        #[serde(rename = "no_route")]
+        NoRoute,
+        #[serde(rename = "")]
+        NoError,
     }
 
     let faucet = "http://localhost:8080";
     let body = serde_json::to_string(&PayInvoice {
         payment_request: invoice,
     })?;
-    let response = client
+    let response: FaucetResponse = client
         .post(format!("{faucet}/lnd/v1/channels/transactions"))
         .body(body)
         .send()
         .await?
-        .error_for_status()?;
-    Ok(response)
+        .error_for_status()?
+        .json()
+        .await?;
+    if let Some(payment_error) = response.payment_error {
+        match payment_error {
+            PaymentError::InsufficientBalance => {
+                bail!("Could not fund wallet due to insufficient balance in faucet");
+            }
+            PaymentError::NoRoute => {
+                bail!("Could not fund wallet due to no route found from faucet to app");
+            }
+            PaymentError::NoError => {
+                tracing::info!("Payment succeeded 🚀")
+            }
+        }
+    }
+    Ok(())
 }
