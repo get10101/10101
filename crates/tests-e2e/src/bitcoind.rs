@@ -1,5 +1,7 @@
 use anyhow::bail;
 use anyhow::Result;
+use bitcoin::Address;
+use bitcoin::Amount;
 use reqwest::Client;
 use reqwest::Response;
 use serde::Deserialize;
@@ -48,6 +50,20 @@ impl Bitcoind {
         tokio::time::sleep(Duration::from_secs(5)).await;
 
         Ok(())
+    }
+
+    pub async fn send_to_address(&self, address: Address, amount: Amount) -> Result<Response> {
+        let response = self
+            .client
+            .post(&self.host)
+            .body(format!(
+                r#"{{"jsonrpc": "1.0", "method": "sendtoaddress", "params": ["{}", "{}", "", "", false, false, null, null, false, 1.0]}}"#,
+                address,
+                amount.to_btc(),
+            ))
+            .send()
+            .await?;
+        Ok(response)
     }
 
     pub async fn post(&self, endpoint: &str, body: Option<String>) -> Result<Response> {

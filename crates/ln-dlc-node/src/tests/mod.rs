@@ -10,7 +10,6 @@ use crate::seed::Bip39Seed;
 use crate::util;
 use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
-use bitcoin::Address;
 use bitcoin::Amount;
 use bitcoin::Network;
 use bitcoin::XOnlyPublicKey;
@@ -159,21 +158,29 @@ impl Node<InMemoryStore> {
         let starting_balance = self.get_confirmed_balance().await?;
         let expected_balance = starting_balance + amount.to_sat();
 
-        let address = self.wallet.unused_address();
-
-        fund_and_mine(address, amount).await?;
-
-        while self.get_confirmed_balance().await? < expected_balance {
-            let interval = Duration::from_millis(200);
-
-            self.sync_on_chain().await.unwrap();
-
-            tokio::time::sleep(interval).await;
-            tracing::debug!(
-                ?interval,
-                "Checking if wallet has been funded after interval"
-            )
+        // we mine blocks so that the internal wallet in bitcoind has enough utxos to fund the
+        // wallet
+        bitcoind::mine(11).await?;
+        for _ in 0..10 {
+            let address = self.wallet.unused_address();
+            bitcoind::fund(address.to_string(), Amount::from_sat(amount.to_sat() / 10)).await?;
         }
+        bitcoind::mine(1).await?;
+
+        tokio::time::timeout(Duration::from_secs(30), async {
+            while self.get_confirmed_balance().await.unwrap() < expected_balance {
+                let interval = Duration::from_millis(200);
+
+                self.sync_on_chain().await.unwrap();
+
+                tokio::time::sleep(interval).await;
+                tracing::debug!(
+                    ?interval,
+                    "Checking if wallet has been funded after interval"
+                );
+            }
+        })
+        .await?;
 
         Ok(())
     }
@@ -251,12 +258,6 @@ impl Node<InMemoryStore> {
         self.connect(peer).await?;
         Ok(())
     }
-}
-
-async fn fund_and_mine(address: Address, amount: Amount) -> Result<()> {
-    bitcoind::fund(address.to_string(), amount).await?;
-    bitcoind::mine(1).await?;
-    Ok(())
 }
 
 async fn setup_coordinator_payer_channel(

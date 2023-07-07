@@ -32,6 +32,16 @@ pub struct FeeRateEstimator {
     fee_rate_cache: RwLock<HashMap<ConfirmationTarget, FeeRate>>,
 }
 
+pub trait EstimateFeeRate {
+    fn estimate(&self, target: ConfirmationTarget) -> FeeRate;
+}
+
+impl EstimateFeeRate for FeeRateEstimator {
+    fn estimate(&self, target: ConfirmationTarget) -> FeeRate {
+        self.get(target)
+    }
+}
+
 impl FeeRateEstimator {
     /// Constructor for the [`FeeRateEstimator`].
     pub fn new(esplora_url: String) -> Self {
@@ -66,7 +76,7 @@ impl FeeRateEstimator {
         }
     }
 
-    pub(crate) fn get(&self, target: ConfirmationTarget) -> FeeRate {
+    fn get(&self, target: ConfirmationTarget) -> FeeRate {
         self.cache_read_lock()
             .get(&target)
             .copied()
@@ -110,6 +120,6 @@ impl FeeRateEstimator {
 impl FeeEstimator for FeeRateEstimator {
     #[autometrics]
     fn get_est_sat_per_1000_weight(&self, confirmation_target: ConfirmationTarget) -> u32 {
-        (self.get(confirmation_target).fee_wu(1000) as u32).max(FEERATE_FLOOR_SATS_PER_KW)
+        (self.estimate(confirmation_target).fee_wu(1000) as u32).max(FEERATE_FLOOR_SATS_PER_KW)
     }
 }
