@@ -187,7 +187,7 @@ ln-dlc-node-test args="": docker
     sleep 2
     # adjust the max amount of available file descriptors - we're making a lot of requests, and it might go over the limit
     ulimit -n 1024
-    cargo test -p ln-dlc-node -- --ignored --test-threads=1 {{args}}
+    RUST_BACKTRACE=1 cargo test -p ln-dlc-node -- --ignored --test-threads=1 {{args}}
 
 # Runs background Docker services
 docker:
@@ -354,12 +354,12 @@ alias e2e := tests-e2e
 tests-e2e args="": services
     #!/usr/bin/env bash
     set -euxo pipefail
-    cargo test -p tests-e2e -- --ignored --test-threads=1 {{args}}
+    RUST_BACKTRACE=1 cargo test -p tests-e2e -- --ignored --test-threads=1 {{args}}
 
 # Run a single end-to-end test for debugging purposes
 e2e-single test_name="": services
     #!/usr/bin/env bash
     set -euxo pipefail
-    cargo test -p tests-e2e --test {{test_name}} -- --ignored --nocapture
+    RUST_BACKTRACE=1 cargo test -p tests-e2e --test {{test_name}} -- --ignored --nocapture
 
 # vim:expandtab:sw=4:ts=4
