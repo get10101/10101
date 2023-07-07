@@ -4,6 +4,7 @@ use rust_decimal::Decimal;
 use serde::Deserialize;
 use serde::Serialize;
 use std::collections::HashMap;
+use time::OffsetDateTime;
 use trade::ContractSymbol;
 use trade::Direction;
 
@@ -55,7 +56,9 @@ fn best_price_for(
     let use_max = direction == Direction::Long;
     current_orders
         .iter()
-        .filter(|order| !order.taken && order.direction == direction)
+        .filter(|order| {
+            !order.taken && order.direction == direction && order.expiry > OffsetDateTime::now_utc()
+        })
         .map(|order| order.price.to_f64().expect("to represent decimal as f64"))
         // get the best price
         .fold(None, |acc, x| match acc {
