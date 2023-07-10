@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:get_10101/common/amount_denomination_change_notifier.dart';
 import 'package:get_10101/common/domain/model.dart';
 import 'package:get_10101/features/trade/candlestick_change_notifier.dart';
+import 'package:get_10101/features/trade/domain/price.dart';
 import 'package:get_10101/features/trade/order_change_notifier.dart';
 import 'package:get_10101/features/trade/position_change_notifier.dart';
 import 'package:get_10101/features/trade/submit_order_change_notifier.dart';
@@ -128,13 +129,18 @@ void main() {
 
     WalletChangeNotifier walletChangeNotifier = WalletChangeNotifier(walletService);
 
+    PositionChangeNotifier positionChangeNotifier = PositionChangeNotifier(positionService);
+
+    // We have to have current price, otherwise we can't take order
+    positionChangeNotifier.price = Price(bid: 30000.0, ask: 30000.0);
+
     await tester.pumpWidget(MultiProvider(providers: [
       ChangeNotifierProvider(
           create: (context) =>
               TradeValuesChangeNotifier(tradeValueService, channelConstraintsService)),
       ChangeNotifierProvider(create: (context) => submitOrderChangeNotifier),
       ChangeNotifierProvider(create: (context) => OrderChangeNotifier(orderService)),
-      ChangeNotifierProvider(create: (context) => PositionChangeNotifier(positionService)),
+      ChangeNotifierProvider(create: (context) => positionChangeNotifier),
       ChangeNotifierProvider(create: (context) => AmountDenominationChangeNotifier()),
       ChangeNotifierProvider(create: (context) => walletChangeNotifier),
       ChangeNotifierProvider(create: (context) => candlestickChangeNotifier)

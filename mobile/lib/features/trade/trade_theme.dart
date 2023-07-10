@@ -9,6 +9,8 @@ class TradeTheme extends ThemeExtension<TradeTheme> {
   static const Color green600 = Color(0xFF43A047);
   static const Color red600 = Color(0xFFE53935);
 
+  final Color disabled = Colors.grey;
+
   final Color buy;
   final Color sell;
 
