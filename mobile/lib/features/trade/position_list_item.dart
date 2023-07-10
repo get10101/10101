@@ -3,9 +3,12 @@ import 'dart:async';
 import 'package:expandable/expandable.dart';
 import 'package:flutter/material.dart';
 import 'package:get_10101/common/value_data_row.dart';
+import 'package:get_10101/features/trade/domain/direction.dart';
 import 'package:get_10101/features/trade/domain/position.dart';
+import 'package:get_10101/features/trade/position_change_notifier.dart';
 import 'package:get_10101/features/trade/trade_theme.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 
 import 'contract_symbol_icon.dart';
 
@@ -45,9 +48,16 @@ class _PositionListItemState extends State<PositionListItem> {
     formatter.maximumFractionDigits = 2;
 
     TradeTheme tradeTheme = Theme.of(context).extension<TradeTheme>()!;
+    PositionChangeNotifier positionChangeNotifier = context.watch<PositionChangeNotifier>();
 
     // dart cannot promote...
     Position notNullPosition = widget.position!;
+
+    // We're a bit conservative, we only enable action when we have both bid and ask
+    // XXX: Not sure whether ask or bid price here
+    bool priceAvailable = notNullPosition.direction == Direction.long
+        ? positionChangeNotifier.price?.ask != null
+        : positionChangeNotifier.price?.bid != null;
 
     if (!isPositionExpired) {
       Timer(notNullPosition.expiry.difference(DateTime.now().toUtc()), () {
@@ -157,12 +167,13 @@ class _PositionListItemState extends State<PositionListItem> {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               ElevatedButton(
-                onPressed:
-                    notNullPosition.positionState == PositionState.closing || isPositionExpired
-                        ? null
-                        : () async {
-                            await widget.onClose();
-                          },
+                onPressed: notNullPosition.positionState == PositionState.closing ||
+                        isPositionExpired ||
+                        !priceAvailable
+                    ? null
+                    : () async {
+                        await widget.onClose();
+                      },
                 child: notNullPosition.positionState == PositionState.closing || isPositionExpired
                     ? const Row(
                         children: [
