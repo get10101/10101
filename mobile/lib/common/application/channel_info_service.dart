@@ -10,6 +10,11 @@ class ChannelInfoService {
     return channelInfo != null ? ChannelInfo.fromApi(channelInfo) : null;
   }
 
+  Future<Amount> getChannelOpenFeeEstimate() async {
+    int feeEstimate = await rust.api.getChannelOpenFeeEstimateSat();
+    return Amount(feeEstimate);
+  }
+
   /// The multiplier that is used to determine the coordinator liquidity
   ///
   /// This value is an arbitrary number that may be subject to change.

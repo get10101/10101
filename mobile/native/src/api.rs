@@ -9,6 +9,7 @@ use crate::db;
 use crate::event;
 use crate::event::api::FlutterSubscriber;
 use crate::ln_dlc;
+use crate::ln_dlc::FUNDING_TX_WEIGHT_ESTIMATE;
 use crate::logger;
 use crate::orderbook;
 use crate::trade::order;
@@ -340,4 +341,11 @@ pub fn decode_invoice(invoice: String) -> Result<LightningInvoice> {
 
 pub fn get_node_id() -> SyncReturn<String> {
     SyncReturn(ln_dlc::get_node_info().pubkey.to_string())
+}
+
+pub fn get_channel_open_fee_estimate_sat() -> Result<u64> {
+    let fee_rate = ln_dlc::get_fee_rate()?;
+    let estimate = FUNDING_TX_WEIGHT_ESTIMATE as f32 * fee_rate.as_sat_per_vb();
+
+    Ok(estimate.ceil() as u64)
 }

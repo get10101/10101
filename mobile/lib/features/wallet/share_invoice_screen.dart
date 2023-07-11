@@ -4,7 +4,10 @@ import 'dart:developer';
 import 'package:f_logs/f_logs.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:get_10101/common/amount_text.dart';
+import 'package:get_10101/common/modal_bottom_sheet_info.dart';
 import 'package:get_10101/common/snack_bar.dart';
+import 'package:get_10101/common/value_data_row.dart';
 import 'package:get_10101/features/wallet/create_invoice_screen.dart';
 import 'package:get_10101/features/wallet/domain/wallet_info.dart';
 import 'package:get_10101/features/wallet/wallet_change_notifier.dart';
@@ -15,18 +18,14 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:get_10101/ffi.dart' as rust;
-
-import 'application/wallet_service.dart';
+import 'package:get_10101/features/wallet/domain/share_invoice.dart';
 
 class ShareInvoiceScreen extends StatefulWidget {
   static const route = "${WalletScreen.route}/${CreateInvoiceScreen.subRouteName}/$subRouteName";
   static const subRouteName = "share_invoice";
-  final WalletService walletService;
-  final String invoice;
+  final ShareInvoice invoice;
 
-  const ShareInvoiceScreen(
-      {super.key, this.walletService = const WalletService(), required this.invoice});
+  const ShareInvoiceScreen({super.key, required this.invoice});
 
   @override
   State<ShareInvoiceScreen> createState() => _ShareInvoiceScreenState();
@@ -44,6 +43,11 @@ class _ShareInvoiceScreenState extends State<ShareInvoiceScreen> {
 
     const EdgeInsets buttonSpacing = EdgeInsets.symmetric(vertical: 8.0, horizontal: 24.0);
 
+    const qrWidth = 200.0;
+    const qrPadding = 5.0;
+    const infoButtonRadius = ModalBottomSheetInfo.buttonRadius;
+    const infoButtonPadding = 5.0;
+
     return Scaffold(
       appBar: AppBar(title: const Text("Receive funds")),
       body: SafeArea(
@@ -55,7 +59,7 @@ class _ShareInvoiceScreenState extends State<ShareInvoiceScreen> {
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.center, children: [
                 const Padding(
-                  padding: EdgeInsets.only(top: 25.0, bottom: 50.0),
+                  padding: EdgeInsets.only(top: 25.0, bottom: 30.0),
                   child: Text(
                     "Share payment request",
                     style: TextStyle(fontSize: 18.0, fontWeight: FontWeight.bold),
@@ -64,12 +68,56 @@ class _ShareInvoiceScreenState extends State<ShareInvoiceScreen> {
                 Expanded(
                   child: Center(
                     child: QrImageView(
-                      data: widget.invoice,
+                      data: widget.invoice.rawInvoice,
                       version: QrVersions.auto,
-                      size: 200.0,
+                      padding: const EdgeInsets.all(qrPadding),
                     ),
                   ),
                 ),
+                const SizedBox(height: 10),
+                Center(
+                    child: SizedBox(
+                        // Size of the qr image minus padding
+                        width: qrWidth - 2 * qrPadding,
+                        child: ValueDataRow(
+                          type: ValueType.amount,
+                          value: widget.invoice.invoiceAmount,
+                          label: 'Amount',
+                        ))),
+                if (widget.invoice.channelOpenFee != null)
+                  Padding(
+                    // Set in by size of info button on the right
+                    padding: const EdgeInsets.only(left: infoButtonRadius * 2),
+                    child: SizedBox(
+                      width: qrWidth - 2 * qrPadding + infoButtonRadius * 2,
+                      child: Row(
+                        children: [
+                          Expanded(
+                              child: ValueDataRow(
+                                  type: ValueType.amount,
+                                  value: widget.invoice.channelOpenFee,
+                                  label: "Fee Estimate")),
+                          ModalBottomSheetInfo(
+                              closeButtonText: "Back to Share Invoice",
+                              infoButtonPadding: const EdgeInsets.all(infoButtonPadding),
+                              child: Column(
+                                children: [
+                                  Center(
+                                    child: Text("Understanding Fees",
+                                        style: Theme.of(context).textTheme.headlineSmall),
+                                  ),
+                                  const SizedBox(height: 10),
+                                  Text(
+                                      "Upon receiving your first payment the 10101 LSP will open a Lightning channel with you.\n"
+                                      "To cover the costs for opening the channel the transaction fee is collected after the channel was opened, meaning that an estimated ${formatSats(widget.invoice.channelOpenFee!)} will be collected from your wallet once the channel was opened.\n"
+                                      "The fee estimate is based on a transaction weight with two inputs and the current estimated fee rate."),
+                                ],
+                              )),
+                        ],
+                      ),
+                    ),
+                  ),
+                const SizedBox(height: 10)
               ]),
             ),
             // Faucet button, only available if we are on regtest
@@ -85,7 +133,7 @@ class _ShareInvoiceScreenState extends State<ShareInvoiceScreen> {
 
                         final router = GoRouter.of(context);
                         try {
-                          await payInvoiceWithFaucet(widget.invoice);
+                          await payInvoiceWithFaucet(widget.invoice.rawInvoice);
                           // Pop both create invoice screen and share invoice screen
                           router.pop();
                           router.pop();
@@ -111,7 +159,7 @@ class _ShareInvoiceScreenState extends State<ShareInvoiceScreen> {
                   padding: buttonSpacing,
                   child: OutlinedButton(
                     onPressed: () {
-                      Clipboard.setData(ClipboardData(text: widget.invoice)).then((_) {
+                      Clipboard.setData(ClipboardData(text: widget.invoice.rawInvoice)).then((_) {
                         ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(content: Text('Invoice copied to clipboard')));
                       });
@@ -138,7 +186,7 @@ class _ShareInvoiceScreenState extends State<ShareInvoiceScreen> {
                 child: Padding(
                   padding: buttonSpacing,
                   child: OutlinedButton(
-                    onPressed: () => Share.share(widget.invoice),
+                    onPressed: () => Share.share(widget.invoice.rawInvoice),
                     style: ElevatedButton.styleFrom(
                       shape: const RoundedRectangleBorder(
                           borderRadius: BorderRadius.all(Radius.circular(5.0))),
@@ -209,38 +257,6 @@ class _ShareInvoiceScreenState extends State<ShareInvoiceScreen> {
       throw Exception("Payment failed: Received ${response.statusCode} ${response.body}");
     } else {
       FLog.info(text: "Paying invoice succeeded: ${response.body}");
-    }
-  }
-
-  // Open channel directly between coordinator and app.
-  //
-  // Just for regtest.
-  Future<void> openCoordinatorChannel(String coordinatorHost) async {
-    int coordinatorPort = const int.fromEnvironment("COORDINATOR_PORT_HTTP", defaultValue: 8000);
-    var coordinator = 'http://$coordinatorHost:$coordinatorPort';
-
-    final requestBody = {
-      'target': {'pubkey': rust.api.getNodeId()},
-      'local_balance': 200000,
-      'remote_balance': 100000,
-      'is_public': false
-    };
-    final jsonString = json.encode(requestBody).toString();
-
-    FLog.info(text: jsonString);
-    FLog.info(text: coordinator);
-
-    final response = await http.post(
-      Uri.parse('$coordinator/api/channels'),
-      headers: <String, String>{'Content-Type': 'application/json'},
-      body: jsonString,
-    );
-
-    if (response.statusCode != 200 || response.body.contains("payment_error")) {
-      throw Exception(
-          "Failed to open channel with coordinator: Received ${response.statusCode} ${response.body}");
-    } else {
-      FLog.info(text: "Initiating channel open with coordinator succeeded: ${response.body}");
     }
   }
 }

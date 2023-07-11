@@ -21,6 +21,7 @@ import 'package:get_10101/features/trade/settings_screen.dart';
 import 'package:get_10101/features/trade/trade_theme.dart';
 import 'package:get_10101/features/wallet/application/wallet_service.dart';
 import 'package:get_10101/features/wallet/create_invoice_screen.dart';
+import 'package:get_10101/features/wallet/domain/share_invoice.dart';
 import 'package:get_10101/features/wallet/seed_screen.dart';
 import 'package:get_10101/features/wallet/send_payment_change_notifier.dart';
 import 'package:get_10101/features/wallet/share_invoice_screen.dart';
@@ -137,7 +138,7 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
                         // Use root navigator so the screen overlays the application shell
                         parentNavigatorKey: _rootNavigatorKey,
                         builder: (BuildContext context, GoRouterState state) {
-                          return ShareInvoiceScreen(invoice: state.extra as String);
+                          return ShareInvoiceScreen(invoice: state.extra as ShareInvoice);
                         },
                       ),
                     ]),

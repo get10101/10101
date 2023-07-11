@@ -5,6 +5,7 @@ import 'package:get_10101/common/amount_text.dart';
 import 'package:get_10101/common/amount_text_input_form_field.dart';
 import 'package:get_10101/common/application/channel_info_service.dart';
 import 'package:get_10101/common/domain/model.dart';
+import 'package:get_10101/features/wallet/domain/share_invoice.dart';
 import 'package:get_10101/features/wallet/share_invoice_screen.dart';
 import 'package:get_10101/features/wallet/wallet_change_notifier.dart';
 import 'package:get_10101/features/wallet/wallet_screen.dart';
@@ -34,7 +35,16 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
   final WalletService walletService = const WalletService();
 
   final ChannelInfoService channelInfoService = const ChannelInfoService();
+
+  /// The channel info if a channel already exists
+  ///
+  /// If no channel exists yet this field will be null.
   ChannelInfo? channelInfo;
+
+  /// Estimated fees for receiving
+  ///
+  /// These fees have to be added on top of the receive amount because they are collected after receiving the funds.
+  Amount? feeEstimate;
 
   @override
   void dispose() {
@@ -50,6 +60,11 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
 
   Future<void> initChannelInfo() async {
     channelInfo = await channelInfoService.getChannelInfo();
+
+    // initial channel opening
+    if (channelInfo == null) {
+      feeEstimate = await channelInfoService.getChannelOpenFeeEstimate();
+    }
   }
 
   @override
@@ -68,16 +83,18 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
     Amount maxAllowedOutboundCapacity =
         Amount((channelCapacity.sats / coordinatorLiquidityMultiplier).floor());
 
+    // the minimum amount that has to be in the wallet to be able to trade
+    Amount minAmountToBeAbleToTrade = Amount((channelInfo?.reserve.sats ?? initialReserve.sats) +
+        tradeFeeReserve.sats +
+        minTradeMargin.sats +
+        // make sure that the amount received covers potential fees as well
+        (feeEstimate?.sats ?? 0));
+
     // it can go below 0 if the user has an unbalanced channel
     Amount maxReceiveAmount = Amount(max(maxAllowedOutboundCapacity.sats - balance.sats, 0));
 
     // we have to at least receive enough to be able to trade with the minimum trade amount
-    Amount minReceiveAmount = Amount(max(
-        (channelInfo?.reserve.sats ?? initialReserve.sats) +
-            tradeFeeReserve.sats +
-            minTradeMargin.sats -
-            balance.sats,
-        1));
+    Amount minReceiveAmount = Amount(max(minAmountToBeAbleToTrade.sats - balance.sats, 1));
 
     return Scaffold(
       appBar: AppBar(title: const Text("Receive funds")),
@@ -145,12 +162,12 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
                       ),
                       if (showValidationHint)
                         ModalBottomSheetInfo(
-                            infoText:
+                            closeButtonText: "Back to Receive...",
+                            child: Text(
                                 "While in beta, maximum channel capacity is limited to ${formatSats(maxChannelCapacity)}; channels above this capacity might get rejected."
                                 "\nThe maximum is enforced initially to ensure users only trade with small stakes until the software has proven to be stable."
                                 "\n\nYour current balance is ${formatSats(balance)}, so you can receive up to ${formatSats(maxReceiveAmount)}."
-                                "\nIf you hold less than ${formatSats(minReceiveAmount)} or more than ${formatSats(maxAllowedOutboundCapacity)} in your wallet you might not be able to trade.",
-                            buttonText: "Back to Receive..."),
+                                "\nIf you hold less than ${formatSats(minAmountToBeAbleToTrade)} or more than ${formatSats(maxAllowedOutboundCapacity)} in your wallet you might not be able to trade.")),
                     ],
                   ),
                 ),
@@ -175,10 +192,14 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
                                 : () {
                                     if (_formKey.currentState!.validate()) {
                                       showValidationHint = false;
+
                                       walletService.createInvoice(amount!).then((invoice) {
                                         if (invoice != null) {
-                                          GoRouter.of(context)
-                                              .go(ShareInvoiceScreen.route, extra: invoice);
+                                          GoRouter.of(context).go(ShareInvoiceScreen.route,
+                                              extra: ShareInvoice(
+                                                  rawInvoice: invoice,
+                                                  invoiceAmount: amount!,
+                                                  channelOpenFee: feeEstimate));
                                         }
                                       });
                                     } else {
