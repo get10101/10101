@@ -91,13 +91,18 @@ async fn force_close_ln_dlc_channel() {
 
     // Confirm CET
     mine(1).await.unwrap();
+    tracing::info!("Mined 1 block");
 
     coordinator.sync_on_chain().await.unwrap();
+    tracing::info!("Coordinator synced on-chain");
     app.sync_on_chain().await.unwrap();
+    tracing::info!("App synced on-chain");
 
     let coordinator_on_chain_balance_after_force_close =
         coordinator.get_on_chain_balance().unwrap().confirmed;
+    tracing::info!(balance = %coordinator_on_chain_balance_after_force_close, "Coordinator on-chain balance");
     let app_on_chain_balance_after_force_close = app.get_on_chain_balance().unwrap().confirmed;
+    tracing::info!(balance = %app_on_chain_balance_after_force_close, "App on-chain balance");
 
     // Given that we have dynamic transaction fees based on the state of the regtest mempool, it's
     // less error-prone to choose a conservative lower bound on the expected funds after
