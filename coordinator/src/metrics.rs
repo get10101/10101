@@ -1,8 +1,8 @@
 use crate::db;
+use crate::node::storage::NodeStorage;
 use crate::node::Node;
 use lazy_static::lazy_static;
 use lightning::ln::channelmanager::ChannelDetails;
-use ln_dlc_node::node::InMemoryStore;
 use opentelemetry::global;
 use opentelemetry::metrics::Meter;
 use opentelemetry::metrics::ObservableGauge;
@@ -181,7 +181,7 @@ fn channel_metrics(cx: &Context, channels: Vec<ChannelDetails>) {
     }
 }
 
-fn node_metrics(cx: &Context, inner_node: Arc<ln_dlc_node::node::Node<InMemoryStore>>) {
+fn node_metrics(cx: &Context, inner_node: Arc<ln_dlc_node::node::Node<NodeStorage>>) {
     let connected_peers = inner_node.list_peers().len();
     CONNECTED_PEERS.observe(cx, connected_peers as u64, &[]);
     let offchain = inner_node.get_ldk_balance();

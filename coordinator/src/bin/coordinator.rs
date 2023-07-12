@@ -16,7 +16,6 @@ use coordinator::settings::Settings;
 use diesel::r2d2;
 use diesel::r2d2::ConnectionManager;
 use diesel::PgConnection;
-use ln_dlc_node::node::InMemoryStore;
 use ln_dlc_node::seed::Bip39Seed;
 use rand::thread_rng;
 use rand::RngCore;
@@ -77,11 +76,20 @@ async fn main() -> Result<()> {
 
     let settings = Settings::new(&data_dir).await;
 
+    // set up database connection pool
+    let manager = ConnectionManager::<PgConnection>::new(opts.database.clone());
+    let pool = r2d2::Pool::builder()
+        .build(manager)
+        .expect("Failed to create pool.");
+
+    let mut conn = pool.get()?;
+    run_migration(&mut conn);
+
     let node = Arc::new(ln_dlc_node::node::Node::new_coordinator(
         "10101.finance",
         network,
         data_dir.as_path(),
-        InMemoryStore::default(),
+        coordinator::node::storage::NodeStorage::new(pool.clone()),
         address,
         SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), address.port()),
         opts.p2p_announcement_addresses(),
@@ -91,15 +99,6 @@ async fn main() -> Result<()> {
         settings.ln_dlc.clone(),
         opts.get_oracle_info(),
     )?);
-
-    // set up database connection pool
-    let manager = ConnectionManager::<PgConnection>::new(opts.database);
-    let pool = r2d2::Pool::builder()
-        .build(manager)
-        .expect("Failed to create pool.");
-
-    let mut conn = pool.get()?;
-    run_migration(&mut conn);
 
     let node = Node::new(node, pool.clone());
     node.update_settings(settings.as_node_settings()).await;
