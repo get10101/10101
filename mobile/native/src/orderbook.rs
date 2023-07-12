@@ -8,12 +8,16 @@ use orderbook_commons::best_current_price;
 use orderbook_commons::Order;
 use orderbook_commons::OrderbookMsg;
 use orderbook_commons::Signature;
+use parking_lot::Mutex;
+use std::sync::Arc;
 use std::time::Duration;
+use time::OffsetDateTime;
 use tokio::runtime::Runtime;
 use tokio::task::spawn_blocking;
 use uuid::Uuid;
 
 const WS_RECONNECT_TIMEOUT: Duration = Duration::from_secs(2);
+const EXPIRED_ORDER_PRUNING_INTERVAL: Duration = Duration::from_secs(30);
 
 pub fn subscribe(secret_key: SecretKey, runtime: &Runtime) -> Result<()> {
     runtime.spawn(async move {
@@ -28,14 +32,45 @@ pub fn subscribe(secret_key: SecretKey, runtime: &Runtime) -> Result<()> {
             Signature { pubkey, signature }
         };
 
-        // Consider using a HashMap instead to optimize the lookup for removal/update
-        let mut orders = Vec::new();
+        // Need a Mutex as it's being accessed from websocket stream and pruning task
+        let orders = Arc::new(Mutex::new(Vec::<Order>::new()));
+
+        let _prune_expired_orders_task = {
+            let orders = orders.clone();
+            tokio::spawn(async move {
+                loop {
+                    {
+                        tracing::debug!("Pruning expired orders");
+                        let mut orders = orders.lock();
+                        let orders_before_pruning = orders.len();
+                        *orders = orders.iter().filter(|order| order.expiry >= OffsetDateTime::now_utc()).cloned().collect::<Vec<_>>();
+                        let orders_after_pruning = orders.len();
+
+                        if orders_after_pruning < orders_before_pruning {
+                            let amount_pruned = orders_before_pruning - orders_after_pruning;
+                            tracing::debug!(
+                                orders_before_pruning,
+                                orders_after_pruning,
+                                "Pruned {amount_pruned} expired orders"
+                            );
+
+                            // Current best price might have changed
+                            if let Err(e) = position::handler::price_update(best_current_price(&orders)) {
+                                tracing::error!("Price update from the orderbook failed. Error: {e:#}");
+                            }
+                        }
+                    }
+                    tokio::time::sleep(EXPIRED_ORDER_PRUNING_INTERVAL).await;
+                }
+            })
+        };
 
         loop {
             let url = url.clone();
             let authenticate = authenticate;
             let mut stream =
                 spawn_blocking(move || orderbook_client::subscribe_with_authentication(url, authenticate)).await.expect("joined task not to panic");
+
 
             loop {
                 match stream.try_next().await {
@@ -61,24 +96,27 @@ pub fn subscribe(secret_key: SecretKey, runtime: &Runtime) -> Result<()> {
                                 }
                             },
                             OrderbookMsg::AllOrders(initial_orders) => {
+                                let mut orders = orders.lock();
                                 if !orders.is_empty() {
                                     tracing::debug!("Received new set of initial orders from orderbook, replacing the previously stored orders");
                                 }
                                 else {
                                     tracing::debug!(?orders, "Received all orders from orderbook");
                                 }
-                                orders = initial_orders;
+                                *orders = initial_orders;
                                 if let Err(e) = position::handler::price_update(best_current_price(&orders)) {
                                     tracing::error!("Price update from the orderbook failed. Error: {e:#}");
                                 }
                             },
                             OrderbookMsg::NewOrder(order) => {
+                                let mut orders = orders.lock();
                                 orders.push(order);
                                 if let Err(e) = position::handler::price_update(best_current_price(&orders)) {
                                     tracing::error!("Price update from the orderbook failed. Error: {e:#}");
                                 }
                             }
                             OrderbookMsg::DeleteOrder(order_id) => {
+                                let mut orders = orders.lock();
                                 let found = remove_order(&mut orders, order_id);
                                 if !found {
                                     tracing::warn!(%order_id, "Could not remove non-existing order");
@@ -88,6 +126,7 @@ pub fn subscribe(secret_key: SecretKey, runtime: &Runtime) -> Result<()> {
                                 }
                             },
                             OrderbookMsg::Update(updated_order) => {
+                                let mut orders = orders.lock();
                                 let found = remove_order(&mut orders, updated_order.id);
                                 if !found {
                                     tracing::warn!(?updated_order, "Update without prior knowledge of order");

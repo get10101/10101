@@ -113,6 +113,9 @@ class TradeScreen extends StatelessWidget {
       height: 60,
     );
 
+    bool isBuyButtonEnabled = positionChangeNotifier.price?.ask != null;
+    bool isSellButtonEnabled = positionChangeNotifier.price?.bid != null;
+
     return Scaffold(
         body: Container(
           padding: const EdgeInsets.only(left: 15, right: 15),
@@ -277,11 +280,13 @@ class TradeScreen extends StatelessWidget {
                     key: tradeScreenButtonBuy,
                     heroTag: "btnBuy",
                     onPressed: () {
-                      tradeBottomSheet(context: context, direction: Direction.long);
+                      if (isBuyButtonEnabled) {
+                        tradeBottomSheet(context: context, direction: Direction.long);
+                      }
                     },
                     label: const Text("Buy"),
                     shape: tradeButtonShape,
-                    backgroundColor: tradeTheme.buy,
+                    backgroundColor: isBuyButtonEnabled ? tradeTheme.buy : tradeTheme.disabled,
                   )),
               const SizedBox(width: 20),
               SizedBox(
@@ -290,11 +295,13 @@ class TradeScreen extends StatelessWidget {
                     key: tradeScreenButtonSell,
                     heroTag: "btnSell",
                     onPressed: () {
-                      tradeBottomSheet(context: context, direction: Direction.short);
+                      if (isSellButtonEnabled) {
+                        tradeBottomSheet(context: context, direction: Direction.short);
+                      }
                     },
                     label: const Text("Sell"),
                     shape: tradeButtonShape,
-                    backgroundColor: tradeTheme.sell,
+                    backgroundColor: isBuyButtonEnabled ? tradeTheme.sell : tradeTheme.disabled,
                   )),
             ],
           ),

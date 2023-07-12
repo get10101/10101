@@ -14,7 +14,7 @@ class PositionChangeNotifier extends ChangeNotifier implements Subscriber {
 
   Map<ContractSymbol, Position> positions = {};
 
-  Price? _price;
+  Price? price;
 
   Future<void> initialize() async {
     List<Position> positions = await _positionService.fetchPositions();
@@ -34,8 +34,8 @@ class PositionChangeNotifier extends ChangeNotifier implements Subscriber {
     if (event is bridge.Event_PositionUpdateNotification) {
       Position position = Position.fromApi(event.field0);
 
-      if (_price != null) {
-        final pnl = _positionService.calculatePnl(position, _price!);
+      if (price != null) {
+        final pnl = _positionService.calculatePnl(position, price!);
         position.unrealizedPnl = pnl != null ? Amount(pnl) : null;
       } else {
         position.unrealizedPnl = null;
@@ -45,11 +45,11 @@ class PositionChangeNotifier extends ChangeNotifier implements Subscriber {
       ContractSymbol contractSymbol = ContractSymbol.fromApi(event.field0.contractSymbol);
       positions.remove(contractSymbol);
     } else if (event is bridge.Event_PriceUpdateNotification) {
-      _price = Price.fromApi(event.field0);
+      price = Price.fromApi(event.field0);
       for (ContractSymbol symbol in positions.keys) {
-        if (_price != null) {
+        if (price != null) {
           if (positions[symbol] != null) {
-            final pnl = _positionService.calculatePnl(positions[symbol]!, _price!);
+            final pnl = _positionService.calculatePnl(positions[symbol]!, price!);
             positions[symbol]!.unrealizedPnl = pnl != null ? Amount(pnl) : null;
           }
         }
