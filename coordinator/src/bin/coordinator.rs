@@ -6,6 +6,7 @@ use coordinator::logger;
 use coordinator::metrics::collect_metrics;
 use coordinator::metrics::init_meter;
 use coordinator::node::connection;
+use coordinator::node::storage::NodeStorage;
 use coordinator::node::Node;
 use coordinator::node::TradeAction;
 use coordinator::position::models::Position;
@@ -89,7 +90,7 @@ async fn main() -> Result<()> {
         "10101.finance",
         network,
         data_dir.as_path(),
-        coordinator::node::storage::NodeStorage::new(pool.clone()),
+        NodeStorage::new(pool.clone()),
         address,
         SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), address.port()),
         opts.p2p_announcement_addresses(),

@@ -1,3 +1,4 @@
+use crate::db::payments;
 use anyhow::Result;
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::Pool;
@@ -12,6 +13,7 @@ use ln_dlc_node::HTLCStatus;
 use ln_dlc_node::MillisatAmount;
 use ln_dlc_node::PaymentFlow;
 use ln_dlc_node::PaymentInfo;
+use time::OffsetDateTime;
 
 #[derive(Clone)]
 pub struct NodeStorage {
@@ -27,28 +29,66 @@ impl NodeStorage {
 impl node::Storage for NodeStorage {
     // Payments
 
-    fn insert_payment(&self, _payment_hash: PaymentHash, _info: PaymentInfo) -> Result<()> {
-        todo!()
+    fn insert_payment(&self, payment_hash: PaymentHash, info: PaymentInfo) -> Result<()> {
+        let mut conn = self.pool.get()?;
+        payments::insert((payment_hash, info), &mut conn)
     }
+
     fn merge_payment(
         &self,
-        _payment_hash: &PaymentHash,
-        _flow: PaymentFlow,
-        _amt_msat: MillisatAmount,
-        _htlc_status: HTLCStatus,
-        _preimage: Option<PaymentPreimage>,
-        _secret: Option<PaymentSecret>,
+        payment_hash: &PaymentHash,
+        flow: PaymentFlow,
+        amt_msat: MillisatAmount,
+        htlc_status: HTLCStatus,
+        preimage: Option<PaymentPreimage>,
+        secret: Option<PaymentSecret>,
     ) -> Result<()> {
-        todo!()
+        let mut conn = self.pool.get()?;
+
+        match payments::get(*payment_hash, &mut conn)? {
+            Some(_) => {
+                payments::update(
+                    *payment_hash,
+                    htlc_status,
+                    amt_msat,
+                    preimage,
+                    secret,
+                    &mut conn,
+                )?;
+            }
+            None => {
+                payments::insert(
+                    (
+                        *payment_hash,
+                        PaymentInfo {
+                            preimage,
+                            secret,
+                            status: htlc_status,
+                            amt_msat,
+                            flow,
+                            timestamp: OffsetDateTime::now_utc(),
+                            description: "".to_string(),
+                        },
+                    ),
+                    &mut conn,
+                )?;
+            }
+        }
+
+        Ok(())
     }
+
     fn get_payment(
         &self,
-        _payment_hash: &PaymentHash,
+        payment_hash: &PaymentHash,
     ) -> Result<Option<(PaymentHash, PaymentInfo)>> {
-        todo!()
+        let mut conn = self.pool.get()?;
+        payments::get(*payment_hash, &mut conn)
     }
+
     fn all_payments(&self) -> Result<Vec<(PaymentHash, PaymentInfo)>> {
-        todo!()
+        let mut conn = self.pool.get()?;
+        payments::get_all(&mut conn)
     }
 
     // Spendable outputs

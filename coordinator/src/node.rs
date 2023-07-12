@@ -28,6 +28,7 @@ use dlc_manager::ChannelId;
 use dlc_messages::Message;
 use lightning::ln::channelmanager::ChannelDetails;
 use lightning_invoice::Invoice;
+use ln_dlc_node::node;
 use ln_dlc_node::node::dlc_message_name;
 use ln_dlc_node::node::sub_channel_message_name;
 use ln_dlc_node::WalletSettings;
@@ -78,14 +79,14 @@ impl Default for NodeSettings {
 
 #[derive(Clone)]
 pub struct Node {
-    pub inner: Arc<ln_dlc_node::node::Node<NodeStorage>>,
+    pub inner: Arc<node::Node<NodeStorage>>,
     pub pool: Pool<ConnectionManager<PgConnection>>,
     pub settings: Arc<RwLock<NodeSettings>>,
 }
 
 impl Node {
     pub fn new(
-        inner: Arc<ln_dlc_node::node::Node<NodeStorage>>,
+        inner: Arc<node::Node<NodeStorage>>,
         pool: Pool<ConnectionManager<PgConnection>>,
     ) -> Self {
         Self {
@@ -123,13 +124,20 @@ impl Node {
 
     #[autometrics]
     pub async fn trade(&self, trade_params: &TradeParams) -> Result<Invoice> {
+        let invoice = self.fee_invoice_taker(trade_params).await?;
+        let _fee_payment_hash = invoice.payment_hash();
+
+        // TODO: Save this invoice in the coordinator database
+        //  The identifier is the payment hash
+        //  Potentially safe the order id as meta data
+
         match self.decide_trade_action(&trade_params.pubkey)? {
             TradeAction::Open => {
                 ensure!(
                     self.settings.read().await.allow_opening_positions,
                     "Opening positions is disabled"
                 );
-                self.open_position(trade_params).await?;
+                self.open_position(trade_params).await?
             }
             TradeAction::Close(channel_id) => {
                 let peer_id = trade_params.pubkey;
@@ -150,8 +158,6 @@ impl Node {
                     .await?
             }
         };
-
-        let invoice = self.fee_invoice_taker(trade_params).await?;
 
         Ok(invoice)
     }
