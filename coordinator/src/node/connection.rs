@@ -1,6 +1,5 @@
 use autometrics::autometrics;
 use lightning::ln::msgs::NetAddress;
-use ln_dlc_node::node::InMemoryStore;
 use ln_dlc_node::node::Node;
 use ln_dlc_node::node::NodeInfo;
 use rand::seq::SliceRandom;
@@ -11,9 +10,11 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::task::spawn_blocking;
 
+use crate::node::storage::NodeStorage;
+
 #[autometrics]
 pub async fn keep_public_channel_peers_connected(
-    node: Arc<Node<InMemoryStore>>,
+    node: Arc<Node<NodeStorage>>,
     check_interval: Duration,
 ) {
     loop {
@@ -28,7 +29,7 @@ pub async fn keep_public_channel_peers_connected(
     }
 }
 
-fn reconnect_to_disconnected_public_channel_peers(node: Arc<Node<InMemoryStore>>) {
+fn reconnect_to_disconnected_public_channel_peers(node: Arc<Node<NodeStorage>>) {
     let connected_peers = node
         .peer_manager
         .get_peer_node_ids()

@@ -61,6 +61,15 @@ diesel::table! {
 }
 
 diesel::table! {
+    spendable_outputs (id) {
+        id -> Int4,
+        txid -> Text,
+        vout -> Int4,
+        descriptor -> Text,
+    }
+}
+
+diesel::table! {
     use diesel::sql_types::*;
     use super::sql_types::ContractSymbolType;
     use super::sql_types::DirectionType;
@@ -91,4 +100,4 @@ diesel::table! {
 
 diesel::joinable!(trades -> positions (position_id));
 
-diesel::allow_tables_to_appear_in_same_query!(orders, positions, trades, users,);
+diesel::allow_tables_to_appear_in_same_query!(orders, positions, spendable_outputs, trades, users,);
