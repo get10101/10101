@@ -73,7 +73,7 @@ pub async fn refresh_wallet_info() -> Result<()> {
     let wallet = node.inner.wallet();
 
     spawn_blocking(move || wallet.sync()).await??;
-    keep_wallet_balance_and_history_up_to_date(node).await?;
+    keep_wallet_balance_and_history_up_to_date(node)?;
 
     Ok(())
 }
@@ -219,7 +219,11 @@ pub fn run(data_dir: String, seed_dir: String, runtime: &Runtime) -> Result<()> 
             let node = node.clone();
             async move {
                 loop {
-                    if let Err(e) = keep_wallet_balance_and_history_up_to_date(&node).await {
+                    let node = node.clone();
+                    if let Err(e) =
+                        spawn_blocking(move || keep_wallet_balance_and_history_up_to_date(&node))
+                            .await.expect("To spawn blocking task")
+                    {
                         tracing::error!("Failed to sync balance and wallet history: {e:#}");
                     }
 
@@ -249,7 +253,7 @@ pub fn run(data_dir: String, seed_dir: String, runtime: &Runtime) -> Result<()> 
     })
 }
 
-async fn keep_wallet_balance_and_history_up_to_date(node: &Node) -> Result<()> {
+fn keep_wallet_balance_and_history_up_to_date(node: &Node) -> Result<()> {
     let wallet_balances = node
         .get_wallet_balances()
         .context("Failed to get wallet balances")?;
@@ -259,7 +263,6 @@ async fn keep_wallet_balance_and_history_up_to_date(node: &Node) -> Result<()> {
         off_chain,
     } = node
         .get_wallet_histories()
-        .await
         .context("Failed to get wallet histories")?;
 
     let on_chain = on_chain.iter().map(|details| {

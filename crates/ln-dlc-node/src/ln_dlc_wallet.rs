@@ -109,8 +109,8 @@ impl LnDlcWallet {
     /// This list won't be up-to-date unless the wallet has previously been synchronised with the
     /// blockchain.
     #[autometrics]
-    pub async fn on_chain_transactions(&self) -> Result<Vec<TransactionDetails>> {
-        let mut txs = self.ln_wallet.on_chain_transaction_list().await?;
+    pub fn on_chain_transactions(&self) -> Result<Vec<TransactionDetails>> {
+        let mut txs = self.ln_wallet.on_chain_transaction_list()?;
 
         txs.sort_by(|a, b| {
             b.confirmation_time
