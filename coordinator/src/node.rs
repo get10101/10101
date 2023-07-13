@@ -1,5 +1,6 @@
 use crate::db;
 use crate::db::trades::Trade;
+use crate::node::storage::NodeStorage;
 use crate::position::models::NewPosition;
 use crate::position::models::Position;
 use anyhow::bail;
@@ -27,9 +28,9 @@ use dlc_manager::ChannelId;
 use dlc_messages::Message;
 use lightning::ln::channelmanager::ChannelDetails;
 use lightning_invoice::Invoice;
+use ln_dlc_node::node;
 use ln_dlc_node::node::dlc_message_name;
 use ln_dlc_node::node::sub_channel_message_name;
-use ln_dlc_node::node::InMemoryStore;
 use ln_dlc_node::WalletSettings;
 use ln_dlc_node::CONTRACT_TX_FEE_RATE;
 use rust_decimal::prelude::ToPrimitive;
@@ -45,6 +46,7 @@ use trade::Direction;
 
 pub mod connection;
 pub mod order_matching_fee;
+pub mod storage;
 
 /// The leverage used by the coordinator for all trades.
 const COORDINATOR_LEVERAGE: f32 = 1.0;
@@ -77,14 +79,14 @@ impl Default for NodeSettings {
 
 #[derive(Clone)]
 pub struct Node {
-    pub inner: Arc<ln_dlc_node::node::Node<InMemoryStore>>,
+    pub inner: Arc<node::Node<NodeStorage>>,
     pub pool: Pool<ConnectionManager<PgConnection>>,
     pub settings: Arc<RwLock<NodeSettings>>,
 }
 
 impl Node {
     pub fn new(
-        inner: Arc<ln_dlc_node::node::Node<InMemoryStore>>,
+        inner: Arc<node::Node<NodeStorage>>,
         pool: Pool<ConnectionManager<PgConnection>>,
     ) -> Self {
         Self {
@@ -122,13 +124,20 @@ impl Node {
 
     #[autometrics]
     pub async fn trade(&self, trade_params: &TradeParams) -> Result<Invoice> {
+        let invoice = self.fee_invoice_taker(trade_params).await?;
+        let _fee_payment_hash = invoice.payment_hash();
+
+        // TODO: Save this invoice in the coordinator database
+        //  The identifier is the payment hash
+        //  Potentially safe the order id as meta data
+
         match self.decide_trade_action(&trade_params.pubkey)? {
             TradeAction::Open => {
                 ensure!(
                     self.settings.read().await.allow_opening_positions,
                     "Opening positions is disabled"
                 );
-                self.open_position(trade_params).await?;
+                self.open_position(trade_params).await?
             }
             TradeAction::Close(channel_id) => {
                 let peer_id = trade_params.pubkey;
@@ -149,8 +158,6 @@ impl Node {
                     .await?
             }
         };
-
-        let invoice = self.fee_invoice_taker(trade_params).await?;
 
         Ok(invoice)
     }

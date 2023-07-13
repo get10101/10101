@@ -29,7 +29,7 @@ cargo install diesel_cli --no-default-features --features postgres,sqlite
 Run this from the project root to start the database
 
 ```bash
-docker-compose up -d coordinator-db
+docker-compose up -d db
 ```
 
 ### Setup diesel
@@ -39,6 +39,8 @@ The db settings are currently hardcoded in main.rs:
 ```
 postgres://postgres:mysecretpassword@localhost:5432/orderbook
 ```
+
+Run this from the `coordinator` dir:
 
 ```bash
 diesel setup --database-url=postgres://postgres:mysecretpassword@localhost:5432/orderbook --migration-dir ./migrations

@@ -10,8 +10,16 @@ pub mod sql_types {
     pub struct DirectionType;
 
     #[derive(diesel::sql_types::SqlType)]
+    #[diesel(postgres_type(name = "Htlc_Status_Type"))]
+    pub struct HtlcStatusType;
+
+    #[derive(diesel::sql_types::SqlType)]
     #[diesel(postgres_type(name = "OrderType_Type"))]
     pub struct OrderTypeType;
+
+    #[derive(diesel::sql_types::SqlType)]
+    #[diesel(postgres_type(name = "Payment_Flow_Type"))]
+    pub struct PaymentFlowType;
 
     #[derive(diesel::sql_types::SqlType)]
     #[diesel(postgres_type(name = "PositionState_Type"))]
@@ -39,6 +47,26 @@ diesel::table! {
 
 diesel::table! {
     use diesel::sql_types::*;
+    use super::sql_types::HtlcStatusType;
+    use super::sql_types::PaymentFlowType;
+
+    payments (id) {
+        id -> Int4,
+        payment_hash -> Text,
+        preimage -> Nullable<Text>,
+        secret -> Nullable<Text>,
+        htlc_status -> HtlcStatusType,
+        amount_msat -> Nullable<Int8>,
+        flow -> PaymentFlowType,
+        payment_timestamp -> Timestamptz,
+        created_at -> Timestamptz,
+        updated_at -> Timestamptz,
+        description -> Text,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
     use super::sql_types::ContractSymbolType;
     use super::sql_types::DirectionType;
     use super::sql_types::PositionStateType;
@@ -57,6 +85,15 @@ diesel::table! {
         expiry_timestamp -> Timestamptz,
         update_timestamp -> Timestamptz,
         trader_pubkey -> Text,
+    }
+}
+
+diesel::table! {
+    spendable_outputs (id) {
+        id -> Int4,
+        txid -> Text,
+        vout -> Int4,
+        descriptor -> Text,
     }
 }
 
@@ -91,4 +128,11 @@ diesel::table! {
 
 diesel::joinable!(trades -> positions (position_id));
 
-diesel::allow_tables_to_appear_in_same_query!(orders, positions, trades, users,);
+diesel::allow_tables_to_appear_in_same_query!(
+    orders,
+    payments,
+    positions,
+    spendable_outputs,
+    trades,
+    users,
+);
