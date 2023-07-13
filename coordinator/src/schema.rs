@@ -2,6 +2,10 @@
 
 pub mod sql_types {
     #[derive(diesel::sql_types::SqlType)]
+    #[diesel(postgres_type(name = "ChannelState_Type"))]
+    pub struct ChannelStateType;
+
+    #[derive(diesel::sql_types::SqlType)]
     #[diesel(postgres_type(name = "ContractSymbol_Type"))]
     pub struct ContractSymbolType;
 
@@ -24,6 +28,23 @@ pub mod sql_types {
     #[derive(diesel::sql_types::SqlType)]
     #[diesel(postgres_type(name = "PositionState_Type"))]
     pub struct PositionStateType;
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use super::sql_types::ChannelStateType;
+
+    channels (user_channel_id) {
+        user_channel_id -> Text,
+        channel_id -> Nullable<Text>,
+        capacity -> Int8,
+        funding_txid -> Nullable<Text>,
+        channel_state -> ChannelStateType,
+        trader_pubkey -> Text,
+        created_at -> Timestamptz,
+        updated_at -> Timestamptz,
+        costs -> Int8,
+    }
 }
 
 diesel::table! {
@@ -140,6 +161,7 @@ diesel::table! {
 diesel::joinable!(trades -> positions (position_id));
 
 diesel::allow_tables_to_appear_in_same_query!(
+    channels,
     orders,
     payments,
     positions,

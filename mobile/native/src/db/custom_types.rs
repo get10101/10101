@@ -1,3 +1,4 @@
+use crate::db::models::ChannelState;
 use crate::db::models::ContractSymbol;
 use crate::db::models::Direction;
 use crate::db::models::FailureReason;
@@ -215,6 +216,35 @@ impl FromSql<Text, Sqlite> for Flow {
         return match string.as_str() {
             "Inbound" => Ok(Flow::Inbound),
             "Outbound" => Ok(Flow::Outbound),
+            _ => Err("Unrecognized enum variant".into()),
+        };
+    }
+}
+
+impl ToSql<Text, Sqlite> for ChannelState {
+    fn to_sql(&self, out: &mut Output<Sqlite>) -> serialize::Result {
+        let text = match *self {
+            ChannelState::Open => "Open",
+            ChannelState::Pending => "Pending",
+            ChannelState::Closed => "Closed",
+            ChannelState::ForceClosedRemote => "ForceClosedRemote",
+            ChannelState::ForceClosedLocal => "ForceClosedLocal",
+        };
+        out.set_value(text);
+        Ok(IsNull::No)
+    }
+}
+
+impl FromSql<Text, Sqlite> for ChannelState {
+    fn from_sql(bytes: backend::RawValue<Sqlite>) -> deserialize::Result<Self> {
+        let string = <String as FromSql<Text, Sqlite>>::from_sql(bytes)?;
+
+        return match string.as_str() {
+            "Open" => Ok(ChannelState::Open),
+            "Pending" => Ok(ChannelState::Pending),
+            "Closed" => Ok(ChannelState::Closed),
+            "ForceClosedRemote" => Ok(ChannelState::ForceClosedRemote),
+            "ForceClosedLocal" => Ok(ChannelState::ForceClosedLocal),
             _ => Err("Unrecognized enum variant".into()),
         };
     }

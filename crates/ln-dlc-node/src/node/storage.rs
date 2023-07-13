@@ -1,7 +1,9 @@
+use crate::Channel;
 use crate::HTLCStatus;
 use crate::MillisatAmount;
 use crate::PaymentFlow;
 use crate::PaymentInfo;
+use anyhow::bail;
 use anyhow::Result;
 use lightning::chain::keysinterface::DelayedPaymentOutputDescriptor;
 use lightning::chain::keysinterface::SpendableOutputDescriptor;
@@ -62,12 +64,22 @@ pub trait Storage {
     ) -> Result<Option<SpendableOutputDescriptor>>;
     /// Get all [`SpendableOutputDescriptor`]s stored.
     fn all_spendable_outputs(&self) -> Result<Vec<SpendableOutputDescriptor>>;
+
+    // Channel
+
+    /// Insert or update a channel
+    fn upsert_channel(&self, channel: Channel) -> Result<()>;
+    /// Get channel by `user_channel_id`
+    fn get_channel(&self, user_channel_id: &str) -> Result<Option<Channel>>;
+    /// Get all non pending channels with costs being 0.
+    fn all_channels_without_costs(&self) -> Result<Vec<Channel>>;
 }
 
 #[derive(Default, Clone)]
 pub struct InMemoryStore {
     payments: Arc<Mutex<HashMap<PaymentHash, PaymentInfo>>>,
     spendable_outputs: Arc<Mutex<HashMap<OutPoint, SpendableOutputDescriptor>>>,
+    channels: Arc<Mutex<HashMap<String, Channel>>>,
 }
 
 impl Storage for InMemoryStore {
@@ -170,6 +182,28 @@ impl Storage for InMemoryStore {
     fn all_spendable_outputs(&self) -> Result<Vec<SpendableOutputDescriptor>> {
         Ok(self.spendable_outputs_lock().values().cloned().collect())
     }
+
+    fn upsert_channel(&self, channel: Channel) -> Result<()> {
+        let user_channel_id = channel.clone().user_channel_id;
+        self.channels_lock().insert(user_channel_id, channel);
+        Ok(())
+    }
+
+    fn get_channel(&self, user_channel_id: &str) -> Result<Option<Channel>> {
+        let channel = self.channels_lock().get(user_channel_id).cloned();
+        Ok(channel)
+    }
+
+    fn all_channels_without_costs(&self) -> Result<Vec<Channel>> {
+        Ok(self
+            .channels_lock()
+            .values()
+            .filter(|c| {
+                c.channel_state != ChannelState::Pending && c.costs == 0 && c.funding_txid.is_some()
+            })
+            .cloned()
+            .collect())
+    }
 }
 
 impl InMemoryStore {
@@ -181,5 +215,9 @@ impl InMemoryStore {
         self.spendable_outputs
             .lock()
             .expect("Mutex to not be poisoned")
+    }
+
+    fn channels_lock(&self) -> MutexGuard<HashMap<String, Channel>> {
+        self.channels.lock().expect("Mutex to not be poisoned")
     }
 }

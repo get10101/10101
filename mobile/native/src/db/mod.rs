@@ -1,5 +1,6 @@
 use crate::api;
 use crate::db::models::base64_engine;
+use crate::db::models::Channel;
 use crate::db::models::Order;
 use crate::db::models::OrderState;
 use crate::db::models::PaymentInsertable;
@@ -248,7 +249,7 @@ pub fn insert_payment(
     payment_hash: lightning::ln::PaymentHash,
     info: ln_dlc_node::PaymentInfo,
 ) -> Result<()> {
-    tracing::info!(?payment_hash, "Inserting payment");
+    tracing::debug!(?payment_hash, "Inserting payment");
 
     let mut db = connection()?;
 
@@ -288,7 +289,7 @@ pub fn update_payment(
 pub fn get_payment(
     payment_hash: lightning::ln::PaymentHash,
 ) -> Result<Option<(lightning::ln::PaymentHash, ln_dlc_node::PaymentInfo)>> {
-    tracing::info!(?payment_hash, "Getting payment");
+    tracing::debug!(?payment_hash, "Getting payment");
 
     let mut db = connection()?;
 
@@ -308,7 +309,7 @@ pub fn get_payments() -> Result<Vec<(lightning::ln::PaymentHash, ln_dlc_node::Pa
 
     let payment_hashes = payments.iter().map(|(a, _)| a).collect::<Vec<_>>();
 
-    tracing::info!(?payment_hashes, "Got all payments");
+    tracing::debug!(?payment_hashes, "Got all payments");
 
     Ok(payments)
 }
@@ -317,7 +318,7 @@ pub fn insert_spendable_output(
     outpoint: lightning::chain::transaction::OutPoint,
     descriptor: lightning::chain::keysinterface::SpendableOutputDescriptor,
 ) -> Result<()> {
-    tracing::info!(?descriptor, "Inserting spendable output");
+    tracing::debug!(?descriptor, "Inserting spendable output");
 
     let mut db = connection()?;
     SpendableOutputInsertable::insert((outpoint, descriptor).into(), &mut db)?;
@@ -328,7 +329,7 @@ pub fn insert_spendable_output(
 pub fn get_spendable_output(
     outpoint: lightning::chain::transaction::OutPoint,
 ) -> Result<Option<lightning::chain::keysinterface::SpendableOutputDescriptor>> {
-    tracing::info!(?outpoint, "Getting spendable output");
+    tracing::debug!(?outpoint, "Getting spendable output");
 
     let mut db = connection()?;
 
@@ -347,7 +348,35 @@ pub fn get_spendable_outputs(
         .map(|output| output.try_into())
         .collect::<Result<Vec<_>>>()?;
 
-    tracing::info!(?outputs, "Got all spendable outputs");
+    tracing::debug!(?outputs, "Got all spendable outputs");
 
     Ok(outputs)
+}
+
+pub fn upsert_channel(channel: ln_dlc_node::Channel) -> Result<()> {
+    tracing::debug!(?channel, "Inserting channel");
+    let mut db = connection()?;
+    Channel::upsert(channel.into(), &mut db)
+}
+
+pub fn get_channel(user_channel_id: &str) -> Result<Option<ln_dlc_node::Channel>> {
+    tracing::debug!(%user_channel_id, "Getting channel");
+
+    let mut db = connection()?;
+
+    Channel::get(user_channel_id, &mut db)
+        .map(|c| Some(c.into()))
+        .map_err(|e| anyhow!("{e:#}"))
+}
+
+pub fn get_channels() -> Result<Vec<ln_dlc_node::Channel>> {
+    let mut db = connection()?;
+    let channels = Channel::get_all(&mut db)?
+        .into_iter()
+        .map(|c| c.into())
+        .collect::<Vec<_>>();
+
+    tracing::debug!(?channels, "Got all channels");
+
+    Ok(channels)
 }

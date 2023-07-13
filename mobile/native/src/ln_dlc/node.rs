@@ -25,6 +25,7 @@ use ln_dlc_node::node::rust_dlc_manager::Storage as _;
 use ln_dlc_node::node::sub_channel_message_name;
 use ln_dlc_node::node::NodeInfo;
 use ln_dlc_node::node::PaymentDetails;
+use ln_dlc_node::Channel;
 use ln_dlc_node::HTLCStatus;
 use ln_dlc_node::MillisatAmount;
 use ln_dlc_node::PaymentFlow;
@@ -77,8 +78,8 @@ impl Node {
         })
     }
 
-    pub async fn get_wallet_histories(&self) -> Result<WalletHistories> {
-        let on_chain = self.inner.get_on_chain_history().await?;
+    pub fn get_wallet_histories(&self) -> Result<WalletHistories> {
+        let on_chain = self.inner.get_on_chain_history()?;
         let off_chain = self.inner.get_off_chain_history()?;
 
         Ok(WalletHistories {
@@ -397,5 +398,17 @@ impl node::Storage for NodeStorage {
 
     fn all_spendable_outputs(&self) -> Result<Vec<SpendableOutputDescriptor>> {
         db::get_spendable_outputs()
+    }
+
+    fn upsert_channel(&self, channel: Channel) -> Result<()> {
+        db::upsert_channel(channel)
+    }
+
+    fn get_channel(&self, user_channel_id: &str) -> Result<Option<Channel>> {
+        db::get_channel(user_channel_id)
+    }
+
+    fn all_channels_without_costs(&self) -> Result<Vec<Channel>> {
+        db::get_all_channels_without_cost()
     }
 }

@@ -1,3 +1,4 @@
+pub mod channels;
 pub mod custom_types;
 pub mod payments;
 pub mod positions;

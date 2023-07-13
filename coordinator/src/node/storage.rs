@@ -1,4 +1,5 @@
 use crate::db::payments;
+use anyhow::anyhow;
 use anyhow::Result;
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::Pool;
@@ -9,6 +10,7 @@ use lightning::ln::PaymentHash;
 use lightning::ln::PaymentPreimage;
 use lightning::ln::PaymentSecret;
 use ln_dlc_node::node;
+use ln_dlc_node::Channel;
 use ln_dlc_node::HTLCStatus;
 use ln_dlc_node::MillisatAmount;
 use ln_dlc_node::PaymentFlow;
@@ -111,5 +113,27 @@ impl node::Storage for NodeStorage {
     fn all_spendable_outputs(&self) -> Result<Vec<SpendableOutputDescriptor>> {
         let mut conn = self.pool.get()?;
         crate::db::spendable_outputs::get_all(&mut conn)
+    }
+
+    fn upsert_channel(&self, channel: Channel) -> Result<()> {
+        let mut conn = self.pool.get()?;
+        crate::db::channels::upsert(channel.into(), &mut conn)
+    }
+
+    fn get_channel(&self, user_channel_id: &str) -> Result<Option<Channel>> {
+        let mut conn = self.pool.get()?;
+        crate::db::channels::get(user_channel_id, &mut conn)
+            .map(|c| Some(c.into()))
+            .map_err(|e| anyhow!("{e:#}"))
+    }
+
+    fn all_channels_without_costs(&self) -> Result<Vec<Channel>> {
+        let mut conn = self.pool.get()?;
+        let channels = crate::db::channels::get_all_channels_without_cost(&mut conn)?
+            .into_iter()
+            .map(|c| c.into())
+            .collect::<Vec<_>>();
+
+        Ok(channels)
     }
 }

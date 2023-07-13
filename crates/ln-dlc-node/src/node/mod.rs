@@ -176,7 +176,7 @@ where
         alias: &str,
         network: Network,
         data_dir: &Path,
-        node_storage: S,
+        node_storage: Arc<S>,
         announcement_address: SocketAddr,
         listen_address: SocketAddr,
         esplora_server_url: String,
@@ -347,6 +347,48 @@ where
                     guard.on_chain_sync_interval
                 });
 
+                let channels = match node_storage.all_channels_without_costs() {
+                    Ok(channels) => channels,
+                    Err(e) => {
+                        tracing::error!("Failed to fetch all channels without costs. Error: {e:#}");
+                        vec![]
+                    }
+                };
+
+                tracing::debug!(
+                    "Syncing on-chain transaction costs for {} channels",
+                    channels.len()
+                );
+
+                for mut channel in channels.into_iter() {
+                    let funding_txid = channel.funding_txid.as_ref().expect(
+                        "All channels without costs must always have a funding transactions attached",
+                    );
+
+                    let transaction_details = match ln_dlc_wallet
+                        .inner()
+                        .get_transaction(funding_txid)
+                    {
+                        Ok(transaction_details) => transaction_details,
+                        Err(e) => {
+                            tracing::error!("Failed to get funding transaction {funding_txid} from wallet. Error: {e:#}");
+                            continue;
+                        }
+                    };
+
+                    if let Some(transaction_details) = transaction_details {
+                        channel.costs = transaction_details.fee.unwrap_or_default() as i64;
+                        if let Err(e) = node_storage.upsert_channel(channel.clone()) {
+                            tracing::error!(
+                                "Failed to update channel with user channel id: {}. Error: {e:#}",
+                                channel.user_channel_id
+                            );
+                        }
+                    } else {
+                        tracing::warn!("Did not find the transaction details for the funding transaction {funding_txid}. This might be ok!")
+                    }
+                }
+
                 std::thread::sleep(interval);
             }
         });
@@ -424,6 +466,95 @@ where
         )?;
 
         let channel_manager = Arc::new(channel_manager);
+
+        std::thread::spawn({
+            let handle = tokio::runtime::Handle::current();
+            let settings = settings.clone();
+            let ln_dlc_wallet = ln_dlc_wallet.clone();
+            let node_storage = node_storage.clone();
+            let channel_manager = channel_manager.clone();
+            move || loop {
+                if let Err(e) = ln_dlc_wallet.inner().sync() {
+                    tracing::error!("Failed on-chain sync: {e:#}");
+                }
+
+                if let Err(e) = ln_dlc_wallet.update_address_cache() {
+                    tracing::warn!("Failed to update address cache: {e:#}");
+                }
+
+                let interval = handle.block_on(async {
+                    let guard = settings.read().await;
+                    guard.on_chain_sync_interval
+                });
+
+                let channels = match node_storage.all_non_pending_channels() {
+                    Ok(channels) => channels,
+                    Err(e) => {
+                        tracing::error!("Failed to fetch all pending channels. Error: {e:#}");
+                        vec![]
+                    }
+                };
+
+                tracing::debug!(
+                    "Syncing on-chain transaction costs for {} channels",
+                    channels.len()
+                );
+
+                for mut channel in channels.into_iter() {
+                    let funding_txid = channel.funding_txid.as_ref().expect(
+                        "All channels without costs must always have a funding transactions attached",
+                    );
+
+                    let transaction_details = match ln_dlc_wallet
+                        .inner()
+                        .get_transaction(funding_txid)
+                    {
+                        Ok(transaction_details) => transaction_details,
+                        Err(e) => {
+                            tracing::error!("Failed to get funding transaction {funding_txid} from wallet. Error: {e:#}");
+                            continue;
+                        }
+                    };
+
+                    if let Some(channel_id) = &channel.channel_id {
+                        let channel_id = match ChannelId::from_hex(channel_id) {
+                            Ok(channel_id) => channel_id,
+                            Err(e) => {
+                                tracing::error!(
+                                    "Failed to parse channel id from hex string {}. Error: {e:#}",
+                                    hex::encode(channel_id)
+                                );
+                                continue;
+                            }
+                        };
+                        match channel_manager.get_channel_details(&channel_id) {
+                            Some(channel_details) => {
+                                channel.capacity = channel_details.balance_msat as i64;
+                            }
+                            None => {
+                                tracing::error!("Couldn't find channel details");
+                                continue;
+                            }
+                        };
+                    }
+
+                    if let Some(transaction_details) = transaction_details {
+                        channel.costs = transaction_details.fee.unwrap_or_default();
+                        channel.updated_at = OffsetDateTime::now_utc();
+                        if let Err(e) = node_storage.upsert_channel(channel.clone()) {
+                            tracing::error!(
+                                "Failed to update channel with user channel id: {}. Error: {e:#}",
+                                channel.user_channel_id
+                            );
+                        }
+                    } else {
+                        tracing::warn!("Did not find the transaction details for the funding transaction {funding_txid}. This might be ok!")
+                    }
+                }
+
+                std::thread::sleep(interval);
+            }
+        });
 
         tokio::spawn({
             let channel_manager = channel_manager.clone();

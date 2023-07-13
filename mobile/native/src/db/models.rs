@@ -1,5 +1,6 @@
 use crate::api;
 use crate::schema;
+use crate::schema::channels;
 use crate::schema::last_login;
 use crate::schema::orders;
 use crate::schema::payments;
@@ -12,6 +13,7 @@ use anyhow::Result;
 use base64::Engine;
 use bdk::bitcoin::hashes::hex::FromHex;
 use bdk::bitcoin::hashes::hex::ToHex;
+use bitcoin::secp256k1::PublicKey;
 use diesel;
 use diesel::prelude::*;
 use diesel::sql_query;
@@ -22,6 +24,7 @@ use diesel::FromSqlRow;
 use diesel::Queryable;
 use lightning::util::ser::Readable;
 use lightning::util::ser::Writeable;
+use std::str::FromStr;
 use time::format_description;
 use time::OffsetDateTime;
 use trade;
@@ -973,6 +976,114 @@ impl TryFrom<SpendableOutputQueryable>
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, FromSqlRow, AsExpression)]
+#[diesel(sql_type = Text)]
+pub enum ChannelState {
+    Pending,
+    Open,
+    Closed,
+    ForceClosedRemote,
+    ForceClosedLocal,
+}
+
+#[derive(Insertable, QueryableByName, Queryable, Debug, Clone, PartialEq, AsChangeset)]
+#[diesel(table_name = channels)]
+pub struct Channel {
+    pub user_channel_id: String,
+    pub channel_id: Option<String>,
+    pub capacity: i64,
+    pub funding_txid: Option<String>,
+    pub channel_state: ChannelState,
+    pub trader_pubkey: String,
+    pub created_at: i64,
+    pub updated_at: i64,
+    pub costs: i64,
+}
+
+impl Channel {
+    pub fn get(user_channel_id: &str, conn: &mut SqliteConnection) -> QueryResult<Self> {
+        channels::table
+            .filter(schema::channels::user_channel_id.eq(user_channel_id))
+            .first(conn)
+    }
+
+    pub fn get_all(conn: &mut SqliteConnection) -> QueryResult<Vec<Channel>> {
+        channels::table.load(conn)
+    }
+
+    pub fn upsert(channel: Channel, conn: &mut SqliteConnection) -> Result<()> {
+        let affected_rows = diesel::insert_into(channels::table)
+            .values(channel.clone())
+            .on_conflict(schema::channels::user_channel_id)
+            .do_update()
+            .set(&channel)
+            .execute(conn)?;
+
+        ensure!(affected_rows > 0, "Could not insert channel");
+
+        Ok(())
+    }
+}
+
+impl From<ln_dlc_node::Channel> for Channel {
+    fn from(value: ln_dlc_node::Channel) -> Self {
+        Channel {
+            user_channel_id: value.user_channel_id,
+            channel_id: value.channel_id,
+            capacity: value.capacity,
+            funding_txid: value.funding_txid,
+            channel_state: value.channel_state.into(),
+            trader_pubkey: value.trader.to_string(),
+            created_at: value.created_at.unix_timestamp(),
+            updated_at: value.updated_at.unix_timestamp(),
+            costs: value.costs as i64,
+        }
+    }
+}
+
+impl From<ln_dlc_node::ChannelState> for ChannelState {
+    fn from(value: ln_dlc_node::ChannelState) -> Self {
+        match value {
+            ln_dlc_node::ChannelState::Pending => ChannelState::Pending,
+            ln_dlc_node::ChannelState::Open => ChannelState::Open,
+            ln_dlc_node::ChannelState::Closed => ChannelState::Closed,
+            ln_dlc_node::ChannelState::ForceClosedLocal => ChannelState::ForceClosedLocal,
+            ln_dlc_node::ChannelState::ForceClosedRemote => ChannelState::ForceClosedRemote,
+        }
+    }
+}
+
+impl From<Channel> for ln_dlc_node::Channel {
+    fn from(value: Channel) -> Self {
+        ln_dlc_node::Channel {
+            id: None,
+            user_channel_id: value.user_channel_id,
+            channel_id: value.channel_id,
+            capacity: value.capacity,
+            funding_txid: value.funding_txid,
+            channel_state: value.channel_state.into(),
+            trader: PublicKey::from_str(&value.trader_pubkey).expect("valid public key"),
+            created_at: OffsetDateTime::from_unix_timestamp(value.created_at)
+                .expect("valid timestamp"),
+            updated_at: OffsetDateTime::from_unix_timestamp(value.updated_at)
+                .expect("valid timestamp"),
+            costs: value.costs as u64,
+        }
+    }
+}
+
+impl From<ChannelState> for ln_dlc_node::ChannelState {
+    fn from(value: ChannelState) -> Self {
+        match value {
+            ChannelState::Pending => ln_dlc_node::ChannelState::Pending,
+            ChannelState::Open => ln_dlc_node::ChannelState::Open,
+            ChannelState::Closed => ln_dlc_node::ChannelState::Closed,
+            ChannelState::ForceClosedLocal => ln_dlc_node::ChannelState::ForceClosedLocal,
+            ChannelState::ForceClosedRemote => ln_dlc_node::ChannelState::ForceClosedRemote,
+        }
+    }
+}
+
 #[cfg(test)]
 pub mod test {
     use super::*;
@@ -984,6 +1095,7 @@ pub mod test {
     use diesel_migrations::MigrationHarness;
     use std::str::FromStr;
     use time::OffsetDateTime;
+    use time::Time;
 
     #[test]
     pub fn when_no_login_return_input() {
@@ -1359,5 +1471,51 @@ pub mod test {
         };
 
         assert_eq!(expected, loaded);
+    }
+
+    #[test]
+    pub fn channel_round_trip() {
+        let mut connection = SqliteConnection::establish(":memory:").unwrap();
+        connection.run_pending_migrations(MIGRATIONS).unwrap();
+
+        let user_channel_id = "219fede5479a69d8fc42693ecb8cea67098531087c421b4421d96e2f5acd7de3";
+        let channel = ln_dlc_node::Channel {
+            id: None,
+            user_channel_id: user_channel_id.to_string(),
+            channel_id: None,
+            capacity: 0,
+            funding_txid: None,
+            channel_state: ln_dlc_node::ChannelState::Pending,
+            trader: PublicKey::from_str(
+                "03f75f318471d32d39be3c86c622e2c51bd5731bf95f98aaa3ed5d6e1c0025927f",
+            )
+            .expect("is a valid public key"),
+            // we need to set the time manually as the nano seconds are not stored in sql.
+            created_at: OffsetDateTime::now_utc().replace_time(Time::from_hms(0, 0, 0).unwrap()),
+            updated_at: OffsetDateTime::now_utc().replace_time(Time::from_hms(0, 0, 0).unwrap()),
+            costs: 0,
+        };
+        Channel::upsert(channel.clone().into(), &mut connection).unwrap();
+
+        // Verify that we can load the right channel by the `user_channel_id`
+        let mut loaded: ln_dlc_node::Channel = Channel::get(user_channel_id, &mut connection)
+            .unwrap()
+            .into();
+
+        assert_eq!(channel, loaded);
+
+        // Verify that we can update the channel by `user_channel_id`
+
+        loaded.channel_state = ln_dlc_node::ChannelState::Open;
+        loaded.updated_at = OffsetDateTime::now_utc();
+        Channel::upsert(loaded.clone().into(), &mut connection).unwrap();
+
+        let channels = Channel::get_all(&mut connection).unwrap();
+        assert_eq!(1, channels.len());
+
+        let loaded: ln_dlc_node::Channel = (*channels.first().unwrap()).clone().into();
+        assert_eq!(ln_dlc_node::ChannelState::Open, loaded.channel_state);
+        assert_eq!(channel.created_at, loaded.created_at);
+        assert_ne!(channel.updated_at, loaded.updated_at);
     }
 }

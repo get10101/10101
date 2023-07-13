@@ -9,6 +9,8 @@ use crate::node::invoice::HTLCStatus;
 use crate::node::ChannelManager;
 use crate::node::Storage;
 use crate::util;
+use crate::Channel;
+use crate::ChannelState;
 use crate::FakeChannelPaymentRequests;
 use crate::MillisatAmount;
 use crate::NetworkGraph;
@@ -23,6 +25,7 @@ use anyhow::Result;
 use autometrics::autometrics;
 use bitcoin::consensus::encode::serialize_hex;
 use bitcoin::secp256k1::PublicKey;
+use dlc_manager::subchannel::LNChannelManager;
 use lightning::chain::chaininterface::BroadcasterInterface;
 use lightning::chain::chaininterface::ConfirmationTarget;
 use lightning::chain::chaininterface::FeeEstimator;
@@ -30,6 +33,7 @@ use lightning::chain::keysinterface::SpendableOutputDescriptor;
 use lightning::ln::channelmanager::InterceptId;
 use lightning::routing::gossip::NodeId;
 use lightning::util::config::UserConfig;
+use lightning::util::events::ClosureReason;
 use lightning::util::events::Event;
 use lightning::util::events::PaymentPurpose;
 use rand::thread_rng;
@@ -41,6 +45,7 @@ use std::sync::MutexGuard;
 use std::time::Duration;
 use time::OffsetDateTime;
 use tokio::sync::watch;
+use uuid::Uuid;
 
 pub struct EventHandler<S> {
     channel_manager: Arc<ChannelManager>,
@@ -115,9 +120,11 @@ where
                 counterparty_node_id,
                 channel_value_satoshis,
                 output_script,
-                ..
+                user_channel_id,
             } => {
+                let user_channel_id = Uuid::from_u128(user_channel_id).to_string();
                 tracing::info!(
+                    %user_channel_id,
                     %counterparty_node_id,
                     "Funding generation ready for channel with counterparty {}",
                     counterparty_node_id
@@ -437,14 +444,42 @@ where
             Event::ChannelClosed {
                 channel_id,
                 reason,
-                user_channel_id: _,
+                user_channel_id,
             } => {
-                let channel = hex::encode(channel_id);
+                let channel_id = hex::encode(channel_id);
+                let user_channel_id = Uuid::from_u128(user_channel_id).to_string();
                 tracing::info!(
-                    %channel,
+                    %user_channel_id,
+                    %channel_id,
                     ?reason,
                     "Channel closed",
                 );
+
+                if let Some(mut channel) = self.storage.get_channel(&user_channel_id)? {
+                    if !vec![ChannelState::Pending, ChannelState::Open]
+                        .contains(&channel.channel_state)
+                    {
+                        tracing::warn!(%channel_id, %user_channel_id, "Unexpected state transition. Expected channel state to be either 'Pending' or 'Open', but was '{:?}'", channel.channel_state);
+                    }
+
+                    match reason {
+                        ClosureReason::CounterpartyForceClosed { .. }
+                        | ClosureReason::CommitmentTxConfirmed => {
+                            channel.channel_state = ChannelState::ForceClosedRemote;
+                        }
+                        ClosureReason::HolderForceClosed { .. } => {
+                            channel.channel_state = ChannelState::ForceClosedLocal;
+                        }
+                        _ => {
+                            // TODO: we can't distinguish here whether we or the counter party
+                            // initiated the close of the channel.
+                            channel.channel_state = ChannelState::Closed;
+                        }
+                    }
+
+                    channel.updated_at = OffsetDateTime::now_utc();
+                    self.storage.upsert_channel(channel)?;
+                }
             }
             Event::DiscardFunding {
                 channel_id,
@@ -465,13 +500,23 @@ where
             Event::ChannelReady {
                 channel_id,
                 counterparty_node_id,
+                user_channel_id,
                 ..
             } => {
                 tracing::info!(
+                    %user_channel_id,
                     channel_id = %hex::encode(channel_id),
                     counterparty = %counterparty_node_id.to_string(),
                     "Channel ready"
                 );
+
+                if let Err(e) =
+                    self.add_funding_transaction_to_shadow_channel(user_channel_id, channel_id)
+                {
+                    tracing::error!(
+                        "Failed to add funding transaction to shadow channel! Error: {e:#}"
+                    );
+                }
 
                 let pending_intercepted_htlcs = self.pending_intercepted_htlcs_lock();
 
@@ -661,11 +706,33 @@ where
                 // channel according to its
                 // `max_inbound_htlc_value_in_flight_percent_of_channel`
                 // configuration value
+
+                let user_channel_id = Uuid::new_v4().as_u128();
+                {
+                    let user_channel_id = Uuid::from_u128(user_channel_id).to_string();
+                    tracing::debug!(
+                        "Creating shadow channel with user_channel_id: {user_channel_id}"
+                    );
+                    // We create a shadow copy of the channel as the the ldk channel does not
+                    // live beyond channel closure. The main purpose of
+                    // this shadow is to track general meta data of the
+                    // channel relevant for reporting purposes.
+                    let new_channel =
+                        Channel::new(user_channel_id, channel_value as i64, target_node_id);
+                    if let Err(err) = self.storage.upsert_channel(new_channel) {
+                        tracing::error!("Failed to insert channel to database. Failing intercepted htlc with id: {intercepted_id}. Error: {err:#}");
+                        if let Err(err) = self.channel_manager.fail_intercepted_htlc(intercept_id) {
+                            tracing::error!(%intercepted_id, "Could not fail intercepted htlc {err:?}")
+                        }
+                        return Ok(());
+                    }
+                }
+
                 let temp_channel_id = match self.channel_manager.create_channel(
                     target_node_id,
                     channel_value,
                     0,
-                    0,
+                    user_channel_id,
                     Some(channel_config),
                 ) {
                     Ok(temp_channel_id) => temp_channel_id,
@@ -698,6 +765,31 @@ where
             }
         };
 
+        Ok(())
+    }
+
+    fn add_funding_transaction_to_shadow_channel(
+        &self,
+        user_channel_id: u128,
+        channel_id: [u8; 32],
+    ) -> Result<()> {
+        let user_channel_id = Uuid::from_u128(user_channel_id).to_string();
+        let channel_details = self
+            .channel_manager
+            .get_channel_details(&channel_id)
+            .ok_or(anyhow!(
+                "Failed to get channel details by channel_id {}",
+                hex::encode(channel_id)
+            ))?;
+        if let Some(mut channel) = self.storage.get_channel(&user_channel_id)? {
+            channel.channel_state = ChannelState::Open;
+            channel.funding_txid = channel_details.funding_txo.map(|txo| txo.txid.to_string());
+            channel.channel_id = Some(hex::encode(channel_id));
+            channel.updated_at = OffsetDateTime::now_utc();
+            self.storage.upsert_channel(channel)?;
+        } else {
+            tracing::warn!("Could not find shadow channel for user_channel_id: {user_channel_id}.")
+        }
         Ok(())
     }
 }
