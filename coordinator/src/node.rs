@@ -1,8 +1,8 @@
 use crate::db;
-use crate::db::trades::Trade;
 use crate::node::storage::NodeStorage;
 use crate::position::models::NewPosition;
 use crate::position::models::Position;
+use crate::trade::models::NewTrade;
 use anyhow::bail;
 use anyhow::ensure;
 use anyhow::Context;
@@ -249,17 +249,19 @@ impl Node {
 
         db::trades::insert(
             connection,
-            Trade {
+            NewTrade {
                 position_id: position.id,
-                contract_symbol: new_position.contract_symbol.into(),
-                trader_pubkey: new_position.trader.to_string(),
+                contract_symbol: new_position.contract_symbol,
+                trader_pubkey: new_position.trader,
                 quantity: new_position.quantity,
                 leverage: new_position.leverage,
                 collateral: new_position.collateral,
-                direction: new_position.direction.into(),
+                direction: new_position.direction,
                 average_price: average_entry_price,
             },
-        )
+        )?;
+
+        Ok(())
     }
 
     #[autometrics]
@@ -298,14 +300,14 @@ impl Node {
         let mut connection = self.pool.get()?;
         db::trades::insert(
             &mut connection,
-            Trade {
+            NewTrade {
                 position_id: position.id,
-                contract_symbol: position.contract_symbol.into(),
-                trader_pubkey: position.trader.to_string(),
+                contract_symbol: position.contract_symbol,
+                trader_pubkey: position.trader,
                 quantity: position.quantity,
                 leverage: position.leverage,
                 collateral: position.collateral,
-                direction: position.direction.opposite().into(),
+                direction: position.direction.opposite(),
                 average_price: closing_price.to_f32().expect("To fit into f32"),
             },
         )?;

@@ -9,6 +9,7 @@ pub mod position;
 pub mod routes;
 pub mod schema;
 pub mod settings;
+pub mod trade;
 
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
