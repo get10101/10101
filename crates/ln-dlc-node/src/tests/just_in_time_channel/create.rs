@@ -282,7 +282,7 @@ fn does_inbound_htlc_fit_as_percent_of_channel(
 
     let max_inbound_htlc_as_percent_of_channel = Decimal::from(
         receiving_node
-            .user_config
+            .channel_config
             .channel_handshake_config
             .max_inbound_htlc_value_in_flight_percent_of_channel,
     );

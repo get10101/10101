@@ -141,7 +141,7 @@ async fn ln_force_close() {
     // is spendable
     bitcoind::mine(
         coordinator
-            .user_config
+            .channel_config
             .channel_handshake_config
             .our_to_self_delay,
     )

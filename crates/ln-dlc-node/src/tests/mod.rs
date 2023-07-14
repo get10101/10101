@@ -106,7 +106,7 @@ impl Node<InMemoryStore> {
 
     fn start_test(
         name: &str,
-        user_config: UserConfig,
+        channel_config: UserConfig,
         esplora_origin: String,
         oracle: OracleInfo,
     ) -> Result<Self> {
@@ -133,7 +133,7 @@ impl Node<InMemoryStore> {
             esplora_origin,
             seed,
             ephemeral_randomness,
-            user_config,
+            channel_config,
             LnDlcNodeSettings::default(),
             oracle.into(),
             None,
@@ -208,11 +208,10 @@ impl Node<InMemoryStore> {
             false,
         )?;
 
-        // The config flag
-        // `user_config.manually_accept_inbound_channels` implies that
-        // the peer will accept 0-conf channels
-        if !peer.user_config.manually_accept_inbound_channels {
-            let required_confirmations = peer.user_config.channel_handshake_config.minimum_depth;
+        // The config flag `channel_config.manually_accept_inbound_channels` implies that the peer
+        // will accept 0-conf channels
+        if !peer.channel_config.manually_accept_inbound_channels {
+            let required_confirmations = peer.channel_config.channel_handshake_config.minimum_depth;
 
             bitcoind::mine(required_confirmations as u16).await?;
         }
@@ -229,7 +228,7 @@ impl Node<InMemoryStore> {
                 }
 
                 // Only sync if 0-conf channels are disabled
-                if !peer.user_config.manually_accept_inbound_channels {
+                if !peer.channel_config.manually_accept_inbound_channels {
                     // We need to sync both parties, even if
                     // `trust_own_funding_0conf` is true for the creator
                     // of the channel (`self`)

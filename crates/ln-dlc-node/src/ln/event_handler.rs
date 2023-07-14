@@ -643,14 +643,14 @@ where
                     return Ok(());
                 }
 
-                let mut user_config = coordinator_config();
+                let mut channel_config = coordinator_config();
                 // We are overwriting the coordinators channel handshake configuration to prevent
                 // the just-in-time-channel from being announced (private). This is required as both
                 // parties need to agree on this configuration. For other channels, like with the
                 // channel to an external node we want this channel to be announced (public).
                 // NOTE: we want private channels with the mobile app, as this will allow us to make
                 // use of 0-conf channels.
-                user_config.channel_handshake_config.announced_channel = false;
+                channel_config.channel_handshake_config.announced_channel = false;
 
                 // NOTE: We actually might want to override the `UserConfig`
                 // for this just-in-time channel so that the
@@ -663,7 +663,7 @@ where
                     channel_value,
                     0,
                     0,
-                    Some(user_config),
+                    Some(channel_config),
                 ) {
                     Ok(temp_channel_id) => temp_channel_id,
                     Err(err) => {

@@ -96,7 +96,7 @@ async fn multi_hop_payment() {
 /// coins as possible to their peer on channel creation.
 fn min_outbound_liquidity_channel_creator(peer: &Node<InMemoryStore>, peer_balance: u64) -> u64 {
     let min_reserve_millionths_creator = Decimal::from(
-        peer.user_config
+        peer.channel_config
             .channel_handshake_config
             .their_channel_reserve_proportional_millionths,
     );

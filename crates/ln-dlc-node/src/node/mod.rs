@@ -114,7 +114,7 @@ pub struct Node<S> {
     oracle: Arc<P2PDOracleClient>,
     pub dlc_message_handler: Arc<DlcMessageHandler>,
     storage: Arc<S>,
-    pub(crate) user_config: UserConfig,
+    pub(crate) channel_config: UserConfig,
 }
 
 #[derive(Debug, Clone, Copy, Deserialize, Serialize)]
@@ -180,7 +180,7 @@ where
         oracle: OracleInfo,
         event_sender: watch::Sender<Option<Event>>,
     ) -> Result<Self> {
-        let user_config = app_config();
+        let channel_config = app_config();
         Node::new(
             alias,
             network,
@@ -195,7 +195,7 @@ where
             esplora_server_url,
             seed,
             ephemeral_randomness,
-            user_config,
+            channel_config,
             LnDlcNodeSettings::default(),
             oracle.into(),
             Some(event_sender),
@@ -223,12 +223,12 @@ where
         oracle: OracleInfo,
         event_sender: watch::Sender<Option<Event>>,
     ) -> Result<Self> {
-        let mut user_config = coordinator_config();
+        let mut channel_config = coordinator_config();
 
         // TODO: The config `force_announced_channel_preference` has been temporarily disabled
         // for testing purposes, as otherwise the app is not able to open a channel to the
         // coordinator. Remove this config, once not needed anymore.
-        user_config
+        channel_config
             .channel_handshake_limits
             .force_announced_channel_preference = false;
         Self::new(
@@ -242,7 +242,7 @@ where
             esplora_server_url,
             seed,
             ephemeral_randomness,
-            user_config,
+            channel_config,
             settings,
             oracle.into(),
             Some(event_sender),
@@ -267,7 +267,7 @@ where
         esplora_server_url: String,
         seed: Bip39Seed,
         ephemeral_randomness: [u8; 32],
-        ldk_user_config: UserConfig,
+        channel_config: UserConfig,
         settings: LnDlcNodeSettings,
         oracle_client: P2PDOracleClient,
         event_sender: Option<watch::Sender<Option<Event>>>,
@@ -410,7 +410,7 @@ where
             esplora_client.clone(),
             logger.clone(),
             chain_monitor.clone(),
-            ldk_user_config,
+            channel_config,
             network,
             persister.clone(),
             router,
@@ -678,7 +678,7 @@ where
             dlc_manager,
             storage: node_storage,
             fee_rate_estimator,
-            user_config: ldk_user_config,
+            channel_config,
             _background_processor_handle: background_processor_handle,
             _connection_manager_handle: connection_manager_handle,
             _broadcast_node_announcement_handle: broadcast_node_announcement_handle,
