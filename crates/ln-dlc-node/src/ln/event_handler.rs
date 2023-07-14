@@ -55,11 +55,11 @@ pub struct EventHandler<S> {
     event_sender: Option<watch::Sender<Option<Event>>>,
 }
 
-#[allow(clippy::too_many_arguments)]
 impl<S> EventHandler<S>
 where
     S: Storage,
 {
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         channel_manager: Arc<ChannelManager>,
         wallet: Arc<LnDlcWallet>,
