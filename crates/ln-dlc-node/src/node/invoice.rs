@@ -159,7 +159,7 @@ where
     #[autometrics]
     pub fn send_payment(&self, invoice: &Invoice) -> Result<()> {
         let (status, err) = match pay_invoice(invoice, Retry::Attempts(10), &self.channel_manager) {
-            Ok(_) => {
+            Ok(payment_id) => {
                 let payee_pubkey = match invoice.payee_pub_key() {
                     Some(pubkey) => *pubkey,
                     None => invoice.recover_payee_pub_key(),
@@ -168,7 +168,14 @@ where
                 let amt_msat = invoice
                     .amount_milli_satoshis()
                     .context("invalid msat amount in the invoice")?;
-                tracing::info!(peer_id=%payee_pubkey, "EVENT: initiated sending {amt_msat} msats",);
+
+                tracing::info!(
+                    peer_id = %payee_pubkey,
+                    amount_msat = %amt_msat,
+                    payment_id = %hex::encode(payment_id.0),
+                    "Initiated payment"
+                );
+
                 (HTLCStatus::Pending, None)
             }
             Err(PaymentError::Invoice(err)) => {
