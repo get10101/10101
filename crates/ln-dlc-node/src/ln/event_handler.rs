@@ -440,7 +440,7 @@ where
                 tracing::info!(
                     %channel,
                     ?reason,
-                    "\nChannel closed",
+                    "Channel closed",
                 );
             }
             Event::DiscardFunding {
