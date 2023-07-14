@@ -83,7 +83,6 @@ pub fn router(
 
     Router::new()
         .route("/", get(index))
-        .route("/api/fake_scid/:target_node", post(post_fake_scid))
         .route(
             "/api/register_invoice/:target_node",
             post(register_interceptable_invoice),
@@ -128,28 +127,6 @@ pub async fn index() -> impl IntoResponse {
     Json(HelloWorld {
         hello: "world".to_string(),
     })
-}
-
-#[autometrics]
-pub async fn post_fake_scid(
-    target_node: Path<String>,
-    State(app_state): State<Arc<AppState>>,
-) -> Result<Json<u64>, AppError> {
-    let target_node = target_node.0;
-    let target_node: PublicKey = target_node.parse().map_err(|e| {
-        AppError::BadRequest(format!(
-            "Provided public key {target_node} was not valid: {e:#}"
-        ))
-    })?;
-    let jit_fee = app_state.settings.read().await.jit_fee_rate_basis_points;
-
-    Ok(Json(
-        app_state
-            .node
-            .inner
-            .create_intercept_scid(target_node, jit_fee)
-            .scid,
-    ))
 }
 
 #[autometrics]
