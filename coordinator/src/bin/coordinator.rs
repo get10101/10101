@@ -5,6 +5,7 @@ use coordinator::db;
 use coordinator::logger;
 use coordinator::metrics;
 use coordinator::metrics::init_meter;
+use coordinator::node;
 use coordinator::node::connection;
 use coordinator::node::storage::NodeStorage;
 use coordinator::node::Node;
@@ -19,6 +20,7 @@ use diesel::r2d2::ConnectionManager;
 use diesel::PgConnection;
 use hex::FromHex;
 use lightning::ln::PaymentHash;
+use lightning::util::events::Event;
 use ln_dlc_node::seed::Bip39Seed;
 use rand::thread_rng;
 use rand::RngCore;
@@ -29,6 +31,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
 use time::OffsetDateTime;
+use tokio::sync::watch;
 use tokio::task::spawn_blocking;
 use tracing::metadata::LevelFilter;
 use trade::bitmex_client::BitmexClient;
@@ -88,6 +91,8 @@ async fn main() -> Result<()> {
     let mut conn = pool.get()?;
     run_migration(&mut conn);
 
+    let (node_event_sender, mut node_event_receiver) = watch::channel::<Option<Event>>(None);
+
     let node = Arc::new(ln_dlc_node::node::Node::new_coordinator(
         "10101.finance",
         network,
@@ -101,6 +106,7 @@ async fn main() -> Result<()> {
         ephemeral_randomness,
         settings.ln_dlc.clone(),
         opts.get_oracle_info(),
+        node_event_sender,
     )?);
 
     let node = Node::new(node, pool.clone());
@@ -128,6 +134,23 @@ async fn main() -> Result<()> {
                     .await
                     .expect("To spawn blocking thread");
                 tokio::time::sleep(PROCESS_INCOMING_DLC_MESSAGES_INTERVAL).await;
+            }
+        }
+    });
+
+    tokio::spawn({
+        let node = node.clone();
+        async move {
+            loop {
+                match node_event_receiver.changed().await {
+                    Ok(()) => {
+                        let event = node_event_receiver.borrow().clone();
+                        node::routing_fees::handle(node.clone(), event);
+                    }
+                    Err(e) => {
+                        tracing::error!("Failed to receive event: {e:#}");
+                    }
+                }
             }
         }
     });

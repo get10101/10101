@@ -89,6 +89,16 @@ diesel::table! {
 }
 
 diesel::table! {
+    routing_fees (id) {
+        id -> Int4,
+        amount_msats -> Int8,
+        prev_channel_id -> Nullable<Text>,
+        next_channel_id -> Nullable<Text>,
+        created_at -> Timestamptz,
+    }
+}
+
+diesel::table! {
     spendable_outputs (id) {
         id -> Int4,
         txid -> Text,
@@ -133,6 +143,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     orders,
     payments,
     positions,
+    routing_fees,
     spendable_outputs,
     trades,
     users,
