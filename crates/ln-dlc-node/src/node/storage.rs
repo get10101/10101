@@ -1,9 +1,9 @@
 use crate::Channel;
+use crate::ChannelState;
 use crate::HTLCStatus;
 use crate::MillisatAmount;
 use crate::PaymentFlow;
 use crate::PaymentInfo;
-use anyhow::bail;
 use anyhow::Result;
 use lightning::chain::keysinterface::DelayedPaymentOutputDescriptor;
 use lightning::chain::keysinterface::SpendableOutputDescriptor;

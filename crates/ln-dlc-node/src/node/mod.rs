@@ -71,6 +71,9 @@ mod wallet;
 pub use self::dlc_manager::DlcManager;
 pub use crate::node::oracle::OracleInfo;
 pub use ::dlc_manager as rust_dlc_manager;
+use ::dlc_manager::ChannelId;
+use ::dlc_manager::subchannel::LNChannelManager;
+use hex::FromHex;
 pub use channel_manager::ChannelManager;
 pub use dlc_channel::dlc_message_name;
 pub use dlc_channel::sub_channel_message_name;
@@ -79,6 +82,7 @@ use lightning::routing::scoring::ProbabilisticScorer;
 pub use storage::InMemoryStore;
 pub use storage::Storage;
 pub use sub_channel_manager::SubChannelManager;
+use time::OffsetDateTime;
 pub use wallet::PaymentDetails;
 
 /// The interval at which the [`lightning::ln::msgs::NodeAnnouncement`] is broadcast.
@@ -217,7 +221,7 @@ where
         alias: &str,
         network: Network,
         data_dir: &Path,
-        node_storage: S,
+        node_storage: Arc<S>,
         announcement_address: SocketAddr,
         listen_address: SocketAddr,
         announcement_addresses: Vec<NetAddress>,
@@ -265,7 +269,7 @@ where
         alias: &str,
         network: Network,
         data_dir: &Path,
-        node_storage: S,
+        node_storage: Arc<S>,
         announcement_address: SocketAddr,
         listen_address: SocketAddr,
         announcement_addresses: Vec<NetAddress>,
@@ -333,6 +337,7 @@ where
             let handle = tokio::runtime::Handle::current();
             let settings = settings.clone();
             let ln_dlc_wallet = ln_dlc_wallet.clone();
+            let node_storage = node_storage.clone();
             move || loop {
                 if let Err(e) = ln_dlc_wallet.inner().sync() {
                     tracing::error!("Failed on-chain sync: {e:#}");
@@ -378,6 +383,7 @@ where
 
                     if let Some(transaction_details) = transaction_details {
                         channel.costs = transaction_details.fee.unwrap_or_default() as i64;
+                        channel.updated_at = OffsetDateTime::now_utc();
                         if let Err(e) = node_storage.upsert_channel(channel.clone()) {
                             tracing::error!(
                                 "Failed to update channel with user channel id: {}. Error: {e:#}",
@@ -628,7 +634,6 @@ where
         let fake_channel_payments: FakeChannelPaymentRequests =
             Arc::new(Mutex::new(HashMap::new()));
 
-        let node_storage = Arc::new(node_storage);
         let event_handler = EventHandler::new(
             channel_manager.clone(),
             ln_dlc_wallet.clone(),

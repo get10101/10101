@@ -2,17 +2,22 @@ use crate::fee_rate_estimator::EstimateFeeRate;
 use crate::ln::JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT_MAX;
 use crate::ln::LIQUIDITY_MULTIPLIER;
 use crate::node::InMemoryStore;
+use crate::node::LnDlcNodeSettings;
 use crate::node::Node;
+use crate::node::Storage;
 use crate::tests::calculate_routing_fee_msat;
 use crate::tests::init_tracing;
 use crate::tests::setup_coordinator_payer_channel;
+use crate::ChannelState;
 use crate::HTLCStatus;
 use crate::WalletSettings;
 use anyhow::Context;
 use anyhow::Result;
 use lightning::chain::chaininterface::ConfirmationTarget;
 use rust_decimal::Decimal;
+use std::sync::Arc;
 use std::time::Duration;
+use uuid::Uuid;
 
 #[tokio::test(flavor = "multi_thread")]
 #[ignore]
@@ -21,8 +26,16 @@ async fn open_jit_channel() {
 
     // Arrange
 
+    let storage = Arc::new(InMemoryStore::default());
     let payer = Node::start_test_app("payer").unwrap();
-    let coordinator = Node::start_test_coordinator("coordinator").unwrap();
+    // setting the on chain sync interval to 5 seconds so that we don't have to wait for so long
+    // before the costs for the funding transaction will be attached to the shadow channel.
+    let settings = LnDlcNodeSettings {
+        on_chain_sync_interval: Duration::from_secs(3),
+        ..LnDlcNodeSettings::default()
+    };
+    let coordinator =
+        Node::start_test_coordinator_internal("coordinator", storage.clone(), settings).unwrap();
     let payee = Node::start_test_app("payee").unwrap();
 
     payer.connect(coordinator.info).await.unwrap();
@@ -47,6 +60,25 @@ async fn open_jit_channel() {
     )
     .await
     .unwrap();
+
+    let channel_details = coordinator
+        .channel_manager
+        .list_usable_channels()
+        .iter()
+        .find(|c| c.counterparty.node_id == payee.info.pubkey)
+        .context("Could not find usable channel with peer")
+        .unwrap()
+        .clone();
+
+    let user_channel_id = Uuid::from_u128(channel_details.user_channel_id).to_string();
+
+    // Wait for costs getting attached to the shadow channel.
+    tokio::time::sleep(Duration::from_secs(5)).await;
+
+    let channel = storage.get_channel(&user_channel_id).unwrap().unwrap();
+    assert_eq!(ChannelState::Open, channel.channel_state);
+    // fees are not always consistently the same amount, but it has to be greater than 0.
+    assert!(channel.costs > 0);
 }
 
 #[tokio::test(flavor = "multi_thread")]

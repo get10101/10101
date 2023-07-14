@@ -1,5 +1,6 @@
 use crate::ln::app_config;
 use crate::node::InMemoryStore;
+use crate::node::LnDlcNodeSettings;
 use crate::node::Node;
 use crate::node::NodeInfo;
 use crate::node::OracleInfo;
@@ -36,6 +37,8 @@ async fn single_app_many_positions_load() {
                 endpoint: ORACLE_ORIGIN_PUBLIC_REGTEST.to_string(),
                 public_key: XOnlyPublicKey::from_str(ORACLE_PUBKEY_PUBLIC_REGTEST).unwrap(),
             },
+            Arc::new(InMemoryStore::default()),
+            LnDlcNodeSettings::default(),
         )
         .unwrap(),
     );

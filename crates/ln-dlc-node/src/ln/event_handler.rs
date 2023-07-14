@@ -102,7 +102,7 @@ where
 
         match self.match_event(event.clone()).await {
             Ok(()) => tracing::debug!(event = ?event_str, "Successfully handled event"),
-            Err(e) => tracing::error!("Failed to handle event. Error {e:#}"),
+            Err(e) => tracing::error!("Failed to handle event. Error: {e:#}"),
         }
 
         if let Some(event_sender) = &self.event_sender {

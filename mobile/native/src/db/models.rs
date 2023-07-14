@@ -1011,6 +1011,18 @@ impl Channel {
         channels::table.load(conn)
     }
 
+    pub fn get_all_channels_without_cost(conn: &mut SqliteConnection) -> QueryResult<Vec<Channel>> {
+        channels::table
+            .filter(
+                schema::channels::costs.eq(0).and(
+                    schema::channels::channel_state
+                        .ne(ChannelState::Pending)
+                        .and(schema::channels::funding_txid.is_not_null()),
+                ),
+            )
+            .load(conn)
+    }
+
     pub fn upsert(channel: Channel, conn: &mut SqliteConnection) -> Result<()> {
         let affected_rows = diesel::insert_into(channels::table)
             .values(channel.clone())
@@ -1501,14 +1513,17 @@ pub mod test {
         let mut loaded: ln_dlc_node::Channel = Channel::get(user_channel_id, &mut connection)
             .unwrap()
             .into();
-
         assert_eq!(channel, loaded);
 
-        // Verify that we can update the channel by `user_channel_id`
+        // Verify that pending channels are not returned when fetching all open channel without cost
+        let channels = Channel::get_all_channels_without_cost(&mut connection).unwrap();
+        assert_eq!(0, channels.len());
 
+        // Verify that we can update the channel by `user_channel_id`
         loaded.channel_state = ln_dlc_node::ChannelState::Open;
         loaded.updated_at = OffsetDateTime::now_utc();
-        Channel::upsert(loaded.clone().into(), &mut connection).unwrap();
+        loaded.funding_txid = Some("testtxid".to_string());
+        Channel::upsert(loaded.into(), &mut connection).unwrap();
 
         let channels = Channel::get_all(&mut connection).unwrap();
         assert_eq!(1, channels.len());
@@ -1517,5 +1532,19 @@ pub mod test {
         assert_eq!(ln_dlc_node::ChannelState::Open, loaded.channel_state);
         assert_eq!(channel.created_at, loaded.created_at);
         assert_ne!(channel.updated_at, loaded.updated_at);
+
+        // Verify that open channels are returned when fetching all channel without cost
+        let channels = Channel::get_all_channels_without_cost(&mut connection).unwrap();
+        assert_eq!(1, channels.len());
+
+        let mut loaded: ln_dlc_node::Channel = (*channels.first().unwrap()).clone().into();
+        loaded.costs = 4660;
+        loaded.updated_at = OffsetDateTime::now_utc();
+        Channel::upsert(loaded.into(), &mut connection).unwrap();
+
+        // Verify that open channels with costs are not returned when fetching all open channel
+        // without cost
+        let channels = Channel::get_all_channels_without_cost(&mut connection).unwrap();
+        assert_eq!(0, channels.len());
     }
 }

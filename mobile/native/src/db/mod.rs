@@ -380,3 +380,18 @@ pub fn get_channels() -> Result<Vec<ln_dlc_node::Channel>> {
 
     Ok(channels)
 }
+
+pub fn get_all_channels_without_cost() -> Result<Vec<ln_dlc_node::Channel>> {
+    tracing::debug!("Getting all non-pending channels without cost");
+
+    let mut db = connection()?;
+
+    let channels = Channel::get_all_channels_without_cost(&mut db)?
+        .into_iter()
+        .map(|c| c.into())
+        .collect::<Vec<_>>();
+
+    tracing::debug!(?channels, "Got all non-pending channels without cost");
+
+    Ok(channels)
+}
