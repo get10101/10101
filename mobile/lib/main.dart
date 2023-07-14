@@ -38,6 +38,7 @@ import 'package:get_10101/util/constants.dart';
 import 'package:get_10101/util/environment.dart';
 import 'package:get_10101/util/preferences.dart';
 import 'package:go_router/go_router.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:get_10101/common/amount_denomination_change_notifier.dart';
@@ -292,6 +293,8 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
       await positionChangeNotifier.initialize();
       await candlestickChangeNotifier.initialize();
 
+      await logAppSettings(config);
+
       var lastLogin = await rust.api.updateLastLogin();
       FLog.debug(text: "Last login was at ${lastLogin.date}");
     } on FfiException catch (error) {
@@ -395,4 +398,29 @@ class ScaffoldWithNavBar extends StatelessWidget {
         break;
     }
   }
+}
+
+Future<void> logAppSettings(bridge.Config config) async {
+  String commit = const String.fromEnvironment('COMMIT');
+  if (commit.isNotEmpty) {
+    FLog.info(text: "Built on commit: $commit");
+  }
+
+  String branch = const String.fromEnvironment('BRANCH');
+  if (branch.isNotEmpty) {
+    FLog.info(text: "Built on branch: $branch");
+  }
+
+  PackageInfo packageInfo = await PackageInfo.fromPlatform();
+  FLog.info(text: "Build number: ${packageInfo.buildNumber}");
+  FLog.info(text: "Build version: ${packageInfo.version}");
+
+  FLog.info(text: "Network: ${config.network}");
+  FLog.info(text: "Esplora endpoint: ${config.esploraEndpoint}");
+  FLog.info(text: "Coordinator: ${config.coordinatorPubkey}@${config.host}:${config.p2PPort}");
+  FLog.info(text: "Oracle endpoint: ${config.oracleEndpoint}");
+  FLog.info(text: "Oracle PK: ${config.oraclePubkey}");
+
+  String nodeId = rust.api.getNodeId();
+  FLog.info(text: "Node ID: $nodeId");
 }
