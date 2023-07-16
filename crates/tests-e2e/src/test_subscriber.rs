@@ -3,9 +3,13 @@ use native::api::ContractSymbol;
 use native::api::WalletInfo;
 use native::event::subscriber::Subscriber;
 use native::event::EventType;
+use native::health::Service;
+use native::health::ServiceStatus;
+use native::health::ServiceUpdate;
 use native::trade::order::Order;
 use native::trade::position::Position;
 use orderbook_commons::Prices;
+use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::Mutex;
 use tokio::sync::watch;
@@ -19,6 +23,7 @@ pub struct Senders {
     init_msg: watch::Sender<Option<String>>,
     prices: watch::Sender<Option<Prices>>,
     position_close: watch::Sender<Option<ContractSymbol>>,
+    service: watch::Sender<Option<ServiceUpdate>>,
 }
 
 /// Subscribes to events destined for the frontend (typically Flutter app) and
@@ -31,10 +36,12 @@ pub struct TestSubscriber {
     init_msg: watch::Receiver<Option<String>>,
     prices: watch::Receiver<Option<Prices>>,
     position_close: watch::Receiver<Option<ContractSymbol>>,
+    services: Arc<Mutex<HashMap<Service, ServiceStatus>>>,
+    _service_map_updater: tokio::task::JoinHandle<()>,
 }
 
 impl TestSubscriber {
-    pub fn new() -> (Self, ThreadSafeSenders) {
+    pub async fn new() -> (Self, ThreadSafeSenders) {
         let (wallet_info_tx, wallet_info_rx) = watch::channel(None);
         let (order_tx, order_rx) = watch::channel(None);
         let (order_filled_tx, order_filled_rx) = watch::channel(None);
@@ -42,6 +49,7 @@ impl TestSubscriber {
         let (init_msg_tx, init_msg_rx) = watch::channel(None);
         let (prices_tx, prices_rx) = watch::channel(None);
         let (position_close_tx, position_close_rx) = watch::channel(None);
+        let (service_tx, mut service_rx) = watch::channel(None);
 
         let senders = Senders {
             wallet_info: wallet_info_tx,
@@ -51,9 +59,28 @@ impl TestSubscriber {
             init_msg: init_msg_tx,
             prices: prices_tx,
             position_close: position_close_tx,
+            service: service_tx,
         };
 
-        let rx = Self {
+        let services = Arc::new(Mutex::new(HashMap::new()));
+
+        let _service_map_updater = {
+            let services = services.clone();
+            tokio::spawn(async move {
+                while let Ok(()) = service_rx.changed().await {
+                    if let Some((service, status)) = *service_rx.borrow() {
+                        tracing::debug!(?service, ?status, "Updating status in the services map");
+                        services
+                            .lock()
+                            .expect("mutex not poisoned")
+                            .insert(service, status);
+                    }
+                }
+                panic!("service_rx channel closed");
+            })
+        };
+
+        let subscriber = Self {
             wallet_info: wallet_info_rx,
             order_filled: order_filled_rx,
             order: order_rx,
@@ -61,8 +88,10 @@ impl TestSubscriber {
             init_msg: init_msg_rx,
             prices: prices_rx,
             position_close: position_close_rx,
+            services,
+            _service_map_updater,
         };
-        (rx, ThreadSafeSenders(Arc::new(Mutex::new(senders))))
+        (subscriber, ThreadSafeSenders(Arc::new(Mutex::new(senders))))
     }
 
     pub fn wallet_info(&self) -> Option<WalletInfo> {
@@ -91,6 +120,15 @@ impl TestSubscriber {
 
     pub fn position_close(&self) -> Option<ContractSymbol> {
         self.position_close.borrow().as_ref().cloned()
+    }
+
+    pub fn status(&self, service: Service) -> ServiceStatus {
+        self.services
+            .lock()
+            .expect("mutex not poisoned")
+            .get(&service)
+            .copied()
+            .unwrap_or_default()
     }
 }
 
@@ -142,6 +180,12 @@ impl Subscriber for Senders {
                     .send(Some(prices.clone()))
                     .expect("to be able to send update");
             }
+            native::event::EventInternal::ServiceHealthUpdate(update) => {
+                tracing::debug!(?update, "Received service health update event");
+                self.service
+                    .send(Some(*update))
+                    .expect("to be able to send update");
+            }
             native::event::EventInternal::ChannelReady(channel_id) => {
                 tracing::trace!(?channel_id, "Received channel ready event");
             }
@@ -159,6 +203,7 @@ impl Subscriber for Senders {
             EventType::PositionUpdateNotification,
             EventType::PositionClosedNotification,
             EventType::PriceUpdateNotification,
+            EventType::ServiceHealthUpdate,
         ]
     }
 }

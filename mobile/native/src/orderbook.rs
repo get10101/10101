@@ -1,4 +1,5 @@
 use crate::config;
+use crate::health::ServiceStatus;
 use crate::trade::position;
 use anyhow::Result;
 use bdk::bitcoin::secp256k1::SecretKey;
@@ -13,13 +14,18 @@ use std::sync::Arc;
 use std::time::Duration;
 use time::OffsetDateTime;
 use tokio::runtime::Runtime;
+use tokio::sync::watch;
 use tokio::task::spawn_blocking;
 use uuid::Uuid;
 
 const WS_RECONNECT_TIMEOUT: Duration = Duration::from_secs(2);
 const EXPIRED_ORDER_PRUNING_INTERVAL: Duration = Duration::from_secs(30);
 
-pub fn subscribe(secret_key: SecretKey, runtime: &Runtime) -> Result<()> {
+pub fn subscribe(
+    secret_key: SecretKey,
+    runtime: &Runtime,
+    orderbook_status: watch::Sender<ServiceStatus>,
+) -> Result<()> {
     runtime.spawn(async move {
         let url = format!(
             "ws://{}/api/orderbook/websocket",
@@ -34,6 +40,7 @@ pub fn subscribe(secret_key: SecretKey, runtime: &Runtime) -> Result<()> {
 
         // Need a Mutex as it's being accessed from websocket stream and pruning task
         let orders = Arc::new(Mutex::new(Vec::<Order>::new()));
+
 
         let _prune_expired_orders_task = {
             let orders = orders.clone();
@@ -71,6 +78,10 @@ pub fn subscribe(secret_key: SecretKey, runtime: &Runtime) -> Result<()> {
             let mut stream =
                 spawn_blocking(move || orderbook_client::subscribe_with_authentication(url, authenticate)).await.expect("joined task not to panic");
 
+            if let Err(e) =
+                orderbook_status.send(ServiceStatus::Online) {
+                    tracing::warn!("Cannot update orderbook status: {e:#}");
+                };
 
             loop {
                 match stream.try_next().await {
@@ -148,6 +159,11 @@ pub fn subscribe(secret_key: SecretKey, runtime: &Runtime) -> Result<()> {
                         break;
                     }
                 }
+            };
+
+            if let Err(e) =
+            orderbook_status.send(ServiceStatus::Offline) {
+                tracing::warn!("Cannot update orderbook status: {e:#}");
             };
 
             tokio::time::sleep(WS_RECONNECT_TIMEOUT).await;

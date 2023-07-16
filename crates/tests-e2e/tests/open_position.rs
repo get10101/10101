@@ -1,6 +1,8 @@
 use native::api;
 use native::api::ContractSymbol;
 use native::api::WalletType;
+use native::health::Service;
+use native::health::ServiceStatus;
 use native::trade::order::api::NewOrder;
 use native::trade::order::api::OrderType;
 use native::trade::position::PositionState;
@@ -31,6 +33,8 @@ async fn can_open_position() {
     })
     .await
     .unwrap();
+
+    assert_eq!(app.rx.status(Service::Orderbook), ServiceStatus::Online);
 
     // Assert that the order was posted
     wait_until!(app.rx.order().is_some());

@@ -35,7 +35,7 @@ pub async fn run_app() -> AppHandle {
         })
     };
 
-    let (rx, tx) = TestSubscriber::new();
+    let (rx, tx) = TestSubscriber::new().await;
     let app = AppHandle {
         _app_dir: app_dir,
         _seed_dir: seed_dir,
