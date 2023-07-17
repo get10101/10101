@@ -84,8 +84,8 @@ pub(crate) fn upsert(channel: Channel, conn: &mut PgConnection) -> Result<()> {
     Ok(())
 }
 
-impl From<ln_dlc_node::Channel> for Channel {
-    fn from(value: ln_dlc_node::Channel) -> Self {
+impl From<ln_dlc_node::channel::Channel> for Channel {
+    fn from(value: ln_dlc_node::channel::Channel) -> Self {
         Channel {
             user_channel_id: value.user_channel_id,
             channel_id: value.channel_id,
@@ -101,21 +101,23 @@ impl From<ln_dlc_node::Channel> for Channel {
     }
 }
 
-impl From<ln_dlc_node::ChannelState> for ChannelState {
-    fn from(value: ln_dlc_node::ChannelState) -> Self {
+impl From<ln_dlc_node::channel::ChannelState> for ChannelState {
+    fn from(value: ln_dlc_node::channel::ChannelState) -> Self {
         match value {
-            ln_dlc_node::ChannelState::Pending => ChannelState::Pending,
-            ln_dlc_node::ChannelState::Open => ChannelState::Open,
-            ln_dlc_node::ChannelState::Closed => ChannelState::Closed,
-            ln_dlc_node::ChannelState::ForceClosedLocal => ChannelState::ForceClosedLocal,
-            ln_dlc_node::ChannelState::ForceClosedRemote => ChannelState::ForceClosedRemote,
+            ln_dlc_node::channel::ChannelState::Pending => ChannelState::Pending,
+            ln_dlc_node::channel::ChannelState::Open => ChannelState::Open,
+            ln_dlc_node::channel::ChannelState::Closed => ChannelState::Closed,
+            ln_dlc_node::channel::ChannelState::ForceClosedLocal => ChannelState::ForceClosedLocal,
+            ln_dlc_node::channel::ChannelState::ForceClosedRemote => {
+                ChannelState::ForceClosedRemote
+            }
         }
     }
 }
 
-impl From<Channel> for ln_dlc_node::Channel {
+impl From<Channel> for ln_dlc_node::channel::Channel {
     fn from(value: Channel) -> Self {
-        ln_dlc_node::Channel {
+        ln_dlc_node::channel::Channel {
             id: None,
             user_channel_id: value.user_channel_id,
             channel_id: value.channel_id,
@@ -132,14 +134,16 @@ impl From<Channel> for ln_dlc_node::Channel {
     }
 }
 
-impl From<ChannelState> for ln_dlc_node::ChannelState {
+impl From<ChannelState> for ln_dlc_node::channel::ChannelState {
     fn from(value: ChannelState) -> Self {
         match value {
-            ChannelState::Pending => ln_dlc_node::ChannelState::Pending,
-            ChannelState::Open => ln_dlc_node::ChannelState::Open,
-            ChannelState::Closed => ln_dlc_node::ChannelState::Closed,
-            ChannelState::ForceClosedLocal => ln_dlc_node::ChannelState::ForceClosedLocal,
-            ChannelState::ForceClosedRemote => ln_dlc_node::ChannelState::ForceClosedRemote,
+            ChannelState::Pending => ln_dlc_node::channel::ChannelState::Pending,
+            ChannelState::Open => ln_dlc_node::channel::ChannelState::Open,
+            ChannelState::Closed => ln_dlc_node::channel::ChannelState::Closed,
+            ChannelState::ForceClosedLocal => ln_dlc_node::channel::ChannelState::ForceClosedLocal,
+            ChannelState::ForceClosedRemote => {
+                ln_dlc_node::channel::ChannelState::ForceClosedRemote
+            }
         }
     }
 }

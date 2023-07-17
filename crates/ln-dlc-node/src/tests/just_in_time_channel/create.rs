@@ -1,3 +1,4 @@
+use crate::channel::ChannelState;
 use crate::fee_rate_estimator::EstimateFeeRate;
 use crate::ln::JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT_MAX;
 use crate::ln::LIQUIDITY_MULTIPLIER;
@@ -8,7 +9,6 @@ use crate::node::Storage;
 use crate::tests::calculate_routing_fee_msat;
 use crate::tests::init_tracing;
 use crate::tests::setup_coordinator_payer_channel;
-use crate::ChannelState;
 use crate::HTLCStatus;
 use crate::WalletSettings;
 use anyhow::Context;

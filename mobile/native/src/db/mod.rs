@@ -353,13 +353,13 @@ pub fn get_spendable_outputs(
     Ok(outputs)
 }
 
-pub fn upsert_channel(channel: ln_dlc_node::Channel) -> Result<()> {
+pub fn upsert_channel(channel: ln_dlc_node::channel::Channel) -> Result<()> {
     tracing::debug!(?channel, "Inserting channel");
     let mut db = connection()?;
     Channel::upsert(channel.into(), &mut db)
 }
 
-pub fn get_channel(user_channel_id: &str) -> Result<Option<ln_dlc_node::Channel>> {
+pub fn get_channel(user_channel_id: &str) -> Result<Option<ln_dlc_node::channel::Channel>> {
     tracing::debug!(%user_channel_id, "Getting channel");
 
     let mut db = connection()?;
@@ -369,7 +369,7 @@ pub fn get_channel(user_channel_id: &str) -> Result<Option<ln_dlc_node::Channel>
         .map_err(|e| anyhow!("{e:#}"))
 }
 
-pub fn get_channels() -> Result<Vec<ln_dlc_node::Channel>> {
+pub fn get_channels() -> Result<Vec<ln_dlc_node::channel::Channel>> {
     let mut db = connection()?;
     let channels = Channel::get_all(&mut db)?
         .into_iter()
@@ -381,7 +381,7 @@ pub fn get_channels() -> Result<Vec<ln_dlc_node::Channel>> {
     Ok(channels)
 }
 
-pub fn get_all_non_pending_channels() -> Result<Vec<ln_dlc_node::Channel>> {
+pub fn get_all_non_pending_channels() -> Result<Vec<ln_dlc_node::channel::Channel>> {
     tracing::debug!("Getting all non-pending channels");
 
     let mut db = connection()?;

@@ -1,5 +1,5 @@
-use crate::Channel;
-use crate::ChannelState;
+use crate::channel::Channel;
+use crate::channel::ChannelState;
 use crate::HTLCStatus;
 use crate::MillisatAmount;
 use crate::PaymentFlow;
@@ -182,6 +182,8 @@ impl Storage for InMemoryStore {
     fn all_spendable_outputs(&self) -> Result<Vec<SpendableOutputDescriptor>> {
         Ok(self.spendable_outputs_lock().values().cloned().collect())
     }
+
+    // Channels
 
     fn upsert_channel(&self, channel: Channel) -> Result<()> {
         let user_channel_id = channel.clone().user_channel_id;

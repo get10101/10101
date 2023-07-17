@@ -1036,8 +1036,8 @@ impl Channel {
     }
 }
 
-impl From<ln_dlc_node::Channel> for Channel {
-    fn from(value: ln_dlc_node::Channel) -> Self {
+impl From<ln_dlc_node::channel::Channel> for Channel {
+    fn from(value: ln_dlc_node::channel::Channel) -> Self {
         Channel {
             user_channel_id: value.user_channel_id,
             channel_id: value.channel_id,
@@ -1053,21 +1053,23 @@ impl From<ln_dlc_node::Channel> for Channel {
     }
 }
 
-impl From<ln_dlc_node::ChannelState> for ChannelState {
-    fn from(value: ln_dlc_node::ChannelState) -> Self {
+impl From<ln_dlc_node::channel::ChannelState> for ChannelState {
+    fn from(value: ln_dlc_node::channel::ChannelState) -> Self {
         match value {
-            ln_dlc_node::ChannelState::Pending => ChannelState::Pending,
-            ln_dlc_node::ChannelState::Open => ChannelState::Open,
-            ln_dlc_node::ChannelState::Closed => ChannelState::Closed,
-            ln_dlc_node::ChannelState::ForceClosedLocal => ChannelState::ForceClosedLocal,
-            ln_dlc_node::ChannelState::ForceClosedRemote => ChannelState::ForceClosedRemote,
+            ln_dlc_node::channel::ChannelState::Pending => ChannelState::Pending,
+            ln_dlc_node::channel::ChannelState::Open => ChannelState::Open,
+            ln_dlc_node::channel::ChannelState::Closed => ChannelState::Closed,
+            ln_dlc_node::channel::ChannelState::ForceClosedLocal => ChannelState::ForceClosedLocal,
+            ln_dlc_node::channel::ChannelState::ForceClosedRemote => {
+                ChannelState::ForceClosedRemote
+            }
         }
     }
 }
 
-impl From<Channel> for ln_dlc_node::Channel {
+impl From<Channel> for ln_dlc_node::channel::Channel {
     fn from(value: Channel) -> Self {
-        ln_dlc_node::Channel {
+        ln_dlc_node::channel::Channel {
             id: None,
             user_channel_id: value.user_channel_id,
             channel_id: value.channel_id,
@@ -1086,14 +1088,16 @@ impl From<Channel> for ln_dlc_node::Channel {
     }
 }
 
-impl From<ChannelState> for ln_dlc_node::ChannelState {
+impl From<ChannelState> for ln_dlc_node::channel::ChannelState {
     fn from(value: ChannelState) -> Self {
         match value {
-            ChannelState::Pending => ln_dlc_node::ChannelState::Pending,
-            ChannelState::Open => ln_dlc_node::ChannelState::Open,
-            ChannelState::Closed => ln_dlc_node::ChannelState::Closed,
-            ChannelState::ForceClosedLocal => ln_dlc_node::ChannelState::ForceClosedLocal,
-            ChannelState::ForceClosedRemote => ln_dlc_node::ChannelState::ForceClosedRemote,
+            ChannelState::Pending => ln_dlc_node::channel::ChannelState::Pending,
+            ChannelState::Open => ln_dlc_node::channel::ChannelState::Open,
+            ChannelState::Closed => ln_dlc_node::channel::ChannelState::Closed,
+            ChannelState::ForceClosedLocal => ln_dlc_node::channel::ChannelState::ForceClosedLocal,
+            ChannelState::ForceClosedRemote => {
+                ln_dlc_node::channel::ChannelState::ForceClosedRemote
+            }
         }
     }
 }
@@ -1493,14 +1497,14 @@ pub mod test {
         connection.run_pending_migrations(MIGRATIONS).unwrap();
 
         let user_channel_id = "219fede5479a69d8fc42693ecb8cea67098531087c421b4421d96e2f5acd7de3";
-        let channel = ln_dlc_node::Channel {
+        let channel = ln_dlc_node::channel::Channel {
             id: None,
             user_channel_id: user_channel_id.to_string(),
             channel_id: None,
             capacity: 0,
             balance: 0,
             funding_txid: None,
-            channel_state: ln_dlc_node::ChannelState::Pending,
+            channel_state: ln_dlc_node::channel::ChannelState::Pending,
             counterparty: PublicKey::from_str(
                 "03f75f318471d32d39be3c86c622e2c51bd5731bf95f98aaa3ed5d6e1c0025927f",
             )
@@ -1513,9 +1517,10 @@ pub mod test {
         Channel::upsert(channel.clone().into(), &mut connection).unwrap();
 
         // Verify that we can load the right channel by the `user_channel_id`
-        let mut loaded: ln_dlc_node::Channel = Channel::get(user_channel_id, &mut connection)
-            .unwrap()
-            .into();
+        let mut loaded: ln_dlc_node::channel::Channel =
+            Channel::get(user_channel_id, &mut connection)
+                .unwrap()
+                .into();
         assert_eq!(channel, loaded);
 
         // Verify that pending channels are not returned when fetching all open channel
@@ -1523,7 +1528,7 @@ pub mod test {
         assert_eq!(0, channels.len());
 
         // Verify that we can update the channel by `user_channel_id`
-        loaded.channel_state = ln_dlc_node::ChannelState::Open;
+        loaded.channel_state = ln_dlc_node::channel::ChannelState::Open;
         loaded.updated_at = OffsetDateTime::now_utc();
         loaded.funding_txid = Some("testtxid".to_string());
         Channel::upsert(loaded.into(), &mut connection).unwrap();
@@ -1531,8 +1536,11 @@ pub mod test {
         let channels = Channel::get_all(&mut connection).unwrap();
         assert_eq!(1, channels.len());
 
-        let loaded: ln_dlc_node::Channel = (*channels.first().unwrap()).clone().into();
-        assert_eq!(ln_dlc_node::ChannelState::Open, loaded.channel_state);
+        let loaded: ln_dlc_node::channel::Channel = (*channels.first().unwrap()).clone().into();
+        assert_eq!(
+            ln_dlc_node::channel::ChannelState::Open,
+            loaded.channel_state
+        );
         assert_eq!(channel.created_at, loaded.created_at);
         assert_ne!(channel.updated_at, loaded.updated_at);
 
@@ -1540,7 +1548,7 @@ pub mod test {
         let channels = Channel::get_all_non_pending_channels(&mut connection).unwrap();
         assert_eq!(1, channels.len());
 
-        let mut loaded: ln_dlc_node::Channel = (*channels.first().unwrap()).clone().into();
+        let mut loaded: ln_dlc_node::channel::Channel = (*channels.first().unwrap()).clone().into();
         loaded.costs = 4660;
         loaded.updated_at = OffsetDateTime::now_utc();
         Channel::upsert(loaded.into(), &mut connection).unwrap();
