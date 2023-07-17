@@ -104,7 +104,7 @@ diesel::table! {
 
     trades (id) {
         id -> Int4,
-        position_id -> Nullable<Int4>,
+        position_id -> Int4,
         contract_symbol -> ContractSymbolType,
         trader_pubkey -> Text,
         quantity -> Float4,
@@ -113,6 +113,7 @@ diesel::table! {
         direction -> DirectionType,
         average_price -> Float4,
         timestamp -> Timestamptz,
+        fee_payment_hash -> Text,
     }
 }
 

@@ -71,7 +71,7 @@ pub fn init_meter() -> PrometheusExporter {
     opentelemetry_prometheus::exporter(controller).init()
 }
 
-pub fn collect_metrics(node: Node) {
+pub fn collect(node: Node) {
     let cx = opentelemetry::Context::current();
     position_metrics(&cx, &node);
 

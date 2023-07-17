@@ -3,6 +3,7 @@ use crate::db::payments::PaymentFlow;
 use crate::db::positions::ContractSymbol;
 use crate::db::positions::PositionState;
 use crate::schema::sql_types::ContractSymbolType;
+use crate::schema::sql_types::DirectionType;
 use crate::schema::sql_types::HtlcStatusType;
 use crate::schema::sql_types::PaymentFlowType;
 use crate::schema::sql_types::PositionStateType;
@@ -15,6 +16,7 @@ use diesel::serialize::Output;
 use diesel::serialize::ToSql;
 use diesel::serialize::{self};
 use std::io::Write;
+use trade::Direction;
 
 impl ToSql<ContractSymbolType, Pg> for ContractSymbol {
     fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, Pg>) -> serialize::Result {
@@ -91,6 +93,26 @@ impl FromSql<PaymentFlowType, Pg> for PaymentFlow {
         match bytes.as_bytes() {
             b"Inbound" => Ok(PaymentFlow::Inbound),
             b"Outbound" => Ok(PaymentFlow::Outbound),
+            _ => Err("Unrecognized enum variant".into()),
+        }
+    }
+}
+
+impl ToSql<DirectionType, Pg> for Direction {
+    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, Pg>) -> serialize::Result {
+        match *self {
+            Direction::Long => out.write_all(b"Long")?,
+            Direction::Short => out.write_all(b"Short")?,
+        }
+        Ok(IsNull::No)
+    }
+}
+
+impl FromSql<DirectionType, Pg> for Direction {
+    fn from_sql(bytes: PgValue<'_>) -> deserialize::Result<Self> {
+        match bytes.as_bytes() {
+            b"Long" => Ok(Direction::Long),
+            b"Short" => Ok(Direction::Short),
             _ => Err("Unrecognized enum variant".into()),
         }
     }

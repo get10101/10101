@@ -1,8 +1,8 @@
 use crate::db;
-use crate::db::trades::Trade;
 use crate::node::storage::NodeStorage;
 use crate::position::models::NewPosition;
 use crate::position::models::Position;
+use crate::trade::models::NewTrade;
 use anyhow::bail;
 use anyhow::ensure;
 use anyhow::Context;
@@ -27,6 +27,7 @@ use dlc_manager::payout_curve::RoundingIntervals;
 use dlc_manager::ChannelId;
 use dlc_messages::Message;
 use lightning::ln::channelmanager::ChannelDetails;
+use lightning::ln::PaymentHash;
 use lightning_invoice::Invoice;
 use ln_dlc_node::node;
 use ln_dlc_node::node::dlc_message_name;
@@ -124,12 +125,7 @@ impl Node {
 
     #[autometrics]
     pub async fn trade(&self, trade_params: &TradeParams) -> Result<Invoice> {
-        let invoice = self.fee_invoice_taker(trade_params).await?;
-        let _fee_payment_hash = invoice.payment_hash();
-
-        // TODO: Save this invoice in the coordinator database
-        //  The identifier is the payment hash
-        //  Potentially safe the order id as meta data
+        let (fee_payment_hash, invoice) = self.fee_invoice_taker(trade_params).await?;
 
         match self.decide_trade_action(&trade_params.pubkey)? {
             TradeAction::Open => {
@@ -137,7 +133,7 @@ impl Node {
                     self.settings.read().await.allow_opening_positions,
                     "Opening positions is disabled"
                 );
-                self.open_position(trade_params).await?
+                self.open_position(trade_params, fee_payment_hash).await?
             }
             TradeAction::Close(channel_id) => {
                 let peer_id = trade_params.pubkey;
@@ -154,7 +150,7 @@ impl Node {
                     None => bail!("Failed to find open position : {}", trade_params.pubkey),
                 };
 
-                self.close_position(&position, closing_price, channel_id)
+                self.close_position(&position, closing_price, channel_id, fee_payment_hash)
                     .await?
             }
         };
@@ -163,7 +159,11 @@ impl Node {
     }
 
     #[autometrics]
-    async fn open_position(&self, trade_params: &TradeParams) -> Result<()> {
+    async fn open_position(
+        &self,
+        trade_params: &TradeParams,
+        fee_payment_hash: PaymentHash,
+    ) -> Result<()> {
         let peer_id = trade_params.pubkey;
         tracing::info!(%peer_id, ?trade_params, "Opening position");
 
@@ -218,11 +218,15 @@ impl Node {
         // into the database doesn't, it is more likely to succeed in the new order.
         // FIXME: Note, we should not create a shadow representation (position) of the DLC struct,
         // but rather imply the state from the DLC.
-        self.persist_position_and_trade(trade_params)
+        self.persist_position_and_trade(trade_params, fee_payment_hash)
     }
 
     // Creates a position and a trade from the trade params
-    fn persist_position_and_trade(&self, trade_params: &TradeParams) -> Result<()> {
+    fn persist_position_and_trade(
+        &self,
+        trade_params: &TradeParams,
+        fee_payment_hash: PaymentHash,
+    ) -> Result<()> {
         let liquidation_price = liquidation_price(trade_params);
         let margin_coordinator = margin_coordinator(trade_params);
 
@@ -249,17 +253,20 @@ impl Node {
 
         db::trades::insert(
             connection,
-            Trade {
+            NewTrade {
                 position_id: position.id,
-                contract_symbol: new_position.contract_symbol.into(),
-                trader_pubkey: new_position.trader.to_string(),
+                contract_symbol: new_position.contract_symbol,
+                trader_pubkey: new_position.trader,
                 quantity: new_position.quantity,
                 leverage: new_position.leverage,
                 collateral: new_position.collateral,
-                direction: new_position.direction.into(),
+                direction: new_position.direction,
                 average_price: average_entry_price,
+                fee_payment_hash,
             },
-        )
+        )?;
+
+        Ok(())
     }
 
     #[autometrics]
@@ -268,6 +275,7 @@ impl Node {
         position: &Position,
         closing_price: Decimal,
         channel_id: ChannelId,
+        fee_payment_hash: PaymentHash,
     ) -> Result<()> {
         let opening_price = Decimal::try_from(position.average_entry_price)?;
 
@@ -298,15 +306,16 @@ impl Node {
         let mut connection = self.pool.get()?;
         db::trades::insert(
             &mut connection,
-            Trade {
+            NewTrade {
                 position_id: position.id,
-                contract_symbol: position.contract_symbol.into(),
-                trader_pubkey: position.trader.to_string(),
+                contract_symbol: position.contract_symbol,
+                trader_pubkey: position.trader,
                 quantity: position.quantity,
                 leverage: position.leverage,
                 collateral: position.collateral,
-                direction: position.direction.opposite().into(),
+                direction: position.direction.opposite(),
                 average_price: closing_price.to_f32().expect("To fit into f32"),
+                fee_payment_hash,
             },
         )?;
 
