@@ -127,9 +127,9 @@ impl node::Storage for NodeStorage {
             .map_err(|e| anyhow!("{e:#}"))
     }
 
-    fn all_channels_without_costs(&self) -> Result<Vec<Channel>> {
+    fn all_non_pending_channels(&self) -> Result<Vec<Channel>> {
         let mut conn = self.pool.get()?;
-        let channels = crate::db::channels::get_all_channels_without_cost(&mut conn)?
+        let channels = crate::db::channels::get_all_non_pending_channels(&mut conn)?
             .into_iter()
             .map(|c| c.into())
             .collect::<Vec<_>>();

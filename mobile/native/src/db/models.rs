@@ -992,9 +992,10 @@ pub struct Channel {
     pub user_channel_id: String,
     pub channel_id: Option<String>,
     pub capacity: i64,
+    pub balance: i64,
     pub funding_txid: Option<String>,
     pub channel_state: ChannelState,
-    pub trader_pubkey: String,
+    pub counterparty_pubkey: String,
     pub created_at: i64,
     pub updated_at: i64,
     pub costs: i64,
@@ -1011,14 +1012,12 @@ impl Channel {
         channels::table.load(conn)
     }
 
-    pub fn get_all_channels_without_cost(conn: &mut SqliteConnection) -> QueryResult<Vec<Channel>> {
+    pub fn get_all_non_pending_channels(conn: &mut SqliteConnection) -> QueryResult<Vec<Channel>> {
         channels::table
             .filter(
-                schema::channels::costs.eq(0).and(
-                    schema::channels::channel_state
-                        .ne(ChannelState::Pending)
-                        .and(schema::channels::funding_txid.is_not_null()),
-                ),
+                schema::channels::channel_state
+                    .ne(ChannelState::Pending)
+                    .and(schema::channels::funding_txid.is_not_null()),
             )
             .load(conn)
     }
@@ -1043,9 +1042,10 @@ impl From<ln_dlc_node::Channel> for Channel {
             user_channel_id: value.user_channel_id,
             channel_id: value.channel_id,
             capacity: value.capacity,
+            balance: value.balance,
             funding_txid: value.funding_txid,
             channel_state: value.channel_state.into(),
-            trader_pubkey: value.trader.to_string(),
+            counterparty_pubkey: value.counterparty.to_string(),
             created_at: value.created_at.unix_timestamp(),
             updated_at: value.updated_at.unix_timestamp(),
             costs: value.costs as i64,
@@ -1072,9 +1072,11 @@ impl From<Channel> for ln_dlc_node::Channel {
             user_channel_id: value.user_channel_id,
             channel_id: value.channel_id,
             capacity: value.capacity,
+            balance: value.balance,
             funding_txid: value.funding_txid,
             channel_state: value.channel_state.into(),
-            trader: PublicKey::from_str(&value.trader_pubkey).expect("valid public key"),
+            counterparty: PublicKey::from_str(&value.counterparty_pubkey)
+                .expect("valid public key"),
             created_at: OffsetDateTime::from_unix_timestamp(value.created_at)
                 .expect("valid timestamp"),
             updated_at: OffsetDateTime::from_unix_timestamp(value.updated_at)
@@ -1496,9 +1498,10 @@ pub mod test {
             user_channel_id: user_channel_id.to_string(),
             channel_id: None,
             capacity: 0,
+            balance: 0,
             funding_txid: None,
             channel_state: ln_dlc_node::ChannelState::Pending,
-            trader: PublicKey::from_str(
+            counterparty: PublicKey::from_str(
                 "03f75f318471d32d39be3c86c622e2c51bd5731bf95f98aaa3ed5d6e1c0025927f",
             )
             .expect("is a valid public key"),
@@ -1515,8 +1518,8 @@ pub mod test {
             .into();
         assert_eq!(channel, loaded);
 
-        // Verify that pending channels are not returned when fetching all open channel without cost
-        let channels = Channel::get_all_channels_without_cost(&mut connection).unwrap();
+        // Verify that pending channels are not returned when fetching all open channel
+        let channels = Channel::get_all_non_pending_channels(&mut connection).unwrap();
         assert_eq!(0, channels.len());
 
         // Verify that we can update the channel by `user_channel_id`
@@ -1533,18 +1536,13 @@ pub mod test {
         assert_eq!(channel.created_at, loaded.created_at);
         assert_ne!(channel.updated_at, loaded.updated_at);
 
-        // Verify that open channels are returned when fetching all channel without cost
-        let channels = Channel::get_all_channels_without_cost(&mut connection).unwrap();
+        // Verify that open channels are returned when fetching all non pending channels
+        let channels = Channel::get_all_non_pending_channels(&mut connection).unwrap();
         assert_eq!(1, channels.len());
 
         let mut loaded: ln_dlc_node::Channel = (*channels.first().unwrap()).clone().into();
         loaded.costs = 4660;
         loaded.updated_at = OffsetDateTime::now_utc();
         Channel::upsert(loaded.into(), &mut connection).unwrap();
-
-        // Verify that open channels with costs are not returned when fetching all open channel
-        // without cost
-        let channels = Channel::get_all_channels_without_cost(&mut connection).unwrap();
-        assert_eq!(0, channels.len());
     }
 }

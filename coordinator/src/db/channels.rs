@@ -23,7 +23,7 @@ use time::OffsetDateTime;
 
 #[derive(Debug, Clone, Copy, PartialEq, FromSqlRow, AsExpression)]
 #[diesel(sql_type = ChannelStateType)]
-pub enum ChannelState {
+pub(crate) enum ChannelState {
     Pending,
     Open,
     Closed,
@@ -42,41 +42,36 @@ impl QueryId for ChannelStateType {
 
 #[derive(Insertable, QueryableByName, Queryable, Debug, Clone, PartialEq, AsChangeset)]
 #[diesel(table_name = channels)]
-pub struct Channel {
+pub(crate) struct Channel {
     pub user_channel_id: String,
     pub channel_id: Option<String>,
     pub capacity: i64,
+    pub balance: i64,
     pub funding_txid: Option<String>,
     pub channel_state: ChannelState,
-    pub trader_pubkey: String,
+    pub counterparty_pubkey: String,
     pub created_at: OffsetDateTime,
     pub updated_at: OffsetDateTime,
     pub costs: i64,
 }
 
-pub fn get(user_channel_id: &str, conn: &mut PgConnection) -> QueryResult<Channel> {
+pub(crate) fn get(user_channel_id: &str, conn: &mut PgConnection) -> QueryResult<Channel> {
     channels::table
         .filter(channels::user_channel_id.eq(user_channel_id))
         .first(conn)
 }
 
-pub fn get_all(conn: &mut PgConnection) -> QueryResult<Vec<Channel>> {
-    channels::table.load(conn)
-}
-
-pub fn get_all_channels_without_cost(conn: &mut PgConnection) -> QueryResult<Vec<Channel>> {
+pub(crate) fn get_all_non_pending_channels(conn: &mut PgConnection) -> QueryResult<Vec<Channel>> {
     channels::table
         .filter(
-            channels::costs.eq(0).and(
-                channels::channel_state
-                    .ne(ChannelState::Pending)
-                    .and(schema::channels::funding_txid.is_not_null()),
-            ),
+            channels::channel_state
+                .ne(ChannelState::Pending)
+                .and(schema::channels::funding_txid.is_not_null()),
         )
         .load(conn)
 }
 
-pub fn upsert(channel: Channel, conn: &mut PgConnection) -> Result<()> {
+pub(crate) fn upsert(channel: Channel, conn: &mut PgConnection) -> Result<()> {
     let affected_rows = diesel::insert_into(channels::table)
         .values(channel.clone())
         .on_conflict(schema::channels::user_channel_id)
@@ -95,9 +90,10 @@ impl From<ln_dlc_node::Channel> for Channel {
             user_channel_id: value.user_channel_id,
             channel_id: value.channel_id,
             capacity: value.capacity,
+            balance: value.balance,
             funding_txid: value.funding_txid,
             channel_state: value.channel_state.into(),
-            trader_pubkey: value.trader.to_string(),
+            counterparty_pubkey: value.counterparty.to_string(),
             created_at: value.created_at,
             updated_at: value.updated_at,
             costs: value.costs as i64,
@@ -124,9 +120,11 @@ impl From<Channel> for ln_dlc_node::Channel {
             user_channel_id: value.user_channel_id,
             channel_id: value.channel_id,
             capacity: value.capacity,
+            balance: value.balance,
             funding_txid: value.funding_txid,
             channel_state: value.channel_state.into(),
-            trader: PublicKey::from_str(&value.trader_pubkey).expect("valid public key"),
+            counterparty: PublicKey::from_str(&value.counterparty_pubkey)
+                .expect("valid public key"),
             created_at: value.created_at,
             updated_at: value.updated_at,
             costs: value.costs as u64,

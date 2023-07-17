@@ -126,11 +126,12 @@ pub struct Channel {
     // of the channel lifecycle.
     pub channel_id: Option<String>,
     pub capacity: i64,
+    pub balance: i64,
     // Set at the `Event::ChannelReady`
     pub funding_txid: Option<String>,
     pub channel_state: ChannelState,
     // The counter party of the channel.
-    pub trader: PublicKey,
+    pub counterparty: PublicKey,
     pub created_at: OffsetDateTime,
     pub updated_at: OffsetDateTime,
     // This data will be updated once the fee information is available. Please note, that
@@ -141,13 +142,19 @@ pub struct Channel {
 }
 
 impl Channel {
-    pub fn new(user_channel_id: String, capacity: i64, trader: PublicKey) -> Self {
+    pub fn new(
+        user_channel_id: String,
+        capacity: i64,
+        balance: i64,
+        counterparty: PublicKey,
+    ) -> Self {
         Channel {
             id: None,
             user_channel_id,
             channel_state: ChannelState::Pending,
             capacity,
-            trader,
+            balance,
+            counterparty,
             created_at: OffsetDateTime::now_utc(),
             updated_at: OffsetDateTime::now_utc(),
             costs: 0,

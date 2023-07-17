@@ -408,7 +408,7 @@ impl node::Storage for NodeStorage {
         db::get_channel(user_channel_id)
     }
 
-    fn all_channels_without_costs(&self) -> Result<Vec<Channel>> {
-        db::get_all_channels_without_cost()
+    fn all_non_pending_channels(&self) -> Result<Vec<Channel>> {
+        db::get_all_non_pending_channels()
     }
 }

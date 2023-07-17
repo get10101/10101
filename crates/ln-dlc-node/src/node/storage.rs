@@ -71,8 +71,8 @@ pub trait Storage {
     fn upsert_channel(&self, channel: Channel) -> Result<()>;
     /// Get channel by `user_channel_id`
     fn get_channel(&self, user_channel_id: &str) -> Result<Option<Channel>>;
-    /// Get all non pending channels with costs being 0.
-    fn all_channels_without_costs(&self) -> Result<Vec<Channel>>;
+    /// Get all non pending channels.
+    fn all_non_pending_channels(&self) -> Result<Vec<Channel>>;
 }
 
 #[derive(Default, Clone)]
@@ -194,13 +194,11 @@ impl Storage for InMemoryStore {
         Ok(channel)
     }
 
-    fn all_channels_without_costs(&self) -> Result<Vec<Channel>> {
+    fn all_non_pending_channels(&self) -> Result<Vec<Channel>> {
         Ok(self
             .channels_lock()
             .values()
-            .filter(|c| {
-                c.channel_state != ChannelState::Pending && c.costs == 0 && c.funding_txid.is_some()
-            })
+            .filter(|c| c.channel_state != ChannelState::Pending && c.funding_txid.is_some())
             .cloned()
             .collect())
     }

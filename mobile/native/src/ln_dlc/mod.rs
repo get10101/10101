@@ -222,7 +222,8 @@ pub fn run(data_dir: String, seed_dir: String, runtime: &Runtime) -> Result<()> 
                     let node = node.clone();
                     if let Err(e) =
                         spawn_blocking(move || keep_wallet_balance_and_history_up_to_date(&node))
-                            .await.expect("To spawn blocking task")
+                            .await
+                            .expect("To spawn blocking task")
                     {
                         tracing::error!("Failed to sync balance and wallet history: {e:#}");
                     }

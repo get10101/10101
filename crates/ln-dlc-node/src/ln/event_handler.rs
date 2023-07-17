@@ -717,8 +717,12 @@ where
                     // live beyond channel closure. The main purpose of
                     // this shadow is to track general meta data of the
                     // channel relevant for reporting purposes.
-                    let new_channel =
-                        Channel::new(user_channel_id, channel_value as i64, target_node_id);
+                    let new_channel = Channel::new(
+                        user_channel_id,
+                        channel_value as i64,
+                        channel_value as i64,
+                        target_node_id,
+                    );
                     if let Err(err) = self.storage.upsert_channel(new_channel) {
                         tracing::error!("Failed to insert channel to database. Failing intercepted htlc with id: {intercepted_id}. Error: {err:#}");
                         if let Err(err) = self.channel_manager.fail_intercepted_htlc(intercept_id) {
@@ -781,16 +785,33 @@ where
                 "Failed to get channel details by channel_id {}",
                 hex::encode(channel_id)
             ))?;
-        if let Some(mut channel) = self.storage.get_channel(&user_channel_id)? {
-            channel.channel_state = ChannelState::Open;
-            channel.funding_txid = channel_details.funding_txo.map(|txo| txo.txid.to_string());
-            channel.channel_id = Some(hex::encode(channel_id));
-            channel.updated_at = OffsetDateTime::now_utc();
-            self.storage.upsert_channel(channel)?;
-        } else {
-            tracing::warn!("Could not find shadow channel for user_channel_id: {user_channel_id}.")
-        }
-        Ok(())
+
+        let mut channel = match self.storage.get_channel(&user_channel_id)? {
+            Some(channel) => channel,
+            None => {
+                if channel_details.is_outbound {
+                    tracing::warn!(
+                        "Could not find shadow channel for user_channel_id: {user_channel_id}."
+                    );
+                    return Ok(());
+                } else {
+                    tracing::info!("Creating a new shadow channel for inbound channel.");
+                    Channel::new(
+                        user_channel_id,
+                        (channel_details.inbound_capacity_msat / 1000) as i64,
+                        0,
+                        channel_details.counterparty.node_id,
+                    )
+                }
+            }
+        };
+
+        tracing::debug!("Updating shadow channel.");
+        channel.channel_state = ChannelState::Open;
+        channel.funding_txid = channel_details.funding_txo.map(|txo| txo.txid.to_string());
+        channel.channel_id = Some(hex::encode(channel_id));
+        channel.updated_at = OffsetDateTime::now_utc();
+        self.storage.upsert_channel(channel)
     }
 }
 
