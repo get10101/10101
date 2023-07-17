@@ -38,7 +38,7 @@ pub async fn get_balance(State(state): State<Arc<AppState>>) -> Result<Json<Bala
             })?;
 
         Ok(Json(Balance {
-            offchain: offchain.available,
+            offchain: offchain.available(),
             onchain: onchain.confirmed,
         }))
     })

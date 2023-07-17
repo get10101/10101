@@ -6,7 +6,7 @@ mod logger;
 
 pub use channel_details::ChannelDetails;
 pub(crate) use config::app_config;
-pub(crate) use config::coordinator_config;
+pub use config::coordinator_config;
 pub use dlc_channel_details::DlcChannelDetails;
 pub(crate) use event_handler::EventHandler;
 use lightning::chain::chaininterface::ConfirmationTarget;

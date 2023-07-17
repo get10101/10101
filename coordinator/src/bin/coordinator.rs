@@ -109,8 +109,7 @@ async fn main() -> Result<()> {
         node_event_sender,
     )?);
 
-    let node = Node::new(node, pool.clone());
-    node.update_settings(settings.as_node_settings()).await;
+    let node = Node::new(node, pool.clone(), settings.to_node_settings());
 
     // TODO: Pass the tokio metrics into Prometheus
     if let Some(interval) = opts.tokio_metrics_interval_seconds {

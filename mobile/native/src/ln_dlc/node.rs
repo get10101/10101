@@ -69,7 +69,7 @@ impl Node {
 
     pub fn get_wallet_balances(&self) -> Result<Balances> {
         let on_chain = self.inner.get_on_chain_balance()?.confirmed;
-        let off_chain = self.inner.get_ldk_balance().available;
+        let off_chain = self.inner.get_ldk_balance().available();
 
         Ok(Balances {
             on_chain,

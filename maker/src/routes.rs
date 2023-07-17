@@ -85,7 +85,7 @@ pub async fn index(State(app_state): State<Arc<AppState>>) -> Result<Json<Index>
     Ok(Json(Index {
         address: address.to_string(),
         balance: Balance {
-            offchain: offchain.available,
+            offchain: offchain.available(),
             onchain: onchain.confirmed,
         },
         invoice: Invoice {
@@ -112,7 +112,7 @@ pub async fn get_balance(State(state): State<Arc<AppState>>) -> Result<Json<Bala
         .get_on_chain_balance()
         .map_err(|e| AppError::InternalServerError(format!("Failed to get balance: {e:#}")))?;
     Ok(Json(Balance {
-        offchain: offchain.available,
+        offchain: offchain.available(),
         onchain: onchain.confirmed,
     }))
 }

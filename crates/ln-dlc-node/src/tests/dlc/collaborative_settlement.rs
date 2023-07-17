@@ -39,8 +39,8 @@ async fn dlc_collaborative_settlement_test() {
         .await
         .unwrap();
 
-    let app_balance_channel_creation = app.get_ldk_balance().available;
-    let coordinator_balance_channel_creation = coordinator.get_ldk_balance().available;
+    let app_balance_channel_creation = app.get_ldk_balance().available();
+    let coordinator_balance_channel_creation = coordinator.get_ldk_balance().available();
 
     create_dlc_channel(
         &app,
@@ -66,8 +66,8 @@ async fn dlc_collaborative_settlement_test() {
 
     let coordinator_loss_amount = coordinator_dlc_collateral - coordinator_settlement_amount;
 
-    let app_balance_after = app.get_ldk_balance().available;
-    let coordinator_balance_after = coordinator.get_ldk_balance().available;
+    let app_balance_after = app.get_ldk_balance().available();
+    let coordinator_balance_after = coordinator.get_ldk_balance().available();
 
     assert_eq!(
         app_balance_channel_creation + coordinator_loss_amount,

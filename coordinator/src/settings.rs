@@ -1,6 +1,7 @@
 use crate::node::NodeSettings;
 use anyhow::Context;
 use anyhow::Result;
+use lightning::util::config::UserConfig;
 use ln_dlc_node::node::LnDlcNodeSettings;
 use serde::Deserialize;
 use serde::Serialize;
@@ -11,15 +12,11 @@ use tokio::io::AsyncWriteExt;
 
 const SETTINGS_FILE_NAME: &str = "coordinator-settings.toml";
 
-/// Top level settings
+/// Top-level settings.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Settings {
     pub jit_channels_enabled: bool,
     pub new_positions_enabled: bool,
-    /// Fee rate to be charged for opening just in time channels. Rate is in basis points, i.e.
-    /// 100 basis point=1% or 50=0.5%
-    pub jit_fee_rate_basis_points: u32,
-
     pub fallback_tx_fee_rate_normal: u32,
     pub fallback_tx_fee_rate_high_priority: u32,
 
@@ -29,6 +26,11 @@ pub struct Settings {
     pub max_allowed_tx_fee_rate_when_opening_channel: Option<u32>,
 
     pub ln_dlc: LnDlcNodeSettings,
+
+    /// Amount (in millionths of a satoshi) charged per satoshi for payments forwarded outbound
+    /// over a channel.
+    pub forwarding_fee_proportional_millionths: u32,
+
     // Special parameter, where the settings file is located
     pub path: Option<PathBuf>,
 }
@@ -38,11 +40,11 @@ impl Default for Settings {
         Self {
             jit_channels_enabled: true,
             new_positions_enabled: true,
-            jit_fee_rate_basis_points: 50,
             fallback_tx_fee_rate_normal: 2000,
             fallback_tx_fee_rate_high_priority: 5000,
             max_allowed_tx_fee_rate_when_opening_channel: None,
             ln_dlc: LnDlcNodeSettings::default(),
+            forwarding_fee_proportional_millionths: 50,
             path: None,
         }
     }
@@ -86,11 +88,24 @@ impl Settings {
     }
 
     /// Return the node settings part of the settings file
-    pub fn as_node_settings(&self) -> NodeSettings {
+    pub fn to_node_settings(&self) -> NodeSettings {
         NodeSettings {
             allow_opening_positions: self.new_positions_enabled,
             max_allowed_tx_fee_rate_when_opening_channel: self
                 .max_allowed_tx_fee_rate_when_opening_channel,
         }
+    }
+
+    /// The part of the coordinator settings pertaining to the LDK node.
+    pub fn to_ldk_settings(&self) -> UserConfig {
+        // Since we currently have to keep the coordinator settings in sync with the tests in
+        // `ln-dlc-node`, we let the library define the default settings (which is bad)
+        let mut ldk_config = ln_dlc_node::ldk_coordinator_config();
+
+        ldk_config
+            .channel_config
+            .forwarding_fee_proportional_millionths = self.forwarding_fee_proportional_millionths;
+
+        ldk_config
     }
 }

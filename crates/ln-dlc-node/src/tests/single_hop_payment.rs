@@ -48,12 +48,12 @@ async fn single_hop_payment() {
     let payee_balance_after = payee.get_ldk_balance();
 
     assert_eq!(
-        payer_balance_before.available - payer_balance_after.available,
+        payer_balance_before.available() - payer_balance_after.available(),
         invoice_amount
     );
 
     assert_eq!(
-        payee_balance_after.available - payee_balance_before.available,
+        payee_balance_after.available() - payee_balance_before.available(),
         invoice_amount
     );
 }

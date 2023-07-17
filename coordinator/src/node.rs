@@ -28,6 +28,7 @@ use dlc_manager::ChannelId;
 use dlc_messages::Message;
 use lightning::ln::channelmanager::ChannelDetails;
 use lightning::ln::PaymentHash;
+use lightning::util::config::UserConfig;
 use lightning_invoice::Invoice;
 use ln_dlc_node::node;
 use ln_dlc_node::node::dlc_message_name;
@@ -62,19 +63,10 @@ pub struct NodeSettings {
 }
 
 impl NodeSettings {
-    fn as_wallet_settings(&self) -> WalletSettings {
+    fn to_wallet_settings(&self) -> WalletSettings {
         WalletSettings {
             max_allowed_tx_fee_rate_when_opening_channel: self
                 .max_allowed_tx_fee_rate_when_opening_channel,
-        }
-    }
-}
-
-impl Default for NodeSettings {
-    fn default() -> Self {
-        Self {
-            allow_opening_positions: true,
-            max_allowed_tx_fee_rate_when_opening_channel: None,
         }
     }
 }
@@ -83,18 +75,19 @@ impl Default for NodeSettings {
 pub struct Node {
     pub inner: Arc<node::Node<NodeStorage>>,
     pub pool: Pool<ConnectionManager<PgConnection>>,
-    pub settings: Arc<RwLock<NodeSettings>>,
+    settings: Arc<RwLock<NodeSettings>>,
 }
 
 impl Node {
     pub fn new(
         inner: Arc<node::Node<NodeStorage>>,
         pool: Pool<ConnectionManager<PgConnection>>,
+        settings: NodeSettings,
     ) -> Self {
         Self {
             inner,
             pool,
-            settings: Arc::new(RwLock::new(NodeSettings::default())),
+            settings: Arc::new(RwLock::new(settings)),
         }
     }
 
@@ -103,8 +96,13 @@ impl Node {
         *self.settings.write().await = settings.clone();
 
         // Forward relevant settings down to the wallet
-        let wallet_settings = settings.as_wallet_settings();
+        let wallet_settings = settings.to_wallet_settings();
         self.inner.wallet().update_settings(wallet_settings).await;
+    }
+
+    pub fn update_ldk_settings(&self, ldk_config: UserConfig) {
+        tracing::info!(?ldk_config, "Updating LDK settings");
+        *self.inner.channel_config.write() = ldk_config;
     }
 
     /// Returns true or false, whether we can find an usable channel with the provided trader.

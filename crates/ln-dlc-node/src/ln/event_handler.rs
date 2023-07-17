@@ -1,6 +1,5 @@
 use crate::dlc_custom_signer::CustomKeysManager;
 use crate::fee_rate_estimator::FeeRateEstimator;
-use crate::ln::coordinator_config;
 use crate::ln::CONFIRMATION_TARGET;
 use crate::ln::HTLC_INTERCEPTED_CONNECTION_TIMEOUT;
 use crate::ln::JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT_MAX;
@@ -30,6 +29,7 @@ use lightning::chain::chaininterface::FeeEstimator;
 use lightning::chain::keysinterface::SpendableOutputDescriptor;
 use lightning::ln::channelmanager::InterceptId;
 use lightning::routing::gossip::NodeId;
+use lightning::util::config::UserConfig;
 use lightning::util::events::Event;
 use lightning::util::events::PaymentPurpose;
 use rand::thread_rng;
@@ -53,6 +53,7 @@ pub struct EventHandler<S> {
     peer_manager: Arc<PeerManager>,
     fee_rate_estimator: Arc<FeeRateEstimator>,
     event_sender: Option<watch::Sender<Option<Event>>>,
+    channel_config: Arc<parking_lot::RwLock<UserConfig>>,
 }
 
 impl<S> EventHandler<S>
@@ -71,6 +72,7 @@ where
         peer_manager: Arc<PeerManager>,
         fee_rate_estimator: Arc<FeeRateEstimator>,
         event_sender: Option<watch::Sender<Option<Event>>>,
+        channel_config: Arc<parking_lot::RwLock<UserConfig>>,
     ) -> Self {
         Self {
             channel_manager,
@@ -83,6 +85,7 @@ where
             peer_manager,
             fee_rate_estimator,
             event_sender,
+            channel_config,
         }
     }
 
@@ -643,7 +646,7 @@ where
                     return Ok(());
                 }
 
-                let mut channel_config = coordinator_config();
+                let mut channel_config = *self.channel_config.read();
                 // We are overwriting the coordinators channel handshake configuration to prevent
                 // the just-in-time-channel from being announced (private). This is required as both
                 // parties need to agree on this configuration. For other channels, like with the

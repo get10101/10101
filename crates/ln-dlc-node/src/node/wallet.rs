@@ -16,8 +16,29 @@ use time::OffsetDateTime;
 
 #[derive(Debug, Clone)]
 pub struct OffChainBalance {
-    pub available: u64,
-    pub pending_close: u64,
+    /// Available balance, in msats.
+    available: u64,
+    /// Balance corresponding to channels being closed, in _sats_.
+    pending_close: u64,
+}
+
+impl OffChainBalance {
+    // TODO: We might want to reconsider how we convert from msats to sats.
+
+    /// Available balance, in sats.
+    pub fn available(&self) -> u64 {
+        self.available / 1000
+    }
+
+    /// Balance corresponding to channels being closed, in sats.
+    pub fn pending_close(&self) -> u64 {
+        self.pending_close
+    }
+
+    /// Available balance, in msats.
+    pub fn available_msat(&self) -> u64 {
+        self.available
+    }
 }
 
 impl<P> Node<P>
@@ -98,7 +119,7 @@ where
             .channel_manager
             .list_channels()
             .iter()
-            .map(|details| details.balance_msat / 1000)
+            .map(|details| details.balance_msat)
             .sum();
 
         OffChainBalance {

@@ -21,7 +21,7 @@ where
         initial_send_amount_sats: u64,
         public_channel: bool,
     ) -> Result<[u8; 32]> {
-        let mut channel_config = self.channel_config;
+        let mut channel_config = *self.channel_config.read();
         channel_config.channel_handshake_config.announced_channel = public_channel;
 
         let temp_channel_id = self

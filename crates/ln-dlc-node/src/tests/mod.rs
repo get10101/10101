@@ -35,6 +35,8 @@ use rand::distributions::Alphanumeric;
 use rand::thread_rng;
 use rand::Rng;
 use rand::RngCore;
+use rust_decimal::prelude::ToPrimitive;
+use rust_decimal::Decimal;
 use std::env::temp_dir;
 use std::net::TcpListener;
 use std::path::PathBuf;
@@ -208,11 +210,19 @@ impl Node<InMemoryStore> {
             false,
         )?;
 
+        let (does_manually_accept_inbound_channels, required_confirmations) =
+            block_in_place(|| {
+                let config = peer.channel_config.read();
+
+                (
+                    config.manually_accept_inbound_channels,
+                    config.channel_handshake_config.minimum_depth,
+                )
+            });
+
         // The config flag `channel_config.manually_accept_inbound_channels` implies that the peer
         // will accept 0-conf channels
-        if !peer.channel_config.manually_accept_inbound_channels {
-            let required_confirmations = peer.channel_config.channel_handshake_config.minimum_depth;
-
+        if !does_manually_accept_inbound_channels {
             bitcoind::mine(required_confirmations as u16).await?;
         }
 
@@ -228,7 +238,7 @@ impl Node<InMemoryStore> {
                 }
 
                 // Only sync if 0-conf channels are disabled
-                if !peer.channel_config.manually_accept_inbound_channels {
+                if !does_manually_accept_inbound_channels {
                     // We need to sync both parties, even if
                     // `trust_own_funding_0conf` is true for the creator
                     // of the channel (`self`)
@@ -412,6 +422,25 @@ async fn wait_until_dlc_channel_state(
             .cloned())
     })
     .await
+}
+
+/// Calculate the fee paid to route a payment through a node, in msat. That is, the difference
+/// between the inbound HTLC and the outbound HTLC.
+///
+/// The `channel_config` is that of the routing node.
+fn calculate_routing_fee_msat(
+    channel_config: lightning::util::config::ChannelConfig,
+    invoice_amount_sat: u64,
+) -> u64 {
+    let flat_fee_msat = Decimal::from(channel_config.forwarding_fee_base_msat);
+    let forwarding_fee_millionths_of_a_sat_per_sat =
+        Decimal::from(channel_config.forwarding_fee_proportional_millionths);
+
+    let proportional_fee_msat_per_sat =
+        forwarding_fee_millionths_of_a_sat_per_sat / Decimal::ONE_THOUSAND;
+    let proportional_fee_msat = Decimal::from(invoice_amount_sat) * proportional_fee_msat_per_sat;
+
+    (flat_fee_msat + proportional_fee_msat).to_u64().unwrap()
 }
 
 #[derive(PartialEq, Debug)]

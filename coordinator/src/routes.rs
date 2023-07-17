@@ -39,8 +39,8 @@ use diesel::r2d2::Pool;
 use diesel::PgConnection;
 use ln_dlc_node::node::NodeInfo;
 use opentelemetry_prometheus::PrometheusExporter;
-use orderbook_commons::FakeScidResponse;
 use orderbook_commons::OrderbookMsg;
+use orderbook_commons::RouteHintHop;
 use parking_lot::Mutex;
 use prometheus::Encoder;
 use prometheus::TextEncoder;
@@ -84,8 +84,8 @@ pub fn router(
     Router::new()
         .route("/", get(index))
         .route(
-            "/api/register_invoice/:target_node",
-            post(register_interceptable_invoice),
+            "/api/prepare_jit_channel/:target_node",
+            post(prepare_jit_channel),
         )
         .route("/api/newaddress", get(get_unused_address))
         .route("/api/node", get(get_node_info))
@@ -130,10 +130,10 @@ pub async fn index() -> impl IntoResponse {
 }
 
 #[autometrics]
-pub async fn register_interceptable_invoice(
+pub async fn prepare_jit_channel(
     target_node: Path<String>,
     State(app_state): State<Arc<AppState>>,
-) -> Result<Json<FakeScidResponse>, AppError> {
+) -> Result<Json<RouteHintHop>, AppError> {
     let target_node = target_node.0;
     let target_node: PublicKey = target_node.parse().map_err(|e| {
         AppError::BadRequest(format!(
@@ -141,17 +141,16 @@ pub async fn register_interceptable_invoice(
         ))
     })?;
 
-    let jit_fee = app_state.settings.read().await.jit_fee_rate_basis_points;
-    let details = app_state
-        .node
-        .inner
-        .create_intercept_scid(target_node, jit_fee);
-    let scid = details.scid;
-    let fee_rate_millionth = details.jit_routing_fee_millionth;
-    Ok(Json(FakeScidResponse {
-        scid,
-        fee_rate_millionth,
-    }))
+    let route_hint_hop = spawn_blocking({
+        let app_state = app_state.clone();
+        move || app_state.node.inner.prepare_jit_channel(target_node)
+    })
+    .await
+    .map_err(|e| {
+        AppError::InternalServerError(format!("Could not create intercept SCID: {e:#}"))
+    })?;
+
+    Ok(Json(route_hint_hop.into()))
 }
 
 #[autometrics]
@@ -334,15 +333,19 @@ async fn update_settings(
     // Forward relevant settings down to the node
     state
         .node
-        .update_settings(updated_settings.as_node_settings())
+        .update_settings(updated_settings.to_node_settings())
         .await;
 
     // Forward relevant settings down to the wallet
     state
         .node
         .inner
-        .update_settings(updated_settings.ln_dlc)
+        .update_settings(updated_settings.ln_dlc.clone())
         .await;
+
+    state
+        .node
+        .update_ldk_settings(updated_settings.to_ldk_settings());
 
     Ok(())
 }

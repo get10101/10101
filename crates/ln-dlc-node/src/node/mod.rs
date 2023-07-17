@@ -114,7 +114,7 @@ pub struct Node<S> {
     oracle: Arc<P2PDOracleClient>,
     pub dlc_message_handler: Arc<DlcMessageHandler>,
     storage: Arc<S>,
-    pub(crate) channel_config: UserConfig,
+    pub channel_config: Arc<parking_lot::RwLock<UserConfig>>,
 }
 
 #[derive(Debug, Clone, Copy, Deserialize, Serialize)]
@@ -136,6 +136,10 @@ pub struct LnDlcNodeSettings {
     /// How often we run the [`SubChannelManager`]'s periodic check.
     pub sub_channel_manager_periodic_check_interval: Duration,
 
+    /// Amount (in millionths of a satoshi) charged per satoshi for payments forwarded outbound
+    /// over a channel.
+    pub forwarding_fee_proportional_millionths: u32,
+
     /// The 'stop gap' parameter used by BDK's wallet sync. This seems to configure the threshold
     /// number of blocks after which BDK stops looking for scripts belonging to the wallet.
     /// Note: This constant and value was copied from ldk_node
@@ -155,6 +159,7 @@ impl Default for LnDlcNodeSettings {
             fee_rate_sync_interval: Duration::from_secs(20),
             dlc_manager_periodic_check_interval: Duration::from_secs(30),
             sub_channel_manager_periodic_check_interval: Duration::from_secs(30),
+            forwarding_fee_proportional_millionths: 50,
             bdk_client_stop_gap: 20,
             bdk_client_concurrency: 4,
         }
@@ -286,6 +291,8 @@ where
             alias: alias.to_string(),
         });
 
+        let channel_config = Arc::new(parking_lot::RwLock::new(channel_config));
+
         if !data_dir.exists() {
             std::fs::create_dir_all(data_dir)
                 .context(format!("Could not create data dir ({data_dir:?})"))?;
@@ -410,7 +417,7 @@ where
             esplora_client.clone(),
             logger.clone(),
             chain_monitor.clone(),
-            channel_config,
+            *channel_config.read(),
             network,
             persister.clone(),
             router,
@@ -502,6 +509,7 @@ where
             peer_manager.clone(),
             fee_rate_estimator.clone(),
             event_sender,
+            channel_config.clone(),
         );
 
         // Connection manager

@@ -33,7 +33,7 @@ use ln_dlc_node::node::LnDlcNodeSettings;
 use ln_dlc_node::node::NodeInfo;
 use ln_dlc_node::seed::Bip39Seed;
 use ln_dlc_node::CONFIRMATION_TARGET;
-use orderbook_commons::FakeScidResponse;
+use orderbook_commons::RouteHintHop;
 use orderbook_commons::FEE_INVOICE_DESCRIPTION_PREFIX_TAKER;
 use parking_lot::RwLock;
 use rust_decimal::Decimal;
@@ -450,7 +450,7 @@ pub fn create_invoice(amount_sats: Option<u64>) -> Result<Invoice> {
         let client = reqwest_client();
         let response = client
             .post(format!(
-                "http://{}/api/register_invoice/{}",
+                "http://{}/api/prepare_jit_channel/{}",
                 config::get_http_endpoint(),
                 node.inner.info.pubkey
             ))
@@ -462,20 +462,19 @@ pub fn create_invoice(amount_sats: Option<u64>) -> Result<Invoice> {
             bail!("Failed to fetch fake scid from coordinator: {text}")
         }
 
-        let fake_channel_id: FakeScidResponse = response.json().await?;
+        let final_route_hint_hop: RouteHintHop = response.json().await?;
+        let final_route_hint_hop = final_route_hint_hop.into();
+
         tracing::info!(
-            fscid = fake_channel_id.scid,
-            feerate = fake_channel_id.fee_rate_millionth,
-            "Received fake channel id and feerate"
+            ?final_route_hint_hop,
+            "Registered interest to open JIT channel with coordinator"
         );
 
         node.inner.create_interceptable_invoice(
             amount_sats,
-            fake_channel_id.scid,
-            config::get_coordinator_info().pubkey,
             0,
             "Fund your 10101 wallet".to_string(),
-            fake_channel_id.fee_rate_millionth,
+            final_route_hint_hop,
         )
     })
 }

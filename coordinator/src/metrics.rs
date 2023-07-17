@@ -188,7 +188,7 @@ fn node_metrics(cx: &Context, inner_node: Arc<ln_dlc_node::node::Node<NodeStorag
 
     NODE_BALANCE_SATOSHI.observe(
         cx,
-        offchain.available,
+        offchain.available(),
         &[
             KeyValue::new("type", "off-chain"),
             KeyValue::new("status", "available"),
@@ -196,7 +196,7 @@ fn node_metrics(cx: &Context, inner_node: Arc<ln_dlc_node::node::Node<NodeStorag
     );
     NODE_BALANCE_SATOSHI.observe(
         cx,
-        offchain.pending_close,
+        offchain.pending_close(),
         &[
             KeyValue::new("type", "off-chain"),
             KeyValue::new("status", "pending_close"),

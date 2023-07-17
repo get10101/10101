@@ -1,5 +1,6 @@
 use crate::node::InMemoryStore;
 use crate::node::Node;
+use crate::tests::calculate_routing_fee_msat;
 use crate::tests::init_tracing;
 use bitcoin::Amount;
 use rust_decimal::prelude::ToPrimitive;
@@ -45,10 +46,16 @@ async fn multi_hop_payment() {
 
     // Act
 
-    let invoice_amount = 1_000;
+    let invoice_amount_sat = 1_000;
     let invoice = payee
-        .create_invoice(invoice_amount, "".to_string(), 180)
+        .create_invoice(invoice_amount_sat, "".to_string(), 180)
         .unwrap();
+    let invoice_amount_msat = invoice.amount_milli_satoshis().unwrap();
+
+    let routing_fee_msat = calculate_routing_fee_msat(
+        coordinator.channel_config.read().channel_config,
+        invoice_amount_sat,
+    );
 
     payer.send_payment(&invoice).unwrap();
 
@@ -68,21 +75,19 @@ async fn multi_hop_payment() {
     let coordinator_balance_after = coordinator.get_ldk_balance();
     let payee_balance_after = payee.get_ldk_balance();
 
-    let routing_fee = 1; // according to the default `ChannelConfig`
-
     assert_eq!(
-        payer_balance_before.available - payer_balance_after.available - routing_fee,
-        invoice_amount
+        payer_balance_before.available_msat() - payer_balance_after.available_msat(),
+        invoice_amount_msat + routing_fee_msat
     );
 
     assert_eq!(
-        coordinator_balance_after.available - coordinator_balance_before.available,
-        routing_fee
+        coordinator_balance_after.available_msat() - coordinator_balance_before.available_msat(),
+        routing_fee_msat
     );
 
     assert_eq!(
-        payee_balance_after.available - payee_balance_before.available,
-        invoice_amount
+        payee_balance_after.available_msat() - payee_balance_before.available_msat(),
+        invoice_amount_msat
     );
 }
 
@@ -97,6 +102,7 @@ async fn multi_hop_payment() {
 fn min_outbound_liquidity_channel_creator(peer: &Node<InMemoryStore>, peer_balance: u64) -> u64 {
     let min_reserve_millionths_creator = Decimal::from(
         peer.channel_config
+            .read()
             .channel_handshake_config
             .their_channel_reserve_proportional_millionths,
     );

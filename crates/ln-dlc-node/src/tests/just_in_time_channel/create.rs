@@ -3,6 +3,7 @@ use crate::ln::JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT_MAX;
 use crate::ln::LIQUIDITY_MULTIPLIER;
 use crate::node::InMemoryStore;
 use crate::node::Node;
+use crate::tests::calculate_routing_fee_msat;
 use crate::tests::init_tracing;
 use crate::tests::setup_coordinator_payer_channel;
 use crate::HTLCStatus;
@@ -10,12 +11,7 @@ use crate::WalletSettings;
 use anyhow::Context;
 use anyhow::Result;
 use lightning::chain::chaininterface::ConfirmationTarget;
-use rust_decimal::prelude::FromPrimitive;
-use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
-use rust_decimal::RoundingStrategy;
-use std::ops::Div;
-use std::ops::Mul;
 use std::time::Duration;
 
 #[tokio::test(flavor = "multi_thread")]
@@ -86,16 +82,13 @@ async fn fail_to_open_jit_channel_with_fee_rate_over_max() {
 
     coordinator.wallet().update_settings(settings).await;
 
-    let intercepted_scid_details = coordinator.create_intercept_scid(payee.info.pubkey, 50);
-
+    let final_route_hint_hop = coordinator.prepare_jit_channel(payee.info.pubkey);
     let invoice = payee
         .create_interceptable_invoice(
             Some(payer_to_payee_invoice_amount),
-            intercepted_scid_details.scid,
-            coordinator.info.pubkey,
             0,
             "interceptable-invoice".to_string(),
-            intercepted_scid_details.jit_routing_fee_millionth,
+            final_route_hint_hop,
         )
         .unwrap();
 
@@ -132,16 +125,13 @@ async fn open_jit_channel_with_disconnected_payee() {
 
     // Act
 
-    let intercepted_scid_details = coordinator.create_intercept_scid(payee.info.pubkey, 50);
-
+    let final_route_hint_hop = coordinator.prepare_jit_channel(payee.info.pubkey);
     let invoice = payee
         .create_interceptable_invoice(
             Some(payer_to_payee_invoice_amount),
-            intercepted_scid_details.scid,
-            coordinator.info.pubkey,
             0,
             "interceptable-invoice".to_string(),
-            intercepted_scid_details.jit_routing_fee_millionth,
+            final_route_hint_hop,
         )
         .unwrap();
 
@@ -174,11 +164,15 @@ async fn open_jit_channel_with_disconnected_payee() {
 /// the payer-coordinator channel no larger than the coordinator's
 /// `max_inbound_htlc_value_in_flight_percent_of_channel` configuration value for said channel. This
 /// is verified within this function.
+///
+/// There is an optional `coordinator_just_in_time_channel_creation_outbound_liquidity` argument
+/// which is used to indicate if the interceptable payment resulted in opening a JIT channel. We
+/// should probably only use interceptable payments when opening JIT channels, but alas.
 pub(crate) async fn send_interceptable_payment(
     payer: &Node<InMemoryStore>,
     payee: &Node<InMemoryStore>,
     coordinator: &Node<InMemoryStore>,
-    invoice_amount: u64,
+    invoice_amount_sat: u64,
     coordinator_just_in_time_channel_creation_outbound_liquidity: Option<u64>,
 ) -> Result<()> {
     payer.wallet().sync()?;
@@ -189,24 +183,21 @@ pub(crate) async fn send_interceptable_payment(
     let coordinator_balance_before = coordinator.get_ldk_balance();
     let payee_balance_before = payee.get_ldk_balance();
 
-    let jit_fee = 50;
-    let intercepted_scid_details = coordinator.create_intercept_scid(payee.info.pubkey, jit_fee);
-    let intercept_scid = intercepted_scid_details.scid;
-    let fee_millionth = intercepted_scid_details.jit_routing_fee_millionth;
+    let interceptable_route_hint_hop = coordinator.prepare_jit_channel(payee.info.pubkey);
 
-    let flat_routing_fee = 1; // according to the default `ChannelConfig`
-    let liquidity_routing_fee = Decimal::from_u64(invoice_amount)
-        .unwrap()
-        .mul(Decimal::from_u32(fee_millionth).unwrap())
-        .div(Decimal::from_u64(1_000_000).unwrap());
-    let liquidity_routing_fee_payer = liquidity_routing_fee
-        .round_dp_with_strategy(0, RoundingStrategy::MidpointAwayFromZero)
-        .to_u64()
-        .unwrap();
-    let liquidity_routing_fee_receiver = liquidity_routing_fee
-        .round_dp_with_strategy(0, RoundingStrategy::MidpointTowardZero)
-        .to_u64()
-        .unwrap();
+    let invoice_expiry = 0; // an expiry of 0 means the invoice never expires
+    let invoice = payee.create_interceptable_invoice(
+        Some(invoice_amount_sat),
+        invoice_expiry,
+        "interceptable-invoice".to_string(),
+        interceptable_route_hint_hop,
+    )?;
+    let invoice_amount_msat = invoice.amount_milli_satoshis().unwrap();
+
+    let routing_fee_msat = calculate_routing_fee_msat(
+        coordinator.channel_config.read().channel_config,
+        invoice_amount_sat,
+    );
 
     assert!(
         does_inbound_htlc_fit_as_percent_of_channel(
@@ -217,21 +208,11 @@ pub(crate) async fn send_interceptable_payment(
                 .first()
                 .expect("payer channel should be created.")
                 .channel_id,
-            invoice_amount + flat_routing_fee + liquidity_routing_fee_receiver
+            invoice_amount_sat + (routing_fee_msat / 1000)
         )
         .unwrap(),
         "Invoice amount larger than maximum inbound HTLC in payer-coordinator channel"
     );
-
-    let invoice_expiry = 0; // an expiry of 0 means the invoice never expires
-    let invoice = payee.create_interceptable_invoice(
-        Some(invoice_amount),
-        intercept_scid,
-        coordinator.info.pubkey,
-        invoice_expiry,
-        "interceptable-invoice".to_string(),
-        fee_millionth,
-    )?;
 
     payer.send_payment(&invoice)?;
 
@@ -251,20 +232,19 @@ pub(crate) async fn send_interceptable_payment(
     let payee_balance_after = payee.get_ldk_balance();
 
     assert_eq!(
-        payer_balance_before.available - payer_balance_after.available,
-        invoice_amount + flat_routing_fee + liquidity_routing_fee_payer
+        payer_balance_before.available_msat() - payer_balance_after.available_msat(),
+        invoice_amount_msat + routing_fee_msat
     );
 
     assert_eq!(
-        coordinator_balance_after.available - coordinator_balance_before.available,
-        coordinator_just_in_time_channel_creation_outbound_liquidity.unwrap_or_default()
-            + flat_routing_fee
-            + liquidity_routing_fee_receiver
+        coordinator_balance_after.available_msat() - coordinator_balance_before.available_msat(),
+        coordinator_just_in_time_channel_creation_outbound_liquidity.unwrap_or_default() * 1000
+            + routing_fee_msat
     );
 
     assert_eq!(
-        payee_balance_after.available - payee_balance_before.available,
-        invoice_amount
+        payee_balance_after.available() - payee_balance_before.available(),
+        invoice_amount_sat
     );
 
     Ok(())
@@ -283,6 +263,7 @@ fn does_inbound_htlc_fit_as_percent_of_channel(
     let max_inbound_htlc_as_percent_of_channel = Decimal::from(
         receiving_node
             .channel_config
+            .read()
             .channel_handshake_config
             .max_inbound_htlc_value_in_flight_percent_of_channel,
     );
