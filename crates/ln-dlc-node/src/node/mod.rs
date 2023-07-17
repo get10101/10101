@@ -75,6 +75,7 @@ pub use channel_manager::ChannelManager;
 pub use dlc_channel::dlc_message_name;
 pub use dlc_channel::sub_channel_message_name;
 pub use invoice::HTLCStatus;
+use lightning::routing::scoring::ProbabilisticScorer;
 pub use storage::InMemoryStore;
 pub use storage::Storage;
 pub use sub_channel_manager::SubChannelManager;
@@ -198,6 +199,7 @@ where
             LnDlcNodeSettings::default(),
             oracle.into(),
             Some(event_sender),
+            disk::in_memory_scorer,
         )
     }
 
@@ -244,6 +246,7 @@ where
             settings,
             oracle.into(),
             Some(event_sender),
+            disk::persistent_scorer,
         )
     }
 
@@ -253,7 +256,7 @@ where
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub(crate) fn new(
+    pub(crate) fn new<SC>(
         alias: &str,
         network: Network,
         data_dir: &Path,
@@ -268,7 +271,15 @@ where
         settings: LnDlcNodeSettings,
         oracle_client: P2PDOracleClient,
         event_sender: Option<watch::Sender<Option<Event>>>,
-    ) -> Result<Self> {
+        read_scorer: SC,
+    ) -> Result<Self>
+    where
+        SC: Fn(
+            &Path,
+            Arc<NetworkGraph>,
+            Arc<TracingLogger>,
+        ) -> ProbabilisticScorer<Arc<NetworkGraph>, Arc<TracingLogger>>,
+    {
         let time_since_unix_epoch = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH)?;
 
         let logger = Arc::new(TracingLogger {
@@ -378,7 +389,7 @@ where
         ));
 
         let scorer_path = data_dir.join("scorer");
-        let scorer = Arc::new(Mutex::new(disk::read_scorer(
+        let scorer = Arc::new(Mutex::new(read_scorer(
             scorer_path.as_path(),
             network_graph.clone(),
             logger.clone(),

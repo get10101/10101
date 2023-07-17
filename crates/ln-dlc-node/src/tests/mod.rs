@@ -1,3 +1,4 @@
+use crate::disk;
 use crate::ln::app_config;
 use crate::ln::coordinator_config;
 use crate::ln::LIQUIDITY_MULTIPLIER;
@@ -136,6 +137,7 @@ impl Node<InMemoryStore> {
             LnDlcNodeSettings::default(),
             oracle.into(),
             None,
+            disk::in_memory_scorer,
         )?;
 
         tracing::debug!(%name, info = %node.info, "Node started");
