@@ -27,6 +27,7 @@ pub fn app_config() -> UserConfig {
             // We want app users to only have to wait ~24 hours in case of a force-close. We choose
             // 144 because we can't go any lower according to LDK.
             their_to_self_delay: 144,
+            max_funding_satoshis: 100_000_000,
             ..Default::default()
         },
         channel_config: ChannelConfig {
