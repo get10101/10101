@@ -113,6 +113,7 @@ diesel::table! {
         direction -> DirectionType,
         average_price -> Float4,
         timestamp -> Timestamptz,
+        fee_payment_hash -> Text,
     }
 }
 

@@ -3,7 +3,7 @@ use anyhow::Result;
 use coordinator::cli::Opts;
 use coordinator::db;
 use coordinator::logger;
-use coordinator::metrics::collect_metrics;
+use coordinator::metrics;
 use coordinator::metrics::init_meter;
 use coordinator::node::connection;
 use coordinator::node::storage::NodeStorage;
@@ -17,6 +17,8 @@ use coordinator::settings::Settings;
 use diesel::r2d2;
 use diesel::r2d2::ConnectionManager;
 use diesel::PgConnection;
+use hex::FromHex;
+use lightning::ln::PaymentHash;
 use ln_dlc_node::seed::Bip39Seed;
 use rand::thread_rng;
 use rand::RngCore;
@@ -135,7 +137,7 @@ async fn main() -> Result<()> {
         async move {
             loop {
                 let node = node.clone();
-                spawn_blocking(move || collect_metrics(node))
+                spawn_blocking(move || metrics::collect(node))
                     .await
                     .expect("To spawn blocking thread");
                 tokio::time::sleep(PROCESS_PROMETHEUS_METRICS).await;
@@ -218,8 +220,23 @@ async fn main() -> Result<()> {
                             }
                         };
 
+                    // Upon collab closing an expired position we cannot charge a fee using an
+                    // invoice. This dummy hash exists in the database to
+                    // represent zero-amount invoices.
+                    let zero_amount_payment_hash_dummy = PaymentHash(
+                        <[u8; 32]>::from_hex(
+                            "6f9b8c95c2ba7b1857b19f975372308161fedf50feb78a252200135a41875210",
+                        )
+                        .expect("static payment hash to decode"),
+                    );
+
                     match node
-                        .close_position(position, closing_price, channel_id)
+                        .close_position(
+                            position,
+                            closing_price,
+                            channel_id,
+                            zero_amount_payment_hash_dummy,
+                        )
                         .await
                     {
                         Ok(_) => tracing::info!(
