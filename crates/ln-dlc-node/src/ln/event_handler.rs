@@ -1,5 +1,4 @@
 use crate::channel::Channel;
-use crate::channel::ChannelState;
 use crate::dlc_custom_signer::CustomKeysManager;
 use crate::fee_rate_estimator::FeeRateEstimator;
 use crate::ln::CONFIRMATION_TARGET;
@@ -484,43 +483,51 @@ where
                 user_channel_id,
                 ..
             } => {
-                tracing::info!(
-                    user_channel_id = Channel::parse_user_channel_id(user_channel_id),
-                    channel_id = %hex::encode(channel_id),
-                    counterparty = %counterparty_node_id.to_string(),
-                    "Channel ready"
-                );
-
-                if let Err(e) =
-                    self.add_funding_transaction_to_shadow_channel(user_channel_id, channel_id)
-                {
-                    tracing::error!(
-                        "Failed to add funding transaction to shadow channel! Error: {e:#}"
-                    );
-                }
-
-                let pending_intercepted_htlcs = self.pending_intercepted_htlcs_lock();
-
-                if let Some((intercept_id, expected_outbound_amount_msat)) =
-                    pending_intercepted_htlcs.get(&counterparty_node_id)
-                {
+                block_in_place(|| {
                     tracing::info!(
-                        intercept_id = %hex::encode(intercept_id.0),
+                        user_channel_id = Channel::parse_user_channel_id(user_channel_id),
+                        channel_id = %hex::encode(channel_id),
                         counterparty = %counterparty_node_id.to_string(),
-                        forward_amount_msat = %expected_outbound_amount_msat,
-                        "Pending intercepted HTLC found, forwarding payment"
+                        "Channel ready"
                     );
+                    let channel_details = self
+                        .channel_manager
+                        .get_channel_details(&channel_id)
+                        .ok_or(anyhow!(
+                            "Failed to get channel details by channel_id {}",
+                            hex::encode(channel_id)
+                        ))?;
 
-                    self.channel_manager
-                        .forward_intercepted_htlc(
-                            *intercept_id,
-                            &channel_id,
-                            counterparty_node_id,
-                            *expected_outbound_amount_msat,
-                        )
-                        .map_err(|e| anyhow!("{e:?}"))
-                        .context("Failed to forward intercepted HTLC")?;
-                }
+                    let channel = self
+                        .storage
+                        .get_channel(&Channel::parse_user_channel_id(user_channel_id))?;
+                    let channel = Channel::open_channel(channel, channel_details)?;
+                    self.storage.upsert_channel(channel)?;
+
+                    let pending_intercepted_htlcs = self.pending_intercepted_htlcs_lock();
+
+                    if let Some((intercept_id, expected_outbound_amount_msat)) =
+                        pending_intercepted_htlcs.get(&counterparty_node_id)
+                    {
+                        tracing::info!(
+                            intercept_id = %hex::encode(intercept_id.0),
+                            counterparty = %counterparty_node_id.to_string(),
+                            forward_amount_msat = %expected_outbound_amount_msat,
+                            "Pending intercepted HTLC found, forwarding payment"
+                        );
+
+                        self.channel_manager
+                            .forward_intercepted_htlc(
+                                *intercept_id,
+                                &channel_id,
+                                counterparty_node_id,
+                                *expected_outbound_amount_msat,
+                            )
+                            .map_err(|e| anyhow!("{e:?}"))
+                            .context("Failed to forward intercepted HTLC")?;
+                    }
+                    anyhow::Ok(())
+                })?;
             }
             Event::HTLCHandlingFailed {
                 prev_channel_id,
@@ -740,45 +747,6 @@ where
         };
 
         Ok(())
-    }
-
-    fn add_funding_transaction_to_shadow_channel(
-        &self,
-        user_channel_id: u128,
-        channel_id: [u8; 32],
-    ) -> Result<()> {
-        let user_channel_id = Channel::parse_user_channel_id(user_channel_id);
-        let channel_details = self
-            .channel_manager
-            .get_channel_details(&channel_id)
-            .ok_or(anyhow!(
-                "Failed to get channel details by channel_id {}",
-                hex::encode(channel_id)
-            ))?;
-
-        let mut channel = match self.storage.get_channel(&user_channel_id)? {
-            Some(channel) => channel,
-            None => {
-                if channel_details.is_outbound {
-                    tracing::warn!(%user_channel_id, "Could not find shadow channel.");
-                    return Ok(());
-                } else {
-                    tracing::info!("Creating a new shadow channel for inbound channel.");
-                    Channel::new(
-                        (channel_details.inbound_capacity_msat / 1000) as i64,
-                        0,
-                        channel_details.counterparty.node_id,
-                    )
-                }
-            }
-        };
-
-        tracing::debug!("Updating shadow channel.");
-        channel.channel_state = ChannelState::Open;
-        channel.funding_txid = channel_details.funding_txo.map(|txo| txo.txid.to_string());
-        channel.channel_id = Some(hex::encode(channel_id));
-        channel.updated_at = OffsetDateTime::now_utc();
-        self.storage.upsert_channel(channel)
     }
 }
 

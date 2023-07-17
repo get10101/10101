@@ -1,4 +1,7 @@
+use anyhow::bail;
+use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
+use lightning::ln::channelmanager::ChannelDetails;
 use lightning::util::events::ClosureReason;
 use std::str::FromStr;
 use time::OffsetDateTime;
@@ -87,6 +90,34 @@ impl Channel {
         channel.channel_state = reason.into();
         channel.updated_at = OffsetDateTime::now_utc();
         channel
+    }
+
+    pub fn open_channel(
+        channel: Option<Channel>,
+        channel_details: ChannelDetails,
+    ) -> Result<Channel> {
+        let mut channel = match channel {
+            Some(channel) => channel,
+            None => {
+                if channel_details.is_outbound {
+                    bail!("Could not find shadow channel");
+                } else {
+                    tracing::info!("Creating a new shadow channel for inbound channel.");
+                    Channel::new(
+                        (channel_details.inbound_capacity_msat / 1000) as i64,
+                        0,
+                        channel_details.counterparty.node_id,
+                    )
+                }
+            }
+        };
+
+        tracing::debug!("Updating shadow channel.");
+        channel.channel_state = ChannelState::Open;
+        channel.funding_txid = channel_details.funding_txo.map(|txo| txo.txid.to_string());
+        channel.channel_id = Some(hex::encode(channel_details.channel_id));
+        channel.updated_at = OffsetDateTime::now_utc();
+        Ok(channel)
     }
 }
 
