@@ -7,6 +7,7 @@ pub mod node;
 pub mod orderbook;
 pub mod position;
 pub mod routes;
+pub mod routing_fee;
 pub mod schema;
 pub mod settings;
 pub mod trade;

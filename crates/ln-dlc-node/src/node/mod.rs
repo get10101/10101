@@ -219,6 +219,7 @@ where
         ephemeral_randomness: [u8; 32],
         settings: LnDlcNodeSettings,
         oracle: OracleInfo,
+        event_sender: watch::Sender<Option<Event>>,
     ) -> Result<Self> {
         let mut user_config = coordinator_config();
 
@@ -242,7 +243,7 @@ where
             user_config,
             settings,
             oracle.into(),
-            None,
+            Some(event_sender),
         )
     }
 

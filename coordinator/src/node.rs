@@ -47,6 +47,7 @@ use trade::Direction;
 
 pub mod connection;
 pub mod order_matching_fee;
+pub mod routing_fees;
 pub mod storage;
 
 /// The leverage used by the coordinator for all trades.
