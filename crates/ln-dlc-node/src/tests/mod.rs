@@ -1,3 +1,4 @@
+use crate::disk;
 use crate::ln::app_config;
 use crate::ln::coordinator_config;
 use crate::node::InMemoryStore;
@@ -137,6 +138,7 @@ impl Node<InMemoryStore> {
             user_config,
             LnDlcNodeSettings::default(),
             oracle.into(),
+            disk::in_memory_scorer,
         )?;
 
         tracing::debug!(%name, info = %node.info, "Node started");

@@ -4,14 +4,12 @@ use bitcoin::Network;
 use lightning::routing::scoring::ProbabilisticScorer;
 use lightning::routing::scoring::ProbabilisticScoringParameters;
 use lightning::util::ser::ReadableArgs;
-use std::fs;
 use std::fs::File;
 use std::io::BufReader;
-use std::panic;
 use std::path::Path;
 use std::sync::Arc;
 
-pub(crate) fn read_scorer(
+pub(crate) fn persistent_scorer(
     path: &Path,
     graph: Arc<NetworkGraph>,
     logger: Arc<TracingLogger>,
@@ -19,23 +17,20 @@ pub(crate) fn read_scorer(
     let params = ProbabilisticScoringParameters::default();
     if let Ok(file) = File::open(path) {
         let args = (params.clone(), graph.clone(), logger.clone());
-        let result =
-            panic::catch_unwind(|| ProbabilisticScorer::read(&mut BufReader::new(file), args));
-        match result {
-            Ok(Ok(scorer)) => {
-                return scorer;
-            }
-            Ok(Err(err)) => {
-                tracing::error!("Could not decode scorer {err:#}");
-            }
-            Err(_) => {
-                tracing::error!("Reading scorer panicked");
-                if let Err(err) = fs::remove_file(path) {
-                    tracing::error!("Could not even delete file #{err}");
-                }
-            }
+        match ProbabilisticScorer::read(&mut BufReader::new(file), args) {
+            Ok(scorer) => return scorer,
+            Err(e) => tracing::error!("Failed to read scorer from disk: {e}"),
         }
     }
+    ProbabilisticScorer::new(params, graph, logger)
+}
+
+pub(crate) fn in_memory_scorer(
+    _path: &Path,
+    graph: Arc<NetworkGraph>,
+    logger: Arc<TracingLogger>,
+) -> ProbabilisticScorer<Arc<NetworkGraph>, Arc<TracingLogger>> {
+    let params = ProbabilisticScoringParameters::default();
     ProbabilisticScorer::new(params, graph, logger)
 }
 
