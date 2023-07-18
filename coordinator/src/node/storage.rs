@@ -1,3 +1,4 @@
+use crate::db;
 use crate::db::payments;
 use anyhow::anyhow;
 use anyhow::Result;
@@ -11,6 +12,7 @@ use lightning::ln::PaymentPreimage;
 use lightning::ln::PaymentSecret;
 use ln_dlc_node::channel::Channel;
 use ln_dlc_node::node;
+use ln_dlc_node::transaction::Transaction;
 use ln_dlc_node::HTLCStatus;
 use ln_dlc_node::MillisatAmount;
 use ln_dlc_node::PaymentFlow;
@@ -97,7 +99,7 @@ impl node::Storage for NodeStorage {
 
     fn insert_spendable_output(&self, output: SpendableOutputDescriptor) -> Result<()> {
         let mut conn = self.pool.get()?;
-        crate::db::spendable_outputs::insert(&mut conn, output)?;
+        db::spendable_outputs::insert(&mut conn, output)?;
 
         Ok(())
     }
@@ -107,33 +109,60 @@ impl node::Storage for NodeStorage {
         outpoint: &OutPoint,
     ) -> Result<Option<SpendableOutputDescriptor>> {
         let mut conn = self.pool.get()?;
-        crate::db::spendable_outputs::get(&mut conn, outpoint)
+        db::spendable_outputs::get(&mut conn, outpoint)
     }
 
     fn all_spendable_outputs(&self) -> Result<Vec<SpendableOutputDescriptor>> {
         let mut conn = self.pool.get()?;
-        crate::db::spendable_outputs::get_all(&mut conn)
+        db::spendable_outputs::get_all(&mut conn)
     }
+
+    // Channel
 
     fn upsert_channel(&self, channel: Channel) -> Result<()> {
         let mut conn = self.pool.get()?;
-        crate::db::channels::upsert(channel.into(), &mut conn)
+        db::channels::upsert(channel.into(), &mut conn)
     }
 
     fn get_channel(&self, user_channel_id: &str) -> Result<Option<Channel>> {
         let mut conn = self.pool.get()?;
-        crate::db::channels::get(user_channel_id, &mut conn)
-            .map(|c| Some(c.into()))
-            .map_err(|e| anyhow!("{e:#}"))
+        let channel: Option<Channel> = db::channels::get(user_channel_id, &mut conn)
+            .map_err(|e| anyhow!("{e:#}"))?
+            .map(|c| c.into());
+        Ok(channel)
     }
 
     fn all_non_pending_channels(&self) -> Result<Vec<Channel>> {
         let mut conn = self.pool.get()?;
-        let channels = crate::db::channels::get_all_non_pending_channels(&mut conn)?
+        let channels = db::channels::get_all_non_pending_channels(&mut conn)?
             .into_iter()
             .map(|c| c.into())
             .collect::<Vec<_>>();
 
         Ok(channels)
+    }
+
+    // Transaction
+
+    fn upsert_transaction(&self, transaction: Transaction) -> Result<()> {
+        let mut conn = self.pool.get()?;
+        db::transactions::upsert(transaction.into(), &mut conn)
+    }
+
+    fn get_transaction(&self, txid: &str) -> Result<Option<Transaction>> {
+        let mut conn = self.pool.get()?;
+        let transaction = db::transactions::get(txid, &mut conn)
+            .map_err(|e| anyhow!("{e:#}"))?
+            .map(|t| t.into());
+        Ok(transaction)
+    }
+
+    fn all_transactions_without_fees(&self) -> Result<Vec<Transaction>> {
+        let mut conn = self.pool.get()?;
+        let transactions = db::transactions::get_all_without_fees(&mut conn)?
+            .into_iter()
+            .map(|t| t.into())
+            .collect::<Vec<_>>();
+        Ok(transactions)
     }
 }

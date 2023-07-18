@@ -32,7 +32,7 @@ async fn open_jit_channel() {
     // before the costs for the funding transaction will be attached to the shadow channel.
     let settings = LnDlcNodeSettings {
         on_chain_sync_interval: Duration::from_secs(3),
-        shadow_channel_sync_interval: Duration::from_secs(3),
+        shadow_sync_interval: Duration::from_secs(3),
         ..LnDlcNodeSettings::default()
     };
     let coordinator =
@@ -73,13 +73,18 @@ async fn open_jit_channel() {
 
     let user_channel_id = Uuid::from_u128(channel_details.user_channel_id).to_string();
 
-    // Wait for costs getting attached to the shadow channel.
+    // Wait for costs getting attached to the shadow channel. We are waiting for 6 seconds to ensure
+    // that the shadow sync will run at least once.
     tokio::time::sleep(Duration::from_secs(6)).await;
 
     let channel = storage.get_channel(&user_channel_id).unwrap().unwrap();
     assert_eq!(ChannelState::Open, channel.channel_state);
-    // fees are not always consistently the same amount, but it has to be greater than 0.
-    assert!(channel.costs > 0);
+
+    let transaction = storage
+        .get_transaction(&channel.funding_txid.unwrap().to_string())
+        .unwrap()
+        .unwrap();
+    assert!(transaction.fee > 0);
 }
 
 #[tokio::test(flavor = "multi_thread")]

@@ -33,11 +33,13 @@ mod ldk_node_wallet;
 mod ln;
 mod ln_dlc_wallet;
 mod on_chain_wallet;
+mod shadow;
 mod util;
 
 pub mod channel;
 pub mod node;
 pub mod seed;
+pub mod transaction;
 
 pub use ln::CONFIRMATION_TARGET;
 pub use ln::CONTRACT_TX_FEE_RATE;

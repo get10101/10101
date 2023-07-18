@@ -70,9 +70,8 @@ mod wallet;
 
 pub use self::dlc_manager::DlcManager;
 pub use crate::node::oracle::OracleInfo;
+use crate::shadow::Shadow;
 pub use ::dlc_manager as rust_dlc_manager;
-use ::dlc_manager::ChannelId;
-use ::dlc_manager::subchannel::LNChannelManager;
 pub use channel_manager::ChannelManager;
 pub use dlc_channel::dlc_message_name;
 pub use dlc_channel::sub_channel_message_name;
@@ -81,7 +80,6 @@ use lightning::routing::scoring::ProbabilisticScorer;
 pub use storage::InMemoryStore;
 pub use storage::Storage;
 pub use sub_channel_manager::SubChannelManager;
-use time::OffsetDateTime;
 pub use wallet::PaymentDetails;
 
 /// The interval at which the [`lightning::ln::msgs::NodeAnnouncement`] is broadcast.
@@ -138,8 +136,8 @@ pub struct LnDlcNodeSettings {
     pub dlc_manager_periodic_check_interval: Duration,
     /// How often we run the [`SubChannelManager`]'s periodic check.
     pub sub_channel_manager_periodic_check_interval: Duration,
-    /// How often we sync the channel state to our shadow channel
-    pub shadow_channel_sync_interval: Duration,
+    /// How often we sync the shadow states
+    pub shadow_sync_interval: Duration,
 
     /// Amount (in millionths of a satoshi) charged per satoshi for payments forwarded outbound
     /// over a channel.
@@ -165,7 +163,7 @@ impl Default for LnDlcNodeSettings {
             dlc_manager_periodic_check_interval: Duration::from_secs(30),
             sub_channel_manager_periodic_check_interval: Duration::from_secs(30),
             forwarding_fee_proportional_millionths: 50,
-            shadow_channel_sync_interval: Duration::from_secs(300),
+            shadow_sync_interval: Duration::from_secs(600),
             bdk_client_stop_gap: 20,
             bdk_client_concurrency: 4,
         }
@@ -330,6 +328,7 @@ where
                 seed.clone(),
                 settings.bdk_client_stop_gap,
                 settings.bdk_client_concurrency,
+                node_storage.clone(),
             ))
         };
 
@@ -434,66 +433,24 @@ where
         std::thread::spawn({
             let handle = tokio::runtime::Handle::current();
             let settings = settings.clone();
-            let node_storage = node_storage.clone();
-            let channel_manager = channel_manager.clone();
-            let ln_dlc_wallet = ln_dlc_wallet.clone();
+            let shadow = Shadow::new(
+                node_storage.clone(),
+                ln_dlc_wallet.clone(),
+                channel_manager.clone(),
+            );
+
             move || loop {
-                let channels = match node_storage.all_non_pending_channels() {
-                    Ok(channels) => channels,
-                    Err(e) => {
-                        tracing::error!("Failed to fetch all pending channels. Error: {e:#}");
-                        vec![]
-                    }
-                };
+                if let Err(e) = shadow.sync_channels() {
+                    tracing::error!("Failed to sync channel shadows. Error: {e:#}");
+                }
 
-                tracing::debug!(
-                    "Syncing on-chain transaction costs for {} channels",
-                    channels.len()
-                );
-
-                for mut channel in channels.into_iter() {
-                    let funding_txid = channel.funding_txid.as_ref().expect(
-                            "All channels without costs must always have a funding transactions attached",
-                        );
-
-                    let transaction_details = match ln_dlc_wallet
-                        .inner()
-                        .get_transaction(funding_txid)
-                    {
-                        Ok(transaction_details) => transaction_details,
-                        Err(e) => {
-                            tracing::error!("Failed to get funding transaction {funding_txid} from wallet. Error: {e:#}");
-                            continue;
-                        }
-                    };
-
-                    if let Some(channel_id) = &channel.channel_id {
-                        match channel_manager.get_channel_details(channel_id) {
-                            Some(channel_details) => {
-                                channel.inbound = channel_details.inbound_capacity_msat / 1000;
-                                channel.outbound = channel_details.outbound_capacity_msat / 1000;
-                            }
-                            None => {
-                                tracing::error!("Couldn't find channel details");
-                                continue;
-                            }
-                        };
-                    }
-
-                    if let Some(transaction_details) = transaction_details {
-                        channel.costs = transaction_details.fee.unwrap_or_default();
-                        channel.updated_at = OffsetDateTime::now_utc();
-                        if let Err(e) = node_storage.upsert_channel(channel.clone()) {
-                            tracing::error!(%channel,"Failed to update channel. Error: {e:#}");
-                        }
-                    } else {
-                        tracing::warn!("Did not find the transaction details for the funding transaction {funding_txid}. This might be ok!")
-                    }
+                if let Err(e) = shadow.sync_transactions() {
+                    tracing::error!("Failed to sync transaction shadows. Error: {e:#}");
                 }
 
                 let interval = handle.block_on(async {
                     let guard = settings.read().await;
-                    guard.shadow_channel_sync_interval
+                    guard.shadow_sync_interval
                 });
 
                 std::thread::sleep(interval);

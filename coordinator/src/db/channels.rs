@@ -13,6 +13,7 @@ use diesel::BoolExpressionMethods;
 use diesel::ExpressionMethods;
 use diesel::FromSqlRow;
 use diesel::Insertable;
+use diesel::OptionalExtension;
 use diesel::PgConnection;
 use diesel::QueryDsl;
 use diesel::QueryResult;
@@ -57,13 +58,13 @@ pub(crate) struct Channel {
     pub counterparty_pubkey: String,
     pub created_at: OffsetDateTime,
     pub updated_at: OffsetDateTime,
-    pub costs: i64,
 }
 
-pub(crate) fn get(user_channel_id: &str, conn: &mut PgConnection) -> QueryResult<Channel> {
+pub(crate) fn get(user_channel_id: &str, conn: &mut PgConnection) -> QueryResult<Option<Channel>> {
     channels::table
         .filter(channels::user_channel_id.eq(user_channel_id))
         .first(conn)
+        .optional()
 }
 
 pub(crate) fn get_all_non_pending_channels(conn: &mut PgConnection) -> QueryResult<Vec<Channel>> {
@@ -84,7 +85,7 @@ pub(crate) fn upsert(channel: Channel, conn: &mut PgConnection) -> Result<()> {
         .set(&channel)
         .execute(conn)?;
 
-    ensure!(affected_rows > 0, "Could not insert channel");
+    ensure!(affected_rows > 0, "Could not upsert channel");
 
     Ok(())
 }
@@ -101,7 +102,6 @@ impl From<ln_dlc_node::channel::Channel> for Channel {
             counterparty_pubkey: value.counterparty.to_string(),
             created_at: value.created_at,
             updated_at: value.updated_at,
-            costs: value.costs as i64,
         }
     }
 }
@@ -132,13 +132,12 @@ impl From<Channel> for ln_dlc_node::channel::Channel {
             outbound: value.outbound as u64,
             funding_txid: value
                 .funding_txid
-                .map(|txid| Txid::from_str(&txid).expect("valid funding txid")),
+                .map(|txid| Txid::from_str(&txid).expect("valid txid")),
             channel_state: value.channel_state.into(),
             counterparty: PublicKey::from_str(&value.counterparty_pubkey)
                 .expect("valid public key"),
             created_at: value.created_at,
             updated_at: value.updated_at,
-            costs: value.costs as u64,
         }
     }
 }

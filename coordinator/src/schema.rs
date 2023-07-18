@@ -44,7 +44,6 @@ diesel::table! {
         counterparty_pubkey -> Text,
         created_at -> Timestamptz,
         updated_at -> Timestamptz,
-        costs -> Int8,
     }
 }
 
@@ -150,6 +149,15 @@ diesel::table! {
 }
 
 diesel::table! {
+    transactions (txid) {
+        txid -> Text,
+        fee -> Int8,
+        created_at -> Timestamptz,
+        updated_at -> Timestamptz,
+    }
+}
+
+diesel::table! {
     users (id) {
         id -> Int4,
         pubkey -> Text,
@@ -169,5 +177,6 @@ diesel::allow_tables_to_appear_in_same_query!(
     routing_fees,
     spendable_outputs,
     trades,
+    transactions,
     users,
 );

@@ -1,5 +1,6 @@
 use crate::channel::Channel;
 use crate::channel::ChannelState;
+use crate::transaction::Transaction;
 use crate::HTLCStatus;
 use crate::MillisatAmount;
 use crate::PaymentFlow;
@@ -73,6 +74,15 @@ pub trait Storage {
     fn get_channel(&self, user_channel_id: &str) -> Result<Option<Channel>>;
     /// Get all non pending channels.
     fn all_non_pending_channels(&self) -> Result<Vec<Channel>>;
+
+    // Transaction
+
+    /// Insert or update a transaction
+    fn upsert_transaction(&self, transaction: Transaction) -> Result<()>;
+    /// Get transaction by `txid`
+    fn get_transaction(&self, txid: &str) -> Result<Option<Transaction>>;
+    /// Get all transactions without fees
+    fn all_transactions_without_fees(&self) -> Result<Vec<Transaction>>;
 }
 
 #[derive(Default, Clone)]
@@ -80,6 +90,7 @@ pub struct InMemoryStore {
     payments: Arc<Mutex<HashMap<PaymentHash, PaymentInfo>>>,
     spendable_outputs: Arc<Mutex<HashMap<OutPoint, SpendableOutputDescriptor>>>,
     channels: Arc<Mutex<HashMap<String, Channel>>>,
+    transactions: Arc<Mutex<HashMap<String, Transaction>>>,
 }
 
 impl Storage for InMemoryStore {
@@ -204,6 +215,28 @@ impl Storage for InMemoryStore {
             .cloned()
             .collect())
     }
+
+    // Transaction
+
+    fn upsert_transaction(&self, transaction: Transaction) -> Result<()> {
+        let txid = transaction.txid.to_string();
+        self.transactions_lock().insert(txid, transaction);
+        Ok(())
+    }
+
+    fn get_transaction(&self, txid: &str) -> Result<Option<Transaction>> {
+        let transaction = self.transactions_lock().get(txid).cloned();
+        Ok(transaction)
+    }
+
+    fn all_transactions_without_fees(&self) -> Result<Vec<Transaction>> {
+        Ok(self
+            .transactions_lock()
+            .values()
+            .filter(|t| t.fee == 0)
+            .cloned()
+            .collect())
+    }
 }
 
 impl InMemoryStore {
@@ -219,5 +252,9 @@ impl InMemoryStore {
 
     fn channels_lock(&self) -> MutexGuard<HashMap<String, Channel>> {
         self.channels.lock().expect("Mutex to not be poisoned")
+    }
+
+    fn transactions_lock(&self) -> MutexGuard<HashMap<String, Transaction>> {
+        self.transactions.lock().expect("Mutex to not be poisoned")
     }
 }

@@ -11,7 +11,6 @@ diesel::table! {
         counterparty_pubkey -> Text,
         created_at -> BigInt,
         updated_at -> BigInt,
-        costs -> BigInt,
     }
 }
 
@@ -77,6 +76,15 @@ diesel::table! {
     }
 }
 
+diesel::table! {
+    transactions (txid) {
+        txid -> Text,
+        fee -> BigInt,
+        created_at -> BigInt,
+        updated_at -> BigInt,
+    }
+}
+
 diesel::allow_tables_to_appear_in_same_query!(
     channels,
     last_login,
@@ -84,4 +92,5 @@ diesel::allow_tables_to_appear_in_same_query!(
     payments,
     positions,
     spendable_outputs,
+    transactions,
 );

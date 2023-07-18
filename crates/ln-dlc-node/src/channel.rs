@@ -1,3 +1,4 @@
+use anyhow::bail;
 use anyhow::Result;
 use bitcoin::hashes::hex::ToHex;
 use bitcoin::secp256k1::PublicKey;
@@ -96,11 +97,6 @@ pub struct Channel {
     pub counterparty: PublicKey,
     pub created_at: OffsetDateTime,
     pub updated_at: OffsetDateTime,
-    /// This data will be updated once the fee information is available. Please note, that
-    /// this costs is not a source of truth and may not reflect the latest data. It is
-    /// eventually implied from the on-chain fees of the channel transactions attached to
-    /// this model.
-    pub costs: u64,
 }
 
 impl Channel {
@@ -113,7 +109,6 @@ impl Channel {
             counterparty,
             created_at: OffsetDateTime::now_utc(),
             updated_at: OffsetDateTime::now_utc(),
-            costs: 0,
             channel_id: None,
             funding_txid: None,
         }
@@ -137,6 +132,24 @@ impl Channel {
         channel
     }
 
+    pub fn update_liquidity(
+        channel: &Channel,
+        channel_details: &Option<ChannelDetails>,
+    ) -> Result<Channel> {
+        let mut channel = channel.clone();
+        match channel_details {
+            Some(channel_details) => {
+                channel.inbound = channel_details.inbound_capacity_msat;
+                channel.outbound = channel_details.outbound_capacity_msat;
+                channel.updated_at = OffsetDateTime::now_utc();
+                Ok(channel)
+            }
+            None => {
+                bail!("Couldn't find channel details");
+            }
+        }
+    }
+
     pub fn open_channel(
         channel: Option<Channel>,
         channel_details: ChannelDetails,
@@ -146,20 +159,26 @@ impl Channel {
             None => {
                 let user_channel_id =
                     UserChannelId::from(channel_details.user_channel_id).to_string();
-                tracing::warn!(%user_channel_id, channel_id = %channel_details.channel_id.to_hex(), public = channel_details.is_public, outbound = channel_details.is_outbound, "Creating a new shadow channel");
+                tracing::warn!(%user_channel_id, channel_id = %channel_details.channel_id.to_hex(), public = channel_details.is_public, outbound = channel_details.is_outbound, "Cannot open non-existent shadow channel. Creating a new one.");
                 Channel::new(
-                    channel_details.inbound_capacity_msat / 1000,
+                    channel_details.inbound_capacity_msat,
                     0,
                     channel_details.counterparty.node_id,
                 )
             }
         };
 
-        tracing::debug!("Updating shadow channel.");
+        if channel.channel_state != ChannelState::Pending {
+            tracing::warn!(%channel, "Opening a channel in state {:?} expected {:?}.", channel.channel_state, ChannelState::Pending);
+        }
+
         channel.channel_state = ChannelState::Open;
         channel.funding_txid = channel_details.funding_txo.map(|txo| txo.txid);
         channel.channel_id = Some(channel_details.channel_id);
         channel.updated_at = OffsetDateTime::now_utc();
+
+        tracing::debug!(%channel, "Set shadow channel to open.");
+
         Ok(channel)
     }
 }

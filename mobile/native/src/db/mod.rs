@@ -8,6 +8,7 @@ use crate::db::models::PaymentQueryable;
 use crate::db::models::Position;
 use crate::db::models::SpendableOutputInsertable;
 use crate::db::models::SpendableOutputQueryable;
+use crate::db::models::Transaction;
 use crate::trade;
 use anyhow::anyhow;
 use anyhow::bail;
@@ -364,21 +365,11 @@ pub fn get_channel(user_channel_id: &str) -> Result<Option<ln_dlc_node::channel:
 
     let mut db = connection()?;
 
-    Channel::get(user_channel_id, &mut db)
-        .map(|c| Some(c.into()))
-        .map_err(|e| anyhow!("{e:#}"))
-}
+    let channel = Channel::get(user_channel_id, &mut db)
+        .map_err(|e| anyhow!("{e:#}"))?
+        .map(|c| c.into());
 
-pub fn get_channels() -> Result<Vec<ln_dlc_node::channel::Channel>> {
-    let mut db = connection()?;
-    let channels = Channel::get_all(&mut db)?
-        .into_iter()
-        .map(|c| c.into())
-        .collect::<Vec<_>>();
-
-    tracing::debug!(?channels, "Got all channels");
-
-    Ok(channels)
+    Ok(channel)
 }
 
 pub fn get_all_non_pending_channels() -> Result<Vec<ln_dlc_node::channel::Channel>> {
@@ -394,4 +385,34 @@ pub fn get_all_non_pending_channels() -> Result<Vec<ln_dlc_node::channel::Channe
     tracing::debug!(?channels, "Got all non-pending channels");
 
     Ok(channels)
+}
+
+// Transaction
+
+pub fn upsert_transaction(transaction: ln_dlc_node::transaction::Transaction) -> Result<()> {
+    tracing::debug!(?transaction, "Upserting transaction");
+    let mut db = connection()?;
+    Transaction::upsert(transaction.into(), &mut db)
+}
+
+pub fn get_transaction(txid: &str) -> Result<Option<ln_dlc_node::transaction::Transaction>> {
+    tracing::debug!(%txid, "Getting transaction");
+    let mut db = connection()?;
+    let transaction = Transaction::get(txid, &mut db)
+        .map_err(|e| anyhow!("{e:#}"))?
+        .map(|t| t.into());
+
+    Ok(transaction)
+}
+
+pub fn get_all_transactions_without_fees() -> Result<Vec<ln_dlc_node::transaction::Transaction>> {
+    let mut db = connection()?;
+    let transactions = Transaction::get_all_without_fees(&mut db)?
+        .into_iter()
+        .map(|t| t.into())
+        .collect::<Vec<_>>();
+
+    tracing::debug!(?transactions, "Got all transactions");
+
+    Ok(transactions)
 }
