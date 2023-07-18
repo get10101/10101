@@ -134,64 +134,8 @@ impl TestSubscriber {
 
 impl Subscriber for Senders {
     fn notify(&self, event: &native::event::EventInternal) {
-        match event {
-            native::event::EventInternal::Init(init) => {
-                tracing::info!(%init, "Received init message");
-                self.init_msg
-                    .send(Some(init.to_string()))
-                    .expect("to be able to send update");
-            }
-            native::event::EventInternal::Log(_log) => {
-                // Ignore log events for now
-            }
-            native::event::EventInternal::OrderUpdateNotification(order) => {
-                tracing::trace!(?order, "Received order update event");
-                self.order
-                    .send(Some(*order))
-                    .expect("to be able to send update");
-            }
-            native::event::EventInternal::WalletInfoUpdateNotification(wallet_info) => {
-                tracing::trace!(?wallet_info, "Received wallet info update event");
-                self.wallet_info
-                    .send(Some(wallet_info.clone()))
-                    .expect("to be able to send update");
-            }
-            native::event::EventInternal::OrderFilledWith(order_filled) => {
-                tracing::trace!(?order_filled, "Received order filled event");
-                self.order_filled
-                    .send(Some(order_filled.clone()))
-                    .expect("to be able to send update");
-            }
-            native::event::EventInternal::PositionUpdateNotification(position) => {
-                tracing::trace!(?position, "Received position update event");
-                self.position
-                    .send(Some(position.clone()))
-                    .expect("to be able to send update");
-            }
-            native::event::EventInternal::PositionCloseNotification(contract_symbol) => {
-                tracing::trace!(?contract_symbol, "Received position close event");
-                self.position_close
-                    .send(Some(*contract_symbol))
-                    .expect("to be able to send update");
-            }
-            native::event::EventInternal::PriceUpdateNotification(prices) => {
-                tracing::trace!(?prices, "Received price update event");
-                self.prices
-                    .send(Some(prices.clone()))
-                    .expect("to be able to send update");
-            }
-            native::event::EventInternal::ServiceHealthUpdate(update) => {
-                tracing::debug!(?update, "Received service health update event");
-                self.service
-                    .send(Some(*update))
-                    .expect("to be able to send update");
-            }
-            native::event::EventInternal::ChannelReady(channel_id) => {
-                tracing::trace!(?channel_id, "Received channel ready event");
-            }
-            native::event::EventInternal::PaymentClaimed(amount_msats) => {
-                tracing::trace!(amount_msats, "Received payment claimed event");
-            }
+        if let Err(e) = self.handle_event(event) {
+            tracing::error!(?e, ?event, "Failed to handle event");
         }
     }
 
@@ -205,6 +149,48 @@ impl Subscriber for Senders {
             EventType::PriceUpdateNotification,
             EventType::ServiceHealthUpdate,
         ]
+    }
+}
+
+impl Senders {
+    fn handle_event(&self, event: &native::event::EventInternal) -> anyhow::Result<()> {
+        tracing::trace!(?event, "Received event");
+        match event {
+            native::event::EventInternal::Init(init) => {
+                self.init_msg.send(Some(init.to_string()))?;
+            }
+            native::event::EventInternal::Log(_log) => {
+                // Ignore log events for now
+            }
+            native::event::EventInternal::OrderUpdateNotification(order) => {
+                self.order.send(Some(*order))?;
+            }
+            native::event::EventInternal::WalletInfoUpdateNotification(wallet_info) => {
+                self.wallet_info.send(Some(wallet_info.clone()))?;
+            }
+            native::event::EventInternal::OrderFilledWith(order_filled) => {
+                self.order_filled.send(Some(order_filled.clone()))?;
+            }
+            native::event::EventInternal::PositionUpdateNotification(position) => {
+                self.position.send(Some(position.clone()))?;
+            }
+            native::event::EventInternal::PositionCloseNotification(contract_symbol) => {
+                self.position_close.send(Some(*contract_symbol))?;
+            }
+            native::event::EventInternal::PriceUpdateNotification(prices) => {
+                self.prices.send(Some(prices.clone()))?;
+            }
+            native::event::EventInternal::ServiceHealthUpdate(update) => {
+                self.service.send(Some(*update))?;
+            }
+            native::event::EventInternal::ChannelReady(_channel_id) => {
+                unreachable!("ChannelReady event should not be sent to the subscriber");
+            }
+            native::event::EventInternal::PaymentClaimed(_amount_msats) => {
+                unreachable!("PaymentClaimed event should not be sent to the subscriber");
+            }
+        }
+        Ok(())
     }
 }
 
