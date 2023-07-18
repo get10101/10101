@@ -35,6 +35,7 @@ async fn can_open_position() {
     .unwrap();
 
     assert_eq!(app.rx.status(Service::Orderbook), ServiceStatus::Online);
+    assert_eq!(app.rx.status(Service::Coordinator), ServiceStatus::Online);
 
     // Assert that the order was posted
     wait_until!(app.rx.order().is_some());

@@ -69,7 +69,7 @@ ios-release:
 run args="":
     #!/usr/bin/env bash
     cd mobile && flutter run {{args}} --dart-define="COMMIT=$(git rev-parse HEAD)" --dart-define="BRANCH=$(git rev-parse --abbrev-ref HEAD)" \
-    --dart-define="REGTEST_FAUCET=http://localhost:8080"
+    --dart-define="REGTEST_FAUCET=http://localhost:8080" --dart-define="HEALTH_CHECK_INTERVAL_SECONDS=2" \
 
 # Run against our public regtest server
 run-regtest args="":

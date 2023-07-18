@@ -41,7 +41,6 @@ pub fn subscribe(
         // Need a Mutex as it's being accessed from websocket stream and pruning task
         let orders = Arc::new(Mutex::new(Vec::<Order>::new()));
 
-
         let _prune_expired_orders_task = {
             let orders = orders.clone();
             tokio::spawn(async move {

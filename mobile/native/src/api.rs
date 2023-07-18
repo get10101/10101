@@ -227,13 +227,13 @@ pub fn run(
         );
     }
 
-    config::set(config);
+    config::set(config.clone());
     db::init_db(&app_dir, get_network())?;
     let runtime = ln_dlc::get_or_create_tokio_runtime()?;
     ln_dlc::run(app_dir, seed_dir, runtime)?;
     event::subscribe(ChannelFeePaymentSubscriber::new());
 
-    let (_health, tx) = health::Health::new(runtime);
+    let (_health, tx) = health::Health::new(config, runtime);
 
     orderbook::subscribe(ln_dlc::get_node_key(), runtime, tx.orderbook)
 }

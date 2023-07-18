@@ -26,6 +26,9 @@ class Environment {
       }
     }
 
+    int healthCheckIntervalSeconds =
+        const int.fromEnvironment('HEALTH_CHECK_INTERVAL_SECONDS', defaultValue: 10);
+
     return Config(
       host: host,
       esploraEndpoint: esploraEndpoint,
@@ -35,6 +38,7 @@ class Environment {
       network: network,
       oracleEndpoint: oracleEndpoint,
       oraclePubkey: oraclePubkey,
+      healthCheckIntervalSecs: healthCheckIntervalSeconds,
     );
   }
 }

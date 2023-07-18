@@ -6,7 +6,7 @@ use std::str::FromStr;
 use url::Url;
 
 #[frb]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Config {
     pub coordinator_pubkey: String,
     pub esplora_endpoint: String,
@@ -16,6 +16,7 @@ pub struct Config {
     pub network: String,
     pub oracle_endpoint: String,
     pub oracle_pubkey: String,
+    pub health_check_interval_secs: u64,
 }
 
 impl From<Config> for ConfigInternal {
@@ -35,6 +36,9 @@ impl From<Config> for ConfigInternal {
             oracle_endpoint: config.oracle_endpoint,
             oracle_pubkey: XOnlyPublicKey::from_str(config.oracle_pubkey.as_str())
                 .expect("Valid oracle public key"),
+            health_check_interval: std::time::Duration::from_secs(
+                config.health_check_interval_secs,
+            ),
         }
     }
 }
