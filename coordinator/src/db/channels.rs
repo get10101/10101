@@ -3,7 +3,9 @@ use crate::schema::channels;
 use crate::schema::sql_types::ChannelStateType;
 use anyhow::ensure;
 use anyhow::Result;
+use bitcoin::hashes::hex::ToHex;
 use bitcoin::secp256k1::PublicKey;
+use bitcoin::Txid;
 use diesel::query_builder::QueryId;
 use diesel::AsChangeset;
 use diesel::AsExpression;
@@ -17,6 +19,9 @@ use diesel::QueryResult;
 use diesel::Queryable;
 use diesel::QueryableByName;
 use diesel::RunQueryDsl;
+use dlc_manager::ChannelId;
+use hex::FromHex;
+use ln_dlc_node::channel::UserChannelId;
 use std::any::TypeId;
 use std::str::FromStr;
 use time::OffsetDateTime;
@@ -87,11 +92,11 @@ pub(crate) fn upsert(channel: Channel, conn: &mut PgConnection) -> Result<()> {
 impl From<ln_dlc_node::channel::Channel> for Channel {
     fn from(value: ln_dlc_node::channel::Channel) -> Self {
         Channel {
-            user_channel_id: value.user_channel_id,
-            channel_id: value.channel_id,
-            capacity: value.capacity,
-            balance: value.balance,
-            funding_txid: value.funding_txid,
+            user_channel_id: value.user_channel_id.to_string(),
+            channel_id: value.channel_id.map(|cid| cid.to_hex()),
+            capacity: value.capacity as i64,
+            balance: value.balance as i64,
+            funding_txid: value.funding_txid.map(|txid| txid.to_string()),
             channel_state: value.channel_state.into(),
             counterparty_pubkey: value.counterparty.to_string(),
             created_at: value.created_at,
@@ -118,12 +123,16 @@ impl From<ln_dlc_node::channel::ChannelState> for ChannelState {
 impl From<Channel> for ln_dlc_node::channel::Channel {
     fn from(value: Channel) -> Self {
         ln_dlc_node::channel::Channel {
-            id: None,
-            user_channel_id: value.user_channel_id,
-            channel_id: value.channel_id,
-            capacity: value.capacity,
-            balance: value.balance,
-            funding_txid: value.funding_txid,
+            user_channel_id: UserChannelId::try_from(value.user_channel_id)
+                .expect("valid user channel id"),
+            channel_id: value
+                .channel_id
+                .map(|cid| ChannelId::from_hex(cid).expect("valid channel id")),
+            capacity: value.capacity as u64,
+            balance: value.balance as u64,
+            funding_txid: value
+                .funding_txid
+                .map(|txid| Txid::from_str(&txid).expect("valid funding txid")),
             channel_state: value.channel_state.into(),
             counterparty: PublicKey::from_str(&value.counterparty_pubkey)
                 .expect("valid public key"),

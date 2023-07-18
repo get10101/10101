@@ -14,6 +14,7 @@ use base64::Engine;
 use bdk::bitcoin::hashes::hex::FromHex;
 use bdk::bitcoin::hashes::hex::ToHex;
 use bitcoin::secp256k1::PublicKey;
+use bitcoin::Txid;
 use diesel;
 use diesel::prelude::*;
 use diesel::sql_query;
@@ -24,6 +25,8 @@ use diesel::FromSqlRow;
 use diesel::Queryable;
 use lightning::util::ser::Readable;
 use lightning::util::ser::Writeable;
+use ln_dlc_node::channel::UserChannelId;
+use ln_dlc_node::node::rust_dlc_manager::ChannelId;
 use std::str::FromStr;
 use time::format_description;
 use time::OffsetDateTime;
@@ -1039,11 +1042,11 @@ impl Channel {
 impl From<ln_dlc_node::channel::Channel> for Channel {
     fn from(value: ln_dlc_node::channel::Channel) -> Self {
         Channel {
-            user_channel_id: value.user_channel_id,
-            channel_id: value.channel_id,
-            capacity: value.capacity,
-            balance: value.balance,
-            funding_txid: value.funding_txid,
+            user_channel_id: value.user_channel_id.to_string(),
+            channel_id: value.channel_id.map(|cid| cid.to_hex()),
+            capacity: value.capacity as i64,
+            balance: value.balance as i64,
+            funding_txid: value.funding_txid.map(|txid| txid.to_string()),
             channel_state: value.channel_state.into(),
             counterparty_pubkey: value.counterparty.to_string(),
             created_at: value.created_at.unix_timestamp(),
@@ -1070,12 +1073,16 @@ impl From<ln_dlc_node::channel::ChannelState> for ChannelState {
 impl From<Channel> for ln_dlc_node::channel::Channel {
     fn from(value: Channel) -> Self {
         ln_dlc_node::channel::Channel {
-            id: None,
-            user_channel_id: value.user_channel_id,
-            channel_id: value.channel_id,
-            capacity: value.capacity,
-            balance: value.balance,
-            funding_txid: value.funding_txid,
+            user_channel_id: UserChannelId::try_from(value.user_channel_id)
+                .expect("valid user channel id"),
+            channel_id: value
+                .channel_id
+                .map(|cid| ChannelId::from_hex(&cid).expect("valid channel id")),
+            capacity: value.capacity as u64,
+            balance: value.balance as u64,
+            funding_txid: value
+                .funding_txid
+                .map(|txid| Txid::from_str(&txid).expect("valid transaction id")),
             channel_state: value.channel_state.into(),
             counterparty: PublicKey::from_str(&value.counterparty_pubkey)
                 .expect("valid public key"),
@@ -1107,6 +1114,7 @@ pub mod test {
     use super::*;
     use crate::db::MIGRATIONS;
     use crate::trade::order::FailureReason;
+    use bitcoin::Txid;
     use diesel::result::Error;
     use diesel::Connection;
     use diesel::SqliteConnection;
@@ -1496,10 +1504,8 @@ pub mod test {
         let mut connection = SqliteConnection::establish(":memory:").unwrap();
         connection.run_pending_migrations(MIGRATIONS).unwrap();
 
-        let user_channel_id = "219fede5479a69d8fc42693ecb8cea67098531087c421b4421d96e2f5acd7de3";
         let channel = ln_dlc_node::channel::Channel {
-            id: None,
-            user_channel_id: user_channel_id.to_string(),
+            user_channel_id: UserChannelId::new(),
             channel_id: None,
             capacity: 0,
             balance: 0,
@@ -1518,7 +1524,7 @@ pub mod test {
 
         // Verify that we can load the right channel by the `user_channel_id`
         let mut loaded: ln_dlc_node::channel::Channel =
-            Channel::get(user_channel_id, &mut connection)
+            Channel::get(&channel.user_channel_id.to_string(), &mut connection)
                 .unwrap()
                 .into();
         assert_eq!(channel, loaded);
@@ -1530,7 +1536,10 @@ pub mod test {
         // Verify that we can update the channel by `user_channel_id`
         loaded.channel_state = ln_dlc_node::channel::ChannelState::Open;
         loaded.updated_at = OffsetDateTime::now_utc();
-        loaded.funding_txid = Some("testtxid".to_string());
+        loaded.funding_txid = Some(
+            Txid::from_str("44fe3d70a3058eb1bef62e24379b4865ada8332f9ee30752cf606f37343461a0")
+                .unwrap(),
+        );
         Channel::upsert(loaded.into(), &mut connection).unwrap();
 
         let channels = Channel::get_all(&mut connection).unwrap();

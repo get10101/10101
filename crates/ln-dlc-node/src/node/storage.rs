@@ -186,7 +186,7 @@ impl Storage for InMemoryStore {
     // Channels
 
     fn upsert_channel(&self, channel: Channel) -> Result<()> {
-        let user_channel_id = channel.clone().user_channel_id;
+        let user_channel_id = channel.user_channel_id.to_string();
         self.channels_lock().insert(user_channel_id, channel);
         Ok(())
     }

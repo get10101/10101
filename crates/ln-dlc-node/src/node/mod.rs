@@ -76,7 +76,6 @@ use ::dlc_manager::subchannel::LNChannelManager;
 pub use channel_manager::ChannelManager;
 pub use dlc_channel::dlc_message_name;
 pub use dlc_channel::sub_channel_message_name;
-use hex::FromHex;
 pub use invoice::HTLCStatus;
 use lightning::routing::scoring::ProbabilisticScorer;
 pub use storage::InMemoryStore;
@@ -469,19 +468,9 @@ where
                     };
 
                     if let Some(channel_id) = &channel.channel_id {
-                        let channel_id = match ChannelId::from_hex(channel_id) {
-                            Ok(channel_id) => channel_id,
-                            Err(e) => {
-                                tracing::error!(
-                                    "Failed to parse channel id from hex string {}. Error: {e:#}",
-                                    hex::encode(channel_id)
-                                );
-                                continue;
-                            }
-                        };
-                        match channel_manager.get_channel_details(&channel_id) {
+                        match channel_manager.get_channel_details(channel_id) {
                             Some(channel_details) => {
-                                channel.capacity = channel_details.balance_msat as i64;
+                                channel.capacity = channel_details.balance_msat;
                             }
                             None => {
                                 tracing::error!("Couldn't find channel details");
@@ -494,10 +483,7 @@ where
                         channel.costs = transaction_details.fee.unwrap_or_default();
                         channel.updated_at = OffsetDateTime::now_utc();
                         if let Err(e) = node_storage.upsert_channel(channel.clone()) {
-                            tracing::error!(
-                                "Failed to update channel with user channel id: {}. Error: {e:#}",
-                                channel.user_channel_id
-                            );
+                            tracing::error!(%channel,"Failed to update channel. Error: {e:#}");
                         }
                     } else {
                         tracing::warn!("Did not find the transaction details for the funding transaction {funding_txid}. This might be ok!")

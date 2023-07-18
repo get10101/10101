@@ -1,4 +1,5 @@
 use crate::channel::Channel;
+use crate::channel::UserChannelId;
 use crate::dlc_custom_signer::CustomKeysManager;
 use crate::fee_rate_estimator::FeeRateEstimator;
 use crate::ln::CONFIRMATION_TARGET;
@@ -484,8 +485,9 @@ where
                 ..
             } => {
                 block_in_place(|| {
+                    let user_channel_id = UserChannelId::from(user_channel_id).to_string();
                     tracing::info!(
-                        user_channel_id = Channel::parse_user_channel_id(user_channel_id),
+                        user_channel_id,
                         channel_id = %hex::encode(channel_id),
                         counterparty = %counterparty_node_id.to_string(),
                         "Channel ready"
@@ -498,9 +500,7 @@ where
                             hex::encode(channel_id)
                         ))?;
 
-                    let channel = self
-                        .storage
-                        .get_channel(&Channel::parse_user_channel_id(user_channel_id))?;
+                    let channel = self.storage.get_channel(&user_channel_id)?;
                     let channel = Channel::open_channel(channel, channel_details)?;
                     self.storage.upsert_channel(channel)?;
 
@@ -695,12 +695,8 @@ where
                 // `max_inbound_htlc_value_in_flight_percent_of_channel`
                 // configuration value
 
-                let new_channel =
-                    Channel::new(channel_value as i64, channel_value as i64, target_node_id);
-                tracing::debug!(
-                    user_channel_id = %new_channel.user_channel_id,
-                    "Creating shadow channel with user_channel_id"
-                );
+                let new_channel = Channel::new(channel_value, channel_value, target_node_id);
+                tracing::debug!(%new_channel, "Creating shadow channel");
                 if let Err(err) = self.storage.upsert_channel(new_channel.clone()) {
                     tracing::error!(%intercepted_id, "Failed to insert channel to database. Error: {err:#}");
                     if let Err(err) = self.channel_manager.fail_intercepted_htlc(intercept_id) {
@@ -713,7 +709,7 @@ where
                     target_node_id,
                     channel_value,
                     0,
-                    new_channel.get_user_channel_id_as_u128(),
+                    new_channel.user_channel_id.to_u128(),
                     Some(channel_config),
                 ) {
                     Ok(temp_channel_id) => temp_channel_id,

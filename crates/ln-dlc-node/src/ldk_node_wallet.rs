@@ -23,7 +23,6 @@ use lightning::chain::chaininterface::BroadcasterInterface;
 use lightning::chain::chaininterface::ConfirmationTarget;
 use parking_lot::Mutex;
 use parking_lot::MutexGuard;
-use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Instant;
 use tokio::sync::RwLock;
@@ -266,10 +265,9 @@ where
     }
 
     #[autometrics]
-    pub fn get_transaction(&self, txid: &str) -> Result<Option<TransactionDetails>> {
-        let txid = Txid::from_str(txid)?;
+    pub fn get_transaction(&self, txid: &Txid) -> Result<Option<TransactionDetails>> {
         let wallet_lock = self.bdk_lock();
-        let transaction_details = wallet_lock.get_tx(&txid, false)?;
+        let transaction_details = wallet_lock.get_tx(txid, false)?;
         Ok(transaction_details)
     }
 }
