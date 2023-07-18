@@ -27,7 +27,18 @@ pub enum ServiceStatus {
     Offline,
 }
 
-pub type ServiceUpdate = (Service, ServiceStatus);
+#[derive(Debug, Clone)]
+pub struct ServiceUpdate {
+    pub service: Service,
+    pub status: ServiceStatus,
+}
+
+impl From<(Service, ServiceStatus)> for ServiceUpdate {
+    fn from(tuple: (Service, ServiceStatus)) -> Self {
+        let (service, status) = tuple;
+        ServiceUpdate { service, status }
+    }
+}
 
 /// Senders for the health status updates.
 ///
@@ -87,14 +98,15 @@ async fn publish_status_updates(service: Service, mut rx: watch::Receiver<Servic
         match rx.changed().await {
             Ok(()) => {
                 let status = rx.borrow();
-                event::publish(&EventInternal::ServiceHealthUpdate((service, *status)));
+                event::publish(&EventInternal::ServiceHealthUpdate(
+                    (service, *status).into(),
+                ));
             }
             Err(_) => {
                 tracing::error!("Sender dropped");
-                event::publish(&EventInternal::ServiceHealthUpdate((
-                    service,
-                    ServiceStatus::Unknown,
-                )));
+                event::publish(&EventInternal::ServiceHealthUpdate(
+                    (service, ServiceStatus::Unknown).into(),
+                ));
                 break;
             }
         }
