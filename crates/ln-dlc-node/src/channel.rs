@@ -144,16 +144,14 @@ impl Channel {
         let mut channel = match channel {
             Some(channel) => channel,
             None => {
-                if channel_details.is_outbound {
-                    bail!("Could not find shadow channel");
-                } else {
-                    tracing::info!("Creating a new shadow channel for inbound channel.");
-                    Channel::new(
-                        (channel_details.inbound_capacity_msat / 1000) as i64,
-                        0,
-                        channel_details.counterparty.node_id,
-                    )
-                }
+                let user_channel_id =
+                    UserChannelId::from(channel_details.user_channel_id).to_string();
+                tracing::warn!(%user_channel_id, channel_id = %channel_details.channel_id.to_hex(), public = channel_details.is_public, outbound = channel_details.is_outbound, "Creating a new shadow channel");
+                Channel::new(
+                    channel_details.inbound_capacity_msat / 1000,
+                    0,
+                    channel_details.counterparty.node_id,
+                )
             }
         };
 
