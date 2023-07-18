@@ -139,6 +139,8 @@ pub struct LnDlcNodeSettings {
     pub dlc_manager_periodic_check_interval: Duration,
     /// How often we run the [`SubChannelManager`]'s periodic check.
     pub sub_channel_manager_periodic_check_interval: Duration,
+    /// How often we sync the channel state to our shadow channel
+    pub shadow_channel_sync_interval: Duration,
 
     /// Amount (in millionths of a satoshi) charged per satoshi for payments forwarded outbound
     /// over a channel.
@@ -164,6 +166,7 @@ impl Default for LnDlcNodeSettings {
             dlc_manager_periodic_check_interval: Duration::from_secs(30),
             sub_channel_manager_periodic_check_interval: Duration::from_secs(30),
             forwarding_fee_proportional_millionths: 50,
+            shadow_channel_sync_interval: Duration::from_secs(300),
             bdk_client_stop_gap: 20,
             bdk_client_concurrency: 4,
         }
@@ -411,8 +414,6 @@ where
             let handle = tokio::runtime::Handle::current();
             let settings = settings.clone();
             let ln_dlc_wallet = ln_dlc_wallet.clone();
-            let node_storage = node_storage.clone();
-            let channel_manager = channel_manager.clone();
             move || loop {
                 if let Err(e) = ln_dlc_wallet.inner().sync() {
                     tracing::error!("Failed on-chain sync: {e:#}");
@@ -427,6 +428,17 @@ where
                     guard.on_chain_sync_interval
                 });
 
+                std::thread::sleep(interval);
+            }
+        });
+
+        std::thread::spawn({
+            let handle = tokio::runtime::Handle::current();
+            let settings = settings.clone();
+            let node_storage = node_storage.clone();
+            let channel_manager = channel_manager.clone();
+            let ln_dlc_wallet = ln_dlc_wallet.clone();
+            move || loop {
                 let channels = match node_storage.all_non_pending_channels() {
                     Ok(channels) => channels,
                     Err(e) => {
@@ -442,8 +454,8 @@ where
 
                 for mut channel in channels.into_iter() {
                     let funding_txid = channel.funding_txid.as_ref().expect(
-                        "All channels without costs must always have a funding transactions attached",
-                    );
+                            "All channels without costs must always have a funding transactions attached",
+                        );
 
                     let transaction_details = match ln_dlc_wallet
                         .inner()
@@ -491,6 +503,11 @@ where
                         tracing::warn!("Did not find the transaction details for the funding transaction {funding_txid}. This might be ok!")
                     }
                 }
+
+                let interval = handle.block_on(async {
+                    let guard = settings.read().await;
+                    guard.shadow_channel_sync_interval
+                });
 
                 std::thread::sleep(interval);
             }

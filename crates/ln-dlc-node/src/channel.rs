@@ -23,26 +23,26 @@ pub enum ChannelState {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Channel {
     pub id: Option<i32>,
-    // The `user_channel_id` is set by 10101 at the time the `Event::HTLCIntercepted` when
-    // we are attempting to create a JIT channel.
+    /// The `user_channel_id` is set by 10101 at the time the `Event::HTLCIntercepted` when
+    /// we are attempting to create a JIT channel.
     pub user_channel_id: String,
-    // Until the `Event::ChannelReady` we do not have a `channel_id`, which is derived from
-    // the funding transaction. We use the `user_channel_id` as identifier over the entirety
-    // of the channel lifecycle.
+    /// Until the `Event::ChannelReady` we do not have a `channel_id`, which is derived from
+    /// the funding transaction. We use the `user_channel_id` as identifier over the entirety
+    /// of the channel lifecycle.
     pub channel_id: Option<String>,
     pub capacity: i64,
     pub balance: i64,
-    // Set at the `Event::ChannelReady`
+    /// Set at the `Event::ChannelReady`
     pub funding_txid: Option<String>,
     pub channel_state: ChannelState,
-    // The counter party of the channel.
+    /// The counter party of the channel.
     pub counterparty: PublicKey,
     pub created_at: OffsetDateTime,
     pub updated_at: OffsetDateTime,
-    // This data will be updated once the fee information is available. Please note, that
-    // this costs is not a source of truth and may not reflect the latest data. It is
-    // eventually implied from the on-chain fees of the channel transactions attached to
-    // this model.
+    /// This data will be updated once the fee information is available. Please note, that
+    /// this costs is not a source of truth and may not reflect the latest data. It is
+    /// eventually implied from the on-chain fees of the channel transactions attached to
+    /// this model.
     pub costs: u64,
 }
 

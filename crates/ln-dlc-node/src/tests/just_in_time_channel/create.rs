@@ -32,6 +32,7 @@ async fn open_jit_channel() {
     // before the costs for the funding transaction will be attached to the shadow channel.
     let settings = LnDlcNodeSettings {
         on_chain_sync_interval: Duration::from_secs(3),
+        shadow_channel_sync_interval: Duration::from_secs(3),
         ..LnDlcNodeSettings::default()
     };
     let coordinator =
@@ -73,7 +74,7 @@ async fn open_jit_channel() {
     let user_channel_id = Uuid::from_u128(channel_details.user_channel_id).to_string();
 
     // Wait for costs getting attached to the shadow channel.
-    tokio::time::sleep(Duration::from_secs(5)).await;
+    tokio::time::sleep(Duration::from_secs(6)).await;
 
     let channel = storage.get_channel(&user_channel_id).unwrap().unwrap();
     assert_eq!(ChannelState::Open, channel.channel_state);
