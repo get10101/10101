@@ -994,8 +994,8 @@ pub enum ChannelState {
 pub struct Channel {
     pub user_channel_id: String,
     pub channel_id: Option<String>,
-    pub capacity: i64,
-    pub balance: i64,
+    pub inbound: i64,
+    pub outbound: i64,
     pub funding_txid: Option<String>,
     pub channel_state: ChannelState,
     pub counterparty_pubkey: String,
@@ -1044,8 +1044,8 @@ impl From<ln_dlc_node::channel::Channel> for Channel {
         Channel {
             user_channel_id: value.user_channel_id.to_string(),
             channel_id: value.channel_id.map(|cid| cid.to_hex()),
-            capacity: value.capacity as i64,
-            balance: value.balance as i64,
+            inbound: value.inbound as i64,
+            outbound: value.outbound as i64,
             funding_txid: value.funding_txid.map(|txid| txid.to_string()),
             channel_state: value.channel_state.into(),
             counterparty_pubkey: value.counterparty.to_string(),
@@ -1078,8 +1078,8 @@ impl From<Channel> for ln_dlc_node::channel::Channel {
             channel_id: value
                 .channel_id
                 .map(|cid| ChannelId::from_hex(&cid).expect("valid channel id")),
-            capacity: value.capacity as u64,
-            balance: value.balance as u64,
+            inbound: value.inbound as u64,
+            outbound: value.outbound as u64,
             funding_txid: value
                 .funding_txid
                 .map(|txid| Txid::from_str(&txid).expect("valid transaction id")),
@@ -1507,8 +1507,8 @@ pub mod test {
         let channel = ln_dlc_node::channel::Channel {
             user_channel_id: UserChannelId::new(),
             channel_id: None,
-            capacity: 0,
-            balance: 0,
+            inbound: 0,
+            outbound: 0,
             funding_txid: None,
             channel_state: ln_dlc_node::channel::ChannelState::Pending,
             counterparty: PublicKey::from_str(

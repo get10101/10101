@@ -470,7 +470,8 @@ where
                     if let Some(channel_id) = &channel.channel_id {
                         match channel_manager.get_channel_details(channel_id) {
                             Some(channel_details) => {
-                                channel.capacity = channel_details.balance_msat;
+                                channel.inbound = channel_details.inbound_capacity_msat / 1000;
+                                channel.outbound = channel_details.outbound_capacity_msat / 1000;
                             }
                             None => {
                                 tracing::error!("Couldn't find channel details");

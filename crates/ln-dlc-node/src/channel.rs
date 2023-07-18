@@ -87,8 +87,8 @@ pub struct Channel {
     /// the funding transaction. We use the `user_channel_id` as identifier over the entirety
     /// of the channel lifecycle.
     pub channel_id: Option<ChannelId>,
-    pub capacity: u64,
-    pub balance: u64,
+    pub inbound: u64,
+    pub outbound: u64,
     /// Set at the `Event::ChannelReady`
     pub funding_txid: Option<Txid>,
     pub channel_state: ChannelState,
@@ -104,12 +104,12 @@ pub struct Channel {
 }
 
 impl Channel {
-    pub fn new(capacity: u64, balance: u64, counterparty: PublicKey) -> Self {
+    pub fn new(inbound: u64, outbound: u64, counterparty: PublicKey) -> Self {
         Channel {
             user_channel_id: UserChannelId::new(),
             channel_state: ChannelState::Pending,
-            capacity,
-            balance,
+            inbound,
+            outbound,
             counterparty,
             created_at: OffsetDateTime::now_utc(),
             updated_at: OffsetDateTime::now_utc(),

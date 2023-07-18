@@ -695,7 +695,7 @@ where
                 // `max_inbound_htlc_value_in_flight_percent_of_channel`
                 // configuration value
 
-                let new_channel = Channel::new(channel_value, channel_value, target_node_id);
+                let new_channel = Channel::new(0, channel_value, target_node_id);
                 tracing::debug!(%new_channel, "Creating shadow channel");
                 if let Err(err) = self.storage.upsert_channel(new_channel.clone()) {
                     tracing::error!(%intercepted_id, "Failed to insert channel to database. Error: {err:#}");

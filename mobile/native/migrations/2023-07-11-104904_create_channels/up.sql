@@ -2,8 +2,8 @@
 CREATE TABLE "channels" (
     user_channel_id TEXT PRIMARY KEY NOT NULL,
     channel_id TEXT UNIQUE,
-    capacity BIGINT NOT NULL,
-    balance BIGINT NOT NULL,
+    inbound BIGINT NOT NULL,
+    outbound BIGINT NOT NULL,
     funding_txid TEXT,
     channel_state TEXT NOT NULL,
     counterparty_pubkey TEXT NOT NULL,

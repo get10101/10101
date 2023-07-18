@@ -9,8 +9,8 @@ CREATE TYPE "ChannelState_Type" AS ENUM (
 CREATE TABLE "channels" (
     user_channel_id TEXT PRIMARY KEY,
     channel_id TEXT UNIQUE,
-    capacity BIGINT NOT NULL,
-    balance BIGINT NOT NULL,
+    inbound BIGINT NOT NULL,
+    outbound BIGINT NOT NULL,
     funding_txid TEXT,
     channel_state "ChannelState_Type" NOT NULL,
     counterparty_pubkey TEXT NOT NULL,

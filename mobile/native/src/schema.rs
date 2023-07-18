@@ -4,8 +4,8 @@ diesel::table! {
     channels (user_channel_id) {
         user_channel_id -> Text,
         channel_id -> Nullable<Text>,
-        capacity -> BigInt,
-        balance -> BigInt,
+        inbound -> BigInt,
+        outbound -> BigInt,
         funding_txid -> Nullable<Text>,
         channel_state -> Text,
         counterparty_pubkey -> Text,
