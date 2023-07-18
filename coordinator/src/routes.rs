@@ -115,6 +115,7 @@ pub fn router(
         )
         .route("/api/admin/sync", post(post_sync))
         .route("/metrics", get(get_metrics))
+        .route("/health", get(get_health))
         .with_state(app_state)
 }
 
@@ -380,4 +381,10 @@ pub async fn get_metrics(State(state): State<Arc<AppState>>) -> impl IntoRespons
     };
 
     (StatusCode::OK, open_telemetry_metrics + &autometrics)
+}
+
+pub async fn get_health() -> Result<Json<String>, AppError> {
+    // TODO: Implement any health check logic we'd need
+    // So far this just returns if the server is running
+    Ok(Json("Server is healthy".to_string()))
 }
