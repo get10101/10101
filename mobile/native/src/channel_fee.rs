@@ -69,13 +69,17 @@ impl ChannelFeePaymentSubscriber {
 
         tracing::debug!("Trying to pay channel opening fees of {}", transaction.fee);
         let funding_tx_fees_msats = (transaction.fee * 1000) as u64;
+        let funding_txid = transaction.txid;
 
         if funding_tx_fees_msats > amount_msats {
             tracing::warn!("Trying to pay fees with an amount smaller than the fees!")
         }
 
         let invoice_str = tokio::task::block_in_place(|| {
-            Handle::current().block_on(fetch_funding_transaction_fee_invoice(transaction.fee))
+            Handle::current().block_on(fetch_funding_transaction_fee_invoice(
+                transaction.fee,
+                funding_txid,
+            ))
         })?;
 
         let invoice = Invoice::from_str(&invoice_str).context("Could not parse Invoice string")?;
@@ -142,12 +146,16 @@ async fn fetch_funding_transaction(txid: Txid) -> Result<EsploraTransaction> {
         .map_err(|e| anyhow!("Failed to fetch transaction: {txid} from esplora. Error: {e:?}"))
 }
 
-async fn fetch_funding_transaction_fee_invoice(funding_tx_fee: u32) -> Result<String> {
+async fn fetch_funding_transaction_fee_invoice(
+    funding_tx_fee: u32,
+    funding_txid: String,
+) -> Result<String> {
     reqwest_client()
         .get(format!(
-            "http://{}/api/invoice?amount={}",
+            "http://{}/api/invoice/open_channel_fee?amount={}?txid={}",
             config::get_http_endpoint(),
-            funding_tx_fee
+            funding_tx_fee,
+            funding_txid.as_str()
         ))
         .send()
         .await?
