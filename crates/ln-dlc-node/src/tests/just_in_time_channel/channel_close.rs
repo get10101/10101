@@ -35,10 +35,10 @@ async fn ln_collab_close() {
 
     assert_eq!(payee.get_on_chain_balance().unwrap().confirmed, 0);
     assert_eq!(
-        payee.get_ldk_balance().available,
+        payee.get_ldk_balance().available(),
         payer_to_payee_invoice_amount
     );
-    assert_eq!(payee.get_ldk_balance().pending_close, 0);
+    assert_eq!(payee.get_ldk_balance().pending_close(), 0);
 
     // Act
 
@@ -71,8 +71,8 @@ async fn ln_collab_close() {
     // Assert
 
     let ln_balance = payee.get_ldk_balance();
-    assert_eq!(ln_balance.available, 0);
-    assert_eq!(ln_balance.pending_close, 0);
+    assert_eq!(ln_balance.available(), 0);
+    assert_eq!(ln_balance.pending_close(), 0);
 
     assert_eq!(
         payee.get_on_chain_balance().unwrap().confirmed,
@@ -110,10 +110,10 @@ async fn ln_force_close() {
 
     assert_eq!(payee.get_on_chain_balance().unwrap().confirmed, 0);
     assert_eq!(
-        payee.get_ldk_balance().available,
+        payee.get_ldk_balance().available(),
         payer_to_payee_invoice_amount
     );
-    assert_eq!(payee.get_ldk_balance().pending_close, 0);
+    assert_eq!(payee.get_ldk_balance().pending_close(), 0);
 
     // Act
 
@@ -131,22 +131,20 @@ async fn ln_force_close() {
     payee.sync_on_chain().await.unwrap();
 
     assert_eq!(payee.get_on_chain_balance().unwrap().confirmed, 0);
-    assert_eq!(payee.get_ldk_balance().available, 0);
+    assert_eq!(payee.get_ldk_balance().available(), 0);
     assert_eq!(
-        payee.get_ldk_balance().pending_close,
+        payee.get_ldk_balance().pending_close(),
         payer_to_payee_invoice_amount
     );
 
     // Mine enough blocks so that the payee's revocable output in the commitment transaction
     // is spendable
-    bitcoind::mine(
-        coordinator
-            .user_config
-            .channel_handshake_config
-            .our_to_self_delay,
-    )
-    .await
-    .unwrap();
+    let our_to_self_delay = coordinator
+        .channel_config
+        .read()
+        .channel_handshake_config
+        .our_to_self_delay;
+    bitcoind::mine(our_to_self_delay).await.unwrap();
 
     // Syncing the payee's wallet should now trigger a `SpendableOutputs` event
     // corresponding to their revocable output in the commitment transaction, which they
@@ -161,8 +159,8 @@ async fn ln_force_close() {
     // Assert
 
     let ln_balance = payee.get_ldk_balance();
-    assert_eq!(ln_balance.available, 0);
-    assert_eq!(ln_balance.pending_close, 0);
+    assert_eq!(ln_balance.available(), 0);
+    assert_eq!(ln_balance.pending_close(), 0);
 
     let payee_txs = payee.get_on_chain_history().await.unwrap();
 

@@ -47,6 +47,7 @@ pub use ln::LIQUIDITY_MULTIPLIER;
 mod tests;
 
 pub use ldk_node_wallet::WalletSettings;
+pub use ln::coordinator_config as ldk_coordinator_config;
 pub use ln::ChannelDetails;
 pub use ln::DlcChannelDetails;
 pub use node::invoice::HTLCStatus;

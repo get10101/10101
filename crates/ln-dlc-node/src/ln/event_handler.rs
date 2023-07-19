@@ -1,6 +1,5 @@
 use crate::dlc_custom_signer::CustomKeysManager;
 use crate::fee_rate_estimator::FeeRateEstimator;
-use crate::ln::coordinator_config;
 use crate::ln::CONFIRMATION_TARGET;
 use crate::ln::HTLC_INTERCEPTED_CONNECTION_TIMEOUT;
 use crate::ln::JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT_MAX;
@@ -30,6 +29,7 @@ use lightning::chain::chaininterface::FeeEstimator;
 use lightning::chain::keysinterface::SpendableOutputDescriptor;
 use lightning::ln::channelmanager::InterceptId;
 use lightning::routing::gossip::NodeId;
+use lightning::util::config::UserConfig;
 use lightning::util::events::Event;
 use lightning::util::events::PaymentPurpose;
 use rand::thread_rng;
@@ -53,13 +53,14 @@ pub struct EventHandler<S> {
     peer_manager: Arc<PeerManager>,
     fee_rate_estimator: Arc<FeeRateEstimator>,
     event_sender: Option<watch::Sender<Option<Event>>>,
+    channel_config: Arc<parking_lot::RwLock<UserConfig>>,
 }
 
-#[allow(clippy::too_many_arguments)]
 impl<S> EventHandler<S>
 where
     S: Storage,
 {
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         channel_manager: Arc<ChannelManager>,
         wallet: Arc<LnDlcWallet>,
@@ -71,6 +72,7 @@ where
         peer_manager: Arc<PeerManager>,
         fee_rate_estimator: Arc<FeeRateEstimator>,
         event_sender: Option<watch::Sender<Option<Event>>>,
+        channel_config: Arc<parking_lot::RwLock<UserConfig>>,
     ) -> Self {
         Self {
             channel_manager,
@@ -83,6 +85,7 @@ where
             peer_manager,
             fee_rate_estimator,
             event_sender,
+            channel_config,
         }
     }
 
@@ -440,7 +443,7 @@ where
                 tracing::info!(
                     %channel,
                     ?reason,
-                    "\nChannel closed",
+                    "Channel closed",
                 );
             }
             Event::DiscardFunding {
@@ -643,14 +646,14 @@ where
                     return Ok(());
                 }
 
-                let mut user_config = coordinator_config();
+                let mut channel_config = *self.channel_config.read();
                 // We are overwriting the coordinators channel handshake configuration to prevent
                 // the just-in-time-channel from being announced (private). This is required as both
                 // parties need to agree on this configuration. For other channels, like with the
                 // channel to an external node we want this channel to be announced (public).
                 // NOTE: we want private channels with the mobile app, as this will allow us to make
                 // use of 0-conf channels.
-                user_config.channel_handshake_config.announced_channel = false;
+                channel_config.channel_handshake_config.announced_channel = false;
 
                 // NOTE: We actually might want to override the `UserConfig`
                 // for this just-in-time channel so that the
@@ -663,7 +666,7 @@ where
                     channel_value,
                     0,
                     0,
-                    Some(user_config),
+                    Some(channel_config),
                 ) {
                     Ok(temp_channel_id) => temp_channel_id,
                     Err(err) => {

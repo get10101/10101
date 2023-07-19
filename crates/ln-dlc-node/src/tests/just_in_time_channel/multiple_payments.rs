@@ -21,7 +21,7 @@ async fn just_in_time_channel_with_multiple_payments() {
     let expected_coordinator_payee_channel_value =
         setup_coordinator_payer_channel(payer_to_payee_invoice_amount, &coordinator, &payer).await;
 
-    // this creates the just in time channel between the coordinator and user_b
+    // this creates the just in time channel between the coordinator and payee
     send_interceptable_payment(
         &payer,
         &payee,
