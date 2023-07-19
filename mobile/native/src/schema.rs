@@ -1,6 +1,20 @@
 // @generated automatically by Diesel CLI.
 
 diesel::table! {
+    channels (user_channel_id) {
+        user_channel_id -> Text,
+        channel_id -> Nullable<Text>,
+        inbound -> BigInt,
+        outbound -> BigInt,
+        funding_txid -> Nullable<Text>,
+        channel_state -> Text,
+        counterparty_pubkey -> Text,
+        created_at -> BigInt,
+        updated_at -> BigInt,
+    }
+}
+
+diesel::table! {
     last_login (id) {
         id -> Nullable<Integer>,
         date -> Text,
@@ -62,10 +76,21 @@ diesel::table! {
     }
 }
 
+diesel::table! {
+    transactions (txid) {
+        txid -> Text,
+        fee -> BigInt,
+        created_at -> BigInt,
+        updated_at -> BigInt,
+    }
+}
+
 diesel::allow_tables_to_appear_in_same_query!(
+    channels,
     last_login,
     orders,
     payments,
     positions,
     spendable_outputs,
+    transactions,
 );

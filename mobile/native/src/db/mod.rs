@@ -1,5 +1,6 @@
 use crate::api;
 use crate::db::models::base64_engine;
+use crate::db::models::Channel;
 use crate::db::models::Order;
 use crate::db::models::OrderState;
 use crate::db::models::PaymentInsertable;
@@ -7,6 +8,7 @@ use crate::db::models::PaymentQueryable;
 use crate::db::models::Position;
 use crate::db::models::SpendableOutputInsertable;
 use crate::db::models::SpendableOutputQueryable;
+use crate::db::models::Transaction;
 use crate::trade;
 use anyhow::anyhow;
 use anyhow::bail;
@@ -248,7 +250,7 @@ pub fn insert_payment(
     payment_hash: lightning::ln::PaymentHash,
     info: ln_dlc_node::PaymentInfo,
 ) -> Result<()> {
-    tracing::info!(?payment_hash, "Inserting payment");
+    tracing::debug!(?payment_hash, "Inserting payment");
 
     let mut db = connection()?;
 
@@ -288,7 +290,7 @@ pub fn update_payment(
 pub fn get_payment(
     payment_hash: lightning::ln::PaymentHash,
 ) -> Result<Option<(lightning::ln::PaymentHash, ln_dlc_node::PaymentInfo)>> {
-    tracing::info!(?payment_hash, "Getting payment");
+    tracing::debug!(?payment_hash, "Getting payment");
 
     let mut db = connection()?;
 
@@ -308,7 +310,7 @@ pub fn get_payments() -> Result<Vec<(lightning::ln::PaymentHash, ln_dlc_node::Pa
 
     let payment_hashes = payments.iter().map(|(a, _)| a).collect::<Vec<_>>();
 
-    tracing::info!(?payment_hashes, "Got all payments");
+    tracing::debug!(?payment_hashes, "Got all payments");
 
     Ok(payments)
 }
@@ -317,7 +319,7 @@ pub fn insert_spendable_output(
     outpoint: lightning::chain::transaction::OutPoint,
     descriptor: lightning::chain::keysinterface::SpendableOutputDescriptor,
 ) -> Result<()> {
-    tracing::info!(?descriptor, "Inserting spendable output");
+    tracing::debug!(?descriptor, "Inserting spendable output");
 
     let mut db = connection()?;
     SpendableOutputInsertable::insert((outpoint, descriptor).into(), &mut db)?;
@@ -328,7 +330,7 @@ pub fn insert_spendable_output(
 pub fn get_spendable_output(
     outpoint: lightning::chain::transaction::OutPoint,
 ) -> Result<Option<lightning::chain::keysinterface::SpendableOutputDescriptor>> {
-    tracing::info!(?outpoint, "Getting spendable output");
+    tracing::debug!(?outpoint, "Getting spendable output");
 
     let mut db = connection()?;
 
@@ -347,7 +349,70 @@ pub fn get_spendable_outputs(
         .map(|output| output.try_into())
         .collect::<Result<Vec<_>>>()?;
 
-    tracing::info!(?outputs, "Got all spendable outputs");
+    tracing::debug!(?outputs, "Got all spendable outputs");
 
     Ok(outputs)
+}
+
+pub fn upsert_channel(channel: ln_dlc_node::channel::Channel) -> Result<()> {
+    tracing::debug!(?channel, "Inserting channel");
+    let mut db = connection()?;
+    Channel::upsert(channel.into(), &mut db)
+}
+
+pub fn get_channel(user_channel_id: &str) -> Result<Option<ln_dlc_node::channel::Channel>> {
+    tracing::debug!(%user_channel_id, "Getting channel");
+
+    let mut db = connection()?;
+
+    let channel = Channel::get(user_channel_id, &mut db)
+        .map_err(|e| anyhow!("{e:#}"))?
+        .map(|c| c.into());
+
+    Ok(channel)
+}
+
+pub fn get_all_non_pending_channels() -> Result<Vec<ln_dlc_node::channel::Channel>> {
+    tracing::debug!("Getting all non-pending channels");
+
+    let mut db = connection()?;
+
+    let channels = Channel::get_all_non_pending_channels(&mut db)?
+        .into_iter()
+        .map(|c| c.into())
+        .collect::<Vec<_>>();
+
+    tracing::debug!(?channels, "Got all non-pending channels");
+
+    Ok(channels)
+}
+
+// Transaction
+
+pub fn upsert_transaction(transaction: ln_dlc_node::transaction::Transaction) -> Result<()> {
+    tracing::debug!(?transaction, "Upserting transaction");
+    let mut db = connection()?;
+    Transaction::upsert(transaction.into(), &mut db)
+}
+
+pub fn get_transaction(txid: &str) -> Result<Option<ln_dlc_node::transaction::Transaction>> {
+    tracing::debug!(%txid, "Getting transaction");
+    let mut db = connection()?;
+    let transaction = Transaction::get(txid, &mut db)
+        .map_err(|e| anyhow!("{e:#}"))?
+        .map(|t| t.into());
+
+    Ok(transaction)
+}
+
+pub fn get_all_transactions_without_fees() -> Result<Vec<ln_dlc_node::transaction::Transaction>> {
+    let mut db = connection()?;
+    let transactions = Transaction::get_all_without_fees(&mut db)?
+        .into_iter()
+        .map(|t| t.into())
+        .collect::<Vec<_>>();
+
+    tracing::debug!(?transactions, "Got all transactions");
+
+    Ok(transactions)
 }

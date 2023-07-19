@@ -97,7 +97,7 @@ async fn main() -> Result<()> {
         "10101.finance",
         network,
         data_dir.as_path(),
-        NodeStorage::new(pool.clone()),
+        Arc::new(NodeStorage::new(pool.clone())),
         address,
         SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), address.port()),
         opts.p2p_announcement_addresses(),

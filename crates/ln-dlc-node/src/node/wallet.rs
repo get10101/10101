@@ -128,10 +128,9 @@ where
         }
     }
 
-    pub async fn get_on_chain_history(&self) -> Result<Vec<bdk::TransactionDetails>> {
+    pub fn get_on_chain_history(&self) -> Result<Vec<bdk::TransactionDetails>> {
         self.wallet
             .on_chain_transactions()
-            .await
             .context("Failed to retrieve on-chain transaction history")
     }
 

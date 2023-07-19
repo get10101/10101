@@ -138,11 +138,14 @@ pub async fn list_dlc_channels(
 pub async fn list_on_chain_transactions(
     State(state): State<Arc<AppState>>,
 ) -> Result<Json<Vec<TransactionDetails>>, AppError> {
-    let transactions = state.node.inner.get_on_chain_history().await.map_err(|e| {
-        AppError::InternalServerError(format!("Failed to list transactions: {e:#}"))
-    })?;
-
-    Ok(Json(transactions))
+    spawn_blocking(move || {
+        let transactions = state.node.inner.get_on_chain_history().map_err(|e| {
+            AppError::InternalServerError(format!("Failed to list transactions: {e:#}"))
+        })?;
+        Ok(Json(transactions))
+    })
+    .await
+    .map_err(|e| AppError::InternalServerError(format!("Failed to list transactions: {e:#}")))?
 }
 
 pub async fn list_peers(State(state): State<Arc<AppState>>) -> Json<Vec<PublicKey>> {

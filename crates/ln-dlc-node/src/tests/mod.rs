@@ -42,6 +42,7 @@ use std::net::TcpListener;
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::string::ToString;
+use std::sync::Arc;
 use std::sync::Once;
 use std::time::Duration;
 use tokio::task::block_in_place;
@@ -91,10 +92,24 @@ impl Node<InMemoryStore> {
                 endpoint: ORACLE_ORIGIN.to_string(),
                 public_key: XOnlyPublicKey::from_str(ORACLE_PUBKEY)?,
             },
+            Arc::new(InMemoryStore::default()),
+            LnDlcNodeSettings::default(),
         )
     }
 
     fn start_test_coordinator(name: &str) -> Result<Self> {
+        Self::start_test_coordinator_internal(
+            name,
+            Arc::new(InMemoryStore::default()),
+            LnDlcNodeSettings::default(),
+        )
+    }
+
+    fn start_test_coordinator_internal(
+        name: &str,
+        storage: Arc<InMemoryStore>,
+        settings: LnDlcNodeSettings,
+    ) -> Result<Self> {
         Self::start_test(
             name,
             coordinator_config(),
@@ -103,6 +118,8 @@ impl Node<InMemoryStore> {
                 endpoint: ORACLE_ORIGIN.to_string(),
                 public_key: XOnlyPublicKey::from_str(ORACLE_PUBKEY)?,
             },
+            storage,
+            settings,
         )
     }
 
@@ -111,6 +128,8 @@ impl Node<InMemoryStore> {
         channel_config: UserConfig,
         esplora_origin: String,
         oracle: OracleInfo,
+        storage: Arc<InMemoryStore>,
+        settings: LnDlcNodeSettings,
     ) -> Result<Self> {
         let data_dir = random_tmp_dir().join(name);
 
@@ -128,7 +147,7 @@ impl Node<InMemoryStore> {
             name,
             Network::Regtest,
             data_dir.as_path(),
-            InMemoryStore::default(),
+            storage,
             address,
             address,
             vec![util::build_net_address(address.ip(), address.port())],
@@ -136,7 +155,7 @@ impl Node<InMemoryStore> {
             seed,
             ephemeral_randomness,
             channel_config,
-            LnDlcNodeSettings::default(),
+            settings,
             oracle.into(),
             None,
             disk::in_memory_scorer,

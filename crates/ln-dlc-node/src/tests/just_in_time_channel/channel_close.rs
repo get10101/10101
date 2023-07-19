@@ -162,7 +162,7 @@ async fn ln_force_close() {
     assert_eq!(ln_balance.available(), 0);
     assert_eq!(ln_balance.pending_close(), 0);
 
-    let payee_txs = payee.get_on_chain_history().await.unwrap();
+    let payee_txs = payee.get_on_chain_history().unwrap();
 
     let claim_tx = match payee_txs.as_slice() {
         [tx] => tx,

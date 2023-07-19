@@ -257,11 +257,18 @@ where
     }
 
     #[autometrics]
-    pub async fn on_chain_transaction_list(&self) -> Result<Vec<TransactionDetails>> {
+    pub fn on_chain_transaction_list(&self) -> Result<Vec<TransactionDetails>> {
         let wallet_lock = self.bdk_lock();
         wallet_lock
             .list_transactions(false)
             .context("Failed to list on chain transactions")
+    }
+
+    #[autometrics]
+    pub fn get_transaction(&self, txid: &Txid) -> Result<Option<TransactionDetails>> {
+        let wallet_lock = self.bdk_lock();
+        let transaction_details = wallet_lock.get_tx(txid, false)?;
+        Ok(transaction_details)
     }
 }
 

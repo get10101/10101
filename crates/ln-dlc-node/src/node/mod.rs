@@ -70,6 +70,7 @@ mod wallet;
 
 pub use self::dlc_manager::DlcManager;
 pub use crate::node::oracle::OracleInfo;
+use crate::shadow::Shadow;
 pub use ::dlc_manager as rust_dlc_manager;
 pub use channel_manager::ChannelManager;
 pub use dlc_channel::dlc_message_name;
@@ -135,6 +136,8 @@ pub struct LnDlcNodeSettings {
     pub dlc_manager_periodic_check_interval: Duration,
     /// How often we run the [`SubChannelManager`]'s periodic check.
     pub sub_channel_manager_periodic_check_interval: Duration,
+    /// How often we sync the shadow states
+    pub shadow_sync_interval: Duration,
 
     /// Amount (in millionths of a satoshi) charged per satoshi for payments forwarded outbound
     /// over a channel.
@@ -160,6 +163,7 @@ impl Default for LnDlcNodeSettings {
             dlc_manager_periodic_check_interval: Duration::from_secs(30),
             sub_channel_manager_periodic_check_interval: Duration::from_secs(30),
             forwarding_fee_proportional_millionths: 50,
+            shadow_sync_interval: Duration::from_secs(600),
             bdk_client_stop_gap: 20,
             bdk_client_concurrency: 4,
         }
@@ -176,7 +180,7 @@ where
         alias: &str,
         network: Network,
         data_dir: &Path,
-        node_storage: S,
+        node_storage: Arc<S>,
         announcement_address: SocketAddr,
         listen_address: SocketAddr,
         esplora_server_url: String,
@@ -217,7 +221,7 @@ where
         alias: &str,
         network: Network,
         data_dir: &Path,
-        node_storage: S,
+        node_storage: Arc<S>,
         announcement_address: SocketAddr,
         listen_address: SocketAddr,
         announcement_addresses: Vec<NetAddress>,
@@ -265,7 +269,7 @@ where
         alias: &str,
         network: Network,
         data_dir: &Path,
-        node_storage: S,
+        node_storage: Arc<S>,
         announcement_address: SocketAddr,
         listen_address: SocketAddr,
         announcement_addresses: Vec<NetAddress>,
@@ -324,32 +328,11 @@ where
                 seed.clone(),
                 settings.bdk_client_stop_gap,
                 settings.bdk_client_concurrency,
+                node_storage.clone(),
             ))
         };
 
         let settings = Arc::new(RwLock::new(settings));
-
-        std::thread::spawn({
-            let handle = tokio::runtime::Handle::current();
-            let settings = settings.clone();
-            let ln_dlc_wallet = ln_dlc_wallet.clone();
-            move || loop {
-                if let Err(e) = ln_dlc_wallet.inner().sync() {
-                    tracing::error!("Failed on-chain sync: {e:#}");
-                }
-
-                if let Err(e) = ln_dlc_wallet.update_address_cache() {
-                    tracing::warn!("Failed to update address cache: {e:#}");
-                }
-
-                let interval = handle.block_on(async {
-                    let guard = settings.read().await;
-                    guard.on_chain_sync_interval
-                });
-
-                std::thread::sleep(interval);
-            }
-        });
 
         tokio::spawn({
             let settings = settings.clone();
@@ -425,6 +408,55 @@ where
 
         let channel_manager = Arc::new(channel_manager);
 
+        std::thread::spawn({
+            let handle = tokio::runtime::Handle::current();
+            let settings = settings.clone();
+            let ln_dlc_wallet = ln_dlc_wallet.clone();
+            move || loop {
+                if let Err(e) = ln_dlc_wallet.inner().sync() {
+                    tracing::error!("Failed on-chain sync: {e:#}");
+                }
+
+                if let Err(e) = ln_dlc_wallet.update_address_cache() {
+                    tracing::warn!("Failed to update address cache: {e:#}");
+                }
+
+                let interval = handle.block_on(async {
+                    let guard = settings.read().await;
+                    guard.on_chain_sync_interval
+                });
+
+                std::thread::sleep(interval);
+            }
+        });
+
+        std::thread::spawn({
+            let handle = tokio::runtime::Handle::current();
+            let settings = settings.clone();
+            let shadow = Shadow::new(
+                node_storage.clone(),
+                ln_dlc_wallet.clone(),
+                channel_manager.clone(),
+            );
+
+            move || loop {
+                if let Err(e) = shadow.sync_channels() {
+                    tracing::error!("Failed to sync channel shadows. Error: {e:#}");
+                }
+
+                if let Err(e) = shadow.sync_transactions() {
+                    tracing::error!("Failed to sync transaction shadows. Error: {e:#}");
+                }
+
+                let interval = handle.block_on(async {
+                    let guard = settings.read().await;
+                    guard.shadow_sync_interval
+                });
+
+                std::thread::sleep(interval);
+            }
+        });
+
         tokio::spawn({
             let channel_manager = channel_manager.clone();
             let chain_monitor = chain_monitor.clone();
@@ -497,7 +529,6 @@ where
         let fake_channel_payments: FakeChannelPaymentRequests =
             Arc::new(Mutex::new(HashMap::new()));
 
-        let node_storage = Arc::new(node_storage);
         let event_handler = EventHandler::new(
             channel_manager.clone(),
             ln_dlc_wallet.clone(),

@@ -17,6 +17,7 @@ use lightning::ln::PaymentHash;
 use lightning::ln::PaymentPreimage;
 use lightning::ln::PaymentSecret;
 use lightning_invoice::Invoice;
+use ln_dlc_node::channel::Channel;
 use ln_dlc_node::node;
 use ln_dlc_node::node::dlc_message_name;
 use ln_dlc_node::node::rust_dlc_manager::contract::signed_contract::SignedContract;
@@ -25,6 +26,7 @@ use ln_dlc_node::node::rust_dlc_manager::Storage as _;
 use ln_dlc_node::node::sub_channel_message_name;
 use ln_dlc_node::node::NodeInfo;
 use ln_dlc_node::node::PaymentDetails;
+use ln_dlc_node::transaction::Transaction;
 use ln_dlc_node::HTLCStatus;
 use ln_dlc_node::MillisatAmount;
 use ln_dlc_node::PaymentFlow;
@@ -77,8 +79,8 @@ impl Node {
         })
     }
 
-    pub async fn get_wallet_histories(&self) -> Result<WalletHistories> {
-        let on_chain = self.inner.get_on_chain_history().await?;
+    pub fn get_wallet_histories(&self) -> Result<WalletHistories> {
+        let on_chain = self.inner.get_on_chain_history()?;
         let off_chain = self.inner.get_off_chain_history()?;
 
         Ok(WalletHistories {
@@ -397,5 +399,33 @@ impl node::Storage for NodeStorage {
 
     fn all_spendable_outputs(&self) -> Result<Vec<SpendableOutputDescriptor>> {
         db::get_spendable_outputs()
+    }
+
+    // Channels
+
+    fn upsert_channel(&self, channel: Channel) -> Result<()> {
+        db::upsert_channel(channel)
+    }
+
+    fn get_channel(&self, user_channel_id: &str) -> Result<Option<Channel>> {
+        db::get_channel(user_channel_id)
+    }
+
+    fn all_non_pending_channels(&self) -> Result<Vec<Channel>> {
+        db::get_all_non_pending_channels()
+    }
+
+    // Transactions
+
+    fn upsert_transaction(&self, transaction: Transaction) -> Result<()> {
+        db::upsert_transaction(transaction)
+    }
+
+    fn get_transaction(&self, txid: &str) -> Result<Option<Transaction>> {
+        db::get_transaction(txid)
+    }
+
+    fn all_transactions_without_fees(&self) -> Result<Vec<Transaction>> {
+        db::get_all_transactions_without_fees()
     }
 }
