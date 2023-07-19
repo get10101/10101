@@ -49,3 +49,9 @@ diesel setup --database-url=postgres://postgres:mysecretpassword@localhost:5432/
 ```bash
 diesel migration run --database-url=postgres://postgres:mysecretpassword@localhost:5432/orderbook --migration-dir ./migrations
 ```
+
+To re-run (i.e. revert all and then run all) migrations you can use:
+
+```bash
+diesel migration redo --all --database-url=postgres://postgres:mysecretpassword@localhost:5432/orderbook --migration-dir ./migrations
+```
