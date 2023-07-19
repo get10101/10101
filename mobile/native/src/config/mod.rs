@@ -8,12 +8,13 @@ use ln_dlc_node::node::NodeInfo;
 use ln_dlc_node::node::OracleInfo;
 use state::Storage;
 use std::net::SocketAddr;
+use std::time::Duration;
 use url::Url;
 
 static CONFIG: Storage<ConfigInternal> = Storage::new();
 
 #[derive(Clone)]
-struct ConfigInternal {
+pub struct ConfigInternal {
     coordinator_pubkey: PublicKey,
     esplora_endpoint: Url,
     http_endpoint: SocketAddr,
@@ -21,6 +22,17 @@ struct ConfigInternal {
     network: bitcoin::Network,
     oracle_endpoint: String,
     oracle_pubkey: XOnlyPublicKey,
+    health_check_interval: Duration,
+}
+
+impl ConfigInternal {
+    pub fn coordinator_health_endpoint(&self) -> String {
+        format!("http://{}/health", self.http_endpoint)
+    }
+
+    pub fn health_check_interval(&self) -> Duration {
+        self.health_check_interval
+    }
 }
 
 pub fn set(config: Config) {

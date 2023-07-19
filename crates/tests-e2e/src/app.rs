@@ -26,7 +26,7 @@ pub async fn run_app() -> AppHandle {
         let seed_dir = as_string(&seed_dir);
         tokio::task::spawn_blocking(move || {
             native::api::run(
-                default_config(),
+                test_config(),
                 app_dir,
                 seed_dir,
                 native::api::IncludeBacktraceOnPanic::No,
@@ -35,7 +35,7 @@ pub async fn run_app() -> AppHandle {
         })
     };
 
-    let (rx, tx) = TestSubscriber::new();
+    let (rx, tx) = TestSubscriber::new().await;
     let app = AppHandle {
         _app_dir: app_dir,
         _seed_dir: seed_dir,
@@ -51,9 +51,8 @@ pub async fn run_app() -> AppHandle {
     app
 }
 
-// Values taken from `environment.dart`
-// TODO: move to default impl of Config
-fn default_config() -> native::config::api::Config {
+// Values mostly taken from `environment.dart`
+fn test_config() -> native::config::api::Config {
     native::config::api::Config {
         coordinator_pubkey: "02dd6abec97f9a748bf76ad502b004ce05d1b2d1f43a9e76bd7d85e767ffb022c9"
             .to_string(),
@@ -65,5 +64,6 @@ fn default_config() -> native::config::api::Config {
         oracle_endpoint: "http://127.0.0.1:8081".to_string(),
         oracle_pubkey: "16f88cf7d21e6c0f46bcbc983a4e3b19726c6c98858cc31c83551a88fde171c0"
             .to_string(),
+        health_check_interval_secs: 1, // We want to measure health more often in tests
     }
 }

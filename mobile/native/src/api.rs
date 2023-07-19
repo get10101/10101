@@ -8,6 +8,7 @@ use crate::config::get_network;
 use crate::db;
 use crate::event;
 use crate::event::api::FlutterSubscriber;
+use crate::health;
 use crate::ln_dlc;
 use crate::ln_dlc::FUNDING_TX_WEIGHT_ESTIMATE;
 use crate::logger;
@@ -226,12 +227,15 @@ pub fn run(
         );
     }
 
-    config::set(config);
+    config::set(config.clone());
     db::init_db(&app_dir, get_network())?;
     let runtime = ln_dlc::get_or_create_tokio_runtime()?;
     ln_dlc::run(app_dir, seed_dir, runtime)?;
     event::subscribe(ChannelFeePaymentSubscriber::new());
-    orderbook::subscribe(ln_dlc::get_node_key(), runtime)
+
+    let (_health, tx) = health::Health::new(config, runtime);
+
+    orderbook::subscribe(ln_dlc::get_node_key(), runtime, tx.orderbook)
 }
 
 pub fn get_unused_address() -> SyncReturn<String> {

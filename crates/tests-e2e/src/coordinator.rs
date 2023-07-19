@@ -26,8 +26,7 @@ impl Coordinator {
 
     /// Check whether the coordinator is running
     pub async fn is_running(&self) -> bool {
-        // We assume that if we can generate new address, the service is running
-        self.get("/api/newaddress").await.is_ok()
+        self.get("/health").await.is_ok()
     }
 
     pub async fn is_node_connected(&self, node_id: &str) -> Result<bool> {

@@ -3,6 +3,7 @@ mod event_hub;
 pub mod subscriber;
 
 use crate::api::WalletInfo;
+use crate::health::ServiceUpdate;
 use coordinator_commons::TradeParams;
 use ln_dlc_node::node::rust_dlc_manager::ChannelId;
 use orderbook_commons::Prices;
@@ -34,6 +35,7 @@ pub enum EventInternal {
     PriceUpdateNotification(Prices),
     ChannelReady(ChannelId),
     PaymentClaimed(u64),
+    ServiceHealthUpdate(ServiceUpdate),
 }
 
 impl From<EventInternal> for EventType {
@@ -51,6 +53,7 @@ impl From<EventInternal> for EventType {
             EventInternal::PriceUpdateNotification(_) => EventType::PriceUpdateNotification,
             EventInternal::ChannelReady(_) => EventType::ChannelReady,
             EventInternal::PaymentClaimed(_) => EventType::PaymentClaimed,
+            EventInternal::ServiceHealthUpdate(_) => EventType::ServiceHealthUpdate,
         }
     }
 }
@@ -67,4 +70,5 @@ pub enum EventType {
     PriceUpdateNotification,
     ChannelReady,
     PaymentClaimed,
+    ServiceHealthUpdate,
 }
