@@ -145,7 +145,7 @@ async fn main() -> Result<()> {
                 match node_event_receiver.changed().await {
                     Ok(()) => {
                         let event = node_event_receiver.borrow().clone();
-                        node::routing_fees::handle(node.clone(), event);
+                        node::routing_fees::handle(node.clone(), event).await;
                     }
                     Err(e) => {
                         tracing::error!("Failed to receive event: {e:#}");
