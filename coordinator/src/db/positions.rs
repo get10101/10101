@@ -95,7 +95,10 @@ impl Position {
         let effected_rows = diesel::update(positions::table)
             .filter(positions::trader_pubkey.eq(trader_pubkey.clone()))
             .filter(positions::position_state.eq(PositionState::Open))
-            .set(positions::position_state.eq(PositionState::Closing))
+            .set((
+                positions::position_state.eq(PositionState::Closing),
+                positions::update_timestamp.eq(OffsetDateTime::now_utc()),
+            ))
             .execute(conn)?;
 
         if effected_rows == 0 {
@@ -111,6 +114,7 @@ impl Position {
             .set((
                 positions::position_state.eq(PositionState::Closed),
                 positions::realized_pnl.eq(Some(pnl)),
+                positions::update_timestamp.eq(OffsetDateTime::now_utc()),
             ))
             .execute(conn)?;
 
