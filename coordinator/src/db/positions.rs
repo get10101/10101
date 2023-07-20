@@ -67,6 +67,25 @@ impl Position {
         Ok(positions)
     }
 
+    pub fn get_all_open_or_closing_positions(
+        conn: &mut PgConnection,
+    ) -> QueryResult<Vec<crate::position::models::Position>> {
+        let positions = positions::table
+            .filter(
+                positions::position_state
+                    .eq(PositionState::Open)
+                    .or(positions::position_state.eq(PositionState::Closing)),
+            )
+            .load::<Position>(conn)?;
+
+        let positions = positions
+            .into_iter()
+            .map(crate::position::models::Position::from)
+            .collect();
+
+        Ok(positions)
+    }
+
     /// sets the status of all open position to closing (note, we expect that number to be always
     /// exactly 1)
     pub fn set_open_position_to_closing(
@@ -81,6 +100,22 @@ impl Position {
 
         if effected_rows == 0 {
             bail!("Could not update position to Closing for {trader_pubkey}")
+        }
+
+        Ok(())
+    }
+
+    pub fn set_position_to_closed(conn: &mut PgConnection, id: i32, pnl: i64) -> Result<()> {
+        let effected_rows = diesel::update(positions::table)
+            .filter(positions::id.eq(id))
+            .set((
+                positions::position_state.eq(PositionState::Closed),
+                positions::realized_pnl.eq(Some(pnl)),
+            ))
+            .execute(conn)?;
+
+        if effected_rows == 0 {
+            bail!("Could not update position to Closed with realized pnl {pnl} for position {id}")
         }
 
         Ok(())

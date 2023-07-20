@@ -48,6 +48,7 @@ use trade::cfd::BTCUSD_MAX_PRICE;
 use trade::Direction;
 
 pub mod channel_opening_fee;
+pub mod closed_positions;
 pub mod connection;
 pub mod expired_positions;
 pub mod order_matching_fee;

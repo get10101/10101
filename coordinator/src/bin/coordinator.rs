@@ -5,6 +5,7 @@ use coordinator::logger;
 use coordinator::metrics;
 use coordinator::metrics::init_meter;
 use coordinator::node;
+use coordinator::node::closed_positions;
 use coordinator::node::connection;
 use coordinator::node::expired_positions;
 use coordinator::node::storage::NodeStorage;
@@ -32,6 +33,7 @@ use tracing::metadata::LevelFilter;
 const PROCESS_PROMETHEUS_METRICS: Duration = Duration::from_secs(10);
 const PROCESS_INCOMING_DLC_MESSAGES_INTERVAL: Duration = Duration::from_secs(5);
 const EXPIRED_POSITION_SYNC_INTERVAL: Duration = Duration::from_secs(300);
+const CLOSED_POSITION_SYNC_INTERVAL: Duration = Duration::from_secs(30);
 const CONNECTION_CHECK_INTERVAL: Duration = Duration::from_secs(30);
 
 #[tokio::main]
@@ -166,6 +168,18 @@ async fn main() -> Result<()> {
             loop {
                 tokio::time::sleep(EXPIRED_POSITION_SYNC_INTERVAL).await;
                 expired_positions::close(node.clone()).await;
+            }
+        }
+    });
+
+    tokio::spawn({
+        let node = node.clone();
+        async move {
+            loop {
+                tokio::time::sleep(CLOSED_POSITION_SYNC_INTERVAL).await;
+                if let Err(e) = closed_positions::sync(node.clone()) {
+                    tracing::error!("Failed to sync closed DLCs with positions in database: {e:#}");
+                }
             }
         }
     });
