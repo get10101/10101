@@ -46,6 +46,7 @@ use trade::cfd::calculate_short_liquidation_price;
 use trade::cfd::BTCUSD_MAX_PRICE;
 use trade::Direction;
 
+pub mod channel_opening_fee;
 pub mod connection;
 pub mod order_matching_fee;
 pub mod routing_fees;
