@@ -49,6 +49,7 @@ use trade::Direction;
 
 pub mod channel_opening_fee;
 pub mod connection;
+pub mod expired_positions;
 pub mod order_matching_fee;
 pub mod routing_fees;
 pub mod storage;
