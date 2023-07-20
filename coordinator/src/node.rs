@@ -54,6 +54,7 @@ pub mod expired_positions;
 pub mod order_matching_fee;
 pub mod routing_fees;
 pub mod storage;
+pub mod unrealized_pnl;
 
 /// The leverage used by the coordinator for all trades.
 const COORDINATOR_LEVERAGE: f32 = 1.0;

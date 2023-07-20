@@ -109,6 +109,7 @@ diesel::table! {
         trader_pubkey -> Text,
         temporary_contract_id -> Nullable<Text>,
         realized_pnl -> Nullable<Int8>,
+        unrealized_pnl -> Nullable<Int8>,
     }
 }
 

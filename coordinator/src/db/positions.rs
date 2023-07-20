@@ -33,6 +33,7 @@ pub struct Position {
     pub trader_pubkey: String,
     pub temporary_contract_id: Option<String>,
     pub realized_pnl: Option<i64>,
+    pub unrealized_pnl: Option<i64>,
 }
 
 impl Position {
@@ -120,6 +121,22 @@ impl Position {
 
         if effected_rows == 0 {
             bail!("Could not update position to Closed with realized pnl {pnl} for position {id}")
+        }
+
+        Ok(())
+    }
+
+    pub fn update_unrealized_pnl(conn: &mut PgConnection, id: i32, pnl: i64) -> Result<()> {
+        let effected_rows = diesel::update(positions::table)
+            .filter(positions::id.eq(id))
+            .set((
+                positions::unrealized_pnl.eq(Some(pnl)),
+                positions::update_timestamp.eq(OffsetDateTime::now_utc()),
+            ))
+            .execute(conn)?;
+
+        if effected_rows == 0 {
+            bail!("Could not update unrealized pnl {pnl} for position {id}")
         }
 
         Ok(())

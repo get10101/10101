@@ -9,6 +9,7 @@ use coordinator::node::closed_positions;
 use coordinator::node::connection;
 use coordinator::node::expired_positions;
 use coordinator::node::storage::NodeStorage;
+use coordinator::node::unrealized_pnl;
 use coordinator::node::Node;
 use coordinator::routes::router;
 use coordinator::run_migration;
@@ -34,6 +35,7 @@ const PROCESS_PROMETHEUS_METRICS: Duration = Duration::from_secs(10);
 const PROCESS_INCOMING_DLC_MESSAGES_INTERVAL: Duration = Duration::from_secs(5);
 const EXPIRED_POSITION_SYNC_INTERVAL: Duration = Duration::from_secs(300);
 const CLOSED_POSITION_SYNC_INTERVAL: Duration = Duration::from_secs(30);
+const UNREALIZED_PNL_SYNC_INTERVAL: Duration = Duration::from_secs(600);
 const CONNECTION_CHECK_INTERVAL: Duration = Duration::from_secs(30);
 
 #[tokio::main]
@@ -158,6 +160,18 @@ async fn main() -> Result<()> {
                     .await
                     .expect("To spawn blocking thread");
                 tokio::time::sleep(PROCESS_PROMETHEUS_METRICS).await;
+            }
+        }
+    });
+
+    tokio::spawn({
+        let node = node.clone();
+        async move {
+            loop {
+                tokio::time::sleep(UNREALIZED_PNL_SYNC_INTERVAL).await;
+                if let Err(e) = unrealized_pnl::sync(node.clone()).await {
+                    tracing::error!("Failed to sync closed DLCs with positions in database: {e:#}");
+                }
             }
         }
     });

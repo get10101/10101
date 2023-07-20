@@ -35,7 +35,7 @@ impl BitmexClient {
     }
 }
 
-#[derive(Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Quote {
     pub bid_size: u64,
