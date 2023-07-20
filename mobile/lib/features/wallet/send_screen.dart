@@ -28,26 +28,25 @@ class SendScreen extends StatefulWidget {
 class _SendScreenState extends State<SendScreen> {
   final TextEditingController _textEditingController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
-  final WalletService walletService = const WalletService();
   LightningInvoice? _lightningInvoice;
   bool isDecoding = false;
   bool decodingFailed = false;
-
-  final ChannelInfoService channelInfoService = const ChannelInfoService();
   ChannelInfo? channelInfo;
 
   @override
   void initState() {
-    initChannelValues();
-    invoiceFromClipboard();
+    final ChannelInfoService channelInfoService = context.read<ChannelInfoService>();
+    initChannelValues(channelInfoService);
+    final WalletService walletService = context.read<WalletChangeNotifier>().service;
+    invoiceFromClipboard(walletService);
     super.initState();
   }
 
-  Future<void> initChannelValues() async {
+  Future<void> initChannelValues(ChannelInfoService channelInfoService) async {
     channelInfo = await channelInfoService.getChannelInfo();
   }
 
-  invoiceFromClipboard() async {
+  invoiceFromClipboard(WalletService walletService) async {
     ClipboardData? clipboard = await Clipboard.getData(Clipboard.kTextPlain);
 
     if (clipboard == null || clipboard.text == null) {
@@ -69,6 +68,8 @@ class _SendScreenState extends State<SendScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final ChannelInfoService channelInfoService = context.read<ChannelInfoService>();
+    final WalletService walletService = context.read<WalletChangeNotifier>().service;
     Amount initialReserve = channelInfoService.getInitialReserve();
     int channelReserve = channelInfo?.reserve.sats ?? initialReserve.sats;
     int balance = context.watch<WalletChangeNotifier>().walletInfo.balances.lightning.sats;
