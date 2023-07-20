@@ -25,6 +25,7 @@ use dlc_manager::payout_curve::PolynomialPayoutCurvePiece;
 use dlc_manager::payout_curve::RoundingInterval;
 use dlc_manager::payout_curve::RoundingIntervals;
 use dlc_manager::ChannelId;
+use dlc_manager::ContractId;
 use dlc_messages::Message;
 use lightning::ln::channelmanager::ChannelDetails;
 use lightning::ln::PaymentHash;
@@ -207,9 +208,14 @@ impl Node {
 
         let channel_details = self.get_counterparty_channel(trade_params.pubkey)?;
         self.inner
-            .propose_dlc_channel(channel_details, contract_input)
+            .propose_dlc_channel(channel_details.clone(), contract_input)
             .await
             .context("Could not propose dlc channel")?;
+
+        let temporary_contract_id = self
+            .inner
+            .get_temporary_contract_id_by_sub_channel_id(channel_details.channel_id)
+            .context("unable to extract temporary contract id")?;
 
         // After the dlc channel has been proposed the position can be created. Note, this
         // fixes https://github.com/get10101/10101/issues/537, where the position was created
@@ -218,7 +224,7 @@ impl Node {
         // into the database doesn't, it is more likely to succeed in the new order.
         // FIXME: Note, we should not create a shadow representation (position) of the DLC struct,
         // but rather imply the state from the DLC.
-        self.persist_position_and_trade(trade_params, fee_payment_hash)
+        self.persist_position_and_trade(trade_params, fee_payment_hash, temporary_contract_id)
     }
 
     // Creates a position and a trade from the trade params
@@ -226,6 +232,7 @@ impl Node {
         &self,
         trade_params: &TradeParams,
         fee_payment_hash: PaymentHash,
+        temporary_contract_id: ContractId,
     ) -> Result<()> {
         let liquidation_price = liquidation_price(trade_params);
         let margin_coordinator = margin_coordinator(trade_params);
@@ -245,6 +252,7 @@ impl Node {
             liquidation_price,
             collateral: margin_coordinator as i64,
             expiry_timestamp: trade_params.filled_with.expiry_timestamp,
+            temporary_contract_id,
         };
         tracing::debug!(?new_position, "Inserting new position into db");
 

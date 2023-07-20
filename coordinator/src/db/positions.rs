@@ -5,11 +5,14 @@ use crate::schema::sql_types::PositionStateType;
 use anyhow::bail;
 use anyhow::Result;
 use autometrics::autometrics;
+use bitcoin::hashes::hex::ToHex;
 use diesel::prelude::*;
 use diesel::query_builder::QueryId;
 use diesel::result::QueryResult;
 use diesel::AsExpression;
 use diesel::FromSqlRow;
+use dlc_manager::ContractId;
+use hex::FromHex;
 use std::any::TypeId;
 use time::OffsetDateTime;
 
@@ -28,6 +31,7 @@ pub struct Position {
     pub expiry_timestamp: OffsetDateTime,
     pub update_timestamp: OffsetDateTime,
     pub trader_pubkey: String,
+    pub temporary_contract_id: String,
 }
 
 impl Position {
@@ -111,6 +115,8 @@ impl From<Position> for crate::position::models::Position {
             expiry_timestamp: value.expiry_timestamp,
             update_timestamp: value.update_timestamp,
             trader: value.trader_pubkey.parse().expect("to be valid public key"),
+            temporary_contract_id: ContractId::from_hex(value.temporary_contract_id.as_str())
+                .expect("contract id to decode"),
         }
     }
 }
@@ -128,6 +134,7 @@ struct NewPosition {
     pub collateral: i64,
     pub expiry_timestamp: OffsetDateTime,
     pub trader_pubkey: String,
+    pub temporary_contract_id: String,
 }
 
 impl From<crate::position::models::NewPosition> for NewPosition {
@@ -143,6 +150,7 @@ impl From<crate::position::models::NewPosition> for NewPosition {
             collateral: value.collateral,
             expiry_timestamp: value.expiry_timestamp,
             trader_pubkey: value.trader.to_string(),
+            temporary_contract_id: value.temporary_contract_id.to_hex(),
         }
     }
 }
