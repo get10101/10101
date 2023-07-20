@@ -22,6 +22,7 @@ pub struct NewPosition {
 pub enum PositionState {
     Open,
     Closing,
+    Closed { pnl: i64 },
 }
 
 #[derive(Debug)]

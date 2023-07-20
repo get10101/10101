@@ -32,6 +32,7 @@ pub struct Position {
     pub update_timestamp: OffsetDateTime,
     pub trader_pubkey: String,
     pub temporary_contract_id: String,
+    pub realized_pnl: Option<i64>,
 }
 
 impl Position {
@@ -109,7 +110,10 @@ impl From<Position> for crate::position::models::Position {
             direction: trade::Direction::from(value.direction),
             average_entry_price: value.average_entry_price,
             liquidation_price: value.liquidation_price,
-            position_state: crate::position::models::PositionState::from(value.position_state),
+            position_state: crate::position::models::PositionState::from((
+                value.position_state,
+                value.realized_pnl,
+            )),
             collateral: value.collateral,
             creation_timestamp: value.creation_timestamp,
             expiry_timestamp: value.expiry_timestamp,
@@ -160,6 +164,7 @@ impl From<crate::position::models::NewPosition> for NewPosition {
 pub enum PositionState {
     Open,
     Closing,
+    Closed,
 }
 
 impl QueryId for PositionStateType {
@@ -171,11 +176,14 @@ impl QueryId for PositionStateType {
     }
 }
 
-impl From<PositionState> for crate::position::models::PositionState {
-    fn from(value: PositionState) -> Self {
-        match value {
+impl From<(PositionState, Option<i64>)> for crate::position::models::PositionState {
+    fn from((position_state, realized_pnl): (PositionState, Option<i64>)) -> Self {
+        match position_state {
             PositionState::Open => crate::position::models::PositionState::Open,
             PositionState::Closing => crate::position::models::PositionState::Closing,
+            PositionState::Closed => crate::position::models::PositionState::Closed {
+                pnl: realized_pnl.expect("realized pnl to be set when position is closed"),
+            },
         }
     }
 }
