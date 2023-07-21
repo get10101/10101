@@ -31,7 +31,7 @@ pub struct Position {
     pub expiry_timestamp: OffsetDateTime,
     pub update_timestamp: OffsetDateTime,
     pub trader_pubkey: String,
-    pub temporary_contract_id: String,
+    pub temporary_contract_id: Option<String>,
     pub realized_pnl: Option<i64>,
 }
 
@@ -158,8 +158,9 @@ impl From<Position> for crate::position::models::Position {
             expiry_timestamp: value.expiry_timestamp,
             update_timestamp: value.update_timestamp,
             trader: value.trader_pubkey.parse().expect("to be valid public key"),
-            temporary_contract_id: ContractId::from_hex(value.temporary_contract_id.as_str())
-                .expect("contract id to decode"),
+            temporary_contract_id: value.temporary_contract_id.map(|contract_id| {
+                ContractId::from_hex(contract_id.as_str()).expect("contract id to decode")
+            }),
         }
     }
 }

@@ -11,10 +11,15 @@ pub fn sync(node: Node) -> Result<()> {
             .context("Failed to load open and closing positions")?;
 
     for position in open_and_closing_positions {
-        let contract = match node
-            .inner
-            .get_closed_contract(position.temporary_contract_id)
-        {
+        let temporary_contract_id = match position.temporary_contract_id {
+            None => {
+                tracing::trace!(position_id=%position.id, "Position does not have temporary contract id, skipping");
+                continue;
+            }
+            Some(temporary_contract_id) => temporary_contract_id,
+        };
+
+        let contract = match node.inner.get_closed_contract(temporary_contract_id) {
             Ok(Some(closed_contract)) => closed_contract,
             Ok(None) => {
                 tracing::trace!(position_id=%position.id, "Position not closed yet, skipping");
@@ -29,7 +34,7 @@ pub fn sync(node: Node) -> Result<()> {
         if let Err(e) =
             db::positions::Position::set_position_to_closed(&mut conn, position.id, contract.pnl)
         {
-            tracing::error!(position_id=%position.id, temporary_contract_id=%position.temporary_contract_id.to_hex(), pnl=%contract.pnl, "Failed to set position to closed: {e:#}")
+            tracing::error!(position_id=%position.id, temporary_contract_id=%temporary_contract_id.to_hex(), pnl=%contract.pnl, "Failed to set position to closed: {e:#}")
         }
     }
 
