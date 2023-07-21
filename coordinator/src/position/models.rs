@@ -49,4 +49,5 @@ pub struct Position {
     /// This field is optional for backwards compatibility because we cannot deterministically
     /// associate already existing contracts with positions.
     pub temporary_contract_id: Option<ContractId>,
+    pub closing_price: Option<f32>,
 }

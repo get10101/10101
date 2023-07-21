@@ -35,9 +35,14 @@ fn sync_position(
     position: &Position,
     quote: Quote,
 ) -> Result<()> {
-    let current_price = match position.direction {
-        trade::Direction::Long => quote.bid_price,
-        trade::Direction::Short => quote.ask_price,
+    let closing_price = match position.closing_price {
+        None => match position.direction {
+            trade::Direction::Long => quote.bid_price,
+            trade::Direction::Short => quote.ask_price,
+        },
+        Some(closing_price) => {
+            Decimal::try_from(closing_price).expect("f32 closing price to fit into decimal")
+        }
     };
 
     let average_entry_price = Decimal::try_from(position.average_entry_price)
@@ -53,7 +58,7 @@ fn sync_position(
 
     let pnl = calculate_pnl(
         average_entry_price,
-        current_price,
+        closing_price,
         position.quantity,
         long_leverage,
         short_leverage,

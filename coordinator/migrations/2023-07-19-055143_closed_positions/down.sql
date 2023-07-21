@@ -4,4 +4,4 @@
 -- However, there is no proper way to replace the values to be removed where they are used (i.e. referenced in `positions` table)
 -- We opt to NOT remove enum values that were added at a later point.
 ALTER TABLE
-    "positions" DROP COLUMN "realized_pnl";
+    "positions" DROP COLUMN "realized_pnl_sat";

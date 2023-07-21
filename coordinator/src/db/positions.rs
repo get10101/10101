@@ -32,8 +32,9 @@ pub struct Position {
     pub update_timestamp: OffsetDateTime,
     pub trader_pubkey: String,
     pub temporary_contract_id: Option<String>,
-    pub realized_pnl: Option<i64>,
-    pub unrealized_pnl: Option<i64>,
+    pub realized_pnl_sat: Option<i64>,
+    pub unrealized_pnl_sat: Option<i64>,
+    pub closing_price: Option<f32>,
 }
 
 impl Position {
@@ -92,12 +93,14 @@ impl Position {
     pub fn set_open_position_to_closing(
         conn: &mut PgConnection,
         trader_pubkey: String,
+        closing_price: f32,
     ) -> Result<()> {
         let effected_rows = diesel::update(positions::table)
             .filter(positions::trader_pubkey.eq(trader_pubkey.clone()))
             .filter(positions::position_state.eq(PositionState::Open))
             .set((
                 positions::position_state.eq(PositionState::Closing),
+                positions::closing_price.eq(Some(closing_price)),
                 positions::update_timestamp.eq(OffsetDateTime::now_utc()),
             ))
             .execute(conn)?;
@@ -114,7 +117,7 @@ impl Position {
             .filter(positions::id.eq(id))
             .set((
                 positions::position_state.eq(PositionState::Closed),
-                positions::realized_pnl.eq(Some(pnl)),
+                positions::realized_pnl_sat.eq(Some(pnl)),
                 positions::update_timestamp.eq(OffsetDateTime::now_utc()),
             ))
             .execute(conn)?;
@@ -130,7 +133,7 @@ impl Position {
         let effected_rows = diesel::update(positions::table)
             .filter(positions::id.eq(id))
             .set((
-                positions::unrealized_pnl.eq(Some(pnl)),
+                positions::unrealized_pnl_sat.eq(Some(pnl)),
                 positions::update_timestamp.eq(OffsetDateTime::now_utc()),
             ))
             .execute(conn)?;
@@ -168,7 +171,7 @@ impl From<Position> for crate::position::models::Position {
             liquidation_price: value.liquidation_price,
             position_state: crate::position::models::PositionState::from((
                 value.position_state,
-                value.realized_pnl,
+                value.realized_pnl_sat,
             )),
             collateral: value.collateral,
             creation_timestamp: value.creation_timestamp,
@@ -178,6 +181,7 @@ impl From<Position> for crate::position::models::Position {
             temporary_contract_id: value.temporary_contract_id.map(|contract_id| {
                 ContractId::from_hex(contract_id.as_str()).expect("contract id to decode")
             }),
+            closing_price: value.closing_price,
         }
     }
 }

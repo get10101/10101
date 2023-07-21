@@ -170,7 +170,9 @@ async fn main() -> Result<()> {
             loop {
                 tokio::time::sleep(UNREALIZED_PNL_SYNC_INTERVAL).await;
                 if let Err(e) = unrealized_pnl::sync(node.clone()).await {
-                    tracing::error!("Failed to sync closed DLCs with positions in database: {e:#}");
+                    tracing::error!(
+                        "Failed to sync unrealized PnL with positions in database: {e:#}"
+                    );
                 }
             }
         }
