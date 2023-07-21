@@ -612,7 +612,10 @@ where
             let fake_channel_payments = self.fake_channel_payments_lock();
             match fake_channel_payments.get(&requested_next_hop_scid) {
                 None => {
-                    tracing::warn!(fake_scid = requested_next_hop_scid, "Could not forward the intercepted HTLC because we didn't have a node registered with said fake scid");
+                    tracing::warn!(
+                        fake_scid = requested_next_hop_scid,
+                        "Could not forward the intercepted HTLC because we didn't have a node registered with said fake scid"
+                    );
 
                     if let Err(err) = self.channel_manager.fail_intercepted_htlc(intercept_id) {
                         tracing::error!("Could not fail intercepted htlc {err:?}")
@@ -634,6 +637,7 @@ where
 
                     return;
                 }
+
                 tracing::debug!(%target_node_id, "Waiting for target node to come online.");
                 tokio::time::sleep(Duration::from_secs(2)).await;
             }
@@ -679,16 +683,23 @@ where
                 .get_est_sat_per_1000_weight(CONFIRMATION_TARGET);
             if max_allowed_tx_fee < current_fee {
                 tracing::warn!(%max_allowed_tx_fee, %current_fee, "Not opening a channel because the fee is too high");
+
                 if let Err(err) = self.channel_manager.fail_intercepted_htlc(intercept_id) {
                     tracing::error!(intercept_id = %intercept_id_str, "Could not fail intercepted htlc {err:?}")
                 }
+
                 return Ok(());
             }
         }
 
         let channel_value = expected_outbound_amount_msat / 1000 * LIQUIDITY_MULTIPLIER;
         if channel_value > JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT_MAX {
-            tracing::warn!(intercept_id = %intercept_id_str, %channel_value, channel_value_maximum=%JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT_MAX, "Failed to open channel because maximum channel value exceeded");
+            tracing::warn!(
+                intercept_id = %intercept_id_str,
+                %channel_value,
+                channel_value_maximum=%JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT_MAX,
+                "Failed to open channel because maximum channel value exceeded"
+            );
 
             if let Err(err) = self.channel_manager.fail_intercepted_htlc(intercept_id) {
                 tracing::error!(intercept_id = %intercept_id_str, "Could not fail intercepted htlc {err:?}")
