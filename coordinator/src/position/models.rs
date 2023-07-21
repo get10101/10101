@@ -46,5 +46,7 @@ pub struct Position {
     /// We use the temporary contract id because the actual contract id might not be known at that
     /// point. The temporary contract id is propagated to all states until the contract is
     /// closed.
-    pub temporary_contract_id: ContractId,
+    /// This field is optional for backwards compatibility because we cannot deterministically
+    /// associate already existing contracts with positions.
+    pub temporary_contract_id: Option<ContractId>,
 }
