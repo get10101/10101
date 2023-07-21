@@ -754,7 +754,7 @@ where
     }
 }
 
-impl<P> EventHandler<P> {
+impl<S> EventHandler<S> {
     #[autometrics]
     fn fake_channel_payments_lock(&self) -> MutexGuard<HashMap<RequestedScid, PublicKey>> {
         self.fake_channel_payments
