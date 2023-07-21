@@ -1,14 +1,20 @@
 use crate::node::Node;
 use crate::DlcMessageHandler;
 use crate::SubChannelManager;
+use crate::ToHex;
 use anyhow::anyhow;
 use anyhow::bail;
+use anyhow::Context;
 use anyhow::Result;
 use autometrics::autometrics;
 use bitcoin::secp256k1::PublicKey;
 use dlc_manager::contract::contract_input::ContractInput;
+use dlc_manager::contract::ClosedContract;
+use dlc_manager::contract::Contract;
 use dlc_manager::subchannel::SubChannel;
 use dlc_manager::subchannel::SubChannelState;
+use dlc_manager::ChannelId;
+use dlc_manager::ContractId;
 use dlc_manager::Oracle;
 use dlc_manager::Storage;
 use dlc_messages::ChannelMessage;
@@ -133,6 +139,64 @@ where
             .find(|dlc_channel| dlc_channel.counter_party == *pubkey);
 
         Ok(dlc_channel)
+    }
+
+    #[autometrics]
+    pub fn get_temporary_contract_id_by_sub_channel_id(
+        &self,
+        sub_channel_id: ChannelId,
+    ) -> Result<ContractId> {
+        let store = self.dlc_manager.get_store();
+
+        let dlc_channel_id = store
+            .get_sub_channel(sub_channel_id)?
+            .with_context(|| format!("No subchannel found for id {}", sub_channel_id.to_hex()))?
+            .get_dlc_channel_id(0)
+            .context("No dlc channel with index 0 found")?;
+
+        let contract_id = store
+            .get_channel(&dlc_channel_id)?
+            .with_context(|| {
+                format!(
+                    "No dlc channel found for dlc channel id {}",
+                    dlc_channel_id.to_hex()
+                )
+            })?
+            .get_contract_id()
+            .with_context(|| {
+                format!(
+                    "No contract id set for dlc channel with id {}",
+                    dlc_channel_id.to_hex()
+                )
+            })?;
+
+        let contract = store.get_contract(&contract_id)?.with_context(|| {
+            format!("No contract found for contract id {}", contract_id.to_hex())
+        })?;
+
+        Ok(contract.get_temporary_id())
+    }
+
+    #[autometrics]
+    pub fn get_closed_contract(
+        &self,
+        temporary_contract_id: ContractId,
+    ) -> Result<Option<ClosedContract>> {
+        let contract = self
+            .dlc_manager
+            .get_store()
+            .get_contracts()?
+            .into_iter()
+            .find_map(|contract| match contract {
+                Contract::Closed(closed_contract)
+                    if closed_contract.temporary_contract_id == temporary_contract_id =>
+                {
+                    Some(closed_contract)
+                }
+                _ => None,
+            });
+
+        Ok(contract)
     }
 
     #[autometrics]

@@ -5,11 +5,14 @@ use crate::schema::sql_types::PositionStateType;
 use anyhow::bail;
 use anyhow::Result;
 use autometrics::autometrics;
+use bitcoin::hashes::hex::ToHex;
 use diesel::prelude::*;
 use diesel::query_builder::QueryId;
 use diesel::result::QueryResult;
 use diesel::AsExpression;
 use diesel::FromSqlRow;
+use dlc_manager::ContractId;
+use hex::FromHex;
 use std::any::TypeId;
 use time::OffsetDateTime;
 
@@ -28,6 +31,8 @@ pub struct Position {
     pub expiry_timestamp: OffsetDateTime,
     pub update_timestamp: OffsetDateTime,
     pub trader_pubkey: String,
+    pub temporary_contract_id: String,
+    pub realized_pnl: Option<i64>,
 }
 
 impl Position {
@@ -62,6 +67,25 @@ impl Position {
         Ok(positions)
     }
 
+    pub fn get_all_open_or_closing_positions(
+        conn: &mut PgConnection,
+    ) -> QueryResult<Vec<crate::position::models::Position>> {
+        let positions = positions::table
+            .filter(
+                positions::position_state
+                    .eq(PositionState::Open)
+                    .or(positions::position_state.eq(PositionState::Closing)),
+            )
+            .load::<Position>(conn)?;
+
+        let positions = positions
+            .into_iter()
+            .map(crate::position::models::Position::from)
+            .collect();
+
+        Ok(positions)
+    }
+
     /// sets the status of all open position to closing (note, we expect that number to be always
     /// exactly 1)
     pub fn set_open_position_to_closing(
@@ -71,11 +95,31 @@ impl Position {
         let effected_rows = diesel::update(positions::table)
             .filter(positions::trader_pubkey.eq(trader_pubkey.clone()))
             .filter(positions::position_state.eq(PositionState::Open))
-            .set(positions::position_state.eq(PositionState::Closing))
+            .set((
+                positions::position_state.eq(PositionState::Closing),
+                positions::update_timestamp.eq(OffsetDateTime::now_utc()),
+            ))
             .execute(conn)?;
 
         if effected_rows == 0 {
             bail!("Could not update position to Closing for {trader_pubkey}")
+        }
+
+        Ok(())
+    }
+
+    pub fn set_position_to_closed(conn: &mut PgConnection, id: i32, pnl: i64) -> Result<()> {
+        let effected_rows = diesel::update(positions::table)
+            .filter(positions::id.eq(id))
+            .set((
+                positions::position_state.eq(PositionState::Closed),
+                positions::realized_pnl.eq(Some(pnl)),
+                positions::update_timestamp.eq(OffsetDateTime::now_utc()),
+            ))
+            .execute(conn)?;
+
+        if effected_rows == 0 {
+            bail!("Could not update position to Closed with realized pnl {pnl} for position {id}")
         }
 
         Ok(())
@@ -105,12 +149,17 @@ impl From<Position> for crate::position::models::Position {
             direction: trade::Direction::from(value.direction),
             average_entry_price: value.average_entry_price,
             liquidation_price: value.liquidation_price,
-            position_state: crate::position::models::PositionState::from(value.position_state),
+            position_state: crate::position::models::PositionState::from((
+                value.position_state,
+                value.realized_pnl,
+            )),
             collateral: value.collateral,
             creation_timestamp: value.creation_timestamp,
             expiry_timestamp: value.expiry_timestamp,
             update_timestamp: value.update_timestamp,
             trader: value.trader_pubkey.parse().expect("to be valid public key"),
+            temporary_contract_id: ContractId::from_hex(value.temporary_contract_id.as_str())
+                .expect("contract id to decode"),
         }
     }
 }
@@ -128,6 +177,7 @@ struct NewPosition {
     pub collateral: i64,
     pub expiry_timestamp: OffsetDateTime,
     pub trader_pubkey: String,
+    pub temporary_contract_id: String,
 }
 
 impl From<crate::position::models::NewPosition> for NewPosition {
@@ -143,6 +193,7 @@ impl From<crate::position::models::NewPosition> for NewPosition {
             collateral: value.collateral,
             expiry_timestamp: value.expiry_timestamp,
             trader_pubkey: value.trader.to_string(),
+            temporary_contract_id: value.temporary_contract_id.to_hex(),
         }
     }
 }
@@ -152,6 +203,7 @@ impl From<crate::position::models::NewPosition> for NewPosition {
 pub enum PositionState {
     Open,
     Closing,
+    Closed,
 }
 
 impl QueryId for PositionStateType {
@@ -163,11 +215,14 @@ impl QueryId for PositionStateType {
     }
 }
 
-impl From<PositionState> for crate::position::models::PositionState {
-    fn from(value: PositionState) -> Self {
-        match value {
+impl From<(PositionState, Option<i64>)> for crate::position::models::PositionState {
+    fn from((position_state, realized_pnl): (PositionState, Option<i64>)) -> Self {
+        match position_state {
             PositionState::Open => crate::position::models::PositionState::Open,
             PositionState::Closing => crate::position::models::PositionState::Closing,
+            PositionState::Closed => crate::position::models::PositionState::Closed {
+                pnl: realized_pnl.expect("realized pnl to be set when position is closed"),
+            },
         }
     }
 }
