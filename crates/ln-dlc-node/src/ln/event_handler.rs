@@ -596,11 +596,11 @@ where
         inbound_amount_msat: u64,
         expected_outbound_amount_msat: u64,
     ) -> Result<()> {
-        let intercepted_id = hex::encode(intercept_id.0);
+        let intercept_id_str = hex::encode(intercept_id.0);
         let payment_hash = hex::encode(payment_hash.0);
 
         tracing::info!(
-            intercepted_id,
+            intercept_id = %intercept_id_str,
             requested_next_hop_scid,
             payment_hash,
             inbound_amount_msat,
@@ -680,7 +680,7 @@ where
             if max_allowed_tx_fee < current_fee {
                 tracing::warn!(%max_allowed_tx_fee, %current_fee, "Not opening a channel because the fee is too high");
                 if let Err(err) = self.channel_manager.fail_intercepted_htlc(intercept_id) {
-                    tracing::error!(%intercepted_id, "Could not fail intercepted htlc {err:?}")
+                    tracing::error!(intercept_id = %intercept_id_str, "Could not fail intercepted htlc {err:?}")
                 }
                 return Ok(());
             }
@@ -688,10 +688,10 @@ where
 
         let channel_value = expected_outbound_amount_msat / 1000 * LIQUIDITY_MULTIPLIER;
         if channel_value > JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT_MAX {
-            tracing::warn!(%intercepted_id, %channel_value, channel_value_maximum=%JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT_MAX, "Failed to open channel because maximum channel value exceeded");
+            tracing::warn!(intercept_id = %intercept_id_str, %channel_value, channel_value_maximum=%JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT_MAX, "Failed to open channel because maximum channel value exceeded");
 
             if let Err(err) = self.channel_manager.fail_intercepted_htlc(intercept_id) {
-                tracing::error!(%intercepted_id, "Could not fail intercepted htlc {err:?}")
+                tracing::error!(intercept_id = %intercept_id_str, "Could not fail intercepted htlc {err:?}")
             }
 
             return Ok(());
@@ -705,10 +705,10 @@ where
         tracing::debug!(%new_channel, "Creating shadow channel");
 
         if let Err(err) = self.storage.upsert_channel(new_channel.clone()) {
-            tracing::error!(%intercepted_id, "Failed to insert channel to database. Error: {err:#}");
+            tracing::error!(intercept_id = %intercept_id_str, "Failed to insert channel to database. Error: {err:#}");
 
             if let Err(err) = self.channel_manager.fail_intercepted_htlc(intercept_id) {
-                tracing::error!(%intercepted_id, "Could not fail intercepted htlc {err:?}")
+                tracing::error!(intercept_id = %intercept_id_str, "Could not fail intercepted htlc {err:?}")
             }
 
             return Ok(());
