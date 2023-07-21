@@ -152,7 +152,7 @@ async fn fetch_funding_transaction_fee_invoice(
 ) -> Result<String> {
     reqwest_client()
         .get(format!(
-            "http://{}/api/invoice/open_channel_fee?amount={}?txid={}",
+            "http://{}/api/invoice/open_channel_fee?amount={}&channel_funding_txid={}",
             config::get_http_endpoint(),
             funding_tx_fee,
             funding_txid.as_str()
