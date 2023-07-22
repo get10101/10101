@@ -458,8 +458,20 @@ where
                         "Channel closed",
                     );
                     if let Some(channel) = self.storage.get_channel(&user_channel_id)? {
+                        let counterparty = channel.counterparty;
+
                         let channel = Channel::close_channel(channel, reason);
                         self.storage.upsert_channel(channel)?;
+
+                        // Fail intercepted HTLC which was meant to be used to open the JIT channel,
+                        // in case it was still pending
+                        if let Some((intercept_id, _)) =
+                            self.pending_intercepted_htlcs_lock().get(&counterparty)
+                        {
+                            // If this fails it's either because the intercepted HTLC was already
+                            // failed or already claimed
+                            let _ = self.channel_manager.fail_intercepted_htlc(*intercept_id);
+                        }
                     }
                     anyhow::Ok(())
                 })?;
