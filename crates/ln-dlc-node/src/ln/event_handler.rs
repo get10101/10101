@@ -499,48 +499,7 @@ where
                 ..
             } => {
                 block_in_place(|| {
-                    let user_channel_id = UserChannelId::from(user_channel_id).to_string();
-                    tracing::info!(
-                        user_channel_id,
-                        channel_id = %hex::encode(channel_id),
-                        counterparty = %counterparty_node_id.to_string(),
-                        "Channel ready"
-                    );
-                    let channel_details = self
-                        .channel_manager
-                        .get_channel_details(&channel_id)
-                        .ok_or(anyhow!(
-                            "Failed to get channel details by channel_id {}",
-                            hex::encode(channel_id)
-                        ))?;
-
-                    let channel = self.storage.get_channel(&user_channel_id)?;
-                    let channel = Channel::open_channel(channel, channel_details)?;
-                    self.storage.upsert_channel(channel)?;
-
-                    let pending_intercepted_htlcs = self.pending_intercepted_htlcs_lock();
-
-                    if let Some((intercept_id, expected_outbound_amount_msat)) =
-                        pending_intercepted_htlcs.get(&counterparty_node_id)
-                    {
-                        tracing::info!(
-                            intercept_id = %hex::encode(intercept_id.0),
-                            counterparty = %counterparty_node_id.to_string(),
-                            forward_amount_msat = %expected_outbound_amount_msat,
-                            "Pending intercepted HTLC found, forwarding payment"
-                        );
-
-                        self.channel_manager
-                            .forward_intercepted_htlc(
-                                *intercept_id,
-                                &channel_id,
-                                counterparty_node_id,
-                                *expected_outbound_amount_msat,
-                            )
-                            .map_err(|e| anyhow!("{e:?}"))
-                            .context("Failed to forward intercepted HTLC")?;
-                    }
-                    anyhow::Ok(())
+                    self.handle_channel_ready(user_channel_id, channel_id, counterparty_node_id)
                 })?;
             }
             Event::HTLCHandlingFailed {
@@ -771,6 +730,58 @@ where
             target_node_id,
             (intercept_id, expected_outbound_amount_msat),
         );
+
+        Ok(())
+    }
+
+    fn handle_channel_ready(
+        &self,
+        user_channel_id: u128,
+        channel_id: [u8; 32],
+        counterparty_node_id: PublicKey,
+    ) -> Result<()> {
+        let user_channel_id = UserChannelId::from(user_channel_id).to_string();
+
+        tracing::info!(
+            user_channel_id,
+            channel_id = %hex::encode(channel_id),
+            counterparty = %counterparty_node_id.to_string(),
+            "Channel ready"
+        );
+
+        let channel_details = self
+            .channel_manager
+            .get_channel_details(&channel_id)
+            .ok_or(anyhow!(
+                "Failed to get channel details by channel_id {}",
+                hex::encode(channel_id)
+            ))?;
+
+        let channel = self.storage.get_channel(&user_channel_id)?;
+        let channel = Channel::open_channel(channel, channel_details)?;
+        self.storage.upsert_channel(channel)?;
+
+        let pending_intercepted_htlcs = self.pending_intercepted_htlcs_lock();
+        if let Some((intercept_id, expected_outbound_amount_msat)) =
+            pending_intercepted_htlcs.get(&counterparty_node_id)
+        {
+            tracing::info!(
+                intercept_id = %hex::encode(intercept_id.0),
+                counterparty = %counterparty_node_id.to_string(),
+                forward_amount_msat = %expected_outbound_amount_msat,
+                "Pending intercepted HTLC found, forwarding payment"
+            );
+
+            self.channel_manager
+                .forward_intercepted_htlc(
+                    *intercept_id,
+                    &channel_id,
+                    counterparty_node_id,
+                    *expected_outbound_amount_msat,
+                )
+                .map_err(|e| anyhow!("{e:?}"))
+                .context("Failed to forward intercepted HTLC")?;
+        }
 
         Ok(())
     }
