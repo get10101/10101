@@ -20,6 +20,7 @@ use crate::PeerManager;
 use crate::PendingInterceptedHtlcs;
 use crate::RequestedScid;
 use anyhow::anyhow;
+use anyhow::ensure;
 use anyhow::Context;
 use anyhow::Result;
 use autometrics::autometrics;
@@ -596,6 +597,35 @@ where
         inbound_amount_msat: u64,
         expected_outbound_amount_msat: u64,
     ) -> Result<()> {
+        let res = self
+            .handle_intercepted_htlc_internal(
+                intercept_id,
+                payment_hash,
+                requested_next_hop_scid,
+                inbound_amount_msat,
+                expected_outbound_amount_msat,
+            )
+            .await;
+
+        if let Err(ref e) = res {
+            tracing::error!("Failed to handle HTLCIntercepted event: {e:#}");
+
+            if let Err(e) = self.channel_manager.fail_intercepted_htlc(intercept_id) {
+                tracing::debug!("HTLC automatically failed backwards: {e:?}");
+            }
+        }
+
+        res
+    }
+
+    async fn handle_intercepted_htlc_internal(
+        &self,
+        intercept_id: InterceptId,
+        payment_hash: PaymentHash,
+        requested_next_hop_scid: u64,
+        inbound_amount_msat: u64,
+        expected_outbound_amount_msat: u64,
+    ) -> Result<()> {
         let intercept_id_str = hex::encode(intercept_id.0);
         let payment_hash = hex::encode(payment_hash.0);
 
@@ -610,63 +640,65 @@ where
 
         let target_node_id = {
             let fake_channel_payments = self.fake_channel_payments_lock();
-            match fake_channel_payments.get(&requested_next_hop_scid) {
-                None => {
-                    tracing::warn!(
-                        fake_scid = requested_next_hop_scid,
-                        "Could not forward the intercepted HTLC because we didn't have a node registered with said fake scid"
-                    );
+            fake_channel_payments.get(&requested_next_hop_scid).copied()
+        }
+        .with_context(|| {
+            format!(
+                "Could not forward the intercepted HTLC because we didn't have a node registered \
+                 with fake scid {requested_next_hop_scid}"
+            )
+        })?;
 
-                    if let Err(err) = self.channel_manager.fail_intercepted_htlc(intercept_id) {
-                        tracing::error!("Could not fail intercepted htlc {err:?}")
+        tokio::time::timeout(
+            Duration::from_secs(HTLC_INTERCEPTED_CONNECTION_TIMEOUT),
+            async {
+                loop {
+                    if self
+                        .peer_manager
+                        .get_peer_node_ids()
+                        .iter()
+                        .any(|(id, _)| *id == target_node_id)
+                    {
+                        tracing::info!(
+                            %target_node_id,
+                            %payment_hash,
+                            "Found connection with target of intercepted HTLC"
+                        );
+
+                        return;
                     }
 
-                    return Ok(());
+                    tracing::debug!(
+                        %target_node_id,
+                        %payment_hash,
+                        "Waiting for connection with target of intercepted HTLC"
+                    );
+                    tokio::time::sleep(Duration::from_secs(2)).await;
                 }
-                Some(target_node_id) => *target_node_id,
-            }
-        };
+            },
+        )
+        .await
+        .context("Timed out waiting to get connection with target of interceptable HTLC")?;
 
-        tokio::time::timeout(Duration::from_secs(HTLC_INTERCEPTED_CONNECTION_TIMEOUT), async {
-            loop {
-                if self.peer_manager
-                    .get_peer_node_ids()
-                    .iter()
-                    .any(|(id, _)| *id == target_node_id) {
-                    tracing::info!(%target_node_id, "Found connection to target peer. Continuing HTLCIntercepted event.");
-
-                    return;
-                }
-
-                tracing::debug!(%target_node_id, "Waiting for target node to come online.");
-                tokio::time::sleep(Duration::from_secs(2)).await;
-            }
-        }).await?;
-
+        // We only support one channel between coordinator and app. Also, we are unfortunately using
+        // interceptable HTLCs for regular payments (not just to open JIT channels). With all this
+        // in mind, if the coordinator (the only party that can handle this event) has a channel
+        // with the target of this payment we must treat this interceptable HTLC as a regular
+        // payment.
         if let Some(channel) = self
             .channel_manager
             .list_channels()
             .iter()
-            // The coordinator can only have one channel with each app. Hence, if we find a
-            // channel with the target of the intercepted HTLC, we know
-            // that it is the only channel between coordinator and
-            // target app and we can forward the intercepted HTLC through it.
             .find(|channel_details| channel_details.counterparty.node_id == target_node_id)
         {
-            // Note, the forward intercepted htlc might fail due to insufficient balance,
-            // since we do not check yet if the channel outbound capacity is sufficient.
-            if let Err(error) = self.channel_manager.forward_intercepted_htlc(
-                intercept_id,
-                &channel.channel_id,
-                channel.counterparty.node_id,
-                expected_outbound_amount_msat,
-            ) {
-                tracing::warn!(?error, "Failed to forward intercepted HTLC");
-
-                self.channel_manager
-                    .fail_intercepted_htlc(intercept_id)
-                    .map_err(|e| anyhow!("{e:?}"))?;
-            }
+            self.channel_manager
+                .forward_intercepted_htlc(
+                    intercept_id,
+                    &channel.channel_id,
+                    channel.counterparty.node_id,
+                    expected_outbound_amount_msat,
+                )
+                .map_err(|e| anyhow!("Failed to forward intercepted HTLC: {e:?}"))?;
 
             return Ok(());
         }
@@ -681,82 +713,49 @@ where
             let current_fee = self
                 .fee_rate_estimator
                 .get_est_sat_per_1000_weight(CONFIRMATION_TARGET);
-            if max_allowed_tx_fee < current_fee {
-                tracing::warn!(%max_allowed_tx_fee, %current_fee, "Not opening a channel because the fee is too high");
 
-                if let Err(err) = self.channel_manager.fail_intercepted_htlc(intercept_id) {
-                    tracing::error!(intercept_id = %intercept_id_str, "Could not fail intercepted htlc {err:?}")
-                }
-
-                return Ok(());
-            }
+            ensure!(
+                max_allowed_tx_fee >= current_fee,
+                "Not opening JIT channel because the fee is too high"
+            );
         }
 
         let channel_value = expected_outbound_amount_msat / 1000 * LIQUIDITY_MULTIPLIER;
-        if channel_value > JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT_MAX {
-            tracing::warn!(
-                intercept_id = %intercept_id_str,
-                %channel_value,
-                channel_value_maximum=%JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT_MAX,
-                "Failed to open channel because maximum channel value exceeded"
-            );
+        ensure!(
+            channel_value <= JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT_MAX,
+            "Failed to open channel because maximum channel value exceeded"
+        );
 
-            if let Err(err) = self.channel_manager.fail_intercepted_htlc(intercept_id) {
-                tracing::error!(intercept_id = %intercept_id_str, "Could not fail intercepted htlc {err:?}")
-            }
+        let shadow_channel = Channel::new(0, channel_value, target_node_id);
 
-            return Ok(());
-        }
+        tracing::debug!(%shadow_channel, "Creating shadow channel");
+
+        self.storage
+            .upsert_channel(shadow_channel.clone())
+            .context("Failed to upsert shadow channel")?;
 
         let mut channel_config = *self.channel_config.read();
         channel_config.channel_handshake_config.announced_channel = false;
 
-        let new_channel = Channel::new(0, channel_value, target_node_id);
-
-        tracing::debug!(%new_channel, "Creating shadow channel");
-
-        if let Err(err) = self.storage.upsert_channel(new_channel.clone()) {
-            tracing::error!(intercept_id = %intercept_id_str, "Failed to insert channel to database. Error: {err:#}");
-
-            if let Err(err) = self.channel_manager.fail_intercepted_htlc(intercept_id) {
-                tracing::error!(intercept_id = %intercept_id_str, "Could not fail intercepted htlc {err:?}")
-            }
-
-            return Ok(());
-        }
-
-        let temp_channel_id = match self.channel_manager.create_channel(
-            target_node_id,
-            channel_value,
-            0,
-            new_channel.user_channel_id.to_u128(),
-            Some(channel_config),
-        ) {
-            Ok(temp_channel_id) => temp_channel_id,
-            Err(err) => {
-                tracing::warn!(?err, "Failed to open just in time channel");
-
-                if let Err(err) = self
-                    .channel_manager
-                    .fail_intercepted_htlc(intercept_id)
-                    .map_err(|e| anyhow!("{e:?}"))
-                {
-                    tracing::error!("Could not fail intercepted htlc {err:?}");
-                };
-
-                return Ok(());
-            }
-        };
+        let temp_channel_id = self
+            .channel_manager
+            .create_channel(
+                target_node_id,
+                channel_value,
+                0,
+                shadow_channel.user_channel_id.to_u128(),
+                Some(channel_config),
+            )
+            .map_err(|e| anyhow!("Failed to open just in time channel: {e:?}"))?;
 
         tracing::info!(
             peer = %target_node_id,
+            %payment_hash,
             temp_channel_id = %hex::encode(temp_channel_id),
-            "Started channel creation for in-flight payment"
+            "Started JIT channel creation for intercepted HTLC"
         );
 
-        let mut pending_intercepted_htlcs = self.pending_intercepted_htlcs_lock();
-
-        pending_intercepted_htlcs.insert(
+        self.pending_intercepted_htlcs_lock().insert(
             target_node_id,
             (intercept_id, expected_outbound_amount_msat),
         );
