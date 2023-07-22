@@ -740,6 +740,33 @@ where
         channel_id: [u8; 32],
         counterparty_node_id: PublicKey,
     ) -> Result<()> {
+        let res =
+            self.handle_channel_ready_internal(user_channel_id, channel_id, counterparty_node_id);
+
+        if let Err(ref e) = res {
+            tracing::error!("Failed to handle ChannelReady event: {e:#}");
+
+            // If the `ChannelReady` event was associated with a pending intercepted HTLC, we must
+            // fail it to unlock the funds of all the nodes along the payment route
+            if let Some((intercept_id, _)) = self
+                .pending_intercepted_htlcs_lock()
+                .get(&counterparty_node_id)
+            {
+                if let Err(e) = self.channel_manager.fail_intercepted_htlc(*intercept_id) {
+                    tracing::debug!("HTLC automatically failed backwards: {e:?}");
+                }
+            }
+        }
+
+        res
+    }
+
+    fn handle_channel_ready_internal(
+        &self,
+        user_channel_id: u128,
+        channel_id: [u8; 32],
+        counterparty_node_id: PublicKey,
+    ) -> Result<()> {
         let user_channel_id = UserChannelId::from(user_channel_id).to_string();
 
         tracing::info!(
