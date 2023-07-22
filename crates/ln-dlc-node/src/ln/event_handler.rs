@@ -468,9 +468,7 @@ where
                         if let Some((intercept_id, _)) =
                             self.pending_intercepted_htlcs_lock().get(&counterparty)
                         {
-                            // If this fails it's either because the intercepted HTLC was already
-                            // failed or already claimed
-                            let _ = self.channel_manager.fail_intercepted_htlc(*intercept_id);
+                            self.fail_intercepted_htlc(intercept_id);
                         }
                     }
                     anyhow::Ok(())
@@ -580,10 +578,7 @@ where
 
         if let Err(ref e) = res {
             tracing::error!("Failed to handle HTLCIntercepted event: {e:#}");
-
-            if let Err(e) = self.channel_manager.fail_intercepted_htlc(intercept_id) {
-                tracing::debug!("HTLC automatically failed backwards: {e:?}");
-            }
+            self.fail_intercepted_htlc(&intercept_id);
         }
 
         res
@@ -752,9 +747,7 @@ where
                 .pending_intercepted_htlcs_lock()
                 .get(&counterparty_node_id)
             {
-                if let Err(e) = self.channel_manager.fail_intercepted_htlc(*intercept_id) {
-                    tracing::debug!("HTLC automatically failed backwards: {e:?}");
-                }
+                self.fail_intercepted_htlc(intercept_id);
             }
         }
 
@@ -811,6 +804,18 @@ where
         }
 
         Ok(())
+    }
+
+    /// Fail an intercepted HTLC backwards.
+    fn fail_intercepted_htlc(&self, intercept_id: &InterceptId) {
+        tracing::error!(
+            intercept_id = %hex::encode(intercept_id.0),
+            "Failing intercepted HTLC backwards"
+        );
+
+        // This call fails if the HTLC was already forwarded of if the HTLC was already failed. In
+        // both cases we don't have to do anything else
+        let _ = self.channel_manager.fail_intercepted_htlc(*intercept_id);
     }
 }
 
