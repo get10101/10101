@@ -112,7 +112,8 @@ class _WalletScreenState extends State<WalletScreen> {
         onRefresh: () async {
           await walletChangeNotifier.refreshWalletInfo();
         },
-        child: Padding(
+        child: Container(
+          margin: const EdgeInsets.only(top: 7.0),
           padding: const EdgeInsets.symmetric(horizontal: 20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -122,40 +123,33 @@ class _WalletScreenState extends State<WalletScreen> {
                   ExpansionPanel(
                     headerBuilder: (BuildContext context, bool isExpanded) {
                       return Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           // https://stackoverflow.com/a/70192038 - do not know if this is principled
                           const SizedBox(width: 64),
                           // ExpansionPanelList IconContainer size: end margin 8 + padding 16*2 + size 24),
-                          Expanded(
-                            child: Center(
-                                child: walletChangeNotifier.syncing
-                                    ? const Text(
-                                        'Wallet syncing',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontStyle: FontStyle.italic,
-                                        ),
-                                      )
-                                    : AmountText(
-                                        amount: walletChangeNotifier.total(),
-                                        textStyle: const TextStyle(
-                                            fontSize: 20.0, fontWeight: FontWeight.bold))),
-                          )
+                          Center(
+                              child: walletChangeNotifier.syncing
+                                  ? const Text(
+                                      'Wallet syncing',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontStyle: FontStyle.italic,
+                                      ),
+                                    )
+                                  : AmountText(
+                                      amount: walletChangeNotifier.total(),
+                                      textStyle: const TextStyle(
+                                          fontSize: 20.0, fontWeight: FontWeight.bold))),
                         ],
                       );
                     },
-                    body: const Padding(
-                      padding: EdgeInsets.only(left: 8.0, right: 8.0, bottom: 16.0),
-                      child: Column(
+                    body: Container(
+                      margin: const EdgeInsets.only(left: 20.0, right: 20.0, bottom: 8.0),
+                      child: const Column(
                         children: [
-                          Padding(
-                            padding: EdgeInsets.symmetric(horizontal: 8.0),
-                            child: BalanceRow(walletType: WalletHistoryItemDataType.lightning),
-                          ),
-                          Padding(
-                            padding: EdgeInsets.symmetric(horizontal: 8.0),
-                            child: BalanceRow(walletType: WalletHistoryItemDataType.onChain),
-                          )
+                          BalanceRow(walletType: WalletHistoryItemDataType.lightning),
+                          BalanceRow(walletType: WalletHistoryItemDataType.onChain),
                         ],
                       ),
                     ),
@@ -164,7 +158,7 @@ class _WalletScreenState extends State<WalletScreen> {
                 ],
                 expansionCallback: (i, isOpen) => setState(() => _isBalanceBreakdownOpen = !isOpen),
               ),
-              Divider(color: theme.dividerColor),
+              const SizedBox(height: 10.0),
               if (walletChangeNotifier.lightning().sats == 0)
                 ElevatedButton(
                   onPressed: () {
@@ -200,7 +194,7 @@ class _WalletScreenState extends State<WalletScreen> {
                     return const SizedBox(height: 0);
                   }),
               const SizedBox(
-                height: 10,
+                height: 5,
               ),
               Expanded(
                 child: ListView.builder(

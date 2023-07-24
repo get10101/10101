@@ -15,6 +15,7 @@ import 'domain/payment_flow.dart';
 class BalanceRow extends StatefulWidget {
   final WalletHistoryItemDataType walletType;
   final double iconSize;
+
   const BalanceRow({required this.walletType, this.iconSize = 30, super.key});
 
   @override
@@ -59,7 +60,7 @@ class _BalanceRowState extends State<BalanceRow> with SingleTickerProviderStateM
       amount = walletChangeNotifier.onChain();
     }
 
-    double balanceRowHeight = 40;
+    double balanceRowHeight = 45;
     double buttonSize = balanceRowHeight - 10;
     double buttonSpacing = 10;
 
