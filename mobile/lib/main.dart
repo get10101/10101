@@ -54,20 +54,7 @@ void main() {
   WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
   FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
 
-  final config = FLog.getDefaultConfigurations();
-  config.activeLogLevel = LogLevel.TRACE;
-  config.formatType = FormatType.FORMAT_CUSTOM;
-  config.timestampFormat = 'yyyy-MM-dd HH:mm:ss.SSS';
-  config.fieldOrderFormatCustom = [
-    FieldName.TIMESTAMP,
-    FieldName.LOG_LEVEL,
-    FieldName.TEXT,
-    FieldName.STACKTRACE
-  ];
-  config.customClosingDivider = "";
-  config.customOpeningDivider = "| ";
-
-  FLog.applyConfigurations(config);
+  setupFlutterLogs();
   runApp(MultiProvider(providers: [
     ChangeNotifierProvider(
         create: (context) =>
@@ -82,6 +69,23 @@ void main() {
         create: (context) => CandlestickChangeNotifier(const CandlestickService())),
     Provider(create: (context) => Environment.parse()),
   ], child: const TenTenOneApp()));
+}
+
+void setupFlutterLogs() {
+  final config = FLog.getDefaultConfigurations();
+  config.activeLogLevel = LogLevel.TRACE;
+  config.formatType = FormatType.FORMAT_CUSTOM;
+  config.timestampFormat = 'yyyy-MM-dd HH:mm:ss.SSS';
+  config.fieldOrderFormatCustom = [
+    FieldName.TIMESTAMP,
+    FieldName.LOG_LEVEL,
+    FieldName.TEXT,
+    FieldName.STACKTRACE
+  ];
+  config.customClosingDivider = "";
+  config.customOpeningDivider = "| ";
+
+  FLog.applyConfigurations(config);
 }
 
 class TenTenOneApp extends StatefulWidget {
@@ -197,14 +201,7 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
   void initState() {
     super.initState();
 
-    init(
-        context.read<bridge.Config>(),
-        context.read<OrderChangeNotifier>(),
-        context.read<PositionChangeNotifier>(),
-        context.read<WalletChangeNotifier>(),
-        context.read<CandlestickChangeNotifier>(),
-        context.read<TradeValuesChangeNotifier>(),
-        context.read<SubmitOrderChangeNotifier>());
+    init(context.read<bridge.Config>());
   }
 
   @override
@@ -229,65 +226,20 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
     );
   }
 
-  Future<void> init(
-      bridge.Config config,
-      OrderChangeNotifier orderChangeNotifier,
-      PositionChangeNotifier positionChangeNotifier,
-      WalletChangeNotifier walletChangeNotifier,
-      CandlestickChangeNotifier candlestickChangeNotifier,
-      TradeValuesChangeNotifier tradeValuesChangeNotifier,
-      SubmitOrderChangeNotifier submitOrderChangeNotifier) async {
+  Future<void> init(bridge.Config config) async {
+    final orderChangeNotifier = context.read<OrderChangeNotifier>();
+    final positionChangeNotifier = context.read<PositionChangeNotifier>();
+    final candlestickChangeNotifier = context.read<CandlestickChangeNotifier>();
+    final walletChangeNotifier = context.read<WalletChangeNotifier>();
+
     try {
       setupRustLogging();
 
-      // TODO: Move this code into an "InitService" or similar; we should not have bridge code in the widget
+      subscribeToNotifiers(context);
 
-      final EventService eventService = EventService.create();
-      eventService.subscribe(
-          orderChangeNotifier, bridge.Event.orderUpdateNotification(Order.apiDummy()));
-
-      eventService.subscribe(
-          submitOrderChangeNotifier, bridge.Event.orderUpdateNotification(Order.apiDummy()));
-
-      eventService.subscribe(
-          positionChangeNotifier, bridge.Event.positionUpdateNotification(Position.apiDummy()));
-
-      eventService.subscribe(
-          positionChangeNotifier,
-          const bridge.Event.positionClosedNotification(
-              bridge.PositionClosed(contractSymbol: bridge.ContractSymbol.BtcUsd)));
-
-      eventService.subscribe(
-          walletChangeNotifier, bridge.Event.walletInfoUpdateNotification(WalletInfo.apiDummy()));
-
-      eventService.subscribe(
-          tradeValuesChangeNotifier, bridge.Event.priceUpdateNotification(Price.apiDummy()));
-
-      eventService.subscribe(
-          positionChangeNotifier, bridge.Event.priceUpdateNotification(Price.apiDummy()));
-
-      eventService.subscribe(
-          AnonSubscriber((event) => FLog.info(text: event.field0)), const bridge.Event.log(""));
-
-      final seedDir = (await getApplicationSupportDirectory()).path;
-
-      // We use the app documents dir on iOS to easily access logs and DB from
-      // the device. On other plaftorms we use the seed dir.
-      String appDir = Platform.isIOS
-          ? (await getApplicationDocumentsDirectory()).path
-          : (await getApplicationSupportDirectory()).path;
-
-      final network = config.network == "mainnet" ? "bitcoin" : config.network;
-      if (File('$seedDir/$network/db').existsSync()) {
-        FLog.info(
-            text:
-                "App has already data in the seed dir. For compatibility reasons we will not switch to the new app dir.");
-        appDir = seedDir;
-      }
-
-      FLog.info(text: "App data will be stored in: $appDir");
-      FLog.info(text: "Seed data will be stored in: $seedDir");
-      await rust.api.runInFlutter(config: config, appDir: appDir, seedDir: seedDir);
+      runBackend(config).then((_) {
+        FLog.info(text: "Backend started");
+      });
 
       await orderChangeNotifier.initialize();
       await positionChangeNotifier.initialize();
@@ -295,7 +247,7 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
 
       await logAppSettings(config);
 
-      var lastLogin = await rust.api.updateLastLogin();
+      final lastLogin = await rust.api.updateLastLogin();
       FLog.debug(text: "Last login was at ${lastLogin.date}");
     } on FfiException catch (error) {
       FLog.error(text: "Failed to initialise: Error: ${error.message}", exception: error);
@@ -304,14 +256,7 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
     } finally {
       FlutterNativeSplash.remove();
     }
-
-    try {
-      await walletChangeNotifier.refreshWalletInfo();
-    } on FfiException catch (error) {
-      FLog.error(text: "Failed to initialise: Error: ${error.message}", exception: error);
-    } catch (error) {
-      FLog.error(text: "Failed to initialise: $error", exception: error);
-    }
+    await walletChangeNotifier.refreshWalletInfo();
   }
 
   setupRustLogging() {
@@ -423,4 +368,65 @@ Future<void> logAppSettings(bridge.Config config) async {
 
   String nodeId = rust.api.getNodeId();
   FLog.info(text: "Node ID: $nodeId");
+}
+
+/// Forward the events from change notifiers to the Event service
+void subscribeToNotifiers(BuildContext context) {
+  // TODO: Move this code into an "InitService" or similar; we should not have bridge code in the widget
+
+  final EventService eventService = EventService.create();
+
+  final orderChangeNotifier = context.read<OrderChangeNotifier>();
+  final positionChangeNotifier = context.read<PositionChangeNotifier>();
+  final walletChangeNotifier = context.read<WalletChangeNotifier>();
+  final tradeValuesChangeNotifier = context.read<TradeValuesChangeNotifier>();
+  final submitOrderChangeNotifier = context.read<SubmitOrderChangeNotifier>();
+
+  eventService.subscribe(
+      orderChangeNotifier, bridge.Event.orderUpdateNotification(Order.apiDummy()));
+
+  eventService.subscribe(
+      submitOrderChangeNotifier, bridge.Event.orderUpdateNotification(Order.apiDummy()));
+
+  eventService.subscribe(
+      positionChangeNotifier, bridge.Event.positionUpdateNotification(Position.apiDummy()));
+
+  eventService.subscribe(
+      positionChangeNotifier,
+      const bridge.Event.positionClosedNotification(
+          bridge.PositionClosed(contractSymbol: bridge.ContractSymbol.BtcUsd)));
+
+  eventService.subscribe(
+      walletChangeNotifier, bridge.Event.walletInfoUpdateNotification(WalletInfo.apiDummy()));
+
+  eventService.subscribe(
+      tradeValuesChangeNotifier, bridge.Event.priceUpdateNotification(Price.apiDummy()));
+
+  eventService.subscribe(
+      positionChangeNotifier, bridge.Event.priceUpdateNotification(Price.apiDummy()));
+
+  eventService.subscribe(
+      AnonSubscriber((event) => FLog.info(text: event.field0)), const bridge.Event.log(""));
+}
+
+Future<void> runBackend(bridge.Config config) async {
+  final seedDir = (await getApplicationSupportDirectory()).path;
+
+  // We use the app documents dir on iOS to easily access logs and DB from
+  // the device. On other plaftorms we use the seed dir.
+  String appDir = Platform.isIOS
+      ? (await getApplicationDocumentsDirectory()).path
+      : (await getApplicationSupportDirectory()).path;
+
+  final network = config.network == "mainnet" ? "bitcoin" : config.network;
+  if (File('$seedDir/$network/db').existsSync()) {
+    FLog.info(
+        text:
+            "App has already data in the seed dir. For compatibility reasons we will not switch to the new app dir.");
+    appDir = seedDir;
+  }
+
+  FLog.info(text: "App data will be stored in: $appDir");
+  FLog.info(text: "Seed data will be stored in: $seedDir");
+  await rust.api.runInFlutter(config: config, appDir: appDir, seedDir: seedDir);
 }
