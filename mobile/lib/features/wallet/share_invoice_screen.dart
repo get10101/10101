@@ -108,8 +108,8 @@ class _ShareInvoiceScreenState extends State<ShareInvoiceScreen> {
                                   ),
                                   const SizedBox(height: 10),
                                   Text(
-                                      "Upon receiving your first payment the 10101 LSP will open a Lightning channel with you.\n"
-                                      "To cover the costs for opening the channel the transaction fee is collected after the channel was opened, meaning that an estimated ${formatSats(widget.invoice.channelOpenFee!)} will be collected from your wallet once the channel was opened.\n"
+                                      "Upon receiving your first payment, the 10101 LSP will open a Lightning channel with you.\n"
+                                      "To cover the costs for opening the channel, a transaction fee (estimated ${formatSats(widget.invoice.channelOpenFee!)}) will be collected after the channel is opened.\n"
                                       "The fee estimate is based on a transaction weight with two inputs and the current estimated fee rate."),
                                 ],
                               )),
