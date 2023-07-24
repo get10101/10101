@@ -50,10 +50,12 @@ native:
 
 # Build Rust library for Android native targets
 android args="":
-    cd mobile/native && cargo ndk -o ../android/app/src/main/jniLibs build {{args}}
+    cd mobile/native && cargo ndk -t armeabi-v7a -t arm64-v8a -t x86_64 -o ../android/app/src/main/jniLibs build {{args}}
 
+# Note that this does not include x86_64 unlike the above, as android x86_64 is only a development
+# target and not a deployment target
 android-release:
-    cd mobile/native && cargo ndk -o ../android/app/src/main/jniLibs build --release
+    cd mobile/native && cargo ndk -t armeabi-v7a -t arm64-v8a -o ../android/app/src/main/jniLibs build --release
 
 # Build Rust library for iOS (debug mode)
 ios:
