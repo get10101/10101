@@ -1,3 +1,4 @@
+use crate::Direction;
 use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
@@ -47,4 +48,16 @@ pub struct Quote {
     pub symbol: String,
     #[serde(with = "time::serde::rfc3339")]
     pub timestamp: OffsetDateTime,
+}
+
+impl Quote {
+    /// Get the price for the direction
+    ///
+    /// For going long we get the best ask price, for going short we get the best bid price.
+    pub fn get_price_for_direction(&self, direction: Direction) -> Decimal {
+        match direction {
+            Direction::Long => self.ask_price,
+            Direction::Short => self.bid_price,
+        }
+    }
 }

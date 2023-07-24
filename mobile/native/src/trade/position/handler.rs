@@ -186,10 +186,7 @@ pub async fn close_position() -> Result<()> {
     tracing::debug!("Adding order for the expired closed position");
 
     let quote = BitmexClient::get_quote(&position.expiry).await?;
-    let closing_price = match position.direction {
-        trade::Direction::Long => quote.bid_price,
-        trade::Direction::Short => quote.ask_price,
-    };
+    let closing_price = quote.get_price_for_direction(position.direction.opposite());
 
     let order = Order {
         id: Uuid::new_v4(),

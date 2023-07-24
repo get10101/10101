@@ -36,10 +36,7 @@ fn sync_position(
     quote: Quote,
 ) -> Result<()> {
     let closing_price = match position.closing_price {
-        None => match position.direction {
-            trade::Direction::Long => quote.bid_price,
-            trade::Direction::Short => quote.ask_price,
-        },
+        None => quote.get_price_for_direction(position.direction.opposite()),
         Some(closing_price) => {
             Decimal::try_from(closing_price).expect("f32 closing price to fit into decimal")
         }

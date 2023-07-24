@@ -224,4 +224,92 @@ pub mod tests {
         // This is a liquidation, our margin is consumed by the loss
         assert_eq!(pnl_long, 500000);
     }
+
+    #[test]
+    fn given_long_position_when_price_10_pc_up_then_18pc_profit() {
+        let opening_price = Decimal::from(20000);
+        let closing_price = Decimal::from(22000);
+        let quantity = 20000.0;
+        let long_leverage = 2.0;
+        let short_leverage = 1.0;
+
+        let pnl_long = calculate_pnl(
+            opening_price,
+            closing_price,
+            quantity,
+            long_leverage,
+            short_leverage,
+            Direction::Long,
+        )
+        .unwrap();
+
+        // Value taken from our CFD hedging model sheet
+        assert_eq!(pnl_long, 9_090_909);
+    }
+
+    #[test]
+    fn given_short_position_when_price_10_pc_up_then_18pc_loss() {
+        let opening_price = Decimal::from(20000);
+        let closing_price = Decimal::from(22000);
+        let quantity = 20000.0;
+        let long_leverage = 2.0;
+        let short_leverage = 1.0;
+
+        let pnl_long = calculate_pnl(
+            opening_price,
+            closing_price,
+            quantity,
+            long_leverage,
+            short_leverage,
+            Direction::Short,
+        )
+        .unwrap();
+
+        // Value taken from our CFD hedging model sheet
+        assert_eq!(pnl_long, -9_090_909);
+    }
+
+    #[test]
+    fn given_long_position_when_price_10_pc_down_then_22pc_loss() {
+        let opening_price = Decimal::from(20000);
+        let closing_price = Decimal::from(18000);
+        let quantity = 20000.0;
+        let long_leverage = 2.0;
+        let short_leverage = 1.0;
+
+        let pnl_long = calculate_pnl(
+            opening_price,
+            closing_price,
+            quantity,
+            long_leverage,
+            short_leverage,
+            Direction::Long,
+        )
+        .unwrap();
+
+        // Value taken from our CFD hedging model sheet
+        assert_eq!(pnl_long, -11_111_111);
+    }
+
+    #[test]
+    fn given_short_position_when_price_10_pc_down_then_22pc_profit() {
+        let opening_price = Decimal::from(20000);
+        let closing_price = Decimal::from(18000);
+        let quantity = 20000.0;
+        let long_leverage = 2.0;
+        let short_leverage = 1.0;
+
+        let pnl_long = calculate_pnl(
+            opening_price,
+            closing_price,
+            quantity,
+            long_leverage,
+            short_leverage,
+            Direction::Short,
+        )
+        .unwrap();
+
+        // Value taken from our CFD hedging model sheet
+        assert_eq!(pnl_long, 11_111_111);
+    }
 }
