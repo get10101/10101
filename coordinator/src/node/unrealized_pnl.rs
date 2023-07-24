@@ -6,12 +6,9 @@ use anyhow::Result;
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::PooledConnection;
 use diesel::PgConnection;
-use rust_decimal::Decimal;
 use time::OffsetDateTime;
 use trade::bitmex_client::BitmexClient;
 use trade::bitmex_client::Quote;
-use trade::cfd::calculate_pnl;
-use trade::Direction;
 
 pub async fn sync(node: Node) -> Result<()> {
     let mut conn = node.pool.get()?;
@@ -35,34 +32,7 @@ fn sync_position(
     position: &Position,
     quote: Quote,
 ) -> Result<()> {
-    let closing_price = match position.closing_price {
-        None => quote.get_price_for_direction(position.direction.opposite()),
-        Some(closing_price) => {
-            Decimal::try_from(closing_price).expect("f32 closing price to fit into decimal")
-        }
-    };
-
-    let average_entry_price = Decimal::try_from(position.average_entry_price)
-        .context("Failed to convert average entry price to Decimal")?;
-
-    let (long_leverage, short_leverage) = match position.direction {
-        Direction::Long => (position.leverage, 1.0_f32),
-        Direction::Short => (1.0_f32, position.leverage),
-    };
-
-    // the position in the database is the trader's position, our direction is opposite
-    let direction = position.direction.opposite();
-
-    let pnl = calculate_pnl(
-        average_entry_price,
-        closing_price,
-        position.quantity,
-        long_leverage,
-        short_leverage,
-        direction,
-    )
-    .context("Failed to calculate pnl for position")?;
-
+    let pnl = position.calculate_coordinator_pnl(quote)?;
     db::positions::Position::update_unrealized_pnl(conn, position.id, pnl)
         .context("Failed to update unrealized pnl in db")?;
 

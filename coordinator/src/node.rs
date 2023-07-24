@@ -57,7 +57,7 @@ pub mod storage;
 pub mod unrealized_pnl;
 
 /// The leverage used by the coordinator for all trades.
-const COORDINATOR_LEVERAGE: f32 = 1.0;
+pub const COORDINATOR_LEVERAGE: f32 = 1.0;
 
 #[derive(Debug, Clone)]
 pub struct NodeSettings {
