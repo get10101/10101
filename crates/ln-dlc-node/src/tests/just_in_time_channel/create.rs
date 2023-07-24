@@ -36,7 +36,8 @@ async fn open_jit_channel() {
         ..LnDlcNodeSettings::default()
     };
     let coordinator =
-        Node::start_test_coordinator_internal("coordinator", storage.clone(), settings).unwrap();
+        Node::start_test_coordinator_internal("coordinator", storage.clone(), settings, None)
+            .unwrap();
     let payee = Node::start_test_app("payee").unwrap();
 
     payer.connect(coordinator.info).await.unwrap();
@@ -137,7 +138,7 @@ async fn fail_to_open_jit_channel_with_fee_rate_over_max() {
     // We would like to assert on the payment failing, but this is not guaranteed as the payment can
     // still be retried after the first payment path failure. Thus, we check that it doesn't succeed
     payee
-        .wait_for_payment(HTLCStatus::Succeeded, invoice.payment_hash())
+        .wait_for_payment(HTLCStatus::Succeeded, invoice.payment_hash(), None)
         .await
         .expect_err("payment should not succeed");
 }

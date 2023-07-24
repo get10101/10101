@@ -39,6 +39,7 @@ async fn single_app_many_positions_load() {
             },
             Arc::new(InMemoryStore::default()),
             LnDlcNodeSettings::default(),
+            None,
         )
         .unwrap(),
     );

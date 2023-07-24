@@ -26,7 +26,7 @@ async fn multi_hop_payment() {
     let coordinator_outbound_liquidity_sat =
         min_outbound_liquidity_channel_creator(&payer, payer_outbound_liquidity_sat);
     coordinator
-        .open_channel(
+        .open_private_channel(
             &payer,
             coordinator_outbound_liquidity_sat,
             payer_outbound_liquidity_sat,
@@ -34,7 +34,10 @@ async fn multi_hop_payment() {
         .await
         .unwrap();
 
-    coordinator.open_channel(&payee, 20_000, 0).await.unwrap();
+    coordinator
+        .open_private_channel(&payee, 20_000, 0)
+        .await
+        .unwrap();
 
     let payer_balance_before = payer.get_ldk_balance();
     let coordinator_balance_before = coordinator.get_ldk_balance();

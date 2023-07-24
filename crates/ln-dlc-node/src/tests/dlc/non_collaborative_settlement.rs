@@ -31,7 +31,7 @@ async fn force_close_ln_dlc_channel() {
         .unwrap();
 
     let channel_details = coordinator
-        .open_channel(&app, coordinator_ln_balance, app_ln_balance)
+        .open_private_channel(&app, coordinator_ln_balance, app_ln_balance)
         .await
         .unwrap();
 

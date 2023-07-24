@@ -31,6 +31,7 @@ use dlc_manager::Storage;
 use futures::Future;
 use lightning::ln::channelmanager::ChannelDetails;
 use lightning::util::config::UserConfig;
+use lightning::util::events::Event;
 use rand::distributions::Alphanumeric;
 use rand::thread_rng;
 use rand::Rng;
@@ -45,6 +46,7 @@ use std::string::ToString;
 use std::sync::Arc;
 use std::sync::Once;
 use std::time::Duration;
+use tokio::sync::watch;
 use tokio::task::block_in_place;
 
 mod bitcoind;
@@ -94,6 +96,7 @@ impl Node<InMemoryStore> {
             },
             Arc::new(InMemoryStore::default()),
             LnDlcNodeSettings::default(),
+            None,
         )
     }
 
@@ -102,6 +105,7 @@ impl Node<InMemoryStore> {
             name,
             Arc::new(InMemoryStore::default()),
             LnDlcNodeSettings::default(),
+            None,
         )
     }
 
@@ -109,6 +113,7 @@ impl Node<InMemoryStore> {
         name: &str,
         storage: Arc<InMemoryStore>,
         settings: LnDlcNodeSettings,
+        ldk_event_sender: Option<watch::Sender<Option<Event>>>,
     ) -> Result<Self> {
         Self::start_test(
             name,
@@ -120,6 +125,7 @@ impl Node<InMemoryStore> {
             },
             storage,
             settings,
+            ldk_event_sender,
         )
     }
 
@@ -130,6 +136,7 @@ impl Node<InMemoryStore> {
         oracle: OracleInfo,
         storage: Arc<InMemoryStore>,
         settings: LnDlcNodeSettings,
+        ldk_event_sender: Option<watch::Sender<Option<Event>>>,
     ) -> Result<Self> {
         let data_dir = random_tmp_dir().join(name);
 
@@ -157,7 +164,7 @@ impl Node<InMemoryStore> {
             channel_config,
             settings,
             oracle.into(),
-            None,
+            ldk_event_sender,
             disk::in_memory_scorer,
         )?;
 
@@ -214,19 +221,39 @@ impl Node<InMemoryStore> {
         Ok(balance.confirmed)
     }
 
-    /// Initiates the opening of a channel _and_ waits for the channel
-    /// to be usable.
-    async fn open_channel(
+    /// Initiates the opening of a private channel _and_ waits for the channel to be usable.
+    async fn open_private_channel(
         &self,
         peer: &Node<InMemoryStore>,
         amount_us: u64,
         amount_them: u64,
     ) -> Result<ChannelDetails> {
+        self.open_channel(peer, amount_us, amount_them, false).await
+    }
+
+    /// Initiates the opening of a public channel _and_ waits for the channel to be usable.
+    async fn open_public_channel(
+        &self,
+        peer: &Node<InMemoryStore>,
+        amount_us: u64,
+        amount_them: u64,
+    ) -> Result<ChannelDetails> {
+        self.open_channel(peer, amount_us, amount_them, true).await
+    }
+
+    /// Initiates the opening of a channel _and_ waits for the channel to be usable.
+    async fn open_channel(
+        &self,
+        peer: &Node<InMemoryStore>,
+        amount_us: u64,
+        amount_them: u64,
+        is_public: bool,
+    ) -> Result<ChannelDetails> {
         let temp_channel_id = self.initiate_open_channel(
             peer.info.pubkey,
             amount_us + amount_them,
             amount_them,
-            false,
+            is_public,
         )?;
 
         let (does_manually_accept_inbound_channels, required_confirmations) =
@@ -308,7 +335,7 @@ async fn setup_coordinator_payer_channel(
         .unwrap();
 
     coordinator
-        .open_channel(
+        .open_private_channel(
             payer,
             coordinator_payer_inbound_liquidity,
             coordinator_payer_outbound_liquidity,

@@ -32,7 +32,7 @@ async fn reconnecting_during_dlc_channel_setup() {
         .unwrap();
 
     coordinator
-        .open_channel(&app, 50_000, 50_000)
+        .open_private_channel(&app, 50_000, 50_000)
         .await
         .unwrap();
     let channel_details = app.channel_manager.list_usable_channels();
@@ -253,7 +253,7 @@ async fn can_lose_connection_before_processing_subchannel_close_finalize() {
         .unwrap();
 
     coordinator
-        .open_channel(&app, coordinator_ln_balance, app_ln_balance)
+        .open_private_channel(&app, coordinator_ln_balance, app_ln_balance)
         .await
         .unwrap();
 

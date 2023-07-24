@@ -35,7 +35,7 @@ async fn given_lightning_channel_then_can_add_dlc_channel() {
         .unwrap();
 
     coordinator
-        .open_channel(&app, coordinator_ln_balance, app_ln_balance)
+        .open_private_channel(&app, coordinator_ln_balance, app_ln_balance)
         .await
         .unwrap();
 
