@@ -27,8 +27,15 @@ pub struct NewPosition {
 #[derive(PartialEq, Debug)]
 pub enum PositionState {
     Open,
-    Closing,
-    Closed { pnl: i64 },
+    /// The position is in the process of being closed
+    ///
+    /// Once the position is being close the closing price is known.
+    Closing {
+        closing_price: f32,
+    },
+    Closed {
+        pnl: i64,
+    },
 }
 
 /// A trader's position

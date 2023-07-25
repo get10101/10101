@@ -172,6 +172,7 @@ impl From<Position> for crate::position::models::Position {
             position_state: crate::position::models::PositionState::from((
                 value.position_state,
                 value.realized_pnl_sat,
+                value.closing_price,
             )),
             collateral: value.collateral,
             creation_timestamp: value.creation_timestamp,
@@ -237,13 +238,21 @@ impl QueryId for PositionStateType {
     }
 }
 
-impl From<(PositionState, Option<i64>)> for crate::position::models::PositionState {
-    fn from((position_state, realized_pnl): (PositionState, Option<i64>)) -> Self {
+impl From<(PositionState, Option<i64>, Option<f32>)> for crate::position::models::PositionState {
+    fn from(
+        (position_state, realized_pnl, closing_price): (PositionState, Option<i64>, Option<f32>),
+    ) -> Self {
         match position_state {
             PositionState::Open => crate::position::models::PositionState::Open,
-            PositionState::Closing => crate::position::models::PositionState::Closing,
+            PositionState::Closing => crate::position::models::PositionState::Closing {
+                // For backwards compatibility we set the closing price to 0 if it was not set in
+                // `Closing` state
+                closing_price: closing_price.unwrap_or(0.0_f32),
+            },
             PositionState::Closed => crate::position::models::PositionState::Closed {
-                pnl: realized_pnl.expect("realized pnl to be set when position is closed"),
+                // For backwards compatibility we set the realized pnl to 0 if it was not set in
+                // `Closed` state
+                pnl: realized_pnl.unwrap_or(0),
             },
         }
     }
