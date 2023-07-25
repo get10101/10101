@@ -21,7 +21,9 @@ import 'package:get_10101/features/trade/trade_value_change_notifier.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:get_10101/util/constants.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:social_share/social_share.dart';
+import 'dart:io' show Platform;
 
 import 'order_submission_status_dialog.dart';
 
@@ -394,7 +396,13 @@ class TradeScreen extends StatelessWidget {
 
   Future<void> shareTweet(PositionAction action) async {
     String actionStr = action == PositionAction.open ? "opened" : "closed";
-    await SocialShare.shareTwitter(
-        "Just $actionStr a #selfcustodial position using #DLC with @get10101 🚀. The future of decentralised finance starts now! #Bitcoin");
+    String shareText =
+        "Just $actionStr a #selfcustodial position using #DLC with @get10101 🚀. The future of decentralised finance starts now! #Bitcoin";
+
+    if (Platform.isAndroid || Platform.isIOS) {
+      await SocialShare.shareTwitter(shareText);
+    } else {
+      await Share.share(shareText);
+    }
   }
 }
