@@ -7,14 +7,17 @@ import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
 import 'package:get_10101/common/application/channel_info_service.dart';
 import 'package:get_10101/common/application/event_service.dart';
 import 'package:get_10101/common/color.dart';
+import 'package:get_10101/common/service_status_notifier.dart';
 import 'package:get_10101/features/trade/application/candlestick_service.dart';
 import 'package:get_10101/features/trade/application/order_service.dart';
 import 'package:get_10101/features/trade/application/position_service.dart';
 import 'package:get_10101/features/trade/application/trade_values_service.dart';
 import 'package:get_10101/features/trade/candlestick_change_notifier.dart';
 import 'package:get_10101/features/trade/domain/position.dart';
+import 'package:get_10101/common/domain/service_status.dart';
 import 'package:get_10101/features/trade/order_change_notifier.dart';
 import 'package:get_10101/features/trade/position_change_notifier.dart';
+import 'package:get_10101/features/trade/status_screen.dart';
 import 'package:get_10101/features/trade/submit_order_change_notifier.dart';
 import 'package:get_10101/features/trade/trade_value_change_notifier.dart';
 import 'package:get_10101/features/trade/settings_screen.dart';
@@ -29,6 +32,7 @@ import 'package:get_10101/features/wallet/scanner_screen.dart';
 import 'package:get_10101/features/wallet/send_screen.dart';
 import 'package:get_10101/features/wallet/settings_screen.dart';
 import 'package:get_10101/features/trade/trade_screen.dart';
+import 'package:get_10101/features/wallet/status_screen.dart';
 import 'package:get_10101/features/wallet/wallet_change_notifier.dart';
 import 'package:get_10101/features/wallet/wallet_screen.dart';
 import 'package:get_10101/common/app_bar_wrapper.dart';
@@ -69,6 +73,7 @@ void main() {
     ChangeNotifierProvider(create: (context) => SendPaymentChangeNotifier(const WalletService())),
     ChangeNotifierProvider(
         create: (context) => CandlestickChangeNotifier(const CandlestickService())),
+    ChangeNotifierProvider(create: (context) => ServiceStatusNotifier()),
     Provider(create: (context) => Environment.parse()),
     Provider(create: (context) => channelInfoService)
   ], child: const TenTenOneApp()));
@@ -162,6 +167,12 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
                     parentNavigatorKey: _rootNavigatorKey,
                     builder: (BuildContext context, GoRouterState state) {
                       return const WalletSettingsScreen();
+                    }),
+                GoRoute(
+                    path: WalletStatusScreen.subRouteName,
+                    parentNavigatorKey: _rootNavigatorKey,
+                    builder: (BuildContext context, GoRouterState state) {
+                      return const WalletStatusScreen();
                     })
               ],
             ),
@@ -176,6 +187,12 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
                     parentNavigatorKey: _rootNavigatorKey,
                     builder: (BuildContext context, GoRouterState state) {
                       return const TradeSettingsScreen();
+                    }),
+                GoRoute(
+                    path: TradeStatusScreen.subRouteName,
+                    parentNavigatorKey: _rootNavigatorKey,
+                    builder: (BuildContext context, GoRouterState state) {
+                      return const TradeStatusScreen();
                     })
               ],
             ),
@@ -384,6 +401,7 @@ void subscribeToNotifiers(BuildContext context) {
   final walletChangeNotifier = context.read<WalletChangeNotifier>();
   final tradeValuesChangeNotifier = context.read<TradeValuesChangeNotifier>();
   final submitOrderChangeNotifier = context.read<SubmitOrderChangeNotifier>();
+  final serviceStatusNotifier = context.read<ServiceStatusNotifier>();
 
   eventService.subscribe(
       orderChangeNotifier, bridge.Event.orderUpdateNotification(Order.apiDummy()));
@@ -407,6 +425,9 @@ void subscribeToNotifiers(BuildContext context) {
 
   eventService.subscribe(
       positionChangeNotifier, bridge.Event.priceUpdateNotification(Price.apiDummy()));
+
+  eventService.subscribe(
+      serviceStatusNotifier, bridge.Event.serviceHealthUpdate(serviceUpdateApiDummy()));
 
   eventService.subscribe(
       AnonSubscriber((event) => FLog.info(text: event.field0)), const bridge.Event.log(""));

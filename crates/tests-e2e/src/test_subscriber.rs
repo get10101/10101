@@ -68,7 +68,7 @@ impl TestSubscriber {
             let services = services.clone();
             tokio::spawn(async move {
                 while let Ok(()) = service_rx.changed().await {
-                    if let Some((service, status)) = *service_rx.borrow() {
+                    if let Some(ServiceUpdate { service, status }) = *service_rx.borrow() {
                         tracing::debug!(?service, ?status, "Updating status in the services map");
                         services
                             .lock()
@@ -181,7 +181,7 @@ impl Senders {
                 self.prices.send(Some(prices.clone()))?;
             }
             native::event::EventInternal::ServiceHealthUpdate(update) => {
-                self.service.send(Some(*update))?;
+                self.service.send(Some(update.clone()))?;
             }
             native::event::EventInternal::ChannelReady(_channel_id) => {
                 unreachable!("ChannelReady event should not be sent to the subscriber");
