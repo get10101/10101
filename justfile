@@ -174,7 +174,7 @@ maker args="":
     cargo run --bin maker -- {{args}}
 
 flutter-test args="":
-    cd mobile && flutter pub run build_runner build && flutter test
+    cd mobile && flutter pub run build_runner build && flutter test {{args}}
 
 frontend:
     cd mobile && flutter pub run build_runner build && flutter run lib/common/ten_ten_one_app_test.dart
