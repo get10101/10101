@@ -257,9 +257,8 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
 
       subscribeToNotifiers(context);
 
-      runBackend(config).then((_) {
-        FLog.info(text: "Backend started");
-      });
+      await runBackend(config);
+      FLog.info(text: "Backend started");
 
       await orderChangeNotifier.initialize();
       await positionChangeNotifier.initialize();
