@@ -253,6 +253,9 @@ all: services gen native run
 # Run everything at once, tailored for iOS development (rebuilds iOS)
 all-ios: services gen ios run
 
+# Run everything at once, tailored for Android development (rebuilds Android)
+all-android: services gen android run-local-android
+
 [private]
 wait-for-electrs-to-be-ready:
     #!/usr/bin/env bash
