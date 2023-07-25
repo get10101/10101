@@ -31,6 +31,11 @@ pub enum PositionState {
     Closed { pnl: i64 },
 }
 
+/// A trader's position
+///
+/// The position acts as an aggregate of one contract of one user.
+/// The position represents the values of the trader; i.e. the leverage, collateral and direction
+/// are stored from the trader's perspective and not the coordinator's.
 #[derive(Debug)]
 pub struct Position {
     pub id: i32,
@@ -47,7 +52,7 @@ pub struct Position {
     pub update_timestamp: OffsetDateTime,
     pub trader: PublicKey,
 
-    /// This is the temporary contract id that is created when the contract is being offered
+    /// The temporary contract id that is created when the contract is being offered
     ///
     /// We use the temporary contract id because the actual contract id might not be known at that
     /// point. The temporary contract id is propagated to all states until the contract is
@@ -60,8 +65,6 @@ pub struct Position {
 
 impl Position {
     /// Calculates the profit and loss for the coordinator in satoshis
-    ///
-    /// The position stored represents the values of the trader.
     pub fn calculate_coordinator_pnl(&self, quote: Quote) -> Result<i64> {
         let closing_price = match self.closing_price {
             None => quote.get_price_for_direction(self.direction.opposite()),
