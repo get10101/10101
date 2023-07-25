@@ -222,11 +222,11 @@ pub fn insert(
     conn: &mut PgConnection,
 ) -> Result<()> {
     let payment: NewPayment = payment.into();
-    let effected_rows = diesel::insert_into(payments::table)
+    let affected_rows = diesel::insert_into(payments::table)
         .values(&payment)
         .execute(conn)?;
 
-    ensure!(effected_rows > 0, "Could not insert payment");
+    ensure!(affected_rows > 0, "Could not insert payment");
 
     Ok(())
 }
@@ -249,54 +249,54 @@ pub fn update(
     let amount_msat = amount_msat.to_inner().map(|amt| amt as i64);
 
     conn.transaction::<(), _, _>(|conn| {
-        let effected_rows = diesel::update(payments::table)
+        let affected_rows = diesel::update(payments::table)
             .filter(schema::payments::payment_hash.eq(&payment_hash))
             .set(schema::payments::htlc_status.eq(htlc_status))
             .execute(conn)?;
 
-        if effected_rows == 0 {
+        if affected_rows == 0 {
             bail!("Could not update payment HTLC status")
         }
 
         if let Some(amount_msat) = amount_msat {
-            let effected_rows = diesel::update(payments::table)
+            let affected_rows = diesel::update(payments::table)
                 .filter(schema::payments::payment_hash.eq(&payment_hash))
                 .set(schema::payments::amount_msat.eq(amount_msat))
                 .execute(conn)?;
 
-            if effected_rows == 0 {
+            if affected_rows == 0 {
                 bail!("Could not update payment amount")
             }
         }
 
         if let Some(preimage) = preimage {
-            let effected_rows = diesel::update(payments::table)
+            let affected_rows = diesel::update(payments::table)
                 .filter(schema::payments::payment_hash.eq(&payment_hash))
                 .set(schema::payments::preimage.eq(preimage))
                 .execute(conn)?;
 
-            if effected_rows == 0 {
+            if affected_rows == 0 {
                 bail!("Could not update payment preimage")
             }
         }
 
         if let Some(secret) = secret {
-            let effected_rows = diesel::update(payments::table)
+            let affected_rows = diesel::update(payments::table)
                 .filter(schema::payments::payment_hash.eq(&payment_hash))
                 .set(schema::payments::secret.eq(secret))
                 .execute(conn)?;
 
-            if effected_rows == 0 {
+            if affected_rows == 0 {
                 bail!("Could not update payment secret")
             }
         }
 
-        let effected_rows = diesel::update(payments::table)
+        let affected_rows = diesel::update(payments::table)
             .filter(schema::payments::payment_hash.eq(&payment_hash))
             .set(schema::payments::updated_at.eq(updated_at))
             .execute(conn)?;
 
-        if effected_rows == 0 {
+        if affected_rows == 0 {
             bail!("Could not update payment updated_at xtimestamp")
         }
 

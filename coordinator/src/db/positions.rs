@@ -95,7 +95,7 @@ impl Position {
         trader_pubkey: String,
         closing_price: f32,
     ) -> Result<()> {
-        let effected_rows = diesel::update(positions::table)
+        let affected_rows = diesel::update(positions::table)
             .filter(positions::trader_pubkey.eq(trader_pubkey.clone()))
             .filter(positions::position_state.eq(PositionState::Open))
             .set((
@@ -105,7 +105,7 @@ impl Position {
             ))
             .execute(conn)?;
 
-        if effected_rows == 0 {
+        if affected_rows == 0 {
             bail!("Could not update position to Closing for {trader_pubkey}")
         }
 
@@ -113,7 +113,7 @@ impl Position {
     }
 
     pub fn set_position_to_closed(conn: &mut PgConnection, id: i32, pnl: i64) -> Result<()> {
-        let effected_rows = diesel::update(positions::table)
+        let affected_rows = diesel::update(positions::table)
             .filter(positions::id.eq(id))
             .set((
                 positions::position_state.eq(PositionState::Closed),
@@ -122,7 +122,7 @@ impl Position {
             ))
             .execute(conn)?;
 
-        if effected_rows == 0 {
+        if affected_rows == 0 {
             bail!("Could not update position to Closed with realized pnl {pnl} for position {id}")
         }
 
@@ -130,7 +130,7 @@ impl Position {
     }
 
     pub fn update_unrealized_pnl(conn: &mut PgConnection, id: i32, pnl: i64) -> Result<()> {
-        let effected_rows = diesel::update(positions::table)
+        let affected_rows = diesel::update(positions::table)
             .filter(positions::id.eq(id))
             .set((
                 positions::unrealized_pnl_sat.eq(Some(pnl)),
@@ -138,7 +138,7 @@ impl Position {
             ))
             .execute(conn)?;
 
-        if effected_rows == 0 {
+        if affected_rows == 0 {
             bail!("Could not update unrealized pnl {pnl} for position {id}")
         }
 
