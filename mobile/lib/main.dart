@@ -55,10 +55,12 @@ void main() {
   FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
 
   setupFlutterLogs();
+
+  const ChannelInfoService channelInfoService = ChannelInfoService();
+
   runApp(MultiProvider(providers: [
     ChangeNotifierProvider(
-        create: (context) =>
-            TradeValuesChangeNotifier(TradeValuesService(), const ChannelInfoService())),
+        create: (context) => TradeValuesChangeNotifier(TradeValuesService(), channelInfoService)),
     ChangeNotifierProvider(create: (context) => AmountDenominationChangeNotifier()),
     ChangeNotifierProvider(create: (context) => SubmitOrderChangeNotifier(OrderService())),
     ChangeNotifierProvider(create: (context) => OrderChangeNotifier(OrderService())),
@@ -68,6 +70,7 @@ void main() {
     ChangeNotifierProvider(
         create: (context) => CandlestickChangeNotifier(const CandlestickService())),
     Provider(create: (context) => Environment.parse()),
+    Provider(create: (context) => channelInfoService)
   ], child: const TenTenOneApp()));
 }
 

@@ -9,14 +9,14 @@ import 'package:get_10101/features/wallet/domain/wallet_balances.dart';
 import 'domain/wallet_info.dart';
 
 class WalletChangeNotifier extends ChangeNotifier implements Subscriber {
-  final WalletService _service;
+  final WalletService service;
   WalletInfo walletInfo = WalletInfo(
     balances: WalletBalances(onChain: Amount(0), lightning: Amount(0)),
     history: List.empty(),
   );
   bool syncing = true;
 
-  WalletChangeNotifier(this._service);
+  WalletChangeNotifier(this.service);
 
   void update(WalletInfo? walletInfo) {
     if (walletInfo == null) {
@@ -32,7 +32,7 @@ class WalletChangeNotifier extends ChangeNotifier implements Subscriber {
 
   Future<void> refreshWalletInfo() async {
     syncing = true;
-    await _service.refreshWalletInfo();
+    await service.refreshWalletInfo();
     syncing = false;
   }
 

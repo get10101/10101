@@ -13,7 +13,6 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:get_10101/common/modal_bottom_sheet_info.dart';
 import 'package:get_10101/common/domain/channel.dart';
-import 'package:get_10101/features/wallet/application/wallet_service.dart';
 
 class CreateInvoiceScreen extends StatefulWidget {
   static const route = "${WalletScreen.route}/$subRouteName";
@@ -31,10 +30,6 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
 
   final _formKey = GlobalKey<FormState>();
   bool showValidationHint = false;
-
-  final WalletService walletService = const WalletService();
-
-  final ChannelInfoService channelInfoService = const ChannelInfoService();
 
   /// The channel info if a channel already exists
   ///
@@ -54,11 +49,12 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
 
   @override
   void initState() {
-    initChannelInfo();
+    final ChannelInfoService channelInfoService = context.read<ChannelInfoService>();
+    initChannelInfo(channelInfoService);
     super.initState();
   }
 
-  Future<void> initChannelInfo() async {
+  Future<void> initChannelInfo(ChannelInfoService channelInfoService) async {
     channelInfo = await channelInfoService.getChannelInfo();
 
     // initial channel opening
@@ -69,7 +65,9 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
 
   @override
   Widget build(BuildContext context) {
-    Amount balance = context.watch<WalletChangeNotifier>().walletInfo.balances.lightning;
+    final ChannelInfoService channelInfoService = context.read<ChannelInfoService>();
+    final WalletChangeNotifier walletChangeNotifier = context.watch<WalletChangeNotifier>();
+    Amount balance = walletChangeNotifier.walletInfo.balances.lightning;
 
     Amount minTradeMargin = channelInfoService.getMinTradeMargin();
     Amount tradeFeeReserve = channelInfoService.getTradeFeeReserve();
@@ -193,7 +191,9 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
                                     if (_formKey.currentState!.validate()) {
                                       showValidationHint = false;
 
-                                      walletService.createInvoice(amount!).then((invoice) {
+                                      walletChangeNotifier.service
+                                          .createInvoice(amount!)
+                                          .then((invoice) {
                                         if (invoice != null) {
                                           GoRouter.of(context).go(ShareInvoiceScreen.route,
                                               extra: ShareInvoice(
