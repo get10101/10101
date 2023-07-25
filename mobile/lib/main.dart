@@ -7,6 +7,7 @@ import 'package:get_10101/common/application/channel_info_service.dart';
 import 'package:get_10101/common/application/event_service.dart';
 import 'package:get_10101/common/color.dart';
 import 'package:get_10101/common/domain/init_service.dart';
+import 'package:get_10101/common/scaffold_with_nav_bar.dart';
 import 'package:get_10101/features/trade/application/candlestick_service.dart';
 import 'package:get_10101/features/trade/application/order_service.dart';
 import 'package:get_10101/features/trade/application/position_service.dart';
@@ -31,10 +32,8 @@ import 'package:get_10101/features/wallet/settings_screen.dart';
 import 'package:get_10101/features/trade/trade_screen.dart';
 import 'package:get_10101/features/wallet/wallet_change_notifier.dart';
 import 'package:get_10101/features/wallet/wallet_screen.dart';
-import 'package:get_10101/common/app_bar_wrapper.dart';
 import 'package:get_10101/features/wallet/wallet_theme.dart';
 import 'package:get_10101/features/welcome/welcome_screen.dart';
-import 'package:get_10101/util/constants.dart';
 import 'package:get_10101/util/environment.dart';
 import 'package:get_10101/util/preferences.dart';
 import 'package:go_router/go_router.dart';
@@ -264,60 +263,6 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
   }
 }
 
-// Wrapper for the main application screens
-class ScaffoldWithNavBar extends StatelessWidget {
-  const ScaffoldWithNavBar({
-    required this.child,
-    Key? key,
-  }) : super(key: key);
-
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: child,
-      appBar: const PreferredSize(
-          preferredSize: Size.fromHeight(40), child: SafeArea(child: AppBarWrapper())),
-      bottomNavigationBar: BottomNavigationBar(
-        items: <BottomNavigationBarItem>[
-          BottomNavigationBarItem(
-            icon: Container(key: tabWallet, child: const Icon(Icons.wallet)),
-            label: WalletScreen.label,
-          ),
-          BottomNavigationBarItem(
-            icon: Container(key: tabTrade, child: const Icon(Icons.bar_chart)),
-            label: TradeScreen.label,
-          ),
-        ],
-        currentIndex: _calculateSelectedIndex(context),
-        onTap: (int idx) => _onItemTapped(idx, context),
-      ),
-    );
-  }
-
-  static int _calculateSelectedIndex(BuildContext context) {
-    final String location = GoRouterState.of(context).location;
-    if (location.startsWith(WalletScreen.route)) {
-      return 0;
-    }
-    if (location.startsWith(TradeScreen.route)) {
-      return 1;
-    }
-    return 0;
-  }
-
-  void _onItemTapped(int index, BuildContext context) {
-    switch (index) {
-      case 0:
-        GoRouter.of(context).go(WalletScreen.route);
-        break;
-      case 1:
-        GoRouter.of(context).go(TradeScreen.route);
-        break;
-    }
-  }
-}
 
 Future<void> logAppSettings(ChannelInfoService channelService, bridge.Config config) async {
   String commit = const String.fromEnvironment('COMMIT');
