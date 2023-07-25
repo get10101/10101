@@ -88,7 +88,15 @@ run-local-android args="":
     --dart-define="COORDINATOR_PORT_HTTP=8000" --flavor local
 
 fund:
-    cargo run --example fund
+    #!/usr/bin/env bash
+    BALANCE=$(curl -s localhost:8080/lnd/v1/balance/channels | sed 's/.*"balance":"\{0,1\}\([^,"]*\)"\{0,1\}.*/\1/')
+    if [ $BALANCE -lt 10000000 ]
+    then
+      echo "Lightning faucet balance is $BALANCE; funding..."
+      cargo run --example fund
+    else
+      echo "Lightning faucet balance is $BALANCE; skipping funding"
+    fi
 
 # Fund remote regtest instance
 fund-regtest:
