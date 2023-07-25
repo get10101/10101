@@ -1,12 +1,12 @@
 import 'package:f_logs/f_logs.dart';
 import 'package:flutter/material.dart';
-import 'dart:io';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge.dart';
 import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
 import 'package:get_10101/common/application/channel_info_service.dart';
 import 'package:get_10101/common/application/event_service.dart';
 import 'package:get_10101/common/color.dart';
+import 'package:get_10101/common/domain/init_service.dart';
 import 'package:get_10101/features/trade/application/candlestick_service.dart';
 import 'package:get_10101/features/trade/application/order_service.dart';
 import 'package:get_10101/features/trade/application/position_service.dart';
@@ -39,13 +39,11 @@ import 'package:get_10101/util/environment.dart';
 import 'package:get_10101/util/preferences.dart';
 import 'package:go_router/go_router.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:get_10101/common/amount_denomination_change_notifier.dart';
 import 'package:get_10101/features/trade/domain/order.dart';
 import 'package:get_10101/features/trade/domain/price.dart';
 import 'package:get_10101/features/wallet/domain/wallet_info.dart';
-import 'package:get_10101/ffi.dart' as rust;
 
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
 final GlobalKey<NavigatorState> _shellNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'shell');
@@ -70,7 +68,8 @@ void main() {
     ChangeNotifierProvider(
         create: (context) => CandlestickChangeNotifier(const CandlestickService())),
     Provider(create: (context) => Environment.parse()),
-    Provider(create: (context) => channelInfoService)
+    Provider(create: (context) => channelInfoService),
+    Provider(create: (context) => InitService()),
   ], child: const TenTenOneApp()));
 }
 
@@ -234,13 +233,15 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
     final positionChangeNotifier = context.read<PositionChangeNotifier>();
     final candlestickChangeNotifier = context.read<CandlestickChangeNotifier>();
     final walletChangeNotifier = context.read<WalletChangeNotifier>();
+    final channelService = context.read<ChannelInfoService>();
+    final initService = context.read<InitService>();
 
     try {
-      setupRustLogging();
+      initService.setupRustLogging();
 
       subscribeToNotifiers(context);
 
-      runBackend(config).then((_) {
+      initService.runBackend(config).then((_) {
         FLog.info(text: "Backend started");
       });
 
@@ -248,9 +249,9 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
       await positionChangeNotifier.initialize();
       await candlestickChangeNotifier.initialize();
 
-      await logAppSettings(config);
+      await logAppSettings(channelService, config);
 
-      final lastLogin = await rust.api.updateLastLogin();
+      final lastLogin = await initService.updateLastLogin();
       FLog.debug(text: "Last login was at ${lastLogin.date}");
     } on FfiException catch (error) {
       FLog.error(text: "Failed to initialise: Error: ${error.message}", exception: error);
@@ -260,36 +261,6 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
       FlutterNativeSplash.remove();
     }
     await walletChangeNotifier.refreshWalletInfo();
-  }
-
-  setupRustLogging() {
-    rust.api.initLogging().listen((event) {
-      // TODO: this should not be required if we enable mobile loggers for FLog.
-      if (Platform.isAndroid || Platform.isIOS) {
-        FLog.logThis(
-            text: event.target != ""
-                ? '${event.target}: ${event.msg} ${event.data}'
-                : '${event.msg} ${event.data}',
-            type: mapLogLevel(event.level));
-      }
-    });
-  }
-
-  LogLevel mapLogLevel(String level) {
-    switch (level) {
-      case "INFO":
-        return LogLevel.INFO;
-      case "DEBUG":
-        return LogLevel.DEBUG;
-      case "ERROR":
-        return LogLevel.ERROR;
-      case "WARN":
-        return LogLevel.WARNING;
-      case "TRACE":
-        return LogLevel.TRACE;
-      default:
-        return LogLevel.DEBUG;
-    }
   }
 }
 
@@ -348,7 +319,7 @@ class ScaffoldWithNavBar extends StatelessWidget {
   }
 }
 
-Future<void> logAppSettings(bridge.Config config) async {
+Future<void> logAppSettings(ChannelInfoService channelService, bridge.Config config) async {
   String commit = const String.fromEnvironment('COMMIT');
   if (commit.isNotEmpty) {
     FLog.info(text: "Built on commit: $commit");
@@ -369,7 +340,7 @@ Future<void> logAppSettings(bridge.Config config) async {
   FLog.info(text: "Oracle endpoint: ${config.oracleEndpoint}");
   FLog.info(text: "Oracle PK: ${config.oraclePubkey}");
 
-  String nodeId = rust.api.getNodeId();
+  String nodeId = channelService.getNodeId();
   FLog.info(text: "Node ID: $nodeId");
 }
 
@@ -410,26 +381,4 @@ void subscribeToNotifiers(BuildContext context) {
 
   eventService.subscribe(
       AnonSubscriber((event) => FLog.info(text: event.field0)), const bridge.Event.log(""));
-}
-
-Future<void> runBackend(bridge.Config config) async {
-  final seedDir = (await getApplicationSupportDirectory()).path;
-
-  // We use the app documents dir on iOS to easily access logs and DB from
-  // the device. On other plaftorms we use the seed dir.
-  String appDir = Platform.isIOS
-      ? (await getApplicationDocumentsDirectory()).path
-      : (await getApplicationSupportDirectory()).path;
-
-  final network = config.network == "mainnet" ? "bitcoin" : config.network;
-  if (File('$seedDir/$network/db').existsSync()) {
-    FLog.info(
-        text:
-            "App has already data in the seed dir. For compatibility reasons we will not switch to the new app dir.");
-    appDir = seedDir;
-  }
-
-  FLog.info(text: "App data will be stored in: $appDir");
-  FLog.info(text: "Seed data will be stored in: $seedDir");
-  await rust.api.runInFlutter(config: config, appDir: appDir, seedDir: seedDir);
 }

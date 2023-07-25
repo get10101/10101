@@ -53,4 +53,17 @@ class ChannelInfoService {
   Amount getMinTradeMargin() {
     return Amount(1000);
   }
+
+  /// Lightning node ID
+  String getNodeId() {
+    return rust.api.getNodeId();
+  }
+
+  Future<void> closeChannel() async {
+    await rust.api.closeChannel();
+  }
+
+  Future<void> forceCloseChannel() async {
+    await rust.api.closeChannel();
+  }
 }

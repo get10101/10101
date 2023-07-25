@@ -39,4 +39,9 @@ class TradeValuesService {
           price: price, leverage: leverage.leverage, direction: direction.toApi());
     }
   }
+
+  Amount? orderMatchingFee({required double? price, required double? quantity, dynamic hint}) =>
+      quantity != null && price != null
+          ? Amount(rust.api.orderMatchingFee(quantity: quantity, price: price))
+          : null;
 }

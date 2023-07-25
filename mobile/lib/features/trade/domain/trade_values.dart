@@ -1,4 +1,3 @@
-import 'package:get_10101/ffi.dart' as rust;
 import 'package:get_10101/features/trade/domain/direction.dart';
 import 'package:get_10101/features/trade/domain/leverage.dart';
 import 'package:get_10101/common/domain/model.dart';
@@ -45,7 +44,7 @@ class TradeValues {
             price: price, leverage: leverage, direction: direction)
         : null;
 
-    Amount? fee = orderMatchingFee(quantity, price);
+    Amount? fee = tradeValuesService.orderMatchingFee(quantity: quantity, price: price);
 
     return TradeValues(
         direction: direction,
@@ -105,10 +104,8 @@ class TradeValues {
   _recalculateFee() {
     fee = orderMatchingFee(quantity, price);
   }
-}
 
-Amount? orderMatchingFee(double? quantity, double? price) {
-  return quantity != null && price != null
-      ? Amount(rust.api.orderMatchingFee(quantity: quantity, price: price))
-      : null;
+  Amount? orderMatchingFee(double? quantity, double? price) {
+    return tradeValuesService.orderMatchingFee(quantity: quantity, price: price);
+  }
 }
