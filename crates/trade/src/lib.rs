@@ -43,6 +43,18 @@ pub struct Price {
     pub ask: Decimal,
 }
 
+impl Price {
+    /// Get the price for the direction
+    ///
+    /// For going long we get the best ask price, for going short we get the best bid price.
+    pub fn get_price_for_direction(&self, direction: Direction) -> Decimal {
+        match direction {
+            Direction::Long => self.ask,
+            Direction::Short => self.bid,
+        }
+    }
+}
+
 impl FromStr for ContractSymbol {
     type Err = anyhow::Error;
 
