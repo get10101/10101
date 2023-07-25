@@ -104,3 +104,10 @@ The app currently works only on `regtest`, which means that the wallet needs to 
 1. Create an invoice in your 10101 app by navigating to the receive screen.
 
 2. Click on the "pay the invoice with 10101 faucet" button.
+
+#### Useful information for local regtest debugging
+
+1. Follow coordinator's logs - `tail -f data/coordinator/regtest.log`
+2. Block explorer - http://localhost:8080/
+3. Lightning & Bitcoin faucet - http://localhost:8080/faucet/
+4. Manually open a lightning channel - http://localhost:8080/channel/
