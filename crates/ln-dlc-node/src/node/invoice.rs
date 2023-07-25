@@ -221,7 +221,8 @@ where
         &self,
         hash: &sha256::Hash,
     ) -> Result<(), tokio::time::error::Elapsed> {
-        self.wait_for_payment(HTLCStatus::Succeeded, hash).await
+        self.wait_for_payment(HTLCStatus::Succeeded, hash, None)
+            .await
     }
 
     #[autometrics]
@@ -229,6 +230,7 @@ where
         &self,
         expected_status: HTLCStatus,
         hash: &sha256::Hash,
+        timeout: Option<Duration>,
     ) -> Result<(), tokio::time::error::Elapsed> {
         assert_ne!(
             expected_status,
@@ -237,7 +239,7 @@ where
         );
         let payment_hash = PaymentHash(hash.into_inner());
 
-        tokio::time::timeout(Duration::from_secs(10), async {
+        tokio::time::timeout(timeout.unwrap_or(Duration::from_secs(10)), async {
             loop {
                 tokio::time::sleep(Duration::from_secs(1)).await;
 
