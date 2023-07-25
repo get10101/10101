@@ -7,4 +7,4 @@ ADD
 ALTER TABLE
     positions
 ADD
-    COLUMN "realized_pnl" BIGINT;
+    COLUMN "realized_pnl_sat" BIGINT;

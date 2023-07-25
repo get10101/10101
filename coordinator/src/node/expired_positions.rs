@@ -57,10 +57,7 @@ pub async fn close(node: Node) {
         };
 
         let closing_price = match BitmexClient::get_quote(&position.expiry_timestamp).await {
-            Ok(quote) => match position.direction {
-                trade::Direction::Long => quote.bid_price,
-                trade::Direction::Short => quote.ask_price,
-            },
+            Ok(quote) => quote.get_price_for_direction(position.direction.opposite()),
             Err(e) => {
                 tracing::warn!(
                     "Failed to get quote from bitmex for {} at {}. Error: {e:?}",

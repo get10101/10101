@@ -54,9 +54,10 @@ pub mod expired_positions;
 pub mod order_matching_fee;
 pub mod routing_fees;
 pub mod storage;
+pub mod unrealized_pnl;
 
 /// The leverage used by the coordinator for all trades.
-const COORDINATOR_LEVERAGE: f32 = 1.0;
+pub const COORDINATOR_LEVERAGE: f32 = 1.0;
 
 #[derive(Debug, Clone)]
 pub struct NodeSettings {
@@ -332,6 +333,9 @@ impl Node {
         db::positions::Position::set_open_position_to_closing(
             &mut connection,
             position.trader.to_string(),
+            closing_price
+                .to_f32()
+                .expect("Closing price to fit into f32"),
         )
     }
 
