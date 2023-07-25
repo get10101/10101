@@ -74,7 +74,7 @@ pub async fn fund_app_with_faucet(
     Ok(())
 }
 
-async fn pay_with_faucet(client: &Client, invoice: String) -> Result<()> {
+pub async fn pay_with_faucet(client: &Client, invoice: String) -> Result<()> {
     tracing::info!("Paying invoice with faucet: {}", invoice);
 
     #[derive(serde::Serialize)]
