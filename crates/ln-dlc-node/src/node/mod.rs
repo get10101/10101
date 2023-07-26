@@ -7,6 +7,7 @@ use crate::ln::EventHandler;
 use crate::ln::TracingLogger;
 use crate::ln_dlc_wallet::LnDlcWallet;
 use crate::node::dlc_channel::sub_channel_manager_periodic_check;
+use crate::node::peer_manager::alias_as_bytes;
 use crate::node::peer_manager::broadcast_node_announcement;
 use crate::on_chain_wallet::OnChainWallet;
 use crate::seed::Bip39Seed;
@@ -15,7 +16,6 @@ use crate::ChainMonitor;
 use crate::FakeChannelPaymentRequests;
 use crate::NetworkGraph;
 use crate::PeerManager;
-use anyhow::ensure;
 use anyhow::Context;
 use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
@@ -731,16 +731,4 @@ impl Display for NodeInfo {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         format!("{}@{}", self.pubkey, self.address).fmt(f)
     }
-}
-
-fn alias_as_bytes(alias: &str) -> Result<[u8; 32]> {
-    ensure!(
-        alias.len() <= 32,
-        "Node Alias can not be longer than 32 bytes"
-    );
-
-    let mut bytes = [0; 32];
-    bytes[..alias.len()].copy_from_slice(alias.as_bytes());
-
-    Ok(bytes)
 }
