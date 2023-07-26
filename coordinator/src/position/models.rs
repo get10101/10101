@@ -27,10 +27,22 @@ pub struct NewPosition {
 #[derive(PartialEq, Debug)]
 pub enum PositionState {
     Open,
-    Closing,
-    Closed { pnl: i64 },
+    /// The position is in the process of being closed
+    ///
+    /// Once the position is being close the closing price is known.
+    Closing {
+        closing_price: f32,
+    },
+    Closed {
+        pnl: i64,
+    },
 }
 
+/// A trader's position
+///
+/// The position acts as an aggregate of one contract of one user.
+/// The position represents the values of the trader; i.e. the leverage, collateral and direction
+/// are stored from the trader's perspective and not the coordinator's.
 #[derive(Debug)]
 pub struct Position {
     pub id: i32,
@@ -47,7 +59,7 @@ pub struct Position {
     pub update_timestamp: OffsetDateTime,
     pub trader: PublicKey,
 
-    /// This is the temporary contract id that is created when the contract is being offered
+    /// The temporary contract id that is created when the contract is being offered
     ///
     /// We use the temporary contract id because the actual contract id might not be known at that
     /// point. The temporary contract id is propagated to all states until the contract is
@@ -60,8 +72,6 @@ pub struct Position {
 
 impl Position {
     /// Calculates the profit and loss for the coordinator in satoshis
-    ///
-    /// The position stored represents the values of the trader.
     pub fn calculate_coordinator_pnl(&self, quote: Quote) -> Result<i64> {
         let closing_price = match self.closing_price {
             None => quote.get_price_for_direction(self.direction.opposite()),
@@ -101,7 +111,7 @@ pub mod tests {
     use std::str::FromStr;
 
     #[test]
-    fn given_trader_long_position_when_no_bid_price_change_then_zero_pnl() {
+    fn given_trader_long_position_when_no_bid_price_change_then_zero_coordinator_pnl() {
         let position = Position::dummy()
             .with_leverage(2.0)
             .with_quantity(1.0)
@@ -116,7 +126,7 @@ pub mod tests {
     }
 
     #[test]
-    fn given_trader_short_position_when_no_ask_price_change_then_zero_pnl() {
+    fn given_trader_short_position_when_no_ask_price_change_then_zero_coordinator_pnl() {
         let position = Position::dummy()
             .with_leverage(2.0)
             .with_quantity(1.0)
@@ -130,9 +140,22 @@ pub mod tests {
         assert_eq!(coordinator_pnl, 0);
     }
 
+    /// Thought Process documentation
+    ///
+    /// In this example, the trader who went long, bought $20,000 worth of BTC at the price of
+    /// 20,000, i.e. 1 BTC At the price of $22,000 the trader sells $20,000 worth of BTC, i.e.
+    /// the trader sells it for 0.909090909 BTC. The difference is the trader's profit profit,
+    /// i.e.:
+    ///
+    /// 1 BTC - 0.909090909 BTC = 0.09090909 BTC = 9_090_909 sats profit
+    ///
+    /// The trader's profit is the coordinator's loss, i.e. -9_090_909.
+    /// Note that for the trader the pnl% is +18% because the trader used leverage 2.
+    /// For the coordinator the pnl% is -9% because the coordinator used leverage 1.
+    ///
     /// See also: `given_long_position_when_price_10_pc_up_then_18pc_profit` test in `trade::cfd`
     #[test]
-    fn given_trader_long_position_when_bid_price_10pc_up_then_coordinator_18pc_loss() {
+    fn given_trader_long_position_when_bid_price_10pc_up_then_coordinator_9pc_loss() {
         let position = Position::dummy()
             .with_leverage(2.0)
             .with_quantity(20000.0)
@@ -148,7 +171,7 @@ pub mod tests {
 
     /// See also: `given_short_position_when_price_10_pc_up_then_18pc_loss` test in `trade::cfd`
     #[test]
-    fn given_trader_short_position_when_bid_price_10pc_up_then_coordinator_18pc_profit() {
+    fn given_trader_short_position_when_ask_price_10pc_up_then_coordinator_9pc_profit() {
         let position = Position::dummy()
             .with_leverage(2.0)
             .with_quantity(20000.0)
@@ -164,7 +187,7 @@ pub mod tests {
 
     /// See also: `given_long_position_when_price_10_pc_down_then_22pc_loss` test in `trade::cfd`
     #[test]
-    fn given_trader_long_position_when_bid_price_10pc_down_then_coordinator_22pc_profit() {
+    fn given_trader_long_position_when_bid_price_10pc_down_then_coordinator_11pc_profit() {
         let position = Position::dummy()
             .with_leverage(2.0)
             .with_quantity(20000.0)
@@ -180,7 +203,7 @@ pub mod tests {
 
     /// See also: `given_short_position_when_price_10_pc_down_then_22pc_profit` test in `trade::cfd`
     #[test]
-    fn given_trader_short_position_when_bid_price_10pc_down_then_coordinator_22pc_loss() {
+    fn given_trader_short_position_when_ask_price_10pc_down_then_coordinator_11pc_loss() {
         let position = Position::dummy()
             .with_leverage(2.0)
             .with_quantity(20000.0)

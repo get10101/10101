@@ -1,4 +1,5 @@
 use crate::Direction;
+use crate::Price;
 use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
@@ -51,13 +52,17 @@ pub struct Quote {
 }
 
 impl Quote {
-    /// Get the price for the direction
-    ///
-    /// For going long we get the best ask price, for going short we get the best bid price.
-    pub fn get_price_for_direction(&self, direction: Direction) -> Decimal {
-        match direction {
-            Direction::Long => self.ask_price,
-            Direction::Short => self.bid_price,
+    pub fn get_price_for_direction(self, direction: Direction) -> Decimal {
+        let price = Price::from(self);
+        price.get_price_for_direction(direction)
+    }
+}
+
+impl From<Quote> for Price {
+    fn from(value: Quote) -> Self {
+        Price {
+            bid: value.bid_price,
+            ask: value.ask_price,
         }
     }
 }

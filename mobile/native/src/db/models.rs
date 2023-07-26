@@ -129,11 +129,11 @@ pub(crate) struct Order {
 impl Order {
     /// inserts the given order into the db. Returns the order if successful
     pub fn insert(order: Order, conn: &mut SqliteConnection) -> Result<Order> {
-        let effected_rows = diesel::insert_into(orders::table)
+        let affected_rows = diesel::insert_into(orders::table)
             .values(&order)
             .execute(conn)?;
 
-        if effected_rows > 0 {
+        if affected_rows > 0 {
             Ok(order)
         } else {
             bail!("Could not insert order")
@@ -155,12 +155,12 @@ impl Order {
             let candidate = status.0;
             match current_state.next_state(candidate) {
                 Some(next_state) => {
-                    let effected_rows = diesel::update(orders::table)
+                    let affected_rows = diesel::update(orders::table)
                         .filter(schema::orders::id.eq(order_id.clone()))
                         .set(schema::orders::state.eq(next_state))
                         .execute(conn)?;
 
-                    if effected_rows == 0 {
+                    if affected_rows == 0 {
                         bail!("Could not update order state")
                     }
 
@@ -172,23 +172,23 @@ impl Order {
             }
 
             if let Some(execution_price) = status.1 {
-                let effected_rows = diesel::update(orders::table)
+                let affected_rows = diesel::update(orders::table)
                     .filter(schema::orders::id.eq(order_id.clone()))
                     .set(schema::orders::execution_price.eq(execution_price))
                     .execute(conn)?;
 
-                if effected_rows == 0 {
+                if affected_rows == 0 {
                     bail!("Could not update order execution price")
                 }
             }
 
             if let Some(failure_reason) = status.2 {
-                let effected_rows = diesel::update(orders::table)
+                let affected_rows = diesel::update(orders::table)
                     .filter(schema::orders::id.eq(order_id.clone()))
                     .set(schema::orders::failure_reason.eq(failure_reason))
                     .execute(conn)?;
 
-                if effected_rows == 0 {
+                if affected_rows == 0 {
                     bail!("Could not update order failure reason")
                 }
             }
@@ -304,11 +304,11 @@ pub enum PositionState {
 impl Position {
     /// inserts the given position into the db. Returns the position if successful
     pub fn insert(position: Position, conn: &mut SqliteConnection) -> Result<Position> {
-        let effected_rows = diesel::insert_into(positions::table)
+        let affected_rows = diesel::insert_into(positions::table)
             .values(&position)
             .execute(conn)?;
 
-        if effected_rows > 0 {
+        if affected_rows > 0 {
             Ok(position)
         } else {
             bail!("Could not insert position")
@@ -325,12 +325,12 @@ impl Position {
         state: PositionState,
         conn: &mut SqliteConnection,
     ) -> Result<()> {
-        let effected_rows = diesel::update(positions::table)
+        let affected_rows = diesel::update(positions::table)
             .filter(schema::positions::contract_symbol.eq(contract_symbol))
             .set(schema::positions::state.eq(state))
             .execute(conn)?;
 
-        if effected_rows == 0 {
+        if affected_rows == 0 {
             bail!("Could not update position")
         }
 
@@ -662,11 +662,11 @@ pub enum Flow {
 
 impl PaymentInsertable {
     pub fn insert(payment: PaymentInsertable, conn: &mut SqliteConnection) -> Result<()> {
-        let effected_rows = diesel::insert_into(payments::table)
+        let affected_rows = diesel::insert_into(payments::table)
             .values(&payment)
             .execute(conn)?;
 
-        ensure!(effected_rows > 0, "Could not insert payment");
+        ensure!(affected_rows > 0, "Could not insert payment");
 
         Ok(())
     }
@@ -682,54 +682,54 @@ impl PaymentInsertable {
         let updated_at = OffsetDateTime::now_utc().unix_timestamp();
 
         conn.transaction::<(), _, _>(|conn| {
-            let effected_rows = diesel::update(payments::table)
+            let affected_rows = diesel::update(payments::table)
                 .filter(schema::payments::payment_hash.eq(&payment_hash))
                 .set(schema::payments::htlc_status.eq(htlc_status))
                 .execute(conn)?;
 
-            if effected_rows == 0 {
+            if affected_rows == 0 {
                 bail!("Could not update payment HTLC status")
             }
 
             if let Some(amount_msat) = amount_msat {
-                let effected_rows = diesel::update(payments::table)
+                let affected_rows = diesel::update(payments::table)
                     .filter(schema::payments::payment_hash.eq(&payment_hash))
                     .set(schema::payments::amount_msat.eq(amount_msat))
                     .execute(conn)?;
 
-                if effected_rows == 0 {
+                if affected_rows == 0 {
                     bail!("Could not update payment amount")
                 }
             }
 
             if let Some(preimage) = preimage {
-                let effected_rows = diesel::update(payments::table)
+                let affected_rows = diesel::update(payments::table)
                     .filter(schema::payments::payment_hash.eq(&payment_hash))
                     .set(schema::payments::preimage.eq(preimage))
                     .execute(conn)?;
 
-                if effected_rows == 0 {
+                if affected_rows == 0 {
                     bail!("Could not update payment preimage")
                 }
             }
 
             if let Some(secret) = secret {
-                let effected_rows = diesel::update(payments::table)
+                let affected_rows = diesel::update(payments::table)
                     .filter(schema::payments::payment_hash.eq(&payment_hash))
                     .set(schema::payments::secret.eq(secret))
                     .execute(conn)?;
 
-                if effected_rows == 0 {
+                if affected_rows == 0 {
                     bail!("Could not update payment secret")
                 }
             }
 
-            let effected_rows = diesel::update(payments::table)
+            let affected_rows = diesel::update(payments::table)
                 .filter(schema::payments::payment_hash.eq(&payment_hash))
                 .set(schema::payments::updated_at.eq(updated_at))
                 .execute(conn)?;
 
-            if effected_rows == 0 {
+            if affected_rows == 0 {
                 bail!("Could not update payment updated_at xtimestamp")
             }
 
