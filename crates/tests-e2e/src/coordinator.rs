@@ -94,6 +94,14 @@ impl Coordinator {
             .context("could not parse json")
     }
 
+    pub async fn broadcast_node_announcement(&self) -> Result<reqwest::Response> {
+        let status = self
+            .post("/api/admin/broadcast_announcement")
+            .await?
+            .error_for_status()?;
+        Ok(status)
+    }
+
     async fn get(&self, path: &str) -> Result<reqwest::Response> {
         self.client
             .get(format!("{0}{path}", self.host))
