@@ -54,7 +54,7 @@ class AppBarWrapper extends StatelessWidget {
     }
 
     return Container(
-        margin: const EdgeInsets.only(left: 2.0),
+        margin: const EdgeInsets.only(left: 6.0),
         child: AppBar(
           elevation: 0,
           backgroundColor: Colors.transparent,
