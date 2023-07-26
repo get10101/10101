@@ -85,7 +85,7 @@ pub use wallet::PaymentDetails;
 /// The interval at which the [`lightning::ln::msgs::NodeAnnouncement`] is broadcast.
 ///
 /// According to the LDK team, a value of up to 1 hour should be fine.
-const BROADCAST_NODE_ANNOUNCEMENT_INTERVAL: Duration = Duration::from_secs(600);
+const BROADCAST_NODE_ANNOUNCEMENT_INTERVAL: Duration = Duration::from_secs(3600);
 
 /// An LN-DLC node.
 pub struct Node<S> {
@@ -625,12 +625,11 @@ where
         };
 
         let alias = alias_as_bytes(alias)?;
-        let node_announcement_interval = node_announcement_interval(network);
         let broadcast_node_announcement_handle = {
             let announcement_addresses = announcement_addresses;
             let peer_manager = peer_manager.clone();
             let (fut, remote_handle) = async move {
-                let mut interval = tokio::time::interval(node_announcement_interval);
+                let mut interval = tokio::time::interval(BROADCAST_NODE_ANNOUNCEMENT_INTERVAL);
                 loop {
                     broadcast_node_announcement(
                         &peer_manager,
@@ -744,12 +743,4 @@ fn alias_as_bytes(alias: &str) -> Result<[u8; 32]> {
     bytes[..alias.len()].copy_from_slice(alias.as_bytes());
 
     Ok(bytes)
-}
-
-fn node_announcement_interval(network: Network) -> Duration {
-    match network {
-        // We want to broadcast node announcements more frequently on regtest to make testing easier
-        Network::Regtest => Duration::from_secs(30),
-        _ => BROADCAST_NODE_ANNOUNCEMENT_INTERVAL,
-    }
 }
