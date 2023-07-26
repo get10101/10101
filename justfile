@@ -19,6 +19,14 @@ get_local_ip := if os() == "linux" {
  "ifconfig | grep -Eo 'inet (addr:)?([0-9]*\\.){3}[0-9]*' | grep -Eo '([0-9]*\\.){3}[0-9]*' | grep -v '127.0.0.1'"
 }
 
+# RUST_LOG is overriden for FRB codegen invocations it if RUST_LOG isn't info or debug, which means
+# a command like `RUST_LOG="warn" just all` would fail
+rust_log_for_frb := if env_var_or_default("RUST_LOG", "") =~ "(?i)(trace)|(debug)" {
+    "debug"
+} else {
+    "info"
+}
+
 
 default: gen
 precommit: gen lint
@@ -44,7 +52,7 @@ gen:
     set -euxo pipefail
     cd mobile
     flutter pub get
-    flutter_rust_bridge_codegen \
+    RUST_LOG={{ rust_log_for_frb }} flutter_rust_bridge_codegen \
         --rust-input native/src/api.rs \
         --c-output ios/Runner/bridge_generated.h \
         --extra-c-output-path macos/Runner/ \
