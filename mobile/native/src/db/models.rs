@@ -935,6 +935,22 @@ impl SpendableOutputQueryable {
             .first(conn)
     }
 
+    pub fn delete(
+        outpoint: lightning::chain::transaction::OutPoint,
+        conn: &mut SqliteConnection,
+    ) -> Result<()> {
+        let outpoint = outpoint_to_string(outpoint);
+
+        let affected_rows = diesel::delete(
+            spendable_outputs::table.filter(schema::spendable_outputs::outpoint.eq(outpoint)),
+        )
+        .execute(conn)?;
+
+        ensure!(affected_rows > 0, "Could not delete spendable output");
+
+        Ok(())
+    }
+
     pub fn get_all(conn: &mut SqliteConnection) -> QueryResult<Vec<SpendableOutputQueryable>> {
         spendable_outputs::table.load(conn)
     }
@@ -1557,6 +1573,17 @@ pub mod test {
         };
 
         assert_eq!(expected, loaded);
+
+        // Verify that we can delete the right spendable output based on its outpoint
+        SpendableOutputQueryable::delete(outpoint, &mut connection).unwrap();
+
+        match SpendableOutputQueryable::get(outpoint, &mut connection) {
+            // Could not find spendable output as expected
+            Err(Error::NotFound) => {}
+            _ => {
+                panic!("Expected to not be able to find deleted spendable output");
+            }
+        };
     }
 
     #[test]

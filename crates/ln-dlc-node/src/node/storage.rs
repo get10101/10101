@@ -63,6 +63,10 @@ pub trait Storage {
         &self,
         outpoint: &OutPoint,
     ) -> Result<Option<SpendableOutputDescriptor>>;
+
+    /// Delete a [`SpendableOutputDescriptor`] by its [`OutPoint`].
+    fn delete_spendable_output(&self, outpoint: &OutPoint) -> Result<()>;
+
     /// Get all [`SpendableOutputDescriptor`]s stored.
     fn all_spendable_outputs(&self) -> Result<Vec<SpendableOutputDescriptor>>;
 
@@ -188,6 +192,12 @@ impl Storage for InMemoryStore {
         outpoint: &OutPoint,
     ) -> Result<Option<SpendableOutputDescriptor>> {
         Ok(self.spendable_outputs_lock().get(outpoint).cloned())
+    }
+
+    fn delete_spendable_output(&self, outpoint: &OutPoint) -> Result<()> {
+        self.spendable_outputs_lock().remove(outpoint);
+
+        Ok(())
     }
 
     fn all_spendable_outputs(&self) -> Result<Vec<SpendableOutputDescriptor>> {
