@@ -37,6 +37,9 @@ use coordinator_commons::TradeParams;
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::Pool;
 use diesel::PgConnection;
+use lightning::ln::msgs::NetAddress;
+use ln_dlc_node::node::peer_manager::alias_as_bytes;
+use ln_dlc_node::node::peer_manager::broadcast_node_announcement;
 use ln_dlc_node::node::NodeInfo;
 use opentelemetry_prometheus::PrometheusExporter;
 use orderbook_commons::OrderbookMsg;
@@ -63,6 +66,8 @@ pub struct AppState {
     pub authenticated_users: Arc<Mutex<HashMap<PublicKey, mpsc::Sender<OrderbookMsg>>>>,
     pub settings: RwLock<Settings>,
     pub exporter: PrometheusExporter,
+    pub announcement_addresses: Vec<NetAddress>,
+    pub node_alias: String,
 }
 
 pub fn router(
@@ -70,6 +75,8 @@ pub fn router(
     pool: Pool<ConnectionManager<PgConnection>>,
     settings: Settings,
     exporter: PrometheusExporter,
+    announcement_addresses: Vec<NetAddress>,
+    node_alias: &str,
 ) -> Router {
     let (tx, _rx) = broadcast::channel(100);
     let app_state = Arc::new(AppState {
@@ -79,6 +86,8 @@ pub fn router(
         tx_pricefeed: tx,
         authenticated_users: Default::default(),
         exporter,
+        announcement_addresses,
+        node_alias: node_alias.to_string(),
     });
 
     Router::new()
@@ -118,6 +127,10 @@ pub fn router(
             get(get_settings).put(update_settings),
         )
         .route("/api/admin/sync", post(post_sync))
+        .route(
+            "/api/admin/broadcast_announcement",
+            post(post_broadcast_announcement),
+        )
         .route("/metrics", get(get_metrics))
         .route("/health", get(get_health))
         .with_state(app_state)
@@ -236,6 +249,24 @@ pub async fn post_trade(
     })?;
 
     Ok(invoice.to_string())
+}
+
+pub async fn post_broadcast_announcement(
+    State(state): State<Arc<AppState>>,
+) -> Result<(), AppError> {
+    let node_alias = alias_as_bytes(state.node_alias.as_str()).map_err(|e| {
+        AppError::InternalServerError(format!(
+            "Could not parse node alias {0} due to {e:#}",
+            state.node_alias
+        ))
+    })?;
+    broadcast_node_announcement(
+        &state.node.inner.peer_manager,
+        node_alias,
+        state.announcement_addresses.clone(),
+    );
+
+    Ok(())
 }
 
 /// Internal API for syncing the wallet

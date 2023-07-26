@@ -63,7 +63,7 @@ mod dlc_manager;
 pub(crate) mod invoice;
 mod ln_channel;
 mod oracle;
-mod peer_manager;
+pub mod peer_manager;
 mod storage;
 mod sub_channel_manager;
 mod wallet;
