@@ -11,55 +11,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.1.0] - 2023-07-27
 
-- Charge funding transaction on-chain fees upon receiving and inbound JIT Channel
-- Added prometheus metrics to coordinator: `channel_balance_satoshi`, `channel_outbound_capacity_satoshi`, `channel_inbound_capacity_satoshi`, `channel_is_usable`, `node_connected_peers_total`, `node_balance_satoshi`, `position_quantity_contracts`, `position_margin_sats`
-- Track channel data
-- Track channel liquidity
-- Track on-chain transactions
-- Display service status in the app
-- Fail HTLCs backwards
-- Show local time in candlestick chart
-- Enable wumbo channels for up to 1 BTC
+- Charge funding transaction on-chain fees upon receiving and inbound JIT Channel.
+- Added `prometheus` metrics to coordinator: `channel_balance_satoshi`, `channel_outbound_capacity_satoshi`, `channel_inbound_capacity_satoshi`, `channel_is_usable`, `node_connected_peers_total`, `node_balance_satoshi`, `position_quantity_contracts`, `position_margin_sats`.
+- Track channel data.
+- Track channel liquidity.
+- Track on-chain transactions.
+- Display service status in the app.
+- Fail HTLCs backwards in all scenarios.
+- Show local time in candlestick chart.
+- Enable wumbo channels for up to 1 BTC.
 
 ## [1.0.21] - 2023-07-02
 
 - Fix issue where `Next` button on the create invoice screen was hidden behind keyboard. The keyboard can now be closed by tapping outside the text-field.
 - Fix panic when processing accept message while peer is disconnected.
-- Configurable oracle endpoint and public key
+- Configurable oracle endpoint and public key.
 - Removed stop-gap from receiving payments with open position.
 - Reduced min amount of 50k sats on receiving payments.
 
 ## [1.0.20] - 2023-06-16
 
-- Do not trigger DLC manager periodic check twice
-- Simplify maker binary
-- Prefer unused addresses to new ones (temporarily)
-- chore: Remove share on twitter button temporarily
-- Use address caches in LnDlcWallet
-- Set background transaction priority to 24 blocks
-- Improve error message when trying to collab close LN with DLC channel
-- Simplify deserialisation of channel ID
-- Stabilise key dependencies
+- Do not trigger DLC manager periodic check twice.
+- Simplify maker binary.
+- Prefer unused addresses to new ones (temporarily).
+- Remove share-on-Twitter button temporarily.
+- Use address caches in `LnDlcWallet`.
+- Set background transaction priority to 24 blocks.
+- Improve error message when trying to collab close LN-DLC channel.
+- Simplify deserialisation of channel ID.
+- Stabilise key dependencies.
 
 ## [1.0.19] - 2023-06-12
 
-- Fixed a deadlock bug, resulting in the coordinator getting stuck
-- Upgrade our fork to rust-lightning 114
-- Added force closing a dlc channel feature
-- Replaced electrs with esplora client
+- Fixed a deadlock bug, resulting in the coordinator getting stuck.
+- Upgrade our fork to `rust-lightning:0.0.114`.
+- Added force closing a DLC channel feature.
+- Replaced `electrs` with `esplora` client.
 
 ## [1.0.6] - 2023-04-17
 
-- Change environment port to 80
+- Change environment port to 80.
 
 ## [1.0.5] - 2023-04-16
 
-- Announce coordinator with 10101.finance
+- Announce coordinator with `10101.finance`.
 
 ## [1.0.4] - 2023-04-14
 
-- Add new api to sign text with node
-- Auto settle expired positions
+- Add new API to sign text with node.
+- Auto-settle expired positions.
 
 ## [1.0.3] - 2023-04-14
 
