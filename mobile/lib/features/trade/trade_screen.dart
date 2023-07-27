@@ -22,6 +22,8 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:get_10101/util/constants.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:social_share/social_share.dart';
+import 'dart:io' show Platform;
 
 import 'order_submission_status_dialog.dart';
 
@@ -383,7 +385,7 @@ class TradeScreen extends StatelessWidget {
         padding: const EdgeInsets.only(top: 20, left: 10, right: 10, bottom: 5),
         child: ElevatedButton(
             onPressed: () async {
-              await shareText(pendingOrder.positionAction);
+              await shareTweet(pendingOrder.positionAction);
             },
             child: const Text("Share on Twitter")),
       ));
@@ -392,9 +394,15 @@ class TradeScreen extends StatelessWidget {
     return body;
   }
 
-  Future<void> shareText(PositionAction action) async {
+  Future<void> shareTweet(PositionAction action) async {
     String actionStr = action == PositionAction.open ? "opened" : "closed";
-    await Share.share(
-        "Just $actionStr a #selfcustodial position using #DLC with @get10101 🚀. The future of decentralised finance starts now! #Bitcoin");
+    String shareText =
+        "Just $actionStr a #selfcustodial position using #DLC with @get10101 🚀. The future of decentralised finance starts now! #Bitcoin";
+
+    if (Platform.isAndroid || Platform.isIOS) {
+      await SocialShare.shareTwitter(shareText);
+    } else {
+      await Share.share(shareText);
+    }
   }
 }
