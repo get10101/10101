@@ -7,11 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] - 2023-07-27
+
 - Charge funding transaction on-chain fees upon receiving and inbound JIT Channel
 - Added prometheus metrics to coordinator: `channel_balance_satoshi`, `channel_outbound_capacity_satoshi`, `channel_inbound_capacity_satoshi`, `channel_is_usable`, `node_connected_peers_total`, `node_balance_satoshi`, `position_quantity_contracts`, `position_margin_sats`
 - Track channel data
 - Track channel liquidity
 - Track on-chain transactions
+- Display service status in the app
+- Fail HTLCs backwards
+- Show local time in candlestick chart
+- Enable wumbo channels for up to 1 BTC
 
 ## [1.0.21] - 2023-07-02
 
@@ -59,7 +65,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Self-Custodial CFD Trading based on DLC and lightning
 
-[Unreleased]: https://github.com/get10101/10101/compare/1.0.21...HEAD
+[Unreleased]: https://github.com/get10101/10101/compare/1.1.0...HEAD
+[1.1.0]: https://github.com/get10101/10101/compare/1.0.21...1.1.0
 [1.0.21]: https://github.com/get10101/10101/compare/1.0.20...1.0.21
 [1.0.20]: https://github.com/get10101/10101/compare/1.0.19...1.0.20
 [1.0.19]: https://github.com/get10101/10101/compare/1.0.18...1.0.19
