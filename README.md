@@ -89,6 +89,17 @@ The following command will build and start all the necessary services, including
 just all-ios
 ```
 
+### Run the mobile-app on the Android simulator
+
+Note: Ensure that the Android simulator is running on your machine so it can be selected as target.
+Also ensure that you have run `just deps-android` to install the right targets for build.
+
+The following command will build and start all the necessary services, including the android app.
+
+```bash
+just all-android
+```
+
 ### How to faucet your lightning wallet.
 
 The app currently works only on `regtest`, which means that the wallet needs to be fauceted with the provided steps before you can start trading.
