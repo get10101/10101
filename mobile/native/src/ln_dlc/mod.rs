@@ -1,6 +1,7 @@
 use self::node::WalletHistories;
 use crate::api;
 use crate::calculations;
+use crate::channel_fee::ChannelFeePaymentSubscriber;
 use crate::commons::reqwest_client;
 use crate::config;
 use crate::event;
@@ -245,6 +246,10 @@ pub fn run(data_dir: String, seed_dir: String, runtime: &Runtime) -> Result<()> 
                 tokio::time::sleep(CHECK_OPEN_ORDERS_INTERVAL).await;
             }
         });
+
+        event::subscribe(ChannelFeePaymentSubscriber::new(
+            node.inner.channel_manager.clone(),
+        ));
 
         NODE.set(node);
 

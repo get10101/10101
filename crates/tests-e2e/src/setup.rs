@@ -54,9 +54,6 @@ impl TestSetup {
             .await
             .expect("to be able to fund");
 
-        // FIXME: Waiting here on >= as this test run on the CI can't find a route when trying to
-        // pay immediately after claiming a received payment.
-        // See: https://github.com/get10101/10101/issues/883
         let ln_balance = app
             .rx
             .wallet_info()
@@ -70,7 +67,7 @@ impl TestSetup {
                 .expect("have wallet_info")
                 .balances
                 .lightning
-                >= funded_amount
+                == funded_amount
         );
 
         Self { app, coordinator }
