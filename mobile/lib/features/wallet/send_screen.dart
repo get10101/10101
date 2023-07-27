@@ -207,14 +207,13 @@ class _SendScreenState extends State<SendScreen> {
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
                         ElevatedButton(
-                            onPressed: () async {
-                              if (_formKey.currentState!.validate()) {
-                                context
-                                    .read<SendPaymentChangeNotifier>()
-                                    .sendPayment(_textEditingController.text, _lightningInvoice!);
-                                GoRouter.of(context).go(WalletScreen.route);
-                              }
-                            },
+                            onPressed: !(_formKey.currentState?.validate() ?? false)
+                                ? null
+                                : () async {
+                                    context.read<SendPaymentChangeNotifier>().sendPayment(
+                                        _textEditingController.text, _lightningInvoice!);
+                                    GoRouter.of(context).go(WalletScreen.route);
+                                  },
                             child: const Text("Send Payment")),
                       ],
                     ),
