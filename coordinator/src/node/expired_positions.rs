@@ -56,17 +56,18 @@ pub async fn close(node: Node) {
             }
         };
 
-        let closing_price = match BitmexClient::get_quote(&position.expiry_timestamp).await {
-            Ok(quote) => quote.get_price_for_direction(position.direction.opposite()),
-            Err(e) => {
-                tracing::warn!(
-                    "Failed to get quote from bitmex for {} at {}. Error: {e:?}",
-                    position.trader,
-                    position.expiry_timestamp
-                );
-                continue;
-            }
-        };
+        let closing_price =
+            match BitmexClient::get_quote(&node.inner.network, &position.expiry_timestamp).await {
+                Ok(quote) => quote.get_price_for_direction(position.direction.opposite()),
+                Err(e) => {
+                    tracing::warn!(
+                        "Failed to get quote from bitmex for {} at {}. Error: {e:?}",
+                        position.trader,
+                        position.expiry_timestamp
+                    );
+                    continue;
+                }
+            };
 
         // Upon collab closing an expired position we cannot charge a fee using an
         // invoice. This dummy hash exists in the database to

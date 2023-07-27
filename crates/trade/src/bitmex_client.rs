@@ -3,6 +3,7 @@ use crate::Price;
 use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
+use bdk::bitcoin::Network;
 use rust_decimal::Decimal;
 use serde::Deserialize;
 use serde::Serialize;
@@ -16,10 +17,15 @@ pub struct BitmexClient {}
 impl BitmexClient {
     /// gets a quote for a given timestamp. An error is returned if the provided timestamp is
     /// greater than the current timestamp
-    pub async fn get_quote(timestamp: &OffsetDateTime) -> Result<Quote> {
+    pub async fn get_quote(network: &Network, timestamp: &OffsetDateTime) -> Result<Quote> {
         if OffsetDateTime::now_utc().lt(timestamp) {
             bail!("timestamp must not be in the future!")
         }
+
+        let url = match network {
+            Network::Bitcoin => "www.bitmex.com".to_string(),
+            _ => "testnet.bitmex.com".to_string(),
+        };
 
         let format = format_description::parse("[year]-[month]-[day]T[hour]:[minute]:[second]")?;
 
@@ -27,7 +33,7 @@ impl BitmexClient {
         let start_time = timestamp.sub(Duration::from_secs(60)).format(&format)?;
         let end_time = timestamp.format(&format)?;
 
-        let quote: Vec<Quote> = reqwest::get(format!("https://www.bitmex.com/api/v1/quote?symbol=XBTUSD&count=1&reverse=false&startTime={start_time}&endTime={end_time}"))
+        let quote: Vec<Quote> = reqwest::get(format!("https://{url}/api/v1/quote?symbol=XBTUSD&count=1&reverse=false&startTime={start_time}&endTime={end_time}"))
             .await?
             .json()
             .await?;

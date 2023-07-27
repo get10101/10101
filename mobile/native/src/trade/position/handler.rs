@@ -1,4 +1,5 @@
 use crate::calculations::calculate_liquidation_price;
+use crate::config::get_network;
 use crate::db;
 use crate::event;
 use crate::event::EventInternal;
@@ -185,7 +186,7 @@ pub async fn close_position() -> Result<()> {
 
     tracing::debug!("Adding order for the expired closed position");
 
-    let quote = BitmexClient::get_quote(&position.expiry).await?;
+    let quote = BitmexClient::get_quote(&get_network(), &position.expiry).await?;
     let closing_price = quote.get_price_for_direction(position.direction.opposite());
 
     let order = Order {
