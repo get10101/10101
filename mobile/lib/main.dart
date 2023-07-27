@@ -1,6 +1,9 @@
+import 'dart:convert';
+
 import 'package:f_logs/f_logs.dart';
 import 'package:flutter/material.dart';
 import 'dart:io';
+import 'package:http/http.dart' as http;
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge.dart';
 import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
@@ -50,6 +53,7 @@ import 'package:get_10101/features/trade/domain/order.dart';
 import 'package:get_10101/features/trade/domain/price.dart';
 import 'package:get_10101/features/wallet/domain/wallet_info.dart';
 import 'package:get_10101/ffi.dart' as rust;
+import 'package:version/version.dart';
 
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
 final GlobalKey<NavigatorState> _shellNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'shell');
@@ -104,6 +108,9 @@ class TenTenOneApp extends StatefulWidget {
 }
 
 class _TenTenOneAppState extends State<TenTenOneApp> {
+  final GlobalKey<ScaffoldMessengerState> scaffoldMessengerKey =
+      GlobalKey<ScaffoldMessengerState>();
+
   final GoRouter _router = GoRouter(
       navigatorKey: _rootNavigatorKey,
       initialLocation: WalletScreen.route,
@@ -221,7 +228,48 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
   void initState() {
     super.initState();
 
-    init(context.read<bridge.Config>());
+    final config = context.read<bridge.Config>();
+
+    init(config);
+
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      PackageInfo packageInfo = await PackageInfo.fromPlatform();
+
+      final messenger = scaffoldMessengerKey.currentState!;
+
+      try {
+        final response = await http.get(
+          Uri.parse('http://${config.host}:${config.httpPort}/api/version'),
+        );
+
+        final clientVersion = Version.parse(packageInfo.version);
+        final coordinatorVersion = Version.parse(jsonDecode(response.body));
+        FLog.info(text: "Coordinator version: ${coordinatorVersion.toString()}");
+
+        if (coordinatorVersion > clientVersion) {
+          FLog.warning(text: "Client out of date. Current version: ${clientVersion.toString()}");
+          showDialog(
+              context: _shellNavigatorKey.currentContext!,
+              builder: (context) => AlertDialog(
+                      title: const Text("Update available"),
+                      content: Text("A new version of 10101 is available: "
+                          "${coordinatorVersion.toString()}.\n\n"
+                          "Please note that if you do not update 10101, the app"
+                          " may not function properly."),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context, 'OK'),
+                          child: const Text('OK'),
+                        ),
+                      ]));
+        } else {
+          FLog.info(text: "Client up to date");
+        }
+      } catch (e) {
+        FLog.error(text: "Error getting coordinator version: ${e.toString()}");
+        messenger.showSnackBar(const SnackBar(content: Text("Coordinator offline")));
+      }
+    });
   }
 
   @override
@@ -230,6 +278,7 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
 
     return MaterialApp.router(
       title: "10101",
+      scaffoldMessengerKey: scaffoldMessengerKey,
       theme: ThemeData(
         primarySwatch: swatch,
         iconTheme: IconThemeData(
