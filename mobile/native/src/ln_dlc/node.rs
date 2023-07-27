@@ -18,6 +18,7 @@ use lightning::ln::PaymentPreimage;
 use lightning::ln::PaymentSecret;
 use lightning_invoice::Invoice;
 use ln_dlc_node::channel::Channel;
+use ln_dlc_node::channel::FakeScid;
 use ln_dlc_node::node;
 use ln_dlc_node::node::dlc_message_name;
 use ln_dlc_node::node::rust_dlc_manager::contract::signed_contract::SignedContract;
@@ -412,6 +413,11 @@ impl node::Storage for NodeStorage {
 
     fn get_channel(&self, user_channel_id: &str) -> Result<Option<Channel>> {
         db::get_channel(user_channel_id)
+    }
+
+    fn get_channel_by_fake_scid(&self, _fake_scid: FakeScid) -> Result<Option<Channel>> {
+        // The app does not support loading channels by fake scid
+        unimplemented!("The app does not support loading channels by fake scid")
     }
 
     fn all_non_pending_channels(&self) -> Result<Vec<Channel>> {

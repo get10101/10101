@@ -1,4 +1,5 @@
 use crate::channel::Channel;
+use crate::channel::FakeScid;
 use crate::channel::UserChannelId;
 use crate::dlc_custom_signer::CustomKeysManager;
 use crate::fee_rate_estimator::FeeRateEstimator;
@@ -710,13 +711,18 @@ where
             "Failed to open channel because maximum channel value exceeded"
         );
 
-        let shadow_channel = Channel::new(0, channel_value, target_node_id);
+        let fake_scid = FakeScid::new(requested_next_hop_scid);
+        let mut shadow_channel = self
+            .storage
+            .get_channel_by_fake_scid(fake_scid)
+            .with_context(|| format!("Failed to load channel by fake SCID {fake_scid}"))?
+            .with_context(|| format!("Could not find shadow channel for fake SCID {fake_scid}"))?;
 
-        tracing::debug!(%shadow_channel, "Creating shadow channel");
+        shadow_channel.outbound = channel_value;
 
         self.storage
             .upsert_channel(shadow_channel.clone())
-            .context("Failed to upsert shadow channel")?;
+            .with_context(|| format!("Failed to upsert shadow channel: {shadow_channel}"))?;
 
         let mut ldk_config = *self.ldk_config.read();
         ldk_config.channel_handshake_config.announced_channel = false;
@@ -730,7 +736,7 @@ where
                 shadow_channel.user_channel_id.to_u128(),
                 Some(ldk_config),
             )
-            .map_err(|e| anyhow!("Failed to open just in time channel: {e:?}"))?;
+            .map_err(|e| anyhow!("Failed to open JIT channel: {e:?}"))?;
 
         tracing::info!(
             peer = %target_node_id,

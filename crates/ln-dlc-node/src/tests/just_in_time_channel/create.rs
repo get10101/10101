@@ -121,7 +121,7 @@ async fn fail_to_open_jit_channel_with_fee_rate_over_max() {
 
     coordinator.wallet().update_settings(settings).await;
 
-    let final_route_hint_hop = coordinator.prepare_jit_channel(payee.info.pubkey);
+    let final_route_hint_hop = coordinator.prepare_jit_channel(payee.info.pubkey).unwrap();
     let invoice = payee
         .create_interceptable_invoice(
             Some(payer_to_payee_invoice_amount),
@@ -164,7 +164,7 @@ async fn open_jit_channel_with_disconnected_payee() {
 
     // Act
 
-    let final_route_hint_hop = coordinator.prepare_jit_channel(payee.info.pubkey);
+    let final_route_hint_hop = coordinator.prepare_jit_channel(payee.info.pubkey).unwrap();
     let invoice = payee
         .create_interceptable_invoice(
             Some(payer_to_payee_invoice_amount),
@@ -222,7 +222,7 @@ pub(crate) async fn send_interceptable_payment(
     let coordinator_balance_before = coordinator.get_ldk_balance();
     let payee_balance_before = payee.get_ldk_balance();
 
-    let interceptable_route_hint_hop = coordinator.prepare_jit_channel(payee.info.pubkey);
+    let interceptable_route_hint_hop = coordinator.prepare_jit_channel(payee.info.pubkey)?;
 
     let invoice_expiry = 0; // an expiry of 0 means the invoice never expires
     let invoice = payee.create_interceptable_invoice(

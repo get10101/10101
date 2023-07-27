@@ -165,9 +165,8 @@ pub async fn prepare_jit_channel(
         move || app_state.node.inner.prepare_jit_channel(target_node)
     })
     .await
-    .map_err(|e| {
-        AppError::InternalServerError(format!("Could not create intercept SCID: {e:#}"))
-    })?;
+    .expect("task to complete")
+    .map_err(|e| AppError::InternalServerError(format!("Could not prepare JIT channel: {e:#}")))?;
 
     Ok(Json(route_hint_hop.into()))
 }

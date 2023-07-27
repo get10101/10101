@@ -45,6 +45,7 @@ diesel::table! {
         created_at -> Timestamptz,
         updated_at -> Timestamptz,
         open_channel_fee_payment_hash -> Nullable<Text>,
+        fake_scid -> Nullable<Text>,
     }
 }
 
