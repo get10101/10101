@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 - Automatically retry spendable outputs if not successfully published
+- Permit the closure of the LN-DLC channel in any intermediate state.
 
 ## [1.1.0] - 2023-07-27
 
@@ -16,10 +17,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Track channel data.
 - Track channel liquidity.
 - Track on-chain transactions.
-- Display service status in the app.
-- Fail HTLCs backwards in all scenarios.
-- Show local time in candlestick chart.
-- Enable wumbo channels for up to 1 BTC.
 
 ## [1.0.21] - 2023-07-02
 

@@ -96,22 +96,31 @@ pub async fn create_dlc_channel(
     )
     .await?;
 
-    // Assert
-
     // Process the app's `Confirm` and send `Finalize`
     wait_until_dlc_channel_state(
         Duration::from_secs(30),
         coordinator,
         app.info.pubkey,
-        SubChannelStateName::Signed,
+        SubChannelStateName::Finalized,
     )
     .await?;
 
-    // Process the coordinator's `Finalize`
+    // Assert
+
+    // Process the coordinator's `Finalize` and send `Revoke`
     wait_until_dlc_channel_state(
         Duration::from_secs(30),
         app,
         coordinator.info.pubkey,
+        SubChannelStateName::Signed,
+    )
+    .await?;
+
+    // Process the app's `Revoke`
+    wait_until_dlc_channel_state(
+        Duration::from_secs(30),
+        coordinator,
+        app.info.pubkey,
         SubChannelStateName::Signed,
     )
     .await?;

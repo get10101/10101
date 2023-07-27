@@ -10,6 +10,7 @@ use crate::ln_dlc_wallet::LnDlcWallet;
 use crate::node::invoice::HTLCStatus;
 use crate::node::ChannelManager;
 use crate::node::Storage;
+use crate::node::SubChannelManager;
 use crate::util;
 use crate::FakeChannelPaymentRequests;
 use crate::MillisatAmount;
@@ -51,6 +52,7 @@ use uuid::Uuid;
 
 pub struct EventHandler<S> {
     channel_manager: Arc<ChannelManager>,
+    sub_channel_manager: Arc<SubChannelManager>,
     wallet: Arc<LnDlcWallet>,
     network_graph: Arc<NetworkGraph>,
     keys_manager: Arc<CustomKeysManager>,
@@ -70,6 +72,7 @@ where
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         channel_manager: Arc<ChannelManager>,
+        sub_channel_manager: Arc<SubChannelManager>,
         wallet: Arc<LnDlcWallet>,
         network_graph: Arc<NetworkGraph>,
         keys_manager: Arc<CustomKeysManager>,
@@ -83,6 +86,7 @@ where
     ) -> Self {
         Self {
             channel_manager,
+            sub_channel_manager,
             wallet,
             network_graph,
             keys_manager,
@@ -449,14 +453,14 @@ where
                 user_channel_id,
             } => {
                 block_in_place(|| {
-                    let channel_id = hex::encode(channel_id);
                     let user_channel_id = Uuid::from_u128(user_channel_id).to_string();
                     tracing::info!(
                         %user_channel_id,
-                        %channel_id,
+                        channel_id = %hex::encode(channel_id),
                         ?reason,
                         "Channel closed",
                     );
+
                     if let Some(channel) = self.storage.get_channel(&user_channel_id)? {
                         let counterparty = channel.counterparty;
 
@@ -471,6 +475,10 @@ where
                             self.fail_intercepted_htlc(intercept_id);
                         }
                     }
+
+                    self.sub_channel_manager
+                        .notify_ln_channel_closed(channel_id)?;
+
                     anyhow::Ok(())
                 })?;
             }
