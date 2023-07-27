@@ -10,14 +10,16 @@ class CandlestickChangeNotifier extends ChangeNotifier {
   final CandlestickService _candlestickService;
   Timer? timer;
 
-  CandlestickChangeNotifier(this._candlestickService);
+  CandlestickChangeNotifier(
+    this._candlestickService,
+  );
 
-  Future<void> initialize() async {
-    candles = await _candlestickService.fetchCandles(1000);
+  Future<void> initialize(String network) async {
+    candles = await _candlestickService.fetchCandles(network, 1000);
     notifyListeners();
 
     timer = Timer.periodic(const Duration(seconds: 30), (Timer t) async {
-      final list = await _candlestickService.fetchCandles(1);
+      final list = await _candlestickService.fetchCandles(network, 1);
       if (list.isNotEmpty) {
         // we expect only one item to be in the list
         var item = list[0];

@@ -14,7 +14,7 @@ pub async fn sync(node: Node) -> Result<()> {
     let mut conn = node.pool.get()?;
 
     let positions = db::positions::Position::get_all_open_or_closing_positions(&mut conn)?;
-    let current_quote = BitmexClient::get_quote(&OffsetDateTime::now_utc())
+    let current_quote = BitmexClient::get_quote(&node.inner.network, &OffsetDateTime::now_utc())
         .await
         .context("Failed to fetch quote from BitMEX")?;
 
