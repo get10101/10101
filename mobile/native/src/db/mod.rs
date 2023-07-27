@@ -339,6 +339,15 @@ pub fn get_spendable_output(
     output.map(|output| output.try_into()).transpose()
 }
 
+pub fn delete_spendable_output(outpoint: lightning::chain::transaction::OutPoint) -> Result<()> {
+    tracing::debug!(?outpoint, "Removing spendable output");
+
+    let mut db = connection()?;
+    SpendableOutputQueryable::delete(outpoint, &mut db)?;
+
+    Ok(())
+}
+
 pub fn get_spendable_outputs(
 ) -> Result<Vec<lightning::chain::keysinterface::SpendableOutputDescriptor>> {
     let mut db = connection()?;

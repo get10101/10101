@@ -1,16 +1,19 @@
+use lightning::chain::chaininterface::ConfirmationTarget;
+
 mod channel_details;
 mod config;
 mod dlc_channel_details;
 mod event_handler;
 mod logger;
+mod manage_spendable_outputs;
 
 pub use channel_details::ChannelDetails;
 pub(crate) use config::app_config;
 pub use config::coordinator_config;
 pub use dlc_channel_details::DlcChannelDetails;
 pub(crate) use event_handler::EventHandler;
-use lightning::chain::chaininterface::ConfirmationTarget;
 pub(crate) use logger::TracingLogger;
+pub(crate) use manage_spendable_outputs::manage_spendable_outputs;
 
 /// When handling the [`Event::HTLCIntercepted`], we may need to
 /// create a new channel with the recipient of the HTLC. If the

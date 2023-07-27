@@ -397,6 +397,10 @@ impl node::Storage for NodeStorage {
         db::get_spendable_output(*outpoint)
     }
 
+    fn delete_spendable_output(&self, outpoint: &OutPoint) -> Result<()> {
+        db::delete_spendable_output(*outpoint)
+    }
+
     fn all_spendable_outputs(&self) -> Result<Vec<SpendableOutputDescriptor>> {
         db::get_spendable_outputs()
     }

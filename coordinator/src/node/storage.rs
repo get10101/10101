@@ -112,6 +112,11 @@ impl node::Storage for NodeStorage {
         db::spendable_outputs::get(&mut conn, outpoint)
     }
 
+    fn delete_spendable_output(&self, outpoint: &OutPoint) -> Result<()> {
+        let mut conn = self.pool.get()?;
+        db::spendable_outputs::delete(&mut conn, outpoint)
+    }
+
     fn all_spendable_outputs(&self) -> Result<Vec<SpendableOutputDescriptor>> {
         let mut conn = self.pool.get()?;
         db::spendable_outputs::get_all(&mut conn)
