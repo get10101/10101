@@ -14,7 +14,7 @@ class CandlestickService {
   }
 
   Candle _parse(Map<String, dynamic> json) {
-    var date = DateTime.parse(json['timestamp']);
+    var date = DateTime.parse(json['timestamp']).toLocal();
     var high = json['high'].toDouble();
     var low = json['low'].toDouble();
     var open = json['open'].toDouble();
