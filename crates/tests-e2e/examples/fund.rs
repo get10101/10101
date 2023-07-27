@@ -6,6 +6,7 @@ use clap::Parser;
 use ln_dlc_node::node::NodeInfo;
 use local_ip_address::local_ip;
 use reqwest::Response;
+use reqwest::StatusCode;
 use serde::Deserialize;
 use std::time::Duration;
 use tests_e2e::coordinator::Coordinator;
@@ -39,6 +40,10 @@ async fn main() {
 }
 
 async fn fund_everything(faucet: &str, coordinator: &str) -> Result<()> {
+    // let node_info = get_node_info(faucet).await?;
+    // dbg!(node_info);
+    // return Ok(());
+
     let coordinator = Coordinator::new(init_reqwest(), coordinator);
     let coord_addr = coordinator.get_new_address().await?;
     fund(&coord_addr, Amount::ONE_BTC, faucet).await?;
@@ -80,6 +85,27 @@ async fn fund_everything(faucet: &str, coordinator: &str) -> Result<()> {
         faucet,
     )
     .await?;
+
+    // wait until channel has `peer_alias` set correctly
+    tracing::info!("Waiting until channel is has correct peer_alias set");
+    let mut counter = 0;
+    loop {
+        if counter == 3 {
+            bail!("Could not verify channel is open. Please wipe and try again");
+        }
+        counter += 1;
+
+        let node_info = get_node_info(faucet).await?;
+        if let Some(node_info) = node_info {
+            if node_info.num_channels > 0 && node_info.node.alias == "10101.finance" {
+                break;
+            }
+        }
+
+        tracing::info!("Manually broadcasting node announcement and waiting for a few seconds...");
+        coordinator.broadcast_node_announcement().await?;
+        tokio::time::sleep(Duration::from_secs(5)).await;
+    }
 
     let lnd_channels = get_text(&format!("{faucet}/lnd/v1/channels")).await?;
     tracing::info!("open LND channels: {}", lnd_channels);
@@ -153,6 +179,40 @@ async fn post_query(path: &str, body: String, faucet: &str) -> Result<Response> 
     Ok(response)
 }
 
+async fn get_query(path: &str, faucet: &str) -> Result<Response> {
+    let faucet = faucet.to_string();
+    let client = init_reqwest();
+    let response = client.get(format!("{faucet}/{path}")).send().await?;
+
+    Ok(response)
+}
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct LndNodeInfo {
+    node: Node,
+    num_channels: u32,
+}
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct Node {
+    alias: String,
+}
+
+async fn get_node_info(faucet: &str) -> Result<Option<LndNodeInfo>> {
+    let response = get_query(
+        "lnd/v1/graph/node/02dd6abec97f9a748bf76ad502b004ce05d1b2d1f43a9e76bd7d85e767ffb022c9",
+        faucet,
+    )
+    .await?;
+    if response.status() == StatusCode::NOT_FOUND {
+        tracing::warn!("Node info not yet found.");
+        return Ok(None);
+    }
+
+    let node_info = response.json().await?;
+    Ok(Some(node_info))
+}
+
 /// Instructs lnd to open a public channel with the target node.
 /// 1. Connect to the target node.
 /// 2. Open channel to the target node.
@@ -196,6 +256,7 @@ async fn open_channel(node_info: &NodeInfo, amount: Amount, faucet: &str) -> Res
     .await?;
 
     mine(10, faucet).await?;
+
     tracing::info!("connected to channel");
 
     tracing::info!("You can now use the lightning faucet {faucet}/faucet/");

@@ -38,6 +38,8 @@ const CLOSED_POSITION_SYNC_INTERVAL: Duration = Duration::from_secs(30);
 const UNREALIZED_PNL_SYNC_INTERVAL: Duration = Duration::from_secs(600);
 const CONNECTION_CHECK_INTERVAL: Duration = Duration::from_secs(30);
 
+const NODE_ALIAS: &str = "10101.finance";
+
 #[tokio::main]
 async fn main() -> Result<()> {
     std::panic::set_hook(
@@ -91,7 +93,7 @@ async fn main() -> Result<()> {
     let (node_event_sender, mut node_event_receiver) = watch::channel::<Option<Event>>(None);
 
     let node = Arc::new(ln_dlc_node::node::Node::new_coordinator(
-        "10101.finance",
+        NODE_ALIAS,
         network,
         data_dir.as_path(),
         Arc::new(NodeStorage::new(pool.clone())),
@@ -205,7 +207,14 @@ async fn main() -> Result<()> {
         connection::keep_public_channel_peers_connected(node.inner, CONNECTION_CHECK_INTERVAL)
     });
 
-    let app = router(node, pool, settings, exporter);
+    let app = router(
+        node,
+        pool,
+        settings,
+        exporter,
+        opts.p2p_announcement_addresses(),
+        NODE_ALIAS,
+    );
 
     // Start the metrics exporter
     autometrics::prometheus_exporter::init();
