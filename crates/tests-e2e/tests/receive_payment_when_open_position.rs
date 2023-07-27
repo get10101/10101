@@ -1,5 +1,4 @@
 use native::api;
-use tests_e2e::fund::FUNDING_TRANSACTION_FEES;
 use tests_e2e::setup;
 use tests_e2e::wait_until;
 use tokio::task::spawn_blocking;
@@ -26,8 +25,5 @@ async fn can_receive_payment_with_open_position() {
     let ln_balance = app.rx.wallet_info().unwrap().balances.lightning;
     tracing::info!(%ln_balance, %ln_balance_before, %invoice_amount, "Lightning balance increased");
 
-    // FIXME: Change this assertion when the reason why we're being charged
-    // transaction funding fees now is found.
-    // See: https://github.com/get10101/10101/issues/883
-    assert!(ln_balance >= ln_balance_before + invoice_amount - FUNDING_TRANSACTION_FEES);
+    assert_eq!(ln_balance, ln_balance_before + invoice_amount);
 }

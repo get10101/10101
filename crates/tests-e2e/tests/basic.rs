@@ -1,6 +1,4 @@
 use anyhow::Result;
-use assertables::assert_ge;
-use assertables::assert_ge_as_result;
 use bitcoin::Address;
 use bitcoin::Amount;
 use std::str::FromStr;
@@ -43,11 +41,10 @@ async fn app_can_be_funded_with_lnd_faucet() -> Result<()> {
 
     assert_eq!(app.rx.wallet_info().unwrap().balances.on_chain, 0);
 
-    // FIXME: Asserting here on >= as this test run on the CI can't find a route when trying to pay
-    // immediately after claiming a received payment.
-    // See: https://github.com/get10101/10101/issues/883
-    let ln_balance = app.rx.wallet_info().unwrap().balances.lightning;
-    tracing::info!(%funded_amount, %ln_balance, "Successfully funded app with faucet");
-    assert_ge!(ln_balance, funded_amount);
+    tracing::info!(%funded_amount, "Successfully funded app with faucet");
+    assert_eq!(
+        app.rx.wallet_info().unwrap().balances.lightning,
+        funded_amount
+    );
     Ok(())
 }
