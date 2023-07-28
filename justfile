@@ -407,6 +407,22 @@ build-apk-regtest:
 
 release-apk-regtest: gen android-release build-apk-regtest
 
+build-app-bundle-regtest:
+    #!/usr/bin/env bash
+    BUILD_NAME=$(yq -r .version {{pubspec}})
+    BUILD_NUMBER=$(git rev-list HEAD --count)
+    echo "build name: ${BUILD_NAME}"
+    echo "build number: ${BUILD_NUMBER}"
+    cd mobile && flutter build appbundle \
+        --build-name=${BUILD_NAME} \
+        --build-number=${BUILD_NUMBER} \
+        --release \
+        --dart-define="COMMIT=$(git rev-parse HEAD)" \
+        --dart-define="BRANCH=$(git rev-parse --abbrev-ref HEAD)" \
+        --dart-define="ESPLORA_ENDPOINT={{public_regtest_esplora}}" \
+        --dart-define="COORDINATOR_P2P_ENDPOINT={{public_regtest_coordinator}}" \
+        --dart-define="COORDINATOR_PORT_HTTP={{public_coordinator_http_port}}" --flavor demo
+
 # Run prometheus for local debugging (needs it installed, e.g. `brew install prometheus`)
 prometheus:
     #!/usr/bin/env bash
