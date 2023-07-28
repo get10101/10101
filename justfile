@@ -97,8 +97,16 @@ run-local-android args="":
     --dart-define="ESPLORA_ENDPOINT=http://${LOCAL_IP}:3000" --dart-define="COORDINATOR_P2P_ENDPOINT=02dd6abec97f9a748bf76ad502b004ce05d1b2d1f43a9e76bd7d85e767ffb022c9@${LOCAL_IP}:9045" \
     --dart-define="REGTEST_FAUCET=http://${LOCAL_IP}:8080" --dart-define="COORDINATOR_PORT_HTTP=8000" --flavor local
 
-fund:
-    cargo run --example fund
+fund args="":
+    #!/usr/bin/env bash
+    BALANCE=$(curl -s localhost:8080/lnd/v1/balance/channels | sed 's/.*"balance":"\{0,1\}\([^,"]*\)"\{0,1\}.*/\1/')
+    if [ $BALANCE -lt 10000000 ] || [ "{{args}}" = "--force" ] || [ "{{args}}" = "-f" ]
+    then
+      echo "Lightning faucet balance is $BALANCE; funding..."
+      cargo run --example fund
+    else
+      echo "Lightning faucet balance is $BALANCE; skipping funding. Pass -f or --force to force."
+    fi
 
 # Fund remote regtest instance
 fund-regtest:
