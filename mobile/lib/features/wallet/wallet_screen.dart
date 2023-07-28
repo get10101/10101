@@ -44,7 +44,8 @@ class _WalletScreenState extends State<WalletScreen> {
         context.watch<SendPaymentChangeNotifier>();
 
     if (sendPaymentChangeNotifier.pendingPayment != null &&
-        sendPaymentChangeNotifier.pendingPayment!.state == PendingPaymentState.pending) {
+        !sendPaymentChangeNotifier.pendingPayment!.displayed) {
+      sendPaymentChangeNotifier.pendingPayment!.displayed = true;
       WidgetsBinding.instance.addPostFrameCallback((_) async {
         return await showDialog(
             context: context,

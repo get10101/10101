@@ -11,6 +11,7 @@ enum PendingPaymentState {
 
 class PendingPayment {
   PendingPaymentState state;
+  bool displayed = false;
   final String rawInvoice;
   final LightningInvoice decodedInvoice;
 
