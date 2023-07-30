@@ -1,0 +1,187 @@
+name: "Fastlane: Build and release Android App to Google Play"
+
+on:
+  workflow_call:
+    inputs:
+      coordinator_port_http:
+        required: true
+        type: string
+      esplora_endpoint:
+        required: true
+        type: string
+      coordinator_p2p_endpoint:
+        required: true
+        type: string
+      network:
+        required: true
+        type: string
+        description: "The target network for the release, e.g. mainnet/regtest"
+      tag:
+        required: true
+        description: "The branch, tag or SHA to checkout."
+        type: string
+      oracle_endpoint:
+        required: true
+        type: string
+      oracle_pubkey:
+        required: true
+        description: "The public key of the oracle. Must match with the public key returned at http://${oracle_endpoint}/oracle/publickey"
+        type: string
+  workflow_dispatch:
+    inputs:
+      coordinator_port_http:
+        required: true
+        description: "The coordinator's http port"
+        type: string
+      esplora_endpoint:
+        required: true
+        description: "Esplora http url"
+        type: string
+      coordinator_p2p_endpoint:
+        required: true
+        description: "The coordinator's p2p endpoint"
+        type: string
+      network:
+        required: true
+        type: string
+        description: "The target network for the release, e.g. mainnet/regtest"
+      tag:
+        required: true
+        description: "The branch, tag or SHA to checkout."
+        type: string
+      oracle_endpoint:
+        required: true
+        description: 'The oracles http url'
+        type: string
+      oracle_pubkey:
+        required: true
+        description: "The public key of the oracle. Must match with the public key returned at http://${oracle_endpoint}/oracle/publickey"
+        type: string
+
+env:
+  FLUTTER_VERSION: "3.10.5"
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          # fetch the complete history to correctly calculate build_number
+          fetch-depth: 0
+          ref: ${{ inputs.tag }}
+
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: "14.2"
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: "stable"
+          cache: true
+          cache-key: flutter-${{ env.FLUTTER_VERSION }}
+          cache-path: ${{ runner.tool_cache }}/flutter
+
+      - uses: actions/cache@v3
+        id: cache-deps
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            ./rust/target
+          key: ${{ runner.os }}-cargo-build-release-android-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Install just
+        if: steps.cache-deps.outputs.cache-hit != 'true'
+        run: cargo install just
+
+      - uses: actions/setup-java@v3
+        with:
+          distribution: "temurin"
+          java-version: "11.x"
+          cache: "gradle"
+
+      - name: Install fastlane
+        run: |
+          cd mobile/android/fastlane
+          gem install bundler
+          bundle install
+          bundle info fastlane
+
+      - name: Install FFI bindings
+        if: steps.cache-deps.outputs.cache-hit != 'true'
+        run: just deps-gen
+
+      - name: Add Rust targets
+        run: rustup target add armv7-linux-androideabi aarch64-linux-android
+
+      # #499, https://github.com/actions/virtual-environments/issues/5595
+      - name: Configure ndk
+        if: steps.cache-deps.outputs.cache-hit != 'true'
+        run: |
+          ANDROID_HOME=$HOME/Library/Android/sdk
+          SDKMANAGER=$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager
+
+          echo y | $SDKMANAGER "ndk;21.4.7075529"
+
+          ln -sfn $ANDROID_HOME/ndk/21.4.7075529 $ANDROID_HOME/ndk-bundle
+
+      - name: Install cargo ndk
+        if: steps.cache-deps.outputs.cache-hit != 'true'
+        run: cargo install cargo-ndk
+
+      - name: Generate FFI bindings
+        run: just gen
+
+      - name: Build android Rust lib in release mode
+        run: just android-release
+
+      - name: Parse version from pubspec.yaml
+        id: version
+        uses: jbutcher5/read-yaml@1.6
+        with:
+          file: "mobile/pubspec.yaml"
+          key-path: '["version"]'
+
+      - name: Prepare signingkeys
+        env:
+          # secrets
+          FASTLANE_ANDROID_SERVICE_ACCOUNT_KEY_BASE64: ${{ secrets.FASTLANE_ANDROID_SERVICE_ACCOUNT_KEY_BASE64 }}
+          FASTLANE_ANDROID_UPLOAD_KEY_BASE64: ${{ secrets.FASTLANE_ANDROID_UPLOAD_KEY_BASE64 }}
+          FASTLANE_ANDROID_STORE_PASSWORD: ${{ secrets.FASTLANE_ANDROID_STORE_PASSWORD }}
+        run: |
+          echo "$FASTLANE_ANDROID_SERVICE_ACCOUNT_KEY_BASE64" | base64 --decode > ${{ runner.temp }}/fastlane_service_account.json
+          echo "$FASTLANE_ANDROID_UPLOAD_KEY_BASE64" | base64 --decode > ${{ runner.temp }}/upload-keystore.jks
+          
+          upload_keystore_content="storePassword=$FASTLANE_ANDROID_STORE_PASSWORD
+          keyPassword=$FASTLANE_ANDROID_STORE_PASSWORD
+          keyAlias=upload
+          storeFile=${{ runner.temp }}/upload-keystore.jks"
+          
+          echo "$upload_keystore_content" > "./mobile/android/key.properties"
+
+      - name: Build Android Archive
+        id: build-android
+        run: |
+          NETWORK=$NETWORK just build-android-app-bundle
+        env:
+          ESPLORA_ENDPOINT: ${{ inputs.esplora_endpoint }}
+          COORDINATOR_P2P_ENDPOINT: ${{ inputs.coordinator_p2p_endpoint }}
+          NETWORK: ${{ inputs.network }}
+          COORDINATOR_PORT_HTTP: ${{ inputs.coordinator_port_http }}
+          ORACLE_ENDPOINT: ${{ inputs.oracle_endpoint }}
+          ORACLE_PUBKEY: ${{ inputs.oracle_pubkey }}
+
+      - name: Release to Google Play Store
+        env:
+          # secrets
+          FASTLANE_ANDROID_SERVICE_ACCOUNT_KEY_BASE64: ${{ secrets.FASTLANE_ANDROID_SERVICE_ACCOUNT_KEY_BASE64 }}
+          FASTLANE_ANDROID_UPLOAD_KEY_BASE64: ${{ secrets.FASTLANE_ANDROID_UPLOAD_KEY_BASE64 }}
+          FASTLANE_ANDROID_STORE_PASSWORD: ${{ secrets.FASTLANE_ANDROID_STORE_PASSWORD }}
+          NETWORK: ${{ inputs.network }}
+        run: |
+          NETWORK=$NETWORK ANDROID_SERVICE_ACCOUNT_KEY=${{ runner.temp }}/fastlane_service_account.json just upload-app-bundle
+          rm ${{ runner.temp }}/fastlane_service_account.json

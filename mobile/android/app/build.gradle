@@ -66,13 +66,14 @@ android {
             resValue "string", "app_name", "10101 (regtest)"
             applicationIdSuffix ".demo"
         }
-    }
-
-    productFlavors {
         local {
             dimension "default"
             resValue "string", "app_name", "10101 (local)"
             applicationIdSuffix ".local"
+        }
+        full {
+            dimension "default"
+            resValue "string", "app_name", "10101"
         }
     }
 
