@@ -380,6 +380,17 @@ build-app-bundle-regtest:
         --dart-define="COORDINATOR_PORT_HTTP={{public_coordinator_http_port}}" \
         --flavor demo
 
+upload-app-bundle:
+    #!/usr/bin/env bash
+
+    cd mobile/android/fastlane
+
+    ANDROID_SERVICE_ACCOUNT_KEY=${ANDROID_SERVICE_ACCOUNT_KEY} \
+      ANDROID_PACKAGE_NAME=${ANDROID_PACKAGE_NAME} \
+      fastlane alpha
+
+release-app-bundle-regtest: gen android-release build-app-bundle-regtest upload-app-bundle
+
 # Run prometheus for local debugging (needs it installed, e.g. `brew install prometheus`)
 prometheus:
     #!/usr/bin/env bash

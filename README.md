@@ -122,3 +122,20 @@ The app currently works only on `regtest`, which means that the wallet needs to 
 2. Block explorer - http://localhost:8080/
 3. Lightning & Bitcoin faucet - http://localhost:8080/faucet/
 4. Manually open a lightning channel - http://localhost:8080/channel/
+
+## Deploy for android beta
+
+1. Create a `./mobile/android/key.properties` with the content from the key generation step from here https://docs.flutter.dev/deployment/android#signing-the-app
+2. `just clean` never hurts but might not be necessary ;)
+3. `just gen`
+4. `just android-release`
+5. `just build-app-bundle-regtest`
+6. `cd mobile/android/fastlane/`
+7. `just upload-app-bundle`
+
+TL;DR;
+a shortcut for this is available but it is recommended to execute each step separately:
+
+```bash
+just release-app-bundle-regtest
+```

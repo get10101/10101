@@ -1,0 +1,1 @@
+10101 is a self-custodial lightning wallet for your phone. Using DLCs (Discreet Log Contracts) we enable users to trade without counterparty risk and offer a synthetic stable coin.
