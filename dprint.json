@@ -1,17 +1,16 @@
 {
-  "$schema": "https://dprint.dev/schemas/v0.json",
   "projectType": "openSource",
   "incremental": true,
-  "rustfmt": {
-    "imports_granularity": "item",
-    "wrap_comments": true,
-    "comment_width": 100,
-    "max_width": 100
-  },
   "sql": {
     "uppercase": true
   },
-  "includes": ["**/*.{md,rs,json,sql,yml,yaml,toml}"],
+  "json": {},
+  "markdown": {},
+  "toml": {},
+  "dockerfile": {},
+  "includes": [
+    "**/*.{rs,json,md,toml,dockerfile,yml,yaml}"
+  ],
   "excludes": [
     "**/target",
     "**/sqlx-data.json",
@@ -22,12 +21,22 @@
     "coordinator/migrations/00000000000000_diesel_initial_setup/up.sql",
     "maker/migrations/00000000000000_diesel_initial_setup/up.sql"
   ],
+  "exec": {
+    "commands": [
+      {
+        "command": "rustfmt",
+        "exts": [
+          "rs"
+        ]
+      }
+    ]
+  },
   "plugins": [
-    "https://plugins.dprint.dev/markdown-0.13.0.wasm",
-    "https://plugins.dprint.dev/rustfmt-0.6.2.json@886c6f3161cf020c2d75160262b0f56d74a521e05cfb91ec4f956650c8ca76ca",
-    "https://plugins.dprint.dev/json-0.7.2.wasm",
-    "https://plugins.dprint.dev/sql-0.1.1.wasm",
-    "https://plugins.dprint.dev/prettier-0.11.0.json@385edfc0e1212b3be6412cda49322ecd62cb38ac71b9b463869bebf23a4767e3",
-    "https://plugins.dprint.dev/toml-0.5.4.wasm"
+    "https://plugins.dprint.dev/json-0.17.4.wasm",
+    "https://plugins.dprint.dev/markdown-0.15.3.wasm",
+    "https://plugins.dprint.dev/toml-0.5.4.wasm",
+    "https://plugins.dprint.dev/dockerfile-0.3.0.wasm",
+    "https://plugins.dprint.dev/exec-0.4.3.json@42343548b8022c99b1d750be6b894fe6b6c7ee25f72ae9f9082226dd2e515072",
+    "https://plugins.dprint.dev/sql-0.2.0.wasm"
   ]
 }
