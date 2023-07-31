@@ -124,12 +124,12 @@ async fn reconnecting_during_dlc_channel_setup() {
     // message.
     app.process_incoming_messages().unwrap();
 
-    // Process the resend `Confirm` message from the App.
+    // Process the resent `Confirm` message from the App.
     wait_until_dlc_channel_state(
         Duration::from_secs(30),
         &coordinator,
         app.info.pubkey,
-        SubChannelStateName::Signed,
+        SubChannelStateName::Finalized,
     )
     .await
     .unwrap();

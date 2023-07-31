@@ -6,7 +6,7 @@ use anyhow::Result;
 use bdk::bitcoin::secp256k1::PublicKey;
 use bdk::TransactionDetails;
 use dlc_messages::sub_channel::SubChannelCloseFinalize;
-use dlc_messages::sub_channel::SubChannelFinalize;
+use dlc_messages::sub_channel::SubChannelRevoke;
 use dlc_messages::Message;
 use dlc_messages::SubChannelMessage;
 use lightning::chain::keysinterface::DelayedPaymentOutputDescriptor;
@@ -125,22 +125,22 @@ impl Node {
                         dlc_message_name(&msg)
                     )
                 })?,
-            Message::SubChannel(msg) => {
+            Message::SubChannel(ref msg) => {
                 let resp = self
                     .inner
                     .sub_channel_manager
-                    .on_sub_channel_message(&msg, &node_id)
+                    .on_sub_channel_message(msg, &node_id)
                     .with_context(|| {
                         format!(
                             "Failed to handle {} message from {node_id}",
-                            sub_channel_message_name(&msg)
+                            sub_channel_message_name(msg)
                         )
                     })?
                     .map(Message::SubChannel);
 
                 // Some incoming messages require extra action from our part for the protocol to
                 // continue
-                match &msg {
+                match msg {
                     SubChannelMessage::Offer(offer) => {
                         let channel_id = offer.channel_id;
 
@@ -176,6 +176,44 @@ impl Node {
             }
         };
 
+        // After handling the `Revoke` message, we need to do some post-processing based on the fact
+        // that the DLC channel has been established
+        if let Message::SubChannel(SubChannelMessage::Revoke(SubChannelRevoke {
+            channel_id, ..
+        })) = msg
+        {
+            let contracts = self.inner.dlc_manager.get_store().get_contracts()?;
+
+            let accept_collateral = contracts
+                .iter()
+                // Taking the first `Confirmed` contract we find is just a
+                // heuristic. Ideally we would be able to match against the
+                // `ContractId` or the `ChannelId`, but the information is not
+                // guaranteed to be there
+                .find_map(|contract| match contract {
+                    Contract::Confirmed(SignedContract {
+                        accepted_contract, ..
+                    }) => Some(accepted_contract.accept_params.collateral),
+                    _ => None,
+                })
+                .with_context(|| {
+                    format!(
+                        "Confirmed contract not found for channel ID: {}",
+                        hex::encode(channel_id)
+                    )
+                })?;
+
+            let filled_order = order::handler::order_filled()
+                .context("Cannot mark order as filled for confirmed DLC")?;
+
+            if let Err(e) = self.pay_order_matching_fee(&channel_id) {
+                tracing::error!("{e:#}");
+            }
+
+            position::handler::update_position_after_dlc_creation(filled_order, accept_collateral)
+                .context("Failed to update position after DLC creation")?
+        }
+
         if let Some(msg) = resp {
             self.send_dlc_message(node_id, msg)?;
         }
@@ -194,73 +232,34 @@ impl Node {
             .dlc_message_handler
             .send_message(node_id, msg.clone());
 
-        // After sending certain messages, we need to do some post-processing
-        match msg {
-            Message::SubChannel(SubChannelMessage::Finalize(SubChannelFinalize {
-                channel_id,
-                ..
-            })) => {
-                let contracts = self.inner.dlc_manager.get_store().get_contracts()?;
+        // After sending the `CloseFinalize` message, we need to do some post-processing based on
+        // the fact that the DLC channel has been closed
+        if let Message::SubChannel(SubChannelMessage::CloseFinalize(SubChannelCloseFinalize {
+            channel_id,
+            ..
+        })) = msg
+        {
+            match order::handler::order_filled() {
+                Ok(filled_order) => {
+                    if let Err(e) = self.pay_order_matching_fee(&channel_id) {
+                        tracing::error!("{e:#}");
+                    }
 
-                let accept_collateral = contracts
-                    .iter()
-                    // Taking the first `Confirmed` contract we find is just a
-                    // heuristic. Ideally we would be able to match against the
-                    // `ContractId` or the `ChannelId`, but the information is not
-                    // guaranteed to be there
-                    .find_map(|contract| match contract {
-                        Contract::Confirmed(SignedContract {
-                            accepted_contract, ..
-                        }) => Some(accepted_contract.accept_params.collateral),
-                        _ => None,
-                    })
-                    .with_context(|| {
-                        format!(
-                            "Confirmed contract not found for channel ID: {}",
-                            hex::encode(channel_id)
-                        )
-                    })?;
-
-                let filled_order = order::handler::order_filled()
-                    .context("Cannot mark order as filled for confirmed DLC")?;
-
-                if let Err(e) = self.pay_order_matching_fee(&channel_id) {
-                    tracing::error!("{e:#}");
+                    position::handler::update_position_after_dlc_closure(filled_order)
+                        .context("Failed to update position after DLC closure")?;
                 }
+                // TODO: Should we charge for the order-matching fee if there is no order????
+                Err(e) => {
+                    tracing::warn!("Could not find a filling position in the database. Maybe because the coordinator closed an expired position. Error: {e:#}");
 
-                position::handler::update_position_after_dlc_creation(
-                    filled_order,
-                    accept_collateral,
-                )
-                .context("Failed to update position after DLC creation")?
-            }
-            Message::SubChannel(SubChannelMessage::CloseFinalize(SubChannelCloseFinalize {
-                channel_id,
-                ..
-            })) => {
-                match order::handler::order_filled() {
-                    Ok(filled_order) => {
-                        if let Err(e) = self.pay_order_matching_fee(&channel_id) {
-                            tracing::error!("{e:#}");
+                    tokio::spawn(async {
+                        match position::handler::close_position().await {
+                            Ok(_) => tracing::info!("Successfully closed expired position."),
+                            Err(e) => tracing::error!("Critical Error! We have a DLC but were unable to set the order to filled. Error: {e:?}")
                         }
-
-                        position::handler::update_position_after_dlc_closure(filled_order)
-                            .context("Failed to update position after DLC closure")?;
-                    }
-                    // TODO: Should we charge for the order-matching fee if there is no order????
-                    Err(e) => {
-                        tracing::warn!("Could not find a filling position in the database. Maybe because the coordinator closed an expired position. Error: {e:#}");
-
-                        tokio::spawn(async {
-                            match position::handler::close_position().await {
-                                Ok(_) => tracing::info!("Successfully closed expired position."),
-                                Err(e) => tracing::error!("Critical Error! We have a DLC but were unable to set the order to filled. Error: {e:?}")
-                            }
-                        });
-                    }
-                };
-            }
-            _ => (),
+                    });
+                }
+            };
         };
 
         Ok(())

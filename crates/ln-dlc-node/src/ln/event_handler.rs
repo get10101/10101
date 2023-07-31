@@ -10,6 +10,7 @@ use crate::ln_dlc_wallet::LnDlcWallet;
 use crate::node::invoice::HTLCStatus;
 use crate::node::ChannelManager;
 use crate::node::Storage;
+use crate::node::SubChannelManager;
 use crate::util;
 use crate::FakeChannelPaymentRequests;
 use crate::MillisatAmount;
@@ -25,6 +26,7 @@ use anyhow::Context;
 use anyhow::Result;
 use autometrics::autometrics;
 use bitcoin::consensus::encode::serialize_hex;
+use bitcoin::hashes::hex::ToHex;
 use bitcoin::secp256k1::PublicKey;
 use dlc_manager::subchannel::LNChannelManager;
 use lightning::chain::chaininterface::BroadcasterInterface;
@@ -51,6 +53,7 @@ use uuid::Uuid;
 
 pub struct EventHandler<S> {
     channel_manager: Arc<ChannelManager>,
+    sub_channel_manager: Arc<SubChannelManager>,
     wallet: Arc<LnDlcWallet>,
     network_graph: Arc<NetworkGraph>,
     keys_manager: Arc<CustomKeysManager>,
@@ -70,6 +73,7 @@ where
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         channel_manager: Arc<ChannelManager>,
+        sub_channel_manager: Arc<SubChannelManager>,
         wallet: Arc<LnDlcWallet>,
         network_graph: Arc<NetworkGraph>,
         keys_manager: Arc<CustomKeysManager>,
@@ -83,6 +87,7 @@ where
     ) -> Self {
         Self {
             channel_manager,
+            sub_channel_manager,
             wallet,
             network_graph,
             keys_manager,
@@ -179,7 +184,7 @@ where
             } => {
                 tracing::info!(
                     %amount_msat,
-                    payment_hash = %hex::encode(payment_hash.0),
+                    payment_hash = %payment_hash.0.to_hex(),
                     "Claimed payment",
                 );
 
@@ -201,7 +206,10 @@ where
                     payment_preimage,
                     payment_secret,
                 ) {
-                    tracing::error!(payment_hash = %hex::encode(payment_hash.0), "Failed to update claimed payment: {e:#}")
+                    tracing::error!(
+                        payment_hash = %payment_hash.0.to_hex(),
+                        "Failed to update claimed payment: {e:#}"
+                    )
                 }
             }
             Event::PaymentSent {
@@ -221,7 +229,10 @@ where
                             Some(payment_preimage),
                             None,
                         ) {
-                            tracing::error!(payment_hash = %hex::encode(payment_hash.0), "Failed to update sent payment: {e:#}");
+                            tracing::error!(
+                                payment_hash = %payment_hash.0.to_hex(),
+                                "Failed to update sent payment: {e:#}"
+                            );
 
                             return Ok(());
                         }
@@ -247,7 +258,7 @@ where
                             },
                         ) {
                             tracing::error!(
-                                payment_hash = %hex::encode(payment_hash.0),
+                                payment_hash = %payment_hash.0.to_hex(),
                                 "Failed to insert sent payment: {e:#}"
                             );
                         }
@@ -256,7 +267,7 @@ where
                     }
                     Err(e) => {
                         tracing::error!(
-                            payment_hash = %hex::encode(payment_hash.0),
+                            payment_hash = %payment_hash.0.to_hex(),
                             "Failed to verify payment state before handling sent payment: {e:#}"
                         );
 
@@ -267,8 +278,8 @@ where
                 tracing::info!(
                     amount_msat = ?amount_msat.0,
                     fee_paid_msat = ?fee_paid_msat,
-                    payment_hash = %hex::encode(payment_hash.0),
-                    preimage_hash = %hex::encode(payment_preimage.0),
+                    payment_hash = %payment_hash.0.to_hex(),
+                    preimage_hash = %payment_preimage.0.to_hex(),
                     "Successfully sent payment",
                 );
             }
@@ -308,12 +319,12 @@ where
             }
             Event::PaymentPathFailed { payment_hash, .. } => {
                 tracing::warn!(
-                payment_hash = %hex::encode(payment_hash.0),
+                    payment_hash = %payment_hash.0.to_hex(),
                 "Payment path failed");
             }
             Event::PaymentFailed { payment_hash, .. } => {
                 tracing::warn!(
-                    payment_hash = %hex::encode(payment_hash.0),
+                    payment_hash = %payment_hash.0.to_hex(),
                     "Failed to send payment to payment hash: exhausted payment retry attempts",
                 );
 
@@ -326,7 +337,10 @@ where
                     None,
                     None,
                 ) {
-                    tracing::error!(payment_hash = %hex::encode(payment_hash.0), "Failed to update failed payment: {e:#}")
+                    tracing::error!(
+                        payment_hash = %payment_hash.0.to_hex(),
+                        "Failed to update failed payment: {e:#}"
+                    )
                 }
             }
             Event::PaymentForwarded {
@@ -359,7 +373,7 @@ where
                 };
                 let channel_str = |channel_id: &Option<[u8; 32]>| {
                     channel_id
-                        .map(|channel_id| format!(" with channel {}", hex::encode(channel_id)))
+                        .map(|channel_id| format!(" with channel {}", channel_id.to_hex()))
                         .unwrap_or_default()
                 };
                 let from_prev_str = format!(
@@ -449,14 +463,14 @@ where
                 user_channel_id,
             } => {
                 block_in_place(|| {
-                    let channel_id = hex::encode(channel_id);
                     let user_channel_id = Uuid::from_u128(user_channel_id).to_string();
                     tracing::info!(
                         %user_channel_id,
-                        %channel_id,
+                        channel_id = %channel_id.to_hex(),
                         ?reason,
                         "Channel closed",
                     );
+
                     if let Some(channel) = self.storage.get_channel(&user_channel_id)? {
                         let counterparty = channel.counterparty;
 
@@ -471,6 +485,10 @@ where
                             self.fail_intercepted_htlc(intercept_id);
                         }
                     }
+
+                    self.sub_channel_manager
+                        .notify_ln_channel_closed(channel_id)?;
+
                     anyhow::Ok(())
                 })?;
             }
@@ -480,7 +498,7 @@ where
             } => {
                 let tx_hex = serialize_hex(&transaction);
                 tracing::info!(
-                    channel_id = %hex::encode(channel_id),
+                    channel_id = %channel_id.to_hex(),
                     %tx_hex,
                     "Discarding funding transaction"
                 );
@@ -505,7 +523,7 @@ where
                 failed_next_destination,
             } => {
                 tracing::info!(
-                    prev_channel_id = %hex::encode(prev_channel_id),
+                    prev_channel_id = %prev_channel_id.to_hex(),
                     failed_next_destination = ?failed_next_destination,
                     "HTLC handling failed"
                 );
@@ -592,8 +610,8 @@ where
         inbound_amount_msat: u64,
         expected_outbound_amount_msat: u64,
     ) -> Result<()> {
-        let intercept_id_str = hex::encode(intercept_id.0);
-        let payment_hash = hex::encode(payment_hash.0);
+        let intercept_id_str = intercept_id.0.to_hex();
+        let payment_hash = payment_hash.0.to_hex();
 
         tracing::info!(
             intercept_id = %intercept_id_str,
@@ -717,7 +735,7 @@ where
         tracing::info!(
             peer = %target_node_id,
             %payment_hash,
-            temp_channel_id = %hex::encode(temp_channel_id),
+            temp_channel_id = %temp_channel_id.to_hex(),
             "Started JIT channel creation for intercepted HTLC"
         );
 
@@ -764,7 +782,7 @@ where
 
         tracing::info!(
             user_channel_id,
-            channel_id = %hex::encode(channel_id),
+            channel_id = %channel_id.to_hex(),
             counterparty = %counterparty_node_id.to_string(),
             "Channel ready"
         );
@@ -774,7 +792,7 @@ where
             .get_channel_details(&channel_id)
             .ok_or(anyhow!(
                 "Failed to get channel details by channel_id {}",
-                hex::encode(channel_id)
+                channel_id.to_hex()
             ))?;
 
         let channel = self.storage.get_channel(&user_channel_id)?;
@@ -786,7 +804,7 @@ where
             pending_intercepted_htlcs.get(&counterparty_node_id)
         {
             tracing::info!(
-                intercept_id = %hex::encode(intercept_id.0),
+                intercept_id = %intercept_id.0.to_hex(),
                 counterparty = %counterparty_node_id.to_string(),
                 forward_amount_msat = %expected_outbound_amount_msat,
                 "Pending intercepted HTLC found, forwarding payment"
@@ -809,7 +827,7 @@ where
     /// Fail an intercepted HTLC backwards.
     fn fail_intercepted_htlc(&self, intercept_id: &InterceptId) {
         tracing::error!(
-            intercept_id = %hex::encode(intercept_id.0),
+            intercept_id = %intercept_id.0.to_hex(),
             "Failing intercepted HTLC backwards"
         );
 

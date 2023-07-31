@@ -461,7 +461,12 @@ async fn wait_until_dlc_channel_state(
             .find(|channel| {
                 let current_state = SubChannelStateName::from(&channel.state);
 
-                tracing::info!(target = ?target_state, current = ?current_state, "Waiting for DLC subchannel to reach state");
+                tracing::info!(
+                    node_id = %node.info.pubkey,
+                    target = ?target_state,
+                    current = ?current_state,
+                    "Waiting for DLC subchannel to reach state"
+                );
 
                 channel.counter_party == counterparty_pk && current_state == target_state
             })
@@ -494,6 +499,7 @@ enum SubChannelStateName {
     Offered,
     Accepted,
     Confirmed,
+    Finalized,
     Signed,
     Closing,
     OnChainClosed,
@@ -513,6 +519,7 @@ impl From<&SubChannelState> for SubChannelStateName {
             Offered(_) => SubChannelStateName::Offered,
             Accepted(_) => SubChannelStateName::Accepted,
             Confirmed(_) => SubChannelStateName::Confirmed,
+            Finalized(_) => SubChannelStateName::Finalized,
             Signed(_) => SubChannelStateName::Signed,
             Closing(_) => SubChannelStateName::Closing,
             OnChainClosed => SubChannelStateName::OnChainClosed,

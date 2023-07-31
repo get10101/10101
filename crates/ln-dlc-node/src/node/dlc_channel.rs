@@ -257,7 +257,7 @@ where
         use SubChannelState::*;
         match state {
             // The channel is in an opening state
-            Offered(_) | Accepted(_) | Confirmed(_) => bail!("It's unsafe to collaboratively close LN channel when the DLC channel is being opened"),
+            Offered(_) | Accepted(_) | Confirmed(_) | Finalized(_) => bail!("It's unsafe to collaboratively close LN channel when the DLC channel is being opened"),
             // The channel is open,
             Signed(_) => bail!("It's unsafe to collaboratively close LN channel when the DLC channel is open"),
             // The channel is being closed,
@@ -363,6 +363,7 @@ pub fn dlc_message_name(msg: &Message) -> String {
         Message::Channel(ChannelMessage::RenewAccept(_)) => "ChannelRenewAccept",
         Message::Channel(ChannelMessage::RenewConfirm(_)) => "ChannelRenewConfirm",
         Message::Channel(ChannelMessage::RenewFinalize(_)) => "ChannelRenewFinalize",
+        Message::Channel(ChannelMessage::RenewRevoke(_)) => "ChannelRenewRevoke",
         Message::Channel(ChannelMessage::CollaborativeCloseOffer(_)) => {
             "ChannelCollaborativeCloseOffer"
         }
@@ -380,6 +381,7 @@ pub fn sub_channel_message_name(msg: &SubChannelMessage) -> &str {
         Accept(_) => "SubChannelAccept",
         Confirm(_) => "SubChannelConfirm",
         Finalize(_) => "SubChannelFinalize",
+        Revoke(_) => "SubChannelRevoke",
         CloseOffer(_) => "SubChannelCloseOffer",
         CloseAccept(_) => "SubChannelCloseAccept",
         CloseConfirm(_) => "SubChannelCloseConfirm",

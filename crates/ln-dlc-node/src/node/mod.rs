@@ -536,6 +536,7 @@ where
 
         let event_handler = EventHandler::new(
             channel_manager.clone(),
+            sub_channel_manager.clone(),
             ln_dlc_wallet.clone(),
             network_graph.clone(),
             keys_manager.clone(),

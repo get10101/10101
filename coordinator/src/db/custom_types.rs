@@ -9,14 +9,14 @@ use crate::schema::sql_types::DirectionType;
 use crate::schema::sql_types::HtlcStatusType;
 use crate::schema::sql_types::PaymentFlowType;
 use crate::schema::sql_types::PositionStateType;
+use diesel::deserialize;
 use diesel::deserialize::FromSql;
-use diesel::deserialize::{self};
 use diesel::pg::Pg;
 use diesel::pg::PgValue;
+use diesel::serialize;
 use diesel::serialize::IsNull;
 use diesel::serialize::Output;
 use diesel::serialize::ToSql;
-use diesel::serialize::{self};
 use std::io::Write;
 use trade::Direction;
 

@@ -23,6 +23,7 @@ pub struct DlcChannelDetails {
 pub enum SubChannelState {
     Offered,
     Accepted,
+    Finalized,
     Signed,
     Closing,
     OnChainClosed,
@@ -56,6 +57,7 @@ impl From<dlc_manager::subchannel::SubChannelState> for SubChannelState {
         match value {
             Offered(_) => SubChannelState::Offered,
             Accepted(_) => SubChannelState::Accepted,
+            Finalized(_) => SubChannelState::Finalized,
             Signed(_) => SubChannelState::Signed,
             Closing(_) => SubChannelState::Closing,
             OnChainClosed => SubChannelState::OnChainClosed,

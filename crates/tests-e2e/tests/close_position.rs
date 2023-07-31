@@ -1,4 +1,4 @@
-use native::api::{self};
+use native::api;
 use native::trade::position::PositionState;
 use tests_e2e::setup;
 use tests_e2e::setup::dummy_order;
