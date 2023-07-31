@@ -26,7 +26,7 @@ jobs:
     secrets: inherit
     with:
       esplora_endpoint: https://blockstream.info/api
-      coordinator_p2p_endpoint: 022ae8dbec1caa4dac93f07f2ebf5ad7a5dd08d375b79f11095e81b065c2155156@34.30.20.202:9045
+      coordinator_p2p_endpoint: 022ae8dbec1caa4dac93f07f2ebf5ad7a5dd08d375b79f11095e81b065c2155156@46.17.98.29:9045
       coordinator_port_http: 80
       network: mainnet
       tag: ${{ github.ref_name }}
@@ -139,7 +139,7 @@ jobs:
           SIGNING_STORE_PASSWORD: ${{ secrets.ANDROID_UPLOAD_SIGNING_STORE_PASSWORD }}
           ENCODED_KEYSTORE: ${{ secrets.ANDROID_UPLOAD_KEYSTORE }}
           ESPLORA_ENDPOINT: https://blockstream.info/api
-          COORDINATOR_P2P_ENDPOINT: 022ae8dbec1caa4dac93f07f2ebf5ad7a5dd08d375b79f11095e81b065c2155156@34.30.20.202:9045
+          COORDINATOR_P2P_ENDPOINT: 022ae8dbec1caa4dac93f07f2ebf5ad7a5dd08d375b79f11095e81b065c2155156@46.17.98.29:9045
           NETWORK: regtest
           COORDINATOR_PORT_HTTP: 80
           ORACLE_ENDPOINT: http://api.test.10101.finance:8081
