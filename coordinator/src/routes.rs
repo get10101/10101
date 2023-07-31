@@ -92,6 +92,7 @@ pub fn router(
 
     Router::new()
         .route("/", get(index))
+        .route("/api/version", get(version))
         .route(
             "/api/prepare_jit_channel/:target_node",
             post(prepare_jit_channel),
@@ -449,4 +450,8 @@ pub async fn get_health() -> Result<Json<String>, AppError> {
     // TODO: Implement any health check logic we'd need
     // So far this just returns if the server is running
     Ok(Json("Server is healthy".to_string()))
+}
+
+pub async fn version() -> Result<Json<String>, AppError> {
+    Ok(Json(env!("CARGO_PKG_VERSION").to_string()))
 }
