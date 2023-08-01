@@ -58,7 +58,7 @@ native:
 
 # Build Rust library for Android native targets
 android args="":
-    cd mobile/native && cargo ndk -t armeabi-v7a -t arm64-v8a -t x86_64 -o ../android/app/src/main/jniLibs build {{args}}
+    cd mobile/native && cargo ndk -t armeabi-v7a -t arm64-v8a -t x86_64 -t x86 -o ../android/app/src/main/jniLibs build {{args}}
 
 # Note that this does not include x86_64 unlike the above, as android x86_64 is only a development
 # target and not a deployment target
@@ -116,6 +116,7 @@ clean:
     #!/usr/bin/env bash
     set -euxo pipefail
     cd mobile
+    rm -rf mobile/android/app/src/main/jniLibs/*
     flutter clean
     cd native && cargo clean
 
