@@ -14,6 +14,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:get_10101/common/domain/model.dart';
 import 'package:get_10101/features/wallet/domain/lightning_invoice.dart';
+import 'package:get_10101/common/scrollable_safe_area.dart';
 
 class SendScreen extends StatefulWidget {
   static const route = "${WalletScreen.route}/$subRouteName";
@@ -84,7 +85,7 @@ class _SendScreenState extends State<SendScreen> {
             FocusScope.of(context).requestFocus(FocusNode());
           },
           behavior: HitTestBehavior.opaque,
-          child: SafeArea(
+          child: ScrollableSafeArea(
             child: Container(
               constraints: const BoxConstraints.expand(),
               child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [

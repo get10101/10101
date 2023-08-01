@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:f_logs/f_logs.dart';
 import 'package:flutter/material.dart';
+import 'package:get_10101/common/scrollable_safe_area.dart';
 import 'package:get_10101/features/trade/settings_screen.dart';
 import 'package:get_10101/features/wallet/settings_screen.dart';
 import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
@@ -54,7 +55,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     return Scaffold(
       appBar: AppBar(title: const Text("Settings")),
-      body: SafeArea(
+      body: ScrollableSafeArea(
           child: Column(children: [
         Text(
           "Wallet Settings",

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get_10101/bridge_generated/bridge_definitions.dart';
+import 'package:get_10101/common/scrollable_safe_area.dart';
 import 'package:get_10101/common/service_status_notifier.dart';
 import 'package:get_10101/common/value_data_row.dart';
 import 'package:provider/provider.dart';
@@ -26,7 +27,7 @@ class _StatusScreenState extends State<StatusScreen> {
 
     return Scaffold(
       appBar: AppBar(title: const Text("Status")),
-      body: SafeArea(
+      body: ScrollableSafeArea(
         child: Center(
             child: Padding(
                 padding: const EdgeInsets.all(32.0),
