@@ -18,8 +18,6 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - uses: dprint/check@v2.1
-        with:
-          dprint-version: 0.39.1
 
   lint-commits:
     runs-on: ubuntu-latest

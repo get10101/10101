@@ -1,0 +1,6 @@
+wrap_comments = true
+comment_width = 100
+max_width = 100
+imports_granularity = "Item"
+group_imports = "One"
+edition = "2021"
