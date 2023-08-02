@@ -19,6 +19,7 @@ use crate::NetworkGraph;
 use crate::PeerManager;
 use anyhow::Context;
 use anyhow::Result;
+use bitcoin::hashes::hex::ToHex;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::Network;
 use dlc_messages::message_handler::MessageHandler as DlcMessageHandler;
@@ -769,6 +770,29 @@ where
             network_graph,
             settings,
         })
+    }
+
+    pub fn update_ldk_settings(&self, ldk_config: UserConfig) {
+        tracing::debug!("Updating LDK settings");
+        *self.ldk_config.write() = ldk_config;
+
+        tracing::info!(?ldk_config, "Updated LDK settings");
+
+        for channel in self.list_channels() {
+            let channel_id = channel.channel_id;
+            let peer_id = channel.counterparty.node_id;
+            if let Err(e) = self.channel_manager.update_channel_config(
+                &peer_id,
+                &[channel_id],
+                &ldk_config.channel_config,
+            ) {
+                tracing::error!(
+                    channel_id = %channel_id.to_hex(),
+                    %peer_id,
+                    "Failed to apply new channel configuration: {e:?}"
+                );
+            }
+        }
     }
 }
 

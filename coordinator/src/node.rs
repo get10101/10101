@@ -106,8 +106,7 @@ impl Node {
     }
 
     pub fn update_ldk_settings(&self, ldk_config: UserConfig) {
-        tracing::info!(?ldk_config, "Updating LDK settings");
-        *self.inner.ldk_config.write() = ldk_config;
+        self.inner.update_ldk_settings(ldk_config)
     }
 
     /// Returns true or false, whether we can find an usable channel with the provided trader.
