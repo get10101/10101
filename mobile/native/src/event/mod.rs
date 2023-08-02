@@ -3,17 +3,16 @@ mod event_hub;
 pub mod subscriber;
 
 use crate::api::WalletInfo;
+use crate::event::event_hub::get;
+use crate::event::subscriber::Subscriber;
 use crate::health::ServiceUpdate;
+use crate::trade::order::Order;
+use crate::trade::position::Position;
 use coordinator_commons::TradeParams;
 use ln_dlc_node::node::rust_dlc_manager::ChannelId;
 use orderbook_commons::Prices;
 use std::hash::Hash;
 use trade::ContractSymbol;
-
-use crate::event::event_hub::get;
-use crate::event::subscriber::Subscriber;
-use crate::trade::order::Order;
-use crate::trade::position::Position;
 
 pub fn subscribe(subscriber: impl Subscriber + 'static + Send + Sync + Clone) {
     get().subscribe(subscriber);

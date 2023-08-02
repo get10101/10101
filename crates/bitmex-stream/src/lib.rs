@@ -1,5 +1,6 @@
 use crate::tungstenite::http::Method;
 use anyhow::Context;
+use anyhow::Error;
 use async_stream::stream;
 use futures::SinkExt;
 use futures::Stream;
@@ -15,8 +16,6 @@ use std::time::UNIX_EPOCH;
 use tokio_tungstenite::tungstenite;
 use tracing::Instrument;
 use url::Url;
-
-pub use anyhow::Error;
 
 /// Connects to the BitMex websocket API
 ///

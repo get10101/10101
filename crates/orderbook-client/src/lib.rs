@@ -1,5 +1,5 @@
 use anyhow::Context;
-pub use anyhow::Error;
+use anyhow::Error;
 use anyhow::Result;
 use async_stream::stream;
 use futures::SinkExt;
