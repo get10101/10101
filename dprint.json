@@ -24,7 +24,7 @@
   "exec": {
     "commands": [
       {
-        "command": "rustfmt",
+        "command": "rustfmt +nightly",
         "exts": [
           "rs"
         ]

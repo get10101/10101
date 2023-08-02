@@ -1,10 +1,9 @@
+use crate::schema::users;
 use coordinator_commons::RegisterParams;
 use diesel::prelude::*;
 use serde::Deserialize;
 use serde::Serialize;
 use time::OffsetDateTime;
-
-use crate::schema::users;
 
 #[derive(Insertable, Queryable, Identifiable, Debug, Clone, Serialize, Deserialize)]
 #[diesel(primary_key(id))]

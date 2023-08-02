@@ -1,7 +1,6 @@
+use crate::PeerManager;
 use anyhow::ensure;
 use lightning::ln::msgs::NetAddress;
-
-use crate::PeerManager;
 
 const NODE_COLOR: [u8; 3] = [0; 3];
 

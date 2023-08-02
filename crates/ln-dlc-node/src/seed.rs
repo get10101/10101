@@ -1,5 +1,3 @@
-use std::path::Path;
-
 use anyhow::bail;
 use anyhow::Result;
 use bdk::bitcoin;
@@ -9,6 +7,7 @@ use bip39::Mnemonic;
 use bitcoin::Network;
 use hkdf::Hkdf;
 use sha2::Sha256;
+use std::path::Path;
 
 #[derive(Clone)]
 pub struct Bip39Seed {
@@ -119,10 +118,9 @@ pub type LightningSeed = [u8; 32];
 
 #[cfg(test)]
 mod tests {
+    use crate::seed::Bip39Seed;
     use bip39::Mnemonic;
     use std::env::temp_dir;
-
-    use crate::seed::Bip39Seed;
 
     #[test]
     fn create_bip39_seed() {

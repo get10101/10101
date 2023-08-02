@@ -1,3 +1,11 @@
+use crate::app::run_app;
+use crate::app::AppHandle;
+use crate::bitcoind::Bitcoind;
+use crate::coordinator::Coordinator;
+use crate::fund::fund_app_with_faucet;
+use crate::http::init_reqwest;
+use crate::logger::init_tracing;
+use crate::wait_until;
 use bitcoin::Address;
 use bitcoin::Amount;
 use native::api;
@@ -7,15 +15,6 @@ use native::trade::order::api::OrderType;
 use native::trade::position::PositionState;
 use std::str::FromStr;
 use tokio::task::spawn_blocking;
-
-use crate::app::run_app;
-use crate::app::AppHandle;
-use crate::bitcoind::Bitcoind;
-use crate::coordinator::Coordinator;
-use crate::fund::fund_app_with_faucet;
-use crate::http::init_reqwest;
-use crate::logger::init_tracing;
-use crate::wait_until;
 
 pub struct TestSetup {
     pub app: AppHandle,

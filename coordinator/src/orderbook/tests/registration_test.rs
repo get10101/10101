@@ -1,5 +1,3 @@
-use std::str::FromStr;
-
 use crate::db::user;
 use crate::db::user::User;
 use crate::orderbook::tests::init_tracing;
@@ -7,6 +5,7 @@ use crate::orderbook::tests::setup_db;
 use crate::orderbook::tests::start_postgres;
 use bitcoin::secp256k1::PublicKey;
 use coordinator_commons::RegisterParams;
+use std::str::FromStr;
 use testcontainers::clients::Cli;
 
 #[tokio::test]
