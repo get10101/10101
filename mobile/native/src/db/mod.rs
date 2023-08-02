@@ -308,9 +308,14 @@ pub fn get_payments() -> Result<Vec<(lightning::ln::PaymentHash, ln_dlc_node::Pa
         .map(|payment| payment.try_into())
         .collect::<Result<Vec<_>>>()?;
 
-    let payment_hashes = payments.iter().map(|(a, _)| a).collect::<Vec<_>>();
-
-    tracing::trace!(?payment_hashes, "Got all payments");
+    let formatted_payment_hashes = payments
+        .iter()
+        .map(|(hash, _)| hex::encode(hash.0))
+        .collect::<Vec<_>>();
+    tracing::trace!(
+        payment_hashes = ?formatted_payment_hashes,
+        "Got all payments"
+    );
 
     Ok(payments)
 }
