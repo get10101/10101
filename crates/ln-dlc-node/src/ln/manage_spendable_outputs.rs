@@ -58,6 +58,10 @@ pub fn manage_spendable_outputs(
         }
     }
 
+    if spendable_outputs.is_empty() {
+        return Ok(());
+    }
+
     let destination_script = wallet.borrow().inner().get_last_unused_address()?;
     let tx_feerate = fee_rate_estimator
         .borrow()
