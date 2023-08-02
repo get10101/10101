@@ -234,7 +234,7 @@ pub(crate) async fn send_interceptable_payment(
     let invoice_amount_msat = invoice.amount_milli_satoshis().unwrap();
 
     let routing_fee_msat = calculate_routing_fee_msat(
-        coordinator.channel_config.read().channel_config,
+        coordinator.ldk_config.read().channel_config,
         invoice_amount_sat,
     );
 
@@ -301,7 +301,7 @@ fn does_inbound_htlc_fit_as_percent_of_channel(
 
     let max_inbound_htlc_as_percent_of_channel = Decimal::from(
         receiving_node
-            .channel_config
+            .ldk_config
             .read()
             .channel_handshake_config
             .max_inbound_htlc_value_in_flight_percent_of_channel,

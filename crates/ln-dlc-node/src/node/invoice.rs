@@ -132,14 +132,14 @@ where
             .expect("Mutex to not be poisoned")
             .insert(intercept_scid, target_node);
 
-        let channel_config = self.channel_config.read();
+        let ldk_config = self.ldk_config.read();
 
         let route_hint_hop = RouteHintHop {
             src_node_id: self.info.pubkey,
             short_channel_id: intercept_scid,
             fees: RoutingFees {
-                base_msat: channel_config.channel_config.forwarding_fee_base_msat,
-                proportional_millionths: channel_config
+                base_msat: ldk_config.channel_config.forwarding_fee_base_msat,
+                proportional_millionths: ldk_config
                     .channel_config
                     .forwarding_fee_proportional_millionths,
             },

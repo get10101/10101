@@ -37,7 +37,7 @@ pub(crate) fn build(
     explora_client: Arc<EsploraSyncClient<Arc<TracingLogger>>>,
     logger: Arc<TracingLogger>,
     chain_monitor: Arc<ChainMonitor>,
-    channel_config: UserConfig,
+    ldk_config: UserConfig,
     network: bitcoin::Network,
     persister: Arc<FilesystemPersister>,
     router: Arc<Router>,
@@ -64,7 +64,7 @@ pub(crate) fn build(
                 keys_manager.clone(),
                 keys_manager.clone(),
                 keys_manager,
-                channel_config,
+                ldk_config,
                 ChainParameters {
                     network,
                     best_block: BestBlock::new(block_hash, height),
@@ -89,7 +89,7 @@ pub(crate) fn build(
         ln_dlc_wallet,
         router,
         logger,
-        channel_config,
+        ldk_config,
         channel_monitor_mut_references,
     );
     let channel_manager = <(BlockHash, ChannelManager)>::read(&mut file, read_args)

@@ -131,7 +131,7 @@ impl Node<InMemoryStore> {
 
     fn start_test(
         name: &str,
-        channel_config: UserConfig,
+        ldk_config: UserConfig,
         esplora_origin: String,
         oracle: OracleInfo,
         storage: Arc<InMemoryStore>,
@@ -161,7 +161,7 @@ impl Node<InMemoryStore> {
             esplora_origin,
             seed,
             ephemeral_randomness,
-            channel_config,
+            ldk_config,
             settings,
             oracle.into(),
             ldk_event_sender,
@@ -258,7 +258,7 @@ impl Node<InMemoryStore> {
 
         let (does_manually_accept_inbound_channels, required_confirmations) =
             block_in_place(|| {
-                let config = peer.channel_config.read();
+                let config = peer.ldk_config.read();
 
                 (
                     config.manually_accept_inbound_channels,

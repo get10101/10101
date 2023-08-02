@@ -140,7 +140,7 @@ async fn ln_force_close() {
     // Mine enough blocks so that the payee's revocable output in the commitment transaction
     // is spendable
     let our_to_self_delay = coordinator
-        .channel_config
+        .ldk_config
         .read()
         .channel_handshake_config
         .our_to_self_delay;
