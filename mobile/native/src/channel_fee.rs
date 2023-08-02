@@ -21,14 +21,14 @@ use tokio::runtime::Handle;
 
 #[derive(Clone)]
 pub struct ChannelFeePaymentSubscriber {
-    pub open_channel_info: Arc<Mutex<Option<(ChannelId, EsploraTransaction)>>>,
-    pub channel_manager: Arc<ChannelManager>,
+    open_channel_info: Arc<Mutex<Option<(ChannelId, EsploraTransaction)>>>,
+    channel_manager: Arc<ChannelManager>,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
-pub struct EsploraTransaction {
-    pub txid: String,
-    pub fee: u32,
+struct EsploraTransaction {
+    txid: String,
+    fee: u32,
 }
 
 impl Subscriber for ChannelFeePaymentSubscriber {
