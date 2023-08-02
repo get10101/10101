@@ -120,7 +120,7 @@ pub struct Node<S> {
     oracle: Arc<P2PDOracleClient>,
     pub dlc_message_handler: Arc<DlcMessageHandler>,
     storage: Arc<S>,
-    pub channel_config: Arc<parking_lot::RwLock<UserConfig>>,
+    pub ldk_config: Arc<parking_lot::RwLock<UserConfig>>,
 }
 
 #[derive(Debug, Clone, Copy, Deserialize, Serialize)]
@@ -194,7 +194,7 @@ where
         oracle: OracleInfo,
         event_sender: watch::Sender<Option<Event>>,
     ) -> Result<Self> {
-        let channel_config = app_config();
+        let ldk_config = app_config();
         Node::new(
             alias,
             network,
@@ -209,7 +209,7 @@ where
             esplora_server_url,
             seed,
             ephemeral_randomness,
-            channel_config,
+            ldk_config,
             LnDlcNodeSettings::default(),
             oracle.into(),
             Some(event_sender),
@@ -237,12 +237,12 @@ where
         oracle: OracleInfo,
         event_sender: watch::Sender<Option<Event>>,
     ) -> Result<Self> {
-        let mut channel_config = coordinator_config();
+        let mut ldk_config = coordinator_config();
 
         // TODO: The config `force_announced_channel_preference` has been temporarily disabled
         // for testing purposes, as otherwise the app is not able to open a channel to the
         // coordinator. Remove this config, once not needed anymore.
-        channel_config
+        ldk_config
             .channel_handshake_limits
             .force_announced_channel_preference = false;
         Self::new(
@@ -256,7 +256,7 @@ where
             esplora_server_url,
             seed,
             ephemeral_randomness,
-            channel_config,
+            ldk_config,
             settings,
             oracle.into(),
             Some(event_sender),
@@ -281,7 +281,7 @@ where
         esplora_server_url: String,
         seed: Bip39Seed,
         ephemeral_randomness: [u8; 32],
-        channel_config: UserConfig,
+        ldk_config: UserConfig,
         settings: LnDlcNodeSettings,
         oracle_client: P2PDOracleClient,
         event_sender: Option<watch::Sender<Option<Event>>>,
@@ -300,7 +300,7 @@ where
             alias: alias.to_string(),
         });
 
-        let channel_config = Arc::new(parking_lot::RwLock::new(channel_config));
+        let ldk_config = Arc::new(parking_lot::RwLock::new(ldk_config));
 
         if !data_dir.exists() {
             std::fs::create_dir_all(data_dir)
@@ -405,7 +405,7 @@ where
             esplora_client.clone(),
             logger.clone(),
             chain_monitor.clone(),
-            *channel_config.read(),
+            *ldk_config.read(),
             network,
             persister.clone(),
             router,
@@ -546,7 +546,7 @@ where
             peer_manager.clone(),
             fee_rate_estimator.clone(),
             event_sender,
-            channel_config.clone(),
+            ldk_config.clone(),
         );
 
         // Connection manager
@@ -761,7 +761,7 @@ where
             dlc_manager,
             storage: node_storage,
             fee_rate_estimator,
-            channel_config,
+            ldk_config,
             _background_processor_handle: background_processor_handle,
             _connection_manager_handle: connection_manager_handle,
             _broadcast_node_announcement_handle: broadcast_node_announcement_handle,

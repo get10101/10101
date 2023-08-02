@@ -56,7 +56,7 @@ async fn multi_hop_payment() {
     let invoice_amount_msat = invoice.amount_milli_satoshis().unwrap();
 
     let routing_fee_msat = calculate_routing_fee_msat(
-        coordinator.channel_config.read().channel_config,
+        coordinator.ldk_config.read().channel_config,
         invoice_amount_sat,
     );
 
@@ -104,7 +104,7 @@ async fn multi_hop_payment() {
 /// coins as possible to their peer on channel creation.
 fn min_outbound_liquidity_channel_creator(peer: &Node<InMemoryStore>, peer_balance: u64) -> u64 {
     let min_reserve_millionths_creator = Decimal::from(
-        peer.channel_config
+        peer.ldk_config
             .read()
             .channel_handshake_config
             .their_channel_reserve_proportional_millionths,

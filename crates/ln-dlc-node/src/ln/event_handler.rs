@@ -63,7 +63,7 @@ pub struct EventHandler<S> {
     peer_manager: Arc<PeerManager>,
     fee_rate_estimator: Arc<FeeRateEstimator>,
     event_sender: Option<watch::Sender<Option<Event>>>,
-    channel_config: Arc<parking_lot::RwLock<UserConfig>>,
+    ldk_config: Arc<parking_lot::RwLock<UserConfig>>,
 }
 
 impl<S> EventHandler<S>
@@ -83,7 +83,7 @@ where
         peer_manager: Arc<PeerManager>,
         fee_rate_estimator: Arc<FeeRateEstimator>,
         event_sender: Option<watch::Sender<Option<Event>>>,
-        channel_config: Arc<parking_lot::RwLock<UserConfig>>,
+        ldk_config: Arc<parking_lot::RwLock<UserConfig>>,
     ) -> Self {
         Self {
             channel_manager,
@@ -97,7 +97,7 @@ where
             peer_manager,
             fee_rate_estimator,
             event_sender,
-            channel_config,
+            ldk_config,
         }
     }
 
@@ -718,8 +718,8 @@ where
             .upsert_channel(shadow_channel.clone())
             .context("Failed to upsert shadow channel")?;
 
-        let mut channel_config = *self.channel_config.read();
-        channel_config.channel_handshake_config.announced_channel = false;
+        let mut ldk_config = *self.ldk_config.read();
+        ldk_config.channel_handshake_config.announced_channel = false;
 
         let temp_channel_id = self
             .channel_manager
@@ -728,7 +728,7 @@ where
                 channel_value,
                 0,
                 shadow_channel.user_channel_id.to_u128(),
-                Some(channel_config),
+                Some(ldk_config),
             )
             .map_err(|e| anyhow!("Failed to open just in time channel: {e:?}"))?;
 
