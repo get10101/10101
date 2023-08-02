@@ -19,6 +19,8 @@ use std::sync::Mutex;
 use std::time::Duration;
 use tokio::runtime::Handle;
 
+const WAIT_FOR_OUTBOUND_CAPACITY_TIMEOUT: Duration = Duration::from_secs(60);
+
 #[derive(Clone)]
 pub struct ChannelFeePaymentSubscriber {
     open_channel_info: Arc<Mutex<Option<(ChannelId, EsploraTransaction)>>>,
@@ -79,7 +81,8 @@ impl ChannelFeePaymentSubscriber {
             );
             Handle::current()
                 .block_on(self.wait_for_outbound_capacity(channel_id, funding_tx_fees_msats))
-        })?;
+        })
+        .context("Failed during wait for outbound capacity")?;
 
         tracing::debug!(
             "Trying to pay channel opening fees of {} sats",
@@ -153,7 +156,7 @@ impl ChannelFeePaymentSubscriber {
         channel_id: ChannelId,
         funding_tx_fees_msats: u64,
     ) -> Result<()> {
-        tokio::time::timeout(Duration::from_secs(5), async {
+        tokio::time::timeout(WAIT_FOR_OUTBOUND_CAPACITY_TIMEOUT, async {
             loop {
                 let channel_details = match self
                     .channel_manager
