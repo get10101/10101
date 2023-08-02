@@ -310,7 +310,7 @@ pub fn get_payments() -> Result<Vec<(lightning::ln::PaymentHash, ln_dlc_node::Pa
 
     let payment_hashes = payments.iter().map(|(a, _)| a).collect::<Vec<_>>();
 
-    tracing::debug!(?payment_hashes, "Got all payments");
+    tracing::trace!(?payment_hashes, "Got all payments");
 
     Ok(payments)
 }
