@@ -11,6 +11,7 @@ use crate::trade::position::Position;
 use coordinator_commons::TradeParams;
 use ln_dlc_node::node::rust_dlc_manager::ChannelId;
 use orderbook_commons::Prices;
+use std::fmt;
 use std::hash::Hash;
 use trade::ContractSymbol;
 
@@ -35,6 +36,25 @@ pub enum EventInternal {
     ChannelReady(ChannelId),
     PaymentClaimed(u64),
     ServiceHealthUpdate(ServiceUpdate),
+}
+
+impl fmt::Display for EventInternal {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            EventInternal::Init(_) => "Init",
+            EventInternal::Log(_) => "Log",
+            EventInternal::OrderUpdateNotification(_) => "OrderUpdateNotification",
+            EventInternal::WalletInfoUpdateNotification(_) => "WalletInfoUpdateNotification",
+            EventInternal::OrderFilledWith(_) => "OrderFilledWith",
+            EventInternal::PositionUpdateNotification(_) => "PositionUpdateNotification",
+            EventInternal::PositionCloseNotification(_) => "PositionCloseNotification",
+            EventInternal::PriceUpdateNotification(_) => "PriceUpdateNotification",
+            EventInternal::ChannelReady(_) => "ChannelReady",
+            EventInternal::PaymentClaimed(_) => "PaymentClaimed",
+            EventInternal::ServiceHealthUpdate(_) => "ServiceHealthUpdate",
+        }
+        .fmt(f)
+    }
 }
 
 impl From<EventInternal> for EventType {

@@ -44,7 +44,7 @@ impl EventHub {
 
     /// Publishes the given event to all subscribers. Note, that this will be executed in a loop.
     pub fn publish(&self, event: &EventInternal) {
-        tracing::debug!("Publishing event {:?}", event);
+        tracing::debug!(event = %event, "Publishing an internal event");
         if let Some(subscribers) = self.subscribers.get(&EventType::from(event.clone())) {
             for subscriber in subscribers {
                 // todo: we should tokio spawn here.
