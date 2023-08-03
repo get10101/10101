@@ -11,9 +11,9 @@ async fn just_in_time_channel_with_multiple_payments() {
 
     // Arrange
 
-    let payer = Node::start_test_app("payer").unwrap();
-    let coordinator = Node::start_test_coordinator("coordinator").unwrap();
-    let payee = Node::start_test_app("payee").unwrap();
+    let (payer, _running_payer) = Node::start_test_app("payer").unwrap();
+    let (coordinator, _running_coord) = Node::start_test_coordinator("coordinator").unwrap();
+    let (payee, _running_payee) = Node::start_test_app("payee").unwrap();
 
     payer.connect(coordinator.info).await.unwrap();
     payee.connect(coordinator.info).await.unwrap();
@@ -64,9 +64,9 @@ async fn new_config_affects_routing_fees() {
 
     // Arrange
 
-    let payer = Node::start_test_app("payer").unwrap();
-    let coordinator = Node::start_test_coordinator("coordinator").unwrap();
-    let payee = Node::start_test_app("payee").unwrap();
+    let (payer, _running_payer) = Node::start_test_app("payer").unwrap();
+    let (coordinator, _running_coord) = Node::start_test_coordinator("coordinator").unwrap();
+    let (payee, _running_payee) = Node::start_test_app("payee").unwrap();
 
     payer.connect(coordinator.info).await.unwrap();
     payee.connect(coordinator.info).await.unwrap();

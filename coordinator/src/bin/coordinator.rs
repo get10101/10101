@@ -105,10 +105,10 @@ async fn main() -> Result<()> {
         ephemeral_randomness,
         settings.ln_dlc.clone(),
         opts.get_oracle_info(),
-        node_event_sender,
     )?);
 
-    let node = Node::new(node, pool.clone(), settings.to_node_settings());
+    let running = node.start(Some(node_event_sender))?;
+    let node = Node::new(node, running, pool.clone(), settings.to_node_settings());
 
     // TODO: Pass the tokio metrics into Prometheus
     if let Some(interval) = opts.tokio_metrics_interval_seconds {

@@ -9,7 +9,6 @@ use anyhow::Context;
 use bitcoin::Amount;
 use dlc_manager::subchannel::SubChannelState;
 use dlc_manager::Storage;
-use std::sync::Arc;
 use std::time::Duration;
 
 #[tokio::test(flavor = "multi_thread")]
@@ -19,8 +18,8 @@ async fn reconnecting_during_dlc_channel_setup() {
 
     // Arrange
 
-    let app = Arc::new(Node::start_test_app("app").unwrap());
-    let coordinator = Arc::new(Node::start_test_coordinator("coordinator").unwrap());
+    let (app, _running_app) = Node::start_test_app("app").unwrap();
+    let (coordinator, _running_coord) = Node::start_test_coordinator("coordinator").unwrap();
 
     let coordinator_info = coordinator.info;
 
@@ -242,8 +241,8 @@ async fn can_lose_connection_before_processing_subchannel_close_finalize() {
 
     let fund_amount = (app_ln_balance + coordinator_ln_balance) * 2;
 
-    let app = Node::start_test_app("app").unwrap();
-    let coordinator = Node::start_test_coordinator("coordinator").unwrap();
+    let (app, _running_app) = Node::start_test_app("app").unwrap();
+    let (coordinator, _running_coord) = Node::start_test_coordinator("coordinator").unwrap();
 
     app.connect(coordinator.info).await.unwrap();
 

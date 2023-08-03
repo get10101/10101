@@ -36,7 +36,6 @@ use ln_dlc_node::seed::Bip39Seed;
 use ln_dlc_node::CONFIRMATION_TARGET;
 use orderbook_commons::RouteHintHop;
 use orderbook_commons::FEE_INVOICE_DESCRIPTION_PREFIX_TAKER;
-use parking_lot::RwLock;
 use rust_decimal::Decimal;
 use state::Storage;
 use std::net::IpAddr;
@@ -175,7 +174,7 @@ pub fn run(data_dir: String, seed_dir: String, runtime: &Runtime) -> Result<()> 
 
         let (event_sender, event_receiver) = watch::channel::<Option<Event>>(None);
 
-        let node = Arc::new(ln_dlc_node::node::Node::new_app(
+        let node = ln_dlc_node::node::Node::new_app(
             "10101",
             network,
             data_dir.as_path(),
@@ -186,12 +185,10 @@ pub fn run(data_dir: String, seed_dir: String, runtime: &Runtime) -> Result<()> 
             seed,
             ephemeral_randomness,
             config::get_oracle_info(),
-            event_sender,
-        )?);
-        let node = Arc::new(Node {
-            inner: node,
-            order_matching_fee_invoice: Arc::new(RwLock::new(None)),
-        });
+        )?;
+
+        let _running = node.start(Some(event_sender))?;
+        let node = Arc::new(Node::new(node, _running));
 
         runtime.spawn({
             let node = node.clone();

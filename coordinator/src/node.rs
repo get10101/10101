@@ -34,6 +34,7 @@ use lightning_invoice::Invoice;
 use ln_dlc_node::node;
 use ln_dlc_node::node::dlc_message_name;
 use ln_dlc_node::node::sub_channel_message_name;
+use ln_dlc_node::node::RunningNode;
 use ln_dlc_node::WalletSettings;
 use ln_dlc_node::CONTRACT_TX_FEE_RATE;
 use rust_decimal::prelude::ToPrimitive;
@@ -79,6 +80,7 @@ impl NodeSettings {
 #[derive(Clone)]
 pub struct Node {
     pub inner: Arc<node::Node<NodeStorage>>,
+    _running: Arc<RunningNode>,
     pub pool: Pool<ConnectionManager<PgConnection>>,
     settings: Arc<RwLock<NodeSettings>>,
 }
@@ -86,6 +88,7 @@ pub struct Node {
 impl Node {
     pub fn new(
         inner: Arc<node::Node<NodeStorage>>,
+        running: RunningNode,
         pool: Pool<ConnectionManager<PgConnection>>,
         settings: NodeSettings,
     ) -> Self {
@@ -93,6 +96,7 @@ impl Node {
             inner,
             pool,
             settings: Arc::new(RwLock::new(settings)),
+            _running: Arc::new(running),
         }
     }
 
