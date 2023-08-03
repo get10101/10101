@@ -130,52 +130,14 @@ where
                 output_script,
                 user_channel_id,
             } => {
-                let user_channel_id = Uuid::from_u128(user_channel_id).to_string();
-                tracing::info!(
-                    %user_channel_id,
-                    %counterparty_node_id,
-                    "Funding generation ready for channel with counterparty {}",
-                    counterparty_node_id
-                );
-
-                let target_blocks = CONFIRMATION_TARGET;
-
-                // Have wallet put the inputs into the transaction such that the output
-                // is satisfied and then sign the funding transaction
-                let funding_tx_result = self
-                    .wallet
-                    .inner()
-                    .create_funding_transaction(
-                        output_script,
-                        channel_value_satoshis,
-                        target_blocks,
-                    )
-                    .await;
-
-                let funding_tx = match funding_tx_result {
-                    Ok(funding_tx) => funding_tx,
-                    Err(err) => {
-                        tracing::error!(
-                            %err,
-                            "Cannot open channel due to not being able to create funding tx"
-                        );
-                        self.channel_manager
-                            .close_channel(&temporary_channel_id, &counterparty_node_id)
-                            .map_err(|e| anyhow!("{e:?}"))?;
-
-                        return Ok(());
-                    }
-                };
-
-                // Give the funding transaction back to LDK for opening the channel.
-
-                if let Err(err) = self.channel_manager.funding_transaction_generated(
-                    &temporary_channel_id,
-                    &counterparty_node_id,
-                    funding_tx,
-                ) {
-                    tracing::error!(?err, "Channel went away before we could fund it. The peer disconnected or refused the channel");
-                }
+                self.handle_funding_generation_ready(
+                    user_channel_id,
+                    counterparty_node_id,
+                    output_script,
+                    channel_value_satoshis,
+                    temporary_channel_id,
+                )
+                .await?;
             }
             Event::PaymentClaimed {
                 payment_hash,
@@ -183,35 +145,7 @@ where
                 amount_msat,
                 receiver_node_id: _,
             } => {
-                tracing::info!(
-                    %amount_msat,
-                    payment_hash = %payment_hash.0.to_hex(),
-                    "Claimed payment",
-                );
-
-                let (payment_preimage, payment_secret) = match purpose {
-                    PaymentPurpose::InvoicePayment {
-                        payment_preimage,
-                        payment_secret,
-                        ..
-                    } => (payment_preimage, Some(payment_secret)),
-                    PaymentPurpose::SpontaneousPayment(preimage) => (Some(preimage), None),
-                };
-
-                let amount_msat = MillisatAmount(Some(amount_msat));
-                if let Err(e) = self.storage.merge_payment(
-                    &payment_hash,
-                    PaymentFlow::Inbound,
-                    amount_msat,
-                    HTLCStatus::Succeeded,
-                    payment_preimage,
-                    payment_secret,
-                ) {
-                    tracing::error!(
-                        payment_hash = %payment_hash.0.to_hex(),
-                        "Failed to update claimed payment: {e:#}"
-                    )
-                }
+                self.handle_payment_claimed(amount_msat, payment_hash, purpose);
             }
             Event::PaymentSent {
                 payment_preimage,
@@ -219,70 +153,7 @@ where
                 fee_paid_msat,
                 ..
             } => {
-                let amount_msat = match self.storage.get_payment(&payment_hash) {
-                    Ok(Some((_, PaymentInfo { amt_msat, .. }))) => {
-                        let amount_msat = MillisatAmount(None);
-                        if let Err(e) = self.storage.merge_payment(
-                            &payment_hash,
-                            PaymentFlow::Outbound,
-                            amount_msat,
-                            HTLCStatus::Succeeded,
-                            Some(payment_preimage),
-                            None,
-                        ) {
-                            tracing::error!(
-                                payment_hash = %payment_hash.0.to_hex(),
-                                "Failed to update sent payment: {e:#}"
-                            );
-
-                            return Ok(());
-                        }
-
-                        amt_msat
-                    }
-                    Ok(None) => {
-                        tracing::warn!(
-                            "Got PaymentSent event without matching outbound payment on record"
-                        );
-
-                        let amt_msat = MillisatAmount(None);
-                        if let Err(e) = self.storage.insert_payment(
-                            payment_hash,
-                            PaymentInfo {
-                                preimage: Some(payment_preimage),
-                                secret: None,
-                                status: HTLCStatus::Succeeded,
-                                amt_msat,
-                                flow: PaymentFlow::Outbound,
-                                timestamp: OffsetDateTime::now_utc(),
-                                description: "".to_string(),
-                            },
-                        ) {
-                            tracing::error!(
-                                payment_hash = %payment_hash.0.to_hex(),
-                                "Failed to insert sent payment: {e:#}"
-                            );
-                        }
-
-                        amt_msat
-                    }
-                    Err(e) => {
-                        tracing::error!(
-                            payment_hash = %payment_hash.0.to_hex(),
-                            "Failed to verify payment state before handling sent payment: {e:#}"
-                        );
-
-                        return Ok(());
-                    }
-                };
-
-                tracing::info!(
-                    amount_msat = ?amount_msat.0,
-                    fee_paid_msat = ?fee_paid_msat,
-                    payment_hash = %payment_hash.0.to_hex(),
-                    preimage_hash = %payment_preimage.0.to_hex(),
-                    "Successfully sent payment",
-                );
+                self.handle_payment_sent(payment_hash, payment_preimage, fee_paid_msat)?;
             }
             Event::OpenChannelRequest {
                 temporary_channel_id,
@@ -324,25 +195,7 @@ where
                 "Payment path failed");
             }
             Event::PaymentFailed { payment_hash, .. } => {
-                tracing::warn!(
-                    payment_hash = %payment_hash.0.to_hex(),
-                    "Failed to send payment to payment hash: exhausted payment retry attempts",
-                );
-
-                let amount_msat = MillisatAmount(None);
-                if let Err(e) = self.storage.merge_payment(
-                    &payment_hash,
-                    PaymentFlow::Outbound,
-                    amount_msat,
-                    HTLCStatus::Failed,
-                    None,
-                    None,
-                ) {
-                    tracing::error!(
-                        payment_hash = %payment_hash.0.to_hex(),
-                        "Failed to update failed payment: {e:#}"
-                    )
-                }
+                self.handle_payment_failed(payment_hash);
             }
             Event::PaymentForwarded {
                 prev_channel_id,
@@ -350,65 +203,12 @@ where
                 fee_earned_msat,
                 claim_from_onchain_tx,
             } => {
-                let read_only_network_graph = self.network_graph.read_only();
-                let nodes = read_only_network_graph.nodes();
-                let channels = self.channel_manager.list_channels();
-
-                let node_str = |channel_id: &Option<[u8; 32]>| match channel_id {
-                    None => String::new(),
-                    Some(channel_id) => match channels.iter().find(|c| c.channel_id == *channel_id)
-                    {
-                        None => String::new(),
-                        Some(channel) => {
-                            match nodes.get(&NodeId::from_pubkey(&channel.counterparty.node_id)) {
-                                None => " from private node".to_string(),
-                                Some(node) => match &node.announcement_info {
-                                    None => " from unnamed node".to_string(),
-                                    Some(announcement) => {
-                                        format!("node {}", announcement.alias)
-                                    }
-                                },
-                            }
-                        }
-                    },
-                };
-                let channel_str = |channel_id: &Option<[u8; 32]>| {
-                    channel_id
-                        .map(|channel_id| format!(" with channel {}", channel_id.to_hex()))
-                        .unwrap_or_default()
-                };
-                let from_prev_str = format!(
-                    "{}{}",
-                    node_str(&prev_channel_id),
-                    channel_str(&prev_channel_id)
+                self.handle_payment_forwarded(
+                    prev_channel_id,
+                    next_channel_id,
+                    claim_from_onchain_tx,
+                    fee_earned_msat,
                 );
-                let to_next_str = format!(
-                    "{}{}",
-                    node_str(&next_channel_id),
-                    channel_str(&next_channel_id)
-                );
-
-                let from_onchain_str = if claim_from_onchain_tx {
-                    "from onchain downstream claim"
-                } else {
-                    "from HTLC fulfill message"
-                };
-                if let Some(fee_earned) = fee_earned_msat {
-                    tracing::info!(
-                        "Forwarded payment{}{}, earning {} msat {}",
-                        from_prev_str,
-                        to_next_str,
-                        fee_earned,
-                        from_onchain_str
-                    );
-                } else {
-                    tracing::info!(
-                        "Forwarded payment{}{}, claiming onchain {}",
-                        from_prev_str,
-                        to_next_str,
-                        from_onchain_str
-                    );
-                }
             }
             Event::PendingHTLCsForwardable { time_forwardable } => {
                 tracing::debug!(
@@ -424,74 +224,14 @@ where
                 });
             }
             Event::SpendableOutputs { outputs } => {
-                let ldk_outputs = outputs
-                    .iter()
-                    .filter(|output| {
-                        // `StaticOutput`s are sent to the node's on-chain wallet directly
-                        !matches!(output, SpendableOutputDescriptor::StaticOutput { .. })
-                    })
-                    .collect::<Vec<_>>();
-
-                if ldk_outputs.is_empty() {
-                    return Ok(());
-                }
-
-                for spendable_output in ldk_outputs.iter() {
-                    if let Err(e) = self
-                        .storage
-                        .insert_spendable_output((*spendable_output).clone())
-                    {
-                        tracing::error!("Failed to persist spendable output: {e:#}")
-                    }
-                }
-
-                let destination_script = self.wallet.inner().get_last_unused_address()?;
-                let tx_feerate = self
-                    .fee_rate_estimator
-                    .get_est_sat_per_1000_weight(ConfirmationTarget::Normal);
-                let spending_tx = self.keys_manager.spend_spendable_outputs(
-                    &ldk_outputs,
-                    vec![],
-                    destination_script.script_pubkey(),
-                    tx_feerate,
-                    &Secp256k1::new(),
-                )?;
-                self.wallet.broadcast_transaction(&spending_tx);
+                self.handle_spendable_outputs(outputs)?;
             }
             Event::ChannelClosed {
                 channel_id,
                 reason,
                 user_channel_id,
             } => {
-                block_in_place(|| {
-                    let user_channel_id = Uuid::from_u128(user_channel_id).to_string();
-                    tracing::info!(
-                        %user_channel_id,
-                        channel_id = %channel_id.to_hex(),
-                        ?reason,
-                        "Channel closed",
-                    );
-
-                    if let Some(channel) = self.storage.get_channel(&user_channel_id)? {
-                        let counterparty = channel.counterparty;
-
-                        let channel = Channel::close_channel(channel, reason);
-                        self.storage.upsert_channel(channel)?;
-
-                        // Fail intercepted HTLC which was meant to be used to open the JIT channel,
-                        // in case it was still pending
-                        if let Some((intercept_id, _)) =
-                            self.pending_intercepted_htlcs_lock().get(&counterparty)
-                        {
-                            self.fail_intercepted_htlc(intercept_id);
-                        }
-                    }
-
-                    self.sub_channel_manager
-                        .notify_ln_channel_closed(channel_id)?;
-
-                    anyhow::Ok(())
-                })?;
+                self.handle_channel_closed(user_channel_id, reason, channel_id)?;
             }
             Event::DiscardFunding {
                 channel_id,
@@ -573,6 +313,315 @@ where
             }
         };
 
+        Ok(())
+    }
+
+    fn handle_payment_sent(
+        &self,
+        payment_hash: PaymentHash,
+        payment_preimage: lightning::ln::PaymentPreimage,
+        fee_paid_msat: Option<u64>,
+    ) -> Result<()> {
+        let amount_msat = match self.storage.get_payment(&payment_hash) {
+            Ok(Some((_, PaymentInfo { amt_msat, .. }))) => {
+                let amount_msat = MillisatAmount(None);
+                if let Err(e) = self.storage.merge_payment(
+                    &payment_hash,
+                    PaymentFlow::Outbound,
+                    amount_msat,
+                    HTLCStatus::Succeeded,
+                    Some(payment_preimage),
+                    None,
+                ) {
+                    anyhow::bail!(
+                        "Failed to update sent payment: {e:#}, hash: {payment_hash}",
+                        payment_hash = payment_hash.0.to_hex(),
+                    );
+                }
+                amt_msat
+            }
+            Ok(None) => {
+                tracing::warn!("Got PaymentSent event without matching outbound payment on record");
+
+                let amt_msat = MillisatAmount(None);
+                if let Err(e) = self.storage.insert_payment(
+                    payment_hash,
+                    PaymentInfo {
+                        preimage: Some(payment_preimage),
+                        secret: None,
+                        status: HTLCStatus::Succeeded,
+                        amt_msat,
+                        flow: PaymentFlow::Outbound,
+                        timestamp: OffsetDateTime::now_utc(),
+                        description: "".to_string(),
+                    },
+                ) {
+                    tracing::error!(
+                        payment_hash = %payment_hash.0.to_hex(),
+                        "Failed to insert sent payment: {e:#}"
+                    );
+                    // TODO: Should we bail here too?
+                }
+
+                amt_msat
+            }
+            Err(e) => {
+                anyhow::bail!(
+                    "Failed to verify payment state before handling sent payment: {e:#}, hash: {payment_hash}",
+                        payment_hash = payment_hash.0.to_hex(),
+                );
+            }
+        };
+        tracing::info!(
+            amount_msat = ?amount_msat.0,
+            fee_paid_msat = ?fee_paid_msat,
+            payment_hash = %payment_hash.0.to_hex(),
+            preimage_hash = %payment_preimage.0.to_hex(),
+            "Successfully sent payment",
+        );
+        Ok(())
+    }
+
+    fn handle_channel_closed(
+        &self,
+        user_channel_id: u128,
+        reason: lightning::util::events::ClosureReason,
+        channel_id: [u8; 32],
+    ) -> Result<(), anyhow::Error> {
+        block_in_place(|| {
+            let user_channel_id = Uuid::from_u128(user_channel_id).to_string();
+            tracing::info!(
+                %user_channel_id,
+                channel_id = %channel_id.to_hex(),
+                ?reason,
+                "Channel closed",
+            );
+
+            if let Some(channel) = self.storage.get_channel(&user_channel_id)? {
+                let counterparty = channel.counterparty;
+
+                let channel = Channel::close_channel(channel, reason);
+                self.storage.upsert_channel(channel)?;
+
+                // Fail intercepted HTLC which was meant to be used to open the JIT channel,
+                // in case it was still pending
+                if let Some((intercept_id, _)) =
+                    self.pending_intercepted_htlcs_lock().get(&counterparty)
+                {
+                    self.fail_intercepted_htlc(intercept_id);
+                }
+            }
+
+            self.sub_channel_manager
+                .notify_ln_channel_closed(channel_id)?;
+
+            anyhow::Ok(())
+        })?;
+        Ok(())
+    }
+
+    fn handle_spendable_outputs(&self, outputs: Vec<SpendableOutputDescriptor>) -> Result<()> {
+        let ldk_outputs = outputs
+            .iter()
+            .filter(|output| {
+                // `StaticOutput`s are sent to the node's on-chain wallet directly
+                !matches!(output, SpendableOutputDescriptor::StaticOutput { .. })
+            })
+            .collect::<Vec<_>>();
+        if ldk_outputs.is_empty() {
+            return Ok(());
+        }
+        for spendable_output in ldk_outputs.iter() {
+            if let Err(e) = self
+                .storage
+                .insert_spendable_output((*spendable_output).clone())
+            {
+                tracing::error!("Failed to persist spendable output: {e:#}")
+            }
+        }
+        let destination_script = self.wallet.inner().get_last_unused_address()?;
+        let tx_feerate = self
+            .fee_rate_estimator
+            .get_est_sat_per_1000_weight(ConfirmationTarget::Normal);
+        let spending_tx = self.keys_manager.spend_spendable_outputs(
+            &ldk_outputs,
+            vec![],
+            destination_script.script_pubkey(),
+            tx_feerate,
+            &Secp256k1::new(),
+        )?;
+        self.wallet.broadcast_transaction(&spending_tx);
+        Ok(())
+    }
+
+    fn handle_payment_claimed(
+        &self,
+        amount_msat: u64,
+        payment_hash: PaymentHash,
+        purpose: PaymentPurpose,
+    ) {
+        tracing::info!(
+            %amount_msat,
+            payment_hash = %payment_hash.0.to_hex(),
+            "Claimed payment",
+        );
+
+        let (payment_preimage, payment_secret) = match purpose {
+            PaymentPurpose::InvoicePayment {
+                payment_preimage,
+                payment_secret,
+                ..
+            } => (payment_preimage, Some(payment_secret)),
+            PaymentPurpose::SpontaneousPayment(preimage) => (Some(preimage), None),
+        };
+
+        let amount_msat = MillisatAmount(Some(amount_msat));
+        if let Err(e) = self.storage.merge_payment(
+            &payment_hash,
+            PaymentFlow::Inbound,
+            amount_msat,
+            HTLCStatus::Succeeded,
+            payment_preimage,
+            payment_secret,
+        ) {
+            tracing::error!(
+                payment_hash = %payment_hash.0.to_hex(),
+                "Failed to update claimed payment: {e:#}"
+            )
+        }
+    }
+
+    fn handle_payment_failed(&self, payment_hash: PaymentHash) {
+        tracing::warn!(
+            payment_hash = %payment_hash.0.to_hex(),
+            "Failed to send payment to payment hash: exhausted payment retry attempts",
+        );
+
+        let amount_msat = MillisatAmount(None);
+        if let Err(e) = self.storage.merge_payment(
+            &payment_hash,
+            PaymentFlow::Outbound,
+            amount_msat,
+            HTLCStatus::Failed,
+            None,
+            None,
+        ) {
+            tracing::error!(
+                payment_hash = %payment_hash.0.to_hex(),
+                "Failed to update failed payment: {e:#}"
+            )
+        }
+    }
+
+    fn handle_payment_forwarded(
+        &self,
+        prev_channel_id: Option<[u8; 32]>,
+        next_channel_id: Option<[u8; 32]>,
+        claim_from_onchain_tx: bool,
+        fee_earned_msat: Option<u64>,
+    ) {
+        let read_only_network_graph = self.network_graph.read_only();
+        let nodes = read_only_network_graph.nodes();
+        let channels = self.channel_manager.list_channels();
+
+        let node_str = |channel_id: &Option<[u8; 32]>| match channel_id {
+            None => String::new(),
+            Some(channel_id) => match channels.iter().find(|c| c.channel_id == *channel_id) {
+                None => String::new(),
+                Some(channel) => {
+                    match nodes.get(&NodeId::from_pubkey(&channel.counterparty.node_id)) {
+                        None => " from private node".to_string(),
+                        Some(node) => match &node.announcement_info {
+                            None => " from unnamed node".to_string(),
+                            Some(announcement) => {
+                                format!("node {}", announcement.alias)
+                            }
+                        },
+                    }
+                }
+            },
+        };
+        let channel_str = |channel_id: &Option<[u8; 32]>| {
+            channel_id
+                .map(|channel_id| format!(" with channel {}", channel_id.to_hex()))
+                .unwrap_or_default()
+        };
+        let from_prev_str = format!(
+            "{}{}",
+            node_str(&prev_channel_id),
+            channel_str(&prev_channel_id)
+        );
+        let to_next_str = format!(
+            "{}{}",
+            node_str(&next_channel_id),
+            channel_str(&next_channel_id)
+        );
+
+        let from_onchain_str = if claim_from_onchain_tx {
+            "from onchain downstream claim"
+        } else {
+            "from HTLC fulfill message"
+        };
+        if let Some(fee_earned) = fee_earned_msat {
+            tracing::info!(
+                "Forwarded payment{}{}, earning {} msat {}",
+                from_prev_str,
+                to_next_str,
+                fee_earned,
+                from_onchain_str
+            );
+        } else {
+            tracing::info!(
+                "Forwarded payment{}{}, claiming onchain {}",
+                from_prev_str,
+                to_next_str,
+                from_onchain_str
+            );
+        }
+    }
+
+    async fn handle_funding_generation_ready(
+        &self,
+        user_channel_id: u128,
+        counterparty_node_id: PublicKey,
+        output_script: bitcoin::Script,
+        channel_value_satoshis: u64,
+        temporary_channel_id: [u8; 32],
+    ) -> Result<(), anyhow::Error> {
+        let user_channel_id = Uuid::from_u128(user_channel_id).to_string();
+        tracing::info!(
+            %user_channel_id,
+            %counterparty_node_id,
+            "Funding generation ready for channel with counterparty {}",
+            counterparty_node_id
+        );
+        let target_blocks = CONFIRMATION_TARGET;
+        let funding_tx_result = self
+            .wallet
+            .inner()
+            .create_funding_transaction(output_script, channel_value_satoshis, target_blocks)
+            .await;
+        let funding_tx = match funding_tx_result {
+            Ok(funding_tx) => funding_tx,
+            Err(err) => {
+                tracing::error!(
+                    %err,
+                    "Cannot open channel due to not being able to create funding tx"
+                );
+                self.channel_manager
+                    .close_channel(&temporary_channel_id, &counterparty_node_id)
+                    .map_err(|e| anyhow!("{e:?}"))?;
+
+                return Ok(());
+            }
+        };
+        if let Err(err) = self.channel_manager.funding_transaction_generated(
+            &temporary_channel_id,
+            &counterparty_node_id,
+            funding_tx,
+        ) {
+            tracing::error!(?err, "Channel went away before we could fund it. The peer disconnected or refused the channel");
+        };
         Ok(())
     }
 
