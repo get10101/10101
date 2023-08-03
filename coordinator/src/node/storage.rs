@@ -11,6 +11,7 @@ use lightning::ln::PaymentHash;
 use lightning::ln::PaymentPreimage;
 use lightning::ln::PaymentSecret;
 use ln_dlc_node::channel::Channel;
+use ln_dlc_node::channel::FakeScid;
 use ln_dlc_node::node;
 use ln_dlc_node::transaction::Transaction;
 use ln_dlc_node::HTLCStatus;
@@ -127,6 +128,14 @@ impl node::Storage for NodeStorage {
     fn upsert_channel(&self, channel: Channel) -> Result<()> {
         let mut conn = self.pool.get()?;
         db::channels::upsert(channel.into(), &mut conn)
+    }
+
+    fn get_channel_by_fake_scid(&self, fake_scid: FakeScid) -> Result<Option<Channel>> {
+        let mut conn = self.pool.get()?;
+        let channel =
+            db::channels::get_channel_by_fake_scid(fake_scid.to_string().as_str(), &mut conn)?
+                .map(|channel| channel.into());
+        Ok(channel)
     }
 
     fn get_channel(&self, user_channel_id: &str) -> Result<Option<Channel>> {

@@ -999,6 +999,7 @@ impl TryFrom<SpendableOutputQueryable>
 #[derive(Debug, Clone, Copy, PartialEq, FromSqlRow, AsExpression)]
 #[diesel(sql_type = Text)]
 pub enum ChannelState {
+    Announced,
     Pending,
     Open,
     Closed,
@@ -1136,6 +1137,7 @@ impl From<ln_dlc_node::channel::Channel> for Channel {
 impl From<ln_dlc_node::channel::ChannelState> for ChannelState {
     fn from(value: ln_dlc_node::channel::ChannelState) -> Self {
         match value {
+            ln_dlc_node::channel::ChannelState::Announced => ChannelState::Announced,
             ln_dlc_node::channel::ChannelState::Pending => ChannelState::Pending,
             ln_dlc_node::channel::ChannelState::Open => ChannelState::Open,
             ln_dlc_node::channel::ChannelState::Closed => ChannelState::Closed,
@@ -1155,6 +1157,7 @@ impl From<Channel> for ln_dlc_node::channel::Channel {
             channel_id: value
                 .channel_id
                 .map(|cid| ChannelId::from_hex(&cid).expect("valid channel id")),
+            fake_scid: None,
             inbound: value.inbound as u64,
             outbound: value.outbound as u64,
             funding_txid: value
@@ -1174,6 +1177,7 @@ impl From<Channel> for ln_dlc_node::channel::Channel {
 impl From<ChannelState> for ln_dlc_node::channel::ChannelState {
     fn from(value: ChannelState) -> Self {
         match value {
+            ChannelState::Announced => ln_dlc_node::channel::ChannelState::Announced,
             ChannelState::Pending => ln_dlc_node::channel::ChannelState::Pending,
             ChannelState::Open => ln_dlc_node::channel::ChannelState::Open,
             ChannelState::Closed => ln_dlc_node::channel::ChannelState::Closed,
@@ -1594,6 +1598,7 @@ pub mod test {
         let channel = ln_dlc_node::channel::Channel {
             user_channel_id: UserChannelId::new(),
             channel_id: None,
+            fake_scid: None,
             inbound: 0,
             outbound: 0,
             funding_txid: None,

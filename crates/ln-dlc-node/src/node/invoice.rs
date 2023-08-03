@@ -1,3 +1,5 @@
+use crate::channel::Channel;
+use crate::channel::FakeScid;
 use crate::node::Node;
 use crate::node::Storage;
 use crate::MillisatAmount;
@@ -125,7 +127,7 @@ where
     /// We also specify the [`RoutingFees`] to ensure that the payment is made in accordance with
     /// the fees that we want to charge.
     #[autometrics]
-    pub fn prepare_jit_channel(&self, target_node: PublicKey) -> RouteHintHop {
+    pub fn prepare_interceptable_payment(&self, target_node: PublicKey) -> Result<RouteHintHop> {
         let intercept_scid = self.channel_manager.get_intercept_scid();
         self.fake_channel_payments
             .lock()
@@ -148,13 +150,29 @@ where
             htlc_maximum_msat: None,
         };
 
+        let is_for_jit_channel = !self
+            .channel_manager
+            .list_channels()
+            .iter()
+            .any(|channel| channel.counterparty.node_id == target_node);
+        if is_for_jit_channel {
+            let fake_scid = FakeScid::new(intercept_scid);
+            let channel = Channel::new_jit_channel(target_node, fake_scid);
+            self.storage.upsert_channel(channel).with_context(|| {
+                format!(
+                    "Failed to insert shadow JIT channel for counterparty {target_node} \
+                     with fake SCID {fake_scid}"
+                )
+            })?;
+        }
+
         tracing::info!(
             peer_id = %target_node,
             interceptable_route_hint_hop = ?route_hint_hop,
             "Registered interest to open JIT channel"
         );
 
-        route_hint_hop
+        Ok(route_hint_hop)
     }
 
     #[autometrics]

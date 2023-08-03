@@ -1,5 +1,6 @@
 use crate::channel::Channel;
 use crate::channel::ChannelState;
+use crate::channel::FakeScid;
 use crate::transaction::Transaction;
 use crate::HTLCStatus;
 use crate::MillisatAmount;
@@ -76,6 +77,10 @@ pub trait Storage {
     fn upsert_channel(&self, channel: Channel) -> Result<()>;
     /// Get channel by `user_channel_id`
     fn get_channel(&self, user_channel_id: &str) -> Result<Option<Channel>>;
+
+    /// Get channel by `user_channel_id`
+    fn get_channel_by_fake_scid(&self, fake_scid: FakeScid) -> Result<Option<Channel>>;
+
     /// Get all non pending channels.
     fn all_non_pending_channels(&self) -> Result<Vec<Channel>>;
 
@@ -214,6 +219,15 @@ impl Storage for InMemoryStore {
 
     fn get_channel(&self, user_channel_id: &str) -> Result<Option<Channel>> {
         let channel = self.channels_lock().get(user_channel_id).cloned();
+        Ok(channel)
+    }
+
+    fn get_channel_by_fake_scid(&self, fake_scid: FakeScid) -> Result<Option<Channel>> {
+        let channel = self
+            .channels_lock()
+            .values()
+            .find(|channel| channel.fake_scid == Some(fake_scid))
+            .cloned();
         Ok(channel)
     }
 

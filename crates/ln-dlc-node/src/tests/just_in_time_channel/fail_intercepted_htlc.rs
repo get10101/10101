@@ -27,7 +27,9 @@ async fn fail_intercepted_htlc_if_coordinator_cannot_reconnect_to_payee() {
     let invoice_amount = 10_000;
     setup_coordinator_payer_channel(invoice_amount, &coordinator, &payer).await;
 
-    let interceptable_route_hint_hop = coordinator.prepare_jit_channel(payee.info.pubkey);
+    let interceptable_route_hint_hop = coordinator
+        .prepare_interceptable_payment(payee.info.pubkey)
+        .unwrap();
 
     let invoice = payee
         .create_interceptable_invoice(
@@ -90,7 +92,9 @@ async fn fail_intercepted_htlc_if_connection_lost_after_funding_tx_generated() {
     let invoice_amount = 10_000;
     setup_coordinator_payer_channel(invoice_amount, &coordinator, &payer).await;
 
-    let interceptable_route_hint_hop = coordinator.prepare_jit_channel(payee.info.pubkey);
+    let interceptable_route_hint_hop = coordinator
+        .prepare_interceptable_payment(payee.info.pubkey)
+        .unwrap();
 
     let invoice = payee
         .create_interceptable_invoice(
@@ -158,7 +162,9 @@ async fn fail_intercepted_htlc_if_coordinator_cannot_pay_to_open_jit_channel() {
     // on-chain wallet
     let invoice_amount = 10_000;
 
-    let interceptable_route_hint_hop = coordinator.prepare_jit_channel(payee.info.pubkey);
+    let interceptable_route_hint_hop = coordinator
+        .prepare_interceptable_payment(payee.info.pubkey)
+        .unwrap();
     let invoice = payee
         .create_interceptable_invoice(
             Some(invoice_amount),

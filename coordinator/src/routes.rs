@@ -94,8 +94,8 @@ pub fn router(
         .route("/", get(index))
         .route("/api/version", get(version))
         .route(
-            "/api/prepare_jit_channel/:target_node",
-            post(prepare_jit_channel),
+            "/api/prepare_interceptable_payment/:target_node",
+            post(prepare_interceptable_payment),
         )
         .route("/api/newaddress", get(get_unused_address))
         .route("/api/node", get(get_node_info))
@@ -149,7 +149,7 @@ pub async fn index() -> impl IntoResponse {
 }
 
 #[autometrics]
-pub async fn prepare_jit_channel(
+pub async fn prepare_interceptable_payment(
     target_node: Path<String>,
     State(app_state): State<Arc<AppState>>,
 ) -> Result<Json<RouteHintHop>, AppError> {
@@ -162,11 +162,17 @@ pub async fn prepare_jit_channel(
 
     let route_hint_hop = spawn_blocking({
         let app_state = app_state.clone();
-        move || app_state.node.inner.prepare_jit_channel(target_node)
+        move || {
+            app_state
+                .node
+                .inner
+                .prepare_interceptable_payment(target_node)
+        }
     })
     .await
+    .expect("task to complete")
     .map_err(|e| {
-        AppError::InternalServerError(format!("Could not create intercept SCID: {e:#}"))
+        AppError::InternalServerError(format!("Could not prepare interceptable payment: {e:#}"))
     })?;
 
     Ok(Json(route_hint_hop.into()))

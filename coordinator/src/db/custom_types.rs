@@ -105,6 +105,7 @@ impl FromSql<PaymentFlowType, Pg> for PaymentFlow {
 impl ToSql<ChannelStateType, Pg> for ChannelState {
     fn to_sql(&self, out: &mut Output<Pg>) -> serialize::Result {
         match *self {
+            ChannelState::Announced => out.write_all(b"Announced")?,
             ChannelState::Pending => out.write_all(b"Pending")?,
             ChannelState::Open => out.write_all(b"Open")?,
             ChannelState::Closed => out.write_all(b"Closed")?,
@@ -118,6 +119,7 @@ impl ToSql<ChannelStateType, Pg> for ChannelState {
 impl FromSql<ChannelStateType, Pg> for ChannelState {
     fn from_sql(bytes: PgValue<'_>) -> deserialize::Result<Self> {
         match bytes.as_bytes() {
+            b"Announced" => Ok(ChannelState::Announced),
             b"Pending" => Ok(ChannelState::Pending),
             b"Open" => Ok(ChannelState::Open),
             b"Closed" => Ok(ChannelState::Closed),
