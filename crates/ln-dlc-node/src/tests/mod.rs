@@ -7,6 +7,7 @@ use crate::node::LnDlcNodeSettings;
 use crate::node::Node;
 use crate::node::NodeInfo;
 use crate::node::OracleInfo;
+use crate::node::RunningNode;
 use crate::seed::Bip39Seed;
 use crate::util;
 use anyhow::Result;
@@ -85,7 +86,7 @@ fn init_tracing() {
 }
 
 impl Node<InMemoryStore> {
-    fn start_test_app(name: &str) -> Result<Self> {
+    fn start_test_app(name: &str) -> Result<(Self, RunningNode)> {
         Self::start_test(
             name,
             app_config(),
@@ -100,7 +101,7 @@ impl Node<InMemoryStore> {
         )
     }
 
-    fn start_test_coordinator(name: &str) -> Result<Self> {
+    fn start_test_coordinator(name: &str) -> Result<(Self, RunningNode)> {
         Self::start_test_coordinator_internal(
             name,
             Arc::new(InMemoryStore::default()),
@@ -114,7 +115,7 @@ impl Node<InMemoryStore> {
         storage: Arc<InMemoryStore>,
         settings: LnDlcNodeSettings,
         ldk_event_sender: Option<watch::Sender<Option<Event>>>,
-    ) -> Result<Self> {
+    ) -> Result<(Self, RunningNode)> {
         Self::start_test(
             name,
             coordinator_config(),
@@ -137,7 +138,7 @@ impl Node<InMemoryStore> {
         storage: Arc<InMemoryStore>,
         settings: LnDlcNodeSettings,
         ldk_event_sender: Option<watch::Sender<Option<Event>>>,
-    ) -> Result<Self> {
+    ) -> Result<(Self, RunningNode)> {
         let data_dir = random_tmp_dir().join(name);
 
         let seed = Bip39Seed::new().expect("A valid bip39 seed");
@@ -164,13 +165,14 @@ impl Node<InMemoryStore> {
             ldk_config,
             settings,
             oracle.into(),
-            ldk_event_sender,
             disk::in_memory_scorer,
         )?;
 
+        let running = node.start(ldk_event_sender)?;
+
         tracing::debug!(%name, info = %node.info, "Node started");
 
-        Ok(node)
+        Ok((node, running))
     }
 
     /// Trigger on-chain wallet sync.

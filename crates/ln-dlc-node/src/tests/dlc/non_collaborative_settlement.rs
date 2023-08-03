@@ -20,8 +20,8 @@ async fn force_close_ln_dlc_channel() {
 
     let fund_amount = (app_ln_balance + coordinator_ln_balance) * 2;
 
-    let app = Node::start_test_app("app").unwrap();
-    let coordinator = Node::start_test_coordinator("coordinator").unwrap();
+    let (app, _running_app) = Node::start_test_app("app").unwrap();
+    let (coordinator, _running_coord) = Node::start_test_coordinator("coordinator").unwrap();
 
     app.connect(coordinator.info).await.unwrap();
 

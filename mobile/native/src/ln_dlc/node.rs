@@ -27,6 +27,7 @@ use ln_dlc_node::node::rust_dlc_manager::Storage as _;
 use ln_dlc_node::node::sub_channel_message_name;
 use ln_dlc_node::node::NodeInfo;
 use ln_dlc_node::node::PaymentDetails;
+use ln_dlc_node::node::RunningNode;
 use ln_dlc_node::transaction::Transaction;
 use ln_dlc_node::HTLCStatus;
 use ln_dlc_node::MillisatAmount;
@@ -40,10 +41,21 @@ use time::OffsetDateTime;
 #[derive(Clone)]
 pub struct Node {
     pub inner: Arc<ln_dlc_node::node::Node<NodeStorage>>,
+    _running: Arc<RunningNode>,
     /// The order-matching fee invoice to be paid once the current trade is executed.
     ///
     /// We assume that only one trade can be executed at a time.
     pub order_matching_fee_invoice: Arc<RwLock<Option<Invoice>>>,
+}
+
+impl Node {
+    pub fn new(node: node::Node<NodeStorage>, running: RunningNode) -> Self {
+        Self {
+            inner: Arc::new(node),
+            _running: Arc::new(running),
+            order_matching_fee_invoice: Arc::new(RwLock::new(None)),
+        }
+    }
 }
 
 pub struct Balances {

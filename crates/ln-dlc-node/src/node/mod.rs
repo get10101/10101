@@ -111,10 +111,6 @@ pub struct Node<S> {
     keys_manager: Arc<CustomKeysManager>,
     pub network_graph: Arc<NetworkGraph>,
     pub fee_rate_estimator: Arc<FeeRateEstimator>,
-    _background_processor_handle: RemoteHandle<()>,
-    _connection_manager_handle: RemoteHandle<()>,
-    _broadcast_node_announcement_handle: RemoteHandle<()>,
-    _sub_channel_manager_periodic_check_handle: RemoteHandle<()>,
 
     logger: Arc<TracingLogger>,
 
@@ -127,12 +123,26 @@ pub struct Node<S> {
     pub dlc_message_handler: Arc<DlcMessageHandler>,
     storage: Arc<S>,
     pub ldk_config: Arc<parking_lot::RwLock<UserConfig>>,
+
+    // fields below are needed only to start the node
+    listen_address: SocketAddr,
+    gossip_sync: Arc<NodeGossipSync>,
+    persister: Arc<FilesystemPersister>,
+    alias: String,
+    announcement_addresses: Vec<NetAddress>,
+    scorer: Arc<Mutex<Scorer>>,
+    esplora_server_url: String,
 }
 
 #[derive(Debug, Clone, Copy, Deserialize, Serialize)]
 pub struct NodeInfo {
     pub pubkey: PublicKey,
     pub address: SocketAddr,
+}
+
+/// Node is running until this struct is dropped
+pub struct RunningNode {
+    _handles: Vec<RemoteHandle<()>>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -198,7 +208,6 @@ where
         seed: Bip39Seed,
         ephemeral_randomness: [u8; 32],
         oracle: OracleInfo,
-        event_sender: watch::Sender<Option<Event>>,
     ) -> Result<Self> {
         let ldk_config = app_config();
         Node::new(
@@ -218,7 +227,6 @@ where
             ldk_config,
             LnDlcNodeSettings::default(),
             oracle.into(),
-            Some(event_sender),
             disk::in_memory_scorer,
         )
     }
@@ -241,7 +249,6 @@ where
         ephemeral_randomness: [u8; 32],
         settings: LnDlcNodeSettings,
         oracle: OracleInfo,
-        event_sender: watch::Sender<Option<Event>>,
     ) -> Result<Self> {
         let mut ldk_config = coordinator_config();
 
@@ -265,7 +272,6 @@ where
             ldk_config,
             settings,
             oracle.into(),
-            Some(event_sender),
             disk::persistent_scorer,
         )
     }
@@ -290,7 +296,6 @@ where
         ldk_config: UserConfig,
         settings: LnDlcNodeSettings,
         oracle_client: P2PDOracleClient,
-        event_sender: Option<watch::Sender<Option<Event>>>,
         read_scorer: SC,
     ) -> Result<Self>
     where
@@ -463,57 +468,6 @@ where
         let fake_channel_payments: FakeChannelPaymentRequests =
             Arc::new(Mutex::new(HashMap::new()));
 
-        let event_handler = EventHandler::new(
-            channel_manager.clone(),
-            sub_channel_manager.clone(),
-            ln_dlc_wallet.clone(),
-            network_graph.clone(),
-            keys_manager.clone(),
-            node_storage.clone(),
-            fake_channel_payments.clone(),
-            Arc::new(Mutex::new(HashMap::new())),
-            peer_manager.clone(),
-            fee_rate_estimator.clone(),
-            event_sender,
-            ldk_config.clone(),
-        );
-
-        // Connection manager
-        let connection_manager_handle =
-            spawn_connection_management(peer_manager.clone(), listen_address);
-
-        tracing::info!("Starting background processor");
-
-        let background_processor_handle = spawn_background_processor(
-            peer_manager.clone(),
-            channel_manager.clone(),
-            chain_monitor.clone(),
-            logger.clone(),
-            persister,
-            event_handler,
-            gossip_sync,
-            scorer,
-        );
-
-        let broadcast_node_announcement_handle =
-            spawn_broadcast_node_annoucements(alias, announcement_addresses, peer_manager.clone())?;
-
-        let sub_channel_manager_periodic_check_handle = manage_sub_channels(
-            sub_channel_manager.clone(),
-            dlc_message_handler.clone(),
-            settings.clone(),
-        );
-
-        tokio::spawn(manage_spendable_outputs_task(
-            esplora_server_url,
-            node_storage.clone(),
-            ln_dlc_wallet.clone(),
-            fee_rate_estimator.clone(),
-            keys_manager.clone(),
-        ));
-
-        std::thread::spawn(monitor_for_deadlocks());
-
         let node_info = NodeInfo {
             pubkey: channel_manager.get_our_node_id(),
             address: announcement_address,
@@ -538,13 +492,77 @@ where
             storage: node_storage,
             fee_rate_estimator,
             ldk_config,
-            _background_processor_handle: background_processor_handle,
-            _connection_manager_handle: connection_manager_handle,
-            _broadcast_node_announcement_handle: broadcast_node_announcement_handle,
-            _sub_channel_manager_periodic_check_handle: sub_channel_manager_periodic_check_handle,
             network_graph,
             settings,
+            listen_address,
+            gossip_sync,
+            persister,
+            alias: alias.to_string(),
+            announcement_addresses,
+            scorer,
+            esplora_server_url,
         })
+    }
+
+    /// Starts the background handles - if the returned handles are dropped, the
+    /// background tasks are stopped.
+    pub fn start(&self, event_sender: Option<watch::Sender<Option<Event>>>) -> Result<RunningNode> {
+        let mut handles = vec![spawn_connection_management(
+            self.peer_manager.clone(),
+            self.listen_address,
+        )];
+
+        // TODO: Allow passing in event handler from outside
+        // Maybe there's a 'friend' class or something in Rust?
+        let event_handler = EventHandler::new(
+            self.channel_manager.clone(),
+            self.sub_channel_manager.clone(),
+            self.wallet.clone(),
+            self.network_graph.clone(),
+            self.keys_manager.clone(),
+            self.storage.clone(),
+            self.fake_channel_payments.clone(),
+            Arc::new(Mutex::new(HashMap::new())),
+            self.peer_manager.clone(),
+            self.fee_rate_estimator.clone(),
+            event_sender,
+            self.ldk_config.clone(),
+        );
+
+        handles.push(spawn_background_processor(
+            self.peer_manager.clone(),
+            self.channel_manager.clone(),
+            self.chain_monitor.clone(),
+            self.logger.clone(),
+            self.persister.clone(),
+            event_handler,
+            self.gossip_sync.clone(),
+            self.scorer.clone(),
+        ));
+
+        handles.push(spawn_broadcast_node_annoucements(
+            &self.alias,
+            self.announcement_addresses.clone(),
+            self.peer_manager.clone(),
+        )?);
+
+        handles.push(manage_sub_channels(
+            self.sub_channel_manager.clone(),
+            self.dlc_message_handler.clone(),
+            self.settings.clone(),
+        ));
+
+        tokio::spawn(manage_spendable_outputs_task(
+            self.esplora_server_url.clone(),
+            self.storage.clone(),
+            self.wallet.clone(),
+            self.fee_rate_estimator.clone(),
+            self.keys_manager.clone(),
+        ));
+
+        std::thread::spawn(monitor_for_deadlocks());
+
+        Ok(RunningNode { _handles: handles })
     }
 
     pub fn update_ldk_settings(&self, ldk_config: UserConfig) {
@@ -599,6 +617,7 @@ fn spawn_background_processor<S: Storage + Send + Sync + 'static>(
     gossip_sync: Arc<NodeGossipSync>,
     scorer: Arc<Mutex<Scorer>>,
 ) -> RemoteHandle<()> {
+    tracing::info!("Starting background processor");
     let (fut, remote_handle) = async move {
         if let Err(e) = process_events_async(
             persister,
