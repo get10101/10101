@@ -49,9 +49,9 @@ pub struct Node {
 }
 
 impl Node {
-    pub fn new(node: node::Node<NodeStorage>, running: RunningNode) -> Self {
+    pub fn new(node: Arc<node::Node<NodeStorage>>, running: RunningNode) -> Self {
         Self {
-            inner: Arc::new(node),
+            inner: node,
             _running: Arc::new(running),
             order_matching_fee_invoice: Arc::new(RwLock::new(None)),
         }

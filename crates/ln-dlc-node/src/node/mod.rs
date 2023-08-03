@@ -36,7 +36,6 @@ use lightning::routing::gossip::P2PGossipSync;
 use lightning::routing::router::DefaultRouter;
 use lightning::routing::utxo::UtxoLookup;
 use lightning::util::config::UserConfig;
-use lightning::util::events::Event;
 use lightning_background_processor::process_events_async;
 use lightning_background_processor::GossipSync;
 use lightning_persister::FilesystemPersister;
@@ -55,7 +54,6 @@ use std::sync::Mutex;
 use std::time::Duration;
 use std::time::Instant;
 use std::time::SystemTime;
-use tokio::sync::watch;
 use tokio::sync::RwLock;
 use tokio::task::spawn_blocking;
 
@@ -110,20 +108,20 @@ pub struct Node<S> {
     pub peer_manager: Arc<PeerManager>,
     pub channel_manager: Arc<ChannelManager>,
     chain_monitor: Arc<ChainMonitor>,
-    keys_manager: Arc<CustomKeysManager>,
+    pub(crate) keys_manager: Arc<CustomKeysManager>,
     pub network_graph: Arc<NetworkGraph>,
     pub fee_rate_estimator: Arc<FeeRateEstimator>,
 
     logger: Arc<TracingLogger>,
 
     pub info: NodeInfo,
-    fake_channel_payments: FakeChannelPaymentRequests,
+    pub(crate) fake_channel_payments: FakeChannelPaymentRequests,
 
     pub dlc_manager: Arc<DlcManager>,
     pub sub_channel_manager: Arc<SubChannelManager>,
     oracle: Arc<P2PDOracleClient>,
     pub dlc_message_handler: Arc<DlcMessageHandler>,
-    storage: Arc<S>,
+    pub(crate) storage: Arc<S>,
     pub ldk_config: Arc<parking_lot::RwLock<UserConfig>>,
 
     // fields below are needed only to start the node
@@ -485,26 +483,11 @@ where
     /// Starts the background handles - if the returned handles are dropped, the
     /// background tasks are stopped.
     // TODO: Consider having handles for *all* the tasks & threads for a clean shutdown.
-    pub fn start(&self, event_sender: Option<watch::Sender<Option<Event>>>) -> Result<RunningNode> {
+    pub fn start(&self, event_handler: EventHandler<S>) -> Result<RunningNode> {
         let mut handles = vec![spawn_connection_management(
             self.peer_manager.clone(),
             self.listen_address,
         )];
-
-        let event_handler = EventHandler::new(
-            self.channel_manager.clone(),
-            self.sub_channel_manager.clone(),
-            self.wallet.clone(),
-            self.network_graph.clone(),
-            self.keys_manager.clone(),
-            self.storage.clone(),
-            self.fake_channel_payments.clone(),
-            Arc::new(Mutex::new(HashMap::new())),
-            self.peer_manager.clone(),
-            self.fee_rate_estimator.clone(),
-            event_sender,
-            self.ldk_config.clone(),
-        );
 
         std::thread::spawn(sync_on_chain_wallet_periodically(
             self.settings.clone(),

@@ -19,6 +19,7 @@ use diesel::r2d2::ConnectionManager;
 use diesel::PgConnection;
 use lightning::util::events::Event;
 use ln_dlc_node::seed::Bip39Seed;
+use ln_dlc_node::EventHandler;
 use rand::thread_rng;
 use rand::RngCore;
 use std::backtrace::Backtrace;
@@ -107,7 +108,8 @@ async fn main() -> Result<()> {
         opts.get_oracle_info(),
     )?);
 
-    let running = node.start(Some(node_event_sender))?;
+    let event_handler = EventHandler::new(node.clone(), Some(node_event_sender));
+    let running = node.start(event_handler)?;
     let node = Node::new(node, running, pool.clone(), settings.to_node_settings());
 
     // TODO: Pass the tokio metrics into Prometheus

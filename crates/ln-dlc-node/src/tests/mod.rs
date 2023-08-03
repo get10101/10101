@@ -10,6 +10,7 @@ use crate::node::OracleInfo;
 use crate::node::RunningNode;
 use crate::seed::Bip39Seed;
 use crate::util;
+use crate::EventHandler;
 use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::Amount;
@@ -86,7 +87,7 @@ fn init_tracing() {
 }
 
 impl Node<InMemoryStore> {
-    fn start_test_app(name: &str) -> Result<(Self, RunningNode)> {
+    fn start_test_app(name: &str) -> Result<(Arc<Self>, RunningNode)> {
         Self::start_test(
             name,
             app_config(),
@@ -101,7 +102,7 @@ impl Node<InMemoryStore> {
         )
     }
 
-    fn start_test_coordinator(name: &str) -> Result<(Self, RunningNode)> {
+    fn start_test_coordinator(name: &str) -> Result<(Arc<Self>, RunningNode)> {
         Self::start_test_coordinator_internal(
             name,
             Arc::new(InMemoryStore::default()),
@@ -115,7 +116,7 @@ impl Node<InMemoryStore> {
         storage: Arc<InMemoryStore>,
         settings: LnDlcNodeSettings,
         ldk_event_sender: Option<watch::Sender<Option<Event>>>,
-    ) -> Result<(Self, RunningNode)> {
+    ) -> Result<(Arc<Self>, RunningNode)> {
         Self::start_test(
             name,
             coordinator_config(),
@@ -138,7 +139,7 @@ impl Node<InMemoryStore> {
         storage: Arc<InMemoryStore>,
         settings: LnDlcNodeSettings,
         ldk_event_sender: Option<watch::Sender<Option<Event>>>,
-    ) -> Result<(Self, RunningNode)> {
+    ) -> Result<(Arc<Self>, RunningNode)> {
         let data_dir = random_tmp_dir().join(name);
 
         let seed = Bip39Seed::new().expect("A valid bip39 seed");
@@ -167,8 +168,10 @@ impl Node<InMemoryStore> {
             oracle.into(),
             disk::in_memory_scorer,
         )?;
+        let node = Arc::new(node);
 
-        let running = node.start(ldk_event_sender)?;
+        let event_handler = EventHandler::new(node.clone(), ldk_event_sender);
+        let running = node.start(event_handler)?;
 
         tracing::debug!(%name, info = %node.info, "Node started");
 

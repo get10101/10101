@@ -1,24 +1,17 @@
 use crate::channel::Channel;
 use crate::channel::FakeScid;
 use crate::channel::UserChannelId;
-use crate::dlc_custom_signer::CustomKeysManager;
-use crate::fee_rate_estimator::FeeRateEstimator;
 use crate::ln::CONFIRMATION_TARGET;
 use crate::ln::HTLC_INTERCEPTED_CONNECTION_TIMEOUT;
 use crate::ln::JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT_MAX;
 use crate::ln::LIQUIDITY_MULTIPLIER;
-use crate::ln_dlc_wallet::LnDlcWallet;
 use crate::node::invoice::HTLCStatus;
-use crate::node::ChannelManager;
+use crate::node::Node;
 use crate::node::Storage;
-use crate::node::SubChannelManager;
 use crate::util;
-use crate::FakeChannelPaymentRequests;
 use crate::MillisatAmount;
-use crate::NetworkGraph;
 use crate::PaymentFlow;
 use crate::PaymentInfo;
-use crate::PeerManager;
 use crate::PendingInterceptedHtlcs;
 use crate::RequestedScid;
 use anyhow::anyhow;
@@ -37,7 +30,6 @@ use lightning::chain::keysinterface::SpendableOutputDescriptor;
 use lightning::ln::channelmanager::InterceptId;
 use lightning::ln::PaymentHash;
 use lightning::routing::gossip::NodeId;
-use lightning::util::config::UserConfig;
 use lightning::util::events::Event;
 use lightning::util::events::PaymentPurpose;
 use rand::thread_rng;
@@ -45,6 +37,7 @@ use rand::Rng;
 use secp256k1_zkp::Secp256k1;
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::sync::Mutex;
 use std::sync::MutexGuard;
 use std::time::Duration;
 use time::OffsetDateTime;
@@ -53,52 +46,20 @@ use tokio::task::block_in_place;
 use uuid::Uuid;
 
 pub struct EventHandler<S> {
-    channel_manager: Arc<ChannelManager>,
-    sub_channel_manager: Arc<SubChannelManager>,
-    wallet: Arc<LnDlcWallet>,
-    network_graph: Arc<NetworkGraph>,
-    keys_manager: Arc<CustomKeysManager>,
-    storage: Arc<S>,
-    fake_channel_payments: FakeChannelPaymentRequests,
+    node: Arc<Node<S>>,
     pending_intercepted_htlcs: PendingInterceptedHtlcs,
-    peer_manager: Arc<PeerManager>,
-    fee_rate_estimator: Arc<FeeRateEstimator>,
     event_sender: Option<watch::Sender<Option<Event>>>,
-    ldk_config: Arc<parking_lot::RwLock<UserConfig>>,
 }
 
 impl<S> EventHandler<S>
 where
     S: Storage,
 {
-    #[allow(clippy::too_many_arguments)]
-    pub(crate) fn new(
-        channel_manager: Arc<ChannelManager>,
-        sub_channel_manager: Arc<SubChannelManager>,
-        wallet: Arc<LnDlcWallet>,
-        network_graph: Arc<NetworkGraph>,
-        keys_manager: Arc<CustomKeysManager>,
-        storage: Arc<S>,
-        fake_channel_payments: FakeChannelPaymentRequests,
-        pending_intercepted_htlcs: PendingInterceptedHtlcs,
-        peer_manager: Arc<PeerManager>,
-        fee_rate_estimator: Arc<FeeRateEstimator>,
-        event_sender: Option<watch::Sender<Option<Event>>>,
-        ldk_config: Arc<parking_lot::RwLock<UserConfig>>,
-    ) -> Self {
+    pub fn new(node: Arc<Node<S>>, event_sender: Option<watch::Sender<Option<Event>>>) -> Self {
         Self {
-            channel_manager,
-            sub_channel_manager,
-            wallet,
-            network_graph,
-            keys_manager,
-            storage,
-            fake_channel_payments,
-            pending_intercepted_htlcs,
-            peer_manager,
-            fee_rate_estimator,
+            node,
             event_sender,
-            ldk_config,
+            pending_intercepted_htlcs: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 
@@ -173,7 +134,8 @@ where
                     push_msat,
                     "Accepting open channel request"
                 );
-                self.channel_manager
+                self.node
+                    .channel_manager
                     .accept_inbound_channel_from_trusted_peer_0conf(
                         &temporary_channel_id,
                         &counterparty_node_id,
@@ -215,7 +177,7 @@ where
                     time_forwardable = ?time_forwardable,
                     "Pending HTLCs are forwardable"
                 );
-                let forwarding_channel_manager = self.channel_manager.clone();
+                let forwarding_channel_manager = self.node.channel_manager.clone();
                 let min = time_forwardable.as_millis() as u64;
                 tokio::spawn(async move {
                     let millis_to_sleep = thread_rng().gen_range(min..(min * 5));
@@ -293,7 +255,7 @@ where
 
                 tracing::info!(%payment_hash, %amount_msat, "Received payment");
 
-                self.channel_manager.claim_funds(preimage);
+                self.node.channel_manager.claim_funds(preimage);
             }
             Event::HTLCIntercepted {
                 intercept_id,
@@ -322,10 +284,10 @@ where
         payment_preimage: lightning::ln::PaymentPreimage,
         fee_paid_msat: Option<u64>,
     ) -> Result<()> {
-        let amount_msat = match self.storage.get_payment(&payment_hash) {
+        let amount_msat = match self.node.storage.get_payment(&payment_hash) {
             Ok(Some((_, PaymentInfo { amt_msat, .. }))) => {
                 let amount_msat = MillisatAmount(None);
-                if let Err(e) = self.storage.merge_payment(
+                if let Err(e) = self.node.storage.merge_payment(
                     &payment_hash,
                     PaymentFlow::Outbound,
                     amount_msat,
@@ -344,7 +306,7 @@ where
                 tracing::warn!("Got PaymentSent event without matching outbound payment on record");
 
                 let amt_msat = MillisatAmount(None);
-                if let Err(e) = self.storage.insert_payment(
+                if let Err(e) = self.node.storage.insert_payment(
                     payment_hash,
                     PaymentInfo {
                         preimage: Some(payment_preimage),
@@ -397,11 +359,11 @@ where
                 "Channel closed",
             );
 
-            if let Some(channel) = self.storage.get_channel(&user_channel_id)? {
+            if let Some(channel) = self.node.storage.get_channel(&user_channel_id)? {
                 let counterparty = channel.counterparty;
 
                 let channel = Channel::close_channel(channel, reason);
-                self.storage.upsert_channel(channel)?;
+                self.node.storage.upsert_channel(channel)?;
 
                 // Fail intercepted HTLC which was meant to be used to open the JIT channel,
                 // in case it was still pending
@@ -412,7 +374,8 @@ where
                 }
             }
 
-            self.sub_channel_manager
+            self.node
+                .sub_channel_manager
                 .notify_ln_channel_closed(channel_id)?;
 
             anyhow::Ok(())
@@ -433,24 +396,26 @@ where
         }
         for spendable_output in ldk_outputs.iter() {
             if let Err(e) = self
+                .node
                 .storage
                 .insert_spendable_output((*spendable_output).clone())
             {
                 tracing::error!("Failed to persist spendable output: {e:#}")
             }
         }
-        let destination_script = self.wallet.inner().get_last_unused_address()?;
+        let destination_script = self.node.wallet.inner().get_last_unused_address()?;
         let tx_feerate = self
+            .node
             .fee_rate_estimator
             .get_est_sat_per_1000_weight(ConfirmationTarget::Normal);
-        let spending_tx = self.keys_manager.spend_spendable_outputs(
+        let spending_tx = self.node.keys_manager.spend_spendable_outputs(
             &ldk_outputs,
             vec![],
             destination_script.script_pubkey(),
             tx_feerate,
             &Secp256k1::new(),
         )?;
-        self.wallet.broadcast_transaction(&spending_tx);
+        self.node.wallet.broadcast_transaction(&spending_tx);
         Ok(())
     }
 
@@ -476,7 +441,7 @@ where
         };
 
         let amount_msat = MillisatAmount(Some(amount_msat));
-        if let Err(e) = self.storage.merge_payment(
+        if let Err(e) = self.node.storage.merge_payment(
             &payment_hash,
             PaymentFlow::Inbound,
             amount_msat,
@@ -498,7 +463,7 @@ where
         );
 
         let amount_msat = MillisatAmount(None);
-        if let Err(e) = self.storage.merge_payment(
+        if let Err(e) = self.node.storage.merge_payment(
             &payment_hash,
             PaymentFlow::Outbound,
             amount_msat,
@@ -520,9 +485,9 @@ where
         claim_from_onchain_tx: bool,
         fee_earned_msat: Option<u64>,
     ) {
-        let read_only_network_graph = self.network_graph.read_only();
+        let read_only_network_graph = self.node.network_graph.read_only();
         let nodes = read_only_network_graph.nodes();
-        let channels = self.channel_manager.list_channels();
+        let channels = self.node.channel_manager.list_channels();
 
         let node_str = |channel_id: &Option<[u8; 32]>| match channel_id {
             None => String::new(),
@@ -597,6 +562,7 @@ where
         );
         let target_blocks = CONFIRMATION_TARGET;
         let funding_tx_result = self
+            .node
             .wallet
             .inner()
             .create_funding_transaction(output_script, channel_value_satoshis, target_blocks)
@@ -608,14 +574,15 @@ where
                     %err,
                     "Cannot open channel due to not being able to create funding tx"
                 );
-                self.channel_manager
+                self.node
+                    .channel_manager
                     .close_channel(&temporary_channel_id, &counterparty_node_id)
                     .map_err(|e| anyhow!("{e:?}"))?;
 
                 return Ok(());
             }
         };
-        if let Err(err) = self.channel_manager.funding_transaction_generated(
+        if let Err(err) = self.node.channel_manager.funding_transaction_generated(
             &temporary_channel_id,
             &counterparty_node_id,
             funding_tx,
@@ -688,6 +655,7 @@ where
             async {
                 loop {
                     if self
+                        .node
                         .peer_manager
                         .get_peer_node_ids()
                         .iter()
@@ -720,12 +688,14 @@ where
         // with the target of this payment we must treat this interceptable HTLC as a regular
         // payment.
         if let Some(channel) = self
+            .node
             .channel_manager
             .list_channels()
             .iter()
             .find(|channel_details| channel_details.counterparty.node_id == target_node_id)
         {
-            self.channel_manager
+            self.node
+                .channel_manager
                 .forward_intercepted_htlc(
                     intercept_id,
                     &channel.channel_id,
@@ -738,6 +708,7 @@ where
         }
 
         let opt_max_allowed_fee = self
+            .node
             .wallet
             .inner()
             .settings()
@@ -745,6 +716,7 @@ where
             .max_allowed_tx_fee_rate_when_opening_channel;
         if let Some(max_allowed_tx_fee) = opt_max_allowed_fee {
             let current_fee = self
+                .node
                 .fee_rate_estimator
                 .get_est_sat_per_1000_weight(CONFIRMATION_TARGET);
 
@@ -762,6 +734,7 @@ where
 
         let fake_scid = FakeScid::new(requested_next_hop_scid);
         let mut shadow_channel = self
+            .node
             .storage
             .get_channel_by_fake_scid(fake_scid)
             .with_context(|| format!("Failed to load channel by fake SCID {fake_scid}"))?
@@ -769,14 +742,16 @@ where
 
         shadow_channel.outbound = channel_value;
 
-        self.storage
+        self.node
+            .storage
             .upsert_channel(shadow_channel.clone())
             .with_context(|| format!("Failed to upsert shadow channel: {shadow_channel}"))?;
 
-        let mut ldk_config = *self.ldk_config.read();
+        let mut ldk_config = *self.node.ldk_config.read();
         ldk_config.channel_handshake_config.announced_channel = false;
 
         let temp_channel_id = self
+            .node
             .channel_manager
             .create_channel(
                 target_node_id,
@@ -843,6 +818,7 @@ where
         );
 
         let channel_details = self
+            .node
             .channel_manager
             .get_channel_details(&channel_id)
             .ok_or(anyhow!(
@@ -850,9 +826,9 @@ where
                 channel_id.to_hex()
             ))?;
 
-        let channel = self.storage.get_channel(&user_channel_id)?;
+        let channel = self.node.storage.get_channel(&user_channel_id)?;
         let channel = Channel::open_channel(channel, channel_details)?;
-        self.storage.upsert_channel(channel)?;
+        self.node.storage.upsert_channel(channel)?;
 
         let pending_intercepted_htlcs = self.pending_intercepted_htlcs_lock();
         if let Some((intercept_id, expected_outbound_amount_msat)) =
@@ -865,7 +841,8 @@ where
                 "Pending intercepted HTLC found, forwarding payment"
             );
 
-            self.channel_manager
+            self.node
+                .channel_manager
                 .forward_intercepted_htlc(
                     *intercept_id,
                     &channel_id,
@@ -888,14 +865,18 @@ where
 
         // This call fails if the HTLC was already forwarded of if the HTLC was already failed. In
         // both cases we don't have to do anything else
-        let _ = self.channel_manager.fail_intercepted_htlc(*intercept_id);
+        let _ = self
+            .node
+            .channel_manager
+            .fail_intercepted_htlc(*intercept_id);
     }
 }
 
 impl<S> EventHandler<S> {
     #[autometrics]
     fn fake_channel_payments_lock(&self) -> MutexGuard<HashMap<RequestedScid, PublicKey>> {
-        self.fake_channel_payments
+        self.node
+            .fake_channel_payments
             .lock()
             .expect("Mutex to not be poisoned")
     }

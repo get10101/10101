@@ -41,7 +41,6 @@ async fn single_app_many_positions_load() {
         None,
     )
     .unwrap();
-    let app = Arc::new(app);
 
     tokio::spawn({
         let app = app.clone();

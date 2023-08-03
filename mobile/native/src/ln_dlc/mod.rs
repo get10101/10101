@@ -33,6 +33,7 @@ use ln_dlc_node::node::rust_dlc_manager::ChannelId;
 use ln_dlc_node::node::LnDlcNodeSettings;
 use ln_dlc_node::node::NodeInfo;
 use ln_dlc_node::seed::Bip39Seed;
+use ln_dlc_node::EventHandler;
 use ln_dlc_node::CONFIRMATION_TARGET;
 use orderbook_commons::RouteHintHop;
 use orderbook_commons::FEE_INVOICE_DESCRIPTION_PREFIX_TAKER;
@@ -186,8 +187,10 @@ pub fn run(data_dir: String, seed_dir: String, runtime: &Runtime) -> Result<()> 
             ephemeral_randomness,
             config::get_oracle_info(),
         )?;
+        let node = Arc::new(node);
 
-        let _running = node.start(Some(event_sender))?;
+        let event_handler = EventHandler::new(node.clone(), Some(event_sender));
+        let _running = node.start(event_handler)?;
         let node = Arc::new(Node::new(node, _running));
 
         runtime.spawn({
