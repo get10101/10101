@@ -30,11 +30,13 @@ tradeBottomSheet({required BuildContext context, required Direction direction}) 
                 currentFocus.unfocus();
               }
             },
-            child: SizedBox(
-                // TODO: Find a way to make height dynamic depending on the children size
-                // This is needed because otherwise the keyboard does not push the sheet up correctly
-                height: 450,
-                child: TradeBottomSheet(direction: direction)),
+            child: SingleChildScrollView(
+              child: SizedBox(
+                  // TODO: Find a way to make height dynamic depending on the children size
+                  // This is needed because otherwise the keyboard does not push the sheet up correctly
+                  height: 450,
+                  child: TradeBottomSheet(direction: direction)),
+            ),
           ),
         ),
       );

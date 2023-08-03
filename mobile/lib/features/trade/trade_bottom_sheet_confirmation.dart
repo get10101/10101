@@ -50,15 +50,17 @@ tradeBottomSheetConfirmation(
                 currentFocus.unfocus();
               }
             },
-            child: SizedBox(
-                height: 350,
-                child: TradeBottomSheetConfirmation(
-                  direction: direction,
-                  sliderButtonKey: sliderButtonKey,
-                  sliderKey: sliderKey,
-                  onConfirmation: onConfirmation,
-                  close: close,
-                )),
+            child: SingleChildScrollView(
+              child: SizedBox(
+                  height: 350,
+                  child: TradeBottomSheetConfirmation(
+                    direction: direction,
+                    sliderButtonKey: sliderButtonKey,
+                    sliderKey: sliderKey,
+                    onConfirmation: onConfirmation,
+                    close: close,
+                  )),
+            ),
           ),
         ),
       );

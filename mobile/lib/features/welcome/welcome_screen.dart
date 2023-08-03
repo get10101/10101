@@ -1,5 +1,6 @@
 import 'package:f_logs/model/flog/flog.dart';
 import 'package:flutter/material.dart';
+import 'package:get_10101/common/scrollable_safe_area.dart';
 import 'package:get_10101/features/wallet/wallet_screen.dart';
 import 'package:get_10101/util/preferences.dart';
 import 'package:go_router/go_router.dart';
@@ -31,7 +32,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
         appBar: AppBar(title: const Text("Welcome to 10101 beta.")),
-        body: SafeArea(
+        body: ScrollableSafeArea(
             child: Form(
           key: _formKey,
           child: Container(
