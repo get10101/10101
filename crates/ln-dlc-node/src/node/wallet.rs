@@ -11,6 +11,7 @@ use bdk::sled;
 use bitcoin::secp256k1::SecretKey;
 use bitcoin::Address;
 use lightning::ln::PaymentHash;
+use std::fmt;
 use std::sync::Arc;
 use time::OffsetDateTime;
 
@@ -163,4 +164,20 @@ pub struct PaymentDetails {
     pub amount_msat: Option<u64>,
     pub timestamp: OffsetDateTime,
     pub description: String,
+}
+
+impl fmt::Display for PaymentDetails {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let payment_hash = hex::encode(self.payment_hash.0);
+        let status = self.status.to_string();
+        let flow = self.flow;
+        let amount_msat = self.amount_msat.unwrap_or_default();
+        let timestamp = self.timestamp.to_string();
+        let description = self.description.clone();
+        write!(
+            f,
+            "payment_hash {}, status {}, flow {}, amount_msat {}, timestamp {}, description {}",
+            payment_hash, status, flow, amount_msat, timestamp, description,
+        )
+    }
 }

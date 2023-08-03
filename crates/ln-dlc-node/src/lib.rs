@@ -22,6 +22,7 @@ use lightning_net_tokio::SocketDescriptor;
 use lightning_persister::FilesystemPersister;
 use ln_dlc_wallet::LnDlcWallet;
 use std::collections::HashMap;
+use std::fmt;
 use std::sync::Arc;
 use std::sync::Mutex;
 use time::OffsetDateTime;
@@ -107,6 +108,15 @@ pub struct PaymentInfo {
 pub enum PaymentFlow {
     Inbound,
     Outbound,
+}
+
+impl fmt::Display for PaymentFlow {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            PaymentFlow::Inbound => "Inbound".fmt(f),
+            PaymentFlow::Outbound => "Outbound".fmt(f),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy)]

@@ -27,6 +27,8 @@ use lightning_invoice::Currency;
 use lightning_invoice::Invoice;
 use lightning_invoice::InvoiceBuilder;
 use lightning_invoice::InvoiceDescription;
+use std::fmt;
+use std::fmt::Formatter;
 use std::time::Duration;
 use std::time::SystemTime;
 use time::OffsetDateTime;
@@ -298,6 +300,16 @@ pub enum HTLCStatus {
     Pending,
     Succeeded,
     Failed,
+}
+
+impl fmt::Display for HTLCStatus {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            HTLCStatus::Pending => "Pending".fmt(f),
+            HTLCStatus::Succeeded => "Succeeded".fmt(f),
+            HTLCStatus::Failed => "Failed".fmt(f),
+        }
+    }
 }
 
 fn retryable_send_failure_to_string(failure: RetryableSendFailure) -> &'static str {
