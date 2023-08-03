@@ -290,7 +290,10 @@ pub fn update_payment(
 pub fn get_payment(
     payment_hash: lightning::ln::PaymentHash,
 ) -> Result<Option<(lightning::ln::PaymentHash, ln_dlc_node::PaymentInfo)>> {
-    tracing::debug!(?payment_hash, "Getting payment");
+    tracing::debug!(
+        payment_hash = hex::encode(payment_hash.0),
+        "Getting payment"
+    );
 
     let mut db = connection()?;
 
