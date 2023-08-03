@@ -127,7 +127,7 @@ where
     /// We also specify the [`RoutingFees`] to ensure that the payment is made in accordance with
     /// the fees that we want to charge.
     #[autometrics]
-    pub fn prepare_jit_channel(&self, target_node: PublicKey) -> Result<RouteHintHop> {
+    pub fn prepare_interceptable_payment(&self, target_node: PublicKey) -> Result<RouteHintHop> {
         let intercept_scid = self.channel_manager.get_intercept_scid();
         self.fake_channel_payments
             .lock()

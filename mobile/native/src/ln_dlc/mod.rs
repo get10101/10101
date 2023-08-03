@@ -459,7 +459,7 @@ pub fn create_invoice(amount_sats: Option<u64>) -> Result<Invoice> {
         let client = reqwest_client();
         let response = client
             .post(format!(
-                "http://{}/api/prepare_jit_channel/{}",
+                "http://{}/api/prepare_interceptable_payment/{}",
                 config::get_http_endpoint(),
                 node.inner.info.pubkey
             ))
