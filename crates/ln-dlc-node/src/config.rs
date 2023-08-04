@@ -1,11 +1,10 @@
-use std::time::Duration;
-
 use lightning::chain::chaininterface::ConfirmationTarget;
 use lightning::ln::channelmanager::MIN_CLTV_EXPIRY_DELTA;
 use lightning::util::config::ChannelConfig;
 use lightning::util::config::ChannelHandshakeConfig;
 use lightning::util::config::ChannelHandshakeLimits;
 use lightning::util::config::UserConfig;
+use std::time::Duration;
 
 /// When handling the [`Event::HTLCIntercepted`], we may need to
 /// create a new channel with the recipient of the HTLC. If the

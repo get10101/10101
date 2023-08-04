@@ -1,8 +1,5 @@
-use crate::node::Node;
-use crate::node::Storage;
 use anyhow::Result;
 use async_trait::async_trait;
-use autometrics::autometrics;
 use bitcoin::hashes::hex::ToHex;
 use bitcoin::secp256k1::PublicKey;
 use lightning::ln::channelmanager::InterceptId;
@@ -12,44 +9,14 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::watch;
 
-type PendingInterceptedHtlcs = Arc<Mutex<HashMap<PublicKey, (InterceptId, u64)>>>;
+pub type PendingInterceptedHtlcs = Arc<Mutex<HashMap<PublicKey, (InterceptId, u64)>>>;
+pub type EventSender = watch::Sender<Option<Event>>;
 
 #[async_trait]
 pub trait EventHandlerTrait: Send + Sync {
-    async fn handle_event(&self, event: Event);
-}
+    async fn match_event(&self, event: Event) -> Result<()>;
 
-#[async_trait]
-impl<S> EventHandlerTrait for EventHandler<S>
-where
-    S: Storage + Send + Sync + 'static,
-{
     async fn handle_event(&self, event: Event) {
-        self.handle_event(event).await
-    }
-}
-
-// TODO: Define different event handlers for app and coordinator.
-pub struct EventHandler<S> {
-    node: Arc<Node<S>>,
-    pending_intercepted_htlcs: PendingInterceptedHtlcs,
-    event_sender: Option<watch::Sender<Option<Event>>>,
-}
-
-impl<S> EventHandler<S>
-where
-    S: Storage,
-{
-    pub fn new(node: Arc<Node<S>>, event_sender: Option<watch::Sender<Option<Event>>>) -> Self {
-        Self {
-            node,
-            event_sender,
-            pending_intercepted_htlcs: Arc::new(Mutex::new(HashMap::new())),
-        }
-    }
-
-    #[autometrics]
-    pub async fn handle_event(&self, event: Event) {
         tracing::info!(?event, "Received event");
 
         let event_str = format!("{event:?}");
@@ -59,7 +26,7 @@ where
             Err(e) => tracing::error!("Failed to handle event. Error: {e:#}"),
         }
 
-        if let Some(event_sender) = &self.event_sender {
+        if let Some(event_sender) = self.event_sender() {
             match event_sender.send(Some(event)) {
                 Ok(()) => tracing::trace!("Sent event to subscriber"),
                 Err(e) => tracing::error!("Failed to send event to subscriber: {e:#}"),
@@ -67,180 +34,8 @@ where
         }
     }
 
-    async fn match_event(&self, event: Event) -> Result<()> {
-        match event {
-            Event::FundingGenerationReady {
-                temporary_channel_id,
-                counterparty_node_id,
-                channel_value_satoshis,
-                output_script,
-                user_channel_id,
-            } => {
-                handlers::handle_funding_generation_ready(
-                    &self.node,
-                    user_channel_id,
-                    counterparty_node_id,
-                    output_script,
-                    channel_value_satoshis,
-                    temporary_channel_id,
-                )
-                .await?;
-            }
-            Event::PaymentClaimed {
-                payment_hash,
-                purpose,
-                amount_msat,
-                receiver_node_id: _,
-            } => {
-                handlers::handle_payment_claimed(&self.node, amount_msat, payment_hash, purpose);
-            }
-            Event::PaymentSent {
-                payment_preimage,
-                payment_hash,
-                fee_paid_msat,
-                ..
-            } => {
-                handlers::handle_payment_sent(
-                    &self.node,
-                    payment_hash,
-                    payment_preimage,
-                    fee_paid_msat,
-                )?;
-            }
-            Event::OpenChannelRequest {
-                temporary_channel_id,
-                counterparty_node_id,
-                funding_satoshis,
-                push_msat,
-                ..
-            } => {
-                // TODO: only accept 0-conf from the coordinator.
-                // right now we are using the same conf for app and coordinator, meaning this will
-                // be called for both. We however do not want to accept 0-conf channels from someone
-                // outside of our domain.
-                handlers::handle_open_channel_request(
-                    &self.node.channel_manager,
-                    counterparty_node_id,
-                    funding_satoshis,
-                    push_msat,
-                    temporary_channel_id,
-                )?;
-            }
-            Event::PaymentPathSuccessful {
-                payment_id,
-                payment_hash,
-                path,
-            } => {
-                tracing::info!(?payment_id, ?payment_hash, ?path, "Payment path successful");
-            }
-            Event::PaymentPathFailed { payment_hash, .. } => {
-                tracing::warn!(
-                    payment_hash = %payment_hash.0.to_hex(),
-                "Payment path failed");
-            }
-            Event::PaymentFailed { payment_hash, .. } => {
-                handlers::handle_payment_failed(&self.node, payment_hash);
-            }
-            Event::PaymentForwarded {
-                prev_channel_id,
-                next_channel_id,
-                fee_earned_msat,
-                claim_from_onchain_tx,
-            } => {
-                handlers::handle_payment_forwarded(
-                    &self.node,
-                    prev_channel_id,
-                    next_channel_id,
-                    claim_from_onchain_tx,
-                    fee_earned_msat,
-                );
-            }
-            Event::PendingHTLCsForwardable { time_forwardable } => {
-                handlers::handle_pending_htlcs_forwardable(
-                    self.node.channel_manager.clone(),
-                    time_forwardable,
-                );
-            }
-            Event::SpendableOutputs { outputs } => {
-                handlers::handle_spendable_outputs(&self.node, outputs)?;
-            }
-            Event::ChannelClosed {
-                channel_id,
-                reason,
-                user_channel_id,
-            } => {
-                handlers::handle_channel_closed(
-                    &self.node,
-                    &self.pending_intercepted_htlcs,
-                    user_channel_id,
-                    reason,
-                    channel_id,
-                )?;
-            }
-            Event::DiscardFunding {
-                channel_id,
-                transaction,
-            } => {
-                handlers::handle_discard_funding(transaction, channel_id);
-            }
-            Event::ProbeSuccessful { .. } => {}
-            Event::ProbeFailed { .. } => {}
-            Event::ChannelReady {
-                channel_id,
-                counterparty_node_id,
-                user_channel_id,
-                ..
-            } => {
-                handlers::handle_channel_ready(
-                    &self.node,
-                    &self.pending_intercepted_htlcs,
-                    user_channel_id,
-                    channel_id,
-                    counterparty_node_id,
-                )?;
-            }
-            Event::HTLCHandlingFailed {
-                prev_channel_id,
-                failed_next_destination,
-            } => {
-                handlers::handle_htlc_handling_failed(prev_channel_id, failed_next_destination);
-            }
-            Event::PaymentClaimable {
-                receiver_node_id: _,
-                payment_hash,
-                amount_msat,
-                purpose,
-                via_channel_id: _,
-                via_user_channel_id: _,
-            } => {
-                handlers::handle_payment_claimable(
-                    &self.node.channel_manager,
-                    payment_hash,
-                    purpose,
-                    amount_msat,
-                )?;
-            }
-            Event::HTLCIntercepted {
-                intercept_id,
-                requested_next_hop_scid,
-                payment_hash,
-                inbound_amount_msat,
-                expected_outbound_amount_msat,
-            } => {
-                handlers::handle_intercepted_htlc(
-                    &self.node,
-                    &self.pending_intercepted_htlcs,
-                    intercept_id,
-                    payment_hash,
-                    requested_next_hop_scid,
-                    inbound_amount_msat,
-                    expected_outbound_amount_msat,
-                )
-                .await?;
-            }
-        };
-
-        Ok(())
+    fn event_sender(&self) -> &Option<watch::Sender<Option<Event>>> {
+        &None
     }
 }
 
@@ -251,7 +46,6 @@ where
 /// don't require custom behaviour
 pub mod handlers {
     use super::*;
-
     use crate::channel::Channel;
     use crate::channel::FakeScid;
     use crate::channel::UserChannelId;
@@ -291,7 +85,7 @@ pub mod handlers {
     use tokio::task::block_in_place;
     use uuid::Uuid;
 
-    pub(crate) fn handle_open_channel_request(
+    pub(crate) fn handle_open_channel_request_trusted_0_conf(
         channel_manager: &Arc<ChannelManager>,
         counterparty_node_id: PublicKey,
         funding_satoshis: u64,
@@ -898,8 +692,9 @@ pub mod handlers {
             if let Err(ref e) = res {
                 tracing::error!("Failed to handle ChannelReady event: {e:#}");
 
-                // If the `ChannelReady` event was associated with a pending intercepted HTLC, we must
-                // fail it to unlock the funds of all the nodes along the payment route
+                // If the `ChannelReady` event was associated with a pending intercepted HTLC, we
+                // must fail it to unlock the funds of all the nodes along the
+                // payment route
                 if let Some((intercept_id, _)) =
                     pending_intercepted_htlcs.lock().get(&counterparty_node_id)
                 {
@@ -995,5 +790,19 @@ pub mod handlers {
             tokio::time::sleep(Duration::from_millis(millis_to_sleep)).await;
             forwarding_channel_manager.process_pending_htlc_forwards();
         });
+    }
+}
+#[async_trait]
+impl<T: EventHandlerTrait + ?Sized> EventHandlerTrait for Arc<T> {
+    async fn match_event(&self, event: Event) -> Result<()> {
+        (**self).match_event(event).await
+    }
+
+    async fn handle_event(&self, event: Event) {
+        (**self).handle_event(event).await
+    }
+
+    fn event_sender(&self) -> &Option<watch::Sender<Option<Event>>> {
+        (**self).event_sender()
     }
 }

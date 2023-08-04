@@ -1,5 +1,6 @@
 use lightning::ln::msgs::NetAddress;
-use std::net::{IpAddr, SocketAddr};
+use std::net::IpAddr;
+use std::net::SocketAddr;
 
 #[inline]
 pub fn hex_str(value: &[u8]) -> String {

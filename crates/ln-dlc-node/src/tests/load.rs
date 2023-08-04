@@ -7,6 +7,8 @@ use crate::node::OracleInfo;
 use crate::tests::init_tracing;
 use crate::tests::wait_until_dlc_channel_state;
 use crate::tests::SubChannelStateName;
+use crate::AppEventHandler;
+use crate::EventHandlerTrait;
 use anyhow::Result;
 use bitcoin::XOnlyPublicKey;
 use coordinator::Coordinator;
@@ -28,7 +30,13 @@ async fn single_app_many_positions_load() {
     init_tracing();
 
     let coordinator = Coordinator::new_public_regtest();
+
+    let app_event_handler = |node, event_sender| {
+        Arc::new(AppEventHandler::new(node, event_sender)) as Arc<dyn EventHandlerTrait>
+    };
+
     let (app, _running_app) = Node::start_test(
+        app_event_handler,
         "app",
         app_config(),
         ESPLORA_ORIGIN_PUBLIC_REGTEST.to_string(),
