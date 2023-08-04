@@ -29,6 +29,11 @@ jobs:
           git config user.name "${{ secrets.GET10101_NAME }}"
           git config user.email ${{ secrets.GET10101_EMAIL }}
 
+      - uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: rustfmt
+      - uses: dprint/check@v2.1
+
       - name: Update changelog
         uses: thomaseizinger/keep-a-changelog-new-release@v1
         with:
@@ -53,7 +58,6 @@ jobs:
       - name: Commit changelog and manifest files
         id: make-commit
         run: |
-          curl -fsSL https://dprint.dev/install.sh | sh
           /home/runner/.dprint/bin/dprint fmt
 
           git add CHANGELOG.md mobile/pubspec.yaml
