@@ -1,10 +1,10 @@
 use crate::channel::Channel;
 use crate::channel::FakeScid;
 use crate::channel::UserChannelId;
-use crate::ln::CONFIRMATION_TARGET;
-use crate::ln::HTLC_INTERCEPTED_CONNECTION_TIMEOUT;
-use crate::ln::JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT_MAX;
-use crate::ln::LIQUIDITY_MULTIPLIER;
+use crate::config::CONFIRMATION_TARGET;
+use crate::config::HTLC_INTERCEPTED_CONNECTION_TIMEOUT;
+use crate::config::JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT_MAX;
+use crate::config::LIQUIDITY_MULTIPLIER;
 use crate::node::invoice::HTLCStatus;
 use crate::node::Node;
 use crate::node::Storage;
@@ -652,35 +652,32 @@ where
             )
         })?;
 
-        tokio::time::timeout(
-            Duration::from_secs(HTLC_INTERCEPTED_CONNECTION_TIMEOUT),
-            async {
-                loop {
-                    if self
-                        .node
-                        .peer_manager
-                        .get_peer_node_ids()
-                        .iter()
-                        .any(|(id, _)| *id == target_node_id)
-                    {
-                        tracing::info!(
-                            %target_node_id,
-                            %payment_hash,
-                            "Found connection with target of intercepted HTLC"
-                        );
-
-                        return;
-                    }
-
-                    tracing::debug!(
+        tokio::time::timeout(HTLC_INTERCEPTED_CONNECTION_TIMEOUT, async {
+            loop {
+                if self
+                    .node
+                    .peer_manager
+                    .get_peer_node_ids()
+                    .iter()
+                    .any(|(id, _)| *id == target_node_id)
+                {
+                    tracing::info!(
                         %target_node_id,
                         %payment_hash,
-                        "Waiting for connection with target of intercepted HTLC"
+                        "Found connection with target of intercepted HTLC"
                     );
-                    tokio::time::sleep(Duration::from_secs(2)).await;
+
+                    return;
                 }
-            },
-        )
+
+                tracing::debug!(
+                    %target_node_id,
+                    %payment_hash,
+                    "Waiting for connection with target of intercepted HTLC"
+                );
+                tokio::time::sleep(Duration::from_secs(2)).await;
+            }
+        })
         .await
         .context("Timed out waiting to get connection with target of interceptable HTLC")?;
 

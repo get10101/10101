@@ -1,4 +1,4 @@
-use crate::ln::HTLC_INTERCEPTED_CONNECTION_TIMEOUT;
+use crate::config::HTLC_INTERCEPTED_CONNECTION_TIMEOUT;
 use crate::node::InMemoryStore;
 use crate::node::LnDlcNodeSettings;
 use crate::node::Node;
@@ -7,6 +7,7 @@ use crate::tests::setup_coordinator_payer_channel;
 use crate::HTLCStatus;
 use bitcoin::Amount;
 use lightning::util::events::Event;
+use std::ops::Add;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -56,7 +57,7 @@ async fn fail_intercepted_htlc_if_coordinator_cannot_reconnect_to_payee() {
             invoice.payment_hash(),
             // We wait a bit longer than what the coordinator should wait for the payee to
             // reconnect
-            Some(Duration::from_secs(HTLC_INTERCEPTED_CONNECTION_TIMEOUT + 5)),
+            Some(HTLC_INTERCEPTED_CONNECTION_TIMEOUT.add(Duration::from_secs(5))),
         )
         .await
         .unwrap();

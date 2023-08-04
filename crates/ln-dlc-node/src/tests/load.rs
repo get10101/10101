@@ -1,4 +1,4 @@
-use crate::ln::app_config;
+use crate::config::app_config;
 use crate::node::InMemoryStore;
 use crate::node::LnDlcNodeSettings;
 use crate::node::Node;

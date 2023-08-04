@@ -44,15 +44,15 @@ pub mod seed;
 pub mod transaction;
 pub mod util;
 
+pub use config::CONFIRMATION_TARGET;
+pub use config::CONTRACT_TX_FEE_RATE;
+pub use config::JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT_MAX;
+pub use config::LIQUIDITY_MULTIPLIER;
 pub use ldk_node_wallet::WalletSettings;
 pub use ln::ChannelDetails;
 pub use ln::DlcChannelDetails;
 pub use ln::EventHandler;
 pub use ln::EventHandlerTrait;
-pub use ln::CONFIRMATION_TARGET;
-pub use ln::CONTRACT_TX_FEE_RATE;
-pub use ln::JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT_MAX;
-pub use ln::LIQUIDITY_MULTIPLIER;
 pub use node::invoice::HTLCStatus;
 
 #[cfg(test)]

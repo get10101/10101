@@ -1,7 +1,6 @@
-use crate::disk;
-use crate::ln::app_config;
-use crate::ln::coordinator_config;
-use crate::ln::LIQUIDITY_MULTIPLIER;
+use crate::config::app_config;
+use crate::config::coordinator_config;
+use crate::config::LIQUIDITY_MULTIPLIER;
 use crate::node::InMemoryStore;
 use crate::node::LnDlcNodeSettings;
 use crate::node::Node;

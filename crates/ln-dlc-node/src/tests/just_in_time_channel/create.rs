@@ -1,7 +1,7 @@
 use crate::channel::ChannelState;
+use crate::config::JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT_MAX;
+use crate::config::LIQUIDITY_MULTIPLIER;
 use crate::fee_rate_estimator::EstimateFeeRate;
-use crate::ln::JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT_MAX;
-use crate::ln::LIQUIDITY_MULTIPLIER;
 use crate::node::InMemoryStore;
 use crate::node::LnDlcNodeSettings;
 use crate::node::Node;
