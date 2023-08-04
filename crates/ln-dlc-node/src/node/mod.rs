@@ -4,7 +4,6 @@ use crate::fee_rate_estimator::FeeRateEstimator;
 use crate::ln::app_config;
 use crate::ln::coordinator_config;
 use crate::ln::manage_spendable_outputs;
-use crate::ln::EventHandler;
 use crate::ln::TracingLogger;
 use crate::ln_dlc_wallet::LnDlcWallet;
 use crate::node::dlc_channel::sub_channel_manager_periodic_check;
@@ -14,6 +13,7 @@ use crate::on_chain_wallet::OnChainWallet;
 use crate::seed::Bip39Seed;
 use crate::util;
 use crate::ChainMonitor;
+use crate::EventHandlerTrait;
 use crate::FakeChannelPaymentRequests;
 use crate::NetworkGraph;
 use crate::PeerManager;
@@ -483,7 +483,7 @@ where
     /// Starts the background handles - if the returned handles are dropped, the
     /// background tasks are stopped.
     // TODO: Consider having handles for *all* the tasks & threads for a clean shutdown.
-    pub fn start(&self, event_handler: EventHandler<S>) -> Result<RunningNode> {
+    pub fn start(&self, event_handler: impl EventHandlerTrait + 'static) -> Result<RunningNode> {
         let mut handles = vec![spawn_connection_management(
             self.peer_manager.clone(),
             self.listen_address,
@@ -593,13 +593,13 @@ async fn update_fee_rate_estimates(
 }
 
 #[allow(clippy::too_many_arguments)]
-fn spawn_background_processor<S: Storage + Send + Sync + 'static>(
+fn spawn_background_processor(
     peer_manager: Arc<PeerManager>,
     channel_manager: Arc<ChannelManager>,
     chain_monitor: Arc<ChainMonitor>,
     logger: Arc<TracingLogger>,
     persister: Arc<FilesystemPersister>,
-    event_handler: EventHandler<S>,
+    event_handler: impl EventHandlerTrait + 'static,
     gossip_sync: Arc<NodeGossipSync>,
     scorer: Arc<Mutex<Scorer>>,
 ) -> RemoteHandle<()> {

@@ -18,6 +18,7 @@ use anyhow::anyhow;
 use anyhow::ensure;
 use anyhow::Context;
 use anyhow::Result;
+use async_trait::async_trait;
 use autometrics::autometrics;
 use bitcoin::consensus::encode::serialize_hex;
 use bitcoin::hashes::hex::ToHex;
@@ -45,6 +46,7 @@ use tokio::sync::watch;
 use tokio::task::block_in_place;
 use uuid::Uuid;
 
+// TODO: Define different event handlers for app and coordinator.
 pub struct EventHandler<S> {
     node: Arc<Node<S>>,
     pending_intercepted_htlcs: PendingInterceptedHtlcs,
@@ -886,5 +888,20 @@ impl<S> EventHandler<S> {
         self.pending_intercepted_htlcs
             .lock()
             .expect("Mutex to not be poisoned")
+    }
+}
+
+#[async_trait]
+pub trait EventHandlerTrait: Send + Sync {
+    async fn handle_event(&self, event: Event);
+}
+
+#[async_trait]
+impl<S> EventHandlerTrait for EventHandler<S>
+where
+    S: Storage + Send + Sync + 'static,
+{
+    async fn handle_event(&self, event: Event) {
+        self.handle_event(event).await
     }
 }

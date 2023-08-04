@@ -346,8 +346,8 @@ async fn reconnecting_during_dlc_channel_setup_reversed() {
 
     // Arrange
 
-    let app = Arc::new(Node::start_test_app("app").unwrap());
-    let coordinator = Arc::new(Node::start_test_coordinator("coordinator").unwrap());
+    let (app, _running_app) = Node::start_test_app("app").unwrap();
+    let (coordinator, _running_coord) = Node::start_test_coordinator("coordinator").unwrap();
 
     let coordinator_info = coordinator.info;
 
