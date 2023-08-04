@@ -35,28 +35,28 @@ mod ln;
 mod ln_dlc_wallet;
 mod on_chain_wallet;
 mod shadow;
-mod util;
 
 pub mod channel;
+pub mod config;
 pub mod node;
+pub mod scorer;
 pub mod seed;
 pub mod transaction;
+pub mod util;
 
+pub use ldk_node_wallet::WalletSettings;
+pub use ln::ChannelDetails;
+pub use ln::DlcChannelDetails;
 pub use ln::EventHandler;
 pub use ln::EventHandlerTrait;
 pub use ln::CONFIRMATION_TARGET;
 pub use ln::CONTRACT_TX_FEE_RATE;
 pub use ln::JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT_MAX;
 pub use ln::LIQUIDITY_MULTIPLIER;
+pub use node::invoice::HTLCStatus;
 
 #[cfg(test)]
 mod tests;
-
-pub use ldk_node_wallet::WalletSettings;
-pub use ln::coordinator_config as ldk_coordinator_config;
-pub use ln::ChannelDetails;
-pub use ln::DlcChannelDetails;
-pub use node::invoice::HTLCStatus;
 
 type ChainMonitor = chainmonitor::ChainMonitor<
     CustomSigner,

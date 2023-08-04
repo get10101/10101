@@ -8,6 +8,7 @@ use crate::node::Node;
 use crate::node::NodeInfo;
 use crate::node::OracleInfo;
 use crate::node::RunningNode;
+use crate::scorer;
 use crate::seed::Bip39Seed;
 use crate::util;
 use crate::EventHandler;
@@ -153,20 +154,20 @@ impl Node<InMemoryStore> {
         };
 
         let node = Node::new(
+            ldk_config,
+            scorer::in_memory_scorer,
             name,
             Network::Regtest,
             data_dir.as_path(),
             storage,
             address,
             address,
-            vec![util::build_net_address(address.ip(), address.port())],
+            util::into_net_addresses(address),
             esplora_origin,
             seed,
             ephemeral_randomness,
-            ldk_config,
             settings,
             oracle.into(),
-            disk::in_memory_scorer,
         )?;
         let node = Arc::new(node);
 

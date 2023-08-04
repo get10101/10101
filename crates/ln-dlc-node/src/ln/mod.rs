@@ -1,15 +1,12 @@
 use lightning::chain::chaininterface::ConfirmationTarget;
 
 mod channel_details;
-mod config;
 mod dlc_channel_details;
 mod event_handler;
 mod logger;
 mod manage_spendable_outputs;
 
 pub use channel_details::ChannelDetails;
-pub(crate) use config::app_config;
-pub use config::coordinator_config;
 pub use dlc_channel_details::DlcChannelDetails;
 pub use event_handler::EventHandler;
 pub use event_handler::EventHandlerTrait;
