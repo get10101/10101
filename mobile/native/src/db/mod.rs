@@ -290,7 +290,10 @@ pub fn update_payment(
 pub fn get_payment(
     payment_hash: lightning::ln::PaymentHash,
 ) -> Result<Option<(lightning::ln::PaymentHash, ln_dlc_node::PaymentInfo)>> {
-    tracing::debug!(?payment_hash, "Getting payment");
+    tracing::debug!(
+        payment_hash = hex::encode(payment_hash.0),
+        "Getting payment"
+    );
 
     let mut db = connection()?;
 
@@ -308,9 +311,14 @@ pub fn get_payments() -> Result<Vec<(lightning::ln::PaymentHash, ln_dlc_node::Pa
         .map(|payment| payment.try_into())
         .collect::<Result<Vec<_>>>()?;
 
-    let payment_hashes = payments.iter().map(|(a, _)| a).collect::<Vec<_>>();
-
-    tracing::debug!(?payment_hashes, "Got all payments");
+    let formatted_payment_hashes = payments
+        .iter()
+        .map(|(hash, _)| hex::encode(hash.0))
+        .collect::<Vec<_>>();
+    tracing::trace!(
+        payment_hashes = ?formatted_payment_hashes,
+        "Got all payments"
+    );
 
     Ok(payments)
 }
