@@ -1,14 +1,12 @@
 use crate::ln::TracingLogger;
 use crate::node::SubChannelManager;
 use bitcoin::hashes::hex::ToHex;
-use bitcoin::secp256k1::PublicKey;
 use dlc_custom_signer::CustomKeysManager;
 use dlc_custom_signer::CustomSigner;
 use dlc_messages::message_handler::MessageHandler as DlcMessageHandler;
 use fee_rate_estimator::FeeRateEstimator;
 use lightning::chain::chainmonitor;
 use lightning::chain::Filter;
-use lightning::ln::channelmanager::InterceptId;
 use lightning::ln::PaymentPreimage;
 use lightning::ln::PaymentSecret;
 use lightning::routing::gossip;
@@ -21,7 +19,6 @@ use lightning_invoice::InvoiceDescription;
 use lightning_net_tokio::SocketDescriptor;
 use lightning_persister::FilesystemPersister;
 use ln_dlc_wallet::LnDlcWallet;
-use std::collections::HashMap;
 use std::fmt;
 use std::sync::Arc;
 use std::sync::Mutex;
@@ -90,10 +87,6 @@ pub(crate) type Router = DefaultRouter<
 >;
 
 type NetworkGraph = gossip::NetworkGraph<Arc<TracingLogger>>;
-
-type RequestedScid = u64;
-type FakeChannelPaymentRequests = Arc<Mutex<HashMap<RequestedScid, PublicKey>>>;
-type PendingInterceptedHtlcs = Arc<Mutex<HashMap<PublicKey, (InterceptId, u64)>>>;
 
 #[derive(Debug, Clone)]
 pub struct PaymentInfo {

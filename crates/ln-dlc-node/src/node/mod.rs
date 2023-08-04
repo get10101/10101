@@ -11,7 +11,6 @@ use crate::on_chain_wallet::OnChainWallet;
 use crate::seed::Bip39Seed;
 use crate::ChainMonitor;
 use crate::EventHandlerTrait;
-use crate::FakeChannelPaymentRequests;
 use crate::NetworkGraph;
 use crate::PeerManager;
 use anyhow::Context;
@@ -94,6 +93,9 @@ type NodeGossipSync =
     P2PGossipSync<Arc<NetworkGraph>, Arc<dyn UtxoLookup + Send + Sync>, Arc<TracingLogger>>;
 
 type NodeEsploraClient = EsploraSyncClient<Arc<TracingLogger>>;
+
+type RequestedScid = u64;
+type FakeChannelPaymentRequests = Arc<parking_lot::Mutex<HashMap<RequestedScid, PublicKey>>>;
 
 /// An LN-DLC node.
 pub struct Node<S> {
@@ -360,7 +362,7 @@ where
         ));
 
         let fake_channel_payments: FakeChannelPaymentRequests =
-            Arc::new(Mutex::new(HashMap::new()));
+            Arc::new(parking_lot::Mutex::new(HashMap::new()));
 
         let node_info = NodeInfo {
             pubkey: channel_manager.get_our_node_id(),
