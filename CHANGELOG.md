@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0] - 2023-08-04
+
 - Automatically retry spendable outputs if not successfully published
 - Permit the closure of the LN-DLC channel in any intermediate state.
 
@@ -64,7 +66,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Self-Custodial CFD Trading based on DLC and lightning
 
-[Unreleased]: https://github.com/get10101/10101/compare/1.1.0...HEAD
+[Unreleased]: https://github.com/get10101/10101/compare/1.2.0...HEAD
+[1.2.0]: https://github.com/get10101/10101/compare/1.1.0...1.2.0
 [1.1.0]: https://github.com/get10101/10101/compare/1.0.21...1.1.0
 [1.0.21]: https://github.com/get10101/10101/compare/1.0.20...1.0.21
 [1.0.20]: https://github.com/get10101/10101/compare/1.0.19...1.0.20
