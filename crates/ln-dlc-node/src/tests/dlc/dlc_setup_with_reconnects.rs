@@ -339,3 +339,135 @@ async fn can_lose_connection_before_processing_subchannel_close_finalize() {
 
     assert!(matches!(state, SubChannelState::OffChainClosed));
 }
+
+#[tokio::test(flavor = "multi_thread")]
+#[ignore]
+async fn reconnecting_during_dlc_channel_setup_reversed() {
+    init_tracing();
+
+    // Arrange
+
+    let app = Arc::new(Node::start_test_app("app").unwrap());
+    let coordinator = Arc::new(Node::start_test_coordinator("coordinator").unwrap());
+
+    let coordinator_info = coordinator.info;
+
+    app.connect(coordinator_info).await.unwrap();
+
+    coordinator
+        .fund(Amount::from_sat(10_000_000))
+        .await
+        .unwrap();
+
+    coordinator
+        .open_private_channel(&app, 50_000, 50_000)
+        .await
+        .unwrap();
+
+    let channel_details = app.channel_manager.list_usable_channels();
+    let channel_details = channel_details
+        .iter()
+        .find(|c| c.counterparty.node_id == coordinator.info.pubkey)
+        .context("No usable channels for app")
+        .unwrap()
+        .clone();
+
+    // Act
+
+    let oracle_pk = app.oracle_pk();
+    let contract_input = dummy_contract_input(20_000, 20_000, oracle_pk);
+
+    app.propose_dlc_channel(channel_details.clone(), contract_input)
+        .await
+        .unwrap();
+
+    // Process the coordinator's `Offer`
+    let sub_channel = wait_until_dlc_channel_state(
+        Duration::from_secs(30),
+        &coordinator,
+        app.info.pubkey,
+        SubChannelStateName::Offered,
+    )
+    .await
+    .unwrap();
+
+    coordinator
+        .accept_dlc_channel_offer(&sub_channel.channel_id)
+        .unwrap();
+
+    // Instruct app to re-send the accept message
+    sub_channel_manager_periodic_check(app.sub_channel_manager.clone(), &app.dlc_message_handler)
+        .await
+        .unwrap();
+
+    // Process the coordinator's `Accept` and send `Confirm`
+    wait_until_dlc_channel_state(
+        Duration::from_secs(30),
+        &app,
+        coordinator.info.pubkey,
+        SubChannelStateName::Confirmed,
+    )
+    .await
+    .unwrap();
+
+    // Wait for the `Confirm` message to be delivered
+    tokio::time::sleep(Duration::from_secs(2)).await;
+
+    // -----> Error happens on that reconnect!
+    app.reconnect(coordinator_info).await.unwrap();
+
+    // Wait for the peers to reconnect and get the `ChannelReestablish` event. During the reconnect
+    // the app will return from `Accepted` to the `Offered` state.
+    tokio::time::sleep(Duration::from_secs(10)).await;
+
+    // Process the coordinator's `Accept` and send `Confirm`
+    wait_until_dlc_channel_state(
+        Duration::from_secs(30),
+        &app,
+        coordinator.info.pubkey,
+        SubChannelStateName::Confirmed,
+    )
+    .await
+    .unwrap();
+
+    // Process the app's `Confirm` and send `Finalize`
+    wait_until_dlc_channel_state(
+        Duration::from_secs(30),
+        &coordinator,
+        app.info.pubkey,
+        SubChannelStateName::Finalized,
+    )
+    .await
+    .unwrap();
+
+    // Wait for the `Accepted` message to be processed
+    tokio::time::sleep(Duration::from_secs(2)).await;
+    // The coordinator processes the repeated accept message from the coordinator and sends another
+    // confirm message.
+    coordinator.process_incoming_messages().unwrap();
+
+    // Process the resend `Confirm` message from the Coordinator.
+    wait_until_dlc_channel_state(
+        Duration::from_secs(120),
+        &app,
+        coordinator.info.pubkey,
+        SubChannelStateName::Signed,
+    )
+    .await
+    .unwrap();
+
+    assert!(coordinator
+        .list_channels()
+        .iter()
+        .any(|channel| channel.channel_id == channel_details.channel_id));
+
+    // Process the `Finalize` message from the App.
+    wait_until_dlc_channel_state(
+        Duration::from_secs(30),
+        &coordinator,
+        app.info.pubkey,
+        SubChannelStateName::Signed,
+    )
+    .await
+    .unwrap();
+}
