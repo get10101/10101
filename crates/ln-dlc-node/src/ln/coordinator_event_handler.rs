@@ -1,12 +1,16 @@
 use super::common_handlers;
 use super::event_handler::EventSender;
 use super::event_handler::PendingInterceptedHtlcs;
+use crate::node::ChannelManager;
 use crate::node::Node;
 use crate::node::Storage;
 use crate::EventHandlerTrait;
+use anyhow::anyhow;
+use anyhow::Context;
 use anyhow::Result;
 use async_trait::async_trait;
 use bitcoin::hashes::hex::ToHex;
+use bitcoin::secp256k1::PublicKey;
 use lightning::util::events::Event;
 use parking_lot::Mutex;
 use std::collections::HashMap;
@@ -94,7 +98,7 @@ where
                 push_msat,
                 ..
             } => {
-                common_handlers::handle_open_channel_request_trusted_0_conf(
+                handle_open_channel_request(
                     &self.node.channel_manager,
                     counterparty_node_id,
                     funding_satoshis,
@@ -221,4 +225,30 @@ where
 
         Ok(())
     }
+}
+
+fn handle_open_channel_request(
+    channel_manager: &Arc<ChannelManager>,
+    counterparty_node_id: PublicKey,
+    funding_satoshis: u64,
+    push_msat: u64,
+    temporary_channel_id: [u8; 32],
+) -> Result<()> {
+    let counterparty = counterparty_node_id.to_string();
+    tracing::info!(
+        counterparty,
+        funding_satoshis,
+        push_msat,
+        "Accepting open channel request"
+    );
+    let user_channel_id = 0;
+    channel_manager
+        .accept_inbound_channel(
+            &temporary_channel_id,
+            &counterparty_node_id,
+            user_channel_id,
+        )
+        .map_err(|e| anyhow!("{e:?}"))
+        .context("To be able to accept a 0-conf channel")?;
+    Ok(())
 }
