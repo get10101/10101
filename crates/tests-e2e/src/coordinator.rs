@@ -3,6 +3,7 @@ use anyhow::Result;
 use coordinator::routes::InvoiceParams;
 use ln_dlc_node::node::NodeInfo;
 use reqwest::Client;
+use serde::Deserialize;
 
 /// A wrapper over the coordinator HTTP API
 ///
@@ -10,6 +11,29 @@ use reqwest::Client;
 pub struct Coordinator {
     client: Client,
     host: String,
+}
+
+#[derive(Deserialize)]
+pub struct DlcChannels {
+    #[serde(flatten)]
+    pub channel_details: Vec<DlcChannel>,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct DlcChannel {
+    pub channel_id: String,
+    pub counter_party: String,
+    pub state: SubChannelState,
+}
+
+#[derive(Deserialize, Debug, PartialEq, Eq)]
+pub enum SubChannelState {
+    Signed,
+    Closing,
+    OnChainClosed,
+    // We don't care about other states for now
+    #[serde(other)]
+    Other,
 }
 
 impl Coordinator {
@@ -102,6 +126,15 @@ impl Coordinator {
         Ok(status)
     }
 
+    pub async fn get_dlc_channels(&self) -> Result<Vec<DlcChannel>> {
+        Ok(self.get("/api/admin/dlc_channels").await?.json().await?)
+    }
+
+    pub async fn force_close_channel(&self, channel_id: &str) -> Result<reqwest::Response> {
+        self.delete(format!("/api/admin/channels/{channel_id}?force=true").as_str())
+            .await
+    }
+
     async fn get(&self, path: &str) -> Result<reqwest::Response> {
         self.client
             .get(format!("{0}{path}", self.host))
@@ -118,6 +151,16 @@ impl Coordinator {
             .send()
             .await
             .context("Could not send POST request to coordinator")?
+            .error_for_status()
+            .context("Coordinator did not return 200 OK")
+    }
+
+    async fn delete(&self, path: &str) -> Result<reqwest::Response> {
+        self.client
+            .delete(format!("{0}{path}", self.host))
+            .send()
+            .await
+            .context("Could not send DELETE request to coordinator")?
             .error_for_status()
             .context("Coordinator did not return 200 OK")
     }
