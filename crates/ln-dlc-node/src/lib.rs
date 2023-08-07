@@ -42,6 +42,8 @@ pub mod node;
 pub mod seed;
 pub mod transaction;
 
+pub use ln::EventHandler;
+pub use ln::EventHandlerTrait;
 pub use ln::CONFIRMATION_TARGET;
 pub use ln::CONTRACT_TX_FEE_RATE;
 pub use ln::JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT_MAX;

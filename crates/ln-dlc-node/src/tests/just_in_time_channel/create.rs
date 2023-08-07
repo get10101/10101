@@ -26,19 +26,26 @@ async fn open_jit_channel() {
 
     // Arrange
 
-    let storage = Arc::new(InMemoryStore::default());
-    let payer = Node::start_test_app("payer").unwrap();
-    // setting the on chain sync interval to 5 seconds so that we don't have to wait for so long
-    // before the costs for the funding transaction will be attached to the shadow channel.
-    let settings = LnDlcNodeSettings {
-        on_chain_sync_interval: Duration::from_secs(3),
-        shadow_sync_interval: Duration::from_secs(3),
-        ..LnDlcNodeSettings::default()
+    let (payer, _running_payer) = Node::start_test_app("payer").unwrap();
+
+    let coordinator_storage = Arc::new(InMemoryStore::default());
+    let (coordinator, _running_coordinator) = {
+        // setting the on chain sync interval to 5 seconds so that we don't have to wait for so long
+        // before the costs for the funding transaction will be attached to the shadow channel.
+        let settings = LnDlcNodeSettings {
+            on_chain_sync_interval: Duration::from_secs(3),
+            shadow_sync_interval: Duration::from_secs(3),
+            ..LnDlcNodeSettings::default()
+        };
+        Node::start_test_coordinator_internal(
+            "coordinator",
+            coordinator_storage.clone(),
+            settings,
+            None,
+        )
+        .unwrap()
     };
-    let coordinator =
-        Node::start_test_coordinator_internal("coordinator", storage.clone(), settings, None)
-            .unwrap();
-    let payee = Node::start_test_app("payee").unwrap();
+    let (payee, _running_payee) = Node::start_test_app("payee").unwrap();
 
     payer.connect(coordinator.info).await.unwrap();
     payee.connect(coordinator.info).await.unwrap();
@@ -78,10 +85,13 @@ async fn open_jit_channel() {
     // that the shadow sync will run at least once.
     tokio::time::sleep(Duration::from_secs(6)).await;
 
-    let channel = storage.get_channel(&user_channel_id).unwrap().unwrap();
+    let channel = coordinator_storage
+        .get_channel(&user_channel_id)
+        .unwrap()
+        .unwrap();
     assert_eq!(ChannelState::Open, channel.channel_state);
 
-    let transaction = storage
+    let transaction = coordinator_storage
         .get_transaction(&channel.funding_txid.unwrap().to_string())
         .unwrap()
         .unwrap();
@@ -95,9 +105,9 @@ async fn fail_to_open_jit_channel_with_fee_rate_over_max() {
 
     // Arrange
 
-    let payer = Node::start_test_app("payer").unwrap();
-    let coordinator = Node::start_test_coordinator("coordinator").unwrap();
-    let payee = Node::start_test_app("payee").unwrap();
+    let (payer, _running_payer) = Node::start_test_app("payer").unwrap();
+    let (coordinator, _running_coord) = Node::start_test_coordinator("coordinator").unwrap();
+    let (payee, _running_payee) = Node::start_test_app("payee").unwrap();
 
     payer.connect(coordinator.info).await.unwrap();
     payee.connect(coordinator.info).await.unwrap();
@@ -152,9 +162,9 @@ async fn open_jit_channel_with_disconnected_payee() {
 
     // Arrange
 
-    let payer = Node::start_test_app("payer").unwrap();
-    let coordinator = Node::start_test_coordinator("coordinator").unwrap();
-    let payee = Node::start_test_app("payee").unwrap();
+    let (payer, _running_payer) = Node::start_test_app("payer").unwrap();
+    let (coordinator, _running_coord) = Node::start_test_coordinator("coordinator").unwrap();
+    let (payee, _running_payee) = Node::start_test_app("payee").unwrap();
 
     // We purposefully do NOT connect to the payee, so that we can test the ability to open a JIT
     // channel to a disconnected payee

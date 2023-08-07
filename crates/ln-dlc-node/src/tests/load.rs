@@ -28,21 +28,19 @@ async fn single_app_many_positions_load() {
     init_tracing();
 
     let coordinator = Coordinator::new_public_regtest();
-    let app = Arc::new(
-        Node::start_test(
-            "app",
-            app_config(),
-            ESPLORA_ORIGIN_PUBLIC_REGTEST.to_string(),
-            OracleInfo {
-                endpoint: ORACLE_ORIGIN_PUBLIC_REGTEST.to_string(),
-                public_key: XOnlyPublicKey::from_str(ORACLE_PUBKEY_PUBLIC_REGTEST).unwrap(),
-            },
-            Arc::new(InMemoryStore::default()),
-            LnDlcNodeSettings::default(),
-            None,
-        )
-        .unwrap(),
-    );
+    let (app, _running_app) = Node::start_test(
+        "app",
+        app_config(),
+        ESPLORA_ORIGIN_PUBLIC_REGTEST.to_string(),
+        OracleInfo {
+            endpoint: ORACLE_ORIGIN_PUBLIC_REGTEST.to_string(),
+            public_key: XOnlyPublicKey::from_str(ORACLE_PUBKEY_PUBLIC_REGTEST).unwrap(),
+        },
+        Arc::new(InMemoryStore::default()),
+        LnDlcNodeSettings::default(),
+        None,
+    )
+    .unwrap();
 
     tokio::spawn({
         let app = app.clone();

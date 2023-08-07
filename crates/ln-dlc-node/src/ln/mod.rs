@@ -11,7 +11,8 @@ pub use channel_details::ChannelDetails;
 pub(crate) use config::app_config;
 pub use config::coordinator_config;
 pub use dlc_channel_details::DlcChannelDetails;
-pub(crate) use event_handler::EventHandler;
+pub use event_handler::EventHandler;
+pub use event_handler::EventHandlerTrait;
 pub(crate) use logger::TracingLogger;
 pub(crate) use manage_spendable_outputs::manage_spendable_outputs;
 

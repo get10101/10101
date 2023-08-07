@@ -17,9 +17,9 @@ async fn fail_intercepted_htlc_if_coordinator_cannot_reconnect_to_payee() {
 
     // Arrange
 
-    let payer = Node::start_test_app("payer").unwrap();
-    let coordinator = Node::start_test_coordinator("coordinator").unwrap();
-    let payee = Node::start_test_app("payee").unwrap();
+    let (payer, _running_payer) = Node::start_test_app("payer").unwrap();
+    let (coordinator, _running_coord) = Node::start_test_coordinator("coordinator").unwrap();
+    let (payee, _running_payee) = Node::start_test_app("payee").unwrap();
 
     payer.connect(coordinator.info).await.unwrap();
     payee.connect(coordinator.info).await.unwrap();
@@ -69,11 +69,11 @@ async fn fail_intercepted_htlc_if_connection_lost_after_funding_tx_generated() {
 
     // Arrange
 
-    let payer = Node::start_test_app("payer").unwrap();
+    let (payer, _running_payer) = Node::start_test_app("payer").unwrap();
 
-    let (coordinator, mut ldk_node_event_receiver_coordinator) = {
+    let (coordinator, _running_coord, mut ldk_node_event_receiver_coordinator) = {
         let (sender, receiver) = tokio::sync::watch::channel(None);
-        let node = Node::start_test_coordinator_internal(
+        let (coordinator, _running_coord) = Node::start_test_coordinator_internal(
             "coordinator",
             Arc::new(InMemoryStore::default()),
             LnDlcNodeSettings::default(),
@@ -81,10 +81,10 @@ async fn fail_intercepted_htlc_if_connection_lost_after_funding_tx_generated() {
         )
         .unwrap();
 
-        (node, receiver)
+        (coordinator, _running_coord, receiver)
     };
 
-    let payee = Node::start_test_app("payee").unwrap();
+    let (payee, _running_payee) = Node::start_test_app("payee").unwrap();
 
     payer.connect(coordinator.info).await.unwrap();
     payee.connect(coordinator.info).await.unwrap();
@@ -141,9 +141,9 @@ async fn fail_intercepted_htlc_if_coordinator_cannot_pay_to_open_jit_channel() {
 
     // Arrange
 
-    let payer = Node::start_test_app("payer").unwrap();
-    let coordinator = Node::start_test_coordinator("coordinator").unwrap();
-    let payee = Node::start_test_app("payee").unwrap();
+    let (payer, _running_payer) = Node::start_test_app("payer").unwrap();
+    let (coordinator, _running_coord) = Node::start_test_coordinator("coordinator").unwrap();
+    let (payee, _running_payee) = Node::start_test_app("payee").unwrap();
 
     payer.connect(coordinator.info).await.unwrap();
     payee.connect(coordinator.info).await.unwrap();
