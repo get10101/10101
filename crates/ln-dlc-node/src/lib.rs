@@ -1,14 +1,12 @@
 use crate::ln::TracingLogger;
 use crate::node::SubChannelManager;
 use bitcoin::hashes::hex::ToHex;
-use bitcoin::secp256k1::PublicKey;
 use dlc_custom_signer::CustomKeysManager;
 use dlc_custom_signer::CustomSigner;
 use dlc_messages::message_handler::MessageHandler as DlcMessageHandler;
 use fee_rate_estimator::FeeRateEstimator;
 use lightning::chain::chainmonitor;
 use lightning::chain::Filter;
-use lightning::ln::channelmanager::InterceptId;
 use lightning::ln::PaymentPreimage;
 use lightning::ln::PaymentSecret;
 use lightning::routing::gossip;
@@ -21,7 +19,6 @@ use lightning_invoice::InvoiceDescription;
 use lightning_net_tokio::SocketDescriptor;
 use lightning_persister::FilesystemPersister;
 use ln_dlc_wallet::LnDlcWallet;
-use std::collections::HashMap;
 use std::fmt;
 use std::sync::Arc;
 use std::sync::Mutex;
@@ -35,28 +32,30 @@ mod ln;
 mod ln_dlc_wallet;
 mod on_chain_wallet;
 mod shadow;
-mod util;
 
 pub mod channel;
+pub mod config;
 pub mod node;
+pub mod scorer;
 pub mod seed;
 pub mod transaction;
+pub mod util;
 
-pub use ln::EventHandler;
+pub use config::CONFIRMATION_TARGET;
+pub use config::CONTRACT_TX_FEE_RATE;
+pub use config::JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT_MAX;
+pub use config::LIQUIDITY_MULTIPLIER;
+pub use ldk_node_wallet::WalletSettings;
+pub use ln::AppEventHandler;
+pub use ln::ChannelDetails;
+pub use ln::CoordinatorEventHandler;
+pub use ln::DlcChannelDetails;
 pub use ln::EventHandlerTrait;
-pub use ln::CONFIRMATION_TARGET;
-pub use ln::CONTRACT_TX_FEE_RATE;
-pub use ln::JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT_MAX;
-pub use ln::LIQUIDITY_MULTIPLIER;
+pub use ln::EventSender;
+pub use node::invoice::HTLCStatus;
 
 #[cfg(test)]
 mod tests;
-
-pub use ldk_node_wallet::WalletSettings;
-pub use ln::coordinator_config as ldk_coordinator_config;
-pub use ln::ChannelDetails;
-pub use ln::DlcChannelDetails;
-pub use node::invoice::HTLCStatus;
 
 type ChainMonitor = chainmonitor::ChainMonitor<
     CustomSigner,
@@ -90,10 +89,6 @@ pub(crate) type Router = DefaultRouter<
 >;
 
 type NetworkGraph = gossip::NetworkGraph<Arc<TracingLogger>>;
-
-type RequestedScid = u64;
-type FakeChannelPaymentRequests = Arc<Mutex<HashMap<RequestedScid, PublicKey>>>;
-type PendingInterceptedHtlcs = Arc<Mutex<HashMap<PublicKey, (InterceptId, u64)>>>;
 
 #[derive(Debug, Clone)]
 pub struct PaymentInfo {

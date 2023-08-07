@@ -18,8 +18,9 @@ use diesel::r2d2;
 use diesel::r2d2::ConnectionManager;
 use diesel::PgConnection;
 use lightning::util::events::Event;
+use ln_dlc_node::scorer;
 use ln_dlc_node::seed::Bip39Seed;
-use ln_dlc_node::EventHandler;
+use ln_dlc_node::CoordinatorEventHandler;
 use rand::thread_rng;
 use rand::RngCore;
 use std::backtrace::Backtrace;
@@ -93,7 +94,9 @@ async fn main() -> Result<()> {
 
     let (node_event_sender, mut node_event_receiver) = watch::channel::<Option<Event>>(None);
 
-    let node = Arc::new(ln_dlc_node::node::Node::new_coordinator(
+    let node = Arc::new(ln_dlc_node::node::Node::new(
+        ln_dlc_node::config::coordinator_config(),
+        scorer::persistent_scorer,
         NODE_ALIAS,
         network,
         data_dir.as_path(),
@@ -105,10 +108,10 @@ async fn main() -> Result<()> {
         seed,
         ephemeral_randomness,
         settings.ln_dlc.clone(),
-        opts.get_oracle_info(),
+        opts.get_oracle_info().into(),
     )?);
 
-    let event_handler = EventHandler::new(node.clone(), Some(node_event_sender));
+    let event_handler = CoordinatorEventHandler::new(node.clone(), Some(node_event_sender));
     let running = node.start(event_handler)?;
     let node = Node::new(node, running, pool.clone(), settings.to_node_settings());
 

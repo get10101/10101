@@ -28,12 +28,15 @@ use itertools::Itertools;
 use lightning::ln::channelmanager::ChannelDetails;
 use lightning::util::events::Event;
 use lightning_invoice::Invoice;
+use ln_dlc_node::config::app_config;
 use ln_dlc_node::node::rust_dlc_manager::subchannel::LNChannelManager;
 use ln_dlc_node::node::rust_dlc_manager::ChannelId;
 use ln_dlc_node::node::LnDlcNodeSettings;
 use ln_dlc_node::node::NodeInfo;
+use ln_dlc_node::scorer;
 use ln_dlc_node::seed::Bip39Seed;
-use ln_dlc_node::EventHandler;
+use ln_dlc_node::util;
+use ln_dlc_node::AppEventHandler;
 use ln_dlc_node::CONFIRMATION_TARGET;
 use orderbook_commons::RouteHintHop;
 use orderbook_commons::FEE_INVOICE_DESCRIPTION_PREFIX_TAKER;
@@ -175,21 +178,25 @@ pub fn run(data_dir: String, seed_dir: String, runtime: &Runtime) -> Result<()> 
 
         let (event_sender, event_receiver) = watch::channel::<Option<Event>>(None);
 
-        let node = ln_dlc_node::node::Node::new_app(
+        let node = ln_dlc_node::node::Node::new(
+            app_config(),
+            scorer::in_memory_scorer,
             "10101",
             network,
             data_dir.as_path(),
             Arc::new(NodeStorage),
             address,
             SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), address.port()),
+            util::into_net_addresses(address),
             config::get_esplora_endpoint().to_string(),
             seed,
             ephemeral_randomness,
-            config::get_oracle_info(),
+            LnDlcNodeSettings::default(),
+            config::get_oracle_info().into(),
         )?;
         let node = Arc::new(node);
 
-        let event_handler = EventHandler::new(node.clone(), Some(event_sender));
+        let event_handler = AppEventHandler::new(node.clone(), Some(event_sender));
         let _running = node.start(event_handler)?;
         let node = Arc::new(Node::new(node, _running));
 

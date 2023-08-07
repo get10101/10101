@@ -133,7 +133,6 @@ where
         let intercept_scid = self.channel_manager.get_intercept_scid();
         self.fake_channel_payments
             .lock()
-            .expect("Mutex to not be poisoned")
             .insert(intercept_scid, target_node);
 
         let ldk_config = self.ldk_config.read();

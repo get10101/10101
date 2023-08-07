@@ -1,16 +1,19 @@
-use crate::disk;
-use crate::ln::app_config;
-use crate::ln::coordinator_config;
-use crate::ln::LIQUIDITY_MULTIPLIER;
+use crate::config::app_config;
+use crate::config::coordinator_config;
+use crate::config::LIQUIDITY_MULTIPLIER;
 use crate::node::InMemoryStore;
 use crate::node::LnDlcNodeSettings;
 use crate::node::Node;
 use crate::node::NodeInfo;
 use crate::node::OracleInfo;
 use crate::node::RunningNode;
+use crate::scorer;
 use crate::seed::Bip39Seed;
 use crate::util;
-use crate::EventHandler;
+use crate::AppEventHandler;
+use crate::CoordinatorEventHandler;
+use crate::EventHandlerTrait;
+use crate::EventSender;
 use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::Amount;
@@ -88,7 +91,12 @@ fn init_tracing() {
 
 impl Node<InMemoryStore> {
     fn start_test_app(name: &str) -> Result<(Arc<Self>, RunningNode)> {
+        let app_event_handler = |node, event_sender| {
+            Arc::new(AppEventHandler::new(node, event_sender)) as Arc<dyn EventHandlerTrait>
+        };
+
         Self::start_test(
+            app_event_handler,
             name,
             app_config(),
             ESPLORA_ORIGIN.to_string(),
@@ -117,7 +125,12 @@ impl Node<InMemoryStore> {
         settings: LnDlcNodeSettings,
         ldk_event_sender: Option<watch::Sender<Option<Event>>>,
     ) -> Result<(Arc<Self>, RunningNode)> {
+        let coordinator_event_handler = |node, event_sender| {
+            Arc::new(CoordinatorEventHandler::new(node, event_sender)) as Arc<dyn EventHandlerTrait>
+        };
+
         Self::start_test(
+            coordinator_event_handler,
             name,
             coordinator_config(),
             ESPLORA_ORIGIN.to_string(),
@@ -131,7 +144,9 @@ impl Node<InMemoryStore> {
         )
     }
 
-    fn start_test(
+    #[allow(clippy::too_many_arguments)]
+    fn start_test<EH>(
+        event_handler_factory: EH,
         name: &str,
         ldk_config: UserConfig,
         esplora_origin: String,
@@ -139,7 +154,10 @@ impl Node<InMemoryStore> {
         storage: Arc<InMemoryStore>,
         settings: LnDlcNodeSettings,
         ldk_event_sender: Option<watch::Sender<Option<Event>>>,
-    ) -> Result<(Arc<Self>, RunningNode)> {
+    ) -> Result<(Arc<Self>, RunningNode)>
+    where
+        EH: Fn(Arc<Node<InMemoryStore>>, Option<EventSender>) -> Arc<dyn EventHandlerTrait>,
+    {
         let data_dir = random_tmp_dir().join(name);
 
         let seed = Bip39Seed::new().expect("A valid bip39 seed");
@@ -153,24 +171,24 @@ impl Node<InMemoryStore> {
         };
 
         let node = Node::new(
+            ldk_config,
+            scorer::in_memory_scorer,
             name,
             Network::Regtest,
             data_dir.as_path(),
             storage,
             address,
             address,
-            vec![util::build_net_address(address.ip(), address.port())],
+            util::into_net_addresses(address),
             esplora_origin,
             seed,
             ephemeral_randomness,
-            ldk_config,
             settings,
             oracle.into(),
-            disk::in_memory_scorer,
         )?;
         let node = Arc::new(node);
 
-        let event_handler = EventHandler::new(node.clone(), ldk_event_sender);
+        let event_handler = event_handler_factory(node.clone(), ldk_event_sender);
         let running = node.start(event_handler)?;
 
         tracing::debug!(%name, info = %node.info, "Node started");

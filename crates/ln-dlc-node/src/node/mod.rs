@@ -1,8 +1,6 @@
 use crate::disk;
 use crate::dlc_custom_signer::CustomKeysManager;
 use crate::fee_rate_estimator::FeeRateEstimator;
-use crate::ln::app_config;
-use crate::ln::coordinator_config;
 use crate::ln::manage_spendable_outputs;
 use crate::ln::TracingLogger;
 use crate::ln_dlc_wallet::LnDlcWallet;
@@ -11,10 +9,8 @@ use crate::node::peer_manager::alias_as_bytes;
 use crate::node::peer_manager::broadcast_node_announcement;
 use crate::on_chain_wallet::OnChainWallet;
 use crate::seed::Bip39Seed;
-use crate::util;
 use crate::ChainMonitor;
 use crate::EventHandlerTrait;
-use crate::FakeChannelPaymentRequests;
 use crate::NetworkGraph;
 use crate::PeerManager;
 use anyhow::Context;
@@ -97,6 +93,9 @@ type NodeGossipSync =
     P2PGossipSync<Arc<NetworkGraph>, Arc<dyn UtxoLookup + Send + Sync>, Arc<TracingLogger>>;
 
 type NodeEsploraClient = EsploraSyncClient<Arc<TracingLogger>>;
+
+type RequestedScid = u64;
+type FakeChannelPaymentRequests = Arc<parking_lot::Mutex<HashMap<RequestedScid, PublicKey>>>;
 
 /// An LN-DLC node.
 pub struct Node<S> {
@@ -196,94 +195,16 @@ impl<S> Node<S>
 where
     S: Storage + Send + Sync + 'static,
 {
-    /// Constructs a new node to be run as the app
-    #[allow(clippy::too_many_arguments)]
-    pub fn new_app(
-        alias: &str,
-        network: Network,
-        data_dir: &Path,
-        node_storage: Arc<S>,
-        announcement_address: SocketAddr,
-        listen_address: SocketAddr,
-        esplora_server_url: String,
-        seed: Bip39Seed,
-        ephemeral_randomness: [u8; 32],
-        oracle: OracleInfo,
-    ) -> Result<Self> {
-        let ldk_config = app_config();
-        Node::new(
-            alias,
-            network,
-            data_dir,
-            node_storage,
-            announcement_address,
-            listen_address,
-            vec![util::build_net_address(
-                announcement_address.ip(),
-                announcement_address.port(),
-            )],
-            esplora_server_url,
-            seed,
-            ephemeral_randomness,
-            ldk_config,
-            LnDlcNodeSettings::default(),
-            oracle.into(),
-            disk::in_memory_scorer,
-        )
-    }
-
-    /// Constructs a new node to be run for the coordinator
-    ///
-    /// The main difference between this and `new_app` is that the user config is different to
-    /// be able to create just-in-time channels and 0-conf channels towards our peers.
-    #[allow(clippy::too_many_arguments)]
-    pub fn new_coordinator(
-        alias: &str,
-        network: Network,
-        data_dir: &Path,
-        node_storage: Arc<S>,
-        announcement_address: SocketAddr,
-        listen_address: SocketAddr,
-        announcement_addresses: Vec<NetAddress>,
-        esplora_server_url: String,
-        seed: Bip39Seed,
-        ephemeral_randomness: [u8; 32],
-        settings: LnDlcNodeSettings,
-        oracle: OracleInfo,
-    ) -> Result<Self> {
-        let mut ldk_config = coordinator_config();
-
-        // TODO: The config `force_announced_channel_preference` has been temporarily disabled
-        // for testing purposes, as otherwise the app is not able to open a channel to the
-        // coordinator. Remove this config, once not needed anymore.
-        ldk_config
-            .channel_handshake_limits
-            .force_announced_channel_preference = false;
-        Self::new(
-            alias,
-            network,
-            data_dir,
-            node_storage,
-            announcement_address,
-            listen_address,
-            announcement_addresses,
-            esplora_server_url,
-            seed,
-            ephemeral_randomness,
-            ldk_config,
-            settings,
-            oracle.into(),
-            disk::persistent_scorer,
-        )
-    }
-
     pub async fn update_settings(&self, new_settings: LnDlcNodeSettings) {
         tracing::info!(?new_settings, "Updating LnDlcNode settings");
         *self.settings.write().await = new_settings;
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub(crate) fn new<SC>(
+    pub fn new<SC>(
+        // Supplied configuration of LDK node.
+        ldk_config: UserConfig,
+        read_scorer: SC,
         alias: &str,
         network: Network,
         data_dir: &Path,
@@ -294,10 +215,8 @@ where
         esplora_server_url: String,
         seed: Bip39Seed,
         ephemeral_randomness: [u8; 32],
-        ldk_config: UserConfig,
         settings: LnDlcNodeSettings,
         oracle_client: P2PDOracleClient,
-        read_scorer: SC,
     ) -> Result<Self>
     where
         SC: Fn(&Path, Arc<NetworkGraph>, Arc<TracingLogger>) -> Scorer,
@@ -443,7 +362,7 @@ where
         ));
 
         let fake_channel_payments: FakeChannelPaymentRequests =
-            Arc::new(Mutex::new(HashMap::new()));
+            Arc::new(parking_lot::Mutex::new(HashMap::new()));
 
         let node_info = NodeInfo {
             pubkey: channel_manager.get_our_node_id(),
