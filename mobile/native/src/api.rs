@@ -130,9 +130,7 @@ pub fn calculate_pnl(
     quantity: f32,
     leverage: f32,
     direction: Direction,
-) -> SyncReturn<i64> {
-    // TODO: Handle the result and don't just return 0
-
+) -> SyncReturn<Option<i64>> {
     SyncReturn(
         calculations::calculate_pnl(
             opening_price,
@@ -141,7 +139,7 @@ pub fn calculate_pnl(
             leverage,
             direction,
         )
-        .unwrap_or(0),
+        .ok(),
     )
 }
 
