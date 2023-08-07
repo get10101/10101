@@ -96,11 +96,6 @@ class _PositionListItemState extends State<PositionListItem> {
                       ),
                     ],
                   ),
-                  Chip(
-                    label: Text(notNullPosition.positionState.name),
-                    backgroundColor: Colors.transparent,
-                    shape: const StadiumBorder(side: BorderSide()),
-                  )
                 ],
               ),
               Padding(
