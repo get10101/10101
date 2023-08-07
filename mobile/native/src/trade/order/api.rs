@@ -52,6 +52,7 @@ pub struct Order {
     pub state: OrderState,
     pub execution_price: Option<f32>,
     pub creation_timestamp: i64,
+    pub order_expiry_timestamp: i64,
 }
 
 impl From<order::OrderType> for OrderType {
@@ -80,6 +81,7 @@ impl From<order::Order> for Order {
             state: value.state.into(),
             execution_price,
             creation_timestamp: value.creation_timestamp.unix_timestamp(),
+            order_expiry_timestamp: value.order_expiry_timestamp.unix_timestamp(),
         }
     }
 }
@@ -122,6 +124,8 @@ impl From<NewOrder> for order::Order {
             order_type: (*value.order_type).into(),
             state: order::OrderState::Initial,
             creation_timestamp: OffsetDateTime::now_utc(),
+            // We do not support setting order expiry from the frontend for now
+            order_expiry_timestamp: OffsetDateTime::now_utc() + time::Duration::minutes(1),
         }
     }
 }

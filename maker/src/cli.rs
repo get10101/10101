@@ -44,6 +44,10 @@ pub struct Opts {
     /// Amount of concurrent orders (buy,sell) that maker will create at a time
     #[clap(long, default_value = "5")]
     pub concurrent_orders: usize,
+
+    /// Orders created by maker will be valid for this amount of seconds
+    #[clap(long, default_value = "60")]
+    pub order_expiry_after_seconds: u64,
 }
 
 #[derive(Debug, Clone, Copy, clap::ValueEnum)]
