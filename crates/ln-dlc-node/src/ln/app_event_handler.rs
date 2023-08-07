@@ -1,4 +1,4 @@
-use super::event_handler::handlers;
+use super::common_handlers;
 use super::event_handler::EventSender;
 use super::event_handler::PendingInterceptedHtlcs;
 use crate::node::Node;
@@ -51,7 +51,7 @@ where
                 output_script,
                 user_channel_id,
             } => {
-                handlers::handle_funding_generation_ready(
+                common_handlers::handle_funding_generation_ready(
                     &self.node,
                     user_channel_id,
                     counterparty_node_id,
@@ -67,7 +67,12 @@ where
                 amount_msat,
                 receiver_node_id: _,
             } => {
-                handlers::handle_payment_claimed(&self.node, amount_msat, payment_hash, purpose);
+                common_handlers::handle_payment_claimed(
+                    &self.node,
+                    amount_msat,
+                    payment_hash,
+                    purpose,
+                );
             }
             Event::PaymentSent {
                 payment_preimage,
@@ -75,7 +80,7 @@ where
                 fee_paid_msat,
                 ..
             } => {
-                handlers::handle_payment_sent(
+                common_handlers::handle_payment_sent(
                     &self.node,
                     payment_hash,
                     payment_preimage,
@@ -93,7 +98,7 @@ where
                 // right now we are using the same conf for app and coordinator, meaning this will
                 // be called for both. We however do not want to accept 0-conf channels from someone
                 // outside of our domain.
-                handlers::handle_open_channel_request_trusted_0_conf(
+                common_handlers::handle_open_channel_request_trusted_0_conf(
                     &self.node.channel_manager,
                     counterparty_node_id,
                     funding_satoshis,
@@ -119,7 +124,7 @@ where
                 "Payment path failed");
             }
             Event::PaymentFailed { payment_hash, .. } => {
-                handlers::handle_payment_failed(&self.node, payment_hash);
+                common_handlers::handle_payment_failed(&self.node, payment_hash);
             }
             Event::PaymentForwarded {
                 prev_channel_id,
@@ -127,7 +132,7 @@ where
                 fee_earned_msat,
                 claim_from_onchain_tx,
             } => {
-                handlers::handle_payment_forwarded(
+                common_handlers::handle_payment_forwarded(
                     &self.node,
                     prev_channel_id,
                     next_channel_id,
@@ -136,20 +141,20 @@ where
                 );
             }
             Event::PendingHTLCsForwardable { time_forwardable } => {
-                handlers::handle_pending_htlcs_forwardable(
+                common_handlers::handle_pending_htlcs_forwardable(
                     self.node.channel_manager.clone(),
                     time_forwardable,
                 );
             }
             Event::SpendableOutputs { outputs } => {
-                handlers::handle_spendable_outputs(&self.node, outputs)?;
+                common_handlers::handle_spendable_outputs(&self.node, outputs)?;
             }
             Event::ChannelClosed {
                 channel_id,
                 reason,
                 user_channel_id,
             } => {
-                handlers::handle_channel_closed(
+                common_handlers::handle_channel_closed(
                     &self.node,
                     &self.pending_intercepted_htlcs,
                     user_channel_id,
@@ -161,7 +166,7 @@ where
                 channel_id,
                 transaction,
             } => {
-                handlers::handle_discard_funding(transaction, channel_id);
+                common_handlers::handle_discard_funding(transaction, channel_id);
             }
             Event::ProbeSuccessful { .. } => {}
             Event::ProbeFailed { .. } => {}
@@ -171,7 +176,7 @@ where
                 user_channel_id,
                 ..
             } => {
-                handlers::handle_channel_ready(
+                common_handlers::handle_channel_ready(
                     &self.node,
                     &self.pending_intercepted_htlcs,
                     user_channel_id,
@@ -183,7 +188,10 @@ where
                 prev_channel_id,
                 failed_next_destination,
             } => {
-                handlers::handle_htlc_handling_failed(prev_channel_id, failed_next_destination);
+                common_handlers::handle_htlc_handling_failed(
+                    prev_channel_id,
+                    failed_next_destination,
+                );
             }
             Event::PaymentClaimable {
                 receiver_node_id: _,
@@ -193,7 +201,7 @@ where
                 via_channel_id: _,
                 via_user_channel_id: _,
             } => {
-                handlers::handle_payment_claimable(
+                common_handlers::handle_payment_claimable(
                     &self.node.channel_manager,
                     payment_hash,
                     purpose,
@@ -207,7 +215,7 @@ where
                 inbound_amount_msat,
                 expected_outbound_amount_msat,
             } => {
-                handlers::handle_intercepted_htlc(
+                common_handlers::handle_intercepted_htlc(
                     &self.node,
                     &self.pending_intercepted_htlcs,
                     intercept_id,

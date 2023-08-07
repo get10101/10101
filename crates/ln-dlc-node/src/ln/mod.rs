@@ -1,5 +1,11 @@
 mod app_event_handler;
 mod channel_details;
+/// A collection of handlers for events emitted by the lightning node.
+///
+/// When constructing a new [`Node`], you can pass in a custom [`EventHandler`]
+/// to handle events; these handlers are useful to reduce boilerplate if you
+/// don't require custom behaviour
+pub mod common_handlers;
 mod coordinator_event_handler;
 mod dlc_channel_details;
 mod event_handler;
