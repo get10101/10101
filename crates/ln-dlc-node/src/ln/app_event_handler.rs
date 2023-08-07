@@ -1,12 +1,16 @@
 use super::common_handlers;
 use super::event_handler::EventSender;
 use super::event_handler::PendingInterceptedHtlcs;
+use crate::node::ChannelManager;
 use crate::node::Node;
 use crate::node::Storage;
 use crate::EventHandlerTrait;
+use anyhow::anyhow;
+use anyhow::Context;
 use anyhow::Result;
 use async_trait::async_trait;
 use bitcoin::hashes::hex::ToHex;
+use bitcoin::secp256k1::PublicKey;
 use lightning::util::events::Event;
 use parking_lot::Mutex;
 use std::collections::HashMap;
@@ -94,22 +98,13 @@ where
                 temporary_channel_id,
                 ..
             } => {
-                // TODO: only accept 0-conf from the coordinator.
-                // right now we are using the same conf for app and coordinator, meaning this will
-                // be called for both. We however do not want to accept 0-conf channels from someone
-                // outside of our domain.
-                common_handlers::handle_open_channel_request_trusted_0_conf(
+                handle_open_channel_request_0_conf(
                     &self.node.channel_manager,
                     counterparty_node_id,
                     funding_satoshis,
                     push_msat,
                     temporary_channel_id,
                 )?;
-                tracing::info!(
-                    "Ignoring open channel request from {} for {} satoshis. App does not support opening chanels",
-                    counterparty_node_id,
-                    funding_satoshis
-                );
             }
             Event::PaymentPathSuccessful {
                 payment_id,
@@ -230,4 +225,29 @@ where
 
         Ok(())
     }
+}
+
+pub(crate) fn handle_open_channel_request_0_conf(
+    channel_manager: &Arc<ChannelManager>,
+    counterparty_node_id: PublicKey,
+    funding_satoshis: u64,
+    push_msat: u64,
+    temporary_channel_id: [u8; 32],
+) -> Result<()> {
+    let counterparty = counterparty_node_id.to_string();
+    tracing::info!(
+        counterparty,
+        funding_satoshis,
+        push_msat,
+        "Accepting open channel request"
+    );
+    channel_manager
+        .accept_inbound_channel_from_trusted_peer_0conf(
+            &temporary_channel_id,
+            &counterparty_node_id,
+            0,
+        )
+        .map_err(|e| anyhow!("{e:?}"))
+        .context("To be able to accept a 0-conf channel")?;
+    Ok(())
 }

@@ -39,31 +39,6 @@ use time::OffsetDateTime;
 use tokio::task::block_in_place;
 use uuid::Uuid;
 
-pub(crate) fn handle_open_channel_request_trusted_0_conf(
-    channel_manager: &Arc<ChannelManager>,
-    counterparty_node_id: PublicKey,
-    funding_satoshis: u64,
-    push_msat: u64,
-    temporary_channel_id: [u8; 32],
-) -> Result<()> {
-    let counterparty = counterparty_node_id.to_string();
-    tracing::info!(
-        counterparty,
-        funding_satoshis,
-        push_msat,
-        "Accepting open channel request"
-    );
-    channel_manager
-        .accept_inbound_channel_from_trusted_peer_0conf(
-            &temporary_channel_id,
-            &counterparty_node_id,
-            0,
-        )
-        .map_err(|e| anyhow!("{e:?}"))
-        .context("To be able to accept a 0-conf channel")?;
-    Ok(())
-}
-
 pub(crate) fn handle_payment_claimable(
     channel_manager: &Arc<ChannelManager>,
     payment_hash: PaymentHash,
