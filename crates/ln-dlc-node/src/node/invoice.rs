@@ -245,6 +245,9 @@ where
     }
 
     #[autometrics]
+    /// Wait for a payment to be claimed.
+    ///
+    /// If the `timeout` is not specified, it will wait for 10 seconds.
     pub async fn wait_for_payment(
         &self,
         expected_status: HTLCStatus,
