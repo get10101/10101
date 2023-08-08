@@ -19,6 +19,7 @@ use tokio::task::spawn_blocking;
 pub struct TestSetup {
     pub app: AppHandle,
     pub coordinator: Coordinator,
+    pub bitcoind: Bitcoind,
 }
 
 impl TestSetup {
@@ -69,7 +70,11 @@ impl TestSetup {
                 == funded_amount
         );
 
-        Self { app, coordinator }
+        Self {
+            app,
+            coordinator,
+            bitcoind,
+        }
     }
 
     /// Start test with a running app with a funded wallet and an open position.
