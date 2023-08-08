@@ -1,4 +1,4 @@
-import 'dart:developer';
+import 'package:f_logs/model/flog/flog.dart';
 import 'package:flutter/material.dart';
 import 'package:get_10101/common/application/event_service.dart';
 import 'package:get_10101/common/domain/model.dart';
@@ -29,8 +29,6 @@ class PositionChangeNotifier extends ChangeNotifier implements Subscriber {
 
   @override
   void notify(bridge.Event event) {
-    log("Receiving this in the position notifier: ${event.toString()}");
-
     if (event is bridge.Event_PositionUpdateNotification) {
       Position position = Position.fromApi(event.field0);
 
@@ -55,7 +53,7 @@ class PositionChangeNotifier extends ChangeNotifier implements Subscriber {
         }
       }
     } else {
-      log("Received unexpected event: ${event.toString()}");
+      FLog.warning(text: "Received unexpected event: ${event.toString()}");
     }
 
     notifyListeners();

@@ -1,5 +1,4 @@
 import 'package:f_logs/f_logs.dart';
-import 'dart:developer';
 import 'package:flutter/material.dart' hide Flow;
 import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
 import 'package:get_10101/common/application/event_service.dart';
@@ -43,12 +42,10 @@ class WalletChangeNotifier extends ChangeNotifier implements Subscriber {
   // TODO: This is not optimal, because we map the WalletInfo in the change notifier. We can do this, but it would be better to do this on the service level.
   @override
   void notify(bridge.Event event) {
-    log("Receiving this in the order notifier: ${event.toString()}");
-
     if (event is bridge.Event_WalletInfoUpdateNotification) {
       update(WalletInfo.fromApi(event.field0));
     } else {
-      log("Received unexpected event: ${event.toString()}");
+      FLog.warning(text: "Received unexpected event: ${event.toString()}");
     }
   }
 }

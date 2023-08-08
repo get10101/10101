@@ -1,6 +1,4 @@
 import 'dart:convert';
-import 'dart:developer';
-
 import 'package:f_logs/f_logs.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -39,7 +37,7 @@ class _ShareInvoiceScreenState extends State<ShareInvoiceScreen> {
     WalletInfo info = context.watch<WalletChangeNotifier>().walletInfo;
     final bridge.Config config = context.read<bridge.Config>();
 
-    log("Refresh receive screen: ${info.balances.onChain}");
+    FLog.debug(text: "Refresh receive screen: ${info.balances.onChain}");
 
     const EdgeInsets buttonSpacing = EdgeInsets.symmetric(vertical: 8.0, horizontal: 24.0);
 

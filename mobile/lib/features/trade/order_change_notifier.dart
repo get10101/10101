@@ -1,5 +1,5 @@
-import 'dart:developer';
 import 'package:flutter/material.dart';
+import 'package:f_logs/model/flog/flog.dart';
 import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
 import 'package:get_10101/common/application/event_service.dart';
 import 'package:get_10101/features/trade/application/order_service.dart';
@@ -26,15 +26,13 @@ class OrderChangeNotifier extends ChangeNotifier implements Subscriber {
   // TODO: This is not optimal, because we map the Order in the change notifier. We can do this, but it would be better to do this on the service level.
   @override
   void notify(bridge.Event event) {
-    log("Receiving this in the order notifier: ${event.toString()}");
-
     if (event is bridge.Event_OrderUpdateNotification) {
       Order order = Order.fromApi(event.field0);
       orders[order.id] = order;
 
       sortOrderByTimestampDesc();
     } else {
-      log("Received unexpected event: ${event.toString()}");
+      FLog.warning(text: "Received unexpected event: ${event.toString()}");
     }
 
     notifyListeners();
