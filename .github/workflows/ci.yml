@@ -59,8 +59,9 @@ jobs:
         run: just gen
       - run: cargo clippy --all-targets --all-features -- -D warnings
 
-  lint-flutter:
+  flutter-format-and-lint:
     runs-on: ubuntu-latest
+    name: "Format and lint Flutter code"
     steps:
       - uses: actions/checkout@v3
       - uses: extractions/setup-just@v1
