@@ -124,6 +124,7 @@ pub(crate) struct Order {
     pub limit_price: Option<f32>,
     pub execution_price: Option<f32>,
     pub failure_reason: Option<FailureReason>,
+    pub order_expiry_timestamp: i64,
 }
 
 impl Order {
@@ -254,6 +255,7 @@ impl From<crate::trade::order::Order> for Order {
             limit_price,
             execution_price,
             failure_reason,
+            order_expiry_timestamp: value.order_expiry_timestamp.unix_timestamp(),
         }
     }
 }
@@ -272,6 +274,10 @@ impl TryFrom<Order> for crate::trade::order::Order {
             state: (value.state, value.execution_price, value.failure_reason).try_into()?,
             creation_timestamp: OffsetDateTime::from_unix_timestamp(value.creation_timestamp)
                 .expect("unix timestamp to fit in itself"),
+            order_expiry_timestamp: OffsetDateTime::from_unix_timestamp(
+                value.order_expiry_timestamp,
+            )
+            .expect("unix timestamp to fit in itself"),
         };
 
         Ok(order)
@@ -1250,6 +1256,7 @@ pub mod test {
         let (status, execution_price, failure_reason) =
             crate::trade::order::OrderState::Initial.into();
         let creation_timestamp = OffsetDateTime::UNIX_EPOCH;
+        let expiry_timestamp = OffsetDateTime::UNIX_EPOCH;
 
         let order = Order {
             id: uuid.to_string(),
@@ -1263,6 +1270,7 @@ pub mod test {
             limit_price,
             execution_price,
             failure_reason,
+            order_expiry_timestamp: expiry_timestamp.unix_timestamp(),
         };
 
         Order::insert(
@@ -1275,6 +1283,7 @@ pub mod test {
                 order_type: crate::trade::order::OrderType::Market,
                 state: crate::trade::order::OrderState::Initial,
                 creation_timestamp,
+                order_expiry_timestamp: expiry_timestamp,
             }
             .into(),
             &mut connection,
@@ -1292,6 +1301,7 @@ pub mod test {
                 order_type: crate::trade::order::OrderType::Market,
                 state: crate::trade::order::OrderState::Initial,
                 creation_timestamp,
+                order_expiry_timestamp: expiry_timestamp,
             }
             .into(),
             &mut connection,
@@ -1346,6 +1356,7 @@ pub mod test {
         let contract_symbol = trade::ContractSymbol::BtcUsd;
         let direction = trade::Direction::Long;
         let creation_timestamp = OffsetDateTime::UNIX_EPOCH;
+        let order_expiry_timestamp = OffsetDateTime::UNIX_EPOCH;
 
         Order::insert(
             crate::trade::order::Order {
@@ -1357,6 +1368,7 @@ pub mod test {
                 order_type: crate::trade::order::OrderType::Market,
                 state: crate::trade::order::OrderState::Initial,
                 creation_timestamp,
+                order_expiry_timestamp,
             }
             .into(),
             &mut connection,
@@ -1377,6 +1389,7 @@ pub mod test {
                 order_type: crate::trade::order::OrderType::Market,
                 state: crate::trade::order::OrderState::Initial,
                 creation_timestamp,
+                order_expiry_timestamp,
             }
             .into(),
             &mut connection,

@@ -6,7 +6,6 @@ use anyhow::anyhow;
 use anyhow::Context;
 use anyhow::Result;
 use coordinator_commons::RegisterParams;
-use orderbook_commons::DEFAULT_ORDER_EXPIRY;
 use rust_decimal::Decimal;
 use time::OffsetDateTime;
 use trade::ContractSymbol;
@@ -114,6 +113,7 @@ pub struct Order {
     pub order_type: OrderType,
     pub state: OrderState,
     pub creation_timestamp: OffsetDateTime,
+    pub order_expiry_timestamp: OffsetDateTime,
 }
 
 impl Order {
@@ -158,7 +158,7 @@ impl From<Order> for orderbook_commons::NewOrder {
             trader_id,
             direction: order.direction,
             order_type: order.order_type.into(),
-            expiry: OffsetDateTime::now_utc() + DEFAULT_ORDER_EXPIRY,
+            expiry: order.order_expiry_timestamp,
         }
     }
 }

@@ -394,4 +394,31 @@ e2e-single test_name="": services
     set -euxo pipefail
     RUST_BACKTRACE=1 cargo test -p tests-e2e --test {{test_name}} -- --ignored --nocapture
 
+# Run database migrations for the app
+migrate-app:
+    #!/usr/bin/env bash
+    set -euxo pipefail
+    cd mobile/native
+    export DATABASE_URL="sqlite://app.sql"
+    diesel setup
+    echo "Running migrations for the app"
+    diesel migration run
+    rm app.sql
+    echo "Done."
+
+# Run database migrations for the coordinator
+# note: requires postgresql to be running
+migrate-coordinator: docker
+    #!/usr/bin/env bash
+    set -euxo pipefail
+    cd coordinator
+    export DATABASE_URL="postgres://postgres:mysecretpassword@localhost:5432"
+    diesel setup
+    echo "Running migrations for the coordinator"
+    diesel migration run
+    echo "Done."
+
+# Re-run database migrations for both app and coordinator
+migrate: migrate-app migrate-coordinator
+
 # vim:expandtab:sw=4:ts=4

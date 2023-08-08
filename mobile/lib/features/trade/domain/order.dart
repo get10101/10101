@@ -76,6 +76,7 @@ class Order {
         direction: bridge.Direction.Long,
         orderType: bridge.OrderType.market(),
         state: bridge.OrderState.Open,
-        creationTimestamp: 0);
+        creationTimestamp: 0,
+        orderExpiryTimestamp: 0);
   }
 }

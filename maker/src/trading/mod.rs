@@ -22,6 +22,7 @@ pub async fn run(
     maker_id: PublicKey,
     network: Network,
     concurrent_orders: usize,
+    order_expiry_after: Duration,
 ) -> Result<()> {
     let network = match network {
         Network::Bitcoin => bitmex_stream::Network::Mainnet,
@@ -42,6 +43,7 @@ pub async fn run(
             direction,
             maker_id,
             dec!(1000),
+            OffsetDateTime::now_utc() + order_expiry_after,
         )
     };
 
@@ -75,6 +77,7 @@ async fn add_order(
     direction: Direction,
     maker_id: PublicKey,
     quantity: Decimal,
+    expiry: OffsetDateTime,
 ) -> Option<OrderResponse> {
     orderbook_client
         .post_new_order(
@@ -86,7 +89,7 @@ async fn add_order(
                 trader_id: maker_id,
                 direction,
                 order_type: OrderType::Limit,
-                expiry: OffsetDateTime::now_utc() + Duration::minutes(1),
+                expiry,
             },
         )
         .await

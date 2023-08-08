@@ -168,7 +168,7 @@ pub fn price_update(prices: Prices) -> Result<()> {
     Ok(())
 }
 
-// fixme: This is not ideal, but closing the position after
+// FIXME: This is not ideal, but closing the position after
 // the position has expired is not triggered by the app
 // through an order. Instead the coordinator simply proposes
 // a close position. In order to fixup the ui, we are
@@ -200,6 +200,8 @@ pub async fn close_position() -> Result<()> {
             execution_price: closing_price.to_f32().expect("to fit into f32"),
         },
         creation_timestamp: OffsetDateTime::now_utc(),
+        // position has already expired, so the order expiry doesn't matter
+        order_expiry_timestamp: OffsetDateTime::now_utc() + Duration::minutes(1),
     };
 
     event::publish(&EventInternal::OrderUpdateNotification(order));

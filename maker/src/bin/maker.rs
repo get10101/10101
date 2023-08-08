@@ -5,6 +5,7 @@ use maker::logger;
 use maker::trading;
 use std::backtrace::Backtrace;
 use std::str::FromStr;
+use time::Duration;
 use tracing::level_filters::LevelFilter;
 
 #[tokio::main]
@@ -34,6 +35,7 @@ async fn main() -> Result<()> {
         node_pubkey,
         opts.network(),
         opts.concurrent_orders,
+        Duration::seconds(opts.order_expiry_after_seconds as i64),
     )
     .await
     {

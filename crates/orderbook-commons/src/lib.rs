@@ -8,7 +8,6 @@ use serde::Serialize;
 use sha2::digest::FixedOutput;
 use sha2::Digest;
 use sha2::Sha256;
-use time::Duration;
 use time::OffsetDateTime;
 use trade::Direction;
 use uuid::Uuid;
@@ -20,9 +19,6 @@ pub use crate::order_matching_fee::order_matching_fee_taker;
 pub use crate::price::best_current_price;
 pub use crate::price::Price;
 pub use crate::price::Prices;
-
-// For now we hardcode a global expiry for all newly created orders.
-pub const DEFAULT_ORDER_EXPIRY: Duration = Duration::minutes(1);
 
 /// The prefix used in the description field of an order-matching fee invoice to be paid by a taker.
 pub const FEE_INVOICE_DESCRIPTION_PREFIX_TAKER: &str = "taker-fee-";
