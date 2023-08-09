@@ -5,6 +5,7 @@ use crate::channel::UserChannelId;
 use crate::config::CONFIRMATION_TARGET;
 use crate::config::HTLC_INTERCEPTED_CONNECTION_TIMEOUT;
 use crate::config::LIQUIDITY_MULTIPLIER;
+use crate::ln::event_handler::InterceptionDetails;
 use crate::node::invoice::HTLCStatus;
 use crate::node::ChannelManager;
 use crate::node::Node;
@@ -249,8 +250,8 @@ where
 
             // Fail intercepted HTLC which was meant to be used to open the JIT channel,
             // in case it was still pending
-            if let Some((intercept_id, _)) = pending_intercepted_htlcs.lock().get(&counterparty) {
-                fail_intercepted_htlc(&node.channel_manager, intercept_id);
+            if let Some(interception) = pending_intercepted_htlcs.lock().get(&counterparty) {
+                fail_intercepted_htlc(&node.channel_manager, &interception.id);
             }
         }
 
@@ -590,7 +591,10 @@ where
 
     pending_intercepted_htlcs.lock().insert(
         target_node_id,
-        (intercept_id, expected_outbound_amount_msat),
+        InterceptionDetails {
+            id: intercept_id,
+            expected_outbound_amount_msat,
+        },
     );
 
     Ok(())
@@ -621,10 +625,9 @@ where
             // If the `ChannelReady` event was associated with a pending intercepted HTLC, we
             // must fail it to unlock the funds of all the nodes along the
             // payment route
-            if let Some((intercept_id, _)) =
-                pending_intercepted_htlcs.lock().get(&counterparty_node_id)
+            if let Some(interception) = pending_intercepted_htlcs.lock().get(&counterparty_node_id)
             {
-                fail_intercepted_htlc(&node.channel_manager, intercept_id);
+                fail_intercepted_htlc(&node.channel_manager, &interception.id);
             }
         }
 
@@ -663,22 +666,20 @@ where
     let channel = Channel::open_channel(channel, channel_details)?;
     node.storage.upsert_channel(channel)?;
 
-    if let Some((intercept_id, expected_outbound_amount_msat)) =
-        pending_intercepted_htlcs.lock().get(&counterparty_node_id)
-    {
+    if let Some(interception) = pending_intercepted_htlcs.lock().get(&counterparty_node_id) {
         tracing::info!(
-            intercept_id = %intercept_id.0.to_hex(),
+            intercept_id = %interception.id.0.to_hex(),
             counterparty = %counterparty_node_id.to_string(),
-            forward_amount_msat = %expected_outbound_amount_msat,
+            forward_amount_msat = %interception.expected_outbound_amount_msat,
             "Pending intercepted HTLC found, forwarding payment"
         );
 
         node.channel_manager
             .forward_intercepted_htlc(
-                *intercept_id,
+                interception.id,
                 &channel_id,
                 counterparty_node_id,
-                *expected_outbound_amount_msat,
+                interception.expected_outbound_amount_msat,
             )
             .map_err(|e| anyhow!("{e:?}"))
             .context("Failed to forward intercepted HTLC")?;

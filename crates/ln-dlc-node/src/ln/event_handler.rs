@@ -8,8 +8,13 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::watch;
 
-pub type PendingInterceptedHtlcs = Arc<Mutex<HashMap<PublicKey, (InterceptId, u64)>>>;
+pub type PendingInterceptedHtlcs = Arc<Mutex<HashMap<PublicKey, InterceptionDetails>>>;
 pub type EventSender = watch::Sender<Option<Event>>;
+
+pub struct InterceptionDetails {
+    pub id: InterceptId,
+    pub expected_outbound_amount_msat: u64,
+}
 
 #[async_trait]
 pub trait EventHandlerTrait: Send + Sync {
