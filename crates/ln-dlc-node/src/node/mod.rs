@@ -39,6 +39,8 @@ use lightning_transaction_sync::EsploraSyncClient;
 use p2pd_oracle_client::P2PDOracleClient;
 use serde::Deserialize;
 use serde::Serialize;
+use serde_with::serde_as;
+use serde_with::DurationSeconds;
 use std::collections::HashMap;
 use std::fmt;
 use std::fmt::Display;
@@ -145,19 +147,26 @@ pub struct RunningNode {
     _handles: Vec<RemoteHandle<()>>,
 }
 
+#[serde_as]
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct LnDlcNodeSettings {
     /// How often we sync the LDK wallet
+    #[serde_as(as = "DurationSeconds")]
     pub off_chain_sync_interval: Duration,
     /// How often we sync the BDK wallet
+    #[serde_as(as = "DurationSeconds")]
     pub on_chain_sync_interval: Duration,
     /// How often we update the fee rate
+    #[serde_as(as = "DurationSeconds")]
     pub fee_rate_sync_interval: Duration,
     /// How often we run the [`DlcManager`]'s periodic check.
+    #[serde_as(as = "DurationSeconds")]
     pub dlc_manager_periodic_check_interval: Duration,
     /// How often we run the [`SubChannelManager`]'s periodic check.
+    #[serde_as(as = "DurationSeconds")]
     pub sub_channel_manager_periodic_check_interval: Duration,
     /// How often we sync the shadow states
+    #[serde_as(as = "DurationSeconds")]
     pub shadow_sync_interval: Duration,
 
     /// Amount (in millionths of a satoshi) charged per satoshi for payments forwarded outbound
