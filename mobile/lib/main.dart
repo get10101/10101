@@ -507,7 +507,7 @@ Future<void> runBackend(bridge.Config config) async {
   await initFirebase();
   await requestNotificationPermission();
 
-  await rust.api.runInFlutter(config: config, appDir: appDir, seedDir: seedDir);
+  await startBackend(config: config, appDir: appDir, seedDir: seedDir);
 }
 
 Future<void> initFirebase() async {
@@ -533,4 +533,24 @@ Future<void> requestNotificationPermission() async {
   );
 
   FLog.info(text: "User granted permission: ${settings.authorizationStatus}");
+}
+
+/// Start the backend and retry a number of times if it fails for whatever reason
+Future<void> startBackend({config, appDir, seedDir}) async {
+  int retries = 3;
+
+  for (int i = 0; i < retries; i++) {
+    try {
+      await rust.api.runInFlutter(config: config, appDir: appDir, seedDir: seedDir);
+      break; // If successful, exit loop
+    } catch (e) {
+      FLog.info(text: "Attempt ${i + 1} failed: $e");
+      if (i < retries - 1) {
+        await Future.delayed(const Duration(seconds: 5));
+      } else {
+        FLog.info(text: "Max retries reached, backend could not start.");
+        exit(-1);
+      }
+    }
+  }
 }

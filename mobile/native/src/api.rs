@@ -191,13 +191,10 @@ pub fn subscribe(stream: StreamSink<event::api::Event>) {
     event::subscribe(FlutterSubscriber::new(stream))
 }
 
-/// Wrapper for Flutter purposes, it ensures we do not return a Result, which
-/// would have otherwise be converted into an exception.
-/// There is no recovery possible, and panicking is the only option ensuring
-/// that we will get an adequate crash report.
-pub fn run_in_flutter(config: Config, app_dir: String, seed_dir: String) {
+/// Wrapper for Flutter purposes - can throw an exception.
+pub fn run_in_flutter(config: Config, app_dir: String, seed_dir: String) -> Result<()> {
     run(config, app_dir, seed_dir, IncludeBacktraceOnPanic::Yes)
-        .expect("Failed to start the backend");
+        .context("Failed to start the backend")
 }
 
 #[derive(PartialEq)]
