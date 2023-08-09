@@ -10,7 +10,6 @@ use crate::node::Node;
 use crate::node::Storage;
 use crate::EventHandlerTrait;
 use crate::CONFIRMATION_TARGET;
-use crate::JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT_MAX;
 use crate::LIQUIDITY_MULTIPLIER;
 use anyhow::anyhow;
 use anyhow::ensure;
@@ -34,17 +33,23 @@ pub struct CoordinatorEventHandler<S> {
     pub(crate) node: Arc<Node<S>>,
     pub(crate) pending_intercepted_htlcs: PendingInterceptedHtlcs,
     pub(crate) event_sender: Option<EventSender>,
+    pub(crate) max_channel_size_sats: u64,
 }
 
 impl<S> CoordinatorEventHandler<S>
 where
     S: Storage + Sync + Send + 'static,
 {
-    pub fn new(node: Arc<Node<S>>, event_sender: Option<EventSender>) -> Self {
+    pub fn new(
+        node: Arc<Node<S>>,
+        event_sender: Option<EventSender>,
+        max_channel_size_sats: u64,
+    ) -> Self {
         Self {
             node,
             event_sender,
             pending_intercepted_htlcs: Arc::new(Mutex::new(HashMap::new())),
+            max_channel_size_sats,
         }
     }
 }
@@ -230,6 +235,7 @@ where
                     requested_next_hop_scid,
                     inbound_amount_msat,
                     expected_outbound_amount_msat,
+                    self.max_channel_size_sats,
                 )
                 .await?;
             }
@@ -265,6 +271,7 @@ fn handle_open_channel_request(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 /// Handle an [`Event::HTLCIntercepted`].
 pub(crate) async fn handle_intercepted_htlc<S>(
     node: &Arc<Node<S>>,
@@ -274,6 +281,7 @@ pub(crate) async fn handle_intercepted_htlc<S>(
     requested_next_hop_scid: u64,
     inbound_amount_msat: u64,
     expected_outbound_amount_msat: u64,
+    max_channel_size_sats: u64,
 ) -> Result<()>
 where
     S: Storage,
@@ -286,6 +294,7 @@ where
         requested_next_hop_scid,
         inbound_amount_msat,
         expected_outbound_amount_msat,
+        max_channel_size_sats,
     )
     .await;
 
@@ -297,6 +306,7 @@ where
     res
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) async fn handle_intercepted_htlc_internal<S>(
     node: &Arc<Node<S>>,
     pending_intercepted_htlcs: &PendingInterceptedHtlcs,
@@ -305,6 +315,7 @@ pub(crate) async fn handle_intercepted_htlc_internal<S>(
     requested_next_hop_scid: u64,
     inbound_amount_msat: u64,
     expected_outbound_amount_msat: u64,
+    max_channel_size_sats: u64,
 ) -> Result<()>
 where
     S: Storage,
@@ -404,7 +415,7 @@ where
 
     let channel_value = expected_outbound_amount_msat / 1000 * LIQUIDITY_MULTIPLIER;
     ensure!(
-        channel_value <= JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT_MAX,
+        channel_value <= max_channel_size_sats,
         "Failed to open channel because maximum channel value exceeded"
     );
 

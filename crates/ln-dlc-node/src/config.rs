@@ -6,18 +6,6 @@ use lightning::util::config::ChannelHandshakeLimits;
 use lightning::util::config::UserConfig;
 use std::time::Duration;
 
-/// When handling the [`Event::HTLCIntercepted`], we may need to
-/// create a new channel with the recipient of the HTLC. If the
-/// payment is small enough (< 1000 sats), opening the channel will
-/// fail unless we provide more outbound liquidity.
-///
-/// This value defines the maximum channel amount between the coordinator and a user that opens a
-/// channel through an interceptable invoice. Channels that exceed this amount will be rejected.
-/// This value is completely arbitrary.
-///
-/// This constant only applies to the coordinator.
-pub const JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT_MAX: u64 = 200_000;
-
 /// The multiplier to be used by the coordinator to define the just in time channel liquidity
 ///
 /// The liquidity provided by the trader will be multiplied with this value to defined the channel

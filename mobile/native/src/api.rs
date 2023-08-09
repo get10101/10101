@@ -258,7 +258,8 @@ pub fn coordinator_liquidity_multiplier() -> SyncReturn<u64> {
 }
 
 pub fn max_channel_value() -> SyncReturn<u64> {
-    SyncReturn(ln_dlc_node::JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT_MAX)
+    // TODO: FIXME: this should not be hardcoded anymore
+    SyncReturn(200_000)
 }
 
 pub fn contract_tx_fee_rate() -> SyncReturn<u64> {

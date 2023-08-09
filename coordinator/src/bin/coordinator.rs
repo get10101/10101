@@ -111,7 +111,11 @@ async fn main() -> Result<()> {
         opts.get_oracle_info().into(),
     )?);
 
-    let event_handler = CoordinatorEventHandler::new(node.clone(), Some(node_event_sender));
+    let event_handler = CoordinatorEventHandler::new(
+        node.clone(),
+        Some(node_event_sender),
+        settings.ln_dlc.max_app_channel_size_sats,
+    );
     let running = node.start(event_handler)?;
     let node = Node::new(node, running, pool.clone(), settings.to_node_settings());
 

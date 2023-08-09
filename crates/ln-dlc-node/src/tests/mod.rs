@@ -125,8 +125,13 @@ impl Node<InMemoryStore> {
         settings: LnDlcNodeSettings,
         ldk_event_sender: Option<watch::Sender<Option<Event>>>,
     ) -> Result<(Arc<Self>, RunningNode)> {
+        let max_app_channel_size_sats = settings.max_app_channel_size_sats;
         let coordinator_event_handler = |node, event_sender| {
-            Arc::new(CoordinatorEventHandler::new(node, event_sender)) as Arc<dyn EventHandlerTrait>
+            Arc::new(CoordinatorEventHandler::new(
+                node,
+                event_sender,
+                max_app_channel_size_sats,
+            )) as Arc<dyn EventHandlerTrait>
         };
 
         Self::start_test(

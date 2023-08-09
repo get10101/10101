@@ -182,6 +182,16 @@ pub struct LnDlcNodeSettings {
     /// Note: This constant and value was copied from ldk_node
     /// XXX: Requires restart of the node to take effect
     pub bdk_client_concurrency: u8,
+
+    /// When handling the [`Event::HTLCIntercepted`], we may need to
+    /// create a new channel with the recipient of the HTLC. If the
+    /// payment is small enough (< 1000 sats), opening the channel will
+    /// fail unless we provide more outbound liquidity.
+    ///
+    /// This value defines the maximum channel amount between the coordinator and a user that opens
+    /// a channel through an interceptable invoice. Channels that exceed this amount will be
+    /// rejected.
+    pub max_app_channel_size_sats: u64,
 }
 
 impl Default for LnDlcNodeSettings {
@@ -196,6 +206,8 @@ impl Default for LnDlcNodeSettings {
             shadow_sync_interval: Duration::from_secs(600),
             bdk_client_stop_gap: 20,
             bdk_client_concurrency: 4,
+            // 200_000 is an arbitrary number we are feeling comfortable with
+            max_app_channel_size_sats: 200_000,
         }
     }
 }
