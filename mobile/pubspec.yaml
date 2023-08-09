@@ -36,6 +36,7 @@ dependencies:
   test: ^1.24.1
   version: ^3.0.2
   firebase_core: ^2.15.0
+  firebase_messaging: ^14.6.5
 dev_dependencies:
   flutter_launcher_icons: ^0.13.1
   flutter_test:
