@@ -83,7 +83,7 @@ jobs:
       - name: Analyze flutter code
         run: just lint-flutter
 
-  tests:
+  unit-tests:
     runs-on: ubuntu-latest
     needs: clippy
     steps:
