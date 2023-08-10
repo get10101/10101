@@ -1,7 +1,10 @@
 import 'dart:convert';
 
 import 'package:f_logs/f_logs.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
+import 'package:get_10101/firebase_options.dart';
 import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:flutter_native_splash/flutter_native_splash.dart';
@@ -500,5 +503,34 @@ Future<void> runBackend(bridge.Config config) async {
 
   FLog.info(text: "App data will be stored in: $appDir");
   FLog.info(text: "Seed data will be stored in: $seedDir");
+
+  await initFirebase();
+  await requestNotificationPermission();
+
   await rust.api.runInFlutter(config: config, appDir: appDir, seedDir: seedDir);
+}
+
+Future<void> initFirebase() async {
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+}
+
+/// Ask the user for permission to send notifications via Firebase
+Future<void> requestNotificationPermission() async {
+  FirebaseMessaging messaging = FirebaseMessaging.instance;
+  final token = await messaging.getToken();
+  FLog.info(text: "Firebase token: $token");
+
+  NotificationSettings settings = await messaging.requestPermission(
+    alert: true,
+    announcement: false,
+    badge: true,
+    carPlay: false,
+    criticalAlert: false,
+    provisional: false,
+    sound: true,
+  );
+
+  FLog.info(text: "User granted permission: ${settings.authorizationStatus}");
 }
