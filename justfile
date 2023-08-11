@@ -75,8 +75,8 @@ android-release:
 
 # Build Rust library for iOS (debug mode)
 ios:
-    cd mobile/native && cargo lipo
-    cp target/universal/debug/libnative.a mobile/ios/Runner
+    cd mobile/native && CARGO_TARGET_DIR=../../target/ios_debug cargo lipo
+    cp target/ios_debug/universal/debug/libnative.a mobile/ios/Runner
 
 # Build Rust library for iOS (release mode)
 ios-release:
@@ -267,7 +267,7 @@ services: docker run-coordinator-detached run-maker-detached wait-for-coordinato
 # Note: if you have mobile simulator running, it will start that one instead of native, but will *not* rebuild the mobile rust library.
 all: services gen native run
 
-# Run everything at once, tailored for iOS development (rebuilds iOS)
+# Run everything at once, tailored for iOS development
 all-ios: services gen ios run
 
 # Run everything at once, tailored for Android development (rebuilds Android)
