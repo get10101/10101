@@ -17,7 +17,7 @@ dependencies:
   flutter_native_splash: ^2.2.19
   flutter_svg: ^2.0.5
   provider: ^6.0.5
-  intl: ^0.17.0
+  intl: ^0.18.0
   decimal: ^2.3.2
   slide_to_confirm: ^1.1.0
   path_provider: ^2.0.15
@@ -38,6 +38,13 @@ dependencies:
   firebase_core: ^2.15.0
   firebase_messaging: ^14.6.5
   flutter_local_notifications: ^15.1.0+1
+  flutter_email_sender: ^6.0.1
+  device_info_plus: ^9.0.3
+  url_launcher: ^6.1.12
+  feedback: ^2.6.0
+# Needed for Flogs (unmaintained package)
+dependency_overrides:
+  intl: ^0.18.0
 dev_dependencies:
   flutter_launcher_icons: ^0.13.1
   flutter_test:
