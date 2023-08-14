@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:get_10101/common/amount_text.dart';
+import 'package:get_10101/common/domain/model.dart';
 import 'package:get_10101/features/wallet/domain/payment_flow.dart';
 import 'package:get_10101/features/wallet/domain/wallet_history.dart';
 import 'package:intl/intl.dart';
@@ -6,6 +8,7 @@ import 'package:timeago/timeago.dart' as timeago;
 
 class WalletHistoryItem extends StatelessWidget {
   final WalletHistoryItemData data;
+  static final dateFormat = DateFormat("yyyy-MM-dd HH:mm:ss");
 
   const WalletHistoryItem({super.key, required this.data});
 
@@ -52,20 +55,17 @@ class WalletHistoryItem extends StatelessWidget {
     String title = () {
       switch (data.type) {
         case WalletHistoryItemDataType.lightning:
-          return data.paymentHash ?? "";
         case WalletHistoryItemDataType.onChain:
-          return data.txid ?? "";
+          return "Payment";
         case WalletHistoryItemDataType.trade:
-          final orderId = data.orderId!.substring(0, 8);
           switch (data.flow) {
             case PaymentFlow.inbound:
-              return "Closed position with order $orderId";
+              return "Closed position";
             case PaymentFlow.outbound:
-              return "Opened position with order $orderId";
+              return "Opened position";
           }
         case WalletHistoryItemDataType.orderMatchingFee:
-          final orderId = data.orderId!.substring(0, 8);
-          return "Matching fee for $orderId";
+          return "Matching fee";
       }
     }();
 
@@ -98,10 +98,13 @@ class WalletHistoryItem extends StatelessWidget {
       }
     }();
 
-    var amountFormatter = NumberFormat.compact(locale: "en_IN");
+    var amountFormatter = NumberFormat.compact(locale: "en_UK");
 
     return Card(
       child: ListTile(
+          onTap: () async {
+            await showDialog(context: context, builder: (ctx) => showItemDetails(title, ctx));
+          },
           leading: Stack(children: [
             Container(
               padding: const EdgeInsets.only(bottom: 20.0),
@@ -151,6 +154,64 @@ class WalletHistoryItem extends StatelessWidget {
               ],
             ),
           )),
+    );
+  }
+
+  Widget showItemDetails(String title, BuildContext context) {
+    var [label, id] = () {
+      switch (data.type) {
+        case WalletHistoryItemDataType.lightning:
+          return ["Payment hash", data.paymentHash ?? ""];
+        case WalletHistoryItemDataType.onChain:
+          return ["Transaction id", data.txid ?? ""];
+        case WalletHistoryItemDataType.trade:
+        case WalletHistoryItemDataType.orderMatchingFee:
+          final orderId = data.orderId!.substring(0, 8);
+          return ["Order", orderId];
+      }
+    }();
+
+    int directionMultiplier = () {
+      switch (data.flow) {
+        case PaymentFlow.inbound:
+          return 1;
+        case PaymentFlow.outbound:
+          return -1;
+      }
+    }();
+
+    return AlertDialog(
+      title: Text(title),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          HistoryDetail(label: label, value: id),
+          HistoryDetail(
+              label: "Amount", value: formatSats(Amount(data.amount.sats * directionMultiplier))),
+          HistoryDetail(label: "Date and time", value: dateFormat.format(data.timestamp)),
+        ],
+      ),
+    );
+  }
+}
+
+class HistoryDetail extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const HistoryDetail({super.key, required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+        Padding(
+          padding: const EdgeInsets.only(right: 8.0),
+          child: Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
+        ),
+        Flexible(child: Text(value)),
+      ]),
     );
   }
 }
