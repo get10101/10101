@@ -37,6 +37,9 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
   /// If no channel exists yet this field will be null.
   ChannelInfo? channelInfo;
 
+  /// The max channel capacity as received by the LSP or if there is an existing channel
+  Amount? lspMaxChannelCapacity;
+
   /// Estimated fees for receiving
   ///
   /// These fees have to be added on top of the receive amount because they are collected after receiving the funds.
@@ -57,6 +60,7 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
 
   Future<void> initChannelInfo(ChannelInfoService channelInfoService) async {
     channelInfo = await channelInfoService.getChannelInfo();
+    lspMaxChannelCapacity = await channelInfoService.getMaxCapacity();
 
     // initial channel opening
     if (channelInfo == null) {
@@ -72,7 +76,7 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
 
     Amount minTradeMargin = channelInfoService.getMinTradeMargin();
     Amount tradeFeeReserve = channelInfoService.getTradeFeeReserve();
-    Amount maxChannelCapacity = channelInfoService.getMaxCapacity();
+    Amount maxChannelCapacity = lspMaxChannelCapacity ?? Amount(0);
     Amount initialReserve = channelInfoService.getInitialReserve();
 
     int coordinatorLiquidityMultiplier = channelInfoService.getCoordinatorLiquidityMultiplier();

@@ -25,8 +25,8 @@ class ChannelInfoService {
   /// The agreed upon maximum channel capacity for the beta
   ///
   /// This value is an arbitrary number that may be subject to change.
-  Amount getMaxCapacity() {
-    int maxCapacity = rust.api.maxChannelValue();
+  Future<Amount> getMaxCapacity() async {
+    int maxCapacity = await rust.api.maxChannelValue();
     return Amount(maxCapacity);
   }
 

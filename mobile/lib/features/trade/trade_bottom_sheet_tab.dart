@@ -46,6 +46,9 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
 
   ChannelInfo? channelInfo;
 
+  /// The max channel capacity as received by the LSP or if there is an existing channel
+  Amount? lspMaxChannelCapacity;
+
   @override
   void initState() {
     provider = context.read<TradeValuesChangeNotifier>();
@@ -56,6 +59,7 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
 
   Future<void> initChannelInfo(ChannelInfoService channelInfoService) async {
     channelInfo = await channelInfoService.getChannelInfo();
+    lspMaxChannelCapacity = await channelInfoService.getMaxCapacity();
   }
 
   @override
@@ -75,7 +79,7 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
 
     Amount minTradeMargin = channelInfoService.getMinTradeMargin();
     Amount tradeFeeReserve = channelInfoService.getTradeFeeReserve();
-    Amount maxChannelCapacity = channelInfoService.getMaxCapacity();
+    Amount maxChannelCapacity = lspMaxChannelCapacity ?? Amount(0);
     Amount initialReserve = channelInfoService.getInitialReserve();
 
     Direction direction = widget.direction;
