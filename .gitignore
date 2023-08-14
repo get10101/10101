@@ -39,3 +39,10 @@ data/**
 
 # prometheus data
 services/prometheus/data
+
+# fastlane generated files
+10101.app.dSYM.zip
+10101.ipa
+mobile/ios/build
+mobile/ios/fastlane/report.xml
+mobile/ios/fastlane/README.md

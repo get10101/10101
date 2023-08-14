@@ -1,0 +1,93 @@
+default_platform(:ios)
+
+DEVELOPER_APP_ID = ENV["FASTLANE_DEVELOPER_APP_ID"]
+DEVELOPER_APP_IDENTIFIER = ENV["FASTLANE_DEVELOPER_APP_IDENTIFIER"]
+PROVISIONING_PROFILE_SPECIFIER = ENV["FASTLANE_PROVISIONING_PROFILE_SPECIFIER"]
+TEMP_KEYCHAIN_USER = ENV["FASTLANE_TEMP_KEYCHAIN_USER"]
+TEMP_KEYCHAIN_PASSWORD = ENV["FASTLANE_TEMP_KEYCHAIN_PASSWORD"]
+APPLE_ISSUER_ID = ENV["FASTLANE_APPLE_ISSUER_ID"]
+APPLE_KEY_ID = ENV["FASTLANE_APPLE_KEY_ID"]
+APPLE_KEY_CONTENT = ENV["FASTLANE_APPLE_KEY_CONTENT"]
+GIT_AUTHORIZATION = ENV["FASTLANE_GIT_AUTHORIZATION"]
+APP_SCHEME = ENV["FASTLANE_APP_SCHEME"]
+
+def delete_temp_keychain(name)
+  delete_keychain(
+    name: name
+  ) if File.exist? File.expand_path("~/Library/Keychains/#{name}-db")
+end
+
+def create_temp_keychain(name, password)
+  create_keychain(
+    name: name,
+    password: password,
+    unlock: false,
+    timeout: 0
+  )
+end
+
+def ensure_temp_keychain(name, password)
+  delete_temp_keychain(name)
+  create_temp_keychain(name, password)
+end
+
+platform :ios do
+
+  lane :closed_beta do
+    keychain_name = TEMP_KEYCHAIN_USER
+    keychain_password = TEMP_KEYCHAIN_PASSWORD
+    ensure_temp_keychain(keychain_name, keychain_password)
+
+    api_key = app_store_connect_api_key(
+      key_id: APPLE_KEY_ID,
+      issuer_id: APPLE_ISSUER_ID,
+      key_content: APPLE_KEY_CONTENT,
+      duration: 1200,
+      in_house: false
+    )
+
+    build_number = sh("git", "rev-list", "HEAD", "--count")
+    increment_build_number(
+        build_number: build_number,
+        xcodeproj: "Runner.xcodeproj"
+    )
+
+    cocoapods(
+      clean_install: true
+    )
+
+    match(
+      type: 'appstore',
+      app_identifier: "#{DEVELOPER_APP_IDENTIFIER}",
+      git_basic_authorization: Base64.strict_encode64(GIT_AUTHORIZATION),
+      readonly: true,
+      keychain_name: keychain_name,
+      keychain_password: keychain_password,
+      api_key: api_key
+    )
+
+    gym(
+      workspace: "Runner.xcworkspace",
+      scheme: APP_SCHEME,
+      export_method: "app-store",
+      export_options: {
+        provisioningProfiles: {
+            DEVELOPER_APP_ID => PROVISIONING_PROFILE_SPECIFIER
+        }
+      }
+    )
+
+    pilot(
+      apple_id: "#{DEVELOPER_APP_ID}",
+      app_identifier: "#{DEVELOPER_APP_IDENTIFIER}",
+      skip_waiting_for_build_processing: true,
+      skip_submission: true,
+      distribute_external: false,
+      notify_external_testers: false,
+      ipa: "./10101.ipa"
+    )
+
+    delete_temp_keychain(keychain_name)
+  end
+
+end

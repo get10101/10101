@@ -49,3 +49,22 @@ just release-testflight
 ```
 
 Once uploaded, log into `appstoreconnect.apple.com/apps/` and approve testing the new version.
+
+## Using fastlane
+
+Make sure that all environment variables are set in the `.env` file.
+
+You will also need to install [`fastlane`](https://fastlane.tools/).
+
+1. We need to build the IPA file first without code signing because fastlane does not support `--dart-define`.
+   Building the IPA file adds some overheads but ensures that these variables are set.
+
+```bash
+just build-ipa-no-codesign
+```
+
+2. Execute fastlane to build a signed IPA file and upload to Testflight
+
+```bash
+just publish-testflight-fastlane
+```
