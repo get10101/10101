@@ -51,4 +51,3 @@ jobs:
       oracle_pubkey: 5d12d79f575b8d99523797c46441c0549eb0defb6195fe8a080000cbe3ab3859
       fastlane_developer_app_identifier: finance.get10101.app.test
       fastlane_provisioning_profile_specifier: match AppStore finance.get10101.app.test
-      app_scheme: test
