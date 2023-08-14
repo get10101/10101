@@ -1,7 +1,10 @@
 import 'dart:convert';
-
 import 'package:f_logs/f_logs.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter/material.dart';
+import 'package:get_10101/firebase_options.dart';
 import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:flutter_native_splash/flutter_native_splash.dart';
@@ -233,6 +236,11 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
     init(config);
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await initFirebase();
+      await requestNotificationPermission();
+      final flutterLocalNotificationsPlugin = initLocalNotifications();
+      await configureFirebase(flutterLocalNotificationsPlugin);
+
       PackageInfo packageInfo = await PackageInfo.fromPlatform();
 
       final messenger = scaffoldMessengerKey.currentState!;
@@ -500,5 +508,111 @@ Future<void> runBackend(bridge.Config config) async {
 
   FLog.info(text: "App data will be stored in: $appDir");
   FLog.info(text: "Seed data will be stored in: $seedDir");
-  await rust.api.runInFlutter(config: config, appDir: appDir, seedDir: seedDir);
+  await startBackend(config: config, appDir: appDir, seedDir: seedDir);
+}
+
+FlutterLocalNotificationsPlugin initLocalNotifications() {
+  final flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
+  const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+  const darwinSettings = DarwinInitializationSettings();
+  const initializationSettings =
+      InitializationSettings(android: androidSettings, macOS: darwinSettings, iOS: darwinSettings);
+  flutterLocalNotificationsPlugin.initialize(initializationSettings);
+  return flutterLocalNotificationsPlugin;
+}
+
+Future<void> initFirebase() async {
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+}
+
+Future<void> configureFirebase(FlutterLocalNotificationsPlugin localNotifications) async {
+  // Configure message handler
+  FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+    // TODO: Handle messages from Firebase
+    FLog.debug(text: "Firebase message received: ${message.data}");
+
+    if (message.notification != null) {
+      FLog.debug(text: "Message also contained a notification: ${message.notification}");
+      showNotification(message.notification!.toMap(), localNotifications);
+    }
+  });
+
+  FirebaseMessaging messaging = FirebaseMessaging.instance;
+  // Subscribe to topic "all" to receive all messages
+  messaging.subscribeToTopic('all');
+}
+
+/// Ask the user for permission to send notifications via Firebase
+Future<void> requestNotificationPermission() async {
+  FirebaseMessaging messaging = FirebaseMessaging.instance;
+  final token = await messaging.getToken();
+  FLog.info(text: "Firebase token: $token");
+
+  NotificationSettings settings = await messaging.requestPermission(
+    alert: true,
+    announcement: false,
+    badge: true,
+    carPlay: false,
+    criticalAlert: false,
+    provisional: false,
+    sound: true,
+  );
+
+  FLog.info(text: "User granted permission: ${settings.authorizationStatus}");
+}
+
+/// Start the backend and retry a number of times if it fails for whatever reason
+Future<void> startBackend({config, appDir, seedDir}) async {
+  int retries = 3;
+
+  for (int i = 0; i < retries; i++) {
+    try {
+      await rust.api.runInFlutter(config: config, appDir: appDir, seedDir: seedDir);
+      break; // If successful, exit loop
+    } catch (e) {
+      FLog.info(text: "Attempt ${i + 1} failed: $e");
+      if (i < retries - 1) {
+        await Future.delayed(const Duration(seconds: 5));
+      } else {
+        FLog.error(text: "Max retries reached, backend could not start.");
+        exit(-1);
+      }
+    }
+  }
+}
+
+/// Display notification inside the `message` using the local notification plugin
+void showNotification(
+    Map<String, dynamic> message, FlutterLocalNotificationsPlugin localNotifications) async {
+  const androidPlatformChannelSpecifics = AndroidNotificationDetails(
+    'channel_id',
+    'channel_name',
+    channelDescription: 'channel_description',
+    importance: Importance.max,
+    priority: Priority.high,
+  );
+
+  const darwinPlatformChannelSpecifics = DarwinNotificationDetails(
+    presentAlert: true,
+    presentBadge: true,
+    presentSound: true,
+  );
+
+  const platformChannelSpecifics = NotificationDetails(
+    android: androidPlatformChannelSpecifics,
+    iOS: darwinPlatformChannelSpecifics,
+    macOS: darwinPlatformChannelSpecifics,
+  );
+
+  FLog.debug(text: "Showing notification: ${message['title']} with body ${message['body']}");
+
+  await localNotifications.show(
+    0,
+    message['title'],
+    message['body'],
+    platformChannelSpecifics,
+    payload: 'item x',
+  );
 }

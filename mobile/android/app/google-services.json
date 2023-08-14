@@ -1,0 +1,46 @@
+{
+  "project_info": {
+    "project_number": "237191932527",
+    "project_id": "project-3195624368411891722",
+    "storage_bucket": "project-3195624368411891722.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:237191932527:android:651be56a933e8bda36bb9a",
+        "android_client_info": {
+          "package_name": "finance.get10101.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "237191932527-g0dgit9aosfg3nog348uqcm5mppr2003.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCDI7arcBp4uriwfLySgqrchkNVDVW94uk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "237191932527-g0dgit9aosfg3nog348uqcm5mppr2003.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "237191932527-70uoogr06k3rrrmslr5u1r6i4st9ch39.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "finance.get10101.app"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
