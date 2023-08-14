@@ -1,0 +1,169 @@
+name: "Fastlane: Build and release ios app to TestFlight"
+
+on:
+  workflow_call:
+    inputs:
+      coordinator_port_http:
+        required: true
+        type: string
+      esplora_endpoint:
+        required: true
+        type: string
+      coordinator_p2p_endpoint:
+        required: true
+        type: string
+      network:
+        required: true
+        type: string
+        description: "The target network for the release, e.g. mainnet/regtest"
+      tag:
+        required: true
+        description: "The branch, tag or SHA to checkout."
+        type: string
+      oracle_endpoint:
+        required: true
+        type: string
+      oracle_pubkey:
+        required: true
+        description: "The public key of the oracle. Must match with the public key returned at http://${oracle_endpoint}/oracle/publickey"
+        type: string
+      fastlane_provisioning_profile_specifier:
+        required: true
+        description: "For regtest enter 'match AppStore finance.get10101.app.test' or mainnet enter 'match AppStore finance.get10101.app 1691412333'"
+        type: string
+      fastlane_developer_app_identifier:
+        required: true
+        description: "For regtest enter 'finance.get10101.app.test' or mainnet enter 'finance.get10101.app'"
+        type: string
+  workflow_dispatch:
+    inputs:
+      coordinator_port_http:
+        required: true
+        type: string
+      esplora_endpoint:
+        required: true
+        type: string
+      coordinator_p2p_endpoint:
+        required: true
+        type: string
+      network:
+        required: true
+        type: string
+        description: "The target network for the release, e.g. mainnet/regtest"
+      tag:
+        required: true
+        description: "The branch, tag or SHA to checkout."
+        type: string
+      oracle_endpoint:
+        required: true
+        type: string
+      oracle_pubkey:
+        required: true
+        description: "The public key of the oracle. Must match with the public key returned at http://${oracle_endpoint}/oracle/publickey"
+        type: string
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          # fetch the complete history to correctly calculate build_number
+          fetch-depth: 0
+          ref: ${{ inputs.tag }}
+
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: "14.2"
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: "stable"
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          architecture: x64
+
+      - uses: actions/cache@v3
+        id: cache-deps
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            ./rust/target
+          key: ${{ runner.os }}-cargo-build-release-ios-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Install just
+        if: steps.cache-deps.outputs.cache-hit != 'true'
+        run: cargo install just
+
+      - name: Install fastlane
+        run: |
+          cd mobile/ios/fastlane
+          gem install bundler
+          bundle install
+          bundle info fastlane
+
+      - name: Install FFI bindings
+        if: steps.cache-deps.outputs.cache-hit != 'true'
+        run: just deps-gen
+
+      - name: Install ios dependencies
+        if: steps.cache-deps.outputs.cache-hit != 'true'
+        run: cargo install cargo-lipo
+
+      - name: Set rustup targets
+        run: rustup target add aarch64-apple-ios x86_64-apple-ios
+
+      - name: Generate FFI bindings
+        run: just gen
+
+      - name: Build iOS Rust lib in release mode
+        run: just ios-release
+
+      - name: Parse version from pubspec.yaml
+        id: version
+        uses: jbutcher5/read-yaml@1.6
+        with:
+          file: "mobile/pubspec.yaml"
+          key-path: '["version"]'
+
+      - name: Build iOS Archive
+        id: build-ios
+        run: |
+          NETWORK=$NETWORK just build-ipa-no-codesign
+        env:
+          ESPLORA_ENDPOINT: ${{ inputs.esplora_endpoint }}
+          COORDINATOR_P2P_ENDPOINT: ${{ inputs.coordinator_p2p_endpoint }}
+          NETWORK: ${{ inputs.network }}
+          COORDINATOR_PORT_HTTP: ${{ inputs.coordinator_port_http }}
+          ORACLE_ENDPOINT: ${{ inputs.oracle_endpoint }}
+          ORACLE_PUBKEY: ${{ inputs.oracle_pubkey }}
+
+      - name: Release to TestFlight
+        env:
+          # secrets
+          FASTLANE_APPLE_ID: ${{ secrets.FASTLANE_APPLE_ID }}
+          FASTLANE_APP_STORE_CONNECT_TEAM_ID: ${{ secrets.FASTLANE_APP_STORE_CONNECT_TEAM_ID }}
+          FASTLANE_DEVELOPER_PORTAL_TEAM_ID: ${{ secrets.FASTLANE_DEVELOPER_PORTAL_TEAM_ID }}
+          FASTLANE_DEVELOPER_APP_ID: ${{ secrets.FASTLANE_DEVELOPER_APP_ID }}
+          FASTLANE_TEMP_KEYCHAIN_USER: ${{ secrets.FASTLANE_TEMP_KEYCHAIN_USER }}
+          FASTLANE_TEMP_KEYCHAIN_PASSWORD: ${{ secrets.FASTLANE_TEMP_KEYCHAIN_PASSWORD }}
+          FASTLANE_APPLE_ISSUER_ID: ${{ secrets.FASTLANE_APPLE_ISSUER_ID }}
+          FASTLANE_APPLE_KEY_ID: ${{ secrets.FASTLANE_APPLE_KEY_ID }}
+          FASTLANE_APPLE_KEY_CONTENT: ${{ secrets.FASTLANE_APPLE_KEY_CONTENT }}
+          FASTLANE_GIT_AUTHORIZATION: ${{ secrets.FASTLANE_GIT_AUTHORIZATION }}
+          MATCH_PASSWORD: ${{ secrets.FASTLANE_MATCH_PASSWORD }}
+          # inputs
+          FASTLANE_DEVELOPER_APP_IDENTIFIER: ${{ inputs.fastlane_developer_app_identifier }}
+          FASTLANE_PROVISIONING_PROFILE_SPECIFIER: ${{ inputs.fastlane_provisioning_profile_specifier }}
+          NETWORK: ${{ inputs.network }}
+        run: |
+          if [ "$NETWORK" = "mainnet" ]; then
+            FASTLANE_APP_SCHEME="Runner"
+          else
+            FASTLANE_APP_SCHEME="test"
+          fi
+          
+          echo "APP_SCHEME is set to $FASTLANE_APP_SCHEME"
+          just publish-testflight-fastlane

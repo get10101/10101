@@ -18,11 +18,11 @@ jobs:
     with:
       tag: ${{ github.ref_name }}
 
-  build_testflight_release:
+  build_and_release_mainnet_ios_app_for_latest_main:
     permissions:
       packages: write
       contents: read
-    uses: ./.github/workflows/ios.yml
+    uses: ./.github/workflows/ios-fastlane.yml
     secrets: inherit
     with:
       esplora_endpoint: https://blockstream.info/api
@@ -32,6 +32,8 @@ jobs:
       tag: ${{ github.ref_name }}
       oracle_endpoint: https://oracle.holzeis.me
       oracle_pubkey: 16f88cf7d21e6c0f46bcbc983a4e3b19726c6c98858cc31c83551a88fde171c0
+      fastlane_developer_app_identifier: finance.get10101.app
+      fastlane_provisioning_profile_specifier: match AppStore finance.get10101.app 1691412333"
 
   build_android_apk:
     runs-on: macos-latest

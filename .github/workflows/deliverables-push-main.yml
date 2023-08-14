@@ -33,19 +33,21 @@ jobs:
               - 'mobile/**'
               - 'Cargo.*'
 
-  build_and_release_ios_app_for_latest_main:
+  build_and_release_regtest_ios_app_for_latest_main:
     needs: changes
-    if: needs.changes.outputs.ios-app == 'true' && contains(github.event.head_commit.message, 'release') == 'false' && contains(github.event.head_commit.message, 'Merge') == 'false'
+    if: needs.changes.outputs.ios-app == 'true'
     permissions:
       packages: write
       contents: read
-    uses: ./.github/workflows/ios.yml
+    uses: ./.github/workflows/ios-fastlane.yml
     secrets: inherit
     with:
-      esplora_endpoint: https://blockstream.info/api
+      esplora_endpoint: http://35.189.57.114:3000
       coordinator_p2p_endpoint: 03507b924dae6595cfb78492489978127c5f1e3877848564de2015cd6d41375802@35.189.57.114:9045
       coordinator_port_http: 80
       network: regtest
       tag: main
       oracle_endpoint: http://api.test.10101.finance:8081
       oracle_pubkey: 5d12d79f575b8d99523797c46441c0549eb0defb6195fe8a080000cbe3ab3859
+      fastlane_developer_app_identifier: finance.get10101.app.test
+      fastlane_provisioning_profile_specifier: match AppStore finance.get10101.app.test

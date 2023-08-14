@@ -328,7 +328,7 @@ wait-for-coordinator-to-be-ready:
     echo "Max attempts reached. Coordinator is still not ready."
     exit 1
 
-build-ipa:
+build-ipa args="":
     #!/usr/bin/env bash
     BUILD_NUMBER=$(git rev-list HEAD --count)
     args=()
@@ -344,10 +344,16 @@ build-ipa:
            --dart-define="COMMIT=$(git rev-parse HEAD)" \
            --dart-define="BRANCH=$(git rev-parse --abbrev-ref HEAD)" \
            --dart-define="COORDINATOR_PORT_HTTP=${COORDINATOR_PORT_HTTP}" \
-           --build-number=${BUILD_NUMBER}
+           --build-number=${BUILD_NUMBER} \
+           {{args}}
 
 publish-testflight:
     cd mobile && xcrun altool --upload-app --type ios --file ./build/ios/ipa/10101.ipa --apiKey ${ALTOOL_API_KEY} --apiIssuer ${ALTOOL_API_ISSUER}
+
+build-ipa-no-codesign: (build-ipa "--no-codesign")
+
+publish-testflight-fastlane:
+    cd mobile/ios/fastlane && bundle exec fastlane closed_beta --verbose
 
 release-testflight: gen ios build-ipa publish-testflight
 
