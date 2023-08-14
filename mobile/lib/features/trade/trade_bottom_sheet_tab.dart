@@ -191,6 +191,7 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
                           hint: "e.g. 2000 sats",
                           label: "Margin (sats)",
                           controller: marginController,
+                          isLoading: false,
                           onChanged: (value) {
                             if (value.isEmpty) {
                               return;

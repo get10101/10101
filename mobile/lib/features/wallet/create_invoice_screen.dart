@@ -11,7 +11,6 @@ import 'package:get_10101/features/wallet/wallet_change_notifier.dart';
 import 'package:get_10101/features/wallet/wallet_screen.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import 'package:get_10101/common/modal_bottom_sheet_info.dart';
 import 'package:get_10101/common/domain/channel.dart';
 import 'package:get_10101/common/scrollable_safe_area.dart';
 
@@ -127,6 +126,12 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
                         hint: "e.g. ${formatSats(Amount(5000))}",
                         label: "Amount",
                         controller: _amountController,
+                        isLoading: lspMaxChannelCapacity == null,
+                        infoText:
+                            "While in beta, maximum channel capacity is limited to ${formatSats(maxChannelCapacity)}; channels above this capacity might get rejected."
+                            "\nThe maximum is enforced initially to ensure users only trade with small stakes until the software has proven to be stable."
+                            "\n\nYour current balance is ${formatSats(balance)}, so you can receive up to ${formatSats(maxReceiveAmount)}."
+                            "\nIf you hold less than ${formatSats(minAmountToBeAbleToTrade)} or more than ${formatSats(maxAllowedOutboundCapacity)} in your wallet you might not be able to trade.",
                         onChanged: (value) {
                           if (value.isEmpty) {
                             return;
@@ -161,25 +166,9 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
                         },
                       ),
                     ),
-                    if (showValidationHint)
-                      ModalBottomSheetInfo(
-                          closeButtonText: "Back to Receive...",
-                          child: Text(
-                              "While in beta, maximum channel capacity is limited to ${formatSats(maxChannelCapacity)}; channels above this capacity might get rejected."
-                              "\nThe maximum is enforced initially to ensure users only trade with small stakes until the software has proven to be stable."
-                              "\n\nYour current balance is ${formatSats(balance)}, so you can receive up to ${formatSats(maxReceiveAmount)}."
-                              "\nIf you hold less than ${formatSats(minAmountToBeAbleToTrade)} or more than ${formatSats(maxAllowedOutboundCapacity)} in your wallet you might not be able to trade.")),
                   ],
                 ),
               ),
-              Center(
-                  child: Padding(
-                padding: const EdgeInsets.only(bottom: 10.0, left: 32.0, right: 32.0),
-                child: Text(
-                  "Your wallet balance is ${formatSats(balance)} so you should only receive up to ${formatSats(maxReceiveAmount)}.",
-                  style: const TextStyle(color: Colors.black),
-                ),
-              )),
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.all(32.0),
