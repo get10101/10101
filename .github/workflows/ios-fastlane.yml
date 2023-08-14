@@ -27,6 +27,10 @@ on:
         required: true
         description: "The public key of the oracle. Must match with the public key returned at http://${oracle_endpoint}/oracle/publickey"
         type: string
+      app_scheme:
+        required: true
+        description: "For regtest enter 'test' or mainnet enter 'Runner'"
+        type: string
       fastlane_provisioning_profile_specifier:
         required: true
         description: "For regtest enter 'match AppStore finance.get10101.app.test' or mainnet enter 'match AppStore finance.get10101.app 1691412333'"
@@ -157,13 +161,6 @@ jobs:
           # inputs
           FASTLANE_DEVELOPER_APP_IDENTIFIER: ${{ inputs.fastlane_developer_app_identifier }}
           FASTLANE_PROVISIONING_PROFILE_SPECIFIER: ${{ inputs.fastlane_provisioning_profile_specifier }}
-          NETWORK: ${{ inputs.network }}
+          FASTLANE_APP_SCHEME: ${{ inputs.app_scheme }}
         run: |
-          if [ "$NETWORK" = "mainnet" ]; then
-            FASTLANE_APP_SCHEME="Runner"
-          else
-            FASTLANE_APP_SCHEME="test"
-          fi
-          
-          echo "APP_SCHEME is set to $FASTLANE_APP_SCHEME"
           just publish-testflight-fastlane

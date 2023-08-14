@@ -34,6 +34,7 @@ jobs:
       oracle_pubkey: 16f88cf7d21e6c0f46bcbc983a4e3b19726c6c98858cc31c83551a88fde171c0
       fastlane_developer_app_identifier: finance.get10101.app
       fastlane_provisioning_profile_specifier: match AppStore finance.get10101.app 1691412333"
+      app_scheme: Runner
 
   build_android_apk:
     runs-on: macos-latest
