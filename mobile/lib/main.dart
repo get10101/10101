@@ -224,9 +224,12 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await initFirebase();
-      await requestNotificationPermission();
-      final flutterLocalNotificationsPlugin = initLocalNotifications();
-      await configureFirebase(flutterLocalNotificationsPlugin);
+
+      if (Platform.isAndroid || Platform.isIOS) {
+        await requestNotificationPermission();
+        final flutterLocalNotificationsPlugin = initLocalNotifications();
+        await configureFirebaseNotifications(flutterLocalNotificationsPlugin);
+      }
 
       PackageInfo packageInfo = await PackageInfo.fromPlatform();
 
@@ -531,7 +534,7 @@ Future<void> initFirebase() async {
   );
 }
 
-Future<void> configureFirebase(FlutterLocalNotificationsPlugin localNotifications) async {
+Future<void> configureFirebaseNotifications(FlutterLocalNotificationsPlugin localNotifications) async {
   // Configure message handler
   FirebaseMessaging.onMessage.listen((RemoteMessage message) {
     // TODO: Handle messages from Firebase
