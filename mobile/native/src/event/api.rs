@@ -3,6 +3,7 @@ use crate::event::subscriber::Subscriber;
 use crate::event::EventInternal;
 use crate::event::EventType;
 use crate::health::ServiceUpdate;
+use crate::ln_dlc::ChannelStatus;
 use crate::trade::order::api::Order;
 use crate::trade::position::api::Position;
 use core::convert::From;
@@ -22,6 +23,7 @@ pub enum Event {
     PositionClosedNotification(PositionClosed),
     PriceUpdateNotification(BestPrice),
     ServiceHealthUpdate(ServiceUpdate),
+    ChannelStatusUpdate(ChannelStatus),
 }
 
 impl From<EventInternal> for Event {
@@ -53,6 +55,7 @@ impl From<EventInternal> for Event {
                 Event::PriceUpdateNotification(best_price)
             }
             EventInternal::ServiceHealthUpdate(update) => Event::ServiceHealthUpdate(update),
+            EventInternal::ChannelStatusUpdate(update) => Event::ChannelStatusUpdate(update),
             EventInternal::ChannelReady(_) => {
                 unreachable!("This internal event is not exposed to the UI")
             }
@@ -94,6 +97,7 @@ impl Subscriber for FlutterSubscriber {
             EventType::PositionClosedNotification,
             EventType::PriceUpdateNotification,
             EventType::ServiceHealthUpdate,
+            EventType::ChannelStatusUpdate,
         ]
     }
 }

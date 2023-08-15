@@ -6,6 +6,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter/material.dart';
 import 'package:get_10101/firebase_options.dart';
+import 'package:get_10101/common/channel_status_notifier.dart';
 import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:flutter_native_splash/flutter_native_splash.dart';
@@ -56,7 +57,6 @@ import 'package:get_10101/features/trade/domain/price.dart';
 import 'package:get_10101/features/wallet/domain/wallet_info.dart';
 import 'package:get_10101/ffi.dart' as rust;
 import 'package:version/version.dart';
-
 import 'common/settings_screen.dart';
 
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
@@ -85,6 +85,7 @@ void main() {
     ChangeNotifierProvider(
         create: (context) => CandlestickChangeNotifier(const CandlestickService())),
     ChangeNotifierProvider(create: (context) => ServiceStatusNotifier()),
+    ChangeNotifierProvider(create: (context) => ChannelStatusNotifier()),
     Provider(create: (context) => Environment.parse()),
     Provider(create: (context) => channelInfoService)
   ], child: const TenTenOneApp()));
@@ -463,6 +464,7 @@ void subscribeToNotifiers(BuildContext context) {
   final tradeValuesChangeNotifier = context.read<TradeValuesChangeNotifier>();
   final submitOrderChangeNotifier = context.read<SubmitOrderChangeNotifier>();
   final serviceStatusNotifier = context.read<ServiceStatusNotifier>();
+  final channelStatusNotifier = context.read<ChannelStatusNotifier>();
 
   eventService.subscribe(
       orderChangeNotifier, bridge.Event.orderUpdateNotification(Order.apiDummy()));
@@ -489,6 +491,8 @@ void subscribeToNotifiers(BuildContext context) {
 
   eventService.subscribe(
       serviceStatusNotifier, bridge.Event.serviceHealthUpdate(serviceUpdateApiDummy()));
+
+  channelStatusNotifier.subscribe(eventService);
 
   eventService.subscribe(
       AnonSubscriber((event) => FLog.info(text: event.field0)), const bridge.Event.log(""));

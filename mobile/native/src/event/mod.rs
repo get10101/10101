@@ -1,11 +1,8 @@
-pub mod api;
-mod event_hub;
-pub mod subscriber;
-
 use crate::api::WalletInfo;
 use crate::event::event_hub::get;
 use crate::event::subscriber::Subscriber;
 use crate::health::ServiceUpdate;
+use crate::ln_dlc::ChannelStatus;
 use crate::trade::order::Order;
 use crate::trade::position::Position;
 use coordinator_commons::TradeParams;
@@ -14,6 +11,11 @@ use orderbook_commons::Prices;
 use std::fmt;
 use std::hash::Hash;
 use trade::ContractSymbol;
+
+mod event_hub;
+
+pub mod api;
+pub mod subscriber;
 
 pub fn subscribe(subscriber: impl Subscriber + 'static + Send + Sync + Clone) {
     get().subscribe(subscriber);
@@ -36,6 +38,7 @@ pub enum EventInternal {
     ChannelReady(ChannelId),
     PaymentClaimed(u64),
     ServiceHealthUpdate(ServiceUpdate),
+    ChannelStatusUpdate(ChannelStatus),
 }
 
 impl fmt::Display for EventInternal {
@@ -52,6 +55,7 @@ impl fmt::Display for EventInternal {
             EventInternal::ChannelReady(_) => "ChannelReady",
             EventInternal::PaymentClaimed(_) => "PaymentClaimed",
             EventInternal::ServiceHealthUpdate(_) => "ServiceHealthUpdate",
+            EventInternal::ChannelStatusUpdate(_) => "ChannelStatusUpdate",
         }
         .fmt(f)
     }
@@ -73,6 +77,7 @@ impl From<EventInternal> for EventType {
             EventInternal::ChannelReady(_) => EventType::ChannelReady,
             EventInternal::PaymentClaimed(_) => EventType::PaymentClaimed,
             EventInternal::ServiceHealthUpdate(_) => EventType::ServiceHealthUpdate,
+            EventInternal::ChannelStatusUpdate(_) => EventType::ChannelStatusUpdate,
         }
     }
 }
@@ -90,4 +95,5 @@ pub enum EventType {
     ChannelReady,
     PaymentClaimed,
     ServiceHealthUpdate,
+    ChannelStatusUpdate,
 }

@@ -98,6 +98,7 @@ async fn publish_status_updates(service: Service, mut rx: watch::Receiver<Servic
         match rx.changed().await {
             Ok(()) => {
                 let status = rx.borrow();
+
                 event::publish(&EventInternal::ServiceHealthUpdate(
                     (service, *status).into(),
                 ));
