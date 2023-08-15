@@ -1,4 +1,5 @@
 import 'package:f_logs/model/flog/flog.dart';
+import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:flutter/material.dart';
 import 'package:get_10101/common/scrollable_safe_area.dart';
 import 'package:get_10101/features/wallet/wallet_screen.dart';
@@ -10,7 +11,12 @@ class WelcomeScreen extends StatefulWidget {
   static const route = "/welcome";
   static const label = "Welcome";
 
-  const WelcomeScreen({Key? key}) : super(key: key);
+  final FirebaseAnalytics analytics;
+
+  const WelcomeScreen({
+    Key? key,
+    required this.analytics,
+  }) : super(key: key);
 
   @override
   State<WelcomeScreen> createState() => _WelcomeScreenState();
@@ -101,5 +107,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
           _email = value;
           FLog.info(text: "retrieved stored email from the preferences: $_email.");
         }));
+
+    widget.analytics.logAppOpen();
   }
 }

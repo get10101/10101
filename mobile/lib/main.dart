@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:f_logs/f_logs.dart';
+import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
@@ -62,8 +63,10 @@ import 'features/stable/stable_value_change_notifier.dart';
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
 final GlobalKey<NavigatorState> _shellNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'shell');
 
-void main() {
+void main() async {
   WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
+  await initFirebase();
+
   FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
 
   setupFlutterLogs();
@@ -121,9 +124,13 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
   final GlobalKey<ScaffoldMessengerState> scaffoldMessengerKey =
       GlobalKey<ScaffoldMessengerState>();
 
+  static FirebaseAnalytics analytics = FirebaseAnalytics.instance;
+  static FirebaseAnalyticsObserver observer = FirebaseAnalyticsObserver(analytics: analytics);
+
   final GoRouter _router = GoRouter(
       navigatorKey: _rootNavigatorKey,
       initialLocation: WalletScreen.route,
+      observers: <NavigatorObserver>[observer],
       routes: <RouteBase>[
         ShellRoute(
           navigatorKey: _shellNavigatorKey,
@@ -199,7 +206,7 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
             path: WelcomeScreen.route,
             parentNavigatorKey: _rootNavigatorKey,
             builder: (BuildContext context, GoRouterState state) {
-              return const WelcomeScreen();
+              return WelcomeScreen(analytics: analytics);
             },
             routes: const []),
       ],
@@ -534,7 +541,8 @@ Future<void> initFirebase() async {
   );
 }
 
-Future<void> configureFirebaseNotifications(FlutterLocalNotificationsPlugin localNotifications) async {
+Future<void> configureFirebaseNotifications(
+    FlutterLocalNotificationsPlugin localNotifications) async {
   // Configure message handler
   FirebaseMessaging.onMessage.listen((RemoteMessage message) {
     // TODO: Handle messages from Firebase
