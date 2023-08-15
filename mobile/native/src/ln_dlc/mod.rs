@@ -31,6 +31,7 @@ use itertools::Itertools;
 use lightning::ln::channelmanager::ChannelDetails;
 use lightning::util::events::Event;
 use lightning_invoice::Invoice;
+use ln_dlc_node::channel::JIT_FEE_INVOICE_DESCRIPTION_PREFIX;
 use ln_dlc_node::config::app_config;
 use ln_dlc_node::node::rust_dlc_manager::subchannel::LNChannelManager;
 use ln_dlc_node::node::rust_dlc_manager::ChannelId;
@@ -348,11 +349,21 @@ fn keep_wallet_balance_and_history_up_to_date(node: &Node) -> Result<()> {
         let payment_hash = hex::encode(details.payment_hash.0);
 
         let description = &details.description;
-        let wallet_type = match description.strip_prefix(FEE_INVOICE_DESCRIPTION_PREFIX_TAKER) {
-            Some(order_id) => api::WalletType::OrderMatchingFee {
+        let wallet_type = if let Some(order_id) =
+            description.strip_prefix(FEE_INVOICE_DESCRIPTION_PREFIX_TAKER)
+        {
+            api::WalletType::OrderMatchingFee {
                 order_id: order_id.to_string(),
-            },
-            None => api::WalletType::Lightning { payment_hash },
+            }
+        } else if let Some(funding_txid) =
+            description.strip_prefix(JIT_FEE_INVOICE_DESCRIPTION_PREFIX)
+        {
+            api::WalletType::JitChannelFee {
+                funding_txid: funding_txid.to_string(),
+                payment_hash,
+            }
+        } else {
+            api::WalletType::Lightning { payment_hash }
         };
 
         Some(api::WalletHistoryItem {

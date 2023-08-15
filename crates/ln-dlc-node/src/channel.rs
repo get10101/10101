@@ -14,6 +14,10 @@ use std::str::FromStr;
 use time::OffsetDateTime;
 use uuid::Uuid;
 
+/// The prefix used in the description field of an JIT channel opening invoice to be paid by the
+/// client.
+pub const JIT_FEE_INVOICE_DESCRIPTION_PREFIX: &str = "jit-channel-fee-";
+
 /// We introduce a shadow copy of the Lightning channel as LDK deletes channels from its
 /// [`ChannelManager`] as soon as they are closed.
 ///

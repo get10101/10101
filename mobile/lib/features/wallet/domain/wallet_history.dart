@@ -2,7 +2,7 @@ import 'package:get_10101/common/domain/model.dart';
 import 'payment_flow.dart';
 import 'package:get_10101/bridge_generated/bridge_definitions.dart' as rust;
 
-enum WalletHistoryItemDataType { lightning, onChain, trade, orderMatchingFee }
+enum WalletHistoryItemDataType { lightning, onChain, trade, orderMatchingFee, jitChannelFee }
 
 enum WalletHistoryStatus { pending, confirmed }
 
@@ -13,10 +13,10 @@ class WalletHistoryItemData {
   final WalletHistoryStatus status;
   final DateTime timestamp;
 
-  // on-chain
+  // on-chain (payment txid) and jit fee (funding txid)
   final String? txid;
 
-  // lightning
+  // lightning and jit fee
   final String? paymentHash;
 
   // trade
@@ -76,6 +76,20 @@ class WalletHistoryItemData {
           type: WalletHistoryItemDataType.orderMatchingFee,
           timestamp: timestamp,
           orderId: type.orderId);
+    }
+
+    if (item.walletType is rust.WalletType_JitChannelFee) {
+      rust.WalletType_JitChannelFee type = item.walletType as rust.WalletType_JitChannelFee;
+
+      return WalletHistoryItemData(
+        flow: flow,
+        amount: amount,
+        type: WalletHistoryItemDataType.jitChannelFee,
+        status: status,
+        timestamp: timestamp,
+        paymentHash: type.paymentHash,
+        txid: type.fundingTxid,
+      );
     }
 
     return WalletHistoryItemData(

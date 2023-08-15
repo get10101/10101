@@ -6,6 +6,7 @@ use bitcoin::hashes::hex::ToHex;
 use bitcoin::secp256k1::ThirtyTwoByteHash;
 use lightning::ln::PaymentHash;
 use lightning_invoice::Invoice;
+use ln_dlc_node::channel::JIT_FEE_INVOICE_DESCRIPTION_PREFIX;
 use ln_dlc_node::PaymentInfo;
 
 impl Node {
@@ -13,14 +14,12 @@ impl Node {
         &self,
         amount: u64,
         funding_txid: String,
-        description: Option<String>,
         expiry: Option<u32>,
     ) -> Result<Invoice> {
-        let invoice = self.inner.create_invoice(
-            amount,
-            description.unwrap_or_default(),
-            expiry.unwrap_or(180),
-        )?;
+        let description = format!("{JIT_FEE_INVOICE_DESCRIPTION_PREFIX}{funding_txid}");
+        let invoice = self
+            .inner
+            .create_invoice(amount, description, expiry.unwrap_or(180))?;
         let payment_hash = invoice.payment_hash().into_32();
         let payment_hash_hex = payment_hash.to_hex();
 

@@ -34,7 +34,8 @@ class WalletHistoryItem extends StatelessWidget {
           Icons.bar_chart,
           size: flowIconSize,
         );
-      } else if (data.type == WalletHistoryItemDataType.orderMatchingFee) {
+      } else if (data.type == WalletHistoryItemDataType.orderMatchingFee ||
+          data.type == WalletHistoryItemDataType.jitChannelFee) {
         return const Icon(
           Icons.toll,
           size: flowIconSize,
@@ -66,6 +67,8 @@ class WalletHistoryItem extends StatelessWidget {
           }
         case WalletHistoryItemDataType.orderMatchingFee:
           return "Matching fee";
+        case WalletHistoryItemDataType.jitChannelFee:
+          return "Channel opening fee";
       }
     }();
 
@@ -74,6 +77,7 @@ class WalletHistoryItem extends StatelessWidget {
         case WalletHistoryItemDataType.lightning:
         case WalletHistoryItemDataType.trade:
         case WalletHistoryItemDataType.orderMatchingFee:
+        case WalletHistoryItemDataType.jitChannelFee:
           return "off-chain";
         case WalletHistoryItemDataType.onChain:
           return "on-chain";
@@ -158,16 +162,21 @@ class WalletHistoryItem extends StatelessWidget {
   }
 
   Widget showItemDetails(String title, BuildContext context) {
-    var [label, id] = () {
+    List<HistoryDetail> details = () {
       switch (data.type) {
         case WalletHistoryItemDataType.lightning:
-          return ["Payment hash", data.paymentHash ?? ""];
+          return [HistoryDetail(label: "Payment hash", value: data.paymentHash ?? "")];
         case WalletHistoryItemDataType.onChain:
-          return ["Transaction id", data.txid ?? ""];
+          return [HistoryDetail(label: "Transaction id", value: data.txid ?? "")];
         case WalletHistoryItemDataType.trade:
         case WalletHistoryItemDataType.orderMatchingFee:
           final orderId = data.orderId!.substring(0, 8);
-          return ["Order", orderId];
+          return [HistoryDetail(label: "Order", value: orderId)];
+        case WalletHistoryItemDataType.jitChannelFee:
+          return [
+            HistoryDetail(label: "Payment hash", value: data.paymentHash ?? ""),
+            HistoryDetail(label: "Funding transaction id", value: data.txid ?? "")
+          ];
       }
     }();
 
@@ -185,7 +194,7 @@ class WalletHistoryItem extends StatelessWidget {
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          HistoryDetail(label: label, value: id),
+          ...details,
           HistoryDetail(
               label: "Amount", value: formatSats(Amount(data.amount.sats * directionMultiplier))),
           HistoryDetail(label: "Date and time", value: dateFormat.format(data.timestamp)),
