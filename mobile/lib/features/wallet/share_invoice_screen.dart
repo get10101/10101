@@ -37,7 +37,7 @@ class _ShareInvoiceScreenState extends State<ShareInvoiceScreen> {
     WalletInfo info = context.watch<WalletChangeNotifier>().walletInfo;
     final bridge.Config config = context.read<bridge.Config>();
 
-    FLog.debug(text: "Refresh receive screen: ${info.balances.onChain}");
+    FLog.debug(text: "Refresh receive screen: ${formatSats(info.balances.onChain)}");
 
     const EdgeInsets buttonSpacing = EdgeInsets.symmetric(vertical: 8.0, horizontal: 24.0);
 
