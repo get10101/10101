@@ -548,7 +548,7 @@ Future<void> configureFirebase(FlutterLocalNotificationsPlugin localNotification
 Future<void> requestNotificationPermission() async {
   FirebaseMessaging messaging = FirebaseMessaging.instance;
   final token = await messaging.getToken();
-  FLog.info(text: "Firebase token: $token");
+  FLog.debug(text: "Firebase token: $token");
 
   NotificationSettings settings = await messaging.requestPermission(
     alert: true,
