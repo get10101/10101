@@ -4,6 +4,7 @@ import 'package:get_10101/common/amount_text.dart';
 import 'package:get_10101/common/fiat_text.dart';
 import 'package:get_10101/common/submission_status_dialog.dart';
 import 'package:get_10101/common/value_data_row.dart';
+import 'package:get_10101/features/wallet/domain/wallet_type.dart';
 import 'package:get_10101/features/trade/position_change_notifier.dart';
 import 'package:get_10101/features/wallet/seed_screen.dart';
 import 'package:get_10101/features/wallet/send_payment_change_notifier.dart';
@@ -11,7 +12,6 @@ import 'package:get_10101/util/preferences.dart';
 import 'package:get_10101/features/wallet/balance_row.dart';
 import 'package:get_10101/features/wallet/create_invoice_screen.dart';
 import 'package:get_10101/features/wallet/domain/wallet_history.dart';
-import 'package:get_10101/features/wallet/wallet_history_item.dart';
 import 'package:get_10101/features/wallet/wallet_theme.dart';
 import 'package:get_10101/features/wallet/send_screen.dart';
 import 'package:get_10101/features/wallet/wallet_change_notifier.dart';
@@ -174,9 +174,9 @@ class _WalletScreenState extends State<WalletScreen> {
                       margin: const EdgeInsets.only(left: 20.0, right: 20.0, bottom: 8.0),
                       child: const Column(
                         children: [
-                          BalanceRow(walletType: WalletHistoryItemDataType.lightning),
-                          BalanceRow(walletType: WalletHistoryItemDataType.onChain),
-                          BalanceRow(walletType: WalletHistoryItemDataType.stable),
+                          BalanceRow(walletType: WalletType.lightning),
+                          BalanceRow(walletType: WalletType.onChain),
+                          BalanceRow(walletType: WalletType.stable),
                         ],
                       ),
                     ),
@@ -236,9 +236,7 @@ class _WalletScreenState extends State<WalletScreen> {
 
                     WalletHistoryItemData itemData = walletChangeNotifier.walletInfo.history[index];
 
-                    return WalletHistoryItem(
-                      data: itemData,
-                    );
+                    return itemData.toWidget();
                   },
                 ),
               ),
