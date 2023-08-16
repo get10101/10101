@@ -185,6 +185,8 @@ cargo-clippy:
 lint-flutter:
     cd mobile && flutter analyze --fatal-infos .
 
+alias flutter-lint := lint-flutter
+
 alias fmt := format
 format: dprint flutter-format
 
@@ -429,5 +431,7 @@ migrate-coordinator: docker
 
 # Re-run database migrations for both app and coordinator
 migrate: migrate-app migrate-coordinator
+
+dart: flutter-format lint-flutter
 
 # vim:expandtab:sw=4:ts=4
