@@ -4,9 +4,9 @@ use crate::ln_dlc_wallet::LnDlcWallet;
 use crate::node::ChannelManager;
 use crate::node::Storage;
 use anyhow::Result;
+use bdk::TransactionDetails;
 use dlc_manager::subchannel::LNChannelManager;
 use std::sync::Arc;
-use time::OffsetDateTime;
 
 pub struct Shadow<S> {
     storage: Arc<S>,
@@ -51,18 +51,17 @@ where
         let transactions = self.storage.all_transactions_without_fees()?;
         tracing::debug!("Syncing {} shadow transactions", transactions.len());
 
-        for mut transaction in transactions.into_iter() {
-            let transaction_details = self
-                .ln_dlc_wallet
-                .inner()
-                .get_transaction(&transaction.txid)?;
-
-            transaction.fee = transaction_details
-                .map(|d| d.fee.unwrap_or_default())
-                .unwrap_or_default();
-            transaction.updated_at = OffsetDateTime::now_utc();
-
-            self.storage.upsert_transaction(transaction)?;
+        for transaction in transactions.iter() {
+            let txid = transaction.txid();
+            match self.ln_dlc_wallet.inner().get_transaction(&txid) {
+                Ok(Some(TransactionDetails { fee: Some(fee), .. })) => {
+                    self.storage.upsert_transaction(transaction.with_fee(fee))?;
+                }
+                Ok(_) => {}
+                Err(e) => {
+                    tracing::warn!(%txid, "Failed to get transaction details: {e:#}");
+                }
+            };
         }
         Ok(())
     }

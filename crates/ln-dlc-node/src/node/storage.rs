@@ -243,7 +243,7 @@ impl Storage for InMemoryStore {
     // Transaction
 
     fn upsert_transaction(&self, transaction: Transaction) -> Result<()> {
-        let txid = transaction.txid.to_string();
+        let txid = transaction.txid().to_string();
         self.transactions_lock().insert(txid, transaction);
         Ok(())
     }
@@ -257,7 +257,7 @@ impl Storage for InMemoryStore {
         Ok(self
             .transactions_lock()
             .values()
-            .filter(|t| t.fee == 0)
+            .filter(|t| t.fee() == 0)
             .cloned()
             .collect())
     }

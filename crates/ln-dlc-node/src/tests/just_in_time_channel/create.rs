@@ -95,7 +95,7 @@ async fn open_jit_channel() {
         .get_transaction(&channel.funding_txid.unwrap().to_string())
         .unwrap()
         .unwrap();
-    assert!(transaction.fee > 0);
+    assert!(transaction.fee() > 0);
 }
 
 #[tokio::test(flavor = "multi_thread")]
