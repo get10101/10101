@@ -213,8 +213,9 @@ pub async fn close_position() -> Result<()> {
             execution_price: closing_price.to_f32().expect("to fit into f32"),
         },
         creation_timestamp: OffsetDateTime::now_utc(),
-        // position has already expired, so the order expiry doesn't matter
+        // position has already expired, so the order and position expiry doesn't matter
         order_expiry_timestamp: OffsetDateTime::now_utc() + Duration::minutes(1),
+        position_expiry_timestamp: OffsetDateTime::now_utc() + Duration::minutes(1),
     };
 
     event::publish(&EventInternal::OrderUpdateNotification(order));

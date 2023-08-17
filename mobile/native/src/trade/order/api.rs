@@ -126,6 +126,8 @@ impl From<NewOrder> for order::Order {
             creation_timestamp: OffsetDateTime::now_utc(),
             // We do not support setting order expiry from the frontend for now
             order_expiry_timestamp: OffsetDateTime::now_utc() + time::Duration::minutes(1),
+            // We do not support setting position expiry from the frontend for now
+            position_expiry_timestamp: orderbook_commons::default_position_expiry(),
         }
     }
 }

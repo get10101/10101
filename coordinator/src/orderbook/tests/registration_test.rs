@@ -6,6 +6,7 @@ use crate::orderbook::tests::start_postgres;
 use bitcoin::secp256k1::PublicKey;
 use coordinator_commons::RegisterParams;
 use std::str::FromStr;
+use diesel::Connection;
 use testcontainers::clients::Cli;
 
 #[tokio::test]

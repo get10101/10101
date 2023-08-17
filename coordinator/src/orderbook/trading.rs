@@ -14,8 +14,6 @@ use rust_decimal::Decimal;
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::str::FromStr;
-use time::Duration;
-use time::OffsetDateTime;
 use tokio::sync::mpsc::Sender;
 use trade::Direction;
 
@@ -38,7 +36,9 @@ pub fn match_order(
 
     let opposite_direction_orders = opposite_direction_orders
         .into_iter()
-        .filter(|o| !o.direction.eq(&order.direction))
+        .filter(|o| o.direction != order.direction)
+        // we only care about orders that have the same expiry
+        .filter(|o| o.position_expiry == order.position_expiry)
         .collect();
 
     let is_long = order.direction == Direction::Long;
@@ -65,9 +65,6 @@ pub fn match_order(
         return Ok(None);
     }
 
-    let tomorrow = OffsetDateTime::now_utc().date() + Duration::days(2);
-    let expiry_timestamp = tomorrow.midnight().assume_utc();
-
     // For now we hardcode the oracle pubkey here
     let oracle_pk = XOnlyPublicKey::from_str(
         "16f88cf7d21e6c0f46bcbc983a4e3b19726c6c98858cc31c83551a88fde171c0",
@@ -82,7 +79,7 @@ pub fn match_order(
                     trader_id: maker_order.trader_id,
                     filled_with: FilledWith {
                         order_id: maker_order.id,
-                        expiry_timestamp,
+                        expiry_timestamp: maker_order.position_expiry,
                         oracle_pk,
                         matches: vec![Match {
                             order_id: order.id,
@@ -115,7 +112,7 @@ pub fn match_order(
             trader_id: order.trader_id,
             filled_with: FilledWith {
                 order_id: order.id,
-                expiry_timestamp,
+                expiry_timestamp: order.position_expiry,
                 oracle_pk,
                 matches: taker_matches,
             },

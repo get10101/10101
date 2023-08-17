@@ -80,6 +80,9 @@ async fn main() -> Result<()> {
     let _running_node = node.start(event_handler)?;
 
     let node_pubkey = node.info.pubkey;
+
+    let position_expiry = opts.position_expiry.unwrap_or(orderbook_commons::default_position_expiry());
+
     tokio::spawn(async move {
         match trading::run(
             &opts.orderbook,

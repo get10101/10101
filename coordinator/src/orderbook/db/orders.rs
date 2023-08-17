@@ -64,6 +64,7 @@ struct Order {
     pub timestamp: OffsetDateTime,
     pub order_type: OrderType,
     pub expiry: OffsetDateTime,
+    pub position_expiry: OffsetDateTime,
 }
 
 impl From<Order> for OrderbookOrder {
@@ -79,6 +80,7 @@ impl From<Order> for OrderbookOrder {
             order_type: value.order_type.into(),
             timestamp: value.timestamp,
             expiry: value.expiry,
+            position_expiry: value.position_expiry,
         }
     }
 }
@@ -94,6 +96,7 @@ struct NewOrder {
     pub quantity: f32,
     pub order_type: OrderType,
     pub expiry: OffsetDateTime,
+    pub position_expiry: OffsetDateTime,
 }
 
 impl From<OrderbookNewOrder> for NewOrder {
@@ -114,7 +117,8 @@ impl From<OrderbookNewOrder> for NewOrder {
                 .to_f32()
                 .expect("To be able to convert decimal to f32"),
             order_type: value.order_type.into(),
-            expiry: value.expiry,
+            expiry: value.order_expiry,
+            position_expiry: value.position_expiry,
         }
     }
 }

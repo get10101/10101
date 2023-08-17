@@ -83,6 +83,6 @@ fn dummy_order(expiry: OffsetDateTime) -> NewOrder {
         direction: Direction::Long,
         quantity: dec!(100.0),
         order_type: OrderType::Market,
-        expiry,
+        order_expiry: expiry,
     }
 }

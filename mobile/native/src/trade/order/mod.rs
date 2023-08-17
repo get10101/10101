@@ -114,6 +114,7 @@ pub struct Order {
     pub state: OrderState,
     pub creation_timestamp: OffsetDateTime,
     pub order_expiry_timestamp: OffsetDateTime,
+    pub position_expiry_timestamp: OffsetDateTime,
 }
 
 impl Order {
@@ -158,7 +159,8 @@ impl From<Order> for orderbook_commons::NewOrder {
             trader_id,
             direction: order.direction,
             order_type: order.order_type.into(),
-            expiry: order.order_expiry_timestamp,
+            order_expiry: order.order_expiry_timestamp,
+            position_expiry: order.position_expiry_timestamp,
         }
     }
 }

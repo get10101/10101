@@ -125,6 +125,7 @@ pub(crate) struct Order {
     pub execution_price: Option<f32>,
     pub failure_reason: Option<FailureReason>,
     pub order_expiry_timestamp: i64,
+    pub position_expiry_timestamp: i64,
 }
 
 impl Order {
@@ -256,6 +257,7 @@ impl From<crate::trade::order::Order> for Order {
             execution_price,
             failure_reason,
             order_expiry_timestamp: value.order_expiry_timestamp.unix_timestamp(),
+            position_expiry_timestamp: value.position_expiry_timestamp.unix_timestamp(),
         }
     }
 }
@@ -278,6 +280,11 @@ impl TryFrom<Order> for crate::trade::order::Order {
                 value.order_expiry_timestamp,
             )
             .expect("unix timestamp to fit in itself"),
+
+            position_expiry_timestamp: OffsetDateTime::from_unix_timestamp(
+                value.position_expiry_timestamp,
+            )
+                .expect("unix timestamp to fit in itself"),
         };
 
         Ok(order)

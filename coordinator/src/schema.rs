@@ -65,6 +65,7 @@ diesel::table! {
         timestamp -> Timestamptz,
         order_type -> OrderTypeType,
         expiry -> Timestamptz,
+        position_expiry -> Timestamptz,
     }
 }
 

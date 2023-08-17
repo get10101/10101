@@ -5,8 +5,9 @@ use reqwest::Url;
 use std::env::current_dir;
 use std::net::SocketAddr;
 use std::path::PathBuf;
+use time::OffsetDateTime;
 
-#[derive(Parser)]
+#[derive(Debug, Parser)]
 pub struct Opts {
     /// The address to listen on for the Lightning and `rust-dlc` p2p API.
     #[clap(long, default_value = "0.0.0.0:19045")]
@@ -49,6 +50,10 @@ pub struct Opts {
     /// Orders created by maker will be valid for this number of seconds.
     #[clap(long, default_value = "60")]
     pub order_expiry_after_seconds: u64,
+
+    /// Sets a custom position expiry
+    #[clap(long)]
+    position_expiry: Option<String>,
 
     /// The oracle endpoint.
     #[clap(long, default_value = "http://localhost:8081")]

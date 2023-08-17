@@ -13,7 +13,6 @@ use dlc_manager::contract::Contract;
 use dlc_manager::contract::ContractDescriptor;
 use dlc_manager::ChannelId;
 use std::str::FromStr;
-use time::Duration;
 use time::OffsetDateTime;
 use trade::ContractSymbol;
 
@@ -21,6 +20,9 @@ use trade::ContractSymbol;
 struct Rollover {
     counterparty_pubkey: PublicKey,
     contract_descriptor: ContractDescriptor,
+    // Position expiry
+    #[allow(dead_code)]
+    // TODO: is this expiry of *previous* position, before rollover??
     expiry_timestamp: OffsetDateTime,
     margin_coordinator: u64,
     margin_trader: u64,
@@ -78,11 +80,9 @@ impl Rollover {
     }
 
     /// Calculates the maturity time based on the current expiry timestamp.
-    ///
-    /// todo(holzeis): this should come from a configuration https://github.com/get10101/10101/issues/1029
     pub fn maturity_time(&self) -> OffsetDateTime {
-        let tomorrow = self.expiry_timestamp.date() + Duration::days(2);
-        tomorrow.midnight().assume_utc()
+        // TODO: this should come from a configuration https://github.com/get10101/10101/issues/1029
+        orderbook_commons::default_position_expiry()
     }
 }
 

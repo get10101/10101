@@ -8,6 +8,7 @@ use serde::Serialize;
 use sha2::digest::FixedOutput;
 use sha2::Digest;
 use sha2::Sha256;
+use time::Duration;
 use time::OffsetDateTime;
 use trade::Direction;
 use uuid::Uuid;
@@ -23,6 +24,10 @@ pub use crate::price::Prices;
 /// The prefix used in the description field of an order-matching fee invoice to be paid by a taker.
 pub const FEE_INVOICE_DESCRIPTION_PREFIX_TAKER: &str = "taker-fee-";
 
+pub fn default_position_expiry() -> OffsetDateTime {
+    let tomorrow = OffsetDateTime::now_utc().date() + Duration::days(2);
+    tomorrow.midnight().assume_utc()
+}
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct Order {
     pub id: Uuid,
@@ -38,6 +43,9 @@ pub struct Order {
     pub timestamp: OffsetDateTime,
     #[serde(with = "time::serde::rfc3339")]
     pub expiry: OffsetDateTime,
+    // TODO: Shall we bother with Option<> here? I would just update the API in one swoop.
+    #[serde(with = "time::serde::rfc3339")]
+    pub position_expiry: OffsetDateTime,
 }
 
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
@@ -65,7 +73,8 @@ pub struct NewOrder {
     pub trader_id: PublicKey,
     pub direction: Direction,
     pub order_type: OrderType,
-    pub expiry: OffsetDateTime,
+    pub order_expiry: OffsetDateTime,
+    pub position_expiry: OffsetDateTime,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
@@ -146,7 +155,7 @@ pub struct FilledWith {
 
     /// The expiry timestamp of the contract-to-be
     ///
-    /// A timestamp that defines when the contract will expire.
+    /// A timestamp that defines when the contract will expire (ie. position expiry time).
     /// The orderbook defines the timestamp so that the systems using the trade params to set up
     /// the trade are aligned on one timestamp. The systems using the trade params should
     /// validate this timestamp against their trade settings. If the expiry timestamp is older

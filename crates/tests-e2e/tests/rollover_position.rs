@@ -23,8 +23,8 @@ async fn can_rollover_position() {
         .unwrap();
 
     let position = test.app.rx.position().expect("position to exist");
-    let tomorrow = position.expiry.date() + Duration::days(2);
-    let new_expiry = tomorrow.midnight().assume_utc();
+    
+    let new_expiry = orderbook_commons::default_position_expiry();
 
     coordinator
         .rollover(&dlc_channel.dlc_channel_id.unwrap())
