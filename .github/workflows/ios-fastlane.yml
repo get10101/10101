@@ -144,6 +144,9 @@ jobs:
           ORACLE_ENDPOINT: ${{ inputs.oracle_endpoint }}
           ORACLE_PUBKEY: ${{ inputs.oracle_pubkey }}
 
+      - name: Check for COCOAPODS bug
+        run: cat  mobile/ios/Pods/Target\ Support\ Files/Pods-Runner/Pods-Runner-frameworks.sh
+
       - name: Release to TestFlight
         env:
           # secrets
@@ -164,3 +167,6 @@ jobs:
           FASTLANE_APP_SCHEME: ${{ inputs.app_scheme }}
         run: |
           just publish-testflight-fastlane
+
+      - name: Check for COCOAPODS bug
+        run: cat  mobile/ios/Pods/Target\ Support\ Files/Pods-Runner/Pods-Runner-frameworks.sh
