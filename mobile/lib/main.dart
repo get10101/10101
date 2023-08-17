@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:f_logs/f_logs.dart';
+import 'package:feedback/feedback.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -60,6 +61,9 @@ import 'package:version/version.dart';
 
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
 final GlobalKey<NavigatorState> _shellNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'shell');
+
+final GlobalKey<NavigatorState> _feedbackNavigatorKey =
+    GlobalKey<NavigatorState>(debugLabel: 'feedback');
 
 void main() {
   WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
@@ -283,24 +287,25 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
   @override
   Widget build(BuildContext context) {
     MaterialColor swatch = tenTenOnePurple;
-
-    return MaterialApp.router(
-      title: "10101",
-      scaffoldMessengerKey: scaffoldMessengerKey,
-      theme: ThemeData(
-        primarySwatch: swatch,
-        iconTheme: IconThemeData(
-          color: tenTenOnePurple.shade800,
-          size: 32,
-        ),
-        extensions: <ThemeExtension<dynamic>>[
-          const TradeTheme(),
-          WalletTheme(colors: ColorScheme.fromSwatch(primarySwatch: swatch)),
-        ],
-      ),
-      routerConfig: _router,
-      debugShowCheckedModeBanner: false,
-    );
+    return BetterFeedback(
+        key: _feedbackNavigatorKey,
+        child: MaterialApp.router(
+          title: "10101",
+          scaffoldMessengerKey: scaffoldMessengerKey,
+          theme: ThemeData(
+            primarySwatch: swatch,
+            iconTheme: IconThemeData(
+              color: tenTenOnePurple.shade800,
+              size: 32,
+            ),
+            extensions: <ThemeExtension<dynamic>>[
+              const TradeTheme(),
+              WalletTheme(colors: ColorScheme.fromSwatch(primarySwatch: swatch)),
+            ],
+          ),
+          routerConfig: _router,
+          debugShowCheckedModeBanner: false,
+        ));
   }
 
   Future<void> init(bridge.Config config) async {
