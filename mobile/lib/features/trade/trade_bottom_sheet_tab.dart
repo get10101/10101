@@ -79,19 +79,15 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
 
     Amount minTradeMargin = channelInfoService.getMinTradeMargin();
     Amount tradeFeeReserve = channelInfoService.getTradeFeeReserve();
-    Amount maxChannelCapacity = lspMaxChannelCapacity ?? Amount(0);
+
+    Amount channelCapacity = lspMaxChannelCapacity;
+
     Amount initialReserve = channelInfoService.getInitialReserve();
-
-    Direction direction = widget.direction;
-
-    String label = direction == Direction.long ? "Buy" : "Sell";
-    Color color = direction == Direction.long ? tradeTheme.buy : tradeTheme.sell;
 
     Amount channelReserve = channelInfo?.reserve ?? initialReserve;
     int totalReserve = channelReserve.sats + tradeFeeReserve.sats;
 
     int usableBalance = max(walletInfo.balances.lightning.sats - totalReserve, 0);
-    Amount channelCapacity = channelInfo?.channelCapacity ?? maxChannelCapacity;
     // the assumed balance of the counterparty based on the channel and our balance
     // this is needed to make sure that the counterparty can fulfil the trade
     int counterpartyUsableBalance =
@@ -103,6 +99,11 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
         channelCapacity.sats - totalReserve - (provider.counterpartyMargin(widget.direction) ?? 0);
 
     int coordinatorLiquidityMultiplier = channelInfoService.getCoordinatorLiquidityMultiplier();
+
+
+    Direction direction = widget.direction;
+    String label = direction == Direction.long ? "Buy" : "Sell";
+    Color color = direction == Direction.long ? tradeTheme.buy : tradeTheme.sell;
 
     return Form(
       key: _formKey,
