@@ -31,11 +31,11 @@ class OrderChangeNotifier extends ChangeNotifier implements Subscriber {
       orders[order.id] = order;
 
       sortOrderByTimestampDesc();
+
+      notifyListeners();
     } else {
       FLog.warning(text: "Received unexpected event: ${event.toString()}");
     }
-
-    notifyListeners();
   }
 
   void sortOrderByTimestampDesc() {
