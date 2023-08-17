@@ -32,6 +32,7 @@ use axum::Json;
 use axum::Router;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::Network;
+use coordinator_commons::LspConfig;
 use coordinator_commons::RegisterParams;
 use coordinator_commons::TradeParams;
 use diesel::r2d2::ConnectionManager;
@@ -115,6 +116,7 @@ pub fn router(
         .route("/api/admin/balance", get(get_balance))
         .route("/api/admin/channels", get(list_channels).post(open_channel))
         .route("/api/channels", post(channel_faucet))
+        .route("/api/lsp/config", get(get_lsp_channel_config))
         .route("/api/admin/channels/:channel_id", delete(close_channel))
         .route("/api/admin/peers", get(list_peers))
         .route("/api/admin/send_payment/:invoice", post(send_payment))
@@ -311,6 +313,15 @@ pub async fn post_register(
         .map_err(|e| AppError::InternalServerError(format!("Could not insert user: {e:#}")))?;
 
     Ok(())
+}
+
+pub async fn get_lsp_channel_config(
+    State(state): State<Arc<AppState>>,
+) -> Result<Json<LspConfig>, AppError> {
+    let settings = state.settings.read().await;
+    Ok(Json(LspConfig {
+        max_channel_value_satoshi: settings.ln_dlc.max_app_channel_size_sats,
+    }))
 }
 
 /// Open a channel directly between the coordinator and the target

@@ -62,3 +62,10 @@ impl RegisterParams {
         self.email.is_some() || self.nostr.is_some()
     }
 }
+
+/// LSP channel details
+#[derive(Serialize, Deserialize)]
+pub struct LspConfig {
+    /// The maximum size a new channel may have
+    pub max_channel_value_satoshi: u64,
+}

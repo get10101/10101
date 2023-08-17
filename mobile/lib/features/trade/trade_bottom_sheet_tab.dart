@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
@@ -44,18 +45,23 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
 
   bool showCapacityInfo = false;
 
-  ChannelInfo? channelInfo;
-
   @override
   void initState() {
     provider = context.read<TradeValuesChangeNotifier>();
     channelInfoService = provider.channelInfoService;
-    initChannelInfo(channelInfoService);
     super.initState();
   }
 
-  Future<void> initChannelInfo(ChannelInfoService channelInfoService) async {
-    channelInfo = await channelInfoService.getChannelInfo();
+  Future<(ChannelInfo?, Amount)> _getChannelInfo(ChannelInfoService channelInfoService) async {
+    var channelInfo = await channelInfoService.getChannelInfo();
+
+    /// The max channel capacity as received by the LSP or if there is an existing channel
+    var lspMaxChannelCapacity = await channelInfoService.getMaxCapacity();
+
+    var completer = Completer<(ChannelInfo?, Amount)>();
+    completer.complete((channelInfo, lspMaxChannelCapacity));
+
+    return completer.future;
   }
 
   @override
@@ -73,32 +79,9 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
 
     WalletInfo walletInfo = context.watch<WalletChangeNotifier>().walletInfo;
 
-    Amount minTradeMargin = channelInfoService.getMinTradeMargin();
-    Amount tradeFeeReserve = channelInfoService.getTradeFeeReserve();
-    Amount maxChannelCapacity = channelInfoService.getMaxCapacity();
-    Amount initialReserve = channelInfoService.getInitialReserve();
-
     Direction direction = widget.direction;
-
     String label = direction == Direction.long ? "Buy" : "Sell";
     Color color = direction == Direction.long ? tradeTheme.buy : tradeTheme.sell;
-
-    Amount channelReserve = channelInfo?.reserve ?? initialReserve;
-    int totalReserve = channelReserve.sats + tradeFeeReserve.sats;
-
-    int usableBalance = max(walletInfo.balances.lightning.sats - totalReserve, 0);
-    Amount channelCapacity = channelInfo?.channelCapacity ?? maxChannelCapacity;
-    // the assumed balance of the counterparty based on the channel and our balance
-    // this is needed to make sure that the counterparty can fulfil the trade
-    int counterpartyUsableBalance =
-        max(channelCapacity.sats - (walletInfo.balances.lightning.sats + totalReserve), 0);
-    int maxMargin = usableBalance;
-
-    // the trading capacity does not take into account if the channel is balanced or not
-    int tradingCapacity =
-        channelCapacity.sats - totalReserve - (provider.counterpartyMargin(widget.direction) ?? 0);
-
-    int coordinatorLiquidityMultiplier = channelInfoService.getCoordinatorLiquidityMultiplier();
 
     return Form(
       key: _formKey,
@@ -107,194 +90,87 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
         crossAxisAlignment: CrossAxisAlignment.center,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Wrap(
-            runSpacing: 15,
-            children: [
-              Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: Row(
-                  children: [
-                    const Flexible(child: Text("Usable Balance:")),
-                    const SizedBox(width: 5),
-                    Flexible(child: AmountText(amount: Amount(usableBalance))),
-                    const SizedBox(
-                      width: 5,
-                    ),
-                    ModalBottomSheetInfo(
-                      closeButtonText: "Back to order...",
-                      infoButtonPadding: const EdgeInsets.symmetric(horizontal: 8.0),
-                      child: Text(
-                          "Your usable balance of $usableBalance sats takes a fixed reserve of $totalReserve sats into account. "
-                          "\n${channelReserve.sats} is the minimum amount that has to stay in the Lightning channel. "
-                          "\n${tradeFeeReserve.sats} is reserved for fees per trade that is needed for publishing on-chain transactions in a worst case scenario. This is needed for the self-custodial setup"
-                          "\n\nWe are working on optimizing the reserve and it might be subject to change after the beta."),
-                    )
-                  ],
+          FutureBuilder<(ChannelInfo?, Amount)>(
+            future:
+                _getChannelInfo(channelInfoService), // a previously-obtained Future<String> or null
+            builder: (BuildContext context, AsyncSnapshot<(ChannelInfo?, Amount)> snapshot) {
+              List<Widget> children;
+              if (snapshot.hasData) {
+                var (channelInfo, lspMaxChannelCapacity) = snapshot.data!;
+                Amount minTradeMargin = channelInfoService.getMinTradeMargin();
+                Amount tradeFeeReserve = channelInfoService.getTradeFeeReserve();
+
+                Amount channelCapacity = lspMaxChannelCapacity;
+
+                Amount initialReserve = channelInfoService.getInitialReserve();
+
+                Amount channelReserve = channelInfo?.reserve ?? initialReserve;
+                int totalReserve = channelReserve.sats + tradeFeeReserve.sats;
+
+                int usableBalance = max(walletInfo.balances.lightning.sats - totalReserve, 0);
+                // the assumed balance of the counterparty based on the channel and our balance
+                // this is needed to make sure that the counterparty can fulfil the trade
+                int counterpartyUsableBalance = max(
+                    channelCapacity.sats - (walletInfo.balances.lightning.sats + totalReserve), 0);
+                int maxMargin = usableBalance;
+
+                // the trading capacity does not take into account if the channel is balanced or not
+                int tradingCapacity = channelCapacity.sats -
+                    totalReserve -
+                    (provider.counterpartyMargin(widget.direction) ?? 0);
+
+                int coordinatorLiquidityMultiplier =
+                    channelInfoService.getCoordinatorLiquidityMultiplier();
+
+                children = <Widget>[
+                  buildChildren(
+                      usableBalance,
+                      totalReserve,
+                      channelReserve,
+                      tradeFeeReserve,
+                      direction,
+                      tradingCapacity,
+                      counterpartyUsableBalance,
+                      maxMargin,
+                      minTradeMargin,
+                      channelCapacity,
+                      coordinatorLiquidityMultiplier,
+                      context,
+                      channelInfoService),
+                ];
+              } else if (snapshot.hasError) {
+                children = <Widget>[
+                  const Icon(
+                    Icons.error_outline,
+                    color: Colors.red,
+                    size: 60,
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 16),
+                    child:
+                        Text('Error: Could not load confirmation screen due to ${snapshot.error}'),
+                  ),
+                ];
+              } else {
+                children = const <Widget>[
+                  SizedBox(
+                    width: 60,
+                    height: 60,
+                    child: CircularProgressIndicator(),
+                  ),
+                  Padding(
+                    padding: EdgeInsets.only(top: 16),
+                    child: Text('Loading confirmation screen...'),
+                  ),
+                ];
+              }
+              return Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: children,
                 ),
-              ),
-              Selector<TradeValuesChangeNotifier, double>(
-                  selector: (_, provider) => provider.fromDirection(direction).price ?? 0,
-                  builder: (context, price, child) {
-                    return DoubleTextInputFormField(
-                      value: price,
-                      controller: priceController,
-                      enabled: false,
-                      label: "Market Price",
-                    );
-                  }),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Flexible(
-                    child: Selector<TradeValuesChangeNotifier, double>(
-                      selector: (_, provider) => provider.fromDirection(direction).quantity ?? 0.0,
-                      builder: (context, quantity, child) {
-                        return DoubleTextInputFormField(
-                          value: quantity,
-                          hint: "e.g. 100 USD",
-                          label: "Quantity (USD)",
-                          controller: quantityController,
-                          onChanged: (value) {
-                            if (value.isEmpty) {
-                              return;
-                            }
-
-                            try {
-                              double quantity = double.parse(value);
-                              context
-                                  .read<TradeValuesChangeNotifier>()
-                                  .updateQuantity(direction, quantity);
-                            } on Exception {
-                              context
-                                  .read<TradeValuesChangeNotifier>()
-                                  .updateQuantity(direction, 0);
-                            }
-                          },
-                        );
-                      },
-                    ),
-                  ),
-                  const SizedBox(
-                    width: 10,
-                  ),
-                  Flexible(
-                    child: Selector<TradeValuesChangeNotifier, Amount>(
-                      selector: (_, provider) =>
-                          provider.fromDirection(direction).margin ?? Amount(0),
-                      builder: (context, margin, child) {
-                        return AmountInputField(
-                          value: margin,
-                          hint: "e.g. 2000 sats",
-                          label: "Margin (sats)",
-                          controller: marginController,
-                          onChanged: (value) {
-                            if (value.isEmpty) {
-                              return;
-                            }
-
-                            try {
-                              Amount margin = Amount.parse(value);
-                              context
-                                  .read<TradeValuesChangeNotifier>()
-                                  .updateMargin(direction, margin);
-                            } on Exception {
-                              context
-                                  .read<TradeValuesChangeNotifier>()
-                                  .updateMargin(direction, Amount.zero());
-                            }
-                          },
-                          validator: (value) {
-                            if (value == null) {
-                              return "Enter margin";
-                            }
-
-                            try {
-                              int margin = int.parse(value);
-
-                              int? optCounterPartyMargin = provider.counterpartyMargin(direction);
-                              if (optCounterPartyMargin == null) {
-                                return "Counterparty margin not available";
-                              }
-                              int counterpartyMargin = optCounterPartyMargin;
-
-                              // This condition has to stay as the first thing to check, so we reset showing the info
-                              if (margin > tradingCapacity ||
-                                  counterpartyMargin > counterpartyUsableBalance) {
-                                setState(() {
-                                  showCapacityInfo = true;
-                                });
-
-                                return "Insufficient capacity";
-                              } else if (showCapacityInfo) {
-                                setState(() {
-                                  showCapacityInfo = false;
-                                });
-                              }
-
-                              Amount fee = provider.orderMatchingFee(direction) ?? Amount.zero();
-                              if (usableBalance < margin + fee.sats) {
-                                return "Insufficient balance";
-                              }
-
-                              if (margin > maxMargin) {
-                                return "Max margin is $maxMargin";
-                              }
-                              if (margin < minTradeMargin.sats) {
-                                return "Min margin is ${minTradeMargin.sats}";
-                              }
-                            } on Exception {
-                              return "Enter a number";
-                            }
-
-                            return null;
-                          },
-                        );
-                      },
-                    ),
-                  ),
-                  if (showCapacityInfo)
-                    ModalBottomSheetInfo(
-                        closeButtonText: "Back to order...",
-                        child: Text(
-                            "Your channel capacity is limited to $channelCapacity sats. During the beta channel resize is not available yet"
-                            "In order to trade with higher margin you have to reduce your balance"
-                            "\n\nYour current usable balance is $usableBalance."
-                            "Please send ${usableBalance - (channelCapacity.sats / coordinatorLiquidityMultiplier)} sats out of your wallet to free up capacity."))
-                ],
-              ),
-              LeverageSlider(
-                  initialValue: context
-                      .read<TradeValuesChangeNotifier>()
-                      .fromDirection(direction)
-                      .leverage
-                      .leverage,
-                  onLeverageChanged: (value) {
-                    context
-                        .read<TradeValuesChangeNotifier>()
-                        .updateLeverage(direction, Leverage(value));
-                  }),
-              Row(
-                children: [
-                  const Flexible(child: Text("Liquidation Price:")),
-                  const SizedBox(width: 5),
-                  Selector<TradeValuesChangeNotifier, double>(
-                      selector: (_, provider) =>
-                          provider.fromDirection(direction).liquidationPrice ?? 0.0,
-                      builder: (context, liquidationPrice, child) {
-                        return Flexible(child: FiatText(amount: liquidationPrice));
-                      }),
-                  const SizedBox(width: 20),
-                  const Flexible(child: Text("Estimated fee:")),
-                  const SizedBox(width: 5),
-                  Selector<TradeValuesChangeNotifier, Amount>(
-                      selector: (_, provider) =>
-                          provider.orderMatchingFee(direction) ?? Amount.zero(),
-                      builder: (context, fee, child) {
-                        return Flexible(child: AmountText(amount: fee));
-                      }),
-                ],
-              )
-            ],
+              );
+            },
           ),
           Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -327,6 +203,204 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
           )
         ],
       ),
+    );
+  }
+
+  Wrap buildChildren(
+      int usableBalance,
+      int totalReserve,
+      Amount channelReserve,
+      Amount tradeFeeReserve,
+      Direction direction,
+      int tradingCapacity,
+      int counterpartyUsableBalance,
+      int maxMargin,
+      Amount minTradeMargin,
+      Amount channelCapacity,
+      int coordinatorLiquidityMultiplier,
+      BuildContext context,
+      ChannelInfoService channelInfoService) {
+    return Wrap(
+      runSpacing: 15,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: Row(
+            children: [
+              const Flexible(child: Text("Usable Balance:")),
+              const SizedBox(width: 5),
+              Flexible(child: AmountText(amount: Amount(usableBalance))),
+              const SizedBox(
+                width: 5,
+              ),
+              ModalBottomSheetInfo(
+                closeButtonText: "Back to order...",
+                infoButtonPadding: const EdgeInsets.symmetric(horizontal: 8.0),
+                child: Text(
+                    "Your usable balance of $usableBalance sats takes a fixed reserve of $totalReserve sats into account. "
+                    "\n${channelReserve.sats} is the minimum amount that has to stay in the Lightning channel. "
+                    "\n${tradeFeeReserve.sats} is reserved for fees per trade that is needed for publishing on-chain transactions in a worst case scenario. This is needed for the self-custodial setup"
+                    "\n\nWe are working on optimizing the reserve and it might be subject to change after the beta."),
+              )
+            ],
+          ),
+        ),
+        Selector<TradeValuesChangeNotifier, double>(
+            selector: (_, provider) => provider.fromDirection(direction).price ?? 0,
+            builder: (context, price, child) {
+              return DoubleTextInputFormField(
+                value: price,
+                controller: priceController,
+                enabled: false,
+                label: "Market Price",
+              );
+            }),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Flexible(
+              child: Selector<TradeValuesChangeNotifier, double>(
+                selector: (_, provider) => provider.fromDirection(direction).quantity ?? 0.0,
+                builder: (context, quantity, child) {
+                  return DoubleTextInputFormField(
+                    value: quantity,
+                    hint: "e.g. 100 USD",
+                    label: "Quantity (USD)",
+                    controller: quantityController,
+                    onChanged: (value) {
+                      if (value.isEmpty) {
+                        return;
+                      }
+
+                      try {
+                        double quantity = double.parse(value);
+                        context
+                            .read<TradeValuesChangeNotifier>()
+                            .updateQuantity(direction, quantity);
+                      } on Exception {
+                        context.read<TradeValuesChangeNotifier>().updateQuantity(direction, 0);
+                      }
+                    },
+                  );
+                },
+              ),
+            ),
+            const SizedBox(
+              width: 10,
+            ),
+            Flexible(
+              child: Selector<TradeValuesChangeNotifier, Amount>(
+                selector: (_, provider) => provider.fromDirection(direction).margin ?? Amount(0),
+                builder: (context, margin, child) {
+                  return AmountInputField(
+                    value: margin,
+                    hint: "e.g. 2000 sats",
+                    label: "Margin (sats)",
+                    controller: marginController,
+                    isLoading: false,
+                    onChanged: (value) {
+                      if (value.isEmpty) {
+                        return;
+                      }
+
+                      try {
+                        Amount margin = Amount.parse(value);
+                        context.read<TradeValuesChangeNotifier>().updateMargin(direction, margin);
+                      } on Exception {
+                        context
+                            .read<TradeValuesChangeNotifier>()
+                            .updateMargin(direction, Amount.zero());
+                      }
+                    },
+                    validator: (value) {
+                      if (value == null) {
+                        return "Enter margin";
+                      }
+
+                      try {
+                        int margin = int.parse(value);
+
+                        int? optCounterPartyMargin = provider.counterpartyMargin(direction);
+                        if (optCounterPartyMargin == null) {
+                          return "Counterparty margin not available";
+                        }
+                        int counterpartyMargin = optCounterPartyMargin;
+
+                        // This condition has to stay as the first thing to check, so we reset showing the info
+                        if (margin > tradingCapacity ||
+                            counterpartyMargin > counterpartyUsableBalance) {
+                          setState(() {
+                            showCapacityInfo = true;
+                          });
+
+                          return "Insufficient capacity";
+                        } else if (showCapacityInfo) {
+                          setState(() {
+                            showCapacityInfo = false;
+                          });
+                        }
+
+                        Amount fee = provider.orderMatchingFee(direction) ?? Amount.zero();
+                        if (usableBalance < margin + fee.sats) {
+                          return "Insufficient balance";
+                        }
+
+                        if (margin > maxMargin) {
+                          return "Max margin is $maxMargin";
+                        }
+                        if (margin < minTradeMargin.sats) {
+                          return "Min margin is ${minTradeMargin.sats}";
+                        }
+                      } on Exception {
+                        return "Enter a number";
+                      }
+
+                      return null;
+                    },
+                  );
+                },
+              ),
+            ),
+            if (showCapacityInfo)
+              ModalBottomSheetInfo(
+                  closeButtonText: "Back to order...",
+                  child: Text(
+                      "Your channel capacity is limited to $channelCapacity sats. During the beta channel resize is not available yet"
+                      "In order to trade with higher margin you have to reduce your balance"
+                      "\n\nYour current usable balance is $usableBalance."
+                      "Please send ${usableBalance - (channelCapacity.sats / coordinatorLiquidityMultiplier)} sats out of your wallet to free up capacity."))
+          ],
+        ),
+        LeverageSlider(
+            initialValue: context
+                .read<TradeValuesChangeNotifier>()
+                .fromDirection(direction)
+                .leverage
+                .leverage,
+            onLeverageChanged: (value) {
+              context.read<TradeValuesChangeNotifier>().updateLeverage(direction, Leverage(value));
+            }),
+        Row(
+          children: [
+            const Flexible(child: Text("Liquidation Price:")),
+            const SizedBox(width: 5),
+            Selector<TradeValuesChangeNotifier, double>(
+                selector: (_, provider) =>
+                    provider.fromDirection(direction).liquidationPrice ?? 0.0,
+                builder: (context, liquidationPrice, child) {
+                  return Flexible(child: FiatText(amount: liquidationPrice));
+                }),
+            const SizedBox(width: 20),
+            const Flexible(child: Text("Estimated fee:")),
+            const SizedBox(width: 5),
+            Selector<TradeValuesChangeNotifier, Amount>(
+                selector: (_, provider) => provider.orderMatchingFee(direction) ?? Amount.zero(),
+                builder: (context, fee, child) {
+                  return Flexible(child: AmountText(amount: fee));
+                }),
+          ],
+        )
+      ],
     );
   }
 }

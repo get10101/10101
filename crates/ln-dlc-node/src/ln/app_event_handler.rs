@@ -203,23 +203,8 @@ where
                     amount_msat,
                 )?;
             }
-            Event::HTLCIntercepted {
-                intercept_id,
-                requested_next_hop_scid,
-                payment_hash,
-                inbound_amount_msat,
-                expected_outbound_amount_msat,
-            } => {
-                common_handlers::handle_intercepted_htlc(
-                    &self.node,
-                    &self.pending_intercepted_htlcs,
-                    intercept_id,
-                    payment_hash,
-                    requested_next_hop_scid,
-                    inbound_amount_msat,
-                    expected_outbound_amount_msat,
-                )
-                .await?;
+            Event::HTLCIntercepted { .. } => {
+                unimplemented!("App should not intercept htlcs")
             }
         };
 

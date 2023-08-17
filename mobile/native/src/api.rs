@@ -257,8 +257,8 @@ pub fn coordinator_liquidity_multiplier() -> SyncReturn<u64> {
     SyncReturn(ln_dlc_node::LIQUIDITY_MULTIPLIER)
 }
 
-pub fn max_channel_value() -> SyncReturn<u64> {
-    SyncReturn(ln_dlc_node::JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT_MAX)
+pub fn max_channel_value() -> Result<u64> {
+    ln_dlc::max_channel_value().map(|amount| amount.to_sat())
 }
 
 pub fn contract_tx_fee_rate() -> SyncReturn<u64> {

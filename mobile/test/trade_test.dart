@@ -104,7 +104,9 @@ void main() {
       return null;
     });
 
-    when(channelConstraintsService.getMaxCapacity()).thenReturn(Amount(20000));
+    when(channelConstraintsService.getMaxCapacity()).thenAnswer((_) async {
+      return Amount(20000);
+    });
 
     when(channelConstraintsService.getMinTradeMargin()).thenReturn(Amount(1000));
 

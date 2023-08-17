@@ -39,6 +39,8 @@ use lightning_transaction_sync::EsploraSyncClient;
 use p2pd_oracle_client::P2PDOracleClient;
 use serde::Deserialize;
 use serde::Serialize;
+use serde_with::serde_as;
+use serde_with::DurationSeconds;
 use std::collections::HashMap;
 use std::fmt;
 use std::fmt::Display;
@@ -145,19 +147,26 @@ pub struct RunningNode {
     _handles: Vec<RemoteHandle<()>>,
 }
 
+#[serde_as]
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct LnDlcNodeSettings {
     /// How often we sync the LDK wallet
+    #[serde_as(as = "DurationSeconds")]
     pub off_chain_sync_interval: Duration,
     /// How often we sync the BDK wallet
+    #[serde_as(as = "DurationSeconds")]
     pub on_chain_sync_interval: Duration,
     /// How often we update the fee rate
+    #[serde_as(as = "DurationSeconds")]
     pub fee_rate_sync_interval: Duration,
     /// How often we run the [`DlcManager`]'s periodic check.
+    #[serde_as(as = "DurationSeconds")]
     pub dlc_manager_periodic_check_interval: Duration,
     /// How often we run the [`SubChannelManager`]'s periodic check.
+    #[serde_as(as = "DurationSeconds")]
     pub sub_channel_manager_periodic_check_interval: Duration,
     /// How often we sync the shadow states
+    #[serde_as(as = "DurationSeconds")]
     pub shadow_sync_interval: Duration,
 
     /// Amount (in millionths of a satoshi) charged per satoshi for payments forwarded outbound
@@ -173,6 +182,16 @@ pub struct LnDlcNodeSettings {
     /// Note: This constant and value was copied from ldk_node
     /// XXX: Requires restart of the node to take effect
     pub bdk_client_concurrency: u8,
+
+    /// When handling the [`Event::HTLCIntercepted`], we may need to
+    /// create a new channel with the recipient of the HTLC. If the
+    /// payment is small enough (< 1000 sats), opening the channel will
+    /// fail unless we provide more outbound liquidity.
+    ///
+    /// This value defines the maximum channel amount between the coordinator and a user that opens
+    /// a channel through an interceptable invoice. Channels that exceed this amount will be
+    /// rejected.
+    pub max_app_channel_size_sats: u64,
 }
 
 impl Default for LnDlcNodeSettings {
@@ -187,6 +206,8 @@ impl Default for LnDlcNodeSettings {
             shadow_sync_interval: Duration::from_secs(600),
             bdk_client_stop_gap: 20,
             bdk_client_concurrency: 4,
+            // 200_000 is an arbitrary number we are feeling comfortable with
+            max_app_channel_size_sats: 200_000,
         }
     }
 }

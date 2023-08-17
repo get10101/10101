@@ -22,6 +22,8 @@ use bdk::bitcoin::Txid;
 use bdk::bitcoin::XOnlyPublicKey;
 use bdk::BlockTime;
 use bdk::FeeRate;
+use bitcoin::Amount;
+use coordinator_commons::LspConfig;
 use coordinator_commons::TradeParams;
 use itertools::chain;
 use itertools::Itertools;
@@ -456,6 +458,49 @@ pub fn get_usable_channel_details() -> Result<Vec<ChannelDetails>> {
 pub fn get_fee_rate() -> Result<FeeRate> {
     let node = NODE.try_get().context("failed to get ln dlc node")?;
     Ok(node.inner.wallet().get_fee_rate(CONFIRMATION_TARGET))
+}
+
+/// Returns currently possible max channel value.
+///
+/// This is to be used when requesting a new channel from the LSP or when checking max tradable
+/// amount
+pub fn max_channel_value() -> Result<Amount> {
+    let node = NODE.try_get().context("failed to get ln dlc node")?;
+    if let Some(existing_channel) = node
+        .inner
+        .list_channels()
+        .first()
+        .map(|c| c.channel_value_satoshis)
+    {
+        Ok(Amount::from_sat(existing_channel))
+    } else {
+        let runtime = get_or_create_tokio_runtime()?;
+        runtime.block_on(async {
+            let client = reqwest_client();
+            let response = client
+                .get(format!(
+                    "http://{}/api/lsp/config",
+                    config::get_http_endpoint(),
+                ))
+                // timeout arbitrarily chosen
+                .timeout(Duration::from_secs(3))
+                .send()
+                .await?;
+
+            if !response.status().is_success() {
+                let text = response.text().await?;
+                bail!("Failed to fetch channel config from LSP: {text}")
+            }
+
+            let channel_config: LspConfig = response.json().await?;
+
+            tracing::info!(
+                channel_value_sats = channel_config.max_channel_value_satoshi,
+                "Received channel config from LSP"
+            );
+            Ok(Amount::from_sat(channel_config.max_channel_value_satoshi))
+        })
+    }
 }
 
 pub fn create_invoice(amount_sats: Option<u64>) -> Result<Invoice> {

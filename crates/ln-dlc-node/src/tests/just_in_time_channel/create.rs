@@ -1,5 +1,4 @@
 use crate::channel::ChannelState;
-use crate::config::JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT_MAX;
 use crate::config::LIQUIDITY_MULTIPLIER;
 use crate::fee_rate_estimator::EstimateFeeRate;
 use crate::node::InMemoryStore;
@@ -29,18 +28,19 @@ async fn open_jit_channel() {
     let (payer, _running_payer) = Node::start_test_app("payer").unwrap();
 
     let coordinator_storage = Arc::new(InMemoryStore::default());
+    let settings = LnDlcNodeSettings {
+        on_chain_sync_interval: Duration::from_secs(3),
+        shadow_sync_interval: Duration::from_secs(3),
+        ..LnDlcNodeSettings::default()
+    };
     let (coordinator, _running_coordinator) = {
         // setting the on chain sync interval to 5 seconds so that we don't have to wait for so long
         // before the costs for the funding transaction will be attached to the shadow channel.
-        let settings = LnDlcNodeSettings {
-            on_chain_sync_interval: Duration::from_secs(3),
-            shadow_sync_interval: Duration::from_secs(3),
-            ..LnDlcNodeSettings::default()
-        };
+
         Node::start_test_coordinator_internal(
             "coordinator",
             coordinator_storage.clone(),
-            settings,
+            settings.clone(),
             None,
         )
         .unwrap()
@@ -52,8 +52,7 @@ async fn open_jit_channel() {
 
     // Test test covers opening a channel with the maximum channel value that the coordinator allows
     // Dividing the maximum by the multiplier results in opening the maximum channel
-    let payer_to_payee_invoice_amount =
-        JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT_MAX / LIQUIDITY_MULTIPLIER;
+    let payer_to_payee_invoice_amount = settings.max_app_channel_size_sats / LIQUIDITY_MULTIPLIER;
 
     let expected_coordinator_payee_channel_value =
         setup_coordinator_payer_channel(payer_to_payee_invoice_amount, &coordinator, &payer).await;
