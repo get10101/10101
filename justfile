@@ -87,14 +87,13 @@ ios-release:
 run args="":
     #!/usr/bin/env bash
     cd mobile && flutter run {{args}} --dart-define="COMMIT=$(git rev-parse HEAD)" --dart-define="BRANCH=$(git rev-parse --abbrev-ref HEAD)" \
-    --dart-define="REGTEST_FAUCET=http://localhost:8080" --dart-define="HEALTH_CHECK_INTERVAL_SECONDS=2" \
+    --dart-define="REGTEST_FAUCET=http://localhost:8080" \
+    --dart-define="DEV_MODE=true"
 
 # Run against our public regtest server
 run-regtest args="":
     #!/usr/bin/env bash
     cd mobile && flutter run {{args}} --dart-define="COMMIT=$(git rev-parse HEAD)" --dart-define="BRANCH=$(git rev-parse --abbrev-ref HEAD)" \
-    --dart-define="ESPLORA_ENDPOINT={{public_regtest_esplora}}" --dart-define="COORDINATOR_P2P_ENDPOINT={{public_regtest_coordinator}}" \
-    --dart-define="COORDINATOR_PORT_HTTP={{public_coordinator_http_port}}"
 
 [unix]
 run-local-android args="":
@@ -102,6 +101,7 @@ run-local-android args="":
     LOCAL_IP=$({{get_local_ip}})
     echo "Android app will connect to $LOCAL_IP for 10101 services"
     cd mobile && flutter run {{args}} --dart-define="COMMIT=$(git rev-parse HEAD)" --dart-define="BRANCH=$(git rev-parse --abbrev-ref HEAD)" \
+    --dart-define="DEV_MODE=true" \
     --dart-define="ESPLORA_ENDPOINT=http://${LOCAL_IP}:3000" --dart-define="COORDINATOR_P2P_ENDPOINT=02dd6abec97f9a748bf76ad502b004ce05d1b2d1f43a9e76bd7d85e767ffb022c9@${LOCAL_IP}:9045" \
     --dart-define="REGTEST_FAUCET=http://${LOCAL_IP}:8080" --dart-define="COORDINATOR_PORT_HTTP=8000" --flavor local
 
@@ -335,12 +335,8 @@ build-ipa args="":
     fi
 
     cd mobile && flutter build ipa "${args[@]}" \
-           --dart-define="ESPLORA_ENDPOINT=${ESPLORA_ENDPOINT}" \
-           --dart-define="COORDINATOR_P2P_ENDPOINT=${COORDINATOR_P2P_ENDPOINT}" \
-           --dart-define="NETWORK=${NETWORK}" \
            --dart-define="COMMIT=$(git rev-parse HEAD)" \
            --dart-define="BRANCH=$(git rev-parse --abbrev-ref HEAD)" \
-           --dart-define="COORDINATOR_PORT_HTTP=${COORDINATOR_PORT_HTTP}" \
            --build-number=${BUILD_NUMBER} \
            {{args}}
 
@@ -364,8 +360,7 @@ build-apk-regtest:
     echo "build name: ${BUILD_NAME}"
     echo "build number: ${BUILD_NUMBER}"
     cd mobile && flutter build apk  --build-name=${BUILD_NAME} --build-number=${BUILD_NUMBER} --release --dart-define="COMMIT=$(git rev-parse HEAD)" --dart-define="BRANCH=$(git rev-parse --abbrev-ref HEAD)" \
-                                       --dart-define="ESPLORA_ENDPOINT={{public_regtest_esplora}}" --dart-define="COORDINATOR_P2P_ENDPOINT={{public_regtest_coordinator}}" \
-                                       --dart-define="COORDINATOR_PORT_HTTP={{public_coordinator_http_port}}" --flavor demo
+    --flavor demo
 
 release-apk-regtest: gen android-release build-apk-regtest
 

@@ -348,3 +348,13 @@ pub fn get_channel_open_fee_estimate_sat() -> Result<u64> {
 
     Ok(estimate.ceil() as u64)
 }
+
+/// Mainnet config for the app
+pub fn mainnet_config() -> SyncReturn<Config> {
+    SyncReturn(config::api::mainnet_config())
+}
+
+/// Regtest config for the app
+pub fn regtest_config() -> SyncReturn<Config> {
+    SyncReturn(config::api::regtest_config())
+}

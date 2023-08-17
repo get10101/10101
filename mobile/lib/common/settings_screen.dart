@@ -4,9 +4,10 @@ import 'dart:io';
 import 'package:f_logs/f_logs.dart';
 import 'package:feedback/feedback.dart';
 import 'package:flutter/material.dart';
+import 'package:get_10101/common/application/config_service.dart';
 import 'package:get_10101/common/feedback.dart';
+import 'package:get_10101/common/network_toggle_button.dart';
 import 'package:get_10101/common/scrollable_safe_area.dart';
-import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
@@ -48,10 +49,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final bridge.Config config = context.read<bridge.Config>();
-
-    String commit = const String.fromEnvironment('COMMIT', defaultValue: 'not available');
-    String branch = const String.fromEnvironment('BRANCH', defaultValue: 'not available');
+    final configService = context.watch<ConfigService>();
+    final config = configService.getConfig();
+    final devMode = configService.devMode;
 
     return Scaffold(
       appBar: AppBar(title: const Text("Settings")),
@@ -95,7 +95,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   child: Text('Network'),
                 ),
                 Center(
-                  child: SelectableText(config.network),
+                  child: SelectableText(config.network + (devMode ? " (dev)" : "")),
                 ),
               ],
             ),
@@ -116,7 +116,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   child: Text('Branch'),
                 ),
                 Center(
-                  child: SelectableText(branch),
+                  child: SelectableText(configService.branch),
                 ),
               ],
             ),
@@ -126,7 +126,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   child: Text('Commit'),
                 ),
                 Center(
-                  child: SelectableText(commit),
+                  child: SelectableText(configService.commit),
                 ),
               ],
             ),
@@ -175,7 +175,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               Share.shareXFiles([logFile], text: 'Logs from $now');
             },
             child: const Text("Share logs")),
-        const SizedBox(height: 20),
+        const SizedBox(height: 10),
         ElevatedButton(
           child: const Text('Provide feedback'),
           onPressed: () {
@@ -187,6 +187,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             }
           },
         ),
+        const SizedBox(height: 10),
+        const NetworkToggleButton(),
       ])),
     );
   }

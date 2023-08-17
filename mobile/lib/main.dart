@@ -5,6 +5,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter/material.dart';
+import 'package:get_10101/common/application/config_service.dart';
 import 'package:get_10101/firebase_options.dart';
 import 'dart:io';
 import 'package:http/http.dart' as http;
@@ -44,7 +45,6 @@ import 'package:get_10101/common/app_bar_wrapper.dart';
 import 'package:get_10101/features/wallet/wallet_theme.dart';
 import 'package:get_10101/features/welcome/welcome_screen.dart';
 import 'package:get_10101/util/constants.dart';
-import 'package:get_10101/util/environment.dart';
 import 'package:get_10101/util/preferences.dart';
 import 'package:go_router/go_router.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -85,7 +85,7 @@ void main() {
     ChangeNotifierProvider(
         create: (context) => CandlestickChangeNotifier(const CandlestickService())),
     ChangeNotifierProvider(create: (context) => ServiceStatusNotifier()),
-    Provider(create: (context) => Environment.parse()),
+    Provider(create: (context) => ConfigService()),
     Provider(create: (context) => channelInfoService)
   ], child: const TenTenOneApp()));
 }
@@ -234,12 +234,10 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
   @override
   void initState() {
     super.initState();
-
-    final config = context.read<bridge.Config>();
-
-    init(config);
+    init();
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final config = context.read<ConfigService>().getConfig();
       await initFirebase();
       await requestNotificationPermission();
       final flutterLocalNotificationsPlugin = initLocalNotifications();
@@ -308,11 +306,13 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
         ));
   }
 
-  Future<void> init(bridge.Config config) async {
+  Future<void> init() async {
+    final configService = context.read<ConfigService>();
     final orderChangeNotifier = context.read<OrderChangeNotifier>();
     final positionChangeNotifier = context.read<PositionChangeNotifier>();
     final candlestickChangeNotifier = context.read<CandlestickChangeNotifier>();
     final walletChangeNotifier = context.read<WalletChangeNotifier>();
+    final config = configService.getConfig();
 
     try {
       setupRustLogging();
@@ -326,7 +326,7 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
       await positionChangeNotifier.initialize();
       await candlestickChangeNotifier.initialize(config.network);
 
-      await logAppSettings(config);
+      await logAppSettings(configService);
 
       final lastLogin = await rust.api.updateLastLogin();
       FLog.debug(text: "Last login was at ${lastLogin.date}");
@@ -426,16 +426,11 @@ class ScaffoldWithNavBar extends StatelessWidget {
   }
 }
 
-Future<void> logAppSettings(bridge.Config config) async {
-  String commit = const String.fromEnvironment('COMMIT');
-  if (commit.isNotEmpty) {
-    FLog.info(text: "Built on commit: $commit");
-  }
+Future<void> logAppSettings(ConfigService configService) async {
+  FLog.info(text: "Built on commit: ${configService.commit}");
+  FLog.info(text: "Built on branch: ${configService.branch}");
 
-  String branch = const String.fromEnvironment('BRANCH');
-  if (branch.isNotEmpty) {
-    FLog.info(text: "Built on branch: $branch");
-  }
+  final config = configService.getConfig();
 
   PackageInfo packageInfo = await PackageInfo.fromPlatform();
   FLog.info(text: "Build number: ${packageInfo.buildNumber}");

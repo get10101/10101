@@ -3,13 +3,13 @@ import 'package:f_logs/f_logs.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get_10101/common/amount_text.dart';
+import 'package:get_10101/common/application/config_service.dart';
 import 'package:get_10101/common/modal_bottom_sheet_info.dart';
 import 'package:get_10101/common/snack_bar.dart';
 import 'package:get_10101/common/value_data_row.dart';
 import 'package:get_10101/features/wallet/create_invoice_screen.dart';
 import 'package:get_10101/features/wallet/domain/wallet_info.dart';
 import 'package:get_10101/features/wallet/wallet_change_notifier.dart';
-import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
 import 'package:get_10101/features/wallet/wallet_screen.dart';
 import 'package:http/http.dart' as http;
 import 'package:go_router/go_router.dart';
@@ -35,7 +35,7 @@ class _ShareInvoiceScreenState extends State<ShareInvoiceScreen> {
   @override
   Widget build(BuildContext context) {
     WalletInfo info = context.watch<WalletChangeNotifier>().walletInfo;
-    final bridge.Config config = context.read<bridge.Config>();
+    final config = context.read<ConfigService>().getConfig();
 
     FLog.debug(text: "Refresh receive screen: ${formatSats(info.balances.onChain)}");
 
