@@ -26,7 +26,6 @@ import 'package:get_10101/features/trade/position_change_notifier.dart';
 import 'package:get_10101/features/trade/status_screen.dart';
 import 'package:get_10101/features/trade/submit_order_change_notifier.dart';
 import 'package:get_10101/features/trade/trade_value_change_notifier.dart';
-import 'package:get_10101/features/trade/settings_screen.dart';
 import 'package:get_10101/features/trade/trade_theme.dart';
 import 'package:get_10101/features/wallet/application/wallet_service.dart';
 import 'package:get_10101/features/wallet/create_invoice_screen.dart';
@@ -36,7 +35,6 @@ import 'package:get_10101/features/wallet/send_payment_change_notifier.dart';
 import 'package:get_10101/features/wallet/share_invoice_screen.dart';
 import 'package:get_10101/features/wallet/scanner_screen.dart';
 import 'package:get_10101/features/wallet/send_screen.dart';
-import 'package:get_10101/features/wallet/settings_screen.dart';
 import 'package:get_10101/features/trade/trade_screen.dart';
 import 'package:get_10101/features/wallet/status_screen.dart';
 import 'package:get_10101/features/wallet/wallet_change_notifier.dart';
@@ -57,6 +55,8 @@ import 'package:get_10101/features/trade/domain/price.dart';
 import 'package:get_10101/features/wallet/domain/wallet_info.dart';
 import 'package:get_10101/ffi.dart' as rust;
 import 'package:version/version.dart';
+
+import 'common/settings_screen.dart';
 
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
 final GlobalKey<NavigatorState> _shellNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'shell');
@@ -173,10 +173,10 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
                   },
                 ),
                 GoRoute(
-                    path: WalletSettingsScreen.subRouteName,
+                    path: SettingsScreen.subRouteName,
                     parentNavigatorKey: _rootNavigatorKey,
                     builder: (BuildContext context, GoRouterState state) {
-                      return const WalletSettingsScreen();
+                      return const SettingsScreen();
                     }),
                 GoRoute(
                     path: WalletStatusScreen.subRouteName,
@@ -193,10 +193,10 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
               },
               routes: <RouteBase>[
                 GoRoute(
-                    path: TradeSettingsScreen.subRouteName,
+                    path: SettingsScreen.subRouteName,
                     parentNavigatorKey: _rootNavigatorKey,
                     builder: (BuildContext context, GoRouterState state) {
-                      return const TradeSettingsScreen();
+                      return const SettingsScreen();
                     }),
                 GoRoute(
                     path: TradeStatusScreen.subRouteName,
