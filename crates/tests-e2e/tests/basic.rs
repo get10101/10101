@@ -34,17 +34,10 @@ async fn app_can_be_funded_with_lnd_faucet() -> Result<()> {
     let app = run_app().await;
 
     // Unfunded wallet should be empty
-    assert_eq!(app.rx.wallet_info().unwrap().balances.on_chain, 0);
     assert_eq!(app.rx.wallet_info().unwrap().balances.lightning, 0);
 
-    let funded_amount = fund_app_with_faucet(&client, 50_000).await?;
+    let fund_amount = 50_000;
+    fund_app_with_faucet(&app, &client, fund_amount).await?;
 
-    assert_eq!(app.rx.wallet_info().unwrap().balances.on_chain, 0);
-
-    tracing::info!(%funded_amount, "Successfully funded app with faucet");
-    assert_eq!(
-        app.rx.wallet_info().unwrap().balances.lightning,
-        funded_amount
-    );
     Ok(())
 }

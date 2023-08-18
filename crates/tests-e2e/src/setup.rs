@@ -61,7 +61,8 @@ impl TestSetup {
             "App should start with empty wallet"
         );
 
-        let funded_amount = fund_app_with_faucet(&client, 50_000)
+        let fund_amount = 50_000;
+        fund_app_with_faucet(&app, &client, fund_amount)
             .await
             .expect("to be able to fund");
 
@@ -71,11 +72,7 @@ impl TestSetup {
             .expect("to have wallet info")
             .balances
             .lightning;
-        tracing::info!(%funded_amount, %ln_balance, "Successfully funded app with faucet");
-
-        if funded_amount != ln_balance {
-            tracing::warn!("Expected funded amount does not match ln balance!");
-        }
+        tracing::info!(%fund_amount, %ln_balance, "Successfully funded app with faucet");
 
         assert!(ln_balance > 0, "App wallet should be funded");
 

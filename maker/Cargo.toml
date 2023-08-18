@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 anyhow = { version = "1", features = ["backtrace"] }
 async-stream = "0.3"
+async-trait = "0.1"
 atty = "0.2.14"
 axum = { version = "0.6.7", features = ["ws"] }
 bdk = { version = "0.27.0", default-features = false, features = ["key-value-db", "use-esplora-blocking"] }

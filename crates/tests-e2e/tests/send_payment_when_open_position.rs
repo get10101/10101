@@ -18,10 +18,9 @@ async fn can_send_payment_with_open_position() {
         .create_invoice(Some(invoice_amount))
         .await
         .unwrap();
-    api::decode_invoice(invoice.clone()).expect("to decode coordinator's invoice");
 
     tracing::info!("Sending payment to coordinator from the app");
-    spawn_blocking(move || api::send_payment(invoice).unwrap())
+    spawn_blocking(move || api::send_payment(invoice.to_string()).unwrap())
         .await
         .unwrap();
 

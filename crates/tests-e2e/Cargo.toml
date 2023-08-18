@@ -12,6 +12,7 @@ coordinator = { path = "../../coordinator" }
 coordinator-commons = { path = "../coordinator-commons" }
 flutter_rust_bridge = "1.78.0"
 ln-dlc-node = { path = "../ln-dlc-node" }
+maker = { path = "../../maker" }
 native = { path = "../../mobile/native" }
 orderbook-commons = { path = "../orderbook-commons" }
 quote = "1.0.28"

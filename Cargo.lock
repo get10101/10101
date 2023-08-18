@@ -1876,6 +1876,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-stream",
+ "async-trait",
  "atty",
  "axum",
  "bdk",
@@ -3404,6 +3405,7 @@ dependencies = [
  "flutter_rust_bridge",
  "ln-dlc-node",
  "local-ip-address",
+ "maker",
  "native",
  "orderbook-commons",
  "quote",
