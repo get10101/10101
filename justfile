@@ -204,7 +204,7 @@ native-test:
 
 test: flutter-test native-test
 
-# Run expensive tests from the `ln-dlc-node` crate. 
+# Run expensive tests from the `ln-dlc-node` crate.
 ln-dlc-node-test args="": docker
     # wait a few seconds to ensure that Docker containers started
     sleep 2
@@ -240,6 +240,7 @@ run-maker-detached:
 
     echo "Starting (and building) maker"
     cargo run --bin maker &> {{maker_log_file}} &
+    just wait-for-maker-to-be-ready
     echo "Maker successfully started. You can inspect the logs at {{maker_log_file}}"
 
 # Attach to the current coordinator logs
@@ -255,7 +256,7 @@ maker-logs:
     less +F {{maker_log_file}}
 
 # Run services in the background
-services: docker run-coordinator-detached run-maker-detached wait-for-coordinator-to-be-ready fund
+services: docker run-coordinator-detached run-maker-detached fund
 
 # Run everything at once (docker, coordinator, native build)
 # Note: if you have mobile simulator running, it will start that one instead of native, but will *not* rebuild the mobile rust library.
@@ -323,6 +324,39 @@ wait-for-coordinator-to-be-ready:
       done
 
     echo "Max attempts reached. Coordinator is still not ready."
+    exit 1
+
+[private]
+wait-for-maker-to-be-ready:
+    #!/usr/bin/env bash
+    set +e
+
+    endpoint="http://localhost:18000/"
+    max_attempts=600
+    sleep_duration=1
+
+    check_endpoint() {
+      response=$(curl -s -o /dev/null -w "%{http_code}" "$endpoint")
+      if [ "$response" -eq 200 ]; then
+        echo "Maker is ready!"
+        exit 0
+        else
+        echo "Maker not ready yet. Retrying..."
+        return 1
+        fi
+        }
+
+    attempt=1
+    while [ "$attempt" -le "$max_attempts" ]; do
+      if check_endpoint; then
+        exit 0
+        fi
+
+      sleep "$sleep_duration"
+      attempt=$((attempt + 1))
+      done
+
+    echo "Max attempts reached. Maker is still not ready."
     exit 1
 
 build-ipa args="":
