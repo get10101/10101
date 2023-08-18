@@ -1,6 +1,7 @@
 use crate::db;
 use crate::trade::order;
 use crate::trade::position;
+use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
 use bdk::bitcoin::secp256k1::PublicKey;
@@ -21,9 +22,8 @@ use ln_dlc_node::channel::Channel;
 use ln_dlc_node::channel::FakeScid;
 use ln_dlc_node::node;
 use ln_dlc_node::node::dlc_message_name;
-use ln_dlc_node::node::rust_dlc_manager::contract::signed_contract::SignedContract;
 use ln_dlc_node::node::rust_dlc_manager::contract::Contract;
-use ln_dlc_node::node::rust_dlc_manager::Storage as _;
+use ln_dlc_node::node::rust_dlc_manager::Storage;
 use ln_dlc_node::node::sub_channel_message_name;
 use ln_dlc_node::node::NodeInfo;
 use ln_dlc_node::node::PaymentDetails;
@@ -203,26 +203,27 @@ impl Node {
             channel_id, ..
         })) = msg
         {
-            let contracts = self.inner.dlc_manager.get_store().get_contracts()?;
+            let storage = self.inner.dlc_manager.get_store();
+            let sub_channel = storage.get_sub_channel(channel_id)?.with_context(|| {
+                format!(
+                    "Could not find sub channel by channel id {}",
+                    channel_id.to_hex()
+                )
+            })?;
+            let dlc_channel_id = sub_channel
+                .get_dlc_channel_id(0)
+                .context("Could not fetch dlc channel id")?;
 
-            let accept_collateral = contracts
-                .iter()
-                // Taking the first `Confirmed` contract we find is just a
-                // heuristic. Ideally we would be able to match against the
-                // `ContractId` or the `ChannelId`, but the information is not
-                // guaranteed to be there
-                .find_map(|contract| match contract {
-                    Contract::Confirmed(SignedContract {
-                        accepted_contract, ..
-                    }) => Some(accepted_contract.accept_params.collateral),
-                    _ => None,
-                })
-                .with_context(|| {
-                    format!(
+            let accept_collateral =
+                match self.inner.get_contract_by_dlc_channel_id(dlc_channel_id)? {
+                    Contract::Confirmed(contract) => {
+                        contract.accepted_contract.accept_params.collateral
+                    }
+                    _ => bail!(
                         "Confirmed contract not found for channel ID: {}",
                         hex::encode(channel_id)
-                    )
-                })?;
+                    ),
+                };
 
             let filled_order = order::handler::order_filled()
                 .context("Cannot mark order as filled for confirmed DLC")?;

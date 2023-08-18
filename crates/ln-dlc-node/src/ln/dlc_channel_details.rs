@@ -9,6 +9,8 @@ use serde::Serializer;
 pub struct DlcChannelDetails {
     #[serde(serialize_with = "channel_id_as_hex")]
     pub channel_id: ChannelId,
+    #[serde(serialize_with = "optional_channel_id_as_hex")]
+    pub dlc_channel_id: Option<ChannelId>,
     #[serde(serialize_with = "pk_as_hex")]
     pub counter_party: PublicKey,
     pub update_idx: u64,
@@ -41,6 +43,7 @@ impl From<SubChannel> for DlcChannelDetails {
     fn from(sc: SubChannel) -> Self {
         DlcChannelDetails {
             channel_id: sc.channel_id,
+            dlc_channel_id: sc.get_dlc_channel_id(0),
             counter_party: sc.counter_party,
             update_idx: sc.update_idx,
             state: SubChannelState::from(sc.state),
@@ -70,6 +73,16 @@ impl From<dlc_manager::subchannel::SubChannelState> for SubChannelState {
             Confirmed(_) => SubChannelState::Confirmed,
             Rejected => SubChannelState::Rejected,
         }
+    }
+}
+
+fn optional_channel_id_as_hex<S>(channel_id: &Option<ChannelId>, s: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    match channel_id {
+        Some(channel_id) => s.serialize_str(&channel_id.to_hex()),
+        None => s.serialize_none(),
     }
 }
 
