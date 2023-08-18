@@ -65,9 +65,7 @@ pub mod channel_status;
 
 pub use channel_status::ChannelStatus;
 
-static NODE: Storage<Arc<Node>> = Storage::new();
-
-const PROCESS_INCOMING_DLC_MESSAGES_INTERVAL: Duration = Duration::from_secs(5);
+const PROCESS_INCOMING_DLC_MESSAGES_INTERVAL: Duration = Duration::from_millis(200);
 const UPDATE_WALLET_HISTORY_INTERVAL: Duration = Duration::from_secs(5);
 const CHECK_OPEN_ORDERS_INTERVAL: Duration = Duration::from_secs(60);
 
@@ -79,6 +77,8 @@ const CHECK_OPEN_ORDERS_INTERVAL: Duration = Duration::from_secs(60);
 /// coordinator will use for the channel opening transaction. Only once the transaction is know the
 /// exact fee will be know.
 pub const FUNDING_TX_WEIGHT_ESTIMATE: u64 = 220;
+
+static NODE: Storage<Arc<Node>> = Storage::new();
 
 pub async fn refresh_wallet_info() -> Result<()> {
     let node = NODE.get();
