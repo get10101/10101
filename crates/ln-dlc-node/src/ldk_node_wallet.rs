@@ -1,4 +1,5 @@
 use crate::fee_rate_estimator::EstimateFeeRate;
+use crate::node::Storage;
 use anyhow::bail;
 use anyhow::Context;
 use anyhow::Error;
@@ -40,6 +41,7 @@ where
     settings: RwLock<WalletSettings>,
     fee_rate_estimator: Arc<F>,
     locked_outpoints: Mutex<Vec<OutPoint>>,
+    node_storage: Arc<dyn Storage + Send + Sync + 'static>,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -53,7 +55,12 @@ where
     B: Blockchain,
     F: EstimateFeeRate,
 {
-    pub(crate) fn new(blockchain: B, wallet: bdk::Wallet<D>, fee_rate_estimator: Arc<F>) -> Self {
+    pub(crate) fn new(
+        blockchain: B,
+        wallet: bdk::Wallet<D>,
+        fee_rate_estimator: Arc<F>,
+        node_storage: Arc<dyn Storage + Send + Sync + 'static>,
+    ) -> Self {
         let inner = Mutex::new(wallet);
         let settings = RwLock::new(WalletSettings::default());
 
@@ -63,6 +70,7 @@ where
             settings,
             fee_rate_estimator,
             locked_outpoints: Mutex::new(vec![]),
+            node_storage,
         }
     }
 
@@ -226,9 +234,7 @@ where
             psbt.extract_tx()
         };
 
-        self.broadcast_transaction(&tx);
-
-        let txid = tx.txid();
+        let txid = self.broadcast_transaction(&tx)?;
 
         if let Some(amount_sats) = amount_msat_or_drain {
             tracing::info!(
@@ -270,6 +276,23 @@ where
         let transaction_details = wallet_lock.get_tx(txid, false)?;
         Ok(transaction_details)
     }
+
+    #[autometrics]
+    pub fn broadcast_transaction(&self, tx: &Transaction) -> Result<Txid> {
+        let txid = tx.txid();
+
+        tracing::info!(%txid, raw_tx = %serialize_hex(&tx), "Broadcasting transaction");
+
+        self.blockchain
+            .broadcast(tx)
+            .with_context(|| format!("Failed to broadcast transaction {txid}"))?;
+
+        self.node_storage
+            .upsert_transaction(tx.into())
+            .with_context(|| format!("Failed to store transaction {txid}"))?;
+
+        Ok(txid)
+    }
 }
 
 impl<D, B, F> BroadcasterInterface for Wallet<D, B, F>
@@ -279,18 +302,18 @@ where
     F: EstimateFeeRate,
 {
     fn broadcast_transaction(&self, tx: &Transaction) {
-        let txid = tx.txid();
-
-        tracing::info!(%txid, raw_tx = %serialize_hex(&tx), "Broadcasting transaction");
-
-        if let Err(err) = self.blockchain.broadcast(tx) {
-            tracing::error!("Failed to broadcast transaction: {err:#}");
+        if let Err(e) = self.broadcast_transaction(tx) {
+            tracing::error!(
+                txid = %tx.txid(),
+                "Error when broadcasting transaction: {e:#}"
+            );
         }
     }
 }
 
 #[cfg(test)]
 pub mod tests {
+    use super::*;
     use crate::fee_rate_estimator::EstimateFeeRate;
     use crate::ldk_node_wallet::Wallet;
     use anyhow::Result;
@@ -326,7 +349,12 @@ pub mod tests {
     async fn wallet_with_two_utxo_should_be_able_to_fund_twice_but_not_three_times() {
         let mut rng = thread_rng();
         let test_wallet = new_test_wallet(&mut rng, Amount::from_btc(1.0).unwrap(), 2).unwrap();
-        let wallet = Wallet::new(DummyEsplora, test_wallet, Arc::new(DummyFeeRateEstimator));
+        let wallet = Wallet::new(
+            DummyEsplora,
+            test_wallet,
+            Arc::new(DummyFeeRateEstimator),
+            Arc::new(DummyNodeStorage),
+        );
 
         let _ = wallet
             .create_funding_transaction(
@@ -394,7 +422,6 @@ pub mod tests {
         Ok(wallet)
     }
 
-    struct DummyEsplora;
     struct DummyFeeRateEstimator;
 
     impl EstimateFeeRate for DummyFeeRateEstimator {
@@ -402,6 +429,8 @@ pub mod tests {
             FeeRate::from_sat_per_vb(1.0)
         }
     }
+
+    struct DummyEsplora;
 
     impl WalletSync for DummyEsplora {
         fn wallet_setup<D: BatchDatabase>(
@@ -442,6 +471,99 @@ pub mod tests {
 
         fn estimate_fee(&self, _: usize) -> std::result::Result<FeeRate, Error> {
             unimplemented!()
+        }
+    }
+
+    struct DummyNodeStorage;
+
+    impl Storage for DummyNodeStorage {
+        fn insert_payment(
+            &self,
+            _payment_hash: lightning::ln::PaymentHash,
+            _info: crate::PaymentInfo,
+        ) -> Result<()> {
+            unimplemented!();
+        }
+
+        fn merge_payment(
+            &self,
+            _payment_hash: &lightning::ln::PaymentHash,
+            _flow: crate::PaymentFlow,
+            _amt_msat: crate::MillisatAmount,
+            _htlc_status: crate::HTLCStatus,
+            _preimage: Option<lightning::ln::PaymentPreimage>,
+            _secret: Option<lightning::ln::PaymentSecret>,
+        ) -> Result<()> {
+            unimplemented!();
+        }
+
+        fn get_payment(
+            &self,
+            _payment_hash: &lightning::ln::PaymentHash,
+        ) -> Result<Option<(lightning::ln::PaymentHash, crate::PaymentInfo)>> {
+            unimplemented!();
+        }
+
+        fn all_payments(&self) -> Result<Vec<(lightning::ln::PaymentHash, crate::PaymentInfo)>> {
+            unimplemented!();
+        }
+
+        fn insert_spendable_output(
+            &self,
+            _descriptor: lightning::chain::keysinterface::SpendableOutputDescriptor,
+        ) -> Result<()> {
+            unimplemented!();
+        }
+
+        fn get_spendable_output(
+            &self,
+            _outpoint: &lightning::chain::transaction::OutPoint,
+        ) -> Result<Option<lightning::chain::keysinterface::SpendableOutputDescriptor>> {
+            unimplemented!();
+        }
+
+        fn delete_spendable_output(
+            &self,
+            _outpoint: &lightning::chain::transaction::OutPoint,
+        ) -> Result<()> {
+            unimplemented!();
+        }
+
+        fn all_spendable_outputs(
+            &self,
+        ) -> Result<Vec<lightning::chain::keysinterface::SpendableOutputDescriptor>> {
+            unimplemented!();
+        }
+
+        fn upsert_channel(&self, _channel: crate::channel::Channel) -> Result<()> {
+            unimplemented!();
+        }
+
+        fn get_channel(&self, _user_channel_id: &str) -> Result<Option<crate::channel::Channel>> {
+            unimplemented!();
+        }
+
+        fn get_channel_by_fake_scid(
+            &self,
+            _fake_scid: crate::channel::FakeScid,
+        ) -> Result<Option<crate::channel::Channel>> {
+            unimplemented!();
+        }
+
+        fn all_non_pending_channels(&self) -> Result<Vec<crate::channel::Channel>> {
+            unimplemented!();
+        }
+
+        fn upsert_transaction(&self, _transaction: crate::transaction::Transaction) -> Result<()> {
+            unimplemented!();
+        }
+
+        fn get_transaction(&self, _txid: &str) -> Result<Option<crate::transaction::Transaction>> {
+            unimplemented!();
+        }
+
+        fn all_transactions_without_fees(&self) -> Result<Vec<crate::transaction::Transaction>> {
+            unimplemented!();
         }
     }
 }

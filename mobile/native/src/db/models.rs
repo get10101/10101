@@ -1103,24 +1103,22 @@ impl Transaction {
 impl From<ln_dlc_node::transaction::Transaction> for Transaction {
     fn from(value: ln_dlc_node::transaction::Transaction) -> Self {
         Transaction {
-            txid: value.txid.to_string(),
-            fee: value.fee as i64,
-            created_at: value.created_at.unix_timestamp(),
-            updated_at: value.updated_at.unix_timestamp(),
+            txid: value.txid().to_string(),
+            fee: value.fee() as i64,
+            created_at: value.created_at().unix_timestamp(),
+            updated_at: value.updated_at().unix_timestamp(),
         }
     }
 }
 
 impl From<Transaction> for ln_dlc_node::transaction::Transaction {
     fn from(value: Transaction) -> Self {
-        ln_dlc_node::transaction::Transaction {
-            txid: Txid::from_str(&value.txid).expect("valid txid"),
-            fee: value.fee as u64,
-            created_at: OffsetDateTime::from_unix_timestamp(value.created_at)
-                .expect("valid timestamp"),
-            updated_at: OffsetDateTime::from_unix_timestamp(value.updated_at)
-                .expect("valid timestamp"),
-        }
+        ln_dlc_node::transaction::Transaction::new(
+            Txid::from_str(&value.txid).expect("valid txid"),
+            value.fee as u64,
+            OffsetDateTime::from_unix_timestamp(value.created_at).expect("valid timestamp"),
+            OffsetDateTime::from_unix_timestamp(value.updated_at).expect("valid timestamp"),
+        )
     }
 }
 
@@ -1668,18 +1666,16 @@ pub mod test {
         let mut connection = SqliteConnection::establish(":memory:").unwrap();
         connection.run_pending_migrations(MIGRATIONS).unwrap();
 
-        let transaction = ln_dlc_node::transaction::Transaction {
-            txid: Txid::from_str(
-                "44fe3d70a3058eb1bef62e24379b4865ada8332f9ee30752cf606f37343461a0",
-            )
-            .unwrap(),
-            fee: 0,
+        let transaction = ln_dlc_node::transaction::Transaction::new(
+            Txid::from_str("44fe3d70a3058eb1bef62e24379b4865ada8332f9ee30752cf606f37343461a0")
+                .unwrap(),
+            0,
             // we need to set the time manually as the nano seconds are not stored in sql.
-            created_at: OffsetDateTime::now_utc().replace_time(Time::from_hms(0, 0, 0).unwrap()),
-            updated_at: OffsetDateTime::now_utc().replace_time(Time::from_hms(0, 0, 0).unwrap()),
-        };
+            OffsetDateTime::now_utc().replace_time(Time::from_hms(0, 0, 0).unwrap()),
+            OffsetDateTime::now_utc().replace_time(Time::from_hms(0, 0, 0).unwrap()),
+        );
 
-        Transaction::upsert(transaction.clone().into(), &mut connection).unwrap();
+        Transaction::upsert(transaction.into(), &mut connection).unwrap();
 
         // Verify that we can load the right transaction by the `txid`
         let loaded: ln_dlc_node::transaction::Transaction = Transaction::get(
@@ -1692,15 +1688,13 @@ pub mod test {
 
         assert_eq!(transaction, loaded);
 
-        let second_tx = ln_dlc_node::transaction::Transaction {
-            txid: Txid::from_str(
-                "44fe3d70a3058eb1bef62e24379b4865ada8332f9ee30752cf606f37343461a1",
-            )
-            .unwrap(),
-            fee: 1,
-            created_at: OffsetDateTime::now_utc(),
-            updated_at: OffsetDateTime::now_utc(),
-        };
+        let second_tx = ln_dlc_node::transaction::Transaction::new(
+            Txid::from_str("44fe3d70a3058eb1bef62e24379b4865ada8332f9ee30752cf606f37343461a1")
+                .unwrap(),
+            1,
+            OffsetDateTime::now_utc(),
+            OffsetDateTime::now_utc(),
+        );
         Transaction::upsert(second_tx.into(), &mut connection).unwrap();
         // Verify that we can load all transactions without fees
         let transactions = Transaction::get_all_without_fees(&mut connection).unwrap();

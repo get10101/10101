@@ -54,21 +54,21 @@ pub(crate) fn upsert(tx: Transaction, conn: &mut PgConnection) -> Result<()> {
 impl From<ln_dlc_node::transaction::Transaction> for Transaction {
     fn from(value: ln_dlc_node::transaction::Transaction) -> Self {
         Transaction {
-            txid: value.txid.to_string(),
-            fee: value.fee as i64,
-            created_at: value.created_at,
-            updated_at: value.updated_at,
+            txid: value.txid().to_string(),
+            fee: value.fee() as i64,
+            created_at: value.created_at(),
+            updated_at: value.updated_at(),
         }
     }
 }
 
 impl From<Transaction> for ln_dlc_node::transaction::Transaction {
     fn from(value: Transaction) -> Self {
-        ln_dlc_node::transaction::Transaction {
-            txid: Txid::from_str(&value.txid).expect("valid txid"),
-            fee: value.fee as u64,
-            created_at: value.created_at,
-            updated_at: value.updated_at,
-        }
+        ln_dlc_node::transaction::Transaction::new(
+            Txid::from_str(&value.txid).expect("valid txid"),
+            value.fee as u64,
+            value.created_at,
+            value.updated_at,
+        )
     }
 }

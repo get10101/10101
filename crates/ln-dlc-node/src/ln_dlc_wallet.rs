@@ -33,14 +33,12 @@ use parking_lot::RwLock;
 use rust_bitcoin_coin_selection::select_coins;
 use simple_wallet::WalletStorage;
 use std::sync::Arc;
-use time::OffsetDateTime;
 
 /// This is a wrapper type introduced to be able to implement traits from `rust-dlc` on the
 /// `ldk_node::LightningWallet`.
 pub struct LnDlcWallet {
     ln_wallet: Arc<ldk_node_wallet::Wallet<sled::Tree, EsploraBlockchain, FeeRateEstimator>>,
     storage: Arc<SledStorageProvider>,
-    node_storage: Arc<dyn Storage + Send + Sync + 'static>,
     secp: Secp256k1<All>,
     seed: Bip39Seed,
     network: Network,
@@ -74,6 +72,7 @@ impl LnDlcWallet {
             blockchain,
             on_chain_wallet,
             fee_rate_estimator,
+            node_storage,
         ));
 
         let last_unused_address = wallet
@@ -87,7 +86,6 @@ impl LnDlcWallet {
             seed,
             network,
             address_cache: RwLock::new(last_unused_address),
-            node_storage,
         }
     }
 
@@ -142,7 +140,9 @@ impl LnDlcWallet {
 
 impl Blockchain for LnDlcWallet {
     fn send_transaction(&self, transaction: &Transaction) -> Result<(), Error> {
-        self.ln_wallet.broadcast_transaction(transaction);
+        self.ln_wallet
+            .broadcast_transaction(transaction)
+            .map_err(|e| Error::WalletError(e.into()))?;
 
         Ok(())
     }
@@ -309,16 +309,11 @@ impl dlc_manager::Wallet for LnDlcWallet {
 impl BroadcasterInterface for LnDlcWallet {
     #[autometrics]
     fn broadcast_transaction(&self, tx: &Transaction) {
-        self.ln_wallet.broadcast_transaction(tx);
-        let transaction = crate::transaction::Transaction {
-            txid: tx.txid(),
-            fee: 0,
-            created_at: OffsetDateTime::now_utc(),
-            updated_at: OffsetDateTime::now_utc(),
-        };
-
-        if let Err(e) = self.node_storage.upsert_transaction(transaction) {
-            tracing::error!("Failed to create shadow transaction. Error: {e:#}");
+        if let Err(e) = self.ln_wallet.broadcast_transaction(tx) {
+            tracing::error!(
+                txid = %tx.txid(),
+                "Error when broadcasting transaction: {e:#}"
+            );
         }
     }
 }
