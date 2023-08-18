@@ -15,8 +15,6 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:get_10101/ffi.dart' as rust;
 
 class SettingsScreen extends StatefulWidget {
-  static const subRouteName = "settings";
-
   const SettingsScreen({super.key});
 
   @override

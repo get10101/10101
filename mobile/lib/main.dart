@@ -5,7 +5,6 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter/material.dart';
-import 'package:get_10101/common/status_screen.dart';
 import 'package:get_10101/firebase_options.dart';
 import 'package:get_10101/common/channel_status_notifier.dart';
 import 'dart:io';
@@ -56,7 +55,6 @@ import 'package:get_10101/features/trade/domain/price.dart';
 import 'package:get_10101/features/wallet/domain/wallet_info.dart';
 import 'package:get_10101/ffi.dart' as rust;
 import 'package:version/version.dart';
-import 'common/settings_screen.dart';
 
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
 final GlobalKey<NavigatorState> _shellNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'shell');
@@ -176,18 +174,6 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
                     return const ScannerScreen();
                   },
                 ),
-                GoRoute(
-                    path: SettingsScreen.subRouteName,
-                    parentNavigatorKey: _rootNavigatorKey,
-                    builder: (BuildContext context, GoRouterState state) {
-                      return const SettingsScreen();
-                    }),
-                GoRoute(
-                    path: StatusScreen.subRouteName,
-                    parentNavigatorKey: _rootNavigatorKey,
-                    builder: (BuildContext context, GoRouterState state) {
-                      return const StatusScreen();
-                    })
               ],
             ),
             GoRoute(
@@ -195,20 +181,7 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
               builder: (BuildContext context, GoRouterState state) {
                 return const TradeScreen();
               },
-              routes: <RouteBase>[
-                GoRoute(
-                    path: SettingsScreen.subRouteName,
-                    parentNavigatorKey: _rootNavigatorKey,
-                    builder: (BuildContext context, GoRouterState state) {
-                      return const SettingsScreen();
-                    }),
-                GoRoute(
-                    path: StatusScreen.subRouteName,
-                    parentNavigatorKey: _rootNavigatorKey,
-                    builder: (BuildContext context, GoRouterState state) {
-                      return const StatusScreen();
-                    })
-              ],
+              routes: const [],
             ),
           ],
         ),

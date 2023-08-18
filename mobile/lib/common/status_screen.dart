@@ -7,8 +7,6 @@ import 'package:get_10101/common/value_data_row.dart';
 import 'package:provider/provider.dart';
 
 class StatusScreen extends StatefulWidget {
-  static const subRouteName = "status";
-
   const StatusScreen({super.key});
 
   @override
