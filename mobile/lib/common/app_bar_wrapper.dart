@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:get_10101/common/channel_status_notifier.dart';
 import 'package:get_10101/common/color.dart';
 import 'package:get_10101/common/settings_screen.dart';
 import 'package:get_10101/features/trade/trade_screen.dart';
 import 'package:get_10101/features/wallet/wallet_screen.dart';
 import 'package:get_10101/features/wallet/status_screen.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 
 class AppBarWrapper extends StatelessWidget {
   const AppBarWrapper({
@@ -16,9 +18,13 @@ class AppBarWrapper extends StatelessWidget {
     final currentRoute = GoRouterState.of(context).location;
     const appBarHeight = 35.0;
 
+    ChannelStatusNotifier channelStatusNotifier = context.watch<ChannelStatusNotifier>();
+
     var actionButtons = [
       IconButton(
-        icon: const Icon(Icons.thermostat),
+        icon: channelStatusNotifier.isClosing()
+            ? const Icon(Icons.thermostat, color: Colors.red)
+            : const Icon(Icons.thermostat),
         tooltip: 'Status',
         onPressed: () {
           context.go(WalletStatusScreen.route);

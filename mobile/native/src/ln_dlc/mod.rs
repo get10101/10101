@@ -6,6 +6,7 @@ use crate::commons::reqwest_client;
 use crate::config;
 use crate::event;
 use crate::event::EventInternal;
+use crate::ln_dlc::channel_status::track_channel_status;
 use crate::ln_dlc::node::Node;
 use crate::ln_dlc::node::NodeStorage;
 use crate::trade::order;
@@ -60,7 +61,12 @@ use tokio::task::spawn_blocking;
 mod lightning_subscriber;
 mod node;
 
+pub mod channel_status;
+
+pub use channel_status::ChannelStatus;
+
 static NODE: Storage<Arc<Node>> = Storage::new();
+
 const PROCESS_INCOMING_MESSAGES_INTERVAL: Duration = Duration::from_secs(5);
 const UPDATE_WALLET_HISTORY_INTERVAL: Duration = Duration::from_secs(5);
 const CHECK_OPEN_ORDERS_INTERVAL: Duration = Duration::from_secs(60);
@@ -259,6 +265,8 @@ pub fn run(data_dir: String, seed_dir: String, runtime: &Runtime) -> Result<()> 
         event::subscribe(ChannelFeePaymentSubscriber::new(
             node.inner.channel_manager.clone(),
         ));
+
+        runtime.spawn(track_channel_status(node.clone()));
 
         NODE.set(node);
 

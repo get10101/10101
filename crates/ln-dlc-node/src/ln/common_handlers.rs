@@ -249,8 +249,16 @@ where
             }
         }
 
-        node.sub_channel_manager
-            .notify_ln_channel_closed(channel_id)?;
+        match node
+            .sub_channel_manager
+            .notify_ln_channel_closed(channel_id)
+        {
+            Ok(()) => {}
+            Err(dlc_manager::error::Error::InvalidParameters(msg)) => {
+                tracing::debug!("Irrelevant LDK closure notification: {msg}");
+            }
+            e @ Err(_) => e.context("Failed to notify subchannel manager about LDK closure")?,
+        };
 
         anyhow::Ok(())
     })?;

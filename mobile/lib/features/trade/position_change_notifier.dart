@@ -52,10 +52,10 @@ class PositionChangeNotifier extends ChangeNotifier implements Subscriber {
           }
         }
       }
+
+      notifyListeners();
     } else {
       FLog.warning(text: "Received unexpected event: ${event.toString()}");
     }
-
-    notifyListeners();
   }
 }

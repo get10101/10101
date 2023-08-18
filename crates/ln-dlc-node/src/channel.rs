@@ -21,8 +21,13 @@ use uuid::Uuid;
 /// reporting purposes.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Channel {
-    /// The `user_channel_id` is set by 10101 at the time the `Event::HTLCIntercepted` when
-    /// we are attempting to create a JIT channel.
+    /// Custom identifier for a channel which is generated outside of LDK.
+    ///
+    /// The coordinator sets it after receiving `Event::HTLCIntercepted` as a result of trying to
+    /// create a JIT channel.
+    ///
+    /// The app sets its own when calling `accept_inbound_channel_from_trusted_peer_0conf` when
+    /// accepting an inbound JIT channel from the coordinator.
     pub user_channel_id: UserChannelId,
     /// Until the `Event::ChannelReady` we do not have a `channel_id`, which is derived from
     /// the funding transaction. We use the `user_channel_id` as identifier over the entirety
@@ -45,13 +50,14 @@ pub struct Channel {
 
 impl Channel {
     pub fn new(
+        user_channel_id: UserChannelId,
         inbound: u64,
         outbound: u64,
         counterparty: PublicKey,
         intercept_id: Option<FakeScid>,
     ) -> Self {
         Channel {
-            user_channel_id: UserChannelId::new(),
+            user_channel_id,
             channel_state: ChannelState::Pending,
             inbound,
             outbound,
@@ -123,10 +129,18 @@ impl Channel {
         let mut channel = match channel {
             Some(channel) => channel,
             None => {
-                let user_channel_id =
-                    UserChannelId::from(channel_details.user_channel_id).to_string();
-                tracing::warn!(%user_channel_id, channel_id = %channel_details.channel_id.to_hex(), public = channel_details.is_public, outbound = channel_details.is_outbound, "Cannot open non-existent shadow channel. Creating a new one.");
+                let user_channel_id = UserChannelId::from(channel_details.user_channel_id);
+
+                tracing::info!(
+                    user_channel_id = %user_channel_id.to_string(),
+                    channel_id = %channel_details.channel_id.to_hex(),
+                    public = channel_details.is_public,
+                    outbound = channel_details.is_outbound,
+                    "Cannot open non-existent shadow channel. Creating a new one."
+                );
+
                 Channel::new(
+                    user_channel_id,
                     channel_details.inbound_capacity_msat,
                     0,
                     channel_details.counterparty.node_id,
@@ -153,6 +167,10 @@ impl Channel {
 #[derive(PartialEq, Debug, Clone)]
 pub enum ChannelState {
     /// Corresponds to a JIT channel which an app user has registered interest in opening.
+    ///
+    /// TODO: This enum is shared between all consumers, but this variant is only used by the
+    /// coordinator. This is problematic because all other consumers still have to handle this
+    /// unreachable variant.
     Announced,
     Pending,
     Open,

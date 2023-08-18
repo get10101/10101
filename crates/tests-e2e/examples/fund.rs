@@ -40,10 +40,6 @@ async fn main() {
 }
 
 async fn fund_everything(faucet: &str, coordinator: &str) -> Result<()> {
-    // let node_info = get_node_info(faucet).await?;
-    // dbg!(node_info);
-    // return Ok(());
-
     let coordinator = Coordinator::new(init_reqwest(), coordinator);
     let coord_addr = coordinator.get_new_address().await?;
     fund(&coord_addr, Amount::ONE_BTC, faucet).await?;

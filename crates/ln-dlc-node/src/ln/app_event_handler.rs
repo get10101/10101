@@ -1,6 +1,7 @@
 use super::common_handlers;
 use super::event_handler::EventSender;
 use super::event_handler::PendingInterceptedHtlcs;
+use crate::channel::UserChannelId;
 use crate::node::ChannelManager;
 use crate::node::Node;
 use crate::node::Storage;
@@ -226,11 +227,12 @@ pub(crate) fn handle_open_channel_request_0_conf(
         push_msat,
         "Accepting open channel request"
     );
+
     channel_manager
         .accept_inbound_channel_from_trusted_peer_0conf(
             &temporary_channel_id,
             &counterparty_node_id,
-            0,
+            UserChannelId::new().to_u128(),
         )
         .map_err(|e| anyhow!("{e:?}"))
         .context("To be able to accept a 0-conf channel")?;

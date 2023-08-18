@@ -23,10 +23,11 @@ class ServiceStatusNotifier extends ChangeNotifier implements Subscriber {
       FLog.debug(text: "Received event: ${event.toString()}");
       var update = event.field0;
       services[update.service] = update.status;
+
+      notifyListeners();
     } else {
       FLog.warning(text: "Received unexpected event: ${event.toString()}");
     }
-    notifyListeners();
   }
 }
 
