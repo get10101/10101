@@ -10,6 +10,7 @@ use bdk::blockchain::EsploraBlockchain;
 use bdk::sled;
 use bitcoin::secp256k1::SecretKey;
 use bitcoin::Address;
+use dlc_manager::Blockchain;
 use lightning::ln::PaymentHash;
 use std::fmt;
 use std::sync::Arc;
@@ -58,6 +59,12 @@ where
 
     pub fn get_unused_address(&self) -> Address {
         self.wallet.unused_address()
+    }
+
+    pub fn get_blockchain_height(&self) -> Result<u64> {
+        self.wallet
+            .get_blockchain_height()
+            .context("Failed to get blockchain height")
     }
 
     pub fn get_on_chain_balance(&self) -> Result<bdk::Balance> {

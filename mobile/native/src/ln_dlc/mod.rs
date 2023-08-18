@@ -290,6 +290,7 @@ fn keep_wallet_balance_and_history_up_to_date(node: &Node) -> Result<()> {
         .get_wallet_histories()
         .context("Failed to get wallet histories")?;
 
+    let blockchain_height = node.get_blockchain_height()?;
     let on_chain = on_chain.iter().map(|details| {
         let net_sats = details.received as i64 - details.sent as i64;
 
@@ -299,20 +300,30 @@ fn keep_wallet_balance_and_history_up_to_date(node: &Node) -> Result<()> {
             (api::PaymentFlow::Inbound, net_sats.unsigned_abs())
         };
 
-        let (status, timestamp) = match details.confirmation_time {
-            Some(BlockTime { timestamp, .. }) => (api::Status::Confirmed, timestamp),
+        let (status, timestamp, n_confirmations) = match details.confirmation_time {
+            Some(BlockTime { timestamp, height }) => (
+                api::Status::Confirmed,
+                timestamp,
+                // This is calculated manually to avoid wasteful requests to esplora,
+                // since we can just cache the blockchain height as opposed to fetching it for each
+                // block as with `LnDlcWallet::get_transaction_confirmations`
+                blockchain_height.checked_sub(height as u64).unwrap_or_default(),
+            ),
 
             None => {
                 (
                     api::Status::Pending,
                     // Unconfirmed transactions should appear towards the top of the history
                     OffsetDateTime::now_utc().unix_timestamp() as u64,
+                    0,
                 )
             }
         };
 
         let wallet_type = api::WalletType::OnChain {
             txid: details.txid.to_string(),
+            fee_sats: details.fee,
+            confirmations: n_confirmations,
         };
 
         api::WalletHistoryItem {

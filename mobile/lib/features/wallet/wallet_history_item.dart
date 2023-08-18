@@ -286,7 +286,16 @@ class OnChainPaymentHistoryItem extends WalletHistoryItem {
 
   @override
   List<Widget> getDetails() {
-    return [HistoryDetail(label: "Transaction ID", value: data.txid)];
+    final details = [
+      HistoryDetail(label: "Transaction ID", value: data.txid),
+      HistoryDetail(label: "Confirmations", value: data.confirmations.toString()),
+    ];
+
+    if (data.fee != null) {
+      details.add(HistoryDetail(label: "Fee", value: formatSats(data.fee!)));
+    }
+
+    return details;
   }
 
   @override

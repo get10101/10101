@@ -77,6 +77,8 @@ pub struct WalletHistoryItem {
 pub enum WalletType {
     OnChain {
         txid: String,
+        fee_sats: Option<u64>,
+        confirmations: u64,
     },
     Lightning {
         payment_hash: String,

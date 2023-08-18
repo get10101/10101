@@ -30,7 +30,14 @@ abstract class WalletHistoryItemData {
       rust.WalletType_OnChain type = item.walletType as rust.WalletType_OnChain;
 
       return OnChainPaymentData(
-          flow: flow, amount: amount, status: status, timestamp: timestamp, txid: type.txid);
+        flow: flow,
+        amount: amount,
+        status: status,
+        timestamp: timestamp,
+        txid: type.txid,
+        confirmations: type.confirmations,
+        fee: type.feeSats != null ? Amount(type.feeSats!) : null,
+      );
     }
 
     if (item.walletType is rust.WalletType_Trade) {
@@ -86,12 +93,16 @@ class LightningPaymentData extends WalletHistoryItemData {
 
 class OnChainPaymentData extends WalletHistoryItemData {
   final String txid;
+  final int confirmations;
+  final Amount? fee;
 
   OnChainPaymentData(
       {required super.flow,
       required super.amount,
       required super.status,
       required super.timestamp,
+      required this.confirmations,
+      required this.fee,
       required this.txid});
 
   @override

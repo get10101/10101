@@ -85,6 +85,10 @@ impl Node {
         self.inner.get_seed_phrase()
     }
 
+    pub fn get_blockchain_height(&self) -> Result<u64> {
+        self.inner.get_blockchain_height()
+    }
+
     pub fn get_wallet_balances(&self) -> Result<Balances> {
         let on_chain = self.inner.get_on_chain_balance()?.confirmed;
         let off_chain = self.inner.get_ldk_balance().available();
