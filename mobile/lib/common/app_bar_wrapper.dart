@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get_10101/common/color.dart';
-import 'package:get_10101/features/trade/settings_screen.dart';
+import 'package:get_10101/common/settings_screen.dart';
 import 'package:get_10101/features/trade/trade_screen.dart';
-import 'package:get_10101/features/wallet/settings_screen.dart';
 import 'package:get_10101/features/wallet/wallet_screen.dart';
 import 'package:get_10101/features/wallet/status_screen.dart';
 import 'package:go_router/go_router.dart';
@@ -35,7 +34,7 @@ class AppBarWrapper extends StatelessWidget {
           icon: const Icon(Icons.settings),
           tooltip: 'Settings',
           onPressed: () {
-            context.go(WalletSettingsScreen.route);
+            Navigator.of(context).push(_createRoute());
           },
         )
       ]);
@@ -47,7 +46,7 @@ class AppBarWrapper extends StatelessWidget {
           icon: const Icon(Icons.settings),
           tooltip: 'Settings',
           onPressed: () {
-            context.go(TradeSettingsScreen.route);
+            Navigator.of(context).push(_createRoute());
           },
         )
       ]);
@@ -70,4 +69,22 @@ class AppBarWrapper extends StatelessWidget {
           actions: actionButtons,
         ));
   }
+}
+
+Route _createRoute() {
+  return PageRouteBuilder(
+    pageBuilder: (context, animation, secondaryAnimation) => const SettingsScreen(),
+    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+      const begin = Offset(-1.0, 0.0);
+      const end = Offset.zero;
+      const curve = Curves.ease;
+
+      var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+
+      return SlideTransition(
+        position: animation.drive(tween),
+        child: child,
+      );
+    },
+  );
 }

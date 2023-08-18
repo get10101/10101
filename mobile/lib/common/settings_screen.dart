@@ -6,8 +6,6 @@ import 'package:feedback/feedback.dart';
 import 'package:flutter/material.dart';
 import 'package:get_10101/common/feedback.dart';
 import 'package:get_10101/common/scrollable_safe_area.dart';
-import 'package:get_10101/features/trade/settings_screen.dart';
-import 'package:get_10101/features/wallet/settings_screen.dart';
 import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
@@ -17,9 +15,9 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:get_10101/ffi.dart' as rust;
 
 class SettingsScreen extends StatefulWidget {
-  const SettingsScreen({required this.fromRoute, super.key});
+  static const subRouteName = "settings";
 
-  final String fromRoute;
+  const SettingsScreen({super.key});
 
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
@@ -59,13 +57,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
       appBar: AppBar(title: const Text("Settings")),
       body: ScrollableSafeArea(
           child: Column(children: [
-        Text(
-          "Wallet Settings",
-          style: TextStyle(
-              fontWeight: widget.fromRoute == WalletSettingsScreen.route
-                  ? FontWeight.bold
-                  : FontWeight.normal),
-        ),
         Visibility(
           visible: config.network == "regtest",
           child: Column(
@@ -83,12 +74,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ],
           ),
         ),
-        const Divider(),
-        Text("Trade Settings",
-            style: TextStyle(
-                fontWeight: widget.fromRoute == TradeSettingsScreen.route
-                    ? FontWeight.bold
-                    : FontWeight.normal)),
         const Divider(),
         const Text("App Info"),
         Table(
