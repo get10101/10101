@@ -155,6 +155,7 @@ impl ToSql<Text, Sqlite> for PositionState {
         let text = match *self {
             PositionState::Open => "Open",
             PositionState::Closing => "Closing",
+            PositionState::Rollover => "Rollover",
         };
         out.set_value(text);
         Ok(IsNull::No)
@@ -168,6 +169,7 @@ impl FromSql<Text, Sqlite> for PositionState {
         return match string.as_str() {
             "Open" => Ok(PositionState::Open),
             "Closing" => Ok(PositionState::Closing),
+            "Rollover" => Ok(PositionState::Rollover),
             _ => Err("Unrecognized enum variant".into()),
         };
     }

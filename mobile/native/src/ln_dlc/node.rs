@@ -1,13 +1,16 @@
 use crate::db;
 use crate::trade::order;
 use crate::trade::position;
+use crate::trade::position::PositionState;
 use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
 use bdk::bitcoin::secp256k1::PublicKey;
 use bdk::TransactionDetails;
+use bitcoin::hashes::hex::ToHex;
 use dlc_messages::sub_channel::SubChannelCloseFinalize;
 use dlc_messages::sub_channel::SubChannelRevoke;
+use dlc_messages::ChannelMessage;
 use dlc_messages::Message;
 use dlc_messages::SubChannelMessage;
 use lightning::chain::keysinterface::DelayedPaymentOutputDescriptor;
@@ -135,7 +138,7 @@ impl Node {
             "Processing message"
         );
 
-        let resp = match msg {
+        let resp = match &msg {
             Message::OnChain(_) | Message::Channel(_) => self
                 .inner
                 .dlc_manager
@@ -196,6 +199,37 @@ impl Node {
                 resp
             }
         };
+
+        // todo(holzeis): It would be nice if dlc messages are also propagated via events, so the
+        // receiver can decide what events to process and we can skip this component specific logic
+        // here.
+        if let Message::Channel(channel_message) = &msg {
+            match channel_message {
+                ChannelMessage::RenewOffer(r) => {
+                    tracing::info!("Automatically accepting a rollover position");
+                    let (accept_renew_offer, counterparty_pubkey) =
+                        self.inner.dlc_manager.accept_renew_offer(&r.channel_id)?;
+
+                    self.send_dlc_message(
+                        counterparty_pubkey,
+                        Message::Channel(ChannelMessage::RenewAccept(accept_renew_offer)),
+                    )?;
+
+                    let expiry_timestamp = OffsetDateTime::from_unix_timestamp(
+                        r.contract_info.get_closest_maturity_date() as i64,
+                    )?;
+                    position::handler::rollover_position(expiry_timestamp)?;
+                }
+                ChannelMessage::RenewRevoke(_) => {
+                    tracing::info!("Finished rollover position");
+                    // After handling the `RenewRevoke` message, we need to do some post-processing
+                    // based on the fact that the DLC channel has been updated.
+                    position::handler::set_position_state(PositionState::Open)?;
+                }
+                // ignoring all other channel events.
+                _ => (),
+            }
+        }
 
         // After handling the `Revoke` message, we need to do some post-processing based on the fact
         // that the DLC channel has been established

@@ -139,6 +139,11 @@ impl Coordinator {
             .await
     }
 
+    pub async fn rollover(&self, dlc_channel_id: &str) -> Result<reqwest::Response> {
+        self.post(format!("/api/rollover/{dlc_channel_id}").as_str())
+            .await
+    }
+
     async fn get(&self, path: &str) -> Result<reqwest::Response> {
         self.client
             .get(format!("{0}{path}", self.host))

@@ -38,6 +38,7 @@ pub enum PositionState {
     Closed {
         pnl: i64,
     },
+    Rollover,
 }
 
 /// A trader's position

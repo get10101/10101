@@ -10,6 +10,7 @@ use crate::trade::order::OrderState;
 use crate::trade::order::OrderType;
 use crate::trade::position::Position;
 use crate::trade::position::PositionState;
+use anyhow::bail;
 use anyhow::ensure;
 use anyhow::Context;
 use anyhow::Result;
@@ -88,16 +89,28 @@ pub fn get_position_matching_order(order: &Order) -> Result<Option<Position>> {
     })
 }
 
-/// Resets the position to open again
-///
-/// This should be called if a went in a dirty state, e.g. the position is currently in
-/// `PositionState::Closing` but we didn't find a match.
-pub fn set_position_to_open() -> Result<()> {
+/// Sets the position to the given state
+pub fn set_position_state(state: PositionState) -> Result<()> {
     if let Some(position) = db::get_positions()?.first() {
-        db::update_position_state(position.contract_symbol, PositionState::Open)?;
+        db::update_position_state(position.contract_symbol, state)?;
         let mut position = position.clone();
-        position.position_state = PositionState::Open;
+        position.position_state = state;
         event::publish(&EventInternal::PositionUpdateNotification(position));
+    }
+
+    Ok(())
+}
+
+pub fn rollover_position(expiry_timestamp: OffsetDateTime) -> Result<()> {
+    if let Some(position) = db::get_positions()?.first() {
+        tracing::debug!("Setting position to rollover");
+        db::rollover_position(position.contract_symbol, expiry_timestamp)?;
+        let mut position = position.clone();
+        position.position_state = PositionState::Rollover;
+        position.expiry = expiry_timestamp;
+        event::publish(&EventInternal::PositionUpdateNotification(position));
+    } else {
+        bail!("Cannot rollover non-existing position");
     }
 
     Ok(())

@@ -246,6 +246,17 @@ pub fn update_position_state(
     Ok(())
 }
 
+pub fn rollover_position(
+    contract_symbol: ::trade::ContractSymbol,
+    expiry_timestamp: OffsetDateTime,
+) -> Result<()> {
+    let mut db = connection()?;
+    Position::rollover(&mut db, contract_symbol.into(), expiry_timestamp)
+        .context("Failed to rollover position")?;
+
+    Ok(())
+}
+
 pub fn insert_payment(
     payment_hash: lightning::ln::PaymentHash,
     info: ln_dlc_node::PaymentInfo,

@@ -62,6 +62,37 @@ where
         .await?
     }
 
+    /// Updates the dlc channel with the given contract input and triggers the `RenewOffer` dlc
+    /// message.
+    ///
+    /// Note, this is only initiating the protocol and is only finished once the finalize messages
+    /// are exchanged.
+    pub async fn propose_dlc_channel_update(
+        &self,
+        dlc_channel_id: &[u8; 32],
+        payout_amount: u64,
+        contract_input: ContractInput,
+    ) -> Result<()> {
+        tracing::info!(channel_id = %hex::encode(dlc_channel_id), "Proposing a DLC channel update");
+        spawn_blocking({
+            let dlc_manager = self.dlc_manager.clone();
+            let dlc_message_handler = self.dlc_message_handler.clone();
+            let dlc_channel_id = *dlc_channel_id;
+            move || {
+                let (renew_offer, counterparty_pubkey) =
+                    dlc_manager.renew_offer(&dlc_channel_id, payout_amount, &contract_input)?;
+
+                dlc_message_handler.send_message(
+                    counterparty_pubkey,
+                    Message::Channel(ChannelMessage::RenewOffer(renew_offer)),
+                );
+                Ok(())
+            }
+        })
+        .await
+        .map_err(|e| anyhow!("{e:#}"))?
+    }
+
     #[autometrics]
     pub fn accept_dlc_channel_offer(&self, channel_id: &[u8; 32]) -> Result<()> {
         let channel_id_hex = hex::encode(channel_id);
@@ -281,6 +312,35 @@ where
         Ok(dlc_channel.cloned())
     }
 
+    /// Fetches the contract for a given dlc channel id
+    #[autometrics]
+    pub fn get_contract_by_dlc_channel_id(&self, dlc_channel_id: ChannelId) -> Result<Contract> {
+        let dlc_channel = self
+            .dlc_manager
+            .get_store()
+            .get_channel(&dlc_channel_id)?
+            .with_context(|| {
+                format!(
+                    "Could not find dlc channel by channel id: {}",
+                    dlc_channel_id.to_hex()
+                )
+            })?;
+
+        let contract_id = dlc_channel
+            .get_contract_id()
+            .context("Could not find contract id")?;
+
+        self.dlc_manager
+            .get_store()
+            .get_contract(&contract_id)?
+            .with_context(|| {
+                format!(
+                    "Couldn't find dlc channel with id: {}",
+                    dlc_channel_id.to_hex()
+                )
+            })
+    }
+
     #[cfg(test)]
     #[autometrics]
     pub fn process_incoming_messages(&self) -> Result<()> {
@@ -288,6 +348,7 @@ where
         let dlc_manager = &self.dlc_manager;
         let sub_channel_manager = &self.sub_channel_manager;
         let messages = dlc_message_handler.get_and_clear_received_messages();
+        tracing::debug!("Received and cleared {} messages", messages.len());
 
         for (node_id, msg) in messages {
             match msg {

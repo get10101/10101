@@ -28,6 +28,7 @@ use dlc_manager::payout_curve::RoundingInterval;
 use dlc_manager::payout_curve::RoundingIntervals;
 use dlc_manager::ChannelId;
 use dlc_manager::ContractId;
+use dlc_messages::ChannelMessage;
 use dlc_messages::Message;
 use lightning::ln::channelmanager::ChannelDetails;
 use lightning::ln::PaymentHash;
@@ -409,7 +410,7 @@ impl Node {
             "Processing message"
         );
 
-        let resp = match msg {
+        let resp = match &msg {
             Message::OnChain(_) | Message::Channel(_) => self
                 .inner
                 .dlc_manager
@@ -423,15 +424,22 @@ impl Node {
             Message::SubChannel(msg) => self
                 .inner
                 .sub_channel_manager
-                .on_sub_channel_message(&msg, &node_id)
+                .on_sub_channel_message(msg, &node_id)
                 .with_context(|| {
                     format!(
                         "Failed to handle {} message from {node_id}",
-                        sub_channel_message_name(&msg)
+                        sub_channel_message_name(msg)
                     )
                 })?
                 .map(Message::SubChannel),
         };
+
+        // todo(holzeis): It would be nice if dlc messages are also propagated via events, so the
+        // receiver can decide what events to process and we can skip this component specific logic
+        // here.
+        if let Message::Channel(ChannelMessage::RenewFinalize(r)) = msg {
+            self.finalize_rollover(r.channel_id)?;
+        }
 
         if let Some(msg) = resp {
             tracing::info!(
