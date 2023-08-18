@@ -12,7 +12,6 @@ import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:package_info_plus/package_info_plus.dart';
 import 'package:get_10101/ffi.dart' as rust;
 
 class SettingsScreen extends StatefulWidget {
@@ -25,26 +24,13 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  String _buildNumber = '';
-  String _version = '';
   String _nodeId = "";
 
   @override
   void initState() {
     var nodeId = rust.api.getNodeId();
     _nodeId = nodeId;
-    loadValues();
     super.initState();
-  }
-
-  Future<void> loadValues() async {
-    var value = await PackageInfo.fromPlatform();
-
-    FLog.info(text: "All values $value");
-    setState(() {
-      _buildNumber = value.buildNumber;
-      _version = value.version;
-    });
   }
 
   @override
@@ -136,7 +122,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   child: Text('Build Number'),
                 ),
                 Center(
-                  child: SelectableText(_buildNumber),
+                  child: SelectableText(configService.buildNumber),
                 ),
               ],
             ),
@@ -146,7 +132,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   child: Text('Build Version'),
                 ),
                 Center(
-                  child: SelectableText(_version),
+                  child: SelectableText(configService.version),
                 ),
               ],
             ),

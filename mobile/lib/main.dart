@@ -47,7 +47,6 @@ import 'package:get_10101/features/welcome/welcome_screen.dart';
 import 'package:get_10101/util/constants.dart';
 import 'package:get_10101/util/preferences.dart';
 import 'package:go_router/go_router.dart';
-import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:get_10101/common/amount_denomination_change_notifier.dart';
@@ -237,13 +236,12 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
     init();
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      final config = context.read<ConfigService>().getConfig();
+      final configService = context.read<ConfigService>();
+      final config = configService.getConfig();
       await initFirebase();
       await requestNotificationPermission();
       final flutterLocalNotificationsPlugin = initLocalNotifications();
       await configureFirebase(flutterLocalNotificationsPlugin);
-
-      PackageInfo packageInfo = await PackageInfo.fromPlatform();
 
       final messenger = scaffoldMessengerKey.currentState!;
 
@@ -252,7 +250,7 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
           Uri.parse('http://${config.host}:${config.httpPort}/api/version'),
         );
 
-        final clientVersion = Version.parse(packageInfo.version);
+        final clientVersion = Version.parse(configService.version);
         final coordinatorVersion = Version.parse(jsonDecode(response.body));
         FLog.info(text: "Coordinator version: ${coordinatorVersion.toString()}");
 
@@ -432,9 +430,8 @@ Future<void> logAppSettings(ConfigService configService) async {
 
   final config = configService.getConfig();
 
-  PackageInfo packageInfo = await PackageInfo.fromPlatform();
-  FLog.info(text: "Build number: ${packageInfo.buildNumber}");
-  FLog.info(text: "Build version: ${packageInfo.version}");
+  FLog.info(text: "Build number: ${configService.buildNumber}");
+  FLog.info(text: "Build version: ${configService.version}");
 
   FLog.info(text: "Network: ${config.network}");
   FLog.info(text: "Esplora endpoint: ${config.esploraEndpoint}");

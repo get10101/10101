@@ -2,6 +2,7 @@ import 'package:f_logs/model/flog/flog.dart';
 import 'package:get_10101/ffi.dart' as rust;
 import 'package:get_10101/util/environment.dart';
 import 'package:get_10101/util/preferences.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 class ConfigService {
   rust.Config _config = Environment.parse();
@@ -17,6 +18,11 @@ class ConfigService {
   ConfigService() {
     determineConfig(_config).then((config) {
       _config = config;
+    });
+
+    PackageInfo.fromPlatform().then((packageInfo) {
+      buildNumber = packageInfo.buildNumber;
+      version = packageInfo.version;
     });
   }
 
