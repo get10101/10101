@@ -67,8 +67,8 @@ class _StatusScreenState extends State<StatusScreen> {
               ),
             ],
           )),
-          Visibility(
-              visible: channelStatusNotifier.isClosing(),
+      Visibility(
+          visible: channelStatusNotifier.isClosing(),
           child: Padding(
               padding: const EdgeInsets.all(32.0),
               child: RichText(
@@ -76,8 +76,7 @@ class _StatusScreenState extends State<StatusScreen> {
                       style: TextStyle(color: Colors.black, fontSize: 18),
                       children: [
                     TextSpan(
-                        text:
-                            "Your channel with 10101 is being closed on-chain!\n\n",
+                        text: "Your channel with 10101 is being closed on-chain!\n\n",
                         style: TextStyle(fontWeight: FontWeight.bold)),
                     TextSpan(
                         text:
