@@ -34,7 +34,7 @@ use time::OffsetDateTime;
 use tokio::task::block_in_place;
 use uuid::Uuid;
 
-pub(crate) fn handle_payment_claimable(
+pub fn handle_payment_claimable(
     channel_manager: &Arc<ChannelManager>,
     payment_hash: PaymentHash,
     purpose: PaymentPurpose,
@@ -57,7 +57,7 @@ pub(crate) fn handle_payment_claimable(
     Ok(())
 }
 
-pub(crate) fn handle_htlc_handling_failed(
+pub fn handle_htlc_handling_failed(
     prev_channel_id: [u8; 32],
     failed_next_destination: lightning::util::events::HTLCDestination,
 ) {
@@ -68,7 +68,7 @@ pub(crate) fn handle_htlc_handling_failed(
     );
 }
 
-pub(crate) fn handle_discard_funding(transaction: bitcoin::Transaction, channel_id: [u8; 32]) {
+pub fn handle_discard_funding(transaction: bitcoin::Transaction, channel_id: [u8; 32]) {
     let tx_hex = serialize_hex(&transaction);
     tracing::info!(
         channel_id = %channel_id.to_hex(),
@@ -82,7 +82,7 @@ pub(crate) fn handle_discard_funding(transaction: bitcoin::Transaction, channel_
     // generated.
 }
 
-pub(crate) fn handle_payment_forwarded<S>(
+pub fn handle_payment_forwarded<S>(
     node: &Arc<Node<S>>,
     prev_channel_id: Option<[u8; 32]>,
     next_channel_id: Option<[u8; 32]>,
@@ -217,7 +217,7 @@ where
     Ok(())
 }
 
-pub(crate) fn handle_channel_closed<S>(
+pub fn handle_channel_closed<S>(
     node: &Arc<Node<S>>,
     pending_intercepted_htlcs: &PendingInterceptedHtlcs,
     user_channel_id: u128,
@@ -265,7 +265,7 @@ where
     Ok(())
 }
 
-pub(crate) fn handle_spendable_outputs<S>(
+pub fn handle_spendable_outputs<S>(
     node: &Arc<Node<S>>,
     outputs: Vec<SpendableOutputDescriptor>,
 ) -> Result<()>
@@ -305,7 +305,7 @@ where
     Ok(())
 }
 
-pub(crate) fn handle_payment_claimed<S>(
+pub fn handle_payment_claimed<S>(
     node: &Arc<Node<S>>,
     amount_msat: u64,
     payment_hash: PaymentHash,
@@ -344,7 +344,7 @@ pub(crate) fn handle_payment_claimed<S>(
     }
 }
 
-pub(crate) fn handle_payment_failed<S>(node: &Arc<Node<S>>, payment_hash: PaymentHash)
+pub fn handle_payment_failed<S>(node: &Arc<Node<S>>, payment_hash: PaymentHash)
 where
     S: Storage,
 {
@@ -369,7 +369,7 @@ where
     }
 }
 
-pub(crate) async fn handle_funding_generation_ready<S>(
+pub async fn handle_funding_generation_ready<S>(
     node: &Arc<Node<S>>,
     user_channel_id: u128,
     counterparty_node_id: PublicKey,
@@ -449,7 +449,7 @@ where
     })
 }
 
-pub(crate) fn handle_channel_ready_internal<S>(
+fn handle_channel_ready_internal<S>(
     node: &Arc<Node<S>>,
     pending_intercepted_htlcs: &PendingInterceptedHtlcs,
     user_channel_id: u128,
@@ -517,7 +517,7 @@ pub(crate) fn fail_intercepted_htlc(
     let _ = channel_manager.fail_intercepted_htlc(*intercept_id);
 }
 
-pub(crate) fn handle_pending_htlcs_forwardable(
+pub fn handle_pending_htlcs_forwardable(
     forwarding_channel_manager: Arc<ChannelManager>,
     time_forwardable: Duration,
 ) {

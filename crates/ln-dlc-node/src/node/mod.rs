@@ -9,6 +9,7 @@ use crate::node::peer_manager::alias_as_bytes;
 use crate::node::peer_manager::broadcast_node_announcement;
 use crate::on_chain_wallet::OnChainWallet;
 use crate::seed::Bip39Seed;
+use crate::shadow::Shadow;
 use crate::ChainMonitor;
 use crate::EventHandlerTrait;
 use crate::NetworkGraph;
@@ -30,6 +31,7 @@ use lightning::ln::msgs::NetAddress;
 use lightning::ln::peer_handler::MessageHandler;
 use lightning::routing::gossip::P2PGossipSync;
 use lightning::routing::router::DefaultRouter;
+use lightning::routing::scoring::ProbabilisticScorer;
 use lightning::routing::utxo::UtxoLookup;
 use lightning::util::config::UserConfig;
 use lightning_background_processor::process_events_async;
@@ -57,25 +59,25 @@ use tokio::task::spawn_blocking;
 
 mod channel_manager;
 mod connection;
-pub(crate) mod dlc_channel;
 mod dlc_manager;
-pub(crate) mod invoice;
 mod ln_channel;
 mod oracle;
-pub mod peer_manager;
 mod storage;
 mod sub_channel_manager;
 mod wallet;
 
+pub(crate) mod dlc_channel;
+pub(crate) mod invoice;
+
+pub mod peer_manager;
+
 pub use self::dlc_manager::DlcManager;
 pub use crate::node::oracle::OracleInfo;
-use crate::shadow::Shadow;
 pub use ::dlc_manager as rust_dlc_manager;
 pub use channel_manager::ChannelManager;
 pub use dlc_channel::dlc_message_name;
 pub use dlc_channel::sub_channel_message_name;
 pub use invoice::HTLCStatus;
-use lightning::routing::scoring::ProbabilisticScorer;
 pub use storage::InMemoryStore;
 pub use storage::Storage;
 pub use sub_channel_manager::SubChannelManager;
@@ -122,7 +124,7 @@ pub struct Node<S> {
     pub sub_channel_manager: Arc<SubChannelManager>,
     oracle: Arc<P2PDOracleClient>,
     pub dlc_message_handler: Arc<DlcMessageHandler>,
-    pub(crate) storage: Arc<S>,
+    pub storage: Arc<S>,
     pub ldk_config: Arc<parking_lot::RwLock<UserConfig>>,
 
     // fields below are needed only to start the node

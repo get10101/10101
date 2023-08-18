@@ -1,13 +1,15 @@
 use anyhow::Context;
 use anyhow::Result;
+use coordinator::admin::Balance;
 use coordinator::routes::InvoiceParams;
+use ln_dlc_node::lightning_invoice;
 use ln_dlc_node::node::NodeInfo;
 use reqwest::Client;
 use serde::Deserialize;
 
-/// A wrapper over the coordinator HTTP API
+/// A wrapper over the coordinator HTTP API.
 ///
-/// It does not aim to be complete, functionality will be added as needed
+/// It does not aim to be complete, functionality will be added as needed.
 pub struct Coordinator {
     client: Client,
     host: String,
@@ -48,7 +50,7 @@ impl Coordinator {
         Self::new(client, "http://localhost:8000")
     }
 
-    /// Check whether the coordinator is running
+    /// Check whether the coordinator is running.
     pub async fn is_running(&self) -> bool {
         self.get("/health").await.is_ok()
     }
@@ -73,7 +75,7 @@ impl Coordinator {
         Ok(())
     }
 
-    pub async fn create_invoice(&self, amount: Option<u64>) -> Result<String> {
+    pub async fn create_invoice(&self, amount: Option<u64>) -> Result<lightning_invoice::Invoice> {
         let invoice_params = InvoiceParams {
             amount,
             description: Some("Fee for tests".to_string()),
@@ -86,7 +88,9 @@ impl Coordinator {
             .get(&format!("/api/invoice?{encoded_params}"))
             .await?
             .text()
-            .await?;
+            .await?
+            .parse()?;
+
         Ok(invoice)
     }
 
@@ -105,9 +109,8 @@ impl Coordinator {
             .to_owned())
     }
 
-    // TODO: Introduce strong type
-    pub async fn get_balance(&self) -> Result<String> {
-        Ok(self.get("/api/admin/balance").await?.text().await?)
+    pub async fn get_balance(&self) -> Result<Balance> {
+        Ok(self.get("/api/admin/balance").await?.json().await?)
     }
 
     pub async fn get_node_info(&self) -> Result<NodeInfo> {

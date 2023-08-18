@@ -46,7 +46,11 @@ async fn fund_everything(faucet: &str, coordinator: &str) -> Result<()> {
     mine(10, faucet).await?;
 
     let coordinator_balance = coordinator.get_balance().await?;
-    tracing::info!("coordinator BTC balance: {}", coordinator_balance);
+    tracing::info!(
+        onchain = %coordinator_balance.onchain,
+        offchain = %coordinator_balance.offchain,
+        "Coordinator balance",
+    );
 
     let node: NodeInfo = coordinator.get_node_info().await?;
     tracing::info!("lightning node: {}", node);

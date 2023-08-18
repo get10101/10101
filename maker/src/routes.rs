@@ -20,6 +20,7 @@ use serde::Serialize;
 use serde_json::json;
 use std::str::FromStr;
 use std::sync::Arc;
+use tokio::task::spawn_blocking;
 
 pub struct AppState {
     pub node: Arc<Node<InMemoryStore>>,
@@ -40,6 +41,7 @@ pub fn router(
         .route("/api/channels", get(list_channels).post(create_channel))
         .route("/api/connect", post(connect_to_peer))
         .route("/api/pay-invoice/:invoice", post(pay_invoice))
+        .route("/api/sync-on-chain", post(sync_on_chain))
         .with_state(app_state)
 }
 
@@ -95,14 +97,14 @@ pub async fn index(State(app_state): State<Arc<AppState>>) -> Result<Json<Index>
     }))
 }
 
-pub async fn get_unused_address(State(app_state): State<Arc<AppState>>) -> Json<String> {
-    Json(app_state.node.get_unused_address().to_string())
+pub async fn get_unused_address(State(app_state): State<Arc<AppState>>) -> impl IntoResponse {
+    app_state.node.get_unused_address().to_string()
 }
 
 #[derive(Serialize, Deserialize)]
 pub struct Balance {
-    offchain: u64,
-    onchain: u64,
+    pub offchain: u64,
+    pub onchain: u64,
 }
 
 pub async fn get_balance(State(state): State<Arc<AppState>>) -> Result<Json<Balance>, AppError> {
@@ -147,17 +149,17 @@ impl IntoResponse for AppError {
     }
 }
 
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub struct ChannelParams {
-    target: TargetInfo,
-    local_balance: u64,
-    remote_balance: Option<u64>,
+    pub target: TargetInfo,
+    pub local_balance: u64,
+    pub remote_balance: Option<u64>,
 }
 
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub struct TargetInfo {
-    pubkey: String,
-    address: String,
+    pub pubkey: String,
+    pub address: String,
 }
 
 pub async fn create_channel(
@@ -184,7 +186,7 @@ pub async fn create_channel(
 
     let channel_id = state
         .node
-        .initiate_open_channel(peer.pubkey, channel_amount, initial_send_amount, false)
+        .initiate_open_channel(peer.pubkey, channel_amount, initial_send_amount, true)
         .map_err(|e| AppError::InternalServerError(format!("Failed to open channel: {e:#}")))?;
 
     Ok(Json(hex::encode(channel_id)))
@@ -204,7 +206,7 @@ pub async fn list_channels(State(state): State<Arc<AppState>>) -> Json<Vec<Chann
 pub async fn pay_invoice(
     State(state): State<Arc<AppState>>,
     Path(invoice): Path<String>,
-) -> Result<Json<String>, AppError> {
+) -> Result<(), AppError> {
     let invoice = invoice
         .parse()
         .map_err(|e| AppError::BadRequest(format!("Invalid invoice provided {e:#}")))?;
@@ -212,5 +214,14 @@ pub async fn pay_invoice(
         .node
         .send_payment(&invoice)
         .map_err(|e| AppError::InternalServerError(format!("Could not pay invoice {e:#}")))?;
-    Ok(Json("bl".to_string()))
+    Ok(())
+}
+
+pub async fn sync_on_chain(State(state): State<Arc<AppState>>) -> Result<(), AppError> {
+    spawn_blocking(move || state.node.wallet().sync())
+        .await
+        .expect("task to complete")
+        .map_err(|e| AppError::InternalServerError(format!("Could not sync wallet: {e:#}")))?;
+
+    Ok(())
 }

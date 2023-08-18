@@ -24,8 +24,8 @@ use tracing::instrument;
 
 #[derive(Serialize, Deserialize)]
 pub struct Balance {
-    offchain: u64,
-    onchain: u64,
+    pub offchain: u64,
+    pub onchain: u64,
 }
 
 #[autometrics]
