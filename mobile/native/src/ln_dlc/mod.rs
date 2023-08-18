@@ -67,7 +67,7 @@ pub use channel_status::ChannelStatus;
 
 static NODE: Storage<Arc<Node>> = Storage::new();
 
-const PROCESS_INCOMING_MESSAGES_INTERVAL: Duration = Duration::from_secs(5);
+const PROCESS_INCOMING_DLC_MESSAGES_INTERVAL: Duration = Duration::from_secs(5);
 const UPDATE_WALLET_HISTORY_INTERVAL: Duration = Duration::from_secs(5);
 const CHECK_OPEN_ORDERS_INTERVAL: Duration = Duration::from_secs(60);
 
@@ -226,7 +226,7 @@ pub fn run(data_dir: String, seed_dir: String, runtime: &Runtime) -> Result<()> 
                     spawn_blocking(move || node.process_incoming_dlc_messages())
                         .await
                         .expect("To spawn blocking thread");
-                    tokio::time::sleep(PROCESS_INCOMING_MESSAGES_INTERVAL).await;
+                    tokio::time::sleep(PROCESS_INCOMING_DLC_MESSAGES_INTERVAL).await;
                 }
             }
         });
