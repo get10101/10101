@@ -7,9 +7,7 @@ import 'package:get_10101/common/value_data_row.dart';
 import 'package:provider/provider.dart';
 
 class StatusScreen extends StatefulWidget {
-  const StatusScreen({required this.fromRoute, super.key});
-
-  final String fromRoute;
+  const StatusScreen({super.key});
 
   @override
   State<StatusScreen> createState() => _StatusScreenState();
@@ -30,7 +28,7 @@ class _StatusScreenState extends State<StatusScreen> {
 
     final channelStatus = channelStatusToString(channelStatusNotifier.getChannelStatus());
 
-    var widgets = [
+    final widgets = [
       Padding(
           padding: const EdgeInsets.all(32.0),
           child: Column(
@@ -67,24 +65,25 @@ class _StatusScreenState extends State<StatusScreen> {
               ),
             ],
           )),
+      Visibility(
+          visible: channelStatusNotifier.isClosing(),
+          child: Padding(
+              padding: const EdgeInsets.all(32.0),
+              child: RichText(
+                  text: const TextSpan(
+                      style: TextStyle(color: Colors.black, fontSize: 18),
+                      children: [
+                    TextSpan(
+                        text: "Your channel with 10101 is being closed on-chain!\n\n",
+                        style: TextStyle(fontWeight: FontWeight.bold)),
+                    TextSpan(
+                        text:
+                            "Your Lightning funds will return back to your on-chain wallet after some time. You will have to reopen the app at some point in the future so that your node can claim them back.\n\n"),
+                    TextSpan(
+                        text:
+                            "If you had a position open your payout will arrive in your on-chain wallet soon after the expiry time. \n")
+                  ]))))
     ];
-
-    if (channelStatusNotifier.isClosing()) {
-      widgets.add(Padding(
-          padding: const EdgeInsets.all(32.0),
-          child: RichText(
-              text: const TextSpan(style: TextStyle(color: Colors.black, fontSize: 18), children: [
-            TextSpan(
-                text: "Your channel with 10101 is being closed on-chain!\n\n",
-                style: TextStyle(fontWeight: FontWeight.bold)),
-            TextSpan(
-                text:
-                    "Your Lightning funds will return back to your on-chain wallet after some time. You will have to reopen the app at some point in the future so that your node can claim them back.\n\n"),
-            TextSpan(
-                text:
-                    "If you had a position open your payout will arrive in your on-chain wallet soon after the expiry time. \n")
-          ]))));
-    }
 
     return Scaffold(
       appBar: AppBar(title: const Text("Status")),
