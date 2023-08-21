@@ -16,7 +16,7 @@ pub const LIQUIDITY_MULTIPLIER: u64 = 2;
 /// Sats/vbyte rate for position
 ///
 /// The coordinator and the app have to align on this to agree on the fees.
-pub const CONTRACT_TX_FEE_RATE: u64 = 4;
+pub const CONTRACT_TX_FEE_RATE: u64 = 7;
 
 /// The speed at which we want a transaction to confirm used for feerate estimation.
 ///
