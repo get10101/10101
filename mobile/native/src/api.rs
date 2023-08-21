@@ -27,6 +27,7 @@ use lightning_invoice::InvoiceDescription;
 use orderbook_commons::order_matching_fee_taker;
 use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::Decimal;
+use state::Storage;
 use std::backtrace::Backtrace;
 use std::ops::Add;
 use std::str::FromStr;
@@ -34,6 +35,9 @@ use std::time::Duration;
 use std::time::SystemTime;
 pub use trade::ContractSymbol;
 pub use trade::Direction;
+
+/// Allows the hot restart to work
+static IS_INITIALISED: Storage<bool> = Storage::new();
 
 /// Initialise logging infrastructure for Rust
 pub fn init_logging(sink: StreamSink<logger::LogEntry>) {
@@ -193,8 +197,14 @@ pub fn subscribe(stream: StreamSink<event::api::Event>) {
 
 /// Wrapper for Flutter purposes - can throw an exception.
 pub fn run_in_flutter(config: Config, app_dir: String, seed_dir: String) -> Result<()> {
-    run(config, app_dir, seed_dir, IncludeBacktraceOnPanic::Yes)
-        .context("Failed to start the backend")
+    let result = if !IS_INITIALISED.try_get().unwrap_or(&false) {
+        run(config, app_dir, seed_dir, IncludeBacktraceOnPanic::Yes)
+            .context("Failed to start the backend")
+    } else {
+        Ok(())
+    };
+    IS_INITIALISED.set(true);
+    result
 }
 
 #[derive(PartialEq)]
