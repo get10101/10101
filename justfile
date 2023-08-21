@@ -260,7 +260,10 @@ services: docker run-coordinator-detached run-maker-detached fund
 
 # Run everything at once (docker, coordinator, native build)
 # Note: if you have mobile simulator running, it will start that one instead of native, but will *not* rebuild the mobile rust library.
-all: services gen native run
+all args="": services gen native
+    #!/usr/bin/env bash
+    set -euxo pipefail
+    just run "{{args}}"
 
 # Run everything at once, tailored for iOS development
 all-ios: services gen ios run
