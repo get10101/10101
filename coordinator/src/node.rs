@@ -387,6 +387,14 @@ impl Node {
 
     #[autometrics]
     pub fn process_incoming_dlc_messages(&self) {
+        if !self
+            .inner
+            .dlc_message_handler
+            .has_pending_messages_to_process()
+        {
+            return;
+        }
+
         let messages = self
             .inner
             .dlc_message_handler
@@ -398,7 +406,7 @@ impl Node {
                 tracing::error!(
                     from = %node_id,
                     kind = %msg_name,
-                    "Failed to process message: {e:#}"
+                    "Failed to process DLC message: {e:#}"
                 );
             }
         }

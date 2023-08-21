@@ -7,12 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-- Add support for push notifications
-- Added new setting to coordinator to configure max channel size to traders
+- Add support for push notifications.
+- Added new setting to coordinator to configure max channel size to traders.
+- Speed up DLC channel setup and settlement by checking for messages more often.
 
 ## [1.2.0] - 2023-08-04
 
-- Automatically retry spendable outputs if not successfully published
+- Automatically retry spendable outputs if not successfully published.
 - Permit the closure of the LN-DLC channel in any intermediate state.
 
 ## [1.1.0] - 2023-07-27

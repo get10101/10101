@@ -34,7 +34,7 @@ use tokio::task::spawn_blocking;
 use tracing::metadata::LevelFilter;
 
 const PROCESS_PROMETHEUS_METRICS: Duration = Duration::from_secs(10);
-const PROCESS_INCOMING_DLC_MESSAGES_INTERVAL: Duration = Duration::from_secs(5);
+const PROCESS_INCOMING_DLC_MESSAGES_INTERVAL: Duration = Duration::from_millis(200);
 const EXPIRED_POSITION_SYNC_INTERVAL: Duration = Duration::from_secs(300);
 const CLOSED_POSITION_SYNC_INTERVAL: Duration = Duration::from_secs(30);
 const UNREALIZED_PNL_SYNC_INTERVAL: Duration = Duration::from_secs(600);
