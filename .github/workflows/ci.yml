@@ -128,6 +128,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          # this might remove tools that are actually needed,
+          # when set to "true" but frees about 6 GB
+          tool-cache: false
+          large-packages: false
       - uses: actions/checkout@v3
       - uses: extractions/setup-just@v1
       - name: Setup rust toolchain
@@ -137,6 +144,9 @@ jobs:
         with:
           flutter-version: "3.10.5"
           channel: "stable"
+          cache: true
+          cache-path: '${{ runner.tool_cache }}/flutter/:channel:-:version:-:arch:' # optional, change this to specify the cache path
+          architecture: x64 
       - name: Install FFI bindings
         run: just deps-gen
       - name: Generate FFI bindings
