@@ -34,7 +34,7 @@ tradeBottomSheetConfirmation(
     ),
     clipBehavior: Clip.antiAlias,
     isScrollControlled: true,
-    useRootNavigator: true,
+    useRootNavigator: false,
     context: context,
     builder: (BuildContext context) {
       return SafeArea(
