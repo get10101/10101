@@ -16,7 +16,6 @@ class ModalBottomSheetInfo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // TODO: implement build
     return IconButton(
         onPressed: () {
           showModalBottomSheet<void>(
@@ -26,7 +25,7 @@ class ModalBottomSheetInfo extends StatelessWidget {
               ),
             ),
             clipBehavior: Clip.antiAliasWithSaveLayer,
-            useRootNavigator: true,
+            useRootNavigator: false,
             context: context,
             builder: (BuildContext context) {
               return Container(
