@@ -147,8 +147,13 @@ jobs:
         run: |
           docker-compose up -d
           sleep 10 # We need to give docker a bit of time to startup
+      - name: show disk space before tests
+        run: df -h
       - name: Test containers are up
         run: |
           curl -d '{"address":"bcrt1qylgu6ffkp3p0m8tw8kp4tt2dmdh755f4r5dq7s", "amount":"0.1"}' -H "Content-Type: application/json" -X POST http://localhost:3000/faucet
       - name: Run e2e tests
         run: just e2e --nocapture
+      - name: show disk space after tests
+        if: always()
+        run: df -h
