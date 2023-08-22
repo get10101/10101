@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_speed_dial/flutter_speed_dial.dart';
 import 'package:get_10101/common/amount_text.dart';
-import 'package:get_10101/common/global_keys.dart';
 import 'package:get_10101/common/submission_status_dialog.dart';
 import 'package:get_10101/common/value_data_row.dart';
 import 'package:get_10101/features/wallet/seed_screen.dart';
@@ -49,8 +48,8 @@ class _WalletScreenState extends State<WalletScreen> {
       sendPaymentChangeNotifier.pendingPayment!.displayed = true;
       WidgetsBinding.instance.addPostFrameCallback((_) async {
         return await showDialog(
-            context: shellNavigatorKey.currentContext!, // Use the context from the navigatorKey
-            useRootNavigator: false,
+            context: context,
+            useRootNavigator: true,
             builder: (BuildContext context) {
               return Selector<SendPaymentChangeNotifier, PendingPaymentState>(
                 selector: (_, provider) => provider.pendingPayment!.state,
