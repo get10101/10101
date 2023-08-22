@@ -49,6 +49,14 @@ class Position {
       required this.collateral,
       required this.expiry});
 
+  Amount getAmountWithUnrealizedPnl() {
+    if (unrealizedPnl != null) {
+      return Amount(collateral.sats + unrealizedPnl!.sats);
+    }
+
+    return collateral;
+  }
+
   static Position fromApi(bridge.Position position) {
     return Position(
       leverage: Leverage(position.leverage),

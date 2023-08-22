@@ -4,6 +4,8 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:get_10101/common/amount_text.dart';
 import 'package:get_10101/common/amount_text_input_form_field.dart';
+import 'package:get_10101/common/application/channel_info_service.dart';
+import 'package:get_10101/common/domain/channel.dart';
 import 'package:get_10101/common/domain/model.dart';
 import 'package:get_10101/common/double_text_input_form_field.dart';
 import 'package:get_10101/common/fiat_text.dart';
@@ -14,14 +16,12 @@ import 'package:get_10101/features/trade/domain/trade_values.dart';
 import 'package:get_10101/features/trade/leverage_slider.dart';
 import 'package:get_10101/features/trade/submit_order_change_notifier.dart';
 import 'package:get_10101/features/trade/trade_bottom_sheet_confirmation.dart';
-import 'package:get_10101/features/trade/trade_value_change_notifier.dart';
 import 'package:get_10101/features/trade/trade_theme.dart';
+import 'package:get_10101/features/trade/trade_value_change_notifier.dart';
 import 'package:get_10101/features/wallet/domain/wallet_info.dart';
 import 'package:get_10101/features/wallet/wallet_change_notifier.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import 'package:get_10101/common/application/channel_info_service.dart';
-import 'package:get_10101/common/domain/channel.dart';
 
 class TradeBottomSheetTab extends StatefulWidget {
   final Direction direction;
@@ -95,6 +95,7 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
                 _getChannelInfo(channelInfoService), // a previously-obtained Future<String> or null
             builder: (BuildContext context, AsyncSnapshot<(ChannelInfo?, Amount)> snapshot) {
               List<Widget> children;
+
               if (snapshot.hasData) {
                 var (channelInfo, lspMaxChannelCapacity) = snapshot.data!;
                 Amount minTradeMargin = channelInfoService.getMinTradeMargin();
