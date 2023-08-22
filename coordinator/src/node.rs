@@ -28,8 +28,10 @@ use dlc_manager::payout_curve::RoundingInterval;
 use dlc_manager::payout_curve::RoundingIntervals;
 use dlc_manager::ChannelId;
 use dlc_manager::ContractId;
+use dlc_messages::sub_channel::SubChannelRevoke;
 use dlc_messages::ChannelMessage;
 use dlc_messages::Message;
+use dlc_messages::SubChannelMessage;
 use lightning::ln::channelmanager::ChannelDetails;
 use lightning::ln::PaymentHash;
 use lightning::util::config::UserConfig;
@@ -440,6 +442,19 @@ impl Node {
         if let Message::Channel(ChannelMessage::RenewFinalize(r)) = msg {
             self.finalize_rollover(r.channel_id)?;
         }
+
+        // TODO: Do the equivalent on _receiving_ CloseFinalize.
+        if let Some(Message::SubChannel(SubChannelMessage::Revoke(SubChannelRevoke {
+            channel_id: _,
+            ..
+        }))) = &resp
+        {
+            // My assumption is that we can load enough information from rust-dlc's storage (or
+            // our DB?) to know what to tell the maker here. I would not try to do this very
+            // cleanly, because this will all disappear when we have a DLC channel with the
+            // maker
+            todo!("Call /api/update-simulated-position on the maker based on the position change");
+        };
 
         if let Some(msg) = resp {
             tracing::info!(

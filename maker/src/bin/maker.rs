@@ -10,6 +10,7 @@ use maker::cli::Opts;
 use maker::ln::ldk_config;
 use maker::ln::EventHandler;
 use maker::logger;
+use maker::position;
 use maker::routes::router;
 use maker::run_migration;
 use maker::trading;
@@ -107,7 +108,10 @@ async fn main() -> Result<()> {
     let mut conn = pool.get().expect("to get connection from pool");
     run_migration(&mut conn);
 
-    let app = router(node, pool);
+    let (position_manager, mailbox) = xtra::Mailbox::unbounded();
+    tokio::spawn(xtra::run(mailbox, position::Manager::new()));
+
+    let app = router(node, position_manager, pool);
 
     let addr = SocketAddr::from((http_address.ip(), http_address.port()));
     tracing::debug!("Listening on http://{}", addr);

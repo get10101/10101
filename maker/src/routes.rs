@@ -1,3 +1,5 @@
+use crate::position;
+use crate::position::PositionUpdateTenTenOne;
 use axum::extract::Path;
 use axum::extract::State;
 use axum::http::StatusCode;
@@ -21,17 +23,24 @@ use serde_json::json;
 use std::str::FromStr;
 use std::sync::Arc;
 use tokio::task::spawn_blocking;
+use xtra::Address;
 
 pub struct AppState {
-    pub node: Arc<Node<InMemoryStore>>,
+    node: Arc<Node<InMemoryStore>>,
+    position_manager: Address<position::Manager>,
     pub pool: Pool<ConnectionManager<PgConnection>>,
 }
 
 pub fn router(
     node: Arc<Node<InMemoryStore>>,
+    position_manager: Address<position::Manager>,
     pool: Pool<ConnectionManager<PgConnection>>,
 ) -> Router {
-    let app_state = Arc::new(AppState { node, pool });
+    let app_state = Arc::new(AppState {
+        node,
+        position_manager,
+        pool,
+    });
 
     Router::new()
         .route("/", get(index))
@@ -42,6 +51,10 @@ pub fn router(
         .route("/api/connect", post(connect_to_peer))
         .route("/api/pay-invoice/:invoice", post(pay_invoice))
         .route("/api/sync-on-chain", post(sync_on_chain))
+        .route(
+            "/api/update-simulated-position",
+            post(update_simulated_position),
+        )
         .with_state(app_state)
 }
 
@@ -224,4 +237,42 @@ pub async fn sync_on_chain(State(state): State<Arc<AppState>>) -> Result<(), App
         .map_err(|e| AppError::InternalServerError(format!("Could not sync wallet: {e:#}")))?;
 
     Ok(())
+}
+
+pub async fn update_simulated_position(
+    State(state): State<Arc<AppState>>,
+    body: Json<UpdatePositionRequest>,
+) -> Result<(), AppError> {
+    state
+        .position_manager
+        .send(PositionUpdateTenTenOne::new(
+            body.contract_symbol.into(),
+            body.contracts,
+        ))
+        .await
+        .map_err(|e| AppError::InternalServerError(format!("Could not sync wallet: {e:#}")))?;
+
+    Ok(())
+}
+
+#[derive(Serialize, Deserialize, Clone, Copy)]
+pub struct UpdatePositionRequest {
+    contract_symbol: ContractSymbol,
+    /// The number of contracts corresponding to this 10101 position update.
+    ///
+    /// The sign determines the direction: positive is long; negative is short.
+    contracts: f32,
+}
+
+#[derive(Serialize, Deserialize, Clone, Copy)]
+pub enum ContractSymbol {
+    BtcUsd,
+}
+
+impl From<ContractSymbol> for position::ContractSymbol {
+    fn from(value: ContractSymbol) -> Self {
+        match value {
+            ContractSymbol::BtcUsd => Self::BtcUsd,
+        }
+    }
 }

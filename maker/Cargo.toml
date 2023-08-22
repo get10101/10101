@@ -33,6 +33,7 @@ tracing = "0.1.37"
 tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "ansi", "env-filter", "time", "tracing-log", "json"] }
 trade = { path = "../crates/trade" }
 uuid = { version = "1.3.0", features = ["v4", "serde"] }
+xtra = { version = "0.6", features = ["instrumentation", "sink"] }
 
 [dev-dependencies]
 rust_decimal_macros = "1"
