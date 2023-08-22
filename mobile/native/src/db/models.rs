@@ -305,6 +305,7 @@ pub(crate) struct Position {
 pub enum PositionState {
     Open,
     Closing,
+    Rollover,
 }
 
 impl Position {
@@ -339,6 +340,26 @@ impl Position {
         if affected_rows == 0 {
             bail!("Could not update position")
         }
+
+        Ok(())
+    }
+
+    // sets the position to rollover and updates the new expiry timestamp.
+    pub fn rollover(
+        conn: &mut SqliteConnection,
+        contract_symbol: ContractSymbol,
+        expiry_timestamp: OffsetDateTime,
+    ) -> Result<()> {
+        let affected_rows = diesel::update(positions::table)
+            .filter(schema::positions::contract_symbol.eq(contract_symbol))
+            .set((
+                positions::expiry_timestamp.eq(expiry_timestamp.unix_timestamp()),
+                positions::state.eq(PositionState::Rollover),
+                positions::updated_timestamp.eq(OffsetDateTime::now_utc().unix_timestamp()),
+            ))
+            .execute(conn)?;
+
+        ensure!(affected_rows > 0, "Could not set position to rollover");
 
         Ok(())
     }
@@ -394,6 +415,7 @@ impl From<crate::trade::position::PositionState> for PositionState {
         match value {
             crate::trade::position::PositionState::Open => PositionState::Open,
             crate::trade::position::PositionState::Closing => PositionState::Closing,
+            crate::trade::position::PositionState::Rollover => PositionState::Rollover,
         }
     }
 }
@@ -403,6 +425,7 @@ impl From<PositionState> for crate::trade::position::PositionState {
         match value {
             PositionState::Open => crate::trade::position::PositionState::Open,
             PositionState::Closing => crate::trade::position::PositionState::Closing,
+            PositionState::Rollover => crate::trade::position::PositionState::Rollover,
         }
     }
 }

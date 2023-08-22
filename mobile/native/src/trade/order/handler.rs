@@ -9,6 +9,7 @@ use crate::trade::order::Order;
 use crate::trade::order::OrderState;
 use crate::trade::position;
 use crate::trade::position::handler::update_position_after_order_submitted;
+use crate::trade::position::PositionState;
 use anyhow::anyhow;
 use anyhow::bail;
 use anyhow::Context;
@@ -35,7 +36,7 @@ pub async fn submit_order(order: Order) -> Result<Uuid> {
         let order_id = order.id.to_string();
         tracing::error!(order_id, "Failed to post new order. Error: {err:#}");
         update_order_state_in_db_and_ui(order.id, OrderState::Rejected)?;
-        if let Err(e) = position::handler::set_position_to_open() {
+        if let Err(e) = position::handler::set_position_state(PositionState::Open) {
             bail!("Could not reset position to open because of {e:#}");
         }
         bail!("Could not post order to orderbook");
@@ -100,7 +101,7 @@ pub(crate) fn order_failed(
 
     update_order_state_in_db_and_ui(order_id, OrderState::Failed { reason })?;
 
-    if let Err(e) = position::handler::set_position_to_open() {
+    if let Err(e) = position::handler::set_position_state(PositionState::Open) {
         bail!("Could not reset position to open because of {e:#}");
     }
 

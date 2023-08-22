@@ -31,6 +31,11 @@ pub fn sync(node: Node) -> Result<()> {
             }
         };
 
+        tracing::debug!(
+            ?position,
+            "Setting position to closed to match the contract state."
+        );
+
         if let Err(e) =
             db::positions::Position::set_position_to_closed(&mut conn, position.id, contract.pnl)
         {

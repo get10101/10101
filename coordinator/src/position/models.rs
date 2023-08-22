@@ -3,9 +3,11 @@ use anyhow::Context;
 use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
 use dlc_manager::ContractId;
+use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use time::OffsetDateTime;
 use trade::bitmex_client::Quote;
+use trade::cfd::calculate_margin;
 use trade::cfd::calculate_pnl;
 use trade::ContractSymbol;
 use trade::Direction;
@@ -36,6 +38,7 @@ pub enum PositionState {
     Closed {
         pnl: i64,
     },
+    Rollover,
 }
 
 /// A trader's position
@@ -103,12 +106,236 @@ impl Position {
 
         Ok(pnl)
     }
+
+    pub fn calculate_settlement_amount(&self, closing_price: Decimal) -> Result<u64> {
+        let opening_price = Decimal::try_from(self.average_entry_price)?;
+
+        let leverage_long = leverage_long(self.direction, self.leverage);
+        let leverage_short = leverage_short(self.direction, self.leverage);
+
+        calculate_accept_settlement_amount(
+            opening_price,
+            closing_price,
+            self.quantity,
+            leverage_long,
+            leverage_short,
+            self.direction,
+        )
+    }
+}
+
+/// Calculates the accept settlement amount based on the pnl.
+fn calculate_accept_settlement_amount(
+    opening_price: Decimal,
+    closing_price: Decimal,
+    quantity: f32,
+    long_leverage: f32,
+    short_leverage: f32,
+    direction: Direction,
+) -> Result<u64> {
+    let pnl = calculate_pnl(
+        opening_price,
+        closing_price,
+        quantity,
+        long_leverage,
+        short_leverage,
+        direction,
+    )?;
+
+    let leverage = match direction {
+        Direction::Long => long_leverage,
+        Direction::Short => short_leverage,
+    };
+
+    let margin_trader = calculate_margin(opening_price, quantity, leverage);
+
+    let accept_settlement_amount = Decimal::from(margin_trader) + Decimal::from(pnl);
+    // the amount can only be positive, adding a safeguard here with the max comparison to
+    // ensure the i64 fits into u64
+    let accept_settlement_amount = accept_settlement_amount
+        .max(Decimal::ZERO)
+        .to_u64()
+        .expect("to fit into u64");
+    Ok(accept_settlement_amount)
+}
+
+pub fn leverage_long(direction: Direction, trader_leverage: f32) -> f32 {
+    match direction {
+        Direction::Long => trader_leverage,
+        Direction::Short => COORDINATOR_LEVERAGE,
+    }
+}
+
+pub fn leverage_short(direction: Direction, trader_leverage: f32) -> f32 {
+    match direction {
+        Direction::Long => COORDINATOR_LEVERAGE,
+        Direction::Short => trader_leverage,
+    }
 }
 
 #[cfg(test)]
 pub mod tests {
     use super::*;
+    use crate::position::models::calculate_accept_settlement_amount;
+    use rust_decimal::Decimal;
     use std::str::FromStr;
+    use trade::cfd::calculate_margin;
+    use trade::Direction;
+
+    // some basic sanity tests, that in case the position goes the right or wrong way the settlement
+    // amount is moving correspondingly up or down.
+
+    #[test]
+    fn given_a_long_position_and_a_larger_closing_price() {
+        let opening_price = Decimal::from(22000);
+        let closing_price = Decimal::from(23000);
+        let quantity: f32 = 1.0;
+        let accept_settlement_amount = calculate_accept_settlement_amount(
+            opening_price,
+            closing_price,
+            quantity,
+            1.0,
+            1.0,
+            Direction::Long,
+        )
+        .unwrap();
+
+        let margin_trader = calculate_margin(opening_price, quantity, 1.0);
+        assert!(accept_settlement_amount > margin_trader);
+    }
+
+    #[test]
+    fn given_a_short_position_and_a_larger_closing_price() {
+        let opening_price = Decimal::from(22000);
+        let closing_price = Decimal::from(23000);
+        let quantity: f32 = 1.0;
+        let accept_settlement_amount = calculate_accept_settlement_amount(
+            opening_price,
+            closing_price,
+            quantity,
+            1.0,
+            1.0,
+            Direction::Short,
+        )
+        .unwrap();
+
+        let margin_trader = calculate_margin(opening_price, quantity, 1.0);
+        assert!(accept_settlement_amount < margin_trader);
+    }
+
+    #[test]
+    fn given_a_long_position_and_a_smaller_closing_price() {
+        let opening_price = Decimal::from(23000);
+        let closing_price = Decimal::from(22000);
+        let quantity: f32 = 1.0;
+        let accept_settlement_amount = calculate_accept_settlement_amount(
+            opening_price,
+            closing_price,
+            quantity,
+            1.0,
+            1.0,
+            Direction::Long,
+        )
+        .unwrap();
+
+        let margin_trader = calculate_margin(opening_price, quantity, 1.0);
+        assert!(accept_settlement_amount < margin_trader);
+    }
+
+    #[test]
+    fn given_a_short_position_and_a_smaller_closing_price() {
+        let opening_price = Decimal::from(23000);
+        let closing_price = Decimal::from(22000);
+        let quantity: f32 = 1.0;
+        let accept_settlement_amount = calculate_accept_settlement_amount(
+            opening_price,
+            closing_price,
+            quantity,
+            1.0,
+            1.0,
+            Direction::Short,
+        )
+        .unwrap();
+
+        let margin_trader = calculate_margin(opening_price, quantity, 1.0);
+        assert!(accept_settlement_amount > margin_trader);
+    }
+
+    #[test]
+    fn given_a_long_position_and_a_larger_closing_price_different_leverages() {
+        let opening_price = Decimal::from(22000);
+        let closing_price = Decimal::from(23000);
+        let quantity: f32 = 1.0;
+        let accept_settlement_amount = calculate_accept_settlement_amount(
+            opening_price,
+            closing_price,
+            quantity,
+            1.0,
+            2.0,
+            Direction::Long,
+        )
+        .unwrap();
+
+        let margin_trader = calculate_margin(opening_price, quantity, 2.0);
+        assert!(accept_settlement_amount > margin_trader);
+    }
+
+    #[test]
+    fn given_a_short_position_and_a_larger_closing_price_different_leverages() {
+        let opening_price = Decimal::from(22000);
+        let closing_price = Decimal::from(23000);
+        let quantity: f32 = 1.0;
+        let accept_settlement_amount = calculate_accept_settlement_amount(
+            opening_price,
+            closing_price,
+            quantity,
+            2.0,
+            1.0,
+            Direction::Short,
+        )
+        .unwrap();
+
+        let margin_trader = calculate_margin(opening_price, quantity, 1.0);
+        assert!(accept_settlement_amount < margin_trader);
+    }
+
+    #[test]
+    fn given_a_long_position_and_a_smaller_closing_price_different_leverages() {
+        let opening_price = Decimal::from(23000);
+        let closing_price = Decimal::from(22000);
+        let quantity: f32 = 1.0;
+        let accept_settlement_amount = calculate_accept_settlement_amount(
+            opening_price,
+            closing_price,
+            quantity,
+            2.0,
+            1.0,
+            Direction::Long,
+        )
+        .unwrap();
+
+        let margin_trader = calculate_margin(opening_price, quantity, 2.0);
+        assert!(accept_settlement_amount < margin_trader);
+    }
+
+    #[test]
+    fn given_a_short_position_and_a_smaller_closing_price_different_leverages() {
+        let opening_price = Decimal::from(23000);
+        let closing_price = Decimal::from(22000);
+        let quantity: f32 = 1.0;
+        let accept_settlement_amount = calculate_accept_settlement_amount(
+            opening_price,
+            closing_price,
+            quantity,
+            1.0,
+            2.0,
+            Direction::Short,
+        )
+        .unwrap();
+
+        let margin_trader = calculate_margin(opening_price, quantity, 2.0);
+        assert!(accept_settlement_amount > margin_trader);
+    }
 
     #[test]
     fn given_trader_long_position_when_no_bid_price_change_then_zero_coordinator_pnl() {

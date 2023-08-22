@@ -6,7 +6,7 @@ pub mod api;
 pub mod handler;
 pub mod subscriber;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Copy)]
 pub enum PositionState {
     /// The position is open
     ///
@@ -16,7 +16,8 @@ pub enum PositionState {
     /// the position), the position is in state "Closing".
     ///
     /// Transitions:
-    /// Open->Closing
+    /// ->Open
+    /// Rollover->Open
     Open,
     /// The position is in the process of being closed
     ///
@@ -24,7 +25,17 @@ pub enum PositionState {
     /// Once this order has been filled the "closed" the position is not shown in the user
     /// interface, so we don't have a "closed" state because no position data will be provided to
     /// the user interface.
+    /// Transitions:
+    /// Open->Closing
     Closing,
+
+    /// The position is in rollover
+    ///
+    /// This is a technical intermediate state indicating that a rollover is currently in progress.
+    ///
+    /// Transitions:
+    /// Open->Rollover
+    Rollover,
 }
 
 #[derive(Debug, Clone)]

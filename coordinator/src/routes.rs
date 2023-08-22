@@ -30,6 +30,7 @@ use axum::routing::get;
 use axum::routing::post;
 use axum::Json;
 use axum::Router;
+use bitcoin::hashes::hex::ToHex;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::Network;
 use coordinator_commons::LspConfig;
@@ -38,6 +39,8 @@ use coordinator_commons::TradeParams;
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::Pool;
 use diesel::PgConnection;
+use dlc_manager::ChannelId;
+use hex::FromHex;
 use lightning::ln::msgs::NetAddress;
 use ln_dlc_node::node::peer_manager::alias_as_bytes;
 use ln_dlc_node::node::peer_manager::broadcast_node_announcement;
@@ -112,6 +115,7 @@ pub fn router(
         )
         .route("/api/orderbook/websocket", get(websocket_handler))
         .route("/api/trade", post(post_trade))
+        .route("/api/rollover/:dlc_channel_id", post(rollover))
         .route("/api/register", post(post_register))
         .route("/api/admin/balance", get(get_balance))
         .route("/api/admin/channels", get(list_channels).post(open_channel))
@@ -258,6 +262,32 @@ pub async fn post_trade(
     })?;
 
     Ok(invoice.to_string())
+}
+
+#[instrument(skip_all, err(Debug))]
+#[autometrics]
+pub async fn rollover(
+    State(state): State<Arc<AppState>>,
+    Path(dlc_channel_id): Path<String>,
+) -> Result<(), AppError> {
+    let dlc_channel_id = ChannelId::from_hex(dlc_channel_id.clone()).map_err(|e| {
+        AppError::InternalServerError(format!(
+            "Could not decode dlc channel id from {dlc_channel_id}: {e:#}"
+        ))
+    })?;
+
+    state
+        .node
+        .propose_rollover(dlc_channel_id)
+        .await
+        .map_err(|e| {
+            AppError::InternalServerError(format!(
+                "Failed to rollover dlc channel with id {}: {e:#}",
+                dlc_channel_id.to_hex()
+            ))
+        })?;
+
+    Ok(())
 }
 
 pub async fn post_broadcast_announcement(

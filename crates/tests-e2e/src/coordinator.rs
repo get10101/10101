@@ -24,6 +24,7 @@ pub struct DlcChannels {
 #[derive(Deserialize, Debug)]
 pub struct DlcChannel {
     pub channel_id: String,
+    pub dlc_channel_id: Option<String>,
     pub counter_party: String,
     pub state: SubChannelState,
 }
@@ -135,6 +136,11 @@ impl Coordinator {
 
     pub async fn force_close_channel(&self, channel_id: &str) -> Result<reqwest::Response> {
         self.delete(format!("/api/admin/channels/{channel_id}?force=true").as_str())
+            .await
+    }
+
+    pub async fn rollover(&self, dlc_channel_id: &str) -> Result<reqwest::Response> {
+        self.post(format!("/api/rollover/{dlc_channel_id}").as_str())
             .await
     }
 

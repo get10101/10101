@@ -3,6 +3,7 @@ use crate::schema::positions;
 use crate::schema::sql_types::ContractSymbolType;
 use crate::schema::sql_types::PositionStateType;
 use anyhow::bail;
+use anyhow::ensure;
 use anyhow::Result;
 use autometrics::autometrics;
 use bitcoin::hashes::hex::ToHex;
@@ -129,6 +130,25 @@ impl Position {
         Ok(())
     }
 
+    pub fn set_position_to_open(
+        conn: &mut PgConnection,
+        trader_pubkey: String,
+        temporary_contract_id: ContractId,
+    ) -> Result<()> {
+        let affected_rows = diesel::update(positions::table)
+            .filter(positions::trader_pubkey.eq(trader_pubkey))
+            .set((
+                positions::position_state.eq(PositionState::Open),
+                positions::temporary_contract_id.eq(temporary_contract_id.to_hex()),
+                positions::update_timestamp.eq(OffsetDateTime::now_utc()),
+            ))
+            .execute(conn)?;
+
+        ensure!(affected_rows > 0, "Could not set position to open");
+
+        Ok(())
+    }
+
     pub fn update_unrealized_pnl(conn: &mut PgConnection, id: i32, pnl: i64) -> Result<()> {
         let affected_rows = diesel::update(positions::table)
             .filter(positions::id.eq(id))
@@ -141,6 +161,25 @@ impl Position {
         if affected_rows == 0 {
             bail!("Could not update unrealized pnl {pnl} for position {id}")
         }
+
+        Ok(())
+    }
+
+    pub fn rollover_position(
+        conn: &mut PgConnection,
+        trader_pubkey: String,
+        expiry_timestamp: &OffsetDateTime,
+    ) -> Result<()> {
+        let affected_rows = diesel::update(positions::table)
+            .filter(positions::trader_pubkey.eq(trader_pubkey))
+            .set((
+                positions::expiry_timestamp.eq(expiry_timestamp),
+                positions::position_state.eq(PositionState::Rollover),
+                positions::update_timestamp.eq(OffsetDateTime::now_utc()),
+            ))
+            .execute(conn)?;
+
+        ensure!(affected_rows > 0, "Could not set position to rollover");
 
         Ok(())
     }
@@ -226,6 +265,7 @@ impl From<crate::position::models::NewPosition> for NewPosition {
 pub enum PositionState {
     Open,
     Closing,
+    Rollover,
     Closed,
 }
 
@@ -254,6 +294,7 @@ impl From<(PositionState, Option<i64>, Option<f32>)> for crate::position::models
                 // `Closed` state
                 pnl: realized_pnl.unwrap_or(0),
             },
+            PositionState::Rollover => crate::position::models::PositionState::Rollover,
         }
     }
 }

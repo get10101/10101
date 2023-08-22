@@ -1,3 +1,15 @@
+use axum::http::StatusCode;
+use axum::response::IntoResponse;
+use axum::response::Response;
+use axum::Json;
+use diesel::PgConnection;
+use diesel_migrations::embed_migrations;
+use diesel_migrations::EmbeddedMigrations;
+use diesel_migrations::MigrationHarness;
+use serde_json::json;
+
+mod rollover;
+
 pub mod admin;
 pub mod cli;
 pub mod db;
@@ -11,16 +23,6 @@ pub mod routing_fee;
 pub mod schema;
 pub mod settings;
 pub mod trade;
-
-use axum::http::StatusCode;
-use axum::response::IntoResponse;
-use axum::response::Response;
-use axum::Json;
-use diesel::PgConnection;
-use diesel_migrations::embed_migrations;
-use diesel_migrations::EmbeddedMigrations;
-use diesel_migrations::MigrationHarness;
-use serde_json::json;
 
 pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!();
 

@@ -1,14 +1,15 @@
+import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
+import 'package:get_10101/common/domain/model.dart';
 import 'package:get_10101/features/trade/domain/contract_symbol.dart';
 import 'package:get_10101/features/trade/domain/direction.dart';
 import 'package:get_10101/features/trade/domain/leverage.dart';
-import 'package:get_10101/common/domain/model.dart';
-import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
 
 enum PositionState {
   open,
 
   /// once the user pressed button to close position the button should be disabled otherwise the user can click it multiple times which would result in multiple orders and an open position in the other direction
-  closing;
+  closing,
+  rollover;
 
   static PositionState fromApi(bridge.PositionState positionState) {
     switch (positionState) {
@@ -16,6 +17,8 @@ enum PositionState {
         return PositionState.open;
       case bridge.PositionState.Closing:
         return PositionState.closing;
+      case bridge.PositionState.Rollover:
+        return PositionState.rollover;
     }
   }
 }

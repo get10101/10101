@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add support for push notifications.
 - Added new setting to coordinator to configure max channel size to traders.
 - Speed up DLC channel setup and settlement by checking for messages more often.
+- Add support for perpetual futures.
 
 ## [1.2.0] - 2023-08-04
 

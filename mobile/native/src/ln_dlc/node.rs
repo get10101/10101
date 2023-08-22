@@ -1,12 +1,16 @@
 use crate::db;
 use crate::trade::order;
 use crate::trade::position;
+use crate::trade::position::PositionState;
+use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
 use bdk::bitcoin::secp256k1::PublicKey;
 use bdk::TransactionDetails;
+use bitcoin::hashes::hex::ToHex;
 use dlc_messages::sub_channel::SubChannelCloseFinalize;
 use dlc_messages::sub_channel::SubChannelRevoke;
+use dlc_messages::ChannelMessage;
 use dlc_messages::Message;
 use dlc_messages::SubChannelMessage;
 use lightning::chain::keysinterface::DelayedPaymentOutputDescriptor;
@@ -21,9 +25,8 @@ use ln_dlc_node::channel::Channel;
 use ln_dlc_node::channel::FakeScid;
 use ln_dlc_node::node;
 use ln_dlc_node::node::dlc_message_name;
-use ln_dlc_node::node::rust_dlc_manager::contract::signed_contract::SignedContract;
 use ln_dlc_node::node::rust_dlc_manager::contract::Contract;
-use ln_dlc_node::node::rust_dlc_manager::Storage as _;
+use ln_dlc_node::node::rust_dlc_manager::Storage;
 use ln_dlc_node::node::sub_channel_message_name;
 use ln_dlc_node::node::NodeInfo;
 use ln_dlc_node::node::PaymentDetails;
@@ -135,7 +138,7 @@ impl Node {
             "Processing message"
         );
 
-        let resp = match msg {
+        let resp = match &msg {
             Message::OnChain(_) | Message::Channel(_) => self
                 .inner
                 .dlc_manager
@@ -197,32 +200,64 @@ impl Node {
             }
         };
 
+        // todo(holzeis): It would be nice if dlc messages are also propagated via events, so the
+        // receiver can decide what events to process and we can skip this component specific logic
+        // here.
+        if let Message::Channel(channel_message) = &msg {
+            match channel_message {
+                ChannelMessage::RenewOffer(r) => {
+                    tracing::info!("Automatically accepting a rollover position");
+                    let (accept_renew_offer, counterparty_pubkey) =
+                        self.inner.dlc_manager.accept_renew_offer(&r.channel_id)?;
+
+                    self.send_dlc_message(
+                        counterparty_pubkey,
+                        Message::Channel(ChannelMessage::RenewAccept(accept_renew_offer)),
+                    )?;
+
+                    let expiry_timestamp = OffsetDateTime::from_unix_timestamp(
+                        r.contract_info.get_closest_maturity_date() as i64,
+                    )?;
+                    position::handler::rollover_position(expiry_timestamp)?;
+                }
+                ChannelMessage::RenewRevoke(_) => {
+                    tracing::info!("Finished rollover position");
+                    // After handling the `RenewRevoke` message, we need to do some post-processing
+                    // based on the fact that the DLC channel has been updated.
+                    position::handler::set_position_state(PositionState::Open)?;
+                }
+                // ignoring all other channel events.
+                _ => (),
+            }
+        }
+
         // After handling the `Revoke` message, we need to do some post-processing based on the fact
         // that the DLC channel has been established
         if let Message::SubChannel(SubChannelMessage::Revoke(SubChannelRevoke {
             channel_id, ..
         })) = msg
         {
-            let contracts = self.inner.dlc_manager.get_store().get_contracts()?;
+            let storage = self.inner.dlc_manager.get_store();
+            let sub_channel = storage.get_sub_channel(channel_id)?.with_context(|| {
+                format!(
+                    "Could not find sub channel by channel id {}",
+                    channel_id.to_hex()
+                )
+            })?;
+            let dlc_channel_id = sub_channel
+                .get_dlc_channel_id(0)
+                .context("Could not fetch dlc channel id")?;
 
-            let accept_collateral = contracts
-                .iter()
-                // Taking the first `Confirmed` contract we find is just a
-                // heuristic. Ideally we would be able to match against the
-                // `ContractId` or the `ChannelId`, but the information is not
-                // guaranteed to be there
-                .find_map(|contract| match contract {
-                    Contract::Confirmed(SignedContract {
-                        accepted_contract, ..
-                    }) => Some(accepted_contract.accept_params.collateral),
-                    _ => None,
-                })
-                .with_context(|| {
-                    format!(
+            let accept_collateral =
+                match self.inner.get_contract_by_dlc_channel_id(dlc_channel_id)? {
+                    Contract::Confirmed(contract) => {
+                        contract.accepted_contract.accept_params.collateral
+                    }
+                    _ => bail!(
                         "Confirmed contract not found for channel ID: {}",
                         hex::encode(channel_id)
-                    )
-                })?;
+                    ),
+                };
 
             let filled_order = order::handler::order_filled()
                 .context("Cannot mark order as filled for confirmed DLC")?;
