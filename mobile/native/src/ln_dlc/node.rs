@@ -417,6 +417,7 @@ impl node::Storage for NodeStorage {
                         flow,
                         timestamp: OffsetDateTime::now_utc(),
                         description: "".to_string(),
+                        invoice: None,
                     },
                 )?;
             }

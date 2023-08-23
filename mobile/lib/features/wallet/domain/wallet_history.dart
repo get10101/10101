@@ -75,7 +75,8 @@ abstract class WalletHistoryItemData {
         timestamp: timestamp,
         preimage: type.paymentPreimage,
         description: type.description,
-        paymentHash: type.paymentHash);
+        paymentHash: type.paymentHash,
+        invoice: type.invoice);
   }
 }
 
@@ -83,6 +84,7 @@ class LightningPaymentData extends WalletHistoryItemData {
   final String paymentHash;
   final String? preimage;
   final String description;
+  final String? invoice;
 
   LightningPaymentData(
       {required super.flow,
@@ -91,6 +93,7 @@ class LightningPaymentData extends WalletHistoryItemData {
       required super.timestamp,
       required this.preimage,
       required this.description,
+      required this.invoice,
       required this.paymentHash});
 
   @override

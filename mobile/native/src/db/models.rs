@@ -672,6 +672,8 @@ pub(crate) struct PaymentInsertable {
     pub updated_at: i64,
     #[diesel(sql_type = Text)]
     pub description: String,
+    #[diesel(sql_type = Nullable<Text>)]
+    pub invoice: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, FromSqlRow, AsExpression)]
@@ -782,6 +784,7 @@ pub(crate) struct PaymentQueryable {
     pub created_at: i64,
     pub updated_at: i64,
     pub description: String,
+    pub invoice: Option<String>,
 }
 
 impl PaymentQueryable {
@@ -812,6 +815,7 @@ impl From<(lightning::ln::PaymentHash, ln_dlc_node::PaymentInfo)> for PaymentIns
             created_at: timestamp,
             updated_at: timestamp,
             description: info.description,
+            invoice: info.invoice,
         }
     }
 }
@@ -862,6 +866,7 @@ impl TryFrom<PaymentQueryable> for (lightning::ln::PaymentHash, ln_dlc_node::Pay
         let timestamp = OffsetDateTime::from_unix_timestamp(value.created_at)?;
 
         let description = value.description;
+        let invoice = value.invoice;
 
         Ok((
             payment_hash,
@@ -873,6 +878,7 @@ impl TryFrom<PaymentQueryable> for (lightning::ln::PaymentHash, ln_dlc_node::Pay
                 flow,
                 timestamp,
                 description,
+                invoice,
             },
         ))
     }
@@ -1471,6 +1477,7 @@ pub mod test {
         let created_at = 100;
         let updated_at = 100;
         let description = "payment1".to_string();
+        let invoice = Some("invoice1".to_string());
 
         let payment = PaymentInsertable {
             payment_hash: payment_hash.to_string(),
@@ -1482,6 +1489,7 @@ pub mod test {
             created_at,
             updated_at,
             description: description.clone(),
+            invoice: invoice.clone(),
         };
 
         PaymentInsertable::insert(payment, &mut connection).unwrap();
@@ -1497,7 +1505,8 @@ pub mod test {
                 flow: Flow::Outbound,
                 created_at: 200,
                 updated_at: 200,
-                description: "payment2".to_string()
+                description: "payment2".to_string(),
+                invoice: Some("invoice2".to_string()),
             },
             &mut connection,
         )
@@ -1518,6 +1527,7 @@ pub mod test {
             created_at,
             updated_at,
             description,
+            invoice,
         };
 
         assert_eq!(expected_payment, loaded_payment);

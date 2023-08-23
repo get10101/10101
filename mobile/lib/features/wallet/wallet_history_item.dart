@@ -179,6 +179,10 @@ class LightningPaymentHistoryItem extends WalletHistoryItem {
   List<Widget> getDetails() {
     return [
       HistoryDetail(label: "Invoice description", value: data.description),
+      Visibility(
+        visible: data.invoice != null,
+        child: HistoryDetail(label: "Invoice", value: data.invoice ?? ''),
+      ),
       HistoryDetail(label: "Payment hash", value: data.paymentHash),
       Visibility(
         visible: data.preimage != null,
@@ -296,11 +300,11 @@ class OnChainPaymentHistoryItem extends WalletHistoryItem {
     final details = [
       HistoryDetail(label: "Transaction ID", value: data.txid),
       HistoryDetail(label: "Confirmations", value: data.confirmations.toString()),
+      Visibility(
+        visible: data.fee != null,
+        child: HistoryDetail(label: "Fee", value: formatSats(data.fee ?? Amount(0))),
+      ),
     ];
-
-    if (data.fee != null) {
-      details.add(HistoryDetail(label: "Fee", value: formatSats(data.fee!)));
-    }
 
     return details;
   }

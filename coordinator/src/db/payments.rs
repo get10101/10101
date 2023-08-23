@@ -29,6 +29,7 @@ pub struct Payment {
     pub created_at: OffsetDateTime,
     pub updated_at: OffsetDateTime,
     pub description: String,
+    pub invoice: Option<String>,
 }
 
 pub fn get(
@@ -81,6 +82,7 @@ impl From<(lightning::ln::PaymentHash, ln_dlc_node::PaymentInfo)> for NewPayment
             flow: info.flow.into(),
             payment_timestamp: info.timestamp,
             description: info.description,
+            invoice: info.invoice,
         }
     }
 }
@@ -123,6 +125,7 @@ impl TryFrom<Payment> for (lightning::ln::PaymentHash, ln_dlc_node::PaymentInfo)
                 flow: value.flow.into(),
                 timestamp: value.payment_timestamp,
                 description: value.description,
+                invoice: value.invoice,
             },
         ))
     }
@@ -172,6 +175,8 @@ pub(crate) struct NewPayment {
     pub payment_timestamp: OffsetDateTime,
     #[diesel(sql_type = Text)]
     pub description: String,
+    #[diesel(sql_type = Nullable<Text>)]
+    pub invoice: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, FromSqlRow, AsExpression)]

@@ -50,6 +50,7 @@ diesel::table! {
         created_at -> BigInt,
         updated_at -> BigInt,
         description -> Text,
+        invoice -> Nullable<Text>,
     }
 }
 

@@ -84,6 +84,7 @@ pub enum WalletType {
         payment_hash: String,
         description: String,
         payment_preimage: Option<String>,
+        invoice: Option<String>,
     },
     Trade {
         order_id: String,

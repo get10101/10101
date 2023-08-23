@@ -381,6 +381,7 @@ fn keep_wallet_balance_and_history_up_to_date(node: &Node) -> Result<()> {
                 payment_hash,
                 description: details.description.clone(),
                 payment_preimage: details.preimage.clone(),
+                invoice: details.invoice.clone(),
             }
         };
 

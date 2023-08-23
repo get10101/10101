@@ -85,6 +85,7 @@ diesel::table! {
         created_at -> Timestamptz,
         updated_at -> Timestamptz,
         description -> Text,
+        invoice -> Nullable<Text>,
     }
 }
 

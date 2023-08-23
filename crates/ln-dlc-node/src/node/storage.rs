@@ -148,6 +148,7 @@ impl Storage for InMemoryStore {
                         flow,
                         timestamp: OffsetDateTime::now_utc(),
                         description: "".to_string(),
+                        invoice: None,
                     },
                 );
             }

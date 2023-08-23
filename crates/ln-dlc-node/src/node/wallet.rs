@@ -154,6 +154,7 @@ where
                 timestamp: info.timestamp,
                 description: info.description.clone(),
                 preimage: info.preimage.map(|preimage| preimage.0.to_hex()),
+                invoice: info.invoice.clone(),
             })
             .collect::<Vec<_>>();
 
@@ -172,6 +173,7 @@ pub struct PaymentDetails {
     pub timestamp: OffsetDateTime,
     pub description: String,
     pub preimage: Option<String>,
+    pub invoice: Option<String>,
 }
 
 impl fmt::Display for PaymentDetails {
@@ -182,11 +184,12 @@ impl fmt::Display for PaymentDetails {
         let amount_msat = self.amount_msat.unwrap_or_default();
         let timestamp = self.timestamp.to_string();
         let description = self.description.clone();
+        let invoice = self.invoice.clone();
 
         write!(
             f,
-            "payment_hash {}, status {}, flow {}, amount_msat {}, timestamp {}, description {}",
-            payment_hash, status, flow, amount_msat, timestamp, description,
+            "payment_hash {}, status {}, flow {}, amount_msat {}, timestamp {}, description {} invoice {:?}",
+            payment_hash, status, flow, amount_msat, timestamp, description, invoice
         )
     }
 }
