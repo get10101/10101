@@ -295,9 +295,9 @@ fn keep_wallet_balance_and_history_up_to_date(node: &Node) -> Result<()> {
         let net_sats = details.received as i64 - details.sent as i64;
 
         let (flow, amount_sats) = if net_sats >= 0 {
-            (api::PaymentFlow::Outbound, net_sats as u64)
+            (api::PaymentFlow::Inbound, net_sats as u64)
         } else {
-            (api::PaymentFlow::Inbound, net_sats.unsigned_abs())
+            (api::PaymentFlow::Outbound, net_sats.unsigned_abs())
         };
 
         let (status, timestamp, n_confirmations) = match details.confirmation_time {
