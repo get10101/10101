@@ -75,10 +75,22 @@ pub struct WalletHistoryItem {
 
 #[derive(Clone, Debug)]
 pub enum WalletType {
-    OnChain { txid: String },
-    Lightning { payment_hash: String },
-    Trade { order_id: String },
-    OrderMatchingFee { order_id: String },
+    OnChain {
+        txid: String,
+    },
+    Lightning {
+        payment_hash: String,
+    },
+    Trade {
+        order_id: String,
+    },
+    OrderMatchingFee {
+        order_id: String,
+    },
+    JitChannelFee {
+        funding_txid: String,
+        payment_hash: String,
+    },
 }
 
 #[derive(Clone, Debug, Default)]

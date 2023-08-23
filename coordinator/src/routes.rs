@@ -208,7 +208,6 @@ pub struct InvoiceParams {
 pub struct OpenChannelFeeInvoiceParams {
     pub amount: u64,
     pub channel_funding_txid: String,
-    pub description: Option<String>,
     pub expiry: Option<u32>,
 }
 
@@ -237,12 +236,7 @@ pub async fn get_open_channel_fee_invoice(
 ) -> Result<String, AppError> {
     let invoice = state
         .node
-        .channel_opening_fee_invoice(
-            params.amount,
-            params.channel_funding_txid,
-            params.description,
-            params.expiry,
-        )
+        .channel_opening_fee_invoice(params.amount, params.channel_funding_txid, params.expiry)
         .await
         .map_err(|e| AppError::InternalServerError(format!("Failed to create invoice: {e:#}")))?;
 
