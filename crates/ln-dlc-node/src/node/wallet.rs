@@ -4,6 +4,7 @@ use crate::node::HTLCStatus;
 use crate::node::Node;
 use crate::node::Storage;
 use crate::PaymentFlow;
+use crate::ToHex;
 use anyhow::Context;
 use anyhow::Result;
 use bdk::blockchain::EsploraBlockchain;
@@ -152,6 +153,7 @@ where
                 amount_msat: info.amt_msat.0,
                 timestamp: info.timestamp,
                 description: info.description.clone(),
+                preimage: info.preimage.map(|preimage| preimage.0.to_hex()),
             })
             .collect::<Vec<_>>();
 
@@ -169,6 +171,7 @@ pub struct PaymentDetails {
     pub amount_msat: Option<u64>,
     pub timestamp: OffsetDateTime,
     pub description: String,
+    pub preimage: Option<String>,
 }
 
 impl fmt::Display for PaymentDetails {
@@ -179,6 +182,7 @@ impl fmt::Display for PaymentDetails {
         let amount_msat = self.amount_msat.unwrap_or_default();
         let timestamp = self.timestamp.to_string();
         let description = self.description.clone();
+
         write!(
             f,
             "payment_hash {}, status {}, flow {}, amount_msat {}, timestamp {}, description {}",

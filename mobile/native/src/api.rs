@@ -82,6 +82,8 @@ pub enum WalletType {
     },
     Lightning {
         payment_hash: String,
+        description: String,
+        payment_preimage: Option<String>,
     },
     Trade {
         order_id: String,

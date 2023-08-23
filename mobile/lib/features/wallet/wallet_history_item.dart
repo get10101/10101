@@ -177,7 +177,14 @@ class LightningPaymentHistoryItem extends WalletHistoryItem {
 
   @override
   List<Widget> getDetails() {
-    return [HistoryDetail(label: "Payment hash", value: data.paymentHash)];
+    return [
+      HistoryDetail(label: "Invoice description", value: data.description),
+      HistoryDetail(label: "Payment hash", value: data.paymentHash),
+      Visibility(
+        visible: data.preimage != null,
+        child: HistoryDetail(label: "Payment preimage", value: data.preimage ?? ''),
+      ),
+    ];
   }
 
   @override

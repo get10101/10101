@@ -307,7 +307,9 @@ fn keep_wallet_balance_and_history_up_to_date(node: &Node) -> Result<()> {
                 // This is calculated manually to avoid wasteful requests to esplora,
                 // since we can just cache the blockchain height as opposed to fetching it for each
                 // block as with `LnDlcWallet::get_transaction_confirmations`
-                blockchain_height.checked_sub(height as u64).unwrap_or_default(),
+                blockchain_height
+                    .checked_sub(height as u64)
+                    .unwrap_or_default(),
             ),
 
             None => {
@@ -375,7 +377,11 @@ fn keep_wallet_balance_and_history_up_to_date(node: &Node) -> Result<()> {
                 payment_hash,
             }
         } else {
-            api::WalletType::Lightning { payment_hash }
+            api::WalletType::Lightning {
+                payment_hash,
+                description: details.description.clone(),
+                payment_preimage: details.preimage.clone(),
+            }
         };
 
         Some(api::WalletHistoryItem {

@@ -66,23 +66,31 @@ abstract class WalletHistoryItemData {
       );
     }
 
+    rust.WalletType_Lightning type = item.walletType as rust.WalletType_Lightning;
+
     return LightningPaymentData(
         flow: flow,
         amount: amount,
         status: status,
         timestamp: timestamp,
-        paymentHash: (item.walletType as rust.WalletType_Lightning).paymentHash);
+        preimage: type.paymentPreimage,
+        description: type.description,
+        paymentHash: type.paymentHash);
   }
 }
 
 class LightningPaymentData extends WalletHistoryItemData {
   final String paymentHash;
+  final String? preimage;
+  final String description;
 
   LightningPaymentData(
       {required super.flow,
       required super.amount,
       required super.status,
       required super.timestamp,
+      required this.preimage,
+      required this.description,
       required this.paymentHash});
 
   @override
