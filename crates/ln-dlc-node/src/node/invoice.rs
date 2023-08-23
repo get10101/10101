@@ -101,6 +101,12 @@ where
             })
             .map_err(|_| anyhow!("Failed to sign invoice"))?;
         let invoice = Invoice::from_signed(signed_invoice)?;
+
+        self.storage.insert_payment(
+            payment_hash,
+            invoice.clone().into(),
+        )?;
+
         Ok(invoice)
     }
 
