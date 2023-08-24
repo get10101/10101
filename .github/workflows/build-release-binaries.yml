@@ -75,6 +75,9 @@ jobs:
           channel: "stable"
           flutter-version: ${{ env.FLUTTER_VERSION }}
           architecture: x64
+          cache: true
+          cache-key: flutter-${{ env.FLUTTER_VERSION }}
+          cache-path: ${{ runner.tool_cache }}/flutter
 
       - uses: actions/cache@v3
         id: cache-deps

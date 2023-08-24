@@ -11,6 +11,7 @@ on:
 env:
   CARGO_INCREMENTAL: 0
   CARGO_TERM_COLOR: always
+  FLUTTER_VERSION: "3.10.5"
 
 jobs:
   formatting-dprint:
@@ -50,9 +51,11 @@ jobs:
       - uses: Swatinem/rust-cache@v2.2.0
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: "3.10.5"
+          flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: "stable"
           cache: true
+          cache-key: flutter-${{ env.FLUTTER_VERSION }}
+          cache-path: ${{ runner.tool_cache }}/flutter
       - name: Install FFI bindings
         run: just deps-gen
       - name: Generate FFI bindings
@@ -67,9 +70,11 @@ jobs:
       - uses: extractions/setup-just@v1
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: "3.10.5"
+          flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: "stable"
           cache: true
+          cache-key: flutter-${{ env.FLUTTER_VERSION }}
+          cache-path: ${{ runner.tool_cache }}/flutter
       - name: Setup rust toolchain
         run: rustup show
       - name: Install FFI bindings
@@ -94,8 +99,11 @@ jobs:
       - uses: Swatinem/rust-cache@v2.2.0
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: "3.10.5"
+          flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: "stable"
+          cache: true
+          cache-key: flutter-${{ env.FLUTTER_VERSION }}
+          cache-path: ${{ runner.tool_cache }}/flutter
       - name: Install FFI bindings
         run: just deps-gen
       - name: Generate FFI bindings
@@ -142,10 +150,11 @@ jobs:
       - uses: Swatinem/rust-cache@v2.2.0
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: "3.10.5"
+          flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: "stable"
           cache: true
-          cache-path: '${{ runner.tool_cache }}/flutter/:channel:-:version:-:arch:' # optional, change this to specify the cache path
+          cache-key: flutter-${{ env.FLUTTER_VERSION }}
+          cache-path: ${{ runner.tool_cache }}/flutter
           architecture: x64 
       - name: Install FFI bindings
         run: just deps-gen
