@@ -151,6 +151,7 @@ class _WalletScreenState extends State<WalletScreen> {
                         children: [
                           BalanceRow(walletType: WalletHistoryItemDataType.lightning),
                           BalanceRow(walletType: WalletHistoryItemDataType.onChain),
+                          BalanceRow(walletType: WalletHistoryItemDataType.stable),
                         ],
                       ),
                     ),

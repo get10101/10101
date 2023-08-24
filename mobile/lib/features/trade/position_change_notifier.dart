@@ -5,6 +5,8 @@ import 'package:get_10101/common/application/event_service.dart';
 import 'package:get_10101/common/domain/model.dart';
 import 'package:get_10101/features/trade/application/position_service.dart';
 import 'package:get_10101/features/trade/domain/contract_symbol.dart';
+import 'package:get_10101/features/trade/domain/direction.dart';
+import 'package:get_10101/features/trade/domain/leverage.dart';
 
 import 'domain/position.dart';
 import 'domain/price.dart';
@@ -15,6 +17,32 @@ class PositionChangeNotifier extends ChangeNotifier implements Subscriber {
   Map<ContractSymbol, Position> positions = {};
 
   Price? price;
+
+  /// Amount of stabilised bitcoin in terms of USD (fiat)
+  double getStableUSDAmountInFiat() {
+    if (hasStableUSD()) {
+      final positionUsd = positions[ContractSymbol.btcusd];
+      return positionUsd!.quantity;
+    } else {
+      return 0.0;
+    }
+  }
+
+  Amount getStableUSDAmountInSats() {
+    if (hasStableUSD()) {
+      final positionUsd = positions[ContractSymbol.btcusd];
+      return positionUsd!.getAmountWithUnrealizedPnl();
+    } else {
+      return Amount(0);
+    }
+  }
+
+  bool hasStableUSD() {
+    final positionUsd = positions[ContractSymbol.btcusd];
+    return positionUsd != null &&
+        positionUsd.direction == Direction.short &&
+        positionUsd.leverage == Leverage(1);
+  }
 
   Future<void> initialize() async {
     List<Position> positions = await _positionService.fetchPositions();

@@ -2,7 +2,14 @@ import 'package:get_10101/common/domain/model.dart';
 import 'payment_flow.dart';
 import 'package:get_10101/bridge_generated/bridge_definitions.dart' as rust;
 
-enum WalletHistoryItemDataType { lightning, onChain, trade, orderMatchingFee, jitChannelFee }
+enum WalletHistoryItemDataType {
+  lightning,
+  onChain,
+  trade,
+  orderMatchingFee,
+  jitChannelFee,
+  stable
+}
 
 enum WalletHistoryStatus { pending, confirmed }
 
