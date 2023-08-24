@@ -84,7 +84,6 @@ pub struct FlutterSubscriber {
 /// Subscribes to event relevant for flutter and forwards them to the stream sink.
 impl Subscriber for FlutterSubscriber {
     fn notify(&self, event: &EventInternal) {
-        tracing::debug!(event = %event, "Forwarding event to flutter");
         self.stream.add(event.clone().into());
     }
 
