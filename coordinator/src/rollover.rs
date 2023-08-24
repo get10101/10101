@@ -81,7 +81,7 @@ impl Rollover {
     ///
     /// todo(holzeis): this should come from a configuration https://github.com/get10101/10101/issues/1029
     pub fn maturity_time(&self) -> OffsetDateTime {
-        let tomorrow = self.expiry_timestamp.date() + Duration::days(2);
+        let tomorrow = self.expiry_timestamp.date() + Duration::days(7);
         tomorrow.midnight().assume_utc()
     }
 }
@@ -204,9 +204,9 @@ pub mod tests {
         };
         let event_id = rollover.event_id();
 
-        // expect expiry in two days at midnight.
-        // Sat Aug 19 2023 00:00:00 GMT+0000
-        assert_eq!(event_id, format!("btcusd1692403200"))
+        // expect expiry in seven days at midnight.
+        // Thu Aug 24 2023 00:00:00 GMT+0000
+        assert_eq!(event_id, format!("btcusd1692835200"))
     }
 
     #[test]

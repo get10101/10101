@@ -65,7 +65,7 @@ pub fn match_order(
         return Ok(None);
     }
 
-    let tomorrow = OffsetDateTime::now_utc().date() + Duration::days(2);
+    let tomorrow = OffsetDateTime::now_utc().date() + Duration::days(7);
     let expiry_timestamp = tomorrow.midnight().assume_utc();
 
     // For now we hardcode the oracle pubkey here

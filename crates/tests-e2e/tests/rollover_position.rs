@@ -23,7 +23,7 @@ async fn can_rollover_position() {
         .unwrap();
 
     let position = test.app.rx.position().expect("position to exist");
-    let tomorrow = position.expiry.date() + Duration::days(2);
+    let tomorrow = position.expiry.date() + Duration::days(7);
     let new_expiry = tomorrow.midnight().assume_utc();
 
     coordinator
