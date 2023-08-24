@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_speed_dial/flutter_speed_dial.dart';
 import 'package:get_10101/common/amount_text.dart';
+import 'package:get_10101/common/fiat_text.dart';
 import 'package:get_10101/common/submission_status_dialog.dart';
 import 'package:get_10101/common/value_data_row.dart';
+import 'package:get_10101/features/trade/position_change_notifier.dart';
 import 'package:get_10101/features/wallet/seed_screen.dart';
 import 'package:get_10101/features/wallet/send_payment_change_notifier.dart';
 import 'package:get_10101/util/preferences.dart';
@@ -39,9 +41,11 @@ class _WalletScreenState extends State<WalletScreen> {
 
   @override
   Widget build(BuildContext context) {
-    WalletChangeNotifier walletChangeNotifier = context.watch<WalletChangeNotifier>();
-    SendPaymentChangeNotifier sendPaymentChangeNotifier =
-        context.watch<SendPaymentChangeNotifier>();
+    final walletChangeNotifier = context.watch<WalletChangeNotifier>();
+    final sendPaymentChangeNotifier = context.watch<SendPaymentChangeNotifier>();
+
+    // For displaying synthetic USD balance
+    final positionChangeNotifier = context.watch<PositionChangeNotifier>();
 
     if (sendPaymentChangeNotifier.pendingPayment != null &&
         !sendPaymentChangeNotifier.pendingPayment!.displayed) {
@@ -138,10 +142,31 @@ class _WalletScreenState extends State<WalletScreen> {
                                         fontStyle: FontStyle.italic,
                                       ),
                                     )
-                                  : AmountText(
-                                      amount: walletChangeNotifier.total(),
-                                      textStyle: const TextStyle(
-                                          fontSize: 20.0, fontWeight: FontWeight.bold))),
+                                  : Row(
+                                      children: [
+                                        AmountText(
+                                            amount: walletChangeNotifier.total(),
+                                            textStyle: const TextStyle(
+                                                fontSize: 20.0, fontWeight: FontWeight.bold)),
+                                        Visibility(
+                                            visible:
+                                                positionChangeNotifier.getStableUSDAmountInFiat() !=
+                                                    0.0,
+                                            child: Row(
+                                              children: [
+                                                const SizedBox(width: 5),
+                                                const Text("+"),
+                                                const SizedBox(width: 5),
+                                                FiatText(
+                                                    amount: positionChangeNotifier
+                                                        .getStableUSDAmountInFiat(),
+                                                    textStyle: const TextStyle(
+                                                        fontSize: 20.0,
+                                                        fontWeight: FontWeight.bold)),
+                                              ],
+                                            )),
+                                      ],
+                                    )),
                         ],
                       );
                     },
