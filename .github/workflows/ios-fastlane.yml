@@ -66,6 +66,9 @@ on:
         description: "The public key of the oracle. Must match with the public key returned at http://${oracle_endpoint}/oracle/publickey"
         type: string
 
+env:
+  FLUTTER_VERSION: "3.10.5"
+
 jobs:
   build:
     runs-on: macos-latest
@@ -82,9 +85,11 @@ jobs:
 
       - uses: subosito/flutter-action@v2
         with:
-          channel: "stable"
           flutter-version: ${{ env.FLUTTER_VERSION }}
-          architecture: x64
+          channel: "stable"
+          cache: true
+          cache-key: flutter-${{ env.FLUTTER_VERSION }}
+          cache-path: ${{ runner.tool_cache }}/flutter
 
       - uses: actions/cache@v3
         id: cache-deps
