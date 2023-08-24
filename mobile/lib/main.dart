@@ -1,11 +1,9 @@
 import 'dart:convert';
 import 'package:f_logs/f_logs.dart';
-import 'package:feedback/feedback.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter/material.dart';
-import 'package:get_10101/common/global_keys.dart';
 import 'package:get_10101/firebase_options.dart';
 import 'package:get_10101/common/channel_status_notifier.dart';
 import 'dart:io';
@@ -57,8 +55,8 @@ import 'package:get_10101/features/wallet/domain/wallet_info.dart';
 import 'package:get_10101/ffi.dart' as rust;
 import 'package:version/version.dart';
 
-final GlobalKey<NavigatorState> _feedbackNavigatorKey =
-    GlobalKey<NavigatorState>(debugLabel: 'feedback');
+final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
+final GlobalKey<NavigatorState> _shellNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'shell');
 
 void main() {
   WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
@@ -115,11 +113,11 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
       GlobalKey<ScaffoldMessengerState>();
 
   final GoRouter _router = GoRouter(
-      navigatorKey: rootNavigatorKey,
+      navigatorKey: _rootNavigatorKey,
       initialLocation: WalletScreen.route,
       routes: <RouteBase>[
         ShellRoute(
-          navigatorKey: shellNavigatorKey,
+          navigatorKey: _shellNavigatorKey,
           builder: (BuildContext context, GoRouterState state, Widget child) {
             return ScaffoldWithNavBar(
               child: child,
@@ -135,7 +133,7 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
                 GoRoute(
                   path: SendScreen.subRouteName,
                   // Use root navigator so the screen overlays the application shell
-                  parentNavigatorKey: rootNavigatorKey,
+                  parentNavigatorKey: _rootNavigatorKey,
                   builder: (BuildContext context, GoRouterState state) {
                     return const SendScreen();
                   },
@@ -143,7 +141,7 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
                 GoRoute(
                   path: SeedScreen.subRouteName,
                   // Use root navigator so the screen overlays the application shell
-                  parentNavigatorKey: rootNavigatorKey,
+                  parentNavigatorKey: _rootNavigatorKey,
                   builder: (BuildContext context, GoRouterState state) {
                     return const SeedScreen();
                   },
@@ -151,7 +149,7 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
                 GoRoute(
                     path: CreateInvoiceScreen.subRouteName,
                     // Use root navigator so the screen overlays the application shell
-                    parentNavigatorKey: rootNavigatorKey,
+                    parentNavigatorKey: _rootNavigatorKey,
                     builder: (BuildContext context, GoRouterState state) {
                       return const CreateInvoiceScreen();
                     },
@@ -159,7 +157,7 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
                       GoRoute(
                         path: ShareInvoiceScreen.subRouteName,
                         // Use root navigator so the screen overlays the application shell
-                        parentNavigatorKey: rootNavigatorKey,
+                        parentNavigatorKey: _rootNavigatorKey,
                         builder: (BuildContext context, GoRouterState state) {
                           return ShareInvoiceScreen(invoice: state.extra as ShareInvoice);
                         },
@@ -167,7 +165,7 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
                     ]),
                 GoRoute(
                   path: ScannerScreen.subRouteName,
-                  parentNavigatorKey: rootNavigatorKey,
+                  parentNavigatorKey: _rootNavigatorKey,
                   builder: (BuildContext context, GoRouterState state) {
                     return const ScannerScreen();
                   },
@@ -185,7 +183,7 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
         ),
         GoRoute(
             path: WelcomeScreen.route,
-            parentNavigatorKey: rootNavigatorKey,
+            parentNavigatorKey: _rootNavigatorKey,
             builder: (BuildContext context, GoRouterState state) {
               return const WelcomeScreen();
             },
@@ -232,7 +230,7 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
         if (coordinatorVersion > clientVersion) {
           FLog.warning(text: "Client out of date. Current version: ${clientVersion.toString()}");
           showDialog(
-              context: shellNavigatorKey.currentContext!,
+              context: _shellNavigatorKey.currentContext!,
               builder: (context) => AlertDialog(
                       title: const Text("Update available"),
                       content: Text("A new version of 10101 is available: "
@@ -258,25 +256,24 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
   @override
   Widget build(BuildContext context) {
     MaterialColor swatch = tenTenOnePurple;
-    return BetterFeedback(
-        key: _feedbackNavigatorKey,
-        child: MaterialApp.router(
-          title: "10101",
-          scaffoldMessengerKey: scaffoldMessengerKey,
-          theme: ThemeData(
-            primarySwatch: swatch,
-            iconTheme: IconThemeData(
-              color: tenTenOnePurple.shade800,
-              size: 32,
-            ),
-            extensions: <ThemeExtension<dynamic>>[
-              const TradeTheme(),
-              WalletTheme(colors: ColorScheme.fromSwatch(primarySwatch: swatch)),
-            ],
-          ),
-          routerConfig: _router,
-          debugShowCheckedModeBanner: false,
-        ));
+
+    return MaterialApp.router(
+      title: "10101",
+      scaffoldMessengerKey: scaffoldMessengerKey,
+      theme: ThemeData(
+        primarySwatch: swatch,
+        iconTheme: IconThemeData(
+          color: tenTenOnePurple.shade800,
+          size: 32,
+        ),
+        extensions: <ThemeExtension<dynamic>>[
+          const TradeTheme(),
+          WalletTheme(colors: ColorScheme.fromSwatch(primarySwatch: swatch)),
+        ],
+      ),
+      routerConfig: _router,
+      debugShowCheckedModeBanner: false,
+    );
   }
 
   Future<void> init(bridge.Config config) async {

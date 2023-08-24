@@ -2,9 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:f_logs/f_logs.dart';
-import 'package:feedback/feedback.dart';
 import 'package:flutter/material.dart';
-import 'package:get_10101/common/feedback.dart';
 import 'package:get_10101/common/scrollable_safe_area.dart';
 import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
 import 'package:intl/intl.dart';
@@ -173,18 +171,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
               Share.shareXFiles([logFile], text: 'Logs from $now');
             },
             child: const Text("Share logs")),
-        const SizedBox(height: 20),
-        ElevatedButton(
-          child: const Text('Provide feedback'),
-          onPressed: () {
-            try {
-              BetterFeedback.of(context).show(submitFeedback);
-            } on Exception catch (e) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Failed to share feedback via email app because: $e')));
-            }
-          },
-        ),
       ])),
     );
   }

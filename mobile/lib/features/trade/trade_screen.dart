@@ -62,7 +62,7 @@ class TradeScreen extends StatelessWidget {
       WidgetsBinding.instance.addPostFrameCallback((_) async {
         return await showDialog(
             context: context,
-            useRootNavigator: false,
+            useRootNavigator: true,
             barrierDismissible: false, // Prevent user from leaving
             builder: (BuildContext context) {
               return Selector<SubmitOrderChangeNotifier, PendingOrderState>(

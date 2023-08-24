@@ -25,7 +25,7 @@ class ModalBottomSheetInfo extends StatelessWidget {
               ),
             ),
             clipBehavior: Clip.antiAliasWithSaveLayer,
-            useRootNavigator: false,
+            useRootNavigator: true,
             context: context,
             builder: (BuildContext context) {
               return Container(
