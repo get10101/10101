@@ -1,14 +1,15 @@
 import 'package:f_logs/model/flog/flog.dart';
 import 'package:flutter/material.dart';
+import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
 import 'package:get_10101/common/application/event_service.dart';
 import 'package:get_10101/common/domain/model.dart';
 import 'package:get_10101/features/trade/application/order_service.dart';
 import 'package:get_10101/features/trade/application/trade_values_service.dart';
 import 'package:get_10101/features/trade/domain/contract_symbol.dart';
 import 'package:get_10101/features/trade/domain/position.dart';
+
 import 'domain/order.dart';
 import 'domain/trade_values.dart';
-import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
 
 enum PendingOrderState {
   submitting,
@@ -31,6 +32,8 @@ class PendingOrder {
   String? id;
 
   PendingOrder(this._tradeValues, this.positionAction);
+
+  TradeValues? get tradeValues => _tradeValues;
 }
 
 class SubmitOrderChangeNotifier extends ChangeNotifier implements Subscriber {

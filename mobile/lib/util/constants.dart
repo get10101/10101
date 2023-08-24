@@ -17,6 +17,7 @@ const _slider = "slider/";
 
 const _wallet = "wallet/";
 const _trade = "trade/";
+const _stable = "stable/";
 
 // path on screen
 
@@ -52,5 +53,6 @@ const tradeScreenBottomSheetConfirmationSliderButtonBuy =
 const tradeScreenBottomSheetConfirmationSliderButtonSell =
     Key(_trade + _bottomSheet + _confirmSheet + _slider + _button + _sell);
 
+const tabStable = Key(_tabs + _stable);
 const tabWallet = Key(_tabs + _wallet);
 const tabTrade = Key(_tabs + _trade);

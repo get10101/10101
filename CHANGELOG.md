@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Add synthetic usd feature.
+- Fix delayed position update.
+
 ## [1.2.2] - 2023-08-22
 
 ## [1.2.1] - 2023-08-21

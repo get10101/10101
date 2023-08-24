@@ -1,10 +1,10 @@
 import 'package:f_logs/model/flog/flog.dart';
 import 'package:flutter/material.dart';
+import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
 import 'package:get_10101/common/application/event_service.dart';
 import 'package:get_10101/common/domain/model.dart';
 import 'package:get_10101/features/trade/application/position_service.dart';
 import 'package:get_10101/features/trade/domain/contract_symbol.dart';
-import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
 
 import 'domain/position.dart';
 import 'domain/price.dart';
@@ -39,9 +39,13 @@ class PositionChangeNotifier extends ChangeNotifier implements Subscriber {
         position.unrealizedPnl = null;
       }
       positions[position.contractSymbol] = position;
+
+      notifyListeners();
     } else if (event is bridge.Event_PositionClosedNotification) {
       ContractSymbol contractSymbol = ContractSymbol.fromApi(event.field0.contractSymbol);
       positions.remove(contractSymbol);
+
+      notifyListeners();
     } else if (event is bridge.Event_PriceUpdateNotification) {
       price = Price.fromApi(event.field0);
       for (ContractSymbol symbol in positions.keys) {

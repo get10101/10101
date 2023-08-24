@@ -1,8 +1,8 @@
-import 'package:get_10101/ffi.dart' as rust;
-import 'package:get_10101/features/trade/domain/direction.dart';
-import 'package:get_10101/features/trade/domain/leverage.dart';
 import 'package:get_10101/common/domain/model.dart';
 import 'package:get_10101/features/trade/application/trade_values_service.dart';
+import 'package:get_10101/features/trade/domain/direction.dart';
+import 'package:get_10101/features/trade/domain/leverage.dart';
+import 'package:get_10101/ffi.dart' as rust;
 
 class TradeValues {
   Amount? margin;
@@ -30,6 +30,34 @@ class TradeValues {
       required this.fee,
       required this.fundingRate,
       required this.tradeValuesService});
+
+  factory TradeValues.createStable(
+      {required double quantity,
+      required Leverage leverage,
+      required double? price,
+      required double fundingRate,
+      required Direction direction,
+      required TradeValuesService tradeValuesService}) {
+    Amount? margin =
+        tradeValuesService.calculateMargin(price: price, quantity: quantity, leverage: leverage);
+    double? liquidationPrice = price != null
+        ? tradeValuesService.calculateLiquidationPrice(
+            price: price, leverage: leverage, direction: direction)
+        : null;
+
+    Amount? fee = orderMatchingFee(quantity, price);
+
+    return TradeValues(
+        direction: direction,
+        margin: margin,
+        quantity: quantity,
+        leverage: leverage,
+        price: price,
+        fundingRate: fundingRate,
+        liquidationPrice: liquidationPrice,
+        fee: fee,
+        tradeValuesService: tradeValuesService);
+  }
 
   factory TradeValues.create(
       {required Amount? margin,
@@ -71,9 +99,18 @@ class TradeValues {
     _recalculateFee();
   }
 
-  updatePrice(double? price) {
+  updatePriceAndQuantity(double? price) {
     this.price = price;
+    // _recalculateMargin();
     _recalculateQuantity();
+    _recalculateLiquidationPrice();
+    _recalculateFee();
+  }
+
+  updatePriceAndMargin(double? price) {
+    this.price = price;
+    // _recalculateMargin();
+    _recalculateMargin();
     _recalculateLiquidationPrice();
     _recalculateFee();
   }

@@ -1,59 +1,63 @@
 import 'dart:convert';
+import 'dart:io';
+
 import 'package:f_logs/f_logs.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter/material.dart';
-import 'package:get_10101/firebase_options.dart';
-import 'package:get_10101/common/channel_status_notifier.dart';
-import 'dart:io';
-import 'package:http/http.dart' as http;
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge.dart';
 import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
+import 'package:get_10101/common/amount_denomination_change_notifier.dart';
+import 'package:get_10101/common/app_bar_wrapper.dart';
 import 'package:get_10101/common/application/channel_info_service.dart';
 import 'package:get_10101/common/application/event_service.dart';
+import 'package:get_10101/common/channel_status_notifier.dart';
 import 'package:get_10101/common/color.dart';
+import 'package:get_10101/common/domain/service_status.dart';
 import 'package:get_10101/common/service_status_notifier.dart';
+import 'package:get_10101/features/stable/stable_screen.dart';
 import 'package:get_10101/features/trade/application/candlestick_service.dart';
 import 'package:get_10101/features/trade/application/order_service.dart';
 import 'package:get_10101/features/trade/application/position_service.dart';
 import 'package:get_10101/features/trade/application/trade_values_service.dart';
 import 'package:get_10101/features/trade/candlestick_change_notifier.dart';
+import 'package:get_10101/features/trade/domain/order.dart';
 import 'package:get_10101/features/trade/domain/position.dart';
-import 'package:get_10101/common/domain/service_status.dart';
+import 'package:get_10101/features/trade/domain/price.dart';
 import 'package:get_10101/features/trade/order_change_notifier.dart';
 import 'package:get_10101/features/trade/position_change_notifier.dart';
 import 'package:get_10101/features/trade/submit_order_change_notifier.dart';
-import 'package:get_10101/features/trade/trade_value_change_notifier.dart';
+import 'package:get_10101/features/trade/trade_screen.dart';
 import 'package:get_10101/features/trade/trade_theme.dart';
+import 'package:get_10101/features/trade/trade_value_change_notifier.dart';
 import 'package:get_10101/features/wallet/application/wallet_service.dart';
 import 'package:get_10101/features/wallet/create_invoice_screen.dart';
 import 'package:get_10101/features/wallet/domain/share_invoice.dart';
+import 'package:get_10101/features/wallet/domain/wallet_info.dart';
+import 'package:get_10101/features/wallet/scanner_screen.dart';
 import 'package:get_10101/features/wallet/seed_screen.dart';
 import 'package:get_10101/features/wallet/send_payment_change_notifier.dart';
-import 'package:get_10101/features/wallet/share_invoice_screen.dart';
-import 'package:get_10101/features/wallet/scanner_screen.dart';
 import 'package:get_10101/features/wallet/send_screen.dart';
-import 'package:get_10101/features/trade/trade_screen.dart';
+import 'package:get_10101/features/wallet/share_invoice_screen.dart';
 import 'package:get_10101/features/wallet/wallet_change_notifier.dart';
 import 'package:get_10101/features/wallet/wallet_screen.dart';
-import 'package:get_10101/common/app_bar_wrapper.dart';
 import 'package:get_10101/features/wallet/wallet_theme.dart';
 import 'package:get_10101/features/welcome/welcome_screen.dart';
+import 'package:get_10101/ffi.dart' as rust;
+import 'package:get_10101/firebase_options.dart';
 import 'package:get_10101/util/constants.dart';
 import 'package:get_10101/util/environment.dart';
 import 'package:get_10101/util/preferences.dart';
 import 'package:go_router/go_router.dart';
+import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
-import 'package:get_10101/common/amount_denomination_change_notifier.dart';
-import 'package:get_10101/features/trade/domain/order.dart';
-import 'package:get_10101/features/trade/domain/price.dart';
-import 'package:get_10101/features/wallet/domain/wallet_info.dart';
-import 'package:get_10101/ffi.dart' as rust;
 import 'package:version/version.dart';
+
+import 'features/stable/stable_value_change_notifier.dart';
 
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
 final GlobalKey<NavigatorState> _shellNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'shell');
@@ -65,10 +69,15 @@ void main() {
   setupFlutterLogs();
 
   const ChannelInfoService channelInfoService = ChannelInfoService();
+  var tradeValuesService = TradeValuesService();
 
   runApp(MultiProvider(providers: [
-    ChangeNotifierProvider(
-        create: (context) => TradeValuesChangeNotifier(TradeValuesService(), channelInfoService)),
+    ChangeNotifierProvider(create: (context) {
+      return TradeValuesChangeNotifier(tradeValuesService, channelInfoService);
+    }),
+    ChangeNotifierProvider(create: (context) {
+      return StableValuesChangeNotifier(tradeValuesService, channelInfoService);
+    }),
     ChangeNotifierProvider(create: (context) => AmountDenominationChangeNotifier()),
     ChangeNotifierProvider(create: (context) => SubmitOrderChangeNotifier(OrderService())),
     ChangeNotifierProvider(create: (context) => OrderChangeNotifier(OrderService())),
@@ -172,6 +181,11 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
                 ),
               ],
             ),
+            GoRoute(
+                path: StableScreen.route,
+                builder: (BuildContext context, GoRouterState state) {
+                  return const StableScreen();
+                }),
             GoRoute(
               path: TradeScreen.route,
               builder: (BuildContext context, GoRouterState state) {
@@ -357,6 +371,10 @@ class ScaffoldWithNavBar extends StatelessWidget {
       bottomNavigationBar: BottomNavigationBar(
         items: <BottomNavigationBarItem>[
           BottomNavigationBarItem(
+            icon: Container(key: tabStable, child: const Icon(Icons.currency_exchange)),
+            label: StableScreen.label,
+          ),
+          BottomNavigationBarItem(
             icon: Container(key: tabWallet, child: const Icon(Icons.wallet)),
             label: WalletScreen.label,
           ),
@@ -373,21 +391,27 @@ class ScaffoldWithNavBar extends StatelessWidget {
 
   static int _calculateSelectedIndex(BuildContext context) {
     final String location = GoRouterState.of(context).location;
-    if (location.startsWith(WalletScreen.route)) {
+    if (location.startsWith(StableScreen.route)) {
       return 0;
     }
-    if (location.startsWith(TradeScreen.route)) {
+    if (location.startsWith(WalletScreen.route)) {
       return 1;
     }
-    return 0;
+    if (location.startsWith(TradeScreen.route)) {
+      return 2;
+    }
+    return 1;
   }
 
   void _onItemTapped(int index, BuildContext context) {
     switch (index) {
       case 0:
-        GoRouter.of(context).go(WalletScreen.route);
+        GoRouter.of(context).go(StableScreen.route);
         break;
       case 1:
+        GoRouter.of(context).go(WalletScreen.route);
+        break;
+      case 2:
         GoRouter.of(context).go(TradeScreen.route);
         break;
     }
@@ -432,6 +456,7 @@ void subscribeToNotifiers(BuildContext context) {
   final submitOrderChangeNotifier = context.read<SubmitOrderChangeNotifier>();
   final serviceStatusNotifier = context.read<ServiceStatusNotifier>();
   final channelStatusNotifier = context.read<ChannelStatusNotifier>();
+  final stableValuesChangeNotifier = context.read<StableValuesChangeNotifier>();
 
   eventService.subscribe(
       orderChangeNotifier, bridge.Event.orderUpdateNotification(Order.apiDummy()));
@@ -452,6 +477,9 @@ void subscribeToNotifiers(BuildContext context) {
 
   eventService.subscribe(
       tradeValuesChangeNotifier, bridge.Event.priceUpdateNotification(Price.apiDummy()));
+
+  eventService.subscribe(
+      stableValuesChangeNotifier, bridge.Event.priceUpdateNotification(Price.apiDummy()));
 
   eventService.subscribe(
       positionChangeNotifier, bridge.Event.priceUpdateNotification(Price.apiDummy()));

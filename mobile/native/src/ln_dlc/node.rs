@@ -262,12 +262,12 @@ impl Node {
             let filled_order = order::handler::order_filled()
                 .context("Cannot mark order as filled for confirmed DLC")?;
 
+            position::handler::update_position_after_dlc_creation(filled_order, accept_collateral)
+                .context("Failed to update position after DLC creation")?;
+
             if let Err(e) = self.pay_order_matching_fee(&channel_id) {
                 tracing::error!("{e:#}");
             }
-
-            position::handler::update_position_after_dlc_creation(filled_order, accept_collateral)
-                .context("Failed to update position after DLC creation")?
         }
 
         if let Some(msg) = resp {
@@ -297,12 +297,12 @@ impl Node {
         {
             match order::handler::order_filled() {
                 Ok(filled_order) => {
+                    position::handler::update_position_after_dlc_closure(filled_order)
+                        .context("Failed to update position after DLC closure")?;
+
                     if let Err(e) = self.pay_order_matching_fee(&channel_id) {
                         tracing::error!("{e:#}");
                     }
-
-                    position::handler::update_position_after_dlc_closure(filled_order)
-                        .context("Failed to update position after DLC closure")?;
                 }
                 // TODO: Should we charge for the order-matching fee if there is no order????
                 Err(e) => {
