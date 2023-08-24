@@ -122,7 +122,7 @@ class TradeBottomSheetConfirmation extends StatelessWidget {
                         if (!close)
                           ValueDataRow(
                               type: ValueType.date,
-                              value: DateTime.utc(now.year, now.month, now.day + 2).toLocal(),
+                              value: DateTime.utc(now.year, now.month, now.day + 7).toLocal(),
                               label: 'Expiry'),
                         close
                             ? ValueDataRow(
