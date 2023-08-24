@@ -470,3 +470,146 @@ async fn reconnecting_during_dlc_channel_setup_reversed() {
     .await
     .unwrap();
 }
+
+#[tokio::test(flavor = "multi_thread")]
+#[ignore]
+async fn can_lose_connection_before_processing_subchannel_finalize() {
+    init_tracing();
+
+    // Arrange
+
+    let app_dlc_collateral = 25_000;
+    let coordinator_dlc_collateral = 50_000;
+
+    let app_ln_balance = app_dlc_collateral * 2;
+    let coordinator_ln_balance = coordinator_dlc_collateral * 2;
+
+    let fund_amount = (app_ln_balance + coordinator_ln_balance) * 2;
+
+    let (app, _running_app) = Node::start_test_app("app").unwrap();
+    let (coordinator, _running_coord) = Node::start_test_coordinator("coordinator").unwrap();
+
+    app.connect(coordinator.info).await.unwrap();
+
+    coordinator
+        .fund(Amount::from_sat(fund_amount))
+        .await
+        .unwrap();
+
+    coordinator
+        .open_private_channel(&app, coordinator_ln_balance, app_ln_balance)
+        .await
+        .unwrap();
+
+    tokio::time::sleep(Duration::from_secs(5)).await;
+
+    let oracle_pk = app.oracle_pk();
+    let contract_input =
+        dummy_contract_input(coordinator_dlc_collateral, app_dlc_collateral, oracle_pk);
+
+    let channel_details = coordinator
+        .channel_manager
+        .list_usable_channels()
+        .iter()
+        .find(|c| c.counterparty.node_id == app.info.pubkey)
+        .context("Could not find usable channel with peer")
+        .unwrap()
+        .clone();
+
+    coordinator
+        .propose_dlc_channel(channel_details.clone(), contract_input)
+        .await
+        .unwrap();
+
+    // Process the coordinator's `Offer`
+    let sub_channel = wait_until_dlc_channel_state(
+        Duration::from_secs(30),
+        &app,
+        coordinator.info.pubkey,
+        SubChannelStateName::Offered,
+    )
+    .await
+    .unwrap();
+
+    app.accept_dlc_channel_offer(&sub_channel.channel_id)
+        .unwrap();
+
+    // Process the app's `Accept` and send `Confirm`
+    wait_until_dlc_channel_state(
+        Duration::from_secs(30),
+        &coordinator,
+        app.info.pubkey,
+        SubChannelStateName::Confirmed,
+    )
+    .await
+    .unwrap();
+
+    // Process the coordinator's `Confirm` and send `Finalize`
+    wait_until_dlc_channel_state(
+        Duration::from_secs(30),
+        &app,
+        coordinator.info.pubkey,
+        SubChannelStateName::Finalized,
+    )
+    .await
+    .unwrap();
+
+    // Give time to deliver the `Finalize` message to the coordinator
+    tokio::time::sleep(Duration::from_secs(5)).await;
+
+    // Lose the connection, triggering the coordinator's rollback to the Offered state
+    coordinator.reconnect(app.info).await.unwrap();
+
+    // Process the app's `Finalize`, expecting an error
+    wait_until_dlc_channel_state(
+        Duration::from_secs(30),
+        &coordinator,
+        app.info.pubkey,
+        SubChannelStateName::Signed,
+    )
+    .await
+    .expect_err("Invalid state: Expected Confirmed state but got Offered");
+
+    // Lose the connection, triggering the coordinator's rollback to the Offered state
+    app.reconnect(coordinator.info).await.unwrap();
+
+    // Process the app's resent `Accept` and send `Confirm`
+    wait_until_dlc_channel_state(
+        Duration::from_secs(30),
+        &coordinator,
+        app.info.pubkey,
+        SubChannelStateName::Confirmed,
+    )
+    .await
+    .unwrap();
+
+    // Process the coordinator's `Confirm` and send `Finalize`
+    wait_until_dlc_channel_state(
+        Duration::from_secs(30),
+        &app,
+        coordinator.info.pubkey,
+        SubChannelStateName::Finalized,
+    )
+    .await
+    .unwrap();
+
+    // Process the app's `Finalize` and send `Revoke`
+    wait_until_dlc_channel_state(
+        Duration::from_secs(30),
+        &coordinator,
+        app.info.pubkey,
+        SubChannelStateName::Signed,
+    )
+    .await
+    .unwrap();
+
+    // Process the app's `Revoke`
+    wait_until_dlc_channel_state(
+        Duration::from_secs(30),
+        &app,
+        coordinator.info.pubkey,
+        SubChannelStateName::Signed,
+    )
+    .await
+    .unwrap();
+}
