@@ -556,11 +556,35 @@ async fn can_lose_connection_before_processing_subchannel_finalize() {
     // Give time to deliver the `Finalize` message to the coordinator
     tokio::time::sleep(Duration::from_secs(5)).await;
 
-    // Lose the connection, triggering the coordinator's rollback to the `Offered` state. The
-    // `Finalize` message is dropped during the reconnect
-    coordinator.reconnect(app.info).await.unwrap();
+    // Lose the connection, triggering the coordinator's rollback to the `Offered` state.
+    app.reconnect(coordinator.info).await.unwrap();
+
+    // Process the pending `Finalize` which will fail, as the coordinator rolled back to the
+    // `Offered` state.
+    let result = wait_until_dlc_channel_state(
+        Duration::from_secs(30),
+        &coordinator,
+        app.info.pubkey,
+        SubChannelStateName::Signed,
+    )
+    .await;
+
+    // Invalid state: Expected Confirmed state but got Offered
+    tracing::error!("{:#}", result.err().unwrap());
+
+    sub_channel_manager_periodic_check(app.sub_channel_manager.clone(), &app.dlc_message_handler)
+        .await
+        .unwrap();
+
+    // Give time to deliver the `Accept` message to the coordinator
+    tokio::time::sleep(Duration::from_secs(5)).await;
+
+    // Error is happening after this reconnect.
+    app.reconnect(coordinator.info).await.unwrap();
 
     // Process the app's resent `Accept` and send `Confirm`
+    // Invalid state: Misuse error: Invalid commitment signed: Close : Invalid commitment tx
+    // signature from peer
     wait_until_dlc_channel_state(
         Duration::from_secs(30),
         &coordinator,
