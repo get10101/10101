@@ -68,4 +68,7 @@ impl RegisterParams {
 pub struct LspConfig {
     /// The maximum size a new channel may have
     pub max_channel_value_satoshi: u64,
+
+    /// The fee rate to be used for the DLC contracts in sats/vbyte
+    pub contract_tx_fee_rate: u64,
 }

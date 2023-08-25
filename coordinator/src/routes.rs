@@ -345,6 +345,7 @@ pub async fn get_lsp_channel_config(
     let settings = state.settings.read().await;
     Ok(Json(LspConfig {
         max_channel_value_satoshi: settings.ln_dlc.max_app_channel_size_sats,
+        contract_tx_fee_rate: settings.contract_tx_fee_rate,
     }))
 }
 

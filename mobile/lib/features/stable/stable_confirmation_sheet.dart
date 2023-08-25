@@ -84,14 +84,18 @@ class _StableBottomSheet extends State<StableBottomSheet> {
     super.dispose();
   }
 
-  Future<(ChannelInfo?, Amount)> _getChannelInfo(ChannelInfoService channelInfoService) async {
+  Future<(ChannelInfo?, Amount, Amount)> _getChannelInfo(
+      ChannelInfoService channelInfoService) async {
     var channelInfo = await channelInfoService.getChannelInfo();
 
     /// The max channel capacity as received by the LSP or if there is an existing channel
     var lspMaxChannelCapacity = await channelInfoService.getMaxCapacity();
 
-    var completer = Completer<(ChannelInfo?, Amount)>();
-    completer.complete((channelInfo, lspMaxChannelCapacity));
+    /// The max channel capacity as received by the LSP or if there is an existing channel
+    Amount tradeFeeReserve = await channelInfoService.getTradeFeeReserve();
+
+    var completer = Completer<(ChannelInfo?, Amount, Amount)>();
+    completer.complete((channelInfo, lspMaxChannelCapacity, tradeFeeReserve));
 
     return completer.future;
   }
@@ -135,16 +139,16 @@ class _StableBottomSheet extends State<StableBottomSheet> {
             crossAxisAlignment: CrossAxisAlignment.center,
             mainAxisSize: MainAxisSize.min,
             children: [
-              FutureBuilder<(ChannelInfo?, Amount)>(
+              FutureBuilder<(ChannelInfo?, Amount, Amount)>(
                   future: _getChannelInfo(channelInfoService),
                   // a previously-obtained Future<String> or null
-                  builder: (BuildContext context, AsyncSnapshot<(ChannelInfo?, Amount)> snapshot) {
+                  builder: (BuildContext context,
+                      AsyncSnapshot<(ChannelInfo?, Amount, Amount)> snapshot) {
                     if (!snapshot.hasData) {
                       return Container();
                     }
 
-                    var (channelInfo, lspMaxChannelCapacity) = snapshot.data!;
-                    Amount tradeFeeReserve = channelInfoService.getTradeFeeReserve();
+                    var (channelInfo, lspMaxChannelCapacity, tradeFeeReserve) = snapshot.data!;
 
                     Amount channelCapacity = lspMaxChannelCapacity;
 

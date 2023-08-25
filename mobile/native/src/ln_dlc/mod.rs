@@ -15,6 +15,7 @@ use crate::trade::position;
 use anyhow::anyhow;
 use anyhow::bail;
 use anyhow::Context;
+use anyhow::Error;
 use anyhow::Result;
 use bdk::bitcoin::secp256k1::rand::thread_rng;
 use bdk::bitcoin::secp256k1::rand::RngCore;
@@ -493,32 +494,56 @@ pub fn max_channel_value() -> Result<Amount> {
     {
         Ok(Amount::from_sat(existing_channel))
     } else {
-        let runtime = get_or_create_tokio_runtime()?;
-        runtime.block_on(async {
-            let client = reqwest_client();
-            let response = client
-                .get(format!(
-                    "http://{}/api/lsp/config",
-                    config::get_http_endpoint(),
-                ))
-                // timeout arbitrarily chosen
-                .timeout(Duration::from_secs(3))
-                .send()
-                .await?;
+        let lsp_config = poll_lsp_config()?;
+        tracing::info!(
+            channel_value_sats = lsp_config.max_channel_value_satoshi,
+            "Received channel config from LSP"
+        );
+        Ok(Amount::from_sat(lsp_config.max_channel_value_satoshi))
+    }
+}
 
-            if !response.status().is_success() {
-                let text = response.text().await?;
-                bail!("Failed to fetch channel config from LSP: {text}")
-            }
+fn poll_lsp_config() -> Result<LspConfig, Error> {
+    let runtime = get_or_create_tokio_runtime()?;
+    runtime.block_on(async {
+        let client = reqwest_client();
+        let response = client
+            .get(format!(
+                "http://{}/api/lsp/config",
+                config::get_http_endpoint(),
+            ))
+            // timeout arbitrarily chosen
+            .timeout(Duration::from_secs(3))
+            .send()
+            .await?;
 
-            let channel_config: LspConfig = response.json().await?;
+        if !response.status().is_success() {
+            let text = response.text().await?;
+            bail!("Failed to fetch channel config from LSP: {text}")
+        }
 
-            tracing::info!(
-                channel_value_sats = channel_config.max_channel_value_satoshi,
-                "Received channel config from LSP"
-            );
-            Ok(Amount::from_sat(channel_config.max_channel_value_satoshi))
-        })
+        let channel_config: LspConfig = response.json().await?;
+
+        Ok(channel_config)
+    })
+}
+
+pub fn contract_tx_fee_rate() -> Result<u64> {
+    let node = NODE.try_get().context("failed to get ln dlc node")?;
+    if let Some(fee_rate_per_vb) = node
+        .inner
+        .list_dlc_channels()?
+        .first()
+        .map(|c| c.fee_rate_per_vb)
+    {
+        Ok(fee_rate_per_vb)
+    } else {
+        let lsp_config = poll_lsp_config()?;
+        tracing::info!(
+            channel_value_sats = lsp_config.contract_tx_fee_rate,
+            "Received channel config from LSP"
+        );
+        Ok(lsp_config.contract_tx_fee_rate)
     }
 }
 
@@ -564,7 +589,7 @@ pub fn send_payment(invoice: &str) -> Result<()> {
     NODE.get().inner.send_payment(&invoice)
 }
 
-pub async fn trade(trade_params: TradeParams) -> Result<(), (FailureReason, anyhow::Error)> {
+pub async fn trade(trade_params: TradeParams) -> Result<(), (FailureReason, Error)> {
     let client = reqwest_client();
     let response = client
         .post(format!("http://{}/api/trade", config::get_http_endpoint()))
