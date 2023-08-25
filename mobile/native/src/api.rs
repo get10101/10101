@@ -91,6 +91,7 @@ pub enum WalletHistoryItemType {
     },
     OrderMatchingFee {
         order_id: String,
+        payment_hash: String,
     },
     JitChannelFee {
         funding_txid: String,

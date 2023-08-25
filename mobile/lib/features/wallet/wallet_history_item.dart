@@ -245,7 +245,10 @@ class OrderMatchingFeeHistoryItem extends WalletHistoryItem {
 
   @override
   List<Widget> getDetails() {
-    return [HistoryDetail(label: "Order", value: data.orderId)];
+    return [
+      HistoryDetail(label: "Order", value: data.orderId),
+      HistoryDetail(label: "Payment hash", value: data.paymentHash)
+    ];
   }
 
   @override

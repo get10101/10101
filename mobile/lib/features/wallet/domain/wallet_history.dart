@@ -53,7 +53,12 @@ abstract class WalletHistoryItemData {
           item.walletType as rust.WalletHistoryItemType_OrderMatchingFee;
 
       return OrderMatchingFeeData(
-          flow: flow, amount: amount, status: status, timestamp: timestamp, orderId: type.orderId);
+          flow: flow,
+          amount: amount,
+          status: status,
+          timestamp: timestamp,
+          orderId: type.orderId,
+          paymentHash: type.paymentHash);
     }
 
     if (item.walletType is rust.WalletHistoryItemType_JitChannelFee) {
@@ -128,13 +133,15 @@ class OnChainPaymentData extends WalletHistoryItemData {
 
 class OrderMatchingFeeData extends WalletHistoryItemData {
   final String orderId;
+  final String paymentHash;
 
   OrderMatchingFeeData(
       {required super.flow,
       required super.amount,
       required super.status,
       required super.timestamp,
-      required this.orderId});
+      required this.orderId,
+      required this.paymentHash});
 
   @override
   WalletHistoryItem toWidget() {

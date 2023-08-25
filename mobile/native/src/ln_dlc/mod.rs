@@ -368,6 +368,7 @@ fn keep_wallet_balance_and_history_up_to_date(node: &Node) -> Result<()> {
         {
             api::WalletHistoryItemType::OrderMatchingFee {
                 order_id: order_id.to_string(),
+                payment_hash,
             }
         } else if let Some(funding_txid) =
             description.strip_prefix(JIT_FEE_INVOICE_DESCRIPTION_PREFIX)
