@@ -39,6 +39,9 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
   /// The max channel capacity as received by the LSP or if there is an existing channel
   Amount? lspMaxChannelCapacity;
 
+  /// A reserve which needs to be allocated for paying transactions fees
+  Amount? contractFeeReserve;
+
   /// Estimated fees for receiving
   ///
   /// These fees have to be added on top of the receive amount because they are collected after receiving the funds.
@@ -60,6 +63,7 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
   Future<void> initChannelInfo(ChannelInfoService channelInfoService) async {
     channelInfo = await channelInfoService.getChannelInfo();
     lspMaxChannelCapacity = await channelInfoService.getMaxCapacity();
+    contractFeeReserve = await channelInfoService.getTradeFeeReserve();
 
     // initial channel opening
     if (channelInfo == null) {
@@ -74,7 +78,7 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
     Amount balance = walletChangeNotifier.walletInfo.balances.lightning;
 
     Amount minTradeMargin = channelInfoService.getMinTradeMargin();
-    Amount tradeFeeReserve = channelInfoService.getTradeFeeReserve();
+    Amount tradeFeeReserve = contractFeeReserve ?? Amount(0);
     Amount maxChannelCapacity = lspMaxChannelCapacity ?? Amount(0);
     Amount initialReserve = channelInfoService.getInitialReserve();
 

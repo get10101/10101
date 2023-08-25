@@ -112,7 +112,9 @@ void main() {
 
     when(channelConstraintsService.getInitialReserve()).thenReturn(Amount(1000));
 
-    when(channelConstraintsService.getTradeFeeReserve()).thenReturn(Amount(1666));
+    when(channelConstraintsService.getTradeFeeReserve()).thenAnswer((_) async {
+      return Amount(1666);
+    });
 
     when(channelConstraintsService.getCoordinatorLiquidityMultiplier()).thenReturn(2);
 

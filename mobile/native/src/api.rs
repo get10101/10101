@@ -283,8 +283,8 @@ pub fn max_channel_value() -> Result<u64> {
     ln_dlc::max_channel_value().map(|amount| amount.to_sat())
 }
 
-pub fn contract_tx_fee_rate() -> SyncReturn<u64> {
-    SyncReturn(ln_dlc_node::CONTRACT_TX_FEE_RATE)
+pub fn contract_tx_fee_rate() -> Result<u64> {
+    ln_dlc::contract_tx_fee_rate()
 }
 
 pub fn create_invoice_with_amount(amount_sats: u64) -> Result<String> {

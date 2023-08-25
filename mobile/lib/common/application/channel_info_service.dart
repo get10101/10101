@@ -39,10 +39,10 @@ class ChannelInfoService {
     return Amount(3100);
   }
 
-  Amount getTradeFeeReserve() {
+  Future<Amount> getTradeFeeReserve() async {
     double txFeesreserveForForceCloseAtOneSatsPerVbyte = 416.5;
 
-    int satsPerVbyte = rust.api.contractTxFeeRate();
+    int satsPerVbyte = await rust.api.contractTxFeeRate();
     int feeReserve = (txFeesreserveForForceCloseAtOneSatsPerVbyte * satsPerVbyte).ceil();
     return Amount(feeReserve);
   }

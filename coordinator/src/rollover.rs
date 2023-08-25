@@ -26,6 +26,7 @@ struct Rollover {
     margin_trader: u64,
     contract_symbol: ContractSymbol,
     oracle_pk: XOnlyPublicKey,
+    contract_tx_fee_rate: u64,
 }
 
 impl Rollover {
@@ -59,6 +60,7 @@ impl Rollover {
         let margin_coordinator = offered_contract.offer_params.collateral;
         let margin_trader = offered_contract.total_collateral - margin_coordinator;
 
+        let contract_tx_fee_rate = offered_contract.fee_rate_per_vb;
         Ok(Rollover {
             counterparty_pubkey: offered_contract.counter_party,
             contract_descriptor: contract_info.clone().contract_descriptor,
@@ -69,6 +71,7 @@ impl Rollover {
             contract_symbol: ContractSymbol::from_str(
                 &oracle_announcement.oracle_event.event_id[..6],
             )?,
+            contract_tx_fee_rate,
         })
     }
 
@@ -133,7 +136,7 @@ impl From<Rollover> for ContractInput {
         ContractInput {
             offer_collateral: rollover.margin_coordinator,
             accept_collateral: rollover.margin_trader,
-            fee_rate: ln_dlc_node::CONTRACT_TX_FEE_RATE,
+            fee_rate: rollover.contract_tx_fee_rate,
             contract_infos: vec![ContractInputInfo {
                 contract_descriptor: rollover.clone().contract_descriptor,
                 oracles: OracleInput {
@@ -201,6 +204,7 @@ pub mod tests {
             margin_trader: 0,
             contract_symbol: ContractSymbol::BtcUsd,
             oracle_pk: XOnlyPublicKey::from(dummy_pubkey()),
+            contract_tx_fee_rate: 1,
         };
         let event_id = rollover.event_id();
 
@@ -221,6 +225,7 @@ pub mod tests {
             margin_trader,
             contract_symbol: ContractSymbol::BtcUsd,
             oracle_pk: XOnlyPublicKey::from(dummy_pubkey()),
+            contract_tx_fee_rate: 1,
         };
 
         let contract_input: ContractInput = rollover.into();

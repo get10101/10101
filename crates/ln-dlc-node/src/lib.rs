@@ -42,7 +42,6 @@ pub mod transaction;
 pub mod util;
 
 pub use config::CONFIRMATION_TARGET;
-pub use config::CONTRACT_TX_FEE_RATE;
 pub use config::LIQUIDITY_MULTIPLIER;
 pub use ldk_node_wallet::WalletSettings;
 pub use lightning;

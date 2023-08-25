@@ -39,7 +39,6 @@ use ln_dlc_node::node::dlc_message_name;
 use ln_dlc_node::node::sub_channel_message_name;
 use ln_dlc_node::node::RunningNode;
 use ln_dlc_node::WalletSettings;
-use ln_dlc_node::CONTRACT_TX_FEE_RATE;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use std::sync::Arc;
@@ -68,6 +67,8 @@ pub struct NodeSettings {
     // scheduled upgrade)
     pub allow_opening_positions: bool,
     pub max_allowed_tx_fee_rate_when_opening_channel: Option<u32>,
+    /// Defines the sats/vbyte to be used for all transactions within the sub-channel
+    pub contract_tx_fee_rate: u64,
 }
 
 impl NodeSettings {
@@ -196,6 +197,8 @@ impl Node {
         let maturity_time = trade_params.filled_with.expiry_timestamp;
         let maturity_time = maturity_time.unix_timestamp();
 
+        let fee_rate = self.settings.read().await.contract_tx_fee_rate;
+
         // The contract input to be used for setting up the trade between the trader and the
         // coordinator
         let event_id = format!("{contract_symbol}{maturity_time}");
@@ -203,7 +206,7 @@ impl Node {
         let contract_input = ContractInput {
             offer_collateral: margin_coordinator,
             accept_collateral: margin_trader,
-            fee_rate: CONTRACT_TX_FEE_RATE,
+            fee_rate,
             contract_infos: vec![ContractInputInfo {
                 contract_descriptor,
                 oracles: OracleInput {

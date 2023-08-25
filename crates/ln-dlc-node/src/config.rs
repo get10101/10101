@@ -13,11 +13,6 @@ use std::time::Duration;
 /// See `JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT_MAX` for the maximum channel value.
 pub const LIQUIDITY_MULTIPLIER: u64 = 2;
 
-/// Sats/vbyte rate for position
-///
-/// The coordinator and the app have to align on this to agree on the fees.
-pub const CONTRACT_TX_FEE_RATE: u64 = 7;
-
 /// The speed at which we want a transaction to confirm used for feerate estimation.
 ///
 /// We set it to high priority because the channel funding transaction should be included fast.

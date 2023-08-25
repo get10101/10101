@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add synthetic usd feature.
 - Fix delayed position update.
 - Change contract duration to 7 days.
+- Add settings in coordinator to make contract fee rate configurable during runtime.
+- Fix: the status bar on iOS is always shown
 
 ## [1.2.2] - 2023-08-22
 

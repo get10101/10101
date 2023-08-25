@@ -52,14 +52,17 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
     super.initState();
   }
 
-  Future<(ChannelInfo?, Amount)> _getChannelInfo(ChannelInfoService channelInfoService) async {
+  Future<(ChannelInfo?, Amount, Amount)> _getChannelInfo(
+      ChannelInfoService channelInfoService) async {
     var channelInfo = await channelInfoService.getChannelInfo();
 
     /// The max channel capacity as received by the LSP or if there is an existing channel
     var lspMaxChannelCapacity = await channelInfoService.getMaxCapacity();
 
-    var completer = Completer<(ChannelInfo?, Amount)>();
-    completer.complete((channelInfo, lspMaxChannelCapacity));
+    var tradeReserve = await channelInfoService.getTradeFeeReserve();
+
+    var completer = Completer<(ChannelInfo?, Amount, Amount)>();
+    completer.complete((channelInfo, lspMaxChannelCapacity, tradeReserve));
 
     return completer.future;
   }
@@ -90,16 +93,16 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
         crossAxisAlignment: CrossAxisAlignment.center,
         mainAxisSize: MainAxisSize.min,
         children: [
-          FutureBuilder<(ChannelInfo?, Amount)>(
+          FutureBuilder<(ChannelInfo?, Amount, Amount)>(
             future:
                 _getChannelInfo(channelInfoService), // a previously-obtained Future<String> or null
-            builder: (BuildContext context, AsyncSnapshot<(ChannelInfo?, Amount)> snapshot) {
+            builder:
+                (BuildContext context, AsyncSnapshot<(ChannelInfo?, Amount, Amount)> snapshot) {
               List<Widget> children;
 
               if (snapshot.hasData) {
-                var (channelInfo, lspMaxChannelCapacity) = snapshot.data!;
+                var (channelInfo, lspMaxChannelCapacity, tradeFeeReserve) = snapshot.data!;
                 Amount minTradeMargin = channelInfoService.getMinTradeMargin();
-                Amount tradeFeeReserve = channelInfoService.getTradeFeeReserve();
 
                 Amount channelCapacity = lspMaxChannelCapacity;
 

@@ -17,6 +17,8 @@ const SETTINGS_FILE_NAME: &str = "coordinator-settings.toml";
 pub struct Settings {
     pub jit_channels_enabled: bool,
     pub new_positions_enabled: bool,
+    /// Defines the sats/vbyte to be used for all transactions within the sub-channel
+    pub contract_tx_fee_rate: u64,
     pub fallback_tx_fee_rate_normal: u32,
     pub fallback_tx_fee_rate_high_priority: u32,
 
@@ -40,6 +42,7 @@ impl Default for Settings {
         Self {
             jit_channels_enabled: true,
             new_positions_enabled: true,
+            contract_tx_fee_rate: 9,
             fallback_tx_fee_rate_normal: 2000,
             fallback_tx_fee_rate_high_priority: 5000,
             max_allowed_tx_fee_rate_when_opening_channel: None,
@@ -93,6 +96,7 @@ impl Settings {
             allow_opening_positions: self.new_positions_enabled,
             max_allowed_tx_fee_rate_when_opening_channel: self
                 .max_allowed_tx_fee_rate_when_opening_channel,
+            contract_tx_fee_rate: self.contract_tx_fee_rate,
         }
     }
 
