@@ -559,19 +559,7 @@ async fn can_lose_connection_before_processing_subchannel_finalize() {
     // Lose the connection, triggering the coordinator's rollback to the `Offered` state.
     app.reconnect(coordinator.info).await.unwrap();
 
-    // Process the pending `Finalize` which will fail, as the coordinator rolled back to the
-    // `Offered` state.
-    let result = wait_until_dlc_channel_state(
-        Duration::from_secs(30),
-        &coordinator,
-        app.info.pubkey,
-        SubChannelStateName::Signed,
-    )
-    .await;
-
-    // Invalid state: Expected Confirmed state but got Offered
-    tracing::error!("{:#}", result.err().unwrap());
-
+    // Create `Accept` message from pending `ReAccept` Action
     sub_channel_manager_periodic_check(app.sub_channel_manager.clone(), &app.dlc_message_handler)
         .await
         .unwrap();
