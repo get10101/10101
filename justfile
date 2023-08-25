@@ -199,8 +199,9 @@ maker args="":
 flutter-test:
     cd mobile && flutter pub run build_runner build && flutter test
 
+# Tests for the `native` crate
 native-test:
-    cd mobile/native
+    cd mobile/native && cargo test
 
 test: flutter-test native-test
 
