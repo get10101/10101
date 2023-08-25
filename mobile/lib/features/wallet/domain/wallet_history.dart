@@ -26,8 +26,9 @@ abstract class WalletHistoryItemData {
 
     DateTime timestamp = DateTime.fromMillisecondsSinceEpoch(item.timestamp * 1000);
 
-    if (item.walletType is rust.WalletType_OnChain) {
-      rust.WalletType_OnChain type = item.walletType as rust.WalletType_OnChain;
+    if (item.walletType is rust.WalletHistoryItemType_OnChain) {
+      rust.WalletHistoryItemType_OnChain type =
+          item.walletType as rust.WalletHistoryItemType_OnChain;
 
       return OnChainPaymentData(
         flow: flow,
@@ -40,22 +41,24 @@ abstract class WalletHistoryItemData {
       );
     }
 
-    if (item.walletType is rust.WalletType_Trade) {
-      rust.WalletType_Trade type = item.walletType as rust.WalletType_Trade;
+    if (item.walletType is rust.WalletHistoryItemType_Trade) {
+      rust.WalletHistoryItemType_Trade type = item.walletType as rust.WalletHistoryItemType_Trade;
 
       return TradeData(
           flow: flow, amount: amount, status: status, timestamp: timestamp, orderId: type.orderId);
     }
 
-    if (item.walletType is rust.WalletType_OrderMatchingFee) {
-      rust.WalletType_OrderMatchingFee type = item.walletType as rust.WalletType_OrderMatchingFee;
+    if (item.walletType is rust.WalletHistoryItemType_OrderMatchingFee) {
+      rust.WalletHistoryItemType_OrderMatchingFee type =
+          item.walletType as rust.WalletHistoryItemType_OrderMatchingFee;
 
       return OrderMatchingFeeData(
           flow: flow, amount: amount, status: status, timestamp: timestamp, orderId: type.orderId);
     }
 
-    if (item.walletType is rust.WalletType_JitChannelFee) {
-      rust.WalletType_JitChannelFee type = item.walletType as rust.WalletType_JitChannelFee;
+    if (item.walletType is rust.WalletHistoryItemType_JitChannelFee) {
+      rust.WalletHistoryItemType_JitChannelFee type =
+          item.walletType as rust.WalletHistoryItemType_JitChannelFee;
 
       return JitChannelOpenFeeData(
         flow: flow,
@@ -66,7 +69,8 @@ abstract class WalletHistoryItemData {
       );
     }
 
-    rust.WalletType_Lightning type = item.walletType as rust.WalletType_Lightning;
+    rust.WalletHistoryItemType_Lightning type =
+        item.walletType as rust.WalletHistoryItemType_Lightning;
 
     return LightningPaymentData(
         flow: flow,

@@ -70,11 +70,11 @@ pub struct WalletHistoryItem {
     pub amount_sats: u64,
     pub timestamp: u64,
     pub status: Status,
-    pub wallet_type: WalletType,
+    pub wallet_type: WalletHistoryItemType,
 }
 
 #[derive(Clone, Debug)]
-pub enum WalletType {
+pub enum WalletHistoryItemType {
     OnChain {
         txid: String,
         fee_sats: Option<u64>,

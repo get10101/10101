@@ -322,7 +322,7 @@ fn keep_wallet_balance_and_history_up_to_date(node: &Node) -> Result<()> {
             }
         };
 
-        let wallet_type = api::WalletType::OnChain {
+        let wallet_type = api::WalletHistoryItemType::OnChain {
             txid: details.txid.to_string(),
             fee_sats: details.fee,
             confirmations: n_confirmations,
@@ -366,18 +366,18 @@ fn keep_wallet_balance_and_history_up_to_date(node: &Node) -> Result<()> {
         let wallet_type = if let Some(order_id) =
             description.strip_prefix(FEE_INVOICE_DESCRIPTION_PREFIX_TAKER)
         {
-            api::WalletType::OrderMatchingFee {
+            api::WalletHistoryItemType::OrderMatchingFee {
                 order_id: order_id.to_string(),
             }
         } else if let Some(funding_txid) =
             description.strip_prefix(JIT_FEE_INVOICE_DESCRIPTION_PREFIX)
         {
-            api::WalletType::JitChannelFee {
+            api::WalletHistoryItemType::JitChannelFee {
                 funding_txid: funding_txid.to_string(),
                 payment_hash,
             }
         } else {
-            api::WalletType::Lightning {
+            api::WalletHistoryItemType::Lightning {
                 payment_hash,
                 description: details.description.clone(),
                 payment_preimage: details.preimage.clone(),
@@ -443,7 +443,7 @@ fn keep_wallet_balance_and_history_up_to_date(node: &Node) -> Result<()> {
 
         let timestamp = order.creation_timestamp.unix_timestamp() as u64;
 
-        let wallet_type = api::WalletType::Trade {
+        let wallet_type = api::WalletHistoryItemType::Trade {
             order_id: order.id.to_string(),
         };
 
