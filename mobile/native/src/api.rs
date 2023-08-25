@@ -112,6 +112,7 @@ pub enum Status {
     Pending,
     Confirmed,
     Expired,
+    Failed,
 }
 
 pub fn calculate_margin(price: f32, quantity: f32, leverage: f32) -> SyncReturn<u64> {

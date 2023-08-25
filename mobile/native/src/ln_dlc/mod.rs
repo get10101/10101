@@ -363,8 +363,7 @@ fn keep_wallet_balance_and_history_up_to_date(node: &Node) -> Result<()> {
             HTLCStatus::Pending if expired => api::Status::Expired,
             HTLCStatus::Pending => api::Status::Pending,
             HTLCStatus::Succeeded => api::Status::Confirmed,
-            // TODO: Handle failed payments
-            HTLCStatus::Failed => return None,
+            HTLCStatus::Failed => api::Status::Failed,
         };
 
         let flow = match details.flow {

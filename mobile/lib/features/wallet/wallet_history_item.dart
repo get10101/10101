@@ -28,7 +28,9 @@ abstract class WalletHistoryItem extends StatelessWidget {
       WalletHistoryStatus.confirmed =>
         const Icon(Icons.check_circle, color: Colors.green, size: statusIconSize),
       WalletHistoryStatus.expired =>
-        const Icon(Icons.timer_off, color: Colors.red, size: statusIconSize)
+        const Icon(Icons.timer_off, color: Colors.red, size: statusIconSize),
+      WalletHistoryStatus.failed =>
+        const Icon(Icons.error, color: Colors.red, size: statusIconSize),
     };
 
     const double flowIconSize = 30;

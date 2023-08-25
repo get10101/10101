@@ -3,7 +3,7 @@ import 'package:get_10101/features/wallet/wallet_history_item.dart';
 import 'payment_flow.dart';
 import 'package:get_10101/bridge_generated/bridge_definitions.dart' as rust;
 
-enum WalletHistoryStatus { pending, expired, confirmed }
+enum WalletHistoryStatus { pending, expired, confirmed, failed }
 
 abstract class WalletHistoryItemData {
   final PaymentFlow flow;
@@ -24,6 +24,7 @@ abstract class WalletHistoryItemData {
       rust.Status.Pending => WalletHistoryStatus.pending,
       rust.Status.Expired => WalletHistoryStatus.expired,
       rust.Status.Confirmed => WalletHistoryStatus.confirmed,
+      rust.Status.Failed => WalletHistoryStatus.failed,
     };
 
     DateTime timestamp = DateTime.fromMillisecondsSinceEpoch(item.timestamp * 1000);
