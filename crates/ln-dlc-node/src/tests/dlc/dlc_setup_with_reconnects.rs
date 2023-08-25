@@ -319,7 +319,6 @@ async fn can_lose_connection_before_processing_subchannel_close_finalize() {
     .unwrap();
 
     tokio::time::sleep(Duration::from_secs(5)).await;
-
     app.reconnect(coordinator.info).await.unwrap();
 
     coordinator.process_incoming_messages().unwrap();
@@ -557,21 +556,9 @@ async fn can_lose_connection_before_processing_subchannel_finalize() {
     // Give time to deliver the `Finalize` message to the coordinator
     tokio::time::sleep(Duration::from_secs(5)).await;
 
-    // Lose the connection, triggering the coordinator's rollback to the Offered state
+    // Lose the connection, triggering the coordinator's rollback to the `Offered` state. The
+    // `Finalize` message is dropped during the reconnect
     coordinator.reconnect(app.info).await.unwrap();
-
-    // Process the app's `Finalize`, expecting an error
-    wait_until_dlc_channel_state(
-        Duration::from_secs(30),
-        &coordinator,
-        app.info.pubkey,
-        SubChannelStateName::Signed,
-    )
-    .await
-    .expect_err("Invalid state: Expected Confirmed state but got Offered");
-
-    // Lose the connection, triggering the coordinator's rollback to the Offered state
-    app.reconnect(coordinator.info).await.unwrap();
 
     // Process the app's resent `Accept` and send `Confirm`
     wait_until_dlc_channel_state(
