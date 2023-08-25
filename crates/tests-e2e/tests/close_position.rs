@@ -33,10 +33,10 @@ async fn can_collab_close_position() {
         .await
         .unwrap();
 
-    let balance_at_closing = test.app.rx.wallet_info().unwrap().balances.on_chain;
+    let balance_at_closing = test.app.rx.wallet_info().unwrap().balances.lightning;
 
     let invoice =
-        spawn_blocking(move || api::create_invoice_with_amount(50_000).expect("to succeed"))
+        spawn_blocking(move || api::create_invoice_with_amount(10_000).expect("to succeed"))
             .await
             .unwrap();
     api::decode_invoice(invoice.clone()).expect("to decode invoice we created");
@@ -44,5 +44,5 @@ async fn can_collab_close_position() {
     let client = reqwest::Client::new();
     pay_with_faucet(&client, invoice).await.unwrap();
 
-    wait_until!(test.app.rx.wallet_info().unwrap().balances.on_chain > balance_at_closing);
+    wait_until!(test.app.rx.wallet_info().unwrap().balances.lightning > balance_at_closing);
 }
