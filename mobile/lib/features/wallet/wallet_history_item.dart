@@ -39,23 +39,15 @@ abstract class WalletHistoryItem extends StatelessWidget {
     String title = getTitle();
     String onOrOff = isOnChain() ? "on-chain" : "off-chain";
 
-    String sign = () {
-      switch (data.flow) {
-        case PaymentFlow.inbound:
-          return "+";
-        case PaymentFlow.outbound:
-          return "-";
-      }
-    }();
+    String sign = switch (data.flow) {
+      PaymentFlow.inbound => "+",
+      PaymentFlow.outbound => "-",
+    };
 
-    Color color = () {
-      switch (data.flow) {
-        case PaymentFlow.inbound:
-          return Colors.green.shade600;
-        case PaymentFlow.outbound:
-          return Colors.red.shade600;
-      }
-    }();
+    Color color = switch (data.flow) {
+      PaymentFlow.inbound => Colors.green.shade600,
+      PaymentFlow.outbound => Colors.red.shade600,
+    };
 
     var amountFormatter = NumberFormat.compact(locale: "en_UK");
 
@@ -117,14 +109,10 @@ abstract class WalletHistoryItem extends StatelessWidget {
   }
 
   Widget showItemDetails(String title, BuildContext context) {
-    int directionMultiplier = () {
-      switch (data.flow) {
-        case PaymentFlow.inbound:
-          return 1;
-        case PaymentFlow.outbound:
-          return -1;
-      }
-    }();
+    int directionMultiplier = switch (data.flow) {
+      PaymentFlow.inbound => 1,
+      PaymentFlow.outbound => -1,
+    };
 
     return AlertDialog(
       title: Text(title),
