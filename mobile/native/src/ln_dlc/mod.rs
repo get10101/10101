@@ -42,6 +42,7 @@ use ln_dlc_node::scorer;
 use ln_dlc_node::seed::Bip39Seed;
 use ln_dlc_node::util;
 use ln_dlc_node::AppEventHandler;
+use ln_dlc_node::HTLCStatus;
 use ln_dlc_node::CONFIRMATION_TARGET;
 use orderbook_commons::RouteHintHop;
 use orderbook_commons::FEE_INVOICE_DESCRIPTION_PREFIX_TAKER;
@@ -346,11 +347,24 @@ fn keep_wallet_balance_and_history_up_to_date(node: &Node) -> Result<()> {
             None => return None,
         };
 
+        let expired = match details.invoice.as_deref().map(Invoice::from_str) {
+            Some(Ok(inv)) => {
+                tracing::info!(?inv, "Decoded invoice");
+                inv.is_expired()
+            }
+            Some(Err(err)) => {
+                tracing::warn!(%err, "Failed to deserialize invoice");
+                false
+            }
+            None => false,
+        };
+
         let status = match details.status {
-            ln_dlc_node::node::HTLCStatus::Pending => api::Status::Pending,
-            ln_dlc_node::node::HTLCStatus::Succeeded => api::Status::Confirmed,
+            HTLCStatus::Pending if expired => api::Status::Expired,
+            HTLCStatus::Pending => api::Status::Pending,
+            HTLCStatus::Succeeded => api::Status::Confirmed,
             // TODO: Handle failed payments
-            ln_dlc_node::node::HTLCStatus::Failed => return None,
+            HTLCStatus::Failed => return None,
         };
 
         let flow = match details.flow {

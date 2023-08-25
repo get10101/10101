@@ -20,17 +20,16 @@ abstract class WalletHistoryItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const double statusIconSize = 18;
-    Icon statusIcon = () {
-      switch (data.status) {
-        case WalletHistoryStatus.pending:
-          return const Icon(
-            Icons.pending,
-            size: statusIconSize,
-          );
-        case WalletHistoryStatus.confirmed:
-          return const Icon(Icons.check_circle, color: Colors.green, size: statusIconSize);
-      }
-    }();
+    Icon statusIcon = switch (data.status) {
+      WalletHistoryStatus.pending => const Icon(
+          Icons.pending,
+          size: statusIconSize,
+        ),
+      WalletHistoryStatus.confirmed =>
+        const Icon(Icons.check_circle, color: Colors.green, size: statusIconSize),
+      WalletHistoryStatus.expired =>
+        const Icon(Icons.timer_off, color: Colors.red, size: statusIconSize)
+    };
 
     const double flowIconSize = 30;
     Icon flowIcon = Icon(getFlowIcon(), size: flowIconSize);
