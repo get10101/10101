@@ -10,6 +10,8 @@ use maker::cli::Opts;
 use maker::ln::ldk_config;
 use maker::ln::EventHandler;
 use maker::logger;
+use maker::metrics;
+use maker::metrics::init_meter;
 use maker::routes::router;
 use maker::run_migration;
 use maker::trading;
@@ -20,7 +22,11 @@ use std::net::IpAddr;
 use std::net::Ipv4Addr;
 use std::net::SocketAddr;
 use std::sync::Arc;
+use std::time::Duration;
+use tokio::task::spawn_blocking;
 use tracing::metadata::LevelFilter;
+
+const PROCESS_PROMETHEUS_METRICS: Duration = Duration::from_secs(10);
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -35,6 +41,8 @@ async fn main() -> Result<()> {
             std::process::abort()
         }),
     );
+
+    let exporter = init_meter();
 
     let opts = Opts::read();
     let data_dir = opts.data_dir()?;
@@ -99,6 +107,19 @@ async fn main() -> Result<()> {
         }
     });
 
+    tokio::spawn({
+        let node = node.clone();
+        async move {
+            loop {
+                let node = node.clone();
+                spawn_blocking(move || metrics::collect(node))
+                    .await
+                    .expect("To spawn blocking thread");
+                tokio::time::sleep(PROCESS_PROMETHEUS_METRICS).await;
+            }
+        }
+    });
+
     let manager = ConnectionManager::<PgConnection>::new(opts.database);
     let pool = r2d2::Pool::builder()
         .build(manager)
@@ -107,7 +128,10 @@ async fn main() -> Result<()> {
     let mut conn = pool.get().expect("to get connection from pool");
     run_migration(&mut conn);
 
-    let app = router(node, pool);
+    let app = router(node, exporter, pool);
+
+    // Start the metrics exporter
+    autometrics::prometheus_exporter::init();
 
     let addr = SocketAddr::from((http_address.ip(), http_address.port()));
     tracing::debug!("Listening on http://{}", addr);

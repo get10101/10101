@@ -15,6 +15,9 @@ use ln_dlc_node::node::InMemoryStore;
 use ln_dlc_node::node::Node;
 use ln_dlc_node::node::NodeInfo;
 use ln_dlc_node::ChannelDetails;
+use opentelemetry_prometheus::PrometheusExporter;
+use prometheus::Encoder;
+use prometheus::TextEncoder;
 use serde::Deserialize;
 use serde::Serialize;
 use serde_json::json;
@@ -24,14 +27,20 @@ use tokio::task::spawn_blocking;
 
 pub struct AppState {
     pub node: Arc<Node<InMemoryStore>>,
+    pub exporter: PrometheusExporter,
     pub pool: Pool<ConnectionManager<PgConnection>>,
 }
 
 pub fn router(
     node: Arc<Node<InMemoryStore>>,
+    exporter: PrometheusExporter,
     pool: Pool<ConnectionManager<PgConnection>>,
 ) -> Router {
-    let app_state = Arc::new(AppState { node, pool });
+    let app_state = Arc::new(AppState {
+        node,
+        exporter,
+        pool,
+    });
 
     Router::new()
         .route("/", get(index))
@@ -42,6 +51,7 @@ pub fn router(
         .route("/api/connect", post(connect_to_peer))
         .route("/api/pay-invoice/:invoice", post(pay_invoice))
         .route("/api/sync-on-chain", post(sync_on_chain))
+        .route("/metrics", get(get_metrics))
         .with_state(app_state)
 }
 
@@ -224,4 +234,36 @@ pub async fn sync_on_chain(State(state): State<Arc<AppState>>) -> Result<(), App
         .map_err(|e| AppError::InternalServerError(format!("Could not sync wallet: {e:#}")))?;
 
     Ok(())
+}
+
+pub async fn get_metrics(State(state): State<Arc<AppState>>) -> impl IntoResponse {
+    let autometrics = match autometrics::prometheus_exporter::encode_to_string() {
+        Ok(metrics) => metrics,
+        Err(err) => {
+            tracing::error!("Could not collect autometrics {err:#}");
+            return (StatusCode::INTERNAL_SERVER_ERROR, format!("{:?}", err));
+        }
+    };
+
+    let exporter = state.exporter.clone();
+    let encoder = TextEncoder::new();
+    let metric_families = exporter.registry().gather();
+    let mut result = vec![];
+    match encoder.encode(&metric_families, &mut result) {
+        Ok(()) => (),
+        Err(err) => {
+            tracing::error!("Could not collect opentelemetry metrics {err:#}");
+            return (StatusCode::INTERNAL_SERVER_ERROR, format!("{:?}", err));
+        }
+    };
+
+    let open_telemetry_metrics = match String::from_utf8(result) {
+        Ok(s) => s,
+        Err(err) => {
+            tracing::error!("Could not format metrics as string {err:#}");
+            return (StatusCode::INTERNAL_SERVER_ERROR, format!("{:?}", err));
+        }
+    };
+
+    (StatusCode::OK, open_telemetry_metrics + &autometrics)
 }
