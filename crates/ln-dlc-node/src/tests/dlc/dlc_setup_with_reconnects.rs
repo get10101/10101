@@ -470,3 +470,216 @@ async fn reconnecting_during_dlc_channel_setup_reversed() {
     .await
     .unwrap();
 }
+
+#[tokio::test(flavor = "multi_thread")]
+#[ignore]
+async fn can_lose_connection_before_processing_subchannel_accept() {
+    init_tracing();
+
+    // Arrange
+
+    let app_dlc_collateral = 25_000;
+    let coordinator_dlc_collateral = 50_000;
+
+    let app_ln_balance = app_dlc_collateral * 2;
+    let coordinator_ln_balance = coordinator_dlc_collateral * 2;
+
+    let fund_amount = (app_ln_balance + coordinator_ln_balance) * 2;
+
+    let (app, _running_app) = Node::start_test_app("app").unwrap();
+    let (coordinator, _running_coord) = Node::start_test_coordinator("coordinator").unwrap();
+
+    app.connect(coordinator.info).await.unwrap();
+
+    coordinator
+        .fund(Amount::from_sat(fund_amount))
+        .await
+        .unwrap();
+
+    coordinator
+        .open_private_channel(&app, coordinator_ln_balance, app_ln_balance)
+        .await
+        .unwrap();
+
+    tokio::time::sleep(Duration::from_secs(5)).await;
+
+    let oracle_pk = app.oracle_pk();
+    let contract_input =
+        dummy_contract_input(coordinator_dlc_collateral, app_dlc_collateral, oracle_pk);
+
+    let channel_details = coordinator
+        .channel_manager
+        .list_usable_channels()
+        .iter()
+        .find(|c| c.counterparty.node_id == app.info.pubkey)
+        .context("Could not find usable channel with peer")
+        .unwrap()
+        .clone();
+
+    coordinator
+        .propose_dlc_channel(channel_details.clone(), contract_input)
+        .await
+        .unwrap();
+
+    // Process the coordinator's `Offer`
+    let sub_channel = wait_until_dlc_channel_state(
+        Duration::from_secs(30),
+        &app,
+        coordinator.info.pubkey,
+        SubChannelStateName::Offered,
+    )
+    .await
+    .unwrap();
+
+    app.accept_dlc_channel_offer(&sub_channel.channel_id)
+        .unwrap();
+
+    // Give time to deliver the `Accept` message to the coordinator
+    tokio::time::sleep(Duration::from_secs(5)).await;
+
+    // Lose the connection, triggering the coordinator's rollback to the `Offered` state.
+    app.reconnect(coordinator.info).await.unwrap();
+
+    // Process the app's `Accept` and send `Confirm`
+    // Invalid state: Misuse error: Invalid commitment signed: Close : Invalid commitment tx
+    // signature from peer
+    let result = wait_until_dlc_channel_state(
+        Duration::from_secs(30),
+        &coordinator,
+        app.info.pubkey,
+        SubChannelStateName::Confirmed,
+    )
+    .await;
+
+    assert!(result.is_err());
+    tracing::error!("{:#}", result.err().unwrap());
+
+    // Create `Accept` message from pending `ReAccept` Action
+    sub_channel_manager_periodic_check(app.sub_channel_manager.clone(), &app.dlc_message_handler)
+        .await
+        .unwrap();
+
+    // Process the app's `Accept` and send `Confirm`
+    wait_until_dlc_channel_state(
+        Duration::from_secs(30),
+        &coordinator,
+        app.info.pubkey,
+        SubChannelStateName::Confirmed,
+    )
+    .await
+    .unwrap();
+
+    // Process the coordinator's `Confirm` and send `Finalize`
+    wait_until_dlc_channel_state(
+        Duration::from_secs(30),
+        &app,
+        coordinator.info.pubkey,
+        SubChannelStateName::Finalized,
+    )
+    .await
+    .unwrap();
+
+    // Process the app's `Finalize` and send `Revoke`
+    // This will panic: Commitment txids are unique outside of fuzzing, where hashes can collide
+    wait_until_dlc_channel_state(
+        Duration::from_secs(30),
+        &coordinator,
+        app.info.pubkey,
+        SubChannelStateName::Signed,
+    )
+    .await
+    .unwrap();
+
+    // Process the coordinator's `Revoke`
+    wait_until_dlc_channel_state(
+        Duration::from_secs(30),
+        &app,
+        coordinator.info.pubkey,
+        SubChannelStateName::Signed,
+    )
+    .await
+    .unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread")]
+#[ignore]
+async fn can_lose_connection_before_processing_subchannel_close_accept() {
+    init_tracing();
+    // Arrange
+
+    let app_dlc_collateral = 25_000;
+    let coordinator_dlc_collateral = 50_000;
+    let app_ln_balance = app_dlc_collateral * 2;
+    let coordinator_ln_balance = coordinator_dlc_collateral * 2;
+    let fund_amount = (app_ln_balance + coordinator_ln_balance) * 2;
+    let (app, _running_app) = Node::start_test_app("app").unwrap();
+    let (coordinator, _running_coord) = Node::start_test_coordinator("coordinator").unwrap();
+    app.connect(coordinator.info).await.unwrap();
+    coordinator
+        .fund(Amount::from_sat(fund_amount))
+        .await
+        .unwrap();
+    coordinator
+        .open_private_channel(&app, coordinator_ln_balance, app_ln_balance)
+        .await
+        .unwrap();
+    tokio::time::sleep(Duration::from_secs(5)).await;
+    create_dlc_channel(
+        &coordinator,
+        &app,
+        coordinator_dlc_collateral,
+        app_dlc_collateral,
+    )
+    .await
+    .unwrap();
+    let channel_details = coordinator
+        .channel_manager
+        .list_usable_channels()
+        .iter()
+        .find(|c| c.counterparty.node_id == app.info.pubkey)
+        .unwrap()
+        .clone();
+
+    coordinator
+        .propose_dlc_channel_collaborative_settlement(
+            channel_details.channel_id,
+            app_dlc_collateral / 2,
+        )
+        .await
+        .unwrap();
+
+    // Process `CloseOffer`
+    let sub_channel = wait_until_dlc_channel_state(
+        Duration::from_secs(30),
+        &app,
+        coordinator.info.pubkey,
+        SubChannelStateName::CloseOffered,
+    )
+    .await
+    .unwrap();
+    app.accept_dlc_channel_collaborative_settlement(&sub_channel.channel_id)
+        .unwrap();
+
+    // Give time to deliver the `CloseAccept` message to the coordinator
+    tokio::time::sleep(Duration::from_secs(5)).await;
+
+    // Lose the connection, triggering re-establishing the channel
+    app.reconnect(coordinator.info).await.unwrap();
+
+    // Create `CloseAccept` message from pending `ReCloseAccept` Action
+    sub_channel_manager_periodic_check(app.sub_channel_manager.clone(), &app.dlc_message_handler)
+        .await
+        .unwrap();
+
+    // Process `CloseAccept` and send `CloseConfirm`
+    // Invalid state: Misuse error: Invalid commitment signed: Close : Invalid commitment tx
+    // signature from peer
+    wait_until_dlc_channel_state(
+        Duration::from_secs(30),
+        &coordinator,
+        app.info.pubkey,
+        SubChannelStateName::CloseConfirmed,
+    )
+    .await
+    .unwrap();
+}
