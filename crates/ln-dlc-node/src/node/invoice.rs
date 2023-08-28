@@ -64,18 +64,21 @@ where
     pub fn create_interceptable_invoice(
         &self,
         amount_in_sats: Option<u64>,
-        invoice_expiry: u32,
+        invoice_expiry: Option<Duration>,
         description: String,
         final_route_hint_hop: RouteHintHop,
     ) -> Result<Invoice> {
+        let invoice_expiry = invoice_expiry
+            .unwrap_or_else(|| Duration::from_secs(lightning_invoice::DEFAULT_EXPIRY_TIME));
         let amount_msat = amount_in_sats.map(|x| x * 1000);
         let (payment_hash, payment_secret) = self
             .channel_manager
-            .create_inbound_payment(amount_msat, invoice_expiry, None)
+            .create_inbound_payment(amount_msat, invoice_expiry.as_secs() as u32, None)
             .map_err(|_| anyhow!("Failed to create inbound payment"))?;
         let invoice_builder = InvoiceBuilder::new(self.get_currency())
             .payee_pub_key(self.info.pubkey)
             .description(description)
+            .expiry_time(invoice_expiry)
             .payment_hash(sha256::Hash::from_slice(&payment_hash.0)?)
             .payment_secret(payment_secret)
             .timestamp(SystemTime::now())

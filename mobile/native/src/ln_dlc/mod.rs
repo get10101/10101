@@ -609,7 +609,7 @@ pub fn create_invoice(amount_sats: Option<u64>) -> Result<Invoice> {
 
         node.inner.create_interceptable_invoice(
             amount_sats,
-            0,
+            None,
             "Fund your 10101 wallet".to_string(),
             final_route_hint_hop,
         )

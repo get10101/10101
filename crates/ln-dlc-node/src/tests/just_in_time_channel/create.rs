@@ -136,7 +136,7 @@ async fn fail_to_open_jit_channel_with_fee_rate_over_max() {
     let invoice = payee
         .create_interceptable_invoice(
             Some(payer_to_payee_invoice_amount),
-            0,
+            None,
             "interceptable-invoice".to_string(),
             final_route_hint_hop,
         )
@@ -181,7 +181,7 @@ async fn open_jit_channel_with_disconnected_payee() {
     let invoice = payee
         .create_interceptable_invoice(
             Some(payer_to_payee_invoice_amount),
-            0,
+            None,
             "interceptable-invoice".to_string(),
             final_route_hint_hop,
         )
@@ -238,10 +238,9 @@ pub(crate) async fn send_interceptable_payment(
     let interceptable_route_hint_hop =
         coordinator.prepare_interceptable_payment(payee.info.pubkey)?;
 
-    let invoice_expiry = 0; // an expiry of 0 means the invoice never expires
     let invoice = payee.create_interceptable_invoice(
         Some(invoice_amount_sat),
-        invoice_expiry,
+        None,
         "interceptable-invoice".to_string(),
         interceptable_route_hint_hop,
     )?;
