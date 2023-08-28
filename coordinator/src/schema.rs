@@ -160,6 +160,7 @@ diesel::table! {
         fee -> Int8,
         created_at -> Timestamptz,
         updated_at -> Timestamptz,
+        raw -> Text,
     }
 }
 

@@ -83,6 +83,7 @@ diesel::table! {
         fee -> BigInt,
         created_at -> BigInt,
         updated_at -> BigInt,
+        raw -> Text,
     }
 }
 

@@ -1,15 +1,18 @@
+use bitcoin::hashes::hex::ToHex;
+use bitcoin::psbt::serialize::Serialize;
 use bitcoin::Txid;
 use std::fmt;
 use std::fmt::Display;
 use std::fmt::Formatter;
 use time::OffsetDateTime;
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Transaction {
     txid: Txid,
     fee: u64,
     created_at: OffsetDateTime,
     updated_at: OffsetDateTime,
+    raw: String,
 }
 
 impl Transaction {
@@ -18,12 +21,14 @@ impl Transaction {
         fee: u64,
         created_at: OffsetDateTime,
         updated_at: OffsetDateTime,
+        raw: String,
     ) -> Self {
         Self {
             txid,
             fee,
             created_at,
             updated_at,
+            raw,
         }
     }
 
@@ -50,13 +55,17 @@ impl Transaction {
     pub fn updated_at(&self) -> OffsetDateTime {
         self.updated_at
     }
+
+    pub fn raw(&self) -> String {
+        self.raw.clone()
+    }
 }
 
 impl From<&bitcoin::Transaction> for Transaction {
     fn from(value: &bitcoin::Transaction) -> Self {
         let now = OffsetDateTime::now_utc();
 
-        Self::new(value.txid(), 0, now, now)
+        Self::new(value.txid(), 0, now, now, value.serialize().to_hex())
     }
 }
 
