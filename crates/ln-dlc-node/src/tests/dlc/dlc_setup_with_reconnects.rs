@@ -296,6 +296,28 @@ async fn can_lose_connection_before_processing_subchannel_close_finalize() {
     app.accept_dlc_channel_collaborative_settlement(&sub_channel.channel_id)
         .unwrap();
 
+    // Give time to deliver the `CloseAccept` message to the coordinator
+    tokio::time::sleep(Duration::from_secs(5)).await;
+
+    // Lose the connection, triggering the coordinator's rollback to the `Offered` state.
+    app.reconnect(coordinator.info).await.unwrap();
+
+    // Create `CloseAccept` message from pending `ReCloseAccept` Action
+    sub_channel_manager_periodic_check(app.sub_channel_manager.clone(), &app.dlc_message_handler)
+        .await
+        .unwrap();
+
+    // Give time to deliver the `CloseAccept` message to the coordinator
+    tokio::time::sleep(Duration::from_secs(5)).await;
+
+    // Error is happening after this reconnect.
+    app.reconnect(coordinator.info).await.unwrap();
+
+    // Create `CloseAccept` message from pending `ReCloseAccept` Action
+    sub_channel_manager_periodic_check(app.sub_channel_manager.clone(), &app.dlc_message_handler)
+        .await
+        .unwrap();
+
     // Process `CloseAccept` and send `CloseConfirm`
     wait_until_dlc_channel_state(
         Duration::from_secs(30),
