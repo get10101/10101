@@ -4,13 +4,13 @@ resolver = "2"
 
 [patch.crates-io]
 # We should usually track the `feature/ln-dlc-channels[-10101]` branch
-dlc-manager = { git = "https://github.com/p2pderivatives/rust-dlc", rev = "22b7052" }
-dlc-messages = { git = "https://github.com/p2pderivatives/rust-dlc", rev = "22b7052" }
-dlc = { git = "https://github.com/p2pderivatives/rust-dlc", rev = "22b7052" }
-dlc-sled-storage-provider = { git = "https://github.com/p2pderivatives/rust-dlc", rev = "22b7052" }
-p2pd-oracle-client = { git = "https://github.com/p2pderivatives/rust-dlc", rev = "22b7052" }
-dlc-trie = { git = "https://github.com/p2pderivatives/rust-dlc", rev = "22b7052" }
-simple-wallet = { git = "https://github.com/p2pderivatives/rust-dlc", rev = "22b7052" }
+dlc-manager = { git = "https://github.com/p2pderivatives/rust-dlc", rev = "fe7cfa3d2de7d3414b21c1bbd58932d2d83191c5" }
+dlc-messages = { git = "https://github.com/p2pderivatives/rust-dlc", rev = "fe7cfa3d2de7d3414b21c1bbd58932d2d83191c5" }
+dlc = { git = "https://github.com/p2pderivatives/rust-dlc", rev = "fe7cfa3d2de7d3414b21c1bbd58932d2d83191c5" }
+dlc-sled-storage-provider = { git = "https://github.com/p2pderivatives/rust-dlc", rev = "fe7cfa3d2de7d3414b21c1bbd58932d2d83191c5" }
+p2pd-oracle-client = { git = "https://github.com/p2pderivatives/rust-dlc", rev = "fe7cfa3d2de7d3414b21c1bbd58932d2d83191c5" }
+dlc-trie = { git = "https://github.com/p2pderivatives/rust-dlc", rev = "fe7cfa3d2de7d3414b21c1bbd58932d2d83191c5" }
+simple-wallet = { git = "https://github.com/p2pderivatives/rust-dlc", rev = "fe7cfa3d2de7d3414b21c1bbd58932d2d83191c5" }
 
 # We should usually track the `split-tx-experiment[-10101]` branch
 lightning = { git = "https://github.com/p2pderivatives/rust-lightning/", rev = "420d961d" }
