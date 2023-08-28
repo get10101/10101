@@ -9,6 +9,7 @@ mod tests;
 pub mod cli;
 pub mod ln;
 pub mod logger;
+pub mod metrics;
 pub mod routes;
 pub mod schema;
 pub mod trading;
