@@ -347,17 +347,22 @@ fn keep_wallet_balance_and_history_up_to_date(node: &Node) -> Result<()> {
             None => return None,
         };
 
-        let expired = match details.invoice.as_deref().map(Invoice::from_str) {
+        let decoded_invoice = match details.invoice.as_deref().map(Invoice::from_str) {
             Some(Ok(inv)) => {
                 tracing::info!(?inv, "Decoded invoice");
-                inv.is_expired()
+                Some(inv)
             }
             Some(Err(err)) => {
                 tracing::warn!(%err, "Failed to deserialize invoice");
-                false
+                None
             }
-            None => false,
+            None => None,
         };
+
+        let expired = decoded_invoice
+            .as_ref()
+            .map(|inv| inv.is_expired())
+            .unwrap_or(false);
 
         let status = match details.status {
             HTLCStatus::Pending if expired => api::Status::Expired,
@@ -391,11 +396,16 @@ fn keep_wallet_balance_and_history_up_to_date(node: &Node) -> Result<()> {
                 payment_hash,
             }
         } else {
+            let expiry_timestamp = decoded_invoice
+                .and_then(|inv| inv.timestamp().checked_add(inv.expiry_time()))
+                .map(|time| OffsetDateTime::from(time).unix_timestamp() as u64);
+
             api::WalletHistoryItemType::Lightning {
                 payment_hash,
                 description: details.description.clone(),
                 payment_preimage: details.preimage.clone(),
                 invoice: details.invoice.clone(),
+                expiry_timestamp,
             }
         };
 

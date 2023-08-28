@@ -80,6 +80,10 @@ abstract class WalletHistoryItemData {
     rust.WalletHistoryItemType_Lightning type =
         item.walletType as rust.WalletHistoryItemType_Lightning;
 
+    DateTime? expiry = type.expiryTimestamp != null
+        ? DateTime.fromMillisecondsSinceEpoch(type.expiryTimestamp! * 1000)
+        : null;
+
     return LightningPaymentData(
         flow: flow,
         amount: amount,
@@ -88,6 +92,7 @@ abstract class WalletHistoryItemData {
         preimage: type.paymentPreimage,
         description: type.description,
         paymentHash: type.paymentHash,
+        expiry: expiry,
         invoice: type.invoice);
   }
 }
@@ -97,6 +102,7 @@ class LightningPaymentData extends WalletHistoryItemData {
   final String? preimage;
   final String description;
   final String? invoice;
+  final DateTime? expiry;
 
   LightningPaymentData(
       {required super.flow,
@@ -106,6 +112,7 @@ class LightningPaymentData extends WalletHistoryItemData {
       required this.preimage,
       required this.description,
       required this.invoice,
+      required this.expiry,
       required this.paymentHash});
 
   @override

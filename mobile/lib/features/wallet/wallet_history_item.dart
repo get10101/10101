@@ -167,6 +167,12 @@ class LightningPaymentHistoryItem extends WalletHistoryItem {
   @override
   List<Widget> getDetails() {
     return [
+      Visibility(
+        visible: data.expiry != null,
+        child: HistoryDetail(
+            label: "Expiry time",
+            value: WalletHistoryItem.dateFormat.format(data.expiry ?? DateTime.utc(0))),
+      ),
       HistoryDetail(label: "Invoice description", value: data.description),
       Visibility(
         visible: data.invoice != null,
