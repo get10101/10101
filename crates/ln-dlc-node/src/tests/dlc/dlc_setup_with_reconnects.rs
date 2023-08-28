@@ -541,18 +541,14 @@ async fn can_lose_connection_before_processing_subchannel_accept() {
     app.reconnect(coordinator.info).await.unwrap();
 
     // Process the app's `Accept` and send `Confirm`
-    // Invalid state: Misuse error: Invalid commitment signed: Close : Invalid commitment tx
-    // signature from peer
-    let result = wait_until_dlc_channel_state(
+    wait_until_dlc_channel_state(
         Duration::from_secs(30),
         &coordinator,
         app.info.pubkey,
         SubChannelStateName::Confirmed,
     )
-    .await;
-
-    assert!(result.is_err());
-    tracing::error!("{:#}", result.err().unwrap());
+    .await
+    .unwrap();
 
     // Create `Accept` message from pending `ReAccept` Action
     sub_channel_manager_periodic_check(app.sub_channel_manager.clone(), &app.dlc_message_handler)
@@ -580,7 +576,6 @@ async fn can_lose_connection_before_processing_subchannel_accept() {
     .unwrap();
 
     // Process the app's `Finalize` and send `Revoke`
-    // This will panic: Commitment txids are unique outside of fuzzing, where hashes can collide
     wait_until_dlc_channel_state(
         Duration::from_secs(30),
         &coordinator,
@@ -672,8 +667,6 @@ async fn can_lose_connection_before_processing_subchannel_close_accept() {
         .unwrap();
 
     // Process `CloseAccept` and send `CloseConfirm`
-    // Invalid state: Misuse error: Invalid commitment signed: Close : Invalid commitment tx
-    // signature from peer
     wait_until_dlc_channel_state(
         Duration::from_secs(30),
         &coordinator,
