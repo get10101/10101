@@ -1,3 +1,5 @@
+use crate::health::Health;
+use crate::health::OverallMakerHealth;
 use axum::extract::Path;
 use axum::extract::State;
 use axum::http::StatusCode;
@@ -29,17 +31,20 @@ pub struct AppState {
     pub node: Arc<Node<InMemoryStore>>,
     pub exporter: PrometheusExporter,
     pub pool: Pool<ConnectionManager<PgConnection>>,
+    pub health: Health,
 }
 
 pub fn router(
     node: Arc<Node<InMemoryStore>>,
     exporter: PrometheusExporter,
     pool: Pool<ConnectionManager<PgConnection>>,
+    health: Health,
 ) -> Router {
     let app_state = Arc::new(AppState {
         node,
         exporter,
         pool,
+        health,
     });
 
     Router::new()
@@ -52,6 +57,7 @@ pub fn router(
         .route("/api/pay-invoice/:invoice", post(pay_invoice))
         .route("/api/sync-on-chain", post(sync_on_chain))
         .route("/metrics", get(get_metrics))
+        .route("/health", get(get_health))
         .with_state(app_state)
 }
 
@@ -266,4 +272,15 @@ pub async fn get_metrics(State(state): State<Arc<AppState>>) -> impl IntoRespons
     };
 
     (StatusCode::OK, open_telemetry_metrics + &autometrics)
+}
+
+/// Returns 500 if any of the vital services are offline
+pub async fn get_health(
+    State(state): State<Arc<AppState>>,
+) -> Result<Json<OverallMakerHealth>, AppError> {
+    let resp = state
+        .health
+        .get_health()
+        .map_err(|e| AppError::InternalServerError(format!("Error: {e:#}")))?;
+    Ok(Json(resp))
 }

@@ -7,6 +7,7 @@ use ln_dlc_node::node::InMemoryStore;
 use ln_dlc_node::node::LnDlcNodeSettings;
 use ln_dlc_node::seed::Bip39Seed;
 use maker::cli::Opts;
+use maker::health;
 use maker::ln::ldk_config;
 use maker::ln::EventHandler;
 use maker::logger;
@@ -87,32 +88,55 @@ async fn main() -> Result<()> {
     let event_handler = EventHandler::new(node.clone());
     let _running_node = node.start(event_handler)?;
 
+    let (health, health_tx) = health::Health::new();
+
     let node_pubkey = node.info.pubkey;
-    tokio::spawn(async move {
-        match trading::run(
-            &opts.orderbook,
-            node_pubkey,
-            network,
-            opts.concurrent_orders,
-            time::Duration::seconds(opts.order_expiry_after_seconds as i64),
-        )
-        .await
-        {
-            Ok(()) => {
-                tracing::error!("Maker stopped trading");
-            }
-            Err(error) => {
-                tracing::error!("Maker stopped trading: {error:#}");
+    tokio::spawn({
+        let orderbook = opts.orderbook.clone();
+        async move {
+            match trading::run(
+                &orderbook,
+                node_pubkey,
+                network,
+                opts.concurrent_orders,
+                time::Duration::seconds(opts.order_expiry_after_seconds as i64),
+                health_tx.bitmex_pricefeed,
+            )
+            .await
+            {
+                Ok(()) => {
+                    tracing::error!("Maker stopped trading");
+                }
+                Err(error) => {
+                    tracing::error!("Maker stopped trading: {error:#}");
+                }
             }
         }
     });
 
-    tokio::spawn({
+    let _monitor_coordinator_status = tokio::spawn({
+        let endpoint = opts.orderbook.clone();
+        let client = reqwest_client();
+        let interval = Duration::from_secs(10);
+        async move {
+            health::check_health_endpoint(&client, endpoint, health_tx.coordinator, interval).await;
+        }
+    });
+
+    // TODO: Monitor orderbook websocket stream with `health_tx.orderbook` when we subscribe to it
+    health_tx
+        .orderbook
+        .send(health::ServiceStatus::Online)
+        .expect("to be able to send");
+
+    let _collect_prometheus_metrics = tokio::spawn({
         let node = node.clone();
+        let health = health.clone();
         async move {
             loop {
                 let node = node.clone();
-                spawn_blocking(move || metrics::collect(node))
+                let health = health.clone();
+                spawn_blocking(move || metrics::collect(node, health))
                     .await
                     .expect("To spawn blocking thread");
                 tokio::time::sleep(PROCESS_PROMETHEUS_METRICS).await;
@@ -128,7 +152,7 @@ async fn main() -> Result<()> {
     let mut conn = pool.get().expect("to get connection from pool");
     run_migration(&mut conn);
 
-    let app = router(node, exporter, pool);
+    let app = router(node, exporter, pool, health);
 
     // Start the metrics exporter
     autometrics::prometheus_exporter::init();
@@ -149,4 +173,10 @@ async fn main() -> Result<()> {
     }
 
     Ok(())
+}
+fn reqwest_client() -> reqwest::Client {
+    reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .expect("Failed to build reqwest client")
 }

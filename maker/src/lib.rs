@@ -7,6 +7,7 @@ use diesel_migrations::MigrationHarness;
 mod tests;
 
 pub mod cli;
+pub mod health;
 pub mod ln;
 pub mod logger;
 pub mod metrics;

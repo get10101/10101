@@ -1,3 +1,4 @@
+use crate::health::ServiceStatus;
 use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::Network;
@@ -11,6 +12,7 @@ use rust_decimal::Decimal;
 use rust_decimal_macros::dec;
 use time::Duration;
 use time::OffsetDateTime;
+use tokio::sync::watch;
 use trade::Direction;
 use uuid::Uuid;
 
@@ -23,6 +25,7 @@ pub async fn run(
     network: Network,
     concurrent_orders: usize,
     order_expiry_after: Duration,
+    bitmex_pricefeed_tx: watch::Sender<ServiceStatus>,
 ) -> Result<()> {
     let network = match network {
         Network::Bitcoin => bitmex_stream::Network::Mainnet,
@@ -48,6 +51,9 @@ pub async fn run(
     };
 
     while let Some(quote) = price_stream.try_next().await? {
+        bitmex_pricefeed_tx
+            .send(ServiceStatus::Online)
+            .expect("Receiver not to be dropped");
         tracing::debug!("Received new quote {quote:?}");
 
         // Clear stale orders. They should have expired by now.
@@ -66,6 +72,9 @@ pub async fn run(
             };
         }
     }
+    bitmex_pricefeed_tx
+        .send(ServiceStatus::Offline)
+        .expect("Receiver not to be dropped");
 
     Ok(())
 }

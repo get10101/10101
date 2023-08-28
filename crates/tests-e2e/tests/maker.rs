@@ -15,11 +15,12 @@ async fn maker_can_open_channel_to_coordinator_and_send_payment() -> Result<()> 
 
     let client = init_reqwest();
 
-    let maker = Maker::new_local(client.clone());
-    assert!(maker.is_running().await);
-
     let coordinator = Coordinator::new_local(client.clone());
     assert!(coordinator.is_running().await);
+
+    // Start maker after coordinator as its health check needs coordinator
+    let maker = Maker::new_local(client.clone());
+    wait_until!(maker.is_running().await);
 
     let node_info_coordinator = coordinator.get_node_info().await?;
 
