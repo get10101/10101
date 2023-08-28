@@ -543,6 +543,9 @@ Future<void> configureFirebase(FlutterLocalNotificationsPlugin localNotification
     }
   });
 
+  // Setup the message handler when the app is not running
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+
   FirebaseMessaging messaging = FirebaseMessaging.instance;
   // Subscribe to topic "all" to receive all messages
   messaging.subscribeToTopic('all');
@@ -619,4 +622,17 @@ void showNotification(
     platformChannelSpecifics,
     payload: 'item x',
   );
+}
+
+/// Handle background messages (when the app is not running)
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  FLog.debug(text: "Handling a background message: ${message.messageId}");
+
+  await Firebase.initializeApp();
+  final localNotifications = initLocalNotifications();
+
+  if (message.notification != null) {
+    FLog.debug(text: "Message also contained a notification: ${message.notification}");
+    showNotification(message.notification!.toMap(), localNotifications);
+  }
 }
