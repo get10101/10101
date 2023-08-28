@@ -23,6 +23,7 @@ pub(crate) struct Transaction {
     pub fee: i64,
     pub created_at: OffsetDateTime,
     pub updated_at: OffsetDateTime,
+    pub raw: String,
 }
 
 pub(crate) fn get(txid: &str, conn: &mut PgConnection) -> QueryResult<Option<Transaction>> {
@@ -58,6 +59,7 @@ impl From<ln_dlc_node::transaction::Transaction> for Transaction {
             fee: value.fee() as i64,
             created_at: value.created_at(),
             updated_at: value.updated_at(),
+            raw: value.raw(),
         }
     }
 }
@@ -69,6 +71,7 @@ impl From<Transaction> for ln_dlc_node::transaction::Transaction {
             value.fee as u64,
             value.created_at,
             value.updated_at,
+            value.raw,
         )
     }
 }

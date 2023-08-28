@@ -1093,6 +1093,7 @@ pub(crate) struct Transaction {
     pub fee: i64,
     pub created_at: i64,
     pub updated_at: i64,
+    pub raw: String,
 }
 
 impl Transaction {
@@ -1130,6 +1131,7 @@ impl From<ln_dlc_node::transaction::Transaction> for Transaction {
             fee: value.fee() as i64,
             created_at: value.created_at().unix_timestamp(),
             updated_at: value.updated_at().unix_timestamp(),
+            raw: value.raw(),
         }
     }
 }
@@ -1141,6 +1143,7 @@ impl From<Transaction> for ln_dlc_node::transaction::Transaction {
             value.fee as u64,
             OffsetDateTime::from_unix_timestamp(value.created_at).expect("valid timestamp"),
             OffsetDateTime::from_unix_timestamp(value.updated_at).expect("valid timestamp"),
+            value.raw,
         )
     }
 }
@@ -1696,9 +1699,10 @@ pub mod test {
             // we need to set the time manually as the nano seconds are not stored in sql.
             OffsetDateTime::now_utc().replace_time(Time::from_hms(0, 0, 0).unwrap()),
             OffsetDateTime::now_utc().replace_time(Time::from_hms(0, 0, 0).unwrap()),
+            "0200...doesntmattermuch".to_string(),
         );
 
-        Transaction::upsert(transaction.into(), &mut connection).unwrap();
+        Transaction::upsert(transaction.clone().into(), &mut connection).unwrap();
 
         // Verify that we can load the right transaction by the `txid`
         let loaded: ln_dlc_node::transaction::Transaction = Transaction::get(
@@ -1717,6 +1721,7 @@ pub mod test {
             1,
             OffsetDateTime::now_utc(),
             OffsetDateTime::now_utc(),
+            "0200...doesntmattermuch".to_string(),
         );
         Transaction::upsert(second_tx.into(), &mut connection).unwrap();
         // Verify that we can load all transactions without fees

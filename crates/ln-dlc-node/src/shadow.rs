@@ -55,7 +55,8 @@ where
             let txid = transaction.txid();
             match self.ln_dlc_wallet.inner().get_transaction(&txid) {
                 Ok(Some(TransactionDetails { fee: Some(fee), .. })) => {
-                    self.storage.upsert_transaction(transaction.with_fee(fee))?;
+                    self.storage
+                        .upsert_transaction(transaction.clone().with_fee(fee))?;
                 }
                 Ok(_) => {}
                 Err(e) => {
