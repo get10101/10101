@@ -149,7 +149,6 @@ fn sort_orders(mut orders: Vec<Order>, is_long: bool) -> Vec<Order> {
     orders
 }
 
-#[autometrics]
 pub async fn notify_traders(
     matched_orders: MatchParams,
     authenticated_users: &HashMap<PublicKey, Sender<OrderbookMsg>>,

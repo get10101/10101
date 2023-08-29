@@ -4,7 +4,6 @@ use anyhow::bail;
 use anyhow::Context;
 use anyhow::Error;
 use anyhow::Result;
-use autometrics::autometrics;
 use bdk::blockchain::Blockchain;
 use bdk::blockchain::GetBlockHash;
 use bdk::blockchain::GetHeight;
@@ -111,7 +110,6 @@ where
         self.fee_rate_estimator.estimate(confirmation_target)
     }
 
-    #[autometrics]
     pub(crate) async fn create_funding_transaction(
         &self,
         output_script: Script,
@@ -168,7 +166,6 @@ where
         Ok(transaction)
     }
 
-    #[autometrics]
     pub(crate) fn get_last_unused_address(&self) -> Result<bitcoin::Address, Error> {
         Ok(self
             .bdk_lock()
@@ -176,7 +173,6 @@ where
             .address)
     }
 
-    #[autometrics]
     pub(crate) fn get_balance(&self) -> Result<bdk::Balance, Error> {
         Ok(self.bdk_lock().get_balance()?)
     }
@@ -186,7 +182,6 @@ where
     /// If `amount_msat_or_drain` is `None` the wallet will be drained, i.e., all available funds
     /// will be spent.
     #[allow(dead_code)]
-    #[autometrics]
     pub(crate) fn send_to_address(
         &self,
         address: &bitcoin::Address,
@@ -254,7 +249,6 @@ where
         Ok(txid)
     }
 
-    #[autometrics]
     pub fn tip(&self) -> Result<(u32, BlockHash)> {
         let height = self.blockchain.get_height()?;
         let hash = self.blockchain.get_block_hash(height as u64)?;
@@ -262,7 +256,6 @@ where
         Ok((height, hash))
     }
 
-    #[autometrics]
     pub fn on_chain_transaction_list(&self) -> Result<Vec<TransactionDetails>> {
         let wallet_lock = self.bdk_lock();
         wallet_lock
@@ -270,14 +263,12 @@ where
             .context("Failed to list on chain transactions")
     }
 
-    #[autometrics]
     pub fn get_transaction(&self, txid: &Txid) -> Result<Option<TransactionDetails>> {
         let wallet_lock = self.bdk_lock();
         let transaction_details = wallet_lock.get_tx(txid, false)?;
         Ok(transaction_details)
     }
 
-    #[autometrics]
     pub fn broadcast_transaction(&self, tx: &Transaction) -> Result<Txid> {
         let txid = tx.txid();
 
