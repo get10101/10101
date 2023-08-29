@@ -104,8 +104,8 @@ void setupFlutterLogs() {
     FieldName.TEXT,
     FieldName.STACKTRACE
   ];
-  config.customClosingDivider = "";
-  config.customOpeningDivider = "| ";
+  config.customClosingDivider = " ";
+  config.customOpeningDivider = "";
 
   FLog.applyConfigurations(config);
 }
