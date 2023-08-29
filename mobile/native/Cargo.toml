@@ -23,7 +23,7 @@ libsqlite3-sys = { version = "0.25.2", features = ["bundled"] }
 lightning = { version = "0.0.114" }
 lightning-invoice = { version = "0.22" }
 ln-dlc-node = { path = "../../crates/ln-dlc-node" }
-openssl = { version = "0.10.45", features = ["vendored"] }
+openssl = { version = "0.10.55", features = ["vendored"] }
 orderbook-client = { path = "../../crates/orderbook-client" }
 orderbook-commons = { path = "../../crates/orderbook-commons" }
 parking_lot = { version = "0.12.1", features = ["deadlock_detection"] }
