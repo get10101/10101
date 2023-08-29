@@ -96,8 +96,7 @@ class _StableScreenState extends State<StableScreen> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           FiatText(
-            amount:
-                position != null && position.direction != Direction.long ? position.quantity : 0,
+            amount: positionChangeNotifier.getStableUSDAmountInFiat(),
             textStyle: const TextStyle(fontSize: 30, fontWeight: FontWeight.bold),
           )
         ],

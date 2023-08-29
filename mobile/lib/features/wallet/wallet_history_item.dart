@@ -69,6 +69,8 @@ class WalletHistoryItem extends StatelessWidget {
           return "Matching fee";
         case WalletHistoryItemDataType.jitChannelFee:
           return "Channel opening fee";
+        case WalletHistoryItemDataType.stable:
+          return "Stable";
       }
     }();
 
@@ -81,6 +83,8 @@ class WalletHistoryItem extends StatelessWidget {
           return "off-chain";
         case WalletHistoryItemDataType.onChain:
           return "on-chain";
+        case WalletHistoryItemDataType.stable:
+          return "stable sats";
       }
     }();
 
@@ -169,6 +173,7 @@ class WalletHistoryItem extends StatelessWidget {
         case WalletHistoryItemDataType.onChain:
           return [HistoryDetail(label: "Transaction id", value: data.txid ?? "")];
         case WalletHistoryItemDataType.trade:
+        case WalletHistoryItemDataType.stable:
         case WalletHistoryItemDataType.orderMatchingFee:
           final orderId = data.orderId!.substring(0, 8);
           return [HistoryDetail(label: "Order", value: orderId)];

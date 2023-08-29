@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:get_10101/common/amount_text.dart';
 import 'package:get_10101/common/domain/model.dart';
+import 'package:get_10101/common/fiat_text.dart';
+import 'package:get_10101/features/stable/stable_screen.dart';
+import 'package:get_10101/features/trade/position_change_notifier.dart';
 import 'package:get_10101/features/wallet/create_invoice_screen.dart';
 import 'package:get_10101/features/wallet/domain/wallet_history.dart';
 import 'package:get_10101/features/wallet/send_screen.dart';
@@ -40,8 +43,10 @@ class _BalanceRowState extends State<BalanceRow> with SingleTickerProviderStateM
   Widget build(BuildContext context) {
     WalletTheme theme = Theme.of(context).extension<WalletTheme>()!;
     WalletChangeNotifier walletChangeNotifier = context.watch<WalletChangeNotifier>();
-    TextStyle normal = const TextStyle(fontSize: 16.0);
-    TextStyle bold = const TextStyle(fontWeight: FontWeight.bold, fontSize: 16.0);
+    const normal = TextStyle(fontSize: 16.0);
+    const bold = TextStyle(fontWeight: FontWeight.bold, fontSize: 16.0);
+
+    PositionChangeNotifier positionChangeNotifier = context.watch<PositionChangeNotifier>();
 
     Amount amount;
     String name;
@@ -53,6 +58,12 @@ class _BalanceRowState extends State<BalanceRow> with SingleTickerProviderStateM
       rowBgColor = theme.lightning;
       icon = SvgPicture.asset("assets/Lightning_logo.svg");
       amount = walletChangeNotifier.lightning();
+    } else if (widget.walletType == WalletHistoryItemDataType.stable) {
+      name = "Synthetic-USD";
+      rowBgColor = theme.lightning;
+      icon = SvgPicture.asset("assets/USD_logo.svg");
+      // this in unused for now, other than to initialise value (and satisfy the compiler)
+      amount = positionChangeNotifier.getStableUSDAmountInSats();
     } else {
       name = "On-chain";
       rowBgColor = theme.onChain;
@@ -65,12 +76,14 @@ class _BalanceRowState extends State<BalanceRow> with SingleTickerProviderStateM
     double buttonSpacing = 10;
 
     BalanceRowButton send = BalanceRowButton(
+      type: widget.walletType,
       flow: PaymentFlow.outbound,
       enabled: _expanded,
       buttonSize: buttonSize,
     );
 
     BalanceRowButton receive = BalanceRowButton(
+      type: widget.walletType,
       flow: PaymentFlow.inbound,
       enabled: _expanded,
       buttonSize: buttonSize,
@@ -129,7 +142,14 @@ class _BalanceRowState extends State<BalanceRow> with SingleTickerProviderStateM
                       child: SizedBox(height: widget.iconSize, width: widget.iconSize, child: icon),
                     ),
                     Expanded(child: Text(name, style: normal)),
-                    AmountText(amount: amount, textStyle: bold),
+                    if (widget.walletType == WalletHistoryItemDataType.stable)
+                      // we need to use different widget as we display the value in dollar terms
+                      FiatText(
+                        amount: positionChangeNotifier.getStableUSDAmountInFiat(),
+                        textStyle: bold,
+                      )
+                    else
+                      AmountText(amount: amount, textStyle: bold),
                   ]),
                 ),
               ),
@@ -142,12 +162,17 @@ class _BalanceRowState extends State<BalanceRow> with SingleTickerProviderStateM
 }
 
 class BalanceRowButton extends StatelessWidget {
+  final WalletHistoryItemDataType type;
   final PaymentFlow flow;
   final bool enabled;
   final double buttonSize;
 
   const BalanceRowButton(
-      {super.key, required this.flow, required this.enabled, this.buttonSize = 40});
+      {super.key,
+      required this.type,
+      required this.flow,
+      required this.enabled,
+      this.buttonSize = 40});
 
   double width() {
     // 2x padding from around the icon, 2x padding from inside the icon
@@ -171,6 +196,16 @@ class BalanceRowButton extends StatelessWidget {
         onPressed: !enabled
             ? null
             : () {
+                if (type == WalletHistoryItemDataType.stable) {
+                  if (flow == PaymentFlow.outbound) {
+                    // eventually there should be a way to send stable sats directly
+                    context.go(StableScreen.route);
+                  } else {
+                    // eventually there should be a way to receive stable sats directly
+                    context.go(StableScreen.route);
+                  }
+                  return;
+                }
                 if (flow == PaymentFlow.outbound) {
                   context.go(SendScreen.route);
                 } else {
