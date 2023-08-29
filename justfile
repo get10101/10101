@@ -270,7 +270,7 @@ all args="": services gen native
 all-ios: services gen ios run
 
 # Run iOS on public regtest (useful for device testing, where local regtest is not available)
-all-ios-regtest: services gen ios run-regtest
+ios-regtest: gen ios run-regtest
 
 # Run everything at once, tailored for Android development (rebuilds Android)
 all-android: services gen android run-local-android
