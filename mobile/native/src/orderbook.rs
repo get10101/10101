@@ -8,8 +8,10 @@ use futures::TryStreamExt;
 use orderbook_commons::best_current_price;
 use orderbook_commons::Order;
 use orderbook_commons::OrderbookMsg;
+use orderbook_commons::Prices;
 use orderbook_commons::Signature;
 use parking_lot::Mutex;
+use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 use time::OffsetDateTime;
@@ -82,6 +84,7 @@ pub fn subscribe(
                     tracing::warn!("Cannot update orderbook status: {e:#}");
                 };
 
+            let mut cached_best_price : Prices = HashMap::new();
             loop {
                 match stream.try_next().await {
                     Ok(Some(msg)) => {
@@ -114,16 +117,12 @@ pub fn subscribe(
                                     tracing::debug!(?orders, "Received all orders from orderbook");
                                 }
                                 *orders = initial_orders;
-                                if let Err(e) = position::handler::price_update(best_current_price(&orders)) {
-                                    tracing::error!("Price update from the orderbook failed. Error: {e:#}");
-                                }
+                                update_prices_if_needed(&mut cached_best_price, &orders);
                             },
                             OrderbookMsg::NewOrder(order) => {
                                 let mut orders = orders.lock();
                                 orders.push(order);
-                                if let Err(e) = position::handler::price_update(best_current_price(&orders)) {
-                                    tracing::error!("Price update from the orderbook failed. Error: {e:#}");
-                                }
+                                update_prices_if_needed(&mut cached_best_price, &orders);
                             }
                             OrderbookMsg::DeleteOrder(order_id) => {
                                 let mut orders = orders.lock();
@@ -131,9 +130,7 @@ pub fn subscribe(
                                 if !found {
                                     tracing::warn!(%order_id, "Could not remove non-existing order");
                                 }
-                                if let Err(e) = position::handler::price_update(best_current_price(&orders)) {
-                                    tracing::error!("Price update from the orderbook failed. Error: {e:#}");
-                                }
+                                update_prices_if_needed(&mut cached_best_price, &orders);
                             },
                             OrderbookMsg::Update(updated_order) => {
                                 let mut orders = orders.lock();
@@ -142,9 +139,7 @@ pub fn subscribe(
                                     tracing::warn!(?updated_order, "Update without prior knowledge of order");
                                 }
                                 orders.push(updated_order);
-                                if let Err(e) = position::handler::price_update(best_current_price(&orders)) {
-                                    tracing::error!("Price update from the orderbook failed. Error: {e:#}");
-                                }
+                                update_prices_if_needed(&mut cached_best_price, &orders);
                             },
                             _ => tracing::debug!(?msg, "Skipping message from orderbook"),
                         }
@@ -171,6 +166,16 @@ pub fn subscribe(
     });
 
     Ok(())
+}
+
+fn update_prices_if_needed(cached_best_price: &mut Prices, orders: &[Order]) {
+    let best_price = best_current_price(orders);
+    if *cached_best_price != best_price {
+        if let Err(e) = position::handler::price_update(best_price.clone()) {
+            tracing::error!("Price update from the orderbook failed. Error: {e:#}");
+        }
+        *cached_best_price = best_price;
+    }
 }
 
 // Returns true if the order was found and removed
