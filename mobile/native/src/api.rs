@@ -248,6 +248,19 @@ pub fn run(
     config::set(config.clone());
     db::init_db(&app_dir, get_network())?;
     let runtime = ln_dlc::get_or_create_tokio_runtime()?;
+
+    // TODO: Hide this behind some debug flag, it shouldn't run in production
+    // (or maybe log once a minute in release build?)
+    let handle = runtime.handle();
+    let runtime_monitor = tokio_metrics::RuntimeMonitor::new(handle);
+    let frequency = Duration::from_secs(5);
+    runtime.spawn(async move {
+        for metrics in runtime_monitor.intervals() {
+            tracing::debug!(?metrics, "tokio metrics");
+            tokio::time::sleep(frequency).await;
+        }
+    });
+
     ln_dlc::run(app_dir, seed_dir, runtime)?;
 
     let (_health, tx) = health::Health::new(config, runtime);
