@@ -11,7 +11,7 @@ use std::time::Duration;
 const UPDATE_CHANNEL_STATUS_INTERVAL: Duration = Duration::from_secs(5);
 
 /// The status of the app channel
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ChannelStatus {
     /// No channel is open.
     ///
@@ -37,6 +37,7 @@ pub enum ChannelStatus {
 }
 
 pub async fn track_channel_status(node: impl Borrow<Node>) {
+    let mut cached_status = ChannelStatus::Unknown;
     loop {
         tracing::info!("Tracking channel status");
 
@@ -48,9 +49,11 @@ pub async fn track_channel_status(node: impl Borrow<Node>) {
             })
             .into();
 
-        tracing::info!(?status, "Channel status udpate");
-
-        event::publish(&event::EventInternal::ChannelStatusUpdate(status));
+        if status != cached_status {
+            tracing::info!(?status, "Channel status update");
+            event::publish(&event::EventInternal::ChannelStatusUpdate(status));
+            cached_status = status;
+        }
 
         tokio::time::sleep(UPDATE_CHANNEL_STATUS_INTERVAL).await;
     }
