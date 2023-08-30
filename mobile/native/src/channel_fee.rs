@@ -79,8 +79,15 @@ impl ChannelFeePaymentSubscriber {
                 funding_tx_fees_msats,
                 "Waiting for outbound capacity on channel to pay jit channel opening fee.",
             );
-            Handle::current()
-                .block_on(self.wait_for_outbound_capacity(channel_id, funding_tx_fees_msats))
+            Handle::current().block_on(async {
+                self.wait_for_outbound_capacity(channel_id, funding_tx_fees_msats)
+                    .await?;
+                // We add another sleep to ensure that the channel has actually been updated after
+                // receiving the payment. Note, this is by no means ideal and should
+                // be revisited some other time.
+                tokio::time::sleep(Duration::from_millis(500)).await;
+                anyhow::Ok(())
+            })
         })
         .context("Failed during wait for outbound capacity")?;
 
