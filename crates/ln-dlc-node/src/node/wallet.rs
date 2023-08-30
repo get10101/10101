@@ -85,8 +85,6 @@ where
         };
 
         let pending_close = claimable_channel_balances.iter().fold(0, |acc, balance| {
-            tracing::debug!(balance = ?balance, "Pending on-chain balance from channel closure");
-
             use ::lightning::chain::channelmonitor::Balance::*;
             match balance {
                 ClaimableOnChannelClose {
