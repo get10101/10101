@@ -64,7 +64,6 @@ impl From<(lightning::ln::channelmanager::ChannelDetails, String)> for ChannelDe
     }
 }
 
-#[autometrics]
 pub async fn list_channels(
     State(state): State<Arc<AppState>>,
 ) -> Result<Json<Vec<ChannelDetails>>, AppError> {
@@ -221,7 +220,6 @@ pub async fn open_channel(
     Ok(Json(hex::encode(channel_id)))
 }
 
-#[autometrics]
 pub async fn send_payment(
     Path(invoice): Path<String>,
     State(state): State<Arc<AppState>>,
@@ -239,7 +237,6 @@ pub async fn send_payment(
 }
 
 #[instrument(skip_all, err(Debug))]
-#[autometrics]
 pub async fn close_channel(
     Path(channel_id_string): Path<String>,
     Query(params): Query<CloseChanelParams>,
@@ -263,7 +260,6 @@ pub async fn close_channel(
     Ok(())
 }
 
-#[autometrics]
 pub async fn sign_message(
     Path(msg): Path<String>,
     State(state): State<Arc<AppState>>,
@@ -276,7 +272,6 @@ pub async fn sign_message(
     Ok(Json(signature))
 }
 
-#[autometrics]
 pub async fn connect_to_peer(
     State(state): State<Arc<AppState>>,
     target: Json<NodeInfo>,
@@ -288,7 +283,6 @@ pub async fn connect_to_peer(
     Ok(())
 }
 
-#[autometrics]
 pub async fn is_connected(
     State(state): State<Arc<AppState>>,
     Path(target_pubkey): Path<String>,

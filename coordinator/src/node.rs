@@ -133,7 +133,6 @@ impl Node {
         !usable_channels.is_empty()
     }
 
-    #[autometrics]
     pub async fn trade(&self, trade_params: &TradeParams) -> Result<Invoice> {
         let (fee_payment_hash, invoice) = self.fee_invoice_taker(trade_params).await?;
 
@@ -350,7 +349,6 @@ impl Node {
     /// 3. If a position of differing quantity is found, we direct the
     /// caller to extend or reduce the position. _This is currently
     /// not supported_.
-    #[autometrics]
     pub fn decide_trade_action(&self, trader: &PublicKey) -> Result<TradeAction> {
         let action = match self.inner.get_dlc_channel_signed(trader)? {
             Some(subchannel) => {
@@ -405,7 +403,6 @@ impl Node {
         }
     }
 
-    #[autometrics]
     fn process_dlc_message(&self, node_id: PublicKey, msg: Message) -> Result<()> {
         tracing::info!(
             from = %node_id,

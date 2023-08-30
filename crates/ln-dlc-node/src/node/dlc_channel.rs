@@ -160,7 +160,6 @@ where
         Ok(())
     }
 
-    #[autometrics]
     pub fn get_dlc_channel_offer(&self, pubkey: &PublicKey) -> Result<Option<SubChannel>> {
         let dlc_channel = self
             .dlc_manager
@@ -172,7 +171,6 @@ where
         Ok(dlc_channel)
     }
 
-    #[autometrics]
     pub fn get_temporary_contract_id_by_sub_channel_id(
         &self,
         sub_channel_id: ChannelId,
@@ -208,7 +206,6 @@ where
         Ok(contract.get_temporary_id())
     }
 
-    #[autometrics]
     pub fn get_closed_contract(
         &self,
         temporary_contract_id: ContractId,
@@ -262,7 +259,6 @@ where
     ///
     /// In general, it is NOT safe to close an LN channel if there still is a DLC channel attached
     /// to it. This is because this can lead to loss of funds.
-    #[autometrics]
     pub fn is_safe_to_close_ln_channel_collaboratively(&self, channel_id: &[u8; 32]) -> Result<()> {
         let dlc_channels = self
             .dlc_manager
@@ -301,7 +297,6 @@ where
         Ok(())
     }
 
-    #[autometrics]
     fn get_dlc_channel(
         &self,
         matcher: impl FnMut(&&SubChannel) -> bool,
@@ -313,7 +308,6 @@ where
     }
 
     /// Fetches the contract for a given dlc channel id
-    #[autometrics]
     pub fn get_contract_by_dlc_channel_id(&self, dlc_channel_id: ChannelId) -> Result<Contract> {
         let dlc_channel = self
             .dlc_manager

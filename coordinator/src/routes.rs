@@ -154,7 +154,6 @@ pub async fn index() -> impl IntoResponse {
     })
 }
 
-#[autometrics]
 pub async fn prepare_interceptable_payment(
     target_node: Path<String>,
     State(app_state): State<Arc<AppState>>,
@@ -184,12 +183,10 @@ pub async fn prepare_interceptable_payment(
     Ok(Json(route_hint_hop.into()))
 }
 
-#[autometrics]
 pub async fn get_unused_address(State(app_state): State<Arc<AppState>>) -> Json<String> {
     Json(app_state.node.inner.get_unused_address().to_string())
 }
 
-#[autometrics]
 pub async fn get_node_info(
     State(app_state): State<Arc<AppState>>,
 ) -> Result<Json<NodeInfo>, AppError> {
@@ -211,7 +208,6 @@ pub struct OpenChannelFeeInvoiceParams {
     pub expiry: Option<u32>,
 }
 
-#[autometrics]
 pub async fn get_invoice(
     Query(params): Query<InvoiceParams>,
     State(state): State<Arc<AppState>>,
@@ -229,7 +225,6 @@ pub async fn get_invoice(
     Ok(invoice.to_string())
 }
 
-#[autometrics]
 pub async fn get_open_channel_fee_invoice(
     Query(params): Query<OpenChannelFeeInvoiceParams>,
     State(state): State<Arc<AppState>>,
@@ -315,7 +310,6 @@ pub async fn post_sync(State(state): State<Arc<AppState>>) -> Result<(), AppErro
 }
 
 #[instrument(skip_all, err(Debug))]
-#[autometrics]
 pub async fn post_register(
     State(state): State<Arc<AppState>>,
     params: Json<RegisterParams>,
@@ -353,7 +347,6 @@ pub async fn get_lsp_channel_config(
 /// specified in [`ChannelParams`].
 ///
 /// Can only be used on [`Network::Regtest`].
-#[autometrics]
 pub async fn channel_faucet(
     State(state): State<Arc<AppState>>,
     channel_params: Json<ChannelParams>,
@@ -423,7 +416,6 @@ async fn get_settings(State(state): State<Arc<AppState>>) -> impl IntoResponse {
     serde_json::to_string(&*settings).expect("to be able to serialise settings")
 }
 
-#[autometrics]
 async fn update_settings(
     State(state): State<Arc<AppState>>,
     Json(updated_settings): Json<Settings>,

@@ -2,7 +2,6 @@ use crate::db::positions::ContractSymbol;
 use crate::orderbook::db::custom_types::Direction;
 use crate::schema::trades;
 use anyhow::Result;
-use autometrics::autometrics;
 use bitcoin::hashes::hex::ToHex;
 use bitcoin::secp256k1::PublicKey;
 use diesel::prelude::*;
@@ -41,7 +40,6 @@ struct NewTrade {
     pub fee_payment_hash: String,
 }
 
-#[autometrics]
 pub fn insert(
     conn: &mut PgConnection,
     trade: crate::trade::models::NewTrade,
@@ -54,7 +52,6 @@ pub fn insert(
 }
 
 /// Returns the position by trader pub key
-#[autometrics]
 pub fn is_payment_hash_registered_as_trade_fee(
     conn: &mut PgConnection,
     payment_hash: PaymentHash,

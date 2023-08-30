@@ -2,7 +2,6 @@ use crate::schema::spendable_outputs;
 use anyhow::anyhow;
 use anyhow::ensure;
 use anyhow::Result;
-use autometrics::autometrics;
 use bitcoin::hashes::hex::FromHex;
 use bitcoin::hashes::hex::ToHex;
 use diesel::prelude::*;
@@ -13,7 +12,6 @@ use lightning::chain::transaction::OutPoint;
 use lightning::util::ser::Readable;
 use lightning::util::ser::Writeable;
 
-#[autometrics]
 pub(crate) fn insert(
     conn: &mut PgConnection,
     output: SpendableOutputDescriptor,
@@ -25,7 +23,6 @@ pub(crate) fn insert(
     Ok(())
 }
 
-#[autometrics]
 pub fn get(
     conn: &mut PgConnection,
     outpoint: &OutPoint,
@@ -42,7 +39,6 @@ pub fn get(
     Ok(output)
 }
 
-#[autometrics]
 pub fn delete(conn: &mut PgConnection, outpoint: &OutPoint) -> Result<()> {
     let affected_rows = diesel::delete(
         spendable_outputs::table.filter(spendable_outputs::txid.eq(outpoint.txid.to_string())),
@@ -54,7 +50,6 @@ pub fn delete(conn: &mut PgConnection, outpoint: &OutPoint) -> Result<()> {
     Ok(())
 }
 
-#[autometrics]
 pub fn get_all(conn: &mut PgConnection) -> Result<Vec<SpendableOutputDescriptor>> {
     let outputs: Vec<SpendableOutput> = spendable_outputs::table.load(conn)?;
     outputs

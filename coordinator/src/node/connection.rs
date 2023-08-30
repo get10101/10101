@@ -1,5 +1,4 @@
 use crate::node::storage::NodeStorage;
-use autometrics::autometrics;
 use lightning::ln::msgs::NetAddress;
 use ln_dlc_node::node::Node;
 use ln_dlc_node::node::NodeInfo;
@@ -11,7 +10,6 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::task::spawn_blocking;
 
-#[autometrics]
 pub async fn keep_public_channel_peers_connected(
     node: Arc<Node<NodeStorage>>,
     check_interval: Duration,

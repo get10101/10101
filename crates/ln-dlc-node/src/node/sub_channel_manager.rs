@@ -4,7 +4,6 @@ use crate::node::channel_manager::ChannelManager;
 use crate::node::dlc_manager::DlcManager;
 use crate::CustomSigner;
 use anyhow::Result;
-use autometrics::autometrics;
 use dlc_manager::sub_channel_manager;
 use dlc_manager::SystemTimeProvider;
 use dlc_sled_storage_provider::SledStorageProvider;
@@ -23,7 +22,6 @@ pub type SubChannelManager = sub_channel_manager::SubChannelManager<
     CustomSigner,
 >;
 
-#[autometrics]
 pub(crate) fn build(
     channel_manager: Arc<ChannelManager>,
     dlc_manager: Arc<DlcManager>,

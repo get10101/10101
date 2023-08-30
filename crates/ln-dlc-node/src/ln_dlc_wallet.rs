@@ -4,7 +4,6 @@ use crate::node::Storage;
 use crate::seed::Bip39Seed;
 use crate::TracingLogger;
 use anyhow::Result;
-use autometrics::autometrics;
 use bdk::blockchain::EsploraBlockchain;
 use bdk::esplora_client::TxStatus;
 use bdk::sled;
@@ -100,7 +99,6 @@ impl LnDlcWallet {
         self.ln_wallet.clone()
     }
 
-    #[autometrics]
     pub fn tip(&self) -> Result<(u32, BlockHash)> {
         let (height, header) = self.ln_wallet.tip()?;
         Ok((height, header))
@@ -111,7 +109,6 @@ impl LnDlcWallet {
     ///
     /// This list won't be up-to-date unless the wallet has previously been synchronised with the
     /// blockchain.
-    #[autometrics]
     pub fn on_chain_transactions(&self) -> Result<Vec<TransactionDetails>> {
         let mut txs = self.ln_wallet.on_chain_transaction_list()?;
 
@@ -125,7 +122,6 @@ impl LnDlcWallet {
         Ok(txs)
     }
 
-    #[autometrics]
     pub fn unused_address(&self) -> Address {
         self.address_cache.read().clone()
     }
@@ -147,12 +143,10 @@ impl Blockchain for LnDlcWallet {
         Ok(())
     }
 
-    #[autometrics]
     fn get_network(&self) -> Result<Network, Error> {
         Ok(self.network)
     }
 
-    #[autometrics]
     fn get_blockchain_height(&self) -> Result<u64, Error> {
         let height = self
             .ln_wallet
@@ -162,7 +156,6 @@ impl Blockchain for LnDlcWallet {
         Ok(height as u64)
     }
 
-    #[autometrics]
     fn get_block_at_height(&self, height: u64) -> Result<Block, Error> {
         let block_hash = self
             .ln_wallet
@@ -185,7 +178,6 @@ impl Blockchain for LnDlcWallet {
         Ok(block)
     }
 
-    #[autometrics]
     fn get_transaction(&self, txid: &Txid) -> Result<Transaction, Error> {
         self.ln_wallet
             .blockchain
@@ -196,7 +188,6 @@ impl Blockchain for LnDlcWallet {
             .ok_or_else(|| Error::BlockchainError(format!("Could not get transaction body {txid}")))
     }
 
-    #[autometrics]
     fn get_transaction_confirmations(&self, txid: &Txid) -> Result<u32, Error> {
         let confirmation_height = match self
             .ln_wallet
@@ -223,7 +214,6 @@ impl Blockchain for LnDlcWallet {
 }
 
 impl Signer for LnDlcWallet {
-    #[autometrics]
     fn sign_tx_input(
         &self,
         tx: &mut Transaction,
@@ -248,7 +238,6 @@ impl Signer for LnDlcWallet {
         Ok(())
     }
 
-    #[autometrics]
     fn get_secret_key_for_pubkey(&self, pubkey: &PublicKey) -> Result<SecretKey, Error> {
         self.storage
             .get_priv_key_for_pubkey(pubkey)?
@@ -257,12 +246,10 @@ impl Signer for LnDlcWallet {
 }
 
 impl dlc_manager::Wallet for LnDlcWallet {
-    #[autometrics]
     fn get_new_address(&self) -> Result<Address, Error> {
         Ok(self.unused_address())
     }
 
-    #[autometrics]
     fn get_new_secret_key(&self) -> Result<SecretKey, Error> {
         let kp = KeyPair::new(&self.secp, &mut rand::thread_rng());
         let sk = kp.secret_key();
@@ -272,7 +259,6 @@ impl dlc_manager::Wallet for LnDlcWallet {
         Ok(sk)
     }
 
-    #[autometrics]
     fn get_utxos_for_amount(
         &self,
         amount: u64,
@@ -300,14 +286,12 @@ impl dlc_manager::Wallet for LnDlcWallet {
         Ok(selection.into_iter().map(|x| x.utxo).collect::<Vec<_>>())
     }
 
-    #[autometrics]
     fn import_address(&self, _address: &Address) -> Result<(), Error> {
         Ok(())
     }
 }
 
 impl BroadcasterInterface for LnDlcWallet {
-    #[autometrics]
     fn broadcast_transaction(&self, tx: &Transaction) {
         if let Err(e) = self.ln_wallet.broadcast_transaction(tx) {
             tracing::error!(

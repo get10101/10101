@@ -8,7 +8,6 @@ use crate::routes::AppState;
 use crate::AppError;
 use anyhow::Context;
 use anyhow::Result;
-use autometrics::autometrics;
 use axum::extract::ws::WebSocketUpgrade;
 use axum::extract::Path;
 use axum::extract::Query;
@@ -56,7 +55,6 @@ where
     }
 }
 
-#[autometrics]
 pub async fn get_orders(
     State(state): State<Arc<AppState>>,
     Query(params): Query<AllOrdersParams>,
@@ -79,7 +77,6 @@ fn get_db_connection(
         .map_err(|e| AppError::InternalServerError(format!("Failed to get db access: {e:#}")))
 }
 
-#[autometrics]
 pub async fn get_order(
     Path(order_id): Path<Uuid>,
     State(state): State<Arc<AppState>>,
@@ -106,7 +103,6 @@ pub struct TraderMatchParams {
 }
 
 #[instrument(skip_all, err(Debug))]
-#[autometrics]
 pub async fn post_order(
     State(state): State<Arc<AppState>>,
     Json(new_order): Json<NewOrder>,
@@ -169,7 +165,6 @@ pub async fn post_order(
     Ok(Json(order))
 }
 
-#[autometrics]
 fn update_pricefeed(pricefeed_msg: OrderbookMsg, sender: Sender<OrderbookMsg>) {
     match sender.send(pricefeed_msg) {
         Ok(_) => {
@@ -186,7 +181,6 @@ pub struct UpdateOrder {
     pub taken: bool,
 }
 
-#[autometrics]
 pub async fn put_order(
     Path(order_id): Path<Uuid>,
     State(state): State<Arc<AppState>>,
@@ -201,7 +195,6 @@ pub async fn put_order(
     Ok(Json(order))
 }
 
-#[autometrics]
 pub async fn delete_order(
     Path(order_id): Path<Uuid>,
     State(state): State<Arc<AppState>>,

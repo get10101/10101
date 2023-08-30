@@ -1,5 +1,4 @@
 use anyhow::Result;
-use autometrics::autometrics;
 use bdk::FeeRate;
 use lightning::chain::chaininterface::ConfirmationTarget;
 use lightning::chain::chaininterface::FeeEstimator;
@@ -83,7 +82,6 @@ impl FeeRateEstimator {
             .expect("to have entries for all confirmation targets")
     }
 
-    #[autometrics]
     pub(crate) async fn update(&self) -> Result<()> {
         let estimates = self.client.get_fee_estimates()?;
 
@@ -118,7 +116,6 @@ impl FeeRateEstimator {
 }
 
 impl FeeEstimator for FeeRateEstimator {
-    #[autometrics]
     fn get_est_sat_per_1000_weight(&self, confirmation_target: ConfirmationTarget) -> u32 {
         (self.estimate(confirmation_target).fee_wu(1000) as u32).max(FEERATE_FLOOR_SATS_PER_KW)
     }
