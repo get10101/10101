@@ -4,19 +4,19 @@ resolver = "2"
 
 [patch.crates-io]
 # We should usually track the `feature/ln-dlc-channels[-10101]` branch
-dlc-manager = { git = "https://github.com/p2pderivatives/rust-dlc", rev = "fe7cfa3d2de7d3414b21c1bbd58932d2d83191c5" }
-dlc-messages = { git = "https://github.com/p2pderivatives/rust-dlc", rev = "fe7cfa3d2de7d3414b21c1bbd58932d2d83191c5" }
-dlc = { git = "https://github.com/p2pderivatives/rust-dlc", rev = "fe7cfa3d2de7d3414b21c1bbd58932d2d83191c5" }
-dlc-sled-storage-provider = { git = "https://github.com/p2pderivatives/rust-dlc", rev = "fe7cfa3d2de7d3414b21c1bbd58932d2d83191c5" }
-p2pd-oracle-client = { git = "https://github.com/p2pderivatives/rust-dlc", rev = "fe7cfa3d2de7d3414b21c1bbd58932d2d83191c5" }
-dlc-trie = { git = "https://github.com/p2pderivatives/rust-dlc", rev = "fe7cfa3d2de7d3414b21c1bbd58932d2d83191c5" }
-simple-wallet = { git = "https://github.com/p2pderivatives/rust-dlc", rev = "fe7cfa3d2de7d3414b21c1bbd58932d2d83191c5" }
+dlc-manager = { git = "https://github.com/p2pderivatives/rust-dlc", rev = "efaa92b" }
+dlc-messages = { git = "https://github.com/p2pderivatives/rust-dlc", rev = "efaa92b" }
+dlc = { git = "https://github.com/p2pderivatives/rust-dlc", rev = "efaa92b" }
+dlc-sled-storage-provider = { git = "https://github.com/p2pderivatives/rust-dlc", rev = "efaa92b" }
+p2pd-oracle-client = { git = "https://github.com/p2pderivatives/rust-dlc", rev = "efaa92b" }
+dlc-trie = { git = "https://github.com/p2pderivatives/rust-dlc", rev = "efaa92b" }
+simple-wallet = { git = "https://github.com/p2pderivatives/rust-dlc", rev = "efaa92b" }
 
 # We should usually track the `split-tx-experiment[-10101]` branch
-lightning = { git = "https://github.com/p2pderivatives/rust-lightning/", rev = "420d961d" }
-lightning-background-processor = { git = "https://github.com/p2pderivatives/rust-lightning/", rev = "420d961d" }
-lightning-transaction-sync = { git = "https://github.com/p2pderivatives/rust-lightning/", rev = "420d961d" }
-lightning-net-tokio = { git = "https://github.com/p2pderivatives/rust-lightning/", rev = "420d961d" }
-lightning-persister = { git = "https://github.com/p2pderivatives/rust-lightning/", rev = "420d961d" }
+lightning = { git = "https://github.com/p2pderivatives/rust-lightning/", rev = "3b69cecf" }
+lightning-background-processor = { git = "https://github.com/p2pderivatives/rust-lightning/", rev = "3b69cecf" }
+lightning-transaction-sync = { git = "https://github.com/p2pderivatives/rust-lightning/", rev = "3b69cecf" }
+lightning-net-tokio = { git = "https://github.com/p2pderivatives/rust-lightning/", rev = "3b69cecf" }
+lightning-persister = { git = "https://github.com/p2pderivatives/rust-lightning/", rev = "3b69cecf" }
 
 rust-bitcoin-coin-selection = { git = "https://github.com/p2pderivatives/rust-bitcoin-coin-selection" }
