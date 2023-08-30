@@ -60,7 +60,7 @@ jobs:
         run: |
           /home/runner/.dprint/bin/dprint fmt
 
-          git add CHANGELOG.md mobile/pubspec.yaml
+          git add CHANGELOG.md mobile/pubspec.yaml coordinator/Cargo.toml
           git commit --message "Prepare release ${{ github.event.inputs.version }}"
 
           echo "::set-output name=commit::$(git rev-parse HEAD)"
