@@ -57,8 +57,28 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:version/version.dart';
+import 'package:workmanager/workmanager.dart';
 
 import 'features/stable/stable_value_change_notifier.dart';
+
+@pragma('vm:entry-point') // Mandatory if the App is obfuscated or using Flutter 3.1+
+void callbackDispatcher() {
+  Workmanager().executeTask((task, inputData) {
+    // TODO: temporarily set to working for easier parsing
+    FLog.warning(text: "Native called background task: $task"); //simpleTask will be emitted here.
+
+    WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
+    final localNotifications = initLocalNotifications();
+
+    Map<String, dynamic> message = {
+      'title': 'Open the app to decide',
+      'body': 'Your position is about to expire. Would you like to renew or close it?'
+    };
+
+    showNotification(message, localNotifications);
+    return Future.value(true);
+  });
+}
 
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
 final GlobalKey<NavigatorState> _shellNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'shell');
@@ -66,6 +86,12 @@ final GlobalKey<NavigatorState> _shellNavigatorKey = GlobalKey<NavigatorState>(d
 void main() {
   WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
   FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
+
+  Workmanager().initialize(callbackDispatcher, // The top level function, aka callbackDispatcher
+      isInDebugMode:
+          true // If enabled it will post a notification whenever the task is running. Handy for debugging tasks
+      );
+  Workmanager().registerOneOffTask("task-identifier", "simpleTask");
 
   setupFlutterLogs();
 
