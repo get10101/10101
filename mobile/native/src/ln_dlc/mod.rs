@@ -101,8 +101,12 @@ pub fn get_node_key() -> SecretKey {
     NODE.get().inner.node_key()
 }
 
-pub fn get_node_info() -> NodeInfo {
-    NODE.get().inner.info
+pub fn get_node_info() -> Result<NodeInfo> {
+    Ok(NODE
+        .try_get()
+        .context("NODE is not initialised yet, can't retrieve node info")?
+        .inner
+        .info)
 }
 
 pub async fn update_node_settings(settings: LnDlcNodeSettings) {
