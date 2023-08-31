@@ -360,8 +360,8 @@ pub fn decode_invoice(invoice: String) -> Result<LightningInvoice> {
     })
 }
 
-pub fn get_node_id() -> SyncReturn<String> {
-    SyncReturn(ln_dlc::get_node_info().pubkey.to_string())
+pub fn get_node_id() -> Result<SyncReturn<String>> {
+    Ok(SyncReturn(ln_dlc::get_node_info()?.pubkey.to_string()))
 }
 
 pub fn get_channel_open_fee_estimate_sat() -> Result<u64> {

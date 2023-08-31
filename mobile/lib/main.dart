@@ -442,8 +442,12 @@ Future<void> logAppSettings(bridge.Config config) async {
   FLog.info(text: "Oracle endpoint: ${config.oracleEndpoint}");
   FLog.info(text: "Oracle PK: ${config.oraclePubkey}");
 
-  String nodeId = rust.api.getNodeId();
-  FLog.info(text: "Node ID: $nodeId");
+  try {
+    String nodeId = rust.api.getNodeId();
+    FLog.info(text: "Node ID: $nodeId");
+  } catch (e) {
+    FLog.error(text: "Failed to get node ID: $e");
+  }
 }
 
 /// Forward the events from change notifiers to the Event service
@@ -500,7 +504,7 @@ Future<void> runBackend(bridge.Config config) async {
   final seedDir = (await getApplicationSupportDirectory()).path;
 
   // We use the app documents dir on iOS to easily access logs and DB from
-  // the device. On other plaftorms we use the seed dir.
+  // the device. On other platforms we use the seed dir.
   String appDir = Platform.isIOS
       ? (await getApplicationDocumentsDirectory()).path
       : (await getApplicationSupportDirectory()).path;

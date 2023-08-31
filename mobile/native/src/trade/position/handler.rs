@@ -35,7 +35,7 @@ pub async fn trade(filled: FilledWith) -> Result<()> {
     tracing::debug!(?order, ?filled, "Filling order with id: {}", order.id);
 
     let trade_params = TradeParams {
-        pubkey: ln_dlc::get_node_info().pubkey,
+        pubkey: ln_dlc::get_node_info()?.pubkey,
         contract_symbol: order.contract_symbol,
         leverage: order.leverage,
         quantity: order.quantity,
