@@ -1,52 +1,118 @@
 [package]
 name = "coordinator"
-version = "1.2.3"
+version = "1.2.4"
 edition = "2021"
 
 [dependencies]
-anyhow = { version = "1", features = ["backtrace"] }
 atty = "0.2.14"
-autometrics = { version = "0.5", features = ["prometheus-exporter"] }
-axum = { version = "0.6.7", features = ["ws", "query"] }
-bdk = { version = "0.27.0", default-features = false, features = ["key-value-db", "use-esplora-blocking"] }
 bitcoin = "0.29"
-clap = { version = "4", features = ["derive"] }
 console-subscriber = "0.1.6"
-coordinator-commons = { path = "../crates/coordinator-commons" }
-diesel = { version = "2.0.0", features = ["r2d2", "postgres", "time", "uuid"] }
 diesel_migrations = "2.0.0"
 dlc = "0.4.0"
-dlc-manager = { version = "0.4.0", features = ["use-serde"] }
 dlc-messages = "0.4.0"
 dlc-trie = "0.4.0"
 futures = "0.3"
 hex = "0.4"
 lazy_static = "1.4.0"
-lightning = { version = "0.0.114", features = ["max_level_trace"] }
-lightning-invoice = { version = "0.22" }
-ln-dlc-node = { path = "../crates/ln-dlc-node" }
 local-ip-address = "0.5.1"
-# adding this as explicit dependency as we need the "vendored" flag for cross compilation
-openssl = { version = "0.10.55", features = ["vendored"] }
 opentelemetry = "0.19.0"
 opentelemetry-prometheus = "0.12.0"
-orderbook-commons = { path = "../crates/orderbook-commons" }
-parking_lot = { version = "0.12.1", features = ["deadlock_detection"] }
 prometheus = "0.13.3"
 rand = "0.8.5"
-rust_decimal = { version = "1", features = ["serde-with-float"] }
 serde = "1.0.147"
 serde_json = "1"
-sha2 = { version = "0.10", default-features = false }
-time = { version = "0.3", features = ["serde", "parsing", "std", "formatting", "macros", "serde-well-known"] }
-tokio = { version = "1", features = ["full", "tracing"] }
 tokio-metrics = "0.2.2"
 toml = "0.7.3"
 tracing = "0.1.37"
-tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "ansi", "env-filter", "time", "tracing-log", "json"] }
-trade = { path = "../crates/trade" }
 url = "2.3.1"
-uuid = { version = "1.3.0", features = ["v4", "serde"] }
+
+[dependencies.anyhow]
+version = "1"
+features = ["backtrace"]
+
+[dependencies.autometrics]
+version = "0.5"
+features = ["prometheus-exporter"]
+
+[dependencies.axum]
+version = "0.6.7"
+features = ["ws", "query"]
+
+[dependencies.bdk]
+version = "0.27.0"
+default-features = false
+features = ["key-value-db", "use-esplora-blocking"]
+
+[dependencies.clap]
+version = "4"
+features = ["derive"]
+
+[dependencies.coordinator-commons]
+path = "../crates/coordinator-commons"
+
+[dependencies.diesel]
+version = "2.0.0"
+features = ["r2d2", "postgres", "time", "uuid"]
+
+[dependencies.dlc-manager]
+version = "0.4.0"
+features = ["use-serde"]
+
+[dependencies.lightning]
+version = "0.0.114"
+features = ["max_level_trace"]
+
+[dependencies.lightning-invoice]
+version = "0.22"
+
+[dependencies.ln-dlc-node]
+path = "../crates/ln-dlc-node"
+
+[dependencies.openssl]
+version = "0.10.55"
+features = ["vendored"]
+
+[dependencies.orderbook-commons]
+path = "../crates/orderbook-commons"
+
+[dependencies.parking_lot]
+version = "0.12.1"
+features = ["deadlock_detection"]
+
+[dependencies.rust_decimal]
+version = "1"
+features = ["serde-with-float"]
+
+[dependencies.sha2]
+version = "0.10"
+default-features = false
+
+[dependencies.time]
+version = "0.3"
+features = [
+  "serde",
+  "parsing",
+  "std",
+  "formatting",
+  "macros",
+  "serde-well-known",
+]
+
+[dependencies.tokio]
+version = "1"
+features = ["full", "tracing"]
+
+[dependencies.tracing-subscriber]
+version = "0.3"
+default-features = false
+features = ["fmt", "ansi", "env-filter", "time", "tracing-log", "json"]
+
+[dependencies.trade]
+path = "../crates/trade"
+
+[dependencies.uuid]
+version = "1.3.0"
+features = ["v4", "serde"]
 
 [dev-dependencies]
 rust_decimal_macros = "1"
