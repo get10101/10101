@@ -15,10 +15,10 @@ class PositionExpiryObserver {
   }
 
   _onPositionChange() {
-    _updateSharedPreferences();
+    _updatePositionExpiryInPreferences();
   }
 
-  _updateSharedPreferences() async {
+  _updatePositionExpiryInPreferences() async {
     if (_positionChangeNotifier.positions.length > 1) {
       throw Exception('More than one position at a time is not supported');
     }

@@ -21,6 +21,7 @@ import 'package:get_10101/common/snack_bar.dart';
 import 'package:get_10101/features/stable/stable_screen.dart';
 import 'package:get_10101/features/trade/application/candlestick_service.dart';
 import 'package:get_10101/features/trade/application/order_service.dart';
+import 'package:get_10101/features/trade/application/position_expiry_observer.dart';
 import 'package:get_10101/features/trade/application/position_service.dart';
 import 'package:get_10101/features/trade/application/trade_values_service.dart';
 import 'package:get_10101/features/trade/candlestick_change_notifier.dart';
@@ -491,6 +492,8 @@ void subscribeToNotifiers(BuildContext context) {
   final serviceStatusNotifier = context.read<ServiceStatusNotifier>();
   final channelStatusNotifier = context.read<ChannelStatusNotifier>();
   final stableValuesChangeNotifier = context.read<StableValuesChangeNotifier>();
+
+  final positionExpiryObserver = PositionExpiryObserver(positionChangeNotifier);
 
   eventService.subscribe(
       orderChangeNotifier, bridge.Event.orderUpdateNotification(Order.apiDummy()));
