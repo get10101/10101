@@ -49,11 +49,13 @@ class Preferences {
   }
 
   setPositionExpiry(DateTime value) async {
+    FLog.debug(text: "Setting positionExpiry in Preferences to {${value.toString()}}");
     SharedPreferences preferences = await SharedPreferences.getInstance();
     preferences.setInt(positionExpiry, value.millisecondsSinceEpoch);
   }
 
   clearPositionExpiry() async {
+    FLog.debug(text: "Clearing positionExpiry in Preferences");
     SharedPreferences preferences = await SharedPreferences.getInstance();
     if (!await preferences.remove(positionExpiry)) {
       FLog.warning(text: "Failed to remove positionExpiry");
