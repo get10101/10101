@@ -13,7 +13,7 @@ async fn can_rollover_position() {
     let test = setup::TestSetup::new_with_open_position().await;
     let coordinator = &test.coordinator;
     let dlc_channels = coordinator.get_dlc_channels().await.unwrap();
-    let app_pubkey = api::get_node_id().0;
+    let app_pubkey = api::get_node_id().unwrap().0;
 
     tracing::info!("{:?}", dlc_channels);
 
