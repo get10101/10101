@@ -274,13 +274,13 @@ where
 
         tracing::info!(%txid, raw_tx = %serialize_hex(&tx), "Broadcasting transaction");
 
+        if let Err(e) = self.node_storage.upsert_transaction(tx.into()) {
+            tracing::error!("Failed to store transaction {txid}. Error: {e:#}");
+        }
+
         self.blockchain
             .broadcast(tx)
             .with_context(|| format!("Failed to broadcast transaction {txid}"))?;
-
-        self.node_storage
-            .upsert_transaction(tx.into())
-            .with_context(|| format!("Failed to store transaction {txid}"))?;
 
         Ok(txid)
     }
