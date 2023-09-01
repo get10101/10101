@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:get_10101/common/fiat_text.dart';
 import 'package:get_10101/features/stable/bitcoinize_confirmation_sheet.dart';
 import 'package:get_10101/features/stable/stable_confirmation_sheet.dart';
-import 'package:get_10101/features/trade/domain/direction.dart';
 import 'package:get_10101/features/trade/position_change_notifier.dart';
 import 'package:provider/provider.dart';
 
@@ -46,13 +45,13 @@ class _StableScreenState extends State<StableScreen> {
           ]),
         )
       ];
-    } else if (position.direction == Direction.long) {
+    } else if (!positionChangeNotifier.hasStableUSD()) {
       widgets = [
         const Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Flexible(
-              child: Text("Please close your long position before stabilizing your bitcoin!",
+              child: Text("Please close your current position before stabilizing your bitcoin!",
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(color: Colors.grey, fontSize: 16)),
