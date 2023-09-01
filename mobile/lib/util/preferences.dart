@@ -38,7 +38,7 @@ class Preferences {
   }
 
   // Note: this is not async as it needs to be used in background handler
-  DateTime? getPositionExpiry() {
+  static DateTime? getPositionExpiry() {
     SharedPreferences.getInstance().then((preferences) {
       var expiry = preferences.getInt(positionExpiry);
       if (expiry == null) {

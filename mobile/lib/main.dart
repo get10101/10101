@@ -66,19 +66,42 @@ import 'features/stable/stable_value_change_notifier.dart';
 void callbackDispatcher() {
   Workmanager().executeTask((task, inputData) {
     // TODO: temporarily set to working for easier parsing
-    FLog.warning(text: "Native called background task: $task"); //simpleTask will be emitted here.
+    print(
+        "Background task has woken up: $task"); // this should not be the case, but maybe flogs is not worknig
+    FLog.info(text: "Background task has woken up: $task");
 
-    WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
-    final localNotifications = initLocalNotifications();
-
-    Map<String, dynamic> message = {
-      'title': 'Open the app to decide',
-      'body': 'Your position is about to expire. Would you like to renew or close it?'
-    };
-
-    showNotification(message, localNotifications);
+    displayNotificationIfPositionExpires();
     return Future.value(true);
   });
+}
+
+void displayNotificationIfPositionExpires() {
+  WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
+  final localNotifications = initLocalNotifications();
+
+  // TODO: See whether this works
+  Map<String, dynamic> message = {
+    'title': 'Open the app to decide',
+    'body': 'Your position is about to expire. Would you like to renew or close it?'
+  };
+
+  final positionExpiry = Preferences.getPositionExpiry();
+  final nowUtc = DateTime.now().toUtc();
+  final inAnHourUtc = DateTime(nowUtc.year, nowUtc.month, nowUtc.day, nowUtc.hour + 1).toUtc();
+  if (positionExpiry != null) {
+    if (nowUtc.millisecondsSinceEpoch > positionExpiry.millisecondsSinceEpoch) {
+      FLog.info(text: "Your position has expired on $positionExpiry (UTC time) and will be closed");
+      // TODO: Display expired position notification
+    } else if (inAnHourUtc.millisecondsSinceEpoch > positionExpiry.millisecondsSinceEpoch) {
+      FLog.info(text: "Your position will expire soon  $positionExpiry (UTC time)!");
+      // TODO: Display soon to expire position notification
+    } else {
+      FLog.info(
+          text:
+              "Your position will expire on  $positionExpiry (UTC time) - you've got plenty of time still!");
+    }
+  }
+  showNotification(message, localNotifications);
 }
 
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
@@ -92,7 +115,7 @@ void main() {
       isInDebugMode:
           true // If enabled it will post a notification whenever the task is running. Handy for debugging tasks
       );
-  Workmanager().registerOneOffTask("task-identifier", "simpleTask");
+  Workmanager().registerOneOffTask("task-identifier", "showNotificationsIfPositionExpiring");
 
   setupFlutterLogs();
 
@@ -671,5 +694,9 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   if (message.notification != null) {
     FLog.debug(text: "Message also contained a notification: ${message.notification}");
     showNotification(message.notification!.toMap(), localNotifications);
+  } else {
+    FLog.debug(
+        text: "Message contained a message - we assume it's a prompt to check position expiry");
+    displayNotificationIfPositionExpires();
   }
 }
