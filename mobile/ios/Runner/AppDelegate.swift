@@ -21,7 +21,9 @@ import workmanager
 
     // Don't try to do background fetches more often than every 15 mins
     // (unfortunately, we cannot specify how often they will be run at the minimum)
-    UIApplication.shared.setMinimumBackgroundFetchInterval(TimeInterval(60*15))
+    // TODO: Change back to 15 mins
+    // UIApplication.shared.setMinimumBackgroundFetchInterval(TimeInterval(60*15))
+    UIApplication.shared.setMinimumBackgroundFetchInterval(TimeInterval(60))
 
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
 }
