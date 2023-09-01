@@ -77,7 +77,6 @@ path = "../crates/orderbook-commons"
 
 [dependencies.parking_lot]
 version = "0.12.1"
-features = ["deadlock_detection"]
 
 [dependencies.rust_decimal]
 version = "1"

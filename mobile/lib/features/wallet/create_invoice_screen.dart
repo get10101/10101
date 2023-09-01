@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
 import 'package:get_10101/common/amount_text.dart';
 import 'package:get_10101/common/amount_text_input_form_field.dart';
 import 'package:get_10101/common/application/channel_info_service.dart';
@@ -57,6 +58,10 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
   void initState() {
     final ChannelInfoService channelInfoService = context.read<ChannelInfoService>();
     initChannelInfo(channelInfoService);
+
+    final bridge.Config config = context.read<bridge.Config>();
+    amount = config.network == "regtest" ? Amount(100000) : null;
+
     super.initState();
   }
 

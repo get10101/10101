@@ -486,8 +486,6 @@ where
             self.keys_manager.clone(),
         ));
 
-        std::thread::spawn(monitor_for_deadlocks());
-
         tracing::info!("Lightning node started with node ID {}", self.info);
 
         Ok(RunningNode { _handles: handles })
@@ -571,25 +569,6 @@ fn spawn_background_processor(
     .remote_handle();
     tokio::spawn(fut);
     remote_handle
-}
-
-/// Parking lot mutexes have the ability to mark deadlocks.
-///
-/// Take advantage of this behaviour and log deadlocks when they occur.
-fn monitor_for_deadlocks() -> impl Fn() {
-    move || loop {
-        let deadlocks = parking_lot::deadlock::check_deadlock();
-
-        for (i, threads) in deadlocks.iter().enumerate() {
-            tracing::error!(%i, "Deadlock detected");
-            for t in threads {
-                tracing::error!(thread_id = %t.thread_id());
-                tracing::error!("{:#?}", t.backtrace());
-            }
-        }
-
-        std::thread::sleep(Duration::from_secs(10));
-    }
 }
 
 async fn lightning_wallet_sync(

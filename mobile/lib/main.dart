@@ -223,13 +223,16 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
     init(config);
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      await initFirebase();
-      await requestNotificationPermission();
-      final flutterLocalNotificationsPlugin = initLocalNotifications();
-      await configureFirebase(flutterLocalNotificationsPlugin);
+      try {
+        await initFirebase();
+        await requestNotificationPermission();
+        final flutterLocalNotificationsPlugin = initLocalNotifications();
+        await configureFirebase(flutterLocalNotificationsPlugin);
+      } catch (e) {
+        FLog.error(text: "Error setting up Firebase: ${e.toString()}");
+      }
 
       PackageInfo packageInfo = await PackageInfo.fromPlatform();
-
       final messenger = scaffoldMessengerKey.currentState!;
 
       try {
