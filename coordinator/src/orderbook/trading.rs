@@ -222,7 +222,7 @@ pub mod tests {
     use trade::Direction;
     use uuid::Uuid;
 
-    fn dumm_long_order(
+    fn dummy_long_order(
         price: Decimal,
         id: Uuid,
         quantity: Decimal,
@@ -246,19 +246,19 @@ pub mod tests {
 
     #[test]
     pub fn when_short_then_sort_desc() {
-        let order1 = dumm_long_order(
+        let order1 = dummy_long_order(
             dec!(20_000),
             Uuid::new_v4(),
             Default::default(),
             Duration::seconds(0),
         );
-        let order2 = dumm_long_order(
+        let order2 = dummy_long_order(
             dec!(21_000),
             Uuid::new_v4(),
             Default::default(),
             Duration::seconds(0),
         );
-        let order3 = dumm_long_order(
+        let order3 = dummy_long_order(
             dec!(20_500),
             Uuid::new_v4(),
             Default::default(),
@@ -275,19 +275,19 @@ pub mod tests {
 
     #[test]
     pub fn when_long_then_sort_asc() {
-        let order1 = dumm_long_order(
+        let order1 = dummy_long_order(
             dec!(20_000),
             Uuid::new_v4(),
             Default::default(),
             Duration::seconds(0),
         );
-        let order2 = dumm_long_order(
+        let order2 = dummy_long_order(
             dec!(21_000),
             Uuid::new_v4(),
             Default::default(),
             Duration::seconds(0),
         );
-        let order3 = dumm_long_order(
+        let order3 = dummy_long_order(
             dec!(20_500),
             Uuid::new_v4(),
             Default::default(),
@@ -304,19 +304,19 @@ pub mod tests {
 
     #[test]
     pub fn when_all_same_price_sort_by_id() {
-        let order1 = dumm_long_order(
+        let order1 = dummy_long_order(
             dec!(20_000),
             Uuid::new_v4(),
             Default::default(),
             Duration::seconds(0),
         );
-        let order2 = dumm_long_order(
+        let order2 = dummy_long_order(
             dec!(20_000),
             Uuid::new_v4(),
             Default::default(),
             Duration::seconds(1),
         );
-        let order3 = dumm_long_order(
+        let order3 = dummy_long_order(
             dec!(20_000),
             Uuid::new_v4(),
             Default::default(),
@@ -339,25 +339,25 @@ pub mod tests {
     #[test]
     fn given_limit_and_market_with_same_amount_then_match() {
         let all_orders = vec![
-            dumm_long_order(
+            dummy_long_order(
                 dec!(20_000),
                 Uuid::new_v4(),
                 dec!(100),
                 Duration::seconds(0),
             ),
-            dumm_long_order(
+            dummy_long_order(
                 dec!(21_000),
                 Uuid::new_v4(),
                 dec!(200),
                 Duration::seconds(0),
             ),
-            dumm_long_order(
+            dummy_long_order(
                 dec!(20_000),
                 Uuid::new_v4(),
                 dec!(300),
                 Duration::seconds(0),
             ),
-            dumm_long_order(
+            dummy_long_order(
                 dec!(22_000),
                 Uuid::new_v4(),
                 dec!(400),
@@ -410,25 +410,25 @@ pub mod tests {
     /// This test is for safety reasons only. Once we want multiple matches we should update it
     #[test]
     fn given_limit_and_market_with_smaller_amount_then_error() {
-        let order1 = dumm_long_order(
+        let order1 = dummy_long_order(
             dec!(20_000),
             Uuid::new_v4(),
             dec!(400),
             Duration::seconds(0),
         );
-        let order2 = dumm_long_order(
+        let order2 = dummy_long_order(
             dec!(21_000),
             Uuid::new_v4(),
             dec!(200),
             Duration::seconds(0),
         );
-        let order3 = dumm_long_order(
+        let order3 = dummy_long_order(
             dec!(22_000),
             Uuid::new_v4(),
             dec!(100),
             Duration::seconds(0),
         );
-        let order4 = dumm_long_order(
+        let order4 = dummy_long_order(
             dec!(20_000),
             Uuid::new_v4(),
             dec!(300),
@@ -457,25 +457,25 @@ pub mod tests {
     #[test]
     fn given_long_when_needed_short_direction_then_no_match() {
         let all_orders = vec![
-            dumm_long_order(
+            dummy_long_order(
                 dec!(20_000),
                 Uuid::new_v4(),
                 dec!(100),
                 Duration::seconds(0),
             ),
-            dumm_long_order(
+            dummy_long_order(
                 dec!(21_000),
                 Uuid::new_v4(),
                 dec!(200),
                 Duration::seconds(0),
             ),
-            dumm_long_order(
+            dummy_long_order(
                 dec!(22_000),
                 Uuid::new_v4(),
                 dec!(400),
                 Duration::seconds(0),
             ),
-            dumm_long_order(
+            dummy_long_order(
                 dec!(20_000),
                 Uuid::new_v4(),
                 dec!(300),
