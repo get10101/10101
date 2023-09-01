@@ -87,6 +87,10 @@ jobs:
         run: dart format --output=none --set-exit-if-changed --line-length 100 $(find . -name "*.dart" -not \( -name "*.*freezed.dart" -o -name "*.mocks.dart"  \) )
       - name: Analyze flutter code
         run: just lint-flutter
+      - name: Check for uncommitted changes
+        if: always()
+        run: |
+          git diff-index --quiet HEAD || (echo "There are changes in the working tree after using Flutter." && exit 1)
 
   unit-tests:
     runs-on: ubuntu-latest
@@ -176,3 +180,7 @@ jobs:
       - name: show disk space after tests
         if: always()
         run: df -h
+      - name: Check for uncommitted changes
+        if: always()
+        run: |
+          git diff-index --quiet HEAD || (echo "There are changes in the working tree after running tests." && exit 1)
