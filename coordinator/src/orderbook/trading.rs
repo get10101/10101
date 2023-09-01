@@ -1,12 +1,17 @@
-use crate::orderbook::routes::MatchParams;
-use crate::orderbook::routes::TraderMatchParams;
+use crate::orderbook;
+use anyhow::anyhow;
 use anyhow::bail;
+use anyhow::Context;
 use anyhow::Result;
 use autometrics::autometrics;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::XOnlyPublicKey;
+use diesel::r2d2::ConnectionManager;
+use diesel::r2d2::Pool;
+use diesel::PgConnection;
 use orderbook_commons::FilledWith;
 use orderbook_commons::Match;
+use orderbook_commons::NewOrder;
 use orderbook_commons::Order;
 use orderbook_commons::OrderType;
 use orderbook_commons::OrderbookMsg;
@@ -14,10 +19,158 @@ use rust_decimal::Decimal;
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::str::FromStr;
+use thiserror::Error;
 use time::Duration;
 use time::OffsetDateTime;
-use tokio::sync::mpsc::Sender;
+use tokio::sync::broadcast;
+use tokio::sync::mpsc;
+use tokio::task::JoinHandle;
 use trade::Direction;
+
+pub struct Trading {
+    pool: Pool<ConnectionManager<PgConnection>>,
+    authenticated_users: HashMap<PublicKey, mpsc::Sender<OrderbookMsg>>,
+    receiver: mpsc::Receiver<TradingMessage>,
+    tx_price_feed: broadcast::Sender<OrderbookMsg>,
+}
+
+pub enum TradingMessage {
+    NewOrder(NewOrderMessage),
+    NewUser(NewUserMessage),
+}
+
+pub struct NewOrderMessage {
+    pub new_order: NewOrder,
+    pub sender: mpsc::Sender<Result<Order>>,
+}
+
+pub struct NewUserMessage {
+    pub new_user: PublicKey,
+    pub sender: mpsc::Sender<OrderbookMsg>,
+}
+
+#[derive(Error, Debug, PartialEq)]
+pub enum TradingError {
+    #[error("Invalid order: {0}")]
+    InvalidOrder(String),
+    #[error("{0}")]
+    NoMatchFound(String),
+}
+
+#[derive(Clone)]
+pub struct MatchParams {
+    pub taker_matches: TraderMatchParams,
+    pub makers_matches: Vec<TraderMatchParams>,
+}
+
+#[derive(Clone)]
+pub struct TraderMatchParams {
+    pub trader_id: PublicKey,
+    pub filled_with: FilledWith,
+}
+
+impl Trading {
+    /// starts the trading task and returns a sender that can be used to send `TradingMessages` to
+    /// the trading task.
+    pub fn start(
+        pool: Pool<ConnectionManager<PgConnection>>,
+        tx_price_feed: broadcast::Sender<OrderbookMsg>,
+    ) -> (JoinHandle<Result<()>>, mpsc::Sender<TradingMessage>) {
+        let (sender, receiver) = mpsc::channel::<TradingMessage>(100);
+
+        let handle = Trading {
+            pool,
+            authenticated_users: HashMap::new(),
+            receiver,
+            tx_price_feed,
+        }
+        .spawn();
+
+        (handle, sender)
+    }
+
+    /// spawns a new tokio task that is handling messages
+    fn spawn(mut self) -> JoinHandle<Result<()>> {
+        tokio::spawn(async move {
+            while let Some(trading_message) = self.receiver.recv().await {
+                match trading_message {
+                    TradingMessage::NewOrder(new_order_msg) => {
+                        let result = self.process_new_order(new_order_msg.new_order).await;
+                        new_order_msg.sender.send(result).await?;
+                    }
+                    TradingMessage::NewUser(new_user_msg) => {
+                        self.authenticated_users
+                            .insert(new_user_msg.new_user, new_user_msg.sender);
+                    }
+                }
+            }
+
+            Ok(())
+        })
+    }
+
+    /// Processes a new limit and market order
+    ///
+    /// Limit order: update price feed
+    /// Market order: find match and notify traders
+    async fn process_new_order(&self, new_order: NewOrder) -> Result<Order> {
+        tracing::info!(trader_id=%new_order.trader_id, "Received a new {:?} order", new_order.order_type);
+
+        if new_order.order_type == OrderType::Limit && new_order.price == Decimal::ZERO {
+            return Err(TradingError::InvalidOrder(
+                "Limit order with zero price are not allowed".to_string(),
+            ))?;
+        }
+
+        let mut conn = self.pool.get()?;
+        let order = orderbook::db::orders::insert(&mut conn, new_order.clone())
+            .map_err(|e| anyhow!("Failed to insert new order into db: {e:#}"))?;
+
+        if new_order.order_type == OrderType::Limit {
+            // we only tell everyone about new limit orders
+            self.tx_price_feed
+                .send(OrderbookMsg::NewOrder(order.clone()))
+                .map_err(|error| anyhow!("Could not update price feed due to '{error}'"))?;
+        } else {
+            let mut connection = self.pool.clone().get()?;
+            let opposite_direction_orders = orderbook::db::orders::all_by_direction_and_type(
+                &mut connection,
+                order.direction.opposite(),
+                OrderType::Limit,
+                false,
+                true,
+            )?;
+
+            let matched_orders = match_order(&order, opposite_direction_orders)?
+                .with_context(|| format!("Could not match order {}", order.id))
+                .map_err(|e| TradingError::NoMatchFound(format!("{e:#}")))?;
+
+            tracing::info!(order_id=%order.id, trader_id=%order.trader_id, "Found a match with {} makers for new order.", matched_orders.makers_matches.len());
+
+            let mut orders_to_set_taken = vec![matched_orders.taker_matches.filled_with.order_id];
+            let mut order_ids = matched_orders
+                .taker_matches
+                .filled_with
+                .matches
+                .iter()
+                .map(|m| m.order_id)
+                .collect();
+
+            orders_to_set_taken.append(&mut order_ids);
+            notify_traders(matched_orders, &self.authenticated_users).await?;
+
+            for order_id in orders_to_set_taken {
+                tracing::info!(%order_id, "Setting order to taken.");
+                if let Err(err) = orderbook::db::orders::set_is_taken(&mut conn, order_id, true) {
+                    let order_id = order_id.to_string();
+                    tracing::error!(order_id, "Could not set order to taken. Error: {err:#}");
+                }
+            }
+        }
+
+        Ok(order)
+    }
+}
 
 /// Matches a provided market order with limit orders from the DB
 ///
@@ -28,7 +181,7 @@ use trade::Direction;
 /// will filter it again though
 #[autometrics]
 pub fn match_order(
-    order: Order,
+    order: &Order,
     opposite_direction_orders: Vec<Order>,
 ) -> Result<Option<MatchParams>> {
     if order.order_type == OrderType::Limit {
@@ -149,60 +302,51 @@ fn sort_orders(mut orders: Vec<Order>, is_long: bool) -> Vec<Order> {
     orders
 }
 
+/// Notifies all participating traders about a match.
+//
+/// FIXME: This logic currently does not care handle the scenario if the trader is not online at
+/// the time of match.
 pub async fn notify_traders(
     matched_orders: MatchParams,
-    authenticated_users: &HashMap<PublicKey, Sender<OrderbookMsg>>,
-) {
+    traders: &HashMap<PublicKey, mpsc::Sender<OrderbookMsg>>,
+) -> Result<()> {
     for maker_match in matched_orders.makers_matches {
-        match authenticated_users.get(&maker_match.trader_id) {
-            None => {
-                // TODO we should fail here and get another match if possible
-                tracing::error!("Could not notify maker - we should fail here and get another match if possible");
-            }
-            Some(sender) => match sender
-                .send(OrderbookMsg::Match(maker_match.filled_with))
-                .await
-            {
-                Ok(_) => {
-                    tracing::debug!("Successfully notified maker")
-                }
-                Err(err) => {
-                    tracing::error!("Connection lost to maker {err:#}")
-                }
-            },
+        let maker_id = maker_match.trader_id.to_string();
+        match notify_trader(&maker_match, traders).await {
+            Ok(()) => tracing::debug!(maker_id, "Successfully notified maker"),
+            Err(e) => tracing::warn!(maker_id, "{e:#}"),
         }
     }
-    match authenticated_users.get(&matched_orders.taker_matches.trader_id) {
-        None => {
-            // TODO we should fail here and get another match if possible
-            tracing::error!(
-                "Could not notify taker - we should fail here and get another match if possible"
-            );
-        }
-        Some(sender) => match sender
-            .send(OrderbookMsg::Match(
-                matched_orders.taker_matches.filled_with,
-            ))
+
+    let taker_id = matched_orders.taker_matches.trader_id.to_string();
+    match notify_trader(&matched_orders.taker_matches, traders).await {
+        Ok(()) => tracing::debug!(taker_id, "Successfully notified taker"),
+        Err(e) => tracing::warn!(taker_id, "{e:#}"),
+    }
+
+    Ok(())
+}
+
+async fn notify_trader(
+    match_params: &TraderMatchParams,
+    traders: &HashMap<PublicKey, mpsc::Sender<OrderbookMsg>>,
+) -> Result<()> {
+    match traders.get(&match_params.trader_id) {
+        None => bail!("Trader is not connected"),
+        Some(sender) => sender
+            .send(OrderbookMsg::Match(match_params.filled_with.clone()))
             .await
-        {
-            Ok(_) => {
-                tracing::debug!("Successfully notified taker")
-            }
-            Err(err) => {
-                // TODO we should fail here and get another match if possible
-                tracing::error!("Connection lost to taker {err:#}")
-            }
-        },
+            .map_err(|err| anyhow!("Connection lost to trader {err:#}")),
     }
 }
 
 #[cfg(test)]
 pub mod tests {
-    use crate::orderbook::routes::MatchParams;
-    use crate::orderbook::routes::TraderMatchParams;
     use crate::orderbook::trading::match_order;
     use crate::orderbook::trading::notify_traders;
     use crate::orderbook::trading::sort_orders;
+    use crate::orderbook::trading::MatchParams;
+    use crate::orderbook::trading::TraderMatchParams;
     use bitcoin::secp256k1::PublicKey;
     use bitcoin::secp256k1::SecretKey;
     use bitcoin::secp256k1::SECP256K1;
@@ -380,7 +524,7 @@ pub mod tests {
             expiry: OffsetDateTime::now_utc() + Duration::minutes(1),
         };
 
-        let matched_orders = match_order(order.clone(), all_orders).unwrap().unwrap();
+        let matched_orders = match_order(&order, all_orders).unwrap().unwrap();
 
         assert_eq!(matched_orders.makers_matches.len(), 1);
         let maker_matches = matched_orders
@@ -451,7 +595,7 @@ pub mod tests {
             expiry: OffsetDateTime::now_utc() + Duration::minutes(1),
         };
 
-        assert!(match_order(order, all_orders).is_err());
+        assert!(match_order(&order, all_orders).is_err());
     }
 
     #[test]
@@ -498,7 +642,7 @@ pub mod tests {
             expiry: OffsetDateTime::now_utc() + Duration::minutes(1),
         };
 
-        let matched_orders = match_order(order, all_orders).unwrap();
+        let matched_orders = match_order(&order, all_orders).unwrap();
 
         assert!(matched_orders.is_none());
     }
@@ -553,7 +697,7 @@ pub mod tests {
         traders.insert(maker_pub_key, maker_sender);
         traders.insert(trader_pub_key, trader_sender);
 
-        notify_traders(matched_orders, &traders).await;
+        notify_traders(matched_orders, &traders).await.unwrap();
 
         let maker_msg = maker_receiver.recv().await.unwrap();
         let trader_msg = trader_receiver.recv().await.unwrap();

@@ -1,8 +1,7 @@
 use crate::orderbook;
-use crate::orderbook::db;
-use crate::orderbook::db::orders;
-use crate::orderbook::trading::match_order;
-use crate::orderbook::trading::notify_traders;
+use crate::orderbook::trading::NewOrderMessage;
+use crate::orderbook::trading::TradingError;
+use crate::orderbook::trading::TradingMessage;
 use crate::orderbook::websocket::websocket_connection;
 use crate::routes::AppState;
 use crate::AppError;
@@ -14,16 +13,12 @@ use axum::extract::Query;
 use axum::extract::State;
 use axum::response::IntoResponse;
 use axum::Json;
-use bitcoin::secp256k1::PublicKey;
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::PooledConnection;
 use diesel::PgConnection;
-use orderbook_commons::FilledWith;
 use orderbook_commons::NewOrder;
 use orderbook_commons::Order;
-use orderbook_commons::OrderType;
 use orderbook_commons::OrderbookMsg;
-use rust_decimal::Decimal;
 use serde::de;
 use serde::Deserialize;
 use serde::Deserializer;
@@ -32,6 +27,7 @@ use std::fmt;
 use std::str::FromStr;
 use std::sync::Arc;
 use tokio::sync::broadcast::Sender;
+use tokio::sync::mpsc;
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -90,77 +86,29 @@ pub async fn get_order(
     Ok(Json(order))
 }
 
-#[derive(Clone)]
-pub struct MatchParams {
-    pub taker_matches: TraderMatchParams,
-    pub makers_matches: Vec<TraderMatchParams>,
-}
-
-#[derive(Clone)]
-pub struct TraderMatchParams {
-    pub trader_id: PublicKey,
-    pub filled_with: FilledWith,
-}
-
 #[instrument(skip_all, err(Debug))]
 pub async fn post_order(
     State(state): State<Arc<AppState>>,
     Json(new_order): Json<NewOrder>,
 ) -> Result<Json<Order>, AppError> {
-    if new_order.order_type == OrderType::Limit && new_order.price == Decimal::ZERO {
-        return Err(AppError::InvalidOrder(
-            "Limit order with zero price are not allowed".to_string(),
-        ));
-    }
+    let (sender, mut receiver) = mpsc::channel::<Result<Order>>(1);
 
-    let mut conn = get_db_connection(&state)?;
-    let order = orderbook::db::orders::insert(&mut conn, new_order.clone()).map_err(|e| {
-        AppError::InternalServerError(format!("Failed to insert new order into db: {e:#}"))
+    let message = TradingMessage::NewOrder(NewOrderMessage { new_order, sender });
+    state.trading_sender.send(message).await.map_err(|e| {
+        AppError::InternalServerError(format!("Failed to send new order message: {e:#}"))
     })?;
 
-    if new_order.order_type == OrderType::Limit {
-        // we only tell everyone about new limit orders
-        let sender = state.tx_pricefeed.clone();
-        update_pricefeed(OrderbookMsg::NewOrder(order.clone()), sender);
-        return Ok(Json(order));
-    }
+    let result = receiver
+        .recv()
+        .await
+        .context("Failed to receive response from trading sender")
+        .map_err(|e| AppError::InternalServerError(format!("{e:#}")))?;
 
-    let all_non_expired_orders = orders::all_by_direction_and_type(
-        &mut conn,
-        order.direction.opposite(),
-        OrderType::Limit,
-        false,
-        true,
-    )
-    .map_err(|e| AppError::InternalServerError(format!("Failed to load all orders: {e:#}")))?;
-    let matched_orders = match_order(order.clone(), all_non_expired_orders)
-        .map_err(|e| AppError::InternalServerError(format!("Failed to match order: {e:#}")))?;
-
-    let authenticated_users = state.authenticated_users.lock().clone();
-    match matched_orders {
-        Some(matched_orders) => {
-            let mut orders_to_set_taken = vec![matched_orders.taker_matches.filled_with.order_id];
-            let mut order_ids = matched_orders
-                .taker_matches
-                .filled_with
-                .matches
-                .iter()
-                .map(|m| m.order_id)
-                .collect();
-
-            orders_to_set_taken.append(&mut order_ids);
-
-            notify_traders(matched_orders, &authenticated_users).await;
-
-            for order_id in orders_to_set_taken {
-                if let Err(err) = db::orders::set_is_taken(&mut conn, order_id, true) {
-                    let order_id = order_id.to_string();
-                    tracing::error!(order_id, "Could not set order to taken {err:#}");
-                }
-            }
-        }
-        None => return Err(AppError::NoMatchFound("Could not match order".to_string())),
-    };
+    let order = result.map_err(|e| match e.downcast_ref() {
+        Some(TradingError::InvalidOrder(reason)) => AppError::InvalidOrder(reason.to_string()),
+        Some(TradingError::NoMatchFound(message)) => AppError::NoMatchFound(message.to_string()),
+        _ => AppError::InternalServerError(format!("Failed to post order. Error: {e:#}")),
+    })?;
 
     Ok(Json(order))
 }
@@ -189,7 +137,7 @@ pub async fn put_order(
     let mut conn = get_db_connection(&state)?;
     let order = orderbook::db::orders::set_is_taken(&mut conn, order_id, updated_order.taken)
         .map_err(|e| AppError::InternalServerError(format!("Failed to update order: {e:#}")))?;
-    let sender = state.tx_pricefeed.clone();
+    let sender = state.tx_price_feed.clone();
     update_pricefeed(OrderbookMsg::Update(order.clone()), sender);
 
     Ok(Json(order))
@@ -203,7 +151,7 @@ pub async fn delete_order(
     let deleted = orderbook::db::orders::delete_with_id(&mut conn, order_id)
         .map_err(|e| AppError::InternalServerError(format!("Failed to delete order: {e:#}")))?;
     if deleted > 0 {
-        let sender = state.tx_pricefeed.clone();
+        let sender = state.tx_price_feed.clone();
         update_pricefeed(OrderbookMsg::DeleteOrder(order_id), sender);
     }
 

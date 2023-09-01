@@ -11,6 +11,7 @@ use coordinator::node::expired_positions;
 use coordinator::node::storage::NodeStorage;
 use coordinator::node::unrealized_pnl;
 use coordinator::node::Node;
+use coordinator::orderbook::trading;
 use coordinator::notification_service::NotificationService;
 use coordinator::routes::router;
 use coordinator::run_migration;
@@ -30,6 +31,7 @@ use std::net::Ipv4Addr;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
+use tokio::sync::broadcast;
 use tokio::sync::watch;
 use tokio::task::spawn_blocking;
 use tracing::metadata::LevelFilter;
@@ -190,6 +192,9 @@ async fn main() -> Result<()> {
         }
     });
 
+    let (tx_price_feed, _rx) = broadcast::channel(100);
+    let (_handle, trading_sender) = trading::Trading::start(pool.clone(), tx_price_feed.clone());
+
     tokio::spawn({
         let node = node.clone();
         async move {
@@ -224,6 +229,8 @@ async fn main() -> Result<()> {
         exporter,
         opts.p2p_announcement_addresses(),
         NODE_ALIAS,
+        trading_sender,
+        tx_price_feed,
     );
 
     let notification_service = NotificationService::new(opts.fcm_api_key);
