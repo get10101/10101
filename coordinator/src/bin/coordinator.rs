@@ -225,6 +225,10 @@ async fn main() -> Result<()> {
         NODE_ALIAS,
     );
 
+    let notification_service = NotificationService::new(opts.fcm_api_key);
+
+    let _sender = notification_service.get_sender();
+
     // Start the metrics exporter
     autometrics::prometheus_exporter::init();
 

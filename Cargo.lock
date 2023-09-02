@@ -640,6 +640,7 @@ dependencies = [
  "dlc-manager",
  "dlc-messages",
  "dlc-trie",
+ "fcm",
  "futures",
  "hex",
  "lazy_static",
@@ -1050,6 +1051,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5443807d6dff69373d433ab9ef5378ad8df50ca6298caf15de6e52e24aaf54d5"
 
 [[package]]
+name = "erased-serde"
+version = "0.3.31"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6c138974f9d5e7fe373eb04df7cae98833802ae4b11c24ac7039a21d5af4b26c"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "errno"
 version = "0.2.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1100,6 +1110,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e51093e27b0797c359783294ca4f0a911c270184cb10f85783b118614a1501be"
 dependencies = [
  "instant",
+]
+
+[[package]]
+name = "fcm"
+version = "0.9.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5d8d0da8a6bd63bdec888b6d7a87c5698230005c1800823d28ddd5adb6f2550f"
+dependencies = [
+ "chrono",
+ "erased-serde",
+ "log",
+ "reqwest",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

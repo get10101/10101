@@ -63,11 +63,21 @@ import 'features/stable/stable_value_change_notifier.dart';
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
 final GlobalKey<NavigatorState> _shellNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'shell');
 
-void main() {
+void main() async {
   WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
   FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
 
   setupFlutterLogs();
+
+  try {
+    FLog.info(text: "Initialising Firebase");
+    await initFirebase();
+    await requestNotificationPermission();
+    final flutterLocalNotificationsPlugin = initLocalNotifications();
+    await configureFirebase(flutterLocalNotificationsPlugin);
+  } catch (e) {
+    FLog.error(text: "Error setting up Firebase: ${e.toString()}");
+  }
 
   const ChannelInfoService channelInfoService = ChannelInfoService();
   var tradeValuesService = TradeValuesService();
@@ -224,16 +234,6 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
     init(config);
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      try {
-        FLog.info("Initialising Firebase");
-        await initFirebase();
-        await requestNotificationPermission();
-        final flutterLocalNotificationsPlugin = initLocalNotifications();
-        await configureFirebase(flutterLocalNotificationsPlugin);
-      } catch (e) {
-        FLog.error(text: "Error setting up Firebase: ${e.toString()}");
-      }
-
       PackageInfo packageInfo = await PackageInfo.fromPlatform();
       final messenger = scaffoldMessengerKey.currentState!;
 
