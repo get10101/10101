@@ -225,6 +225,7 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       try {
+        FLog.info("Initialising Firebase");
         await initFirebase();
         await requestNotificationPermission();
         final flutterLocalNotificationsPlugin = initLocalNotifications();
