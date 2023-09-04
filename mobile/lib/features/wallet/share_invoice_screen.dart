@@ -130,13 +130,14 @@ class _ShareInvoiceScreenState extends State<ShareInvoiceScreen> {
                         });
 
                         final router = GoRouter.of(context);
+                        final messenger = ScaffoldMessenger.of(context);
                         try {
                           await payInvoiceWithFaucet(widget.invoice.rawInvoice);
                           // Pop both create invoice screen and share invoice screen
                           router.pop();
                           router.pop();
                         } catch (error) {
-                          showSnackBar(ScaffoldMessenger.of(context), error.toString());
+                          showSnackBar(messenger, error.toString());
                         } finally {
                           setState(() {
                             _isPayInvoiceButtonDisabled = false;
