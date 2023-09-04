@@ -136,7 +136,7 @@ class _ShareInvoiceScreenState extends State<ShareInvoiceScreen> {
                           router.pop();
                           router.pop();
                         } catch (error) {
-                          showSnackBar(context, error.toString());
+                          showSnackBar(ScaffoldMessenger.of(context), error.toString());
                         } finally {
                           setState(() {
                             _isPayInvoiceButtonDisabled = false;
@@ -158,8 +158,7 @@ class _ShareInvoiceScreenState extends State<ShareInvoiceScreen> {
                   child: OutlinedButton(
                     onPressed: () {
                       Clipboard.setData(ClipboardData(text: widget.invoice.rawInvoice)).then((_) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Invoice copied to clipboard')));
+                        showSnackBar(ScaffoldMessenger.of(context), "Invoice copied to clipboard");
                       });
                     },
                     style: ElevatedButton.styleFrom(

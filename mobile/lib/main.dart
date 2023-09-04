@@ -17,6 +17,7 @@ import 'package:get_10101/common/channel_status_notifier.dart';
 import 'package:get_10101/common/color.dart';
 import 'package:get_10101/common/domain/service_status.dart';
 import 'package:get_10101/common/service_status_notifier.dart';
+import 'package:get_10101/common/snack_bar.dart';
 import 'package:get_10101/features/stable/stable_screen.dart';
 import 'package:get_10101/features/trade/application/candlestick_service.dart';
 import 'package:get_10101/features/trade/application/order_service.dart';
@@ -265,7 +266,7 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
         }
       } catch (e) {
         FLog.error(text: "Error getting coordinator version: ${e.toString()}");
-        messenger.showSnackBar(const SnackBar(content: Text("Coordinator offline")));
+        showSnackBar(messenger, "Coordinator offline");
       }
     });
   }
