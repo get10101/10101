@@ -151,6 +151,7 @@ where
                 status: info.status,
                 flow: info.flow,
                 amount_msat: info.amt_msat.0,
+                fee_msat: info.fee_msat.0,
                 timestamp: info.timestamp,
                 description: info.description.clone(),
                 preimage: info.preimage.map(|preimage| preimage.0.to_hex()),
@@ -170,6 +171,7 @@ pub struct PaymentDetails {
     pub status: HTLCStatus,
     pub flow: PaymentFlow,
     pub amount_msat: Option<u64>,
+    pub fee_msat: Option<u64>,
     pub timestamp: OffsetDateTime,
     pub description: String,
     pub preimage: Option<String>,
@@ -182,14 +184,15 @@ impl fmt::Display for PaymentDetails {
         let status = self.status.to_string();
         let flow = self.flow;
         let amount_msat = self.amount_msat.unwrap_or_default();
+        let fee_msat = self.fee_msat.unwrap_or_default();
         let timestamp = self.timestamp.to_string();
         let description = self.description.clone();
         let invoice = self.invoice.clone();
 
         write!(
             f,
-            "payment_hash {}, status {}, flow {}, amount_msat {}, timestamp {}, description {} invoice {:?}",
-            payment_hash, status, flow, amount_msat, timestamp, description, invoice
+            "payment_hash {}, status {}, flow {}, amount_msat {}, fee_msat {}, timestamp {}, description {}, invoice {:?}",
+            payment_hash, status, flow, amount_msat, fee_msat, timestamp, description, invoice
         )
     }
 }

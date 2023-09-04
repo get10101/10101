@@ -168,6 +168,10 @@ class LightningPaymentHistoryItem extends WalletHistoryItem {
   List<Widget> getDetails() {
     return [
       Visibility(
+        visible: data.feeMsats != null,
+        child: HistoryDetail(label: "Fee", value: "${(data.feeMsats ?? 0) / 1000} sats"),
+      ),
+      Visibility(
         visible: data.expiry != null,
         child: HistoryDetail(
             label: "Expiry time",

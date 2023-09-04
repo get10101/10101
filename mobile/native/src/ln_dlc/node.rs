@@ -398,13 +398,21 @@ impl node::Storage for NodeStorage {
         payment_hash: &PaymentHash,
         flow: PaymentFlow,
         amt_msat: MillisatAmount,
+        fee_msat: MillisatAmount,
         htlc_status: HTLCStatus,
         preimage: Option<PaymentPreimage>,
         secret: Option<PaymentSecret>,
     ) -> Result<()> {
         match db::get_payment(*payment_hash)? {
             Some(_) => {
-                db::update_payment(*payment_hash, htlc_status, amt_msat, preimage, secret)?;
+                db::update_payment(
+                    *payment_hash,
+                    htlc_status,
+                    amt_msat,
+                    fee_msat,
+                    preimage,
+                    secret,
+                )?;
             }
             None => {
                 db::insert_payment(
@@ -414,6 +422,7 @@ impl node::Storage for NodeStorage {
                         secret,
                         status: htlc_status,
                         amt_msat,
+                        fee_msat,
                         flow,
                         timestamp: OffsetDateTime::now_utc(),
                         description: "".to_string(),

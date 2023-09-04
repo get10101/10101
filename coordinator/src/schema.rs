@@ -86,6 +86,7 @@ diesel::table! {
         updated_at -> Timestamptz,
         description -> Text,
         invoice -> Nullable<Text>,
+        fee_msat -> Nullable<Int8>,
     }
 }
 

@@ -30,6 +30,7 @@ pub struct Payment {
     pub updated_at: OffsetDateTime,
     pub description: String,
     pub invoice: Option<String>,
+    pub fee_msat: Option<i64>,
 }
 
 pub fn get(
@@ -114,6 +115,7 @@ impl TryFrom<Payment> for (lightning::ln::PaymentHash, ln_dlc_node::PaymentInfo)
 
         let amt_msat =
             ln_dlc_node::MillisatAmount::new(value.amount_msat.map(|amount| amount as u64));
+        let fee_msat = ln_dlc_node::MillisatAmount::new(value.fee_msat.map(|amount| amount as u64));
 
         Ok((
             payment_hash,
@@ -122,6 +124,7 @@ impl TryFrom<Payment> for (lightning::ln::PaymentHash, ln_dlc_node::PaymentInfo)
                 secret,
                 status: value.htlc_status.into(),
                 amt_msat,
+                fee_msat,
                 flow: value.flow.into(),
                 timestamp: value.payment_timestamp,
                 description: value.description,
@@ -240,6 +243,7 @@ pub fn update(
     payment_hash: lightning::ln::PaymentHash,
     htlc_status: ln_dlc_node::HTLCStatus,
     amount_msat: ln_dlc_node::MillisatAmount,
+    fee_msat: ln_dlc_node::MillisatAmount,
     preimage: Option<lightning::ln::PaymentPreimage>,
     secret: Option<lightning::ln::PaymentSecret>,
     conn: &mut PgConnection,
@@ -252,6 +256,7 @@ pub fn update(
     let payment_hash = payment_hash.0.to_hex();
     let htlc_status: HtlcStatus = htlc_status.into();
     let amount_msat = amount_msat.to_inner().map(|amt| amt as i64);
+    let fee_msat = fee_msat.to_inner().map(|amt| amt as i64);
 
     conn.transaction::<(), _, _>(|conn| {
         let affected_rows = diesel::update(payments::table)
@@ -271,6 +276,17 @@ pub fn update(
 
             if affected_rows == 0 {
                 bail!("Could not update payment amount")
+            }
+        }
+
+        if let Some(fee_msat) = fee_msat {
+            let affected_rows = diesel::update(payments::table)
+                .filter(schema::payments::payment_hash.eq(&payment_hash))
+                .set(schema::payments::fee_msat.eq(fee_msat))
+                .execute(conn)?;
+
+            if affected_rows == 0 {
+                bail!("Could not update payment fee amount")
             }
         }
 

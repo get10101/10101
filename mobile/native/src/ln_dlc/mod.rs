@@ -405,6 +405,7 @@ fn keep_wallet_balance_and_history_up_to_date(node: &Node) -> Result<()> {
                 description: details.description.clone(),
                 payment_preimage: details.preimage.clone(),
                 invoice: details.invoice.clone(),
+                fee_msat: details.fee_msat,
                 expiry_timestamp,
             }
         };
