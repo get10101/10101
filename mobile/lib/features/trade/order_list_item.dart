@@ -20,19 +20,14 @@ class OrderListItem extends StatelessWidget {
     formatter.maximumFractionDigits = 2;
 
     const double iconSize = 18;
-    Icon statusIcon = () {
-      switch (order.state) {
-        case OrderState.open:
-          return const Icon(
-            Icons.pending,
-            size: iconSize,
-          );
-        case OrderState.filled:
-          return const Icon(Icons.check_circle, color: Colors.green, size: iconSize);
-        case OrderState.failed:
-          return const Icon(Icons.error, color: Colors.red, size: iconSize);
-      }
-    }();
+    Icon statusIcon = switch (order.state) {
+      OrderState.open => const Icon(
+          Icons.pending,
+          size: iconSize,
+        ),
+      OrderState.filled => const Icon(Icons.check_circle, color: Colors.green, size: iconSize),
+      OrderState.failed => const Icon(Icons.error, color: Colors.red, size: iconSize),
+    };
 
     return Card(
       child: ListTile(

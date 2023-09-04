@@ -42,6 +42,7 @@ use ln_dlc_node::scorer;
 use ln_dlc_node::seed::Bip39Seed;
 use ln_dlc_node::util;
 use ln_dlc_node::AppEventHandler;
+use ln_dlc_node::HTLCStatus;
 use ln_dlc_node::CONFIRMATION_TARGET;
 use orderbook_commons::RouteHintHop;
 use orderbook_commons::FEE_INVOICE_DESCRIPTION_PREFIX_TAKER;
@@ -290,29 +291,42 @@ fn keep_wallet_balance_and_history_up_to_date(node: &Node) -> Result<()> {
         .get_wallet_histories()
         .context("Failed to get wallet histories")?;
 
+    let blockchain_height = node.get_blockchain_height()?;
     let on_chain = on_chain.iter().map(|details| {
         let net_sats = details.received as i64 - details.sent as i64;
 
         let (flow, amount_sats) = if net_sats >= 0 {
-            (api::PaymentFlow::Outbound, net_sats as u64)
+            (api::PaymentFlow::Inbound, net_sats as u64)
         } else {
-            (api::PaymentFlow::Inbound, net_sats.unsigned_abs())
+            (api::PaymentFlow::Outbound, net_sats.unsigned_abs())
         };
 
-        let (status, timestamp) = match details.confirmation_time {
-            Some(BlockTime { timestamp, .. }) => (api::Status::Confirmed, timestamp),
+        let (status, timestamp, n_confirmations) = match details.confirmation_time {
+            Some(BlockTime { timestamp, height }) => (
+                api::Status::Confirmed,
+                timestamp,
+                // This is calculated manually to avoid wasteful requests to esplora,
+                // since we can just cache the blockchain height as opposed to fetching it for each
+                // block as with `LnDlcWallet::get_transaction_confirmations`
+                blockchain_height
+                    .checked_sub(height as u64)
+                    .unwrap_or_default(),
+            ),
 
             None => {
                 (
                     api::Status::Pending,
                     // Unconfirmed transactions should appear towards the top of the history
                     OffsetDateTime::now_utc().unix_timestamp() as u64,
+                    0,
                 )
             }
         };
 
-        let wallet_type = api::WalletType::OnChain {
+        let wallet_type = api::WalletHistoryItemType::OnChain {
             txid: details.txid.to_string(),
+            fee_sats: details.fee,
+            confirmations: n_confirmations,
         };
 
         api::WalletHistoryItem {
@@ -333,11 +347,28 @@ fn keep_wallet_balance_and_history_up_to_date(node: &Node) -> Result<()> {
             None => return None,
         };
 
+        let decoded_invoice = match details.invoice.as_deref().map(Invoice::from_str) {
+            Some(Ok(inv)) => {
+                tracing::info!(?inv, "Decoded invoice");
+                Some(inv)
+            }
+            Some(Err(err)) => {
+                tracing::warn!(%err, "Failed to deserialize invoice");
+                None
+            }
+            None => None,
+        };
+
+        let expired = decoded_invoice
+            .as_ref()
+            .map(|inv| inv.is_expired())
+            .unwrap_or(false);
+
         let status = match details.status {
-            ln_dlc_node::node::HTLCStatus::Pending => api::Status::Pending,
-            ln_dlc_node::node::HTLCStatus::Succeeded => api::Status::Confirmed,
-            // TODO: Handle failed payments
-            ln_dlc_node::node::HTLCStatus::Failed => return None,
+            HTLCStatus::Pending if expired => api::Status::Expired,
+            HTLCStatus::Pending => api::Status::Pending,
+            HTLCStatus::Succeeded => api::Status::Confirmed,
+            HTLCStatus::Failed => api::Status::Failed,
         };
 
         let flow = match details.flow {
@@ -353,18 +384,29 @@ fn keep_wallet_balance_and_history_up_to_date(node: &Node) -> Result<()> {
         let wallet_type = if let Some(order_id) =
             description.strip_prefix(FEE_INVOICE_DESCRIPTION_PREFIX_TAKER)
         {
-            api::WalletType::OrderMatchingFee {
+            api::WalletHistoryItemType::OrderMatchingFee {
                 order_id: order_id.to_string(),
+                payment_hash,
             }
         } else if let Some(funding_txid) =
             description.strip_prefix(JIT_FEE_INVOICE_DESCRIPTION_PREFIX)
         {
-            api::WalletType::JitChannelFee {
+            api::WalletHistoryItemType::JitChannelFee {
                 funding_txid: funding_txid.to_string(),
                 payment_hash,
             }
         } else {
-            api::WalletType::Lightning { payment_hash }
+            let expiry_timestamp = decoded_invoice
+                .and_then(|inv| inv.timestamp().checked_add(inv.expiry_time()))
+                .map(|time| OffsetDateTime::from(time).unix_timestamp() as u64);
+
+            api::WalletHistoryItemType::Lightning {
+                payment_hash,
+                description: details.description.clone(),
+                payment_preimage: details.preimage.clone(),
+                invoice: details.invoice.clone(),
+                expiry_timestamp,
+            }
         };
 
         Some(api::WalletHistoryItem {
@@ -425,7 +467,7 @@ fn keep_wallet_balance_and_history_up_to_date(node: &Node) -> Result<()> {
 
         let timestamp = order.creation_timestamp.unix_timestamp() as u64;
 
-        let wallet_type = api::WalletType::Trade {
+        let wallet_type = api::WalletHistoryItemType::Trade {
             order_id: order.id.to_string(),
         };
 
@@ -577,7 +619,7 @@ pub fn create_invoice(amount_sats: Option<u64>) -> Result<Invoice> {
 
         node.inner.create_interceptable_invoice(
             amount_sats,
-            0,
+            None,
             "Fund your 10101 wallet".to_string(),
             final_route_hint_hop,
         )

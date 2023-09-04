@@ -6,105 +6,48 @@ import 'package:get_10101/features/wallet/domain/wallet_history.dart';
 import 'package:intl/intl.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
-class WalletHistoryItem extends StatelessWidget {
-  final WalletHistoryItemData data;
+abstract class WalletHistoryItem extends StatelessWidget {
+  abstract final WalletHistoryItemData data;
   static final dateFormat = DateFormat("yyyy-MM-dd HH:mm:ss");
 
-  const WalletHistoryItem({super.key, required this.data});
+  const WalletHistoryItem({super.key});
+
+  List<Widget> getDetails();
+  IconData getFlowIcon();
+  bool isOnChain();
+  String getTitle();
 
   @override
   Widget build(BuildContext context) {
     const double statusIconSize = 18;
-    Icon statusIcon = () {
-      switch (data.status) {
-        case WalletHistoryStatus.pending:
-          return const Icon(
-            Icons.pending,
-            size: statusIconSize,
-          );
-        case WalletHistoryStatus.confirmed:
-          return const Icon(Icons.check_circle, color: Colors.green, size: statusIconSize);
-      }
-    }();
+    Icon statusIcon = switch (data.status) {
+      WalletHistoryStatus.pending => const Icon(
+          Icons.pending,
+          size: statusIconSize,
+        ),
+      WalletHistoryStatus.confirmed =>
+        const Icon(Icons.check_circle, color: Colors.green, size: statusIconSize),
+      WalletHistoryStatus.expired =>
+        const Icon(Icons.timer_off, color: Colors.red, size: statusIconSize),
+      WalletHistoryStatus.failed =>
+        const Icon(Icons.error, color: Colors.red, size: statusIconSize),
+    };
 
     const double flowIconSize = 30;
-    Icon flowIcon = () {
-      if (data.type == WalletHistoryItemDataType.trade) {
-        return const Icon(
-          Icons.bar_chart,
-          size: flowIconSize,
-        );
-      } else if (data.type == WalletHistoryItemDataType.orderMatchingFee ||
-          data.type == WalletHistoryItemDataType.jitChannelFee) {
-        return const Icon(
-          Icons.toll,
-          size: flowIconSize,
-        );
-      }
+    Icon flowIcon = Icon(getFlowIcon(), size: flowIconSize);
 
-      switch (data.flow) {
-        case PaymentFlow.inbound:
-          return const Icon(
-            Icons.arrow_downward,
-            size: flowIconSize,
-          );
-        case PaymentFlow.outbound:
-          return const Icon(Icons.arrow_upward, size: flowIconSize);
-      }
-    }();
+    String title = getTitle();
+    String onOrOff = isOnChain() ? "on-chain" : "off-chain";
 
-    String title = () {
-      switch (data.type) {
-        case WalletHistoryItemDataType.lightning:
-        case WalletHistoryItemDataType.onChain:
-          return "Payment";
-        case WalletHistoryItemDataType.trade:
-          switch (data.flow) {
-            case PaymentFlow.inbound:
-              return "Closed position";
-            case PaymentFlow.outbound:
-              return "Opened position";
-          }
-        case WalletHistoryItemDataType.orderMatchingFee:
-          return "Matching fee";
-        case WalletHistoryItemDataType.jitChannelFee:
-          return "Channel opening fee";
-        case WalletHistoryItemDataType.stable:
-          return "Stable";
-      }
-    }();
+    String sign = switch (data.flow) {
+      PaymentFlow.inbound => "+",
+      PaymentFlow.outbound => "-",
+    };
 
-    String onOrOff = () {
-      switch (data.type) {
-        case WalletHistoryItemDataType.lightning:
-        case WalletHistoryItemDataType.trade:
-        case WalletHistoryItemDataType.orderMatchingFee:
-        case WalletHistoryItemDataType.jitChannelFee:
-          return "off-chain";
-        case WalletHistoryItemDataType.onChain:
-          return "on-chain";
-        case WalletHistoryItemDataType.stable:
-          return "stable sats";
-      }
-    }();
-
-    String sign = () {
-      switch (data.flow) {
-        case PaymentFlow.inbound:
-          return "+";
-        case PaymentFlow.outbound:
-          return "-";
-      }
-    }();
-
-    Color color = () {
-      switch (data.flow) {
-        case PaymentFlow.inbound:
-          return Colors.green.shade600;
-        case PaymentFlow.outbound:
-          return Colors.red.shade600;
-      }
-    }();
+    Color color = switch (data.flow) {
+      PaymentFlow.inbound => Colors.green.shade600,
+      PaymentFlow.outbound => Colors.red.shade600,
+    };
 
     var amountFormatter = NumberFormat.compact(locale: "en_UK");
 
@@ -166,43 +109,20 @@ class WalletHistoryItem extends StatelessWidget {
   }
 
   Widget showItemDetails(String title, BuildContext context) {
-    List<HistoryDetail> details = () {
-      switch (data.type) {
-        case WalletHistoryItemDataType.lightning:
-          return [HistoryDetail(label: "Payment hash", value: data.paymentHash ?? "")];
-        case WalletHistoryItemDataType.onChain:
-          return [HistoryDetail(label: "Transaction id", value: data.txid ?? "")];
-        case WalletHistoryItemDataType.trade:
-        case WalletHistoryItemDataType.stable:
-        case WalletHistoryItemDataType.orderMatchingFee:
-          final orderId = data.orderId!.substring(0, 8);
-          return [HistoryDetail(label: "Order", value: orderId)];
-        case WalletHistoryItemDataType.jitChannelFee:
-          return [
-            HistoryDetail(label: "Payment hash", value: data.paymentHash ?? ""),
-            HistoryDetail(label: "Funding transaction id", value: data.txid ?? "")
-          ];
-      }
-    }();
-
-    int directionMultiplier = () {
-      switch (data.flow) {
-        case PaymentFlow.inbound:
-          return 1;
-        case PaymentFlow.outbound:
-          return -1;
-      }
-    }();
+    int directionMultiplier = switch (data.flow) {
+      PaymentFlow.inbound => 1,
+      PaymentFlow.outbound => -1,
+    };
 
     return AlertDialog(
       title: Text(title),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          ...details,
           HistoryDetail(
               label: "Amount", value: formatSats(Amount(data.amount.sats * directionMultiplier))),
           HistoryDetail(label: "Date and time", value: dateFormat.format(data.timestamp)),
+          ...getDetails(),
         ],
       ),
     );
@@ -227,5 +147,178 @@ class HistoryDetail extends StatelessWidget {
         Flexible(child: Text(value)),
       ]),
     );
+  }
+}
+
+IconData iconForFlow(PaymentFlow flow) {
+  switch (flow) {
+    case PaymentFlow.inbound:
+      return Icons.arrow_downward;
+    case PaymentFlow.outbound:
+      return Icons.arrow_upward;
+  }
+}
+
+class LightningPaymentHistoryItem extends WalletHistoryItem {
+  @override
+  final LightningPaymentData data;
+  const LightningPaymentHistoryItem({super.key, required this.data});
+
+  @override
+  List<Widget> getDetails() {
+    return [
+      Visibility(
+        visible: data.expiry != null,
+        child: HistoryDetail(
+            label: "Expiry time",
+            value: WalletHistoryItem.dateFormat.format(data.expiry ?? DateTime.utc(0))),
+      ),
+      HistoryDetail(label: "Invoice description", value: data.description),
+      Visibility(
+        visible: data.invoice != null,
+        child: HistoryDetail(label: "Invoice", value: data.invoice ?? ''),
+      ),
+      HistoryDetail(label: "Payment hash", value: data.paymentHash),
+      Visibility(
+        visible: data.preimage != null,
+        child: HistoryDetail(label: "Payment preimage", value: data.preimage ?? ''),
+      ),
+    ];
+  }
+
+  @override
+  IconData getFlowIcon() {
+    return iconForFlow(data.flow);
+  }
+
+  @override
+  String getTitle() {
+    return "Payment";
+  }
+
+  @override
+  bool isOnChain() {
+    return false;
+  }
+}
+
+class TradeHistoryItem extends WalletHistoryItem {
+  @override
+  final TradeData data;
+  const TradeHistoryItem({super.key, required this.data});
+
+  @override
+  List<Widget> getDetails() {
+    return [HistoryDetail(label: "Order", value: data.orderId)];
+  }
+
+  @override
+  IconData getFlowIcon() {
+    return Icons.bar_chart;
+  }
+
+  @override
+  String getTitle() {
+    switch (data.flow) {
+      case PaymentFlow.inbound:
+        return "Closed position";
+      case PaymentFlow.outbound:
+        return "Opened position";
+    }
+  }
+
+  @override
+  bool isOnChain() {
+    return false;
+  }
+}
+
+class OrderMatchingFeeHistoryItem extends WalletHistoryItem {
+  @override
+  final OrderMatchingFeeData data;
+  const OrderMatchingFeeHistoryItem({super.key, required this.data});
+
+  @override
+  List<Widget> getDetails() {
+    return [
+      HistoryDetail(label: "Order", value: data.orderId),
+      HistoryDetail(label: "Payment hash", value: data.paymentHash)
+    ];
+  }
+
+  @override
+  IconData getFlowIcon() {
+    return Icons.toll;
+  }
+
+  @override
+  String getTitle() {
+    return "Matching fee";
+  }
+
+  @override
+  bool isOnChain() {
+    return false;
+  }
+}
+
+class JitChannelOpenFeeHistoryItem extends WalletHistoryItem {
+  @override
+  final JitChannelOpenFeeData data;
+  const JitChannelOpenFeeHistoryItem({super.key, required this.data});
+
+  @override
+  List<Widget> getDetails() {
+    return [HistoryDetail(label: "Funding transaction ID", value: data.txid)];
+  }
+
+  @override
+  IconData getFlowIcon() {
+    return Icons.toll;
+  }
+
+  @override
+  String getTitle() {
+    return "Channel opening fee";
+  }
+
+  @override
+  bool isOnChain() {
+    return false;
+  }
+}
+
+class OnChainPaymentHistoryItem extends WalletHistoryItem {
+  @override
+  final OnChainPaymentData data;
+  const OnChainPaymentHistoryItem({super.key, required this.data});
+
+  @override
+  List<Widget> getDetails() {
+    final details = [
+      HistoryDetail(label: "Transaction ID", value: data.txid),
+      HistoryDetail(label: "Confirmations", value: data.confirmations.toString()),
+      Visibility(
+        visible: data.fee != null,
+        child: HistoryDetail(label: "Fee", value: formatSats(data.fee ?? Amount(0))),
+      ),
+    ];
+
+    return details;
+  }
+
+  @override
+  IconData getFlowIcon() {
+    return iconForFlow(data.flow);
+  }
+
+  @override
+  String getTitle() {
+    return "Payment";
+  }
+
+  @override
+  bool isOnChain() {
+    return true;
   }
 }

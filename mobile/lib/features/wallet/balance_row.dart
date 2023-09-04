@@ -6,7 +6,7 @@ import 'package:get_10101/common/fiat_text.dart';
 import 'package:get_10101/features/stable/stable_screen.dart';
 import 'package:get_10101/features/trade/position_change_notifier.dart';
 import 'package:get_10101/features/wallet/create_invoice_screen.dart';
-import 'package:get_10101/features/wallet/domain/wallet_history.dart';
+import 'package:get_10101/features/wallet/domain/wallet_type.dart';
 import 'package:get_10101/features/wallet/send_screen.dart';
 import 'package:get_10101/features/wallet/wallet_change_notifier.dart';
 import 'package:get_10101/features/wallet/wallet_theme.dart';
@@ -16,7 +16,7 @@ import 'package:provider/provider.dart';
 import 'domain/payment_flow.dart';
 
 class BalanceRow extends StatefulWidget {
-  final WalletHistoryItemDataType walletType;
+  final WalletType walletType;
   final double iconSize;
 
   const BalanceRow({required this.walletType, this.iconSize = 30, super.key});
@@ -53,12 +53,12 @@ class _BalanceRowState extends State<BalanceRow> with SingleTickerProviderStateM
     Color rowBgColor;
     SvgPicture icon;
 
-    if (widget.walletType == WalletHistoryItemDataType.lightning) {
+    if (widget.walletType == WalletType.lightning) {
       name = "Lightning";
       rowBgColor = theme.lightning;
       icon = SvgPicture.asset("assets/Lightning_logo.svg");
       amount = walletChangeNotifier.lightning();
-    } else if (widget.walletType == WalletHistoryItemDataType.stable) {
+    } else if (widget.walletType == WalletType.stable) {
       name = "Synthetic-USD";
       rowBgColor = theme.lightning;
       icon = SvgPicture.asset("assets/USD_logo.svg");
@@ -142,7 +142,7 @@ class _BalanceRowState extends State<BalanceRow> with SingleTickerProviderStateM
                       child: SizedBox(height: widget.iconSize, width: widget.iconSize, child: icon),
                     ),
                     Expanded(child: Text(name, style: normal)),
-                    if (widget.walletType == WalletHistoryItemDataType.stable)
+                    if (widget.walletType == WalletType.stable)
                       // we need to use different widget as we display the value in dollar terms
                       FiatText(
                         amount: positionChangeNotifier.getStableUSDAmountInFiat(),
@@ -162,7 +162,7 @@ class _BalanceRowState extends State<BalanceRow> with SingleTickerProviderStateM
 }
 
 class BalanceRowButton extends StatelessWidget {
-  final WalletHistoryItemDataType type;
+  final WalletType type;
   final PaymentFlow flow;
   final bool enabled;
   final double buttonSize;
@@ -196,7 +196,7 @@ class BalanceRowButton extends StatelessWidget {
         onPressed: !enabled
             ? null
             : () {
-                if (type == WalletHistoryItemDataType.stable) {
+                if (type == WalletType.stable) {
                   if (flow == PaymentFlow.outbound) {
                     // eventually there should be a way to send stable sats directly
                     context.go(StableScreen.route);

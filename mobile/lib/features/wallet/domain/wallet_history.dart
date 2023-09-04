@@ -1,110 +1,192 @@
 import 'package:get_10101/common/domain/model.dart';
+import 'package:get_10101/features/wallet/wallet_history_item.dart';
 import 'payment_flow.dart';
 import 'package:get_10101/bridge_generated/bridge_definitions.dart' as rust;
 
-enum WalletHistoryItemDataType {
-  lightning,
-  onChain,
-  trade,
-  orderMatchingFee,
-  jitChannelFee,
-  stable
-}
+enum WalletHistoryStatus { pending, expired, confirmed, failed }
 
-enum WalletHistoryStatus { pending, confirmed }
-
-class WalletHistoryItemData {
+abstract class WalletHistoryItemData {
   final PaymentFlow flow;
   final Amount amount;
-  final WalletHistoryItemDataType type;
   final WalletHistoryStatus status;
   final DateTime timestamp;
 
-  // on-chain (payment txid) and jit fee (funding txid)
-  final String? txid;
-
-  // lightning and jit fee
-  final String? paymentHash;
-
-  // trade
-  final String? orderId;
-
   const WalletHistoryItemData(
-      {required this.flow,
-      required this.amount,
-      required this.type,
-      required this.status,
-      required this.timestamp,
-      this.paymentHash,
-      this.orderId,
-      this.txid});
+      {required this.flow, required this.amount, required this.status, required this.timestamp});
+
+  WalletHistoryItem toWidget();
 
   static WalletHistoryItemData fromApi(rust.WalletHistoryItem item) {
     PaymentFlow flow =
         item.flow == rust.PaymentFlow.Outbound ? PaymentFlow.outbound : PaymentFlow.inbound;
     Amount amount = Amount(item.amountSats);
-    WalletHistoryStatus status = item.status == rust.Status.Pending
-        ? WalletHistoryStatus.pending
-        : WalletHistoryStatus.confirmed;
+    WalletHistoryStatus status = switch (item.status) {
+      rust.Status.Pending => WalletHistoryStatus.pending,
+      rust.Status.Expired => WalletHistoryStatus.expired,
+      rust.Status.Confirmed => WalletHistoryStatus.confirmed,
+      rust.Status.Failed => WalletHistoryStatus.failed,
+    };
 
     DateTime timestamp = DateTime.fromMillisecondsSinceEpoch(item.timestamp * 1000);
 
-    if (item.walletType is rust.WalletType_OnChain) {
-      rust.WalletType_OnChain type = item.walletType as rust.WalletType_OnChain;
+    if (item.walletType is rust.WalletHistoryItemType_OnChain) {
+      rust.WalletHistoryItemType_OnChain type =
+          item.walletType as rust.WalletHistoryItemType_OnChain;
 
-      return WalletHistoryItemData(
-          flow: flow,
-          amount: amount,
-          status: status,
-          type: WalletHistoryItemDataType.onChain,
-          timestamp: timestamp,
-          txid: type.txid);
-    }
-
-    if (item.walletType is rust.WalletType_Trade) {
-      rust.WalletType_Trade type = item.walletType as rust.WalletType_Trade;
-
-      return WalletHistoryItemData(
-          flow: flow,
-          amount: amount,
-          status: status,
-          type: WalletHistoryItemDataType.trade,
-          timestamp: timestamp,
-          orderId: type.orderId);
-    }
-
-    if (item.walletType is rust.WalletType_OrderMatchingFee) {
-      rust.WalletType_OrderMatchingFee type = item.walletType as rust.WalletType_OrderMatchingFee;
-
-      return WalletHistoryItemData(
-          flow: flow,
-          amount: amount,
-          status: status,
-          type: WalletHistoryItemDataType.orderMatchingFee,
-          timestamp: timestamp,
-          orderId: type.orderId);
-    }
-
-    if (item.walletType is rust.WalletType_JitChannelFee) {
-      rust.WalletType_JitChannelFee type = item.walletType as rust.WalletType_JitChannelFee;
-
-      return WalletHistoryItemData(
+      return OnChainPaymentData(
         flow: flow,
         amount: amount,
-        type: WalletHistoryItemDataType.jitChannelFee,
         status: status,
         timestamp: timestamp,
-        paymentHash: type.paymentHash,
+        txid: type.txid,
+        confirmations: type.confirmations,
+        fee: type.feeSats != null ? Amount(type.feeSats!) : null,
+      );
+    }
+
+    if (item.walletType is rust.WalletHistoryItemType_Trade) {
+      rust.WalletHistoryItemType_Trade type = item.walletType as rust.WalletHistoryItemType_Trade;
+
+      return TradeData(
+          flow: flow, amount: amount, status: status, timestamp: timestamp, orderId: type.orderId);
+    }
+
+    if (item.walletType is rust.WalletHistoryItemType_OrderMatchingFee) {
+      rust.WalletHistoryItemType_OrderMatchingFee type =
+          item.walletType as rust.WalletHistoryItemType_OrderMatchingFee;
+
+      return OrderMatchingFeeData(
+          flow: flow,
+          amount: amount,
+          status: status,
+          timestamp: timestamp,
+          orderId: type.orderId,
+          paymentHash: type.paymentHash);
+    }
+
+    if (item.walletType is rust.WalletHistoryItemType_JitChannelFee) {
+      rust.WalletHistoryItemType_JitChannelFee type =
+          item.walletType as rust.WalletHistoryItemType_JitChannelFee;
+
+      return JitChannelOpenFeeData(
+        flow: flow,
+        amount: amount,
+        status: status,
+        timestamp: timestamp,
         txid: type.fundingTxid,
       );
     }
 
-    return WalletHistoryItemData(
+    rust.WalletHistoryItemType_Lightning type =
+        item.walletType as rust.WalletHistoryItemType_Lightning;
+
+    DateTime? expiry = type.expiryTimestamp != null
+        ? DateTime.fromMillisecondsSinceEpoch(type.expiryTimestamp! * 1000)
+        : null;
+
+    return LightningPaymentData(
         flow: flow,
         amount: amount,
         status: status,
-        type: WalletHistoryItemDataType.lightning,
         timestamp: timestamp,
-        paymentHash: (item.walletType as rust.WalletType_Lightning).paymentHash);
+        preimage: type.paymentPreimage,
+        description: type.description,
+        paymentHash: type.paymentHash,
+        expiry: expiry,
+        invoice: type.invoice);
+  }
+}
+
+class LightningPaymentData extends WalletHistoryItemData {
+  final String paymentHash;
+  final String? preimage;
+  final String description;
+  final String? invoice;
+  final DateTime? expiry;
+
+  LightningPaymentData(
+      {required super.flow,
+      required super.amount,
+      required super.status,
+      required super.timestamp,
+      required this.preimage,
+      required this.description,
+      required this.invoice,
+      required this.expiry,
+      required this.paymentHash});
+
+  @override
+  WalletHistoryItem toWidget() {
+    return LightningPaymentHistoryItem(data: this);
+  }
+}
+
+class OnChainPaymentData extends WalletHistoryItemData {
+  final String txid;
+  final int confirmations;
+  final Amount? fee;
+
+  OnChainPaymentData(
+      {required super.flow,
+      required super.amount,
+      required super.status,
+      required super.timestamp,
+      required this.confirmations,
+      required this.fee,
+      required this.txid});
+
+  @override
+  WalletHistoryItem toWidget() {
+    return OnChainPaymentHistoryItem(data: this);
+  }
+}
+
+class OrderMatchingFeeData extends WalletHistoryItemData {
+  final String orderId;
+  final String paymentHash;
+
+  OrderMatchingFeeData(
+      {required super.flow,
+      required super.amount,
+      required super.status,
+      required super.timestamp,
+      required this.orderId,
+      required this.paymentHash});
+
+  @override
+  WalletHistoryItem toWidget() {
+    return OrderMatchingFeeHistoryItem(data: this);
+  }
+}
+
+class JitChannelOpenFeeData extends WalletHistoryItemData {
+  final String txid;
+
+  JitChannelOpenFeeData(
+      {required super.flow,
+      required super.amount,
+      required super.status,
+      required super.timestamp,
+      required this.txid});
+
+  @override
+  WalletHistoryItem toWidget() {
+    return JitChannelOpenFeeHistoryItem(data: this);
+  }
+}
+
+class TradeData extends WalletHistoryItemData {
+  final String orderId;
+
+  TradeData(
+      {required super.flow,
+      required super.amount,
+      required super.status,
+      required super.timestamp,
+      required this.orderId});
+
+  @override
+  WalletHistoryItem toWidget() {
+    return TradeHistoryItem(data: this);
   }
 }

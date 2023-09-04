@@ -1,6 +1,6 @@
 use native::api;
 use native::api::ContractSymbol;
-use native::api::WalletType;
+use native::api::WalletHistoryItemType;
 use native::health::Service;
 use native::health::ServiceStatus;
 use native::trade::order::api::NewOrder;
@@ -72,5 +72,5 @@ async fn can_open_position() {
         .expect("to retrieve wallet info")
         .history
         .iter()
-        .any(|item| matches!(item.wallet_type, WalletType::OrderMatchingFee { ref order_id } if order_id == &order_id_original)));
+        .any(|item| matches!(item.wallet_type, WalletHistoryItemType::OrderMatchingFee { ref order_id, .. } if order_id == &order_id_original)));
 }

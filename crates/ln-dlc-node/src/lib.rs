@@ -99,6 +99,7 @@ pub struct PaymentInfo {
     pub flow: PaymentFlow,
     pub timestamp: OffsetDateTime,
     pub description: String,
+    pub invoice: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -142,6 +143,7 @@ impl From<Invoice> for PaymentInfo {
                 InvoiceDescription::Direct(direct) => direct.to_string(),
                 InvoiceDescription::Hash(hash) => hash.0.to_hex(),
             },
+            invoice: Some(value.to_string()),
         }
     }
 }

@@ -35,7 +35,7 @@ async fn fail_intercepted_htlc_if_coordinator_cannot_reconnect_to_payee() {
     let invoice = payee
         .create_interceptable_invoice(
             Some(invoice_amount),
-            0,
+            None,
             "interceptable-invoice".to_string(),
             interceptable_route_hint_hop,
         )
@@ -100,7 +100,7 @@ async fn fail_intercepted_htlc_if_connection_lost_after_funding_tx_generated() {
     let invoice = payee
         .create_interceptable_invoice(
             Some(invoice_amount),
-            0,
+            None,
             "interceptable-invoice".to_string(),
             interceptable_route_hint_hop,
         )
@@ -169,7 +169,7 @@ async fn fail_intercepted_htlc_if_coordinator_cannot_pay_to_open_jit_channel() {
     let invoice = payee
         .create_interceptable_invoice(
             Some(invoice_amount),
-            0,
+            None,
             "interceptable-invoice".to_string(),
             interceptable_route_hint_hop,
         )

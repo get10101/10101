@@ -189,6 +189,7 @@ where
                     flow: PaymentFlow::Outbound,
                     timestamp: OffsetDateTime::now_utc(),
                     description: "".to_string(),
+                    invoice: None,
                 },
             ) {
                 tracing::error!(

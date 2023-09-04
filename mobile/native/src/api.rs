@@ -70,22 +70,29 @@ pub struct WalletHistoryItem {
     pub amount_sats: u64,
     pub timestamp: u64,
     pub status: Status,
-    pub wallet_type: WalletType,
+    pub wallet_type: WalletHistoryItemType,
 }
 
 #[derive(Clone, Debug)]
-pub enum WalletType {
+pub enum WalletHistoryItemType {
     OnChain {
         txid: String,
+        fee_sats: Option<u64>,
+        confirmations: u64,
     },
     Lightning {
         payment_hash: String,
+        description: String,
+        payment_preimage: Option<String>,
+        invoice: Option<String>,
+        expiry_timestamp: Option<u64>,
     },
     Trade {
         order_id: String,
     },
     OrderMatchingFee {
         order_id: String,
+        payment_hash: String,
     },
     JitChannelFee {
         funding_txid: String,
@@ -105,6 +112,8 @@ pub enum Status {
     #[default]
     Pending,
     Confirmed,
+    Expired,
+    Failed,
 }
 
 pub fn calculate_margin(price: f32, quantity: f32, leverage: f32) -> SyncReturn<u64> {
