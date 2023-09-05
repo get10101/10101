@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get_10101/common/amount_text.dart';
 import 'package:get_10101/common/domain/model.dart';
+import 'package:get_10101/common/middle_ellipsised_text.dart';
+import 'package:get_10101/common/snack_bar.dart';
 import 'package:get_10101/features/wallet/domain/payment_flow.dart';
 import 'package:get_10101/features/wallet/domain/wallet_history.dart';
 import 'package:intl/intl.dart';
@@ -114,13 +117,15 @@ abstract class WalletHistoryItem extends StatelessWidget {
       PaymentFlow.outbound => -1,
     };
 
+    int sats = data.amount.sats * directionMultiplier;
+
     return AlertDialog(
       title: Text(title),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           HistoryDetail(
-              label: "Amount", value: formatSats(Amount(data.amount.sats * directionMultiplier))),
+              label: "Amount", value: sats.toString(), displayValue: formatSats(Amount(sats))),
           HistoryDetail(label: "Date and time", value: dateFormat.format(data.timestamp)),
           ...getDetails(),
         ],
@@ -132,8 +137,9 @@ abstract class WalletHistoryItem extends StatelessWidget {
 class HistoryDetail extends StatelessWidget {
   final String label;
   final String value;
+  final String? displayValue;
 
-  const HistoryDetail({super.key, required this.label, required this.value});
+  const HistoryDetail({super.key, required this.label, required this.value, this.displayValue});
 
   @override
   Widget build(BuildContext context) {
@@ -144,7 +150,15 @@ class HistoryDetail extends StatelessWidget {
           padding: const EdgeInsets.only(right: 8.0),
           child: Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
         ),
-        Flexible(child: Text(value)),
+        Flexible(child: MiddleEllipsisedText(displayValue ?? value)),
+        IconButton(
+            padding: EdgeInsets.zero,
+            onPressed: () {
+              Clipboard.setData(ClipboardData(text: value)).then((_) {
+                showSnackBar(ScaffoldMessenger.of(context), '$label copied to clipboard');
+              });
+            },
+            icon: const Icon(Icons.copy, size: 18))
       ]),
     );
   }
