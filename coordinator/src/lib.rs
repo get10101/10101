@@ -16,6 +16,7 @@ pub mod db;
 pub mod logger;
 pub mod metrics;
 pub mod node;
+pub mod notification_service;
 pub mod orderbook;
 pub mod position;
 pub mod routes;

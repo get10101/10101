@@ -11,6 +11,7 @@ use coordinator::node::expired_positions;
 use coordinator::node::storage::NodeStorage;
 use coordinator::node::unrealized_pnl;
 use coordinator::node::Node;
+use coordinator::notification_service::NotificationService;
 use coordinator::routes::router;
 use coordinator::run_migration;
 use coordinator::settings::Settings;

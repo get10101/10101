@@ -69,15 +69,7 @@ void main() async {
 
   setupFlutterLogs();
 
-  try {
-    FLog.info(text: "Initialising Firebase");
-    await initFirebase();
-    await requestNotificationPermission();
-    final flutterLocalNotificationsPlugin = initLocalNotifications();
-    await configureFirebase(flutterLocalNotificationsPlugin);
-  } catch (e) {
-    FLog.error(text: "Error setting up Firebase: ${e.toString()}");
-  }
+  initFirebase();
 
   const ChannelInfoService channelInfoService = ChannelInfoService();
   var tradeValuesService = TradeValuesService();
@@ -522,61 +514,6 @@ Future<void> runBackend(bridge.Config config) async {
   FLog.info(text: "App data will be stored in: $appDir");
   FLog.info(text: "Seed data will be stored in: $seedDir");
   await startBackend(config: config, appDir: appDir, seedDir: seedDir);
-}
-
-FlutterLocalNotificationsPlugin initLocalNotifications() {
-  final flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
-  const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
-  const darwinSettings = DarwinInitializationSettings();
-  const initializationSettings =
-      InitializationSettings(android: androidSettings, macOS: darwinSettings, iOS: darwinSettings);
-  flutterLocalNotificationsPlugin.initialize(initializationSettings);
-  return flutterLocalNotificationsPlugin;
-}
-
-Future<void> initFirebase() async {
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
-}
-
-Future<void> configureFirebase(FlutterLocalNotificationsPlugin localNotifications) async {
-  // Configure message handler
-  FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-    // TODO: Handle messages from Firebase
-    FLog.debug(text: "Firebase message received: ${message.data}");
-
-    if (message.notification != null) {
-      FLog.debug(text: "Message also contained a notification: ${message.notification}");
-      showNotification(message.notification!.toMap(), localNotifications);
-    }
-  });
-
-  // Setup the message handler when the app is not running
-  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-
-  FirebaseMessaging messaging = FirebaseMessaging.instance;
-  // Subscribe to topic "all" to receive all messages
-  messaging.subscribeToTopic('all');
-}
-
-/// Ask the user for permission to send notifications via Firebase
-Future<void> requestNotificationPermission() async {
-  FirebaseMessaging messaging = FirebaseMessaging.instance;
-  final token = await messaging.getToken();
-  FLog.debug(text: "Firebase token: $token");
-
-  NotificationSettings settings = await messaging.requestPermission(
-    alert: true,
-    announcement: false,
-    badge: true,
-    carPlay: false,
-    criticalAlert: false,
-    provisional: false,
-    sound: true,
-  );
-
-  FLog.info(text: "User granted permission: ${settings.authorizationStatus}");
 }
 
 /// Start the backend and retry a number of times if it fails for whatever reason

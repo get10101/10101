@@ -329,6 +329,12 @@ pub async fn register_beta(email: String) -> Result<()> {
     order::register_beta(email).await
 }
 
+/// Send the Firebase token to the LSP for push notifications
+#[tokio::main(flavor = "current_thread")]
+pub async fn update_fcm_token(fcm_token: String) -> Result<()> {
+    users::update_fcm_token(fcm_token).await
+}
+
 pub struct LightningInvoice {
     pub description: String,
     pub amount_sats: u64,
