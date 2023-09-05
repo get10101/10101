@@ -131,6 +131,18 @@ pub struct Match {
     pub execution_price: Decimal,
 }
 
+impl From<Matches> for Match {
+    fn from(value: Matches) -> Self {
+        Match {
+            id: value.id,
+            order_id: value.order_id,
+            quantity: value.quantity,
+            pubkey: value.trader_id,
+            execution_price: value.execution_price,
+        }
+    }
+}
+
 /// The match params for one order
 ///
 /// This is emitted by the orderbook to the trader when an order gets filled.
@@ -172,31 +184,29 @@ pub struct FilledWith {
 }
 
 impl FilledWith {
-    /// calculates the average execution price for inverse contracts
-    ///
-    /// The average execution price follows a simple formula:
-    /// `total_order_quantity / (quantity_trade_0 / execution_price_trade_0 + quantity_trade_1 /
-    /// execution_price_trade_1 )`
     pub fn average_execution_price(&self) -> Decimal {
-        if self.matches.len() == 1 {
-            return self
-                .matches
-                .first()
-                .expect("to be exactly one")
-                .execution_price;
-        }
-
-        let sum_quantity = self
-            .matches
-            .iter()
-            .fold(Decimal::ZERO, |acc, m| acc + m.quantity);
-
-        let nominal_prices: Decimal = self.matches.iter().fold(Decimal::ZERO, |acc, m| {
-            acc + (m.quantity / m.execution_price)
-        });
-
-        sum_quantity / nominal_prices
+        average_execution_price(self.matches.clone())
     }
+}
+
+/// calculates the average execution price for inverse contracts
+///
+/// The average execution price follows a simple formula:
+/// `total_order_quantity / (quantity_trade_0 / execution_price_trade_0 + quantity_trade_1 /
+/// execution_price_trade_1 )`
+pub fn average_execution_price(matches: Vec<Match>) -> Decimal {
+    if matches.len() == 1 {
+        return matches.first().expect("to be exactly one").execution_price;
+    }
+    let sum_quantity = matches
+        .iter()
+        .fold(Decimal::ZERO, |acc, m| acc + m.quantity);
+
+    let nominal_prices: Decimal = matches.iter().fold(Decimal::ZERO, |acc, m| {
+        acc + (m.quantity / m.execution_price)
+    });
+
+    sum_quantity / nominal_prices
 }
 
 #[derive(Serialize, Deserialize)]
