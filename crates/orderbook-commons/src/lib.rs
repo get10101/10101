@@ -24,6 +24,14 @@ pub use crate::price::Prices;
 pub const FEE_INVOICE_DESCRIPTION_PREFIX_TAKER: &str = "taker-fee-";
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub enum OrderState {
+    Open,
+    Matched,
+    Taken,
+    Failed,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct Order {
     pub id: Uuid,
     #[serde(with = "rust_decimal::serde::float")]
@@ -38,6 +46,7 @@ pub struct Order {
     pub timestamp: OffsetDateTime,
     #[serde(with = "time::serde::rfc3339")]
     pub expiry: OffsetDateTime,
+    pub order_state: OrderState,
 }
 
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]

@@ -71,6 +71,7 @@ mod test {
     use crate::price::best_ask_price;
     use crate::price::best_bid_price;
     use crate::Order;
+    use crate::OrderState;
     use crate::OrderType;
     use rust_decimal::Decimal;
     use rust_decimal_macros::dec;
@@ -88,6 +89,10 @@ mod test {
     }
 
     fn dummy_order(price: Decimal, direction: Direction, taken: bool) -> Order {
+        let mut order_state = OrderState::Open;
+        if taken {
+            order_state = OrderState::Taken;
+        }
         Order {
             id: Uuid::new_v4(),
             price,
@@ -98,6 +103,7 @@ mod test {
             order_type: OrderType::Market,
             timestamp: OffsetDateTime::now_utc(),
             expiry: OffsetDateTime::now_utc(),
+            order_state,
         }
     }
 

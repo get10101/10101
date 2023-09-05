@@ -1,5 +1,6 @@
 use crate::db;
 use crate::node::storage::NodeStorage;
+use crate::orderbook;
 use crate::position::models::leverage_long;
 use crate::position::models::leverage_short;
 use crate::position::models::NewPosition;
@@ -39,6 +40,7 @@ use ln_dlc_node::node::dlc_message_name;
 use ln_dlc_node::node::sub_channel_message_name;
 use ln_dlc_node::node::RunningNode;
 use ln_dlc_node::WalletSettings;
+use orderbook_commons::OrderState;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use std::sync::Arc;
@@ -135,6 +137,11 @@ impl Node {
 
     pub async fn trade(&self, trade_params: &TradeParams) -> Result<Invoice> {
         let (fee_payment_hash, invoice) = self.fee_invoice_taker(trade_params).await?;
+        let mut connection = self.pool.get()?;
+
+        let trader_id = trade_params.pubkey.to_string();
+        let order_id = trade_params.filled_with.order_id.to_string();
+        tracing::info!(trader_id, order_id, "Executing match");
 
         match self.decide_trade_action(&trade_params.pubkey)? {
             TradeAction::Open => {
@@ -142,7 +149,15 @@ impl Node {
                     self.settings.read().await.allow_opening_positions,
                     "Opening positions is disabled"
                 );
-                self.open_position(trade_params, fee_payment_hash).await?
+                if let Err(e) = self.open_position(trade_params, fee_payment_hash).await {
+                    orderbook::db::orders::set_order_state(
+                        &mut connection,
+                        trade_params.filled_with.order_id,
+                        OrderState::Failed,
+                    )?;
+
+                    bail!("Failed to initiate open position: trader_id={trader_id}, order_id={order_id}. Error: {e:#}")
+                }
             }
             TradeAction::Close(channel_id) => {
                 let peer_id = trade_params.pubkey;
@@ -150,7 +165,6 @@ impl Node {
 
                 let closing_price = trade_params.average_execution_price();
 
-                let mut connection = self.pool.get()?;
                 let position = match db::positions::Position::get_open_position_by_trader(
                     &mut connection,
                     trade_params.pubkey.to_string(),
@@ -437,7 +451,7 @@ impl Node {
         // todo(holzeis): It would be nice if dlc messages are also propagated via events, so the
         // receiver can decide what events to process and we can skip this component specific logic
         // here.
-        if let Message::Channel(ChannelMessage::RenewFinalize(r)) = msg {
+        if let Message::Channel(ChannelMessage::RenewFinalize(r)) = &msg {
             self.finalize_rollover(r.channel_id)?;
         }
 

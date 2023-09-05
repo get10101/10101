@@ -1,4 +1,5 @@
 use crate::orderbook::db::custom_types::Direction;
+use crate::orderbook::db::custom_types::OrderState;
 use crate::orderbook::db::custom_types::OrderType;
 use crate::schema::orders;
 use diesel::prelude::*;
@@ -6,6 +7,7 @@ use diesel::result::QueryResult;
 use diesel::PgConnection;
 use orderbook_commons::NewOrder as OrderbookNewOrder;
 use orderbook_commons::Order as OrderbookOrder;
+use orderbook_commons::OrderState as OrderBookOrderState;
 use orderbook_commons::OrderType as OrderBookOrderType;
 use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::prelude::ToPrimitive;
@@ -50,6 +52,28 @@ impl From<OrderBookOrderType> for OrderType {
     }
 }
 
+impl From<OrderState> for OrderBookOrderState {
+    fn from(value: OrderState) -> Self {
+        match value {
+            OrderState::Open => OrderBookOrderState::Open,
+            OrderState::Matched => OrderBookOrderState::Matched,
+            OrderState::Taken => OrderBookOrderState::Taken,
+            OrderState::Failed => OrderBookOrderState::Failed,
+        }
+    }
+}
+
+impl From<OrderBookOrderState> for OrderState {
+    fn from(value: OrderBookOrderState) -> Self {
+        match value {
+            OrderBookOrderState::Open => OrderState::Open,
+            OrderBookOrderState::Matched => OrderState::Matched,
+            OrderBookOrderState::Taken => OrderState::Taken,
+            OrderBookOrderState::Failed => OrderState::Failed,
+        }
+    }
+}
+
 #[derive(Queryable, Debug, Clone)]
 struct Order {
     // this id is only internally but needs to be here or diesel complains
@@ -64,6 +88,7 @@ struct Order {
     pub timestamp: OffsetDateTime,
     pub order_type: OrderType,
     pub expiry: OffsetDateTime,
+    pub order_state: OrderState,
 }
 
 impl From<Order> for OrderbookOrder {
@@ -79,6 +104,7 @@ impl From<Order> for OrderbookOrder {
             order_type: value.order_type.into(),
             timestamp: value.timestamp,
             expiry: value.expiry,
+            order_state: value.order_state.into(),
         }
     }
 }
@@ -169,9 +195,30 @@ pub fn set_is_taken(
     id: Uuid,
     is_taken: bool,
 ) -> QueryResult<OrderbookOrder> {
+    if is_taken {
+        set_order_state(conn, id, orderbook_commons::OrderState::Taken)
+    } else {
+        set_order_state(conn, id, orderbook_commons::OrderState::Open)
+    }
+}
+
+/// Returns the number of affected rows: 1.
+pub fn set_order_state(
+    conn: &mut PgConnection,
+    id: Uuid,
+    order_state: orderbook_commons::OrderState,
+) -> QueryResult<OrderbookOrder> {
+    let mut is_taken = false;
+    if order_state == orderbook_commons::OrderState::Taken {
+        is_taken = true;
+    }
+
     let order: Order = diesel::update(orders::table)
         .filter(orders::trader_order_id.eq(id))
-        .set(orders::taken.eq(is_taken))
+        .set((
+            orders::taken.eq(is_taken),
+            orders::order_state.eq(OrderState::from(order_state)),
+        ))
         .get_result(conn)?;
 
     Ok(OrderbookOrder::from(order))

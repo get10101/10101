@@ -13,6 +13,7 @@ use orderbook_commons::FilledWith;
 use orderbook_commons::Match;
 use orderbook_commons::NewOrder;
 use orderbook_commons::Order;
+use orderbook_commons::OrderState;
 use orderbook_commons::OrderType;
 use orderbook_commons::OrderbookMsg;
 use rust_decimal::Decimal;
@@ -354,6 +355,7 @@ pub mod tests {
     use orderbook_commons::FilledWith;
     use orderbook_commons::Match;
     use orderbook_commons::Order;
+    use orderbook_commons::OrderState;
     use orderbook_commons::OrderType;
     use orderbook_commons::OrderbookMsg;
     use rust_decimal::Decimal;
@@ -385,6 +387,7 @@ pub mod tests {
             order_type: OrderType::Limit,
             timestamp: OffsetDateTime::now_utc() + timestamp_delay,
             expiry: OffsetDateTime::now_utc() + Duration::minutes(1),
+            order_state: OrderState::Open,
         }
     }
 
@@ -522,6 +525,7 @@ pub mod tests {
             order_type: OrderType::Market,
             timestamp: OffsetDateTime::now_utc(),
             expiry: OffsetDateTime::now_utc() + Duration::minutes(1),
+            order_state: OrderState::Open,
         };
 
         let matched_orders = match_order(&order, all_orders).unwrap().unwrap();
@@ -593,6 +597,7 @@ pub mod tests {
             order_type: OrderType::Market,
             timestamp: OffsetDateTime::now_utc(),
             expiry: OffsetDateTime::now_utc() + Duration::minutes(1),
+            order_state: OrderState::Open,
         };
 
         assert!(match_order(&order, all_orders).is_err());
@@ -640,6 +645,7 @@ pub mod tests {
             order_type: OrderType::Market,
             timestamp: OffsetDateTime::now_utc(),
             expiry: OffsetDateTime::now_utc() + Duration::minutes(1),
+            order_state: OrderState::Open,
         };
 
         let matched_orders = match_order(&order, all_orders).unwrap();

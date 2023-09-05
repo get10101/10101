@@ -18,6 +18,10 @@ pub mod sql_types {
     pub struct HtlcStatusType;
 
     #[derive(diesel::sql_types::SqlType)]
+    #[diesel(postgres_type(name = "OrderState_Type"))]
+    pub struct OrderStateType;
+
+    #[derive(diesel::sql_types::SqlType)]
     #[diesel(postgres_type(name = "OrderType_Type"))]
     pub struct OrderTypeType;
 
@@ -53,6 +57,7 @@ diesel::table! {
     use diesel::sql_types::*;
     use super::sql_types::DirectionType;
     use super::sql_types::OrderTypeType;
+    use super::sql_types::OrderStateType;
 
     orders (id) {
         id -> Int4,
@@ -65,6 +70,7 @@ diesel::table! {
         timestamp -> Timestamptz,
         order_type -> OrderTypeType,
         expiry -> Timestamptz,
+        order_state -> OrderStateType,
     }
 }
 
