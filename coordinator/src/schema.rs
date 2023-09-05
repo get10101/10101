@@ -18,6 +18,10 @@ pub mod sql_types {
     pub struct HtlcStatusType;
 
     #[derive(diesel::sql_types::SqlType)]
+    #[diesel(postgres_type(name = "MatchState_Type"))]
+    pub struct MatchStateType;
+
+    #[derive(diesel::sql_types::SqlType)]
     #[diesel(postgres_type(name = "OrderState_Type"))]
     pub struct OrderStateType;
 
@@ -50,6 +54,24 @@ diesel::table! {
         updated_at -> Timestamptz,
         open_channel_fee_payment_hash -> Nullable<Text>,
         fake_scid -> Nullable<Text>,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use super::sql_types::MatchStateType;
+
+    matches (id) {
+        id -> Uuid,
+        match_state -> MatchStateType,
+        order_id -> Uuid,
+        trader_id -> Text,
+        match_order_id -> Uuid,
+        match_trader_id -> Text,
+        execution_price -> Float4,
+        quantity -> Float4,
+        created_at -> Timestamptz,
+        updated_at -> Timestamptz,
     }
 }
 
@@ -187,6 +209,7 @@ diesel::joinable!(trades -> positions (position_id));
 
 diesel::allow_tables_to_appear_in_same_query!(
     channels,
+    matches,
     orders,
     payments,
     positions,

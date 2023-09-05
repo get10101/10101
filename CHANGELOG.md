@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Find match on an expired position
+
 ## [1.2.6] - 2023-09-06
 
 ## [1.2.5] - 2023-09-06

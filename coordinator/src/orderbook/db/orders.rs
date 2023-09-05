@@ -2,6 +2,7 @@ use crate::orderbook::db::custom_types::Direction;
 use crate::orderbook::db::custom_types::OrderState;
 use crate::orderbook::db::custom_types::OrderType;
 use crate::schema::orders;
+use bitcoin::secp256k1::PublicKey;
 use diesel::prelude::*;
 use diesel::result::QueryResult;
 use diesel::PgConnection;
@@ -180,6 +181,26 @@ pub fn all_by_direction_and_type(
     Ok(orders.into_iter().map(OrderbookOrder::from).collect())
 }
 
+pub fn get_all_orders(
+    conn: &mut PgConnection,
+    order_type: OrderBookOrderType,
+    order_state: OrderBookOrderState,
+    filter_expired: bool,
+) -> QueryResult<Vec<OrderbookOrder>> {
+    let filters = orders::table
+        .filter(orders::order_state.eq(OrderState::from(order_state)))
+        .filter(orders::order_type.eq(OrderType::from(order_type)));
+    let orders: Vec<Order> = if filter_expired {
+        filters
+            .filter(orders::expiry.gt(OffsetDateTime::now_utc()))
+            .load::<Order>(conn)?
+    } else {
+        filters.load::<Order>(conn)?
+    };
+
+    Ok(orders.into_iter().map(OrderbookOrder::from).collect())
+}
+
 /// Returns the number of affected rows: 1.
 pub fn insert(conn: &mut PgConnection, order: OrderbookNewOrder) -> QueryResult<OrderbookOrder> {
     let order: Order = diesel::insert_into(orders::table)
@@ -232,6 +253,19 @@ pub fn get_with_id(conn: &mut PgConnection, uid: Uuid) -> QueryResult<Option<Ord
 
     let option = x.get(0).map(|order| OrderbookOrder::from(order.clone()));
     Ok(option)
+}
+
+pub fn get_by_trader_id_and_state(
+    conn: &mut PgConnection,
+    trader_id: PublicKey,
+    order_state: orderbook_commons::OrderState,
+) -> QueryResult<Option<OrderbookOrder>> {
+    orders::table
+        .filter(orders::trader_id.eq(trader_id.to_string()))
+        .filter(orders::order_state.eq(OrderState::from(order_state)))
+        .first::<Order>(conn)
+        .map(OrderbookOrder::from)
+        .optional()
 }
 
 /// Returns the number of affected rows: 1.

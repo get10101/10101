@@ -1,4 +1,5 @@
 use crate::schema::sql_types::DirectionType;
+use crate::schema::sql_types::MatchStateType;
 use crate::schema::sql_types::OrderStateType;
 use crate::schema::sql_types::OrderTypeType;
 use diesel::deserialize;
@@ -128,6 +129,45 @@ impl FromSql<OrderStateType, Pg> for OrderState {
             b"Matched" => Ok(OrderState::Matched),
             b"Taken" => Ok(OrderState::Taken),
             b"Failed" => Ok(OrderState::Failed),
+            _ => Err("Unrecognized enum variant".into()),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, FromSqlRow, AsExpression)]
+#[diesel(sql_type = MatchStateType)]
+pub(crate) enum MatchState {
+    Pending,
+    Filled,
+    Failed,
+}
+
+impl QueryId for MatchStateType {
+    type QueryId = MatchStateType;
+    const HAS_STATIC_QUERY_ID: bool = false;
+
+    fn query_id() -> Option<TypeId> {
+        None
+    }
+}
+
+impl ToSql<MatchStateType, Pg> for MatchState {
+    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, Pg>) -> serialize::Result {
+        match *self {
+            MatchState::Pending => out.write_all(b"Pending")?,
+            MatchState::Filled => out.write_all(b"Filled")?,
+            MatchState::Failed => out.write_all(b"Failed")?,
+        }
+        Ok(IsNull::No)
+    }
+}
+
+impl FromSql<MatchStateType, Pg> for MatchState {
+    fn from_sql(bytes: PgValue<'_>) -> deserialize::Result<Self> {
+        match bytes.as_bytes() {
+            b"Pending" => Ok(MatchState::Pending),
+            b"Filled" => Ok(MatchState::Filled),
+            b"Failed" => Ok(MatchState::Failed),
             _ => Err("Unrecognized enum variant".into()),
         }
     }

@@ -1,11 +1,13 @@
 use crate::db;
 use crate::node::storage::NodeStorage;
-use crate::orderbook;
+use crate::orderbook::db::matches;
+use crate::orderbook::db::orders;
 use crate::position::models::leverage_long;
 use crate::position::models::leverage_short;
 use crate::position::models::NewPosition;
 use crate::position::models::Position;
 use crate::trade::models::NewTrade;
+use anyhow::anyhow;
 use anyhow::bail;
 use anyhow::ensure;
 use anyhow::Context;
@@ -15,6 +17,7 @@ use bitcoin::secp256k1::PublicKey;
 use coordinator_commons::TradeParams;
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::Pool;
+use diesel::Connection;
 use diesel::PgConnection;
 use dlc_manager::contract::contract_input::ContractInput;
 use dlc_manager::contract::contract_input::ContractInputInfo;
@@ -40,16 +43,19 @@ use ln_dlc_node::node::dlc_message_name;
 use ln_dlc_node::node::sub_channel_message_name;
 use ln_dlc_node::node::RunningNode;
 use ln_dlc_node::WalletSettings;
+use orderbook_commons::MatchState;
 use orderbook_commons::OrderState;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use std::sync::Arc;
+use time::OffsetDateTime;
 use tokio::sync::RwLock;
 use trade::cfd::calculate_long_liquidation_price;
 use trade::cfd::calculate_margin;
 use trade::cfd::calculate_short_liquidation_price;
 use trade::cfd::BTCUSD_MAX_PRICE;
 use trade::Direction;
+use uuid::Uuid;
 
 pub mod channel_opening_fee;
 pub mod closed_positions;
@@ -139,6 +145,20 @@ impl Node {
         let (fee_payment_hash, invoice) = self.fee_invoice_taker(trade_params).await?;
         let mut connection = self.pool.get()?;
 
+        let order_id = trade_params.filled_with.order_id;
+        let order = orders::get_with_id(&mut connection, order_id)?
+            .with_context(|| format!("Could not find order with id {order_id}"))?;
+
+        ensure!(
+            order.expiry > OffsetDateTime::now_utc(),
+            "Can't execute a trade on an expired order"
+        );
+        ensure!(
+            order.order_state == OrderState::Matched,
+            "Can't execute trade with in invalid state {:?}",
+            order.order_state
+        );
+
         let trader_id = trade_params.pubkey.to_string();
         let order_id = trade_params.filled_with.order_id.to_string();
         tracing::info!(trader_id, order_id, "Executing match");
@@ -150,9 +170,10 @@ impl Node {
                     "Opening positions is disabled"
                 );
                 if let Err(e) = self.open_position(trade_params, fee_payment_hash).await {
-                    orderbook::db::orders::set_order_state(
+                    update_order_and_match(
                         &mut connection,
                         trade_params.filled_with.order_id,
+                        MatchState::Failed,
                         OrderState::Failed,
                     )?;
 
@@ -173,10 +194,34 @@ impl Node {
                     None => bail!("Failed to find open position : {}", trade_params.pubkey),
                 };
 
-                self.close_position(&position, closing_price, channel_id, fee_payment_hash)
-                    .await?
+                if let Err(e) = self
+                    .close_position(&position, closing_price, channel_id, fee_payment_hash)
+                    .await
+                {
+                    update_order_and_match(
+                        &mut connection,
+                        trade_params.filled_with.order_id,
+                        MatchState::Failed,
+                        OrderState::Failed,
+                    )?;
+
+                    bail!("trader_id={trader_id}, order_id={order_id}, Failed to initiate close position. Error: {e:#}")
+                }
             }
         };
+
+        tracing::info!(
+            trader_id,
+            order_id,
+            "Successfully processed match, setting match to Filled"
+        );
+
+        update_order_and_match(
+            &mut connection,
+            trade_params.filled_with.order_id,
+            MatchState::Filled,
+            OrderState::Taken,
+        )?;
 
         Ok(invoice)
     }
@@ -467,6 +512,23 @@ impl Node {
 
         Ok(())
     }
+}
+
+fn update_order_and_match(
+    connection: &mut PgConnection,
+    order_id: Uuid,
+    match_state: MatchState,
+    order_state: OrderState,
+) -> Result<()> {
+    connection
+        .transaction(|connection| {
+            matches::set_match_state(connection, order_id, match_state)?;
+
+            orders::set_order_state(connection, order_id, order_state)?;
+
+            diesel::result::QueryResult::Ok(())
+        })
+        .map_err(|e| anyhow!("Failed to update order and match. Error: {e:#}"))
 }
 
 pub enum TradeAction {

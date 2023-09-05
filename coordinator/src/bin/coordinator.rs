@@ -197,10 +197,14 @@ async fn main() -> Result<()> {
 
     tokio::spawn({
         let node = node.clone();
+        let trading_sender = trading_sender.clone();
         async move {
             loop {
                 tokio::time::sleep(EXPIRED_POSITION_SYNC_INTERVAL).await;
-                expired_positions::close(node.clone()).await;
+                if let Err(e) = expired_positions::close(node.clone(), trading_sender.clone()).await
+                {
+                    tracing::error!("Failed to close expired positions! Error: {e:#}");
+                }
             }
         }
     });

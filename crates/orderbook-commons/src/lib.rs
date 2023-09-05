@@ -1,3 +1,4 @@
+use anyhow::ensure;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use secp256k1::Message;
@@ -119,6 +120,9 @@ pub enum OrderbookMsg {
 /// corresponding order id.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Match {
+    /// The id of the match
+    pub id: Uuid,
+
     /// The id of the matched order defined by the orderbook
     ///
     /// The identifier of the order as defined by the orderbook.
@@ -278,6 +282,25 @@ impl From<RoutingFees> for lightning::routing::gossip::RoutingFees {
     }
 }
 
+pub enum MatchState {
+    Pending,
+    Filled,
+    Failed,
+}
+
+pub struct Matches {
+    pub id: Uuid,
+    pub match_state: MatchState,
+    pub order_id: Uuid,
+    pub trader_id: PublicKey,
+    pub match_order_id: Uuid,
+    pub match_trader_id: PublicKey,
+    pub execution_price: Decimal,
+    pub quantity: Decimal,
+    pub created_at: OffsetDateTime,
+    pub updated_at: OffsetDateTime,
+}
+
 #[cfg(test)]
 mod test {
     use crate::FilledWith;
@@ -289,6 +312,7 @@ mod test {
     use secp256k1::XOnlyPublicKey;
     use std::str::FromStr;
     use time::OffsetDateTime;
+    use uuid::Uuid;
 
     fn dummy_public_key() -> PublicKey {
         PublicKey::from_str("02bd998ebd176715fe92b7467cf6b1df8023950a4dd911db4c94dfc89cc9f5a655")
@@ -343,12 +367,14 @@ mod test {
             .expect("To be a valid pubkey"),
             matches: vec![
                 Match {
+                    id: Uuid::new_v4(),
                     order_id: Default::default(),
                     quantity: match_0_quantity,
                     pubkey: dummy_public_key(),
                     execution_price: match_0_price,
                 },
                 Match {
+                    id: Uuid::new_v4(),
                     order_id: Default::default(),
                     quantity: match_1_quantity,
                     pubkey: dummy_public_key(),
