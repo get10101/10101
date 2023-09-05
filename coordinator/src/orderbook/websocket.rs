@@ -123,7 +123,7 @@ pub async fn websocket_connection(stream: WebSocket, state: Arc<AppState>) {
                     }
                 }
                 Err(err) => {
-                    tracing::trace!("Could not derserialize msg: {text} {err:#}");
+                    tracing::trace!("Could not deserialize msg: {text} {err:#}");
                 }
             }
         }
