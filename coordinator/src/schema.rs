@@ -173,6 +173,7 @@ diesel::table! {
         email -> Text,
         nostr -> Text,
         timestamp -> Timestamptz,
+        fcm_token -> Text,
     }
 }
 
