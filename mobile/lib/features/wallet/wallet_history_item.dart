@@ -126,7 +126,10 @@ abstract class WalletHistoryItem extends StatelessWidget {
         children: [
           HistoryDetail(
               label: "Amount", value: sats.toString(), displayValue: formatSats(Amount(sats))),
-          HistoryDetail(label: "Date and time", value: dateFormat.format(data.timestamp)),
+          HistoryDetail(
+              label: "When",
+              displayValue: timeago.format(data.timestamp),
+              value: dateFormat.format(data.timestamp)),
           ...getDetails(),
         ],
       ),
