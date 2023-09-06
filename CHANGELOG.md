@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.2.5] - 2023-09-06
 
+## [1.2.5] - 2023-09-06
+
 - Improve wallet sync speed by 100x (Use self-hosted esplora node)
 
 ## [1.2.4] - 2023-08-31
@@ -91,7 +93,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Self-Custodial CFD Trading based on DLC and lightning
 
-[Unreleased]: https://github.com/get10101/10101/compare/1.2.4...HEAD
+[Unreleased]: https://github.com/get10101/10101/compare/1.2.5...HEAD
+[1.2.5]: https://github.com/get10101/10101/compare/1.2.4...1.2.5
 [1.2.4]: https://github.com/get10101/10101/compare/1.2.3...1.2.4
 [1.2.3]: https://github.com/get10101/10101/compare/1.2.2...1.2.3
 [1.2.2]: https://github.com/get10101/10101/compare/1.2.1...1.2.2
