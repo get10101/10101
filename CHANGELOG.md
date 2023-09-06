@@ -7,7 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-- Use self-hosted esplora node
+## [1.2.5] - 2023-09-06
+
+- Improve wallet sync speed by 100x (Use self-hosted esplora node)
 
 ## [1.2.4] - 2023-08-31
 
