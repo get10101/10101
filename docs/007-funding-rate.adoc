@@ -1,0 +1,96 @@
+= ADR 007 - Funding rate
+Lucas Soriano <lucas@10101.finance>
+:toc:
+:icons: font
+:attributes: 2023-09-06
+
+Status: Proposed
+
+== Decision
+
+The funding rate should be charged through a Lightning payment.
+The funding rate *must* be paid before renewing the contract.
+No funding rate needs to paid for the period of time _before_ the first renewal.
+
+== Context
+
+The funding rate is the cost of holding a perpetual swap position that is on the side of the market sentiment.
+There needs to be a funding rate because that is what motivates traders to keep their perpetual swaps positions open _against_ the market sentiment.
+The sign of the funding rate determines which of the two parties involved must pay the funding fee to keep their position open.
+
+In the 10101 ecosystem, the funding rate must come from the 10101 orderbook.
+This value will be updated at a fixed interval e.g. every 8 hours.
+
+== Options considered
+
+=== Lightning payment before the DLC is renewed
+
+The renewal protocol will first require one of the two parties (coordinator and trader) to generate an invoice for the funding fee.
+Which party generates the invoice (i.e. the receiver) is determined by the sign of the funding rate of the 10101 orderbook.
+
+Only after the invoice has been paid will the coordinator initiate the renew protocol to roll over the DLC between coordinator and trader.
+
+==== Pros
+
+- The DLC remains unaffected by the exchanged funding rate.
+- Can be implemented without changes to our dependencies.
+- Easy to track the funding fee payments.
+- Fee is readily available to use after.
+
+==== Cons
+
+===== No execution guarantees
+
+There is no guarantee that the renew protocol will succeed after the funding fee payment is claimed.
+Depending on the size of the position, it could be economically beneficial for a party to claim the funding fee paid by the other party and then force-close the channel.
+As such, in some scenarios we would be trusting the counterparty to not run away with an unearned funding fee.
+
+With PTLCs we might be able to make the DLC channel update and the payment atomic, but that is not yet implemented.
+
+===== Funds required on Lightning channel
+
+To be able to pay the funding fee the payer will need to have sufficient outbound liquidity.
+It might happen that a user will need to stop trading if their Lightning channel cannot cover the costs.
+
+They would still be able to close their position and open a new one.
+
+=== Adjust the CET payouts depending on the funding fee
+
+If the funding fee is `X` paid from `A` to `B`, for every `o_A`, CET output amount belonging to `A`, we would subtract `X`: `o_A - X`; and for every `o_B`, CET output belonging to `B`, we would add `X`: `o_B + X`.
+
+Unfortunately this doesn't work in all scenarios:
+
+- If a CET already only pays to `B` then the payout cannot be increased!
+- If a CET has `o_A < X`, then it will not be possible to increase `o_B` sufficiently.
+
+As such, in some scenarios the fee will not be paid.
+This problem might compound as the same position might be rolled over multiple times.
+If the advantaged party ends up getting liquidated, the winning party will not see any funding fee.
+
+==== Pros
+
+- We already did something similar in ItchySats.
+- The funding fee payment and the DLC renewal are atomic.
+
+==== Cons
+
+- Fee cannot be charged in all cases.
+- Fee is only available after the DLC channel is settled.
+
+=== Use the dedicated `counter_payout` argument in the `rust-dlc` DLC channel renew protocol
+
+Looking at the `dlc_manager::Manager::renew_offer` API we noticed a `counter_payout` argument which we thought we could use to adjust the payouts between the two parties.
+It turns out that this field is only used to choose a kind of symbolic payout for the DLC that is being replaced, so that it can be closed with that value.
+In practice this is not really useful in itself as it has no effect on the new DLC{empty}footnote:[We should probably consider removing this unnecessary complexity from `rust-dlc`, particularly because consumers do not care to set this value.].
+
+All in all, this solution simply does not work.
+
+== Consequences
+
+By choosing to pay the funding fee using the Lightning channel we get a simple solution to the problem.
+This comes at the cost of atomicity, but the only solution that ensures atomicity does not work in all cases.
+Furthermore, atomicity can be achieved once PTLCs are supported by `rust-lightning`.
+
+== Advice
+
+None thus far.
