@@ -195,7 +195,7 @@ impl ChannelFeePaymentSubscriber {
 
 async fn fetch_funding_transaction(txid: Txid) -> Result<EsploraTransaction> {
     reqwest_client()
-        .get(format!("{}tx/{txid}", config::get_esplora_endpoint()))
+        .get(format!("{}/tx/{txid}", config::get_esplora_endpoint()))
         .send()
         .await?
         .json()
