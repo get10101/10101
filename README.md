@@ -2,7 +2,7 @@
   <img height="300" src="./logos/1500x1500.png" alt="10101 Logo">
 </p>
 
-# 10101 - One app, all things bitcoin
+# 10101 (*Ten-Ten-One*) - Decentralised finance. For real.
 
 10101 combines the power of a self-custodial on-chain and off-chain wallet with the vast world of trading. 10101 - a numeral palindrome and the binary representation of 21 - as in 21 million possible bitcoin. The vision of 10101 embodies what Bitcoin stands for: Decentralized and censorship resistant money.
 
