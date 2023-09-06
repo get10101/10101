@@ -29,7 +29,7 @@ class TradeValuesChangeNotifier extends ChangeNotifier implements Subscriber {
 
     switch (direction) {
       case Direction.long:
-        return TradeValues.create(
+        return TradeValues.fromMargin(
             margin: defaultMargin,
             leverage: defaultLeverage,
             price: null,
@@ -37,7 +37,7 @@ class TradeValuesChangeNotifier extends ChangeNotifier implements Subscriber {
             direction: direction,
             tradeValuesService: tradeValuesService);
       case Direction.short:
-        return TradeValues.create(
+        return TradeValues.fromMargin(
             margin: defaultMargin,
             leverage: defaultLeverage,
             price: null,

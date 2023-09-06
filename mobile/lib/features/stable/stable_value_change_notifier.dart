@@ -21,7 +21,7 @@ class StableValuesChangeNotifier extends ChangeNotifier implements Subscriber {
   }
 
   TradeValues _initOrder() {
-    return TradeValues.createStable(
+    return TradeValues.fromQuantity(
         quantity: 1,
         leverage: Leverage(1),
         price: null,
