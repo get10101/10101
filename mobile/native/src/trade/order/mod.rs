@@ -145,12 +145,14 @@ impl From<Order> for orderbook_commons::NewOrder {
         let trader_id = ln_dlc::get_node_info().expect("to have info").pubkey;
         orderbook_commons::NewOrder {
             id: order.id,
+            contract_symbol: order.contract_symbol,
             // todo: this is left out intentionally as market orders do not set a price. this field
             // should either be an option or differently modelled for a market order.
             price: Decimal::ZERO,
             quantity,
             trader_id,
             direction: order.direction,
+            leverage: order.leverage,
             order_type: order.order_type.into(),
             expiry: order.order_expiry_timestamp,
         }

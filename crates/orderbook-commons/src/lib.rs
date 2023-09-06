@@ -10,6 +10,7 @@ use sha2::digest::FixedOutput;
 use sha2::Digest;
 use sha2::Sha256;
 use time::OffsetDateTime;
+use trade::ContractSymbol;
 use trade::Direction;
 use uuid::Uuid;
 
@@ -37,6 +38,8 @@ pub struct Order {
     pub id: Uuid,
     #[serde(with = "rust_decimal::serde::float")]
     pub price: Decimal,
+    pub leverage: f32,
+    pub contract_symbol: ContractSymbol,
     pub trader_id: PublicKey,
     pub taken: bool,
     pub direction: Direction,
@@ -68,12 +71,14 @@ pub fn create_sign_message() -> Message {
 #[derive(Serialize, Deserialize, Clone)]
 pub struct NewOrder {
     pub id: Uuid,
+    pub contract_symbol: ContractSymbol,
     #[serde(with = "rust_decimal::serde::float")]
     pub price: Decimal,
     #[serde(with = "rust_decimal::serde::float")]
     pub quantity: Decimal,
     pub trader_id: PublicKey,
     pub direction: Direction,
+    pub leverage: f32,
     pub order_type: OrderType,
     pub expiry: OffsetDateTime,
 }

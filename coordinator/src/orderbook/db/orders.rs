@@ -1,3 +1,4 @@
+use crate::db::positions::ContractSymbol;
 use crate::orderbook::db::custom_types::Direction;
 use crate::orderbook::db::custom_types::OrderState;
 use crate::orderbook::db::custom_types::OrderType;
@@ -90,6 +91,8 @@ struct Order {
     pub order_type: OrderType,
     pub expiry: OffsetDateTime,
     pub order_state: OrderState,
+    pub contract_symbol: ContractSymbol,
+    pub leverage: f32,
 }
 
 impl From<Order> for OrderbookOrder {
@@ -99,6 +102,8 @@ impl From<Order> for OrderbookOrder {
             price: Decimal::from_f32(value.price).expect("To be able to convert f32 to decimal"),
             trader_id: value.trader_id.parse().expect("to have a valid pubkey"),
             taken: value.taken,
+            leverage: value.leverage,
+            contract_symbol: value.contract_symbol.into(),
             direction: value.direction.into(),
             quantity: Decimal::from_f32(value.quantity)
                 .expect("To be able to convert f32 to decimal"),
@@ -121,6 +126,8 @@ struct NewOrder {
     pub quantity: f32,
     pub order_type: OrderType,
     pub expiry: OffsetDateTime,
+    pub contract_symbol: ContractSymbol,
+    pub leverage: f32,
 }
 
 impl From<OrderbookNewOrder> for NewOrder {
@@ -142,6 +149,8 @@ impl From<OrderbookNewOrder> for NewOrder {
                 .expect("To be able to convert decimal to f32"),
             order_type: value.order_type.into(),
             expiry: value.expiry,
+            contract_symbol: value.contract_symbol.into(),
+            leverage: value.leverage,
         }
     }
 }

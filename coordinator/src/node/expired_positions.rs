@@ -76,12 +76,14 @@ pub async fn close(node: Node, trading_sender: mpsc::Sender<TradingMessage>) -> 
 
         let new_order = NewOrder {
             id: uuid::Uuid::new_v4(),
+            contract_symbol: position.contract_symbol,
             // todo(holzeis): we should not have to set the price for a market order. we propably
             // need separate models for a limit and a market order.
             price: Decimal::ZERO,
             quantity: Decimal::try_from(position.quantity).expect("to fit into decimal"),
             trader_id: position.trader,
             direction: position.direction.opposite(),
+            leverage: position.leverage,
             order_type: OrderType::Market,
             // This order can basically not expire, but if the user does not come back online within
             // 8 weeks I guess we can safely assume that this channel is abandoned and we should

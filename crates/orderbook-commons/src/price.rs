@@ -99,6 +99,8 @@ mod test {
             trader_id: dummy_public_key(),
             taken,
             direction,
+            leverage: 1.0,
+            contract_symbol: BtcUsd,
             quantity: 100.into(),
             order_type: OrderType::Market,
             timestamp: OffsetDateTime::now_utc(),

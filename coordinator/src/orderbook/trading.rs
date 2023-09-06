@@ -401,6 +401,7 @@ pub mod tests {
     use time::Duration;
     use time::OffsetDateTime;
     use tokio::sync::mpsc;
+    use trade::ContractSymbol;
     use trade::Direction;
     use uuid::Uuid;
 
@@ -419,6 +420,8 @@ pub mod tests {
             .unwrap(),
             taken: false,
             direction: Direction::Long,
+            leverage: 1.0,
+            contract_symbol: ContractSymbol::BtcUsd,
             quantity,
             order_type: OrderType::Limit,
             timestamp: OffsetDateTime::now_utc() + timestamp_delay,
@@ -557,6 +560,8 @@ pub mod tests {
             .unwrap(),
             taken: false,
             direction: Direction::Short,
+            leverage: 1.0,
+            contract_symbol: ContractSymbol::BtcUsd,
             quantity: dec!(100),
             order_type: OrderType::Market,
             timestamp: OffsetDateTime::now_utc(),
@@ -629,6 +634,8 @@ pub mod tests {
             .unwrap(),
             taken: false,
             direction: Direction::Short,
+            leverage: 1.0,
+            contract_symbol: ContractSymbol::BtcUsd,
             quantity: dec!(200),
             order_type: OrderType::Market,
             timestamp: OffsetDateTime::now_utc(),
@@ -677,6 +684,8 @@ pub mod tests {
             .unwrap(),
             taken: false,
             direction: Direction::Long,
+            leverage: 1.0,
+            contract_symbol: ContractSymbol::BtcUsd,
             quantity: dec!(200),
             order_type: OrderType::Market,
             timestamp: OffsetDateTime::now_utc(),

@@ -80,6 +80,8 @@ diesel::table! {
     use super::sql_types::DirectionType;
     use super::sql_types::OrderTypeType;
     use super::sql_types::OrderStateType;
+    use super::sql_types::ContractSymbolType;
+    use super::sql_types::OrderReasonType;
 
     orders (id) {
         id -> Int4,
@@ -93,6 +95,8 @@ diesel::table! {
         order_type -> OrderTypeType,
         expiry -> Timestamptz,
         order_state -> OrderStateType,
+        contract_symbol -> ContractSymbolType,
+        leverage -> Float4,
     }
 }
 
