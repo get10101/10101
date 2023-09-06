@@ -62,11 +62,8 @@ where
         .await?
     }
 
-    /// Updates the dlc channel with the given contract input and triggers the `RenewOffer` dlc
-    /// message.
-    ///
-    /// Note, this is only initiating the protocol and is only finished once the finalize messages
-    /// are exchanged.
+    /// Proposes and update to the DLC channel based on the provided [`ContractInput`]. A
+    /// [`RenewOffer`] is sent to the counterparty, kickstarting the renew protocol.
     pub async fn propose_dlc_channel_update(
         &self,
         dlc_channel_id: &[u8; 32],
