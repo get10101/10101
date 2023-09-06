@@ -19,7 +19,10 @@ There are a couple of things we are going to look out for in PRs and knowing the
 
 ## Contributing issues
 
-When contributing a feature request, please focus on your _problem_ as much as possible.
+When adding a bug report or feature request, please focus on your _problem_ as much as possible.
+
+The provided issue templates should be helpful in structuring an issue in a way that can make it actionable by the developers.
+
 It is okay to include ideas on how the feature could be implemented but they shouldn't be the focus of your request.
 
 For more loosely-defined problems and ideas, consider starting a [discussion](https://github.com/get10101/10101/discussions/new) instead of opening an issue.
