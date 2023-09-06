@@ -129,9 +129,21 @@ impl ChannelFeePaymentSubscriber {
 
         let txid = ln_dlc::get_funding_transaction(channel_id)?;
 
-        let transaction: EsploraTransaction = tokio::task::block_in_place(|| {
-            Handle::current().block_on(fetch_funding_transaction(txid))
-        })?;
+        let transaction: EsploraTransaction = tokio::task::block_in_place(
+            || match Handle::current().block_on(fetch_funding_transaction(txid)) {
+                Ok(tx) => Ok(tx),
+                Err(err) => {
+                    tracing::warn!(
+                            tx_id = txid.to_string(),
+                            "Could not fetch opening transaction due to {err:#}, retrying after a short sleep."
+                        );
+                    Handle::current().block_on(async {
+                        tokio::time::sleep(Duration::from_secs(1)).await;
+                        fetch_funding_transaction(txid).await
+                    })
+                }
+            },
+        )?;
         tracing::debug!("Successfully fetched transaction fees of {} for new inbound channel with id {channel_id_as_str}", transaction.fee);
         self.set_open_channel_info(channel_id, transaction);
         Ok(())
