@@ -51,6 +51,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "android-tzdata"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e999941b234f3131b00bc13c22d06e8c5ff726d1b6318ac7eb276997bbb4fef0"
+
+[[package]]
 name = "android_system_properties"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -508,18 +514,18 @@ checksum = "fd16c4719339c4530435d38e511904438d07cce7950afa3718a84ac36c10e89e"
 
 [[package]]
 name = "chrono"
-version = "0.4.23"
+version = "0.4.29"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "16b0a3d9ed01224b22057780a37bb8c5dbfe1be8ba48678e7bf57ec4b385411f"
+checksum = "d87d9d13be47a5b7c3907137f1290b0459a7f80efb26be8c52afb11963bccb02"
 dependencies = [
+ "android-tzdata",
  "iana-time-zone",
  "js-sys",
- "num-integer",
  "num-traits",
  "serde",
  "time 0.1.45",
  "wasm-bindgen",
- "winapi",
+ "windows-targets 0.48.0",
 ]
 
 [[package]]
@@ -953,7 +959,7 @@ dependencies = [
 [[package]]
 name = "dlc"
 version = "0.4.0"
-source = "git+https://github.com/p2pderivatives/rust-dlc?rev=efaa92b#efaa92bfc9c4032f55ed926b43a8f7c004631ff5"
+source = "git+https://github.com/p2pderivatives/rust-dlc?rev=962265b#962265b33512ff8b560c4f6079c336e963070fa1"
 dependencies = [
  "bitcoin",
  "miniscript 8.0.0",
@@ -965,7 +971,7 @@ dependencies = [
 [[package]]
 name = "dlc-manager"
 version = "0.4.0"
-source = "git+https://github.com/p2pderivatives/rust-dlc?rev=efaa92b#efaa92bfc9c4032f55ed926b43a8f7c004631ff5"
+source = "git+https://github.com/p2pderivatives/rust-dlc?rev=962265b#962265b33512ff8b560c4f6079c336e963070fa1"
 dependencies = [
  "async-trait",
  "bitcoin",
@@ -981,7 +987,7 @@ dependencies = [
 [[package]]
 name = "dlc-messages"
 version = "0.4.0"
-source = "git+https://github.com/p2pderivatives/rust-dlc?rev=efaa92b#efaa92bfc9c4032f55ed926b43a8f7c004631ff5"
+source = "git+https://github.com/p2pderivatives/rust-dlc?rev=962265b#962265b33512ff8b560c4f6079c336e963070fa1"
 dependencies = [
  "bitcoin",
  "dlc",
@@ -994,7 +1000,7 @@ dependencies = [
 [[package]]
 name = "dlc-sled-storage-provider"
 version = "0.1.0"
-source = "git+https://github.com/p2pderivatives/rust-dlc?rev=efaa92b#efaa92bfc9c4032f55ed926b43a8f7c004631ff5"
+source = "git+https://github.com/p2pderivatives/rust-dlc?rev=962265b#962265b33512ff8b560c4f6079c336e963070fa1"
 dependencies = [
  "bitcoin",
  "dlc-manager",
@@ -1008,7 +1014,7 @@ dependencies = [
 [[package]]
 name = "dlc-trie"
 version = "0.4.0"
-source = "git+https://github.com/p2pderivatives/rust-dlc?rev=efaa92b#efaa92bfc9c4032f55ed926b43a8f7c004631ff5"
+source = "git+https://github.com/p2pderivatives/rust-dlc?rev=962265b#962265b33512ff8b560c4f6079c336e963070fa1"
 dependencies = [
  "bitcoin",
  "dlc",
@@ -1794,7 +1800,7 @@ dependencies = [
  "parking_lot 0.12.1",
  "rand",
  "reqwest",
- "rust-bitcoin-coin-selection",
+ "rust-bitcoin-coin-selection 0.1.0 (git+https://github.com/p2pderivatives/rust-bitcoin-coin-selection)",
  "rust_decimal",
  "secp256k1-zkp",
  "serde",
@@ -2373,7 +2379,7 @@ checksum = "b15813163c1d831bf4a13c3610c05c0d03b39feb07f7e09fa234dac9b15aaf39"
 [[package]]
 name = "p2pd-oracle-client"
 version = "0.1.0"
-source = "git+https://github.com/p2pderivatives/rust-dlc?rev=efaa92b#efaa92bfc9c4032f55ed926b43a8f7c004631ff5"
+source = "git+https://github.com/p2pderivatives/rust-dlc?rev=962265b#962265b33512ff8b560c4f6079c336e963070fa1"
 dependencies = [
  "chrono",
  "dlc-manager",
@@ -2840,6 +2846,14 @@ dependencies = [
 [[package]]
 name = "rust-bitcoin-coin-selection"
 version = "0.1.0"
+source = "git+https://github.com/p2pderivatives/rust-bitcoin-coin-selection?rev=23a6bf85#23a6bf858efcb8d93b514363ba2f38f9f85e1b21"
+dependencies = [
+ "rand",
+]
+
+[[package]]
+name = "rust-bitcoin-coin-selection"
+version = "0.1.0"
 source = "git+https://github.com/p2pderivatives/rust-bitcoin-coin-selection#405451929568422f7df809e35d6ad8f36fccce90"
 dependencies = [
  "rand",
@@ -3224,13 +3238,13 @@ dependencies = [
 [[package]]
 name = "simple-wallet"
 version = "0.1.0"
-source = "git+https://github.com/p2pderivatives/rust-dlc?rev=efaa92b#efaa92bfc9c4032f55ed926b43a8f7c004631ff5"
+source = "git+https://github.com/p2pderivatives/rust-dlc?rev=962265b#962265b33512ff8b560c4f6079c336e963070fa1"
 dependencies = [
  "bitcoin",
  "dlc",
  "dlc-manager",
  "lightning",
- "rust-bitcoin-coin-selection",
+ "rust-bitcoin-coin-selection 0.1.0 (git+https://github.com/p2pderivatives/rust-bitcoin-coin-selection?rev=23a6bf85)",
  "secp256k1-zkp",
 ]
 
