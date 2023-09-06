@@ -25,7 +25,7 @@ jobs:
     uses: ./.github/workflows/ios-fastlane.yml
     secrets: inherit
     with:
-      esplora_endpoint: https://blockstream.info/api
+      esplora_endpoint: http://api.10101.finance:3000
       coordinator_p2p_endpoint: 022ae8dbec1caa4dac93f07f2ebf5ad7a5dd08d375b79f11095e81b065c2155156@46.17.98.29:9045
       coordinator_port_http: 80
       network: mainnet
@@ -36,123 +36,19 @@ jobs:
       fastlane_provisioning_profile_specifier: match AppStore finance.get10101.app 1692208014
       app_scheme: Runner
 
-  build_android_apk:
-    runs-on: macos-latest
-    if: false
-    outputs:
-      ANDROID_APK_NAME: ${{ steps.build.outputs.ANDROID_APK_NAME }}
-    steps:
-      - uses: actions/checkout@v3
-        with:
-          # fetch the complete history to correctly calculate build_number
-          fetch-depth: 0
-          tag: ${{ github.ref_name }}
-
-      # #499, https://github.com/actions/virtual-environments/issues/5595
-      - name: Configure ndk
-        run: |
-          ANDROID_HOME=$HOME/Library/Android/sdk
-          SDKMANAGER=$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager
-
-          echo y | $SDKMANAGER "ndk;21.4.7075529"
-
-          ln -sfn $ANDROID_HOME/ndk/21.4.7075529 $ANDROID_HOME/ndk-bundle
-
-      - name: Setup | Rust
-        uses: ATiltedTree/setup-rust@v1
-        with:
-          rust-version: ${{ env.RUST_VERSION }}
-          components: rustfmt
-
-      - uses: actions/setup-java@v3
-        with:
-          distribution: "temurin"
-          java-version: "11.x"
-          cache: "gradle"
-
-      - uses: subosito/flutter-action@v2
-        with:
-          channel: "stable"
-          flutter-version: ${{ env.FLUTTER_VERSION }}
-          architecture: x64
-          cache: true
-          cache-key: flutter-${{ env.FLUTTER_VERSION }}
-          cache-path: ${{ runner.tool_cache }}/flutter
-
-      - uses: actions/cache@v3
-        id: cache-deps
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            ./rust/target
-          key: ${{ runner.os }}-cargo-integrate-android-${{ hashFiles('**/Cargo.lock') }}-${{ steps.checkout.outputs.rustc_hash }}
-
-      - name: Install just
-        if: steps.cache-deps.outputs.cache-hit != 'true'
-        run: cargo install just
-
-      - name: Install FFI bindings
-        if: steps.cache-deps.outputs.cache-hit != 'true'
-        run: just deps-gen
-
-      - name: Generate FFI bindings
-        run: just gen
-
-      - name: Add Rust targets
-        run: rustup target add armv7-linux-androideabi aarch64-linux-android
-
-      - name: Install `cargo-ndk`
-        if: steps.cache-deps.outputs.cache-hit != 'true'
-        run: cargo install cargo-ndk --force
-
-      - name: Build Rust lib
-        working-directory: ./mobile/native
-        run: cargo ndk -o ../android/app/src/main/jniLibs build
-
-      - name: Parse version from pubspec.yaml
-        id: version
-        uses: jbutcher5/read-yaml@1.6
-        with:
-          file: "mobile/pubspec.yaml"
-          key-path: '["version"]'
-
-      - name: Build Android APK release
-        id: build
-        run: |
-          mkdir keystore
-          echo $ENCODED_KEYSTORE | base64 -d > keystore/upload-keystore.jks
-          BUILD_NAME=${{ steps.version.outputs.data }}
-          BUILD_NUMBER=$(git rev-list HEAD --count)
-          cd mobile
-          flutter build apk --dart-define="ESPLORA_ENDPOINT=$ESPLORA_ENDPOINT" \
-                            --dart-define="COORDINATOR_P2P_ENDPOINT=$COORDINATOR_P2P_ENDPOINT" \
-                            --dart-define="COORDINATOR_PORT_HTTP=$COORDINATOR_PORT_HTTP" \
-                            --dart-define="NETWORK=$NETWORK" \
-                            --dart-define="COMMIT=$(git rev-parse HEAD)" \
-                            --dart-define="BRANCH=$(git rev-parse --abbrev-ref HEAD)" \
-                            --dart-define="ORACLE_ENDPOINT=$ORACLE_ENDPOINT" \
-                            --dart-define="ORACLE_PUBKEY=$ORACLE_PUBKEY" \
-                            --build-name=$BUILD_NAME --build-number=$BUILD_NUMBER \
-                            --release
-          mv build/app/outputs/flutter-apk/app-release.apk build/app/outputs/flutter-apk/get10101-$BUILD_NAME.apk
-          echo "ANDROID_APK_NAME=$(echo get10101-$BUILD_NAME.apk)" >> $GITHUB_OUTPUT
-        env:
-          SIGNING_KEY_ALIAS: ${{ secrets.ANDROID_UPLOAD_SIGNING_KEY_ALIAS }}
-          SIGNING_KEY_PASSWORD: ${{ secrets.ANDROID_UPLOAD_SIGNING_KEY_PASSWORD }}
-          SIGNING_STORE_PASSWORD: ${{ secrets.ANDROID_UPLOAD_SIGNING_STORE_PASSWORD }}
-          ENCODED_KEYSTORE: ${{ secrets.ANDROID_UPLOAD_KEYSTORE }}
-          ESPLORA_ENDPOINT: https://blockstream.info/api
-          COORDINATOR_P2P_ENDPOINT: 022ae8dbec1caa4dac93f07f2ebf5ad7a5dd08d375b79f11095e81b065c2155156@46.17.98.29:9045
-          NETWORK: regtest
-          COORDINATOR_PORT_HTTP: 80
-          ORACLE_ENDPOINT: http://api.test.10101.finance:8081
-          ORACLE_PUBKEY: 5d12d79f575b8d99523797c46441c0549eb0defb6195fe8a080000cbe3ab3859
-
-      - name: Upload APK to job
-        uses: actions/upload-artifact@v3
-        with:
-          name: ${{steps.build.outputs.ANDROID_APK_NAME}}
-          path: mobile/build/app/outputs/flutter-apk/${{steps.build.outputs.ANDROID_APK_NAME}}
+  build_and_release_regtest_android_app_for_latest_main:
+    needs: changes
+    if: needs.changes.outputs.ios-app == 'true'
+    permissions:
+      packages: write
+      contents: read
+    uses: ./.github/workflows/android-fastlane.yml
+    secrets: inherit
+    with:
+      tag: ${{ github.ref_name }}
+      esplora_endpoint: http://api.10101.finance:3000
+      coordinator_p2p_endpoint: 022ae8dbec1caa4dac93f07f2ebf5ad7a5dd08d375b79f11095e81b065c2155156@46.17.98.29:9045
+      coordinator_port_http: 80
+      network: mainnet
+      oracle_endpoint: https://oracle.holzeis.me
+      oracle_pubkey: 16f88cf7d21e6c0f46bcbc983a4e3b19726c6c98858cc31c83551a88fde171c0

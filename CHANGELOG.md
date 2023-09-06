@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Use self-hosted esplora node
+
 ## [1.2.4] - 2023-08-31
 
 - Display Synthetic USD balance in the account overview screen.
