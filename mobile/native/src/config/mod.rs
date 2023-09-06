@@ -9,14 +9,13 @@ use ln_dlc_node::node::OracleInfo;
 use state::Storage;
 use std::net::SocketAddr;
 use std::time::Duration;
-use url::Url;
 
 static CONFIG: Storage<ConfigInternal> = Storage::new();
 
 #[derive(Clone)]
 pub struct ConfigInternal {
     coordinator_pubkey: PublicKey,
-    esplora_endpoint: Url,
+    esplora_endpoint: String,
     http_endpoint: SocketAddr,
     p2p_endpoint: SocketAddr,
     network: bitcoin::Network,
@@ -47,7 +46,7 @@ pub fn get_coordinator_info() -> NodeInfo {
     }
 }
 
-pub fn get_esplora_endpoint() -> Url {
+pub fn get_esplora_endpoint() -> String {
     CONFIG.get().esplora_endpoint.clone()
 }
 

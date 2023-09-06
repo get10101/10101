@@ -3,7 +3,6 @@ use bdk::bitcoin::Network;
 use bdk::bitcoin::XOnlyPublicKey;
 use flutter_rust_bridge::frb;
 use std::str::FromStr;
-use url::Url;
 
 #[frb]
 #[derive(Debug, Clone)]
@@ -24,8 +23,7 @@ impl From<Config> for ConfigInternal {
         tracing::debug!(?config, "Parsing config from flutter");
         Self {
             coordinator_pubkey: config.coordinator_pubkey.parse().expect("PK to be valid"),
-            esplora_endpoint: Url::parse(config.esplora_endpoint.as_str())
-                .expect("esplora endpoint to be valid"),
+            esplora_endpoint: config.esplora_endpoint,
             http_endpoint: format!("{}:{}", config.host, config.http_port)
                 .parse()
                 .expect("host and http_port to be valid"),

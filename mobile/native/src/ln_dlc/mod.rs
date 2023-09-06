@@ -199,7 +199,7 @@ pub fn run(data_dir: String, seed_dir: String, runtime: &Runtime) -> Result<()> 
             address,
             SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), address.port()),
             util::into_net_addresses(address),
-            config::get_esplora_endpoint().to_string(),
+            config::get_esplora_endpoint(),
             seed,
             ephemeral_randomness,
             LnDlcNodeSettings::default(),

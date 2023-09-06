@@ -617,7 +617,7 @@ dependencies = [
 
 [[package]]
 name = "coordinator"
-version = "1.2.4"
+version = "1.2.5"
 dependencies = [
  "anyhow",
  "atty",
@@ -2104,7 +2104,6 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "trade",
- "url",
  "uuid",
 ]
 
