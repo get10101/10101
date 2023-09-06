@@ -71,7 +71,7 @@ android args="":
 # Note that this does not include x86_64 unlike the above, as android x86_64 is only a development
 # target and not a deployment target
 android-release:
-    cd mobile/native && cargo ndk -t armeabi-v7a -t arm64-v8a -o ../android/app/src/main/jniLibs build --release
+    cd mobile/native && cargo ndk -t armeabi-v7a -t arm64-v8a -o ../android/app/src/main/jniLibs build --release --verbose
 
 # Build Rust library for iOS (debug mode)
 ios:
@@ -401,11 +401,95 @@ build-apk-regtest:
     BUILD_NUMBER=$(git rev-list HEAD --count)
     echo "build name: ${BUILD_NAME}"
     echo "build number: ${BUILD_NUMBER}"
-    cd mobile && flutter build apk  --build-name=${BUILD_NAME} --build-number=${BUILD_NUMBER} --release --dart-define="COMMIT=$(git rev-parse HEAD)" --dart-define="BRANCH=$(git rev-parse --abbrev-ref HEAD)" \
-                                       --dart-define="ESPLORA_ENDPOINT={{public_regtest_esplora}}" --dart-define="COORDINATOR_P2P_ENDPOINT={{public_regtest_coordinator}}" \
-                                       --dart-define="COORDINATOR_PORT_HTTP={{public_coordinator_http_port}}" --flavor demo
+    cd mobile && flutter build apk  \
+      --build-name=${BUILD_NAME} \
+      --build-number=${BUILD_NUMBER} \
+      --release \
+      --dart-define="COMMIT=$(git rev-parse HEAD)" \
+      --dart-define="BRANCH=$(git rev-parse --abbrev-ref HEAD)" \
+      --dart-define="ESPLORA_ENDPOINT={{public_regtest_esplora}}" \
+      --dart-define="COORDINATOR_P2P_ENDPOINT={{public_regtest_coordinator}}" \
+      --dart-define="COORDINATOR_PORT_HTTP={{public_coordinator_http_port}}" --flavor demo
 
 release-apk-regtest: gen android-release build-apk-regtest
+
+build-app-bundle-regtest:
+    #!/usr/bin/env bash
+    BUILD_NAME=$(yq -r .version {{pubspec}})
+    BUILD_NUMBER=$(git rev-list HEAD --count)
+    echo "build name: ${BUILD_NAME}"
+    echo "build number: ${BUILD_NUMBER}"
+    cd mobile && flutter build appbundle \
+        --build-name=${BUILD_NAME} \
+        --build-number=${BUILD_NUMBER} \
+        --release \
+        --dart-define="COMMIT=$(git rev-parse HEAD)" \
+        --dart-define="BRANCH=$(git rev-parse --abbrev-ref HEAD)" \
+        --dart-define="ESPLORA_ENDPOINT={{public_regtest_esplora}}" \
+        --dart-define="COORDINATOR_P2P_ENDPOINT={{public_regtest_coordinator}}" \
+        --dart-define="COORDINATOR_PORT_HTTP={{public_coordinator_http_port}}" \
+        --flavor demo
+
+
+build-android-app-bundle:
+    #!/usr/bin/env bash
+    BUILD_NAME=$(yq -r .version {{pubspec}})
+    BUILD_NUMBER=$(git rev-list HEAD --count)
+    echo "build name: ${BUILD_NAME}"
+    echo "build number: ${BUILD_NUMBER}"
+
+    regtest_args=()
+    ANDROID_PACKAGE_NAME='finance.get10101.app';
+    if [ "$NETWORK" = "regtest" ]; then
+      regtest_args+=(--flavor demo)
+      ANDROID_PACKAGE_NAME='finance.get10101.app.demo';
+    else
+      regtest_args+=(--flavor full)
+    fi
+
+    # Replacing package id using the env variable.
+    os={{os()}}
+    echo "building on '$os' for '$NETWORK' and package id '$ANDROID_PACKAGE_NAME'"
+    if [ "$os" = "linux" ]; then
+        sed -i "s/\"finance\.get10101\.app\"/\"${ANDROID_PACKAGE_NAME}\"/g" mobile/android/app/google-services.json
+    elif [ "$os" = "macos" ]; then
+        sed -i '' "s/\"finance\.get10101\.app\"/\"$ANDROID_PACKAGE_NAME\"/g" mobile/android/app/google-services.json
+    else
+        echo "Only Linux and macOS are supported."
+        exit 1
+    fi
+    cat mobile/android/app/google-services.json | jq 'recurse | select(type == "object" and (.bundle_id or .package_name))'
+
+    cd mobile && flutter build appbundle  \
+      --build-name=${BUILD_NAME} \
+      --build-number=${BUILD_NUMBER} \
+      --release \
+      --dart-define="ESPLORA_ENDPOINT=${ESPLORA_ENDPOINT}" \
+      --dart-define="COORDINATOR_P2P_ENDPOINT=${COORDINATOR_P2P_ENDPOINT}" \
+      --dart-define="NETWORK=${NETWORK}" \
+      --dart-define="COMMIT=$(git rev-parse HEAD)" \
+      --dart-define="BRANCH=$(git rev-parse --abbrev-ref HEAD)" \
+      --dart-define="COORDINATOR_PORT_HTTP=${COORDINATOR_PORT_HTTP}" \
+      --dart-define="ORACLE_ENDPOINT=${ORACLE_ENDPOINT}" \
+      --dart-define="ORACLE_PUBKEY=${ORACLE_PUBKEY}" \
+       "${regtest_args[@]}"
+
+upload-app-bundle:
+    #!/usr/bin/env bash
+
+    cd mobile/android/fastlane
+
+    ANDROID_PACKAGE_NAME='finance.get10101.app';
+    FASTLANE_ANDROID_APP_SCHEME='full'
+    if [ "$NETWORK" = "regtest" ]; then
+      ANDROID_PACKAGE_NAME='finance.get10101.app.demo';
+      FASTLANE_ANDROID_APP_SCHEME='demo';
+    fi
+    echo $NETWORK
+    echo $ANDROID_PACKAGE_NAME
+    FASTLANE_ANDROID_APP_SCHEME=${FASTLANE_ANDROID_APP_SCHEME} ANDROID_PACKAGE_NAME=${ANDROID_PACKAGE_NAME} bundle exec fastlane alpha
+
+release-app-bundle-regtest: gen android-release build-app-bundle-regtest upload-app-bundle
 
 # Run prometheus for local debugging (needs it installed, e.g. `brew install prometheus`)
 prometheus:

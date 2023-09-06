@@ -52,3 +52,20 @@ jobs:
       fastlane_developer_app_identifier: finance.get10101.app.test
       fastlane_provisioning_profile_specifier: match AppStore finance.get10101.app.test
       app_scheme: test
+
+  build_and_release_regtest_android_app_for_latest_main:
+    needs: changes
+    if: needs.changes.outputs.ios-app == 'true'
+    permissions:
+      packages: write
+      contents: read
+    uses: ./.github/workflows/android-fastlane.yml
+    secrets: inherit
+    with:
+      tag: main
+      esplora_endpoint: http://35.189.57.114:3000
+      coordinator_p2p_endpoint: 03507b924dae6595cfb78492489978127c5f1e3877848564de2015cd6d41375802@35.189.57.114:9045
+      coordinator_port_http: 80
+      network: regtest
+      oracle_endpoint: http://api.test.10101.finance:8081
+      oracle_pubkey: 5d12d79f575b8d99523797c46441c0549eb0defb6195fe8a080000cbe3ab3859

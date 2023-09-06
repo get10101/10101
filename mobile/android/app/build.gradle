@@ -28,6 +28,12 @@ apply plugin: 'com.google.gms.google-services'
 apply plugin: 'kotlin-android'
 apply from: "$flutterRoot/packages/flutter_tools/gradle/flutter.gradle"
 
+def keystoreProperties = new Properties()
+def keystorePropertiesFile = rootProject.file('key.properties')
+if (keystorePropertiesFile.exists()) {
+   keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+}
+
 android {
     compileSdkVersion 33
 
@@ -46,8 +52,8 @@ android {
 
     defaultConfig {
         applicationId "finance.get10101.app"
-        minSdkVersion 21
-        targetSdkVersion 30
+        minSdkVersion 33
+        targetSdkVersion 33
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName
     }
@@ -60,21 +66,28 @@ android {
             resValue "string", "app_name", "10101 (regtest)"
             applicationIdSuffix ".demo"
         }
-    }
-
-    productFlavors {
         local {
             dimension "default"
             resValue "string", "app_name", "10101 (local)"
             applicationIdSuffix ".local"
         }
+        full {
+            dimension "default"
+            resValue "string", "app_name", "10101"
+        }
     }
 
+    signingConfigs {
+           release {
+               keyAlias keystoreProperties['keyAlias']
+               keyPassword keystoreProperties['keyPassword']
+               storeFile keystoreProperties['storeFile'] ? file(keystoreProperties['storeFile']) : null
+               storePassword keystoreProperties['storePassword']
+           }
+    }
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig signingConfigs.debug
+            signingConfig signingConfigs.release
         }
     }
 }
