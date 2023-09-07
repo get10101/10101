@@ -27,9 +27,9 @@ enum Direction {
   String get keySuffix {
     switch (this) {
       case Direction.long:
-        return "long";
+        return "Long";
       case Direction.short:
-        return "short";
+        return "Short";
     }
   }
 
