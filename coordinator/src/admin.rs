@@ -19,6 +19,7 @@ use serde::Serialize;
 use std::fmt;
 use std::str::FromStr;
 use std::sync::Arc;
+use time::OffsetDateTime;
 use tokio::task::spawn_blocking;
 use tracing::instrument;
 
@@ -95,13 +96,21 @@ pub struct DlcChannelDetails {
     #[serde(flatten)]
     pub channel_details: ln_dlc_node::DlcChannelDetails,
     pub user_email: String,
+    pub user_registration_timestamp: Option<OffsetDateTime>,
 }
 
-impl From<(SubChannel, String)> for DlcChannelDetails {
-    fn from((channel_details, user_email): (SubChannel, String)) -> Self {
+impl From<(SubChannel, String, Option<OffsetDateTime>)> for DlcChannelDetails {
+    fn from(
+        (channel_details, user_email, user_registration_timestamp): (
+            SubChannel,
+            String,
+            Option<OffsetDateTime>,
+        ),
+    ) -> Self {
         DlcChannelDetails {
             channel_details: ln_dlc_node::DlcChannelDetails::from(channel_details),
             user_email,
+            user_registration_timestamp,
         }
     }
 }
@@ -122,12 +131,12 @@ pub async fn list_dlc_channels(
     let dlc_channels = dlc_channels
         .into_iter()
         .map(|subchannel| {
-            let user_email = match db::user::by_id(&mut conn, subchannel.counter_party.to_string())
-            {
-                Ok(Some(user)) => user.email,
-                _ => "unknown".to_string(),
-            };
-            DlcChannelDetails::from((subchannel, user_email))
+            let (email, registration_timestamp) =
+                match db::user::by_id(&mut conn, subchannel.counter_party.to_string()) {
+                    Ok(Some(user)) => (user.email, Some(user.timestamp)),
+                    _ => ("unknown".to_string(), None),
+                };
+            DlcChannelDetails::from((subchannel, email, registration_timestamp))
         })
         .collect::<Vec<_>>();
 
