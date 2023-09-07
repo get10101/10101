@@ -131,13 +131,14 @@ abstract class WalletHistoryItem extends StatelessWidget {
 
     return AlertDialog(
       title: Text(title),
+      scrollable: true,
       content: Column(mainAxisSize: MainAxisSize.min, children: [
-        ...children
-            .take(children.length - 1)
-            .where((child) => child is! Visibility || child.visible)
-            .expand((child) => [child, const Divider()]),
-        children.last,
-      ]),
+          ...children
+              .take(children.length - 1)
+              .where((child) => child is! Visibility || child.visible)
+              .expand((child) => [child, const Divider()]),
+          children.last,
+        ]),
     );
   }
 }
@@ -158,15 +159,22 @@ class HistoryDetail extends StatelessWidget {
           padding: const EdgeInsets.only(right: 8.0),
           child: Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
         ),
-        Flexible(child: MiddleEllipsisedText(displayValue ?? value)),
-        IconButton(
-            padding: EdgeInsets.zero,
-            onPressed: () {
-              Clipboard.setData(ClipboardData(text: value)).then((_) {
-                showSnackBar(ScaffoldMessenger.of(context), '$label copied to clipboard');
-              });
-            },
-            icon: const Icon(Icons.copy, size: 18))
+        Expanded(
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              Flexible(child: MiddleEllipsisedText(displayValue ?? value)),
+              IconButton(
+                  padding: EdgeInsets.zero,
+                  onPressed: () {
+                    Clipboard.setData(ClipboardData(text: value)).then((_) {
+                      showSnackBar(ScaffoldMessenger.of(context), '$label copied to clipboard');
+                    });
+                  },
+                  icon: const Icon(Icons.copy, size: 18))
+            ]
+          ),
+        )
       ]),
     );
   }
@@ -190,7 +198,7 @@ class LightningPaymentHistoryItem extends WalletHistoryItem {
   List<Widget> getDetails() {
     return [
       Visibility(
-        visible: data.feeMsats != null,
+        visible: data.feeMsats != null && data.flow == PaymentFlow.outbound,
         child: HistoryDetail(label: "Fee", value: "${(data.feeMsats ?? 0) / 1000} sats"),
       ),
       Visibility(
