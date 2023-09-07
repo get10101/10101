@@ -667,6 +667,8 @@ pub(crate) struct PaymentInsertable {
     pub htlc_status: HtlcStatus,
     #[diesel(sql_type = Nullable<BigInt>)]
     pub amount_msat: Option<i64>,
+    #[diesel(sql_type = Nullable<BigInt>)]
+    pub fee_msat: Option<i64>,
     pub flow: Flow,
     pub created_at: i64,
     pub updated_at: i64,
@@ -706,6 +708,7 @@ impl PaymentInsertable {
         payment_hash: String,
         htlc_status: HtlcStatus,
         amount_msat: Option<i64>,
+        fee_msat: Option<i64>,
         preimage: Option<String>,
         secret: Option<String>,
         conn: &mut SqliteConnection,
@@ -730,6 +733,17 @@ impl PaymentInsertable {
 
                 if affected_rows == 0 {
                     bail!("Could not update payment amount")
+                }
+            }
+
+            if let Some(fee_msat) = fee_msat {
+                let affected_rows = diesel::update(payments::table)
+                    .filter(schema::payments::payment_hash.eq(&payment_hash))
+                    .set(schema::payments::fee_msat.eq(fee_msat))
+                    .execute(conn)?;
+
+                if affected_rows == 0 {
+                    bail!("Could not update payment fee amount")
                 }
             }
 
@@ -785,6 +799,7 @@ pub(crate) struct PaymentQueryable {
     pub updated_at: i64,
     pub description: String,
     pub invoice: Option<String>,
+    pub fee_msat: Option<i64>,
 }
 
 impl PaymentQueryable {
@@ -811,6 +826,7 @@ impl From<(lightning::ln::PaymentHash, ln_dlc_node::PaymentInfo)> for PaymentIns
             secret: info.secret.map(|secret| base64.encode(secret.0)),
             htlc_status: info.status.into(),
             amount_msat: info.amt_msat.to_inner().map(|amt| amt as i64),
+            fee_msat: info.fee_msat.to_inner().map(|amt| amt as i64),
             flow: info.flow.into(),
             created_at: timestamp,
             updated_at: timestamp,
@@ -860,6 +876,7 @@ impl TryFrom<PaymentQueryable> for (lightning::ln::PaymentHash, ln_dlc_node::Pay
 
         let amt_msat =
             ln_dlc_node::MillisatAmount::new(value.amount_msat.map(|amount| amount as u64));
+        let fee_msat = ln_dlc_node::MillisatAmount::new(value.fee_msat.map(|amount| amount as u64));
 
         let flow = value.flow.into();
 
@@ -875,6 +892,7 @@ impl TryFrom<PaymentQueryable> for (lightning::ln::PaymentHash, ln_dlc_node::Pay
                 secret,
                 status,
                 amt_msat,
+                fee_msat,
                 flow,
                 timestamp,
                 description,
@@ -1473,6 +1491,7 @@ pub mod test {
         let secret = None;
         let htlc_status = HtlcStatus::Pending;
         let amount_msat = Some(10_000_000);
+        let fee_msat = Some(120);
         let flow = Flow::Inbound;
         let created_at = 100;
         let updated_at = 100;
@@ -1485,6 +1504,7 @@ pub mod test {
             secret: secret.clone(),
             htlc_status,
             amount_msat,
+            fee_msat,
             flow,
             created_at,
             updated_at,
@@ -1502,6 +1522,7 @@ pub mod test {
                 secret: None,
                 htlc_status: HtlcStatus::Pending,
                 amount_msat: None,
+                fee_msat: None,
                 flow: Flow::Outbound,
                 created_at: 200,
                 updated_at: 200,
@@ -1523,6 +1544,7 @@ pub mod test {
             secret,
             htlc_status,
             amount_msat,
+            fee_msat,
             flow,
             created_at,
             updated_at,
@@ -1537,12 +1559,14 @@ pub mod test {
         let new_htlc_status = HtlcStatus::Succeeded;
         let preimage = Some("preimage".to_string());
         let amount_msat = Some(1_000_000);
+        let fee_msat = Some(150);
         let secret = Some("secret".to_string());
 
         let updated_at = PaymentInsertable::update(
             payment_hash.to_string(),
             new_htlc_status,
             amount_msat,
+            fee_msat,
             preimage.clone(),
             secret.clone(),
             &mut connection,
@@ -1557,6 +1581,7 @@ pub mod test {
             secret,
             htlc_status: new_htlc_status,
             amount_msat,
+            fee_msat,
             updated_at,
             ..expected_payment
         };

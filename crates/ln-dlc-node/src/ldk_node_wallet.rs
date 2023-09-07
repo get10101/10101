@@ -481,6 +481,7 @@ pub mod tests {
             _payment_hash: &lightning::ln::PaymentHash,
             _flow: crate::PaymentFlow,
             _amt_msat: crate::MillisatAmount,
+            _fee_msat: crate::MillisatAmount,
             _htlc_status: crate::HTLCStatus,
             _preimage: Option<lightning::ln::PaymentPreimage>,
             _secret: Option<lightning::ln::PaymentSecret>,

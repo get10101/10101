@@ -51,6 +51,7 @@ diesel::table! {
         updated_at -> BigInt,
         description -> Text,
         invoice -> Nullable<Text>,
+        fee_msat -> Nullable<BigInt>,
     }
 }
 

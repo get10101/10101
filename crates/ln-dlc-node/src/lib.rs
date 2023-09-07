@@ -96,6 +96,7 @@ pub struct PaymentInfo {
     pub secret: Option<PaymentSecret>,
     pub status: HTLCStatus,
     pub amt_msat: MillisatAmount,
+    pub fee_msat: MillisatAmount,
     pub flow: PaymentFlow,
     pub timestamp: OffsetDateTime,
     pub description: String,
@@ -137,6 +138,7 @@ impl From<Invoice> for PaymentInfo {
             secret: Some(*value.payment_secret()),
             status: HTLCStatus::Pending,
             amt_msat: MillisatAmount(value.amount_milli_satoshis()),
+            fee_msat: MillisatAmount(None),
             flow: PaymentFlow::Inbound,
             timestamp: OffsetDateTime::from(value.timestamp()),
             description: match value.description() {

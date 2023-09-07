@@ -85,6 +85,7 @@ pub enum WalletHistoryItemType {
         description: String,
         payment_preimage: Option<String>,
         invoice: Option<String>,
+        fee_msat: Option<u64>,
         expiry_timestamp: Option<u64>,
     },
     Trade {

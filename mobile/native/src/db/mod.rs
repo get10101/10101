@@ -271,6 +271,7 @@ pub fn update_payment(
     payment_hash: lightning::ln::PaymentHash,
     htlc_status: ln_dlc_node::HTLCStatus,
     amt_msat: ln_dlc_node::MillisatAmount,
+    fee_msat: ln_dlc_node::MillisatAmount,
     preimage: Option<lightning::ln::PaymentPreimage>,
     secret: Option<lightning::ln::PaymentSecret>,
 ) -> Result<()> {
@@ -287,6 +288,7 @@ pub fn update_payment(
         base64.encode(payment_hash.0),
         htlc_status.into(),
         amt_msat.to_inner().map(|amt| amt as i64),
+        fee_msat.to_inner().map(|amt| amt as i64),
         preimage,
         secret,
         &mut db,

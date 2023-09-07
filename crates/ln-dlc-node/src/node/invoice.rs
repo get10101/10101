@@ -225,6 +225,7 @@ where
                 secret: None,
                 status,
                 amt_msat: MillisatAmount(invoice.amount_milli_satoshis()),
+                fee_msat: MillisatAmount(None),
                 flow: PaymentFlow::Outbound,
                 timestamp: OffsetDateTime::now_utc(),
                 description,

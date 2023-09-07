@@ -29,11 +29,13 @@ pub trait Storage {
     /// Add a new payment.
     fn insert_payment(&self, payment_hash: PaymentHash, info: PaymentInfo) -> Result<()>;
     /// Add a new payment or update an existing one.
+    #[allow(clippy::too_many_arguments)]
     fn merge_payment(
         &self,
         payment_hash: &PaymentHash,
         flow: PaymentFlow,
         amt_msat: MillisatAmount,
+        fee_msat: MillisatAmount,
         htlc_status: HTLCStatus,
         preimage: Option<PaymentPreimage>,
         secret: Option<PaymentSecret>,
@@ -116,6 +118,7 @@ impl Storage for InMemoryStore {
         payment_hash: &PaymentHash,
         flow: PaymentFlow,
         amt_msat: MillisatAmount,
+        fee_msat: MillisatAmount,
         htlc_status: HTLCStatus,
         preimage: Option<PaymentPreimage>,
         secret: Option<PaymentSecret>,
@@ -127,6 +130,10 @@ impl Storage for InMemoryStore {
 
                 if let amt_msat @ MillisatAmount(Some(_)) = amt_msat {
                     payment.amt_msat = amt_msat
+                }
+
+                if let fee_msat @ MillisatAmount(Some(_)) = fee_msat {
+                    payment.fee_msat = fee_msat
                 }
 
                 if let Some(preimage) = preimage {
@@ -145,6 +152,7 @@ impl Storage for InMemoryStore {
                         secret,
                         status: htlc_status,
                         amt_msat: MillisatAmount(None),
+                        fee_msat,
                         flow,
                         timestamp: OffsetDateTime::now_utc(),
                         description: "".to_string(),

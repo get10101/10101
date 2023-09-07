@@ -92,6 +92,7 @@ abstract class WalletHistoryItemData {
         preimage: type.paymentPreimage,
         description: type.description,
         paymentHash: type.paymentHash,
+        feeMsats: type.feeMsat,
         expiry: expiry,
         invoice: type.invoice);
   }
@@ -103,6 +104,7 @@ class LightningPaymentData extends WalletHistoryItemData {
   final String description;
   final String? invoice;
   final DateTime? expiry;
+  final int? feeMsats;
 
   LightningPaymentData(
       {required super.flow,
@@ -113,6 +115,7 @@ class LightningPaymentData extends WalletHistoryItemData {
       required this.description,
       required this.invoice,
       required this.expiry,
+      required this.feeMsats,
       required this.paymentHash});
 
   @override
