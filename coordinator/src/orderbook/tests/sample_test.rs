@@ -5,6 +5,7 @@ use crate::orderbook::tests::start_postgres;
 use bitcoin::secp256k1::PublicKey;
 use orderbook_commons::NewOrder;
 use orderbook_commons::OrderReason;
+use orderbook_commons::OrderState;
 use orderbook_commons::OrderType;
 use rust_decimal_macros::dec;
 use std::str::FromStr;
@@ -34,7 +35,7 @@ async fn crud_test() {
     .unwrap();
 
     let order = orders::set_is_taken(&mut conn, order.id, true).unwrap();
-    assert!(order.taken);
+    assert_eq!(order.order_state, OrderState::Taken);
 
     let deleted = orders::delete_with_id(&mut conn, order.id).unwrap();
     assert_eq!(deleted, 1);

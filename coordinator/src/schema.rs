@@ -92,7 +92,6 @@ diesel::table! {
         trader_order_id -> Uuid,
         price -> Float4,
         trader_id -> Text,
-        taken -> Bool,
         direction -> DirectionType,
         quantity -> Float4,
         timestamp -> Timestamptz,

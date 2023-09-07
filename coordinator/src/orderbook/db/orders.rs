@@ -86,7 +86,6 @@ struct Order {
     pub trader_order_id: Uuid,
     pub price: f32,
     pub trader_id: String,
-    pub taken: bool,
     pub direction: Direction,
     pub quantity: f32,
     pub timestamp: OffsetDateTime,
@@ -104,7 +103,6 @@ impl From<Order> for OrderbookOrder {
             id: value.trader_order_id,
             price: Decimal::from_f32(value.price).expect("To be able to convert f32 to decimal"),
             trader_id: value.trader_id.parse().expect("to have a valid pubkey"),
-            taken: value.taken,
             leverage: value.leverage,
             contract_symbol: value.contract_symbol.into(),
             direction: value.direction.into(),
@@ -143,7 +141,6 @@ struct NewOrder {
     pub trader_order_id: Uuid,
     pub price: f32,
     pub trader_id: String,
-    pub taken: bool,
     pub direction: Direction,
     pub quantity: f32,
     pub order_type: OrderType,
@@ -163,7 +160,6 @@ impl From<OrderbookNewOrder> for NewOrder {
                 .to_f32()
                 .expect("To be able to convert decimal to f32"),
             trader_id: value.trader_id.to_string(),
-            taken: false,
             direction: value.direction.into(),
             quantity: value
                 .quantity
@@ -196,13 +192,13 @@ pub fn all_by_direction_and_type(
     conn: &mut PgConnection,
     direction: OrderbookDirection,
     order_type: OrderBookOrderType,
-    taken: bool,
     filter_expired: bool,
 ) -> QueryResult<Vec<OrderbookOrder>> {
     let filters = orders::table
         .filter(orders::direction.eq(Direction::from(direction)))
         .filter(orders::order_type.eq(OrderType::from(order_type)))
-        .filter(orders::taken.eq(taken));
+        .filter(orders::order_state.eq(OrderState::Open));
+
     let orders: Vec<Order> = if filter_expired {
         filters
             .filter(orders::expiry.gt(OffsetDateTime::now_utc()))
@@ -270,17 +266,9 @@ pub fn set_order_state(
     id: Uuid,
     order_state: orderbook_commons::OrderState,
 ) -> QueryResult<OrderbookOrder> {
-    let mut is_taken = false;
-    if order_state == orderbook_commons::OrderState::Taken {
-        is_taken = true;
-    }
-
     let order: Order = diesel::update(orders::table)
         .filter(orders::trader_order_id.eq(id))
-        .set((
-            orders::taken.eq(is_taken),
-            orders::order_state.eq(OrderState::from(order_state)),
-        ))
+        .set((orders::order_state.eq(OrderState::from(order_state)),))
         .get_result(conn)?;
 
     Ok(OrderbookOrder::from(order))

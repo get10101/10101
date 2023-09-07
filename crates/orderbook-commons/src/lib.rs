@@ -49,7 +49,6 @@ pub struct Order {
     pub leverage: f32,
     pub contract_symbol: ContractSymbol,
     pub trader_id: PublicKey,
-    pub taken: bool,
     pub direction: Direction,
     #[serde(with = "rust_decimal::serde::float")]
     pub quantity: Decimal,
@@ -105,7 +104,6 @@ pub struct OrderResponse {
     #[serde(with = "rust_decimal::serde::float")]
     pub price: Decimal,
     pub trader_id: PublicKey,
-    pub taken: bool,
     pub direction: Direction,
     #[serde(with = "rust_decimal::serde::float")]
     pub quantity: Decimal,

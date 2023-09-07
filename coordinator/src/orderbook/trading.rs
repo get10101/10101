@@ -187,7 +187,6 @@ impl Trading {
                 &mut conn,
                 order.direction.opposite(),
                 OrderType::Limit,
-                false,
                 true,
             )?;
 
@@ -480,7 +479,6 @@ pub mod tests {
                 "027f31ebc5462c1fdce1b737ecff52d37d75dea43ce11c74d25aa297165faa2007",
             )
             .unwrap(),
-            taken: false,
             direction: Direction::Long,
             leverage: 1.0,
             contract_symbol: ContractSymbol::BtcUsd,
@@ -621,7 +619,6 @@ pub mod tests {
                 "027f31ebc5462c1fdce1b737ecff52d37d75dea43ce11c74d25aa297165faa2007",
             )
             .unwrap(),
-            taken: false,
             direction: Direction::Short,
             leverage: 1.0,
             contract_symbol: ContractSymbol::BtcUsd,
@@ -696,7 +693,6 @@ pub mod tests {
                 "027f31ebc5462c1fdce1b737ecff52d37d75dea43ce11c74d25aa297165faa2007",
             )
             .unwrap(),
-            taken: false,
             direction: Direction::Short,
             leverage: 1.0,
             contract_symbol: ContractSymbol::BtcUsd,
@@ -747,7 +743,6 @@ pub mod tests {
                 "027f31ebc5462c1fdce1b737ecff52d37d75dea43ce11c74d25aa297165faa2007",
             )
             .unwrap(),
-            taken: false,
             direction: Direction::Long,
             leverage: 1.0,
             contract_symbol: ContractSymbol::BtcUsd,
