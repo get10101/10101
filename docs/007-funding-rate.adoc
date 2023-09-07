@@ -93,4 +93,4 @@ Furthermore, atomicity can be achieved once PTLCs are supported by `rust-lightni
 
 == Advice
 
-None thus far.
+- Philipp on Sep 6, 2023: Adjusting the CET payouts depending on the funding fee is preferred over the Lightning payment before the DLC is renewed.
