@@ -119,20 +119,25 @@ abstract class WalletHistoryItem extends StatelessWidget {
 
     int sats = data.amount.sats * directionMultiplier;
 
+    List<Widget> children = [
+      HistoryDetail(
+          label: "Amount", value: sats.toString(), displayValue: formatSats(Amount(sats))),
+      HistoryDetail(
+          label: "When",
+          displayValue: timeago.format(data.timestamp),
+          value: dateFormat.format(data.timestamp)),
+      ...getDetails(),
+    ];
+
     return AlertDialog(
       title: Text(title),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          HistoryDetail(
-              label: "Amount", value: sats.toString(), displayValue: formatSats(Amount(sats))),
-          HistoryDetail(
-              label: "When",
-              displayValue: timeago.format(data.timestamp),
-              value: dateFormat.format(data.timestamp)),
-          ...getDetails(),
-        ],
-      ),
+      content: Column(mainAxisSize: MainAxisSize.min, children: [
+        ...children
+            .take(children.length - 1)
+            .where((child) => child is! Visibility || child.visible)
+            .expand((child) => [child, const Divider()]),
+        children.last,
+      ]),
     );
   }
 }
@@ -194,11 +199,11 @@ class LightningPaymentHistoryItem extends WalletHistoryItem {
             label: "Expiry time",
             value: WalletHistoryItem.dateFormat.format(data.expiry ?? DateTime.utc(0))),
       ),
-      HistoryDetail(label: "Invoice description", value: data.description),
       Visibility(
         visible: data.invoice != null,
-        child: HistoryDetail(label: "Invoice", value: data.invoice ?? ''),
+        child: HistoryDetail(label: "Lightning invoice", value: data.invoice ?? ''),
       ),
+      HistoryDetail(label: "Invoice description", value: data.description),
       HistoryDetail(label: "Payment hash", value: data.paymentHash),
       Visibility(
         visible: data.preimage != null,
