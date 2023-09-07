@@ -15,8 +15,11 @@ public_coordinator_http_port := "80"
 # command to get the local IP of this machine
 get_local_ip := if os() == "linux" {
  "ip -o route get to 1 | sed -n 's/.*src \\([0-9.]\\+\\).*/\\1/p'"
+} else if os() == "macos" {
+ "ipconfig getifaddr en0"
 } else {
- "ifconfig | grep -Eo 'inet (addr:)?([0-9]*\\.){3}[0-9]*' | grep -Eo '([0-9]*\\.){3}[0-9]*' | grep -v '127.0.0.1'"
+ "echo 'Only linux and macos are supported';
+ exit"
 }
 
 # RUST_LOG is overriden for FRB codegen invocations it if RUST_LOG isn't info or debug, which means
