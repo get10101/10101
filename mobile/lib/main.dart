@@ -13,6 +13,7 @@ import 'package:get_10101/common/application/event_service.dart';
 import 'package:get_10101/common/channel_status_notifier.dart';
 import 'package:get_10101/common/color.dart';
 import 'package:get_10101/common/domain/service_status.dart';
+import 'package:get_10101/common/global_keys.dart';
 import 'package:get_10101/common/service_status_notifier.dart';
 import 'package:get_10101/common/snack_bar.dart';
 import 'package:get_10101/features/stable/stable_screen.dart';
@@ -56,9 +57,6 @@ import 'package:provider/provider.dart';
 import 'package:version/version.dart';
 
 import 'features/stable/stable_value_change_notifier.dart';
-
-final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
-final GlobalKey<NavigatorState> _shellNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'shell');
 
 void main() async {
   WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
@@ -122,11 +120,11 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
       GlobalKey<ScaffoldMessengerState>();
 
   final GoRouter _router = GoRouter(
-      navigatorKey: _rootNavigatorKey,
+      navigatorKey: rootNavigatorKey,
       initialLocation: WalletScreen.route,
       routes: <RouteBase>[
         ShellRoute(
-          navigatorKey: _shellNavigatorKey,
+          navigatorKey: shellNavigatorKey,
           builder: (BuildContext context, GoRouterState state, Widget child) {
             return ScaffoldWithNavBar(
               child: child,
@@ -142,7 +140,7 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
                 GoRoute(
                   path: SendScreen.subRouteName,
                   // Use root navigator so the screen overlays the application shell
-                  parentNavigatorKey: _rootNavigatorKey,
+                  parentNavigatorKey: rootNavigatorKey,
                   builder: (BuildContext context, GoRouterState state) {
                     return const SendScreen();
                   },
@@ -150,7 +148,7 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
                 GoRoute(
                   path: SeedScreen.subRouteName,
                   // Use root navigator so the screen overlays the application shell
-                  parentNavigatorKey: _rootNavigatorKey,
+                  parentNavigatorKey: rootNavigatorKey,
                   builder: (BuildContext context, GoRouterState state) {
                     return const SeedScreen();
                   },
@@ -158,7 +156,7 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
                 GoRoute(
                     path: CreateInvoiceScreen.subRouteName,
                     // Use root navigator so the screen overlays the application shell
-                    parentNavigatorKey: _rootNavigatorKey,
+                    parentNavigatorKey: rootNavigatorKey,
                     builder: (BuildContext context, GoRouterState state) {
                       return const CreateInvoiceScreen();
                     },
@@ -166,7 +164,7 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
                       GoRoute(
                         path: ShareInvoiceScreen.subRouteName,
                         // Use root navigator so the screen overlays the application shell
-                        parentNavigatorKey: _rootNavigatorKey,
+                        parentNavigatorKey: rootNavigatorKey,
                         builder: (BuildContext context, GoRouterState state) {
                           return ShareInvoiceScreen(invoice: state.extra as ShareInvoice);
                         },
@@ -174,7 +172,7 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
                     ]),
                 GoRoute(
                   path: ScannerScreen.subRouteName,
-                  parentNavigatorKey: _rootNavigatorKey,
+                  parentNavigatorKey: rootNavigatorKey,
                   builder: (BuildContext context, GoRouterState state) {
                     return const ScannerScreen();
                   },
@@ -197,7 +195,7 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
         ),
         GoRoute(
             path: WelcomeScreen.route,
-            parentNavigatorKey: _rootNavigatorKey,
+            parentNavigatorKey: rootNavigatorKey,
             builder: (BuildContext context, GoRouterState state) {
               return const WelcomeScreen();
             },
@@ -238,7 +236,7 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
         if (coordinatorVersion > clientVersion) {
           FLog.warning(text: "Client out of date. Current version: ${clientVersion.toString()}");
           showDialog(
-              context: _shellNavigatorKey.currentContext!,
+              context: shellNavigatorKey.currentContext!,
               builder: (context) => AlertDialog(
                       title: const Text("Update available"),
                       content: Text("A new version of 10101 is available: "
