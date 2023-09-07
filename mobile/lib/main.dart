@@ -310,7 +310,7 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
 
       await orderChangeNotifier.initialize();
       await positionChangeNotifier.initialize();
-      await candlestickChangeNotifier.initialize(config.network);
+      await candlestickChangeNotifier.initialize();
 
       await logAppSettings(config);
 

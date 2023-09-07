@@ -118,16 +118,16 @@ void main() {
 
     when(channelConstraintsService.getCoordinatorLiquidityMultiplier()).thenReturn(2);
 
-    when(candlestickService.fetchCandles("regtest", 1000)).thenAnswer((_) async {
+    when(candlestickService.fetchCandles(1000)).thenAnswer((_) async {
       return getDummyCandles(1000);
     });
-    when(candlestickService.fetchCandles("regtest", 1)).thenAnswer((_) async {
+    when(candlestickService.fetchCandles(1)).thenAnswer((_) async {
       return getDummyCandles(1);
     });
 
     CandlestickChangeNotifier candlestickChangeNotifier =
         CandlestickChangeNotifier(candlestickService);
-    await candlestickChangeNotifier.initialize("regtest");
+    await candlestickChangeNotifier.initialize();
 
     SubmitOrderChangeNotifier submitOrderChangeNotifier = SubmitOrderChangeNotifier(orderService);
 
