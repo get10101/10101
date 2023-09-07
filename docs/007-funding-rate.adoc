@@ -8,9 +8,8 @@ Status: Proposed
 
 == Decision
 
-The funding rate should be charged through a Lightning payment.
-The funding rate *must* be paid before renewing the contract.
-No funding rate needs to paid for the period of time _before_ the first renewal.
+Use the `ContractInput` argument when calling `dlc_manager::Manager::renew_offer`.
+By setting new values of `offer_collateral` and `accept_collateral` on `ContractInput` we can rebalance the margins between the two parties, which will have the desired effect on the payouts.
 
 == Context
 
@@ -22,6 +21,23 @@ In the 10101 ecosystem, the funding rate must come from the 10101 orderbook.
 This value will be updated at a fixed interval e.g. every 8 hours.
 
 == Options considered
+
+=== Use the `ContractInput` argument in the `rust-dlc` DLC channel renew protocol
+
+By setting a new collateral distribution between trader and coordinator based on the funding fee, we will recreate the DLC with new margins.
+The updated margin will have an effect on how the payout curve should look like.
+
+If the contract is _refunded_ (catastrophic error), the returned collateral will take into account all the funding fees exchanged.
+
+==== Pros
+
+- Atomic update to the DLC and funding fee exchange.
+- Easy implementation.
+- Funding fee exchange is reflected on the `refund_transaction`.
+
+==== Cons
+
+- Fee is only available after the DLC channel is settled.
 
 === Lightning payment before the DLC is renewed
 
@@ -94,3 +110,4 @@ Furthermore, atomicity can be achieved once PTLCs are supported by `rust-lightni
 == Advice
 
 - Philipp on Sep 6, 2023: Adjusting the CET payouts depending on the funding fee is preferred over the Lightning payment before the DLC is renewed.
+- Lucas on Sep 7, 2023: The renew protocol _can_ be used to solve this problem, just not in the way that we originally imagined.
