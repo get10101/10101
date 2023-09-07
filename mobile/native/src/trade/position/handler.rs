@@ -1,5 +1,4 @@
 use crate::calculations::calculate_liquidation_price;
-use crate::config::get_network;
 use crate::db;
 use crate::event;
 use crate::event::EventInternal;
@@ -20,9 +19,7 @@ use orderbook_commons::Prices;
 use rust_decimal::prelude::ToPrimitive;
 use time::Duration;
 use time::OffsetDateTime;
-use trade::bitmex_client::BitmexClient;
 use trade::ContractSymbol;
-use uuid::Uuid;
 
 /// Sets up a trade with the counterparty
 ///
@@ -49,6 +46,54 @@ pub async fn trade(filled: FilledWith) -> Result<()> {
         .expect("to fit into f32");
     order::handler::order_filling(order.id, execution_price)
         .context("Could not update order to filling")?;
+
+    if let Err((reason, e)) = ln_dlc::trade(trade_params).await {
+        order::handler::order_failed(Some(order.id), reason, e)
+            .context("Could not set order to failed")?;
+    }
+
+    Ok(())
+}
+
+/// Executes an async trade from the orderbook / coordinator. e.g. this will happen if the position
+/// expires.
+pub async fn async_trade(order: orderbook_commons::Order, filled_with: FilledWith) -> Result<()> {
+    let order_type = match order.order_type {
+        orderbook_commons::OrderType::Market => OrderType::Market,
+        orderbook_commons::OrderType::Limit => OrderType::Limit {
+            price: order.price.to_f32().expect("to fit into f32"),
+        },
+    };
+
+    let execution_price = filled_with
+        .average_execution_price()
+        .to_f32()
+        .expect("to fit into f32");
+    let order = Order {
+        id: order.id,
+        leverage: order.leverage,
+        quantity: order.quantity.to_f32().expect("to fit into f32"),
+        contract_symbol: order.contract_symbol,
+        direction: order.direction,
+        order_type,
+        state: OrderState::Filling { execution_price },
+        creation_timestamp: order.timestamp,
+        order_expiry_timestamp: order.expiry,
+        reason: order.order_reason.into(),
+    };
+
+    db::insert_order(order)?;
+
+    event::publish(&EventInternal::OrderUpdateNotification(order));
+
+    let trade_params = TradeParams {
+        pubkey: ln_dlc::get_node_info()?.pubkey,
+        contract_symbol: order.contract_symbol,
+        leverage: order.leverage,
+        quantity: order.quantity,
+        direction: order.direction,
+        filled_with,
+    };
 
     if let Err((reason, e)) = ln_dlc::trade(trade_params).await {
         order::handler::order_failed(Some(order.id), reason, e)
@@ -179,46 +224,4 @@ pub fn price_update(prices: Prices) -> Result<()> {
     tracing::debug!(?prices, "Updating prices");
     event::publish(&EventInternal::PriceUpdateNotification(prices));
     Ok(())
-}
-
-// FIXME: This is not ideal, but closing the position after
-// the position has expired is not triggered by the app
-// through an order. Instead the coordinator simply proposes
-// a close position. In order to fixup the ui, we are
-// creating an order here and store it to the database.
-pub async fn close_position() -> Result<()> {
-    let positions = get_positions()?
-        .into_iter()
-        .filter(|p| p.position_state == PositionState::Open)
-        .map(Position::from)
-        .collect::<Vec<Position>>();
-
-    let position = positions
-        .first()
-        .context("Exactly one positions should be open when trying to close a position")?;
-
-    tracing::debug!("Adding order for the expired closed position");
-
-    let quote = BitmexClient::get_quote(&get_network(), &position.expiry).await?;
-    let closing_price = quote.get_price_for_direction(position.direction.opposite());
-
-    let order = Order {
-        id: Uuid::new_v4(),
-        leverage: position.leverage,
-        quantity: position.quantity,
-        contract_symbol: position.contract_symbol,
-        direction: position.direction.opposite(),
-        order_type: OrderType::Market,
-        state: OrderState::Filled {
-            execution_price: closing_price.to_f32().expect("to fit into f32"),
-        },
-        creation_timestamp: OffsetDateTime::now_utc(),
-        // position has already expired, so the order expiry doesn't matter
-        order_expiry_timestamp: OffsetDateTime::now_utc() + Duration::minutes(1),
-    };
-
-    event::publish(&EventInternal::OrderUpdateNotification(order));
-
-    db::insert_order(order)?;
-    update_position_after_dlc_closure(order)
 }

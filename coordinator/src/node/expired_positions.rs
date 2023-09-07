@@ -12,6 +12,7 @@ use orderbook_commons::Match;
 use orderbook_commons::MatchState;
 use orderbook_commons::NewOrder;
 use orderbook_commons::Order;
+use orderbook_commons::OrderReason;
 use orderbook_commons::OrderState;
 use orderbook_commons::OrderType;
 use rust_decimal::prelude::ToPrimitive;
@@ -94,6 +95,7 @@ pub async fn close(node: Node, trading_sender: mpsc::Sender<TradingMessage>) -> 
         let (sender, mut receiver) = mpsc::channel::<Result<Order>>(1);
         let message = TradingMessage::NewOrder(NewOrderMessage {
             new_order: new_order.clone(),
+            order_reason: OrderReason::Expired,
             sender,
         });
 

@@ -22,6 +22,10 @@ pub mod sql_types {
     pub struct MatchStateType;
 
     #[derive(diesel::sql_types::SqlType)]
+    #[diesel(postgres_type(name = "OrderReason_Type"))]
+    pub struct OrderReasonType;
+
+    #[derive(diesel::sql_types::SqlType)]
     #[diesel(postgres_type(name = "OrderState_Type"))]
     pub struct OrderStateType;
 
@@ -97,6 +101,7 @@ diesel::table! {
         order_state -> OrderStateType,
         contract_symbol -> ContractSymbolType,
         leverage -> Float4,
+        order_reason -> OrderReasonType,
     }
 }
 

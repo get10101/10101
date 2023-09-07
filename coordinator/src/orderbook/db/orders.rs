@@ -1,5 +1,6 @@
 use crate::db::positions::ContractSymbol;
 use crate::orderbook::db::custom_types::Direction;
+use crate::orderbook::db::custom_types::OrderReason;
 use crate::orderbook::db::custom_types::OrderState;
 use crate::orderbook::db::custom_types::OrderType;
 use crate::schema::orders;
@@ -9,6 +10,7 @@ use diesel::result::QueryResult;
 use diesel::PgConnection;
 use orderbook_commons::NewOrder as OrderbookNewOrder;
 use orderbook_commons::Order as OrderbookOrder;
+use orderbook_commons::OrderReason as OrderBookOrderReason;
 use orderbook_commons::OrderState as OrderBookOrderState;
 use orderbook_commons::OrderType as OrderBookOrderType;
 use rust_decimal::prelude::FromPrimitive;
@@ -93,6 +95,7 @@ struct Order {
     pub order_state: OrderState,
     pub contract_symbol: ContractSymbol,
     pub leverage: f32,
+    pub order_reason: OrderReason,
 }
 
 impl From<Order> for OrderbookOrder {
@@ -111,6 +114,25 @@ impl From<Order> for OrderbookOrder {
             timestamp: value.timestamp,
             expiry: value.expiry,
             order_state: value.order_state.into(),
+            order_reason: value.order_reason.into(),
+        }
+    }
+}
+
+impl From<OrderReason> for OrderBookOrderReason {
+    fn from(value: OrderReason) -> Self {
+        match value {
+            OrderReason::Manual => OrderBookOrderReason::Manual,
+            OrderReason::Expired => OrderBookOrderReason::Expired,
+        }
+    }
+}
+
+impl From<OrderBookOrderReason> for OrderReason {
+    fn from(value: OrderBookOrderReason) -> Self {
+        match value {
+            OrderBookOrderReason::Manual => OrderReason::Manual,
+            OrderBookOrderReason::Expired => OrderReason::Expired,
         }
     }
 }
@@ -126,6 +148,7 @@ struct NewOrder {
     pub quantity: f32,
     pub order_type: OrderType,
     pub expiry: OffsetDateTime,
+    pub order_reason: OrderReason,
     pub contract_symbol: ContractSymbol,
     pub leverage: f32,
 }
@@ -149,6 +172,7 @@ impl From<OrderbookNewOrder> for NewOrder {
                 .expect("To be able to convert decimal to f32"),
             order_type: value.order_type.into(),
             expiry: value.expiry,
+            order_reason: OrderReason::Manual,
             contract_symbol: value.contract_symbol.into(),
             leverage: value.leverage,
         }
@@ -211,9 +235,17 @@ pub fn get_all_orders(
 }
 
 /// Returns the number of affected rows: 1.
-pub fn insert(conn: &mut PgConnection, order: OrderbookNewOrder) -> QueryResult<OrderbookOrder> {
+pub fn insert(
+    conn: &mut PgConnection,
+    order: OrderbookNewOrder,
+    order_reason: OrderBookOrderReason,
+) -> QueryResult<OrderbookOrder> {
+    let new_order = NewOrder {
+        order_reason: OrderReason::from(order_reason),
+        ..NewOrder::from(order)
+    };
     let order: Order = diesel::insert_into(orders::table)
-        .values(NewOrder::from(order))
+        .values(new_order)
         .get_result(conn)?;
 
     Ok(OrderbookOrder::from(order))

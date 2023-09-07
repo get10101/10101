@@ -5,6 +5,7 @@ use crate::event::EventType;
 use crate::health::ServiceUpdate;
 use crate::ln_dlc::ChannelStatus;
 use crate::trade::order::api::Order;
+use crate::trade::order::api::OrderReason;
 use crate::trade::position::api::Position;
 use core::convert::From;
 use flutter_rust_bridge::frb;
@@ -24,6 +25,7 @@ pub enum Event {
     PriceUpdateNotification(BestPrice),
     ServiceHealthUpdate(ServiceUpdate),
     ChannelStatusUpdate(ChannelStatus),
+    AsyncTrade(OrderReason),
 }
 
 impl From<EventInternal> for Event {
@@ -62,6 +64,7 @@ impl From<EventInternal> for Event {
             EventInternal::PaymentClaimed(_) => {
                 unreachable!("This internal event is not exposed to the UI")
             }
+            EventInternal::AsyncTrade(reason) => Event::AsyncTrade(reason.into()),
         }
     }
 }
@@ -97,6 +100,7 @@ impl Subscriber for FlutterSubscriber {
             EventType::PriceUpdateNotification,
             EventType::ServiceHealthUpdate,
             EventType::ChannelStatusUpdate,
+            EventType::AsyncTrade,
         ]
     }
 }

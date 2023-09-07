@@ -18,6 +18,7 @@ use diesel::r2d2::PooledConnection;
 use diesel::PgConnection;
 use orderbook_commons::NewOrder;
 use orderbook_commons::Order;
+use orderbook_commons::OrderReason;
 use orderbook_commons::OrderbookMsg;
 use serde::de;
 use serde::Deserialize;
@@ -93,7 +94,11 @@ pub async fn post_order(
 ) -> Result<Json<Order>, AppError> {
     let (sender, mut receiver) = mpsc::channel::<Result<Order>>(1);
 
-    let message = TradingMessage::NewOrder(NewOrderMessage { new_order, sender });
+    let message = TradingMessage::NewOrder(NewOrderMessage {
+        new_order,
+        order_reason: OrderReason::Manual,
+        sender,
+    });
     state.trading_sender.send(message).await.map_err(|e| {
         AppError::InternalServerError(format!("Failed to send new order message: {e:#}"))
     })?;

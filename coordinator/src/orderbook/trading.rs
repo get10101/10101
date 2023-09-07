@@ -14,6 +14,7 @@ use orderbook_commons::FilledWith;
 use orderbook_commons::Match;
 use orderbook_commons::NewOrder;
 use orderbook_commons::Order;
+use orderbook_commons::OrderReason;
 use orderbook_commons::OrderState;
 use orderbook_commons::OrderType;
 use orderbook_commons::OrderbookMsg;
@@ -44,6 +45,7 @@ pub enum TradingMessage {
 
 pub struct NewOrderMessage {
     pub new_order: NewOrder,
+    pub order_reason: OrderReason,
     pub sender: mpsc::Sender<Result<Order>>,
 }
 
@@ -119,12 +121,22 @@ impl Trading {
                     TradingMessage::NewOrder(new_order_msg) => {
                         // todo(holzeis): spawn a task here to not block other users from trading if
                         // this is taking some time.
-                        let result = self.process_new_order(new_order_msg.new_order).await;
+                        let new_order = new_order_msg.new_order;
+                        let result = self
+                            .process_new_order(new_order, new_order_msg.order_reason)
+                            .await;
                         new_order_msg.sender.send(result).await?;
                     }
                     TradingMessage::NewUser(new_user_msg) => {
+                        tracing::info!(trader_id=%new_user_msg.new_user, "User logged in to 10101");
+
                         self.authenticated_users
                             .insert(new_user_msg.new_user, new_user_msg.sender);
+
+                        // todo(holzeis): spawn a task here to not block other users from trading if
+                        // this is taking some time.
+                        tracing::debug!(trader_id=%new_user_msg.new_user, "Checking if the user needs to be notified about pending matches");
+                        self.process_pending_match(new_user_msg.new_user).await?;
                     }
                 }
             }
@@ -137,7 +149,11 @@ impl Trading {
     ///
     /// Limit order: update price feed
     /// Market order: find match and notify traders
-    async fn process_new_order(&self, new_order: NewOrder) -> Result<Order> {
+    async fn process_new_order(
+        &self,
+        new_order: NewOrder,
+        order_reason: OrderReason,
+    ) -> Result<Order> {
         tracing::info!(trader_id=%new_order.trader_id, "Received a new {:?} order", new_order.order_type);
 
         if new_order.order_type == OrderType::Limit && new_order.price == Decimal::ZERO {
@@ -147,7 +163,7 @@ impl Trading {
         }
 
         let mut conn = self.pool.get()?;
-        let order = orders::insert(&mut conn, new_order.clone())
+        let order = orders::insert(&mut conn, new_order.clone(), order_reason)
             .map_err(|e| anyhow!("Failed to insert new order into db: {e:#}"))?;
 
         if new_order.order_type == OrderType::Limit {
@@ -156,6 +172,17 @@ impl Trading {
                 .send(OrderbookMsg::NewOrder(order.clone()))
                 .map_err(|error| anyhow!("Could not update price feed due to '{error}'"))?;
         } else {
+            // reject new order if there is already a matched order waiting for execution.
+            if let Some(order) = orders::get_by_trader_id_and_state(
+                &mut conn,
+                new_order.trader_id,
+                OrderState::Matched,
+            )? {
+                bail!(TradingError::InvalidOrder(format!(
+                    "trader_id={}, order_id={}, Order is currently in execution. Can't accept new orders until the order execution is finished"
+                , new_order.trader_id, order.id)));
+            }
+
             let opposite_direction_orders = orders::all_by_direction_and_type(
                 &mut conn,
                 order.direction.opposite(),
@@ -191,18 +218,27 @@ impl Trading {
             for match_param in match_params {
                 matches::insert(&mut conn, match_param)?;
 
-                let trader_id = match_param.trader_id.to_string();
+                let trader_id = match_param.trader_id;
                 let order_id = match_param.filled_with.order_id.to_string();
-                tracing::info!(trader_id, order_id, "Notifying trader about match");
+                tracing::info!(%trader_id, order_id, "Notifying trader about match");
 
-                let order_state = match notify_trader(match_param, &self.authenticated_users).await
+                let message = match &order.order_reason {
+                    OrderReason::Manual => OrderbookMsg::Match(match_param.filled_with.clone()),
+                    OrderReason::Expired => OrderbookMsg::AsyncMatch {
+                        order: order.clone(),
+                        filled_with: match_param.filled_with.clone(),
+                    },
+                };
+
+                let order_state = match notify_trader(trader_id, message, &self.authenticated_users)
+                    .await
                 {
                     Ok(()) => {
-                        tracing::debug!(trader_id, order_id, "Successfully notified trader");
-                        OrderState::Match
+                        tracing::debug!(%trader_id, order_id, "Successfully notified trader");
+                        OrderState::Matched
                     }
                     Err(e) => {
-                        tracing::warn!(trader_id, order_id, "{e:#}");
+                        tracing::warn!(%trader_id, order_id, "{e:#}");
                         // todo(holzeis): send push notification to user
 
                         if order.order_type == OrderType::Limit {
@@ -214,13 +250,13 @@ impl Trading {
 
                             OrderState::Taken
                         } else {
-                            OrderState::Match
+                            OrderState::Matched
                         }
                     }
                 };
 
                 tracing::debug!(
-                    trader_id,
+                    %trader_id,
                     order_id,
                     "Updating the order state to {order_state:?}"
                 );
@@ -229,6 +265,30 @@ impl Trading {
         }
 
         Ok(order)
+    }
+
+    /// Notifies the trader if a pending match is waiting for them.
+    pub async fn process_pending_match(&self, trader_id: PublicKey) -> Result<()> {
+        let mut conn = self.pool.get()?;
+        if let Some(order) =
+            orders::get_by_trader_id_and_state(&mut conn, trader_id, OrderState::Matched)?
+        {
+            tracing::debug!(%trader_id, order_id=%order.id, "Notifying trader about pending match");
+
+            let matches = matches::get_matches_by_order_id(conn, order.id)?;
+            let filled_with = orderbook_commons::get_filled_with_from_matches(matches)?;
+
+            let message = match order.order_reason {
+                OrderReason::Manual => OrderbookMsg::Match(filled_with),
+                OrderReason::Expired => OrderbookMsg::AsyncMatch { order, filled_with },
+            };
+
+            if let Err(e) = notify_trader(trader_id, message, &self.authenticated_users).await {
+                tracing::warn!("Failed to notify trader. Error: {e:#}");
+            }
+        }
+
+        Ok(())
     }
 }
 
@@ -365,13 +425,14 @@ fn sort_orders(mut orders: Vec<Order>, is_long: bool) -> Vec<Order> {
 }
 
 async fn notify_trader(
-    match_params: &TraderMatchParams,
+    trader_id: PublicKey,
+    message: OrderbookMsg,
     traders: &HashMap<PublicKey, mpsc::Sender<OrderbookMsg>>,
 ) -> Result<()> {
-    match traders.get(&match_params.trader_id) {
+    match traders.get(&trader_id) {
         None => bail!("Trader is not connected"),
         Some(sender) => sender
-            .send(OrderbookMsg::Match(match_params.filled_with.clone()))
+            .send(message)
             .await
             .map_err(|err| anyhow!("Connection lost to trader {err:#}")),
     }
@@ -391,6 +452,7 @@ pub mod tests {
     use orderbook_commons::FilledWith;
     use orderbook_commons::Match;
     use orderbook_commons::Order;
+    use orderbook_commons::OrderReason;
     use orderbook_commons::OrderState;
     use orderbook_commons::OrderType;
     use orderbook_commons::OrderbookMsg;
@@ -427,6 +489,7 @@ pub mod tests {
             timestamp: OffsetDateTime::now_utc() + timestamp_delay,
             expiry: OffsetDateTime::now_utc() + Duration::minutes(1),
             order_state: OrderState::Open,
+            order_reason: OrderReason::Manual,
         }
     }
 
@@ -567,6 +630,7 @@ pub mod tests {
             timestamp: OffsetDateTime::now_utc(),
             expiry: OffsetDateTime::now_utc() + Duration::minutes(1),
             order_state: OrderState::Open,
+            order_reason: OrderReason::Manual,
         };
 
         let matched_orders = match_order(&order, all_orders).unwrap().unwrap();
@@ -641,6 +705,7 @@ pub mod tests {
             timestamp: OffsetDateTime::now_utc(),
             expiry: OffsetDateTime::now_utc() + Duration::minutes(1),
             order_state: OrderState::Open,
+            order_reason: OrderReason::Manual,
         };
 
         assert!(match_order(&order, all_orders).is_err());
@@ -691,6 +756,7 @@ pub mod tests {
             timestamp: OffsetDateTime::now_utc(),
             expiry: OffsetDateTime::now_utc() + Duration::minutes(1),
             order_state: OrderState::Open,
+            order_reason: OrderReason::Manual,
         };
 
         let matched_orders = match_order(&order, all_orders).unwrap();
@@ -751,7 +817,13 @@ pub mod tests {
         traders.insert(trader_pub_key, trader_sender);
 
         for match_param in matched_orders.matches() {
-            notify_trader(match_param, &traders).await.unwrap();
+            notify_trader(
+                match_param.trader_id,
+                OrderbookMsg::Match(match_param.filled_with.clone()),
+                &traders,
+            )
+            .await
+            .unwrap();
         }
 
         let maker_msg = maker_receiver.recv().await.unwrap();

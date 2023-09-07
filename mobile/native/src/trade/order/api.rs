@@ -24,6 +24,13 @@ pub enum OrderState {
 }
 
 #[frb]
+#[derive(Debug, Clone, Copy)]
+pub enum OrderReason {
+    Manual,
+    Expired,
+}
+
+#[frb]
 #[derive(Debug, Clone)]
 pub struct NewOrder {
     #[frb(non_final)]
@@ -53,6 +60,7 @@ pub struct Order {
     pub execution_price: Option<f32>,
     pub creation_timestamp: i64,
     pub order_expiry_timestamp: i64,
+    pub reason: OrderReason,
 }
 
 impl From<order::OrderType> for OrderType {
@@ -82,6 +90,25 @@ impl From<order::Order> for Order {
             execution_price,
             creation_timestamp: value.creation_timestamp.unix_timestamp(),
             order_expiry_timestamp: value.order_expiry_timestamp.unix_timestamp(),
+            reason: value.reason.into(),
+        }
+    }
+}
+
+impl From<OrderReason> for order::OrderReason {
+    fn from(value: OrderReason) -> Self {
+        match value {
+            OrderReason::Manual => order::OrderReason::Manual,
+            OrderReason::Expired => order::OrderReason::Expired,
+        }
+    }
+}
+
+impl From<order::OrderReason> for OrderReason {
+    fn from(value: order::OrderReason) -> Self {
+        match value {
+            order::OrderReason::Manual => OrderReason::Manual,
+            order::OrderReason::Expired => OrderReason::Expired,
         }
     }
 }
@@ -126,6 +153,7 @@ impl From<NewOrder> for order::Order {
             creation_timestamp: OffsetDateTime::now_utc(),
             // We do not support setting order expiry from the frontend for now
             order_expiry_timestamp: OffsetDateTime::now_utc() + time::Duration::minutes(1),
+            reason: order::OrderReason::Manual,
         }
     }
 }

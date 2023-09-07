@@ -1,7 +1,25 @@
+import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
 import 'package:get_10101/features/trade/domain/contract_symbol.dart';
 import 'package:get_10101/features/trade/domain/direction.dart';
 import 'package:get_10101/features/trade/domain/leverage.dart';
-import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
+
+enum OrderReason {
+  manual,
+  expired;
+
+  static OrderReason fromApi(bridge.OrderReason orderReason) {
+    switch (orderReason) {
+      case bridge.OrderReason.Manual:
+        return OrderReason.manual;
+      case bridge.OrderReason.Expired:
+        return OrderReason.expired;
+    }
+  }
+
+  static bridge.OrderReason apiDummy() {
+    return bridge.OrderReason.Manual;
+  }
+}
 
 enum OrderState {
   open,
@@ -42,6 +60,7 @@ class Order {
   final OrderType type;
   final double? executionPrice;
   final DateTime creationTimestamp;
+  final OrderReason reason;
 
   Order(
       {required this.id,
@@ -52,7 +71,8 @@ class Order {
       required this.state,
       required this.type,
       required this.creationTimestamp,
-      this.executionPrice});
+      this.executionPrice,
+      required this.reason});
 
   static Order fromApi(bridge.Order order) {
     return Order(
@@ -64,7 +84,8 @@ class Order {
         state: OrderState.fromApi(order.state),
         type: OrderType.fromApi(order.orderType),
         executionPrice: order.executionPrice,
-        creationTimestamp: DateTime.fromMillisecondsSinceEpoch(order.creationTimestamp * 1000));
+        creationTimestamp: DateTime.fromMillisecondsSinceEpoch(order.creationTimestamp * 1000),
+        reason: OrderReason.fromApi(order.reason));
   }
 
   static bridge.Order apiDummy() {
@@ -77,6 +98,7 @@ class Order {
         orderType: bridge.OrderType.market(),
         state: bridge.OrderState.Open,
         creationTimestamp: 0,
-        orderExpiryTimestamp: 0);
+        orderExpiryTimestamp: 0,
+        reason: bridge.OrderReason.Manual);
   }
 }

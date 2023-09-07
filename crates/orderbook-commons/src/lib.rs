@@ -1,4 +1,9 @@
+pub use crate::order_matching_fee::order_matching_fee_taker;
+pub use crate::price::best_current_price;
+pub use crate::price::Price;
+pub use crate::price::Prices;
 use anyhow::ensure;
+use anyhow::Result;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use secp256k1::Message;
@@ -9,6 +14,8 @@ use serde::Serialize;
 use sha2::digest::FixedOutput;
 use sha2::Digest;
 use sha2::Sha256;
+use std::str::FromStr;
+use time::Duration;
 use time::OffsetDateTime;
 use trade::ContractSymbol;
 use trade::Direction;
@@ -16,11 +23,6 @@ use uuid::Uuid;
 
 mod order_matching_fee;
 mod price;
-
-pub use crate::order_matching_fee::order_matching_fee_taker;
-pub use crate::price::best_current_price;
-pub use crate::price::Price;
-pub use crate::price::Prices;
 
 /// The prefix used in the description field of an order-matching fee invoice to be paid by a taker.
 pub const FEE_INVOICE_DESCRIPTION_PREFIX_TAKER: &str = "taker-fee-";
@@ -31,6 +33,12 @@ pub enum OrderState {
     Matched,
     Taken,
     Failed,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub enum OrderReason {
+    Manual,
+    Expired,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
@@ -51,6 +59,7 @@ pub struct Order {
     #[serde(with = "time::serde::rfc3339")]
     pub expiry: OffsetDateTime,
     pub order_state: OrderState,
+    pub order_reason: OrderReason,
 }
 
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
@@ -117,6 +126,10 @@ pub enum OrderbookMsg {
     InvalidAuthentication(String),
     Authenticated,
     Match(FilledWith),
+    AsyncMatch {
+        order: Order,
+        filled_with: FilledWith,
+    },
 }
 
 /// A match for an order
@@ -304,6 +317,41 @@ pub struct Matches {
     pub quantity: Decimal,
     pub created_at: OffsetDateTime,
     pub updated_at: OffsetDateTime,
+}
+
+pub fn get_filled_with_from_matches(matches: Vec<Matches>) -> Result<FilledWith> {
+    ensure!(
+        !matches.is_empty(),
+        "Need at least one matches record to construct a FilledWith"
+    );
+
+    let order_id = matches
+        .first()
+        .expect("to have at least one match")
+        .order_id;
+    let oracle_pk = XOnlyPublicKey::from_str(
+        "16f88cf7d21e6c0f46bcbc983a4e3b19726c6c98858cc31c83551a88fde171c0",
+    )
+    .expect("To be a valid pubkey");
+
+    let tomorrow = OffsetDateTime::now_utc().date() + Duration::days(7);
+    let expiry_timestamp = tomorrow.midnight().assume_utc();
+
+    Ok(FilledWith {
+        order_id,
+        expiry_timestamp,
+        oracle_pk,
+        matches: matches
+            .iter()
+            .map(|m| Match {
+                id: m.id,
+                order_id: m.order_id,
+                quantity: m.quantity,
+                pubkey: m.match_trader_id,
+                execution_price: m.execution_price,
+            })
+            .collect(),
+    })
 }
 
 #[cfg(test)]

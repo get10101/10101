@@ -1,5 +1,6 @@
 use crate::schema::sql_types::DirectionType;
 use crate::schema::sql_types::MatchStateType;
+use crate::schema::sql_types::OrderReasonType;
 use crate::schema::sql_types::OrderStateType;
 use crate::schema::sql_types::OrderTypeType;
 use diesel::deserialize;
@@ -129,6 +130,44 @@ impl FromSql<OrderStateType, Pg> for OrderState {
             b"Matched" => Ok(OrderState::Matched),
             b"Taken" => Ok(OrderState::Taken),
             b"Failed" => Ok(OrderState::Failed),
+            _ => Err("Unrecognized enum variant".into()),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, FromSqlRow, AsExpression)]
+#[diesel(sql_type = OrderReasonType)]
+pub(crate) enum OrderReason {
+    /// The order has been created manually by the user.
+    Manual,
+    /// The order has been create automatically as the position expired.
+    Expired,
+}
+
+impl QueryId for OrderReasonType {
+    type QueryId = OrderReasonType;
+    const HAS_STATIC_QUERY_ID: bool = false;
+
+    fn query_id() -> Option<TypeId> {
+        None
+    }
+}
+
+impl ToSql<OrderReasonType, Pg> for OrderReason {
+    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, Pg>) -> serialize::Result {
+        match *self {
+            OrderReason::Manual => out.write_all(b"Manual")?,
+            OrderReason::Expired => out.write_all(b"Expired")?,
+        }
+        Ok(IsNull::No)
+    }
+}
+
+impl FromSql<OrderReasonType, Pg> for OrderReason {
+    fn from_sql(bytes: PgValue<'_>) -> deserialize::Result<Self> {
+        match bytes.as_bytes() {
+            b"Manual" => Ok(OrderReason::Manual),
+            b"Expired" => Ok(OrderReason::Expired),
             _ => Err("Unrecognized enum variant".into()),
         }
     }

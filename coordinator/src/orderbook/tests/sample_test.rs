@@ -4,6 +4,7 @@ use crate::orderbook::tests::setup_db;
 use crate::orderbook::tests::start_postgres;
 use bitcoin::secp256k1::PublicKey;
 use orderbook_commons::NewOrder;
+use orderbook_commons::OrderReason;
 use orderbook_commons::OrderType;
 use rust_decimal_macros::dec;
 use std::str::FromStr;
@@ -28,6 +29,7 @@ async fn crud_test() {
     let order = orders::insert(
         &mut conn,
         dummy_order(OffsetDateTime::now_utc() + Duration::minutes(1)),
+        OrderReason::Manual,
     )
     .unwrap();
 
@@ -56,11 +58,13 @@ async fn test_filter_expired_orders() {
     let order = orders::insert(
         &mut conn,
         dummy_order(OffsetDateTime::now_utc() + Duration::minutes(1)),
+        OrderReason::Manual,
     )
     .unwrap();
     let _ = orders::insert(
         &mut conn,
         dummy_order(OffsetDateTime::now_utc() - Duration::minutes(1)),
+        OrderReason::Manual,
     )
     .unwrap();
 

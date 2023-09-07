@@ -21,6 +21,7 @@ import 'package:get_10101/features/trade/application/candlestick_service.dart';
 import 'package:get_10101/features/trade/application/order_service.dart';
 import 'package:get_10101/features/trade/application/position_service.dart';
 import 'package:get_10101/features/trade/application/trade_values_service.dart';
+import 'package:get_10101/features/trade/async_order_change_notifier.dart';
 import 'package:get_10101/features/trade/candlestick_change_notifier.dart';
 import 'package:get_10101/features/trade/domain/order.dart';
 import 'package:get_10101/features/trade/domain/position.dart';
@@ -86,6 +87,7 @@ void main() async {
         create: (context) => CandlestickChangeNotifier(const CandlestickService())),
     ChangeNotifierProvider(create: (context) => ServiceStatusNotifier()),
     ChangeNotifierProvider(create: (context) => ChannelStatusNotifier()),
+    ChangeNotifierProvider(create: (context) => AsyncOrderChangeNotifier(OrderService())),
     Provider(create: (context) => Environment.parse()),
     Provider(create: (context) => channelInfoService)
   ], child: const TenTenOneApp()));
@@ -453,6 +455,7 @@ void subscribeToNotifiers(BuildContext context) {
   final serviceStatusNotifier = context.read<ServiceStatusNotifier>();
   final channelStatusNotifier = context.read<ChannelStatusNotifier>();
   final stableValuesChangeNotifier = context.read<StableValuesChangeNotifier>();
+  final asyncOrderChangeNotifier = context.read<AsyncOrderChangeNotifier>();
 
   eventService.subscribe(
       orderChangeNotifier, bridge.Event.orderUpdateNotification(Order.apiDummy()));
@@ -482,6 +485,10 @@ void subscribeToNotifiers(BuildContext context) {
 
   eventService.subscribe(
       serviceStatusNotifier, bridge.Event.serviceHealthUpdate(serviceUpdateApiDummy()));
+
+  eventService.subscribe(
+      asyncOrderChangeNotifier, bridge.Event.orderUpdateNotification(Order.apiDummy()));
+  eventService.subscribe(asyncOrderChangeNotifier, bridge.Event.asyncTrade(OrderReason.apiDummy()));
 
   channelStatusNotifier.subscribe(eventService);
 

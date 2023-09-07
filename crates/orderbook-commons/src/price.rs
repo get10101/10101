@@ -71,6 +71,7 @@ mod test {
     use crate::price::best_ask_price;
     use crate::price::best_bid_price;
     use crate::Order;
+    use crate::OrderReason;
     use crate::OrderState;
     use crate::OrderType;
     use rust_decimal::Decimal;
@@ -106,6 +107,7 @@ mod test {
             timestamp: OffsetDateTime::now_utc(),
             expiry: OffsetDateTime::now_utc(),
             order_state,
+            order_reason: OrderReason::Manual,
         }
     }
 

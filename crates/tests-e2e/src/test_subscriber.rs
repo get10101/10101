@@ -203,6 +203,9 @@ impl Senders {
             native::event::EventInternal::PaymentClaimed(_amount_msats) => {
                 unreachable!("PaymentClaimed event should not be sent to the subscriber");
             }
+            native::event::EventInternal::AsyncTrade(_order_id) => {
+                // ignored
+            }
         }
         Ok(())
     }

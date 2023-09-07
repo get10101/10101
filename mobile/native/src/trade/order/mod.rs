@@ -98,6 +98,30 @@ pub enum OrderState {
 }
 
 #[derive(Debug, Clone, Copy)]
+pub enum OrderReason {
+    Manual,
+    Expired,
+}
+
+impl From<OrderReason> for orderbook_commons::OrderReason {
+    fn from(value: OrderReason) -> Self {
+        match value {
+            OrderReason::Manual => orderbook_commons::OrderReason::Manual,
+            OrderReason::Expired => orderbook_commons::OrderReason::Expired,
+        }
+    }
+}
+
+impl From<orderbook_commons::OrderReason> for OrderReason {
+    fn from(value: orderbook_commons::OrderReason) -> Self {
+        match value {
+            orderbook_commons::OrderReason::Manual => OrderReason::Manual,
+            orderbook_commons::OrderReason::Expired => OrderReason::Expired,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
 pub struct Order {
     pub id: Uuid,
     pub leverage: f32,
@@ -108,6 +132,7 @@ pub struct Order {
     pub state: OrderState,
     pub creation_timestamp: OffsetDateTime,
     pub order_expiry_timestamp: OffsetDateTime,
+    pub reason: OrderReason,
 }
 
 impl Order {

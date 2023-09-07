@@ -1,4 +1,6 @@
 use crate::config;
+use crate::event;
+use crate::event::EventInternal;
 use crate::health::ServiceStatus;
 use crate::trade::position;
 use anyhow::Result;
@@ -101,11 +103,19 @@ pub fn subscribe(
                         };
 
                         match msg {
+                            OrderbookMsg::AsyncMatch { order, filled_with } => {
+                                tracing::info!(order_id = %order.id, "Received an async match from orderbook. Reason: {:?}", order.order_reason);
+                                event::publish(&EventInternal::AsyncTrade(order.clone().order_reason.into()));
+
+                                if let Err(e) = position::handler::async_trade(order.clone(), filled_with).await {
+                                    tracing::error!(order_id = %order.id, "Failed to process async trade. Error: {e:#}");
+                                }
+                            },
                             OrderbookMsg::Match(filled) => {
                                 tracing::info!(order_id = %filled.order_id, "Received match from orderbook");
 
-                                if let Err(e) = position::handler::trade(filled).await {
-                                    tracing::error!("Trade request sent to coordinator failed. Error: {e:#}");
+                                if let Err(e) = position::handler::trade(filled.clone()).await {
+                                    tracing::error!(order_id = %filled.order_id, "Trade request sent to coordinator failed. Error: {e:#}");
                                 }
                             },
                             OrderbookMsg::AllOrders(initial_orders) => {
