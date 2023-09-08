@@ -62,7 +62,7 @@ abstract class WalletHistoryItem extends StatelessWidget {
     return Card(
       child: ListTile(
           onTap: () async {
-            await showDialog(context: context, builder: (ctx) => showItemDetails(title, ctx));
+            await showItemDetails(title, context);
           },
           leading: Stack(children: [
             Container(
@@ -116,7 +116,7 @@ abstract class WalletHistoryItem extends StatelessWidget {
     );
   }
 
-  Widget showItemDetails(String title, BuildContext context) {
+  Future<void> showItemDetails(String title, BuildContext context) {
     final (directionMultiplier, verb) = switch ((data.flow, data.status)) {
       (PaymentFlow.inbound, WalletHistoryStatus.failed) => (1, "failed to receive"),
       (PaymentFlow.inbound, WalletHistoryStatus.expired) => (1, "failed to receive"),
@@ -156,24 +156,39 @@ abstract class WalletHistoryItem extends StatelessWidget {
       ...getDetails(),
     ];
 
-    return AlertDialog(
-      title: Text(title, textAlign: TextAlign.center),
-      scrollable: true,
-      content: Column(mainAxisSize: MainAxisSize.min, children: [
-        SizedBox(width: 50, height: 50, child: icon),
-        const SizedBox(height: 10),
-        Text("You $verb"),
-        AmountText(
-            amount: Amount(sats),
-            textStyle: const TextStyle(fontSize: 25, fontWeight: FontWeight.bold)),
-        const SizedBox(height: 10),
-        ...details
-            .take(details.length - 1)
-            .where((child) => child is! Visibility || child.visible)
-            .expand((child) => [child, const Divider()]),
-        details.last,
-      ]),
-    );
+    return showModalBottomSheet<void>(
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(
+            top: Radius.circular(20),
+          ),
+        ),
+        clipBehavior: Clip.antiAlias,
+        isScrollControlled: true,
+        useRootNavigator: true,
+        context: context,
+        builder: (BuildContext context) => SafeArea(
+                child: Padding(
+              padding: EdgeInsets.fromLTRB(
+                16,
+                16,
+                16,
+                MediaQuery.of(context).viewInsets.bottom + 16,
+              ),
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                SizedBox(width: 50, height: 50, child: icon),
+                const SizedBox(height: 10),
+                Text("You $verb"),
+                AmountText(
+                    amount: Amount(sats),
+                    textStyle: const TextStyle(fontSize: 25, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 10),
+                ...details
+                    .take(details.length - 1)
+                    .where((child) => child is! Visibility || child.visible)
+                    .expand((child) => [child, const Divider()]),
+                details.last,
+              ]),
+            )));
   }
 }
 
@@ -241,14 +256,10 @@ class TransactionIdText extends StatelessWidget {
         IconButton(
             padding: EdgeInsets.zero,
             onPressed: () => launchUrl(Uri(
-              scheme: 'https',
-              host: 'mempool.space',
-              pathSegments: [
-                ...network,
-                'tx',
-                txId
-              ],
-            )),
+                  scheme: 'https',
+                  host: 'mempool.space',
+                  pathSegments: [...network, 'tx', txId],
+                )),
             icon: const Icon(Icons.open_in_new, size: 18))
       ],
     );
@@ -369,11 +380,12 @@ class JitChannelOpenFeeHistoryItem extends WalletHistoryItem {
 
   @override
   List<Widget> getDetails() {
-    return [HistoryDetail(
-        label: "Funding transaction ID",
-        displayWidget: TransactionIdText(data.txid),
-        value: data.txid
-    )];
+    return [
+      HistoryDetail(
+          label: "Funding transaction ID",
+          displayWidget: TransactionIdText(data.txid),
+          value: data.txid)
+    ];
   }
 
   @override
@@ -400,7 +412,8 @@ class OnChainPaymentHistoryItem extends WalletHistoryItem {
   @override
   List<Widget> getDetails() {
     final details = [
-      HistoryDetail(label: "Transaction ID", value: data.txid, displayWidget: TransactionIdText(data.txid)),
+      HistoryDetail(
+          label: "Transaction ID", value: data.txid, displayWidget: TransactionIdText(data.txid)),
       HistoryDetail(label: "Confirmations", value: data.confirmations.toString()),
       Visibility(
         visible: data.fee != null,
