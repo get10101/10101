@@ -3,7 +3,20 @@ import 'package:get_10101/features/wallet/wallet_history_item.dart';
 import 'payment_flow.dart';
 import 'package:get_10101/bridge_generated/bridge_definitions.dart' as rust;
 
-enum WalletHistoryStatus { pending, expired, confirmed, failed }
+enum WalletHistoryStatus {
+  pending,
+  expired,
+  confirmed,
+  failed;
+
+  @override
+  String toString() => switch (this) {
+        WalletHistoryStatus.pending => "Pending",
+        WalletHistoryStatus.expired => "Expired",
+        WalletHistoryStatus.confirmed => "Confirmed",
+        WalletHistoryStatus.failed => "Failed",
+      };
+}
 
 abstract class WalletHistoryItemData {
   final PaymentFlow flow;

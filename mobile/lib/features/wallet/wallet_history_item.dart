@@ -114,9 +114,15 @@ abstract class WalletHistoryItem extends StatelessWidget {
   }
 
   Widget showItemDetails(String title, BuildContext context) {
-    final (directionMultiplier, verb) = switch (data.flow) {
-      PaymentFlow.inbound => (1, "received"),
-      PaymentFlow.outbound => (-1, "sent"),
+    final (directionMultiplier, verb) = switch ((data.flow, data.status)) {
+      (PaymentFlow.inbound, WalletHistoryStatus.failed) => (1, "failed to receive"),
+      (PaymentFlow.inbound, WalletHistoryStatus.expired) => (1, "failed to receive"),
+      (PaymentFlow.inbound, WalletHistoryStatus.pending) => (1, "are receiving"),
+      (PaymentFlow.inbound, WalletHistoryStatus.confirmed) => (1, "received"),
+      (PaymentFlow.outbound, WalletHistoryStatus.failed) => (-1, "tried to send"),
+      (PaymentFlow.outbound, WalletHistoryStatus.expired) => (-1, "tried to send"),
+      (PaymentFlow.outbound, WalletHistoryStatus.confirmed) => (-1, "sent"),
+      (PaymentFlow.outbound, WalletHistoryStatus.pending) => (-1, "are sending"),
     };
 
     int sats = data.amount.sats * directionMultiplier;
@@ -129,13 +135,17 @@ abstract class WalletHistoryItem extends StatelessWidget {
     // set the right icon here
     SvgPicture icon = switch (isOnChain()) {
       true => SvgPicture.asset("assets/Bitcoin_logo.svg"),
-      false => SvgPicture.asset(
-          "assets/Lightning_logo.svg",
-          colorFilter: ColorFilter.mode(lightningColor, BlendMode.srcIn)
-      ),
+      false => SvgPicture.asset("assets/Lightning_logo.svg",
+          colorFilter: ColorFilter.mode(lightningColor, BlendMode.srcIn)),
     };
 
     List<Widget> details = [
+      Visibility(
+          visible: data.status != WalletHistoryStatus.confirmed,
+          child: HistoryDetail(
+            label: "Status",
+            value: data.status.toString(),
+          )),
       HistoryDetail(
           label: "When",
           displayValue: timeago.format(data.timestamp),
@@ -147,17 +157,19 @@ abstract class WalletHistoryItem extends StatelessWidget {
       title: Text(title, textAlign: TextAlign.center),
       scrollable: true,
       content: Column(mainAxisSize: MainAxisSize.min, children: [
-          SizedBox(width: 50, height: 50, child: icon),
-          const SizedBox(height: 10),
-          Text("You $verb"),
-          AmountText(amount: Amount(sats), textStyle: const TextStyle(fontSize: 25, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 10),
-          ...details
-              .take(details.length - 1)
-              .where((child) => child is! Visibility || child.visible)
-              .expand((child) => [child, const Divider()]),
-          details.last,
-        ]),
+        SizedBox(width: 50, height: 50, child: icon),
+        const SizedBox(height: 10),
+        Text("You $verb"),
+        AmountText(
+            amount: Amount(sats),
+            textStyle: const TextStyle(fontSize: 25, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 10),
+        ...details
+            .take(details.length - 1)
+            .where((child) => child is! Visibility || child.visible)
+            .expand((child) => [child, const Divider()]),
+        details.last,
+      ]),
     );
   }
 }
@@ -179,20 +191,17 @@ class HistoryDetail extends StatelessWidget {
           child: Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
         ),
         Expanded(
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              Expanded(child: MiddleEllipsisedText(displayValue ?? value)),
-              IconButton(
-                  padding: EdgeInsets.zero,
-                  onPressed: () {
-                    Clipboard.setData(ClipboardData(text: value)).then((_) {
-                      showSnackBar(ScaffoldMessenger.of(context), '$label copied to clipboard');
-                    });
-                  },
-                  icon: const Icon(Icons.copy, size: 18))
-            ]
-          ),
+          child: Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+            Expanded(child: MiddleEllipsisedText(displayValue ?? value)),
+            IconButton(
+                padding: EdgeInsets.zero,
+                onPressed: () {
+                  Clipboard.setData(ClipboardData(text: value)).then((_) {
+                    showSnackBar(ScaffoldMessenger.of(context), '$label copied to clipboard');
+                  });
+                },
+                icon: const Icon(Icons.copy, size: 18))
+          ]),
         )
       ]),
     );
