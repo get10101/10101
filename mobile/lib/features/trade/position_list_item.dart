@@ -94,6 +94,13 @@ class _PositionListItemState extends State<PositionListItem> {
                         notNullPosition.contractSymbol.label,
                         style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
+                      const SizedBox(
+                        width: 5,
+                      ),
+                      Text(
+                        notNullPosition.direction.keySuffix,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
                     ],
                   ),
                 ],
@@ -117,9 +124,23 @@ class _PositionListItemState extends State<PositionListItem> {
                             labelTextStyle: dataRowStyle,
                           ),
                     ValueDataRow(
+                      type: ValueType.text,
+                      value: notNullPosition.direction.keySuffix,
+                      label: "Direction",
+                      valueTextStyle: dataRowStyle,
+                      labelTextStyle: dataRowStyle,
+                    ),
+                    ValueDataRow(
                       type: ValueType.amount,
                       value: notNullPosition.collateral,
                       label: "Margin",
+                      valueTextStyle: dataRowStyle,
+                      labelTextStyle: dataRowStyle,
+                    ),
+                    ValueDataRow(
+                      type: ValueType.text,
+                      value: notNullPosition.leverage.formatted(),
+                      label: "Leverage",
                       valueTextStyle: dataRowStyle,
                       labelTextStyle: dataRowStyle,
                     ),
