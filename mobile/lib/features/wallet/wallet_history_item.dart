@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
 import 'package:get_10101/common/amount_text.dart';
 import 'package:get_10101/common/domain/model.dart';
 import 'package:get_10101/common/middle_ellipsised_text.dart';
@@ -9,7 +10,9 @@ import 'package:get_10101/features/wallet/domain/payment_flow.dart';
 import 'package:get_10101/features/wallet/domain/wallet_history.dart';
 import 'package:get_10101/features/wallet/wallet_theme.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 import 'package:timeago/timeago.dart' as timeago;
+import 'package:url_launcher/url_launcher.dart';
 
 abstract class WalletHistoryItem extends StatelessWidget {
   abstract final WalletHistoryItemData data;
@@ -148,7 +151,7 @@ abstract class WalletHistoryItem extends StatelessWidget {
           )),
       HistoryDetail(
           label: "When",
-          displayValue: timeago.format(data.timestamp),
+          displayWidget: Text(timeago.format(data.timestamp)),
           value: dateFormat.format(data.timestamp)),
       ...getDetails(),
     ];
@@ -177,9 +180,9 @@ abstract class WalletHistoryItem extends StatelessWidget {
 class HistoryDetail extends StatelessWidget {
   final String label;
   final String value;
-  final String? displayValue;
+  final Widget? displayWidget;
 
-  const HistoryDetail({super.key, required this.label, required this.value, this.displayValue});
+  const HistoryDetail({super.key, required this.label, required this.value, this.displayWidget});
 
   @override
   Widget build(BuildContext context) {
@@ -192,7 +195,7 @@ class HistoryDetail extends StatelessWidget {
         ),
         Expanded(
           child: Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-            Expanded(child: MiddleEllipsisedText(displayValue ?? value)),
+            Expanded(child: displayWidget ?? MiddleEllipsisedText(value)),
             IconButton(
                 padding: EdgeInsets.zero,
                 onPressed: () {
@@ -214,6 +217,41 @@ IconData iconForFlow(PaymentFlow flow) {
       return Icons.arrow_downward;
     case PaymentFlow.outbound:
       return Icons.arrow_upward;
+  }
+}
+
+class TransactionIdText extends StatelessWidget {
+  final String txId;
+
+  const TransactionIdText(this.txId, {super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final bridge.Config config = context.read<bridge.Config>();
+
+    List<String> network = switch (config.network) {
+      "signet" => ["signet"],
+      "testnet" => ["testnet"],
+      _ => [],
+    };
+
+    return Row(
+      children: [
+        Expanded(child: MiddleEllipsisedText(txId)),
+        IconButton(
+            padding: EdgeInsets.zero,
+            onPressed: () => launchUrl(Uri(
+              scheme: 'https',
+              host: 'mempool.space',
+              pathSegments: [
+                ...network,
+                'tx',
+                txId
+              ],
+            )),
+            icon: const Icon(Icons.open_in_new, size: 18))
+      ],
+    );
   }
 }
 
@@ -331,7 +369,11 @@ class JitChannelOpenFeeHistoryItem extends WalletHistoryItem {
 
   @override
   List<Widget> getDetails() {
-    return [HistoryDetail(label: "Funding transaction ID", value: data.txid)];
+    return [HistoryDetail(
+        label: "Funding transaction ID",
+        displayWidget: TransactionIdText(data.txid),
+        value: data.txid
+    )];
   }
 
   @override
@@ -358,7 +400,7 @@ class OnChainPaymentHistoryItem extends WalletHistoryItem {
   @override
   List<Widget> getDetails() {
     final details = [
-      HistoryDetail(label: "Transaction ID", value: data.txid),
+      HistoryDetail(label: "Transaction ID", value: data.txid, displayWidget: TransactionIdText(data.txid)),
       HistoryDetail(label: "Confirmations", value: data.confirmations.toString()),
       Visibility(
         visible: data.fee != null,
