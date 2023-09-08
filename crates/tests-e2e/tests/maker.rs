@@ -30,8 +30,11 @@ async fn maker_can_open_channel_to_coordinator_and_send_payment() -> Result<()> 
         .send_to_address(address, Amount::ONE_BTC)
         .await
         .unwrap();
-    bitcoind.mine(1).await.unwrap();
+    bitcoind.mine(101).await.unwrap();
     maker.sync_on_chain().await.unwrap();
+
+    let maker_on_chain_balance = maker.get_balance().await.unwrap().onchain;
+    assert!(maker_on_chain_balance > 0);
 
     let balance_maker_before_channel = maker.get_balance().await?.offchain;
 
