@@ -602,3 +602,72 @@ fn build_payout_function(
 
     Ok(payout_function)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use bitcoin::secp256k1::XOnlyPublicKey;
+    use orderbook_commons::FilledWith;
+    use orderbook_commons::Match;
+    use std::str::FromStr;
+    use time::OffsetDateTime;
+    use trade::ContractSymbol;
+    use uuid::Uuid;
+
+    #[test]
+    fn funding_rate_experiment() {
+        let oracle_pk = XOnlyPublicKey::from_str(
+            "16f88cf7d21e6c0f46bcbc983a4e3b19726c6c98858cc31c83551a88fde171c0",
+        )
+        .unwrap();
+        let quantity = Decimal::TEN;
+
+        let trader_leverage = 1.0;
+
+        // Always from the perspective of the trader.
+        let trade_params = TradeParams {
+            pubkey: PublicKey::from_str(
+                "02bd998ebd176715fe92b7467cf6b1df8023950a4dd911db4c94dfc89cc9f5a655",
+            )
+            .unwrap(),
+            contract_symbol: ContractSymbol::BtcUsd,
+            leverage: trader_leverage,
+            quantity: quantity.to_f32().unwrap(),
+            direction: Direction::Long,
+            filled_with: FilledWith {
+                order_id: Uuid::new_v4(),
+                expiry_timestamp: OffsetDateTime::UNIX_EPOCH,
+                oracle_pk,
+                matches: vec![Match {
+                    order_id: Uuid::new_v4(),
+                    quantity,
+                    pubkey: PublicKey::from_str(
+                        "02bd998ebd176715fe92b7467cf6b1df8023950a4dd911db4c94dfc89cc9f5a655",
+                    )
+                    .unwrap(),
+                    execution_price: Decimal::from(10_000),
+                }],
+            },
+        };
+
+        let total_collateral = 200_000;
+
+        let leverage_long = leverage_long(trade_params.direction, trade_params.leverage);
+        let leverage_short = leverage_short(trade_params.direction, trade_params.leverage);
+
+        let contract_descriptor = build_contract_descriptor(
+            total_collateral,
+            trade_params.average_execution_price(),
+            leverage_long,
+            leverage_short,
+        )
+        .unwrap();
+
+        let numerical_descriptor = match contract_descriptor {
+            ContractDescriptor::Numerical(numerical_descriptor) => numerical_descriptor,
+            _ => unreachable!(),
+        };
+
+        dbg!(numerical_descriptor.get_range_payouts(total_collateral));
+    }
+}

@@ -159,15 +159,15 @@ fn calculate_accept_settlement_amount(
     Ok(accept_settlement_amount)
 }
 
-pub fn leverage_long(direction: Direction, trader_leverage: f32) -> f32 {
-    match direction {
+pub fn leverage_long(trader_direction: Direction, trader_leverage: f32) -> f32 {
+    match trader_direction {
         Direction::Long => trader_leverage,
         Direction::Short => COORDINATOR_LEVERAGE,
     }
 }
 
-pub fn leverage_short(direction: Direction, trader_leverage: f32) -> f32 {
-    match direction {
+pub fn leverage_short(trader_direction: Direction, trader_leverage: f32) -> f32 {
+    match trader_direction {
         Direction::Long => COORDINATOR_LEVERAGE,
         Direction::Short => trader_leverage,
     }
