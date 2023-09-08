@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_svg/svg.dart';
 import 'package:get_10101/common/amount_text.dart';
 import 'package:get_10101/common/domain/model.dart';
 import 'package:get_10101/common/middle_ellipsised_text.dart';
 import 'package:get_10101/common/snack_bar.dart';
 import 'package:get_10101/features/wallet/domain/payment_flow.dart';
 import 'package:get_10101/features/wallet/domain/wallet_history.dart';
+import 'package:get_10101/features/wallet/wallet_theme.dart';
 import 'package:intl/intl.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
@@ -112,16 +114,28 @@ abstract class WalletHistoryItem extends StatelessWidget {
   }
 
   Widget showItemDetails(String title, BuildContext context) {
-    int directionMultiplier = switch (data.flow) {
-      PaymentFlow.inbound => 1,
-      PaymentFlow.outbound => -1,
+    final (directionMultiplier, verb) = switch (data.flow) {
+      PaymentFlow.inbound => (1, "received"),
+      PaymentFlow.outbound => (-1, "sent"),
     };
 
     int sats = data.amount.sats * directionMultiplier;
 
-    List<Widget> children = [
-      HistoryDetail(
-          label: "Amount", value: sats.toString(), displayValue: formatSats(Amount(sats))),
+    WalletTheme theme = Theme.of(context).extension<WalletTheme>()!;
+    HSLColor hsl = HSLColor.fromColor(theme.lightning);
+    Color lightningColor = hsl.withLightness(hsl.lightness - 0.15).toColor();
+
+    // TODO(stable): when we have stablesats send & receive, we can
+    // set the right icon here
+    SvgPicture icon = switch (isOnChain()) {
+      true => SvgPicture.asset("assets/Bitcoin_logo.svg"),
+      false => SvgPicture.asset(
+          "assets/Lightning_logo.svg",
+          colorFilter: ColorFilter.mode(lightningColor, BlendMode.srcIn)
+      ),
+    };
+
+    List<Widget> details = [
       HistoryDetail(
           label: "When",
           displayValue: timeago.format(data.timestamp),
@@ -130,14 +144,19 @@ abstract class WalletHistoryItem extends StatelessWidget {
     ];
 
     return AlertDialog(
-      title: Text(title),
+      title: Text(title, textAlign: TextAlign.center),
       scrollable: true,
       content: Column(mainAxisSize: MainAxisSize.min, children: [
-          ...children
-              .take(children.length - 1)
+          SizedBox(width: 50, height: 50, child: icon),
+          const SizedBox(height: 10),
+          Text("You $verb"),
+          AmountText(amount: Amount(sats), textStyle: const TextStyle(fontSize: 25, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 10),
+          ...details
+              .take(details.length - 1)
               .where((child) => child is! Visibility || child.visible)
               .expand((child) => [child, const Divider()]),
-          children.last,
+          details.last,
         ]),
     );
   }
@@ -163,7 +182,7 @@ class HistoryDetail extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
-              Flexible(child: MiddleEllipsisedText(displayValue ?? value)),
+              Expanded(child: MiddleEllipsisedText(displayValue ?? value)),
               IconButton(
                   padding: EdgeInsets.zero,
                   onPressed: () {
