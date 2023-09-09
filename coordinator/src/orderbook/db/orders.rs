@@ -274,6 +274,15 @@ pub fn set_order_state(
     Ok(OrderbookOrder::from(order))
 }
 
+pub fn set_expired_limit_orders_to_failed(conn: &mut PgConnection) -> QueryResult<usize> {
+    diesel::update(orders::table)
+        .filter(orders::order_state.eq(OrderState::Open))
+        .filter(orders::order_type.eq(OrderType::Limit))
+        .filter(orders::expiry.lt(OffsetDateTime::now_utc()))
+        .set(orders::order_state.eq(OrderState::Failed))
+        .execute(conn)
+}
+
 /// Returns the order by id
 pub fn get_with_id(conn: &mut PgConnection, uid: Uuid) -> QueryResult<Option<OrderbookOrder>> {
     let x = orders::table

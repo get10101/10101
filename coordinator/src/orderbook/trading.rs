@@ -163,6 +163,13 @@ impl Trading {
         }
 
         let mut conn = self.pool.get()?;
+
+        // before processing any match we set all expired limit orders to failed, to ensure the do
+        // not get matched.
+        // todo(holzeis): orders should probably do not have an expiry, but should either be
+        // replaced or deleted if not wanted anymore.
+        orders::set_expired_limit_orders_to_failed(&mut conn)?;
+
         let order = orders::insert(&mut conn, new_order.clone(), order_reason)
             .map_err(|e| anyhow!("Failed to insert new order into db: {e:#}"))?;
 
