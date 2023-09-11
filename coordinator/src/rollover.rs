@@ -205,8 +205,8 @@ pub mod tests {
         let event_id = rollover.event_id();
 
         // expect expiry in seven days at midnight.
-        // Thu Aug 24 2023 00:00:00 GMT+0000
-        assert_eq!(event_id, format!("btcusd1692835200"))
+        // Sun Aug 20 2023 15:00:00 GMT+0000
+        assert_eq!(event_id, format!("btcusd1692543600"))
     }
 
     #[test]
