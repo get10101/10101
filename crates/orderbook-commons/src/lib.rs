@@ -332,8 +332,7 @@ pub fn get_filled_with_from_matches(matches: Vec<Matches>) -> Result<FilledWith>
     )
     .expect("To be a valid pubkey");
 
-    let tomorrow = OffsetDateTime::now_utc().date() + Duration::days(7);
-    let expiry_timestamp = tomorrow.midnight().assume_utc();
+    let expiry_timestamp = get_expiry_timestamp(OffsetDateTime::now_utc());
 
     Ok(FilledWith {
         order_id,
@@ -352,8 +351,15 @@ pub fn get_filled_with_from_matches(matches: Vec<Matches>) -> Result<FilledWith>
     })
 }
 
+/// todo(holzeis): this should come from a configuration https://github.com/get10101/10101/issues/1029
+pub fn get_expiry_timestamp(from: OffsetDateTime) -> OffsetDateTime {
+    let tomorrow = from.date() + Duration::days(7);
+    tomorrow.midnight().assume_utc()
+}
+
 #[cfg(test)]
 mod test {
+    use crate::get_expiry_timestamp;
     use crate::FilledWith;
     use crate::Match;
     use crate::Signature;
@@ -368,6 +374,32 @@ mod test {
     fn dummy_public_key() -> PublicKey {
         PublicKey::from_str("02bd998ebd176715fe92b7467cf6b1df8023950a4dd911db4c94dfc89cc9f5a655")
             .unwrap()
+    }
+
+    #[test]
+    fn test_expiry_timestamp() {
+        // Thu Aug 17 2023 19:13:13 GMT+0000
+        let from = OffsetDateTime::from_unix_timestamp(1692299593).unwrap();
+        let expiry = get_expiry_timestamp(from);
+
+        // Thu Aug 24 2023 00:00:00 GMT+0000
+        assert_eq!(1692835200, expiry.unix_timestamp());
+    }
+
+    #[test]
+    fn test_next_expiry_timestamp() {
+        // Thu Aug 24 2023 00:00:00 GMT+0000
+        let from = OffsetDateTime::from_unix_timestamp(1692835199).unwrap();
+        let expiry = get_expiry_timestamp(from);
+
+        // Thu Aug 30 2023 00:00:00 GMT+0000
+        assert_eq!(1693353600, expiry.unix_timestamp());
+
+        let from = OffsetDateTime::from_unix_timestamp(1692835200).unwrap();
+        let expiry = get_expiry_timestamp(from);
+
+        // Thu Aug 31 2023 00:00:00 GMT+0000
+        assert_eq!(1693440000, expiry.unix_timestamp());
     }
 
     #[test]

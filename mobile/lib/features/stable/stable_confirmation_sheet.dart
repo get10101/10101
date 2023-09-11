@@ -130,8 +130,6 @@ class _StableBottomSheet extends State<StableBottomSheet> {
       });
     }
 
-    final now = DateTime.now();
-
     return Form(
         key: _formKey,
         child: Column(
@@ -233,7 +231,7 @@ class _StableBottomSheet extends State<StableBottomSheet> {
                           const SizedBox(height: 16.0),
                           ValueDataRow(
                               type: ValueType.date,
-                              value: DateTime.utc(now.year, now.month, now.day + 2).toLocal(),
+                              value: tradeValues.expiry.toLocal(),
                               label: "Expiry",
                               valueTextStyle: const TextStyle(fontSize: 18),
                               labelTextStyle: const TextStyle(fontSize: 18)),

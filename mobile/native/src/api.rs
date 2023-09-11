@@ -34,6 +34,7 @@ use std::ops::Add;
 use std::str::FromStr;
 use std::time::Duration;
 use std::time::SystemTime;
+use time::OffsetDateTime;
 pub use trade::ContractSymbol;
 pub use trade::Direction;
 
@@ -393,4 +394,8 @@ pub fn get_channel_open_fee_estimate_sat() -> Result<u64> {
     let estimate = FUNDING_TX_WEIGHT_ESTIMATE as f32 * fee_rate.as_sat_per_vb();
 
     Ok(estimate.ceil() as u64)
+}
+
+pub fn get_expiry_timestamp() -> SyncReturn<i64> {
+    SyncReturn(orderbook_commons::get_expiry_timestamp(OffsetDateTime::now_utc()).unix_timestamp())
 }

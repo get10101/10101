@@ -25,7 +25,6 @@ use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::str::FromStr;
 use thiserror::Error;
-use time::Duration;
 use time::OffsetDateTime;
 use tokio::sync::broadcast;
 use tokio::sync::mpsc;
@@ -345,8 +344,7 @@ fn match_order(
         return Ok(None);
     }
 
-    let tomorrow = OffsetDateTime::now_utc().date() + Duration::days(7);
-    let expiry_timestamp = tomorrow.midnight().assume_utc();
+    let expiry_timestamp = orderbook_commons::get_expiry_timestamp(OffsetDateTime::now_utc());
 
     // For now we hardcode the oracle pubkey here
     let oracle_pk = XOnlyPublicKey::from_str(

@@ -2,7 +2,17 @@ import 'package:candlesticks/candlesticks.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_10101/common/amount_denomination_change_notifier.dart';
+@GenerateNiceMocks([MockSpec<ChannelInfoService>()])
+import 'package:get_10101/common/application/channel_info_service.dart';
 import 'package:get_10101/common/domain/model.dart';
+@GenerateNiceMocks([MockSpec<CandlestickService>()])
+import 'package:get_10101/features/trade/application/candlestick_service.dart';
+@GenerateNiceMocks([MockSpec<OrderService>()])
+import 'package:get_10101/features/trade/application/order_service.dart';
+@GenerateNiceMocks([MockSpec<PositionService>()])
+import 'package:get_10101/features/trade/application/position_service.dart';
+@GenerateNiceMocks([MockSpec<TradeValuesService>()])
+import 'package:get_10101/features/trade/application/trade_values_service.dart';
 import 'package:get_10101/features/trade/candlestick_change_notifier.dart';
 import 'package:get_10101/features/trade/domain/price.dart';
 import 'package:get_10101/features/trade/order_change_notifier.dart';
@@ -11,6 +21,8 @@ import 'package:get_10101/features/trade/submit_order_change_notifier.dart';
 import 'package:get_10101/features/trade/trade_screen.dart';
 import 'package:get_10101/features/trade/trade_theme.dart';
 import 'package:get_10101/features/trade/trade_value_change_notifier.dart';
+@GenerateNiceMocks([MockSpec<WalletService>()])
+import 'package:get_10101/features/wallet/application/wallet_service.dart';
 import 'package:get_10101/features/wallet/domain/wallet_balances.dart';
 import 'package:get_10101/features/wallet/domain/wallet_info.dart';
 import 'package:get_10101/features/wallet/wallet_change_notifier.dart';
@@ -19,24 +31,6 @@ import 'package:go_router/go_router.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
 import 'package:provider/provider.dart';
-
-@GenerateNiceMocks([MockSpec<TradeValuesService>()])
-import 'package:get_10101/features/trade/application/trade_values_service.dart';
-
-@GenerateNiceMocks([MockSpec<ChannelInfoService>()])
-import 'package:get_10101/common/application/channel_info_service.dart';
-
-@GenerateNiceMocks([MockSpec<OrderService>()])
-import 'package:get_10101/features/trade/application/order_service.dart';
-
-@GenerateNiceMocks([MockSpec<PositionService>()])
-import 'package:get_10101/features/trade/application/position_service.dart';
-
-@GenerateNiceMocks([MockSpec<WalletService>()])
-import 'package:get_10101/features/wallet/application/wallet_service.dart';
-
-@GenerateNiceMocks([MockSpec<CandlestickService>()])
-import 'package:get_10101/features/trade/application/candlestick_service.dart';
 
 import 'trade_test.mocks.dart';
 
@@ -98,6 +92,7 @@ void main() {
     when(tradeValueService.calculateQuantity(
             price: anyNamed('price'), leverage: anyNamed('leverage'), margin: anyNamed('margin')))
         .thenReturn(0.1);
+    when(tradeValueService.getExpiryTimestamp()).thenReturn(DateTime.now());
 
     // assuming this is an initial funding, no channel exists yet
     when(channelConstraintsService.getChannelInfo()).thenAnswer((_) async {
