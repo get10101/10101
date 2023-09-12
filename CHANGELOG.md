@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix: Prevent crashing the app when there's no Internet connection
 - feat: Allow exporting the seed phrase even if the Node is offline
 - Changed expiry to next Sunday 3 pm UTC
+- Automatically rollover if user opens app during rollover weekend
 
 ## [1.2.6] - 2023-09-06
 

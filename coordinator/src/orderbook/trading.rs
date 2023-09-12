@@ -1,3 +1,4 @@
+use crate::db::positions;
 use crate::orderbook::db::matches;
 use crate::orderbook::db::orders;
 use anyhow::anyhow;
@@ -129,7 +130,7 @@ pub fn start(
                         let authenticated_users = authenticated_users.clone();
                         async move {
                             tracing::debug!(trader_id=%new_user_msg.new_user, "Checking if the user needs to be notified about pending matches");
-                            if let Err(e) = process_pending_match(&mut conn, &authenticated_users, new_user_msg.new_user).await {
+                            if let Err(e) = process_pending_actions(&mut conn, &authenticated_users, new_user_msg.new_user).await {
                                 tracing::error!("Failed to process pending match. Error: {e:#}");
                             }
                         }
@@ -273,8 +274,10 @@ async fn process_new_order(
     Ok(order)
 }
 
-/// Notifies the trader if a pending match is waiting for them.
-async fn process_pending_match(
+/// Checks if there are any immediate actions to be processed by the app
+/// - Pending Match
+/// - Rollover
+async fn process_pending_actions(
     conn: &mut PgConnection,
     authenticated_users: &HashMap<PublicKey, mpsc::Sender<OrderbookMsg>>,
     trader_id: PublicKey,
@@ -292,6 +295,27 @@ async fn process_pending_match(
 
         if let Err(e) = notify_trader(trader_id, message, authenticated_users).await {
             tracing::warn!("Failed to notify trader. Error: {e:#}");
+        }
+    } else if let Some(position) =
+        positions::Position::get_open_position_by_trader(conn, trader_id.to_string())?
+    {
+        tracing::debug!(%trader_id, position_id=position.id, "Checking if the users positions is eligible for rollover");
+
+        if orderbook_commons::is_in_rollover_weekend(position.expiry_timestamp) {
+            let next_expiry = orderbook_commons::get_expiry_timestamp(OffsetDateTime::now_utc());
+            if position.expiry_timestamp == next_expiry {
+                tracing::trace!(%trader_id, position_id=position.id, "Position has already been rolled over");
+                return Ok(());
+            }
+
+            tracing::debug!(%trader_id, position_id=position.id, "Proposing to rollover users position");
+
+            let message = OrderbookMsg::Rollover;
+            if let Err(e) = notify_trader(trader_id, message, authenticated_users).await {
+                // if that happens, it's most likely that the user already closed its app again
+                // and we can simply wait for the user to come online again to retry.
+                tracing::debug!("Failed to notify trader. Error: {e:#}");
+            }
         }
     }
 

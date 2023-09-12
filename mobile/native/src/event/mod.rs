@@ -30,7 +30,6 @@ pub fn publish(event: &EventInternal) {
 pub enum EventInternal {
     Init(String),
     Log(String),
-    AsyncTrade(OrderReason),
     OrderUpdateNotification(Order),
     WalletInfoUpdateNotification(WalletInfo),
     OrderFilledWith(Box<TradeParams>),
@@ -41,6 +40,20 @@ pub enum EventInternal {
     PaymentClaimed(u64),
     ServiceHealthUpdate(ServiceUpdate),
     ChannelStatusUpdate(ChannelStatus),
+    BackgroundNotification(BackgroundTask),
+}
+
+#[derive(Clone, Debug)]
+pub enum BackgroundTask {
+    AsyncTrade(OrderReason),
+    Rollover(TaskStatus),
+}
+
+#[derive(Clone, Debug)]
+pub enum TaskStatus {
+    Pending,
+    Failed,
+    Success,
 }
 
 impl fmt::Display for EventInternal {
@@ -58,7 +71,7 @@ impl fmt::Display for EventInternal {
             EventInternal::PaymentClaimed(_) => "PaymentClaimed",
             EventInternal::ServiceHealthUpdate(_) => "ServiceHealthUpdate",
             EventInternal::ChannelStatusUpdate(_) => "ChannelStatusUpdate",
-            EventInternal::AsyncTrade(_) => "AsyncTrade",
+            EventInternal::BackgroundNotification(_) => "BackgroundNotification",
         }
         .fmt(f)
     }
@@ -81,7 +94,7 @@ impl From<EventInternal> for EventType {
             EventInternal::PaymentClaimed(_) => EventType::PaymentClaimed,
             EventInternal::ServiceHealthUpdate(_) => EventType::ServiceHealthUpdate,
             EventInternal::ChannelStatusUpdate(_) => EventType::ChannelStatusUpdate,
-            EventInternal::AsyncTrade(_) => EventType::AsyncTrade,
+            EventInternal::BackgroundNotification(_) => EventType::BackgroundNotification,
         }
     }
 }
@@ -100,5 +113,5 @@ pub enum EventType {
     PaymentClaimed,
     ServiceHealthUpdate,
     ChannelStatusUpdate,
-    AsyncTrade,
+    BackgroundNotification,
 }

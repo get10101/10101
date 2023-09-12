@@ -12,6 +12,7 @@ import 'package:get_10101/common/application/channel_info_service.dart';
 import 'package:get_10101/common/application/event_service.dart';
 import 'package:get_10101/common/channel_status_notifier.dart';
 import 'package:get_10101/common/color.dart';
+import 'package:get_10101/common/domain/background_task.dart';
 import 'package:get_10101/common/domain/service_status.dart';
 import 'package:get_10101/common/global_keys.dart';
 import 'package:get_10101/common/service_status_notifier.dart';
@@ -27,6 +28,7 @@ import 'package:get_10101/features/trade/domain/position.dart';
 import 'package:get_10101/features/trade/domain/price.dart';
 import 'package:get_10101/features/trade/order_change_notifier.dart';
 import 'package:get_10101/features/trade/position_change_notifier.dart';
+import 'package:get_10101/features/trade/rollover_change_notifier.dart';
 import 'package:get_10101/features/trade/submit_order_change_notifier.dart';
 import 'package:get_10101/features/trade/trade_screen.dart';
 import 'package:get_10101/features/trade/trade_theme.dart';
@@ -87,6 +89,7 @@ void main() async {
     ChangeNotifierProvider(create: (context) => ServiceStatusNotifier()),
     ChangeNotifierProvider(create: (context) => ChannelStatusNotifier()),
     ChangeNotifierProvider(create: (context) => AsyncOrderChangeNotifier(OrderService())),
+    ChangeNotifierProvider(create: (context) => RolloverChangeNotifier()),
     Provider(create: (context) => Environment.parse()),
     Provider(create: (context) => channelInfoService)
   ], child: const TenTenOneApp()));
@@ -477,6 +480,7 @@ void subscribeToNotifiers(BuildContext context) {
   final channelStatusNotifier = context.read<ChannelStatusNotifier>();
   final stableValuesChangeNotifier = context.read<StableValuesChangeNotifier>();
   final asyncOrderChangeNotifier = context.read<AsyncOrderChangeNotifier>();
+  final rolloverChangeNotifier = context.read<RolloverChangeNotifier>();
 
   eventService.subscribe(
       orderChangeNotifier, bridge.Event.orderUpdateNotification(Order.apiDummy()));
@@ -509,7 +513,11 @@ void subscribeToNotifiers(BuildContext context) {
 
   eventService.subscribe(
       asyncOrderChangeNotifier, bridge.Event.orderUpdateNotification(Order.apiDummy()));
-  eventService.subscribe(asyncOrderChangeNotifier, bridge.Event.asyncTrade(OrderReason.apiDummy()));
+  eventService.subscribe(
+      asyncOrderChangeNotifier, bridge.Event.backgroundNotification(AsyncTrade.apiDummy()));
+
+  eventService.subscribe(
+      rolloverChangeNotifier, bridge.Event.backgroundNotification(Rollover.apiDummy()));
 
   channelStatusNotifier.subscribe(eventService);
 

@@ -1,4 +1,8 @@
 use crate::db;
+use crate::event;
+use crate::event::BackgroundTask;
+use crate::event::EventInternal;
+use crate::event::TaskStatus;
 use crate::trade::order;
 use crate::trade::position;
 use crate::trade::position::PositionState;
@@ -225,6 +229,10 @@ impl Node {
                     // After handling the `RenewRevoke` message, we need to do some post-processing
                     // based on the fact that the DLC channel has been updated.
                     position::handler::set_position_state(PositionState::Open)?;
+
+                    event::publish(&EventInternal::BackgroundNotification(
+                        BackgroundTask::Rollover(TaskStatus::Success),
+                    ));
                 }
                 // ignoring all other channel events.
                 _ => (),

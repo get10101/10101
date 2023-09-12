@@ -102,6 +102,11 @@ pub async fn async_trade(order: orderbook_commons::Order, filled_with: FilledWit
     Ok(())
 }
 
+/// Rollover dlc to new expiry timestamp
+pub async fn rollover() -> Result<()> {
+    ln_dlc::rollover().await
+}
+
 /// Fetch the positions from the database
 pub fn get_positions() -> Result<Vec<Position>> {
     db::get_positions()

@@ -1,4 +1,5 @@
 use crate::api::WalletInfo;
+use crate::event;
 use crate::event::subscriber::Subscriber;
 use crate::event::EventInternal;
 use crate::event::EventType;
@@ -25,7 +26,14 @@ pub enum Event {
     PriceUpdateNotification(BestPrice),
     ServiceHealthUpdate(ServiceUpdate),
     ChannelStatusUpdate(ChannelStatus),
+    BackgroundNotification(BackgroundTask),
+}
+
+#[frb]
+#[derive(Clone)]
+pub enum BackgroundTask {
     AsyncTrade(OrderReason),
+    Rollover(TaskStatus),
 }
 
 impl From<EventInternal> for Event {
@@ -64,7 +72,9 @@ impl From<EventInternal> for Event {
             EventInternal::PaymentClaimed(_) => {
                 unreachable!("This internal event is not exposed to the UI")
             }
-            EventInternal::AsyncTrade(reason) => Event::AsyncTrade(reason.into()),
+            EventInternal::BackgroundNotification(task) => {
+                Event::BackgroundNotification(task.into())
+            }
         }
     }
 }
@@ -100,7 +110,7 @@ impl Subscriber for FlutterSubscriber {
             EventType::PriceUpdateNotification,
             EventType::ServiceHealthUpdate,
             EventType::ChannelStatusUpdate,
-            EventType::AsyncTrade,
+            EventType::BackgroundNotification,
         ]
     }
 }
@@ -108,6 +118,35 @@ impl Subscriber for FlutterSubscriber {
 impl FlutterSubscriber {
     pub fn new(stream: StreamSink<Event>) -> Self {
         FlutterSubscriber { stream }
+    }
+}
+
+impl From<event::BackgroundTask> for BackgroundTask {
+    fn from(value: event::BackgroundTask) -> Self {
+        match value {
+            event::BackgroundTask::AsyncTrade(order_reason) => {
+                BackgroundTask::AsyncTrade(order_reason.into())
+            }
+            event::BackgroundTask::Rollover(status) => BackgroundTask::Rollover(status.into()),
+        }
+    }
+}
+
+#[frb]
+#[derive(Clone)]
+pub enum TaskStatus {
+    Pending,
+    Failed,
+    Success,
+}
+
+impl From<event::TaskStatus> for TaskStatus {
+    fn from(value: event::TaskStatus) -> Self {
+        match value {
+            event::TaskStatus::Pending => TaskStatus::Pending,
+            event::TaskStatus::Failed => TaskStatus::Failed,
+            event::TaskStatus::Success => TaskStatus::Success,
+        }
     }
 }
 

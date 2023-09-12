@@ -2,6 +2,7 @@ import 'package:f_logs/model/flog/flog.dart';
 import 'package:flutter/material.dart';
 import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
 import 'package:get_10101/common/application/event_service.dart';
+import 'package:get_10101/common/domain/background_task.dart';
 import 'package:get_10101/common/global_keys.dart';
 import 'package:get_10101/features/trade/application/order_service.dart';
 import 'package:get_10101/features/trade/domain/order.dart';
@@ -26,9 +27,10 @@ class AsyncOrderChangeNotifier extends ChangeNotifier implements Subscriber {
 
   @override
   void notify(bridge.Event event) {
-    if (event is bridge.Event_AsyncTrade) {
-      OrderReason reason = OrderReason.fromApi(event.field0);
-      FLog.debug(text: "Received a async trade event. Reason: $reason");
+    if (event is bridge.Event_BackgroundNotification &&
+        event.field0 is bridge.BackgroundTask_AsyncTrade) {
+      AsyncTrade asyncTrade = AsyncTrade.fromApi(event.field0 as bridge.BackgroundTask_AsyncTrade);
+      FLog.debug(text: "Received a async trade event. Reason: ${asyncTrade.orderReason}");
       showDialog(
         context: shellNavigatorKey.currentContext!,
         builder: (context) {
@@ -47,7 +49,7 @@ class AsyncOrderChangeNotifier extends ChangeNotifier implements Subscriber {
           }
 
           late Widget content;
-          switch (reason) {
+          switch (asyncTrade.orderReason) {
             case OrderReason.expired:
               content = const Text("Your position has been closed due to expiry.");
             case OrderReason.manual:

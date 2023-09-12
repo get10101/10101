@@ -130,6 +130,7 @@ pub enum OrderbookMsg {
         order: Order,
         filled_with: FilledWith,
     },
+    Rollover,
 }
 
 /// A match for an order

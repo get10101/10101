@@ -1,6 +1,8 @@
 use crate::config;
 use crate::event;
+use crate::event::BackgroundTask;
 use crate::event::EventInternal;
+use crate::event::TaskStatus;
 use crate::health::ServiceStatus;
 use crate::trade::position;
 use anyhow::Result;
@@ -103,9 +105,19 @@ pub fn subscribe(
                         };
 
                         match msg {
+                            OrderbookMsg::Rollover => {
+                                tracing::info!("Received a rollover request from orderbook.");
+                                event::publish(&EventInternal::BackgroundNotification(BackgroundTask::Rollover(TaskStatus::Pending)));
+
+                                if let Err(e) = position::handler::rollover().await {
+                                    tracing::error!("Failed to rollover dlc. Error: {e:#}");
+                                    event::publish(&EventInternal::BackgroundNotification(BackgroundTask::Rollover(TaskStatus::Failed)));
+                                }
+                            },
                             OrderbookMsg::AsyncMatch { order, filled_with } => {
-                                tracing::info!(order_id = %order.id, "Received an async match from orderbook. Reason: {:?}", order.order_reason);
-                                event::publish(&EventInternal::AsyncTrade(order.clone().order_reason.into()));
+                                let order_reason = order.clone().order_reason.into();
+                                tracing::info!(order_id = %order.id, "Received an async match from orderbook. Reason: {order_reason:?}");
+                                event::publish(&EventInternal::BackgroundNotification(BackgroundTask::AsyncTrade(order_reason)));
 
                                 if let Err(e) = position::handler::async_trade(order.clone(), filled_with).await {
                                     tracing::error!(order_id = %order.id, "Failed to process async trade. Error: {e:#}");
