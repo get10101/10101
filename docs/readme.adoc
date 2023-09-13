@@ -13,3 +13,4 @@ This is an overview of all documents related to 10101.
 . link:../docs/004-solution-architecture.adoc[ADR-004 Solution Architecture]
 . link:../docs/005-mobile-app-routing.adoc[ADR-005 Mobile App Routing]
 . link:../docs/006-just-in-time-channels.adoc[ADR-006 Just-in-time channels]
+. link:../docs/007-funding-rate.adoc[ADR-007 Funding rate]

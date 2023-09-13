@@ -215,11 +215,13 @@ class _ShareInvoiceScreenState extends State<ShareInvoiceScreen> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
               child: ElevatedButton(
-                onPressed: () {
-                  // Pop both create invoice screen and share invoice screen
-                  GoRouter.of(context).pop();
-                  GoRouter.of(context).pop();
-                },
+                onPressed: _isPayInvoiceButtonDisabled
+                    ? null
+                    : () {
+                        // Pop both create invoice screen and share invoice screen
+                        GoRouter.of(context).pop();
+                        GoRouter.of(context).pop();
+                      },
                 style: ElevatedButton.styleFrom(
                   shape: const RoundedRectangleBorder(
                       borderRadius: BorderRadius.all(Radius.circular(5.0))),
