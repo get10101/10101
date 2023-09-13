@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:f_logs/f_logs.dart';
 import 'package:flutter/material.dart' hide Flow;
 import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
@@ -9,6 +11,8 @@ import 'domain/wallet_info.dart';
 
 class WalletChangeNotifier extends ChangeNotifier implements Subscriber {
   final WalletService service;
+  late final Timer timer;
+
   WalletInfo walletInfo = WalletInfo(
     balances: WalletBalances(onChain: Amount(0), lightning: Amount(0)),
     history: List.empty(),
@@ -27,6 +31,14 @@ class WalletChangeNotifier extends ChangeNotifier implements Subscriber {
 
     FLog.trace(text: 'Successfully synced payment history');
     super.notifyListeners();
+  }
+
+  Future<void> initialize() async {
+    await refreshWalletInfo();
+
+    timer = Timer.periodic(const Duration(seconds: 30), (Timer t) async {
+      await refreshWalletInfo();
+    });
   }
 
   Future<void> refreshWalletInfo() async {
