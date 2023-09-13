@@ -66,6 +66,7 @@ mod node;
 
 pub mod channel_status;
 
+use crate::api::Status;
 pub use channel_status::ChannelStatus;
 
 const PROCESS_INCOMING_DLC_MESSAGES_INTERVAL: Duration = Duration::from_millis(200);
@@ -301,9 +302,8 @@ fn keep_wallet_balance_and_history_up_to_date(node: &Node) -> Result<()> {
             (api::PaymentFlow::Outbound, net_sats.unsigned_abs())
         };
 
-        let (status, timestamp, n_confirmations) = match details.confirmation_time {
+        let (timestamp, n_confirmations) = match details.confirmation_time {
             Some(BlockTime { timestamp, height }) => (
-                api::Status::Confirmed,
                 timestamp,
                 // This is calculated manually to avoid wasteful requests to esplora,
                 // since we can just cache the blockchain height as opposed to fetching it for each
@@ -315,12 +315,17 @@ fn keep_wallet_balance_and_history_up_to_date(node: &Node) -> Result<()> {
 
             None => {
                 (
-                    api::Status::Pending,
                     // Unconfirmed transactions should appear towards the top of the history
                     OffsetDateTime::now_utc().unix_timestamp() as u64,
                     0,
                 )
             }
+        };
+
+        let status = if n_confirmations >= 3 {
+            Status::Confirmed
+        } else {
+            Status::Pending
         };
 
         let wallet_type = api::WalletHistoryItemType::OnChain {
