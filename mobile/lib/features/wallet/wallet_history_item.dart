@@ -151,7 +151,8 @@ abstract class WalletHistoryItem extends StatelessWidget {
           )),
       HistoryDetail(
           label: "When",
-          displayWidget: Text(timeago.format(data.timestamp)),
+          displayWidget:
+              Text(timeago.format(data.timestamp), style: HistoryDetail.defaultValueStyle),
           value: dateFormat.format(data.timestamp)),
       ...getDetails(),
     ];
@@ -197,32 +198,38 @@ class HistoryDetail extends StatelessWidget {
   final String value;
   final Widget? displayWidget;
 
-  const HistoryDetail({super.key, required this.label, required this.value, this.displayWidget});
+  static const TextStyle defaultValueStyle = TextStyle(fontSize: 16);
+  static const TextStyle codeStyle = TextStyle(fontSize: 16, fontFamily: "Courier");
+  final TextStyle? valueStyle;
+
+  const HistoryDetail(
+      {super.key, required this.label, required this.value, this.displayWidget, this.valueStyle});
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-        Padding(
-          padding: const EdgeInsets.only(right: 8.0),
-          child: Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
-        ),
-        Expanded(
-          child: Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-            Expanded(child: displayWidget ?? MiddleEllipsisedText(value)),
-            IconButton(
-                padding: EdgeInsets.zero,
-                onPressed: () {
-                  Clipboard.setData(ClipboardData(text: value)).then((_) {
-                    showSnackBar(ScaffoldMessenger.of(context), '$label copied to clipboard');
-                  });
-                },
-                icon: const Icon(Icons.copy, size: 18))
-          ]),
-        )
-      ]),
-    );
+    return Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+      Padding(
+        padding: const EdgeInsets.only(right: 8.0),
+        child: Text(label, style: defaultValueStyle.copyWith(fontWeight: FontWeight.bold)),
+      ),
+      Expanded(
+        child: Row(children: [
+          Expanded(
+              child: Align(
+                  alignment: Alignment.centerRight,
+                  child: displayWidget ??
+                      MiddleEllipsisedText(value, style: valueStyle ?? defaultValueStyle))),
+          IconButton(
+              padding: EdgeInsets.zero,
+              onPressed: () {
+                Clipboard.setData(ClipboardData(text: value)).then((_) {
+                  showSnackBar(ScaffoldMessenger.of(context), '$label copied to clipboard');
+                });
+              },
+              icon: const Icon(Icons.copy, size: 18))
+        ]),
+      )
+    ]);
   }
 }
 
@@ -252,7 +259,7 @@ class TransactionIdText extends StatelessWidget {
 
     return Row(
       children: [
-        Expanded(child: MiddleEllipsisedText(txId)),
+        Expanded(child: MiddleEllipsisedText(txId, style: HistoryDetail.codeStyle)),
         IconButton(
             padding: EdgeInsets.zero,
             onPressed: () => launchUrl(Uri(
@@ -286,13 +293,20 @@ class LightningPaymentHistoryItem extends WalletHistoryItem {
       ),
       Visibility(
         visible: data.invoice != null,
-        child: HistoryDetail(label: "Lightning invoice", value: data.invoice ?? ''),
+        child: HistoryDetail(
+            label: "Lightning invoice",
+            value: data.invoice ?? '',
+            valueStyle: HistoryDetail.codeStyle),
       ),
       HistoryDetail(label: "Invoice description", value: data.description),
-      HistoryDetail(label: "Payment hash", value: data.paymentHash),
+      HistoryDetail(
+          label: "Payment hash", value: data.paymentHash, valueStyle: HistoryDetail.codeStyle),
       Visibility(
         visible: data.preimage != null,
-        child: HistoryDetail(label: "Payment preimage", value: data.preimage ?? ''),
+        child: HistoryDetail(
+            label: "Payment preimage",
+            value: data.preimage ?? '',
+            valueStyle: HistoryDetail.codeStyle),
       ),
     ];
   }
@@ -320,7 +334,9 @@ class TradeHistoryItem extends WalletHistoryItem {
 
   @override
   List<Widget> getDetails() {
-    return [HistoryDetail(label: "Order", value: data.orderId)];
+    return [
+      HistoryDetail(label: "Order", value: data.orderId, valueStyle: HistoryDetail.codeStyle)
+    ];
   }
 
   @override
@@ -352,8 +368,9 @@ class OrderMatchingFeeHistoryItem extends WalletHistoryItem {
   @override
   List<Widget> getDetails() {
     return [
-      HistoryDetail(label: "Order", value: data.orderId),
-      HistoryDetail(label: "Payment hash", value: data.paymentHash)
+      HistoryDetail(label: "Order", value: data.orderId, valueStyle: HistoryDetail.codeStyle),
+      HistoryDetail(
+          label: "Payment hash", value: data.paymentHash, valueStyle: HistoryDetail.codeStyle)
     ];
   }
 
