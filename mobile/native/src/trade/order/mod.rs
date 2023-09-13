@@ -165,4 +165,3 @@ impl From<OrderType> for orderbook_commons::OrderType {
         }
     }
 }
-

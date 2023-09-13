@@ -17,6 +17,7 @@ use crate::trade::order::api::NewOrder;
 use crate::trade::order::api::Order;
 use crate::trade::position;
 use crate::trade::position::api::Position;
+use crate::trade::users;
 use anyhow::Context;
 use anyhow::Result;
 use flutter_rust_bridge::frb;
@@ -326,7 +327,7 @@ pub fn get_seed_phrase() -> SyncReturn<Vec<String>> {
 /// Enroll a user in the beta program
 #[tokio::main(flavor = "current_thread")]
 pub async fn register_beta(email: String) -> Result<()> {
-    order::register_beta(email).await
+    users::register_beta(email).await
 }
 
 /// Send the Firebase token to the LSP for push notifications
