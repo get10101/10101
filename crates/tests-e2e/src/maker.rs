@@ -29,8 +29,12 @@ impl Maker {
         Self::new(client, "http://localhost:18000")
     }
 
+    /// Check whether maker is running and that it is connected to all services
+    /// it depends on
     pub async fn is_running(&self) -> bool {
-        self.get("/").await.is_ok()
+        self.get("/health")
+            .await
+            .is_ok_and(|r| r.status().is_success())
     }
 
     pub async fn sync_on_chain(&self) -> Result<()> {

@@ -1,3 +1,5 @@
+use crate::health::Health;
+use crate::health::ServiceStatus;
 use lazy_static::lazy_static;
 use lightning::ln::channelmanager::ChannelDetails;
 use ln_dlc_node::node::InMemoryStore;
@@ -16,7 +18,20 @@ use std::sync::Arc;
 use std::time::Duration;
 
 lazy_static! {
-    pub static ref METER: Meter = global::meter("coordinator");
+    pub static ref METER: Meter = global::meter("maker");
+
+    // health metrics
+    pub static ref COORDINATOR_STATUS: ObservableGauge<u64> = METER.u64_observable_gauge("coordinator_status")
+        .with_description("Coordinator status")
+        .init();
+
+    pub static ref ORDERBOOK_STATUS: ObservableGauge<u64> = METER.u64_observable_gauge("orderbook_status")
+        .with_description("Orderbook status")
+        .init();
+
+    pub static ref BITMEX_PRICEFEED_STATUS: ObservableGauge<u64> = METER.u64_observable_gauge("bitmex_pricefeed_status")
+        .with_description("Bitmex pricefeed status")
+        .init();
 
     // channel details metrics
     pub static ref CHANNEL_BALANCE_SATOSHI: ObservableGauge<u64> = METER
@@ -58,12 +73,33 @@ pub fn init_meter() -> PrometheusExporter {
     opentelemetry_prometheus::exporter(controller).init()
 }
 
-pub fn collect(node: Arc<Node<InMemoryStore>>) {
+pub fn collect(node: Arc<Node<InMemoryStore>>, health: Health) {
     let cx = opentelemetry::Context::current();
 
     let channels = node.channel_manager.list_channels();
     channel_metrics(&cx, channels);
     node_metrics(&cx, node);
+    health_metrics(&cx, &health);
+}
+
+fn health_metrics(cx: &Context, health: &Health) {
+    update_health_metric(cx, health.get_coordinator_status(), &COORDINATOR_STATUS);
+    update_health_metric(cx, health.get_orderbook_status(), &ORDERBOOK_STATUS);
+    update_health_metric(
+        cx,
+        health.get_bitmex_pricefeed_status(),
+        &BITMEX_PRICEFEED_STATUS,
+    );
+}
+
+/// Updates the health metric given a service status
+fn update_health_metric(cx: &Context, service_status: ServiceStatus, gauge: &ObservableGauge<u64>) {
+    let value = match service_status {
+        ServiceStatus::Offline => 0,
+        ServiceStatus::Online => 1,
+        ServiceStatus::Unknown => 2,
+    };
+    gauge.observe(cx, value, &[]);
 }
 
 fn channel_metrics(cx: &Context, channels: Vec<ChannelDetails>) {
