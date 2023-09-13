@@ -47,24 +47,27 @@ class _BalanceRowState extends State<BalanceRow> with SingleTickerProviderStateM
 
     PositionChangeNotifier positionChangeNotifier = context.watch<PositionChangeNotifier>();
 
-    final (name, rowBgColor, icon, amount) = switch (widget.walletType) {
+    final (name, rowBgColor, icon, amountText) = switch (widget.walletType) {
       WalletType.lightning => (
           "Lightning",
           theme.lightning,
           SvgPicture.asset("assets/Lightning_logo.svg"),
-          walletChangeNotifier.lightning(),
+          AmountText(amount: walletChangeNotifier.lightning(), textStyle: bold),
         ),
       WalletType.onChain => (
           "On-chain",
           theme.onChain,
           SvgPicture.asset("assets/Bitcoin_logo.svg"),
-          walletChangeNotifier.onChain(),
+          AmountText(amount: walletChangeNotifier.onChain(), textStyle: bold),
         ),
       WalletType.stable => (
           "Synthetic-USD",
           theme.lightning,
           SvgPicture.asset("assets/USD_logo.svg"),
-          positionChangeNotifier.getStableUSDAmountInSats()
+          FiatText(
+            amount: positionChangeNotifier.getStableUSDAmountInFiat(),
+            textStyle: bold,
+          )
         ),
     };
 
@@ -139,14 +142,7 @@ class _BalanceRowState extends State<BalanceRow> with SingleTickerProviderStateM
                       child: SizedBox(height: widget.iconSize, width: widget.iconSize, child: icon),
                     ),
                     Expanded(child: Text(name, style: normal)),
-                    if (widget.walletType == WalletType.stable)
-                      // we need to use different widget as we display the value in dollar terms
-                      FiatText(
-                        amount: positionChangeNotifier.getStableUSDAmountInFiat(),
-                        textStyle: bold,
-                      )
-                    else
-                      AmountText(amount: amount, textStyle: bold),
+                    amountText,
                   ]),
                 ),
               ),
