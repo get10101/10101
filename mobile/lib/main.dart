@@ -2,10 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:f_logs/f_logs.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge.dart';
 import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
@@ -47,9 +44,9 @@ import 'package:get_10101/features/wallet/wallet_screen.dart';
 import 'package:get_10101/features/wallet/wallet_theme.dart';
 import 'package:get_10101/features/welcome/welcome_screen.dart';
 import 'package:get_10101/ffi.dart' as rust;
-import 'package:get_10101/firebase_options.dart';
 import 'package:get_10101/util/constants.dart';
 import 'package:get_10101/util/environment.dart';
+import 'package:get_10101/util/notifications.dart';
 import 'package:get_10101/util/preferences.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
@@ -63,11 +60,13 @@ import 'features/stable/stable_value_change_notifier.dart';
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
 final GlobalKey<NavigatorState> _shellNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'shell');
 
-void main() {
+void main() async {
   WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
   FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
 
   setupFlutterLogs();
+
+  initFirebase();
 
   const ChannelInfoService channelInfoService = ChannelInfoService();
   var tradeValuesService = TradeValuesService();
@@ -224,15 +223,6 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
     init(config);
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      try {
-        await initFirebase();
-        await requestNotificationPermission();
-        final flutterLocalNotificationsPlugin = initLocalNotifications();
-        await configureFirebase(flutterLocalNotificationsPlugin);
-      } catch (e) {
-        FLog.error(text: "Error setting up Firebase: ${e.toString()}");
-      }
-
       PackageInfo packageInfo = await PackageInfo.fromPlatform();
       final messenger = scaffoldMessengerKey.currentState!;
 
@@ -443,8 +433,12 @@ Future<void> logAppSettings(bridge.Config config) async {
   FLog.info(text: "Oracle endpoint: ${config.oracleEndpoint}");
   FLog.info(text: "Oracle PK: ${config.oraclePubkey}");
 
-  String nodeId = rust.api.getNodeId();
-  FLog.info(text: "Node ID: $nodeId");
+  try {
+    String nodeId = rust.api.getNodeId();
+    FLog.info(text: "Node ID: $nodeId");
+  } catch (e) {
+    FLog.error(text: "Failed to get node ID: $e");
+  }
 }
 
 /// Forward the events from change notifiers to the Event service
@@ -501,7 +495,7 @@ Future<void> runBackend(bridge.Config config) async {
   final seedDir = (await getApplicationSupportDirectory()).path;
 
   // We use the app documents dir on iOS to easily access logs and DB from
-  // the device. On other plaftorms we use the seed dir.
+  // the device. On other platforms we use the seed dir.
   String appDir = Platform.isIOS
       ? (await getApplicationDocumentsDirectory()).path
       : (await getApplicationSupportDirectory()).path;
@@ -517,61 +511,6 @@ Future<void> runBackend(bridge.Config config) async {
   FLog.info(text: "App data will be stored in: $appDir");
   FLog.info(text: "Seed data will be stored in: $seedDir");
   await startBackend(config: config, appDir: appDir, seedDir: seedDir);
-}
-
-FlutterLocalNotificationsPlugin initLocalNotifications() {
-  final flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
-  const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
-  const darwinSettings = DarwinInitializationSettings();
-  const initializationSettings =
-      InitializationSettings(android: androidSettings, macOS: darwinSettings, iOS: darwinSettings);
-  flutterLocalNotificationsPlugin.initialize(initializationSettings);
-  return flutterLocalNotificationsPlugin;
-}
-
-Future<void> initFirebase() async {
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
-}
-
-Future<void> configureFirebase(FlutterLocalNotificationsPlugin localNotifications) async {
-  // Configure message handler
-  FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-    // TODO: Handle messages from Firebase
-    FLog.debug(text: "Firebase message received: ${message.data}");
-
-    if (message.notification != null) {
-      FLog.debug(text: "Message also contained a notification: ${message.notification}");
-      showNotification(message.notification!.toMap(), localNotifications);
-    }
-  });
-
-  // Setup the message handler when the app is not running
-  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-
-  FirebaseMessaging messaging = FirebaseMessaging.instance;
-  // Subscribe to topic "all" to receive all messages
-  messaging.subscribeToTopic('all');
-}
-
-/// Ask the user for permission to send notifications via Firebase
-Future<void> requestNotificationPermission() async {
-  FirebaseMessaging messaging = FirebaseMessaging.instance;
-  final token = await messaging.getToken();
-  FLog.debug(text: "Firebase token: $token");
-
-  NotificationSettings settings = await messaging.requestPermission(
-    alert: true,
-    announcement: false,
-    badge: true,
-    carPlay: false,
-    criticalAlert: false,
-    provisional: false,
-    sound: true,
-  );
-
-  FLog.info(text: "User granted permission: ${settings.authorizationStatus}");
 }
 
 /// Start the backend and retry a number of times if it fails for whatever reason
@@ -591,52 +530,5 @@ Future<void> startBackend({config, appDir, seedDir}) async {
         exit(-1);
       }
     }
-  }
-}
-
-/// Display notification inside the `message` using the local notification plugin
-void showNotification(
-    Map<String, dynamic> message, FlutterLocalNotificationsPlugin localNotifications) async {
-  const androidPlatformChannelSpecifics = AndroidNotificationDetails(
-    'channel_id',
-    'channel_name',
-    channelDescription: 'channel_description',
-    importance: Importance.max,
-    priority: Priority.high,
-  );
-
-  const darwinPlatformChannelSpecifics = DarwinNotificationDetails(
-    presentAlert: true,
-    presentBadge: true,
-    presentSound: true,
-  );
-
-  const platformChannelSpecifics = NotificationDetails(
-    android: androidPlatformChannelSpecifics,
-    iOS: darwinPlatformChannelSpecifics,
-    macOS: darwinPlatformChannelSpecifics,
-  );
-
-  FLog.debug(text: "Showing notification: ${message['title']} with body ${message['body']}");
-
-  await localNotifications.show(
-    0,
-    message['title'],
-    message['body'],
-    platformChannelSpecifics,
-    payload: 'item x',
-  );
-}
-
-/// Handle background messages (when the app is not running)
-Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  FLog.debug(text: "Handling a background message: ${message.messageId}");
-
-  await Firebase.initializeApp();
-  final localNotifications = initLocalNotifications();
-
-  if (message.notification != null) {
-    FLog.debug(text: "Message also contained a notification: ${message.notification}");
-    showNotification(message.notification!.toMap(), localNotifications);
   }
 }

@@ -35,7 +35,7 @@ pub struct Opts {
     #[clap(short, long)]
     pub json: bool,
 
-    /// The address where to find the database inclding username and password
+    /// The address where to find the database including username and password
     #[clap(
         long,
         default_value = "postgres://postgres:mysecretpassword@localhost:5432/orderbook"
@@ -54,11 +54,16 @@ pub struct Opts {
     #[clap(long)]
     pub tokio_metrics_interval_seconds: Option<u64>,
 
-    // The endpoint of the p2pderivatives oracle
+    /// Server API key for the LSP notification service.
+    /// If not specified, the notifications will not be sent.
+    #[clap(long, default_value = "")]
+    pub fcm_api_key: String,
+
+    /// The endpoint of the p2p-derivatives oracle
     #[clap(long, default_value = "http://localhost:8081")]
     oracle_endpoint: String,
 
-    // The public key of the oracle
+    /// The public key of the oracle
     #[clap(
         long,
         default_value = "16f88cf7d21e6c0f46bcbc983a4e3b19726c6c98858cc31c83551a88fde171c0"

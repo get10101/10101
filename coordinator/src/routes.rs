@@ -35,6 +35,7 @@ use bitcoin::secp256k1::PublicKey;
 use bitcoin::Network;
 use coordinator_commons::LspConfig;
 use coordinator_commons::RegisterParams;
+use coordinator_commons::TokenUpdateParams;
 use coordinator_commons::TradeParams;
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::Pool;
@@ -117,6 +118,7 @@ pub fn router(
         .route("/api/trade", post(post_trade))
         .route("/api/rollover/:dlc_channel_id", post(rollover))
         .route("/api/register", post(post_register))
+        .route("/api/fcm_token", post(post_fcm_token))
         .route("/api/admin/balance", get(get_balance))
         .route("/api/admin/channels", get(list_channels).post(open_channel))
         .route("/api/channels", post(channel_faucet))
@@ -305,6 +307,22 @@ pub async fn post_sync(State(state): State<Arc<AppState>>) -> Result<(), AppErro
         .await
         .map_err(|_| AppError::InternalServerError("Could not sync wallet".to_string()))?
         .map_err(|e| AppError::InternalServerError(format!("Could not sync wallet: {e:#}")))?;
+
+    Ok(())
+}
+
+#[instrument(skip_all, err(Debug))]
+pub async fn post_fcm_token(
+    State(state): State<Arc<AppState>>,
+    params: Json<TokenUpdateParams>,
+) -> Result<(), AppError> {
+    let mut conn = state
+        .pool
+        .get()
+        .map_err(|e| AppError::InternalServerError(format!("Could not get connection: {e:#}")))?;
+
+    user::update_fcm_token(&mut conn, params.0)
+        .map_err(|e| AppError::InternalServerError(format!("Could not insert user: {e:#}")))?;
 
     Ok(())
 }

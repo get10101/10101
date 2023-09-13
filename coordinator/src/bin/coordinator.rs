@@ -11,6 +11,7 @@ use coordinator::node::expired_positions;
 use coordinator::node::storage::NodeStorage;
 use coordinator::node::unrealized_pnl;
 use coordinator::node::Node;
+use coordinator::notification_service::NotificationService;
 use coordinator::routes::router;
 use coordinator::run_migration;
 use coordinator::settings::Settings;
@@ -224,6 +225,10 @@ async fn main() -> Result<()> {
         opts.p2p_announcement_addresses(),
         NODE_ALIAS,
     );
+
+    let notification_service = NotificationService::new(opts.fcm_api_key);
+
+    let _sender = notification_service.get_sender();
 
     // Start the metrics exporter
     autometrics::prometheus_exporter::init();
