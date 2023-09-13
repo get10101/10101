@@ -2,10 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:f_logs/f_logs.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge.dart';
 import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
@@ -47,9 +44,9 @@ import 'package:get_10101/features/wallet/wallet_screen.dart';
 import 'package:get_10101/features/wallet/wallet_theme.dart';
 import 'package:get_10101/features/welcome/welcome_screen.dart';
 import 'package:get_10101/ffi.dart' as rust;
-import 'package:get_10101/firebase_options.dart';
 import 'package:get_10101/util/constants.dart';
 import 'package:get_10101/util/environment.dart';
+import 'package:get_10101/util/notifications.dart';
 import 'package:get_10101/util/preferences.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
@@ -533,52 +530,5 @@ Future<void> startBackend({config, appDir, seedDir}) async {
         exit(-1);
       }
     }
-  }
-}
-
-/// Display notification inside the `message` using the local notification plugin
-void showNotification(
-    Map<String, dynamic> message, FlutterLocalNotificationsPlugin localNotifications) async {
-  const androidPlatformChannelSpecifics = AndroidNotificationDetails(
-    'channel_id',
-    'channel_name',
-    channelDescription: 'channel_description',
-    importance: Importance.max,
-    priority: Priority.high,
-  );
-
-  const darwinPlatformChannelSpecifics = DarwinNotificationDetails(
-    presentAlert: true,
-    presentBadge: true,
-    presentSound: true,
-  );
-
-  const platformChannelSpecifics = NotificationDetails(
-    android: androidPlatformChannelSpecifics,
-    iOS: darwinPlatformChannelSpecifics,
-    macOS: darwinPlatformChannelSpecifics,
-  );
-
-  FLog.debug(text: "Showing notification: ${message['title']} with body ${message['body']}");
-
-  await localNotifications.show(
-    0,
-    message['title'],
-    message['body'],
-    platformChannelSpecifics,
-    payload: 'item x',
-  );
-}
-
-/// Handle background messages (when the app is not running)
-Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  FLog.debug(text: "Handling a background message: ${message.messageId}");
-
-  await Firebase.initializeApp();
-  final localNotifications = initLocalNotifications();
-
-  if (message.notification != null) {
-    FLog.debug(text: "Message also contained a notification: ${message.notification}");
-    showNotification(message.notification!.toMap(), localNotifications);
   }
 }
