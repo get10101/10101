@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:get_10101/common/amount_text.dart';
-import 'package:get_10101/common/domain/model.dart';
 import 'package:get_10101/common/fiat_text.dart';
 import 'package:get_10101/features/stable/stable_screen.dart';
 import 'package:get_10101/features/trade/position_change_notifier.dart';
@@ -48,28 +47,26 @@ class _BalanceRowState extends State<BalanceRow> with SingleTickerProviderStateM
 
     PositionChangeNotifier positionChangeNotifier = context.watch<PositionChangeNotifier>();
 
-    Amount amount;
-    String name;
-    Color rowBgColor;
-    SvgPicture icon;
-
-    if (widget.walletType == WalletType.lightning) {
-      name = "Lightning";
-      rowBgColor = theme.lightning;
-      icon = SvgPicture.asset("assets/Lightning_logo.svg");
-      amount = walletChangeNotifier.lightning();
-    } else if (widget.walletType == WalletType.stable) {
-      name = "Synthetic-USD";
-      rowBgColor = theme.lightning;
-      icon = SvgPicture.asset("assets/USD_logo.svg");
-      // this in unused for now, other than to initialise value (and satisfy the compiler)
-      amount = positionChangeNotifier.getStableUSDAmountInSats();
-    } else {
-      name = "On-chain";
-      rowBgColor = theme.onChain;
-      icon = SvgPicture.asset("assets/Bitcoin_logo.svg");
-      amount = walletChangeNotifier.onChain();
-    }
+    final (name, rowBgColor, icon, amount) = switch (widget.walletType) {
+      WalletType.lightning => (
+          "Lightning",
+          theme.lightning,
+          SvgPicture.asset("assets/Lightning_logo.svg"),
+          walletChangeNotifier.lightning(),
+        ),
+      WalletType.onChain => (
+          "On-chain",
+          theme.onChain,
+          SvgPicture.asset("assets/Bitcoin_logo.svg"),
+          walletChangeNotifier.onChain(),
+        ),
+      WalletType.stable => (
+          "Synthetic-USD",
+          theme.lightning,
+          SvgPicture.asset("assets/USD_logo.svg"),
+          positionChangeNotifier.getStableUSDAmountInSats()
+        ),
+    };
 
     double balanceRowHeight = 45;
     double buttonSize = balanceRowHeight - 10;
