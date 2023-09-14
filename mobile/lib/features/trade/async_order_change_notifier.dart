@@ -27,8 +27,11 @@ class AsyncOrderChangeNotifier extends ChangeNotifier implements Subscriber {
 
   @override
   void notify(bridge.Event event) {
-    if (event is bridge.Event_BackgroundNotification &&
-        event.field0 is bridge.BackgroundTask_AsyncTrade) {
+    if (event is bridge.Event_BackgroundNotification) {
+      if (event.field0 is! bridge.BackgroundTask_AsyncTrade) {
+        // ignoring other kinds of background tasks
+        return;
+      }
       AsyncTrade asyncTrade = AsyncTrade.fromApi(event.field0 as bridge.BackgroundTask_AsyncTrade);
       FLog.debug(text: "Received a async trade event. Reason: ${asyncTrade.orderReason}");
       showDialog(

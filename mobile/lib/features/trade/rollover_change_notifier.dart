@@ -12,8 +12,12 @@ class RolloverChangeNotifier extends ChangeNotifier implements Subscriber {
 
   @override
   void notify(bridge.Event event) {
-    if (event is bridge.Event_BackgroundNotification &&
-        event.field0 is bridge.BackgroundTask_Rollover) {
+    if (event is bridge.Event_BackgroundNotification) {
+      if (event.field0 is! bridge.BackgroundTask_Rollover) {
+        // ignoring other kinds of background tasks
+        return;
+      }
+
       Rollover rollover = Rollover.fromApi(event.field0 as bridge.BackgroundTask_Rollover);
       FLog.debug(text: "Received a rollover event. Status: ${rollover.taskStatus}");
 
