@@ -2,6 +2,8 @@ use anyhow::Context;
 use anyhow::Result;
 use coordinator::cli::Opts;
 use coordinator::logger;
+use coordinator::message::spawn_delivering_messages_to_authenticated_users;
+use coordinator::message::NewUserMessage;
 use coordinator::metrics;
 use coordinator::metrics::init_meter;
 use coordinator::node;
@@ -12,9 +14,8 @@ use coordinator::node::rollover;
 use coordinator::node::storage::NodeStorage;
 use coordinator::node::unrealized_pnl;
 use coordinator::node::Node;
-use coordinator::notification;
-use coordinator::notification::NewUserMessage;
-use coordinator::notification_service::NotificationService;
+use coordinator::notifications::query_and_send_position_notifications;
+use coordinator::notifications::NotificationService;
 use coordinator::orderbook::async_match;
 use coordinator::orderbook::trading;
 use coordinator::routes::router;
@@ -42,10 +43,11 @@ use tracing::metadata::LevelFilter;
 
 const PROCESS_PROMETHEUS_METRICS: Duration = Duration::from_secs(10);
 const PROCESS_INCOMING_DLC_MESSAGES_INTERVAL: Duration = Duration::from_millis(200);
-const EXPIRED_POSITION_SYNC_INTERVAL: Duration = Duration::from_secs(300);
+const EXPIRED_POSITION_SYNC_INTERVAL: Duration = Duration::from_secs(5 * 60);
 const CLOSED_POSITION_SYNC_INTERVAL: Duration = Duration::from_secs(30);
-const UNREALIZED_PNL_SYNC_INTERVAL: Duration = Duration::from_secs(600);
+const UNREALIZED_PNL_SYNC_INTERVAL: Duration = Duration::from_secs(10 * 60);
 const CONNECTION_CHECK_INTERVAL: Duration = Duration::from_secs(30);
+const EXPIRED_POSITION_NOTIFICATION_INTERVAL: Duration = Duration::from_secs(30 * 60);
 
 const NODE_ALIAS: &str = "10101.finance";
 
@@ -201,7 +203,10 @@ async fn main() -> Result<()> {
     let (tx_user_feed, _rx) = broadcast::channel::<NewUserMessage>(100);
     let (tx_price_feed, _rx) = broadcast::channel(100);
 
-    let (_handle, notifier) = notification::start(tx_user_feed.clone());
+    let (_handle, auth_users_notifier) =
+        spawn_delivering_messages_to_authenticated_users(tx_user_feed.clone());
+
+    let notification_service = NotificationService::new(opts.fcm_api_key.clone());
 
     let (_handle, trading_sender) = trading::start(
         pool.clone(),
@@ -216,7 +221,7 @@ async fn main() -> Result<()> {
         notifier.clone(),
         network,
     );
-    let _handle = rollover::monitor(pool.clone(), tx_user_feed.clone(), notifier, network);
+    let _handle = rollover::monitor(pool.clone(), tx_user_feed.clone(), notifier);
 
     tokio::spawn({
         let node = node.clone();
@@ -251,7 +256,7 @@ async fn main() -> Result<()> {
 
     let app = router(
         node,
-        pool,
+        pool.clone(),
         settings,
         exporter,
         opts.p2p_announcement_addresses(),
@@ -263,7 +268,28 @@ async fn main() -> Result<()> {
 
     let notification_service = NotificationService::new(opts.fcm_api_key);
 
-    let _sender = notification_service.get_sender();
+    tokio::spawn({
+        let sender = notification_service.get_sender();
+        let pool = pool.clone();
+        async move {
+            loop {
+                match pool.get() {
+                    Ok(mut conn) => {
+                        if let Err(e) =
+                            query_and_send_position_notifications(&mut conn, &sender).await
+                        {
+                            tracing::error!("Failed to send notifications: {e:#}");
+                        }
+                    }
+                    Err(e) => {
+                        tracing::error!("Failed to get pool connection. Error: {e:?}");
+                    }
+                }
+
+                tokio::time::sleep(EXPIRED_POSITION_NOTIFICATION_INTERVAL).await;
+            }
+        }
+    });
 
     // Start the metrics exporter
     autometrics::prometheus_exporter::init();

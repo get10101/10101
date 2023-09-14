@@ -1,4 +1,4 @@
-use crate::notification::Notification;
+use crate::message::CoordinatorMessage;
 use crate::orderbook::db::matches;
 use crate::orderbook::db::orders;
 use anyhow::anyhow;
@@ -85,7 +85,7 @@ impl From<&TradeParams> for TraderMatchParams {
 pub fn start(
     pool: Pool<ConnectionManager<PgConnection>>,
     tx_price_feed: broadcast::Sender<Message>,
-    notifier: mpsc::Sender<Notification>,
+    notifier: mpsc::Sender<CoordinatorMessage>,
     network: Network,
 ) -> (RemoteHandle<Result<()>>, mpsc::Sender<NewOrderMessage>) {
     let (sender, mut receiver) = mpsc::channel::<NewOrderMessage>(NEW_ORDERS_BUFFER_SIZE);
@@ -132,7 +132,7 @@ pub fn start(
 /// Market order: find match and notify traders
 async fn process_new_order(
     conn: &mut PgConnection,
-    notifier: mpsc::Sender<Notification>,
+    notifier: mpsc::Sender<OrderbookMessage>,
     tx_price_feed: broadcast::Sender<Message>,
     new_order: NewOrder,
     order_reason: OrderReason,
@@ -216,7 +216,7 @@ async fn process_new_order(
                 },
             };
 
-            let msg = Notification::Message { trader_id, message };
+            let msg = OrderbookMessage::TraderMessage { trader_id, message };
             let order_state = match notifier.send(msg).await {
                 Ok(()) => {
                     tracing::debug!(%trader_id, order_id, "Successfully notified trader");

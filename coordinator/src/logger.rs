@@ -87,3 +87,16 @@ pub fn init_tracing(level: LevelFilter, json_format: bool, tokio_console: bool) 
 
     Ok(())
 }
+
+/// Initialise tracing for tests
+#[cfg(test)]
+pub(crate) fn init_tracing_for_test() {
+    static TRACING_TEST_SUBSCRIBER: std::sync::Once = std::sync::Once::new();
+
+    TRACING_TEST_SUBSCRIBER.call_once(|| {
+        tracing_subscriber::fmt()
+            .with_env_filter("debug")
+            .with_test_writer()
+            .init()
+    })
+}
