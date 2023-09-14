@@ -18,6 +18,18 @@ pub mod sql_types {
     pub struct HtlcStatusType;
 
     #[derive(diesel::sql_types::SqlType)]
+    #[diesel(postgres_type(name = "MatchState_Type"))]
+    pub struct MatchStateType;
+
+    #[derive(diesel::sql_types::SqlType)]
+    #[diesel(postgres_type(name = "OrderReason_Type"))]
+    pub struct OrderReasonType;
+
+    #[derive(diesel::sql_types::SqlType)]
+    #[diesel(postgres_type(name = "OrderState_Type"))]
+    pub struct OrderStateType;
+
+    #[derive(diesel::sql_types::SqlType)]
     #[diesel(postgres_type(name = "OrderType_Type"))]
     pub struct OrderTypeType;
 
@@ -51,20 +63,44 @@ diesel::table! {
 
 diesel::table! {
     use diesel::sql_types::*;
+    use super::sql_types::MatchStateType;
+
+    matches (id) {
+        id -> Uuid,
+        match_state -> MatchStateType,
+        order_id -> Uuid,
+        trader_id -> Text,
+        match_order_id -> Uuid,
+        match_trader_id -> Text,
+        execution_price -> Float4,
+        quantity -> Float4,
+        created_at -> Timestamptz,
+        updated_at -> Timestamptz,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
     use super::sql_types::DirectionType;
     use super::sql_types::OrderTypeType;
+    use super::sql_types::OrderStateType;
+    use super::sql_types::ContractSymbolType;
+    use super::sql_types::OrderReasonType;
 
     orders (id) {
         id -> Int4,
         trader_order_id -> Uuid,
         price -> Float4,
         trader_id -> Text,
-        taken -> Bool,
         direction -> DirectionType,
         quantity -> Float4,
         timestamp -> Timestamptz,
         order_type -> OrderTypeType,
         expiry -> Timestamptz,
+        order_state -> OrderStateType,
+        contract_symbol -> ContractSymbolType,
+        leverage -> Float4,
+        order_reason -> OrderReasonType,
     }
 }
 
@@ -181,6 +217,7 @@ diesel::joinable!(trades -> positions (position_id));
 
 diesel::allow_tables_to_appear_in_same_query!(
     channels,
+    matches,
     orders,
     payments,
     positions,

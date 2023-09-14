@@ -1,4 +1,6 @@
 use crate::orderbook;
+use crate::orderbook::trading::NewUserMessage;
+use crate::orderbook::trading::TradingMessage;
 use crate::routes::AppState;
 use axum::extract::ws::Message;
 use axum::extract::ws::WebSocket;
@@ -23,7 +25,7 @@ pub async fn websocket_connection(stream: WebSocket, state: Arc<AppState>) {
 
     // We subscribe *before* sending the "joined" message, so that we will also
     // display it to our client.
-    let mut rx = state.tx_pricefeed.subscribe();
+    let mut rx = state.tx_price_feed.subscribe();
 
     let mut conn = match state.pool.clone().get() {
         Ok(conn) => conn,
@@ -97,8 +99,13 @@ pub async fn websocket_connection(stream: WebSocket, state: Arc<AppState>) {
                                 return;
                             }
 
-                            let mut authenticated_users = state.authenticated_users.lock();
-                            authenticated_users.insert(pubkey, local_sender.clone());
+                            let message = TradingMessage::NewUser(NewUserMessage {
+                                new_user: pubkey,
+                                sender: local_sender.clone(),
+                            });
+                            if let Err(e) = state.trading_sender.send(message).await {
+                                tracing::error!("Could not send trading message. Error: {e:#}");
+                            }
                         }
                         Err(err) => {
                             if let Err(er) = local_sender
@@ -116,7 +123,7 @@ pub async fn websocket_connection(stream: WebSocket, state: Arc<AppState>) {
                     }
                 }
                 Err(err) => {
-                    tracing::trace!("Could not derserialize msg: {text} {err:#}");
+                    tracing::trace!("Could not deserialize msg: {text} {err:#}");
                 }
             }
         }

@@ -4,6 +4,8 @@ use crate::orderbook::tests::setup_db;
 use crate::orderbook::tests::start_postgres;
 use bitcoin::secp256k1::PublicKey;
 use orderbook_commons::NewOrder;
+use orderbook_commons::OrderReason;
+use orderbook_commons::OrderState;
 use orderbook_commons::OrderType;
 use rust_decimal_macros::dec;
 use std::str::FromStr;
@@ -28,11 +30,12 @@ async fn crud_test() {
     let order = orders::insert(
         &mut conn,
         dummy_order(OffsetDateTime::now_utc() + Duration::minutes(1)),
+        OrderReason::Manual,
     )
     .unwrap();
 
     let order = orders::set_is_taken(&mut conn, order.id, true).unwrap();
-    assert!(order.taken);
+    assert_eq!(order.order_state, OrderState::Taken);
 
     let deleted = orders::delete_with_id(&mut conn, order.id).unwrap();
     assert_eq!(deleted, 1);
@@ -56,11 +59,13 @@ async fn test_filter_expired_orders() {
     let order = orders::insert(
         &mut conn,
         dummy_order(OffsetDateTime::now_utc() + Duration::minutes(1)),
+        OrderReason::Manual,
     )
     .unwrap();
     let _ = orders::insert(
         &mut conn,
         dummy_order(OffsetDateTime::now_utc() - Duration::minutes(1)),
+        OrderReason::Manual,
     )
     .unwrap();
 
@@ -84,5 +89,7 @@ fn dummy_order(expiry: OffsetDateTime) -> NewOrder {
         quantity: dec!(100.0),
         order_type: OrderType::Market,
         expiry,
+        contract_symbol: trade::ContractSymbol::BtcUsd,
+        leverage: 1.0,
     }
 }

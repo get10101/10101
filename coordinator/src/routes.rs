@@ -17,6 +17,7 @@ use crate::orderbook::routes::get_orders;
 use crate::orderbook::routes::post_order;
 use crate::orderbook::routes::put_order;
 use crate::orderbook::routes::websocket_handler;
+use crate::orderbook::trading::TradingMessage;
 use crate::settings::Settings;
 use crate::AppError;
 use autometrics::autometrics;
@@ -49,12 +50,10 @@ use ln_dlc_node::node::NodeInfo;
 use opentelemetry_prometheus::PrometheusExporter;
 use orderbook_commons::OrderbookMsg;
 use orderbook_commons::RouteHintHop;
-use parking_lot::Mutex;
 use prometheus::Encoder;
 use prometheus::TextEncoder;
 use serde::Deserialize;
 use serde::Serialize;
-use std::collections::HashMap;
 use std::str::FromStr;
 use std::sync::Arc;
 use tokio::sync::broadcast;
@@ -66,15 +65,16 @@ use tracing::instrument;
 pub struct AppState {
     pub node: Node,
     // Channel used to send messages to all connected clients.
-    pub tx_pricefeed: broadcast::Sender<OrderbookMsg>,
+    pub tx_price_feed: broadcast::Sender<OrderbookMsg>,
+    pub trading_sender: mpsc::Sender<TradingMessage>,
     pub pool: Pool<ConnectionManager<PgConnection>>,
-    pub authenticated_users: Arc<Mutex<HashMap<PublicKey, mpsc::Sender<OrderbookMsg>>>>,
     pub settings: RwLock<Settings>,
     pub exporter: PrometheusExporter,
     pub announcement_addresses: Vec<NetAddress>,
     pub node_alias: String,
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn router(
     node: Node,
     pool: Pool<ConnectionManager<PgConnection>>,
@@ -82,14 +82,15 @@ pub fn router(
     exporter: PrometheusExporter,
     announcement_addresses: Vec<NetAddress>,
     node_alias: &str,
+    trading_sender: mpsc::Sender<TradingMessage>,
+    tx_price_feed: broadcast::Sender<OrderbookMsg>,
 ) -> Router {
-    let (tx, _rx) = broadcast::channel(100);
     let app_state = Arc::new(AppState {
         node,
         pool,
         settings: RwLock::new(settings),
-        tx_pricefeed: tx,
-        authenticated_users: Default::default(),
+        tx_price_feed,
+        trading_sender,
         exporter,
         announcement_addresses,
         node_alias: node_alias.to_string(),

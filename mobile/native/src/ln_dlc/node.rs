@@ -299,27 +299,13 @@ impl Node {
             ..
         })) = msg
         {
-            match order::handler::order_filled() {
-                Ok(filled_order) => {
-                    position::handler::update_position_after_dlc_closure(filled_order)
-                        .context("Failed to update position after DLC closure")?;
+            let filled_order = order::handler::order_filled()?;
+            position::handler::update_position_after_dlc_closure(filled_order)
+                .context("Failed to update position after DLC closure")?;
 
-                    if let Err(e) = self.pay_order_matching_fee(&channel_id) {
-                        tracing::error!("{e:#}");
-                    }
-                }
-                // TODO: Should we charge for the order-matching fee if there is no order????
-                Err(e) => {
-                    tracing::warn!("Could not find a filling position in the database. Maybe because the coordinator closed an expired position. Error: {e:#}");
-
-                    tokio::spawn(async {
-                        match position::handler::close_position().await {
-                            Ok(_) => tracing::info!("Successfully closed expired position."),
-                            Err(e) => tracing::error!("Critical Error! We have a DLC but were unable to set the order to filled. Error: {e:?}")
-                        }
-                    });
-                }
-            };
+            if let Err(e) = self.pay_order_matching_fee(&channel_id) {
+                tracing::error!("{e:#}");
+            }
         };
 
         Ok(())

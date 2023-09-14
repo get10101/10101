@@ -13,6 +13,7 @@ use rust_decimal_macros::dec;
 use time::Duration;
 use time::OffsetDateTime;
 use tokio::sync::watch;
+use trade::ContractSymbol;
 use trade::Direction;
 use uuid::Uuid;
 
@@ -93,10 +94,12 @@ async fn add_order(
             orderbook_url,
             NewOrder {
                 id: Uuid::new_v4(),
+                contract_symbol: ContractSymbol::BtcUsd,
                 price,
                 quantity,
                 trader_id: maker_id,
                 direction,
+                leverage: 1.0,
                 order_type: OrderType::Limit,
                 expiry,
             },

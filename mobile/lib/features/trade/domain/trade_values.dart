@@ -31,7 +31,7 @@ class TradeValues {
       required this.fundingRate,
       required this.tradeValuesService});
 
-  factory TradeValues.createStable(
+  factory TradeValues.fromQuantity(
       {required double quantity,
       required Leverage leverage,
       required double? price,
@@ -59,7 +59,7 @@ class TradeValues {
         tradeValuesService: tradeValuesService);
   }
 
-  factory TradeValues.create(
+  factory TradeValues.fromMargin(
       {required Amount? margin,
       required Leverage leverage,
       required double? price,

@@ -1,3 +1,9 @@
+pub use crate::order_matching_fee::order_matching_fee_taker;
+pub use crate::price::best_current_price;
+pub use crate::price::Price;
+pub use crate::price::Prices;
+use anyhow::ensure;
+use anyhow::Result;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use secp256k1::Message;
@@ -8,28 +14,41 @@ use serde::Serialize;
 use sha2::digest::FixedOutput;
 use sha2::Digest;
 use sha2::Sha256;
+use std::str::FromStr;
+use time::Duration;
 use time::OffsetDateTime;
+use trade::ContractSymbol;
 use trade::Direction;
 use uuid::Uuid;
 
 mod order_matching_fee;
 mod price;
 
-pub use crate::order_matching_fee::order_matching_fee_taker;
-pub use crate::price::best_current_price;
-pub use crate::price::Price;
-pub use crate::price::Prices;
-
 /// The prefix used in the description field of an order-matching fee invoice to be paid by a taker.
 pub const FEE_INVOICE_DESCRIPTION_PREFIX_TAKER: &str = "taker-fee-";
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub enum OrderState {
+    Open,
+    Matched,
+    Taken,
+    Failed,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub enum OrderReason {
+    Manual,
+    Expired,
+}
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct Order {
     pub id: Uuid,
     #[serde(with = "rust_decimal::serde::float")]
     pub price: Decimal,
+    pub leverage: f32,
+    pub contract_symbol: ContractSymbol,
     pub trader_id: PublicKey,
-    pub taken: bool,
     pub direction: Direction,
     #[serde(with = "rust_decimal::serde::float")]
     pub quantity: Decimal,
@@ -38,6 +57,8 @@ pub struct Order {
     pub timestamp: OffsetDateTime,
     #[serde(with = "time::serde::rfc3339")]
     pub expiry: OffsetDateTime,
+    pub order_state: OrderState,
+    pub order_reason: OrderReason,
 }
 
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
@@ -58,12 +79,14 @@ pub fn create_sign_message() -> Message {
 #[derive(Serialize, Deserialize, Clone)]
 pub struct NewOrder {
     pub id: Uuid,
+    pub contract_symbol: ContractSymbol,
     #[serde(with = "rust_decimal::serde::float")]
     pub price: Decimal,
     #[serde(with = "rust_decimal::serde::float")]
     pub quantity: Decimal,
     pub trader_id: PublicKey,
     pub direction: Direction,
+    pub leverage: f32,
     pub order_type: OrderType,
     pub expiry: OffsetDateTime,
 }
@@ -81,7 +104,6 @@ pub struct OrderResponse {
     #[serde(with = "rust_decimal::serde::float")]
     pub price: Decimal,
     pub trader_id: PublicKey,
-    pub taken: bool,
     pub direction: Direction,
     #[serde(with = "rust_decimal::serde::float")]
     pub quantity: Decimal,
@@ -102,6 +124,10 @@ pub enum OrderbookMsg {
     InvalidAuthentication(String),
     Authenticated,
     Match(FilledWith),
+    AsyncMatch {
+        order: Order,
+        filled_with: FilledWith,
+    },
 }
 
 /// A match for an order
@@ -110,6 +136,9 @@ pub enum OrderbookMsg {
 /// corresponding order id.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Match {
+    /// The id of the match
+    pub id: Uuid,
+
     /// The id of the matched order defined by the orderbook
     ///
     /// The identifier of the order as defined by the orderbook.
@@ -129,6 +158,18 @@ pub struct Match {
     /// The trade is to be executed at this price.
     #[serde(with = "rust_decimal::serde::float")]
     pub execution_price: Decimal,
+}
+
+impl From<Matches> for Match {
+    fn from(value: Matches) -> Self {
+        Match {
+            id: value.id,
+            order_id: value.order_id,
+            quantity: value.quantity,
+            pubkey: value.trader_id,
+            execution_price: value.execution_price,
+        }
+    }
 }
 
 /// The match params for one order
@@ -172,31 +213,29 @@ pub struct FilledWith {
 }
 
 impl FilledWith {
-    /// calculates the average execution price for inverse contracts
-    ///
-    /// The average execution price follows a simple formula:
-    /// `total_order_quantity / (quantity_trade_0 / execution_price_trade_0 + quantity_trade_1 /
-    /// execution_price_trade_1 )`
     pub fn average_execution_price(&self) -> Decimal {
-        if self.matches.len() == 1 {
-            return self
-                .matches
-                .first()
-                .expect("to be exactly one")
-                .execution_price;
-        }
-
-        let sum_quantity = self
-            .matches
-            .iter()
-            .fold(Decimal::ZERO, |acc, m| acc + m.quantity);
-
-        let nominal_prices: Decimal = self.matches.iter().fold(Decimal::ZERO, |acc, m| {
-            acc + (m.quantity / m.execution_price)
-        });
-
-        sum_quantity / nominal_prices
+        average_execution_price(self.matches.clone())
     }
+}
+
+/// calculates the average execution price for inverse contracts
+///
+/// The average execution price follows a simple formula:
+/// `total_order_quantity / (quantity_trade_0 / execution_price_trade_0 + quantity_trade_1 /
+/// execution_price_trade_1 )`
+pub fn average_execution_price(matches: Vec<Match>) -> Decimal {
+    if matches.len() == 1 {
+        return matches.first().expect("to be exactly one").execution_price;
+    }
+    let sum_quantity = matches
+        .iter()
+        .fold(Decimal::ZERO, |acc, m| acc + m.quantity);
+
+    let nominal_prices: Decimal = matches.iter().fold(Decimal::ZERO, |acc, m| {
+        acc + (m.quantity / m.execution_price)
+    });
+
+    sum_quantity / nominal_prices
 }
 
 #[derive(Serialize, Deserialize)]
@@ -259,6 +298,60 @@ impl From<RoutingFees> for lightning::routing::gossip::RoutingFees {
     }
 }
 
+pub enum MatchState {
+    Pending,
+    Filled,
+    Failed,
+}
+
+pub struct Matches {
+    pub id: Uuid,
+    pub match_state: MatchState,
+    pub order_id: Uuid,
+    pub trader_id: PublicKey,
+    pub match_order_id: Uuid,
+    pub match_trader_id: PublicKey,
+    pub execution_price: Decimal,
+    pub quantity: Decimal,
+    pub created_at: OffsetDateTime,
+    pub updated_at: OffsetDateTime,
+}
+
+pub fn get_filled_with_from_matches(matches: Vec<Matches>) -> Result<FilledWith> {
+    ensure!(
+        !matches.is_empty(),
+        "Need at least one matches record to construct a FilledWith"
+    );
+
+    let order_id = matches
+        .first()
+        .expect("to have at least one match")
+        .order_id;
+    let oracle_pk = XOnlyPublicKey::from_str(
+        "16f88cf7d21e6c0f46bcbc983a4e3b19726c6c98858cc31c83551a88fde171c0",
+    )
+    .expect("To be a valid pubkey");
+
+    let tomorrow = OffsetDateTime::now_utc().date() + Duration::days(7);
+    let expiry_timestamp = tomorrow.midnight().assume_utc();
+
+    Ok(FilledWith {
+        order_id,
+        expiry_timestamp,
+        oracle_pk,
+        matches: matches
+            .iter()
+            .map(|m| Match {
+                id: m.id,
+                order_id: m.order_id,
+                quantity: m.quantity,
+                pubkey: m.match_trader_id,
+                execution_price: m.execution_price,
+            })
+            .collect(),
+    })
+}
+
 #[cfg(test)]
 mod test {
     use crate::FilledWith;
@@ -270,6 +363,7 @@ mod test {
     use secp256k1::XOnlyPublicKey;
     use std::str::FromStr;
     use time::OffsetDateTime;
+    use uuid::Uuid;
 
     fn dummy_public_key() -> PublicKey {
         PublicKey::from_str("02bd998ebd176715fe92b7467cf6b1df8023950a4dd911db4c94dfc89cc9f5a655")
@@ -324,12 +418,14 @@ mod test {
             .expect("To be a valid pubkey"),
             matches: vec![
                 Match {
+                    id: Uuid::new_v4(),
                     order_id: Default::default(),
                     quantity: match_0_quantity,
                     pubkey: dummy_public_key(),
                     execution_price: match_0_price,
                 },
                 Match {
+                    id: Uuid::new_v4(),
                     order_id: Default::default(),
                     quantity: match_1_quantity,
                     pubkey: dummy_public_key(),

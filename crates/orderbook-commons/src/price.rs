@@ -1,4 +1,5 @@
 use crate::Order;
+use crate::OrderState;
 use crate::ToPrimitive;
 use rust_decimal::Decimal;
 use serde::Deserialize;
@@ -55,7 +56,7 @@ fn best_price_for(
     let use_max = direction == Direction::Long;
     current_orders
         .iter()
-        .filter(|order| !order.taken && order.direction == direction)
+        .filter(|order| order.order_state == OrderState::Open && order.direction == direction)
         .map(|order| order.price.to_f64().expect("to represent decimal as f64"))
         // get the best price
         .fold(None, |acc, x| match acc {
@@ -71,6 +72,8 @@ mod test {
     use crate::price::best_ask_price;
     use crate::price::best_bid_price;
     use crate::Order;
+    use crate::OrderReason;
+    use crate::OrderState;
     use crate::OrderType;
     use rust_decimal::Decimal;
     use rust_decimal_macros::dec;
@@ -87,27 +90,30 @@ mod test {
             .unwrap()
     }
 
-    fn dummy_order(price: Decimal, direction: Direction, taken: bool) -> Order {
+    fn dummy_order(price: Decimal, direction: Direction, order_state: OrderState) -> Order {
         Order {
             id: Uuid::new_v4(),
             price,
             trader_id: dummy_public_key(),
-            taken,
             direction,
+            leverage: 1.0,
+            contract_symbol: BtcUsd,
             quantity: 100.into(),
             order_type: OrderType::Market,
             timestamp: OffsetDateTime::now_utc(),
             expiry: OffsetDateTime::now_utc(),
+            order_state,
+            order_reason: OrderReason::Manual,
         }
     }
 
     #[test]
     fn test_best_bid_price() {
         let current_orders = vec![
-            dummy_order(dec!(10_000), Direction::Long, false),
-            dummy_order(dec!(30_000), Direction::Long, false),
-            dummy_order(dec!(500_000), Direction::Long, true), // taken
-            dummy_order(dec!(50_000), Direction::Short, false), // wrong direction
+            dummy_order(dec!(10_000), Direction::Long, OrderState::Open),
+            dummy_order(dec!(30_000), Direction::Long, OrderState::Open),
+            dummy_order(dec!(500_000), Direction::Long, OrderState::Taken), // taken
+            dummy_order(dec!(50_000), Direction::Short, OrderState::Open),  // wrong direction
         ];
         assert_eq!(best_bid_price(&current_orders, BtcUsd), Some(dec!(30_000)));
     }
@@ -115,12 +121,12 @@ mod test {
     #[test]
     fn test_best_ask_price() {
         let current_orders = vec![
-            dummy_order(dec!(10_000), Direction::Short, false),
-            dummy_order(dec!(30_000), Direction::Short, false),
+            dummy_order(dec!(10_000), Direction::Short, OrderState::Open),
+            dummy_order(dec!(30_000), Direction::Short, OrderState::Open),
             // ignored in the calculations - this order is taken
-            dummy_order(dec!(5_000), Direction::Short, true),
+            dummy_order(dec!(5_000), Direction::Short, OrderState::Taken),
             // ignored in the calculations - it's the bid price
-            dummy_order(dec!(50_000), Direction::Long, false),
+            dummy_order(dec!(50_000), Direction::Long, OrderState::Open),
         ];
         assert_eq!(best_ask_price(&current_orders, BtcUsd), Some(dec!(10_000)));
     }
@@ -128,8 +134,8 @@ mod test {
     #[test]
     fn test_no_price() {
         let all_orders_taken = vec![
-            dummy_order(dec!(10_000), Direction::Short, true),
-            dummy_order(dec!(30_000), Direction::Long, true),
+            dummy_order(dec!(10_000), Direction::Short, OrderState::Taken),
+            dummy_order(dec!(30_000), Direction::Long, OrderState::Taken),
         ];
 
         assert_eq!(best_ask_price(&all_orders_taken, BtcUsd), None);

@@ -35,6 +35,7 @@ diesel::table! {
         execution_price -> Nullable<Float>,
         failure_reason -> Nullable<Text>,
         order_expiry_timestamp -> BigInt,
+        reason -> Text,
     }
 }
 

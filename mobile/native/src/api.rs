@@ -204,6 +204,13 @@ pub async fn get_orders() -> Result<Vec<Order>> {
 }
 
 #[tokio::main(flavor = "current_thread")]
+pub async fn get_async_order() -> Result<Option<Order>> {
+    let order = order::handler::get_async_order()?;
+    let order = order.map(|order| order.into());
+    Ok(order)
+}
+
+#[tokio::main(flavor = "current_thread")]
 pub async fn get_positions() -> Result<Vec<Position>> {
     let positions = position::handler::get_positions()?
         .into_iter()

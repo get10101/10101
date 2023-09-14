@@ -98,6 +98,30 @@ pub enum OrderState {
 }
 
 #[derive(Debug, Clone, Copy)]
+pub enum OrderReason {
+    Manual,
+    Expired,
+}
+
+impl From<OrderReason> for orderbook_commons::OrderReason {
+    fn from(value: OrderReason) -> Self {
+        match value {
+            OrderReason::Manual => orderbook_commons::OrderReason::Manual,
+            OrderReason::Expired => orderbook_commons::OrderReason::Expired,
+        }
+    }
+}
+
+impl From<orderbook_commons::OrderReason> for OrderReason {
+    fn from(value: orderbook_commons::OrderReason) -> Self {
+        match value {
+            orderbook_commons::OrderReason::Manual => OrderReason::Manual,
+            orderbook_commons::OrderReason::Expired => OrderReason::Expired,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
 pub struct Order {
     pub id: Uuid,
     pub leverage: f32,
@@ -108,6 +132,7 @@ pub struct Order {
     pub state: OrderState,
     pub creation_timestamp: OffsetDateTime,
     pub order_expiry_timestamp: OffsetDateTime,
+    pub reason: OrderReason,
 }
 
 impl Order {
@@ -145,12 +170,14 @@ impl From<Order> for orderbook_commons::NewOrder {
         let trader_id = ln_dlc::get_node_info().expect("to have info").pubkey;
         orderbook_commons::NewOrder {
             id: order.id,
+            contract_symbol: order.contract_symbol,
             // todo: this is left out intentionally as market orders do not set a price. this field
             // should either be an option or differently modelled for a market order.
             price: Decimal::ZERO,
             quantity,
             trader_id,
             direction: order.direction,
+            leverage: order.leverage,
             order_type: order.order_type.into(),
             expiry: order.order_expiry_timestamp,
         }

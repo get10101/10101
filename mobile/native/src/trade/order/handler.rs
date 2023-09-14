@@ -112,6 +112,10 @@ pub async fn get_orders_for_ui() -> Result<Vec<Order>> {
     db::get_orders_for_ui()
 }
 
+pub fn get_async_order() -> Result<Option<Order>> {
+    db::get_async_order()
+}
+
 fn get_order_being_filled() -> Result<Order> {
     let order_being_filled = match db::maybe_get_order_in_filling() {
         Ok(Some(order_being_filled)) => order_being_filled,

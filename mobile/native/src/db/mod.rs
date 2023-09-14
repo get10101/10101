@@ -147,6 +147,21 @@ pub fn get_orders_for_ui() -> Result<Vec<trade::order::Order>> {
         .collect::<Result<_, _>>()?)
 }
 
+pub fn get_async_order() -> Result<Option<trade::order::Order>> {
+    let mut db = connection()?;
+    let order = Order::get_async_order(&mut db)?;
+
+    let order: Option<trade::order::Order> = match order {
+        Some(order) => {
+            let order = order.try_into()?;
+            Some(order)
+        }
+        None => None,
+    };
+
+    Ok(order)
+}
+
 pub fn get_filled_orders() -> Result<Vec<trade::order::Order>> {
     let mut db = connection()?;
 

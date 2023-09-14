@@ -4,6 +4,7 @@ use crate::event::subscriber::Subscriber;
 use crate::health::ServiceUpdate;
 use crate::ln_dlc::ChannelStatus;
 use crate::trade::order::Order;
+use crate::trade::order::OrderReason;
 use crate::trade::position::Position;
 use coordinator_commons::TradeParams;
 use ln_dlc_node::node::rust_dlc_manager::ChannelId;
@@ -29,6 +30,7 @@ pub fn publish(event: &EventInternal) {
 pub enum EventInternal {
     Init(String),
     Log(String),
+    AsyncTrade(OrderReason),
     OrderUpdateNotification(Order),
     WalletInfoUpdateNotification(WalletInfo),
     OrderFilledWith(Box<TradeParams>),
@@ -56,6 +58,7 @@ impl fmt::Display for EventInternal {
             EventInternal::PaymentClaimed(_) => "PaymentClaimed",
             EventInternal::ServiceHealthUpdate(_) => "ServiceHealthUpdate",
             EventInternal::ChannelStatusUpdate(_) => "ChannelStatusUpdate",
+            EventInternal::AsyncTrade(_) => "AsyncTrade",
         }
         .fmt(f)
     }
@@ -78,6 +81,7 @@ impl From<EventInternal> for EventType {
             EventInternal::PaymentClaimed(_) => EventType::PaymentClaimed,
             EventInternal::ServiceHealthUpdate(_) => EventType::ServiceHealthUpdate,
             EventInternal::ChannelStatusUpdate(_) => EventType::ChannelStatusUpdate,
+            EventInternal::AsyncTrade(_) => EventType::AsyncTrade,
         }
     }
 }
@@ -96,4 +100,5 @@ pub enum EventType {
     PaymentClaimed,
     ServiceHealthUpdate,
     ChannelStatusUpdate,
+    AsyncTrade,
 }

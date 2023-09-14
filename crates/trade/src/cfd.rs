@@ -84,12 +84,19 @@ pub fn calculate_pnl(
     let uncapped_pnl_long = {
         let quantity = Decimal::try_from(quantity).expect("quantity to fit into decimal");
 
-        let uncapped_pnl = (quantity / opening_price) - (quantity / closing_price);
-        let uncapped_pnl = uncapped_pnl
-            .round_dp_with_strategy(8, rust_decimal::RoundingStrategy::MidpointAwayFromZero);
-        let uncapped_pnl = uncapped_pnl
-            .to_f64()
-            .context("Could not convert Decimal to f64")?;
+        let uncapped_pnl = match opening_price != Decimal::ZERO && closing_price != Decimal::ZERO {
+            true => {
+                let uncapped_pnl = (quantity / opening_price) - (quantity / closing_price);
+                let uncapped_pnl = uncapped_pnl.round_dp_with_strategy(
+                    8,
+                    rust_decimal::RoundingStrategy::MidpointAwayFromZero,
+                );
+                uncapped_pnl
+                    .to_f64()
+                    .context("Could not convert Decimal to f64")?
+            }
+            false => 0.0,
+        };
 
         SignedAmount::from_btc(uncapped_pnl)?.to_sat()
     };
@@ -311,5 +318,27 @@ pub mod tests {
 
         // Value taken from our CFD hedging model sheet
         assert_eq!(pnl_long, 11_111_111);
+    }
+
+    #[test]
+    fn given_short_position_when_price_0() {
+        let opening_price = Decimal::from(20000);
+        let closing_price = Decimal::from(0);
+        let quantity = 20000.0;
+        let long_leverage = 2.0;
+        let short_leverage = 1.0;
+
+        let pnl_long = calculate_pnl(
+            opening_price,
+            closing_price,
+            quantity,
+            long_leverage,
+            short_leverage,
+            Direction::Short,
+        )
+        .unwrap();
+
+        // Value taken from our CFD hedging model sheet
+        assert_eq!(pnl_long, 0);
     }
 }

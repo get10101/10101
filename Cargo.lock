@@ -661,6 +661,7 @@ dependencies = [
  "serde_json",
  "sha2",
  "testcontainers",
+ "thiserror",
  "time 0.3.20",
  "tokio",
  "tokio-metrics",

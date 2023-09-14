@@ -4,6 +4,7 @@ use crate::db::models::Direction;
 use crate::db::models::FailureReason;
 use crate::db::models::Flow;
 use crate::db::models::HtlcStatus;
+use crate::db::models::OrderReason;
 use crate::db::models::OrderState;
 use crate::db::models::OrderType;
 use crate::db::models::PositionState;
@@ -35,6 +36,29 @@ impl FromSql<Text, Sqlite> for OrderType {
         return match string.as_str() {
             "market" => Ok(OrderType::Market),
             "limit" => Ok(OrderType::Limit),
+            _ => Err("Unrecognized enum variant".into()),
+        };
+    }
+}
+
+impl ToSql<Text, Sqlite> for OrderReason {
+    fn to_sql(&self, out: &mut Output<Sqlite>) -> serialize::Result {
+        let text = match *self {
+            OrderReason::Manual => "Manual".to_string(),
+            OrderReason::Expired => "Expired".to_string(),
+        };
+        out.set_value(text);
+        Ok(IsNull::No)
+    }
+}
+
+impl FromSql<Text, Sqlite> for OrderReason {
+    fn from_sql(bytes: backend::RawValue<Sqlite>) -> deserialize::Result<Self> {
+        let string = <String as FromSql<Text, Sqlite>>::from_sql(bytes)?;
+
+        return match string.as_str() {
+            "Manual" => Ok(OrderReason::Manual),
+            "Expired" => Ok(OrderReason::Expired),
             _ => Err("Unrecognized enum variant".into()),
         };
     }
