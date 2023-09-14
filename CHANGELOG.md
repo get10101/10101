@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - feat: Allow exporting the seed phrase even if the Node is offline
 - Changed expiry to next Sunday 3 pm UTC
 - Automatically rollover if user opens app during rollover weekend
+- Sync position with dlc channel state
 
 ## [1.2.6] - 2023-09-06
 

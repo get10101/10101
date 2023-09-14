@@ -6,12 +6,10 @@ use crate::event::TaskStatus;
 use crate::trade::order;
 use crate::trade::position;
 use crate::trade::position::PositionState;
-use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
 use bdk::bitcoin::secp256k1::PublicKey;
 use bdk::TransactionDetails;
-use bitcoin::hashes::hex::ToHex;
 use dlc_messages::sub_channel::SubChannelCloseFinalize;
 use dlc_messages::sub_channel::SubChannelRevoke;
 use dlc_messages::ChannelMessage;
@@ -29,8 +27,6 @@ use ln_dlc_node::channel::Channel;
 use ln_dlc_node::channel::FakeScid;
 use ln_dlc_node::node;
 use ln_dlc_node::node::dlc_message_name;
-use ln_dlc_node::node::rust_dlc_manager::contract::Contract;
-use ln_dlc_node::node::rust_dlc_manager::Storage;
 use ln_dlc_node::node::sub_channel_message_name;
 use ln_dlc_node::node::NodeInfo;
 use ln_dlc_node::node::PaymentDetails;
@@ -245,44 +241,9 @@ impl Node {
             channel_id, ..
         })) = msg
         {
-            let storage = self.inner.dlc_manager.get_store();
-            let sub_channel = storage.get_sub_channel(channel_id)?.with_context(|| {
-                format!(
-                    "Could not find sub channel by channel id {}",
-                    channel_id.to_hex()
-                )
-            })?;
-            let dlc_channel_id = sub_channel
-                .get_dlc_channel_id(0)
-                .context("Could not fetch dlc channel id")?;
-
-            let (accept_collateral, expiry_timestamp) =
-                match self.inner.get_contract_by_dlc_channel_id(dlc_channel_id)? {
-                    Contract::Confirmed(contract) => {
-                        let offered_contract = contract.accepted_contract.offered_contract;
-                        let contract_info = offered_contract
-                            .contract_info
-                            .first()
-                            .context("contract info to exist on a signed contract")?;
-                        let oracle_announcement = contract_info
-                            .oracle_announcements
-                            .first()
-                            .context("oracle announcement to exist on signed contract")?;
-
-                        let expiry_timestamp = OffsetDateTime::from_unix_timestamp(
-                            oracle_announcement.oracle_event.event_maturity_epoch as i64,
-                        )?;
-
-                        (
-                            contract.accepted_contract.accept_params.collateral,
-                            expiry_timestamp,
-                        )
-                    }
-                    _ => bail!(
-                        "Confirmed contract not found for channel ID: {}",
-                        hex::encode(channel_id)
-                    ),
-                };
+            let (accept_collateral, expiry_timestamp) = self
+                .inner
+                .get_collateral_and_expiry_for_confirmed_contract(channel_id)?;
 
             let filled_order = order::handler::order_filled()
                 .context("Cannot mark order as filled for confirmed DLC")?;
@@ -293,6 +254,19 @@ impl Node {
                 expiry_timestamp,
             )
             .context("Failed to update position after DLC creation")?;
+
+            // Sending always a recover dlc background notification success message here as we do
+            // not know if we might have reached this state after a restart. This event is only
+            // received by the UI at the moment indicating that the dialog can be closed.
+            // If the dialog is not open, this event would be simply ignored by the UI.
+            //
+            // fixme(holzeis): We should not require that event and align the UI handling with
+            // waiting for an order execution in the happy case with waiting for an
+            // order execution after an in between restart. For now it was the easiest
+            // to go parallel to that implementation so that we don't have to touch it.
+            event::publish(&EventInternal::BackgroundNotification(
+                BackgroundTask::RecoverDlc(TaskStatus::Success),
+            ));
 
             if let Err(e) = self.pay_order_matching_fee(&channel_id) {
                 tracing::error!("{e:#}");
@@ -325,8 +299,21 @@ impl Node {
         })) = msg
         {
             let filled_order = order::handler::order_filled()?;
-            position::handler::update_position_after_dlc_closure(filled_order)
+            position::handler::update_position_after_dlc_closure(Some(filled_order))
                 .context("Failed to update position after DLC closure")?;
+
+            // Sending always a recover dlc background notification success message here as we do
+            // not know if we might have reached this state after a restart. This event is only
+            // received by the UI at the moment indicating that the dialog can be closed.
+            // If the dialog is not open, this event would be simply ignored by the UI.
+            //
+            // fixme(holzeis): We should not require that event and align the UI handling with
+            // waiting for an order execution in the happy case with waiting for an
+            // order execution after an in between restart. For now it was the easiest
+            // to go parallel to that implementation so that we don't have to touch it.
+            event::publish(&EventInternal::BackgroundNotification(
+                BackgroundTask::RecoverDlc(TaskStatus::Success),
+            ));
 
             if let Err(e) = self.pay_order_matching_fee(&channel_id) {
                 tracing::error!("{e:#}");

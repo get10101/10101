@@ -49,3 +49,17 @@ class Rollover {
     return bridge.BackgroundTask_Rollover(TaskStatus.apiDummy());
   }
 }
+
+class RecoverDlc {
+  final TaskStatus taskStatus;
+
+  RecoverDlc({required this.taskStatus});
+
+  static RecoverDlc fromApi(bridge.BackgroundTask_RecoverDlc recoverDlc) {
+    return RecoverDlc(taskStatus: TaskStatus.fromApi(recoverDlc.field0));
+  }
+
+  static bridge.BackgroundTask apiDummy() {
+    return bridge.BackgroundTask_RecoverDlc(TaskStatus.apiDummy());
+  }
+}

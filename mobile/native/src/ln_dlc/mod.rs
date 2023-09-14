@@ -66,6 +66,7 @@ use tokio::task::spawn_blocking;
 
 mod lightning_subscriber;
 mod node;
+mod sync_position_to_dlc;
 
 pub mod channel_status;
 
@@ -282,6 +283,10 @@ pub fn run(data_dir: String, seed_dir: String, runtime: &Runtime) -> Result<()> 
         ));
 
         runtime.spawn(track_channel_status(node.clone()));
+
+        if let Err(e) = node.sync_position_with_dlc_channel_state().await {
+            tracing::error!("Failed to sync position with dlc channel state. Error: {e:#}");
+        }
 
         NODE.set(node);
 

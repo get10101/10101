@@ -15,6 +15,7 @@ import 'package:get_10101/common/color.dart';
 import 'package:get_10101/common/domain/background_task.dart';
 import 'package:get_10101/common/domain/service_status.dart';
 import 'package:get_10101/common/global_keys.dart';
+import 'package:get_10101/common/recover_dlc_change_notifier.dart';
 import 'package:get_10101/common/service_status_notifier.dart';
 import 'package:get_10101/features/stable/stable_screen.dart';
 import 'package:get_10101/features/trade/application/candlestick_service.dart';
@@ -90,6 +91,7 @@ void main() async {
     ChangeNotifierProvider(create: (context) => ChannelStatusNotifier()),
     ChangeNotifierProvider(create: (context) => AsyncOrderChangeNotifier(OrderService())),
     ChangeNotifierProvider(create: (context) => RolloverChangeNotifier()),
+    ChangeNotifierProvider(create: (context) => RecoverDlcChangeNotifier()),
     Provider(create: (context) => Environment.parse()),
     Provider(create: (context) => channelInfoService)
   ], child: const TenTenOneApp()));
@@ -481,6 +483,7 @@ void subscribeToNotifiers(BuildContext context) {
   final stableValuesChangeNotifier = context.read<StableValuesChangeNotifier>();
   final asyncOrderChangeNotifier = context.read<AsyncOrderChangeNotifier>();
   final rolloverChangeNotifier = context.read<RolloverChangeNotifier>();
+  final recoverDlcChangeNotifier = context.read<RecoverDlcChangeNotifier>();
 
   eventService.subscribe(
       orderChangeNotifier, bridge.Event.orderUpdateNotification(Order.apiDummy()));
@@ -518,6 +521,9 @@ void subscribeToNotifiers(BuildContext context) {
 
   eventService.subscribe(
       rolloverChangeNotifier, bridge.Event.backgroundNotification(Rollover.apiDummy()));
+
+  eventService.subscribe(
+      recoverDlcChangeNotifier, bridge.Event.backgroundNotification(RecoverDlc.apiDummy()));
 
   channelStatusNotifier.subscribe(eventService);
 

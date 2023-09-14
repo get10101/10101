@@ -47,6 +47,7 @@ pub enum EventInternal {
 pub enum BackgroundTask {
     AsyncTrade(OrderReason),
     Rollover(TaskStatus),
+    RecoverDlc(TaskStatus),
 }
 
 #[derive(Clone, Debug)]

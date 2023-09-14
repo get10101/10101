@@ -209,7 +209,7 @@ pub fn update_position_after_dlc_creation(
 }
 
 /// Delete a position after closing a DLC channel.
-pub fn update_position_after_dlc_closure(filled_order: Order) -> Result<()> {
+pub fn update_position_after_dlc_closure(filled_order: Option<Order>) -> Result<()> {
     tracing::debug!(?filled_order, "Removing position after DLC channel closure");
 
     if db::get_positions()?.is_empty() {

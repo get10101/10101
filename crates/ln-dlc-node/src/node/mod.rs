@@ -514,6 +514,14 @@ where
             }
         }
     }
+
+    pub async fn sub_channel_manager_periodic_check(&self) -> Result<()> {
+        sub_channel_manager_periodic_check(
+            self.sub_channel_manager.clone(),
+            &self.dlc_message_handler,
+        )
+        .await
+    }
 }
 
 async fn update_fee_rate_estimates(
