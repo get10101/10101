@@ -3,10 +3,8 @@ use bdk::FeeRate;
 use lightning::chain::chaininterface::ConfirmationTarget;
 use lightning::chain::chaininterface::FeeEstimator;
 use lightning::chain::chaininterface::FEERATE_FLOOR_SATS_PER_KW;
+use parking_lot::RwLock;
 use std::collections::HashMap;
-use std::sync::RwLock;
-use std::sync::RwLockReadGuard;
-use std::sync::RwLockWriteGuard;
 
 const CONFIRMATION_TARGETS: [(ConfirmationTarget, usize); 3] = [
     // We choose an extremely high background confirmation target to avoid force-closing channels
@@ -76,7 +74,8 @@ impl FeeRateEstimator {
     }
 
     fn get(&self, target: ConfirmationTarget) -> FeeRate {
-        self.cache_read_lock()
+        self.fee_rate_cache
+            .read()
             .get(&target)
             .copied()
             .expect("to have entries for all confirmation targets")
@@ -85,7 +84,7 @@ impl FeeRateEstimator {
     pub(crate) async fn update(&self) -> Result<()> {
         let estimates = self.client.get_fee_estimates()?;
 
-        let mut locked_fee_rate_cache = self.cache_write_lock();
+        let mut locked_fee_rate_cache = self.fee_rate_cache.write();
         for (target, n_blocks) in CONFIRMATION_TARGETS {
             let fee_rate = esplora_client::convert_fee_rate(n_blocks, estimates.clone())?;
 
@@ -100,18 +99,6 @@ impl FeeRateEstimator {
         }
 
         Ok(())
-    }
-
-    fn cache_read_lock(&self) -> RwLockReadGuard<HashMap<ConfirmationTarget, FeeRate>> {
-        self.fee_rate_cache
-            .read()
-            .expect("RwLock to not be poisoned")
-    }
-
-    fn cache_write_lock(&self) -> RwLockWriteGuard<HashMap<ConfirmationTarget, FeeRate>> {
-        self.fee_rate_cache
-            .write()
-            .expect("RwLock to not be poisoned")
     }
 }
 
