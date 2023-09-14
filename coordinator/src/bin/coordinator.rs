@@ -193,7 +193,7 @@ async fn main() -> Result<()> {
     });
 
     let (tx_price_feed, _rx) = broadcast::channel(100);
-    let (_handle, trading_sender) = trading::Trading::start(pool.clone(), tx_price_feed.clone());
+    let (_handle, trading_sender) = trading::start(pool.clone(), tx_price_feed.clone());
 
     tokio::spawn({
         let node = node.clone();
