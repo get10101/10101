@@ -12,10 +12,10 @@ use bitcoin::Txid;
 use ln_dlc_node::node::rust_dlc_manager::subchannel::LNChannelManager;
 use ln_dlc_node::node::rust_dlc_manager::ChannelId;
 use ln_dlc_node::node::ChannelManager;
+use parking_lot::Mutex;
 use serde::Deserialize;
 use serde::Serialize;
 use std::sync::Arc;
-use std::sync::Mutex;
 use std::time::Duration;
 use tokio::runtime::Handle;
 
@@ -150,24 +150,15 @@ impl ChannelFeePaymentSubscriber {
     }
 
     fn set_open_channel_info(&self, channel_id: &ChannelId, transaction: EsploraTransaction) {
-        *self
-            .open_channel_info
-            .lock()
-            .expect("Mutex to not be poisoned") = Some((*channel_id, transaction));
+        *self.open_channel_info.lock() = Some((*channel_id, transaction));
     }
 
     fn unset_open_channel_info(&self) {
-        *self
-            .open_channel_info
-            .lock()
-            .expect("Mutex to not be poisoned") = None;
+        *self.open_channel_info.lock() = None;
     }
 
     fn get_open_channel_info(&self) -> Option<(ChannelId, EsploraTransaction)> {
-        self.open_channel_info
-            .lock()
-            .expect("Mutex to not be poisoned")
-            .clone()
+        self.open_channel_info.lock().clone()
     }
 
     async fn wait_for_outbound_capacity(

@@ -15,7 +15,7 @@ impl OrderbookClient {
             client: reqwest::Client::builder()
                 .timeout(std::time::Duration::from_secs(30))
                 .build()
-                .expect("Could not build reqwest client"),
+                .expect("to build client from static config"),
         }
     }
 

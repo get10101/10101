@@ -14,10 +14,9 @@ use lightning::chain::transaction::OutPoint;
 use lightning::ln::PaymentHash;
 use lightning::ln::PaymentPreimage;
 use lightning::ln::PaymentSecret;
+use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::sync::Arc;
-use std::sync::Mutex;
-use std::sync::MutexGuard;
 use time::OffsetDateTime;
 
 /// Storage layer interface.
@@ -108,7 +107,7 @@ impl Storage for InMemoryStore {
     // Payments
 
     fn insert_payment(&self, payment_hash: PaymentHash, info: PaymentInfo) -> Result<()> {
-        self.payments_lock().insert(payment_hash, info);
+        self.payments.lock().insert(payment_hash, info);
 
         Ok(())
     }
@@ -123,7 +122,7 @@ impl Storage for InMemoryStore {
         preimage: Option<PaymentPreimage>,
         secret: Option<PaymentSecret>,
     ) -> Result<()> {
-        let mut payments = self.payments_lock();
+        let mut payments = self.payments.lock();
         match payments.get_mut(payment_hash) {
             Some(mut payment) => {
                 payment.status = htlc_status;
@@ -169,7 +168,7 @@ impl Storage for InMemoryStore {
         &self,
         payment_hash: &PaymentHash,
     ) -> Result<Option<(PaymentHash, PaymentInfo)>> {
-        let payments = self.payments_lock();
+        let payments = self.payments.lock();
         let info = payments.get(payment_hash);
 
         let payment = info.map(|info| (*payment_hash, info.clone()));
@@ -178,7 +177,7 @@ impl Storage for InMemoryStore {
     }
 
     fn all_payments(&self) -> Result<Vec<(PaymentHash, PaymentInfo)>> {
-        let payments = self.payments_lock();
+        let payments = self.payments.lock();
         let payments = payments.iter().map(|(a, b)| (*a, b.clone())).collect();
 
         Ok(payments)
@@ -196,7 +195,7 @@ impl Storage for InMemoryStore {
             StaticPaymentOutput(StaticPaymentOutputDescriptor { outpoint, .. }) => outpoint,
         };
 
-        self.spendable_outputs_lock().insert(*outpoint, descriptor);
+        self.spendable_outputs.lock().insert(*outpoint, descriptor);
 
         Ok(())
     }
@@ -205,35 +204,36 @@ impl Storage for InMemoryStore {
         &self,
         outpoint: &OutPoint,
     ) -> Result<Option<SpendableOutputDescriptor>> {
-        Ok(self.spendable_outputs_lock().get(outpoint).cloned())
+        Ok(self.spendable_outputs.lock().get(outpoint).cloned())
     }
 
     fn delete_spendable_output(&self, outpoint: &OutPoint) -> Result<()> {
-        self.spendable_outputs_lock().remove(outpoint);
+        self.spendable_outputs.lock().remove(outpoint);
 
         Ok(())
     }
 
     fn all_spendable_outputs(&self) -> Result<Vec<SpendableOutputDescriptor>> {
-        Ok(self.spendable_outputs_lock().values().cloned().collect())
+        Ok(self.spendable_outputs.lock().values().cloned().collect())
     }
 
     // Channels
 
     fn upsert_channel(&self, channel: Channel) -> Result<()> {
         let user_channel_id = channel.user_channel_id.to_string();
-        self.channels_lock().insert(user_channel_id, channel);
+        self.channels.lock().insert(user_channel_id, channel);
         Ok(())
     }
 
     fn get_channel(&self, user_channel_id: &str) -> Result<Option<Channel>> {
-        let channel = self.channels_lock().get(user_channel_id).cloned();
+        let channel = self.channels.lock().get(user_channel_id).cloned();
         Ok(channel)
     }
 
     fn get_channel_by_fake_scid(&self, fake_scid: FakeScid) -> Result<Option<Channel>> {
         let channel = self
-            .channels_lock()
+            .channels
+            .lock()
             .values()
             .find(|channel| channel.fake_scid == Some(fake_scid))
             .cloned();
@@ -242,7 +242,8 @@ impl Storage for InMemoryStore {
 
     fn all_non_pending_channels(&self) -> Result<Vec<Channel>> {
         Ok(self
-            .channels_lock()
+            .channels
+            .lock()
             .values()
             .filter(|c| c.channel_state != ChannelState::Pending && c.funding_txid.is_some())
             .cloned()
@@ -253,41 +254,22 @@ impl Storage for InMemoryStore {
 
     fn upsert_transaction(&self, transaction: Transaction) -> Result<()> {
         let txid = transaction.txid().to_string();
-        self.transactions_lock().insert(txid, transaction);
+        self.transactions.lock().insert(txid, transaction);
         Ok(())
     }
 
     fn get_transaction(&self, txid: &str) -> Result<Option<Transaction>> {
-        let transaction = self.transactions_lock().get(txid).cloned();
+        let transaction = self.transactions.lock().get(txid).cloned();
         Ok(transaction)
     }
 
     fn all_transactions_without_fees(&self) -> Result<Vec<Transaction>> {
         Ok(self
-            .transactions_lock()
+            .transactions
+            .lock()
             .values()
             .filter(|t| t.fee() == 0)
             .cloned()
             .collect())
-    }
-}
-
-impl InMemoryStore {
-    fn payments_lock(&self) -> MutexGuard<HashMap<PaymentHash, PaymentInfo>> {
-        self.payments.lock().expect("Mutex to not be poisoned")
-    }
-
-    fn spendable_outputs_lock(&self) -> MutexGuard<HashMap<OutPoint, SpendableOutputDescriptor>> {
-        self.spendable_outputs
-            .lock()
-            .expect("Mutex to not be poisoned")
-    }
-
-    fn channels_lock(&self) -> MutexGuard<HashMap<String, Channel>> {
-        self.channels.lock().expect("Mutex to not be poisoned")
-    }
-
-    fn transactions_lock(&self) -> MutexGuard<HashMap<String, Transaction>> {
-        self.transactions.lock().expect("Mutex to not be poisoned")
     }
 }
