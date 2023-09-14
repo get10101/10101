@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_speed_dial/flutter_speed_dial.dart';
 import 'package:get_10101/common/amount_text.dart';
@@ -224,20 +225,29 @@ class _WalletScreenState extends State<WalletScreen> {
                 height: 5,
               ),
               Expanded(
-                child: ListView.builder(
-                  shrinkWrap: true,
-                  physics: const ClampingScrollPhysics(),
-                  itemCount: walletChangeNotifier.walletInfo.history.length + 1,
-                  itemBuilder: (BuildContext context, int index) {
-                    // Spacer at the bottom of the list
-                    if (index == walletChangeNotifier.walletInfo.history.length) {
-                      return listBottomScrollSpace;
-                    }
+                child: ScrollConfiguration(
+                  behavior: ScrollConfiguration.of(context).copyWith(
+                    dragDevices: {
+                      PointerDeviceKind.touch,
+                      PointerDeviceKind.mouse,
+                    },
+                  ),
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    itemCount: walletChangeNotifier.walletInfo.history.length + 1,
+                    itemBuilder: (BuildContext context, int index) {
+                      // Spacer at the bottom of the list
+                      if (index == walletChangeNotifier.walletInfo.history.length) {
+                        return listBottomScrollSpace;
+                      }
 
-                    WalletHistoryItemData itemData = walletChangeNotifier.walletInfo.history[index];
+                      WalletHistoryItemData itemData =
+                          walletChangeNotifier.walletInfo.history[index];
 
-                    return itemData.toWidget();
-                  },
+                      return itemData.toWidget();
+                    },
+                  ),
                 ),
               ),
             ],
