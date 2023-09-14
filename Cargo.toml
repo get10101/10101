@@ -20,3 +20,6 @@ lightning-net-tokio = { git = "https://github.com/p2pderivatives/rust-lightning/
 lightning-persister = { git = "https://github.com/p2pderivatives/rust-lightning/", rev = "3b69cecf" }
 
 rust-bitcoin-coin-selection = { git = "https://github.com/p2pderivatives/rust-bitcoin-coin-selection" }
+
+# Waiting for the next release
+xtra = { git = "https://github.com/Restioson/xtra/", rev = "d98393a" }
