@@ -306,6 +306,8 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
 
       final lastLogin = await rust.api.updateLastLogin();
       FLog.debug(text: "Last login was at ${lastLogin.date}");
+
+      await walletChangeNotifier.refreshWalletInfo();
     } on FfiException catch (error) {
       FLog.error(text: "Failed to initialise: Error: ${error.message}", exception: error);
     } catch (error) {
@@ -313,7 +315,6 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
     } finally {
       FlutterNativeSplash.remove();
     }
-    await walletChangeNotifier.refreshWalletInfo();
   }
 
   setupRustLogging() {
