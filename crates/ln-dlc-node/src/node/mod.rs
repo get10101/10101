@@ -282,7 +282,6 @@ where
                 on_chain_wallet.inner,
                 fee_rate_estimator.clone(),
                 dlc_storage.clone(),
-                seed.clone(),
                 settings.bdk_client_stop_gap,
                 settings.bdk_client_concurrency,
                 node_storage.clone(),

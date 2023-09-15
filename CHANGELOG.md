@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Find match on an expired position
 - Show loading screen when app starts with an expired position
+- Fix: Prevent crashing the app when there's no Internet connection
+- feat: Allow exporting the seed phrase even if the Node is offline
 
 ## [1.2.6] - 2023-09-06
 

@@ -48,10 +48,6 @@ impl<P> Node<P>
 where
     P: Storage,
 {
-    pub fn get_seed_phrase(&self) -> Vec<String> {
-        self.wallet.get_seed_phrase()
-    }
-
     pub fn wallet(
         &self,
     ) -> Arc<ldk_node_wallet::Wallet<sled::Tree, EsploraBlockchain, FeeRateEstimator>> {
