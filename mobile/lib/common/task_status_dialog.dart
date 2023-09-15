@@ -1,37 +1,30 @@
 import 'package:confetti/confetti.dart';
 import 'package:flutter/material.dart';
+import 'package:get_10101/common/domain/background_task.dart';
 import 'package:go_router/go_router.dart';
 
-enum OrderSubmissionStatusDialogType {
-  pendingSubmit,
-  successfulSubmit,
-  filled,
-  failedFill,
-  failedSubmit
-}
-
-class OrderSubmissionStatusDialog extends StatefulWidget {
+class TaskStatusDialog extends StatefulWidget {
   final String title;
-  final OrderSubmissionStatusDialogType type;
+  final TaskStatus status;
   final Widget content;
   final String buttonText;
   final EdgeInsets insetPadding;
   final String navigateToRoute;
 
-  const OrderSubmissionStatusDialog(
+  const TaskStatusDialog(
       {super.key,
       required this.title,
-      required this.type,
+      required this.status,
       required this.content,
       this.buttonText = "Close",
       this.insetPadding = const EdgeInsets.all(50),
       this.navigateToRoute = ""});
 
   @override
-  State<OrderSubmissionStatusDialog> createState() => _OrderSubmissionStatusDialog();
+  State<TaskStatusDialog> createState() => _TaskStatusDialog();
 }
 
-class _OrderSubmissionStatusDialog extends State<OrderSubmissionStatusDialog> {
+class _TaskStatusDialog extends State<TaskStatusDialog> {
   late final ConfettiController _confettiController;
 
   @override
@@ -48,8 +41,7 @@ class _OrderSubmissionStatusDialog extends State<OrderSubmissionStatusDialog> {
 
   @override
   Widget build(BuildContext context) {
-    bool isPending = widget.type == OrderSubmissionStatusDialogType.successfulSubmit ||
-        widget.type == OrderSubmissionStatusDialogType.pendingSubmit;
+    bool isPending = widget.status == TaskStatus.pending;
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _confettiController.play();
@@ -67,18 +59,16 @@ class _OrderSubmissionStatusDialog extends State<OrderSubmissionStatusDialog> {
 
     AlertDialog dialog = AlertDialog(
       icon: (() {
-        switch (widget.type) {
-          case OrderSubmissionStatusDialogType.pendingSubmit:
-          case OrderSubmissionStatusDialogType.successfulSubmit:
+        switch (widget.status) {
+          case TaskStatus.pending:
             return const Center(
                 child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator()));
-          case OrderSubmissionStatusDialogType.failedFill:
-          case OrderSubmissionStatusDialogType.failedSubmit:
+          case TaskStatus.failed:
             return const Icon(
               Icons.cancel,
               color: Colors.red,
             );
-          case OrderSubmissionStatusDialogType.filled:
+          case TaskStatus.success:
             return Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -101,14 +91,12 @@ class _OrderSubmissionStatusDialog extends State<OrderSubmissionStatusDialog> {
         }
       })(),
       title: Text("${widget.title} ${(() {
-        switch (widget.type) {
-          case OrderSubmissionStatusDialogType.pendingSubmit:
-          case OrderSubmissionStatusDialogType.successfulSubmit:
+        switch (widget.status) {
+          case TaskStatus.pending:
             return "Pending";
-          case OrderSubmissionStatusDialogType.filled:
+          case TaskStatus.success:
             return "Success";
-          case OrderSubmissionStatusDialogType.failedSubmit:
-          case OrderSubmissionStatusDialogType.failedFill:
+          case TaskStatus.failed:
             return "Failure";
         }
       })()}"),
