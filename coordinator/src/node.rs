@@ -494,7 +494,7 @@ impl Node {
                 .map(Message::SubChannel),
         };
 
-        // todo(holzeis): It would be nice if dlc messages are also propagated via events, so the
+        // TODO(holzeis): It would be nice if dlc messages are also propagated via events, so the
         // receiver can decide what events to process and we can skip this component specific logic
         // here.
         if let Message::Channel(ChannelMessage::RenewFinalize(r)) = &msg {

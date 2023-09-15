@@ -121,7 +121,7 @@ pub fn start(
 }
 
 /// Processes a new limit and market order
-/// todo(holzeis): The limit and market order models should be separated so we can process the
+/// TODO(holzeis): The limit and market order models should be separated so we can process the
 /// models independently.
 ///
 ///
@@ -144,7 +144,7 @@ async fn process_new_order(
 
     // before processing any match we set all expired limit orders to failed, to ensure the do
     // not get matched.
-    // todo(holzeis): orders should probably do not have an expiry, but should either be
+    // TODO(holzeis): orders should probably do not have an expiry, but should either be
     // replaced or deleted if not wanted anymore.
     orders::set_expired_limit_orders_to_failed(conn)?;
 
@@ -176,7 +176,7 @@ async fn process_new_order(
         let matched_orders = match match_order(&order, opposite_direction_orders) {
             Ok(Some(matched_orders)) => matched_orders,
             Ok(None) => {
-                // todo(holzeis): Currently we still respond to the user immediately if there
+                // TODO(holzeis): Currently we still respond to the user immediately if there
                 // has been a match or not, that's the reason why we also
                 // have to set the order to failed here. But actually we
                 // could keep the order until either expired or a
@@ -220,7 +220,7 @@ async fn process_new_order(
                 }
                 Err(e) => {
                     tracing::warn!(%trader_id, order_id, "{e:#}");
-                    // todo(holzeis): send push notification to user
+                    // TODO(holzeis): send push notification to user
 
                     if order.order_type == OrderType::Limit {
                         // FIXME: The maker is currently not connected to the web socket so we

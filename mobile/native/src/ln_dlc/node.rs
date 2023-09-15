@@ -200,7 +200,7 @@ impl Node {
             }
         };
 
-        // todo(holzeis): It would be nice if dlc messages are also propagated via events, so the
+        // TODO(holzeis): It would be nice if dlc messages are also propagated via events, so the
         // receiver can decide what events to process and we can skip this component specific logic
         // here.
         if let Message::Channel(channel_message) = &msg {
@@ -260,7 +260,7 @@ impl Node {
             // received by the UI at the moment indicating that the dialog can be closed.
             // If the dialog is not open, this event would be simply ignored by the UI.
             //
-            // fixme(holzeis): We should not require that event and align the UI handling with
+            // FIXME(holzeis): We should not require that event and align the UI handling with
             // waiting for an order execution in the happy case with waiting for an
             // order execution after an in between restart. For now it was the easiest
             // to go parallel to that implementation so that we don't have to touch it.
@@ -307,7 +307,7 @@ impl Node {
             // received by the UI at the moment indicating that the dialog can be closed.
             // If the dialog is not open, this event would be simply ignored by the UI.
             //
-            // fixme(holzeis): We should not require that event and align the UI handling with
+            // FIXME(holzeis): We should not require that event and align the UI handling with
             // waiting for an order execution in the happy case with waiting for an
             // order execution after an in between restart. For now it was the easiest
             // to go parallel to that implementation so that we don't have to touch it.

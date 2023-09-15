@@ -88,7 +88,7 @@ impl Node {
     /// Also triggers the `periodic_check` to process any actions that might have been created after
     /// the channel reestablishment.
     ///
-    /// fixme(holzeis): We currently use different events for show the recovery of a dlc and the
+    /// FIXME(holzeis): We currently use different events for show the recovery of a dlc and the
     /// waiting for an order execution in the happy case (without an restart in between). Those
     /// events and dialogs should be aligned.
     async fn recover_dlc(&self) -> Result<()> {
@@ -97,7 +97,7 @@ impl Node {
             BackgroundTask::RecoverDlc(TaskStatus::Pending),
         ));
 
-        // fixme(holzeis): We are manually calling the periodic check here to speed up the
+        // HACK(holzeis): We are manually calling the periodic check here to speed up the
         // processing of pending actions.
         // Note, this might not speed up the process, as the coordinator might have to resend a
         // message to continue the protocol. This should be fixed in `rust-dlc` and any
