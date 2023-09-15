@@ -761,6 +761,8 @@ fn manage_sub_channels(
     let (fut, remote_handle) = {
         async move {
             loop {
+                tracing::trace!("Started periodic check");
+                let now = Instant::now();
                 if let Err(e) = sub_channel_manager_periodic_check(
                     sub_channel_manager.clone(),
                     &dlc_message_handler,
@@ -769,6 +771,11 @@ fn manage_sub_channels(
                 {
                     tracing::error!("Failed to process pending DLC actions: {e:#}");
                 };
+
+                tracing::trace!(
+                    duration = now.elapsed().as_millis(),
+                    "Finished periodic check"
+                );
 
                 let interval = {
                     let guard = settings.read().await;
