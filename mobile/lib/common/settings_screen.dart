@@ -26,8 +26,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   void initState() {
-    var nodeId = rust.api.getNodeId();
-    _nodeId = nodeId;
+    try {
+      var nodeId = rust.api.getNodeId();
+      _nodeId = nodeId;
+    } catch (e) {
+      FLog.error(text: "Error getting node id: $e");
+      _nodeId = "UNKNOWN";
+    }
     loadValues();
     super.initState();
   }
