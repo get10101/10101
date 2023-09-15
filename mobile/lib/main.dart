@@ -15,7 +15,6 @@ import 'package:get_10101/common/color.dart';
 import 'package:get_10101/common/domain/service_status.dart';
 import 'package:get_10101/common/global_keys.dart';
 import 'package:get_10101/common/service_status_notifier.dart';
-import 'package:get_10101/common/snack_bar.dart';
 import 'package:get_10101/features/stable/stable_screen.dart';
 import 'package:get_10101/features/trade/application/candlestick_service.dart';
 import 'package:get_10101/features/trade/application/order_service.dart';
@@ -204,7 +203,7 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
             routes: const []),
       ],
       redirect: (BuildContext context, GoRouterState state) async {
-        // TODO: It's not optimal that we read this from shared prefs every time, should probably be set through a provider
+        // TODO: It's not optimal that we read this from shared preferences every time, should probably be set through a provider
         final hasEmailAddress = await Preferences.instance.hasEmailAddress();
         if (!hasEmailAddress) {
           FLog.info(text: "adding the email...");
@@ -223,41 +222,7 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
     init(config);
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      PackageInfo packageInfo = await PackageInfo.fromPlatform();
-      final messenger = scaffoldMessengerKey.currentState!;
-
-      try {
-        final response = await http.get(
-          Uri.parse('http://${config.host}:${config.httpPort}/api/version'),
-        );
-
-        final clientVersion = Version.parse(packageInfo.version);
-        final coordinatorVersion = Version.parse(jsonDecode(response.body));
-        FLog.info(text: "Coordinator version: ${coordinatorVersion.toString()}");
-
-        if (coordinatorVersion > clientVersion) {
-          FLog.warning(text: "Client out of date. Current version: ${clientVersion.toString()}");
-          showDialog(
-              context: shellNavigatorKey.currentContext!,
-              builder: (context) => AlertDialog(
-                      title: const Text("Update available"),
-                      content: Text("A new version of 10101 is available: "
-                          "${coordinatorVersion.toString()}.\n\n"
-                          "Please note that if you do not update 10101, the app"
-                          " may not function properly."),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context, 'OK'),
-                          child: const Text('OK'),
-                        ),
-                      ]));
-        } else {
-          FLog.info(text: "Client up to date");
-        }
-      } catch (e) {
-        FLog.error(text: "Error getting coordinator version: ${e.toString()}");
-        showSnackBar(messenger, "Coordinator offline");
-      }
+      await compareCoordinatorVersion(config);
     });
   }
 
@@ -317,7 +282,7 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
     }
   }
 
-  setupRustLogging() {
+  void setupRustLogging() {
     rust.api.initLogging().listen((event) {
       // TODO: this should not be required if we enable mobile loggers for FLog.
       if (Platform.isAndroid || Platform.isIOS) {
@@ -329,22 +294,77 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
       }
     });
   }
+}
 
-  LogLevel mapLogLevel(String level) {
-    switch (level) {
-      case "INFO":
-        return LogLevel.INFO;
-      case "DEBUG":
-        return LogLevel.DEBUG;
-      case "ERROR":
-        return LogLevel.ERROR;
-      case "WARN":
-        return LogLevel.WARNING;
-      case "TRACE":
-        return LogLevel.TRACE;
-      default:
-        return LogLevel.DEBUG;
+LogLevel mapLogLevel(String level) {
+  switch (level) {
+    case "INFO":
+      return LogLevel.INFO;
+    case "DEBUG":
+      return LogLevel.DEBUG;
+    case "ERROR":
+      return LogLevel.ERROR;
+    case "WARN":
+      return LogLevel.WARNING;
+    case "TRACE":
+      return LogLevel.TRACE;
+    default:
+      return LogLevel.DEBUG;
+  }
+}
+
+/// Compare the version of the coordinator with the version of the app
+///
+/// - If the coordinator is newer, suggest to update the app.k
+/// - If the app is newer, log it.
+/// - If the coordinator cannot be reached, show a warning that the app may not function properly.
+Future<void> compareCoordinatorVersion(bridge.Config config) async {
+  PackageInfo packageInfo = await PackageInfo.fromPlatform();
+  try {
+    final response = await http.get(
+      Uri.parse('http://${config.host}:${config.httpPort}/api/version'),
+    );
+
+    final clientVersion = Version.parse(packageInfo.version);
+    final coordinatorVersion = Version.parse(jsonDecode(response.body));
+    FLog.info(text: "Coordinator version: ${coordinatorVersion.toString()}");
+
+    if (coordinatorVersion > clientVersion) {
+      FLog.warning(text: "Client out of date. Current version: ${clientVersion.toString()}");
+      showDialog(
+          context: shellNavigatorKey.currentContext!,
+          builder: (context) => AlertDialog(
+                  title: const Text("Update available"),
+                  content: Text("A new version of 10101 is available: "
+                      "${coordinatorVersion.toString()}.\n\n"
+                      "Please note that if you do not update 10101, the app"
+                      " may not function properly."),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, 'OK'),
+                      child: const Text('OK'),
+                    ),
+                  ]));
+    } else if (coordinatorVersion < clientVersion) {
+      FLog.warning(text: "10101 is newer than LSP: ${coordinatorVersion.toString()}");
+    } else {
+      FLog.info(text: "Client is up to date: ${clientVersion.toString()}");
     }
+  } catch (e) {
+    FLog.error(text: "Error getting coordinator version: ${e.toString()}");
+    showDialog(
+        context: shellNavigatorKey.currentContext!,
+        builder: (context) => AlertDialog(
+                title: const Text("Cannot reach LSP"),
+                content: const Text("Please check your Internet connection.\n"
+                    "Please note that without Internet access, the app "
+                    "functionality is severely limited."),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, 'OK'),
+                    child: const Text('OK'),
+                  ),
+                ]));
   }
 }
 
