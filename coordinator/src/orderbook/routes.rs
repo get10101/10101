@@ -1,7 +1,6 @@
 use crate::orderbook;
 use crate::orderbook::trading::NewOrderMessage;
 use crate::orderbook::trading::TradingError;
-use crate::orderbook::trading::TradingMessage;
 use crate::orderbook::websocket::websocket_connection;
 use crate::routes::AppState;
 use crate::AppError;
@@ -16,10 +15,10 @@ use axum::Json;
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::PooledConnection;
 use diesel::PgConnection;
+use orderbook_commons::Message;
 use orderbook_commons::NewOrder;
 use orderbook_commons::Order;
 use orderbook_commons::OrderReason;
-use orderbook_commons::OrderbookMsg;
 use serde::de;
 use serde::Deserialize;
 use serde::Deserializer;
@@ -94,11 +93,11 @@ pub async fn post_order(
 ) -> Result<Json<Order>, AppError> {
     let (sender, mut receiver) = mpsc::channel::<Result<Order>>(1);
 
-    let message = TradingMessage::NewOrder(NewOrderMessage {
+    let message = NewOrderMessage {
         new_order,
         order_reason: OrderReason::Manual,
         sender,
-    });
+    };
     state.trading_sender.send(message).await.map_err(|e| {
         AppError::InternalServerError(format!("Failed to send new order message: {e:#}"))
     })?;
@@ -118,7 +117,7 @@ pub async fn post_order(
     Ok(Json(order))
 }
 
-fn update_pricefeed(pricefeed_msg: OrderbookMsg, sender: Sender<OrderbookMsg>) {
+fn update_pricefeed(pricefeed_msg: Message, sender: Sender<Message>) {
     match sender.send(pricefeed_msg) {
         Ok(_) => {
             tracing::trace!("Pricefeed updated")
@@ -143,7 +142,7 @@ pub async fn put_order(
     let order = orderbook::db::orders::set_is_taken(&mut conn, order_id, updated_order.taken)
         .map_err(|e| AppError::InternalServerError(format!("Failed to update order: {e:#}")))?;
     let sender = state.tx_price_feed.clone();
-    update_pricefeed(OrderbookMsg::Update(order.clone()), sender);
+    update_pricefeed(Message::Update(order.clone()), sender);
 
     Ok(Json(order))
 }
@@ -157,7 +156,7 @@ pub async fn delete_order(
         .map_err(|e| AppError::InternalServerError(format!("Failed to delete order: {e:#}")))?;
     if deleted > 0 {
         let sender = state.tx_price_feed.clone();
-        update_pricefeed(OrderbookMsg::DeleteOrder(order_id), sender);
+        update_pricefeed(Message::DeleteOrder(order_id), sender);
     }
 
     Ok(Json(deleted))

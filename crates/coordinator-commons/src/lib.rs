@@ -3,6 +3,10 @@ use orderbook_commons::FilledWith;
 use rust_decimal::Decimal;
 use serde::Deserialize;
 use serde::Serialize;
+use time::macros::time;
+use time::Duration;
+use time::OffsetDateTime;
+use time::Weekday;
 use trade::ContractSymbol;
 use trade::Direction;
 
@@ -77,4 +81,142 @@ pub struct LspConfig {
 pub struct TokenUpdateParams {
     pub pubkey: String,
     pub fcm_token: String,
+}
+
+/// Calculates the expiry timestamp at the next Sunday at 3 pm UTC from a given offset date time.
+/// If the argument falls in between Friday, 3 pm UTC and Sunday, 3pm UTC, the expiry will be
+/// calculated to next weeks Sunday at 3 pm
+pub fn calculate_next_expiry(time: OffsetDateTime) -> OffsetDateTime {
+    let days = if is_in_rollover_weekend(time) || time.weekday() == Weekday::Sunday {
+        // if the provided time is in the rollover weekend or on a sunday, we expire the sunday the
+        // week after.
+        7 - time.weekday().number_from_monday() + 7
+    } else {
+        7 - time.weekday().number_from_monday()
+    };
+    let time = time.date().with_hms(15, 0, 0).expect("to fit into time");
+
+    (time + Duration::days(days as i64)).assume_utc()
+}
+
+/// Checks whether the provided expiry date is eligible for a rollover
+///
+/// Returns true if the given date falls in between friday 15 pm UTC and sunday 15 pm UTC
+pub fn is_in_rollover_weekend(timestamp: OffsetDateTime) -> bool {
+    match timestamp.weekday() {
+        Weekday::Friday => timestamp.time() >= time!(15:00),
+        Weekday::Saturday => true,
+        Weekday::Sunday => timestamp.time() < time!(15:00),
+        _ => false,
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::calculate_next_expiry;
+    use crate::is_in_rollover_weekend;
+    use time::OffsetDateTime;
+
+    #[test]
+    fn test_is_not_in_rollover_weekend() {
+        // Wed Aug 09 2023 09:30:23 GMT+0000
+        let expiry = OffsetDateTime::from_unix_timestamp(1691573423).unwrap();
+        assert!(!is_in_rollover_weekend(expiry));
+    }
+
+    #[test]
+    fn test_is_just_in_rollover_weekend_friday() {
+        // Fri Aug 11 2023 15:00:00 GMT+0000
+        let expiry = OffsetDateTime::from_unix_timestamp(1691766000).unwrap();
+        assert!(is_in_rollover_weekend(expiry));
+
+        // Fri Aug 11 2023 15:00:01 GMT+0000
+        let expiry = OffsetDateTime::from_unix_timestamp(1691766001).unwrap();
+        assert!(is_in_rollover_weekend(expiry));
+    }
+
+    #[test]
+    fn test_is_in_rollover_weekend_saturday() {
+        // Sat Aug 12 2023 16:00:00 GMT+0000
+        let expiry = OffsetDateTime::from_unix_timestamp(1691856000).unwrap();
+        assert!(is_in_rollover_weekend(expiry));
+    }
+
+    #[test]
+    fn test_is_just_in_rollover_weekend_sunday() {
+        // Sun Aug 13 2023 14:59:59 GMT+0000
+        let expiry = OffsetDateTime::from_unix_timestamp(1691938799).unwrap();
+        assert!(is_in_rollover_weekend(expiry));
+    }
+
+    #[test]
+    fn test_is_just_not_in_rollover_weekend_sunday() {
+        // Sun Aug 13 2023 15:00:00 GMT+0000
+        let expiry = OffsetDateTime::from_unix_timestamp(1691938800).unwrap();
+        assert!(!is_in_rollover_weekend(expiry));
+
+        // Sun Aug 13 2023 15:00:01 GMT+0000
+        let expiry = OffsetDateTime::from_unix_timestamp(1691938801).unwrap();
+        assert!(!is_in_rollover_weekend(expiry));
+    }
+
+    #[test]
+    fn test_expiry_timestamp_before_friday_15pm() {
+        // Wed Aug 09 2023 09:30:23 GMT+0000
+        let from = OffsetDateTime::from_unix_timestamp(1691573423).unwrap();
+        let expiry = calculate_next_expiry(from);
+
+        // Sun Aug 13 2023 15:00:00 GMT+0000
+        assert_eq!(1691938800, expiry.unix_timestamp());
+    }
+
+    #[test]
+    fn test_expiry_timestamp_just_before_friday_15pm() {
+        // Fri Aug 11 2023 14:59:59 GMT+0000
+        let from = OffsetDateTime::from_unix_timestamp(1691765999).unwrap();
+        let expiry = calculate_next_expiry(from);
+
+        // Sun Aug 13 2023 15:00:00 GMT+0000
+        assert_eq!(1691938800, expiry.unix_timestamp());
+    }
+
+    #[test]
+    fn test_expiry_timestamp_just_after_friday_15pm() {
+        // Fri Aug 11 2023 15:00:01 GMT+0000
+        let from = OffsetDateTime::from_unix_timestamp(1691766001).unwrap();
+        let expiry = calculate_next_expiry(from);
+
+        // Sun Aug 20 2023 15:00:00 GMT+0000
+        assert_eq!(1692543600, expiry.unix_timestamp());
+    }
+
+    #[test]
+    fn test_expiry_timestamp_at_friday_15pm() {
+        // Fri Aug 11 2023 15:00:00 GMT+0000
+        let from = OffsetDateTime::from_unix_timestamp(1691766000).unwrap();
+        let expiry = calculate_next_expiry(from);
+
+        // Sun Aug 20 2023 15:00:00 GMT+0000
+        assert_eq!(1692543600, expiry.unix_timestamp());
+    }
+
+    #[test]
+    fn test_expiry_timestamp_after_sunday_15pm() {
+        // Sun Aug 06 2023 16:00:00 GMT+0000
+        let from = OffsetDateTime::from_unix_timestamp(1691337600).unwrap();
+        let expiry = calculate_next_expiry(from);
+
+        // Sun Aug 13 2023 15:00:00 GMT+0000
+        assert_eq!(1691938800, expiry.unix_timestamp());
+    }
+
+    #[test]
+    fn test_expiry_timestamp_on_saturday() {
+        // // Sat Aug 12 2023 16:00:00 GMT+0000
+        let from = OffsetDateTime::from_unix_timestamp(1691856000).unwrap();
+        let expiry = calculate_next_expiry(from);
+
+        // Sun Aug 20 2023 15:00:00 GMT+0000
+        assert_eq!(1692543600, expiry.unix_timestamp());
+    }
 }

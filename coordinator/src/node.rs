@@ -62,6 +62,7 @@ pub mod closed_positions;
 pub mod connection;
 pub mod expired_positions;
 pub mod order_matching_fee;
+pub mod rollover;
 pub mod routing_fees;
 pub mod storage;
 pub mod unrealized_pnl;

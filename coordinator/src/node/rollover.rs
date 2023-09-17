@@ -1,19 +1,30 @@
 use crate::db;
+use crate::db::positions;
 use crate::node::Node;
+use crate::notification::NewUserMessage;
+use crate::notification::Notification;
 use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
 use bitcoin::hashes::hex::ToHex;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::XOnlyPublicKey;
+use diesel::r2d2::ConnectionManager;
+use diesel::r2d2::Pool;
+use diesel::PgConnection;
 use dlc_manager::contract::contract_input::ContractInput;
 use dlc_manager::contract::contract_input::ContractInputInfo;
 use dlc_manager::contract::contract_input::OracleInput;
 use dlc_manager::contract::Contract;
 use dlc_manager::contract::ContractDescriptor;
 use dlc_manager::ChannelId;
+use futures::future::RemoteHandle;
+use futures::FutureExt;
+use orderbook_commons::Message;
 use std::str::FromStr;
 use time::OffsetDateTime;
+use tokio::sync::broadcast;
+use tokio::sync::mpsc;
 use trade::ContractSymbol;
 
 #[derive(Debug, Clone)]
@@ -26,6 +37,67 @@ struct Rollover {
     contract_symbol: ContractSymbol,
     oracle_pk: XOnlyPublicKey,
     contract_tx_fee_rate: u64,
+}
+
+pub fn monitor(
+    pool: Pool<ConnectionManager<PgConnection>>,
+    tx_user_feed: broadcast::Sender<NewUserMessage>,
+    notifier: mpsc::Sender<Notification>,
+) -> RemoteHandle<Result<()>> {
+    let mut user_feed = tx_user_feed.subscribe();
+    let (fut, remote_handle) = async move {
+        while let Ok(new_user_msg) = user_feed.recv().await {
+            tokio::spawn({
+                let mut conn = pool.get()?;
+                let notifier = notifier.clone();
+                async move {
+                    if let Err(e) =
+                        check_if_eligible_for_rollover(&mut conn, notifier, new_user_msg.new_user)
+                            .await
+                    {
+                        tracing::error!("Failed to check if eligible for rollover. Error: {e:#}");
+                    }
+                }
+            });
+        }
+        Ok(())
+    }
+    .remote_handle();
+
+    tokio::spawn(fut);
+
+    remote_handle
+}
+
+async fn check_if_eligible_for_rollover(
+    conn: &mut PgConnection,
+    notifier: mpsc::Sender<Notification>,
+    trader_id: PublicKey,
+) -> Result<()> {
+    tracing::debug!(%trader_id, "Checking if the users positions is eligible for rollover");
+    if let Some(position) =
+        positions::Position::get_open_position_by_trader(conn, trader_id.to_string())?
+    {
+        if coordinator_commons::is_in_rollover_weekend(position.expiry_timestamp) {
+            let next_expiry = coordinator_commons::calculate_next_expiry(OffsetDateTime::now_utc());
+            if position.expiry_timestamp == next_expiry {
+                tracing::trace!(%trader_id, position_id=position.id, "Position has already been rolled over");
+                return Ok(());
+            }
+
+            tracing::debug!(%trader_id, position_id=position.id, "Proposing to rollover users position");
+
+            let message = Notification::Message {
+                trader_id,
+                message: Message::Rollover,
+            };
+            if let Err(e) = notifier.send(message).await {
+                tracing::debug!("Failed to notify trader. Error: {e:#}");
+            }
+        }
+    }
+
+    Ok(())
 }
 
 impl Rollover {
@@ -81,7 +153,7 @@ impl Rollover {
 
     /// Calculates the maturity time based on the current expiry timestamp.
     pub fn maturity_time(&self) -> OffsetDateTime {
-        orderbook_commons::get_expiry_timestamp(self.expiry_timestamp)
+        coordinator_commons::calculate_next_expiry(self.expiry_timestamp)
     }
 }
 

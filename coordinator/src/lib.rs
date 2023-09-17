@@ -8,14 +8,13 @@ use diesel_migrations::EmbeddedMigrations;
 use diesel_migrations::MigrationHarness;
 use serde_json::json;
 
-mod rollover;
-
 pub mod admin;
 pub mod cli;
 pub mod db;
 pub mod logger;
 pub mod metrics;
 pub mod node;
+pub mod notification;
 pub mod notification_service;
 pub mod orderbook;
 pub mod position;

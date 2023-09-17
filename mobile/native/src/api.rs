@@ -397,5 +397,7 @@ pub fn get_channel_open_fee_estimate_sat() -> Result<u64> {
 }
 
 pub fn get_expiry_timestamp() -> SyncReturn<i64> {
-    SyncReturn(orderbook_commons::get_expiry_timestamp(OffsetDateTime::now_utc()).unix_timestamp())
+    SyncReturn(
+        coordinator_commons::calculate_next_expiry(OffsetDateTime::now_utc()).unix_timestamp(),
+    )
 }

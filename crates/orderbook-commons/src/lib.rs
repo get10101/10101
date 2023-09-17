@@ -2,11 +2,9 @@ pub use crate::order_matching_fee::order_matching_fee_taker;
 pub use crate::price::best_current_price;
 pub use crate::price::Price;
 pub use crate::price::Prices;
-use anyhow::ensure;
-use anyhow::Result;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
-use secp256k1::Message;
+use secp256k1::Message as SecpMessage;
 use secp256k1::PublicKey;
 use secp256k1::XOnlyPublicKey;
 use serde::Deserialize;
@@ -14,11 +12,7 @@ use serde::Serialize;
 use sha2::digest::FixedOutput;
 use sha2::Digest;
 use sha2::Sha256;
-use std::str::FromStr;
-use time::macros::time;
-use time::Duration;
 use time::OffsetDateTime;
-use time::Weekday;
 use trade::ContractSymbol;
 use trade::Direction;
 use uuid::Uuid;
@@ -69,11 +63,11 @@ pub struct Signature {
     pub signature: secp256k1::ecdsa::Signature,
 }
 
-pub fn create_sign_message() -> Message {
+pub fn create_sign_message() -> SecpMessage {
     let sign_message = "Hello it's me Mario".to_string();
     let hashed_message = Sha256::new().chain_update(sign_message).finalize_fixed();
 
-    let msg = Message::from_slice(hashed_message.as_slice())
+    let msg = SecpMessage::from_slice(hashed_message.as_slice())
         .expect("The message is static, hence this should never happen");
     msg
 }
@@ -117,8 +111,10 @@ pub enum OrderbookRequest {
     Authenticate(Signature),
 }
 
+// TODO(holzeis): The message enum should not be in the orderbook-commons crate as it also contains
+// coordinator messages. We should move all common crates into a single one.
 #[derive(Serialize, Clone, Deserialize, Debug)]
-pub enum OrderbookMsg {
+pub enum Message {
     AllOrders(Vec<Order>),
     NewOrder(Order),
     DeleteOrder(Uuid),
@@ -320,72 +316,8 @@ pub struct Matches {
     pub updated_at: OffsetDateTime,
 }
 
-pub fn get_filled_with_from_matches(matches: Vec<Matches>) -> Result<FilledWith> {
-    ensure!(
-        !matches.is_empty(),
-        "Need at least one matches record to construct a FilledWith"
-    );
-
-    let order_id = matches
-        .first()
-        .expect("to have at least one match")
-        .order_id;
-    let oracle_pk = XOnlyPublicKey::from_str(
-        "16f88cf7d21e6c0f46bcbc983a4e3b19726c6c98858cc31c83551a88fde171c0",
-    )
-    .expect("To be a valid pubkey");
-
-    let expiry_timestamp = get_expiry_timestamp(OffsetDateTime::now_utc());
-
-    Ok(FilledWith {
-        order_id,
-        expiry_timestamp,
-        oracle_pk,
-        matches: matches
-            .iter()
-            .map(|m| Match {
-                id: m.id,
-                order_id: m.order_id,
-                quantity: m.quantity,
-                pubkey: m.match_trader_id,
-                execution_price: m.execution_price,
-            })
-            .collect(),
-    })
-}
-
-/// Calculates the expiry timestamp at the next Sunday at 3 pm UTC from a given offset date time.
-/// If the argument falls in between Friday, 3 pm UTC and Sunday, 3pm UTC, the expiry will be
-/// calculated to next weeks Sunday at 3 pm
-pub fn get_expiry_timestamp(time: OffsetDateTime) -> OffsetDateTime {
-    let days = if is_in_rollover_weekend(time) || time.weekday() == Weekday::Sunday {
-        // if the provided time is in the rollover weekend or on a sunday, we expire the sunday the
-        // week after.
-        7 - time.weekday().number_from_monday() + 7
-    } else {
-        7 - time.weekday().number_from_monday()
-    };
-    let time = time.date().with_hms(15, 0, 0).expect("to fit into time");
-
-    (time + Duration::days(days as i64)).assume_utc()
-}
-
-/// Checks whether the provided expiry date is eligible for a rollover
-///
-/// Returns true if the given date falls in between friday 15 pm UTC and sunday 15 pm UTC
-pub fn is_in_rollover_weekend(timestamp: OffsetDateTime) -> bool {
-    match timestamp.weekday() {
-        Weekday::Friday => timestamp.time() >= time!(15:00),
-        Weekday::Saturday => true,
-        Weekday::Sunday => timestamp.time() < time!(15:00),
-        _ => false,
-    }
-}
-
 #[cfg(test)]
 mod test {
-    use crate::get_expiry_timestamp;
-    use crate::is_in_rollover_weekend;
     use crate::FilledWith;
     use crate::Match;
     use crate::Signature;
@@ -400,109 +332,6 @@ mod test {
     fn dummy_public_key() -> PublicKey {
         PublicKey::from_str("02bd998ebd176715fe92b7467cf6b1df8023950a4dd911db4c94dfc89cc9f5a655")
             .unwrap()
-    }
-
-    #[test]
-    fn test_is_not_in_rollover_weekend() {
-        // Wed Aug 09 2023 09:30:23 GMT+0000
-        let expiry = OffsetDateTime::from_unix_timestamp(1691573423).unwrap();
-        assert!(!is_in_rollover_weekend(expiry));
-    }
-
-    #[test]
-    fn test_is_just_in_rollover_weekend_friday() {
-        // Fri Aug 11 2023 15:00:00 GMT+0000
-        let expiry = OffsetDateTime::from_unix_timestamp(1691766000).unwrap();
-        assert!(is_in_rollover_weekend(expiry));
-
-        // Fri Aug 11 2023 15:00:01 GMT+0000
-        let expiry = OffsetDateTime::from_unix_timestamp(1691766001).unwrap();
-        assert!(is_in_rollover_weekend(expiry));
-    }
-
-    #[test]
-    fn test_is_in_rollover_weekend_saturday() {
-        // Sat Aug 12 2023 16:00:00 GMT+0000
-        let expiry = OffsetDateTime::from_unix_timestamp(1691856000).unwrap();
-        assert!(is_in_rollover_weekend(expiry));
-    }
-
-    #[test]
-    fn test_is_just_in_rollover_weekend_sunday() {
-        // Sun Aug 13 2023 14:59:59 GMT+0000
-        let expiry = OffsetDateTime::from_unix_timestamp(1691938799).unwrap();
-        assert!(is_in_rollover_weekend(expiry));
-    }
-
-    #[test]
-    fn test_is_just_not_in_rollover_weekend_sunday() {
-        // Sun Aug 13 2023 15:00:00 GMT+0000
-        let expiry = OffsetDateTime::from_unix_timestamp(1691938800).unwrap();
-        assert!(!is_in_rollover_weekend(expiry));
-
-        // Sun Aug 13 2023 15:00:01 GMT+0000
-        let expiry = OffsetDateTime::from_unix_timestamp(1691938801).unwrap();
-        assert!(!is_in_rollover_weekend(expiry));
-    }
-
-    #[test]
-    fn test_expiry_timestamp_before_friday_15pm() {
-        // Wed Aug 09 2023 09:30:23 GMT+0000
-        let from = OffsetDateTime::from_unix_timestamp(1691573423).unwrap();
-        let expiry = get_expiry_timestamp(from);
-
-        // Sun Aug 13 2023 15:00:00 GMT+0000
-        assert_eq!(1691938800, expiry.unix_timestamp());
-    }
-
-    #[test]
-    fn test_expiry_timestamp_just_before_friday_15pm() {
-        // Fri Aug 11 2023 14:59:59 GMT+0000
-        let from = OffsetDateTime::from_unix_timestamp(1691765999).unwrap();
-        let expiry = get_expiry_timestamp(from);
-
-        // Sun Aug 13 2023 15:00:00 GMT+0000
-        assert_eq!(1691938800, expiry.unix_timestamp());
-    }
-
-    #[test]
-    fn test_expiry_timestamp_just_after_friday_15pm() {
-        // Fri Aug 11 2023 15:00:01 GMT+0000
-        let from = OffsetDateTime::from_unix_timestamp(1691766001).unwrap();
-        let expiry = get_expiry_timestamp(from);
-
-        // Sun Aug 20 2023 15:00:00 GMT+0000
-        assert_eq!(1692543600, expiry.unix_timestamp());
-    }
-
-    #[test]
-    fn test_expiry_timestamp_at_friday_15pm() {
-        // Fri Aug 11 2023 15:00:00 GMT+0000
-        let from = OffsetDateTime::from_unix_timestamp(1691766000).unwrap();
-        let expiry = get_expiry_timestamp(from);
-
-        // Sun Aug 20 2023 15:00:00 GMT+0000
-        assert_eq!(1692543600, expiry.unix_timestamp());
-    }
-
-    #[test]
-    fn test_expiry_timestamp_after_sunday_15pm() {
-        // Sun Aug 06 2023 16:00:00 GMT+0000
-        let from = OffsetDateTime::from_unix_timestamp(1691337600).unwrap();
-        let expiry = get_expiry_timestamp(from);
-
-        // Sun Aug 13 2023 15:00:00 GMT+0000
-        assert_eq!(1691938800, expiry.unix_timestamp());
-    }
-
-    #[test]
-    fn test_expiry_timestamp_on_saturday() {
-        // // Sat Aug 12 2023 16:00:00 GMT+0000
-        let from = OffsetDateTime::from_unix_timestamp(1691856000).unwrap();
-        let expiry = get_expiry_timestamp(from);
-
-        // Sun Aug 20 2023 15:00:00 GMT+0000
-        assert_eq!(1692543600, expiry.unix_timestamp());
     }
 
     #[test]

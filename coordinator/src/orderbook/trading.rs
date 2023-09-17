@@ -1,4 +1,4 @@
-use crate::db::positions;
+use crate::notification::Notification;
 use crate::orderbook::db::matches;
 use crate::orderbook::db::orders;
 use anyhow::anyhow;
@@ -15,15 +15,14 @@ use futures::future::RemoteHandle;
 use futures::FutureExt;
 use orderbook_commons::FilledWith;
 use orderbook_commons::Match;
+use orderbook_commons::Message;
 use orderbook_commons::NewOrder;
 use orderbook_commons::Order;
 use orderbook_commons::OrderReason;
 use orderbook_commons::OrderState;
 use orderbook_commons::OrderType;
-use orderbook_commons::OrderbookMsg;
 use rust_decimal::Decimal;
 use std::cmp::Ordering;
-use std::collections::HashMap;
 use std::str::FromStr;
 use thiserror::Error;
 use time::OffsetDateTime;
@@ -32,24 +31,13 @@ use tokio::sync::mpsc;
 use trade::Direction;
 use uuid::Uuid;
 
-/// This value is arbitrarily set to 100 and defines the message accepted in the trading messages
-/// channel buffer.
-const TRADING_MESSAGES_BUFFER_SIZE: usize = 100;
-
-pub enum TradingMessage {
-    NewOrder(NewOrderMessage),
-    NewUser(NewUserMessage),
-}
-
+/// This value is arbitrarily set to 100 and defines the number of new order messages buffered
+/// in the channel.
+const NEW_ORDERS_BUFFER_SIZE: usize = 100;
 pub struct NewOrderMessage {
     pub new_order: NewOrder,
     pub order_reason: OrderReason,
     pub sender: mpsc::Sender<Result<Order>>,
-}
-
-pub struct NewUserMessage {
-    pub new_user: PublicKey,
-    pub sender: mpsc::Sender<OrderbookMsg>,
 }
 
 #[derive(Error, Debug, PartialEq)]
@@ -95,52 +83,37 @@ impl From<&TradeParams> for TraderMatchParams {
 /// the trading task by spawning a new tokio task that is handling messages
 pub fn start(
     pool: Pool<ConnectionManager<PgConnection>>,
-    tx_price_feed: broadcast::Sender<OrderbookMsg>,
-) -> (RemoteHandle<Result<()>>, mpsc::Sender<TradingMessage>) {
-    let (sender, mut receiver) = mpsc::channel::<TradingMessage>(TRADING_MESSAGES_BUFFER_SIZE);
-
-    let mut authenticated_users = HashMap::new();
+    tx_price_feed: broadcast::Sender<Message>,
+    notifier: mpsc::Sender<Notification>,
+) -> (RemoteHandle<Result<()>>, mpsc::Sender<NewOrderMessage>) {
+    let (sender, mut receiver) = mpsc::channel::<NewOrderMessage>(NEW_ORDERS_BUFFER_SIZE);
 
     let (fut, remote_handle) = async move {
-
-        while let Some(trading_message) = receiver.recv().await {
-            match trading_message {
-                TradingMessage::NewOrder(new_order_msg) => {
-                    tokio::spawn({
-                        let mut conn = pool.get()?;
-                        let authenticated_users = authenticated_users.clone();
-                        let tx_price_feed = tx_price_feed.clone();
-                        async move {
-                            let new_order = new_order_msg.new_order;
-                            let result = process_new_order(&mut conn, tx_price_feed, new_order, new_order_msg.order_reason, &authenticated_users)
-                                .await;
-                            if let Err(e) = new_order_msg.sender.send(result).await {
-                                tracing::error!("Failed to send new order message! Error: {e:#}");
-                            }
-                        }
-                    });
+        while let Some(new_order_msg) = receiver.recv().await {
+            tokio::spawn({
+                let mut conn = pool.get()?;
+                let tx_price_feed = tx_price_feed.clone();
+                let notifier = notifier.clone();
+                async move {
+                    let new_order = new_order_msg.new_order;
+                    let result = process_new_order(
+                        &mut conn,
+                        notifier,
+                        tx_price_feed,
+                        new_order,
+                        new_order_msg.order_reason,
+                    )
+                    .await;
+                    if let Err(e) = new_order_msg.sender.send(result).await {
+                        tracing::error!("Failed to send new order message! Error: {e:#}");
+                    }
                 }
-                TradingMessage::NewUser(new_user_msg) => {
-                    tracing::info!(trader_id=%new_user_msg.new_user, "User logged in to 10101");
-
-                    authenticated_users.insert(new_user_msg.new_user, new_user_msg.sender);
-
-                    tokio::spawn({
-                        let mut conn = pool.get()?;
-                        let authenticated_users = authenticated_users.clone();
-                        async move {
-                            tracing::debug!(trader_id=%new_user_msg.new_user, "Checking if the user needs to be notified about pending matches");
-                            if let Err(e) = process_pending_actions(&mut conn, &authenticated_users, new_user_msg.new_user).await {
-                                tracing::error!("Failed to process pending match. Error: {e:#}");
-                            }
-                        }
-                    });
-                }
-            }
+            });
         }
 
         Ok(())
-    }.remote_handle();
+    }
+    .remote_handle();
 
     tokio::spawn(fut);
 
@@ -156,10 +129,10 @@ pub fn start(
 /// Market order: find match and notify traders
 async fn process_new_order(
     conn: &mut PgConnection,
-    tx_price_feed: broadcast::Sender<OrderbookMsg>,
+    notifier: mpsc::Sender<Notification>,
+    tx_price_feed: broadcast::Sender<Message>,
     new_order: NewOrder,
     order_reason: OrderReason,
-    authenticated_users: &HashMap<PublicKey, mpsc::Sender<OrderbookMsg>>,
 ) -> Result<Order> {
     tracing::info!(trader_id=%new_order.trader_id, "Received a new {:?} order", new_order.order_type);
 
@@ -181,7 +154,7 @@ async fn process_new_order(
     if new_order.order_type == OrderType::Limit {
         // we only tell everyone about new limit orders
         tx_price_feed
-            .send(OrderbookMsg::NewOrder(order.clone()))
+            .send(Message::NewOrder(order.clone()))
             .map_err(|error| anyhow!("Could not update price feed due to '{error}'"))?;
     } else {
         // reject new order if there is already a matched order waiting for execution.
@@ -232,14 +205,15 @@ async fn process_new_order(
             tracing::info!(%trader_id, order_id, "Notifying trader about match");
 
             let message = match &order.order_reason {
-                OrderReason::Manual => OrderbookMsg::Match(match_param.filled_with.clone()),
-                OrderReason::Expired => OrderbookMsg::AsyncMatch {
+                OrderReason::Manual => Message::Match(match_param.filled_with.clone()),
+                OrderReason::Expired => Message::AsyncMatch {
                     order: order.clone(),
                     filled_with: match_param.filled_with.clone(),
                 },
             };
 
-            let order_state = match notify_trader(trader_id, message, authenticated_users).await {
+            let msg = Notification::Message { trader_id, message };
+            let order_state = match notifier.send(msg).await {
                 Ok(()) => {
                     tracing::debug!(%trader_id, order_id, "Successfully notified trader");
                     OrderState::Matched
@@ -272,54 +246,6 @@ async fn process_new_order(
     }
 
     Ok(order)
-}
-
-/// Checks if there are any immediate actions to be processed by the app
-/// - Pending Match
-/// - Rollover
-async fn process_pending_actions(
-    conn: &mut PgConnection,
-    authenticated_users: &HashMap<PublicKey, mpsc::Sender<OrderbookMsg>>,
-    trader_id: PublicKey,
-) -> Result<()> {
-    if let Some(order) = orders::get_by_trader_id_and_state(conn, trader_id, OrderState::Matched)? {
-        tracing::debug!(%trader_id, order_id=%order.id, "Notifying trader about pending match");
-
-        let matches = matches::get_matches_by_order_id(conn, order.id)?;
-        let filled_with = orderbook_commons::get_filled_with_from_matches(matches)?;
-
-        let message = match order.order_reason {
-            OrderReason::Manual => OrderbookMsg::Match(filled_with),
-            OrderReason::Expired => OrderbookMsg::AsyncMatch { order, filled_with },
-        };
-
-        if let Err(e) = notify_trader(trader_id, message, authenticated_users).await {
-            tracing::warn!("Failed to notify trader. Error: {e:#}");
-        }
-    } else if let Some(position) =
-        positions::Position::get_open_position_by_trader(conn, trader_id.to_string())?
-    {
-        tracing::debug!(%trader_id, position_id=position.id, "Checking if the users positions is eligible for rollover");
-
-        if orderbook_commons::is_in_rollover_weekend(position.expiry_timestamp) {
-            let next_expiry = orderbook_commons::get_expiry_timestamp(OffsetDateTime::now_utc());
-            if position.expiry_timestamp == next_expiry {
-                tracing::trace!(%trader_id, position_id=position.id, "Position has already been rolled over");
-                return Ok(());
-            }
-
-            tracing::debug!(%trader_id, position_id=position.id, "Proposing to rollover users position");
-
-            let message = OrderbookMsg::Rollover;
-            if let Err(e) = notify_trader(trader_id, message, authenticated_users).await {
-                // if that happens, it's most likely that the user already closed its app again
-                // and we can simply wait for the user to come online again to retry.
-                tracing::debug!("Failed to notify trader. Error: {e:#}");
-            }
-        }
-    }
-
-    Ok(())
 }
 
 /// Matches a provided market order with limit orders from the DB
@@ -368,7 +294,7 @@ fn match_order(
         return Ok(None);
     }
 
-    let expiry_timestamp = orderbook_commons::get_expiry_timestamp(OffsetDateTime::now_utc());
+    let expiry_timestamp = coordinator_commons::calculate_next_expiry(OffsetDateTime::now_utc());
 
     // For now we hardcode the oracle pubkey here
     let oracle_pk = XOnlyPublicKey::from_str(
@@ -453,45 +379,20 @@ fn sort_orders(mut orders: Vec<Order>, is_long: bool) -> Vec<Order> {
     orders
 }
 
-async fn notify_trader(
-    trader_id: PublicKey,
-    message: OrderbookMsg,
-    traders: &HashMap<PublicKey, mpsc::Sender<OrderbookMsg>>,
-) -> Result<()> {
-    match traders.get(&trader_id) {
-        None => bail!("Trader is not connected"),
-        Some(sender) => sender
-            .send(message)
-            .await
-            .map_err(|err| anyhow!("Connection lost to trader {err:#}")),
-    }
-}
-
 #[cfg(test)]
 pub mod tests {
     use crate::orderbook::trading::match_order;
-    use crate::orderbook::trading::notify_trader;
     use crate::orderbook::trading::sort_orders;
-    use crate::orderbook::trading::MatchParams;
-    use crate::orderbook::trading::TraderMatchParams;
     use bitcoin::secp256k1::PublicKey;
-    use bitcoin::secp256k1::SecretKey;
-    use bitcoin::secp256k1::SECP256K1;
-    use bitcoin::XOnlyPublicKey;
-    use orderbook_commons::FilledWith;
-    use orderbook_commons::Match;
     use orderbook_commons::Order;
     use orderbook_commons::OrderReason;
     use orderbook_commons::OrderState;
     use orderbook_commons::OrderType;
-    use orderbook_commons::OrderbookMsg;
     use rust_decimal::Decimal;
     use rust_decimal_macros::dec;
-    use std::collections::HashMap;
     use std::str::FromStr;
     use time::Duration;
     use time::OffsetDateTime;
-    use tokio::sync::mpsc;
     use trade::ContractSymbol;
     use trade::Direction;
     use uuid::Uuid;
@@ -787,89 +688,5 @@ pub mod tests {
         let matched_orders = match_order(&order, all_orders).unwrap();
 
         assert!(matched_orders.is_none());
-    }
-
-    #[tokio::test]
-    async fn given_matches_will_notify_all_traders() {
-        let trader_key = SecretKey::from_slice(&b"Me noob, don't lose money pleazz"[..]).unwrap();
-        let trader_pub_key = trader_key.public_key(SECP256K1);
-        let maker_key = SecretKey::from_slice(&b"I am a king trader mate, right!?"[..]).unwrap();
-        let maker_pub_key = maker_key.public_key(SECP256K1);
-        let trader_order_id = Uuid::new_v4();
-        let maker_order_id = Uuid::new_v4();
-        let oracle_pk = XOnlyPublicKey::from_str(
-            "16f88cf7d21e6c0f46bcbc983a4e3b19726c6c98858cc31c83551a88fde171c0",
-        )
-        .unwrap();
-        let maker_order_price = dec!(20_000);
-        let expiry_timestamp = OffsetDateTime::now_utc();
-        let matched_orders = MatchParams {
-            taker_match: TraderMatchParams {
-                trader_id: trader_pub_key,
-                filled_with: FilledWith {
-                    order_id: trader_order_id,
-                    expiry_timestamp,
-                    oracle_pk,
-                    matches: vec![Match {
-                        id: Uuid::new_v4(),
-                        order_id: maker_order_id,
-                        quantity: dec!(100),
-                        pubkey: maker_pub_key,
-                        execution_price: maker_order_price,
-                    }],
-                },
-            },
-            makers_matches: vec![TraderMatchParams {
-                trader_id: maker_pub_key,
-                filled_with: FilledWith {
-                    order_id: maker_order_id,
-                    expiry_timestamp,
-                    oracle_pk,
-                    matches: vec![Match {
-                        id: Uuid::new_v4(),
-                        order_id: trader_order_id,
-                        quantity: dec!(100),
-                        pubkey: trader_pub_key,
-                        execution_price: maker_order_price,
-                    }],
-                },
-            }],
-        };
-        let mut traders = HashMap::new();
-        let (maker_sender, mut maker_receiver) = mpsc::channel::<OrderbookMsg>(1);
-        let (trader_sender, mut trader_receiver) = mpsc::channel::<OrderbookMsg>(1);
-        traders.insert(maker_pub_key, maker_sender);
-        traders.insert(trader_pub_key, trader_sender);
-
-        for match_param in matched_orders.matches() {
-            notify_trader(
-                match_param.trader_id,
-                OrderbookMsg::Match(match_param.filled_with.clone()),
-                &traders,
-            )
-            .await
-            .unwrap();
-        }
-
-        let maker_msg = maker_receiver.recv().await.unwrap();
-        let trader_msg = trader_receiver.recv().await.unwrap();
-
-        match maker_msg {
-            OrderbookMsg::Match(msg) => {
-                assert_eq!(msg.order_id, maker_order_id)
-            }
-            _ => {
-                panic!("Invalid message received")
-            }
-        }
-
-        match trader_msg {
-            OrderbookMsg::Match(msg) => {
-                assert_eq!(msg.order_id, trader_order_id)
-            }
-            _ => {
-                panic!("Invalid message received")
-            }
-        }
     }
 }
