@@ -20,8 +20,8 @@ use std::time::Duration;
 
 mod coordinator;
 
-const ESPLORA_ORIGIN_PUBLIC_REGTEST: &str = "http://35.189.57.114:3000";
-const ORACLE_ORIGIN_PUBLIC_REGTEST: &str = "http://35.189.57.114:8081";
+const ESPLORA_ORIGIN_PUBLIC_REGTEST: &str = "http://34.32.0.52:3000";
+const ORACLE_ORIGIN_PUBLIC_REGTEST: &str = "http://34.32.0.52:8081";
 const ORACLE_PUBKEY_PUBLIC_REGTEST: &str =
     "5d12d79f575b8d99523797c46441c0549eb0defb6195fe8a080000cbe3ab3859";
 

@@ -242,7 +242,7 @@ class _ShareInvoiceScreenState extends State<ShareInvoiceScreen> {
     // locally if needed for dev testing
     // It's not populated in Config struct, as it's not used in production
     String faucet =
-        const String.fromEnvironment("REGTEST_FAUCET", defaultValue: "http://35.189.57.114:8080");
+        const String.fromEnvironment("REGTEST_FAUCET", defaultValue: "http://34.32.0.52:8080");
 
     final data = {'payment_request': invoice};
     final encodedData = json.encode(data);
