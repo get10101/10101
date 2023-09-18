@@ -117,7 +117,18 @@ fn build_notification<'a>(kind: NotificationKind) -> fcm::Notification<'a> {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct FcmToken(pub String);
+pub struct FcmToken(String);
+
+impl FcmToken {
+    pub fn new(token: String) -> Result<Self> {
+        anyhow::ensure!(!token.is_empty(), "FCM token cannot be empty");
+        Ok(Self(token))
+    }
+
+    pub fn get(&self) -> &str {
+        &self.0
+    }
+}
 
 impl Display for FcmToken {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -133,7 +144,7 @@ async fn send_notification<'a>(
 ) -> Result<()> {
     anyhow::ensure!(!api_key.is_empty(), "FCM API key is empty");
 
-    let mut message_builder = fcm::MessageBuilder::new(api_key, &fcm_token.0);
+    let mut message_builder = fcm::MessageBuilder::new(api_key, fcm_token.get());
     message_builder.notification(notification);
     let message = message_builder.finalize();
     let response = client

@@ -201,6 +201,7 @@ async fn main() -> Result<()> {
     });
 
     let (tx_user_feed, _rx) = broadcast::channel::<NewUserMessage>(100);
+
     let (tx_price_feed, _rx) = broadcast::channel(100);
 
     let (_handle, auth_users_notifier) =
@@ -211,17 +212,22 @@ async fn main() -> Result<()> {
     let (_handle, trading_sender) = trading::start(
         pool.clone(),
         tx_price_feed.clone(),
-        notifier.clone(),
+        auth_users_notifier.clone(),
+        notification_service.get_sender(),
         network,
     );
-
     let _handle = async_match::monitor(
         pool.clone(),
         tx_user_feed.clone(),
-        notifier.clone(),
+        auth_users_notifier.clone(),
         network,
     );
-    let _handle = rollover::monitor(pool.clone(), tx_user_feed.clone(), notifier);
+    let _handle = rollover::monitor(
+        pool.clone(),
+        tx_user_feed.clone(),
+        auth_users_notifier,
+        network,
+    );
 
     tokio::spawn({
         let node = node.clone();
@@ -265,8 +271,6 @@ async fn main() -> Result<()> {
         tx_price_feed,
         tx_user_feed,
     );
-
-    let notification_service = NotificationService::new(opts.fcm_api_key);
 
     tokio::spawn({
         let sender = notification_service.get_sender();

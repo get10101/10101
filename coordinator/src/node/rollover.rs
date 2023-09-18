@@ -1,6 +1,7 @@
 use crate::db;
 use crate::db::positions;
 use crate::message::NewUserMessage;
+use crate::message::OrderbookMessage;
 use crate::node::Node;
 use anyhow::bail;
 use anyhow::Context;
