@@ -38,9 +38,9 @@ impl Coordinator {
     }
 
     pub fn new_public_regtest() -> Self {
-        const HTTP_ENDPOINT: &str = "35.189.57.114:80";
+        const HTTP_ENDPOINT: &str = "34.32.0.52:80";
         const PK: &str = "03507b924dae6595cfb78492489978127c5f1e3877848564de2015cd6d41375802";
-        const P2P_ADDRESS: &str = "35.189.57.114:9045";
+        const P2P_ADDRESS: &str = "34.32.0.52:9045";
 
         Self::new(HTTP_ENDPOINT, PK, P2P_ADDRESS).expect("correct coordinator parameters")
     }
