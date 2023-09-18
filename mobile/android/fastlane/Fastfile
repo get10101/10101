@@ -1,5 +1,6 @@
 default_platform(:android)
 
+ENV['SUPPLY_UPLOAD_MAX_RETRIES']='5'
 APP_SCHEME = ENV["FASTLANE_ANDROID_APP_SCHEME"]
 
 platform :android do
@@ -10,6 +11,9 @@ platform :android do
     upload_to_play_store(
         track: 'alpha',
         aab: "../build/app/outputs/bundle/#{APP_SCHEME}Release/app-#{APP_SCHEME}-release.aab",
+        skip_upload_metadata: true,
+        skip_upload_images: true,
+        skip_upload_screenshots: true,
     )
   end
 end
