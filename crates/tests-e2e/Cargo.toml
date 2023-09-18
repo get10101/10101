@@ -15,6 +15,7 @@ ln-dlc-node = { path = "../ln-dlc-node" }
 maker = { path = "../../maker" }
 native = { path = "../../mobile/native" }
 orderbook-commons = { path = "../orderbook-commons" }
+parking_lot = { version = "0.12.1" }
 quote = "1.0.28"
 reqwest = { version = "0.11", default-features = false, features = ["json"] }
 serde = { version = "1.0.152", features = ["serde_derive"] }

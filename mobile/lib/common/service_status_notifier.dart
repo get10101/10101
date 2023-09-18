@@ -32,6 +32,10 @@ class ServiceStatusNotifier extends ChangeNotifier implements Subscriber {
 }
 
 bridge.ServiceStatus foldValues(Map<bridge.Service, bridge.ServiceStatus> map) {
+  if (map.isEmpty) {
+    // App is offline at startup
+    return bridge.ServiceStatus.Offline;
+  }
   return map.values.fold(bridge.ServiceStatus.Online, (previousValue, element) {
     if (previousValue == bridge.ServiceStatus.Offline || element == bridge.ServiceStatus.Offline) {
       return bridge.ServiceStatus.Offline;

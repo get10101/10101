@@ -261,7 +261,9 @@ where
         let persister = Arc::new(FilesystemPersister::new(ldk_data_dir.clone()));
 
         let dlc_storage = Arc::new(SledStorageProvider::new(
-            data_dir.to_str().expect("data_dir"),
+            data_dir
+                .to_str()
+                .context("data_dir for sled storage should be specified")?,
         )?);
 
         let on_chain_dir = data_dir.join("on_chain");
@@ -280,7 +282,6 @@ where
                 on_chain_wallet.inner,
                 fee_rate_estimator.clone(),
                 dlc_storage.clone(),
-                seed.clone(),
                 settings.bdk_client_stop_gap,
                 settings.bdk_client_concurrency,
                 node_storage.clone(),

@@ -83,9 +83,10 @@ const CHECK_OPEN_ORDERS_INTERVAL: Duration = Duration::from_secs(60);
 pub const FUNDING_TX_WEIGHT_ESTIMATE: u64 = 220;
 
 static NODE: Storage<Arc<Node>> = Storage::new();
+static SEED: Storage<Bip39Seed> = Storage::new();
 
 pub async fn refresh_wallet_info() -> Result<()> {
-    let node = NODE.get();
+    let node = NODE.try_get().context("failed to get ln dlc node")?;
     let wallet = node.inner.wallet();
 
     spawn_blocking(move || wallet.sync()).await??;
@@ -95,7 +96,9 @@ pub async fn refresh_wallet_info() -> Result<()> {
 }
 
 pub fn get_seed_phrase() -> Vec<String> {
-    NODE.get().get_seed_phrase()
+    SEED.try_get()
+        .expect("SEED to be initialised")
+        .get_seed_phrase()
 }
 
 pub fn get_node_key() -> SecretKey {
@@ -191,6 +194,7 @@ pub fn run(data_dir: String, seed_dir: String, runtime: &Runtime) -> Result<()> 
 
         let seed_path = seed_dir.join("seed");
         let seed = Bip39Seed::initialize(&seed_path)?;
+        SEED.set(seed.clone());
 
         let (event_sender, event_receiver) = watch::channel::<Option<Event>>(None);
 

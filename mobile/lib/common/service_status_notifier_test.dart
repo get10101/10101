@@ -28,4 +28,10 @@ void main() {
     };
     expect(foldValues(testMap4), ServiceStatus.Offline, reason: 'At least one service is offline');
   });
+
+  test('Nothing is online at startup', () {
+    Map<Service, ServiceStatus> situationAtStartup = <Service, ServiceStatus>{};
+    expect(foldValues(situationAtStartup), ServiceStatus.Offline,
+        reason: "Everything is unknown - app is offline at startup");
+  });
 }

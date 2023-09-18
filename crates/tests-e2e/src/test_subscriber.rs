@@ -10,9 +10,9 @@ use native::ln_dlc::ChannelStatus;
 use native::trade::order::Order;
 use native::trade::position::Position;
 use orderbook_commons::Prices;
+use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::sync::Arc;
-use std::sync::Mutex;
 use tokio::sync::watch;
 
 pub struct Senders {
@@ -75,10 +75,7 @@ impl TestSubscriber {
                 while let Ok(()) = service_rx.changed().await {
                     if let Some(ServiceUpdate { service, status }) = *service_rx.borrow() {
                         tracing::debug!(?service, ?status, "Updating status in the services map");
-                        services
-                            .lock()
-                            .expect("mutex not poisoned")
-                            .insert(service, status);
+                        services.lock().insert(service, status);
                     }
                 }
                 panic!("service_rx channel closed");
@@ -131,7 +128,6 @@ impl TestSubscriber {
     pub fn status(&self, service: Service) -> ServiceStatus {
         self.services
             .lock()
-            .expect("mutex not poisoned")
             .get(&service)
             .copied()
             .unwrap_or_default()
@@ -217,12 +213,10 @@ pub struct ThreadSafeSenders(Arc<Mutex<Senders>>);
 
 impl Subscriber for ThreadSafeSenders {
     fn notify(&self, event: &native::event::EventInternal) {
-        let guard = self.0.lock().expect("mutex not poisoned");
-        guard.notify(event);
+        self.0.lock().notify(event)
     }
 
     fn events(&self) -> Vec<EventType> {
-        let guard = self.0.lock().expect("mutex not poisoned");
-        guard.events()
+        self.0.lock().events()
     }
 }

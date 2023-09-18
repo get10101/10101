@@ -1,7 +1,6 @@
 use crate::fee_rate_estimator::FeeRateEstimator;
 use crate::ldk_node_wallet;
 use crate::node::Storage;
-use crate::seed::Bip39Seed;
 use crate::TracingLogger;
 use anyhow::Result;
 use bdk::blockchain::EsploraBlockchain;
@@ -39,7 +38,6 @@ pub struct LnDlcWallet {
     ln_wallet: Arc<ldk_node_wallet::Wallet<sled::Tree, EsploraBlockchain, FeeRateEstimator>>,
     storage: Arc<SledStorageProvider>,
     secp: Secp256k1<All>,
-    seed: Bip39Seed,
     network: Network,
     /// Cache for the last unused address according to the latest on-chain sync.
     ///
@@ -56,7 +54,6 @@ impl LnDlcWallet {
         on_chain_wallet: bdk::Wallet<bdk::sled::Tree>,
         fee_rate_estimator: Arc<FeeRateEstimator>,
         storage: Arc<SledStorageProvider>,
-        seed: Bip39Seed,
         bdk_client_stop_gap: usize,
         bdk_client_concurrency: u8,
         node_storage: Arc<dyn Storage + Send + Sync + 'static>,
@@ -82,14 +79,9 @@ impl LnDlcWallet {
             ln_wallet: wallet,
             storage,
             secp: Secp256k1::new(),
-            seed,
             network,
             address_cache: RwLock::new(last_unused_address),
         }
-    }
-
-    pub fn get_seed_phrase(&self) -> Vec<String> {
-        self.seed.get_seed_phrase()
     }
 
     // TODO: Better to keep this private and expose the necessary APIs instead.
