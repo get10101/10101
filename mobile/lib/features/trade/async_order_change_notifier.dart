@@ -4,9 +4,9 @@ import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
 import 'package:get_10101/common/application/event_service.dart';
 import 'package:get_10101/common/domain/background_task.dart';
 import 'package:get_10101/common/global_keys.dart';
+import 'package:get_10101/common/task_status_dialog.dart';
 import 'package:get_10101/features/trade/application/order_service.dart';
 import 'package:get_10101/features/trade/domain/order.dart';
-import 'package:get_10101/features/trade/order_submission_status_dialog.dart';
 import 'package:provider/provider.dart';
 
 class AsyncOrderChangeNotifier extends ChangeNotifier implements Subscriber {
@@ -27,8 +27,11 @@ class AsyncOrderChangeNotifier extends ChangeNotifier implements Subscriber {
 
   @override
   void notify(bridge.Event event) {
-    if (event is bridge.Event_BackgroundNotification &&
-        event.field0 is bridge.BackgroundTask_AsyncTrade) {
+    if (event is bridge.Event_BackgroundNotification) {
+      if (event.field0 is! bridge.BackgroundTask_AsyncTrade) {
+        // ignoring other kinds of background tasks
+        return;
+      }
       AsyncTrade asyncTrade = AsyncTrade.fromApi(event.field0 as bridge.BackgroundTask_AsyncTrade);
       FLog.debug(text: "Received a async trade event. Reason: ${asyncTrade.orderReason}");
       showDialog(
@@ -36,16 +39,16 @@ class AsyncOrderChangeNotifier extends ChangeNotifier implements Subscriber {
         builder: (context) {
           Order? asyncOrder = context.watch<AsyncOrderChangeNotifier>().asyncOrder;
 
-          OrderSubmissionStatusDialogType type = OrderSubmissionStatusDialogType.pendingSubmit;
+          TaskStatus status = TaskStatus.pending;
           switch (asyncOrder?.state) {
             case OrderState.open:
-              type = OrderSubmissionStatusDialogType.successfulSubmit;
+              status = TaskStatus.pending;
             case OrderState.failed:
-              type = OrderSubmissionStatusDialogType.failedFill;
+              status = TaskStatus.failed;
             case OrderState.filled:
-              type = OrderSubmissionStatusDialogType.filled;
+              status = TaskStatus.success;
             case null:
-              type = OrderSubmissionStatusDialogType.pendingSubmit;
+              status = TaskStatus.pending;
           }
 
           late Widget content;
@@ -57,7 +60,7 @@ class AsyncOrderChangeNotifier extends ChangeNotifier implements Subscriber {
               content = Container();
           }
 
-          return OrderSubmissionStatusDialog(title: "Catching up!", type: type, content: content);
+          return TaskStatusDialog(title: "Catching up!", status: status, content: content);
         },
       );
     } else if (event is bridge.Event_OrderUpdateNotification) {

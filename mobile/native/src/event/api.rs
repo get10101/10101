@@ -32,8 +32,14 @@ pub enum Event {
 #[frb]
 #[derive(Clone)]
 pub enum BackgroundTask {
+    /// The order book submitted an trade which was matched asynchronously while the app was
+    /// offline.
     AsyncTrade(OrderReason),
+    /// The order book submitted its intention to rollover the about to expire position.
     Rollover(TaskStatus),
+    /// The app was started with a dlc channel in an intermediate state. This task is in pending
+    /// until the dlc protocol reaches a final state.
+    RecoverDlc(TaskStatus),
 }
 
 impl From<EventInternal> for Event {
@@ -128,6 +134,7 @@ impl From<event::BackgroundTask> for BackgroundTask {
                 BackgroundTask::AsyncTrade(order_reason.into())
             }
             event::BackgroundTask::Rollover(status) => BackgroundTask::Rollover(status.into()),
+            event::BackgroundTask::RecoverDlc(status) => BackgroundTask::RecoverDlc(status.into()),
         }
     }
 }

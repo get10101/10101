@@ -23,6 +23,7 @@ use dlc_messages::OnChainMessage;
 use dlc_messages::SubChannelMessage;
 use lightning::ln::channelmanager::ChannelDetails;
 use std::sync::Arc;
+use time::OffsetDateTime;
 use tokio::task::spawn_blocking;
 
 impl<P> Node<P>
@@ -292,6 +293,51 @@ where
         };
 
         Ok(())
+    }
+
+    /// Gets the collateral and expiry for a signed contract of that given channel_id. Will return
+    /// an error if the contract is not confirmed.
+    pub fn get_collateral_and_expiry_for_confirmed_contract(
+        &self,
+        channel_id: ChannelId,
+    ) -> Result<(u64, OffsetDateTime)> {
+        let storage = self.dlc_manager.get_store();
+        let sub_channel = storage.get_sub_channel(channel_id)?.with_context(|| {
+            format!(
+                "Could not find sub channel by channel id {}",
+                channel_id.to_hex()
+            )
+        })?;
+        let dlc_channel_id = sub_channel
+            .get_dlc_channel_id(0)
+            .context("Could not fetch dlc channel id")?;
+
+        match self.get_contract_by_dlc_channel_id(dlc_channel_id)? {
+            Contract::Confirmed(contract) => {
+                let offered_contract = contract.accepted_contract.offered_contract;
+                let contract_info = offered_contract
+                    .contract_info
+                    .first()
+                    .expect("contract info to exist on a signed contract");
+                let oracle_announcement = contract_info
+                    .oracle_announcements
+                    .first()
+                    .expect("oracle announcement to exist on signed contract");
+
+                let expiry_timestamp = OffsetDateTime::from_unix_timestamp(
+                    oracle_announcement.oracle_event.event_maturity_epoch as i64,
+                )?;
+
+                Ok((
+                    contract.accepted_contract.accept_params.collateral,
+                    expiry_timestamp,
+                ))
+            }
+            _ => bail!(
+                "Confirmed contract not found for channel ID: {}",
+                hex::encode(channel_id)
+            ),
+        }
     }
 
     fn get_dlc_channel(

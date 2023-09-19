@@ -7,29 +7,28 @@ import 'package:get_10101/common/global_keys.dart';
 import 'package:get_10101/common/task_status_dialog.dart';
 import 'package:provider/provider.dart';
 
-class RolloverChangeNotifier extends ChangeNotifier implements Subscriber {
+class RecoverDlcChangeNotifier extends ChangeNotifier implements Subscriber {
   late TaskStatus taskStatus;
 
   @override
   void notify(bridge.Event event) {
     if (event is bridge.Event_BackgroundNotification) {
-      if (event.field0 is! bridge.BackgroundTask_Rollover) {
+      if (event.field0 is! bridge.BackgroundTask_RecoverDlc) {
         // ignoring other kinds of background tasks
         return;
       }
+      RecoverDlc recoverDlc = RecoverDlc.fromApi(event.field0 as bridge.BackgroundTask_RecoverDlc);
+      FLog.debug(text: "Received a recover dlc event. Status: ${recoverDlc.taskStatus}");
 
-      Rollover rollover = Rollover.fromApi(event.field0 as bridge.BackgroundTask_Rollover);
-      FLog.debug(text: "Received a rollover event. Status: ${rollover.taskStatus}");
-
-      taskStatus = rollover.taskStatus;
+      taskStatus = recoverDlc.taskStatus;
 
       if (taskStatus == TaskStatus.pending) {
         // initialize dialog for the pending task
         showDialog(
           context: shellNavigatorKey.currentContext!,
           builder: (context) {
-            TaskStatus status = context.watch<RolloverChangeNotifier>().taskStatus;
-            late Widget content = const Text("Rolling over your position");
+            TaskStatus status = context.watch<RecoverDlcChangeNotifier>().taskStatus;
+            late Widget content = const Text("Recovering your dlc channel");
             return TaskStatusDialog(title: "Catching up!", status: status, content: content);
           },
         );
@@ -43,8 +42,6 @@ class RolloverChangeNotifier extends ChangeNotifier implements Subscriber {
         // notify dialog about changed task status
         notifyListeners();
       }
-    } else {
-      FLog.warning(text: "Received unexpected event: ${event.toString()}");
     }
   }
 }

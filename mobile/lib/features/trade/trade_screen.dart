@@ -1,5 +1,10 @@
+import 'dart:io' show Platform;
+
+import 'package:candlesticks/candlesticks.dart';
 import 'package:flutter/material.dart';
+import 'package:get_10101/common/domain/background_task.dart';
 import 'package:get_10101/common/domain/model.dart';
+import 'package:get_10101/common/task_status_dialog.dart';
 import 'package:get_10101/common/value_data_row.dart';
 import 'package:get_10101/features/trade/candlestick_change_notifier.dart';
 import 'package:get_10101/features/trade/contract_symbol_icon.dart';
@@ -13,19 +18,15 @@ import 'package:get_10101/features/trade/position_change_notifier.dart';
 import 'package:get_10101/features/trade/position_list_item.dart';
 import 'package:get_10101/features/trade/submit_order_change_notifier.dart';
 import 'package:get_10101/features/trade/trade_bottom_sheet.dart';
-import 'package:candlesticks/candlesticks.dart';
 import 'package:get_10101/features/trade/trade_bottom_sheet_confirmation.dart';
 import 'package:get_10101/features/trade/trade_tabs.dart';
 import 'package:get_10101/features/trade/trade_theme.dart';
 import 'package:get_10101/features/trade/trade_value_change_notifier.dart';
+import 'package:get_10101/util/constants.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import 'package:get_10101/util/constants.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:social_share/social_share.dart';
-import 'dart:io' show Platform;
-
-import 'order_submission_status_dialog.dart';
 
 class TradeScreen extends StatelessWidget {
   static const route = "/trade";
@@ -73,31 +74,21 @@ class TradeScreen extends StatelessWidget {
 
                   switch (state) {
                     case PendingOrderState.submitting:
-                      return OrderSubmissionStatusDialog(
-                          title: "Submit Order",
-                          type: OrderSubmissionStatusDialogType.pendingSubmit,
-                          content: body);
+                      return TaskStatusDialog(
+                          title: "Submit Order", status: TaskStatus.pending, content: body);
                     case PendingOrderState.submittedSuccessfully:
-                      return OrderSubmissionStatusDialog(
-                          title: "Fill Order",
-                          type: OrderSubmissionStatusDialogType.successfulSubmit,
-                          content: body);
+                      return TaskStatusDialog(
+                          title: "Fill Order", status: TaskStatus.success, content: body);
                     case PendingOrderState.submissionFailed:
                       // TODO: This failure case has to be handled differently; are we planning to show orders that failed to submit in the order history?
-                      return OrderSubmissionStatusDialog(
-                          title: "Submit Order",
-                          type: OrderSubmissionStatusDialogType.failedSubmit,
-                          content: body);
+                      return TaskStatusDialog(
+                          title: "Submit Order", status: TaskStatus.failed, content: body);
                     case PendingOrderState.orderFilled:
-                      return OrderSubmissionStatusDialog(
-                          title: "Fill Order",
-                          type: OrderSubmissionStatusDialogType.filled,
-                          content: body);
+                      return TaskStatusDialog(
+                          title: "Fill Order", status: TaskStatus.success, content: body);
                     case PendingOrderState.orderFailed:
-                      return OrderSubmissionStatusDialog(
-                          title: "Fill Order",
-                          type: OrderSubmissionStatusDialogType.failedFill,
-                          content: body);
+                      return TaskStatusDialog(
+                          title: "Fill Order", status: TaskStatus.failed, content: body);
                   }
                 },
               );
