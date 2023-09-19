@@ -78,7 +78,9 @@ async fn check_if_eligible_for_rollover(
     if let Some(position) =
         positions::Position::get_open_position_by_trader(conn, trader_id.to_string())?
     {
-        if coordinator_commons::is_in_rollover_weekend(position.expiry_timestamp) {
+        if coordinator_commons::is_in_rollover_weekend(OffsetDateTime::now_utc())
+            && !position.is_expired()
+        {
             let next_expiry = coordinator_commons::calculate_next_expiry(OffsetDateTime::now_utc());
             if position.expiry_timestamp == next_expiry {
                 tracing::trace!(%trader_id, position_id=position.id, "Position has already been rolled over");

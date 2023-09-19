@@ -74,6 +74,11 @@ pub struct Position {
 }
 
 impl Position {
+    // Returns true if the position is expired
+    pub fn is_expired(&self) -> bool {
+        OffsetDateTime::now_utc() >= self.expiry_timestamp
+    }
+
     /// Calculates the profit and loss for the coordinator in satoshis
     pub fn calculate_coordinator_pnl(&self, quote: Quote) -> Result<i64> {
         let closing_price = match self.closing_price {
