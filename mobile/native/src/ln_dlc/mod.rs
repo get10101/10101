@@ -89,12 +89,27 @@ pub const FUNDING_TX_WEIGHT_ESTIMATE: u64 = 220;
 static NODE: Storage<Arc<Node>> = Storage::new();
 static SEED: Storage<Bip39Seed> = Storage::new();
 
+/// Trigger an on-chain sync followed by an update to the wallet balance and history.
+///
+/// We do not wait for the triggered task to finish, because the effect will be reflected
+/// asynchronously on the UI.
 pub async fn refresh_wallet_info() -> Result<()> {
     let node = NODE.try_get().context("failed to get ln dlc node")?;
     let wallet = node.inner.wallet();
 
-    spawn_blocking(move || wallet.sync()).await??;
-    keep_wallet_balance_and_history_up_to_date(node)?;
+    // Spawn into the blocking thread pool of the dedicated backend runtime to avoid blocking the UI
+    // thread.
+    let runtime = get_or_create_tokio_runtime()?;
+    runtime.spawn_blocking(move || {
+        if let Err(e) = wallet.sync() {
+            tracing::error!("Manually triggered on-chain sync failed: {e:#}");
+        }
+        if let Err(e) = keep_wallet_balance_and_history_up_to_date(node) {
+            tracing::error!("Failed to keep wallet history up to date: {e:#}");
+        }
+
+        anyhow::Ok(())
+    });
 
     Ok(())
 }
