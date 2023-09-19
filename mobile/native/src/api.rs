@@ -396,8 +396,10 @@ pub fn get_channel_open_fee_estimate_sat() -> Result<u64> {
     Ok(estimate.ceil() as u64)
 }
 
-pub fn get_expiry_timestamp() -> SyncReturn<i64> {
+pub fn get_expiry_timestamp(network: String) -> SyncReturn<i64> {
+    let network = config::api::parse_network(&network);
     SyncReturn(
-        coordinator_commons::calculate_next_expiry(OffsetDateTime::now_utc()).unix_timestamp(),
+        coordinator_commons::calculate_next_expiry(OffsetDateTime::now_utc(), network)
+            .unix_timestamp(),
     )
 }

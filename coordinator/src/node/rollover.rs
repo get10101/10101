@@ -8,6 +8,7 @@ use anyhow::Context;
 use anyhow::Result;
 use bitcoin::hashes::hex::ToHex;
 use bitcoin::secp256k1::PublicKey;
+use bitcoin::Network;
 use bitcoin::XOnlyPublicKey;
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::Pool;
@@ -37,12 +38,14 @@ struct Rollover {
     contract_symbol: ContractSymbol,
     oracle_pk: XOnlyPublicKey,
     contract_tx_fee_rate: u64,
+    network: Network,
 }
 
 pub fn monitor(
     pool: Pool<ConnectionManager<PgConnection>>,
     tx_user_feed: broadcast::Sender<NewUserMessage>,
     notifier: mpsc::Sender<Notification>,
+    network: Network,
 ) -> RemoteHandle<Result<()>> {
     let mut user_feed = tx_user_feed.subscribe();
     let (fut, remote_handle) = async move {
@@ -51,9 +54,13 @@ pub fn monitor(
                 let mut conn = pool.get()?;
                 let notifier = notifier.clone();
                 async move {
-                    if let Err(e) =
-                        check_if_eligible_for_rollover(&mut conn, notifier, new_user_msg.new_user)
-                            .await
+                    if let Err(e) = check_if_eligible_for_rollover(
+                        &mut conn,
+                        notifier,
+                        new_user_msg.new_user,
+                        network,
+                    )
+                    .await
                     {
                         tracing::error!("Failed to check if eligible for rollover. Error: {e:#}");
                     }
@@ -73,15 +80,17 @@ async fn check_if_eligible_for_rollover(
     conn: &mut PgConnection,
     notifier: mpsc::Sender<Notification>,
     trader_id: PublicKey,
+    network: Network,
 ) -> Result<()> {
     tracing::debug!(%trader_id, "Checking if the users positions is eligible for rollover");
     if let Some(position) =
         positions::Position::get_open_position_by_trader(conn, trader_id.to_string())?
     {
-        if coordinator_commons::is_in_rollover_weekend(OffsetDateTime::now_utc())
+        if coordinator_commons::is_eligible_for_rollover(OffsetDateTime::now_utc(), network)
             && !position.is_expired()
         {
-            let next_expiry = coordinator_commons::calculate_next_expiry(OffsetDateTime::now_utc());
+            let next_expiry =
+                coordinator_commons::calculate_next_expiry(OffsetDateTime::now_utc(), network);
             if position.expiry_timestamp == next_expiry {
                 tracing::trace!(%trader_id, position_id=position.id, "Position has already been rolled over");
                 return Ok(());
@@ -103,7 +112,7 @@ async fn check_if_eligible_for_rollover(
 }
 
 impl Rollover {
-    pub fn new(contract: Contract) -> Result<Self> {
+    pub fn new(contract: Contract, network: Network) -> Result<Self> {
         let contract = match contract {
             Contract::Confirmed(contract) => contract,
             _ => bail!(
@@ -145,6 +154,7 @@ impl Rollover {
                 &oracle_announcement.oracle_event.event_id[..6],
             )?,
             contract_tx_fee_rate,
+            network,
         })
     }
 
@@ -155,15 +165,19 @@ impl Rollover {
 
     /// Calculates the maturity time based on the current expiry timestamp.
     pub fn maturity_time(&self) -> OffsetDateTime {
-        coordinator_commons::calculate_next_expiry(self.expiry_timestamp)
+        coordinator_commons::calculate_next_expiry(self.expiry_timestamp, self.network)
     }
 }
 
 impl Node {
     /// Initiates the rollover protocol with the app.
-    pub async fn propose_rollover(&self, dlc_channel_id: ChannelId) -> Result<()> {
+    pub async fn propose_rollover(
+        &self,
+        dlc_channel_id: ChannelId,
+        network: Network,
+    ) -> Result<()> {
         let contract = self.inner.get_contract_by_dlc_channel_id(dlc_channel_id)?;
-        let rollover = Rollover::new(contract)?;
+        let rollover = Rollover::new(contract, network)?;
 
         tracing::debug!(?rollover, "Rollover dlc channel");
 
@@ -245,7 +259,7 @@ pub mod tests {
     fn test_new_rollover_from_signed_contract() {
         let expiry_timestamp = OffsetDateTime::now_utc().unix_timestamp() + 10_000;
         let contract = dummy_signed_contract(200, 100, expiry_timestamp as u32);
-        let rollover = Rollover::new(Contract::Confirmed(contract)).unwrap();
+        let rollover = Rollover::new(Contract::Confirmed(contract), Network::Bitcoin).unwrap();
         assert_eq!(rollover.contract_symbol, ContractSymbol::BtcUsd);
         assert_eq!(rollover.margin_trader, 100);
         assert_eq!(rollover.margin_coordinator, 200);
@@ -254,11 +268,10 @@ pub mod tests {
     #[test]
     fn test_new_rollover_from_other_contract() {
         let expiry_timestamp = OffsetDateTime::now_utc().unix_timestamp() + 10_000;
-        assert!(Rollover::new(Contract::Offered(dummy_offered_contract(
-            200,
-            100,
-            expiry_timestamp as u32
-        )))
+        assert!(Rollover::new(
+            Contract::Offered(dummy_offered_contract(200, 100, expiry_timestamp as u32)),
+            Network::Bitcoin
+        )
         .is_err())
     }
 
@@ -275,6 +288,7 @@ pub mod tests {
             contract_symbol: ContractSymbol::BtcUsd,
             oracle_pk: XOnlyPublicKey::from(dummy_pubkey()),
             contract_tx_fee_rate: 1,
+            network: Network::Bitcoin,
         };
         let event_id = rollover.event_id();
 
@@ -296,6 +310,7 @@ pub mod tests {
             contract_symbol: ContractSymbol::BtcUsd,
             oracle_pk: XOnlyPublicKey::from(dummy_pubkey()),
             contract_tx_fee_rate: 1,
+            network: Network::Bitcoin,
         };
 
         let contract_input: ContractInput = rollover.into();
@@ -307,11 +322,10 @@ pub mod tests {
     #[test]
     fn test_rollover_expired_position() {
         let expiry_timestamp = OffsetDateTime::now_utc().unix_timestamp() - 10_000;
-        assert!(Rollover::new(Contract::Confirmed(dummy_signed_contract(
-            200,
-            100,
-            expiry_timestamp as u32
-        )))
+        assert!(Rollover::new(
+            Contract::Confirmed(dummy_signed_contract(200, 100, expiry_timestamp as u32)),
+            Network::Bitcoin
+        )
         .is_err())
     }
 

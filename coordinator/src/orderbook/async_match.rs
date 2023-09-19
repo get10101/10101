@@ -5,6 +5,7 @@ use crate::orderbook::db::orders;
 use anyhow::ensure;
 use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
+use bitcoin::Network;
 use bitcoin::XOnlyPublicKey;
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::Pool;
@@ -26,6 +27,7 @@ pub fn monitor(
     pool: Pool<ConnectionManager<PgConnection>>,
     tx_user_feed: broadcast::Sender<NewUserMessage>,
     notifier: mpsc::Sender<Notification>,
+    network: Network,
 ) -> RemoteHandle<Result<()>> {
     let mut user_feed = tx_user_feed.subscribe();
     let (fut, remote_handle) = async move {
@@ -35,7 +37,7 @@ pub fn monitor(
                 let notifier = notifier.clone();
                 async move {
                     tracing::debug!(trader_id=%new_user_msg.new_user, "Checking if the user needs to be notified about pending matches");
-                    if let Err(e) = process_pending_match(&mut conn, notifier, new_user_msg.new_user).await {
+                    if let Err(e) = process_pending_match(&mut conn, notifier, new_user_msg.new_user, network).await {
                         tracing::error!("Failed to process pending match. Error: {e:#}");
                     }
                 }
@@ -54,12 +56,13 @@ async fn process_pending_match(
     conn: &mut PgConnection,
     notifier: mpsc::Sender<Notification>,
     trader_id: PublicKey,
+    network: Network,
 ) -> Result<()> {
     if let Some(order) = orders::get_by_trader_id_and_state(conn, trader_id, OrderState::Matched)? {
         tracing::debug!(%trader_id, order_id=%order.id, "Notifying trader about pending match");
 
         let matches = matches::get_matches_by_order_id(conn, order.id)?;
-        let filled_with = get_filled_with_from_matches(matches)?;
+        let filled_with = get_filled_with_from_matches(matches, network)?;
 
         let message = match order.order_reason {
             OrderReason::Manual => Message::Match(filled_with),
@@ -75,7 +78,7 @@ async fn process_pending_match(
     Ok(())
 }
 
-fn get_filled_with_from_matches(matches: Vec<Matches>) -> Result<FilledWith> {
+fn get_filled_with_from_matches(matches: Vec<Matches>, network: Network) -> Result<FilledWith> {
     ensure!(
         !matches.is_empty(),
         "Need at least one matches record to construct a FilledWith"
@@ -90,7 +93,8 @@ fn get_filled_with_from_matches(matches: Vec<Matches>) -> Result<FilledWith> {
     )
     .expect("To be a valid pubkey");
 
-    let expiry_timestamp = coordinator_commons::calculate_next_expiry(OffsetDateTime::now_utc());
+    let expiry_timestamp =
+        coordinator_commons::calculate_next_expiry(OffsetDateTime::now_utc(), network);
 
     Ok(FilledWith {
         order_id,

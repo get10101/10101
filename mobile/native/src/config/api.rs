@@ -41,7 +41,7 @@ impl From<Config> for ConfigInternal {
     }
 }
 
-fn parse_network(network: &str) -> Network {
+pub fn parse_network(network: &str) -> Network {
     match network {
         "signet" => Network::Signet,
         "testnet" => Network::Testnet,

@@ -6,6 +6,7 @@ use anyhow::bail;
 use anyhow::Result;
 use autometrics::autometrics;
 use bitcoin::secp256k1::PublicKey;
+use bitcoin::Network;
 use bitcoin::XOnlyPublicKey;
 use coordinator_commons::TradeParams;
 use diesel::r2d2::ConnectionManager;
@@ -85,6 +86,7 @@ pub fn start(
     pool: Pool<ConnectionManager<PgConnection>>,
     tx_price_feed: broadcast::Sender<Message>,
     notifier: mpsc::Sender<Notification>,
+    network: Network,
 ) -> (RemoteHandle<Result<()>>, mpsc::Sender<NewOrderMessage>) {
     let (sender, mut receiver) = mpsc::channel::<NewOrderMessage>(NEW_ORDERS_BUFFER_SIZE);
 
@@ -102,6 +104,7 @@ pub fn start(
                         tx_price_feed,
                         new_order,
                         new_order_msg.order_reason,
+                        network,
                     )
                     .await;
                     if let Err(e) = new_order_msg.sender.send(result).await {
@@ -133,6 +136,7 @@ async fn process_new_order(
     tx_price_feed: broadcast::Sender<Message>,
     new_order: NewOrder,
     order_reason: OrderReason,
+    network: Network,
 ) -> Result<Order> {
     tracing::info!(trader_id=%new_order.trader_id, "Received a new {:?} order", new_order.order_type);
 
@@ -173,7 +177,7 @@ async fn process_new_order(
             true,
         )?;
 
-        let matched_orders = match match_order(&order, opposite_direction_orders) {
+        let matched_orders = match match_order(&order, opposite_direction_orders, network) {
             Ok(Some(matched_orders)) => matched_orders,
             Ok(None) => {
                 // TODO(holzeis): Currently we still respond to the user immediately if there
@@ -259,6 +263,7 @@ async fn process_new_order(
 fn match_order(
     order: &Order,
     opposite_direction_orders: Vec<Order>,
+    network: Network,
 ) -> Result<Option<MatchParams>> {
     if order.order_type == OrderType::Limit {
         // we don't match limit and limit at the moment
@@ -294,7 +299,8 @@ fn match_order(
         return Ok(None);
     }
 
-    let expiry_timestamp = coordinator_commons::calculate_next_expiry(OffsetDateTime::now_utc());
+    let expiry_timestamp =
+        coordinator_commons::calculate_next_expiry(OffsetDateTime::now_utc(), network);
 
     // For now we hardcode the oracle pubkey here
     let oracle_pk = XOnlyPublicKey::from_str(
@@ -384,6 +390,7 @@ pub mod tests {
     use crate::orderbook::trading::match_order;
     use crate::orderbook::trading::sort_orders;
     use bitcoin::secp256k1::PublicKey;
+    use bitcoin::Network;
     use orderbook_commons::Order;
     use orderbook_commons::OrderReason;
     use orderbook_commons::OrderState;
@@ -561,7 +568,9 @@ pub mod tests {
             order_reason: OrderReason::Manual,
         };
 
-        let matched_orders = match_order(&order, all_orders).unwrap().unwrap();
+        let matched_orders = match_order(&order, all_orders, Network::Bitcoin)
+            .unwrap()
+            .unwrap();
 
         assert_eq!(matched_orders.makers_matches.len(), 1);
         let maker_matches = matched_orders
@@ -635,7 +644,7 @@ pub mod tests {
             order_reason: OrderReason::Manual,
         };
 
-        assert!(match_order(&order, all_orders).is_err());
+        assert!(match_order(&order, all_orders, Network::Bitcoin).is_err());
     }
 
     #[test]
@@ -685,7 +694,7 @@ pub mod tests {
             order_reason: OrderReason::Manual,
         };
 
-        let matched_orders = match_order(&order, all_orders).unwrap();
+        let matched_orders = match_order(&order, all_orders, Network::Bitcoin).unwrap();
 
         assert!(matched_orders.is_none());
     }

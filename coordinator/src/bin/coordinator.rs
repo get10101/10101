@@ -201,11 +201,20 @@ async fn main() -> Result<()> {
 
     let (_handle, notifier) = notification::start(tx_user_feed.clone());
 
-    let (_handle, trading_sender) =
-        trading::start(pool.clone(), tx_price_feed.clone(), notifier.clone());
+    let (_handle, trading_sender) = trading::start(
+        pool.clone(),
+        tx_price_feed.clone(),
+        notifier.clone(),
+        network,
+    );
 
-    let _handle = async_match::monitor(pool.clone(), tx_user_feed.clone(), notifier.clone());
-    let _handle = rollover::monitor(pool.clone(), tx_user_feed.clone(), notifier);
+    let _handle = async_match::monitor(
+        pool.clone(),
+        tx_user_feed.clone(),
+        notifier.clone(),
+        network,
+    );
+    let _handle = rollover::monitor(pool.clone(), tx_user_feed.clone(), notifier, network);
 
     tokio::spawn({
         let node = node.clone();
