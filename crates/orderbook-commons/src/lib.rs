@@ -1,7 +1,4 @@
-pub use crate::order_matching_fee::order_matching_fee_taker;
-pub use crate::price::best_current_price;
-pub use crate::price::Price;
-pub use crate::price::Prices;
+use anyhow::Result;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use secp256k1::Message as SecpMessage;
@@ -13,12 +10,18 @@ use sha2::digest::FixedOutput;
 use sha2::Digest;
 use sha2::Sha256;
 use time::OffsetDateTime;
+use tokio_tungstenite::tungstenite;
 use trade::ContractSymbol;
 use trade::Direction;
 use uuid::Uuid;
 
 mod order_matching_fee;
 mod price;
+
+pub use crate::order_matching_fee::order_matching_fee_taker;
+pub use crate::price::best_current_price;
+pub use crate::price::Price;
+pub use crate::price::Prices;
 
 /// The prefix used in the description field of an order-matching fee invoice to be paid by a taker.
 pub const FEE_INVOICE_DESCRIPTION_PREFIX_TAKER: &str = "taker-fee-";
@@ -109,6 +112,16 @@ pub struct OrderResponse {
 #[derive(Serialize, Clone, Deserialize, Debug)]
 pub enum OrderbookRequest {
     Authenticate(Signature),
+    LimitOrderFilledMatches { trader_id: PublicKey },
+}
+
+impl TryFrom<OrderbookRequest> for tungstenite::Message {
+    type Error = anyhow::Error;
+
+    fn try_from(request: OrderbookRequest) -> Result<Self> {
+        let msg = serde_json::to_string(&request)?;
+        Ok(tungstenite::Message::Text(msg))
+    }
 }
 
 // TODO(holzeis): The message enum should not be in the orderbook-commons crate as it also contains
@@ -116,6 +129,10 @@ pub enum OrderbookRequest {
 #[derive(Serialize, Clone, Deserialize, Debug)]
 pub enum Message {
     AllOrders(Vec<Order>),
+    LimitOrderFilledMatches {
+        trader_id: PublicKey,
+        matches: Vec<(Uuid, Decimal)>,
+    },
     NewOrder(Order),
     DeleteOrder(Uuid),
     Update(Order),

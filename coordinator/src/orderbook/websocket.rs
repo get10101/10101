@@ -1,5 +1,6 @@
 use crate::notification::NewUserMessage;
 use crate::orderbook;
+use crate::orderbook::db::orders;
 use crate::routes::AppState;
 use axum::extract::ws::Message as WebsocketMessage;
 use axum::extract::ws::WebSocket;
@@ -89,6 +90,40 @@ pub async fn websocket_connection(stream: WebSocket, state: Arc<AppState>) {
     let mut recv_task = tokio::spawn(async move {
         while let Some(Ok(WebsocketMessage::Text(text))) = receiver.next().await {
             match serde_json::from_str(text.as_str()) {
+                Ok(OrderbookRequest::LimitOrderFilledMatches { trader_id }) => {
+                    let mut conn = match state.pool.get() {
+                        Ok(conn) => conn,
+                        Err(e) => {
+                            tracing::error!(
+                                %trader_id,
+                                "Failed to get DB pool connection to get limit order filled matches: {e:#}"
+                            );
+                            continue;
+                        }
+                    };
+
+                    let matches =
+                        match orders::get_all_limit_order_filled_matches(&mut conn, trader_id) {
+                            Ok(orders) => orders,
+                            Err(e) => {
+                                tracing::error!(
+                                    %trader_id,
+                                    "Failed to get limit order filled matches from DB: {e:#}"
+                                );
+                                continue;
+                            }
+                        };
+
+                    if let Err(e) = local_sender
+                        .send(Message::LimitOrderFilledMatches { trader_id, matches })
+                        .await
+                    {
+                        tracing::error!(
+                            %trader_id,
+                            "Failed to notify user about limit order filled matches: {e:#}"
+                        );
+                    }
+                }
                 Ok(OrderbookRequest::Authenticate(Signature { signature, pubkey })) => {
                     let msg = create_sign_message();
                     match signature.verify(&msg, &pubkey) {

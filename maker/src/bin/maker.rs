@@ -13,6 +13,8 @@ use maker::ln::EventHandler;
 use maker::logger;
 use maker::metrics;
 use maker::metrics::init_meter;
+use maker::orderbook_ws;
+use maker::position;
 use maker::routes::router;
 use maker::run_migration;
 use maker::trading;
@@ -92,10 +94,10 @@ async fn main() -> Result<()> {
 
     let node_pubkey = node.info.pubkey;
     tokio::spawn({
-        let orderbook = opts.orderbook.clone();
+        let orderbook_url = opts.orderbook.clone();
         async move {
             match trading::run(
-                &orderbook,
+                &orderbook_url,
                 node_pubkey,
                 network,
                 opts.concurrent_orders,
@@ -151,6 +153,17 @@ async fn main() -> Result<()> {
 
     let mut conn = pool.get().expect("to get connection from pool");
     run_migration(&mut conn);
+
+    let (position_manager, mailbox) = xtra::Mailbox::unbounded();
+    tokio::spawn(xtra::run(mailbox, position::Manager::new()));
+
+    orderbook_ws::Client::new(
+        opts.orderbook,
+        node_pubkey,
+        node.node_key(),
+        position_manager,
+    )
+    .spawn_supervised_connection();
 
     let app = router(node, exporter, pool, health);
 

@@ -3,10 +3,10 @@ use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::Network;
 use futures::TryStreamExt;
-use orderbook_client::OrderbookClient;
 use orderbook_commons::NewOrder;
 use orderbook_commons::OrderResponse;
 use orderbook_commons::OrderType;
+use orderbook_http_client::OrderbookClient;
 use reqwest::Url;
 use rust_decimal::Decimal;
 use rust_decimal_macros::dec;
@@ -18,7 +18,7 @@ use trade::Direction;
 use uuid::Uuid;
 
 mod bitmex_client;
-mod orderbook_client;
+mod orderbook_http_client;
 
 pub async fn run(
     orderbook_url: &Url,

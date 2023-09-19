@@ -2,58 +2,76 @@ use anyhow::Context;
 use anyhow::Error;
 use anyhow::Result;
 use async_stream::stream;
+use futures::stream::SplitSink;
 use futures::SinkExt;
 use futures::Stream;
 use futures::StreamExt;
 use orderbook_commons::create_sign_message;
+use orderbook_commons::OrderbookRequest;
 use orderbook_commons::Signature;
 use secp256k1::Message;
-use serde::Serialize;
-use serde_json::to_string;
+use tokio::net::TcpStream;
 use tokio_tungstenite::tungstenite;
+use tokio_tungstenite::MaybeTlsStream;
+use tokio_tungstenite::WebSocketStream;
 
-/// Connects to the 10101 orderbook websocket API
+/// Connects to the 10101 orderbook WebSocket API.
 ///
 /// If the connection needs authentication please use `subscribe_with_authentication` instead.
-pub fn subscribe(url: String) -> impl Stream<Item = Result<String, Error>> + Unpin {
-    subscribe_impl(None, url)
+pub async fn subscribe(
+    url: String,
+) -> Result<(
+    SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, tungstenite::Message>,
+    impl Stream<Item = Result<String, Error>> + Unpin,
+)> {
+    subscribe_impl(None, url).await
 }
 
-/// Connects to the orderbook websocket API with authentication
+/// Connects to the orderbook WebSocket API with authentication.
 ///
 /// It subscribes and yields all messages.
-pub fn subscribe_with_authentication(
+pub async fn subscribe_with_authentication(
     url: String,
     authenticate: impl Fn(Message) -> Signature,
-) -> impl Stream<Item = Result<String, Error>> + Unpin {
+) -> Result<(
+    SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, tungstenite::Message>,
+    impl Stream<Item = Result<String, Error>> + Unpin,
+)> {
     let signature = authenticate(create_sign_message());
-    subscribe_impl(Some(signature), url)
+
+    subscribe_impl(Some(signature), url).await
 }
 
-/// Connects to the orderbook websocket API yields all messages.
-fn subscribe_impl(
+/// Connects to the orderbook WebSocket API and yields all messages.
+async fn subscribe_impl(
     signature: Option<Signature>,
     url: String,
-) -> impl Stream<Item = Result<String, Error>> + Unpin {
+) -> Result<(
+    SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, tungstenite::Message>,
+    impl Stream<Item = Result<String, Error>> + Unpin,
+)> {
+    tracing::debug!("Connecting to orderbook API");
+
+    let (mut connection, _) = tokio_tungstenite::connect_async(url.clone())
+        .await
+        .context("Could not connect to websocket")?;
+
+    tracing::info!("Connected to orderbook realtime API");
+
+    if let Some(signature) = signature {
+        let _ = connection
+            .send(tungstenite::Message::try_from(
+                OrderbookRequest::Authenticate(signature),
+            )?)
+            .await;
+    }
+
+    let (sink, mut stream) = connection.split();
+
     let stream = stream! {
-        tracing::debug!("Connecting to orderbook API");
-
-        let (mut connection, _) = tokio_tungstenite::connect_async(url.clone())
-            .await.context("Could not connect to websocket")?;
-
-        tracing::info!("Connected to orderbook realtime API");
-
-
-        if let Some(signature) = signature {
-            let _ = connection
-                .send(tungstenite::Message::try_from(Command::from(signature))?)
-                .await;
-        }
-
-
         loop {
             tokio::select! {
-                msg = connection.next() => {
+                msg = stream.next() => {
                     let msg = match msg {
                         Some(Ok(msg)) => {
                             msg
@@ -85,27 +103,7 @@ fn subscribe_impl(
         }
     };
 
-    stream.boxed()
-}
-
-#[derive(Debug, Serialize)]
-pub enum Command {
-    Authenticate(Signature),
-}
-
-impl TryFrom<Command> for tungstenite::Message {
-    type Error = Error;
-
-    fn try_from(command: Command) -> Result<Self, Self::Error> {
-        let msg = to_string(&command)?;
-        Ok(tungstenite::Message::Text(msg))
-    }
-}
-
-impl From<Signature> for Command {
-    fn from(sig: Signature) -> Self {
-        Command::Authenticate(sig)
-    }
+    Ok((sink, stream.boxed()))
 }
 
 #[cfg(test)]

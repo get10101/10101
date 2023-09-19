@@ -21,7 +21,6 @@ use std::time::Duration;
 use time::OffsetDateTime;
 use tokio::runtime::Runtime;
 use tokio::sync::watch;
-use tokio::task::spawn_blocking;
 use uuid::Uuid;
 
 const WS_RECONNECT_TIMEOUT: Duration = Duration::from_secs(2);
@@ -80,8 +79,14 @@ pub fn subscribe(
         loop {
             let url = url.clone();
             let authenticate = authenticate;
-            let mut stream =
-                spawn_blocking(move || orderbook_client::subscribe_with_authentication(url, authenticate)).await.expect("joined task not to panic");
+            let (_, mut stream) =
+                match orderbook_client::subscribe_with_authentication(url, authenticate).await {
+                    Ok(split_stream) => split_stream,
+                    Err(e) => {
+                        tracing::error!("Could not start up orderbook client: {e:#}");
+                        continue;
+                    },
+                };
 
             if let Err(e) =
                 orderbook_status.send(ServiceStatus::Online) {
