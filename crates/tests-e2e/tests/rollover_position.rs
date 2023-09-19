@@ -1,3 +1,4 @@
+use bitcoin::Network;
 use native::api;
 use native::trade::position;
 use position::PositionState;
@@ -22,7 +23,7 @@ async fn can_rollover_position() {
         .unwrap();
 
     let position = test.app.rx.position().expect("position to exist");
-    let new_expiry = coordinator_commons::calculate_next_expiry(position.expiry);
+    let new_expiry = coordinator_commons::calculate_next_expiry(position.expiry, Network::Bitcoin);
 
     coordinator
         .rollover(&dlc_channel.dlc_channel_id.unwrap())

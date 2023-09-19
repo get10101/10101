@@ -41,6 +41,8 @@ class TradeValuesService {
   }
 
   DateTime getExpiryTimestamp() {
-    return DateTime.fromMillisecondsSinceEpoch(rust.api.getExpiryTimestamp() * 1000);
+    String network = const String.fromEnvironment('NETWORK', defaultValue: "regtest");
+    return DateTime.fromMillisecondsSinceEpoch(
+        rust.api.getExpiryTimestamp(network: network) * 1000);
   }
 }
