@@ -8,10 +8,13 @@ use std::fmt::Display;
 use time::OffsetDateTime;
 use tokio::sync::mpsc;
 
-/// Consider a position expiring soon if it expires in less than this time
-const START_OF_EXPIRING_POSITION: time::Duration = time::Duration::hours(1);
+/// A position expiring soon if it expires in less than this time
+const START_OF_EXPIRING_POSITION: time::Duration = time::Duration::hours(13);
 
-/// Consider a position expired if it expired more than this time ago
+/// A position 'expiring soon' if it expires in less than this time
+const END_OF_EXPIRING_POSITION: time::Duration = time::Duration::hours(12);
+
+/// A position expired if it expired more than this time ago
 const END_OF_EXPIRED_POSITION: time::Duration = time::Duration::hours(1);
 
 /// Types of notification that can be sent to 10101 app users
@@ -214,7 +217,7 @@ async fn send_expiry_notifications_if_applicable(
             {
                 tracing::error!("Failed to send PositionExpired notification: {:?}", e);
             }
-        } else if position.expiry_timestamp > now
+        } else if position.expiry_timestamp > now + END_OF_EXPIRING_POSITION
             && position.expiry_timestamp <= now + START_OF_EXPIRING_POSITION
         {
             if let Err(e) = notification_sender
@@ -239,7 +242,18 @@ pub mod tests {
     fn soon_expiring_position() -> (Position, FcmToken) {
         let mut position = Position::dummy();
         position.creation_timestamp = OffsetDateTime::now_utc() - Duration::days(1);
-        position.expiry_timestamp = OffsetDateTime::now_utc() + Duration::minutes(5);
+        position.expiry_timestamp =
+            OffsetDateTime::now_utc() + Duration::hours(12) + Duration::minutes(5);
+        (position, FcmToken("soon_to_expire".to_string()))
+    }
+
+    /// This position is outside of the expiry notification window (12 hours
+    /// before expiry), delivering notification for it would make little sense
+    /// as user can't really react to it.
+    fn just_before_expiry_position() -> (Position, FcmToken) {
+        let mut position = Position::dummy();
+        position.creation_timestamp = OffsetDateTime::now_utc() - Duration::days(1);
+        position.expiry_timestamp = OffsetDateTime::now_utc() + Duration::hours(11);
         (position, FcmToken("soon_to_expire".to_string()))
     }
 
@@ -301,12 +315,14 @@ pub mod tests {
 
         let position_far_from_expiring = far_from_expiry_position();
         let position_soon_to_expire = soon_expiring_position();
+        let position_just_before_expiry = just_before_expiry_position();
         let ancient_position = ancient_expired_position(); // too old to send notification
         let (notification_sender, mut notification_receiver) = mpsc::channel(100);
 
         send_expiry_notifications_if_applicable(
             &[
                 position_far_from_expiring,
+                position_just_before_expiry,
                 position_soon_to_expire.clone(),
                 ancient_position,
             ],
