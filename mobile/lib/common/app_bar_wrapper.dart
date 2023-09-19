@@ -2,9 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:get_10101/common/color.dart';
 import 'package:get_10101/common/settings_screen.dart';
 import 'package:get_10101/common/status_icon_button.dart';
-import 'package:get_10101/features/trade/trade_screen.dart';
-import 'package:get_10101/features/wallet/wallet_screen.dart';
-import 'package:go_router/go_router.dart';
 
 class AppBarWrapper extends StatelessWidget {
   const AppBarWrapper({
@@ -13,34 +10,17 @@ class AppBarWrapper extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final currentRoute = GoRouterState.of(context).location;
     const appBarHeight = 35.0;
 
-    Widget? leadingButton;
-
-    if (currentRoute == WalletScreen.route) {
-      leadingButton = Row(mainAxisSize: MainAxisSize.min, children: [
-        IconButton(
-          icon: const Icon(Icons.settings),
-          tooltip: 'Settings',
-          onPressed: () {
-            Navigator.of(context).push(_createSettingsRoute());
-          },
-        )
-      ]);
-    }
-
-    if (currentRoute == TradeScreen.route) {
-      leadingButton = Row(mainAxisSize: MainAxisSize.min, children: [
-        IconButton(
-          icon: const Icon(Icons.settings),
-          tooltip: 'Settings',
-          onPressed: () {
-            Navigator.of(context).push(_createSettingsRoute());
-          },
-        )
-      ]);
-    }
+    final leadingButton = Row(mainAxisSize: MainAxisSize.min, children: [
+      IconButton(
+        icon: const Icon(Icons.settings),
+        tooltip: 'Settings',
+        onPressed: () {
+          Navigator.of(context).push(_createSettingsRoute());
+        },
+      )
+    ]);
 
     return Container(
         margin: const EdgeInsets.only(left: 6.0),
