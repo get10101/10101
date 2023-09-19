@@ -11,13 +11,14 @@ use crate::admin::send_payment;
 use crate::admin::sign_message;
 use crate::db::user;
 use crate::node::Node;
+use crate::notification::NewUserMessage;
 use crate::orderbook::routes::delete_order;
 use crate::orderbook::routes::get_order;
 use crate::orderbook::routes::get_orders;
 use crate::orderbook::routes::post_order;
 use crate::orderbook::routes::put_order;
 use crate::orderbook::routes::websocket_handler;
-use crate::orderbook::trading::TradingMessage;
+use crate::orderbook::trading::NewOrderMessage;
 use crate::settings::Settings;
 use crate::AppError;
 use autometrics::autometrics;
@@ -48,7 +49,7 @@ use ln_dlc_node::node::peer_manager::alias_as_bytes;
 use ln_dlc_node::node::peer_manager::broadcast_node_announcement;
 use ln_dlc_node::node::NodeInfo;
 use opentelemetry_prometheus::PrometheusExporter;
-use orderbook_commons::OrderbookMsg;
+use orderbook_commons::Message;
 use orderbook_commons::RouteHintHop;
 use prometheus::Encoder;
 use prometheus::TextEncoder;
@@ -65,8 +66,9 @@ use tracing::instrument;
 pub struct AppState {
     pub node: Node,
     // Channel used to send messages to all connected clients.
-    pub tx_price_feed: broadcast::Sender<OrderbookMsg>,
-    pub trading_sender: mpsc::Sender<TradingMessage>,
+    pub tx_price_feed: broadcast::Sender<Message>,
+    pub tx_user_feed: broadcast::Sender<NewUserMessage>,
+    pub trading_sender: mpsc::Sender<NewOrderMessage>,
     pub pool: Pool<ConnectionManager<PgConnection>>,
     pub settings: RwLock<Settings>,
     pub exporter: PrometheusExporter,
@@ -82,14 +84,16 @@ pub fn router(
     exporter: PrometheusExporter,
     announcement_addresses: Vec<NetAddress>,
     node_alias: &str,
-    trading_sender: mpsc::Sender<TradingMessage>,
-    tx_price_feed: broadcast::Sender<OrderbookMsg>,
+    trading_sender: mpsc::Sender<NewOrderMessage>,
+    tx_price_feed: broadcast::Sender<Message>,
+    tx_user_feed: broadcast::Sender<NewUserMessage>,
 ) -> Router {
     let app_state = Arc::new(AppState {
         node,
         pool,
         settings: RwLock::new(settings),
         tx_price_feed,
+        tx_user_feed,
         trading_sender,
         exporter,
         announcement_addresses,

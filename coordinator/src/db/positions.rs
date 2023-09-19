@@ -134,6 +134,7 @@ impl Position {
     ) -> Result<()> {
         let affected_rows = diesel::update(positions::table)
             .filter(positions::trader_pubkey.eq(trader_pubkey))
+            .filter(positions::position_state.eq(PositionState::Rollover))
             .set((
                 positions::position_state.eq(PositionState::Open),
                 positions::temporary_contract_id.eq(temporary_contract_id.to_hex()),
@@ -169,6 +170,7 @@ impl Position {
     ) -> Result<()> {
         let affected_rows = diesel::update(positions::table)
             .filter(positions::trader_pubkey.eq(trader_pubkey))
+            .filter(positions::position_state.eq(PositionState::Open))
             .set((
                 positions::expiry_timestamp.eq(expiry_timestamp),
                 positions::position_state.eq(PositionState::Rollover),

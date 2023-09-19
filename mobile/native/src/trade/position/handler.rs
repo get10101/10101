@@ -17,7 +17,6 @@ use coordinator_commons::TradeParams;
 use orderbook_commons::FilledWith;
 use orderbook_commons::Prices;
 use rust_decimal::prelude::ToPrimitive;
-use time::Duration;
 use time::OffsetDateTime;
 use trade::ContractSymbol;
 
@@ -103,6 +102,11 @@ pub async fn async_trade(order: orderbook_commons::Order, filled_with: FilledWit
     Ok(())
 }
 
+/// Rollover dlc to new expiry timestamp
+pub async fn rollover() -> Result<()> {
+    ln_dlc::rollover().await
+}
+
 /// Fetch the positions from the database
 pub fn get_positions() -> Result<Vec<Position>> {
     db::get_positions()
@@ -162,7 +166,11 @@ pub fn rollover_position(expiry_timestamp: OffsetDateTime) -> Result<()> {
 }
 
 /// Create a position after the creation of a DLC channel.
-pub fn update_position_after_dlc_creation(filled_order: Order, collateral: u64) -> Result<()> {
+pub fn update_position_after_dlc_creation(
+    filled_order: Order,
+    collateral: u64,
+    expiry: OffsetDateTime,
+) -> Result<()> {
     ensure!(
         db::get_positions()?.is_empty(),
         "Cannot create a position if one is already open"
@@ -171,9 +179,6 @@ pub fn update_position_after_dlc_creation(filled_order: Order, collateral: u64) 
     tracing::debug!(order = ?filled_order, %collateral, "Creating position after DLC channel creation");
 
     let average_entry_price = filled_order.execution_price().unwrap_or(0.0);
-
-    let tomorrow = OffsetDateTime::now_utc().date() + Duration::days(7);
-    let expiry = tomorrow.midnight().assume_utc();
 
     let have_a_position = Position {
         leverage: filled_order.leverage,

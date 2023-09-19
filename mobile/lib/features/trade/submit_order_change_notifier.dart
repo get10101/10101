@@ -98,6 +98,7 @@ class SubmitOrderChangeNotifier extends ChangeNotifier implements Subscriber {
             liquidationPrice: position.liquidationPrice,
             fee: fee,
             fundingRate: 0,
+            expiry: position.expiry,
             tradeValuesService: TradeValuesService()),
         PositionAction.close);
   }

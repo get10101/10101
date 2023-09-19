@@ -2,7 +2,6 @@ use crate::db;
 use crate::node::Node;
 use crate::orderbook;
 use crate::orderbook::trading::NewOrderMessage;
-use crate::orderbook::trading::TradingMessage;
 use crate::position::models::Position;
 use crate::position::models::PositionState;
 use anyhow::Context;
@@ -22,7 +21,7 @@ use time::Duration;
 use time::OffsetDateTime;
 use tokio::sync::mpsc;
 
-pub async fn close(node: Node, trading_sender: mpsc::Sender<TradingMessage>) -> Result<()> {
+pub async fn close(node: Node, trading_sender: mpsc::Sender<NewOrderMessage>) -> Result<()> {
     let mut conn = node.pool.get()?;
 
     let positions = db::positions::Position::get_all_open_positions(&mut conn)
@@ -93,11 +92,11 @@ pub async fn close(node: Node, trading_sender: mpsc::Sender<TradingMessage>) -> 
         };
 
         let (sender, mut receiver) = mpsc::channel::<Result<Order>>(1);
-        let message = TradingMessage::NewOrder(NewOrderMessage {
+        let message = NewOrderMessage {
             new_order: new_order.clone(),
             order_reason: OrderReason::Expired,
             sender,
-        });
+        };
 
         if let Err(e) = trading_sender.send(message).await {
             tracing::error!(order_id=%new_order.id, trader_id=%new_order.trader_id, "Failed to submit new order for closing expired position. Error: {e:#}");

@@ -1,13 +1,12 @@
+use crate::notification::NewUserMessage;
 use crate::orderbook;
-use crate::orderbook::trading::NewUserMessage;
-use crate::orderbook::trading::TradingMessage;
 use crate::routes::AppState;
-use axum::extract::ws::Message;
+use axum::extract::ws::Message as WebsocketMessage;
 use axum::extract::ws::WebSocket;
 use futures::SinkExt;
 use futures::StreamExt;
 use orderbook_commons::create_sign_message;
-use orderbook_commons::OrderbookMsg;
+use orderbook_commons::Message;
 use orderbook_commons::OrderbookRequest;
 use orderbook_commons::Signature;
 use std::sync::Arc;
@@ -25,7 +24,7 @@ pub async fn websocket_connection(stream: WebSocket, state: Arc<AppState>) {
 
     // We subscribe *before* sending the "joined" message, so that we will also
     // display it to our client.
-    let mut rx = state.tx_price_feed.subscribe();
+    let mut price_feed = state.tx_price_feed.subscribe();
 
     let mut conn = match state.pool.clone().get() {
         Ok(conn) => conn,
@@ -44,11 +43,11 @@ pub async fn websocket_connection(stream: WebSocket, state: Arc<AppState>) {
     };
 
     // Now send the "all orders" to the new client.
-    if let Ok(msg) = serde_json::to_string(&OrderbookMsg::AllOrders(orders)) {
-        let _ = sender.send(Message::Text(msg)).await;
+    if let Ok(msg) = serde_json::to_string(&Message::AllOrders(orders)) {
+        let _ = sender.send(WebsocketMessage::Text(msg)).await;
     }
 
-    let (local_sender, mut local_receiver) = mpsc::channel::<OrderbookMsg>(100);
+    let (local_sender, mut local_receiver) = mpsc::channel::<Message>(100);
 
     let mut local_recv_task = tokio::spawn(async move {
         while let Some(local_msg) = local_receiver.recv().await {
@@ -56,7 +55,7 @@ pub async fn websocket_connection(stream: WebSocket, state: Arc<AppState>) {
                 Ok(msg) => {
                     if let Err(err) = tokio::time::timeout(
                         WEBSOCKET_SEND_TIMEOUT,
-                        sender.send(Message::Text(msg.clone())),
+                        sender.send(WebsocketMessage::Text(msg.clone())),
                     )
                     .await
                     {
@@ -76,7 +75,7 @@ pub async fn websocket_connection(stream: WebSocket, state: Arc<AppState>) {
     let mut send_task = {
         let local_sender = local_sender.clone();
         tokio::spawn(async move {
-            while let Ok(st) = rx.recv().await {
+            while let Ok(st) = price_feed.recv().await {
                 if let Err(error) = local_sender.send(st).await {
                     tracing::error!("Could not send message {error:#}");
                     return;
@@ -88,28 +87,28 @@ pub async fn websocket_connection(stream: WebSocket, state: Arc<AppState>) {
     // Spawn a task that takes messages from the websocket
     let local_sender = local_sender.clone();
     let mut recv_task = tokio::spawn(async move {
-        while let Some(Ok(Message::Text(text))) = receiver.next().await {
+        while let Some(Ok(WebsocketMessage::Text(text))) = receiver.next().await {
             match serde_json::from_str(text.as_str()) {
                 Ok(OrderbookRequest::Authenticate(Signature { signature, pubkey })) => {
                     let msg = create_sign_message();
                     match signature.verify(&msg, &pubkey) {
                         Ok(_) => {
-                            if let Err(e) = local_sender.send(OrderbookMsg::Authenticated).await {
+                            if let Err(e) = local_sender.send(Message::Authenticated).await {
                                 tracing::error!("Could not respond to user {e:#}");
                                 return;
                             }
 
-                            let message = TradingMessage::NewUser(NewUserMessage {
+                            let message = NewUserMessage {
                                 new_user: pubkey,
                                 sender: local_sender.clone(),
-                            });
-                            if let Err(e) = state.trading_sender.send(message).await {
+                            };
+                            if let Err(e) = state.tx_user_feed.send(message) {
                                 tracing::error!("Could not send trading message. Error: {e:#}");
                             }
                         }
                         Err(err) => {
                             if let Err(er) = local_sender
-                                .send(OrderbookMsg::InvalidAuthentication(format!(
+                                .send(Message::InvalidAuthentication(format!(
                                     "Could not authenticate {err:#}"
                                 )))
                                 .await

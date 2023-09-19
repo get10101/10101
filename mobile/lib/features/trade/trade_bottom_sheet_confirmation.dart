@@ -101,7 +101,6 @@ class TradeBottomSheetConfirmation extends StatelessWidget {
       pnl = position!.unrealizedPnl != null ? position.unrealizedPnl! : Amount(0);
     }
 
-    DateTime now = DateTime.now().toUtc();
     TextStyle dataRowStyle = const TextStyle(fontSize: 14);
 
     return Container(
@@ -122,7 +121,7 @@ class TradeBottomSheetConfirmation extends StatelessWidget {
                         if (!close)
                           ValueDataRow(
                               type: ValueType.date,
-                              value: DateTime.utc(now.year, now.month, now.day + 7).toLocal(),
+                              value: tradeValues.expiry.toLocal(),
                               label: 'Expiry'),
                         close
                             ? ValueDataRow(

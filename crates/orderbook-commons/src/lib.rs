@@ -2,11 +2,9 @@ pub use crate::order_matching_fee::order_matching_fee_taker;
 pub use crate::price::best_current_price;
 pub use crate::price::Price;
 pub use crate::price::Prices;
-use anyhow::ensure;
-use anyhow::Result;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
-use secp256k1::Message;
+use secp256k1::Message as SecpMessage;
 use secp256k1::PublicKey;
 use secp256k1::XOnlyPublicKey;
 use serde::Deserialize;
@@ -14,8 +12,6 @@ use serde::Serialize;
 use sha2::digest::FixedOutput;
 use sha2::Digest;
 use sha2::Sha256;
-use std::str::FromStr;
-use time::Duration;
 use time::OffsetDateTime;
 use trade::ContractSymbol;
 use trade::Direction;
@@ -67,11 +63,11 @@ pub struct Signature {
     pub signature: secp256k1::ecdsa::Signature,
 }
 
-pub fn create_sign_message() -> Message {
+pub fn create_sign_message() -> SecpMessage {
     let sign_message = "Hello it's me Mario".to_string();
     let hashed_message = Sha256::new().chain_update(sign_message).finalize_fixed();
 
-    let msg = Message::from_slice(hashed_message.as_slice())
+    let msg = SecpMessage::from_slice(hashed_message.as_slice())
         .expect("The message is static, hence this should never happen");
     msg
 }
@@ -115,8 +111,10 @@ pub enum OrderbookRequest {
     Authenticate(Signature),
 }
 
+// TODO(holzeis): The message enum should not be in the orderbook-commons crate as it also contains
+// coordinator messages. We should move all common crates into a single one.
 #[derive(Serialize, Clone, Deserialize, Debug)]
-pub enum OrderbookMsg {
+pub enum Message {
     AllOrders(Vec<Order>),
     NewOrder(Order),
     DeleteOrder(Uuid),
@@ -128,6 +126,7 @@ pub enum OrderbookMsg {
         order: Order,
         filled_with: FilledWith,
     },
+    Rollover,
 }
 
 /// A match for an order
@@ -315,41 +314,6 @@ pub struct Matches {
     pub quantity: Decimal,
     pub created_at: OffsetDateTime,
     pub updated_at: OffsetDateTime,
-}
-
-pub fn get_filled_with_from_matches(matches: Vec<Matches>) -> Result<FilledWith> {
-    ensure!(
-        !matches.is_empty(),
-        "Need at least one matches record to construct a FilledWith"
-    );
-
-    let order_id = matches
-        .first()
-        .expect("to have at least one match")
-        .order_id;
-    let oracle_pk = XOnlyPublicKey::from_str(
-        "16f88cf7d21e6c0f46bcbc983a4e3b19726c6c98858cc31c83551a88fde171c0",
-    )
-    .expect("To be a valid pubkey");
-
-    let tomorrow = OffsetDateTime::now_utc().date() + Duration::days(7);
-    let expiry_timestamp = tomorrow.midnight().assume_utc();
-
-    Ok(FilledWith {
-        order_id,
-        expiry_timestamp,
-        oracle_pk,
-        matches: matches
-            .iter()
-            .map(|m| Match {
-                id: m.id,
-                order_id: m.order_id,
-                quantity: m.quantity,
-                pubkey: m.match_trader_id,
-                execution_price: m.execution_price,
-            })
-            .collect(),
-    })
 }
 
 #[cfg(test)]

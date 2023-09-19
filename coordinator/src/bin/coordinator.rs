@@ -8,10 +8,14 @@ use coordinator::node;
 use coordinator::node::closed_positions;
 use coordinator::node::connection;
 use coordinator::node::expired_positions;
+use coordinator::node::rollover;
 use coordinator::node::storage::NodeStorage;
 use coordinator::node::unrealized_pnl;
 use coordinator::node::Node;
+use coordinator::notification;
+use coordinator::notification::NewUserMessage;
 use coordinator::notification_service::NotificationService;
+use coordinator::orderbook::async_match;
 use coordinator::orderbook::trading;
 use coordinator::routes::router;
 use coordinator::run_migration;
@@ -192,8 +196,16 @@ async fn main() -> Result<()> {
         }
     });
 
+    let (tx_user_feed, _rx) = broadcast::channel::<NewUserMessage>(100);
     let (tx_price_feed, _rx) = broadcast::channel(100);
-    let (_handle, trading_sender) = trading::start(pool.clone(), tx_price_feed.clone());
+
+    let (_handle, notifier) = notification::start(tx_user_feed.clone());
+
+    let (_handle, trading_sender) =
+        trading::start(pool.clone(), tx_price_feed.clone(), notifier.clone());
+
+    let _handle = async_match::monitor(pool.clone(), tx_user_feed.clone(), notifier.clone());
+    let _handle = rollover::monitor(pool.clone(), tx_user_feed.clone(), notifier);
 
     tokio::spawn({
         let node = node.clone();
@@ -235,6 +247,7 @@ async fn main() -> Result<()> {
         NODE_ALIAS,
         trading_sender,
         tx_price_feed,
+        tx_user_feed,
     );
 
     let notification_service = NotificationService::new(opts.fcm_api_key);

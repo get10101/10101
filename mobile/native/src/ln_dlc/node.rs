@@ -1,4 +1,8 @@
 use crate::db;
+use crate::event;
+use crate::event::BackgroundTask;
+use crate::event::EventInternal;
+use crate::event::TaskStatus;
 use crate::trade::order;
 use crate::trade::position;
 use crate::trade::position::PositionState;
@@ -225,6 +229,10 @@ impl Node {
                     // After handling the `RenewRevoke` message, we need to do some post-processing
                     // based on the fact that the DLC channel has been updated.
                     position::handler::set_position_state(PositionState::Open)?;
+
+                    event::publish(&EventInternal::BackgroundNotification(
+                        BackgroundTask::Rollover(TaskStatus::Success),
+                    ));
                 }
                 // ignoring all other channel events.
                 _ => (),
@@ -248,10 +256,27 @@ impl Node {
                 .get_dlc_channel_id(0)
                 .context("Could not fetch dlc channel id")?;
 
-            let accept_collateral =
+            let (accept_collateral, expiry_timestamp) =
                 match self.inner.get_contract_by_dlc_channel_id(dlc_channel_id)? {
                     Contract::Confirmed(contract) => {
-                        contract.accepted_contract.accept_params.collateral
+                        let offered_contract = contract.accepted_contract.offered_contract;
+                        let contract_info = offered_contract
+                            .contract_info
+                            .first()
+                            .context("contract info to exist on a signed contract")?;
+                        let oracle_announcement = contract_info
+                            .oracle_announcements
+                            .first()
+                            .context("oracle announcement to exist on signed contract")?;
+
+                        let expiry_timestamp = OffsetDateTime::from_unix_timestamp(
+                            oracle_announcement.oracle_event.event_maturity_epoch as i64,
+                        )?;
+
+                        (
+                            contract.accepted_contract.accept_params.collateral,
+                            expiry_timestamp,
+                        )
                     }
                     _ => bail!(
                         "Confirmed contract not found for channel ID: {}",
@@ -262,8 +287,12 @@ impl Node {
             let filled_order = order::handler::order_filled()
                 .context("Cannot mark order as filled for confirmed DLC")?;
 
-            position::handler::update_position_after_dlc_creation(filled_order, accept_collateral)
-                .context("Failed to update position after DLC creation")?;
+            position::handler::update_position_after_dlc_creation(
+                filled_order,
+                accept_collateral,
+                expiry_timestamp,
+            )
+            .context("Failed to update position after DLC creation")?;
 
             if let Err(e) = self.pay_order_matching_fee(&channel_id) {
                 tracing::error!("{e:#}");

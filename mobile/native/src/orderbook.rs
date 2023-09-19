@@ -1,6 +1,8 @@
 use crate::config;
 use crate::event;
+use crate::event::BackgroundTask;
 use crate::event::EventInternal;
+use crate::event::TaskStatus;
 use crate::health::ServiceStatus;
 use crate::trade::position;
 use anyhow::Result;
@@ -8,8 +10,8 @@ use bdk::bitcoin::secp256k1::SecretKey;
 use bdk::bitcoin::secp256k1::SECP256K1;
 use futures::TryStreamExt;
 use orderbook_commons::best_current_price;
+use orderbook_commons::Message;
 use orderbook_commons::Order;
-use orderbook_commons::OrderbookMsg;
 use orderbook_commons::Prices;
 use orderbook_commons::Signature;
 use parking_lot::Mutex;
@@ -92,7 +94,7 @@ pub fn subscribe(
                     Ok(Some(msg)) => {
                         tracing::debug!(%msg, "New message from orderbook");
 
-                        let msg = match serde_json::from_str::<OrderbookMsg>(&msg) {
+                        let msg = match serde_json::from_str::<Message>(&msg) {
                             Ok(msg) => msg,
                             Err(e) => {
                                 tracing::error!(
@@ -103,22 +105,32 @@ pub fn subscribe(
                         };
 
                         match msg {
-                            OrderbookMsg::AsyncMatch { order, filled_with } => {
-                                tracing::info!(order_id = %order.id, "Received an async match from orderbook. Reason: {:?}", order.order_reason);
-                                event::publish(&EventInternal::AsyncTrade(order.clone().order_reason.into()));
+                            Message::Rollover => {
+                                tracing::info!("Received a rollover request from orderbook.");
+                                event::publish(&EventInternal::BackgroundNotification(BackgroundTask::Rollover(TaskStatus::Pending)));
+
+                                if let Err(e) = position::handler::rollover().await {
+                                    tracing::error!("Failed to rollover dlc. Error: {e:#}");
+                                    event::publish(&EventInternal::BackgroundNotification(BackgroundTask::Rollover(TaskStatus::Failed)));
+                                }
+                            },
+                            Message::AsyncMatch { order, filled_with } => {
+                                let order_reason = order.clone().order_reason.into();
+                                tracing::info!(order_id = %order.id, "Received an async match from orderbook. Reason: {order_reason:?}");
+                                event::publish(&EventInternal::BackgroundNotification(BackgroundTask::AsyncTrade(order_reason)));
 
                                 if let Err(e) = position::handler::async_trade(order.clone(), filled_with).await {
                                     tracing::error!(order_id = %order.id, "Failed to process async trade. Error: {e:#}");
                                 }
                             },
-                            OrderbookMsg::Match(filled) => {
+                            Message::Match(filled) => {
                                 tracing::info!(order_id = %filled.order_id, "Received match from orderbook");
 
                                 if let Err(e) = position::handler::trade(filled.clone()).await {
                                     tracing::error!(order_id = %filled.order_id, "Trade request sent to coordinator failed. Error: {e:#}");
                                 }
                             },
-                            OrderbookMsg::AllOrders(initial_orders) => {
+                            Message::AllOrders(initial_orders) => {
                                 let mut orders = orders.lock();
                                 if !orders.is_empty() {
                                     tracing::debug!("Received new set of initial orders from orderbook, replacing the previously stored orders");
@@ -129,12 +141,12 @@ pub fn subscribe(
                                 *orders = initial_orders;
                                 update_prices_if_needed(&mut cached_best_price, &orders);
                             },
-                            OrderbookMsg::NewOrder(order) => {
+                            Message::NewOrder(order) => {
                                 let mut orders = orders.lock();
                                 orders.push(order);
                                 update_prices_if_needed(&mut cached_best_price, &orders);
                             }
-                            OrderbookMsg::DeleteOrder(order_id) => {
+                            Message::DeleteOrder(order_id) => {
                                 let mut orders = orders.lock();
                                 let found = remove_order(&mut orders, order_id);
                                 if !found {
@@ -142,7 +154,7 @@ pub fn subscribe(
                                 }
                                 update_prices_if_needed(&mut cached_best_price, &orders);
                             },
-                            OrderbookMsg::Update(updated_order) => {
+                            Message::Update(updated_order) => {
                                 let mut orders = orders.lock();
                                 let found = remove_order(&mut orders, updated_order.id);
                                 if !found {

@@ -16,6 +16,7 @@ class TradeValues {
   Amount? fee; // This fee is an estimate of the order-matching fee.
 
   double fundingRate;
+  DateTime expiry;
 
   // no final so it can be mocked in tests
   TradeValuesService tradeValuesService;
@@ -29,6 +30,7 @@ class TradeValues {
       required this.liquidationPrice,
       required this.fee,
       required this.fundingRate,
+      required this.expiry,
       required this.tradeValuesService});
 
   factory TradeValues.fromQuantity(
@@ -47,6 +49,8 @@ class TradeValues {
 
     Amount? fee = orderMatchingFee(quantity, price);
 
+    DateTime expiry = tradeValuesService.getExpiryTimestamp();
+
     return TradeValues(
         direction: direction,
         margin: margin,
@@ -56,6 +60,7 @@ class TradeValues {
         fundingRate: fundingRate,
         liquidationPrice: liquidationPrice,
         fee: fee,
+        expiry: expiry,
         tradeValuesService: tradeValuesService);
   }
 
@@ -75,6 +80,8 @@ class TradeValues {
 
     Amount? fee = orderMatchingFee(quantity, price);
 
+    DateTime expiry = tradeValuesService.getExpiryTimestamp();
+
     return TradeValues(
         direction: direction,
         margin: margin,
@@ -84,6 +91,7 @@ class TradeValues {
         fundingRate: fundingRate,
         liquidationPrice: liquidationPrice,
         fee: fee,
+        expiry: expiry,
         tradeValuesService: tradeValuesService);
   }
 

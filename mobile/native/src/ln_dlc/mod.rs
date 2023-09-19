@@ -24,6 +24,7 @@ use bdk::bitcoin::Txid;
 use bdk::bitcoin::XOnlyPublicKey;
 use bdk::BlockTime;
 use bdk::FeeRate;
+use bitcoin::hashes::hex::ToHex;
 use bitcoin::Amount;
 use coordinator_commons::LspConfig;
 use coordinator_commons::TradeParams;
@@ -35,7 +36,9 @@ use lightning_invoice::Invoice;
 use ln_dlc_node::channel::JIT_FEE_INVOICE_DESCRIPTION_PREFIX;
 use ln_dlc_node::config::app_config;
 use ln_dlc_node::node::rust_dlc_manager::subchannel::LNChannelManager;
+use ln_dlc_node::node::rust_dlc_manager::subchannel::SubChannelState;
 use ln_dlc_node::node::rust_dlc_manager::ChannelId;
+use ln_dlc_node::node::rust_dlc_manager::Storage as DlcStorage;
 use ln_dlc_node::node::LnDlcNodeSettings;
 use ln_dlc_node::node::NodeInfo;
 use ln_dlc_node::scorer;
@@ -690,6 +693,59 @@ pub async fn trade(trade_params: TradeParams) -> Result<(), (FailureReason, Erro
     });
 
     tracing::info!(%payment_hash, "Registered order-matching fee invoice to be paid later");
+
+    Ok(())
+}
+
+/// initiates the rollover protocol with the coordinator
+pub async fn rollover() -> Result<()> {
+    let node = NODE.get();
+
+    let dlc_channels = node
+        .inner
+        .sub_channel_manager
+        .get_dlc_manager()
+        .get_store()
+        .get_sub_channels()?;
+
+    let dlc_channel = dlc_channels
+        .into_iter()
+        .find(|chan| {
+            chan.counter_party == config::get_coordinator_info().pubkey
+                && matches!(chan.state, SubChannelState::Signed(_))
+        })
+        .context("Couldn't find dlc channel to rollover")?;
+
+    let dlc_channel_id = dlc_channel
+        .get_dlc_channel_id(0)
+        .context("Couldn't get dlc channel id")?;
+
+    let client = reqwest_client();
+    let response = client
+        .post(format!(
+            "http://{}/api/rollover/{}",
+            config::get_http_endpoint(),
+            dlc_channel_id.to_hex()
+        ))
+        .send()
+        .await
+        .with_context(|| format!("Failed to rollover dlc with id {}", dlc_channel_id.to_hex()))?;
+
+    if !response.status().is_success() {
+        let response_text = match response.text().await {
+            Ok(text) => text,
+            Err(err) => {
+                format!("could not decode response {err:#}")
+            }
+        };
+
+        bail!(
+            "Failed to rollover dlc with id {}. Error: {response_text}",
+            dlc_channel_id.to_hex()
+        )
+    }
+
+    tracing::info!("Sent rollover request to coordinator successfully");
 
     Ok(())
 }
