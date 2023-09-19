@@ -394,7 +394,7 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
                 builder: (context, liquidationPrice, child) {
                   return Flexible(child: FiatText(amount: liquidationPrice));
                 }),
-            const SizedBox(width: 20),
+            const SizedBox(width: 16),
             const Flexible(child: Text("Estimated fee:")),
             const SizedBox(width: 5),
             Selector<TradeValuesChangeNotifier, Amount>(
