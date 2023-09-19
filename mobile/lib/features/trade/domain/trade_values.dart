@@ -109,7 +109,6 @@ class TradeValues {
 
   updatePriceAndQuantity(double? price) {
     this.price = price;
-    // _recalculateMargin();
     _recalculateQuantity();
     _recalculateLiquidationPrice();
     _recalculateFee();
@@ -117,7 +116,6 @@ class TradeValues {
 
   updatePriceAndMargin(double? price) {
     this.price = price;
-    // _recalculateMargin();
     _recalculateMargin();
     _recalculateLiquidationPrice();
     _recalculateFee();
