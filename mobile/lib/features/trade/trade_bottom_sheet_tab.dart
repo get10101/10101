@@ -225,7 +225,7 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
       BuildContext context,
       ChannelInfoService channelInfoService) {
     return Wrap(
-      runSpacing: 15,
+      runSpacing: 12,
       children: [
         Padding(
           padding: const EdgeInsets.only(bottom: 10),
