@@ -173,6 +173,28 @@ jobs:
           curl -d '{"address":"bcrt1qylgu6ffkp3p0m8tw8kp4tt2dmdh755f4r5dq7s", "amount":"0.1"}' -H "Content-Type: application/json" -X POST http://localhost:3000/faucet
       - name: Run e2e tests
         run: just e2e --nocapture
+        continue-on-error: true  # Continue running other steps even if this one fails
+      - name: Print maker logs on e2e tests error
+        if: failure()
+        run: cat data/maker/regtest.log
+      - name: Print coordinator logs on e2e tests error
+        if: failure()
+        run: cat data/coordinator/regtest.log
+      - name: LND logs on e2e tests error
+        if: failure()
+        run: docker logs lnd
+      - name: bitcoin logs on e2e tests error
+        if: failure()
+        run: docker logs bitcoin
+      - name: faucet logs on e2e tests error
+        if: failure()
+        run: docker logs faucet
+      - name: electrs logs on e2e tests error
+        if: failure()
+        run: docker logs electrs
+      - name: esplora logs on e2e tests error
+        if: failure()
+        run: docker logs esplora
       - name: show disk space after tests
         if: always()
         run: df -h
