@@ -1,8 +1,8 @@
 use crate::db;
 use crate::db::positions;
+use crate::message::NewUserMessage;
+use crate::message::OrderbookMessage;
 use crate::node::Node;
-use crate::notification::NewUserMessage;
-use crate::notification::Notification;
 use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
@@ -44,7 +44,7 @@ struct Rollover {
 pub fn monitor(
     pool: Pool<ConnectionManager<PgConnection>>,
     tx_user_feed: broadcast::Sender<NewUserMessage>,
-    notifier: mpsc::Sender<Notification>,
+    notifier: mpsc::Sender<OrderbookMessage>,
     network: Network,
 ) -> RemoteHandle<Result<()>> {
     let mut user_feed = tx_user_feed.subscribe();
@@ -78,7 +78,7 @@ pub fn monitor(
 
 async fn check_if_eligible_for_rollover(
     conn: &mut PgConnection,
-    notifier: mpsc::Sender<Notification>,
+    notifier: mpsc::Sender<OrderbookMessage>,
     trader_id: PublicKey,
     network: Network,
 ) -> Result<()> {
@@ -98,7 +98,7 @@ async fn check_if_eligible_for_rollover(
 
             tracing::debug!(%trader_id, position_id=position.id, "Proposing to rollover users position");
 
-            let message = Notification::Message {
+            let message = OrderbookMessage::TraderMessage {
                 trader_id,
                 message: Message::Rollover,
             };

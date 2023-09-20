@@ -1,6 +1,6 @@
 use crate::db::user;
 use crate::db::user::User;
-use crate::orderbook::tests::init_tracing;
+use crate::logger::init_tracing_for_test;
 use crate::orderbook::tests::setup_db;
 use crate::orderbook::tests::start_postgres;
 use bitcoin::secp256k1::PublicKey;
@@ -10,7 +10,7 @@ use testcontainers::clients::Cli;
 
 #[tokio::test]
 async fn registered_user_is_stored_in_db() {
-    init_tracing();
+    init_tracing_for_test();
 
     let docker = Cli::default();
     let (_container, conn_spec) = start_postgres(&docker).unwrap();

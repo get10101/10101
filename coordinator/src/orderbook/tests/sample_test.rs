@@ -1,5 +1,5 @@
+use crate::logger::init_tracing_for_test;
 use crate::orderbook::db::orders;
-use crate::orderbook::tests::init_tracing;
 use crate::orderbook::tests::setup_db;
 use crate::orderbook::tests::start_postgres;
 use bitcoin::secp256k1::PublicKey;
@@ -17,7 +17,7 @@ use uuid::Uuid;
 
 #[tokio::test]
 async fn crud_test() {
-    init_tracing();
+    init_tracing_for_test();
 
     let docker = Cli::default();
     let (_container, conn_spec) = start_postgres(&docker).unwrap();
@@ -46,7 +46,7 @@ async fn crud_test() {
 
 #[tokio::test]
 async fn test_filter_expired_orders() {
-    init_tracing();
+    init_tracing_for_test();
 
     let docker = Cli::default();
     let (_container, conn_spec) = start_postgres(&docker).unwrap();

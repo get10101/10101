@@ -1,4 +1,4 @@
-use crate::notification::NewUserMessage;
+use crate::message::NewUserMessage;
 use crate::orderbook;
 use crate::orderbook::db::orders;
 use crate::routes::AppState;

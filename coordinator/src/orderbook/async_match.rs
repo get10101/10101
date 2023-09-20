@@ -1,5 +1,5 @@
-use crate::notification::NewUserMessage;
-use crate::notification::Notification;
+use crate::message::NewUserMessage;
+use crate::message::OrderbookMessage;
 use crate::orderbook::db::matches;
 use crate::orderbook::db::orders;
 use anyhow::ensure;
@@ -26,7 +26,7 @@ use tokio::sync::mpsc;
 pub fn monitor(
     pool: Pool<ConnectionManager<PgConnection>>,
     tx_user_feed: broadcast::Sender<NewUserMessage>,
-    notifier: mpsc::Sender<Notification>,
+    notifier: mpsc::Sender<OrderbookMessage>,
     network: Network,
 ) -> RemoteHandle<Result<()>> {
     let mut user_feed = tx_user_feed.subscribe();
@@ -54,7 +54,7 @@ pub fn monitor(
 /// Checks if there are any pending matches
 async fn process_pending_match(
     conn: &mut PgConnection,
-    notifier: mpsc::Sender<Notification>,
+    notifier: mpsc::Sender<OrderbookMessage>,
     trader_id: PublicKey,
     network: Network,
 ) -> Result<()> {
@@ -69,7 +69,7 @@ async fn process_pending_match(
             OrderReason::Expired => Message::AsyncMatch { order, filled_with },
         };
 
-        let msg = Notification::Message { trader_id, message };
+        let msg = OrderbookMessage::TraderMessage { trader_id, message };
         if let Err(e) = notifier.send(msg).await {
             tracing::error!("Failed to send notification. Error: {e:#}");
         }

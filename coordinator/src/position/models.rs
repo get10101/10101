@@ -26,7 +26,7 @@ pub struct NewPosition {
     pub temporary_contract_id: ContractId,
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug)]
 pub enum PositionState {
     Open,
     /// The position is in the process of being closed
@@ -46,7 +46,7 @@ pub enum PositionState {
 /// The position acts as an aggregate of one contract of one user.
 /// The position represents the values of the trader; i.e. the leverage, collateral and direction
 /// are stored from the trader's perspective and not the coordinator's.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Position {
     pub id: i32,
     pub contract_symbol: ContractSymbol,
@@ -461,7 +461,7 @@ pub mod tests {
     }
 
     impl Position {
-        fn dummy() -> Self {
+        pub(crate) fn dummy() -> Self {
             Position {
                 id: 0,
                 contract_symbol: ContractSymbol::BtcUsd,

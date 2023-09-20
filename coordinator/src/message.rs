@@ -3,19 +3,19 @@ use bitcoin::secp256k1::PublicKey;
 use futures::future::RemoteHandle;
 use futures::FutureExt;
 use orderbook_commons::Message;
+use parking_lot::RwLock;
 use std::collections::HashMap;
 use std::sync::Arc;
-use std::sync::RwLock;
 use tokio::sync::broadcast;
 use tokio::sync::mpsc;
 
-/// This value is arbitrarily set to 100 and defines the message accepted in the notification
+/// This value is arbitrarily set to 100 and defines the message accepted in the message
 /// channel buffer.
 const NOTIFICATION_BUFFER_SIZE: usize = 100;
 
-// TODO(holzeis): This enum should be extended to allow for sending push notifications.
-pub enum Notification {
-    Message {
+/// Message sent to users via the websocket.
+pub enum OrderbookMessage {
+    TraderMessage {
         trader_id: PublicKey,
         message: Message,
     },
@@ -27,10 +27,10 @@ pub struct NewUserMessage {
     pub sender: mpsc::Sender<Message>,
 }
 
-pub fn start(
+pub fn spawn_delivering_messages_to_authenticated_users(
     tx_user_feed: broadcast::Sender<NewUserMessage>,
-) -> (RemoteHandle<Result<()>>, mpsc::Sender<Notification>) {
-    let (sender, mut receiver) = mpsc::channel::<Notification>(NOTIFICATION_BUFFER_SIZE);
+) -> (RemoteHandle<Result<()>>, mpsc::Sender<OrderbookMessage>) {
+    let (sender, mut receiver) = mpsc::channel::<OrderbookMessage>(NOTIFICATION_BUFFER_SIZE);
 
     let authenticated_users = Arc::new(RwLock::new(HashMap::new()));
 
@@ -41,7 +41,6 @@ pub fn start(
             while let Ok(new_user_msg) = user_feed.recv().await {
                 traders
                     .write()
-                    .expect("RwLock to not be poisoned")
                     .insert(new_user_msg.new_user, new_user_msg.sender);
             }
         }
@@ -51,15 +50,10 @@ pub fn start(
         async move {
             while let Some(notification) = receiver.recv().await {
                 match notification {
-                    Notification::Message { trader_id, message } => {
+                    OrderbookMessage::TraderMessage { trader_id, message } => {
                         tracing::info!(%trader_id, "Sending message: {message:?}");
 
-                        let trader = {
-                            let traders = authenticated_users
-                                .read()
-                                .expect("RwLock to not be poisoned");
-                            traders.get(&trader_id).cloned()
-                        };
+                        let trader = authenticated_users.read().get(&trader_id).cloned();
 
                         match trader {
                             Some(sender) => {
