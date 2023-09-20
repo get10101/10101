@@ -105,6 +105,11 @@ pub async fn refresh_wallet_info() -> Result<()> {
         if let Err(e) = wallet.sync() {
             tracing::error!("Manually triggered on-chain sync failed: {e:#}");
         }
+
+        if let Err(e) = node.inner.sync_lightning_wallet() {
+            tracing::error!("Manually triggered Lightning wallet sync failed: {e:#}");
+        }
+
         if let Err(e) = keep_wallet_balance_and_history_up_to_date(node) {
             tracing::error!("Failed to keep wallet history up to date: {e:#}");
         }
