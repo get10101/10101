@@ -90,6 +90,8 @@ async fn main() -> Result<()> {
     let event_handler = EventHandler::new(node.clone());
     let _running_node = node.start(event_handler)?;
 
+    std::thread::spawn(node.sync_on_chain_wallet_periodically());
+
     let (health, health_tx) = health::Health::new();
 
     let node_pubkey = node.info.pubkey;

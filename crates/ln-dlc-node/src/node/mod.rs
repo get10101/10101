@@ -432,11 +432,6 @@ where
             self.listen_address,
         )];
 
-        std::thread::spawn(sync_on_chain_wallet_periodically(
-            self.settings.clone(),
-            self.wallet.clone(),
-        ));
-
         std::thread::spawn(shadow_sync_periodically(
             self.settings.clone(),
             self.storage.clone(),
@@ -444,7 +439,7 @@ where
             self.channel_manager.clone(),
         ));
 
-        tokio::spawn(lightning_wallet_sync(
+        tokio::spawn(periodic_lightning_wallet_sync(
             self.channel_manager.clone(),
             self.chain_monitor.clone(),
             self.settings.clone(),
@@ -522,6 +517,42 @@ where
         )
         .await
     }
+
+    /// Returns a closure which triggers an on-chain sync and subsequently updates the address
+    /// cache, at an interval.
+    ///
+    /// The task will loop at an interval determined by the node's [`LnDlcNodeSettings`].
+    ///
+    /// Suitable for daemons such as the coordinator and the maker.
+    pub fn sync_on_chain_wallet_periodically(&self) -> impl Fn() {
+        let handle = tokio::runtime::Handle::current();
+        let settings = self.settings.clone();
+        let ln_dlc_wallet = self.wallet.clone();
+        move || loop {
+            if let Err(e) = ln_dlc_wallet.sync_and_update_address_cache() {
+                tracing::error!("Failed on-chain sync: {e:#}");
+            }
+
+            let interval = handle.block_on(async {
+                let guard = settings.read().await;
+                guard.on_chain_sync_interval
+            });
+
+            std::thread::sleep(interval);
+        }
+    }
+
+    pub fn sync_on_chain_wallet(&self) -> Result<()> {
+        self.wallet.sync_and_update_address_cache()
+    }
+
+    pub fn sync_lightning_wallet(&self) -> Result<()> {
+        lightning_wallet_sync(
+            &self.channel_manager,
+            &self.chain_monitor,
+            &self.esplora_client,
+        )
+    }
 }
 
 async fn update_fee_rate_estimates(
@@ -580,26 +611,15 @@ fn spawn_background_processor(
     remote_handle
 }
 
-async fn lightning_wallet_sync(
+async fn periodic_lightning_wallet_sync(
     channel_manager: Arc<ChannelManager>,
     chain_monitor: Arc<ChainMonitor>,
     settings: Arc<RwLock<LnDlcNodeSettings>>,
     esplora_client: Arc<EsploraSyncClient<Arc<TracingLogger>>>,
 ) {
     loop {
-        let now = Instant::now();
-        let confirmables = vec![
-            &*channel_manager as &(dyn Confirm + Sync + Send),
-            &*chain_monitor as &(dyn Confirm + Sync + Send),
-        ];
-        match esplora_client.sync(confirmables) {
-            Ok(()) => tracing::info!(
-                "Background sync of Lightning wallet finished in {}ms.",
-                now.elapsed().as_millis()
-            ),
-            Err(e) => {
-                tracing::error!("Background sync of Lightning wallet failed: {e:#}")
-            }
+        if let Err(e) = lightning_wallet_sync(&channel_manager, &chain_monitor, &esplora_client) {
+            tracing::error!("Background sync of Lightning wallet failed: {e:#}")
         }
 
         let interval = {
@@ -608,6 +628,28 @@ async fn lightning_wallet_sync(
         };
         tokio::time::sleep(interval).await;
     }
+}
+
+fn lightning_wallet_sync(
+    channel_manager: &ChannelManager,
+    chain_monitor: &ChainMonitor,
+    esplora_client: &EsploraSyncClient<Arc<TracingLogger>>,
+) -> Result<()> {
+    let now = Instant::now();
+    let confirmables = vec![
+        channel_manager as &(dyn Confirm + Sync + Send),
+        chain_monitor as &(dyn Confirm + Sync + Send),
+    ];
+    esplora_client
+        .sync(confirmables)
+        .context("Lightning wallet sync failed")?;
+
+    tracing::info!(
+        "Lightning wallet sync finished in {}ms.",
+        now.elapsed().as_millis()
+    );
+
+    Ok(())
 }
 
 fn shadow_sync_periodically<S: Storage + Sync + Send + 'static>(
@@ -630,29 +672,6 @@ fn shadow_sync_periodically<S: Storage + Sync + Send + 'static>(
         let interval = handle.block_on(async {
             let guard = settings.read().await;
             guard.shadow_sync_interval
-        });
-
-        std::thread::sleep(interval);
-    }
-}
-
-fn sync_on_chain_wallet_periodically(
-    settings: Arc<RwLock<LnDlcNodeSettings>>,
-    ln_dlc_wallet: Arc<LnDlcWallet>,
-) -> impl Fn() {
-    let handle = tokio::runtime::Handle::current();
-    move || loop {
-        if let Err(e) = ln_dlc_wallet.inner().sync() {
-            tracing::error!("Failed on-chain sync: {e:#}");
-        }
-
-        if let Err(e) = ln_dlc_wallet.update_address_cache() {
-            tracing::warn!("Failed to update address cache: {e:#}");
-        }
-
-        let interval = handle.block_on(async {
-            let guard = settings.read().await;
-            guard.on_chain_sync_interval
         });
 
         std::thread::sleep(interval);

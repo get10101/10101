@@ -76,6 +76,7 @@ pub use channel_status::ChannelStatus;
 const PROCESS_INCOMING_DLC_MESSAGES_INTERVAL: Duration = Duration::from_millis(200);
 const UPDATE_WALLET_HISTORY_INTERVAL: Duration = Duration::from_secs(5);
 const CHECK_OPEN_ORDERS_INTERVAL: Duration = Duration::from_secs(60);
+const ON_CHAIN_SYNC_INTERVAL: Duration = Duration::from_secs(300);
 
 /// The weight estimate of the funding transaction
 ///
@@ -89,12 +90,32 @@ pub const FUNDING_TX_WEIGHT_ESTIMATE: u64 = 220;
 static NODE: Storage<Arc<Node>> = Storage::new();
 static SEED: Storage<Bip39Seed> = Storage::new();
 
+/// Trigger an on-chain sync followed by an update to the wallet balance and history.
+///
+/// We do not wait for the triggered task to finish, because the effect will be reflected
+/// asynchronously on the UI.
 pub async fn refresh_wallet_info() -> Result<()> {
     let node = NODE.try_get().context("failed to get ln dlc node")?;
     let wallet = node.inner.wallet();
 
-    spawn_blocking(move || wallet.sync()).await??;
-    keep_wallet_balance_and_history_up_to_date(node)?;
+    // Spawn into the blocking thread pool of the dedicated backend runtime to avoid blocking the UI
+    // thread.
+    let runtime = get_or_create_tokio_runtime()?;
+    runtime.spawn_blocking(move || {
+        if let Err(e) = wallet.sync() {
+            tracing::error!("Manually triggered on-chain sync failed: {e:#}");
+        }
+
+        if let Err(e) = node.inner.sync_lightning_wallet() {
+            tracing::error!("Manually triggered Lightning wallet sync failed: {e:#}");
+        }
+
+        if let Err(e) = keep_wallet_balance_and_history_up_to_date(node) {
+            tracing::error!("Failed to keep wallet history up to date: {e:#}");
+        }
+
+        anyhow::Ok(())
+    });
 
     Ok(())
 }
@@ -224,6 +245,47 @@ pub fn run(data_dir: String, seed_dir: String, runtime: &Runtime) -> Result<()> 
         let _running = node.start(event_handler)?;
         let node = Arc::new(Node::new(node, _running));
 
+        // Refresh the wallet balance and history eagerly so that it can complete before the
+        // triggering the first on-chain sync. This ensures that the UI appears ready as soon as
+        // possible.
+        //
+        // TODO: This might not be necessary once we rewrite the on-chain wallet with bdk:1.0.0.
+        spawn_blocking({
+            let node = node.clone();
+            move || keep_wallet_balance_and_history_up_to_date(&node)
+        })
+        .await
+        .expect("task to complete")?;
+
+        runtime.spawn({
+            let node = node.clone();
+            async move {
+                loop {
+                    tokio::time::sleep(UPDATE_WALLET_HISTORY_INTERVAL).await;
+
+                    let node = node.clone();
+                    if let Err(e) =
+                        spawn_blocking(move || keep_wallet_balance_and_history_up_to_date(&node))
+                            .await
+                            .expect("To spawn blocking task")
+                    {
+                        tracing::error!("Failed to sync balance and wallet history: {e:#}");
+                    }
+                }
+            }
+        });
+
+        std::thread::spawn({
+            let node = node.clone();
+            move || loop {
+                if let Err(e) = node.inner.sync_on_chain_wallet() {
+                    tracing::error!("Failed on-chain sync: {e:#}");
+                }
+
+                std::thread::sleep(ON_CHAIN_SYNC_INTERVAL);
+            }
+        });
+
         runtime.spawn({
             let node = node.clone();
             async move { node.listen_for_lightning_events(event_receiver).await }
@@ -243,24 +305,6 @@ pub fn run(data_dir: String, seed_dir: String, runtime: &Runtime) -> Result<()> 
                         .await
                         .expect("To spawn blocking thread");
                     tokio::time::sleep(PROCESS_INCOMING_DLC_MESSAGES_INTERVAL).await;
-                }
-            }
-        });
-
-        runtime.spawn({
-            let node = node.clone();
-            async move {
-                loop {
-                    let node = node.clone();
-                    if let Err(e) =
-                        spawn_blocking(move || keep_wallet_balance_and_history_up_to_date(&node))
-                            .await
-                            .expect("To spawn blocking task")
-                    {
-                        tracing::error!("Failed to sync balance and wallet history: {e:#}");
-                    }
-
-                    tokio::time::sleep(UPDATE_WALLET_HISTORY_INTERVAL).await;
                 }
             }
         });

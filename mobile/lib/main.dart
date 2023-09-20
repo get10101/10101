@@ -259,7 +259,6 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
     final orderChangeNotifier = context.read<OrderChangeNotifier>();
     final positionChangeNotifier = context.read<PositionChangeNotifier>();
     final candlestickChangeNotifier = context.read<CandlestickChangeNotifier>();
-    final walletChangeNotifier = context.read<WalletChangeNotifier>();
 
     try {
       setupRustLogging();
@@ -269,16 +268,15 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
       await runBackend(config);
       FLog.info(text: "Backend started");
 
-      await orderChangeNotifier.initialize();
-      await positionChangeNotifier.initialize();
-      await candlestickChangeNotifier.initialize();
+      orderChangeNotifier.initialize();
+      positionChangeNotifier.initialize();
+      candlestickChangeNotifier.initialize();
 
-      await logAppSettings(config);
+      logAppSettings(config);
 
-      final lastLogin = await rust.api.updateLastLogin();
-      FLog.debug(text: "Last login was at ${lastLogin.date}");
-
-      await walletChangeNotifier.refreshWalletInfo();
+      rust.api
+          .updateLastLogin()
+          .then((lastLogin) => FLog.debug(text: "Last login was at ${lastLogin.date}"));
     } on FfiException catch (error) {
       FLog.error(text: "Failed to initialise: Error: ${error.message}", exception: error);
     } catch (error) {
