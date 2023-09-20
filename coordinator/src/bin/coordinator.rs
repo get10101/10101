@@ -139,6 +139,8 @@ async fn main() -> Result<()> {
         });
     }
 
+    std::thread::spawn(node.inner.sync_on_chain_wallet_periodically());
+
     tokio::spawn({
         let node = node.clone();
         async move {

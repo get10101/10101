@@ -432,11 +432,6 @@ where
             self.listen_address,
         )];
 
-        std::thread::spawn(sync_on_chain_wallet_periodically(
-            self.settings.clone(),
-            self.wallet.clone(),
-        ));
-
         std::thread::spawn(shadow_sync_periodically(
             self.settings.clone(),
             self.storage.clone(),
@@ -521,6 +516,34 @@ where
             &self.dlc_message_handler,
         )
         .await
+    }
+
+    /// Returns a closure which triggers an on-chain sync and subsequently updates the address
+    /// cache, at an interval.
+    ///
+    /// The task will loop at an interval determined by the node's [`LnDlcNodeSettings`].
+    ///
+    /// Suitable for daemons such as the coordinator and the maker.
+    pub fn sync_on_chain_wallet_periodically(&self) -> impl Fn() {
+        let handle = tokio::runtime::Handle::current();
+        let settings = self.settings.clone();
+        let ln_dlc_wallet = self.wallet.clone();
+        move || loop {
+            if let Err(e) = ln_dlc_wallet.sync_and_update_address_cache() {
+                tracing::error!("Failed on-chain sync: {e:#}");
+            }
+
+            let interval = handle.block_on(async {
+                let guard = settings.read().await;
+                guard.on_chain_sync_interval
+            });
+
+            std::thread::sleep(interval);
+        }
+    }
+
+    pub fn sync_on_chain_wallet(&self) -> Result<()> {
+        self.wallet.sync_and_update_address_cache()
     }
 }
 
@@ -630,29 +653,6 @@ fn shadow_sync_periodically<S: Storage + Sync + Send + 'static>(
         let interval = handle.block_on(async {
             let guard = settings.read().await;
             guard.shadow_sync_interval
-        });
-
-        std::thread::sleep(interval);
-    }
-}
-
-fn sync_on_chain_wallet_periodically(
-    settings: Arc<RwLock<LnDlcNodeSettings>>,
-    ln_dlc_wallet: Arc<LnDlcWallet>,
-) -> impl Fn() {
-    let handle = tokio::runtime::Handle::current();
-    move || loop {
-        if let Err(e) = ln_dlc_wallet.inner().sync() {
-            tracing::error!("Failed on-chain sync: {e:#}");
-        }
-
-        if let Err(e) = ln_dlc_wallet.update_address_cache() {
-            tracing::warn!("Failed to update address cache: {e:#}");
-        }
-
-        let interval = handle.block_on(async {
-            let guard = settings.read().await;
-            guard.on_chain_sync_interval
         });
 
         std::thread::sleep(interval);

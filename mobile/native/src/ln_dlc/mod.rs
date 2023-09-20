@@ -76,6 +76,7 @@ pub use channel_status::ChannelStatus;
 const PROCESS_INCOMING_DLC_MESSAGES_INTERVAL: Duration = Duration::from_millis(200);
 const UPDATE_WALLET_HISTORY_INTERVAL: Duration = Duration::from_secs(5);
 const CHECK_OPEN_ORDERS_INTERVAL: Duration = Duration::from_secs(60);
+const ON_CHAIN_SYNC_INTERVAL: Duration = Duration::from_secs(300);
 
 /// The weight estimate of the funding transaction
 ///
@@ -238,6 +239,28 @@ pub fn run(data_dir: String, seed_dir: String, runtime: &Runtime) -> Result<()> 
         let event_handler = AppEventHandler::new(node.clone(), Some(event_sender));
         let _running = node.start(event_handler)?;
         let node = Arc::new(Node::new(node, _running));
+
+        std::thread::spawn({
+            let node = node.clone();
+            move || {
+                // We wait a minute to not interfere with the app's startup. We want to be able to
+                // quickly refresh the wallet _before_ the first on-chain sync, as this one can take
+                // a long time and blocks the wallet refresh since they both need to acquire the
+                // same mutex.
+                //
+                // TODO: This should not be necessary as soon as we rewrite the on-chain wallet with
+                // bdk:1.0.0.
+                std::thread::sleep(Duration::from_secs(60));
+
+                loop {
+                    if let Err(e) = node.inner.sync_on_chain_wallet() {
+                        tracing::error!("Failed on-chain sync: {e:#}");
+                    }
+
+                    std::thread::sleep(ON_CHAIN_SYNC_INTERVAL);
+                }
+            }
+        });
 
         runtime.spawn({
             let node = node.clone();

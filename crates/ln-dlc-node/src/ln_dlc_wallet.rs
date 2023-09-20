@@ -118,7 +118,15 @@ impl LnDlcWallet {
         self.address_cache.read().clone()
     }
 
-    pub fn update_address_cache(&self) -> Result<()> {
+    pub fn sync_and_update_address_cache(&self) -> Result<()> {
+        self.inner().sync()?;
+
+        self.update_address_cache()?;
+
+        Ok(())
+    }
+
+    fn update_address_cache(&self) -> Result<()> {
         let address = self.inner().get_last_unused_address()?;
         *self.address_cache.write() = address;
 
