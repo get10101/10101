@@ -51,7 +51,7 @@ on:
         type: string
       oracle_endpoint:
         required: true
-        description: 'The oracles http url'
+        description: "The oracle's http url"
         type: string
       oracle_pubkey:
         required: true
@@ -59,7 +59,7 @@ on:
         type: string
 
 env:
-  FLUTTER_VERSION: "3.10.5"
+  FLUTTER_VERSION: "3.13.4"
 
 jobs:
   build:

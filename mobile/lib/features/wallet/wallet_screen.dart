@@ -184,7 +184,7 @@ class _WalletScreenState extends State<WalletScreen> {
                     isExpanded: _isBalanceBreakdownOpen,
                   )
                 ],
-                expansionCallback: (i, isOpen) => setState(() => _isBalanceBreakdownOpen = !isOpen),
+                expansionCallback: (i, isOpen) => setState(() => _isBalanceBreakdownOpen = isOpen),
               ),
               const SizedBox(height: 10.0),
               if (walletChangeNotifier.lightning().sats == 0)
