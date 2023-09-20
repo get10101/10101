@@ -509,6 +509,17 @@ pub async fn get_health() -> Result<Json<String>, AppError> {
     Ok(Json("Server is healthy".to_string()))
 }
 
-pub async fn version() -> Result<Json<String>, AppError> {
-    Ok(Json(env!("CARGO_PKG_VERSION").to_string()))
+#[derive(Serialize)]
+pub struct Version {
+    version: String,
+    commit_hash: String,
+    branch: String,
+}
+
+pub async fn version() -> Result<Json<Version>, AppError> {
+    Ok(Json(Version {
+        version: env!("CARGO_PKG_VERSION").to_string(),
+        commit_hash: env!("COMMIT_HASH").to_string(),
+        branch: env!("BRANCH_NAME").to_string(),
+    }))
 }

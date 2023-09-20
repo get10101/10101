@@ -48,6 +48,7 @@ import 'package:get_10101/features/wallet/wallet_screen.dart';
 import 'package:get_10101/features/wallet/wallet_theme.dart';
 import 'package:get_10101/features/welcome/welcome_screen.dart';
 import 'package:get_10101/ffi.dart' as rust;
+import 'package:get_10101/util/coordinator_version.dart';
 import 'package:get_10101/util/constants.dart';
 import 'package:get_10101/util/environment.dart';
 import 'package:get_10101/util/notifications.dart';
@@ -320,7 +321,7 @@ LogLevel mapLogLevel(String level) {
 
 /// Compare the version of the coordinator with the version of the app
 ///
-/// - If the coordinator is newer, suggest to update the app.k
+/// - If the coordinator is newer, suggest to update the app.
 /// - If the app is newer, log it.
 /// - If the coordinator cannot be reached, show a warning that the app may not function properly.
 Future<void> compareCoordinatorVersion(bridge.Config config) async {
@@ -331,17 +332,17 @@ Future<void> compareCoordinatorVersion(bridge.Config config) async {
     );
 
     final clientVersion = Version.parse(packageInfo.version);
-    final coordinatorVersion = Version.parse(jsonDecode(response.body));
-    FLog.info(text: "Coordinator version: ${coordinatorVersion.toString()}");
+    final coordinatorVersion = CoordinatorVersion.fromJson(jsonDecode(response.body));
+    FLog.info(text: "Coordinator version: ${coordinatorVersion.version.toString()}");
 
-    if (coordinatorVersion > clientVersion) {
+    if (coordinatorVersion.version > clientVersion) {
       FLog.warning(text: "Client out of date. Current version: ${clientVersion.toString()}");
       showDialog(
           context: shellNavigatorKey.currentContext!,
           builder: (context) => AlertDialog(
                   title: const Text("Update available"),
                   content: Text("A new version of 10101 is available: "
-                      "${coordinatorVersion.toString()}.\n\n"
+                      "${coordinatorVersion.version.toString()}.\n\n"
                       "Please note that if you do not update 10101, the app"
                       " may not function properly."),
                   actions: [
@@ -350,8 +351,8 @@ Future<void> compareCoordinatorVersion(bridge.Config config) async {
                       child: const Text('OK'),
                     ),
                   ]));
-    } else if (coordinatorVersion < clientVersion) {
-      FLog.warning(text: "10101 is newer than LSP: ${coordinatorVersion.toString()}");
+    } else if (coordinatorVersion.version < clientVersion) {
+      FLog.warning(text: "10101 is newer than LSP: ${coordinatorVersion.version.toString()}");
     } else {
       FLog.info(text: "Client is up to date: ${clientVersion.toString()}");
     }
