@@ -245,25 +245,44 @@ pub fn run(data_dir: String, seed_dir: String, runtime: &Runtime) -> Result<()> 
         let _running = node.start(event_handler)?;
         let node = Arc::new(Node::new(node, _running));
 
+        // Refresh the wallet balance and history eagerly so that it can complete before the
+        // triggering the first on-chain sync. This ensures that the UI appears ready as soon as
+        // possible.
+        //
+        // TODO: This might not be necessary once we rewrite the on-chain wallet with bdk:1.0.0.
+        spawn_blocking({
+            let node = node.clone();
+            move || keep_wallet_balance_and_history_up_to_date(&node)
+        })
+        .await
+        .expect("task to complete")?;
+
+        runtime.spawn({
+            let node = node.clone();
+            async move {
+                loop {
+                    tokio::time::sleep(UPDATE_WALLET_HISTORY_INTERVAL).await;
+
+                    let node = node.clone();
+                    if let Err(e) =
+                        spawn_blocking(move || keep_wallet_balance_and_history_up_to_date(&node))
+                            .await
+                            .expect("To spawn blocking task")
+                    {
+                        tracing::error!("Failed to sync balance and wallet history: {e:#}");
+                    }
+                }
+            }
+        });
+
         std::thread::spawn({
             let node = node.clone();
-            move || {
-                // We wait a minute to not interfere with the app's startup. We want to be able to
-                // quickly refresh the wallet _before_ the first on-chain sync, as this one can take
-                // a long time and blocks the wallet refresh since they both need to acquire the
-                // same mutex.
-                //
-                // TODO: This should not be necessary as soon as we rewrite the on-chain wallet with
-                // bdk:1.0.0.
-                std::thread::sleep(Duration::from_secs(60));
-
-                loop {
-                    if let Err(e) = node.inner.sync_on_chain_wallet() {
-                        tracing::error!("Failed on-chain sync: {e:#}");
-                    }
-
-                    std::thread::sleep(ON_CHAIN_SYNC_INTERVAL);
+            move || loop {
+                if let Err(e) = node.inner.sync_on_chain_wallet() {
+                    tracing::error!("Failed on-chain sync: {e:#}");
                 }
+
+                std::thread::sleep(ON_CHAIN_SYNC_INTERVAL);
             }
         });
 
@@ -286,24 +305,6 @@ pub fn run(data_dir: String, seed_dir: String, runtime: &Runtime) -> Result<()> 
                         .await
                         .expect("To spawn blocking thread");
                     tokio::time::sleep(PROCESS_INCOMING_DLC_MESSAGES_INTERVAL).await;
-                }
-            }
-        });
-
-        runtime.spawn({
-            let node = node.clone();
-            async move {
-                loop {
-                    let node = node.clone();
-                    if let Err(e) =
-                        spawn_blocking(move || keep_wallet_balance_and_history_up_to_date(&node))
-                            .await
-                            .expect("To spawn blocking task")
-                    {
-                        tracing::error!("Failed to sync balance and wallet history: {e:#}");
-                    }
-
-                    tokio::time::sleep(UPDATE_WALLET_HISTORY_INTERVAL).await;
                 }
             }
         });
