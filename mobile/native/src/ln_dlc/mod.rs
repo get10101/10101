@@ -1,5 +1,9 @@
 use self::node::WalletHistories;
 use crate::api;
+use crate::api::PaymentFlow;
+use crate::api::Status;
+use crate::api::WalletHistoryItem;
+use crate::api::WalletHistoryItemType;
 use crate::calculations;
 use crate::channel_fee::ChannelFeePaymentSubscriber;
 use crate::commons::reqwest_client;
@@ -63,6 +67,7 @@ use time::OffsetDateTime;
 use tokio::runtime::Runtime;
 use tokio::sync::watch;
 use tokio::task::spawn_blocking;
+use trade::Direction;
 
 mod lightning_subscriber;
 mod node;
@@ -70,7 +75,6 @@ mod sync_position_to_dlc;
 
 pub mod channel_status;
 
-use crate::api::Status;
 pub use channel_status::ChannelStatus;
 
 const PROCESS_INCOMING_DLC_MESSAGES_INTERVAL: Duration = Duration::from_millis(200);
@@ -357,9 +361,9 @@ fn keep_wallet_balance_and_history_up_to_date(node: &Node) -> Result<()> {
         let net_sats = details.received as i64 - details.sent as i64;
 
         let (flow, amount_sats) = if net_sats >= 0 {
-            (api::PaymentFlow::Inbound, net_sats as u64)
+            (PaymentFlow::Inbound, net_sats as u64)
         } else {
-            (api::PaymentFlow::Outbound, net_sats.unsigned_abs())
+            (PaymentFlow::Outbound, net_sats.unsigned_abs())
         };
 
         let (timestamp, n_confirmations) = match details.confirmation_time {
@@ -388,13 +392,13 @@ fn keep_wallet_balance_and_history_up_to_date(node: &Node) -> Result<()> {
             Status::Pending
         };
 
-        let wallet_type = api::WalletHistoryItemType::OnChain {
+        let wallet_type = WalletHistoryItemType::OnChain {
             txid: details.txid.to_string(),
             fee_sats: details.fee,
             confirmations: n_confirmations,
         };
 
-        api::WalletHistoryItem {
+        WalletHistoryItem {
             flow,
             amount_sats,
             timestamp,
@@ -430,15 +434,15 @@ fn keep_wallet_balance_and_history_up_to_date(node: &Node) -> Result<()> {
             .unwrap_or(false);
 
         let status = match details.status {
-            HTLCStatus::Pending if expired => api::Status::Expired,
-            HTLCStatus::Pending => api::Status::Pending,
-            HTLCStatus::Succeeded => api::Status::Confirmed,
-            HTLCStatus::Failed => api::Status::Failed,
+            HTLCStatus::Pending if expired => Status::Expired,
+            HTLCStatus::Pending => Status::Pending,
+            HTLCStatus::Succeeded => Status::Confirmed,
+            HTLCStatus::Failed => Status::Failed,
         };
 
         let flow = match details.flow {
-            ln_dlc_node::PaymentFlow::Inbound => api::PaymentFlow::Inbound,
-            ln_dlc_node::PaymentFlow::Outbound => api::PaymentFlow::Outbound,
+            ln_dlc_node::PaymentFlow::Inbound => PaymentFlow::Inbound,
+            ln_dlc_node::PaymentFlow::Outbound => PaymentFlow::Outbound,
         };
 
         let timestamp = details.timestamp.unix_timestamp() as u64;
@@ -449,14 +453,14 @@ fn keep_wallet_balance_and_history_up_to_date(node: &Node) -> Result<()> {
         let wallet_type = if let Some(order_id) =
             description.strip_prefix(FEE_INVOICE_DESCRIPTION_PREFIX_TAKER)
         {
-            api::WalletHistoryItemType::OrderMatchingFee {
+            WalletHistoryItemType::OrderMatchingFee {
                 order_id: order_id.to_string(),
                 payment_hash,
             }
         } else if let Some(funding_txid) =
             description.strip_prefix(JIT_FEE_INVOICE_DESCRIPTION_PREFIX)
         {
-            api::WalletHistoryItemType::JitChannelFee {
+            WalletHistoryItemType::JitChannelFee {
                 funding_txid: funding_txid.to_string(),
                 payment_hash,
             }
@@ -465,7 +469,7 @@ fn keep_wallet_balance_and_history_up_to_date(node: &Node) -> Result<()> {
                 .and_then(|inv| inv.timestamp().checked_add(inv.expiry_time()))
                 .map(|time| OffsetDateTime::from(time).unix_timestamp() as u64);
 
-            api::WalletHistoryItemType::Lightning {
+            WalletHistoryItemType::Lightning {
                 payment_hash,
                 description: details.description.clone(),
                 payment_preimage: details.preimage.clone(),
@@ -475,7 +479,7 @@ fn keep_wallet_balance_and_history_up_to_date(node: &Node) -> Result<()> {
             }
         };
 
-        Some(api::WalletHistoryItem {
+        Some(WalletHistoryItem {
             flow,
             amount_sats,
             timestamp,
@@ -484,67 +488,7 @@ fn keep_wallet_balance_and_history_up_to_date(node: &Node) -> Result<()> {
         })
     });
 
-    let mut trades = vec![];
-    let orders =
-        crate::db::get_filled_orders().context("Failed to get filled orders; skipping update")?;
-
-    let mut open_order = None;
-    for (i, order) in orders.into_iter().enumerate() {
-        // this works because we currently only open and close a position.
-        // that means the second one is always the closing (inbound) transaction.
-        // note: this logic might not work in case of liquidation
-        let (flow, amount_sats) = if i % 2 == 0 {
-            open_order = Some(order);
-            (
-                api::PaymentFlow::Outbound,
-                order
-                    .trader_margin()
-                    .expect("Filled order to have a margin"),
-            )
-        } else {
-            let open_order = open_order.expect("export open order");
-            let trader_margin = open_order
-                .trader_margin()
-                .expect("Filled order to have a margin");
-            let execution_price = Decimal::try_from(
-                order
-                    .execution_price()
-                    .expect("execution price to be set on a filled order"),
-            )?;
-
-            let opening_price = open_order
-                .execution_price()
-                .expect("initial execution price to be set on a filled order");
-
-            let pnl = calculations::calculate_pnl(
-                opening_price,
-                trade::Price {
-                    ask: execution_price,
-                    bid: execution_price,
-                },
-                open_order.quantity,
-                open_order.leverage,
-                open_order.direction,
-            )?;
-            let amount_sats = trader_margin as i64 + pnl;
-
-            (api::PaymentFlow::Inbound, amount_sats as u64)
-        };
-
-        let timestamp = order.creation_timestamp.unix_timestamp() as u64;
-
-        let wallet_type = api::WalletHistoryItemType::Trade {
-            order_id: order.id.to_string(),
-        };
-
-        trades.push(api::WalletHistoryItem {
-            flow,
-            amount_sats,
-            timestamp,
-            status: api::Status::Confirmed, // TODO: Support other order/trade statuses
-            wallet_type,
-        });
-    }
+    let trades = derive_trades_from_filled_orders()?;
 
     let history = chain![on_chain, off_chain, trades]
         .sorted_by(|a, b| b.timestamp.cmp(&a.timestamp))
@@ -558,6 +502,128 @@ fn keep_wallet_balance_and_history_up_to_date(node: &Node) -> Result<()> {
     event::publish(&EventInternal::WalletInfoUpdateNotification(wallet_info));
 
     Ok(())
+}
+
+fn derive_trades_from_filled_orders() -> Result<Vec<WalletHistoryItem>> {
+    let mut trades = vec![];
+    let orders =
+        crate::db::get_filled_orders().context("Failed to get filled orders; skipping update")?;
+
+    match orders.as_slice() {
+        [first, tail @ ..] => {
+            // The first filled order must be an outbound "payment", since coins need to leave the
+            // Lightning wallet to open the first DLC channel.
+            let flow = PaymentFlow::Outbound;
+            let amount_sats = first
+                .trader_margin()
+                .expect("Filled order to have a margin");
+
+            trades.push(WalletHistoryItem {
+                flow,
+                amount_sats,
+                timestamp: first.creation_timestamp.unix_timestamp() as u64,
+                status: Status::Confirmed, // TODO: Support other order/trade statuses
+                wallet_type: WalletHistoryItemType::Trade {
+                    order_id: first.id.to_string(),
+                },
+            });
+
+            let mut total_contracts = match first.direction {
+                Direction::Long => first.quantity,
+                Direction::Short => -first.quantity,
+            };
+            let mut previous_order = first;
+            for order in tail {
+                use trade::Direction::*;
+                let new_contracts = match order.direction {
+                    Long => order.quantity,
+                    Short => -order.quantity,
+                };
+                let updated_total_contracts = total_contracts + new_contracts;
+
+                // Closing the position.
+                if updated_total_contracts == 0.0 {
+                    let open_order = previous_order;
+                    let trader_margin = open_order
+                        .trader_margin()
+                        .expect("Filled order to have a margin");
+                    let execution_price = Decimal::try_from(
+                        order
+                            .execution_price()
+                            .expect("execution price to be set on a filled order"),
+                    )?;
+
+                    let opening_price = open_order
+                        .execution_price()
+                        .expect("initial execution price to be set on a filled order");
+
+                    let pnl = calculations::calculate_pnl(
+                        opening_price,
+                        trade::Price {
+                            ask: execution_price,
+                            bid: execution_price,
+                        },
+                        open_order.quantity,
+                        open_order.leverage,
+                        open_order.direction,
+                    )?;
+
+                    // Closing a position is an inbound "payment", because the DLC channel is closed
+                    // into the Lightning channel.
+                    let flow = PaymentFlow::Inbound;
+                    let amount_sats = (trader_margin as i64 + pnl) as u64;
+
+                    trades.push(WalletHistoryItem {
+                        flow,
+                        amount_sats,
+                        timestamp: order.creation_timestamp.unix_timestamp() as u64,
+                        status: Status::Confirmed,
+                        wallet_type: WalletHistoryItemType::Trade {
+                            order_id: order.id.to_string(),
+                        },
+                    });
+                }
+                // Opening the position.
+                else if total_contracts == 0.0 && updated_total_contracts != 0.0 {
+                    // Closing a position is an outbound "payment", since coins need to leave the
+                    // Lightning wallet to open a DLC channel.
+                    let flow = PaymentFlow::Outbound;
+                    let amount_sats = order
+                        .trader_margin()
+                        .expect("Filled order to have a margin");
+
+                    trades.push(WalletHistoryItem {
+                        flow,
+                        amount_sats,
+                        timestamp: order.creation_timestamp.unix_timestamp() as u64,
+                        status: Status::Confirmed, // TODO: Support other order/trade statuses
+                        wallet_type: WalletHistoryItemType::Trade {
+                            order_id: order.id.to_string(),
+                        },
+                    });
+                } else if total_contracts.signum() == updated_total_contracts.signum()
+                    && updated_total_contracts.abs() > total_contracts.abs()
+                {
+                    debug_assert!(false, "extending the position is unimplemented");
+                } else if total_contracts.signum() == updated_total_contracts.signum()
+                    && updated_total_contracts.abs() < total_contracts.abs()
+                {
+                    debug_assert!(false, "reducing the position is unimplemented");
+                } else {
+                    // Changing position direction e.g. from 100 long to 50 short.
+                    debug_assert!(false, "changing position direction is unimplemented");
+                }
+
+                total_contracts = updated_total_contracts;
+                previous_order = order;
+            }
+        }
+        [] => {
+            // No trades.
+        }
+    }
+
+    Ok(trades)
 }
 
 pub fn get_unused_address() -> String {
