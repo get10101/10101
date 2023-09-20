@@ -1,14 +1,15 @@
-// This file is used to generate the environment variables for the Rust analyzer
-// to make autometrics docstrings resolve the chosen Prometheus URL.
-
+use std::process::Command;
 fn main() {
-    // Uncomment the `premetheus_url` line with the desired URL
-    // Note: Reload Rust analyzer after changing the Prometheus URL to regenerate the links
-
-    // regtest URL
-    let prometheus_url = "http://testnet.itchysats.network:9090";
-
-    // local debugging
-    // let prometheus_url = "http://localhost:9090";
-    println!("cargo:rustc-env=PROMETHEUS_URL={prometheus_url}");
+    let output = Command::new("git")
+        .args(["rev-parse", "HEAD"])
+        .output()
+        .expect("To be able to get commit hash");
+    let git_hash = String::from_utf8(output.stdout).expect("To be a valid string");
+    let output = Command::new("git")
+        .args(["rev-parse", "--abbrev-ref", "HEAD"])
+        .output()
+        .expect("To be able to get branch name");
+    let branch_name = String::from_utf8(output.stdout).expect("To be a valid string");
+    println!("cargo:rustc-env=COMMIT_HASH={}", git_hash);
+    println!("cargo:rustc-env=BRANCH_NAME={}", branch_name);
 }
