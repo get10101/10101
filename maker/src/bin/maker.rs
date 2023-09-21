@@ -163,11 +163,11 @@ async fn main() -> Result<()> {
         opts.orderbook,
         node_pubkey,
         node.node_key(),
-        position_manager,
+        position_manager.clone(),
     )
     .spawn_supervised_connection();
 
-    let app = router(node, exporter, pool, health);
+    let app = router(node, exporter, position_manager, health);
 
     // Start the metrics exporter
     autometrics::prometheus_exporter::init();
