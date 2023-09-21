@@ -123,12 +123,6 @@ async fn main() -> Result<()> {
         }
     });
 
-    // TODO: Monitor orderbook websocket stream with `health_tx.orderbook` when we subscribe to it
-    health_tx
-        .orderbook
-        .send(health::ServiceStatus::Online)
-        .expect("to be able to send");
-
     let _collect_prometheus_metrics = tokio::spawn({
         let node = node.clone();
         let health = health.clone();
@@ -160,6 +154,7 @@ async fn main() -> Result<()> {
         node_pubkey,
         node.node_key(),
         position_manager.clone(),
+        health_tx.orderbook,
     )
     .spawn_supervised_connection();
 
