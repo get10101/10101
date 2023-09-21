@@ -6,14 +6,12 @@ use crate::fund::fund_app_with_faucet;
 use crate::http::init_reqwest;
 use crate::logger::init_tracing;
 use crate::wait_until;
-use bitcoin::Address;
 use bitcoin::Amount;
 use native::api;
 use native::api::ContractSymbol;
 use native::trade::order::api::NewOrder;
 use native::trade::order::api::OrderType;
 use native::trade::position::PositionState;
-use std::str::FromStr;
 use tokio::task::spawn_blocking;
 
 pub struct TestSetup {
@@ -34,13 +32,9 @@ impl TestSetup {
             .get_new_address()
             .await
             .expect("To be able to get a new address from coordinator");
-        let bitcoind = Bitcoind::new(client.clone());
+        let bitcoind = Bitcoind::new_local(client.clone());
         bitcoind
-            .send_to_address(
-                Address::from_str(address.as_str())
-                    .expect("To be able to parse address string to address"),
-                Amount::ONE_BTC,
-            )
+            .send_to_address(&address, Amount::ONE_BTC)
             .await
             .expect("To be able to send to address");
         bitcoind.mine(1).await.expect("To be able to mine a block");

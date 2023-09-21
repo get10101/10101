@@ -1,7 +1,5 @@
 use anyhow::Result;
-use bitcoin::Address;
 use bitcoin::Amount;
-use std::str::FromStr;
 use tests_e2e::app::run_app;
 use tests_e2e::bitcoind::Bitcoind;
 use tests_e2e::coordinator::Coordinator;
@@ -20,12 +18,9 @@ async fn app_can_be_funded_with_lnd_faucet() -> Result<()> {
 
     // ensure coordinator has a free UTXO available
     let address = coordinator.get_new_address().await.unwrap();
-    let bitcoind = Bitcoind::new(client.clone());
+    let bitcoind = Bitcoind::new_local(client.clone());
     bitcoind
-        .send_to_address(
-            Address::from_str(address.as_str()).unwrap(),
-            Amount::ONE_BTC,
-        )
+        .send_to_address(&address, Amount::ONE_BTC)
         .await
         .unwrap();
     bitcoind.mine(1).await.unwrap();

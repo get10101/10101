@@ -187,8 +187,8 @@ pub async fn prepare_interceptable_payment(
     Ok(Json(route_hint_hop.into()))
 }
 
-pub async fn get_unused_address(State(app_state): State<Arc<AppState>>) -> Json<String> {
-    Json(app_state.node.inner.get_unused_address().to_string())
+pub async fn get_unused_address(State(app_state): State<Arc<AppState>>) -> impl IntoResponse {
+    app_state.node.inner.get_unused_address().to_string()
 }
 
 pub async fn get_node_info(

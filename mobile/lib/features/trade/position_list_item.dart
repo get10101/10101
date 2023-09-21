@@ -53,7 +53,6 @@ class _PositionListItemState extends State<PositionListItem> {
     Position notNullPosition = widget.position!;
 
     // We're a bit conservative, we only enable action when we have both bid and ask
-    // XXX: Not sure whether ask or bid price here
     bool priceAvailable = notNullPosition.direction == Direction.long
         ? positionChangeNotifier.price?.ask != null
         : positionChangeNotifier.price?.bid != null;

@@ -1,6 +1,7 @@
 use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
+use bitcoin::Address;
 use bitcoin::Amount;
 use clap::Parser;
 use ln_dlc_node::node::NodeInfo;
@@ -9,6 +10,8 @@ use reqwest::Response;
 use reqwest::StatusCode;
 use serde::Deserialize;
 use std::time::Duration;
+use tests_e2e::bitcoind;
+use tests_e2e::bitcoind::Bitcoind;
 use tests_e2e::coordinator::Coordinator;
 use tests_e2e::http::init_reqwest;
 use tests_e2e::maker::Maker;
@@ -36,22 +39,27 @@ pub struct Opts {
 }
 
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<()> {
     init_tracing(LevelFilter::DEBUG).expect("tracing to initialise");
     let opts = Opts::parse();
-    fund_everything(&opts.faucet, &opts.coordinator, &opts.maker)
-        .await
-        .expect("to be able to fund");
+    fund_everything(&opts.faucet, &opts.coordinator, &opts.maker).await
 }
 
 async fn fund_everything(faucet: &str, coordinator: &str, maker: &str) -> Result<()> {
-    let coordinator = Coordinator::new(init_reqwest(), coordinator);
+    let client = init_reqwest();
+    let coordinator = Coordinator::new(client.clone(), coordinator);
     let coord_addr = coordinator.get_new_address().await?;
-    fund(&coord_addr, Amount::ONE_BTC, faucet).await?;
+
+    let bitcoind = bitcoind::Bitcoind::new(client, faucet.to_string() + "/bitcoin");
+
+    bitcoind
+        .fund(&coord_addr, Amount::ONE_BTC)
+        .await
+        .context("Could not fund the faucet")?;
     let maker = Maker::new(init_reqwest(), maker);
     let maker_addr = maker.get_new_address().await?;
-    fund(&maker_addr.to_string(), Amount::ONE_BTC, faucet).await?;
-    mine(10, faucet).await?;
+    bitcoind.fund(&maker_addr, Amount::ONE_BTC).await?;
+    bitcoind.mine(10).await?;
     maker
         .sync_on_chain()
         .await
@@ -87,15 +95,15 @@ async fn fund_everything(faucet: &str, coordinator: &str, maker: &str) -> Result
         .json()
         .await?;
 
-    fund(
-        &lnd_addr.address,
-        Amount::ONE_BTC
-            .checked_mul(2)
-            .expect("small integers to multiply"),
-        faucet,
-    )
-    .await?;
-    mine(10, faucet).await?;
+    bitcoind
+        .fund(
+            &lnd_addr.address,
+            Amount::ONE_BTC
+                .checked_mul(2)
+                .expect("small integers to multiply"),
+        )
+        .await?;
+    bitcoind.mine(10).await?;
 
     maker
         .sync_on_chain()
@@ -121,6 +129,7 @@ async fn fund_everything(faucet: &str, coordinator: &str, maker: &str) -> Result
             .checked_div(10)
             .expect("small integers to divide"),
         faucet,
+        &bitcoind,
     )
     .await?;
 
@@ -152,54 +161,11 @@ async fn fund_everything(faucet: &str, coordinator: &str, maker: &str) -> Result
 
 #[derive(Deserialize)]
 struct LndAddr {
-    address: String,
+    address: Address,
 }
 
 async fn get_text(url: &str) -> Result<String> {
     Ok(reqwest::get(url).await?.text().await?)
-}
-
-#[derive(Deserialize, Debug)]
-struct BitcoindResponse {
-    result: String,
-}
-
-async fn fund(address: &str, amount: Amount, faucet: &str) -> Result<Response> {
-    post_query(
-        "bitcoin",
-        format!(
-            r#"{{"jsonrpc": "1.0", "method": "sendtoaddress", "params": ["{}", "{}"]}}"#,
-            address,
-            amount.to_btc()
-        ),
-        faucet,
-    )
-    .await
-}
-
-/// Instructs `bitcoind` to generate to address.
-async fn mine(n: u16, faucet: &str) -> Result<()> {
-    let response = post_query(
-        "bitcoin",
-        r#"{"jsonrpc": "1.0", "method": "getnewaddress", "params": []}"#.to_string(),
-        faucet,
-    )
-    .await?;
-    let response: BitcoindResponse = response.json().await?;
-
-    post_query(
-        "bitcoin",
-        format!(
-            r#"{{"jsonrpc": "1.0", "method": "generatetoaddress", "params": [{}, "{}"]}}"#,
-            n, response.result
-        ),
-        faucet,
-    )
-    .await?;
-    // For the mined blocks to be picked up by the subsequent wallet syncs
-    tokio::time::sleep(Duration::from_secs(5)).await;
-
-    Ok(())
 }
 
 async fn post_query(path: &str, body: String, faucet: &str) -> Result<Response> {
@@ -254,8 +220,13 @@ async fn get_node_info(faucet: &str) -> Result<Option<LndNodeInfo>> {
 /// Instructs lnd to open a public channel with the target node.
 /// 1. Connect to the target node.
 /// 2. Open channel to the target node.
-async fn open_channel(node_info: &NodeInfo, amount: Amount, faucet: &str) -> Result<()> {
-    // XXX Hacky way of checking whether we need to patch the coordinator
+async fn open_channel(
+    node_info: &NodeInfo,
+    amount: Amount,
+    faucet: &str,
+    bitcoind: &Bitcoind,
+) -> Result<()> {
+    // Hacky way of checking whether we need to patch the coordinator
     // address when running locally
     let host = if faucet.to_string().contains("localhost") {
         let port = node_info.address.port();
@@ -293,13 +264,12 @@ async fn open_channel(node_info: &NodeInfo, amount: Amount, faucet: &str) -> Res
     )
     .await?;
 
-    mine(10, faucet).await?;
+    bitcoind.mine(10).await?;
 
     tracing::info!("connected to channel");
 
     tracing::info!("You can now use the lightning faucet {faucet}/faucet/");
 
-    // TODO: Inspect the channel manager to wait until channel is usable before returning
     Ok(())
 }
 

@@ -1,5 +1,6 @@
 use anyhow::Context;
 use anyhow::Result;
+use bitcoin::Address;
 use coordinator::admin::Balance;
 use coordinator::routes::InvoiceParams;
 use ln_dlc_node::lightning_invoice;
@@ -95,19 +96,8 @@ impl Coordinator {
         Ok(invoice)
     }
 
-    // TODO: Introduce strong type
-    pub async fn get_new_address(&self) -> Result<String> {
-        Ok(self
-            .get("/api/newaddress")
-            .await?
-            .text()
-            .await?
-            .strip_prefix('"')
-            .to_owned()
-            .expect("prefix")
-            .strip_suffix('"')
-            .expect("suffix")
-            .to_owned())
+    pub async fn get_new_address(&self) -> Result<Address> {
+        Ok(self.get("/api/newaddress").await?.text().await?.parse()?)
     }
 
     pub async fn get_balance(&self) -> Result<Balance> {
