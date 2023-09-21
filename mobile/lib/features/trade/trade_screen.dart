@@ -1,11 +1,5 @@
-import 'dart:io' show Platform;
-
 import 'package:candlesticks/candlesticks.dart';
 import 'package:flutter/material.dart';
-import 'package:get_10101/common/domain/background_task.dart';
-import 'package:get_10101/common/domain/model.dart';
-import 'package:get_10101/common/task_status_dialog.dart';
-import 'package:get_10101/common/value_data_row.dart';
 import 'package:get_10101/features/trade/candlestick_change_notifier.dart';
 import 'package:get_10101/features/trade/contract_symbol_icon.dart';
 import 'package:get_10101/features/trade/domain/contract_symbol.dart';
@@ -19,14 +13,13 @@ import 'package:get_10101/features/trade/position_list_item.dart';
 import 'package:get_10101/features/trade/submit_order_change_notifier.dart';
 import 'package:get_10101/features/trade/trade_bottom_sheet.dart';
 import 'package:get_10101/features/trade/trade_bottom_sheet_confirmation.dart';
+import 'package:get_10101/features/trade/trade_dialog.dart';
 import 'package:get_10101/features/trade/trade_tabs.dart';
 import 'package:get_10101/features/trade/trade_theme.dart';
 import 'package:get_10101/features/trade/trade_value_change_notifier.dart';
 import 'package:get_10101/util/constants.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import 'package:share_plus/share_plus.dart';
-import 'package:social_share/social_share.dart';
 
 class TradeScreen extends StatelessWidget {
   static const route = "/trade";
@@ -46,61 +39,12 @@ class TradeScreen extends StatelessWidget {
 
     const double tradeButtonWidth = 100.0;
 
-    SubmitOrderChangeNotifier submitOrderChangeNotifier =
-        context.watch<SubmitOrderChangeNotifier>();
-
-    if (submitOrderChangeNotifier.pendingOrder != null &&
-        submitOrderChangeNotifier.pendingOrder!.state == PendingOrderState.submitting) {
-      final pendingOrder = submitOrderChangeNotifier.pendingOrder;
-
-      Amount pnl = Amount(0);
-      if (pendingOrder!.positionAction == PositionAction.close &&
-          context.read<PositionChangeNotifier>().positions.containsKey(ContractSymbol.btcusd)) {
-        final position = context.read<PositionChangeNotifier>().positions[ContractSymbol.btcusd];
-        pnl = position!.unrealizedPnl != null ? position.unrealizedPnl! : Amount(0);
-      }
-
-      WidgetsBinding.instance.addPostFrameCallback((_) async {
-        return await showDialog(
-            context: context,
-            useRootNavigator: true,
-            barrierDismissible: false, // Prevent user from leaving
-            builder: (BuildContext context) {
-              return Selector<SubmitOrderChangeNotifier, PendingOrderState>(
-                selector: (_, provider) => provider.pendingOrder!.state,
-                builder: (context, state, child) {
-                  Widget body =
-                      createSubmitWidget(pendingOrder, pnl, submitOrderChangeNotifier, context);
-
-                  switch (state) {
-                    case PendingOrderState.submitting:
-                      return TaskStatusDialog(
-                          title: "Submit Order", status: TaskStatus.pending, content: body);
-                    case PendingOrderState.submittedSuccessfully:
-                      return TaskStatusDialog(
-                          title: "Fill Order", status: TaskStatus.success, content: body);
-                    case PendingOrderState.submissionFailed:
-                      // TODO: This failure case has to be handled differently; are we planning to show orders that failed to submit in the order history?
-                      return TaskStatusDialog(
-                          title: "Submit Order", status: TaskStatus.failed, content: body);
-                    case PendingOrderState.orderFilled:
-                      return TaskStatusDialog(
-                          title: "Fill Order", status: TaskStatus.success, content: body);
-                    case PendingOrderState.orderFailed:
-                      return TaskStatusDialog(
-                          title: "Fill Order", status: TaskStatus.failed, content: body);
-                  }
-                },
-              );
-            });
-      });
-    }
-
     OrderChangeNotifier orderChangeNotifier = context.watch<OrderChangeNotifier>();
     PositionChangeNotifier positionChangeNotifier = context.watch<PositionChangeNotifier>();
     CandlestickChangeNotifier candlestickChangeNotifier =
         context.watch<CandlestickChangeNotifier>();
     TradeValuesChangeNotifier tradeValuesChangeNotifier = context.read<TradeValuesChangeNotifier>();
+    SubmitOrderChangeNotifier submitOrderChangeNotifier = context.read<SubmitOrderChangeNotifier>();
 
     SizedBox listBottomScrollSpace = const SizedBox(
       height: 60,
@@ -209,7 +153,19 @@ class TradeScreen extends StatelessWidget {
                                 onConfirmation: () {
                                   submitOrderChangeNotifier.closePosition(
                                       position, tradeValues.price, tradeValues.fee);
+
+                                  // Return to the trade screen before submitting the pending order so that the dialog is displayed correctly
                                   GoRouter.of(context).pop();
+
+                                  // Show immediately the pending dialog, when submitting a market order.
+                                  // TODO(holzeis): We should only show the dialog once we've received a match.
+                                  showDialog(
+                                      context: context,
+                                      useRootNavigator: true,
+                                      barrierDismissible: false, // Prevent user from leaving
+                                      builder: (BuildContext context) {
+                                        return const TradeDialog();
+                                      });
                                 },
                                 close: true);
                           },
@@ -299,101 +255,5 @@ class TradeScreen extends StatelessWidget {
             ],
           ),
         ));
-  }
-
-  Widget createSubmitWidget(PendingOrder pendingOrder, Amount pnl,
-      SubmitOrderChangeNotifier submitOrderChangeNotifier, BuildContext context) {
-    String bottomText;
-    String pnlText = "Unrealized P/L";
-
-    switch (pendingOrder.state) {
-      case PendingOrderState.submittedSuccessfully:
-      case PendingOrderState.submitting:
-        bottomText = "Please wait while the order is being processed.";
-        break;
-      case PendingOrderState.orderFailed:
-      case PendingOrderState.submissionFailed:
-        bottomText = "Sorry, we couldn't match your order. Please try again later.";
-        break;
-      case PendingOrderState.orderFilled:
-        if (pendingOrder.positionAction == PositionAction.close) {
-          bottomText = "Your position has been closed.";
-          // At this point, the position is closed so P/L has been realized
-          // TODO - calculate based on subchannel finalized event
-          pnlText = "P/L";
-        } else {
-          bottomText = "Congratulations! Your position will be shown in the Positions tab.";
-        }
-        break;
-    }
-
-    Column body = Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        SizedBox(
-          width: 200,
-          child: Wrap(
-            runSpacing: 10,
-            children: [
-              pendingOrder.positionAction == PositionAction.close
-                  ? ValueDataRow(type: ValueType.amount, value: pnl, label: pnlText)
-                  : ValueDataRow(
-                      type: ValueType.amount,
-                      value: submitOrderChangeNotifier.pendingOrderValues?.margin,
-                      label: "Margin"),
-              ValueDataRow(
-                  type: ValueType.amount,
-                  value: submitOrderChangeNotifier.pendingOrderValues?.fee,
-                  label: "Fee")
-            ],
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.only(top: 20, left: 10, right: 10, bottom: 5),
-          child: Text(bottomText,
-              style: DefaultTextStyle.of(context).style.apply(fontSizeFactor: 1.0)),
-        ),
-      ],
-    );
-
-    // Add "Do not close the app" while order is pending
-    if (pendingOrder.state == PendingOrderState.submitting ||
-        pendingOrder.state == PendingOrderState.submittedSuccessfully) {
-      body.children.add(
-        Padding(
-          padding: const EdgeInsets.only(left: 10, right: 10, bottom: 5),
-          child: Text("Do not close the app!",
-              style: DefaultTextStyle.of(context)
-                  .style
-                  .apply(fontSizeFactor: 1.0, fontWeightDelta: 1)),
-        ),
-      );
-    }
-
-    // Only display "share on twitter" when order is filled
-    if (pendingOrder.state == PendingOrderState.orderFilled) {
-      body.children.add(Padding(
-        padding: const EdgeInsets.only(top: 20, left: 10, right: 10, bottom: 5),
-        child: ElevatedButton(
-            onPressed: () async {
-              await shareTweet(pendingOrder.positionAction);
-            },
-            child: const Text("Share on Twitter")),
-      ));
-    }
-
-    return body;
-  }
-
-  Future<void> shareTweet(PositionAction action) async {
-    String actionStr = action == PositionAction.open ? "opened" : "closed";
-    String shareText =
-        "Just $actionStr a #selfcustodial position using #DLC with @get10101 🚀. The future of decentralised finance starts now! #Bitcoin";
-
-    if (Platform.isAndroid || Platform.isIOS) {
-      await SocialShare.shareTwitter(shareText);
-    } else {
-      await Share.share(shareText);
-    }
   }
 }

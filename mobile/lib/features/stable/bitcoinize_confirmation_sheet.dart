@@ -54,26 +54,11 @@ class BitcoinizeBottomSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final stableValuesChangeNotifier = context.watch<StableValuesChangeNotifier>();
-    final submitOrderChangeNotifier = context.watch<SubmitOrderChangeNotifier>();
 
     final stableValues = stableValuesChangeNotifier.stableValues();
     stableValues.quantity = position.quantity;
     stableValues.direction = Direction.long;
 
-    if (submitOrderChangeNotifier.pendingOrder != null &&
-        submitOrderChangeNotifier.pendingOrder!.state == PendingOrderState.submitting) {
-      final pendingOrder = submitOrderChangeNotifier.pendingOrder;
-
-      WidgetsBinding.instance.addPostFrameCallback((_) async {
-        return await showDialog(
-            context: context,
-            useRootNavigator: true,
-            barrierDismissible: false, // Prevent user from leaving
-            builder: (BuildContext context) {
-              return StableDialog(pendingOrder: pendingOrder!);
-            });
-      });
-    }
     return Container(
       padding: const EdgeInsets.all(20),
       child: Column(
@@ -116,7 +101,16 @@ class BitcoinizeBottomSheet extends StatelessWidget {
                     submitOrderChangeNotifier.submitPendingOrder(
                         stableValues, PositionAction.close);
 
+                    // Return to the stable screen before submitting the pending order so that the dialog is displayed under the correct context
                     GoRouter.of(context).pop();
+
+                    showDialog(
+                        context: context,
+                        useRootNavigator: true,
+                        barrierDismissible: false, // Prevent user from leaving
+                        builder: (BuildContext context) {
+                          return const StableDialog();
+                        });
                   },
                   child: const Text("Confirm")),
             ],

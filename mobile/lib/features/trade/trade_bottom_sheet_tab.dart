@@ -16,6 +16,7 @@ import 'package:get_10101/features/trade/domain/trade_values.dart';
 import 'package:get_10101/features/trade/leverage_slider.dart';
 import 'package:get_10101/features/trade/submit_order_change_notifier.dart';
 import 'package:get_10101/features/trade/trade_bottom_sheet_confirmation.dart';
+import 'package:get_10101/features/trade/trade_dialog.dart';
 import 'package:get_10101/features/trade/trade_theme.dart';
 import 'package:get_10101/features/trade/trade_value_change_notifier.dart';
 import 'package:get_10101/features/wallet/domain/wallet_info.dart';
@@ -193,10 +194,19 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
                             submitOrderChangeNotifier.submitPendingOrder(
                                 tradeValues, PositionAction.open);
 
-                            // TODO: Explore if it would be easier / better handle the popups as routes
-                            // Pop twice to navigate back to the trade screen.
+                            // Return to the trade screen before submitting the pending order so that the dialog is displayed under the correct context
                             GoRouter.of(context).pop();
                             GoRouter.of(context).pop();
+
+                            // Show immediately the pending dialog, when submitting a market order.
+                            // TODO(holzeis): We should only show the dialog once we've received a match.
+                            showDialog(
+                                context: context,
+                                useRootNavigator: true,
+                                barrierDismissible: false, // Prevent user from leaving
+                                builder: (BuildContext context) {
+                                  return const TradeDialog();
+                                });
                           });
                     }
                   },
