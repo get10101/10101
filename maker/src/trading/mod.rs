@@ -1,5 +1,4 @@
 use crate::health::ServiceStatus;
-use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::Network;
 use futures::TryStreamExt;
@@ -20,6 +19,10 @@ use uuid::Uuid;
 mod bitmex_client;
 mod orderbook_http_client;
 
+/// Creates orders based of the current price feed from Bitmex.
+///
+/// In the unlikely event that the price feed is closed, the function will
+/// continue to try to reconnect after Duration specified in `reconnect_after`.
 pub async fn run(
     orderbook_url: &Url,
     maker_id: PublicKey,
@@ -27,12 +30,12 @@ pub async fn run(
     concurrent_orders: usize,
     order_expiry_after: Duration,
     bitmex_pricefeed_tx: watch::Sender<ServiceStatus>,
-) -> Result<()> {
+    reconnect_after: std::time::Duration,
+) {
     let network = match network {
         Network::Bitcoin => bitmex_stream::Network::Mainnet,
         _ => bitmex_stream::Network::Testnet,
     };
-    let mut price_stream = bitmex_client::bitmex(network).await;
 
     let orderbook_client = OrderbookClient::new();
 
@@ -51,33 +54,32 @@ pub async fn run(
         )
     };
 
-    while let Some(quote) = price_stream.try_next().await? {
-        bitmex_pricefeed_tx
-            .send(ServiceStatus::Online)
-            .expect("Receiver not to be dropped");
-        tracing::debug!("Received new quote {quote:?}");
+    loop {
+        let mut price_stream = bitmex_client::bitmex(network).await;
+        while let Ok(Some(quote)) = price_stream.try_next().await {
+            let _ = bitmex_pricefeed_tx.send(ServiceStatus::Online);
+            tracing::debug!("Received new quote {quote:?}");
 
-        // Clear stale orders. They should have expired by now.
-        for order in orders.iter() {
-            delete_order(&orderbook_client, orderbook_url, order).await;
+            // Clear stale orders. They should have expired by now.
+            for order in orders.iter() {
+                delete_order(&orderbook_client, orderbook_url, order).await;
+            }
+            orders.clear();
+
+            for _i in 0..concurrent_orders {
+                if let Some(order) = add_new_order(quote.bid(), Direction::Long).await {
+                    orders.push(order)
+                };
+
+                if let Some(order) = add_new_order(quote.ask(), Direction::Short).await {
+                    orders.push(order)
+                };
+            }
         }
-        orders.clear();
-
-        for _i in 0..concurrent_orders {
-            if let Some(order) = add_new_order(quote.bid(), Direction::Long).await {
-                orders.push(order)
-            };
-
-            if let Some(order) = add_new_order(quote.ask(), Direction::Short).await {
-                orders.push(order)
-            };
-        }
+        tracing::error!("Bitmex pricefeed stream closed");
+        let _ = bitmex_pricefeed_tx.send(ServiceStatus::Offline);
+        tokio::time::sleep(reconnect_after).await;
     }
-    bitmex_pricefeed_tx
-        .send(ServiceStatus::Offline)
-        .expect("Receiver not to be dropped");
-
-    Ok(())
 }
 
 async fn add_order(

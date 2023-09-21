@@ -1,3 +1,4 @@
+use crate::health::ServiceStatus;
 use crate::position;
 use crate::position::OrderTenTenOne;
 use crate::position::PositionUpdateTenTenOne;
@@ -15,6 +16,7 @@ use orderbook_commons::Message;
 use orderbook_commons::OrderbookRequest;
 use reqwest::Url;
 use std::time::Duration;
+use tokio::sync::watch;
 use tokio_tungstenite::tungstenite;
 
 const RECONNECT_TIMEOUT: Duration = Duration::from_secs(2);
@@ -31,6 +33,8 @@ pub struct Client {
     auth_sk: SecretKey,
     /// Where to forward position updates based on matched trades.
     position_manager: xtra::Address<position::Manager>,
+    /// Where to send the current status of the orderbook (for system health)
+    orderbook_status: watch::Sender<ServiceStatus>,
 }
 
 impl Client {
@@ -39,6 +43,7 @@ impl Client {
         trader_id: PublicKey,
         auth_sk: SecretKey,
         position_manager: xtra::Address<position::Manager>,
+        orderbook_status: watch::Sender<ServiceStatus>,
     ) -> Self {
         let domain = endpoint.domain().expect("domain");
         let port = endpoint.port().expect("port");
@@ -50,6 +55,7 @@ impl Client {
             trader_id,
             auth_sk,
             position_manager,
+            orderbook_status,
         }
     }
 
@@ -58,11 +64,12 @@ impl Client {
     /// The maker uses this to learn about the orders which resulted in a match.
     ///
     /// The task will attempt to reconnect to the WebSocket API if it encounters any errors.
-    pub fn spawn_supervised_connection(&self) {
+    pub fn spawn_supervised_connection(self) {
         let auth_sk = self.auth_sk;
         let trader_id = self.trader_id;
         let url = self.url.clone();
-        let position_manager = self.position_manager.clone();
+        let position_manager = self.position_manager;
+        let orderbook_status = self.orderbook_status;
 
         tokio::spawn(async move {
             let auth_pk = auth_sk.public_key(SECP256K1);
@@ -77,39 +84,50 @@ impl Client {
             loop {
                 let url = url.clone();
                 let authenticate = auth_fn;
-                let (mut sink, mut stream) =
-                    orderbook_client::subscribe_with_authentication(url, authenticate)
-                        .await
-                        .expect("to be able to connect to coordinator WS API");
+                match orderbook_client::subscribe_with_authentication(url, authenticate).await {
+                    Ok((mut sink, mut stream)) => {
+                        // We request the filled matches for all our limit orders periodically.
+                        let (task, _handle) = async move {
+                            loop {
+                                if let Err(e) = sink
+                                    .send(
+                                        tungstenite::Message::try_from(
+                                            OrderbookRequest::LimitOrderFilledMatches { trader_id },
+                                        )
+                                        .expect("valid message"),
+                                    )
+                                    .await
+                                {
+                                    tracing::error!(
+                                        "Failed to ask for limit order filled matches: {e:#}"
+                                    );
+                                };
 
-                // We request the filled matches for all our limit orders periodically.
-                let (task, _handle) = async move {
-                    loop {
-                        if let Err(e) = sink
-                            .send(
-                                tungstenite::Message::try_from(
-                                    OrderbookRequest::LimitOrderFilledMatches { trader_id },
-                                )
-                                .expect("valid message"),
+                                tokio::time::sleep(REQUEST_FILLED_MATCHES_INTERVAL).await;
+                            }
+                        }
+                        .remote_handle();
+
+                        tokio::spawn(task);
+
+                        while let Ok(Some(msg)) = stream.try_next().await {
+                            if let Err(e) = process_message(
+                                msg,
+                                &position_manager,
+                                &trader_id,
+                                &orderbook_status,
                             )
                             .await
-                        {
-                            tracing::error!("Failed to ask for limit order filled matches: {e:#}");
-                        };
-
-                        tokio::time::sleep(REQUEST_FILLED_MATCHES_INTERVAL).await;
+                            {
+                                tracing::error!("Failed to process orderbook message: {e:#}");
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        tracing::error!("Failed to connect to orderbook WS: {e:#}");
                     }
                 }
-                .remote_handle();
-
-                tokio::spawn(task);
-
-                while let Ok(Some(msg)) = stream.try_next().await {
-                    if let Err(e) = process_message(msg, &position_manager, &trader_id).await {
-                        tracing::error!("Failed to process orderbook message: {e:#}");
-                    }
-                }
-
+                let _ = orderbook_status.send(ServiceStatus::Offline);
                 tokio::time::sleep(RECONNECT_TIMEOUT).await;
                 tracing::debug!(
                     ?RECONNECT_TIMEOUT,
@@ -124,6 +142,7 @@ async fn process_message(
     msg: String,
     position_manager: &xtra::Address<position::Manager>,
     maker_trader_id: &PublicKey,
+    orderbook_status: &watch::Sender<ServiceStatus>,
 ) -> Result<()> {
     tracing::trace!(%msg, "New message from orderbook");
 
@@ -161,6 +180,7 @@ async fn process_message(
         }
         Message::Authenticated => {
             tracing::info!("Orderbook authentication succeeded");
+            let _ = orderbook_status.send(ServiceStatus::Online);
         }
         Message::InvalidAuthentication(e) => {
             tracing::error!("Orderbook authentication failed: {e}");
