@@ -108,27 +108,7 @@ class _StableBottomSheet extends State<StableBottomSheet> {
 
     final ChannelInfoService channelInfoService = context.read<ChannelInfoService>();
 
-    SubmitOrderChangeNotifier submitOrderChangeNotifier =
-        context.watch<SubmitOrderChangeNotifier>();
-
     WalletInfo walletInfo = context.watch<WalletChangeNotifier>().walletInfo;
-
-    if (submitOrderChangeNotifier.pendingOrder != null &&
-        submitOrderChangeNotifier.pendingOrder!.state == PendingOrderState.submitting) {
-      final pendingOrder = submitOrderChangeNotifier.pendingOrder;
-
-      WidgetsBinding.instance.addPostFrameCallback((_) async {
-        return await showDialog(
-            context: context,
-            useRootNavigator: true,
-            barrierDismissible: false, // Prevent user from leaving
-            builder: (BuildContext context) {
-              return StableDialog(
-                pendingOrder: pendingOrder!,
-              );
-            });
-      });
-    }
 
     return Form(
         key: _formKey,
@@ -246,15 +226,25 @@ class _StableBottomSheet extends State<StableBottomSheet> {
                           ElevatedButton(
                               onPressed: () {
                                 if (_formKey.currentState!.validate()) {
+                                  final submitOrderChangeNotifier =
+                                      context.read<SubmitOrderChangeNotifier>();
+
                                   TradeValues tradeValues =
                                       stableValuesChangeNotifier.stableValues();
 
-                                  final submitOrderChangeNotifier =
-                                      context.read<SubmitOrderChangeNotifier>();
                                   submitOrderChangeNotifier.submitPendingOrder(
                                       tradeValues, PositionAction.open);
 
+                                  // Return to the trade screen before submitting the pending order so that the dialog is displayed under the correct context
                                   GoRouter.of(context).pop();
+
+                                  showDialog(
+                                      context: context,
+                                      useRootNavigator: true,
+                                      barrierDismissible: false, // Prevent user from leaving
+                                      builder: (BuildContext context) {
+                                        return const StableDialog();
+                                      });
                                 }
                               },
                               child: const Text("Confirm")),
