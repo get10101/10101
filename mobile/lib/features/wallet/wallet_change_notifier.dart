@@ -39,7 +39,6 @@ class WalletChangeNotifier extends ChangeNotifier implements Subscriber {
   Amount onChain() => walletInfo.balances.onChain;
   Amount lightning() => walletInfo.balances.lightning;
 
-  // TODO: This is not optimal, because we map the WalletInfo in the change notifier. We can do this, but it would be better to do this on the service level.
   @override
   void notify(bridge.Event event) {
     if (event is bridge.Event_WalletInfoUpdateNotification) {

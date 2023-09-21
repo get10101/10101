@@ -26,8 +26,6 @@ pub struct OffChainBalance {
 }
 
 impl OffChainBalance {
-    // TODO: We might want to reconsider how we convert from msats to sats.
-
     /// Available balance, in sats.
     pub fn available(&self) -> u64 {
         self.available / 1000
@@ -51,7 +49,7 @@ where
     pub fn wallet(
         &self,
     ) -> Arc<ldk_node_wallet::Wallet<sled::Tree, EsploraBlockchain, FeeRateEstimator>> {
-        self.wallet.inner()
+        self.wallet.ldk_wallet()
     }
 
     pub fn get_unused_address(&self) -> Address {
@@ -66,7 +64,7 @@ where
 
     pub fn get_on_chain_balance(&self) -> Result<bdk::Balance> {
         self.wallet
-            .inner()
+            .ldk_wallet()
             .get_balance()
             .context("Failed to get on-chain balance")
     }

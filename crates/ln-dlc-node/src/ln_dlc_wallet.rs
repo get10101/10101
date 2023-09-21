@@ -84,8 +84,7 @@ impl LnDlcWallet {
         }
     }
 
-    // TODO: Better to keep this private and expose the necessary APIs instead.
-    pub fn inner(
+    pub fn ldk_wallet(
         &self,
     ) -> Arc<ldk_node_wallet::Wallet<sled::Tree, EsploraBlockchain, FeeRateEstimator>> {
         self.ln_wallet.clone()
@@ -119,7 +118,7 @@ impl LnDlcWallet {
     }
 
     pub fn sync_and_update_address_cache(&self) -> Result<()> {
-        self.inner().sync()?;
+        self.ldk_wallet().sync()?;
 
         self.update_address_cache()?;
 
@@ -127,7 +126,7 @@ impl LnDlcWallet {
     }
 
     fn update_address_cache(&self) -> Result<()> {
-        let address = self.inner().get_last_unused_address()?;
+        let address = self.ldk_wallet().get_last_unused_address()?;
         *self.address_cache.write() = address;
 
         Ok(())

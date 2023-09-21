@@ -67,7 +67,7 @@ impl Bitcoind {
             .post(&self.host)
             .body(format!(
                 r#"{{"jsonrpc": "1.0", "method": "sendtoaddress", "params": ["{}", "{}", "", "", false, false, null, null, false, 1.0]}}"#,
-                *address,
+                address,
                 amount.to_btc(),
             ))
             .send()

@@ -398,7 +398,7 @@ where
 
     let opt_max_allowed_fee = node
         .wallet
-        .inner()
+        .ldk_wallet()
         .settings()
         .await
         .max_allowed_tx_fee_rate_when_opening_channel;

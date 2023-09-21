@@ -104,7 +104,6 @@ impl Settings {
     pub fn to_ldk_settings(&self) -> UserConfig {
         // Since we currently have to keep the coordinator settings in sync with the tests in
         // `ln-dlc-node`, we let the library define the default settings (which is bad)
-        // TODO: Don't get the settings from ln_dlc_node
         let mut ldk_config = ln_dlc_node::config::coordinator_config();
 
         ldk_config

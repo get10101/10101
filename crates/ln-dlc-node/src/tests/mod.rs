@@ -244,7 +244,7 @@ impl Node<InMemoryStore> {
     }
 
     async fn get_confirmed_balance(&self) -> Result<u64> {
-        let balance = self.wallet.inner().get_balance()?;
+        let balance = self.wallet.ldk_wallet().get_balance()?;
 
         Ok(balance.confirmed)
     }
