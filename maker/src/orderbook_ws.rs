@@ -77,39 +77,44 @@ impl Client {
             loop {
                 let url = url.clone();
                 let authenticate = auth_fn;
-                let (mut sink, mut stream) =
-                    orderbook_client::subscribe_with_authentication(url, authenticate)
-                        .await
-                        .expect("to be able to connect to coordinator WS API");
+                match orderbook_client::subscribe_with_authentication(url, authenticate).await {
+                    Ok((mut sink, mut stream)) => {
+                        // We request the filled matches for all our limit orders periodically.
+                        let (task, _handle) = async move {
+                            loop {
+                                if let Err(e) = sink
+                                    .send(
+                                        tungstenite::Message::try_from(
+                                            OrderbookRequest::LimitOrderFilledMatches { trader_id },
+                                        )
+                                        .expect("valid message"),
+                                    )
+                                    .await
+                                {
+                                    tracing::error!(
+                                        "Failed to ask for limit order filled matches: {e:#}"
+                                    );
+                                };
 
-                // We request the filled matches for all our limit orders periodically.
-                let (task, _handle) = async move {
-                    loop {
-                        if let Err(e) = sink
-                            .send(
-                                tungstenite::Message::try_from(
-                                    OrderbookRequest::LimitOrderFilledMatches { trader_id },
-                                )
-                                .expect("valid message"),
-                            )
-                            .await
-                        {
-                            tracing::error!("Failed to ask for limit order filled matches: {e:#}");
-                        };
+                                tokio::time::sleep(REQUEST_FILLED_MATCHES_INTERVAL).await;
+                            }
+                        }
+                        .remote_handle();
 
-                        tokio::time::sleep(REQUEST_FILLED_MATCHES_INTERVAL).await;
+                        tokio::spawn(task);
+
+                        while let Ok(Some(msg)) = stream.try_next().await {
+                            if let Err(e) =
+                                process_message(msg, &position_manager, &trader_id, &orderbook_status).await
+                            {
+                                tracing::error!("Failed to process orderbook message: {e:#}");
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        tracing::error!("Failed to connect to orderbook WS: {e:#}");
                     }
                 }
-                .remote_handle();
-
-                tokio::spawn(task);
-
-                while let Ok(Some(msg)) = stream.try_next().await {
-                    if let Err(e) = process_message(msg, &position_manager, &trader_id).await {
-                        tracing::error!("Failed to process orderbook message: {e:#}");
-                    }
-                }
-
                 tokio::time::sleep(RECONNECT_TIMEOUT).await;
                 tracing::debug!(
                     ?RECONNECT_TIMEOUT,
