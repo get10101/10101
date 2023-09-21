@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:get_10101/common/domain/background_task.dart';
+import 'package:get_10101/common/task_status_dialog.dart';
 import 'package:get_10101/common/value_data_row.dart';
-import 'package:get_10101/features/stable/stable_submission_status_dialog.dart';
 import 'package:get_10101/features/trade/submit_order_change_notifier.dart';
 import 'package:provider/provider.dart';
 
@@ -16,33 +17,32 @@ class StableDialog extends StatelessWidget {
 
     switch (pendingOrder.state) {
       case PendingOrderState.submitting:
-        return StableSubmissionStatusDialog(
+        return TaskStatusDialog(
             title:
                 pendingOrder.positionAction == PositionAction.open ? "Stabilizing" : "Bitcoinizing",
-            type: StableSubmissionStatusDialogType.pendingSubmit,
+            status: TaskStatus.pending,
             content: body);
       case PendingOrderState.submittedSuccessfully:
-        return StableSubmissionStatusDialog(
+        return TaskStatusDialog(
             title: pendingOrder.positionAction == PositionAction.open ? "Stabilize" : "Bitcoinize",
-            type: StableSubmissionStatusDialogType.successfulSubmit,
+            status: TaskStatus.pending,
             content: body);
       case PendingOrderState.submissionFailed:
-        // TODO: This failure case has to be handled differently; are we planning to show orders that failed to submit in the order history?
-        return StableSubmissionStatusDialog(
+        return TaskStatusDialog(
             title:
                 pendingOrder.positionAction == PositionAction.open ? "Stabilizing" : "Bitcoinizing",
-            type: StableSubmissionStatusDialogType.failedSubmit,
+            status: TaskStatus.failed,
             content: body);
       case PendingOrderState.orderFilled:
-        return StableSubmissionStatusDialog(
+        return TaskStatusDialog(
             title: pendingOrder.positionAction == PositionAction.open ? "Stabilize" : "Bitcoinize",
-            type: StableSubmissionStatusDialogType.filled,
+            status: TaskStatus.success,
             content: body);
       case PendingOrderState.orderFailed:
-        return StableSubmissionStatusDialog(
+        return TaskStatusDialog(
             title:
                 pendingOrder.positionAction == PositionAction.open ? "Stabilizing" : "Bitcoinizing",
-            type: StableSubmissionStatusDialogType.failedFill,
+            status: TaskStatus.failed,
             content: body);
     }
   }
