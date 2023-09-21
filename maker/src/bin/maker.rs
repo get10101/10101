@@ -31,6 +31,9 @@ use tracing::metadata::LevelFilter;
 
 const PROCESS_PROMETHEUS_METRICS: Duration = Duration::from_secs(10);
 
+/// Interval after which we'll try to reconnect to the pricefeed again
+const PRICEFEED_RECONNECT_INTERVAL: Duration = Duration::from_secs(10);
+
 #[tokio::main]
 async fn main() -> Result<()> {
     std::panic::set_hook(
@@ -98,23 +101,16 @@ async fn main() -> Result<()> {
     tokio::spawn({
         let orderbook_url = opts.orderbook.clone();
         async move {
-            match trading::run(
+            trading::run(
                 &orderbook_url,
                 node_pubkey,
                 network,
                 opts.concurrent_orders,
                 time::Duration::seconds(opts.order_expiry_after_seconds as i64),
                 health_tx.bitmex_pricefeed,
+                PRICEFEED_RECONNECT_INTERVAL,
             )
-            .await
-            {
-                Ok(()) => {
-                    tracing::error!("Maker stopped trading");
-                }
-                Err(error) => {
-                    tracing::error!("Maker stopped trading: {error:#}");
-                }
-            }
+            .await;
         }
     });
 
