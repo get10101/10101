@@ -5,17 +5,17 @@ import 'package:get_10101/common/amount_text.dart';
 import 'package:get_10101/common/fiat_text.dart';
 import 'package:get_10101/common/submission_status_dialog.dart';
 import 'package:get_10101/common/value_data_row.dart';
-import 'package:get_10101/features/wallet/domain/wallet_type.dart';
 import 'package:get_10101/features/trade/position_change_notifier.dart';
-import 'package:get_10101/features/wallet/seed_screen.dart';
-import 'package:get_10101/features/wallet/send_payment_change_notifier.dart';
-import 'package:get_10101/util/preferences.dart';
 import 'package:get_10101/features/wallet/balance_row.dart';
 import 'package:get_10101/features/wallet/create_invoice_screen.dart';
 import 'package:get_10101/features/wallet/domain/wallet_history.dart';
-import 'package:get_10101/features/wallet/wallet_theme.dart';
+import 'package:get_10101/features/wallet/domain/wallet_type.dart';
+import 'package:get_10101/features/wallet/seed_screen.dart';
+import 'package:get_10101/features/wallet/send_payment_change_notifier.dart';
 import 'package:get_10101/features/wallet/send_screen.dart';
 import 'package:get_10101/features/wallet/wallet_change_notifier.dart';
+import 'package:get_10101/features/wallet/wallet_theme.dart';
+import 'package:get_10101/util/preferences.dart';
 import 'package:get_10101/util/send_receive_icons.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -84,7 +84,9 @@ class _WalletScreenState extends State<WalletScreen> {
                       Padding(
                         padding: const EdgeInsets.only(top: 20, left: 10, right: 10, bottom: 5),
                         child: Text(
-                            "Your Payment will be shown up in the wallet history automatically once it has been processed!",
+                            PendingPaymentState.failed == state
+                                ? "Failed to submit your payment. Please make sure that you have sufficient funds that the receiver is able to receive."
+                                : "Your Payment will be shown up in the wallet history automatically once it has been processed!",
                             style: DefaultTextStyle.of(context).style.apply(fontSizeFactor: 1.0)),
                       )
                     ],
