@@ -65,6 +65,10 @@ impl Position {
                 acc + Contracts::new(*contracts)
             })
     }
+
+    pub fn contract_symbol(&self) -> ContractSymbol {
+        self.contract_symbol
+    }
 }
 
 impl PartialEq for Position {

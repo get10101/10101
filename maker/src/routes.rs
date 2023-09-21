@@ -1,5 +1,8 @@
 use crate::health::Health;
 use crate::health::OverallMakerHealth;
+use crate::position;
+use crate::position::ContractSymbol;
+use crate::position::GetPosition;
 use axum::extract::Path;
 use axum::extract::State;
 use axum::http::StatusCode;
@@ -10,9 +13,6 @@ use axum::routing::post;
 use axum::Json;
 use axum::Router;
 use bitcoin::secp256k1::PublicKey;
-use diesel::r2d2::ConnectionManager;
-use diesel::r2d2::Pool;
-use diesel::PgConnection;
 use ln_dlc_node::node::InMemoryStore;
 use ln_dlc_node::node::Node;
 use ln_dlc_node::node::NodeInfo;
@@ -20,30 +20,34 @@ use ln_dlc_node::ChannelDetails;
 use opentelemetry_prometheus::PrometheusExporter;
 use prometheus::Encoder;
 use prometheus::TextEncoder;
+use rust_decimal::Decimal;
 use serde::Deserialize;
 use serde::Serialize;
 use serde_json::json;
+use std::collections::HashSet;
+use std::hash::Hash;
+use std::hash::Hasher;
 use std::str::FromStr;
 use std::sync::Arc;
 use tokio::task::spawn_blocking;
 
 pub struct AppState {
-    pub node: Arc<Node<InMemoryStore>>,
-    pub exporter: PrometheusExporter,
-    pub pool: Pool<ConnectionManager<PgConnection>>,
-    pub health: Health,
+    node: Arc<Node<InMemoryStore>>,
+    exporter: PrometheusExporter,
+    position_manager: xtra::Address<position::Manager>,
+    health: Health,
 }
 
 pub fn router(
     node: Arc<Node<InMemoryStore>>,
     exporter: PrometheusExporter,
-    pool: Pool<ConnectionManager<PgConnection>>,
+    position_manager: xtra::Address<position::Manager>,
     health: Health,
 ) -> Router {
     let app_state = Arc::new(AppState {
         node,
         exporter,
-        pool,
+        position_manager,
         health,
     });
 
@@ -56,6 +60,7 @@ pub fn router(
         .route("/api/connect", post(connect_to_peer))
         .route("/api/pay-invoice/:invoice", post(pay_invoice))
         .route("/api/sync-on-chain", post(sync_on_chain))
+        .route("/api/position", get(get_position))
         .route("/metrics", get(get_metrics))
         .route("/health", get(get_health))
         .with_state(app_state)
@@ -240,6 +245,48 @@ pub async fn sync_on_chain(State(state): State<Arc<AppState>>) -> Result<(), App
         .map_err(|e| AppError::InternalServerError(format!("Could not sync wallet: {e:#}")))?;
 
     Ok(())
+}
+
+#[derive(Serialize)]
+pub struct Position {
+    tentenone: HashSet<PositionForContractSymbol>,
+}
+
+#[derive(Serialize, Eq)]
+pub struct PositionForContractSymbol {
+    contract_symbol: ContractSymbol,
+    contracts: Decimal,
+}
+
+impl Hash for PositionForContractSymbol {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.contract_symbol.hash(state);
+    }
+}
+
+impl PartialEq for PositionForContractSymbol {
+    fn eq(&self, other: &PositionForContractSymbol) -> bool {
+        self.contract_symbol == other.contract_symbol
+    }
+}
+
+pub async fn get_position(State(state): State<Arc<AppState>>) -> Result<Json<Position>, AppError> {
+    let position = state
+        .position_manager
+        .send(GetPosition)
+        .await
+        .map_err(|e| AppError::InternalServerError(format!("Failed to get position: {e:#}")))?;
+
+    let position = HashSet::from_iter(position.tentenone.into_iter().map(
+        |(contract_symbol, contracts)| PositionForContractSymbol {
+            contract_symbol,
+            contracts,
+        },
+    ));
+
+    Ok(Json(Position {
+        tentenone: position,
+    }))
 }
 
 pub async fn get_metrics(State(state): State<Arc<AppState>>) -> impl IntoResponse {

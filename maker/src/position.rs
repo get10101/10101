@@ -1,5 +1,7 @@
 use async_trait::async_trait;
 use rust_decimal::Decimal;
+use serde::Serialize;
+use std::collections::HashMap;
 use std::collections::HashSet;
 use std::fmt::Display;
 use std::hash::Hash;
@@ -48,6 +50,12 @@ impl OrderTenTenOne {
     }
 }
 
+pub struct GetPosition;
+
+pub struct GetPositionResponse {
+    pub tentenone: HashMap<ContractSymbol, Decimal>,
+}
+
 #[async_trait]
 impl xtra::Actor for Manager {
     type Stop = ();
@@ -73,6 +81,23 @@ impl xtra::Handler<PositionUpdateTenTenOne> for Manager {
             self.position
                 .update_tentenone(contract_symbol, order_id, contracts)
         }
+    }
+}
+
+#[async_trait]
+impl xtra::Handler<GetPosition> for Manager {
+    type Return = GetPositionResponse;
+
+    async fn handle(&mut self, _: GetPosition, _: &mut xtra::Context<Self>) -> Self::Return {
+        let tentenone =
+            HashMap::from_iter(self.position.tentenone.clone().into_iter().map(|position| {
+                (
+                    position.contract_symbol(),
+                    position.contracts().to_decimal(),
+                )
+            }));
+
+        GetPositionResponse { tentenone }
     }
 }
 
@@ -119,7 +144,7 @@ impl Position {
     }
 }
 
-#[derive(Clone, Copy, Hash, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, Hash, PartialEq, Eq, Debug, Serialize)]
 pub enum ContractSymbol {
     BtcUsd,
 }
