@@ -23,7 +23,9 @@ use tokio::runtime::Runtime;
 use tokio::sync::watch;
 use uuid::Uuid;
 
-const WS_RECONNECT_TIMEOUT: Duration = Duration::from_secs(2);
+/// The reconnect timeout should be high enough for the coordinator to get ready. If its too early
+/// we may not be ready process messages which require dlc actions.
+const WS_RECONNECT_TIMEOUT: Duration = Duration::from_secs(5);
 const EXPIRED_ORDER_PRUNING_INTERVAL: Duration = Duration::from_secs(30);
 
 pub fn subscribe(
