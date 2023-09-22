@@ -1,7 +1,4 @@
-use crate::db::user;
 use crate::message::OrderbookMessage;
-use crate::notifications::FcmToken;
-use crate::notifications::Notification;
 use crate::notifications::NotificationKind;
 use crate::orderbook::db::matches;
 use crate::orderbook::db::orders;
@@ -90,7 +87,6 @@ pub fn start(
     pool: Pool<ConnectionManager<PgConnection>>,
     tx_price_feed: broadcast::Sender<Message>,
     notifier: mpsc::Sender<OrderbookMessage>,
-    notification_sender: mpsc::Sender<Notification>,
     network: Network,
 ) -> (RemoteHandle<Result<()>>, mpsc::Sender<NewOrderMessage>) {
     let (sender, mut receiver) = mpsc::channel::<NewOrderMessage>(NEW_ORDERS_BUFFER_SIZE);
@@ -101,14 +97,12 @@ pub fn start(
                 let mut conn = pool.get()?;
                 let tx_price_feed = tx_price_feed.clone();
                 let notifier = notifier.clone();
-                let notification_sender = notification_sender.clone();
                 async move {
                     let new_order = new_order_msg.new_order;
                     let result = process_new_order(
                         &mut conn,
                         notifier,
                         tx_price_feed,
-                        notification_sender,
                         new_order,
                         new_order_msg.order_reason,
                         network,
@@ -141,7 +135,6 @@ async fn process_new_order(
     conn: &mut PgConnection,
     notifier: mpsc::Sender<OrderbookMessage>,
     tx_price_feed: broadcast::Sender<Message>,
-    notification_sender: mpsc::Sender<Notification>,
     new_order: NewOrder,
     order_reason: OrderReason,
     network: Network,
@@ -229,29 +222,22 @@ async fn process_new_order(
                 },
             };
 
-            let msg = OrderbookMessage::TraderMessage { trader_id, message };
+            let notification = match &order.order_reason {
+                OrderReason::Expired => Some(NotificationKind::PositionExpired),
+                OrderReason::Manual => None,
+            };
+            let msg = OrderbookMessage::TraderMessage {
+                trader_id,
+                message,
+                notification,
+            };
             let order_state = match notifier.send(msg).await {
                 Ok(()) => {
                     tracing::debug!(%trader_id, order_id, "Successfully notified trader");
                     OrderState::Matched
                 }
                 Err(e) => {
-                    tracing::warn!(%trader_id, order_id, "{e:#}");
-
-                    if let Some(user) = user::by_id(conn, trader_id.to_string())? {
-                        tracing::debug!(%trader_id, order_id, "Sending push notification to user");
-
-                        if let Ok(fcm_token) = FcmToken::new(user.fcm_token) {
-                            notification_sender
-                                .send(Notification {
-                                    user_fcm_token: fcm_token,
-                                    notification_kind: NotificationKind::PositionExpired,
-                                })
-                                .await?;
-                        }
-                    } else {
-                        tracing::warn!(%trader_id, order_id, "User has no FCM token");
-                    }
+                    tracing::warn!(%trader_id, order_id, "Failed to send trader message. Error: {e:#}");
 
                     if order.order_type == OrderType::Limit {
                         // FIXME: The maker is currently not connected to the web socket so we
