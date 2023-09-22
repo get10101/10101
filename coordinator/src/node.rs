@@ -143,12 +143,55 @@ impl Node {
     }
 
     pub async fn trade(&self, trade_params: &TradeParams) -> Result<Invoice> {
-        let (fee_payment_hash, invoice) = self.fee_invoice_taker(trade_params).await?;
         let mut connection = self.pool.get()?;
+        let order_id = trade_params.filled_with.order_id;
+        let trader_id = trade_params.pubkey;
+        match self.trade_internal(trade_params, &mut connection).await {
+            Ok(invoice) => {
+                tracing::info!(
+                    %trader_id,
+                    %order_id,
+                    "Successfully processed match, setting match to Filled"
+                );
+
+                update_order_and_match(
+                    &mut connection,
+                    order_id,
+                    MatchState::Filled,
+                    OrderState::Taken,
+                )?;
+                Ok(invoice)
+            }
+            Err(e) => {
+                tracing::error!(
+                    %trader_id,
+                    %order_id,
+                    "Failed to execute trade. Error: {e:#}"
+                );
+                update_order_and_match(
+                    &mut connection,
+                    order_id,
+                    MatchState::Failed,
+                    OrderState::Failed,
+                )?;
+
+                Err(e)
+            }
+        }
+    }
+
+    async fn trade_internal(
+        &self,
+        trade_params: &TradeParams,
+        connection: &mut PgConnection,
+    ) -> Result<Invoice> {
+        let (fee_payment_hash, invoice) = self.fee_invoice_taker(trade_params).await?;
 
         let order_id = trade_params.filled_with.order_id;
-        let order = orders::get_with_id(&mut connection, order_id)?
-            .with_context(|| format!("Could not find order with id {order_id}"))?;
+        let trader_id = trade_params.pubkey.to_string();
+        let order = orders::get_with_id(connection, order_id)?.with_context(|| {
+            format!("Could not find order with id {order_id}, trader_id={trader_id}.")
+        })?;
 
         ensure!(
             order.expiry > OffsetDateTime::now_utc(),
@@ -160,7 +203,6 @@ impl Node {
             order.order_state
         );
 
-        let trader_id = trade_params.pubkey.to_string();
         let order_id = trade_params.filled_with.order_id.to_string();
         tracing::info!(trader_id, order_id, "Executing match");
 
@@ -170,16 +212,8 @@ impl Node {
                     self.settings.read().await.allow_opening_positions,
                     "Opening positions is disabled"
                 );
-                if let Err(e) = self.open_position(trade_params, fee_payment_hash).await {
-                    update_order_and_match(
-                        &mut connection,
-                        trade_params.filled_with.order_id,
-                        MatchState::Failed,
-                        OrderState::Failed,
-                    )?;
 
-                    bail!("Failed to initiate open position: trader_id={trader_id}, order_id={order_id}. Error: {e:#}")
-                }
+                self.open_position(trade_params, fee_payment_hash).await?;
             }
             TradeAction::Close(channel_id) => {
                 let peer_id = trade_params.pubkey;
@@ -188,41 +222,17 @@ impl Node {
                 let closing_price = trade_params.average_execution_price();
 
                 let position = match db::positions::Position::get_open_position_by_trader(
-                    &mut connection,
+                    connection,
                     trade_params.pubkey.to_string(),
                 )? {
                     Some(position) => position,
                     None => bail!("Failed to find open position : {}", trade_params.pubkey),
                 };
 
-                if let Err(e) = self
-                    .close_position(&position, closing_price, channel_id, fee_payment_hash)
-                    .await
-                {
-                    update_order_and_match(
-                        &mut connection,
-                        trade_params.filled_with.order_id,
-                        MatchState::Failed,
-                        OrderState::Failed,
-                    )?;
-
-                    bail!("trader_id={trader_id}, order_id={order_id}, Failed to initiate close position. Error: {e:#}")
-                }
+                self.close_position(&position, closing_price, channel_id, fee_payment_hash)
+                    .await?;
             }
         };
-
-        tracing::info!(
-            trader_id,
-            order_id,
-            "Successfully processed match, setting match to Filled"
-        );
-
-        update_order_and_match(
-            &mut connection,
-            trade_params.filled_with.order_id,
-            MatchState::Filled,
-            OrderState::Taken,
-        )?;
 
         Ok(invoice)
     }
