@@ -11,6 +11,7 @@ use serde::Deserialize;
 use std::time::Duration;
 use tests_e2e::coordinator::Coordinator;
 use tests_e2e::http::init_reqwest;
+use tests_e2e::maker::Maker;
 use tracing::metadata::LevelFilter;
 use tracing_subscriber::filter::Directive;
 use tracing_subscriber::layer::SubscriberExt;
@@ -25,31 +26,57 @@ pub struct Opts {
     #[clap(long, default_value = "http://localhost:8080")]
     pub faucet: String,
 
-    /// Coordinator addres
+    /// Coordinator address
     #[clap(long, default_value = "http://localhost:8000")]
     pub coordinator: String,
+
+    /// Maker address
+    #[clap(long, default_value = "http://localhost:18000")]
+    pub maker: String,
 }
 
 #[tokio::main]
 async fn main() {
     init_tracing(LevelFilter::DEBUG).expect("tracing to initialise");
     let opts = Opts::parse();
-    fund_everything(&opts.faucet, &opts.coordinator)
+    fund_everything(&opts.faucet, &opts.coordinator, &opts.maker)
         .await
         .expect("to be able to fund");
 }
 
-async fn fund_everything(faucet: &str, coordinator: &str) -> Result<()> {
+async fn fund_everything(faucet: &str, coordinator: &str, maker: &str) -> Result<()> {
     let coordinator = Coordinator::new(init_reqwest(), coordinator);
     let coord_addr = coordinator.get_new_address().await?;
     fund(&coord_addr, Amount::ONE_BTC, faucet).await?;
+    let maker = Maker::new(init_reqwest(), maker);
+    let maker_addr = maker.get_new_address().await?;
+    fund(&maker_addr.to_string(), Amount::ONE_BTC, faucet).await?;
     mine(10, faucet).await?;
+    maker
+        .sync_on_chain()
+        .await
+        .expect("to be able to sync on-chain wallet for maker");
 
     let coordinator_balance = coordinator.get_balance().await?;
     tracing::info!(
         onchain = %coordinator_balance.onchain,
         offchain = %coordinator_balance.offchain,
         "Coordinator balance",
+    );
+
+    let coordinator_info = coordinator
+        .get_node_info()
+        .await
+        .expect("To get coordinator's node info");
+    maker
+        .open_channel(coordinator_info, 10_000_000, None)
+        .await
+        .expect("To be able to open a channel from maker to coordinator");
+    let maker_info = maker.get_node_info().await.expect("To get node info");
+    tracing::info!(
+        "Opened channel from maker ({}) to coordinator ({})",
+        maker_info.pubkey,
+        coordinator_info.pubkey
     );
 
     let node: NodeInfo = coordinator.get_node_info().await?;
@@ -69,6 +96,17 @@ async fn fund_everything(faucet: &str, coordinator: &str) -> Result<()> {
     )
     .await?;
     mine(10, faucet).await?;
+
+    maker
+        .sync_on_chain()
+        .await
+        .expect("to be able to sync on-chain wallet for maker");
+    let maker_balance = maker.get_balance().await?;
+    tracing::info!(
+        onchain = %maker_balance.onchain,
+        offchain = %maker_balance.offchain,
+        "Maker balance",
+    );
 
     if let Err(e) = coordinator.sync_wallet().await {
         tracing::warn!("failed to sync coordinator: {}", e);
