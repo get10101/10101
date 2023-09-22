@@ -276,13 +276,20 @@ pub fn set_order_state(
     Ok(OrderbookOrder::from(order))
 }
 
-pub fn set_expired_limit_orders_to_failed(conn: &mut PgConnection) -> QueryResult<usize> {
-    diesel::update(orders::table)
+pub fn set_expired_limit_orders_to_failed(
+    conn: &mut PgConnection,
+) -> QueryResult<Vec<OrderbookOrder>> {
+    let expired_limit_orders: Vec<Order> = diesel::update(orders::table)
         .filter(orders::order_state.eq(OrderState::Open))
         .filter(orders::order_type.eq(OrderType::Limit))
         .filter(orders::expiry.lt(OffsetDateTime::now_utc()))
         .set(orders::order_state.eq(OrderState::Failed))
-        .execute(conn)
+        .get_results(conn)?;
+
+    Ok(expired_limit_orders
+        .into_iter()
+        .map(OrderbookOrder::from)
+        .collect())
 }
 
 /// Returns the order by id
@@ -354,11 +361,4 @@ pub fn get_all_limit_order_filled_matches(
         .collect();
 
     Ok(filled_matches)
-}
-
-/// Returns the number of affected rows: 1.
-pub fn delete_with_id(conn: &mut PgConnection, order_id: Uuid) -> QueryResult<usize> {
-    diesel::delete(orders::table)
-        .filter(orders::trader_order_id.eq(order_id))
-        .execute(conn)
 }

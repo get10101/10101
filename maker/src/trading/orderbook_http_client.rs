@@ -3,7 +3,6 @@ use anyhow::Result;
 use orderbook_commons::NewOrder;
 use orderbook_commons::OrderResponse;
 use reqwest::Url;
-use uuid::Uuid;
 
 pub struct OrderbookClient {
     client: reqwest::Client,
@@ -29,19 +28,6 @@ impl OrderbookClient {
             Ok(response)
         } else {
             tracing::error!("Could not create new order");
-            bail!("Could not create new order ")
-        }
-    }
-
-    pub async fn delete_order(&self, url: &Url, order_id: Uuid) -> Result<()> {
-        let url = url.join(format!("/api/orderbook/orders/{order_id}").as_str())?;
-
-        let response = self.client.delete(url).send().await?;
-
-        if response.status().as_u16() == 200 {
-            Ok(())
-        } else {
-            tracing::error!("Could not delete new order");
             bail!("Could not create new order ")
         }
     }

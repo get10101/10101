@@ -147,21 +147,6 @@ pub async fn put_order(
     Ok(Json(order))
 }
 
-pub async fn delete_order(
-    Path(order_id): Path<Uuid>,
-    State(state): State<Arc<AppState>>,
-) -> Result<Json<usize>, AppError> {
-    let mut conn = get_db_connection(&state)?;
-    let deleted = orderbook::db::orders::delete_with_id(&mut conn, order_id)
-        .map_err(|e| AppError::InternalServerError(format!("Failed to delete order: {e:#}")))?;
-    if deleted > 0 {
-        let sender = state.tx_price_feed.clone();
-        update_pricefeed(Message::DeleteOrder(order_id), sender);
-    }
-
-    Ok(Json(deleted))
-}
-
 pub async fn websocket_handler(
     ws: WebSocketUpgrade,
     State(state): State<Arc<AppState>>,

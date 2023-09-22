@@ -60,10 +60,6 @@ pub async fn run(
             let _ = bitmex_pricefeed_tx.send(ServiceStatus::Online);
             tracing::debug!("Received new quote {quote:?}");
 
-            // Clear stale orders. They should have expired by now.
-            for order in orders.iter() {
-                delete_order(&orderbook_client, orderbook_url, order).await;
-            }
             orders.clear();
 
             for _i in 0..concurrent_orders {
@@ -112,15 +108,4 @@ async fn add_order(
             err
         })
         .ok()
-}
-
-async fn delete_order(
-    orderbook_client: &OrderbookClient,
-    orderbook_url: &Url,
-    last_order: &OrderResponse,
-) {
-    let order_id = last_order.id;
-    if let Err(err) = orderbook_client.delete_order(orderbook_url, order_id).await {
-        tracing::error!("Failed deleting old order `{order_id}` because of {err:#}");
-    }
 }
