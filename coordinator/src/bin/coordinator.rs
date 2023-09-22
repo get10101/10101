@@ -208,16 +208,18 @@ async fn main() -> Result<()> {
 
     let (tx_price_feed, _rx) = broadcast::channel(100);
 
-    let (_handle, auth_users_notifier) =
-        spawn_delivering_messages_to_authenticated_users(tx_user_feed.clone());
-
     let notification_service = NotificationService::new(opts.fcm_api_key.clone());
+
+    let (_handle, auth_users_notifier) = spawn_delivering_messages_to_authenticated_users(
+        pool.clone(),
+        notification_service.get_sender(),
+        tx_user_feed.clone(),
+    );
 
     let (_handle, trading_sender) = trading::start(
         pool.clone(),
         tx_price_feed.clone(),
         auth_users_notifier.clone(),
-        notification_service.get_sender(),
         network,
     );
     let _handle = async_match::monitor(

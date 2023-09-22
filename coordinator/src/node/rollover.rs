@@ -101,6 +101,10 @@ async fn check_if_eligible_for_rollover(
             let message = OrderbookMessage::TraderMessage {
                 trader_id,
                 message: Message::Rollover,
+                // Ignore push notifying the user for that message as this is anyways only triggered
+                // when the user just connected to the websocket and we have a separate task that is
+                // push notifying the user if the rollover window is about to start.
+                notification: None,
             };
             if let Err(e) = notifier.send(message).await {
                 tracing::debug!("Failed to notify trader. Error: {e:#}");

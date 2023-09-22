@@ -69,7 +69,14 @@ async fn process_pending_match(
             OrderReason::Expired => Message::AsyncMatch { order, filled_with },
         };
 
-        let msg = OrderbookMessage::TraderMessage { trader_id, message };
+        // Sending no optional push notification as this is only executed if the user just
+        // registered on the websocket. So we can assume that the user is still online.
+        let notification = None;
+        let msg = OrderbookMessage::TraderMessage {
+            trader_id,
+            message,
+            notification,
+        };
         if let Err(e) = notifier.send(msg).await {
             tracing::error!("Failed to send notification. Error: {e:#}");
         }

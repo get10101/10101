@@ -1,5 +1,12 @@
+use crate::db::user;
+use crate::notifications::FcmToken;
+use crate::notifications::Notification;
+use crate::notifications::NotificationKind;
 use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
+use diesel::r2d2::ConnectionManager;
+use diesel::r2d2::Pool;
+use diesel::PgConnection;
 use futures::future::RemoteHandle;
 use futures::FutureExt;
 use orderbook_commons::Message;
@@ -18,6 +25,7 @@ pub enum OrderbookMessage {
     TraderMessage {
         trader_id: PublicKey,
         message: Message,
+        notification: Option<NotificationKind>,
     },
 }
 
@@ -28,6 +36,8 @@ pub struct NewUserMessage {
 }
 
 pub fn spawn_delivering_messages_to_authenticated_users(
+    pool: Pool<ConnectionManager<PgConnection>>,
+    notification_sender: mpsc::Sender<Notification>,
     tx_user_feed: broadcast::Sender<NewUserMessage>,
 ) -> (RemoteHandle<Result<()>>, mpsc::Sender<OrderbookMessage>) {
     let (sender, mut receiver) = mpsc::channel::<OrderbookMessage>(NOTIFICATION_BUFFER_SIZE);
@@ -49,8 +59,9 @@ pub fn spawn_delivering_messages_to_authenticated_users(
     let (fut, remote_handle) = {
         async move {
             while let Some(notification) = receiver.recv().await {
+                let mut conn = pool.get()?;
                 match notification {
-                    OrderbookMessage::TraderMessage { trader_id, message } => {
+                    OrderbookMessage::TraderMessage { trader_id, message , notification} => {
                         tracing::info!(%trader_id, "Sending message: {message:?}");
 
                         let trader = authenticated_users.read().get(&trader_id).cloned();
@@ -58,10 +69,33 @@ pub fn spawn_delivering_messages_to_authenticated_users(
                         match trader {
                             Some(sender) => {
                                 if let Err(e) = sender.send(message).await {
-                                    tracing::warn!("Connection lost to trader {e:#}");
+                                    tracing::warn!(%trader_id, "Connection lost to trader {e:#}");
+                                } else {
+                                    tracing::trace!(%trader_id, "Skipping optional push notifications as the user was successfully notified via the websocket.");
+                                    continue;
                                 }
                             }
-                            None => tracing::warn!(%trader_id, "Trader is not connected"),
+                            None => tracing::warn!(%trader_id, "Trader is not connected."),
+                        };
+
+                        if let (Some(notification_kind),Some(user)) = (notification, user::by_id(&mut conn, trader_id.to_string())?) {
+                            tracing::debug!(%trader_id, "Sending push notification to user");
+
+                            match FcmToken::new(user.fcm_token) {
+                                Ok(fcm_token) => {
+                                    if let Err(e) = notification_sender
+                                        .send(Notification {
+                                            user_fcm_token: fcm_token,
+                                            notification_kind,
+                                        })
+                                        .await {
+                                        tracing::error!(%trader_id, "Failed to send push notification. Error: {e:#}");
+                                    }
+                                }
+                                Err(error) => {
+                                    tracing::error!(%trader_id, "Could not send notification to user. Error: {error:#}");
+                                }
+                            }
                         }
                     }
                 }
