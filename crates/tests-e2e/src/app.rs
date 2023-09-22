@@ -29,6 +29,7 @@ pub async fn run_app() -> AppHandle {
                 test_config(),
                 app_dir,
                 seed_dir,
+                "".to_string(),
                 native::api::IncludeBacktraceOnPanic::No,
             )
             .expect("Could not run app")

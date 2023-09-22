@@ -2,7 +2,6 @@ import 'package:f_logs/model/flog/flog.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:get_10101/ffi.dart' as rust;
 import 'package:get_10101/firebase_options.dart';
 
 /// Ask the user for permission to send notifications via Firebase
@@ -21,43 +20,12 @@ Future<void> requestNotificationPermission() async {
   FLog.info(text: "User granted permission: ${settings.authorizationStatus}");
 }
 
-Future<void> ensureStoringFirebaseToken() async {
-  FirebaseMessaging messaging = FirebaseMessaging.instance;
-  messaging.getToken().then((token) {
-    if (token != null) {
-      FLog.info(text: "Firebase token: $token");
-      updateFcmToken(token).then((_) {
-        FLog.info(text: "Firebase token updated");
-      });
-    } else {
-      FLog.warning(text: "Firebase token is null");
-    }
-  });
-
-  // Firebase sometimes updates tokens at runtime, make sure we handle that case
-  messaging.onTokenRefresh.listen((String token) {
-    updateFcmToken(token).then((value) {
-      FLog.info(text: "Firebase token updated");
-    });
-  });
-}
-
-Future<void> updateFcmToken(String token) async {
-  FLog.debug(text: "Firebase token: $token");
-  try {
-    await rust.api.updateFcmToken(fcmToken: token);
-  } catch (e) {
-    FLog.error(text: "Error storing FCM token: ${e.toString()}");
-  }
-}
-
 Future<void> initFirebase() async {
   try {
     FLog.info(text: "Initialising Firebase");
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
-    await ensureStoringFirebaseToken();
     await requestNotificationPermission();
     final flutterLocalNotificationsPlugin = initLocalNotifications();
     await configureFirebase(flutterLocalNotificationsPlugin);

@@ -1,10 +1,8 @@
 use crate::db::user;
-use crate::db::user::User;
 use crate::logger::init_tracing_for_test;
 use crate::orderbook::tests::setup_db;
 use crate::orderbook::tests::start_postgres;
 use bitcoin::secp256k1::PublicKey;
-use coordinator_commons::RegisterParams;
 use std::str::FromStr;
 use testcontainers::clients::Cli;
 
@@ -20,22 +18,21 @@ async fn registered_user_is_stored_in_db() {
     let users = user::all(&mut conn).unwrap();
     assert!(users.is_empty());
 
-    let dummy_user: User = RegisterParams {
-        pubkey: dummy_public_key(),
-        email: Some("dummy@user.com".to_string()),
-        nostr: None,
-    }
-    .into();
+    let dummy_pubkey = dummy_public_key();
+    let dummy_email = "dummy@user.com".to_string();
+    let fcm_token = "just_a_token".to_string();
 
-    let user = user::insert(&mut conn, dummy_user.clone()).unwrap();
+    let user = user::upsert_email(&mut conn, dummy_pubkey, dummy_email.clone()).unwrap();
     assert!(user.id.is_some(), "Id should be filled in by diesel");
+    user::upsert_fcm_token(&mut conn, dummy_pubkey, fcm_token.clone()).unwrap();
 
     let users = user::all(&mut conn).unwrap();
     assert_eq!(users.len(), 1);
     // We started without the id, so we can't compare the whole user.
-    assert_eq!(users.first().unwrap().pubkey, dummy_user.pubkey);
-    assert_eq!(users.first().unwrap().email, dummy_user.email);
-    assert_eq!(users.first().unwrap().nostr, dummy_user.nostr);
+    assert_eq!(users.first().unwrap().pubkey, dummy_pubkey.to_string());
+    assert_eq!(users.first().unwrap().email, dummy_email);
+    assert_eq!(users.first().unwrap().fcm_token, fcm_token);
+    assert!(users.first().unwrap().nostr.is_empty());
 }
 
 fn dummy_public_key() -> PublicKey {

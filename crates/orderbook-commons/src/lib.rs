@@ -111,8 +111,13 @@ pub struct OrderResponse {
 
 #[derive(Serialize, Clone, Deserialize, Debug)]
 pub enum OrderbookRequest {
-    Authenticate(Signature),
-    LimitOrderFilledMatches { trader_id: PublicKey },
+    Authenticate {
+        fcm_token: Option<String>,
+        signature: Signature,
+    },
+    LimitOrderFilledMatches {
+        trader_id: PublicKey,
+    },
 }
 
 impl TryFrom<OrderbookRequest> for tungstenite::Message {

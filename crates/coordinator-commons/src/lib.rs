@@ -77,12 +77,6 @@ pub struct LspConfig {
     /// The fee rate to be used for the DLC contracts in sats/vbyte
     pub contract_tx_fee_rate: u64,
 }
-/// FCM token update parameters
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TokenUpdateParams {
-    pub pubkey: String,
-    pub fcm_token: String,
-}
 
 /// Calculates the next expiry timestamp based on the given timestamp and the network.
 pub fn calculate_next_expiry(timestamp: OffsetDateTime, network: Network) -> OffsetDateTime {

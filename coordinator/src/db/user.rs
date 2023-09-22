@@ -1,8 +1,9 @@
+use crate::schema;
 use crate::schema::users;
 use anyhow::bail;
 use anyhow::Result;
+use bitcoin::secp256k1::PublicKey;
 use coordinator_commons::RegisterParams;
-use coordinator_commons::TokenUpdateParams;
 use diesel::prelude::*;
 use serde::Deserialize;
 use serde::Serialize;
@@ -45,27 +46,54 @@ pub fn by_id(conn: &mut PgConnection, id: String) -> QueryResult<Option<User>> {
     Ok(x)
 }
 
-pub fn insert(conn: &mut PgConnection, user: User) -> QueryResult<User> {
+pub fn upsert_email(
+    conn: &mut PgConnection,
+    trader_id: PublicKey,
+    email: String,
+) -> QueryResult<User> {
     let user: User = diesel::insert_into(users::table)
-        .values(&user)
+        .values(User {
+            id: None,
+            pubkey: trader_id.to_string(),
+            email: email.clone(),
+            nostr: "".to_owned(),
+            timestamp: OffsetDateTime::now_utc(),
+            fcm_token: "".to_owned(),
+        })
+        .on_conflict(schema::users::pubkey)
+        .do_update()
+        .set(users::email.eq(&email))
         .get_result(conn)?;
     Ok(user)
 }
 
-pub fn update_fcm_token(conn: &mut PgConnection, params: TokenUpdateParams) -> Result<()> {
-    let fcm_token = &params.fcm_token;
-    let pubkey = params.pubkey;
-    tracing::debug!(%pubkey, "Updating token for client.");
-
-    let affected_rows = diesel::update(users::table)
-        .filter(users::pubkey.eq(&pubkey))
-        .set(users::fcm_token.eq(fcm_token))
+pub fn upsert_fcm_token(
+    conn: &mut PgConnection,
+    trader_id: PublicKey,
+    token: String,
+) -> Result<()> {
+    tracing::debug!(%trader_id, token, "Updating token for client.");
+    // TODO(holzeis): We should store a last login or freshness timestamp of the token into the
+    // database. The recommendation is to assume any token not being updated after 2 months to be
+    // stale.
+    let affected_rows = diesel::insert_into(users::table)
+        .values(User {
+            id: None,
+            pubkey: trader_id.to_string(),
+            email: "".to_owned(),
+            nostr: "".to_owned(),
+            timestamp: OffsetDateTime::now_utc(),
+            fcm_token: token.clone(),
+        })
+        .on_conflict(schema::users::pubkey)
+        .do_update()
+        .set(users::fcm_token.eq(&token))
         .execute(conn)?;
 
     if affected_rows == 0 {
-        bail!("Could not update FCM token for node ID {pubkey}.");
+        bail!("Could not update FCM token for node ID {trader_id}.");
     } else {
-        tracing::debug!(%pubkey, %affected_rows, "Updated FCM token in DB.");
+        tracing::debug!(%trader_id, %affected_rows, "Updated FCM token in DB.");
     }
     Ok(())
 }

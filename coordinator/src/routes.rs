@@ -36,7 +36,6 @@ use bitcoin::secp256k1::PublicKey;
 use bitcoin::Network;
 use coordinator_commons::LspConfig;
 use coordinator_commons::RegisterParams;
-use coordinator_commons::TokenUpdateParams;
 use coordinator_commons::TradeParams;
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::Pool;
@@ -122,7 +121,6 @@ pub fn router(
         .route("/api/trade", post(post_trade))
         .route("/api/rollover/:dlc_channel_id", post(rollover))
         .route("/api/register", post(post_register))
-        .route("/api/fcm_token", post(post_fcm_token))
         .route("/api/admin/balance", get(get_balance))
         .route("/api/admin/channels", get(list_channels).post(open_channel))
         .route("/api/channels", post(channel_faucet))
@@ -316,22 +314,6 @@ pub async fn post_sync(State(state): State<Arc<AppState>>) -> Result<(), AppErro
 }
 
 #[instrument(skip_all, err(Debug))]
-pub async fn post_fcm_token(
-    State(state): State<Arc<AppState>>,
-    params: Json<TokenUpdateParams>,
-) -> Result<(), AppError> {
-    let mut conn = state
-        .pool
-        .get()
-        .map_err(|e| AppError::InternalServerError(format!("Could not get connection: {e:#}")))?;
-
-    user::update_fcm_token(&mut conn, params.0)
-        .map_err(|e| AppError::InternalServerError(format!("Could not insert user: {e:#}")))?;
-
-    Ok(())
-}
-
-#[instrument(skip_all, err(Debug))]
 pub async fn post_register(
     State(state): State<Arc<AppState>>,
     params: Json<RegisterParams>,
@@ -349,8 +331,12 @@ pub async fn post_register(
         .get()
         .map_err(|e| AppError::InternalServerError(format!("Could not get connection: {e:#}")))?;
 
-    user::insert(&mut conn, register_params.into())
-        .map_err(|e| AppError::InternalServerError(format!("Could not insert user: {e:#}")))?;
+    if let Some(email) = register_params.email {
+        user::upsert_email(&mut conn, register_params.pubkey, email)
+            .map_err(|e| AppError::InternalServerError(format!("Could not upsert user: {e:#}")))?;
+    } else {
+        tracing::warn!(trader_id=%register_params.pubkey, "Did not receive an email during registration");
+    }
 
     Ok(())
 }
