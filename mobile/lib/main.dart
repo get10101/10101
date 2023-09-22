@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:f_logs/f_logs.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge.dart';
@@ -48,8 +49,8 @@ import 'package:get_10101/features/wallet/wallet_screen.dart';
 import 'package:get_10101/features/wallet/wallet_theme.dart';
 import 'package:get_10101/features/welcome/welcome_screen.dart';
 import 'package:get_10101/ffi.dart' as rust;
-import 'package:get_10101/util/coordinator_version.dart';
 import 'package:get_10101/util/constants.dart';
+import 'package:get_10101/util/coordinator_version.dart';
 import 'package:get_10101/util/environment.dart';
 import 'package:get_10101/util/notifications.dart';
 import 'package:get_10101/util/preferences.dart';
@@ -547,18 +548,22 @@ Future<void> runBackend(bridge.Config config) async {
     appDir = seedDir;
   }
 
+  FirebaseMessaging messaging = FirebaseMessaging.instance;
+  final fcmToken = await messaging.getToken();
+
   FLog.info(text: "App data will be stored in: $appDir");
   FLog.info(text: "Seed data will be stored in: $seedDir");
-  await startBackend(config: config, appDir: appDir, seedDir: seedDir);
+  await startBackend(config: config, appDir: appDir, seedDir: seedDir, fcmToken: fcmToken);
 }
 
 /// Start the backend and retry a number of times if it fails for whatever reason
-Future<void> startBackend({config, appDir, seedDir}) async {
+Future<void> startBackend({config, appDir, seedDir, fcmToken}) async {
   int retries = 3;
 
   for (int i = 0; i < retries; i++) {
     try {
-      await rust.api.runInFlutter(config: config, appDir: appDir, seedDir: seedDir);
+      await rust.api
+          .runInFlutter(config: config, appDir: appDir, seedDir: seedDir, fcmToken: fcmToken);
       break; // If successful, exit loop
     } catch (e) {
       FLog.info(text: "Attempt ${i + 1} failed: $e");

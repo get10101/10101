@@ -227,10 +227,21 @@ pub fn subscribe(stream: StreamSink<event::api::Event>) {
 }
 
 /// Wrapper for Flutter purposes - can throw an exception.
-pub fn run_in_flutter(config: Config, app_dir: String, seed_dir: String) -> Result<()> {
+pub fn run_in_flutter(
+    config: Config,
+    app_dir: String,
+    seed_dir: String,
+    fcm_token: String,
+) -> Result<()> {
     let result = if !IS_INITIALISED.try_get().unwrap_or(&false) {
-        run(config, app_dir, seed_dir, IncludeBacktraceOnPanic::Yes)
-            .context("Failed to start the backend")
+        run(
+            config,
+            app_dir,
+            seed_dir,
+            fcm_token,
+            IncludeBacktraceOnPanic::Yes,
+        )
+        .context("Failed to start the backend")
     } else {
         Ok(())
     };
@@ -248,6 +259,7 @@ pub fn run(
     config: Config,
     app_dir: String,
     seed_dir: String,
+    fcm_token: String,
     backtrace_on_panic: IncludeBacktraceOnPanic,
 ) -> Result<()> {
     if backtrace_on_panic == IncludeBacktraceOnPanic::Yes {
@@ -271,7 +283,7 @@ pub fn run(
 
     let (_health, tx) = health::Health::new(config, runtime);
 
-    orderbook::subscribe(ln_dlc::get_node_key(), runtime, tx.orderbook)
+    orderbook::subscribe(ln_dlc::get_node_key(), runtime, tx.orderbook, fcm_token)
 }
 
 pub fn get_unused_address() -> SyncReturn<String> {
@@ -336,12 +348,6 @@ pub fn get_seed_phrase() -> SyncReturn<Vec<String>> {
 #[tokio::main(flavor = "current_thread")]
 pub async fn register_beta(email: String) -> Result<()> {
     users::register_beta(email).await
-}
-
-/// Send the Firebase token to the LSP for push notifications
-#[tokio::main(flavor = "current_thread")]
-pub async fn update_fcm_token(fcm_token: String) -> Result<()> {
-    users::update_fcm_token(fcm_token).await
 }
 
 pub struct LightningInvoice {

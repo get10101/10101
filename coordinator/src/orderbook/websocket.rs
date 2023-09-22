@@ -1,3 +1,4 @@
+use crate::db::user;
 use crate::message::NewUserMessage;
 use crate::orderbook;
 use crate::orderbook::db::orders;
@@ -9,7 +10,6 @@ use futures::StreamExt;
 use orderbook_commons::create_sign_message;
 use orderbook_commons::Message;
 use orderbook_commons::OrderbookRequest;
-use orderbook_commons::Signature;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::mpsc;
@@ -124,21 +124,34 @@ pub async fn websocket_connection(stream: WebSocket, state: Arc<AppState>) {
                         );
                     }
                 }
-                Ok(OrderbookRequest::Authenticate(Signature { signature, pubkey })) => {
+                Ok(OrderbookRequest::Authenticate {
+                    fcm_token,
+                    signature,
+                }) => {
                     let msg = create_sign_message();
-                    match signature.verify(&msg, &pubkey) {
+                    let trader_id = signature.pubkey;
+                    let signature = signature.signature;
+
+                    match signature.verify(&msg, &trader_id) {
                         Ok(_) => {
                             if let Err(e) = local_sender.send(Message::Authenticated).await {
                                 tracing::error!("Could not respond to user {e:#}");
                                 return;
                             }
 
+                            if let Some(token) = fcm_token {
+                                if let Err(e) = user::upsert_fcm_token(&mut conn, trader_id, token)
+                                {
+                                    tracing::error!(%trader_id, "Failed to update fcm token. Error: {e:#}")
+                                }
+                            }
+
                             let message = NewUserMessage {
-                                new_user: pubkey,
+                                new_user: trader_id,
                                 sender: local_sender.clone(),
                             };
                             if let Err(e) = state.tx_user_feed.send(message) {
-                                tracing::error!("Could not send trading message. Error: {e:#}");
+                                tracing::error!(%trader_id, "Could not send trading message. Error: {e:#}");
                             }
                         }
                         Err(err) => {
@@ -149,7 +162,7 @@ pub async fn websocket_connection(stream: WebSocket, state: Arc<AppState>) {
                                 .await
                             {
                                 tracing::error!(
-                                    "Failed to notify user about invalid authentication: {er:#}"
+                                    %trader_id, "Failed to notify user about invalid authentication: {er:#}"
                                 );
                                 return;
                             }

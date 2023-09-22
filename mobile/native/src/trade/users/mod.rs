@@ -5,26 +5,6 @@ use anyhow::anyhow;
 use anyhow::Context;
 use anyhow::Result;
 use coordinator_commons::RegisterParams;
-use coordinator_commons::TokenUpdateParams;
-
-pub async fn update_fcm_token(fcm_token: String) -> Result<()> {
-    let token_update = TokenUpdateParams {
-        pubkey: ln_dlc::get_node_info()?.pubkey.to_string(),
-        fcm_token,
-    };
-
-    reqwest_client()
-        .post(format!(
-            "http://{}/api/fcm_token",
-            config::get_http_endpoint()
-        ))
-        .json(&token_update)
-        .send()
-        .await
-        .context("Failed to update FCM token with coordinator")?
-        .error_for_status()?;
-    Ok(())
-}
 
 /// Enroll the user in the beta program
 pub async fn register_beta(email: String) -> Result<()> {

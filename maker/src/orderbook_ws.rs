@@ -84,7 +84,8 @@ impl Client {
             loop {
                 let url = url.clone();
                 let authenticate = auth_fn;
-                match orderbook_client::subscribe_with_authentication(url, authenticate).await {
+                match orderbook_client::subscribe_with_authentication(url, authenticate, None).await
+                {
                     Ok((mut sink, mut stream)) => {
                         // We request the filled matches for all our limit orders periodically.
                         let (task, _handle) = async move {

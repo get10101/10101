@@ -30,6 +30,7 @@ pub fn subscribe(
     secret_key: SecretKey,
     runtime: &Runtime,
     orderbook_status: watch::Sender<ServiceStatus>,
+    fcm_token: String,
 ) -> Result<()> {
     runtime.spawn(async move {
         let url = format!(
@@ -80,7 +81,7 @@ pub fn subscribe(
             let url = url.clone();
             let authenticate = authenticate;
             let (_, mut stream) =
-                match orderbook_client::subscribe_with_authentication(url, authenticate).await {
+                match orderbook_client::subscribe_with_authentication(url, authenticate, Some(fcm_token.to_string())).await {
                     Ok(split_stream) => split_stream,
                     Err(e) => {
                         tracing::error!("Could not start up orderbook client: {e:#}");
