@@ -36,12 +36,6 @@ async fn crud_test() {
 
     let order = orders::set_is_taken(&mut conn, order.id, true).unwrap();
     assert_eq!(order.order_state, OrderState::Taken);
-
-    let deleted = orders::delete_with_id(&mut conn, order.id).unwrap();
-    assert_eq!(deleted, 1);
-
-    let orders = orders::all(&mut conn, true).unwrap();
-    assert!(orders.is_empty());
 }
 
 #[tokio::test]

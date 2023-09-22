@@ -158,7 +158,12 @@ async fn process_new_order(
     // not get matched.
     // TODO(holzeis): orders should probably do not have an expiry, but should either be
     // replaced or deleted if not wanted anymore.
-    orders::set_expired_limit_orders_to_failed(conn)?;
+    let expired_limit_orders = orders::set_expired_limit_orders_to_failed(conn)?;
+    for expired_limit_order in expired_limit_orders {
+        tx_price_feed
+            .send(Message::DeleteOrder(expired_limit_order.id))
+            .map_err(|error| anyhow!("Could not update price feed due to '{error}'"))?;
+    }
 
     let order = orders::insert(conn, new_order.clone(), order_reason)
         .map_err(|e| anyhow!("Failed to insert new order into db: {e:#}"))?;
