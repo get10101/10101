@@ -1,6 +1,7 @@
 import 'package:f_logs/model/flog/flog.dart';
 import 'package:flutter/material.dart';
 import 'package:get_10101/common/scrollable_safe_area.dart';
+import 'package:get_10101/common/snack_bar.dart';
 import 'package:get_10101/features/wallet/wallet_screen.dart';
 import 'package:get_10101/util/preferences.dart';
 import 'package:go_router/go_router.dart';
@@ -76,10 +77,14 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                   onPressed: () {
                     if (_formKey.currentState != null && _formKey.currentState!.validate()) {
                       _formKey.currentState?.save();
-                      api.registerBeta(email: _email);
-                      Preferences.instance.setEmailAddress(_email);
-                      FLog.info(text: "Successfully stored the email address $_email .");
-                      context.go(WalletScreen.route);
+                      try {
+                        api.registerBeta(email: _email);
+                        Preferences.instance.setEmailAddress(_email);
+                        FLog.info(text: "Successfully stored the email address $_email .");
+                        context.go(WalletScreen.route);
+                      } catch (e) {
+                        showSnackBar(ScaffoldMessenger.of(context), "$e");
+                      }
                     }
                   },
                   child: const Text(
