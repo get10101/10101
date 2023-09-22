@@ -32,7 +32,6 @@ use trade::ContractSymbol;
 struct Rollover {
     counterparty_pubkey: PublicKey,
     contract_descriptor: ContractDescriptor,
-    expiry_timestamp: OffsetDateTime,
     margin_coordinator: u64,
     margin_trader: u64,
     contract_symbol: ContractSymbol,
@@ -146,7 +145,6 @@ impl Rollover {
         Ok(Rollover {
             counterparty_pubkey: offered_contract.counter_party,
             contract_descriptor: contract_info.clone().contract_descriptor,
-            expiry_timestamp,
             margin_coordinator,
             margin_trader,
             oracle_pk: oracle_announcement.oracle_public_key,
@@ -165,7 +163,7 @@ impl Rollover {
 
     /// Calculates the maturity time based on the current expiry timestamp.
     pub fn maturity_time(&self) -> OffsetDateTime {
-        coordinator_commons::calculate_next_expiry(self.expiry_timestamp, self.network)
+        coordinator_commons::calculate_next_expiry(OffsetDateTime::now_utc(), self.network)
     }
 }
 
@@ -276,35 +274,12 @@ pub mod tests {
     }
 
     #[test]
-    fn test_event_id() {
-        // Thu Aug 17 2023 19:13:13 GMT+0000
-        let expiry = OffsetDateTime::from_unix_timestamp(1692299593).unwrap();
-        let rollover = Rollover {
-            counterparty_pubkey: dummy_pubkey(),
-            contract_descriptor: dummy_contract_descriptor(),
-            expiry_timestamp: expiry,
-            margin_coordinator: 0,
-            margin_trader: 0,
-            contract_symbol: ContractSymbol::BtcUsd,
-            oracle_pk: XOnlyPublicKey::from(dummy_pubkey()),
-            contract_tx_fee_rate: 1,
-            network: Network::Bitcoin,
-        };
-        let event_id = rollover.event_id();
-
-        // expect expiry in seven days at midnight.
-        // Sun Aug 20 2023 15:00:00 GMT+0000
-        assert_eq!(event_id, format!("btcusd1692543600"))
-    }
-
-    #[test]
     fn test_from_rollover_to_contract_input() {
         let margin_trader = 123;
         let margin_coordinator = 234;
         let rollover = Rollover {
             counterparty_pubkey: dummy_pubkey(),
             contract_descriptor: dummy_contract_descriptor(),
-            expiry_timestamp: OffsetDateTime::from_unix_timestamp(1692299593).unwrap(),
             margin_coordinator,
             margin_trader,
             contract_symbol: ContractSymbol::BtcUsd,
