@@ -61,9 +61,17 @@ pub fn router(
         .route("/api/pay-invoice/:invoice", post(pay_invoice))
         .route("/api/sync-on-chain", post(sync_on_chain))
         .route("/api/position", get(get_position))
+        .route("/api/node", get(get_node_info))
         .route("/metrics", get(get_metrics))
         .route("/health", get(get_health))
         .with_state(app_state)
+}
+
+pub async fn get_node_info(
+    State(app_state): State<Arc<AppState>>,
+) -> Result<Json<NodeInfo>, AppError> {
+    let node_info = app_state.node.info;
+    Ok(Json(node_info))
 }
 
 pub async fn connect_to_peer(
