@@ -15,6 +15,9 @@ const SETTINGS_FILE_NAME: &str = "coordinator-settings.toml";
 /// Top-level settings.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Settings {
+    /// If set to true, new users are allow to trade on the platform without
+    /// previously being on the waitlist.
+    pub auto_allow_new_users: bool,
     pub jit_channels_enabled: bool,
     pub new_positions_enabled: bool,
     /// Defines the sats/vbyte to be used for all transactions within the sub-channel
@@ -40,6 +43,7 @@ pub struct Settings {
 impl Default for Settings {
     fn default() -> Self {
         Self {
+            auto_allow_new_users: false,
             jit_channels_enabled: true,
             new_positions_enabled: true,
             contract_tx_fee_rate: 9,

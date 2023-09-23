@@ -216,6 +216,9 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
         if (!hasEmailAddress) {
           FLog.info(text: "adding the email...");
           return WelcomeScreen.route;
+        } else {
+          await Preferences.instance.getEmailAddress().then(
+              (value) => FLog.info(text: "Email already added, skipping welcome screen: $value."));
         }
 
         return null;

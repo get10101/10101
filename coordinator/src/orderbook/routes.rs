@@ -71,7 +71,6 @@ fn get_db_connection(
 ) -> Result<PooledConnection<ConnectionManager<PgConnection>>, AppError> {
     state
         .pool
-        .clone()
         .get()
         .map_err(|e| AppError::InternalServerError(format!("Failed to get db access: {e:#}")))
 }
@@ -120,7 +119,7 @@ pub async fn post_order(
     Ok(Json(order))
 }
 
-fn update_pricefeed(pricefeed_msg: Message, sender: Sender<Message>) {
+fn update_pricefeed(pricefeed_msg: Message, sender: &Sender<Message>) {
     match sender.send(pricefeed_msg) {
         Ok(_) => {
             tracing::trace!("Pricefeed updated")
@@ -144,7 +143,7 @@ pub async fn put_order(
     let mut conn = get_db_connection(&state)?;
     let order = orderbook::db::orders::set_is_taken(&mut conn, order_id, updated_order.taken)
         .map_err(|e| AppError::InternalServerError(format!("Failed to update order: {e:#}")))?;
-    let sender = state.tx_price_feed.clone();
+    let sender = &state.tx_price_feed;
     update_pricefeed(Message::Update(order.clone()), sender);
 
     Ok(Json(order))

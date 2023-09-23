@@ -1,10 +1,16 @@
+import 'dart:io';
+
 import 'package:f_logs/model/flog/flog.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:get_10101/common/global_keys.dart';
 import 'package:get_10101/common/scrollable_safe_area.dart';
+import 'package:get_10101/common/snack_bar.dart';
 import 'package:get_10101/features/wallet/wallet_screen.dart';
 import 'package:get_10101/util/preferences.dart';
 import 'package:go_router/go_router.dart';
 import 'package:get_10101/ffi.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class WelcomeScreen extends StatefulWidget {
   static const route = "/welcome";
@@ -73,13 +79,61 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                   },
                 ),
                 ElevatedButton(
-                  onPressed: () {
+                  onPressed: () async {
                     if (_formKey.currentState != null && _formKey.currentState!.validate()) {
                       _formKey.currentState?.save();
-                      api.registerBeta(email: _email);
-                      Preferences.instance.setEmailAddress(_email);
-                      FLog.info(text: "Successfully stored the email address $_email .");
-                      context.go(WalletScreen.route);
+                      try {
+                        final currentContext = context;
+                        await api.registerBeta(email: _email).then((value) {
+                          FLog.info(text: "Successfully registered email $_email for beta access.");
+                          Preferences.instance.setEmailAddress(_email);
+                          currentContext.go(WalletScreen.route);
+                        });
+                      } catch (e) {
+                        FLog.error(text: e.toString());
+                        showDialog(
+                            context: rootNavigatorKey.currentContext!,
+                            builder: (context) => AlertDialog(
+                                    title: const Text("No access to the 10101 beta."),
+                                    content: RichText(
+                                      text: TextSpan(
+                                        style: DefaultTextStyle.of(context).style,
+                                        children: <TextSpan>[
+                                          const TextSpan(
+                                              text: "Worry not, you are on the wait-list.\n"
+                                                  "Please be patient as we scale up our infrastructure.\n If you have further questions, please contact us on Telegram: ",
+                                              style:
+                                                  TextStyle(fontSize: 16, color: Colors.black54)),
+                                          TextSpan(
+                                            text: 'https://t.me/get10101',
+                                            style:
+                                                const TextStyle(fontSize: 16, color: Colors.blue),
+                                            recognizer: TapGestureRecognizer()
+                                              ..onTap = () async {
+                                                final httpsUri = Uri(
+                                                    scheme: 'https',
+                                                    host: 't.me',
+                                                    path: 'get10101');
+                                                if (await canLaunchUrl(httpsUri)) {
+                                                  await launchUrl(httpsUri);
+                                                } else {
+                                                  showSnackBar(
+                                                      ScaffoldMessenger.of(
+                                                          rootNavigatorKey.currentContext!),
+                                                      "Failed to open link");
+                                                }
+                                              },
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () => exit(0),
+                                        child: const Text('OK'),
+                                      ),
+                                    ]));
+                      }
                     }
                   },
                   child: const Text(

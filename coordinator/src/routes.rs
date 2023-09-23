@@ -1,6 +1,8 @@
+use crate::admin::add_to_waitlist;
 use crate::admin::close_channel;
 use crate::admin::connect_to_peer;
 use crate::admin::get_balance;
+use crate::admin::get_waitlist;
 use crate::admin::is_connected;
 use crate::admin::list_channels;
 use crate::admin::list_dlc_channels;
@@ -10,6 +12,8 @@ use crate::admin::open_channel;
 use crate::admin::send_payment;
 use crate::admin::sign_message;
 use crate::db::user;
+use crate::db::waitlist;
+use crate::db::waitlist::WaitlistEntry;
 use crate::message::NewUserMessage;
 use crate::node::Node;
 use crate::orderbook::routes::get_order;
@@ -138,6 +142,8 @@ pub fn router(
             get(get_settings).put(update_settings),
         )
         .route("/api/admin/sync", post(post_sync))
+        .route("/api/admin/waitlist/add", post(add_to_waitlist))
+        .route("/api/admin/waitlist", get(get_waitlist))
         .route(
             "/api/admin/broadcast_announcement",
             post(post_broadcast_announcement),
@@ -324,16 +330,37 @@ pub async fn post_register(
             "Invalid registration parameters: {register_params:?}"
         )));
     }
-    tracing::info!(?register_params, "Registered new user");
 
     let mut conn = state
         .pool
         .get()
         .map_err(|e| AppError::InternalServerError(format!("Could not get connection: {e:#}")))?;
 
-    if let Some(email) = register_params.email {
+    if let Some(email) = register_params.email.clone() {
+        let waitlist_entry = if let Some(waitlist_entry) = waitlist::with_email(&mut conn, &email)
+            .map_err(|e| {
+            AppError::InternalServerError(format!("could not retrieve waitlist: {e:#}"))
+        })? {
+            tracing::info!("User is on the waitlist");
+            waitlist_entry
+        } else {
+            tracing::info!("Signing up user onto the waitlist");
+
+            let allowed = state.settings.read().await.auto_allow_new_users;
+            waitlist::upsert(&mut conn, WaitlistEntry::new(email.clone(), allowed)).map_err(
+                |e| AppError::InternalServerError(format!("could not insert into waitlist: {e:#}")),
+            )?
+        };
+
+        if !waitlist_entry.allowed {
+            return Err(AppError::BadRequest(
+                "No access to the application; wait for your turn".to_string(),
+            ));
+        }
+
         user::upsert_email(&mut conn, register_params.pubkey, email)
             .map_err(|e| AppError::InternalServerError(format!("Could not upsert user: {e:#}")))?;
+        tracing::info!(?register_params, "Registered new user");
     } else {
         tracing::warn!(trader_id=%register_params.pubkey, "Did not receive an email during registration");
     }

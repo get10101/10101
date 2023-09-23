@@ -213,6 +213,15 @@ diesel::table! {
     }
 }
 
+diesel::table! {
+    waitlist (email) {
+        email -> Text,
+        created_timestamp -> Timestamptz,
+        allowed -> Bool,
+        allowed_timestamp -> Nullable<Timestamptz>,
+    }
+}
+
 diesel::joinable!(trades -> positions (position_id));
 
 diesel::allow_tables_to_appear_in_same_query!(
@@ -226,4 +235,5 @@ diesel::allow_tables_to_appear_in_same_query!(
     trades,
     transactions,
     users,
+    waitlist,
 );

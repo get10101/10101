@@ -1,4 +1,6 @@
 use crate::db;
+use crate::db::waitlist;
+use crate::db::waitlist::WaitlistEntry;
 use crate::routes::AppState;
 use crate::AppError;
 use anyhow::Context;
@@ -300,4 +302,48 @@ pub async fn is_connected(
         AppError::BadRequest(format!("Invalid public key {target_pubkey}. Error: {err}"))
     })?;
     Ok(Json(state.node.is_connected(&target)))
+}
+
+#[derive(Deserialize)]
+pub struct AddWaitlistRequest {
+    email: String,
+    /// Is the user allowed to access the app. Defaults to true. User access can
+    /// be revoked at a later point.
+    allowed: Option<bool>,
+}
+
+pub async fn add_to_waitlist(
+    State(state): State<Arc<AppState>>,
+    Json(body): Json<AddWaitlistRequest>,
+) -> Result<(), AppError> {
+    let mut conn =
+        state.pool.clone().get().map_err(|e| {
+            AppError::InternalServerError(format!("Failed to acquire db lock: {e:#}"))
+        })?;
+
+    // We allow access by default, because the sole fact of putting an email in
+    // the app signs up the user to the waitlist.
+    let new_entry = WaitlistEntry::new(body.email, body.allowed.unwrap_or(true));
+    tracing::debug!(?new_entry, "Adding user to waitlist");
+
+    waitlist::upsert(&mut conn, new_entry).map_err(|e| {
+        AppError::InternalServerError(format!("Failed to insert into waitlist: {e:#}"))
+    })?;
+
+    Ok(())
+}
+
+/// Return the whole waitlist
+pub async fn get_waitlist(
+    State(state): State<Arc<AppState>>,
+) -> Result<Json<Vec<WaitlistEntry>>, AppError> {
+    let mut conn =
+        state.pool.clone().get().map_err(|e| {
+            AppError::InternalServerError(format!("Failed to acquire db lock: {e:#}"))
+        })?;
+
+    let waitlist = waitlist::all(&mut conn)
+        .map_err(|e| AppError::InternalServerError(format!("Failed to get waitlist: {e:#}")))?;
+
+    Ok(Json(waitlist))
 }

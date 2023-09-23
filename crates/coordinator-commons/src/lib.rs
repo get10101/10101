@@ -64,7 +64,7 @@ pub struct RegisterParams {
 
 impl RegisterParams {
     pub fn is_valid(&self) -> bool {
-        self.email.is_some() || self.nostr.is_some()
+        self.email.is_some()
     }
 }
 

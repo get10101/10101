@@ -7,3 +7,4 @@ pub mod spendable_outputs;
 pub mod trades;
 pub mod transactions;
 pub mod user;
+pub mod waitlist;
