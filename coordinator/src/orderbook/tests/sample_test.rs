@@ -24,7 +24,7 @@ async fn crud_test() {
 
     let mut conn = setup_db(conn_spec);
 
-    let orders = orders::all(&mut conn, true).unwrap();
+    let orders = orders::all(&mut conn, true, true).unwrap();
     assert!(orders.is_empty());
 
     let order = orders::insert(
@@ -47,7 +47,7 @@ async fn test_filter_expired_orders() {
 
     let mut conn = setup_db(conn_spec);
 
-    let orders = orders::all(&mut conn, true).unwrap();
+    let orders = orders::all(&mut conn, true, true).unwrap();
     assert!(orders.is_empty());
 
     let order = orders::insert(
@@ -63,11 +63,45 @@ async fn test_filter_expired_orders() {
     )
     .unwrap();
 
-    let orders = orders::all(&mut conn, false).unwrap();
+    let orders = orders::all(&mut conn, false, true).unwrap();
     assert_eq!(orders.len(), 1);
     assert_eq!(orders.get(0).unwrap().id, order.id);
 
-    let orders = orders::all(&mut conn, true).unwrap();
+    let orders = orders::all(&mut conn, true, true).unwrap();
+    assert_eq!(orders.len(), 2);
+}
+
+#[tokio::test]
+async fn test_filter_failed_orders() {
+    init_tracing_for_test();
+
+    let docker = Cli::default();
+    let (_container, conn_spec) = start_postgres(&docker).unwrap();
+
+    let mut conn = setup_db(conn_spec);
+
+    let orders = orders::all(&mut conn, true, true).unwrap();
+    assert!(orders.is_empty());
+
+    let first_order = orders::insert(
+        &mut conn,
+        dummy_order(OffsetDateTime::now_utc() + Duration::minutes(1)),
+        OrderReason::Manual,
+    )
+    .unwrap();
+    let second_order = orders::insert(
+        &mut conn,
+        dummy_order(OffsetDateTime::now_utc() + Duration::minutes(1)),
+        OrderReason::Manual,
+    )
+    .unwrap();
+    orders::set_order_state(&mut conn, second_order.id, OrderState::Failed).unwrap();
+
+    let orders = orders::all(&mut conn, false, false).unwrap();
+    assert_eq!(orders.len(), 1);
+    assert_eq!(orders.get(0).unwrap().id, first_order.id);
+
+    let orders = orders::all(&mut conn, false, true).unwrap();
     assert_eq!(orders.len(), 2);
 }
 

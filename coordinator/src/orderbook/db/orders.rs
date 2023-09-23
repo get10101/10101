@@ -177,13 +177,23 @@ impl From<OrderbookNewOrder> for NewOrder {
     }
 }
 
-pub fn all(conn: &mut PgConnection, show_expired: bool) -> QueryResult<Vec<OrderbookOrder>> {
-    let orders: Vec<Order> = if show_expired {
-        orders::dsl::orders.load::<Order>(conn)?
-    } else {
-        orders::table
+pub fn all(
+    conn: &mut PgConnection,
+    show_expired: bool,
+    show_failed: bool,
+) -> QueryResult<Vec<OrderbookOrder>> {
+    let orders = match (show_expired, show_failed) {
+        (true, true) => orders::dsl::orders.load::<Order>(conn)?,
+        (false, false) => orders::table
             .filter(orders::expiry.gt(OffsetDateTime::now_utc()))
-            .load::<Order>(conn)?
+            .filter(orders::order_state.ne(OrderState::Failed))
+            .load::<Order>(conn)?,
+        (false, true) => orders::table
+            .filter(orders::expiry.gt(OffsetDateTime::now_utc()))
+            .load::<Order>(conn)?,
+        (true, false) => orders::table
+            .filter(orders::order_state.ne(OrderState::Failed))
+            .load::<Order>(conn)?,
     };
 
     Ok(orders.into_iter().map(OrderbookOrder::from).collect())
