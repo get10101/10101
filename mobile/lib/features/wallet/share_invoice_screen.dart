@@ -132,7 +132,7 @@ class _ShareInvoiceScreenState extends State<ShareInvoiceScreen> {
                         final router = GoRouter.of(context);
                         final messenger = ScaffoldMessenger.of(context);
                         try {
-                          await payInvoiceWithFaucet(widget.invoice.rawInvoice);
+                          await payInvoiceWithLndFaucet(widget.invoice.rawInvoice);
                           // Pop both create invoice screen and share invoice screen
                           router.pop();
                           router.pop();
@@ -149,6 +149,38 @@ class _ShareInvoiceScreenState extends State<ShareInvoiceScreen> {
                       borderRadius: BorderRadius.all(Radius.circular(5.0))),
                 ),
                 child: const Text("Pay the invoice with 10101 faucet"),
+              ),
+            ),
+            Visibility(
+              visible: config.network == "regtest",
+              child: OutlinedButton(
+                onPressed: _isPayInvoiceButtonDisabled
+                    ? null
+                    : () async {
+                        setState(() {
+                          _isPayInvoiceButtonDisabled = true;
+                        });
+
+                        final router = GoRouter.of(context);
+                        final messenger = ScaffoldMessenger.of(context);
+                        try {
+                          await payInvoiceWithMakerFaucet(widget.invoice.rawInvoice);
+                          // Pop both create invoice screen and share invoice screen
+                          router.pop();
+                          router.pop();
+                        } catch (error) {
+                          showSnackBar(messenger, error.toString());
+                        } finally {
+                          setState(() {
+                            _isPayInvoiceButtonDisabled = false;
+                          });
+                        }
+                      },
+                style: ElevatedButton.styleFrom(
+                  shape: const RoundedRectangleBorder(
+                      borderRadius: BorderRadius.all(Radius.circular(5.0))),
+                ),
+                child: const Text("Pay the invoice with maker faucet"),
               ),
             ),
             Row(children: [
@@ -237,7 +269,7 @@ class _ShareInvoiceScreenState extends State<ShareInvoiceScreen> {
   }
 
   // Pay the generated invoice with 10101 faucet
-  Future<void> payInvoiceWithFaucet(String invoice) async {
+  Future<void> payInvoiceWithLndFaucet(String invoice) async {
     // Default to the faucet on the 10101 server, but allow to override it
     // locally if needed for dev testing
     // It's not populated in Config struct, as it's not used in production
@@ -255,6 +287,27 @@ class _ShareInvoiceScreenState extends State<ShareInvoiceScreen> {
 
     if (response.statusCode != 200 || !response.body.contains('"payment_error":""')) {
       throw Exception("Payment failed: Received ${response.statusCode} ${response.body}");
+    } else {
+      FLog.info(text: "Paying invoice succeeded: ${response.body}");
+    }
+  }
+
+  // Pay the generated invoice with maker faucet
+  Future<void> payInvoiceWithMakerFaucet(String invoice) async {
+    // Default to the faucet on the 10101 server, but allow to override it
+    // locally if needed for dev testing
+    // It's not populated in Config struct, as it's not used in production
+    String faucet = const String.fromEnvironment("REGTEST_MAKER_FAUCET",
+        defaultValue: "http://34.32.0.52:80/maker/faucet");
+
+    final response = await http.post(
+      Uri.parse('$faucet/$invoice'),
+    );
+
+    FLog.info(text: "Response ${response.body}${response.statusCode}");
+
+    if (response.statusCode != 200) {
+      throw Exception("Payment failed: Received ${response.statusCode}. ${response.body}");
     } else {
       FLog.info(text: "Paying invoice succeeded: ${response.body}");
     }
