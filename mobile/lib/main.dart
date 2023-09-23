@@ -69,7 +69,8 @@ void main() async {
 
   setupFlutterLogs();
 
-  initFirebase();
+  await initFirebase();
+  FLog.info(text: "Initialised firebase!");
 
   const ChannelInfoService channelInfoService = ChannelInfoService();
   var tradeValuesService = TradeValuesService();
