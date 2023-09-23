@@ -35,6 +35,8 @@ use uuid::Uuid;
 pub struct AllOrdersParams {
     #[serde(default, deserialize_with = "empty_string_as_none")]
     show_expired: Option<bool>,
+    #[serde(default, deserialize_with = "empty_string_as_none")]
+    show_failed: Option<bool>,
 }
 
 /// Serde deserialization decorator to map empty Strings to None,
@@ -57,7 +59,8 @@ pub async fn get_orders(
 ) -> Result<Json<Vec<Order>>, AppError> {
     let mut conn = get_db_connection(&state)?;
     let show_expired = params.show_expired.unwrap_or_default();
-    let order = orderbook::db::orders::all(&mut conn, show_expired)
+    let show_failed = params.show_failed.unwrap_or_default();
+    let order = orderbook::db::orders::all(&mut conn, show_expired, show_failed)
         .map_err(|e| AppError::InternalServerError(format!("Failed to load all orders: {e:#}")))?;
 
     Ok(Json(order))

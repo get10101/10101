@@ -35,7 +35,7 @@ pub async fn websocket_connection(stream: WebSocket, state: Arc<AppState>) {
         }
     };
 
-    let orders = match orderbook::db::orders::all(&mut conn, false) {
+    let orders = match orderbook::db::orders::all(&mut conn, false, false) {
         Ok(orders) => orders,
         Err(error) => {
             tracing::error!("Could not load all orders from db {error:#}");
