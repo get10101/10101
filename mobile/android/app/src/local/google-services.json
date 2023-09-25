@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "958970316277",
+    "project_id": "testnet-467c6",
+    "storage_bucket": "testnet-467c6.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:958970316277:android:c8a1d7a58212e3111e0cbc",
+        "android_client_info": {
+          "package_name": "finance.get10101.app.demo"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC6pSZrKdL69ch2ltopWjSqmu31icNZL-U"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
