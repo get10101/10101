@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:confetti/confetti.dart';
 import 'package:flutter/material.dart';
 import 'package:get_10101/common/domain/background_task.dart';
@@ -26,6 +28,9 @@ class TaskStatusDialog extends StatefulWidget {
 
 class _TaskStatusDialog extends State<TaskStatusDialog> {
   late final ConfettiController _confettiController;
+  Timer? _timeout;
+
+  bool timeout = false;
 
   @override
   void initState() {
@@ -36,12 +41,27 @@ class _TaskStatusDialog extends State<TaskStatusDialog> {
   @override
   void dispose() {
     _confettiController.dispose();
+    _timeout?.cancel();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     bool isPending = widget.status == TaskStatus.pending;
+
+    if (_timeout != null) {
+      // cancel already running timeout timer if we receive a new update.
+      _timeout!.cancel();
+    }
+
+    if (isPending) {
+      // Start timeout showing the close button after 30 seconds.
+      _timeout = Timer(const Duration(seconds: 30), () {
+        setState(() {
+          timeout = true;
+        });
+      });
+    }
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _confettiController.play();
@@ -80,10 +100,13 @@ class _TaskStatusDialog extends State<TaskStatusDialog> {
                   ConfettiWidget(
                     confettiController: _confettiController,
                     blastDirectionality: BlastDirectionality.explosive,
-                    maxBlastForce: 10, // set a lower max blast force
-                    minBlastForce: 9, // set a lower min blast force
+                    maxBlastForce: 10,
+                    // set a lower max blast force
+                    minBlastForce: 9,
+                    // set a lower min blast force
                     emissionFrequency: 0.00001,
-                    numberOfParticles: 20, // a lot of particles at once
+                    numberOfParticles: 20,
+                    // a lot of particles at once
                     gravity: 0.2,
                     shouldLoop: false,
                   ),
@@ -101,7 +124,7 @@ class _TaskStatusDialog extends State<TaskStatusDialog> {
         }
       })()}"),
       content: widget.content,
-      actions: isPending ? null : [closeButton],
+      actions: isPending && !timeout ? null : [closeButton],
       insetPadding: widget.insetPadding,
     );
 

@@ -32,12 +32,6 @@ class RecoverDlcChangeNotifier extends ChangeNotifier implements Subscriber {
             return TaskStatusDialog(title: "Catching up!", status: status, content: content);
           },
         );
-
-        // setting the task status to failed after a timeout of 30 seconds.
-        Future.delayed(const Duration(seconds: 30), () {
-          taskStatus = TaskStatus.failed;
-          notifyListeners();
-        });
       } else {
         // notify dialog about changed task status
         notifyListeners();

@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Sync position with dlc channel state
 - Extend coordinator's `/api/version` with commit hash and number
 - When pulling down wallet sync it waits until the sync is finished
+- Add close button to dialog if it remains on pending for more than 30 seconds
 
 ## [1.2.6] - 2023-09-06
 
