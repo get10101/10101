@@ -43,7 +43,7 @@ import 'package:get_10101/features/wallet/domain/wallet_info.dart';
 import 'package:get_10101/features/wallet/scanner_screen.dart';
 import 'package:get_10101/features/wallet/seed_screen.dart';
 import 'package:get_10101/features/wallet/send_payment_change_notifier.dart';
-import 'package:get_10101/features/wallet/send_screen.dart';
+import 'package:get_10101/features/wallet/send_payment_screen.dart';
 import 'package:get_10101/features/wallet/share_invoice_screen.dart';
 import 'package:get_10101/features/wallet/wallet_change_notifier.dart';
 import 'package:get_10101/features/wallet/wallet_screen.dart';
@@ -148,11 +148,11 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
               },
               routes: <RouteBase>[
                 GoRoute(
-                  path: SendScreen.subRouteName,
+                  path: SendPaymentScreen.subRouteName,
                   // Use root navigator so the screen overlays the application shell
                   parentNavigatorKey: rootNavigatorKey,
                   builder: (BuildContext context, GoRouterState state) {
-                    return const SendScreen();
+                    return const SendPaymentScreen();
                   },
                 ),
                 GoRoute(

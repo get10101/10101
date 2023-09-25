@@ -12,7 +12,7 @@ import 'package:get_10101/features/wallet/domain/wallet_history.dart';
 import 'package:get_10101/features/wallet/domain/wallet_type.dart';
 import 'package:get_10101/features/wallet/seed_screen.dart';
 import 'package:get_10101/features/wallet/send_payment_change_notifier.dart';
-import 'package:get_10101/features/wallet/send_screen.dart';
+import 'package:get_10101/features/wallet/send_payment_screen.dart';
 import 'package:get_10101/features/wallet/wallet_change_notifier.dart';
 import 'package:get_10101/features/wallet/wallet_theme.dart';
 import 'package:get_10101/util/preferences.dart';
@@ -280,7 +280,7 @@ class _WalletScreenState extends State<WalletScreen> {
             child: const Icon(SendReceiveIcons.sendWithQr, size: 24.0),
             label: 'Send',
             labelStyle: const TextStyle(fontSize: 18.0),
-            onTap: () => GoRouter.of(context).go(SendScreen.route),
+            onTap: () => GoRouter.of(context).go(SendPaymentScreen.route),
           ),
         ],
       ),
