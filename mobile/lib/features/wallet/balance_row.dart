@@ -209,8 +209,6 @@ class BalanceRowButton extends StatelessWidget {
           icon,
           size: buttonSize - buttonIconPadding * 2,
         )),
-        // tooltip: enabled ? "$action bitcoins on $type" : null,
-        // padding: const EdgeInsets.all(horizontalPadding),
       ),
     );
   }
