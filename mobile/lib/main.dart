@@ -549,8 +549,13 @@ Future<void> runBackend(bridge.Config config) async {
     appDir = seedDir;
   }
 
-  FirebaseMessaging messaging = FirebaseMessaging.instance;
-  final fcmToken = await messaging.getToken();
+  String fcmToken;
+  try {
+    fcmToken = await FirebaseMessaging.instance.getToken().then((value) => value ?? '');
+  } catch (e) {
+    FLog.error(text: "Error fetching FCM token: $e");
+    fcmToken = '';
+  }
 
   FLog.info(text: "App data will be stored in: $appDir");
   FLog.info(text: "Seed data will be stored in: $seedDir");
