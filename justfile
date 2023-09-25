@@ -471,27 +471,16 @@ build-android-app-bundle:
     echo "build name: ${BUILD_NAME}"
     echo "build number: ${BUILD_NUMBER}"
 
-    regtest_args=()
-    ANDROID_PACKAGE_NAME='finance.get10101.app';
+    flavor_arg=()
     if [ "$NETWORK" = "regtest" ]; then
-      regtest_args+=(--flavor demo)
-      ANDROID_PACKAGE_NAME='finance.get10101.app.demo';
+      flavor_arg+=(--flavor demo)
     else
-      regtest_args+=(--flavor full)
+      flavor_arg+=(--flavor full)
     fi
 
     # Replacing package id using the env variable.
     os={{os()}}
-    echo "building on '$os' for '$NETWORK' and package id '$ANDROID_PACKAGE_NAME'"
-    if [ "$os" = "linux" ]; then
-        sed -i "s/\"finance\.get10101\.app\"/\"${ANDROID_PACKAGE_NAME}\"/g" mobile/android/app/google-services.json
-    elif [ "$os" = "macos" ]; then
-        sed -i '' "s/\"finance\.get10101\.app\"/\"$ANDROID_PACKAGE_NAME\"/g" mobile/android/app/google-services.json
-    else
-        echo "Only Linux and macOS are supported."
-        exit 1
-    fi
-    cat mobile/android/app/google-services.json | jq 'recurse | select(type == "object" and (.bundle_id or .package_name))'
+    echo "building on '$os' for '$NETWORK'"
 
     cd mobile && flutter build appbundle  \
       --build-name=${BUILD_NAME} \
@@ -505,7 +494,7 @@ build-android-app-bundle:
       --dart-define="COORDINATOR_PORT_HTTP=${COORDINATOR_PORT_HTTP}" \
       --dart-define="ORACLE_ENDPOINT=${ORACLE_ENDPOINT}" \
       --dart-define="ORACLE_PUBKEY=${ORACLE_PUBKEY}" \
-       "${regtest_args[@]}"
+       "${flavor_arg[@]}"
 
 upload-app-bundle:
     #!/usr/bin/env bash
