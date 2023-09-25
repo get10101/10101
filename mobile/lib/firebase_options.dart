@@ -27,7 +27,13 @@ class DefaultFirebaseOptions {
     }
     switch (defaultTargetPlatform) {
       case TargetPlatform.android:
-        return android;
+        switch (network) {
+          case "regtest":
+            return androidDemo;
+          case "mainnet":
+          default:
+            return androidProd;
+        }
       case TargetPlatform.iOS:
         switch (network) {
           case "regtest":
@@ -55,12 +61,20 @@ class DefaultFirebaseOptions {
     }
   }
 
-  static const FirebaseOptions android = FirebaseOptions(
+  static const FirebaseOptions androidProd = FirebaseOptions(
     apiKey: 'AIzaSyCDI7arcBp4uriwfLySgqrchkNVDVW94uk',
     appId: '1:237191932527:android:651be56a933e8bda36bb9a',
     messagingSenderId: '237191932527',
     projectId: 'project-3195624368411891722',
     storageBucket: 'project-3195624368411891722.appspot.com',
+  );
+
+  static const FirebaseOptions androidDemo = FirebaseOptions(
+    apiKey: 'AIzaSyC6pSZrKdL69ch2ltopWjSqmu31icNZL-U',
+    appId: '1:958970316277:android:c8a1d7a58212e3111e0cbc',
+    messagingSenderId: '958970316277',
+    projectId: 'testnet-467c6',
+    storageBucket: 'testnet-467c6.appspot.com',
   );
 
   static const FirebaseOptions iosProd = FirebaseOptions(
