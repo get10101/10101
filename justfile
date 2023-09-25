@@ -111,6 +111,7 @@ run-regtest args="":
         --dart-define="COORDINATOR_PORT_HTTP={{public_coordinator_http_port}}" \
         --dart-define="ORACLE_ENDPOINT={{public_regtest_oracle_endpoint}}" \
         --dart-define="ORACLE_PUBKEY={{public_regtest_oracle_pk}}" \
+        --flavor test
 
 [unix]
 run-local-android args="":
