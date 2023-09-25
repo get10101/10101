@@ -5,6 +5,8 @@ import 'package:f_logs/f_logs.dart';
 import 'package:flutter/material.dart';
 import 'package:get_10101/common/scrollable_safe_area.dart';
 import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
+import 'package:get_10101/common/snack_bar.dart';
+import 'package:get_10101/util/preferences.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
@@ -72,6 +74,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     rust.api.forceCloseChannel();
                   },
                   child: const Text("Force-close channel")),
+              ElevatedButton(
+                  onPressed: () async {
+                    final messenger = ScaffoldMessenger.of(context);
+                    await Preferences.instance.clear();
+                    showSnackBar(messenger, "Shared preferences cleared");
+                  },
+                  child: const Text("Clear shared preferences")),
             ],
           ),
         ),

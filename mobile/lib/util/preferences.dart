@@ -1,3 +1,4 @@
+import 'package:f_logs/model/flog/flog.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class Preferences {
@@ -31,5 +32,11 @@ class Preferences {
   Future<bool> hasEmailAddress() async {
     var email = await getEmailAddress();
     return email.isNotEmpty;
+  }
+
+  Future<void> clear() async {
+    final preferences = await SharedPreferences.getInstance();
+    preferences.clear();
+    FLog.info(text: "Cleared shared preferences");
   }
 }
