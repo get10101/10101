@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Automatically rollover if user opens app during rollover weekend
 - Sync position with dlc channel state
 - Extend coordinator's `/api/version` with commit hash and number
+- When pulling down wallet sync it waits until the sync is finished
 
 ## [1.2.6] - 2023-09-06
 

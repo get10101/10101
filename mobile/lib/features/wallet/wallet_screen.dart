@@ -119,6 +119,7 @@ class _WalletScreenState extends State<WalletScreen> {
       body: RefreshIndicator(
         onRefresh: () async {
           await walletChangeNotifier.refreshWalletInfo();
+          await walletChangeNotifier.waitForSyncToComplete();
         },
         child: Container(
           margin: const EdgeInsets.only(top: 7.0),
