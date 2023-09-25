@@ -3,6 +3,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:get_10101/firebase_options.dart';
+import 'package:get_10101/util/environment.dart';
 
 /// Ask the user for permission to send notifications via Firebase
 Future<void> requestNotificationPermission() async {
@@ -21,10 +22,12 @@ Future<void> requestNotificationPermission() async {
 }
 
 Future<void> initFirebase() async {
+  final env = Environment.parse();
+
   try {
     FLog.info(text: "Initialising Firebase");
     await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
+      options: DefaultFirebaseOptions(env.network).currentPlatform,
     );
     await requestNotificationPermission();
     final flutterLocalNotificationsPlugin = initLocalNotifications();

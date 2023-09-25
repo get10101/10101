@@ -14,7 +14,11 @@ import 'package:flutter/foundation.dart' show defaultTargetPlatform, kIsWeb, Tar
 /// );
 /// ```
 class DefaultFirebaseOptions {
-  static FirebaseOptions get currentPlatform {
+  final String network;
+
+  DefaultFirebaseOptions(this.network);
+
+  FirebaseOptions get currentPlatform {
     if (kIsWeb) {
       throw UnsupportedError(
         'DefaultFirebaseOptions have not been configured for web - '
@@ -25,7 +29,13 @@ class DefaultFirebaseOptions {
       case TargetPlatform.android:
         return android;
       case TargetPlatform.iOS:
-        return ios;
+        switch (network) {
+          case "regtest":
+            return iosTest;
+          case "mainnet":
+          default:
+            return iosProd;
+        }
       case TargetPlatform.macOS:
         return macos;
       case TargetPlatform.windows:
@@ -53,7 +63,7 @@ class DefaultFirebaseOptions {
     storageBucket: 'project-3195624368411891722.appspot.com',
   );
 
-  static const FirebaseOptions ios = FirebaseOptions(
+  static const FirebaseOptions iosProd = FirebaseOptions(
     apiKey: 'AIzaSyD1FiZUHkX-rdHUtAXU12ku2e7zmBHqLSQ',
     appId: '1:237191932527:ios:ed5586aaa838be1e36bb9a',
     messagingSenderId: '237191932527',
@@ -61,6 +71,16 @@ class DefaultFirebaseOptions {
     storageBucket: 'project-3195624368411891722.appspot.com',
     iosClientId: '237191932527-70uoogr06k3rrrmslr5u1r6i4st9ch39.apps.googleusercontent.com',
     iosBundleId: 'finance.get10101.app',
+  );
+
+  static const FirebaseOptions iosTest = FirebaseOptions(
+    apiKey: 'AIzaSyC1DcfWnlt0BQMpX7_z3f0QPTgL1Po7zB8',
+    appId: '1:958970316277:ios:b85e19a35086fb681e0cbc',
+    messagingSenderId: '958970316277',
+    projectId: 'testnet-467c6',
+    storageBucket: 'testnet-467c6.appspot.com',
+    iosClientId: 'unset?!?',
+    iosBundleId: 'finance.get10101.app.test',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
