@@ -183,16 +183,37 @@ wipe-app:
     #!/usr/bin/env bash
     set -euxo pipefail
     echo "Wiping native 10101 app"
+
+    # Locate macOS 10101 application directory if it exists
+    if [ -d "/Users/mariusz/Library/Containers/" ]; then
+        FOUND_DIR=""
+        for dir in $HOME/Library/Containers/*/Data/Library/Application\ Support/finance.get10101.app; do
+            if [ -d "$dir" ]; then
+                FOUND_DIR="$dir"
+                break  # Exit loop after the first match. Remove if you want all matches.
+            fi
+        done
+        # default to dummy dir if nothing got found to ensure nothing unnecessary gets deleted
+        MACOS_PATH="${FOUND_DIR:-/path/to/dummy/directory}"
+    fi
+
+    # If no path was found, use a dummy path to avoid errors
+    if [[ ! $MACOS_PATH || ! ${MACOS_PATH//[[:space:]]/} ]]; then
+        echo "no macos path found, setting dummy value" 
+        MACOS_PATH="/path/to/dummy/directory"
+    fi
+
     # Array of possible app data directories (OS dependent)
     directories=(
       "$HOME/Library/Containers/finance.get10101.app/Data/Library/Application Support/finance.get10101.app"
       "$HOME/Library/Containers/finance.get10101.app/"
+      "$MACOS_PATH"
       "$HOME/.local/share/finance.get10101.app/"
     )
     # Remove all possible app data directories
     for dir in "${directories[@]}"
     do
-        if [ -d "$dir" ]; then
+        if [[ -d "$dir" ]]; then
             echo "App data directory ${dir} exists, removing it now..."
             rm -r "$dir"
         else
