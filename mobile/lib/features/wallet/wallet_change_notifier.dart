@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:f_logs/f_logs.dart';
 import 'package:flutter/material.dart' hide Flow;
 import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
@@ -32,7 +33,6 @@ class WalletChangeNotifier extends ChangeNotifier implements Subscriber {
   Future<void> refreshWalletInfo() async {
     syncing = true;
     await service.refreshWalletInfo();
-    syncing = false;
   }
 
   Amount total() => Amount(onChain().sats + lightning().sats);
@@ -47,5 +47,22 @@ class WalletChangeNotifier extends ChangeNotifier implements Subscriber {
     } else {
       FLog.warning(text: "Received unexpected event: ${event.toString()}");
     }
+    syncing = false;
+  }
+
+  Future<void> waitForSyncToComplete() async {
+    final completer = Completer<void>();
+
+    void checkSyncingStatus() {
+      if (!syncing) {
+        completer.complete();
+      } else {
+        Future.delayed(const Duration(milliseconds: 200), checkSyncingStatus);
+      }
+    }
+
+    checkSyncingStatus();
+
+    await completer.future;
   }
 }
