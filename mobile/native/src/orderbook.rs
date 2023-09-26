@@ -79,11 +79,18 @@ pub fn subscribe(
             })
         };
 
+        let fcm_token = if fcm_token.is_empty() {
+            None
+        } else {
+            Some(fcm_token)
+        };
+
         loop {
             let url = url.clone();
             let authenticate = authenticate;
+            let fcm_token = fcm_token.clone();
             let (_, mut stream) =
-                match orderbook_client::subscribe_with_authentication(url, authenticate, Some(fcm_token.to_string())).await {
+                match orderbook_client::subscribe_with_authentication(url, authenticate, fcm_token).await {
                     Ok(split_stream) => split_stream,
                     Err(e) => {
                         tracing::error!("Could not start up orderbook client: {e:#}");
