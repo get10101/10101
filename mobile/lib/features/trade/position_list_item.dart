@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:expandable/expandable.dart';
 import 'package:flutter/material.dart';
 import 'package:get_10101/common/value_data_row.dart';
 import 'package:get_10101/features/trade/domain/direction.dart';
@@ -72,139 +71,131 @@ class _PositionListItemState extends State<PositionListItem> {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(10.0),
-        child: ExpandablePanel(
-          theme: const ExpandableThemeData(
-            hasIcon: false,
-            tapBodyToExpand: true,
-            tapHeaderToExpand: true,
-          ),
-          header: Column(
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const ContractSymbolIcon(),
-                      const SizedBox(
-                        width: 10,
-                      ),
-                      Text(
-                        notNullPosition.contractSymbol.label,
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(
-                        width: 5,
-                      ),
-                      Text(
-                        notNullPosition.direction.keySuffix,
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 10),
-                child: Wrap(
-                  runSpacing: 5,
+        child: Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    notNullPosition.unrealizedPnl == null
-                        ? const ValueDataRow(
-                            type: ValueType.loading, value: "", label: "Unrealized P/L")
-                        : ValueDataRow(
-                            type: ValueType.amount,
-                            value: notNullPosition.unrealizedPnl,
-                            label: "Unrealized P/L",
-                            valueTextStyle: dataRowStyle.apply(
-                                color: notNullPosition.unrealizedPnl!.sats.isNegative
-                                    ? tradeTheme.loss
-                                    : tradeTheme.profit),
-                            labelTextStyle: dataRowStyle,
-                          ),
-                    ValueDataRow(
-                      type: ValueType.text,
-                      value: notNullPosition.direction.keySuffix,
-                      label: "Direction",
-                      valueTextStyle: dataRowStyle,
-                      labelTextStyle: dataRowStyle,
+                    const ContractSymbolIcon(),
+                    const SizedBox(
+                      width: 10,
                     ),
-                    ValueDataRow(
-                      type: ValueType.amount,
-                      value: notNullPosition.collateral,
-                      label: "Margin",
-                      valueTextStyle: dataRowStyle,
-                      labelTextStyle: dataRowStyle,
+                    Text(
+                      notNullPosition.contractSymbol.label,
+                      style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
-                    ValueDataRow(
-                      type: ValueType.text,
-                      value: notNullPosition.leverage.formatted(),
-                      label: "Leverage",
-                      valueTextStyle: dataRowStyle,
-                      labelTextStyle: dataRowStyle,
+                    const SizedBox(
+                      width: 5,
                     ),
-                    ValueDataRow(
-                      type: ValueType.date,
-                      value: notNullPosition.expiry,
-                      label: "Expiry",
-                      valueTextStyle: dataRowStyle,
-                      labelTextStyle: dataRowStyle,
-                    ),
-                    ValueDataRow(
-                      type: ValueType.contracts,
-                      value: formatter.format(notNullPosition.quantity),
-                      label: "Quantity",
-                      valueTextStyle: dataRowStyle,
-                      labelTextStyle: dataRowStyle,
-                    ),
-                    ValueDataRow(
-                      type: ValueType.fiat,
-                      value: notNullPosition.liquidationPrice,
-                      label: "Liquidation price",
-                      valueTextStyle: dataRowStyle,
-                      labelTextStyle: dataRowStyle,
-                    ),
-                    ValueDataRow(
-                      type: ValueType.fiat,
-                      value: notNullPosition.averageEntryPrice,
-                      label: "Average entry price",
-                      valueTextStyle: dataRowStyle,
-                      labelTextStyle: dataRowStyle,
+                    Text(
+                      notNullPosition.direction.keySuffix,
+                      style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
                   ],
                 ),
-              ),
-            ],
-          ),
-          collapsed: Container(),
-          expanded: Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              ElevatedButton(
-                onPressed: notNullPosition.positionState == PositionState.closing ||
-                        isPositionExpired ||
-                        !priceAvailable
-                    ? null
-                    : () async {
-                        await widget.onClose();
-                      },
-                child: notNullPosition.positionState == PositionState.closing || isPositionExpired
-                    ? const Row(
-                        children: [
-                          SizedBox(
-                            width: 10,
-                            height: 10,
-                            child: CircularProgressIndicator(),
-                          ),
-                          Text("Closing ...")
-                        ],
+              ],
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              child: Wrap(
+                runSpacing: 5,
+                children: [
+                  notNullPosition.unrealizedPnl == null
+                      ? const ValueDataRow(
+                          type: ValueType.loading, value: "", label: "Unrealized P/L")
+                      : ValueDataRow(
+                          type: ValueType.amount,
+                          value: notNullPosition.unrealizedPnl,
+                          label: "Unrealized P/L",
+                          valueTextStyle: dataRowStyle.apply(
+                              color: notNullPosition.unrealizedPnl!.sats.isNegative
+                                  ? tradeTheme.loss
+                                  : tradeTheme.profit),
+                          labelTextStyle: dataRowStyle,
+                        ),
+                  ValueDataRow(
+                    type: ValueType.text,
+                    value: notNullPosition.direction.keySuffix,
+                    label: "Direction",
+                    valueTextStyle: dataRowStyle,
+                    labelTextStyle: dataRowStyle,
+                  ),
+                  ValueDataRow(
+                    type: ValueType.amount,
+                    value: notNullPosition.collateral,
+                    label: "Margin",
+                    valueTextStyle: dataRowStyle,
+                    labelTextStyle: dataRowStyle,
+                  ),
+                  ValueDataRow(
+                    type: ValueType.text,
+                    value: notNullPosition.leverage.formatted(),
+                    label: "Leverage",
+                    valueTextStyle: dataRowStyle,
+                    labelTextStyle: dataRowStyle,
+                  ),
+                  ValueDataRow(
+                    type: ValueType.date,
+                    value: notNullPosition.expiry,
+                    label: "Expiry",
+                    valueTextStyle: dataRowStyle,
+                    labelTextStyle: dataRowStyle,
+                  ),
+                  ValueDataRow(
+                    type: ValueType.contracts,
+                    value: formatter.format(notNullPosition.quantity),
+                    label: "Quantity",
+                    valueTextStyle: dataRowStyle,
+                    labelTextStyle: dataRowStyle,
+                  ),
+                  ValueDataRow(
+                    type: ValueType.fiat,
+                    value: notNullPosition.liquidationPrice,
+                    label: "Liquidation price",
+                    valueTextStyle: dataRowStyle,
+                    labelTextStyle: dataRowStyle,
+                  ),
+                  ValueDataRow(
+                    type: ValueType.fiat,
+                    value: notNullPosition.averageEntryPrice,
+                    label: "Average entry price",
+                    valueTextStyle: dataRowStyle,
+                    labelTextStyle: dataRowStyle,
+                  ),
+                  Row(
+                      mainAxisAlignment : MainAxisAlignment.end,
+                    children: [
+                      ElevatedButton(
+                        onPressed: notNullPosition.positionState == PositionState.closing ||
+                                isPositionExpired ||
+                                !priceAvailable
+                            ? null
+                            : () async {
+                                await widget.onClose();
+                              },
+                        child: notNullPosition.positionState == PositionState.closing ||
+                                isPositionExpired
+                            ? const Row(
+                                children: [
+                                  SizedBox(
+                                    width: 10,
+                                    height: 10,
+                                    child: CircularProgressIndicator(),
+                                  ),
+                                  Text("Closing ...")
+                                ],
+                              )
+                            : const Text("Close Position"),
                       )
-                    : const Text("Close Position"),
+                    ],
+                  )
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
