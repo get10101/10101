@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.0] - 2023-09-27
+
 - Find match on an expired position
 - Show loading screen when app starts with an expired position
 - Fix: Prevent crashing the app when there's no Internet connection
@@ -104,7 +106,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Self-Custodial CFD Trading based on DLC and lightning
 
-[Unreleased]: https://github.com/get10101/10101/compare/1.2.6...HEAD
+[Unreleased]: https://github.com/get10101/10101/compare/1.3.0...HEAD
+[1.3.0]: https://github.com/get10101/10101/compare/1.2.6...1.3.0
 [1.2.6]: https://github.com/get10101/10101/compare/1.2.5...1.2.6
 [1.2.5]: https://github.com/get10101/10101/compare/1.2.4...1.2.5
 [1.2.4]: https://github.com/get10101/10101/compare/1.2.3...1.2.4
