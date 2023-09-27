@@ -97,7 +97,8 @@ run args="":
       --dart-define="BRANCH=$(git rev-parse --abbrev-ref HEAD)" \
       --dart-define="REGTEST_FAUCET=http://localhost:8080" \
       --dart-define="REGTEST_MAKER_FAUCET=http://localhost:18000/api/pay-invoice" \
-      --dart-define="HEALTH_CHECK_INTERVAL_SECONDS=2"
+      --dart-define="HEALTH_CHECK_INTERVAL_SECONDS=2" \
+      | tee  ../data/app.log
 
 # Run against our public regtest server
 run-regtest args="":
@@ -125,7 +126,8 @@ run-regtest-android args="":
         --dart-define="COORDINATOR_PORT_HTTP={{public_coordinator_http_port}}" \
         --dart-define="ORACLE_ENDPOINT={{public_regtest_oracle_endpoint}}" \
         --dart-define="ORACLE_PUBKEY={{public_regtest_oracle_pk}}" \
-        --flavor test
+        --flavor test \
+        | tee  ../data/app_regtest_android.log
 
 [unix]
 run-local-android args="":
@@ -143,7 +145,8 @@ run-local-android args="":
         --dart-define="COORDINATOR_PORT_HTTP=8000" \
         --dart-define="ORACLE_ENDPOINT=http://${LOCAL_IP}:8081" \
         --dart-define="ORACLE_PUBKEY=16f88cf7d21e6c0f46bcbc983a4e3b19726c6c98858cc31c83551a88fde171c0" \
-        --flavor local
+        --flavor local \
+        | tee  ../data/app_local_android.log
 
 fund args="":
       cargo run -p tests-e2e --example fund
