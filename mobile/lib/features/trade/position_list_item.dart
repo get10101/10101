@@ -117,13 +117,6 @@ class _PositionListItemState extends State<PositionListItem> {
                           labelTextStyle: dataRowStyle,
                         ),
                   ValueDataRow(
-                    type: ValueType.text,
-                    value: notNullPosition.direction.keySuffix,
-                    label: "Direction",
-                    valueTextStyle: dataRowStyle,
-                    labelTextStyle: dataRowStyle,
-                  ),
-                  ValueDataRow(
                     type: ValueType.amount,
                     value: notNullPosition.collateral,
                     label: "Margin",
