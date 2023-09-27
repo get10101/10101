@@ -632,7 +632,7 @@ dependencies = [
 
 [[package]]
 name = "coordinator"
-version = "1.2.6"
+version = "1.3.0"
 dependencies = [
  "anyhow",
  "atty",
@@ -1694,6 +1694,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "jsonrpc"
+version = "0.14.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8128f36b47411cd3f044be8c1f5cc0c9e24d1d1bfdc45f0a57897b32513053f2"
+dependencies = [
+ "base64 0.13.1",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "lazy_static"
 version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2370,6 +2381,30 @@ dependencies = [
  "percent-encoding",
  "rand",
  "thiserror",
+]
+
+[[package]]
+name = "ord-bitcoincore-rpc"
+version = "0.16.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ca77a54d5a14a2731dd85150e24be89c849bdcb5704d23097188d763381d98b8"
+dependencies = [
+ "jsonrpc",
+ "log",
+ "ord-bitcoincore-rpc-json",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "ord-bitcoincore-rpc-json"
+version = "0.16.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "18b81ced8ed99f50d3f221a7de8297cbdf9bdf20ca2908a12f6128d38b2284fb"
+dependencies = [
+ "bitcoin",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -3479,6 +3514,7 @@ dependencies = [
  "local-ip-address",
  "maker",
  "native",
+ "ord-bitcoincore-rpc",
  "orderbook-commons",
  "parking_lot 0.12.1",
  "quote",

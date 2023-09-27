@@ -62,7 +62,7 @@ services:
       - bitcoin
     ports:
       - "50000:50000"
-      - "30000:30000"
+      - "3000:30000"
     restart: unless-stopped
     networks:
       vtto:
@@ -72,8 +72,6 @@ services:
   esplora:
     image: ghcr.io/vulpemventures/esplora:latest
     container_name: esplora
-    depends_on:
-      - chopsticks
     environment:
       API_URL: http://localhost:3000
     ports:
@@ -82,30 +80,6 @@ services:
     networks:
       vtto:
         ipv4_address: 10.5.0.4
-
-  # Chopsticks
-  chopsticks:
-    image: ghcr.io/vulpemventures/nigiri-chopsticks:latest
-    container_name: chopsticks
-    command:
-      - --use-faucet
-      - --use-mining
-      - --use-logger
-      - --rpc-addr
-      - 10.5.0.2:18443
-      - --electrs-addr
-      - 10.5.0.3:30000
-      - --addr
-      - 0.0.0.0:3000
-    depends_on:
-      - bitcoin
-      - electrs
-    ports:
-      - "3000:3000"
-    restart: unless-stopped
-    networks:
-      vtto:
-        ipv4_address: 10.5.0.5
 
   lnd:
     container_name: lnd

@@ -128,7 +128,7 @@ jobs:
           sleep 10 # We need to give docker a bit of time to startup
       - name: Test containers are up
         run: |
-          curl -d '{"address":"bcrt1qylgu6ffkp3p0m8tw8kp4tt2dmdh755f4r5dq7s", "amount":"0.1"}' -H "Content-Type: application/json" -X POST http://localhost:3000/faucet
+          curl --fail --data-binary '{"jsonrpc": "1.0", "id": "curltest", "method": "getblockcount", "params": []}' -H 'content-type: text/plain;' http://admin1:123@localhost:18443
       - name: Run slow tests
         run: RUST_BACKTRACE=1 cargo test -p ln-dlc-node -- --ignored --nocapture --test-threads=1
 
@@ -170,7 +170,7 @@ jobs:
         run: df -h
       - name: Test containers are up
         run: |
-          curl -d '{"address":"bcrt1qylgu6ffkp3p0m8tw8kp4tt2dmdh755f4r5dq7s", "amount":"0.1"}' -H "Content-Type: application/json" -X POST http://localhost:3000/faucet
+          curl --fail --data-binary '{"jsonrpc": "1.0", "id": "curltest", "method": "getblockcount", "params": []}' -H 'content-type: text/plain;' http://admin1:123@localhost:18443
       - name: Run e2e tests
         run: just e2e --nocapture
         continue-on-error: true  # Continue running other steps even if this one fails

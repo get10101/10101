@@ -26,6 +26,18 @@ pub struct Opts {
     #[clap(long, default_value = "http://localhost:8080")]
     pub faucet: String,
 
+    /// Bitcoind http url e.g. http://localhost:18443
+    #[clap(long, default_value = "http://localhost:18443")]
+    pub bitcoin: String,
+
+    /// Bitcoind rpc username
+    #[clap(long, default_value = "admin1")]
+    pub bitcoin_user: String,
+
+    /// Bitcoind rpc password
+    #[clap(long, default_value = "123")]
+    pub bitcoin_password: String,
+
     /// Coordinator address
     #[clap(long, default_value = "http://localhost:8000")]
     pub coordinator: String,
@@ -39,9 +51,55 @@ pub struct Opts {
 async fn main() {
     init_tracing(LevelFilter::DEBUG).expect("tracing to initialise");
     let opts = Opts::parse();
+    ensure_bitcoin_is_usable(opts.bitcoin, opts.bitcoin_user, opts.bitcoin_password)
+        .await
+        .expect("Bitcoin might not be usable");
     fund_everything(&opts.faucet, &opts.coordinator, &opts.maker)
         .await
         .expect("to be able to fund");
+}
+
+async fn ensure_bitcoin_is_usable(
+    bitcoin_url: String,
+    username: String,
+    password: String,
+) -> Result<()> {
+    use bitcoincore_rpc::Auth;
+    use bitcoincore_rpc::Client;
+    use bitcoincore_rpc::RpcApi;
+
+    let rpc = Client::new(bitcoin_url.as_str(), Auth::UserPass(username, password))
+        .expect("To be able to get bitcoin rpc client");
+    let vec = rpc.list_wallets().expect("To be able to list wallets");
+    if vec.is_empty() {
+        tracing::info!("No wallet found in Bitcoind, creating one");
+        rpc.create_wallet("regtest", None, None, None, None)
+            .expect("To be able to create a wallet");
+    } else {
+        tracing::info!("Bitcoind wallet exists.");
+
+        if let Err(err) = rpc.get_wallet_info() {
+            tracing::info!("Wallet not loaded in Bitcoind, loading it... {err:#}");
+
+            rpc.load_wallet("regtest")
+                .expect("To be able to load wallet");
+        }
+    }
+
+    let i = rpc.get_block_count()?;
+    tracing::info!("Bitcoin has {i} blocks");
+    if i < 101 {
+        let address = rpc
+            .get_new_address(None, None)
+            .expect("To be able to get address");
+
+        let remaining_blocks = 101 - i;
+        tracing::info!("Not enough blocks mined. Generating {remaining_blocks} blocks");
+        rpc.generate_to_address(remaining_blocks, &address)
+            .expect("To be able to generate blocks");
+    }
+
+    Ok(())
 }
 
 async fn fund_everything(faucet: &str, coordinator: &str, maker: &str) -> Result<()> {
