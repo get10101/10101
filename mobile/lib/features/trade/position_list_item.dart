@@ -70,7 +70,7 @@ class _PositionListItemState extends State<PositionListItem> {
 
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(10.0),
+        padding: const EdgeInsets.fromLTRB(10.0, 10, 10, 0),
         child: Column(
           children: [
             Row(
@@ -159,7 +159,7 @@ class _PositionListItemState extends State<PositionListItem> {
                     labelTextStyle: dataRowStyle,
                   ),
                   Row(
-                      mainAxisAlignment : MainAxisAlignment.end,
+                    mainAxisAlignment: MainAxisAlignment.end,
                     children: [
                       ElevatedButton(
                         onPressed: notNullPosition.positionState == PositionState.closing ||
