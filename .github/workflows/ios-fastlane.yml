@@ -44,12 +44,15 @@ on:
       coordinator_port_http:
         required: true
         type: string
+        description: "Coordinator's HTTP port"
       esplora_endpoint:
         required: true
         type: string
+        description: "Esplora's endpoint"
       coordinator_p2p_endpoint:
         required: true
         type: string
+        description: "Coordinator p2p endpoint"
       network:
         required: true
         type: string
