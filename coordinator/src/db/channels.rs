@@ -24,7 +24,6 @@ use diesel::RunQueryDsl;
 use dlc_manager::ChannelId;
 use hex::FromHex;
 use lightning::ln::PaymentHash;
-use ln_dlc_node::channel::FakeScid;
 use ln_dlc_node::channel::UserChannelId;
 use std::any::TypeId;
 use std::str::FromStr;
@@ -55,20 +54,31 @@ impl QueryId for ChannelStateType {
 pub(crate) struct Channel {
     pub user_channel_id: String,
     pub channel_id: Option<String>,
-    pub inbound: i64,
-    pub outbound: i64,
+    pub inbound_sats: i64,
+    pub outbound_sats: i64,
     pub funding_txid: Option<String>,
     pub channel_state: ChannelState,
     pub counterparty_pubkey: String,
     pub created_at: OffsetDateTime,
     pub updated_at: OffsetDateTime,
     pub open_channel_fee_payment_hash: Option<String>,
-    pub fake_scid: Option<String>,
+    pub liquidity_option_id: Option<i32>,
 }
 
 pub(crate) fn get(user_channel_id: &str, conn: &mut PgConnection) -> QueryResult<Option<Channel>> {
     channels::table
         .filter(channels::user_channel_id.eq(user_channel_id))
+        .first(conn)
+        .optional()
+}
+
+pub(crate) fn get_announced_channel(
+    counterparty_pubkey: &str,
+    conn: &mut PgConnection,
+) -> QueryResult<Option<Channel>> {
+    channels::table
+        .filter(channels::counterparty_pubkey.eq(counterparty_pubkey))
+        .filter(channels::channel_state.eq(ChannelState::Announced))
         .first(conn)
         .optional()
 }
@@ -81,16 +91,6 @@ pub(crate) fn get_all_non_pending_channels(conn: &mut PgConnection) -> QueryResu
                 .and(schema::channels::funding_txid.is_not_null()),
         )
         .load(conn)
-}
-
-pub(crate) fn get_channel_by_fake_scid(
-    fake_scid: &str,
-    conn: &mut PgConnection,
-) -> QueryResult<Option<Channel>> {
-    channels::table
-        .filter(channels::fake_scid.eq(Some(fake_scid)))
-        .first(conn)
-        .optional()
 }
 
 pub(crate) fn update_payment_hash(
@@ -125,9 +125,9 @@ impl From<ln_dlc_node::channel::Channel> for Channel {
         Channel {
             user_channel_id: value.user_channel_id.to_string(),
             channel_id: value.channel_id.map(|cid| cid.to_hex()),
-            fake_scid: value.fake_scid.map(|icid| icid.to_string()),
-            inbound: value.inbound as i64,
-            outbound: value.outbound as i64,
+            liquidity_option_id: value.liquidity_option_id,
+            inbound_sats: value.inbound_sats as i64,
+            outbound_sats: value.outbound_sats as i64,
             funding_txid: value.funding_txid.map(|txid| txid.to_string()),
             channel_state: value.channel_state.into(),
             counterparty_pubkey: value.counterparty.to_string(),
@@ -144,6 +144,9 @@ impl From<ln_dlc_node::channel::ChannelState> for ChannelState {
             ln_dlc_node::channel::ChannelState::Announced => ChannelState::Announced,
             ln_dlc_node::channel::ChannelState::Pending => ChannelState::Pending,
             ln_dlc_node::channel::ChannelState::Open => ChannelState::Open,
+            // mapping `ChannelState::OpenUnpaid` to open as the coordinator references the payment
+            // through the payment hash. Hence no need to reflect that state twice.
+            ln_dlc_node::channel::ChannelState::OpenUnpaid => ChannelState::Open,
             ln_dlc_node::channel::ChannelState::Closed => ChannelState::Closed,
             ln_dlc_node::channel::ChannelState::ForceClosedLocal => ChannelState::ForceClosedLocal,
             ln_dlc_node::channel::ChannelState::ForceClosedRemote => {
@@ -161,11 +164,9 @@ impl From<Channel> for ln_dlc_node::channel::Channel {
             channel_id: value
                 .channel_id
                 .map(|cid| ChannelId::from_hex(cid).expect("valid channel id")),
-            fake_scid: value
-                .fake_scid
-                .map(|icid| FakeScid::from_str(icid.as_str()).expect("valid intercept id")),
-            inbound: value.inbound as u64,
-            outbound: value.outbound as u64,
+            liquidity_option_id: value.liquidity_option_id,
+            inbound_sats: value.inbound_sats as u64,
+            outbound_sats: value.outbound_sats as u64,
             funding_txid: value
                 .funding_txid
                 .map(|txid| Txid::from_str(&txid).expect("valid txid")),

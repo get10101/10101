@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Allow up to 5BTC wumbo channels
 - Add push notification reminder that the rollover window is open now.
+- Add liquidity options to the onboaring flow
+- Pay fixed channel opening fees instead of onchain transaction fees
+- Increased maximum channel size
+- Add minimum channel size
+- Split onboading and create invoice flow
+- Format amounts in input fields
 
 ## [1.3.0] - 2023-09-27
 

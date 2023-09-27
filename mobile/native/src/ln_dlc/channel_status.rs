@@ -133,7 +133,7 @@ fn derive_ln_dlc_channel_status(
         // If the LN channel is open (or practically open).
         Channel {
             channel_id: Some(channel_id),
-            channel_state: ChannelState::Pending | ChannelState::Open,
+            channel_state: ChannelState::Pending | ChannelState::Open | ChannelState::OpenUnpaid,
             ..
         } => {
             // We might have more than one subchannel stored, but we only care about the one that

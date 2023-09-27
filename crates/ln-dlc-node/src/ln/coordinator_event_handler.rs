@@ -1,16 +1,18 @@
 use super::common_handlers;
 use super::event_handler::EventSender;
 use super::event_handler::PendingInterceptedHtlcs;
-use crate::channel::FakeScid;
+use crate::channel::Channel;
+use crate::channel::ChannelState;
+use crate::channel::UserChannelId;
 use crate::config::HTLC_INTERCEPTED_CONNECTION_TIMEOUT;
 use crate::ln::common_handlers::fail_intercepted_htlc;
 use crate::ln::event_handler::InterceptionDetails;
 use crate::node::ChannelManager;
+use crate::node::LiquidityRequest;
 use crate::node::Node;
 use crate::node::Storage;
 use crate::EventHandlerTrait;
 use crate::CONFIRMATION_TARGET;
-use crate::LIQUIDITY_MULTIPLIER;
 use anyhow::anyhow;
 use anyhow::ensure;
 use anyhow::Context;
@@ -18,14 +20,18 @@ use anyhow::Result;
 use async_trait::async_trait;
 use bitcoin::hashes::hex::ToHex;
 use bitcoin::secp256k1::PublicKey;
+use dlc_manager::subchannel::LNChannelManager;
 use lightning::chain::chaininterface::FeeEstimator;
 use lightning::ln::channelmanager::InterceptId;
 use lightning::ln::PaymentHash;
 use lightning::util::events::Event;
 use parking_lot::Mutex;
+use rust_decimal::prelude::ToPrimitive;
+use rust_decimal::Decimal;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
+use tokio::task::block_in_place;
 
 /// Event handler for the coordinator node.
 // TODO: Move it out of this crate
@@ -33,23 +39,17 @@ pub struct CoordinatorEventHandler<S> {
     pub(crate) node: Arc<Node<S>>,
     pub(crate) pending_intercepted_htlcs: PendingInterceptedHtlcs,
     pub(crate) event_sender: Option<EventSender>,
-    pub(crate) max_channel_size_sats: u64,
 }
 
 impl<S> CoordinatorEventHandler<S>
 where
     S: Storage + Sync + Send + 'static,
 {
-    pub fn new(
-        node: Arc<Node<S>>,
-        event_sender: Option<EventSender>,
-        max_channel_size_sats: u64,
-    ) -> Self {
+    pub fn new(node: Arc<Node<S>>, event_sender: Option<EventSender>) -> Self {
         Self {
             node,
             event_sender,
             pending_intercepted_htlcs: Arc::new(Mutex::new(HashMap::new())),
-            max_channel_size_sats,
         }
     }
 }
@@ -188,13 +188,32 @@ where
                 user_channel_id,
                 ..
             } => {
-                common_handlers::handle_channel_ready(
-                    &self.node,
-                    &self.pending_intercepted_htlcs,
-                    user_channel_id,
-                    channel_id,
-                    counterparty_node_id,
-                )?;
+                block_in_place(|| {
+                    let res = handle_channel_ready_internal(
+                        &self.node,
+                        &self.pending_intercepted_htlcs,
+                        user_channel_id,
+                        channel_id,
+                        counterparty_node_id,
+                    );
+
+                    if let Err(ref e) = res {
+                        tracing::error!("Failed to handle ChannelReady event: {e:#}");
+
+                        // If the `ChannelReady` event was associated with a pending intercepted
+                        // HTLC, we must fail it to unlock the funds of all
+                        // the nodes along the payment route
+                        if let Some(interception) = self
+                            .pending_intercepted_htlcs
+                            .lock()
+                            .get(&counterparty_node_id)
+                        {
+                            fail_intercepted_htlc(&self.node.channel_manager, &interception.id);
+                        }
+                    }
+
+                    res
+                })?;
             }
             Event::HTLCHandlingFailed {
                 prev_channel_id,
@@ -235,7 +254,6 @@ where
                     requested_next_hop_scid,
                     inbound_amount_msat,
                     expected_outbound_amount_msat,
-                    self.max_channel_size_sats,
                 )
                 .await?;
             }
@@ -243,6 +261,59 @@ where
 
         Ok(())
     }
+}
+
+fn handle_channel_ready_internal<S>(
+    node: &Arc<Node<S>>,
+    pending_intercepted_htlcs: &PendingInterceptedHtlcs,
+    user_channel_id: u128,
+    channel_id: [u8; 32],
+    counterparty_node_id: PublicKey,
+) -> Result<()>
+where
+    S: Storage,
+{
+    let user_channel_id = UserChannelId::from(user_channel_id).to_string();
+
+    tracing::info!(
+        user_channel_id,
+        channel_id = %channel_id.to_hex(),
+        counterparty = %counterparty_node_id.to_string(),
+        "Channel ready"
+    );
+
+    let channel_details = node
+        .channel_manager
+        .get_channel_details(&channel_id)
+        .ok_or(anyhow!(
+            "Failed to get channel details by channel_id {}",
+            channel_id.to_hex()
+        ))?;
+
+    let channel = node.storage.get_channel(&user_channel_id)?;
+    let channel = Channel::open_channel(channel, channel_details)?;
+    node.storage.upsert_channel(channel)?;
+
+    if let Some(interception) = pending_intercepted_htlcs.lock().get(&counterparty_node_id) {
+        tracing::info!(
+            intercept_id = %interception.id.0.to_hex(),
+            counterparty = %counterparty_node_id.to_string(),
+            forward_amount_msat = %interception.expected_outbound_amount_msat,
+            "Pending intercepted HTLC found, forwarding payment"
+        );
+
+        node.channel_manager
+            .forward_intercepted_htlc(
+                interception.id,
+                &channel_id,
+                counterparty_node_id,
+                interception.expected_outbound_amount_msat,
+            )
+            .map_err(|e| anyhow!("{e:?}"))
+            .context("Failed to forward intercepted HTLC")?;
+    }
+
+    Ok(())
 }
 
 fn handle_open_channel_request(
@@ -281,7 +352,6 @@ pub(crate) async fn handle_intercepted_htlc<S>(
     requested_next_hop_scid: u64,
     inbound_amount_msat: u64,
     expected_outbound_amount_msat: u64,
-    max_channel_size_sats: u64,
 ) -> Result<()>
 where
     S: Storage,
@@ -294,7 +364,6 @@ where
         requested_next_hop_scid,
         inbound_amount_msat,
         expected_outbound_amount_msat,
-        max_channel_size_sats,
     )
     .await;
 
@@ -315,7 +384,6 @@ pub(crate) async fn handle_intercepted_htlc_internal<S>(
     requested_next_hop_scid: u64,
     inbound_amount_msat: u64,
     expected_outbound_amount_msat: u64,
-    max_channel_size_sats: u64,
 ) -> Result<()>
 where
     S: Storage,
@@ -332,11 +400,11 @@ where
         "Intercepted HTLC"
     );
 
-    let target_node_id = {
+    let liquidity_request = {
         node.fake_channel_payments
             .lock()
             .get(&requested_next_hop_scid)
-            .copied()
+            .cloned()
     }
     .with_context(|| {
         format!(
@@ -345,16 +413,20 @@ where
         )
     })?;
 
+    let peer_id = liquidity_request.trader_id;
+
+    // TODO(holzeis): Send push notification if the user is receiving an intercepted payment but not
+    // online. This may improve the onboarding success rate.
     tokio::time::timeout(HTLC_INTERCEPTED_CONNECTION_TIMEOUT, async {
         loop {
             if node
                 .peer_manager
                 .get_peer_node_ids()
                 .iter()
-                .any(|(id, _)| *id == target_node_id)
+                .any(|(id, _)| *id == peer_id)
             {
                 tracing::info!(
-                    %target_node_id,
+                    %peer_id,
                     %payment_hash,
                     "Found connection with target of intercepted HTLC"
                 );
@@ -363,7 +435,7 @@ where
             }
 
             tracing::debug!(
-                %target_node_id,
+                %peer_id,
                 %payment_hash,
                 "Waiting for connection with target of intercepted HTLC"
             );
@@ -373,17 +445,15 @@ where
     .await
     .context("Timed out waiting to get connection with target of interceptable HTLC")?;
 
-    // We only support one channel between coordinator and app. Also, we are unfortunately using
-    // interceptable HTLCs for regular payments (not just to open JIT channels). With all this
-    // in mind, if the coordinator (the only party that can handle this event) has a channel
-    // with the target of this payment we must treat this interceptable HTLC as a regular
-    // payment.
     if let Some(channel) = node
         .channel_manager
         .list_channels()
         .iter()
-        .find(|channel_details| channel_details.counterparty.node_id == target_node_id)
+        .find(|channel_details| channel_details.counterparty.node_id == peer_id)
     {
+        tracing::warn!(trader_id=%channel.counterparty.node_id, channel_id=channel.channel_id.to_hex(),
+            "Intercepted a payment to a channel that already exist. That should not happen!");
+
         node.channel_manager
             .forward_intercepted_htlc(
                 intercept_id,
@@ -395,6 +465,12 @@ where
 
         return Ok(());
     }
+
+    let max_app_fund_amount_msat = liquidity_request.max_deposit_sats * 1000;
+    ensure!(
+        expected_outbound_amount_msat <= max_app_fund_amount_msat,
+        "Failed to open channel because maximum fund amount exceeded, expected_outbound_amount_msat: {expected_outbound_amount_msat} > max_app_fund_amount_msat: {max_app_fund_amount_msat}"
+    );
 
     let opt_max_allowed_fee = node
         .wallet
@@ -413,20 +489,20 @@ where
         );
     }
 
-    let channel_value = expected_outbound_amount_msat / 1000 * LIQUIDITY_MULTIPLIER;
-    ensure!(
-        channel_value <= max_channel_size_sats,
-        "Failed to open channel because maximum channel value exceeded"
-    );
+    let channel_value_sats =
+        calculate_channel_value(expected_outbound_amount_msat, &liquidity_request);
 
-    let fake_scid = FakeScid::new(requested_next_hop_scid);
+    let user_channel_id = liquidity_request.user_channel_id;
     let mut shadow_channel = node
         .storage
-        .get_channel_by_fake_scid(fake_scid)
-        .with_context(|| format!("Failed to load channel by fake SCID {fake_scid}"))?
-        .with_context(|| format!("Could not find shadow channel for fake SCID {fake_scid}"))?;
+        .get_channel(&user_channel_id.to_string())
+        .with_context(|| format!("Failed to load channel by user_channel_id {user_channel_id}"))?
+        .with_context(|| {
+            format!("Could not find shadow channel for user channel id {user_channel_id}")
+        })?;
 
-    shadow_channel.outbound = channel_value;
+    shadow_channel.outbound_sats = channel_value_sats;
+    shadow_channel.channel_state = ChannelState::Pending;
 
     node.storage
         .upsert_channel(shadow_channel.clone())
@@ -438,8 +514,8 @@ where
     let temp_channel_id = node
         .channel_manager
         .create_channel(
-            target_node_id,
-            channel_value,
+            peer_id,
+            channel_value_sats,
             0,
             shadow_channel.user_channel_id.to_u128(),
             Some(ldk_config),
@@ -447,14 +523,15 @@ where
         .map_err(|e| anyhow!("Failed to open JIT channel: {e:?}"))?;
 
     tracing::info!(
-        peer = %target_node_id,
+        %peer_id,
         %payment_hash,
+        channel_value_sats,
         temp_channel_id = %temp_channel_id.to_hex(),
         "Started JIT channel creation for intercepted HTLC"
     );
 
     pending_intercepted_htlcs.lock().insert(
-        target_node_id,
+        peer_id,
         InterceptionDetails {
             id: intercept_id,
             expected_outbound_amount_msat,
@@ -462,4 +539,53 @@ where
     );
 
     Ok(())
+}
+
+/// Calculates the channel value in sats based on the inital amount received by the user and the
+/// liquidity request.
+fn calculate_channel_value(
+    expected_outbound_amount_msat: u64,
+    liquidity_request: &LiquidityRequest,
+) -> u64 {
+    let expected_outbound_amount =
+        Decimal::from(expected_outbound_amount_msat) / Decimal::from(1000);
+    let trade_up_to_sats = Decimal::from(liquidity_request.trade_up_to_sats);
+    let coordinator_leverage =
+        Decimal::try_from(liquidity_request.coordinator_leverage).expect("to fit into decimal");
+
+    let channel_value = expected_outbound_amount + (trade_up_to_sats / coordinator_leverage);
+
+    channel_value.to_u64().expect("to fit into u64")
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::ln::coordinator_event_handler::calculate_channel_value;
+    use crate::node::LiquidityRequest;
+    use bitcoin::secp256k1::PublicKey;
+    use std::str::FromStr;
+
+    #[test]
+    pub fn test_calculate_channel_value() {
+        let dummy_pub_key = PublicKey::from_str(
+            "02bd998ebd176715fe92b7467cf6b1df8023950a4dd911db4c94dfc89cc9f5a655",
+        )
+        .expect("valid pubkey");
+
+        let capacity = 200_000;
+        for i in 1..5 {
+            let request = LiquidityRequest {
+                user_channel_id: Default::default(),
+                liquidity_option_id: 1,
+                trader_id: dummy_pub_key,
+                trade_up_to_sats: capacity * i,
+                max_deposit_sats: capacity * i,
+                coordinator_leverage: i as f32,
+            };
+
+            let channel_value_sat = calculate_channel_value(10_000_000, &request);
+
+            assert_eq!(210_000, channel_value_sat)
+        }
+    }
 }

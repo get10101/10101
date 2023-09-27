@@ -1,6 +1,8 @@
 use super::common_handlers;
 use super::event_handler::EventSender;
 use super::event_handler::PendingInterceptedHtlcs;
+use crate::channel::Channel;
+use crate::channel::ChannelState;
 use crate::channel::UserChannelId;
 use crate::node::ChannelManager;
 use crate::node::Node;
@@ -12,6 +14,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use bitcoin::hashes::hex::ToHex;
 use bitcoin::secp256k1::PublicKey;
+use dlc_manager::subchannel::LNChannelManager;
 use lightning::util::events::Event;
 use parking_lot::Mutex;
 use std::collections::HashMap;
@@ -99,12 +102,37 @@ where
                 temporary_channel_id,
                 ..
             } => {
+                // Fetching the originally announced channel, so we can reuse the `user_channel_id`.
+                // Note this should always be set, as the user must prepare the payment before
+                // funding the wallet.
+                // This will allow us to use the same `user_channel_id` on the app side as on the
+                // coordinator side. Unfortunately we have to fetch the `user_channel_id` as it is
+                // not provided in the `Event::OpenChannelRequest`.
+                let channel = self
+                    .node
+                    .storage
+                    .get_announced_channel(counterparty_node_id)?;
+
+                let user_channel_id = match channel {
+                    Some(mut channel) => {
+                        channel.channel_state = ChannelState::Pending;
+
+                        if let Err(e) = self.node.storage.upsert_channel(channel.clone()) {
+                            tracing::error!("Failed to update channel. Error: {e:#}");
+                        }
+
+                        channel.user_channel_id
+                    }
+                    None => UserChannelId::new(),
+                };
+
                 handle_open_channel_request_0_conf(
                     &self.node.channel_manager,
                     counterparty_node_id,
                     funding_satoshis,
                     push_msat,
                     temporary_channel_id,
+                    user_channel_id,
                 )?;
             }
             Event::PaymentPathSuccessful {
@@ -172,13 +200,27 @@ where
                 user_channel_id,
                 ..
             } => {
-                common_handlers::handle_channel_ready(
-                    &self.node,
-                    &self.pending_intercepted_htlcs,
+                let user_channel_id = UserChannelId::from(user_channel_id).to_string();
+
+                tracing::info!(
                     user_channel_id,
-                    channel_id,
-                    counterparty_node_id,
-                )?;
+                    channel_id = %channel_id.to_hex(),
+                    counterparty = %counterparty_node_id.to_string(),
+                    "Channel ready"
+                );
+
+                let channel_details = self
+                    .node
+                    .channel_manager
+                    .get_channel_details(&channel_id)
+                    .ok_or(anyhow!(
+                        "Failed to get channel details by channel_id {}",
+                        channel_id.to_hex()
+                    ))?;
+
+                let channel = self.node.storage.get_channel(&user_channel_id)?;
+                let channel = Channel::open_channel(channel, channel_details)?;
+                self.node.storage.upsert_channel(channel)?;
             }
             Event::HTLCHandlingFailed {
                 prev_channel_id,
@@ -219,9 +261,11 @@ pub(crate) fn handle_open_channel_request_0_conf(
     funding_satoshis: u64,
     push_msat: u64,
     temporary_channel_id: [u8; 32],
+    user_channel_id: UserChannelId,
 ) -> Result<()> {
     let counterparty = counterparty_node_id.to_string();
     tracing::info!(
+        %user_channel_id,
         counterparty,
         funding_satoshis,
         push_msat,
@@ -232,7 +276,7 @@ pub(crate) fn handle_open_channel_request_0_conf(
         .accept_inbound_channel_from_trusted_peer_0conf(
             &temporary_channel_id,
             &counterparty_node_id,
-            UserChannelId::new().to_u128(),
+            user_channel_id.to_u128(),
         )
         .map_err(|e| anyhow!("{e:?}"))
         .context("To be able to accept a 0-conf channel")?;

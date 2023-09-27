@@ -1,21 +1,19 @@
-import 'dart:convert';
 import 'package:f_logs/f_logs.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
 import 'package:get_10101/common/amount_text.dart';
-import 'package:get_10101/common/modal_bottom_sheet_info.dart';
 import 'package:get_10101/common/snack_bar.dart';
 import 'package:get_10101/common/value_data_row.dart';
+import 'package:get_10101/features/wallet/application/faucet_service.dart';
+import 'package:get_10101/features/wallet/domain/share_invoice.dart';
 import 'package:get_10101/features/wallet/domain/wallet_info.dart';
 import 'package:get_10101/features/wallet/wallet_change_notifier.dart';
-import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
 import 'package:get_10101/features/wallet/wallet_screen.dart';
-import 'package:http/http.dart' as http;
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:get_10101/features/wallet/domain/share_invoice.dart';
 
 class ShareInvoiceScreen extends StatefulWidget {
   static const route = "${WalletScreen.route}/$subRouteName";
@@ -42,8 +40,6 @@ class _ShareInvoiceScreenState extends State<ShareInvoiceScreen> {
 
     const qrWidth = 200.0;
     const qrPadding = 5.0;
-    const infoButtonRadius = ModalBottomSheetInfo.buttonRadius;
-    const infoButtonPadding = 5.0;
 
     return Scaffold(
       appBar: AppBar(title: const Text("Share payment request")),
@@ -81,39 +77,6 @@ class _ShareInvoiceScreenState extends State<ShareInvoiceScreen> {
                           value: widget.invoice.invoiceAmount,
                           label: 'Amount',
                         ))),
-                if (widget.invoice.channelOpenFee != null)
-                  Padding(
-                    // Set in by size of info button on the right
-                    padding: const EdgeInsets.only(left: infoButtonRadius * 2),
-                    child: SizedBox(
-                      width: qrWidth - 2 * qrPadding + infoButtonRadius * 2,
-                      child: Row(
-                        children: [
-                          Expanded(
-                              child: ValueDataRow(
-                                  type: ValueType.amount,
-                                  value: widget.invoice.channelOpenFee,
-                                  label: "Fee Estimate")),
-                          ModalBottomSheetInfo(
-                              closeButtonText: "Back to Share Invoice",
-                              infoButtonPadding: const EdgeInsets.all(infoButtonPadding),
-                              child: Column(
-                                children: [
-                                  Center(
-                                    child: Text("Understanding Fees",
-                                        style: Theme.of(context).textTheme.headlineSmall),
-                                  ),
-                                  const SizedBox(height: 10),
-                                  Text(
-                                      "Upon receiving your first payment, the 10101 LSP will open a Lightning channel with you.\n"
-                                      "To cover the costs for opening the channel, a transaction fee (estimated ${formatSats(widget.invoice.channelOpenFee!)}) will be collected after the channel is opened.\n"
-                                      "The fee estimate is based on a transaction weight with two inputs and the current estimated fee rate."),
-                                ],
-                              )),
-                        ],
-                      ),
-                    ),
-                  ),
                 const SizedBox(height: 10)
               ]),
             ),
@@ -132,7 +95,8 @@ class _ShareInvoiceScreenState extends State<ShareInvoiceScreen> {
                         final router = GoRouter.of(context);
                         final messenger = ScaffoldMessenger.of(context);
                         try {
-                          await payInvoiceWithLndFaucet(widget.invoice.rawInvoice);
+                          final faucetService = context.read<FaucetService>();
+                          await faucetService.payInvoiceWithLndFaucet(widget.invoice.rawInvoice);
                           // Pop both create invoice screen and share invoice screen
                           router.pop();
                           router.pop();
@@ -165,7 +129,8 @@ class _ShareInvoiceScreenState extends State<ShareInvoiceScreen> {
                         final router = GoRouter.of(context);
                         final messenger = ScaffoldMessenger.of(context);
                         try {
-                          await payInvoiceWithMakerFaucet(widget.invoice.rawInvoice);
+                          final faucetService = context.read<FaucetService>();
+                          await faucetService.payInvoiceWithMakerFaucet(widget.invoice.rawInvoice);
                           // Pop both create invoice screen and share invoice screen
                           router.pop();
                           router.pop();
@@ -267,50 +232,5 @@ class _ShareInvoiceScreenState extends State<ShareInvoiceScreen> {
         ),
       )),
     );
-  }
-
-  // Pay the generated invoice with 10101 faucet
-  Future<void> payInvoiceWithLndFaucet(String invoice) async {
-    // Default to the faucet on the 10101 server, but allow to override it
-    // locally if needed for dev testing
-    // It's not populated in Config struct, as it's not used in production
-    String faucet =
-        const String.fromEnvironment("REGTEST_FAUCET", defaultValue: "http://34.32.0.52:8080");
-
-    final data = {'payment_request': invoice};
-    final encodedData = json.encode(data);
-
-    final response = await http.post(
-      Uri.parse('$faucet/lnd/v1/channels/transactions'),
-      headers: <String, String>{'Content-Type': 'application/json'},
-      body: encodedData,
-    );
-
-    if (response.statusCode != 200 || !response.body.contains('"payment_error":""')) {
-      throw Exception("Payment failed: Received ${response.statusCode} ${response.body}");
-    } else {
-      FLog.info(text: "Paying invoice succeeded: ${response.body}");
-    }
-  }
-
-  // Pay the generated invoice with maker faucet
-  Future<void> payInvoiceWithMakerFaucet(String invoice) async {
-    // Default to the faucet on the 10101 server, but allow to override it
-    // locally if needed for dev testing
-    // It's not populated in Config struct, as it's not used in production
-    String faucet = const String.fromEnvironment("REGTEST_MAKER_FAUCET",
-        defaultValue: "http://34.32.0.52:80/maker/faucet");
-
-    final response = await http.post(
-      Uri.parse('$faucet/$invoice'),
-    );
-
-    FLog.info(text: "Response ${response.body}${response.statusCode}");
-
-    if (response.statusCode != 200) {
-      throw Exception("Payment failed: Received ${response.statusCode}. ${response.body}");
-    } else {
-      FLog.info(text: "Paying invoice succeeded: ${response.body}");
-    }
   }
 }

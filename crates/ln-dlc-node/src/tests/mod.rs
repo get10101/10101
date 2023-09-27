@@ -125,13 +125,8 @@ impl Node<InMemoryStore> {
         settings: LnDlcNodeSettings,
         ldk_event_sender: Option<watch::Sender<Option<Event>>>,
     ) -> Result<(Arc<Self>, RunningNode)> {
-        let max_app_channel_size_sats = settings.max_app_channel_size_sats;
         let coordinator_event_handler = |node, event_sender| {
-            Arc::new(CoordinatorEventHandler::new(
-                node,
-                event_sender,
-                max_app_channel_size_sats,
-            )) as Arc<dyn EventHandlerTrait>
+            Arc::new(CoordinatorEventHandler::new(node, event_sender)) as Arc<dyn EventHandlerTrait>
         };
 
         Self::start_test(
@@ -444,8 +439,8 @@ fn log_channel_id(node: &Node<InMemoryStore>, index: usize, pair: &str) {
     let short_channel_id = details.short_channel_id;
     let is_ready = details.is_channel_ready;
     let is_usable = details.is_usable;
-    let inbound = details.inbound_capacity_msat;
-    let outbound = details.outbound_capacity_msat;
+    let inbound = details.inbound_capacity_msat / 1000;
+    let outbound = details.outbound_capacity_msat / 1000;
     tracing::info!(
         channel_id,
         short_channel_id,
@@ -455,6 +450,23 @@ fn log_channel_id(node: &Node<InMemoryStore>, index: usize, pair: &str) {
         outbound,
         "{pair}"
     );
+}
+
+async fn wait_for_n_usable_channels(
+    channel_count: usize,
+    node: &Node<InMemoryStore>,
+) -> Result<()> {
+    wait_until(Duration::from_secs(20), || async {
+        let usable_channels_length = node.channel_manager.list_usable_channels().len();
+        let scids_set = node
+            .channel_manager
+            .list_usable_channels()
+            .iter()
+            .all(|c| c.short_channel_id.is_some());
+
+        Ok((usable_channels_length == channel_count && scids_set).then_some(()))
+    })
+    .await
 }
 
 async fn wait_until<P, T, F>(timeout: Duration, predicate_fn: P) -> Result<T>

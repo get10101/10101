@@ -1,6 +1,5 @@
 use super::event_handler::PendingInterceptedHtlcs;
 use crate::channel::Channel;
-use crate::channel::UserChannelId;
 use crate::config::CONFIRMATION_TARGET;
 use crate::node::invoice::HTLCStatus;
 use crate::node::ChannelManager;
@@ -16,7 +15,6 @@ use anyhow::Result;
 use bitcoin::consensus::encode::serialize_hex;
 use bitcoin::hashes::hex::ToHex;
 use bitcoin::secp256k1::PublicKey;
-use dlc_manager::subchannel::LNChannelManager;
 use lightning::chain::chaininterface::BroadcasterInterface;
 use lightning::chain::chaininterface::ConfirmationTarget;
 use lightning::chain::chaininterface::FeeEstimator;
@@ -415,94 +413,6 @@ pub async fn handle_funding_generation_ready<S>(
     ) {
         tracing::error!(?err, "Channel went away before we could fund it. The peer disconnected or refused the channel");
     };
-    Ok(())
-}
-
-pub(crate) fn handle_channel_ready<S>(
-    node: &Arc<Node<S>>,
-    pending_intercepted_htlcs: &PendingInterceptedHtlcs,
-    user_channel_id: u128,
-    channel_id: [u8; 32],
-    counterparty_node_id: PublicKey,
-) -> Result<()>
-where
-    S: Storage,
-{
-    block_in_place(|| {
-        let res = handle_channel_ready_internal(
-            node,
-            pending_intercepted_htlcs,
-            user_channel_id,
-            channel_id,
-            counterparty_node_id,
-        );
-
-        if let Err(ref e) = res {
-            tracing::error!("Failed to handle ChannelReady event: {e:#}");
-
-            // If the `ChannelReady` event was associated with a pending intercepted HTLC, we
-            // must fail it to unlock the funds of all the nodes along the
-            // payment route
-            if let Some(interception) = pending_intercepted_htlcs.lock().get(&counterparty_node_id)
-            {
-                fail_intercepted_htlc(&node.channel_manager, &interception.id);
-            }
-        }
-
-        res
-    })
-}
-
-fn handle_channel_ready_internal<S>(
-    node: &Arc<Node<S>>,
-    pending_intercepted_htlcs: &PendingInterceptedHtlcs,
-    user_channel_id: u128,
-    channel_id: [u8; 32],
-    counterparty_node_id: PublicKey,
-) -> Result<()>
-where
-    S: Storage,
-{
-    let user_channel_id = UserChannelId::from(user_channel_id).to_string();
-
-    tracing::info!(
-        user_channel_id,
-        channel_id = %channel_id.to_hex(),
-        counterparty = %counterparty_node_id.to_string(),
-        "Channel ready"
-    );
-
-    let channel_details = node
-        .channel_manager
-        .get_channel_details(&channel_id)
-        .ok_or(anyhow!(
-            "Failed to get channel details by channel_id {}",
-            channel_id.to_hex()
-        ))?;
-
-    let channel = node.storage.get_channel(&user_channel_id)?;
-    let channel = Channel::open_channel(channel, channel_details)?;
-    node.storage.upsert_channel(channel)?;
-
-    if let Some(interception) = pending_intercepted_htlcs.lock().get(&counterparty_node_id) {
-        tracing::info!(
-            intercept_id = %interception.id.0.to_hex(),
-            counterparty = %counterparty_node_id.to_string(),
-            forward_amount_msat = %interception.expected_outbound_amount_msat,
-            "Pending intercepted HTLC found, forwarding payment"
-        );
-
-        node.channel_manager
-            .forward_intercepted_htlc(
-                interception.id,
-                &channel_id,
-                counterparty_node_id,
-                interception.expected_outbound_amount_msat,
-            )
-            .map_err(|e| anyhow!("{e:?}"))
-            .context("Failed to forward intercepted HTLC")?;
-    }
-
     Ok(())
 }
 

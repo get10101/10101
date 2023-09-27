@@ -10,6 +10,7 @@ import 'package:get_10101/features/wallet/balance_row.dart';
 import 'package:get_10101/features/wallet/create_invoice_screen.dart';
 import 'package:get_10101/features/wallet/domain/wallet_history.dart';
 import 'package:get_10101/features/wallet/domain/wallet_type.dart';
+import 'package:get_10101/features/wallet/onboarding/onboarding_screen.dart';
 import 'package:get_10101/features/wallet/seed_screen.dart';
 import 'package:get_10101/features/wallet/send_payment_change_notifier.dart';
 import 'package:get_10101/features/wallet/send_payment_screen.dart';
@@ -193,7 +194,7 @@ class _WalletScreenState extends State<WalletScreen> {
               if (walletChangeNotifier.lightning().sats == 0)
                 ElevatedButton(
                   onPressed: () {
-                    context.go(CreateInvoiceScreen.route);
+                    context.go(OnboardingScreen.route);
                   },
                   child: const Text("Fund Wallet"),
                 ),

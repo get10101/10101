@@ -56,10 +56,12 @@ class _AmountInputFieldState extends State<AmountInputField> {
         border: const OutlineInputBorder(),
         hintText: widget.hint,
         labelText: widget.label,
+        filled: true,
+        fillColor: Colors.white,
         suffixIcon: widget.isLoading
             ? const CircularProgressIndicator()
             : widget.infoText != null
-                ? ModalBottomSheetInfo(closeButtonText: "Back...", child: Text(widget.infoText!))
+                ? ModalBottomSheetInfo(closeButtonText: "Back", child: Text(widget.infoText!))
                 : null,
       ),
       inputFormatters: <TextInputFormatter>[FilteringTextInputFormatter.digitsOnly],

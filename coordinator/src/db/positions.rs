@@ -35,6 +35,7 @@ pub struct Position {
     pub realized_pnl_sat: Option<i64>,
     pub unrealized_pnl_sat: Option<i64>,
     pub closing_price: Option<f32>,
+    pub coordinator_leverage: f32,
 }
 
 impl Position {
@@ -238,6 +239,7 @@ impl From<Position> for crate::position::models::Position {
                 ContractId::from_hex(contract_id.as_str()).expect("contract id to decode")
             }),
             closing_price: value.closing_price,
+            coordinator_leverage: value.coordinator_leverage,
         }
     }
 }

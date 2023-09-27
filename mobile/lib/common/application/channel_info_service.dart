@@ -1,6 +1,7 @@
 import 'package:get_10101/common/domain/channel.dart';
-import 'package:get_10101/ffi.dart' as rust;
+import 'package:get_10101/common/domain/liquidity_option.dart';
 import 'package:get_10101/common/domain/model.dart';
+import 'package:get_10101/ffi.dart' as rust;
 
 class ChannelInfoService {
   const ChannelInfoService();
@@ -15,19 +16,17 @@ class ChannelInfoService {
     return Amount(feeEstimate);
   }
 
-  /// The multiplier that is used to determine the coordinator liquidity
-  ///
-  /// This value is an arbitrary number that may be subject to change.
-  int getCoordinatorLiquidityMultiplier() {
-    return rust.api.coordinatorLiquidityMultiplier();
-  }
-
-  /// The agreed upon maximum channel capacity for the beta
-  ///
-  /// This value is an arbitrary number that may be subject to change.
   Future<Amount> getMaxCapacity() async {
     int maxCapacity = await rust.api.maxChannelValue();
     return Amount(maxCapacity);
+  }
+
+  Future<List<LiquidityOption>> getLiquidityOptions(bool activeOnly) async {
+    final liquidityOptions = await rust.api.liquidityOptions();
+    return liquidityOptions
+        .where((option) => option.active || !activeOnly)
+        .map((option) => LiquidityOption.from(option))
+        .toList();
   }
 
   /// The assumed channel reserve if no channel was opened yet

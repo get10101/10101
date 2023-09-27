@@ -305,6 +305,7 @@ where
 #[cfg(test)]
 pub mod tests {
     use super::*;
+    use crate::channel::Channel;
     use crate::fee_rate_estimator::EstimateFeeRate;
     use crate::ldk_node_wallet::Wallet;
     use anyhow::Result;
@@ -321,6 +322,7 @@ pub mod tests {
     use bdk::BlockTime;
     use bdk::Error;
     use bdk::FeeRate;
+    use bitcoin::secp256k1::PublicKey;
     use bitcoin::util::bip32::ExtendedPrivKey;
     use bitcoin::Amount;
     use bitcoin::BlockHash;
@@ -527,22 +529,22 @@ pub mod tests {
             unimplemented!();
         }
 
-        fn upsert_channel(&self, _channel: crate::channel::Channel) -> Result<()> {
+        fn upsert_channel(&self, _channel: Channel) -> Result<()> {
             unimplemented!();
         }
 
-        fn get_channel(&self, _user_channel_id: &str) -> Result<Option<crate::channel::Channel>> {
+        fn get_channel(&self, _user_channel_id: &str) -> Result<Option<Channel>> {
             unimplemented!();
         }
 
-        fn get_channel_by_fake_scid(
+        fn all_non_pending_channels(&self) -> Result<Vec<Channel>> {
+            unimplemented!();
+        }
+
+        fn get_announced_channel(
             &self,
-            _fake_scid: crate::channel::FakeScid,
-        ) -> Result<Option<crate::channel::Channel>> {
-            unimplemented!();
-        }
-
-        fn all_non_pending_channels(&self) -> Result<Vec<crate::channel::Channel>> {
+            _counterparty_pubkey: PublicKey,
+        ) -> Result<Option<Channel>> {
             unimplemented!();
         }
 

@@ -6,8 +6,10 @@ use native::api;
 use native::api::PaymentFlow;
 use native::api::Status;
 use native::api::WalletHistoryItem;
+use native::api::WalletHistoryItemType;
 use reqwest::Client;
 use serde::Deserialize;
+use std::cmp;
 use tokio::task::spawn_blocking;
 
 /// Instruct the LND faucet to pay an invoice generated with the purpose of opening a JIT channel
@@ -18,7 +20,7 @@ pub async fn fund_app_with_faucet(
     fund_amount: u64,
 ) -> Result<()> {
     let invoice =
-        spawn_blocking(move || api::create_invoice_with_amount(fund_amount).expect("to succeed"))
+        spawn_blocking(move || api::create_onboarding_invoice(fund_amount, 1).expect("to succeed"))
             .await?;
     api::decode_invoice(invoice.clone()).expect("to decode invoice we created");
 
@@ -43,7 +45,7 @@ pub async fn fund_app_with_faucet(
             }
         )));
 
-    let order_matching_fee = app
+    let channel_opening_fee = app
         .rx
         .wallet_info()
         .expect("to have wallet info")
@@ -52,24 +54,28 @@ pub async fn fund_app_with_faucet(
         .find_map(|item| match item {
             WalletHistoryItem {
                 flow: PaymentFlow::Outbound,
-                status: Status::Confirmed,
+                wallet_type: WalletHistoryItemType::JitChannelFee { .. },
                 amount_sats,
                 ..
             } => Some(amount_sats),
             _ => None,
         })
         .copied()
-        .expect("to have an order-matching fee");
+        .expect("to have an jit channel opening fee");
 
-    tracing::info!(%fund_amount, %order_matching_fee, "Successfully funded app with faucet");
+    tracing::info!(%fund_amount, %channel_opening_fee, "Successfully funded app with faucet");
     assert_eq!(
         app.rx
             .wallet_info()
             .expect("to have wallet info")
             .balances
             .lightning,
-        fund_amount - order_matching_fee
+        fund_amount - channel_opening_fee
     );
+
+    // the fees is the max of 10_000 sats or 1% of the fund amount.
+    let fee = cmp::max(10_000, fund_amount / 100);
+    assert_eq!(channel_opening_fee, fee);
 
     Ok(())
 }

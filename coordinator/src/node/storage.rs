@@ -2,6 +2,7 @@ use crate::db;
 use crate::db::payments;
 use anyhow::anyhow;
 use anyhow::Result;
+use bitcoin::secp256k1::PublicKey;
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::Pool;
 use diesel::PgConnection;
@@ -11,7 +12,6 @@ use lightning::ln::PaymentHash;
 use lightning::ln::PaymentPreimage;
 use lightning::ln::PaymentSecret;
 use ln_dlc_node::channel::Channel;
-use ln_dlc_node::channel::FakeScid;
 use ln_dlc_node::node;
 use ln_dlc_node::transaction::Transaction;
 use ln_dlc_node::HTLCStatus;
@@ -134,14 +134,6 @@ impl node::Storage for NodeStorage {
         db::channels::upsert(channel.into(), &mut conn)
     }
 
-    fn get_channel_by_fake_scid(&self, fake_scid: FakeScid) -> Result<Option<Channel>> {
-        let mut conn = self.pool.get()?;
-        let channel =
-            db::channels::get_channel_by_fake_scid(fake_scid.to_string().as_str(), &mut conn)?
-                .map(|channel| channel.into());
-        Ok(channel)
-    }
-
     fn get_channel(&self, user_channel_id: &str) -> Result<Option<Channel>> {
         let mut conn = self.pool.get()?;
         let channel: Option<Channel> = db::channels::get(user_channel_id, &mut conn)
@@ -158,6 +150,15 @@ impl node::Storage for NodeStorage {
             .collect::<Vec<_>>();
 
         Ok(channels)
+    }
+
+    fn get_announced_channel(&self, counterparty_pubkey: PublicKey) -> Result<Option<Channel>> {
+        let mut conn = self.pool.get()?;
+        let channel: Option<Channel> =
+            db::channels::get_announced_channel(&counterparty_pubkey.to_string(), &mut conn)
+                .map_err(|e| anyhow!("{e:#}"))?
+                .map(|c| c.into());
+        Ok(channel)
     }
 
     // Transaction

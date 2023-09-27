@@ -2,7 +2,9 @@ use crate::node::Node;
 use crate::tests::calculate_routing_fee_msat;
 use crate::tests::init_tracing;
 use crate::tests::just_in_time_channel::create::send_interceptable_payment;
+use crate::tests::just_in_time_channel::create::send_payment;
 use crate::tests::setup_coordinator_payer_channel;
+use crate::tests::wait_for_n_usable_channels;
 
 #[tokio::test(flavor = "multi_thread")]
 #[ignore]
@@ -33,8 +35,9 @@ async fn just_in_time_channel_with_multiple_payments() {
     .await
     .unwrap();
 
-    // after creating the just-in-time channel. The coordinator should have exactly 2 channels.
-    assert_eq!(coordinator.channel_manager.list_channels().len(), 2);
+    // after creating the just-in-time channel. The coordinator should have exactly 2 usable
+    // channels with short channel ids.
+    wait_for_n_usable_channels(2, &coordinator).await.unwrap();
 
     // 3 consecutive payments, we divide by 5 to account for fees
     // Note: Dividing by 4 should work but leads to rounding error because of how the fees are
@@ -42,7 +45,7 @@ async fn just_in_time_channel_with_multiple_payments() {
     let consecutive_payment_invoice_amount = payer_to_payee_invoice_amount / 5;
 
     for _ in 0..3 {
-        send_interceptable_payment(
+        send_payment(
             &payer,
             &payee,
             &coordinator,
@@ -85,6 +88,10 @@ async fn new_config_affects_routing_fees() {
     .await
     .unwrap();
 
+    // after creating the just-in-time channel. The coordinator should have exactly 2 usable
+    // channels with short channel ids.
+    wait_for_n_usable_channels(2, &coordinator).await.unwrap();
+
     // Act
 
     let coordinator_balance_before = coordinator.get_ldk_balance().available_msat();
@@ -98,7 +105,7 @@ async fn new_config_affects_routing_fees() {
     coordinator.update_ldk_settings(ldk_config_coordinator);
 
     let payment_amount_sat = 5_000;
-    send_interceptable_payment(&payer, &payee, &coordinator, payment_amount_sat, None)
+    send_payment(&payer, &payee, &coordinator, payment_amount_sat, None)
         .await
         .unwrap();
 

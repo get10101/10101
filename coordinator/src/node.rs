@@ -67,9 +67,6 @@ pub mod routing_fees;
 pub mod storage;
 pub mod unrealized_pnl;
 
-/// The leverage used by the coordinator for all trades.
-pub const COORDINATOR_LEVERAGE: f32 = 1.0;
-
 #[derive(Debug, Clone)]
 pub struct NodeSettings {
     // At times, we want to disallow opening new positions (e.g. before
@@ -213,7 +210,34 @@ impl Node {
                     "Opening positions is disabled"
                 );
 
-                self.open_position(trade_params, fee_payment_hash).await?;
+                let channel_details = self.get_counterparty_channel(trade_params.pubkey)?;
+
+                let user_channel_id = Uuid::from_u128(channel_details.user_channel_id).to_string();
+                let connection = &mut self.pool.get()?;
+                let channel =
+                    db::channels::get(&user_channel_id, connection)?.with_context(|| {
+                        format!(
+                            "Couldnt find shadow channel. trader_id={}, user_channel_id={}",
+                            trade_params.pubkey, channel_details.user_channel_id
+                        )
+                    })?;
+
+                let coordinator_leverage = match channel.liquidity_option_id {
+                    Some(liquidity_option_id) => {
+                        let liquidity_option =
+                            db::liquidity_options::get(connection, liquidity_option_id)?;
+                        liquidity_option.coordinator_leverage
+                    }
+                    None => 1.0,
+                };
+
+                self.open_position(
+                    connection,
+                    trade_params,
+                    fee_payment_hash,
+                    coordinator_leverage,
+                )
+                .await?;
             }
             TradeAction::Close(channel_id) => {
                 let peer_id = trade_params.pubkey;
@@ -229,8 +253,14 @@ impl Node {
                     None => bail!("Failed to find open position : {}", trade_params.pubkey),
                 };
 
-                self.close_position(&position, closing_price, channel_id, fee_payment_hash)
-                    .await?;
+                self.close_position(
+                    connection,
+                    &position,
+                    closing_price,
+                    channel_id,
+                    fee_payment_hash,
+                )
+                .await?;
             }
         };
 
@@ -240,17 +270,27 @@ impl Node {
     #[autometrics]
     async fn open_position(
         &self,
+        conn: &mut PgConnection,
         trade_params: &TradeParams,
         fee_payment_hash: PaymentHash,
+        coordinator_leverage: f32,
     ) -> Result<()> {
         let peer_id = trade_params.pubkey;
         tracing::info!(%peer_id, ?trade_params, "Opening position");
 
         let margin_trader = margin_trader(trade_params);
-        let margin_coordinator = margin_coordinator(trade_params);
+        let margin_coordinator = margin_coordinator(trade_params, coordinator_leverage);
 
-        let leverage_long = leverage_long(trade_params.direction, trade_params.leverage);
-        let leverage_short = leverage_short(trade_params.direction, trade_params.leverage);
+        let leverage_long = leverage_long(
+            trade_params.direction,
+            trade_params.leverage,
+            coordinator_leverage,
+        );
+        let leverage_short = leverage_short(
+            trade_params.direction,
+            trade_params.leverage,
+            coordinator_leverage,
+        );
 
         let total_collateral = margin_coordinator + margin_trader;
 
@@ -304,18 +344,26 @@ impl Node {
         // into the database doesn't, it is more likely to succeed in the new order.
         // FIXME: Note, we should not create a shadow representation (position) of the DLC struct,
         // but rather imply the state from the DLC.
-        self.persist_position_and_trade(trade_params, fee_payment_hash, temporary_contract_id)
+        self.persist_position_and_trade(
+            conn,
+            trade_params,
+            fee_payment_hash,
+            temporary_contract_id,
+            coordinator_leverage,
+        )
     }
 
     // Creates a position and a trade from the trade params
     fn persist_position_and_trade(
         &self,
+        connection: &mut PgConnection,
         trade_params: &TradeParams,
         fee_payment_hash: PaymentHash,
         temporary_contract_id: ContractId,
+        coordinator_leverage: f32,
     ) -> Result<()> {
         let liquidation_price = liquidation_price(trade_params);
-        let margin_coordinator = margin_coordinator(trade_params);
+        let margin_coordinator = margin_coordinator(trade_params, coordinator_leverage);
 
         let average_entry_price = trade_params
             .average_execution_price()
@@ -336,7 +384,6 @@ impl Node {
         };
         tracing::debug!(?new_position, "Inserting new position into db");
 
-        let connection = &mut self.pool.get()?;
         let position = db::positions::Position::insert(connection, new_position.clone())?;
 
         db::trades::insert(
@@ -360,6 +407,7 @@ impl Node {
     #[autometrics]
     pub async fn close_position(
         &self,
+        conn: &mut PgConnection,
         position: &Position,
         closing_price: Decimal,
         channel_id: ChannelId,
@@ -379,9 +427,8 @@ impl Node {
             .propose_dlc_channel_collaborative_settlement(channel_id, accept_settlement_amount)
             .await?;
 
-        let mut connection = self.pool.get()?;
         db::trades::insert(
-            &mut connection,
+            conn,
             NewTrade {
                 position_id: position.id,
                 contract_symbol: position.contract_symbol,
@@ -396,7 +443,7 @@ impl Node {
         )?;
 
         db::positions::Position::set_open_position_to_closing(
-            &mut connection,
+            conn,
             position.trader.to_string(),
             closing_price
                 .to_f32()
@@ -557,11 +604,11 @@ fn margin_trader(trade_params: &TradeParams) -> u64 {
     )
 }
 
-fn margin_coordinator(trade_params: &TradeParams) -> u64 {
+fn margin_coordinator(trade_params: &TradeParams, coordinator_leverage: f32) -> u64 {
     calculate_margin(
         trade_params.average_execution_price(),
         trade_params.quantity,
-        COORDINATOR_LEVERAGE,
+        coordinator_leverage,
     )
 }
 
