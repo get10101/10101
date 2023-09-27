@@ -126,6 +126,21 @@ run-regtest-android args="":
         --dart-define="COORDINATOR_PORT_HTTP={{public_coordinator_http_port}}" \
         --dart-define="ORACLE_ENDPOINT={{public_regtest_oracle_endpoint}}" \
         --dart-define="ORACLE_PUBKEY={{public_regtest_oracle_pk}}" \
+        | tee  ../data/app_regtest.log
+
+
+# Specify correct Android flavor to run against our public regtest server
+run-regtest-android args="":
+    #!/usr/bin/env bash
+    cd mobile && \
+      flutter run {{args}} \
+        --dart-define="COMMIT=$(git rev-parse HEAD)" \
+        --dart-define="BRANCH=$(git rev-parse --abbrev-ref HEAD)" \
+        --dart-define="ESPLORA_ENDPOINT={{public_regtest_esplora}}" \
+        --dart-define="COORDINATOR_P2P_ENDPOINT={{public_regtest_coordinator}}" \
+        --dart-define="COORDINATOR_PORT_HTTP={{public_coordinator_http_port}}" \
+        --dart-define="ORACLE_ENDPOINT={{public_regtest_oracle_endpoint}}" \
+        --dart-define="ORACLE_PUBKEY={{public_regtest_oracle_pk}}" \
         --flavor test \
         | tee  ../data/app_regtest_android.log
 
