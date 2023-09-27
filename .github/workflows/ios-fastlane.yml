@@ -128,6 +128,9 @@ jobs:
       - name: Generate FFI bindings
         run: just gen
 
+      - name: Check compatibility of the environment
+        run: just doctor
+
       - name: Build iOS Rust lib in release mode
         run: just ios-release
 
