@@ -19,6 +19,7 @@ pub struct User {
     pub nostr: String,
     pub timestamp: OffsetDateTime,
     pub fcm_token: String,
+    pub last_login: OffsetDateTime,
 }
 
 impl From<RegisterParams> for User {
@@ -30,6 +31,7 @@ impl From<RegisterParams> for User {
             nostr: value.nostr.unwrap_or("".to_owned()),
             timestamp: OffsetDateTime::now_utc(),
             fcm_token: "".to_owned(),
+            last_login: OffsetDateTime::now_utc(),
         }
     }
 }
@@ -51,31 +53,28 @@ pub fn upsert_email(
     trader_id: PublicKey,
     email: String,
 ) -> QueryResult<User> {
+    let timestamp = OffsetDateTime::now_utc();
+
     let user: User = diesel::insert_into(users::table)
         .values(User {
             id: None,
             pubkey: trader_id.to_string(),
             email: email.clone(),
             nostr: "".to_owned(),
-            timestamp: OffsetDateTime::now_utc(),
+            timestamp,
             fcm_token: "".to_owned(),
+            last_login: timestamp,
         })
         .on_conflict(schema::users::pubkey)
         .do_update()
-        .set(users::email.eq(&email))
+        .set((users::email.eq(&email), users::last_login.eq(timestamp)))
         .get_result(conn)?;
     Ok(user)
 }
 
-pub fn upsert_fcm_token(
-    conn: &mut PgConnection,
-    trader_id: PublicKey,
-    token: String,
-) -> Result<()> {
+pub fn login_user(conn: &mut PgConnection, trader_id: PublicKey, token: String) -> Result<()> {
     tracing::debug!(%trader_id, token, "Updating token for client.");
-    // TODO(holzeis): We should store a last login or freshness timestamp of the token into the
-    // database. The recommendation is to assume any token not being updated after 2 months to be
-    // stale.
+    let last_login = OffsetDateTime::now_utc();
     let affected_rows = diesel::insert_into(users::table)
         .values(User {
             id: None,
@@ -84,10 +83,14 @@ pub fn upsert_fcm_token(
             nostr: "".to_owned(),
             timestamp: OffsetDateTime::now_utc(),
             fcm_token: token.clone(),
+            last_login,
         })
         .on_conflict(schema::users::pubkey)
         .do_update()
-        .set(users::fcm_token.eq(&token))
+        .set((
+            users::fcm_token.eq(&token),
+            users::last_login.eq(last_login),
+        ))
         .execute(conn)?;
 
     if affected_rows == 0 {

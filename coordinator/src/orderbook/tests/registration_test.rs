@@ -24,7 +24,7 @@ async fn registered_user_is_stored_in_db() {
 
     let user = user::upsert_email(&mut conn, dummy_pubkey, dummy_email.clone()).unwrap();
     assert!(user.id.is_some(), "Id should be filled in by diesel");
-    user::upsert_fcm_token(&mut conn, dummy_pubkey, fcm_token.clone()).unwrap();
+    user::login_user(&mut conn, dummy_pubkey, fcm_token.clone()).unwrap();
 
     let users = user::all(&mut conn).unwrap();
     assert_eq!(users.len(), 1);
