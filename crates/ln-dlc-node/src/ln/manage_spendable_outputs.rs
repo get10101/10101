@@ -62,7 +62,7 @@ pub fn manage_spendable_outputs(
         return Ok(());
     }
 
-    let destination_script = wallet.borrow().inner().get_last_unused_address()?;
+    let destination_script = wallet.borrow().ldk_wallet().get_last_unused_address()?;
     let tx_feerate = fee_rate_estimator
         .borrow()
         .get_est_sat_per_1000_weight(ConfirmationTarget::Normal);

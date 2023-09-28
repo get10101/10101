@@ -198,7 +198,6 @@ where
                     payment_hash = %payment_hash.0.to_hex(),
                     "Failed to insert sent payment: {e:#}"
                 );
-                // TODO: Should we bail here too?
             }
 
             amt_msat
@@ -293,7 +292,7 @@ where
             tracing::error!("Failed to persist spendable output: {e:#}")
         }
     }
-    let destination_script = node.wallet.inner().get_last_unused_address()?;
+    let destination_script = node.wallet.ldk_wallet().get_last_unused_address()?;
     let tx_feerate = node
         .fee_rate_estimator
         .get_est_sat_per_1000_weight(ConfirmationTarget::Normal);
@@ -392,7 +391,7 @@ pub async fn handle_funding_generation_ready<S>(
     let target_blocks = CONFIRMATION_TARGET;
     let funding_tx_result = node
         .wallet
-        .inner()
+        .ldk_wallet()
         .create_funding_transaction(output_script, channel_value_satoshis, target_blocks)
         .await;
     let funding_tx = match funding_tx_result {

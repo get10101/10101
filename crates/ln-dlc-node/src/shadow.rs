@@ -53,7 +53,7 @@ where
 
         for transaction in transactions.iter() {
             let txid = transaction.txid();
-            match self.ln_dlc_wallet.inner().get_transaction(&txid) {
+            match self.ln_dlc_wallet.ldk_wallet().get_transaction(&txid) {
                 Ok(Some(TransactionDetails { fee: Some(fee), .. })) => {
                     self.storage
                         .upsert_transaction(transaction.clone().with_fee(fee))?;

@@ -37,7 +37,7 @@ async fn just_in_time_channel_with_multiple_payments() {
     assert_eq!(coordinator.channel_manager.list_channels().len(), 2);
 
     // 3 consecutive payments, we divide by 5 to account for fees
-    // TODO: Dividing by 4 should work but leads to rounding error because of how the fees are
+    // Note: Dividing by 4 should work but leads to rounding error because of how the fees are
     // calculated in the test assertions
     let consecutive_payment_invoice_amount = payer_to_payee_invoice_amount / 5;
 

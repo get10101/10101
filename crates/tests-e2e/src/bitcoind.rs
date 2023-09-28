@@ -16,9 +16,13 @@ pub struct Bitcoind {
 }
 
 impl Bitcoind {
-    pub fn new(client: Client) -> Self {
-        let host = "http://localhost:8080/bitcoin".to_string();
+    pub fn new(client: Client, host: String) -> Self {
         Self { client, host }
+    }
+
+    pub fn new_local(client: Client) -> Self {
+        let host = "http://localhost:8080/bitcoin".to_string();
+        Self::new(client, host)
     }
 
     /// Instructs `bitcoind` to generate to address.
@@ -52,7 +56,12 @@ impl Bitcoind {
         Ok(())
     }
 
-    pub async fn send_to_address(&self, address: Address, amount: Amount) -> Result<Response> {
+    /// An alias for send_to_address
+    pub async fn fund(&self, address: &Address, amount: Amount) -> Result<Response> {
+        self.send_to_address(address, amount).await
+    }
+
+    pub async fn send_to_address(&self, address: &Address, amount: Amount) -> Result<Response> {
         let response = self
             .client
             .post(&self.host)

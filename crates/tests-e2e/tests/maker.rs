@@ -26,9 +26,9 @@ async fn maker_can_open_channel_to_coordinator_and_send_payment() -> Result<()> 
 
     // Ensure the maker has a free UTXO available.
     let address = maker.get_new_address().await.unwrap();
-    let bitcoind = Bitcoind::new(client.clone());
+    let bitcoind = Bitcoind::new_local(client.clone());
     bitcoind
-        .send_to_address(address, Amount::ONE_BTC)
+        .send_to_address(&address, Amount::ONE_BTC)
         .await
         .unwrap();
     bitcoind.mine(1).await.unwrap();

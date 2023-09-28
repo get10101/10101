@@ -62,7 +62,6 @@ class SubmitOrderChangeNotifier extends ChangeNotifier implements Subscriber {
     notifyListeners();
   }
 
-  // TODO: This is not optimal, because we map the Order in the change notifier. We can do this, but it would be better to do this on the service level.
   @override
   void notify(bridge.Event event) {
     if (event is bridge.Event_OrderUpdateNotification) {

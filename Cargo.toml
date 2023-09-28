@@ -1,5 +1,18 @@
 [workspace]
 members = ["coordinator", "maker", "mobile/native", "crates/*"]
+default-members = [
+  "coordinator",
+  "maker",
+  "mobile/native",
+  "crates/bitmex-client",
+  "crates/bitmex-stream",
+  "crates/coordinator-commons",
+  "crates/ln-dlc-node",
+  "crates/orderbook-client",
+  "crates/orderbook-commons",
+  "crates/trade",
+]
+
 resolver = "2"
 
 [patch.crates-io]
