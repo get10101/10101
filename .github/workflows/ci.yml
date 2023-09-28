@@ -88,7 +88,27 @@ jobs:
       - name: Analyze flutter code
         run: just lint-flutter
 
-  unit-tests:
+  rust-unit-tests:
+    runs-on: ubuntu-latest
+    needs: clippy
+    steps:
+      - name: Print disk storage
+        run: df -h
+      - uses: actions/checkout@v3
+      - uses: extractions/setup-just@v1
+      - name: Setup rust toolchain
+        run: rustup show
+      - uses: Swatinem/rust-cache@v2.2.0
+      - name: Running cargo tests
+        run: RUST_BACKTRACE=1 cargo test
+      - name: Print disk storage
+        if: always()
+        run: df -h
+      - name: Print target folder isze
+        if: always()
+        run: du -d 1 -h ./target
+
+  flutter-unit-tests:
     runs-on: ubuntu-latest
     needs: clippy
     steps:
@@ -110,8 +130,6 @@ jobs:
         run: just deps-gen
       - name: Generate FFI bindings
         run: just gen
-      - name: Running cargo tests
-        run: RUST_BACKTRACE=1 cargo test
       - name: Running flutter tests
         run: just flutter-test
       - name: Print disk storage
