@@ -132,11 +132,11 @@ run-local-android args="":
         --flavor local
 
 fund args="":
-      cargo run --example fund
+      cargo run -p tests-e2e --example fund
 
 # Fund remote regtest instance
 fund-regtest:
-    cargo run --example fund -- --faucet=http://34.32.0.52:8080 --coordinator=http://34.32.0.52:80
+    cargo run -p tests-e2e --example fund -- --faucet=http://34.32.0.52:8080 --coordinator=http://34.32.0.52:80
 
 clean:
     #!/usr/bin/env bash
