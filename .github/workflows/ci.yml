@@ -94,6 +94,14 @@ jobs:
     steps:
       - name: Print disk storage
         run: df -h
+      - name: Remove stuff
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /opt/ghc
+          sudo rm -rf "/usr/local/share/boost"
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+      - name: Print disk storage
+        run: df -h
       - uses: actions/checkout@v3
       - uses: extractions/setup-just@v1
       - name: Setup rust toolchain
