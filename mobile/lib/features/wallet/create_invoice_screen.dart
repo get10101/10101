@@ -108,7 +108,7 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
     Amount minReceiveAmount = Amount(max(minAmountToBeAbleToTrade.sats - balance.sats, 1));
 
     return Scaffold(
-      appBar: AppBar(title: const Text("Receive funds")),
+      appBar: AppBar(title: const Text("Receive funds on Lightning")),
       body: Form(
         key: _formKey,
         child: GestureDetector(
@@ -200,6 +200,7 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
                                             extra: ShareInvoice(
                                                 rawInvoice: invoice,
                                                 invoiceAmount: amount!,
+                                                isLightning: true,
                                                 channelOpenFee: feeEstimate));
                                       }
                                     });

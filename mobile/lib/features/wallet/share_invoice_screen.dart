@@ -6,7 +6,6 @@ import 'package:get_10101/common/amount_text.dart';
 import 'package:get_10101/common/modal_bottom_sheet_info.dart';
 import 'package:get_10101/common/snack_bar.dart';
 import 'package:get_10101/common/value_data_row.dart';
-import 'package:get_10101/features/wallet/create_invoice_screen.dart';
 import 'package:get_10101/features/wallet/domain/wallet_info.dart';
 import 'package:get_10101/features/wallet/wallet_change_notifier.dart';
 import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
@@ -19,7 +18,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:get_10101/features/wallet/domain/share_invoice.dart';
 
 class ShareInvoiceScreen extends StatefulWidget {
-  static const route = "${WalletScreen.route}/${CreateInvoiceScreen.subRouteName}/$subRouteName";
+  static const route = "${WalletScreen.route}/$subRouteName";
   static const subRouteName = "share_invoice";
   final ShareInvoice invoice;
 
@@ -47,7 +46,7 @@ class _ShareInvoiceScreenState extends State<ShareInvoiceScreen> {
     const infoButtonPadding = 5.0;
 
     return Scaffold(
-      appBar: AppBar(title: const Text("Receive funds")),
+      appBar: AppBar(title: const Text("Share payment request")),
       body: SafeArea(
           child: Container(
         constraints: const BoxConstraints.expand(),
@@ -119,8 +118,9 @@ class _ShareInvoiceScreenState extends State<ShareInvoiceScreen> {
               ]),
             ),
             // Faucet button, only available if we are on regtest
+            // TODO(on-chain): allow paying on-chain via faucet
             Visibility(
-              visible: config.network == "regtest",
+              visible: config.network == "regtest" && widget.invoice.isLightning,
               child: OutlinedButton(
                 onPressed: _isPayInvoiceButtonDisabled
                     ? null
@@ -152,7 +152,8 @@ class _ShareInvoiceScreenState extends State<ShareInvoiceScreen> {
               ),
             ),
             Visibility(
-              visible: config.network == "regtest",
+              // TODO(on-chain): allow paying on-chain via faucet
+              visible: config.network == "regtest" && widget.invoice.isLightning,
               child: OutlinedButton(
                 onPressed: _isPayInvoiceButtonDisabled
                     ? null
