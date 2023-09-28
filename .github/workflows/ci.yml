@@ -98,6 +98,19 @@ jobs:
       - uses: extractions/setup-just@v1
       - name: Setup rust toolchain
         run: rustup show
+      - name: Print disk storage
+        run: df -h
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: "stable"
+          cache: true
+          cache-key: flutter-${{ env.FLUTTER_VERSION }}
+          cache-path: ${{ runner.tool_cache }}/flutter
+      - name: Install FFI bindings
+        run: just deps-gen
+      - name: Generate FFI bindings
+        run: just gen
       - uses: Swatinem/rust-cache@v2.2.0
       - name: Running cargo tests
         run: RUST_BACKTRACE=1 cargo test
@@ -135,9 +148,6 @@ jobs:
       - name: Print disk storage
         if: always()
         run: df -h
-      - name: Print target folder isze
-        if: always()
-        run: du -d 1 -h ./target
 
   ln-dlc-node-tests:
     runs-on: ubuntu-latest
