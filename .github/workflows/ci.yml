@@ -129,8 +129,26 @@ jobs:
       - name: Test containers are up
         run: |
           curl -d '{"address":"bcrt1qylgu6ffkp3p0m8tw8kp4tt2dmdh755f4r5dq7s", "amount":"0.1"}' -H "Content-Type: application/json" -X POST http://localhost:3000/faucet
-      - name: Run slow tests
+      - name: Run LN-DLC tests
         run: RUST_BACKTRACE=1 cargo test -p ln-dlc-node -- --ignored --nocapture --test-threads=1
+      - name: LND logs on e2e tests error
+        if: failure()
+        run: docker logs lnd
+      - name: bitcoin logs on e2e tests error
+        if: failure()
+        run: docker logs bitcoin
+      - name: faucet logs on e2e tests error
+        if: failure()
+        run: docker logs faucet
+      - name: electrs logs on e2e tests error
+        if: failure()
+        run: docker logs electrs
+      - name: esplora logs on e2e tests error
+        if: failure()
+        run: docker logs esplora
+      - name: show disk space after tests
+        if: always()
+        run: df -h
 
   e2e-tests:
     runs-on: ubuntu-latest
