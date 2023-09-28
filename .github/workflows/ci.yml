@@ -92,6 +92,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: clippy
     steps:
+      - name: Print disk storage
+        run: df -h
       - uses: actions/checkout@v3
       - uses: extractions/setup-just@v1
       - name: Setup rust toolchain
@@ -112,6 +114,12 @@ jobs:
         run: RUST_BACKTRACE=1 cargo test
       - name: Running flutter tests
         run: just flutter-test
+      - name: Print disk storage
+        if: always()
+        run: df -h
+      - name: Print target folder isze
+        if: always()
+        run: du -d 1 -h ./target
 
   ln-dlc-node-tests:
     runs-on: ubuntu-latest
@@ -143,6 +151,8 @@ jobs:
           # when set to "true" but frees about 6 GB
           tool-cache: false
           large-packages: false
+      - name: Print disk storage
+        run: df -h
       - uses: actions/checkout@v3
       - uses: extractions/setup-just@v1
       - name: Setup rust toolchain
@@ -195,6 +205,9 @@ jobs:
       - name: esplora logs on e2e tests error
         if: failure()
         run: docker logs esplora
-      - name: show disk space after tests
+      - name: Print disk storage
         if: always()
         run: df -h
+      - name: Print target folder isze
+        if: always()
+        run: du -d 1 -h ./target
