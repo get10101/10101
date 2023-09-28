@@ -13,6 +13,9 @@ use axum::routing::post;
 use axum::Json;
 use axum::Router;
 use bitcoin::secp256k1::PublicKey;
+use lightning::ln::msgs::NetAddress;
+use ln_dlc_node::node::peer_manager::alias_as_bytes;
+use ln_dlc_node::node::peer_manager::broadcast_node_announcement;
 use ln_dlc_node::node::InMemoryStore;
 use ln_dlc_node::node::Node;
 use ln_dlc_node::node::NodeInfo;
@@ -35,6 +38,8 @@ pub struct AppState {
     node: Arc<Node<InMemoryStore>>,
     exporter: PrometheusExporter,
     position_manager: xtra::Address<position::Manager>,
+    announcement_addresses: Vec<NetAddress>,
+    node_alias: String,
     health: Health,
 }
 
@@ -43,12 +48,16 @@ pub fn router(
     exporter: PrometheusExporter,
     position_manager: xtra::Address<position::Manager>,
     health: Health,
+    announcement_addresses: Vec<NetAddress>,
+    node_alias: &str,
 ) -> Router {
     let app_state = Arc::new(AppState {
         node,
         exporter,
         position_manager,
         health,
+        announcement_addresses,
+        node_alias: node_alias.to_string(),
     });
 
     Router::new()
@@ -64,6 +73,10 @@ pub fn router(
         .route("/api/node", get(get_node_info))
         .route("/metrics", get(get_metrics))
         .route("/health", get(get_health))
+        .route(
+            "/api/broadcast_announcement",
+            post(post_broadcast_announcement),
+        )
         .with_state(app_state)
 }
 
@@ -338,4 +351,22 @@ pub async fn get_health(
         .get_health()
         .map_err(|e| AppError::InternalServerError(format!("Error: {e:#}")))?;
     Ok(Json(resp))
+}
+
+pub async fn post_broadcast_announcement(
+    State(state): State<Arc<AppState>>,
+) -> Result<(), AppError> {
+    let node_alias = alias_as_bytes(state.node_alias.as_str()).map_err(|e| {
+        AppError::InternalServerError(format!(
+            "Could not parse node alias {0} due to {e:#}",
+            state.node_alias
+        ))
+    })?;
+    broadcast_node_announcement(
+        &state.node.peer_manager,
+        node_alias,
+        state.announcement_addresses.clone(),
+    );
+
+    Ok(())
 }

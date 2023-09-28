@@ -734,9 +734,10 @@ fn spawn_broadcast_node_annoucements(
     let (fut, remote_handle) = async move {
         let mut interval = tokio::time::interval(BROADCAST_NODE_ANNOUNCEMENT_INTERVAL);
         loop {
-            if !channel_manager.list_channels().is_empty() {
-                // Other nodes will ignore our node announcement if we don't have at least one channel,
-                // hence, we should only broadcast our node announcement if we have at least one channel.
+            if channel_manager.list_channels().iter().any(|c| c.is_public) {
+                // Other nodes will ignore our node announcement if we don't have at least one
+                // public channel, hence, we should only broadcast our node
+                // announcement if we have at least one channel.
                 broadcast_node_announcement(&peer_manager, alias, announcement_addresses.clone());
             }
 
