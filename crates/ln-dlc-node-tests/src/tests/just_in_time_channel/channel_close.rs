@@ -1,8 +1,8 @@
-use crate::node::Node;
 use crate::tests::bitcoind;
 use crate::tests::init_tracing;
 use crate::tests::just_in_time_channel::create::send_interceptable_payment;
 use crate::tests::setup_coordinator_payer_channel;
+use crate::tests::TestNode;
 use std::time::Duration;
 
 #[tokio::test(flavor = "multi_thread")]
@@ -12,9 +12,9 @@ async fn ln_collab_close() {
 
     // Arrange
 
-    let (payer, _running_payer) = Node::start_test_app("payer").unwrap();
-    let (coordinator, _running_coord) = Node::start_test_coordinator("coordinator").unwrap();
-    let (payee, _running_payee) = Node::start_test_app("payee").unwrap();
+    let (payer, _running_payer) = TestNode::start_test_app("payer").unwrap();
+    let (coordinator, _running_coord) = TestNode::start_test_coordinator("coordinator").unwrap();
+    let (payee, _running_payee) = TestNode::start_test_app("payee").unwrap();
 
     payer.connect(coordinator.info).await.unwrap();
     payee.connect(coordinator.info).await.unwrap();
@@ -87,9 +87,9 @@ async fn ln_force_close() {
 
     // Arrange
 
-    let (payer, _running_payer) = Node::start_test_app("payer").unwrap();
-    let (coordinator, _running_coord) = Node::start_test_coordinator("coordinator").unwrap();
-    let (payee, _running_payee) = Node::start_test_app("payee").unwrap();
+    let (payer, _running_payer) = TestNode::start_test_app("payer").unwrap();
+    let (coordinator, _running_coord) = TestNode::start_test_coordinator("coordinator").unwrap();
+    let (payee, _running_payee) = TestNode::start_test_app("payee").unwrap();
 
     payer.connect(coordinator.info).await.unwrap();
     payee.connect(coordinator.info).await.unwrap();

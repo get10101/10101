@@ -377,53 +377,10 @@ where
                 )
             })
     }
-
-    #[cfg(test)]
-    #[autometrics]
-    pub fn process_incoming_messages(&self) -> Result<()> {
-        let dlc_message_handler = &self.dlc_message_handler;
-        let dlc_manager = &self.dlc_manager;
-        let sub_channel_manager = &self.sub_channel_manager;
-        let messages = dlc_message_handler.get_and_clear_received_messages();
-        tracing::debug!("Received and cleared {} messages", messages.len());
-
-        for (node_id, msg) in messages {
-            match msg {
-                Message::OnChain(_) | Message::Channel(_) => {
-                    tracing::debug!(from = %node_id, "Processing DLC-manager message");
-                    let resp = dlc_manager.on_dlc_message(&msg, node_id)?;
-
-                    if let Some(msg) = resp {
-                        tracing::debug!(to = %node_id, "Sending DLC-manager message");
-                        dlc_message_handler.send_message(node_id, msg);
-                    }
-                }
-                Message::SubChannel(msg) => {
-                    tracing::debug!(
-                        from = %node_id,
-                        msg = %sub_channel_message_name(&msg),
-                        "Processing DLC channel message"
-                    );
-                    let resp = sub_channel_manager.on_sub_channel_message(&msg, &node_id)?;
-
-                    if let Some(msg) = resp {
-                        tracing::debug!(
-                            to = %node_id,
-                            msg = %sub_channel_message_name(&msg),
-                            "Sending DLC channel message"
-                        );
-                        dlc_message_handler.send_message(node_id, Message::SubChannel(msg));
-                    }
-                }
-            }
-        }
-
-        Ok(())
-    }
 }
 
 #[autometrics]
-pub(crate) async fn sub_channel_manager_periodic_check(
+pub async fn sub_channel_manager_periodic_check(
     sub_channel_manager: Arc<SubChannelManager>,
     dlc_message_handler: &DlcMessageHandler,
 ) -> Result<()> {

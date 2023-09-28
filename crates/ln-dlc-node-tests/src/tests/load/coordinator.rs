@@ -1,10 +1,10 @@
-use crate::node::InMemoryStore;
-use crate::node::Node;
-use crate::node::NodeInfo;
 use anyhow::bail;
 use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::XOnlyPublicKey;
+use ln_dlc_node::node::InMemoryStore;
+use ln_dlc_node::node::Node;
+use ln_dlc_node::node::NodeInfo;
 use reqwest::Response;
 use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::Decimal;

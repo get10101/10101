@@ -1,14 +1,14 @@
-use crate::node::dlc_channel::sub_channel_manager_periodic_check;
-use crate::node::Node;
 use crate::tests::dlc::create::create_dlc_channel;
 use crate::tests::dummy_contract_input;
 use crate::tests::init_tracing;
 use crate::tests::wait_until_dlc_channel_state;
 use crate::tests::SubChannelStateName;
+use crate::tests::TestNode;
 use anyhow::Context;
 use bitcoin::Amount;
 use dlc_manager::subchannel::SubChannelState;
 use dlc_manager::Storage;
+use ln_dlc_node::node::dlc_channel::sub_channel_manager_periodic_check;
 use std::time::Duration;
 
 #[tokio::test(flavor = "multi_thread")]
@@ -18,8 +18,8 @@ async fn reconnecting_during_dlc_channel_setup() {
 
     // Arrange
 
-    let (app, _running_app) = Node::start_test_app("app").unwrap();
-    let (coordinator, _running_coord) = Node::start_test_coordinator("coordinator").unwrap();
+    let (app, _running_app) = TestNode::start_test_app("app").unwrap();
+    let (coordinator, _running_coord) = TestNode::start_test_coordinator("coordinator").unwrap();
 
     let coordinator_info = coordinator.info;
 
@@ -241,8 +241,8 @@ async fn can_lose_connection_before_processing_subchannel_close_finalize() {
 
     let fund_amount = (app_ln_balance + coordinator_ln_balance) * 2;
 
-    let (app, _running_app) = Node::start_test_app("app").unwrap();
-    let (coordinator, _running_coord) = Node::start_test_coordinator("coordinator").unwrap();
+    let (app, _running_app) = TestNode::start_test_app("app").unwrap();
+    let (coordinator, _running_coord) = TestNode::start_test_coordinator("coordinator").unwrap();
 
     app.connect(coordinator.info).await.unwrap();
 
@@ -346,8 +346,8 @@ async fn reconnecting_during_dlc_channel_setup_reversed() {
 
     // Arrange
 
-    let (app, _running_app) = Node::start_test_app("app").unwrap();
-    let (coordinator, _running_coord) = Node::start_test_coordinator("coordinator").unwrap();
+    let (app, _running_app) = TestNode::start_test_app("app").unwrap();
+    let (coordinator, _running_coord) = TestNode::start_test_coordinator("coordinator").unwrap();
 
     let coordinator_info = coordinator.info;
 
@@ -486,8 +486,8 @@ async fn can_lose_connection_before_processing_subchannel_accept() {
 
     let fund_amount = (app_ln_balance + coordinator_ln_balance) * 2;
 
-    let (app, _running_app) = Node::start_test_app("app").unwrap();
-    let (coordinator, _running_coord) = Node::start_test_coordinator("coordinator").unwrap();
+    let (app, _running_app) = TestNode::start_test_app("app").unwrap();
+    let (coordinator, _running_coord) = TestNode::start_test_coordinator("coordinator").unwrap();
 
     app.connect(coordinator.info).await.unwrap();
 
@@ -607,8 +607,8 @@ async fn can_lose_connection_before_processing_subchannel_close_accept() {
     let app_ln_balance = app_dlc_collateral * 2;
     let coordinator_ln_balance = coordinator_dlc_collateral * 2;
     let fund_amount = (app_ln_balance + coordinator_ln_balance) * 2;
-    let (app, _running_app) = Node::start_test_app("app").unwrap();
-    let (coordinator, _running_coord) = Node::start_test_coordinator("coordinator").unwrap();
+    let (app, _running_app) = TestNode::start_test_app("app").unwrap();
+    let (coordinator, _running_coord) = TestNode::start_test_coordinator("coordinator").unwrap();
     app.connect(coordinator.info).await.unwrap();
     coordinator
         .fund(Amount::from_sat(fund_amount))

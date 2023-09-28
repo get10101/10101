@@ -1,12 +1,12 @@
-use crate::config::HTLC_INTERCEPTED_CONNECTION_TIMEOUT;
-use crate::node::InMemoryStore;
-use crate::node::LnDlcNodeSettings;
-use crate::node::Node;
 use crate::tests::init_tracing;
 use crate::tests::setup_coordinator_payer_channel;
-use crate::HTLCStatus;
+use crate::tests::TestNode;
 use bitcoin::Amount;
 use lightning::util::events::Event;
+use ln_dlc_node::config::HTLC_INTERCEPTED_CONNECTION_TIMEOUT;
+use ln_dlc_node::node::InMemoryStore;
+use ln_dlc_node::node::LnDlcNodeSettings;
+use ln_dlc_node::HTLCStatus;
 use std::ops::Add;
 use std::sync::Arc;
 use std::time::Duration;
@@ -18,9 +18,9 @@ async fn fail_intercepted_htlc_if_coordinator_cannot_reconnect_to_payee() {
 
     // Arrange
 
-    let (payer, _running_payer) = Node::start_test_app("payer").unwrap();
-    let (coordinator, _running_coord) = Node::start_test_coordinator("coordinator").unwrap();
-    let (payee, _running_payee) = Node::start_test_app("payee").unwrap();
+    let (payer, _running_payer) = TestNode::start_test_app("payer").unwrap();
+    let (coordinator, _running_coord) = TestNode::start_test_coordinator("coordinator").unwrap();
+    let (payee, _running_payee) = TestNode::start_test_app("payee").unwrap();
 
     payer.connect(coordinator.info).await.unwrap();
     payee.connect(coordinator.info).await.unwrap();
@@ -70,11 +70,11 @@ async fn fail_intercepted_htlc_if_connection_lost_after_funding_tx_generated() {
 
     // Arrange
 
-    let (payer, _running_payer) = Node::start_test_app("payer").unwrap();
+    let (payer, _running_payer) = TestNode::start_test_app("payer").unwrap();
 
     let (coordinator, _running_coord, mut ldk_node_event_receiver_coordinator) = {
         let (sender, receiver) = tokio::sync::watch::channel(None);
-        let (coordinator, _running_coord) = Node::start_test_coordinator_internal(
+        let (coordinator, _running_coord) = TestNode::start_test_coordinator_internal(
             "coordinator",
             Arc::new(InMemoryStore::default()),
             LnDlcNodeSettings::default(),
@@ -85,7 +85,7 @@ async fn fail_intercepted_htlc_if_connection_lost_after_funding_tx_generated() {
         (coordinator, _running_coord, receiver)
     };
 
-    let (payee, _running_payee) = Node::start_test_app("payee").unwrap();
+    let (payee, _running_payee) = TestNode::start_test_app("payee").unwrap();
 
     payer.connect(coordinator.info).await.unwrap();
     payee.connect(coordinator.info).await.unwrap();
@@ -142,9 +142,9 @@ async fn fail_intercepted_htlc_if_coordinator_cannot_pay_to_open_jit_channel() {
 
     // Arrange
 
-    let (payer, _running_payer) = Node::start_test_app("payer").unwrap();
-    let (coordinator, _running_coord) = Node::start_test_coordinator("coordinator").unwrap();
-    let (payee, _running_payee) = Node::start_test_app("payee").unwrap();
+    let (payer, _running_payer) = TestNode::start_test_app("payer").unwrap();
+    let (coordinator, _running_coord) = TestNode::start_test_coordinator("coordinator").unwrap();
+    let (payee, _running_payee) = TestNode::start_test_app("payee").unwrap();
 
     payer.connect(coordinator.info).await.unwrap();
     payee.connect(coordinator.info).await.unwrap();

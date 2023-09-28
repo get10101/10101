@@ -23,7 +23,7 @@ pub const CONFIRMATION_TARGET: ConfirmationTarget = ConfirmationTarget::HighPrio
 /// some time to open 10101 again we wait for a bit to see if we can establish a connection.
 ///
 /// This constant specifies the amount of time we are willing to delay a payment.
-pub(crate) const HTLC_INTERCEPTED_CONNECTION_TIMEOUT: Duration = Duration::from_secs(30);
+pub const HTLC_INTERCEPTED_CONNECTION_TIMEOUT: Duration = Duration::from_secs(30);
 
 pub fn app_config() -> UserConfig {
     UserConfig {

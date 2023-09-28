@@ -1,8 +1,9 @@
-use crate::node::InMemoryStore;
-use crate::node::Node;
 use crate::tests::calculate_routing_fee_msat;
 use crate::tests::init_tracing;
+use crate::tests::TestNode;
 use bitcoin::Amount;
+use ln_dlc_node::node::InMemoryStore;
+use ln_dlc_node::node::Node;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 
@@ -13,9 +14,9 @@ async fn multi_hop_payment() {
 
     // Arrange
 
-    let (payer, _running_payer) = Node::start_test_app("payer").unwrap();
-    let (coordinator, _running_coord) = Node::start_test_coordinator("coordinator").unwrap();
-    let (payee, _running_payee) = Node::start_test_app("payee").unwrap();
+    let (payer, _running_payer) = TestNode::start_test_app("payer").unwrap();
+    let (coordinator, _running_coord) = TestNode::start_test_coordinator("coordinator").unwrap();
+    let (payee, _running_payee) = TestNode::start_test_app("payee").unwrap();
 
     payer.connect(coordinator.info).await.unwrap();
     payee.connect(coordinator.info).await.unwrap();

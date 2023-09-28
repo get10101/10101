@@ -1,18 +1,19 @@
-use crate::channel::ChannelState;
-use crate::config::LIQUIDITY_MULTIPLIER;
-use crate::fee_rate_estimator::EstimateFeeRate;
-use crate::node::InMemoryStore;
-use crate::node::LnDlcNodeSettings;
-use crate::node::Node;
-use crate::node::Storage;
 use crate::tests::calculate_routing_fee_msat;
 use crate::tests::init_tracing;
 use crate::tests::setup_coordinator_payer_channel;
-use crate::HTLCStatus;
-use crate::WalletSettings;
+use crate::tests::TestNode;
 use anyhow::Context;
 use anyhow::Result;
 use lightning::chain::chaininterface::ConfirmationTarget;
+use ln_dlc_node::channel::ChannelState;
+use ln_dlc_node::config::LIQUIDITY_MULTIPLIER;
+use ln_dlc_node::fee_rate_estimator::EstimateFeeRate;
+use ln_dlc_node::node::InMemoryStore;
+use ln_dlc_node::node::LnDlcNodeSettings;
+use ln_dlc_node::node::Node;
+use ln_dlc_node::node::Storage;
+use ln_dlc_node::HTLCStatus;
+use ln_dlc_node::WalletSettings;
 use rust_decimal::Decimal;
 use std::sync::Arc;
 use std::time::Duration;
@@ -25,7 +26,7 @@ async fn open_jit_channel() {
 
     // Arrange
 
-    let (payer, _running_payer) = Node::start_test_app("payer").unwrap();
+    let (payer, _running_payer) = TestNode::start_test_app("payer").unwrap();
 
     let coordinator_storage = Arc::new(InMemoryStore::default());
     let settings = LnDlcNodeSettings {
@@ -37,7 +38,7 @@ async fn open_jit_channel() {
         // setting the on chain sync interval to 5 seconds so that we don't have to wait for so long
         // before the costs for the funding transaction will be attached to the shadow channel.
 
-        Node::start_test_coordinator_internal(
+        TestNode::start_test_coordinator_internal(
             "coordinator",
             coordinator_storage.clone(),
             settings.clone(),
@@ -45,7 +46,7 @@ async fn open_jit_channel() {
         )
         .unwrap()
     };
-    let (payee, _running_payee) = Node::start_test_app("payee").unwrap();
+    let (payee, _running_payee) = TestNode::start_test_app("payee").unwrap();
 
     payer.connect(coordinator.info).await.unwrap();
     payee.connect(coordinator.info).await.unwrap();
@@ -104,9 +105,9 @@ async fn fail_to_open_jit_channel_with_fee_rate_over_max() {
 
     // Arrange
 
-    let (payer, _running_payer) = Node::start_test_app("payer").unwrap();
-    let (coordinator, _running_coord) = Node::start_test_coordinator("coordinator").unwrap();
-    let (payee, _running_payee) = Node::start_test_app("payee").unwrap();
+    let (payer, _running_payer) = TestNode::start_test_app("payer").unwrap();
+    let (coordinator, _running_coord) = TestNode::start_test_coordinator("coordinator").unwrap();
+    let (payee, _running_payee) = TestNode::start_test_app("payee").unwrap();
 
     payer.connect(coordinator.info).await.unwrap();
     payee.connect(coordinator.info).await.unwrap();
@@ -161,9 +162,9 @@ async fn open_jit_channel_with_disconnected_payee() {
 
     // Arrange
 
-    let (payer, _running_payer) = Node::start_test_app("payer").unwrap();
-    let (coordinator, _running_coord) = Node::start_test_coordinator("coordinator").unwrap();
-    let (payee, _running_payee) = Node::start_test_app("payee").unwrap();
+    let (payer, _running_payer) = TestNode::start_test_app("payer").unwrap();
+    let (coordinator, _running_coord) = TestNode::start_test_coordinator("coordinator").unwrap();
+    let (payee, _running_payee) = TestNode::start_test_app("payee").unwrap();
 
     // We purposefully do NOT connect to the payee, so that we can test the ability to open a JIT
     // channel to a disconnected payee
@@ -221,9 +222,9 @@ async fn open_jit_channel_with_disconnected_payee() {
 /// which is used to indicate if the interceptable payment resulted in opening a JIT channel. We
 /// should probably only use interceptable payments when opening JIT channels, but alas.
 pub(crate) async fn send_interceptable_payment(
-    payer: &Node<InMemoryStore>,
-    payee: &Node<InMemoryStore>,
-    coordinator: &Node<InMemoryStore>,
+    payer: &TestNode,
+    payee: &TestNode,
+    coordinator: &TestNode,
     invoice_amount_sat: u64,
     coordinator_just_in_time_channel_creation_outbound_liquidity: Option<u64>,
 ) -> Result<()> {

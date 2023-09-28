@@ -1,9 +1,8 @@
-use crate::node::InMemoryStore;
-use crate::node::Node;
 use crate::tests::dlc::create::create_dlc_channel;
 use crate::tests::init_tracing;
 use crate::tests::wait_until_dlc_channel_state;
 use crate::tests::SubChannelStateName;
+use crate::tests::TestNode;
 use anyhow::Context;
 use anyhow::Result;
 use bitcoin::Amount;
@@ -24,8 +23,8 @@ async fn dlc_collaborative_settlement_test() {
 
     let fund_amount = (app_ln_balance + coordinator_ln_balance) * 2;
 
-    let (app, _running_app) = Node::start_test_app("app").unwrap();
-    let (coordinator, _running_coord) = Node::start_test_coordinator("coordinator").unwrap();
+    let (app, _running_app) = TestNode::start_test_app("app").unwrap();
+    let (coordinator, _running_coord) = TestNode::start_test_coordinator("coordinator").unwrap();
 
     app.connect(coordinator.info).await.unwrap();
 
@@ -95,8 +94,8 @@ async fn open_dlc_channel_after_closing_dlc_channel() {
 
     let fund_amount = (app_ln_balance + coordinator_ln_balance) * 2;
 
-    let (app, _running_app) = Node::start_test_app("app").unwrap();
-    let (coordinator, _running_coord) = Node::start_test_coordinator("coordinator").unwrap();
+    let (app, _running_app) = TestNode::start_test_app("app").unwrap();
+    let (coordinator, _running_coord) = TestNode::start_test_coordinator("coordinator").unwrap();
 
     app.connect(coordinator.info).await.unwrap();
 
@@ -137,8 +136,8 @@ async fn open_dlc_channel_after_closing_dlc_channel() {
 }
 
 async fn dlc_collaborative_settlement(
-    app: &Node<InMemoryStore>,
-    coordinator: &Node<InMemoryStore>,
+    app: &TestNode,
+    coordinator: &TestNode,
     coordinator_settlement_amount: u64,
 ) -> Result<()> {
     let channel_details = app

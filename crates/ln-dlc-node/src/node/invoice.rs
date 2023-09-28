@@ -240,15 +240,6 @@ where
         Ok(())
     }
 
-    #[cfg(test)]
-    pub async fn wait_for_payment_claimed(
-        &self,
-        hash: &sha256::Hash,
-    ) -> Result<(), tokio::time::error::Elapsed> {
-        self.wait_for_payment(HTLCStatus::Succeeded, hash, None)
-            .await
-    }
-
     #[autometrics]
     pub async fn wait_for_payment(
         &self,

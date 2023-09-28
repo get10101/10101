@@ -98,7 +98,7 @@ where
         Ok(())
     }
 
-    pub(crate) fn force_close_channel(&self, channel: &ChannelDetails) -> Result<()> {
+    pub fn force_close_channel(&self, channel: &ChannelDetails) -> Result<()> {
         let channel_id = channel.channel_id;
         let channel_id_str = hex::encode(channel_id);
         let peer = channel.counterparty.node_id;

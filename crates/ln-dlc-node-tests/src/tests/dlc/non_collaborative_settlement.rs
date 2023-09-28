@@ -1,9 +1,9 @@
-use crate::node::dlc_channel::sub_channel_manager_periodic_check;
-use crate::node::Node;
 use crate::tests::bitcoind::mine;
 use crate::tests::dlc::create::create_dlc_channel;
 use crate::tests::init_tracing;
+use crate::tests::TestNode;
 use bitcoin::Amount;
+use ln_dlc_node::node::dlc_channel::sub_channel_manager_periodic_check;
 
 #[tokio::test(flavor = "multi_thread")]
 #[ignore]
@@ -20,8 +20,8 @@ async fn force_close_ln_dlc_channel() {
 
     let fund_amount = (app_ln_balance + coordinator_ln_balance) * 2;
 
-    let (app, _running_app) = Node::start_test_app("app").unwrap();
-    let (coordinator, _running_coord) = Node::start_test_coordinator("coordinator").unwrap();
+    let (app, _running_app) = TestNode::start_test_app("app").unwrap();
+    let (coordinator, _running_coord) = TestNode::start_test_coordinator("coordinator").unwrap();
 
     app.connect(coordinator.info).await.unwrap();
 

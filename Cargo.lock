@@ -1824,7 +1824,6 @@ dependencies = [
  "dlc-manager",
  "dlc-messages",
  "dlc-sled-storage-provider",
- "dlc-trie",
  "esplora-client",
  "futures",
  "hex",
@@ -1839,9 +1838,7 @@ dependencies = [
  "p2pd-oracle-client",
  "parking_lot 0.12.1",
  "rand",
- "reqwest",
  "rust-bitcoin-coin-selection 0.1.0 (git+https://github.com/p2pderivatives/rust-bitcoin-coin-selection)",
- "rust_decimal",
  "secp256k1-zkp",
  "serde",
  "serde_with 3.2.0",
@@ -1851,8 +1848,31 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-log",
- "tracing-subscriber",
  "ureq",
+ "uuid",
+]
+
+[[package]]
+name = "ln-dlc-node-tests"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "bitcoin",
+ "dlc-manager",
+ "dlc-messages",
+ "dlc-trie",
+ "futures",
+ "hex",
+ "lightning",
+ "ln-dlc-node",
+ "rand",
+ "reqwest",
+ "rust_decimal",
+ "serde",
+ "time 0.3.20",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
  "uuid",
 ]
 

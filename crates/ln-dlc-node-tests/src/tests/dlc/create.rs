@@ -1,9 +1,8 @@
-use crate::node::InMemoryStore;
-use crate::node::Node;
 use crate::tests::dummy_contract_input;
 use crate::tests::init_tracing;
 use crate::tests::wait_until_dlc_channel_state;
 use crate::tests::SubChannelStateName;
+use crate::tests::TestNode;
 use anyhow::Context;
 use anyhow::Result;
 use bitcoin::Amount;
@@ -24,8 +23,8 @@ async fn given_lightning_channel_then_can_add_dlc_channel() {
 
     let fund_amount = (app_ln_balance + coordinator_ln_balance) * 2;
 
-    let (app, _running_app) = Node::start_test_app("app").unwrap();
-    let (coordinator, _running_coord) = Node::start_test_coordinator("coordinator").unwrap();
+    let (app, _running_app) = TestNode::start_test_app("app").unwrap();
+    let (coordinator, _running_coord) = TestNode::start_test_coordinator("coordinator").unwrap();
 
     app.connect(coordinator.info).await.unwrap();
 
@@ -54,8 +53,8 @@ async fn given_lightning_channel_then_can_add_dlc_channel() {
 }
 
 pub async fn create_dlc_channel(
-    app: &Node<InMemoryStore>,
-    coordinator: &Node<InMemoryStore>,
+    app: &TestNode,
+    coordinator: &TestNode,
     app_dlc_collateral: u64,
     coordinator_dlc_collateral: u64,
 ) -> Result<()> {

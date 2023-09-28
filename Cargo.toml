@@ -8,8 +8,10 @@ default-members = [
   "crates/bitmex-stream",
   "crates/coordinator-commons",
   "crates/ln-dlc-node",
+  # "crates/ln-dlc-node-tests",
   "crates/orderbook-client",
   "crates/orderbook-commons",
+  # "crates/tests-e2e",
   "crates/trade",
 ]
 

@@ -171,7 +171,7 @@ jobs:
         run: |
           curl -d '{"address":"bcrt1qylgu6ffkp3p0m8tw8kp4tt2dmdh755f4r5dq7s", "amount":"0.1"}' -H "Content-Type: application/json" -X POST http://localhost:3000/faucet
       - name: Run LN-DLC tests
-        run: RUST_BACKTRACE=1 cargo test -p ln-dlc-node -- --ignored --nocapture --test-threads=1
+        run: RUST_BACKTRACE=1 cargo test -p ln-dlc-node-tests -- --ignored --nocapture --test-threads=1
       - name: LND logs on e2e tests error
         if: failure()
         run: docker logs lnd

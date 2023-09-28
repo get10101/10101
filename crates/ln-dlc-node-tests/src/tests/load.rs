@@ -1,18 +1,19 @@
-use crate::config::app_config;
-use crate::node::InMemoryStore;
-use crate::node::LnDlcNodeSettings;
-use crate::node::Node;
-use crate::node::NodeInfo;
-use crate::node::OracleInfo;
 use crate::tests::init_tracing;
 use crate::tests::wait_until_dlc_channel_state;
+use crate::tests::AppEventHandler;
+use crate::tests::EventHandlerTrait;
 use crate::tests::SubChannelStateName;
-use crate::AppEventHandler;
-use crate::EventHandlerTrait;
+use crate::tests::TestNode;
 use anyhow::Result;
 use bitcoin::XOnlyPublicKey;
 use coordinator::Coordinator;
 use coordinator::Direction;
+use ln_dlc_node::node::InMemoryStore;
+use ln_dlc_node::node::LnDlcNodeSettings;
+use ln_dlc_node::node::Node;
+use ln_dlc_node::node::NodeInfo;
+use ln_dlc_node::node::OracleInfo;
+use native::config::app_config;
 use std::borrow::Borrow;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -35,7 +36,7 @@ async fn single_app_many_positions_load() {
         Arc::new(AppEventHandler::new(node, event_sender)) as Arc<dyn EventHandlerTrait>
     };
 
-    let (app, _running_app) = Node::start_test(
+    let (app, _running_app) = TestNode::start_test(
         app_event_handler,
         "app",
         app_config(),
@@ -75,7 +76,7 @@ async fn single_app_many_positions_load() {
     }
 }
 
-async fn open_position(coordinator: &Coordinator, app: &Node<InMemoryStore>) -> Result<()> {
+async fn open_position(coordinator: &Coordinator, app: &TestNode) -> Result<()> {
     tracing::info!("Opening position");
 
     tokio::time::timeout(Duration::from_secs(30), async {
@@ -120,7 +121,7 @@ async fn open_position(coordinator: &Coordinator, app: &Node<InMemoryStore>) -> 
     Ok(())
 }
 
-async fn close_position(coordinator: &Coordinator, app: &Node<InMemoryStore>) -> Result<()> {
+async fn close_position(coordinator: &Coordinator, app: &TestNode) -> Result<()> {
     tracing::info!("Closing position");
 
     tokio::time::timeout(Duration::from_secs(30), async {

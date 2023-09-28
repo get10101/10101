@@ -26,7 +26,6 @@ use time::OffsetDateTime;
 
 mod disk;
 mod dlc_custom_signer;
-mod fee_rate_estimator;
 mod ldk_node_wallet;
 mod ln_dlc_wallet;
 mod on_chain_wallet;
@@ -34,6 +33,7 @@ mod shadow;
 
 pub mod channel;
 pub mod config;
+pub mod fee_rate_estimator;
 pub mod ln;
 pub mod node;
 pub mod scorer;
@@ -53,9 +53,6 @@ pub use ln::DlcChannelDetails;
 pub use ln::EventHandlerTrait;
 pub use ln::EventSender;
 pub use node::invoice::HTLCStatus;
-
-#[cfg(test)]
-mod tests;
 
 type ChainMonitor = chainmonitor::ChainMonitor<
     CustomSigner,

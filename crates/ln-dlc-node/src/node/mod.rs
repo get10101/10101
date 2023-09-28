@@ -66,7 +66,7 @@ mod storage;
 mod sub_channel_manager;
 mod wallet;
 
-pub(crate) mod dlc_channel;
+pub mod dlc_channel;
 pub(crate) mod invoice;
 
 pub mod peer_manager;
@@ -106,7 +106,7 @@ pub struct Node<S> {
     pub settings: Arc<RwLock<LnDlcNodeSettings>>,
     pub network: Network,
 
-    pub(crate) wallet: Arc<LnDlcWallet>,
+    pub wallet: Arc<LnDlcWallet>,
 
     pub peer_manager: Arc<PeerManager>,
     pub channel_manager: Arc<ChannelManager>,

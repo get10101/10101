@@ -1,5 +1,5 @@
-use crate::node::Node;
 use crate::tests::init_tracing;
+use crate::tests::TestNode;
 use bitcoin::Amount;
 
 #[tokio::test(flavor = "multi_thread")]
@@ -9,8 +9,8 @@ async fn single_hop_payment() {
 
     // Arrange
 
-    let (payer, _running_payer) = Node::start_test_app("payer").unwrap();
-    let (payee, _running_payee) = Node::start_test_app("payee").unwrap();
+    let (payer, _running_payer) = TestNode::start_test_app("payer").unwrap();
+    let (payee, _running_payee) = TestNode::start_test_app("payee").unwrap();
 
     payer.connect(payee.info).await.unwrap();
 

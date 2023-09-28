@@ -1,24 +1,31 @@
-use crate::config::app_config;
-use crate::config::coordinator_config;
-use crate::config::LIQUIDITY_MULTIPLIER;
-use crate::node::InMemoryStore;
-use crate::node::LnDlcNodeSettings;
-use crate::node::Node;
-use crate::node::NodeInfo;
-use crate::node::OracleInfo;
-use crate::node::RunningNode;
-use crate::scorer;
-use crate::seed::Bip39Seed;
-use crate::util;
-use crate::AppEventHandler;
-use crate::CoordinatorEventHandler;
-use crate::EventHandlerTrait;
-use crate::EventSender;
+use bitcoin::hashes::sha256;
+use dlc_messages::Message;
+use ln_dlc_node::HTLCStatus;
+use ln_dlc_node::config::app_config;
+use ln_dlc_node::config::coordinator_config;
+use ln_dlc_node::config::LIQUIDITY_MULTIPLIER;
+use ln_dlc_node::node::InMemoryStore;
+use ln_dlc_node::node::LnDlcNodeSettings;
+use ln_dlc_node::node::Node;
+use ln_dlc_node::node::NodeInfo;
+use ln_dlc_node::node::OracleInfo;
+use ln_dlc_node::node::RunningNode;
+use ln_dlc_node::node::sub_channel_message_name;
+use ln_dlc_node::scorer;
+use ln_dlc_node::seed::Bip39Seed;
+use ln_dlc_node::util;
+use ln_dlc_node::AppEventHandler;
+use ln_dlc_node::CoordinatorEventHandler;
+use ln_dlc_node::EventHandlerTrait;
+use ln_dlc_node::EventSender;
 use anyhow::Result;
+use bitcoin::hashes::sha256;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::Amount;
 use bitcoin::Network;
 use bitcoin::XOnlyPublicKey;
+use coordinator::config::coordinator_config;
+use coordinator::node::coordinator_event_handler::CoordinatorEventHandler;
 use dlc_manager::contract::contract_input::ContractInput;
 use dlc_manager::contract::contract_input::ContractInputInfo;
 use dlc_manager::contract::contract_input::OracleInput;
@@ -33,6 +40,7 @@ use dlc_manager::payout_curve::RoundingIntervals;
 use dlc_manager::subchannel::SubChannel;
 use dlc_manager::subchannel::SubChannelState;
 use dlc_manager::Storage;
+use dlc_messages::Message;
 use futures::Future;
 use lightning::ln::channelmanager::ChannelDetails;
 use lightning::util::config::UserConfig;
@@ -89,8 +97,21 @@ fn init_tracing() {
     })
 }
 
-impl Node<InMemoryStore> {
-    fn start_test_app(name: &str) -> Result<(Arc<Self>, RunningNode)> {
+/// Wrapper over the ln_dlc_node::Node with some convenience methods for testing.
+///
+/// Implements Deref so that we can access the underlying Node without boilerplate.
+pub struct TestNode(pub Arc<Node<InMemoryStore>>);
+
+impl std::ops::Deref for TestNode {
+    type Target = Arc<Node<InMemoryStore>>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl TestNode {
+    fn start_test_app(name: &str) -> Result<(Self, RunningNode)> {
         let app_event_handler = |node, event_sender| {
             Arc::new(AppEventHandler::new(node, event_sender)) as Arc<dyn EventHandlerTrait>
         };
@@ -110,7 +131,7 @@ impl Node<InMemoryStore> {
         )
     }
 
-    fn start_test_coordinator(name: &str) -> Result<(Arc<Self>, RunningNode)> {
+    fn start_test_coordinator(name: &str) -> Result<(Self, RunningNode)> {
         Self::start_test_coordinator_internal(
             name,
             Arc::new(InMemoryStore::default()),
@@ -124,7 +145,7 @@ impl Node<InMemoryStore> {
         storage: Arc<InMemoryStore>,
         settings: LnDlcNodeSettings,
         ldk_event_sender: Option<watch::Sender<Option<Event>>>,
-    ) -> Result<(Arc<Self>, RunningNode)> {
+    ) -> Result<(Self, RunningNode)> {
         let max_app_channel_size_sats = settings.max_app_channel_size_sats;
         let coordinator_event_handler = |node, event_sender| {
             Arc::new(CoordinatorEventHandler::new(
@@ -159,7 +180,7 @@ impl Node<InMemoryStore> {
         storage: Arc<InMemoryStore>,
         settings: LnDlcNodeSettings,
         ldk_event_sender: Option<watch::Sender<Option<Event>>>,
-    ) -> Result<(Arc<Self>, RunningNode)>
+    ) -> Result<(Self, RunningNode)>
     where
         EH: Fn(Arc<Node<InMemoryStore>>, Option<EventSender>) -> Arc<dyn EventHandlerTrait>,
     {
@@ -198,7 +219,7 @@ impl Node<InMemoryStore> {
 
         tracing::debug!(%name, info = %node.info, "Node started");
 
-        Ok((node, running))
+        Ok((TestNode(node), running))
     }
 
     /// Trigger on-chain wallet sync.
@@ -209,7 +230,56 @@ impl Node<InMemoryStore> {
     /// Because we use `block_in_place`, we must configure the `tokio::test`s with `flavor =
     /// "multi_thread"`.
     async fn sync_on_chain(&self) -> Result<()> {
-        block_in_place(|| self.wallet().sync())
+        block_in_place(|| self.0.wallet().sync())
+    }
+
+    pub async fn wait_for_payment_claimed(
+        &self,
+        hash: &sha256::Hash,
+    ) -> Result<(), tokio::time::error::Elapsed> {
+        self.wait_for_payment(HTLCStatus::Succeeded, hash, None)
+            .await
+    }
+
+    pub fn process_incoming_messages(&self) -> Result<()> {
+        let dlc_message_handler = &self.dlc_message_handler;
+        let dlc_manager = &self.dlc_manager;
+        let sub_channel_manager = &self.sub_channel_manager;
+        let messages = dlc_message_handler.get_and_clear_received_messages();
+        tracing::debug!("Received and cleared {} messages", messages.len());
+
+        for (node_id, msg) in messages {
+            match msg {
+                Message::OnChain(_) | Message::Channel(_) => {
+                    tracing::debug!(from = %node_id, "Processing DLC-manager message");
+                    let resp = dlc_manager.on_dlc_message(&msg, node_id)?;
+
+                    if let Some(msg) = resp {
+                        tracing::debug!(to = %node_id, "Sending DLC-manager message");
+                        dlc_message_handler.send_message(node_id, msg);
+                    }
+                }
+                Message::SubChannel(msg) => {
+                    tracing::debug!(
+                        from = %node_id,
+                        msg = %sub_channel_message_name(&msg),
+                        "Processing DLC channel message"
+                    );
+                    let resp = sub_channel_manager.on_sub_channel_message(&msg, &node_id)?;
+
+                    if let Some(msg) = resp {
+                        tracing::debug!(
+                            to = %node_id,
+                            msg = %sub_channel_message_name(&msg),
+                            "Sending DLC channel message"
+                        );
+                        dlc_message_handler.send_message(node_id, Message::SubChannel(msg));
+                    }
+                }
+            }
+        }
+
+        Ok(())
     }
 
     async fn fund(&self, amount: Amount) -> Result<()> {
@@ -220,7 +290,7 @@ impl Node<InMemoryStore> {
         // wallet
         bitcoind::mine(11).await?;
         for _ in 0..10 {
-            let address = self.wallet.unused_address();
+            let address = self.0.wallet.unused_address();
             bitcoind::fund(address.to_string(), Amount::from_sat(amount.to_sat() / 10)).await?;
         }
         bitcoind::mine(1).await?;
@@ -244,7 +314,7 @@ impl Node<InMemoryStore> {
     }
 
     async fn get_confirmed_balance(&self) -> Result<u64> {
-        let balance = self.wallet.ldk_wallet().get_balance()?;
+        let balance = self.0.wallet.ldk_wallet().get_balance()?;
 
         Ok(balance.confirmed)
     }
@@ -252,7 +322,7 @@ impl Node<InMemoryStore> {
     /// Initiates the opening of a private channel _and_ waits for the channel to be usable.
     async fn open_private_channel(
         &self,
-        peer: &Node<InMemoryStore>,
+        peer: &TestNode,
         amount_us: u64,
         amount_them: u64,
     ) -> Result<ChannelDetails> {
@@ -262,7 +332,7 @@ impl Node<InMemoryStore> {
     /// Initiates the opening of a public channel _and_ waits for the channel to be usable.
     async fn open_public_channel(
         &self,
-        peer: &Node<InMemoryStore>,
+        peer: &TestNode,
         amount_us: u64,
         amount_them: u64,
     ) -> Result<ChannelDetails> {
@@ -272,12 +342,12 @@ impl Node<InMemoryStore> {
     /// Initiates the opening of a channel _and_ waits for the channel to be usable.
     async fn open_channel(
         &self,
-        peer: &Node<InMemoryStore>,
+        peer: &TestNode,
         amount_us: u64,
         amount_them: u64,
         is_public: bool,
     ) -> Result<ChannelDetails> {
-        let temp_channel_id = self.initiate_open_channel(
+        let temp_channel_id = self.0.initiate_open_channel(
             peer.info.pubkey,
             amount_us + amount_them,
             amount_them,
@@ -286,7 +356,7 @@ impl Node<InMemoryStore> {
 
         let (does_manually_accept_inbound_channels, required_confirmations) =
             block_in_place(|| {
-                let config = peer.ldk_config.read();
+                let config = peer.0.ldk_config.read();
 
                 (
                     config.manually_accept_inbound_channels,
@@ -303,6 +373,7 @@ impl Node<InMemoryStore> {
         let channel_details = tokio::time::timeout(Duration::from_secs(30), async {
             loop {
                 if let Some(details) = self
+                    .0
                     .channel_manager
                     .list_usable_channels()
                     .iter()
@@ -347,8 +418,8 @@ impl Node<InMemoryStore> {
 
 async fn setup_coordinator_payer_channel(
     payer_to_payee_invoice_amount: u64,
-    coordinator: &Node<InMemoryStore>,
-    payer: &Node<InMemoryStore>,
+    coordinator: &TestNode,
+    payer: &TestNode,
 ) -> u64 {
     let (
         coordinator_liquidity,
@@ -475,7 +546,7 @@ where
 
 async fn wait_until_dlc_channel_state(
     timeout: Duration,
-    node: &Node<InMemoryStore>,
+    node: &TestNode,
     counterparty_pk: PublicKey,
     target_state: SubChannelStateName,
 ) -> Result<SubChannel> {
