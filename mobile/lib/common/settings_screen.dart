@@ -5,6 +5,7 @@ import 'package:f_logs/f_logs.dart';
 import 'package:flutter/material.dart';
 import 'package:get_10101/common/scrollable_safe_area.dart';
 import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
+import 'package:get_10101/common/snack_bar.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
@@ -59,8 +60,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
       body: ScrollableSafeArea(
           child: Column(children: [
         ElevatedButton(
-            onPressed: () {
-              rust.api.closeChannel();
+            onPressed: () async {
+              final messenger = ScaffoldMessenger.of(context);
+              try {
+                await rust.api.closeChannel();
+              } catch (e) {
+                showSnackBar(messenger, e.toString());
+              }
             },
             child: const Text("Close channel")),
         Visibility(
@@ -68,8 +74,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
           child: Column(
             children: [
               ElevatedButton(
-                  onPressed: () {
-                    rust.api.forceCloseChannel();
+                  onPressed: () async {
+                    final messenger = ScaffoldMessenger.of(context);
+                    try {
+                      await rust.api.forceCloseChannel();
+                    } catch (e) {
+                      showSnackBar(messenger, e.toString());
+                    }
                   },
                   child: const Text("Force-close channel")),
             ],
