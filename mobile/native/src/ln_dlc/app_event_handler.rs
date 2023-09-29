@@ -1,11 +1,3 @@
-use super::common_handlers;
-use super::event_handler::EventSender;
-use super::event_handler::PendingInterceptedHtlcs;
-use crate::channel::UserChannelId;
-use crate::node::ChannelManager;
-use crate::node::Node;
-use crate::node::Storage;
-use crate::EventHandlerTrait;
 use anyhow::anyhow;
 use anyhow::Context;
 use anyhow::Result;
@@ -13,12 +5,19 @@ use async_trait::async_trait;
 use bitcoin::hashes::hex::ToHex;
 use bitcoin::secp256k1::PublicKey;
 use lightning::util::events::Event;
+use ln_dlc_node::channel::UserChannelId;
+use ln_dlc_node::ln::common_handlers;
+use ln_dlc_node::ln::EventSender;
+use ln_dlc_node::ln::PendingInterceptedHtlcs;
+use ln_dlc_node::node::ChannelManager;
+use ln_dlc_node::node::Node;
+use ln_dlc_node::node::Storage;
+use ln_dlc_node::EventHandlerTrait;
 use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::sync::Arc;
 
 /// Event handler for the mobile 10101 app.
-// TODO: Move it out of this crate
 pub struct AppEventHandler<S> {
     pub(crate) node: Arc<Node<S>>,
     pub(crate) pending_intercepted_htlcs: PendingInterceptedHtlcs,

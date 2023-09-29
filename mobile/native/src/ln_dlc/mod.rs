@@ -1,3 +1,4 @@
+use self::app_event_handler::AppEventHandler;
 use self::node::WalletHistories;
 use crate::api;
 use crate::api::PaymentFlow;
@@ -8,6 +9,7 @@ use crate::calculations;
 use crate::channel_fee::ChannelFeePaymentSubscriber;
 use crate::commons::reqwest_client;
 use crate::config;
+use crate::config::app_config;
 use crate::event;
 use crate::event::EventInternal;
 use crate::ln_dlc::channel_status::track_channel_status;
@@ -39,7 +41,6 @@ use lightning::ln::channelmanager::ChannelDetails;
 use lightning::util::events::Event;
 use lightning_invoice::Invoice;
 use ln_dlc_node::channel::JIT_FEE_INVOICE_DESCRIPTION_PREFIX;
-use ln_dlc_node::config::app_config;
 use ln_dlc_node::node::rust_dlc_manager::subchannel::LNChannelManager;
 use ln_dlc_node::node::rust_dlc_manager::subchannel::SubChannelState;
 use ln_dlc_node::node::rust_dlc_manager::ChannelId;
@@ -49,7 +50,6 @@ use ln_dlc_node::node::NodeInfo;
 use ln_dlc_node::scorer;
 use ln_dlc_node::seed::Bip39Seed;
 use ln_dlc_node::util;
-use ln_dlc_node::AppEventHandler;
 use ln_dlc_node::HTLCStatus;
 use ln_dlc_node::CONFIRMATION_TARGET;
 use orderbook_commons::RouteHintHop;
@@ -76,6 +76,7 @@ mod lightning_subscriber;
 mod node;
 mod sync_position_to_dlc;
 
+pub mod app_event_handler;
 pub mod channel_status;
 
 pub use channel_status::ChannelStatus;

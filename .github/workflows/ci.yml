@@ -156,6 +156,8 @@ jobs:
 
   ln-dlc-node-tests:
     runs-on: ubuntu-latest
+    # we depend on 'native' crate which needs Rust FFI bindings to be compiled
+    needs: generate-ffi
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v3
@@ -163,6 +165,11 @@ jobs:
       - name: Setup rust toolchain
         run: rustup show
       - uses: Swatinem/rust-cache@v2.2.0
+      - name: Download RUST FFI bindings
+        uses: actions/download-artifact@v2
+        with:
+          name: rust_bridge_generated
+          path: mobile/native/src/bridge_generated
       - name: Start containers
         run: |
           docker-compose up -d

@@ -10,6 +10,7 @@ use serde_json::json;
 
 pub mod admin;
 pub mod cli;
+pub mod config;
 pub mod db;
 pub mod logger;
 pub mod message;

@@ -1,16 +1,3 @@
-use super::common_handlers;
-use super::event_handler::EventSender;
-use super::event_handler::PendingInterceptedHtlcs;
-use crate::channel::FakeScid;
-use crate::config::HTLC_INTERCEPTED_CONNECTION_TIMEOUT;
-use crate::ln::common_handlers::fail_intercepted_htlc;
-use crate::ln::event_handler::InterceptionDetails;
-use crate::node::ChannelManager;
-use crate::node::Node;
-use crate::node::Storage;
-use crate::EventHandlerTrait;
-use crate::CONFIRMATION_TARGET;
-use crate::LIQUIDITY_MULTIPLIER;
 use anyhow::anyhow;
 use anyhow::ensure;
 use anyhow::Context;
@@ -22,13 +9,25 @@ use lightning::chain::chaininterface::FeeEstimator;
 use lightning::ln::channelmanager::InterceptId;
 use lightning::ln::PaymentHash;
 use lightning::util::events::Event;
+use ln_dlc_node::channel::FakeScid;
+use ln_dlc_node::config::HTLC_INTERCEPTED_CONNECTION_TIMEOUT;
+use ln_dlc_node::ln::common_handlers;
+use ln_dlc_node::ln::common_handlers::fail_intercepted_htlc;
+use ln_dlc_node::ln::EventSender;
+use ln_dlc_node::ln::InterceptionDetails;
+use ln_dlc_node::ln::PendingInterceptedHtlcs;
+use ln_dlc_node::node::ChannelManager;
+use ln_dlc_node::node::Node;
+use ln_dlc_node::node::Storage;
+use ln_dlc_node::EventHandlerTrait;
+use ln_dlc_node::CONFIRMATION_TARGET;
+use ln_dlc_node::LIQUIDITY_MULTIPLIER;
 use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 
 /// Event handler for the coordinator node.
-// TODO: Move it out of this crate
 pub struct CoordinatorEventHandler<S> {
     pub(crate) node: Arc<Node<S>>,
     pub(crate) pending_intercepted_htlcs: PendingInterceptedHtlcs,

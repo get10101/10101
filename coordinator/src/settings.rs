@@ -1,3 +1,4 @@
+use crate::config::coordinator_config;
 use crate::node::NodeSettings;
 use anyhow::Context;
 use anyhow::Result;
@@ -102,9 +103,7 @@ impl Settings {
 
     /// The part of the coordinator settings pertaining to the LDK node.
     pub fn to_ldk_settings(&self) -> UserConfig {
-        // Since we currently have to keep the coordinator settings in sync with the tests in
-        // `ln-dlc-node`, we let the library define the default settings (which is bad)
-        let mut ldk_config = ln_dlc_node::config::coordinator_config();
+        let mut ldk_config = coordinator_config();
 
         ldk_config
             .channel_config

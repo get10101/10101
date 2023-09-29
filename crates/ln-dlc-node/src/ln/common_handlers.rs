@@ -418,7 +418,7 @@ pub async fn handle_funding_generation_ready<S>(
     Ok(())
 }
 
-pub(crate) fn handle_channel_ready<S>(
+pub fn handle_channel_ready<S>(
     node: &Arc<Node<S>>,
     pending_intercepted_htlcs: &PendingInterceptedHtlcs,
     user_channel_id: u128,
@@ -507,10 +507,7 @@ where
 }
 
 /// Fail an intercepted HTLC backwards.
-pub(crate) fn fail_intercepted_htlc(
-    channel_manager: &Arc<ChannelManager>,
-    intercept_id: &InterceptId,
-) {
+pub fn fail_intercepted_htlc(channel_manager: &Arc<ChannelManager>, intercept_id: &InterceptId) {
     tracing::error!(
         intercept_id = %intercept_id.0.to_hex(),
         "Failing intercepted HTLC backwards"

@@ -60,6 +60,7 @@ use uuid::Uuid;
 pub mod channel_opening_fee;
 pub mod closed_positions;
 pub mod connection;
+pub mod coordinator_event_handler;
 pub mod expired_positions;
 pub mod order_matching_fee;
 pub mod rollover;

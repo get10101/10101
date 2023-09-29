@@ -1,6 +1,7 @@
 use anyhow::Context;
 use anyhow::Result;
 use coordinator::cli::Opts;
+use coordinator::config::coordinator_config;
 use coordinator::logger;
 use coordinator::message::spawn_delivering_messages_to_authenticated_users;
 use coordinator::message::NewUserMessage;
@@ -9,6 +10,7 @@ use coordinator::metrics::init_meter;
 use coordinator::node;
 use coordinator::node::closed_positions;
 use coordinator::node::connection;
+use coordinator::node::coordinator_event_handler::CoordinatorEventHandler;
 use coordinator::node::expired_positions;
 use coordinator::node::rollover;
 use coordinator::node::storage::NodeStorage;
@@ -27,7 +29,6 @@ use diesel::PgConnection;
 use lightning::util::events::Event;
 use ln_dlc_node::scorer;
 use ln_dlc_node::seed::Bip39Seed;
-use ln_dlc_node::CoordinatorEventHandler;
 use rand::thread_rng;
 use rand::RngCore;
 use std::backtrace::Backtrace;
@@ -108,7 +109,7 @@ async fn main() -> Result<()> {
     let (node_event_sender, mut node_event_receiver) = watch::channel::<Option<Event>>(None);
 
     let node = Arc::new(ln_dlc_node::node::Node::new(
-        ln_dlc_node::config::coordinator_config(),
+        coordinator_config(),
         scorer::persistent_scorer,
         NODE_ALIAS,
         network,

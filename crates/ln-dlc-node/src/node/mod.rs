@@ -118,7 +118,7 @@ pub struct Node<S> {
     logger: Arc<TracingLogger>,
 
     pub info: NodeInfo,
-    pub(crate) fake_channel_payments: FakeChannelPaymentRequests,
+    pub fake_channel_payments: FakeChannelPaymentRequests,
 
     pub dlc_manager: Arc<DlcManager>,
     pub sub_channel_manager: Arc<SubChannelManager>,
