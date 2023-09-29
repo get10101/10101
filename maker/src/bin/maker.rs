@@ -73,16 +73,18 @@ async fn main() -> Result<()> {
     let seed_path = data_dir.join("seed");
     let seed = Bip39Seed::initialize(&seed_path)?;
 
+    let announcement_addresses = ln_dlc_node::util::into_net_addresses(address);
+    let node_alias = "maker";
     let node = Arc::new(ln_dlc_node::node::Node::new(
         ldk_config(),
         ln_dlc_node::scorer::persistent_scorer,
-        "maker",
+        node_alias,
         network,
         data_dir.as_path(),
         Arc::new(InMemoryStore::default()),
         address,
         SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), address.port()),
-        ln_dlc_node::util::into_net_addresses(address),
+        announcement_addresses.clone(),
         opts.esplora.clone(),
         seed,
         ephemeral_randomness,
@@ -158,7 +160,14 @@ async fn main() -> Result<()> {
     )
     .spawn_supervised_connection();
 
-    let app = router(node, exporter, position_manager, health);
+    let app = router(
+        node,
+        exporter,
+        position_manager,
+        health,
+        announcement_addresses.clone(),
+        node_alias,
+    );
 
     // Start the metrics exporter
     autometrics::prometheus_exporter::init();

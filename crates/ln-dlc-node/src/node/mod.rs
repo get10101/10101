@@ -466,6 +466,7 @@ where
             &self.alias,
             self.announcement_addresses.clone(),
             self.peer_manager.clone(),
+            self.channel_manager.clone(),
         )?);
 
         handles.push(manage_sub_channels(
@@ -727,12 +728,18 @@ fn spawn_broadcast_node_annoucements(
     alias: &str,
     announcement_addresses: Vec<NetAddress>,
     peer_manager: Arc<PeerManager>,
+    channel_manager: Arc<ChannelManager>,
 ) -> Result<RemoteHandle<()>> {
     let alias = alias_as_bytes(alias)?;
     let (fut, remote_handle) = async move {
         let mut interval = tokio::time::interval(BROADCAST_NODE_ANNOUNCEMENT_INTERVAL);
         loop {
-            broadcast_node_announcement(&peer_manager, alias, announcement_addresses.clone());
+            if channel_manager.list_channels().iter().any(|c| c.is_public) {
+                // Other nodes will ignore our node announcement if we don't have at least one
+                // public channel, hence, we should only broadcast our node
+                // announcement if we have at least one channel.
+                broadcast_node_announcement(&peer_manager, alias, announcement_addresses.clone());
+            }
 
             interval.tick().await;
         }

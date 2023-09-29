@@ -9,8 +9,16 @@ pub fn broadcast_node_announcement(
     alias: [u8; 32],
     inc_connection_addresses: Vec<NetAddress>,
 ) {
-    tracing::debug!(?inc_connection_addresses, "Broadcasting node announcement");
-
+    let known_peers = peer_manager
+        .get_peer_node_ids()
+        .iter()
+        .map(|(pk, _)| pk.to_string())
+        .collect::<Vec<_>>();
+    tracing::debug!(
+        ?inc_connection_addresses,
+        ?known_peers,
+        "Broadcasting node announcement"
+    );
     peer_manager.broadcast_node_announcement(NODE_COLOR, alias, inc_connection_addresses)
 }
 
