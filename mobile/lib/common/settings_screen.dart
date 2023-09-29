@@ -58,15 +58,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
       appBar: AppBar(title: const Text("Settings")),
       body: ScrollableSafeArea(
           child: Column(children: [
+        ElevatedButton(
+            onPressed: () {
+              rust.api.closeChannel();
+            },
+            child: const Text("Close channel")),
         Visibility(
           visible: config.network == "regtest",
           child: Column(
             children: [
-              ElevatedButton(
-                  onPressed: () {
-                    rust.api.closeChannel();
-                  },
-                  child: const Text("Close channel")),
               ElevatedButton(
                   onPressed: () {
                     rust.api.forceCloseChannel();
