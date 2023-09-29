@@ -23,26 +23,8 @@ jobs:
           components: rustfmt
       - uses: dprint/check@v2.1
 
-  lint-commits:
+  generate-ffi:
     runs-on: ubuntu-latest
-    if: github.event.ref != 'refs/heads/main'
-
-    steps:
-      - uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-      - name: Get all commits on current main
-        run: git fetch origin main
-      - name: Log all commits we will analyze
-        run: git log --pretty=format:%s origin/main..HEAD
-      - name: Disallow fixup! commits
-        run: git log --pretty=format:%s origin/main..HEAD | grep -zv fixup!
-      - name: Disallow squash! commits
-        run: git log --pretty=format:%s origin/main..HEAD | grep -zv squash!
-
-  clippy:
-    runs-on: ubuntu-latest
-    needs: formatting-dprint
     steps:
       - uses: actions/checkout@v3
       - uses: extractions/setup-just@v1
@@ -60,10 +42,58 @@ jobs:
         run: just deps-gen
       - name: Generate FFI bindings
         run: just gen
+      - name: Upload Rust bridge_generated directory
+        uses: actions/upload-artifact@v2
+        with:
+          name: rust_bridge_generated
+          path: mobile/native/src/bridge_generated/
+      - name: Upload Dart bridge_generated directory
+        uses: actions/upload-artifact@v2
+        with:
+          name: dart_bridge_generated
+          path: mobile/lib/bridge_generated/
+      - name: Upload Dart mocks directory
+        uses: actions/upload-artifact@v2
+        with:
+          name: dart_mocks_generated
+          path: mobile/test/*.mocks.dart
+
+  lint-commits:
+    runs-on: ubuntu-latest
+    if: github.event.ref != 'refs/heads/main'
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Get all commits on current main
+        run: git fetch origin main
+      - name: Log all commits we will analyse
+        run: git log --pretty=format:%s origin/main..HEAD
+      - name: Disallow fixup! commits
+        run: git log --pretty=format:%s origin/main..HEAD | grep -zv fixup!
+      - name: Disallow squash! commits
+        run: git log --pretty=format:%s origin/main..HEAD | grep -zv squash!
+
+  clippy:
+    runs-on: ubuntu-latest
+    needs: generate-ffi
+    steps:
+      - uses: actions/checkout@v3
+      - uses: extractions/setup-just@v1
+      - name: Setup rust toolchain
+        run: rustup show
+      - uses: Swatinem/rust-cache@v2.2.0
+      - name: Download RUST FFI bindings
+        uses: actions/download-artifact@v2
+        with:
+          name: rust_bridge_generated
+          path: mobile/native/src/bridge_generated
       - run: cargo clippy --all-targets --all-features -- -D warnings
 
   flutter-format-and-lint:
     runs-on: ubuntu-latest
+    needs: generate-ffi
     name: "Format and lint Flutter code"
     steps:
       - uses: actions/checkout@v3
@@ -75,22 +105,26 @@ jobs:
           cache: true
           cache-key: flutter-${{ env.FLUTTER_VERSION }}
           cache-path: ${{ runner.tool_cache }}/flutter
-      - name: Setup rust toolchain
-        run: rustup show
-      - name: Install FFI bindings
-        run: just deps-gen
-      - name: Generate FFI bindings
-        run: just gen
+      - name: Download Dart mocks directory
+        uses: actions/download-artifact@v2
+        with:
+          name: dart_mocks_generated
+          path: mobile/test
+      - name: Download Dart bridge_generated directory
+        uses: actions/download-artifact@v2
+        with:
+          name: dart_bridge_generated
+          path: mobile/lib/bridge_generated
       - name: Verify flutter formatting
         # Mocks are actually ignored by the linter because they include `// ignore_for_file: type=lint`, but `dart format` reports changes on them nonetheless.
         # The solution using a `find` command is from here: https://github.com/dart-lang/dart_style/issues/864
         run: dart format --output=none --set-exit-if-changed --line-length 100 $(find . -name "*.dart" -not \( -name "*.*freezed.dart" -o -name "*.mocks.dart"  \) )
-      - name: Analyze flutter code
+      - name: Analyse flutter code
         run: just lint-flutter
 
   unit-tests:
     runs-on: ubuntu-latest
-    needs: clippy
+    needs: [generate-ffi, clippy]
     steps:
       - uses: actions/checkout@v3
       - uses: extractions/setup-just@v1
@@ -104,12 +138,19 @@ jobs:
           cache: true
           cache-key: flutter-${{ env.FLUTTER_VERSION }}
           cache-path: ${{ runner.tool_cache }}/flutter
-      - name: Install FFI bindings
-        run: just deps-gen
-      - name: Generate FFI bindings
-        run: just gen
+      - name: Download Rust generated FFI flutter bindings
+        uses: actions/download-artifact@v2
+        with:
+          name: rust_bridge_generated
+          path: mobile/native/src/bridge_generated
       - name: Running cargo tests
         run: RUST_BACKTRACE=1 cargo test
+        # Flutter tests run `build_runner`, so no need to download mocks
+      - name: Download Dart bridge_generated directory
+        uses: actions/download-artifact@v2
+        with:
+          name: dart_bridge_generated
+          path: mobile/lib/bridge_generated
       - name: Running flutter tests
         run: just flutter-test
 
@@ -152,6 +193,7 @@ jobs:
 
   e2e-tests:
     runs-on: ubuntu-latest
+    needs: generate-ffi
     timeout-minutes: 30
     steps:
       - name: Free Disk Space (Ubuntu)
@@ -166,18 +208,11 @@ jobs:
       - name: Setup rust toolchain
         run: rustup show
       - uses: Swatinem/rust-cache@v2.2.0
-      - uses: subosito/flutter-action@v2
+      - name: Download RUST FFI bindings
+        uses: actions/download-artifact@v2
         with:
-          flutter-version: ${{ env.FLUTTER_VERSION }}
-          channel: "stable"
-          cache: true
-          cache-key: flutter-${{ env.FLUTTER_VERSION }}
-          cache-path: ${{ runner.tool_cache }}/flutter
-          architecture: x64 
-      - name: Install FFI bindings
-        run: just deps-gen
-      - name: Generate FFI bindings
-        run: just gen
+          name: rust_bridge_generated
+          path: mobile/native/src/bridge_generated
       - name: Build Rust project
         run: cargo build --examples
       - name: Start containers
