@@ -25,6 +25,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   String _version = '';
   String _nodeId = "";
 
+  // Variable preventing the user from spamming the close channel buttons
+  bool _isCloseChannelButtonDisabled = false;
+
   @override
   void initState() {
     try {
@@ -34,6 +37,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       FLog.error(text: "Error getting node id: $e");
       _nodeId = "UNKNOWN";
     }
+
     loadValues();
     super.initState();
   }
@@ -60,28 +64,46 @@ class _SettingsScreenState extends State<SettingsScreen> {
       body: ScrollableSafeArea(
           child: Column(children: [
         ElevatedButton(
-            onPressed: () async {
-              final messenger = ScaffoldMessenger.of(context);
-              try {
-                await rust.api.closeChannel();
-              } catch (e) {
-                showSnackBar(messenger, e.toString());
-              }
-            },
+            onPressed: _isCloseChannelButtonDisabled
+                ? null
+                : () async {
+                    setState(() {
+                      _isCloseChannelButtonDisabled = true;
+                    });
+                    final messenger = ScaffoldMessenger.of(context);
+                    try {
+                      await rust.api.closeChannel();
+                    } catch (e) {
+                      showSnackBar(messenger, e.toString());
+                    } finally {
+                      setState(() {
+                        _isCloseChannelButtonDisabled = false;
+                      });
+                    }
+                  },
             child: const Text("Close channel")),
         Visibility(
           visible: config.network == "regtest",
           child: Column(
             children: [
               ElevatedButton(
-                  onPressed: () async {
-                    final messenger = ScaffoldMessenger.of(context);
-                    try {
-                      await rust.api.forceCloseChannel();
-                    } catch (e) {
-                      showSnackBar(messenger, e.toString());
-                    }
-                  },
+                  onPressed: _isCloseChannelButtonDisabled
+                      ? null
+                      : () async {
+                          setState(() {
+                            _isCloseChannelButtonDisabled = true;
+                          });
+                          final messenger = ScaffoldMessenger.of(context);
+                          try {
+                            await rust.api.forceCloseChannel();
+                          } catch (e) {
+                            showSnackBar(messenger, e.toString());
+                          } finally {
+                            setState(() {
+                              _isCloseChannelButtonDisabled = false;
+                            });
+                          }
+                        },
                   child: const Text("Force-close channel")),
             ],
           ),
