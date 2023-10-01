@@ -107,10 +107,13 @@ pub fn subscribe(
             loop {
                 match stream.try_next().await {
                     Ok(Some(msg)) => {
-                        tracing::debug!(%msg, "New message from orderbook");
+
 
                         let msg = match serde_json::from_str::<Message>(&msg) {
-                            Ok(msg) => msg,
+                            Ok(msg) => {
+                                tracing::debug!(%msg, "New message from orderbook");
+                                msg
+                            },
                             Err(e) => {
                                 tracing::error!(
                                     "Could not deserialize message from orderbook. Error: {e:#}"

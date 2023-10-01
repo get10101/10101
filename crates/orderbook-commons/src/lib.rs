@@ -9,6 +9,7 @@ use serde::Serialize;
 use sha2::digest::FixedOutput;
 use sha2::Digest;
 use sha2::Sha256;
+use std::fmt::Display;
 use time::OffsetDateTime;
 use tokio_tungstenite::tungstenite;
 use trade::ContractSymbol;
@@ -149,6 +150,43 @@ pub enum Message {
         filled_with: FilledWith,
     },
     Rollover,
+}
+
+impl Display for Message {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Message::AllOrders(_) => {
+                write!(f, "AllOrdere")
+            }
+            Message::LimitOrderFilledMatches { .. } => {
+                write!(f, "LimitOrderFilledMatches")
+            }
+            Message::NewOrder(_) => {
+                write!(f, "NewOrder")
+            }
+            Message::DeleteOrder(_) => {
+                write!(f, "DeleteOrder")
+            }
+            Message::Update(_) => {
+                write!(f, "Update")
+            }
+            Message::InvalidAuthentication(_) => {
+                write!(f, "InvalidAuthentication")
+            }
+            Message::Authenticated => {
+                write!(f, "Authenticated")
+            }
+            Message::Match(_) => {
+                write!(f, "Match")
+            }
+            Message::AsyncMatch { .. } => {
+                write!(f, "AsyncMatch")
+            }
+            Message::Rollover => {
+                write!(f, "Rollover")
+            }
+        }
+    }
 }
 
 /// A match for an order
