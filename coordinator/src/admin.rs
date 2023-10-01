@@ -96,6 +96,7 @@ pub struct DlcChannelDetails {
     #[serde(flatten)]
     pub channel_details: ln_dlc_node::DlcChannelDetails,
     pub user_email: String,
+    #[serde(with = "time::serde::rfc3339::option")]
     pub user_registration_timestamp: Option<OffsetDateTime>,
 }
 

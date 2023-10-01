@@ -39,16 +39,17 @@ pub struct Client {
 
 impl Client {
     pub fn new(
-        endpoint: Url,
+        mut endpoint: Url,
         trader_id: PublicKey,
         auth_sk: SecretKey,
         position_manager: xtra::Address<position::Manager>,
         orderbook_status: watch::Sender<ServiceStatus>,
     ) -> Self {
-        let domain = endpoint.domain().expect("domain");
-        let port = endpoint.port().expect("port");
-
-        let url = format!("ws://{domain}:{port}/api/orderbook/websocket");
+        endpoint
+            .set_scheme("ws")
+            .expect("To be able to change to ws");
+        endpoint.set_path("/api/orderbook/websocket");
+        let url = endpoint.to_string();
 
         Self {
             url,
