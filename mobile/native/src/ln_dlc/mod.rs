@@ -418,7 +418,7 @@ fn keep_wallet_balance_and_history_up_to_date(node: &Node) -> Result<()> {
 
         let decoded_invoice = match details.invoice.as_deref().map(Invoice::from_str) {
             Some(Ok(inv)) => {
-                tracing::info!(?inv, "Decoded invoice");
+                tracing::trace!(?inv, "Decoded invoice");
                 Some(inv)
             }
             Some(Err(err)) => {
