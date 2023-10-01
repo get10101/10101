@@ -21,7 +21,7 @@ pub trait EventHandlerTrait: Send + Sync {
     async fn match_event(&self, event: Event) -> Result<()>;
 
     async fn handle_event(&self, event: Event) {
-        tracing::info!(?event, "Received event");
+        tracing::debug!(?event, "Received event");
 
         let event_str = format!("{event:?}");
 
