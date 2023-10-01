@@ -408,7 +408,7 @@ fn keep_wallet_balance_and_history_up_to_date(node: &Node) -> Result<()> {
     });
 
     let off_chain = off_chain.iter().filter_map(|details| {
-        tracing::debug!(details = %details, "Off-chain payment details");
+        tracing::trace!(details = %details, "Off-chain payment details");
 
         let amount_sats = match details.amount_msat {
             Some(msat) => msat / 1_000,
