@@ -223,7 +223,7 @@ maker args="":
     cargo run --bin maker -- {{args}}
 
 flutter-test:
-    cd mobile && flutter pub run build_runner build && flutter test
+    cd mobile && flutter pub run build_runner build --delete-conflicting-outputs && flutter test
 
 # Tests for the `native` crate
 native-test:
