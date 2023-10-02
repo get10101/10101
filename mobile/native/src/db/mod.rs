@@ -424,7 +424,7 @@ pub fn get_all_non_pending_channels() -> Result<Vec<ln_dlc_node::channel::Channe
         .map(|c| c.into())
         .collect::<Vec<_>>();
 
-    tracing::debug!(?channels, "Got all non-pending channels");
+    tracing::trace!(?channels, "Got all non-pending channels");
 
     Ok(channels)
 }

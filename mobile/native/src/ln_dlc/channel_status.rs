@@ -39,7 +39,7 @@ pub enum ChannelStatus {
 pub async fn track_channel_status(node: impl Borrow<Node>) {
     let mut cached_status = ChannelStatus::Unknown;
     loop {
-        tracing::info!("Tracking channel status");
+        tracing::trace!("Tracking channel status");
 
         let status = channel_status(node.borrow())
             .await
