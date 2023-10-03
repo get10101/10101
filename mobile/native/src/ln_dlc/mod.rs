@@ -15,6 +15,7 @@ use crate::ln_dlc::node::Node;
 use crate::ln_dlc::node::NodeStorage;
 use crate::trade::order;
 use crate::trade::order::FailureReason;
+use crate::trade::order::Order;
 use crate::trade::position;
 use anyhow::anyhow;
 use anyhow::bail;
@@ -53,7 +54,10 @@ use ln_dlc_node::HTLCStatus;
 use ln_dlc_node::CONFIRMATION_TARGET;
 use orderbook_commons::RouteHintHop;
 use orderbook_commons::FEE_INVOICE_DESCRIPTION_PREFIX_TAKER;
+use rust_decimal::prelude::FromPrimitive;
+use rust_decimal::prelude::Signed;
 use rust_decimal::Decimal;
+use rust_decimal::RoundingStrategy;
 use state::Storage;
 use std::net::IpAddr;
 use std::net::Ipv4Addr;
@@ -67,7 +71,6 @@ use time::OffsetDateTime;
 use tokio::runtime::Runtime;
 use tokio::sync::watch;
 use tokio::task::spawn_blocking;
-use trade::Direction;
 
 mod lightning_subscriber;
 mod node;
@@ -528,21 +531,14 @@ fn derive_trades_from_filled_orders() -> Result<Vec<WalletHistoryItem>> {
                 },
             });
 
-            let mut total_contracts = match first.direction {
-                Direction::Long => first.quantity,
-                Direction::Short => -first.quantity,
-            };
+            let mut total_contracts = compute_relative_contracts(first);
             let mut previous_order = first;
             for order in tail {
-                use trade::Direction::*;
-                let new_contracts = match order.direction {
-                    Long => order.quantity,
-                    Short => -order.quantity,
-                };
+                let new_contracts = compute_relative_contracts(order);
                 let updated_total_contracts = total_contracts + new_contracts;
 
                 // Closing the position.
-                if updated_total_contracts == 0.0 {
+                if updated_total_contracts.is_zero() {
                     let open_order = previous_order;
                     let trader_margin = open_order
                         .trader_margin()
@@ -584,7 +580,7 @@ fn derive_trades_from_filled_orders() -> Result<Vec<WalletHistoryItem>> {
                     });
                 }
                 // Opening the position.
-                else if total_contracts == 0.0 && updated_total_contracts != 0.0 {
+                else if total_contracts.is_zero() && !updated_total_contracts.is_zero() {
                     // Closing a position is an outbound "payment", since coins need to leave the
                     // Lightning wallet to open a DLC channel.
                     let flow = PaymentFlow::Outbound;
@@ -624,6 +620,21 @@ fn derive_trades_from_filled_orders() -> Result<Vec<WalletHistoryItem>> {
     }
 
     Ok(trades)
+}
+
+/// Compute the number of contracts for the [`Order`] relative to its [`Direction`].
+fn compute_relative_contracts(order: &Order) -> Decimal {
+    let contracts = Decimal::from_f32(order.quantity)
+        .expect("quantity to fit into Decimal")
+        // We round to 2 decimal places to avoid slight differences between opening and
+        // closing orders.
+        .round_dp_with_strategy(2, RoundingStrategy::MidpointAwayFromZero);
+
+    use trade::Direction::*;
+    match order.direction {
+        Long => contracts,
+        Short => -contracts,
+    }
 }
 
 pub fn get_unused_address() -> String {
