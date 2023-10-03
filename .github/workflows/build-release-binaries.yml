@@ -6,7 +6,7 @@ on:
 
 env:
   FLUTTER_VERSION: "3.13.4"
-  RUST_VERSION: "1.68.0"
+  RUST_VERSION: "1.70.0"
 
 jobs:
   build_docker_image_for_release:
