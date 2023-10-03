@@ -501,15 +501,13 @@ upload-app-bundle:
 
     cd mobile/android/fastlane
 
-    ANDROID_PACKAGE_NAME='finance.get10101.app';
-    FASTLANE_ANDROID_APP_SCHEME='full'
     if [ "$NETWORK" = "regtest" ]; then
-      ANDROID_PACKAGE_NAME='finance.get10101.app.demo';
-      FASTLANE_ANDROID_APP_SCHEME='demo';
+      echo "Uploading for regtest"
+      ANDROID_PACKAGE_NAME='finance.get10101.app.demo' FASTLANE_ANDROID_APP_SCHEME='demo' bundle exec fastlane alpha
+    else
+      echo "Uploading for mainnet"
+      ANDROID_PACKAGE_NAME='finance.get10101.app' FASTLANE_ANDROID_APP_SCHEME='full' bundle exec fastlane internal
     fi
-    echo $NETWORK
-    echo $ANDROID_PACKAGE_NAME
-    FASTLANE_ANDROID_APP_SCHEME=${FASTLANE_ANDROID_APP_SCHEME} ANDROID_PACKAGE_NAME=${ANDROID_PACKAGE_NAME} bundle exec fastlane alpha
 
 release-app-bundle-regtest: gen android-release build-app-bundle-regtest upload-app-bundle
 

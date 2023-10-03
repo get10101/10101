@@ -5,8 +5,8 @@ APP_SCHEME = ENV["FASTLANE_ANDROID_APP_SCHEME"]
 
 platform :android do
 
-  desc "Submit a new build to google play store"
-  lane :alpha do
+  desc "Submit a new build to google play store our internal testers"
+  lane :internal do
     changelog = File.read("../../../CHANGELOG.md")
     upload_to_play_store(
         track: 'internal',
@@ -16,4 +16,16 @@ platform :android do
         skip_upload_screenshots: true,
     )
   end
+
+  desc "Submit a new build to google play store for our alpha testers"
+  lane :alpha do
+    changelog = File.read("../../../CHANGELOG.md")
+    upload_to_play_store(
+        track: 'alpha',
+        aab: "../build/app/outputs/bundle/#{APP_SCHEME}Release/app-#{APP_SCHEME}-release.aab",
+        skip_upload_metadata: true,
+        skip_upload_images: true,
+        skip_upload_screenshots: true,
+      )
+    end
 end
