@@ -1,5 +1,4 @@
-use crate::db::positions;
-use crate::db::user;
+use crate::db::positions_helper::get_positions_joined_with_fcm_token_with_expiry_within;
 use crate::position::models::Position;
 use anyhow::Context;
 use anyhow::Result;
@@ -164,32 +163,11 @@ pub async fn query_and_send_position_notifications(
     conn: &mut PgConnection,
     notification_sender: &mpsc::Sender<Notification>,
 ) -> Result<()> {
-    let users = user::all(conn)?;
-
-    let positions_with_fcm_tokens = positions::Position::get_all_positions_with_expiry_within(
+    let positions_with_fcm_tokens = get_positions_joined_with_fcm_token_with_expiry_within(
         conn,
         OffsetDateTime::now_utc() - START_OF_EXPIRING_POSITION,
         OffsetDateTime::now_utc() + END_OF_EXPIRED_POSITION,
-    )?
-    .into_iter()
-    // Join positions with users to add the FCM tokens.
-    // Filter out positions that don't have a FCM token stored in the users
-    // table which is with them.
-    // This can be done at the DB level if it ever becomes a performance issue.
-    .filter_map(|p| {
-        let maybe_fcm_token = users
-            .iter()
-            .find(|u| u.pubkey == p.trader.to_string())
-            .map(|u| FcmToken(u.fcm_token.clone()));
-
-        if let Some(fcm_token) = maybe_fcm_token {
-            Some((p, fcm_token))
-        } else {
-            tracing::warn!(?p, "No FCM token for position");
-            None
-        }
-    })
-    .collect::<Vec<_>>();
+    )?;
 
     send_expiry_notifications_if_applicable(&positions_with_fcm_tokens, notification_sender).await;
 
