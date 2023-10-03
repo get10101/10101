@@ -568,4 +568,10 @@ migrate: migrate-app migrate-coordinator
 
 dart: flutter-format lint-flutter
 
+# Check whether your dev environment is compatible with the project
+doctor:
+    #!/usr/bin/env bash
+    echo "Checking your dev environment for compatibility with building 10101."
+    ./check_compatibility.sh
+
 # vim:expandtab:sw=4:ts=4

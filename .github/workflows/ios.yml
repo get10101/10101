@@ -32,12 +32,15 @@ on:
       coordinator_port_http:
         required: true
         type: string
+        description: "Coordinator's HTTP port"
       esplora_endpoint:
         required: true
         type: string
+        description: "Esplora's endpoint"
       coordinator_p2p_endpoint:
         required: true
         type: string
+        description: "Coordinator p2p endpoint"
       network:
         required: true
         type: string
@@ -49,6 +52,7 @@ on:
       oracle_endpoint:
         required: true
         type: string
+        description: "The oracle's http url"
       oracle_pubkey:
         required: true
         description: "The public key of the oracle. Must match with the public key returned at http://${oracle_endpoint}/oracle/publickey"
@@ -66,7 +70,7 @@ jobs:
 
       - uses: maxim-lobanov/setup-xcode@v1
         with:
-          xcode-version: "14.2"
+          xcode-version: "15.0"
 
       - uses: subosito/flutter-action@v2
         with:
@@ -140,6 +144,9 @@ jobs:
 
       - name: Generate FFI bindings
         run: just gen
+
+      - name: Check compatibility of the environment
+        run: just doctor
 
       - name: Build iOS Rust lib in release mode
         run: just ios-release
