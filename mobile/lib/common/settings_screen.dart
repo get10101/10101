@@ -3,8 +3,11 @@ import 'dart:io';
 
 import 'package:f_logs/f_logs.dart';
 import 'package:flutter/material.dart';
+import 'package:get_10101/common/channel_status_notifier.dart';
 import 'package:get_10101/common/scrollable_safe_area.dart';
 import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
+import 'package:get_10101/common/snack_bar.dart';
+import 'package:get_10101/features/trade/position_change_notifier.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
@@ -24,6 +27,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   String _version = '';
   String _nodeId = "";
 
+  // Variable preventing the user from spamming the close channel buttons
+  bool _isCloseChannelButtonDisabled = false;
+
   @override
   void initState() {
     try {
@@ -33,6 +39,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       FLog.error(text: "Error getting node id: $e");
       _nodeId = "UNKNOWN";
     }
+
     loadValues();
     super.initState();
   }
@@ -58,19 +65,49 @@ class _SettingsScreenState extends State<SettingsScreen> {
       appBar: AppBar(title: const Text("Settings")),
       body: ScrollableSafeArea(
           child: Column(children: [
+        ElevatedButton(
+            onPressed: _isCloseChannelButtonDisabled
+                ? null
+                : () async {
+                    setState(() {
+                      _isCloseChannelButtonDisabled = true;
+                    });
+                    final messenger = ScaffoldMessenger.of(context);
+                    try {
+                      ensureCanCloseChannel(context);
+                      await rust.api.closeChannel();
+                    } catch (e) {
+                      showSnackBar(messenger, e.toString());
+                    } finally {
+                      setState(() {
+                        _isCloseChannelButtonDisabled = false;
+                      });
+                    }
+                  },
+            child: const Text("Close channel")),
         Visibility(
           visible: config.network == "regtest",
           child: Column(
             children: [
               ElevatedButton(
-                  onPressed: () {
-                    rust.api.closeChannel();
-                  },
-                  child: const Text("Close channel")),
-              ElevatedButton(
-                  onPressed: () {
-                    rust.api.forceCloseChannel();
-                  },
+                  onPressed: _isCloseChannelButtonDisabled
+                      ? null
+                      : () async {
+                          setState(() {
+                            _isCloseChannelButtonDisabled = true;
+                          });
+                          final messenger = ScaffoldMessenger.of(context);
+                          try {
+                            ensureCanCloseChannel(context);
+                            await rust.api.forceCloseChannel();
+                          } catch (e) {
+                            showSnackBar(messenger, e.toString());
+                          } finally {
+                            setState(() {
+                              _isCloseChannelButtonDisabled = false;
+                            });
+                          }
+                        },
                   child: const Text("Force-close channel")),
             ],
           ),
@@ -178,5 +215,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
             child: const Text("Share logs")),
       ])),
     );
+  }
+}
+
+/// Throws if the channel is not in a state where it can be closed.
+void ensureCanCloseChannel(BuildContext context) {
+  if (context.read<PositionChangeNotifier>().positions.isNotEmpty) {
+    throw Exception("In order to close your Lighting Channel you need to close all your positions");
+  }
+  if (context.read<ChannelStatusNotifier>().isClosing()) {
+    throw Exception("Your channel is already closing");
   }
 }
