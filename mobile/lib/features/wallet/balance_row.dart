@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:get_10101/common/amount_text.dart';
-import 'package:get_10101/common/domain/model.dart';
 import 'package:get_10101/common/fiat_text.dart';
 import 'package:get_10101/features/stable/stable_screen.dart';
 import 'package:get_10101/features/trade/position_change_notifier.dart';
 import 'package:get_10101/features/wallet/create_invoice_screen.dart';
+import 'package:get_10101/features/wallet/create_on_chain_payment_request.dart';
 import 'package:get_10101/features/wallet/domain/wallet_type.dart';
 import 'package:get_10101/features/wallet/send_screen.dart';
 import 'package:get_10101/features/wallet/wallet_change_notifier.dart';
@@ -48,28 +48,29 @@ class _BalanceRowState extends State<BalanceRow> with SingleTickerProviderStateM
 
     PositionChangeNotifier positionChangeNotifier = context.watch<PositionChangeNotifier>();
 
-    Amount amount;
-    String name;
-    Color rowBgColor;
-    SvgPicture icon;
-
-    if (widget.walletType == WalletType.lightning) {
-      name = "Lightning";
-      rowBgColor = theme.lightning;
-      icon = SvgPicture.asset("assets/Lightning_logo.svg");
-      amount = walletChangeNotifier.lightning();
-    } else if (widget.walletType == WalletType.stable) {
-      name = "Synthetic-USD";
-      rowBgColor = theme.lightning;
-      icon = SvgPicture.asset("assets/USD_logo.svg");
-      // this in unused for now, other than to initialise value (and satisfy the compiler)
-      amount = positionChangeNotifier.getStableUSDAmountInSats();
-    } else {
-      name = "On-chain";
-      rowBgColor = theme.onChain;
-      icon = SvgPicture.asset("assets/Bitcoin_logo.svg");
-      amount = walletChangeNotifier.onChain();
-    }
+    final (name, rowBgColor, icon, amountText) = switch (widget.walletType) {
+      WalletType.lightning => (
+          "Lightning",
+          theme.lightning,
+          SvgPicture.asset("assets/Lightning_logo.svg"),
+          AmountText(amount: walletChangeNotifier.lightning(), textStyle: bold),
+        ),
+      WalletType.onChain => (
+          "On-chain",
+          theme.onChain,
+          SvgPicture.asset("assets/Bitcoin_logo.svg"),
+          AmountText(amount: walletChangeNotifier.onChain(), textStyle: bold),
+        ),
+      WalletType.stable => (
+          "Synthetic-USD",
+          theme.lightning,
+          SvgPicture.asset("assets/USD_logo.svg"),
+          FiatText(
+            amount: positionChangeNotifier.getStableUSDAmountInFiat(),
+            textStyle: bold,
+          )
+        ),
+    };
 
     double balanceRowHeight = 45;
     double buttonSize = balanceRowHeight - 10;
@@ -142,14 +143,7 @@ class _BalanceRowState extends State<BalanceRow> with SingleTickerProviderStateM
                       child: SizedBox(height: widget.iconSize, width: widget.iconSize, child: icon),
                     ),
                     Expanded(child: Text(name, style: normal)),
-                    if (widget.walletType == WalletType.stable)
-                      // we need to use different widget as we display the value in dollar terms
-                      FiatText(
-                        amount: positionChangeNotifier.getStableUSDAmountInFiat(),
-                        textStyle: bold,
-                      )
-                    else
-                      AmountText(amount: amount, textStyle: bold),
+                    amountText,
                   ]),
                 ),
               ),
@@ -196,21 +190,15 @@ class BalanceRowButton extends StatelessWidget {
         onPressed: !enabled
             ? null
             : () {
-                if (type == WalletType.stable) {
-                  if (flow == PaymentFlow.outbound) {
-                    // eventually there should be a way to send stable sats directly
-                    context.go(StableScreen.route);
-                  } else {
-                    // eventually there should be a way to receive stable sats directly
-                    context.go(StableScreen.route);
-                  }
-                  return;
-                }
-                if (flow == PaymentFlow.outbound) {
-                  context.go(SendScreen.route);
-                } else {
-                  context.go(CreateInvoiceScreen.route);
-                }
+                final route = switch ((type, flow)) {
+                  (WalletType.stable, _) => StableScreen.route,
+                  (_, PaymentFlow.outbound) => SendScreen.route,
+                  (WalletType.lightning, PaymentFlow.inbound) => CreateInvoiceScreen.route,
+                  (WalletType.onChain, PaymentFlow.inbound) =>
+                    CreateOnChainPaymentRequestScreen.route,
+                };
+
+                context.go(route);
               },
         style: ElevatedButton.styleFrom(
           shape: const CircleBorder(),
