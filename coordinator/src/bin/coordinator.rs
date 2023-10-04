@@ -20,6 +20,7 @@ use coordinator::orderbook::async_match;
 use coordinator::orderbook::trading;
 use coordinator::routes::router;
 use coordinator::run_migration;
+use coordinator::scheduler::NotificationScheduler;
 use coordinator::settings::Settings;
 use diesel::r2d2;
 use diesel::r2d2::ConnectionManager;
@@ -94,7 +95,7 @@ async fn main() -> Result<()> {
     let seed_path = data_dir.join("seed");
     let seed = Bip39Seed::initialize(&seed_path)?;
 
-    let settings = Settings::new(&data_dir).await;
+    let settings = Settings::new(&data_dir, opts.network).await;
 
     // set up database connection pool
     let manager = ConnectionManager::<PgConnection>::new(opts.database.clone());
@@ -269,7 +270,7 @@ async fn main() -> Result<()> {
     let app = router(
         node,
         pool.clone(),
-        settings,
+        settings.clone(),
         exporter,
         opts.p2p_announcement_addresses(),
         NODE_ALIAS,
@@ -299,6 +300,24 @@ async fn main() -> Result<()> {
 
                 tokio::time::sleep(POSITION_PUSH_NOTIFICATION_INTERVAL).await;
             }
+        }
+    });
+
+    let sender = notification_service.get_sender();
+    let notification_scheduler = NotificationScheduler::new(sender, settings);
+    tokio::spawn({
+        let pool = pool.clone();
+        let scheduler = notification_scheduler;
+        async move {
+            let scheduler = scheduler.await;
+            scheduler
+                .add_rollover_window_reminder_job(pool.clone())
+                .await
+                .expect("To add a job");
+            scheduler
+                .start()
+                .await
+                .expect("to be able to start scheduler");
         }
     });
 

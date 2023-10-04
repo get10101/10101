@@ -1,3 +1,4 @@
+use crate::cli::Network;
 use crate::node::NodeSettings;
 use anyhow::Context;
 use anyhow::Result;
@@ -11,6 +12,11 @@ use tokio::fs;
 use tokio::io::AsyncWriteExt;
 
 const SETTINGS_FILE_NAME: &str = "coordinator-settings.toml";
+
+/// Reminding about the rollover window being open runs on Friday, 15:05 UTC and Saturday, 15:05 UTC
+const ROLLOVER_SCHEDULE_MAINNET: &str = "0 5 15 * * 5,6";
+/// Reminding about the rollover window being open runs daily at 14:05 UTC
+const ROLLOVER_SCHEDULE_REGTEST: &str = "0 5 14 * * *";
 
 /// Top-level settings.
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -35,10 +41,24 @@ pub struct Settings {
 
     // Special parameter, where the settings file is located
     pub path: Option<PathBuf>,
+
+    /// We don't want the below doc block be formatted
+    #[rustfmt::skip]
+    /// A cron syntax for sending notifications about the rollover window being open
+    ///
+    /// The format is :
+    /// sec   min   hour   day of month   month   day of week   year
+    /// *     *     *      *              *       *             *
+    pub rollover_window_open_scheduler: String,
 }
 
-impl Default for Settings {
-    fn default() -> Self {
+impl Settings {
+    fn default(network: Network) -> Self {
+        let rollover_window_open_scheduler = match network {
+            Network::Regtest | Network::Signet | Network::Testnet => ROLLOVER_SCHEDULE_REGTEST,
+            Network::Mainnet => ROLLOVER_SCHEDULE_MAINNET,
+        }
+        .to_string();
         Self {
             jit_channels_enabled: true,
             new_positions_enabled: true,
@@ -49,6 +69,7 @@ impl Default for Settings {
             ln_dlc: LnDlcNodeSettings::default(),
             forwarding_fee_proportional_millionths: 50,
             path: None,
+            rollover_window_open_scheduler,
         }
     }
 }
@@ -60,14 +81,14 @@ async fn read_settings(data_dir: &Path) -> Result<Settings> {
 }
 
 impl Settings {
-    pub async fn new(data_dir: &Path) -> Self {
+    pub async fn new(data_dir: &Path, network: Network) -> Self {
         match read_settings(data_dir).await {
             Ok(settings) => settings,
             Err(e) => {
                 tracing::warn!("Unable to read {SETTINGS_FILE_NAME} file, using defaults: {e}");
                 let new = Settings {
                     path: Some(data_dir.join(SETTINGS_FILE_NAME)),
-                    ..Settings::default()
+                    ..Settings::default(network)
                 };
                 if let Err(e) = new.write_to_file().await {
                     tracing::error!("Unable to write default settings to file: {e}");
