@@ -290,7 +290,7 @@ async fn open_channel(
     )
     .await?;
 
-    bitcoind.mine(10).await?;
+    bitcoind.mine(20).await?;
 
     let lnd_channels = get_channels(faucet).await?;
     tracing::info!("total open LND channels for {faucet}: {:?}", lnd_channels);
