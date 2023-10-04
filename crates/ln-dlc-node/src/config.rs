@@ -90,6 +90,7 @@ pub fn coordinator_config() -> UserConfig {
             force_announced_channel_preference: true,
             // LND's max to_self_delay is 2016, so we want to be compatible.
             their_to_self_delay: 2016,
+            max_funding_satoshis: 500_000_000,
             ..Default::default()
         },
         channel_config: ChannelConfig {

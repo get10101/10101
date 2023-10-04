@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Allow up to 5BTC wumbo channels
 - Add push notification reminder that the rollover window is open now.
 
 ## [1.3.0] - 2023-09-27

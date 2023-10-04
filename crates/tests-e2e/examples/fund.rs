@@ -99,7 +99,7 @@ async fn fund_everything(faucet: &str, coordinator: &str, maker: &str) -> Result
         .fund(
             &lnd_addr.address,
             Amount::ONE_BTC
-                .checked_mul(2)
+                .checked_mul(10)
                 .expect("small integers to multiply"),
         )
         .await?;
@@ -123,15 +123,7 @@ async fn fund_everything(faucet: &str, coordinator: &str, maker: &str) -> Result
     let lnd_balance = get_text(&format!("{faucet}/lnd/v1/balance/blockchain")).await?;
     tracing::info!("faucet lightning balance: {}", lnd_balance);
 
-    open_channel(
-        &node,
-        Amount::ONE_BTC
-            .checked_div(10)
-            .expect("small integers to divide"),
-        faucet,
-        &bitcoind,
-    )
-    .await?;
+    open_channel(&node, Amount::ONE_BTC * 5, faucet, &bitcoind).await?;
 
     // wait until channel has `peer_alias` set correctly
     tracing::info!("Waiting until channel is has correct peer_alias set");
