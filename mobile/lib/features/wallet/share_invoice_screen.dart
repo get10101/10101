@@ -28,9 +28,22 @@ class _ShareInvoiceScreenState extends State<ShareInvoiceScreen> {
   bool _isPayInvoiceButtonDisabled = false;
 
   @override
+  void initState() {
+    super.initState();
+    context.read<PaymentClaimedChangeNotifier>().waitForPayment();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final bridge.Config config = context.read<bridge.Config>();
 
+    if (context.watch<PaymentClaimedChangeNotifier>().isClaimed()) {
+      // routing is not allowed during building a widget, hence we need to register the route navigation after the widget has been build.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        FLog.debug(text: "Payment received!");
+        GoRouter.of(context).pop();
+      });
+    }
 
     const EdgeInsets buttonSpacing = EdgeInsets.symmetric(vertical: 8.0, horizontal: 24.0);
 
@@ -88,17 +101,12 @@ class _ShareInvoiceScreenState extends State<ShareInvoiceScreen> {
                           _isPayInvoiceButtonDisabled = true;
                         });
 
-                        final router = GoRouter.of(context);
                         final messenger = ScaffoldMessenger.of(context);
                         try {
                           final faucetService = context.read<FaucetService>();
                           await faucetService.payInvoiceWithLndFaucet(widget.invoice.rawInvoice);
-                          // Pop both create invoice screen and share invoice screen
-                          router.pop();
-                          router.pop();
                         } catch (error) {
                           showSnackBar(messenger, error.toString());
-                        } finally {
                           setState(() {
                             _isPayInvoiceButtonDisabled = false;
                           });
@@ -122,17 +130,12 @@ class _ShareInvoiceScreenState extends State<ShareInvoiceScreen> {
                           _isPayInvoiceButtonDisabled = true;
                         });
 
-                        final router = GoRouter.of(context);
                         final messenger = ScaffoldMessenger.of(context);
                         try {
                           final faucetService = context.read<FaucetService>();
                           await faucetService.payInvoiceWithMakerFaucet(widget.invoice.rawInvoice);
-                          // Pop both create invoice screen and share invoice screen
-                          router.pop();
-                          router.pop();
                         } catch (error) {
                           showSnackBar(messenger, error.toString());
-                        } finally {
                           setState(() {
                             _isPayInvoiceButtonDisabled = false;
                           });

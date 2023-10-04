@@ -27,6 +27,7 @@ pub enum Event {
     ServiceHealthUpdate(ServiceUpdate),
     ChannelStatusUpdate(ChannelStatus),
     BackgroundNotification(BackgroundTask),
+    PaymentClaimed,
 }
 
 #[frb]
@@ -75,9 +76,7 @@ impl From<EventInternal> for Event {
             EventInternal::ChannelReady(_) => {
                 unreachable!("This internal event is not exposed to the UI")
             }
-            EventInternal::PaymentClaimed(_) => {
-                unreachable!("This internal event is not exposed to the UI")
-            }
+            EventInternal::PaymentClaimed(_) => Event::PaymentClaimed,
             EventInternal::BackgroundNotification(task) => {
                 Event::BackgroundNotification(task.into())
             }
@@ -117,6 +116,7 @@ impl Subscriber for FlutterSubscriber {
             EventType::ServiceHealthUpdate,
             EventType::ChannelStatusUpdate,
             EventType::BackgroundNotification,
+            EventType::PaymentClaimed,
         ]
     }
 }
