@@ -15,6 +15,7 @@ use tests_e2e::bitcoind::Bitcoind;
 use tests_e2e::coordinator::Coordinator;
 use tests_e2e::http::init_reqwest;
 use tests_e2e::maker::Maker;
+use tests_e2e::wait_until;
 use tracing::metadata::LevelFilter;
 use tracing_subscriber::filter::Directive;
 use tracing_subscriber::layer::SubscriberExt;
@@ -180,6 +181,7 @@ struct LndChannel {
     remote_pubkey: String,
     active: bool,
     peer_alias: String,
+    uptime: String,
 }
 
 async fn get_text(url: &str) -> Result<String> {
@@ -293,14 +295,13 @@ async fn open_channel(
     let lnd_channels = get_channels(faucet).await?;
     tracing::info!("total open LND channels for {faucet}: {:?}", lnd_channels);
 
-    anyhow::ensure!(
+    wait_until!(
         lnd_channels
             .channels
             .iter()
             .filter(|c| c.remote_pubkey == node_info.pubkey.to_string())
-            .inspect(|c| tracing::debug!(alias = %c.peer_alias, "Found open channel with alias"))
-            .any(|c| c.active),
-        "Channel is not active"
+            .inspect(|c| tracing::debug!(alias = %c.peer_alias, active= %c.active, uptime = %c.uptime, "Found open channel with peer"))
+            .any(|c| c.active)
     );
 
     tracing::info!("You can now use the lightning faucet {faucet}/faucet/");
