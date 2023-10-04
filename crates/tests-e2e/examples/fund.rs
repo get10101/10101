@@ -130,6 +130,8 @@ async fn fund_everything(faucet: &str, coordinator: &str, maker: &str) -> Result
     let mut counter = 0;
     loop {
         if counter == 3 {
+            let lnd_channels = get_channels(faucet).await?;
+            tracing::info!("open LND channels: {:?}", lnd_channels);
             bail!("Could not verify channel is open. Please wipe and try again");
         }
         counter += 1;
@@ -146,14 +148,26 @@ async fn fund_everything(faucet: &str, coordinator: &str, maker: &str) -> Result
         tokio::time::sleep(Duration::from_secs(5)).await;
     }
 
-    let lnd_channels = get_text(&format!("{faucet}/lnd/v1/channels")).await?;
-    tracing::info!("open LND channels: {}", lnd_channels);
+    let lnd_channels = get_channels(faucet).await?;
+    tracing::info!("open LND channels: {:?}", lnd_channels);
     Ok(())
 }
 
 #[derive(Deserialize)]
 struct LndAddr {
     address: Address,
+}
+
+#[derive(Deserialize, Debug)]
+struct LndChannelListResponse {
+    channels: Vec<LndChannel>,
+}
+
+#[derive(Deserialize, Debug)]
+struct LndChannel {
+    remote_pubkey: String,
+    active: bool,
+    peer_alias: String,
 }
 
 async fn get_text(url: &str) -> Result<String> {
@@ -192,6 +206,12 @@ pub struct LndNodeInfo {
 #[derive(Deserialize, Debug, Clone)]
 pub struct Node {
     alias: String,
+}
+
+async fn get_channels(faucet: &str) -> Result<LndChannelListResponse> {
+    let response = get_query("lnd/v1/channels", faucet).await?;
+    let channels = response.json().await?;
+    Ok(channels)
 }
 
 async fn get_node_info(faucet: &str) -> Result<Option<LndNodeInfo>> {
@@ -244,7 +264,7 @@ async fn open_channel(
 
     tokio::time::sleep(Duration::from_secs(5)).await;
 
-    tracing::info!("Opening channel to {} with {amount}", node_info);
+    tracing::info!("Opening channel to {node_info} with {amount}");
     post_query(
         "lnd/v1/channels",
         format!(
@@ -258,7 +278,18 @@ async fn open_channel(
 
     bitcoind.mine(10).await?;
 
-    tracing::info!("connected to channel");
+    let lnd_channels = get_channels(faucet).await?;
+    tracing::info!("total open LND channels for {faucet}: {:?}", lnd_channels);
+
+    anyhow::ensure!(
+        lnd_channels
+            .channels
+            .iter()
+            .filter(|c| c.remote_pubkey == node_info.pubkey.to_string())
+            .inspect(|c| tracing::debug!(alias = %c.peer_alias, "Found open channel with alias"))
+            .any(|c| c.active),
+        "Channel is not active"
+    );
 
     tracing::info!("You can now use the lightning faucet {faucet}/faucet/");
 
