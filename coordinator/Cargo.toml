@@ -23,6 +23,7 @@ rand = "0.8.5"
 serde = "1.0.147"
 serde_json = "1"
 thiserror = "1.0"
+tokio-cron-scheduler = { version = "0.9.4" }
 tokio-metrics = "0.2.2"
 toml = "0.7.3"
 tracing = "0.1.37"

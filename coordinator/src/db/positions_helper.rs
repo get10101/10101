@@ -1,8 +1,21 @@
 use crate::db::positions::Position;
 use crate::db::user;
 use crate::notifications::FcmToken;
-use diesel::{Connection, PgConnection, QueryResult};
+use diesel::Connection;
+use diesel::PgConnection;
+use diesel::QueryResult;
+use time::Duration;
 use time::OffsetDateTime;
+
+pub fn get_non_expired_positions_joined_with_fcm_token(
+    conn: &mut PgConnection,
+) -> QueryResult<Vec<(crate::position::models::Position, FcmToken)>> {
+    get_positions_joined_with_fcm_token_with_expiry_within(
+        conn,
+        OffsetDateTime::now_utc(),
+        OffsetDateTime::now_utc() + Duration::days(100),
+    )
+}
 
 pub fn get_positions_joined_with_fcm_token_with_expiry_within(
     conn: &mut PgConnection,

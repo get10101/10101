@@ -20,6 +20,7 @@ const END_OF_EXPIRED_POSITION: time::Duration = time::Duration::hours(1);
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum NotificationKind {
+    RolloverWindowOpen,
     PositionSoonToExpire,
     PositionExpired,
 }
@@ -29,6 +30,7 @@ impl Display for NotificationKind {
         match self {
             NotificationKind::PositionSoonToExpire => write!(f, "PositionSoonToExpire"),
             NotificationKind::PositionExpired => write!(f, "PositionExpired"),
+            NotificationKind::RolloverWindowOpen => write!(f, "RolloverWindowOpen"),
         }
     }
 }
@@ -113,6 +115,10 @@ fn build_notification<'a>(kind: NotificationKind) -> fcm::Notification<'a> {
         NotificationKind::PositionExpired => {
             notification_builder.title("Your position has expired");
             notification_builder.body("Open the app to react.");
+        }
+        NotificationKind::RolloverWindowOpen => {
+            notification_builder.title("Rollover window is open");
+            notification_builder.body("Open the app to rollover your position for the next cycle.");
         }
     }
     notification_builder.finalize()
@@ -206,6 +212,30 @@ async fn send_expiry_notifications_if_applicable(
                 .await
             {
                 tracing::error!("Failed to send PositionSoonToExpire notification: {:?}", e);
+            }
+        }
+    }
+}
+
+/// Send notifications to users with positions that they can rollover
+pub async fn send_rollover_reminder(
+    positions: &[(Position, FcmToken)],
+    notification_sender: &mpsc::Sender<Notification>,
+) {
+    let now = OffsetDateTime::now_utc();
+
+    tracing::info!("Sending reminder");
+
+    for (position, fcm_token) in positions {
+        if position.expiry_timestamp > now {
+            if let Err(e) = notification_sender
+                .send(Notification::new(
+                    fcm_token.clone(),
+                    NotificationKind::RolloverWindowOpen,
+                ))
+                .await
+            {
+                tracing::error!("Failed to send RolloverWindowOpen notification: {:?}", e);
             }
         }
     }
