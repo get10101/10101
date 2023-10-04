@@ -36,18 +36,31 @@ pub struct Opts {
     /// Maker address
     #[clap(long, default_value = "http://localhost:18000")]
     pub maker: String,
+
+    #[clap(long, default_value = "false")]
+    check_peer_alias: bool,
 }
 
 #[tokio::main]
 async fn main() -> Result<()> {
     init_tracing(LevelFilter::DEBUG).expect("tracing to initialise");
     let opts = Opts::parse();
-    fund_everything(&opts.faucet, &opts.coordinator, &opts.maker).await
+    let faucet = &opts.faucet;
+
+    let coordinator = Coordinator::new(init_reqwest(), &opts.coordinator);
+    fund_everything(faucet, &coordinator, &opts.maker).await?;
+
+    if opts.check_peer_alias {
+        check_for_channel_with_peer_alias(faucet, coordinator, "10101.finance").await?;
+    }
+
+    let lnd_channels = get_channels(faucet).await?;
+    tracing::info!("open LND channels: {:?}", lnd_channels);
+    Ok(())
 }
 
-async fn fund_everything(faucet: &str, coordinator: &str, maker: &str) -> Result<()> {
+async fn fund_everything(faucet: &str, coordinator: &Coordinator, maker: &str) -> Result<()> {
     let client = init_reqwest();
-    let coordinator = Coordinator::new(client.clone(), coordinator);
     let coord_addr = coordinator.get_new_address().await?;
 
     let bitcoind = bitcoind::Bitcoind::new(client, faucet.to_string() + "/bitcoin");
@@ -124,33 +137,32 @@ async fn fund_everything(faucet: &str, coordinator: &str, maker: &str) -> Result
     tracing::info!("faucet lightning balance: {}", lnd_balance);
 
     open_channel(&node, Amount::ONE_BTC * 5, faucet, &bitcoind).await?;
+    Ok(())
+}
 
-    // wait until channel has `peer_alias` set correctly
+/// wait until channel has `peer_alias` set correctly
+async fn check_for_channel_with_peer_alias(
+    faucet: &str,
+    coordinator: Coordinator,
+    alias: &str,
+) -> Result<()> {
     tracing::info!("Waiting until channel is has correct peer_alias set");
-    let mut counter = 0;
-    loop {
-        if counter == 3 {
-            let lnd_channels = get_channels(faucet).await?;
-            tracing::info!("open LND channels: {:?}", lnd_channels);
-            bail!("Could not verify channel is open. Please wipe and try again");
-        }
-        counter += 1;
 
+    for _ in 0..2 {
         let node_info = get_node_info(faucet).await?;
         if let Some(node_info) = node_info {
-            if node_info.num_channels > 0 && node_info.node.alias == "10101.finance" {
-                break;
+            if node_info.num_channels > 0 && node_info.node.alias == alias {
+                tracing::info!("Found channel with peer_alias set to {}", alias);
+                return Ok(());
             }
         }
-
         tracing::info!("Manually broadcasting node announcement and waiting for a few seconds...");
         coordinator.broadcast_node_announcement().await?;
         tokio::time::sleep(Duration::from_secs(5)).await;
     }
-
     let lnd_channels = get_channels(faucet).await?;
     tracing::info!("open LND channels: {:?}", lnd_channels);
-    Ok(())
+    bail!("Could not verify channel is open. Please wipe and try again");
 }
 
 #[derive(Deserialize)]
