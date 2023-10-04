@@ -357,3 +357,11 @@ mod test {
         ))
     }
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OnboardingParam {
+    pub target_node: String,
+    pub user_channel_id: String,
+    pub amount_sats: u64,
+    pub liquidity_option_id: i32,
+}

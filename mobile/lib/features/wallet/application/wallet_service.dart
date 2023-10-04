@@ -1,4 +1,5 @@
 import 'package:f_logs/f_logs.dart';
+import 'package:flutter_rust_bridge/flutter_rust_bridge.dart';
 import 'package:get_10101/common/domain/model.dart';
 import 'package:get_10101/features/wallet/domain/lightning_invoice.dart';
 import 'package:get_10101/ffi.dart' as rust;
@@ -14,6 +15,7 @@ class WalletService {
     }
   }
 
+  /// Throws an exception if coordinator cannot provide required liquidity.
   Future<String?> createOnboardingInvoice(Amount amount, int liquidityOptionId) async {
     try {
       String invoice = await rust.api
@@ -21,8 +23,12 @@ class WalletService {
       FLog.info(text: "Successfully created invoice.");
       return invoice;
     } catch (error) {
-      FLog.error(text: "Error: $error", exception: error);
-      return null;
+      if (error is FfiException && error.message.contains("cannot provide required liquidity")) {
+        rethrow;
+      } else {
+        FLog.error(text: "Error: $error", exception: error);
+        return null;
+      }
     }
   }
 
@@ -33,8 +39,8 @@ class WalletService {
       return invoice;
     } catch (error) {
       FLog.error(text: "Error: $error", exception: error);
-      return null;
     }
+    return null;
   }
 
   Future<LightningInvoice?> decodeInvoice(String invoice) async {

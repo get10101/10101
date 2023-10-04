@@ -7,6 +7,7 @@ use diesel_migrations::embed_migrations;
 use diesel_migrations::EmbeddedMigrations;
 use diesel_migrations::MigrationHarness;
 use serde_json::json;
+use settings::Settings;
 
 pub mod admin;
 pub mod cli;
@@ -39,6 +40,7 @@ pub enum AppError {
     BadRequest(String),
     NoMatchFound(String),
     InvalidOrder(String),
+    ServiceUnavailable(String),
 }
 
 impl IntoResponse for AppError {
@@ -48,6 +50,7 @@ impl IntoResponse for AppError {
             AppError::BadRequest(msg) => (StatusCode::BAD_REQUEST, msg),
             AppError::NoMatchFound(msg) => (StatusCode::SERVICE_UNAVAILABLE, msg),
             AppError::InvalidOrder(msg) => (StatusCode::BAD_REQUEST, msg),
+            AppError::ServiceUnavailable(msg) => (StatusCode::SERVICE_UNAVAILABLE, msg),
         };
 
         let body = Json(json!({
@@ -56,4 +59,13 @@ impl IntoResponse for AppError {
 
         (status, body).into_response()
     }
+}
+
+/// Check if the liquidity is sufficient to open a JIT channel from the coordinator
+pub fn is_liquidity_sufficient(
+    settings: &Settings,
+    balance: bdk::Balance,
+    amount_sats: u64,
+) -> bool {
+    balance.get_spendable() >= amount_sats + settings.min_liquidity_threshold_sats
 }

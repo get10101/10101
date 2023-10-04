@@ -64,6 +64,9 @@ pub struct Settings {
     /// sec   min   hour   day of month   month   day of week   year
     /// *     *     *      *              *       *             *
     pub rollover_window_close_scheduler: String,
+
+    /// Min balance to keep in on-chain wallet at all times
+    pub min_liquidity_threshold_sats: u64,
 }
 
 impl Settings {
@@ -92,6 +95,7 @@ impl Settings {
             path: None,
             rollover_window_open_scheduler,
             rollover_window_close_scheduler,
+            min_liquidity_threshold_sats: 10_000_000, // 0.1 BTC
         }
     }
 }

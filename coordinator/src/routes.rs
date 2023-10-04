@@ -10,7 +10,9 @@ use crate::admin::open_channel;
 use crate::admin::send_payment;
 use crate::admin::sign_message;
 use crate::db;
+use crate::db::liquidity::LiquidityRequestLog;
 use crate::db::user;
+use crate::is_liquidity_sufficient;
 use crate::message::NewUserMessage;
 use crate::node::Node;
 use crate::orderbook::routes::get_order;
@@ -36,6 +38,7 @@ use bitcoin::hashes::hex::ToHex;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::Network;
 use coordinator_commons::LspConfig;
+use coordinator_commons::OnboardingParam;
 use coordinator_commons::RegisterParams;
 use coordinator_commons::TradeParams;
 use diesel::r2d2::ConnectionManager;
@@ -105,7 +108,7 @@ pub fn router(
         .route("/", get(index))
         .route("/api/version", get(version))
         .route(
-            "/api/prepare_onboarding_payment/:peer_id",
+            "/api/prepare_onboarding_payment",
             post(prepare_onboarding_payment),
         )
         .route(
@@ -165,33 +168,59 @@ pub async fn index() -> impl IntoResponse {
     })
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct OnboardingParam {
-    pub user_channel_id: String,
-    pub liquidity_option_id: i32,
-}
-
 pub async fn prepare_onboarding_payment(
-    peer_id: Path<String>,
     State(app_state): State<Arc<AppState>>,
     params: Json<OnboardingParam>,
 ) -> Result<Json<RouteHintHop>, AppError> {
-    let peer_id = peer_id.0;
-    let target_node: PublicKey = peer_id.parse().map_err(|e| {
+    let Json(OnboardingParam {
+        target_node,
+        user_channel_id,
+        amount_sats,
+        liquidity_option_id,
+    }) = params;
+
+    let target_node: PublicKey = target_node.parse().map_err(|e| {
         AppError::BadRequest(format!(
-            "Provided public key {peer_id} was not valid: {e:#}"
+            "Provided public key {target_node} was not valid: {e:#}"
         ))
     })?;
 
-    let onboarding_params = params.0;
-
-    let liquidity_option_id = onboarding_params.liquidity_option_id;
-    let user_channel_id = onboarding_params.user_channel_id;
     let user_channel_id = UserChannelId::try_from(user_channel_id.clone()).map_err(|e| {
         AppError::BadRequest(format!(
             "Provided user channel id {user_channel_id} was not valid: {e:#}"
         ))
     })?;
+
+    let mut conn = app_state
+        .pool
+        .get()
+        .map_err(|e| AppError::InternalServerError(format!("Could not get connection: {e:#}")))?;
+
+    let balance = app_state
+        .node
+        .inner
+        .get_on_chain_balance()
+        .map_err(|e| AppError::InternalServerError(format!("Could not get balance: {e:#}")))?;
+
+    let have_enough_liquidity =
+        is_liquidity_sufficient(&*app_state.settings.read().await, balance, amount_sats);
+
+    LiquidityRequestLog::insert(
+        &mut conn,
+        target_node,
+        amount_sats,
+        liquidity_option_id,
+        have_enough_liquidity,
+    )
+    .map_err(|e| {
+        AppError::InternalServerError(format!("Could not insert liquidity request: {e:#}"))
+    })?;
+
+    if !have_enough_liquidity {
+        return Err(AppError::ServiceUnavailable(
+            "Coordinator cannot provide required liquidity".to_string(),
+        ));
+    };
 
     let route_hint_hop = spawn_blocking({
         let app_state = app_state.clone();
