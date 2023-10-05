@@ -313,7 +313,12 @@ async fn main() -> Result<()> {
             scheduler
                 .add_rollover_window_reminder_job(pool.clone())
                 .await
-                .expect("To add a job");
+                .expect("To add the rollover window reminder job");
+
+            scheduler
+                .add_rollover_window_close_reminder_job(pool.clone())
+                .await
+                .expect("To add the rollover window close reminder job");
             scheduler
                 .start()
                 .await
