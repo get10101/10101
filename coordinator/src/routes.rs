@@ -9,6 +9,7 @@ use crate::admin::list_peers;
 use crate::admin::open_channel;
 use crate::admin::send_payment;
 use crate::admin::sign_message;
+use crate::db;
 use crate::db::user;
 use crate::message::NewUserMessage;
 use crate::node::Node;
@@ -43,8 +44,10 @@ use diesel::PgConnection;
 use dlc_manager::ChannelId;
 use hex::FromHex;
 use lightning::ln::msgs::NetAddress;
+use ln_dlc_node::channel::UserChannelId;
 use ln_dlc_node::node::peer_manager::alias_as_bytes;
 use ln_dlc_node::node::peer_manager::broadcast_node_announcement;
+use ln_dlc_node::node::LiquidityRequest;
 use ln_dlc_node::node::NodeInfo;
 use opentelemetry_prometheus::PrometheusExporter;
 use orderbook_commons::Message;
@@ -102,8 +105,12 @@ pub fn router(
         .route("/", get(index))
         .route("/api/version", get(version))
         .route(
-            "/api/prepare_interceptable_payment/:target_node",
-            post(prepare_interceptable_payment),
+            "/api/prepare_onboarding_payment/:peer_id",
+            post(prepare_onboarding_payment),
+        )
+        .route(
+            "/api/prepare_regular_payment/:peer_id",
+            post(prepare_regular_payment),
         )
         .route("/api/newaddress", get(get_unused_address))
         .route("/api/node", get(get_node_info))
@@ -158,14 +165,67 @@ pub async fn index() -> impl IntoResponse {
     })
 }
 
-pub async fn prepare_interceptable_payment(
-    target_node: Path<String>,
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OnboardingParam {
+    pub user_channel_id: String,
+    pub liquidity_option_id: i32,
+}
+
+pub async fn prepare_onboarding_payment(
+    peer_id: Path<String>,
+    State(app_state): State<Arc<AppState>>,
+    params: Json<OnboardingParam>,
+) -> Result<Json<RouteHintHop>, AppError> {
+    let peer_id = peer_id.0;
+    let target_node: PublicKey = peer_id.parse().map_err(|e| {
+        AppError::BadRequest(format!(
+            "Provided public key {peer_id} was not valid: {e:#}"
+        ))
+    })?;
+
+    let onboarding_params = params.0;
+
+    let liquidity_option_id = onboarding_params.liquidity_option_id;
+    let user_channel_id = onboarding_params.user_channel_id;
+    let user_channel_id = UserChannelId::try_from(user_channel_id.clone()).map_err(|e| {
+        AppError::BadRequest(format!(
+            "Provided user channel id {user_channel_id} was not valid: {e:#}"
+        ))
+    })?;
+
+    let route_hint_hop = spawn_blocking({
+        let app_state = app_state.clone();
+        move || {
+            let mut conn = app_state.pool.get()?;
+            let liquidity_option = db::liquidity_options::get(&mut conn, liquidity_option_id)?;
+            app_state
+                .node
+                .inner
+                .prepare_onboarding_payment(LiquidityRequest {
+                    user_channel_id,
+                    liquidity_option_id,
+                    trader_id: target_node,
+                    trade_up_to_sats: liquidity_option.trade_up_to_sats,
+                    max_deposit_sats: liquidity_option.max_deposit_sats,
+                    coordinator_leverage: liquidity_option.coordinator_leverage,
+                })
+        }
+    })
+    .await
+    .expect("task to complete")
+    .map_err(|e| AppError::InternalServerError(format!("Could not prepare payment: {e:#}")))?;
+
+    Ok(Json(route_hint_hop.into()))
+}
+
+pub async fn prepare_regular_payment(
+    peer_id: Path<String>,
     State(app_state): State<Arc<AppState>>,
 ) -> Result<Json<RouteHintHop>, AppError> {
-    let target_node = target_node.0;
-    let target_node: PublicKey = target_node.parse().map_err(|e| {
+    let peer_id = peer_id.0;
+    let peer_id: PublicKey = peer_id.parse().map_err(|e| {
         AppError::BadRequest(format!(
-            "Provided public key {target_node} was not valid: {e:#}"
+            "Provided public key {peer_id} was not valid: {e:#}"
         ))
     })?;
 
@@ -175,14 +235,12 @@ pub async fn prepare_interceptable_payment(
             app_state
                 .node
                 .inner
-                .prepare_interceptable_payment(target_node)
+                .prepare_payment_with_route_hint(peer_id)
         }
     })
     .await
     .expect("task to complete")
-    .map_err(|e| {
-        AppError::InternalServerError(format!("Could not prepare interceptable payment: {e:#}"))
-    })?;
+    .map_err(|e| AppError::InternalServerError(format!("Could not prepare payment: {e:#}")))?;
 
     Ok(Json(route_hint_hop.into()))
 }
@@ -344,10 +402,19 @@ pub async fn post_register(
 pub async fn get_lsp_channel_config(
     State(state): State<Arc<AppState>>,
 ) -> Result<Json<LspConfig>, AppError> {
+    let mut conn = state
+        .pool
+        .get()
+        .map_err(|e| AppError::InternalServerError(format!("Could not get connection: {e:#}")))?;
+
+    let liquidity_options = db::liquidity_options::get_all(&mut conn).map_err(|e| {
+        AppError::InternalServerError(format!("Failed to get all liquidity options: {e:#}"))
+    })?;
+
     let settings = state.settings.read().await;
     Ok(Json(LspConfig {
-        max_channel_value_satoshi: settings.ln_dlc.max_app_channel_size_sats,
         contract_tx_fee_rate: settings.contract_tx_fee_rate,
+        liquidity_options,
     }))
 }
 

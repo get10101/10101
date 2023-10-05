@@ -1,5 +1,7 @@
+use crate::channel::UserChannelId;
 use crate::config::HTLC_INTERCEPTED_CONNECTION_TIMEOUT;
 use crate::node::InMemoryStore;
+use crate::node::LiquidityRequest;
 use crate::node::LnDlcNodeSettings;
 use crate::node::Node;
 use crate::tests::init_tracing;
@@ -28,12 +30,20 @@ async fn fail_intercepted_htlc_if_coordinator_cannot_reconnect_to_payee() {
     let invoice_amount = 10_000;
     setup_coordinator_payer_channel(invoice_amount, &coordinator, &payer).await;
 
+    let liquidity_request = LiquidityRequest {
+        user_channel_id: UserChannelId::new(),
+        liquidity_option_id: 1,
+        trader_id: payee.info.pubkey,
+        trade_up_to_sats: 100_000,
+        max_deposit_sats: 100_000,
+        coordinator_leverage: 1.0,
+    };
     let interceptable_route_hint_hop = coordinator
-        .prepare_interceptable_payment(payee.info.pubkey)
+        .prepare_onboarding_payment(liquidity_request)
         .unwrap();
 
     let invoice = payee
-        .create_interceptable_invoice(
+        .create_invoice_with_route_hint(
             Some(invoice_amount),
             None,
             "interceptable-invoice".to_string(),
@@ -93,12 +103,20 @@ async fn fail_intercepted_htlc_if_connection_lost_after_funding_tx_generated() {
     let invoice_amount = 10_000;
     setup_coordinator_payer_channel(invoice_amount, &coordinator, &payer).await;
 
+    let liquidity_request = LiquidityRequest {
+        user_channel_id: UserChannelId::new(),
+        liquidity_option_id: 1,
+        trader_id: payee.info.pubkey,
+        trade_up_to_sats: 100_000,
+        max_deposit_sats: 100_000,
+        coordinator_leverage: 1.0,
+    };
     let interceptable_route_hint_hop = coordinator
-        .prepare_interceptable_payment(payee.info.pubkey)
+        .prepare_onboarding_payment(liquidity_request)
         .unwrap();
 
     let invoice = payee
-        .create_interceptable_invoice(
+        .create_invoice_with_route_hint(
             Some(invoice_amount),
             None,
             "interceptable-invoice".to_string(),
@@ -163,11 +181,19 @@ async fn fail_intercepted_htlc_if_coordinator_cannot_pay_to_open_jit_channel() {
     // on-chain wallet
     let invoice_amount = 10_000;
 
+    let liquidity_request = LiquidityRequest {
+        user_channel_id: UserChannelId::new(),
+        liquidity_option_id: 1,
+        trader_id: payee.info.pubkey,
+        trade_up_to_sats: 100_000,
+        max_deposit_sats: 100_000,
+        coordinator_leverage: 1.0,
+    };
     let interceptable_route_hint_hop = coordinator
-        .prepare_interceptable_payment(payee.info.pubkey)
+        .prepare_onboarding_payment(liquidity_request)
         .unwrap();
     let invoice = payee
-        .create_interceptable_invoice(
+        .create_invoice_with_route_hint(
             Some(invoice_amount),
             None,
             "interceptable-invoice".to_string(),

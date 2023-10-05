@@ -11,6 +11,7 @@ diesel::table! {
         counterparty_pubkey -> Text,
         created_at -> BigInt,
         updated_at -> BigInt,
+        liquidity_option_id -> Nullable<Integer>,
     }
 }
 

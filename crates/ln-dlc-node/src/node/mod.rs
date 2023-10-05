@@ -1,3 +1,5 @@
+pub use self::dlc_manager::DlcManager;
+use crate::channel::UserChannelId;
 use crate::disk;
 use crate::dlc_custom_signer::CustomKeysManager;
 use crate::fee_rate_estimator::FeeRateEstimator;
@@ -5,6 +7,7 @@ use crate::ln::manage_spendable_outputs;
 use crate::ln::TracingLogger;
 use crate::ln_dlc_wallet::LnDlcWallet;
 use crate::node::dlc_channel::sub_channel_manager_periodic_check;
+pub use crate::node::oracle::OracleInfo;
 use crate::node::peer_manager::alias_as_bytes;
 use crate::node::peer_manager::broadcast_node_announcement;
 use crate::on_chain_wallet::OnChainWallet;
@@ -14,15 +17,20 @@ use crate::ChainMonitor;
 use crate::EventHandlerTrait;
 use crate::NetworkGraph;
 use crate::PeerManager;
+pub use ::dlc_manager as rust_dlc_manager;
 use anyhow::Context;
 use anyhow::Result;
 use bitcoin::hashes::hex::ToHex;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::Network;
+pub use channel_manager::ChannelManager;
+pub use dlc_channel::dlc_message_name;
+pub use dlc_channel::sub_channel_message_name;
 use dlc_messages::message_handler::MessageHandler as DlcMessageHandler;
 use dlc_sled_storage_provider::SledStorageProvider;
 use futures::future::RemoteHandle;
 use futures::FutureExt;
+pub use invoice::HTLCStatus;
 use lightning::chain::chainmonitor;
 use lightning::chain::keysinterface::EntropySource;
 use lightning::chain::keysinterface::KeysManager;
@@ -54,8 +62,12 @@ use std::sync::Mutex;
 use std::time::Duration;
 use std::time::Instant;
 use std::time::SystemTime;
+pub use storage::InMemoryStore;
+pub use storage::Storage;
+pub use sub_channel_manager::SubChannelManager;
 use tokio::sync::RwLock;
 use tokio::task::spawn_blocking;
+pub use wallet::PaymentDetails;
 
 mod channel_manager;
 mod connection;
@@ -70,18 +82,6 @@ pub(crate) mod dlc_channel;
 pub(crate) mod invoice;
 
 pub mod peer_manager;
-
-pub use self::dlc_manager::DlcManager;
-pub use crate::node::oracle::OracleInfo;
-pub use ::dlc_manager as rust_dlc_manager;
-pub use channel_manager::ChannelManager;
-pub use dlc_channel::dlc_message_name;
-pub use dlc_channel::sub_channel_message_name;
-pub use invoice::HTLCStatus;
-pub use storage::InMemoryStore;
-pub use storage::Storage;
-pub use sub_channel_manager::SubChannelManager;
-pub use wallet::PaymentDetails;
 
 /// The interval at which the [`lightning::ln::msgs::NodeAnnouncement`] is broadcast.
 ///
@@ -99,7 +99,18 @@ type NodeGossipSync =
 type NodeEsploraClient = EsploraSyncClient<Arc<TracingLogger>>;
 
 type RequestedScid = u64;
-type FakeChannelPaymentRequests = Arc<parking_lot::Mutex<HashMap<RequestedScid, PublicKey>>>;
+// TODO(holzeis): Move to coordinator
+type FakeChannelPaymentRequests = Arc<parking_lot::Mutex<HashMap<RequestedScid, LiquidityRequest>>>;
+
+#[derive(Clone, Debug)]
+pub struct LiquidityRequest {
+    pub user_channel_id: UserChannelId,
+    pub liquidity_option_id: i32,
+    pub trader_id: PublicKey,
+    pub trade_up_to_sats: u64,
+    pub max_deposit_sats: u64,
+    pub coordinator_leverage: f32,
+}
 
 /// An LN-DLC node.
 pub struct Node<S> {
@@ -184,16 +195,6 @@ pub struct LnDlcNodeSettings {
     /// Note: This constant and value was copied from ldk_node
     /// XXX: Requires restart of the node to take effect
     pub bdk_client_concurrency: u8,
-
-    /// When handling the [`Event::HTLCIntercepted`], we may need to
-    /// create a new channel with the recipient of the HTLC. If the
-    /// payment is small enough (< 1000 sats), opening the channel will
-    /// fail unless we provide more outbound liquidity.
-    ///
-    /// This value defines the maximum channel amount between the coordinator and a user that opens
-    /// a channel through an interceptable invoice. Channels that exceed this amount will be
-    /// rejected.
-    pub max_app_channel_size_sats: u64,
 }
 
 impl Default for LnDlcNodeSettings {
@@ -208,8 +209,6 @@ impl Default for LnDlcNodeSettings {
             shadow_sync_interval: Duration::from_secs(600),
             bdk_client_stop_gap: 20,
             bdk_client_concurrency: 4,
-            // 200_000 is an arbitrary number we are feeling comfortable with
-            max_app_channel_size_sats: 200_000,
         }
     }
 }

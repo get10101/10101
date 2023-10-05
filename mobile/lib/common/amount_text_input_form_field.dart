@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:get_10101/common/application/numeric_text_formatter.dart';
 
 import 'domain/model.dart';
 import 'modal_bottom_sheet_info.dart';
@@ -33,7 +34,7 @@ class AmountInputField extends StatefulWidget {
 class _AmountInputFieldState extends State<AmountInputField> {
   @override
   Widget build(BuildContext context) {
-    String value = widget.value.sats.toString();
+    String value = widget.value.formatted();
 
     if (value.endsWith(".0")) {
       value = value.replaceAll(".0", "");
@@ -56,13 +57,18 @@ class _AmountInputFieldState extends State<AmountInputField> {
         border: const OutlineInputBorder(),
         hintText: widget.hint,
         labelText: widget.label,
+        filled: true,
+        fillColor: Colors.white,
         suffixIcon: widget.isLoading
             ? const CircularProgressIndicator()
             : widget.infoText != null
-                ? ModalBottomSheetInfo(closeButtonText: "Back...", child: Text(widget.infoText!))
+                ? ModalBottomSheetInfo(closeButtonText: "Back", child: Text(widget.infoText!))
                 : null,
       ),
-      inputFormatters: <TextInputFormatter>[FilteringTextInputFormatter.digitsOnly],
+      inputFormatters: <TextInputFormatter>[
+        FilteringTextInputFormatter.digitsOnly,
+        NumericTextFormatter()
+      ],
       onChanged: (value) => widget.onChanged(value),
       validator: (value) {
         if (widget.validator != null) {

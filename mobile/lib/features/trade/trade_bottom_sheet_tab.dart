@@ -1,11 +1,13 @@
 import 'dart:async';
 import 'dart:math';
 
+import 'package:f_logs/f_logs.dart';
 import 'package:flutter/material.dart';
 import 'package:get_10101/common/amount_text.dart';
 import 'package:get_10101/common/amount_text_input_form_field.dart';
 import 'package:get_10101/common/application/channel_info_service.dart';
 import 'package:get_10101/common/domain/channel.dart';
+import 'package:get_10101/common/domain/liquidity_option.dart';
 import 'package:get_10101/common/domain/model.dart';
 import 'package:get_10101/common/double_text_input_form_field.dart';
 import 'package:get_10101/common/fiat_text.dart';
@@ -53,17 +55,28 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
     super.initState();
   }
 
-  Future<(ChannelInfo?, Amount, Amount)> _getChannelInfo(
+  Future<(ChannelInfo?, Amount, Amount, double)> _getChannelInfo(
       ChannelInfoService channelInfoService) async {
     var channelInfo = await channelInfoService.getChannelInfo();
 
-    /// The max channel capacity as received by the LSP or if there is an existing channel
-    var lspMaxChannelCapacity = await channelInfoService.getMaxCapacity();
+    // fetching also inactive liquidity options as the user might use a liquidity option that isn't active anymore.
+    final options = await channelInfoService.getLiquidityOptions(false);
 
+    /// The max channel capacity of the existing channel. 0 if no channel exists.
+    var lspMaxChannelCapacity = await channelInfoService.getMaxCapacity();
     var tradeReserve = await channelInfoService.getTradeFeeReserve();
 
-    var completer = Completer<(ChannelInfo?, Amount, Amount)>();
-    completer.complete((channelInfo, lspMaxChannelCapacity, tradeReserve));
+    var completer = Completer<(ChannelInfo?, Amount, Amount, double)>();
+
+    if (channelInfo?.liquidityOptionId != null) {
+      final liquidityOption = options.singleWhere(
+          (LiquidityOption option) => option.liquidityOptionId == channelInfo?.liquidityOptionId);
+      completer.complete(
+          (channelInfo, lspMaxChannelCapacity, tradeReserve, liquidityOption.coordinatorLeverage));
+    } else {
+      // channels created before 1.3.1 do not have a liquidity option, hence we use the default value.
+      completer.complete((channelInfo, lspMaxChannelCapacity, tradeReserve, 1.0));
+    }
 
     return completer.future;
   }
@@ -94,15 +107,16 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
         crossAxisAlignment: CrossAxisAlignment.center,
         mainAxisSize: MainAxisSize.min,
         children: [
-          FutureBuilder<(ChannelInfo?, Amount, Amount)>(
+          FutureBuilder<(ChannelInfo?, Amount, Amount, double)>(
             future:
                 _getChannelInfo(channelInfoService), // a previously-obtained Future<String> or null
-            builder:
-                (BuildContext context, AsyncSnapshot<(ChannelInfo?, Amount, Amount)> snapshot) {
+            builder: (BuildContext context,
+                AsyncSnapshot<(ChannelInfo?, Amount, Amount, double)> snapshot) {
               List<Widget> children;
 
               if (snapshot.hasData) {
-                var (channelInfo, lspMaxChannelCapacity, tradeFeeReserve) = snapshot.data!;
+                var (channelInfo, lspMaxChannelCapacity, tradeFeeReserve, coordinatorLeverage) =
+                    snapshot.data!;
                 Amount minTradeMargin = channelInfoService.getMinTradeMargin();
 
                 Amount channelCapacity = lspMaxChannelCapacity;
@@ -122,10 +136,7 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
                 // the trading capacity does not take into account if the channel is balanced or not
                 int tradingCapacity = channelCapacity.sats -
                     totalReserve -
-                    (provider.counterpartyMargin(widget.direction) ?? 0);
-
-                int coordinatorLiquidityMultiplier =
-                    channelInfoService.getCoordinatorLiquidityMultiplier();
+                    (provider.counterpartyMargin(widget.direction, coordinatorLeverage) ?? 0);
 
                 children = <Widget>[
                   buildChildren(
@@ -139,7 +150,7 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
                       maxMargin,
                       minTradeMargin,
                       channelCapacity,
-                      coordinatorLiquidityMultiplier,
+                      coordinatorLeverage,
                       context,
                       channelInfoService),
                 ];
@@ -231,7 +242,7 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
       int maxMargin,
       Amount minTradeMargin,
       Amount channelCapacity,
-      int coordinatorLiquidityMultiplier,
+      double coordinatorLeverage,
       BuildContext context,
       ChannelInfoService channelInfoService) {
     return Wrap(
@@ -308,7 +319,7 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
                 builder: (context, margin, child) {
                   return AmountInputField(
                     value: margin,
-                    hint: "e.g. 2000 sats",
+                    hint: "e.g. ${Amount(100000)}",
                     label: "Margin (sats)",
                     controller: marginController,
                     isLoading: false,
@@ -318,9 +329,10 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
                       }
 
                       try {
-                        Amount margin = Amount.parse(value);
+                        Amount margin = Amount.parseAmount(value);
                         context.read<TradeValuesChangeNotifier>().updateMargin(direction, margin);
-                      } on Exception {
+                      } catch (error) {
+                        FLog.error(text: "Error: $error");
                         context
                             .read<TradeValuesChangeNotifier>()
                             .updateMargin(direction, Amount.zero());
@@ -331,42 +343,39 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
                         return "Enter margin";
                       }
 
-                      try {
-                        int margin = int.parse(value);
+                      Amount margin = Amount.parseAmount(value);
 
-                        int? optCounterPartyMargin = provider.counterpartyMargin(direction);
-                        if (optCounterPartyMargin == null) {
-                          return "Counterparty margin not available";
-                        }
-                        int counterpartyMargin = optCounterPartyMargin;
+                      int? optCounterPartyMargin =
+                          provider.counterpartyMargin(direction, coordinatorLeverage);
+                      if (optCounterPartyMargin == null) {
+                        return "Counterparty margin not available";
+                      }
+                      int counterpartyMargin = optCounterPartyMargin;
 
-                        // This condition has to stay as the first thing to check, so we reset showing the info
-                        if (margin > tradingCapacity ||
-                            counterpartyMargin > counterpartyUsableBalance) {
-                          setState(() {
-                            showCapacityInfo = true;
-                          });
+                      // This condition has to stay as the first thing to check, so we reset showing the info
+                      if (margin.sats > tradingCapacity ||
+                          counterpartyMargin > counterpartyUsableBalance) {
+                        setState(() {
+                          showCapacityInfo = true;
+                        });
 
-                          return "Insufficient capacity";
-                        } else if (showCapacityInfo) {
-                          setState(() {
-                            showCapacityInfo = false;
-                          });
-                        }
+                        return "Insufficient capacity";
+                      } else if (showCapacityInfo) {
+                        setState(() {
+                          showCapacityInfo = false;
+                        });
+                      }
 
-                        Amount fee = provider.orderMatchingFee(direction) ?? Amount.zero();
-                        if (usableBalance < margin + fee.sats) {
-                          return "Insufficient balance";
-                        }
+                      Amount fee = provider.orderMatchingFee(direction) ?? Amount.zero();
+                      if (usableBalance < margin.sats + fee.sats) {
+                        return "Insufficient balance";
+                      }
 
-                        if (margin > maxMargin) {
-                          return "Max margin is $maxMargin";
-                        }
-                        if (margin < minTradeMargin.sats) {
-                          return "Min margin is ${minTradeMargin.sats}";
-                        }
-                      } on Exception {
-                        return "Enter a number";
+                      if (margin.sats > maxMargin) {
+                        return "Max margin is $maxMargin";
+                      }
+                      if (margin.sats < minTradeMargin.sats) {
+                        return "Min margin is ${minTradeMargin.sats}";
                       }
 
                       return null;
@@ -381,8 +390,7 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
                   child: Text(
                       "Your channel capacity is limited to $channelCapacity sats. During the beta channel resize is not available yet"
                       "In order to trade with higher margin you have to reduce your balance"
-                      "\n\nYour current usable balance is $usableBalance."
-                      "Please send ${usableBalance - (channelCapacity.sats / coordinatorLiquidityMultiplier)} sats out of your wallet to free up capacity."))
+                      "\n\nYour current usable balance is $usableBalance."))
           ],
         ),
         LeverageSlider(

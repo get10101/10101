@@ -25,6 +25,7 @@ use flutter_rust_bridge::StreamSink;
 use flutter_rust_bridge::SyncReturn;
 use lightning_invoice::Invoice;
 use lightning_invoice::InvoiceDescription;
+use ln_dlc_node::channel::UserChannelId;
 use orderbook_commons::order_matching_fee_taker;
 use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::Decimal;
@@ -303,11 +304,21 @@ pub fn force_close_channel() -> Result<()> {
 /// If no channel is established with the coordinator `None` is returned.
 pub fn channel_info() -> Result<Option<ChannelInfo>> {
     let channel_details = ln_dlc::get_usable_channel_details()?.first().cloned();
-    Ok(channel_details.map(|channel_details| channel_details.into()))
-}
+    let channel_info = match channel_details {
+        Some(channel_details) => {
+            let user_channel_id = UserChannelId::from(channel_details.user_channel_id);
+            let channel = db::get_channel(&user_channel_id.to_string())?
+                .with_context(|| format!("Couldn't find channel for {user_channel_id}!"))?;
 
-pub fn coordinator_liquidity_multiplier() -> SyncReturn<u64> {
-    SyncReturn(ln_dlc_node::LIQUIDITY_MULTIPLIER)
+            Some(ChannelInfo {
+                channel_capacity: channel_details.channel_value_satoshis,
+                reserve: channel_details.unspendable_punishment_reserve,
+                liquidity_option_id: channel.liquidity_option_id,
+            })
+        }
+        None => None,
+    };
+    Ok(channel_info)
 }
 
 pub fn max_channel_value() -> Result<u64> {
@@ -318,12 +329,55 @@ pub fn contract_tx_fee_rate() -> Result<u64> {
     ln_dlc::contract_tx_fee_rate()
 }
 
-pub fn create_invoice_with_amount(amount_sats: u64) -> Result<String> {
-    Ok(ln_dlc::create_invoice(Some(amount_sats))?.to_string())
+#[derive(Debug, Clone)]
+pub struct LiquidityOption {
+    pub id: i32,
+    pub rank: usize,
+    pub title: String,
+    /// the amount the trader can trade up to
+    pub trade_up_to_sats: u64,
+    /// min deposit in sats
+    pub min_deposit_sats: u64,
+    /// max deposit in sats
+    pub max_deposit_sats: u64,
+    /// min fee in sats
+    pub min_fee_sats: u64,
+    pub fee_percentage: f64,
+    pub coordinator_leverage: f32,
+    pub active: bool,
 }
 
-pub fn create_invoice_without_amount() -> Result<String> {
-    Ok(ln_dlc::create_invoice(None)?.to_string())
+impl From<coordinator_commons::LiquidityOption> for LiquidityOption {
+    fn from(value: coordinator_commons::LiquidityOption) -> Self {
+        LiquidityOption {
+            id: value.id,
+            rank: value.rank,
+            title: value.title,
+            trade_up_to_sats: value.trade_up_to_sats,
+            min_deposit_sats: value.min_deposit_sats,
+            max_deposit_sats: value.max_deposit_sats,
+            min_fee_sats: value.min_fee_sats,
+            fee_percentage: value.fee_percentage,
+            coordinator_leverage: value.coordinator_leverage,
+            active: value.active,
+        }
+    }
+}
+
+pub fn liquidity_options() -> Result<Vec<LiquidityOption>> {
+    let options = ln_dlc::liquidity_options()?;
+    let mut options: Vec<LiquidityOption> =
+        options.into_iter().map(LiquidityOption::from).collect();
+    options.sort_by(|a, b| a.rank.cmp(&b.rank));
+    Ok(options)
+}
+
+pub fn create_onboarding_invoice(amount_sats: u64, liquidity_option_id: i32) -> Result<String> {
+    Ok(ln_dlc::create_onboarding_invoice(amount_sats, liquidity_option_id)?.to_string())
+}
+
+pub fn create_invoice(amount_sats: Option<u64>) -> Result<String> {
+    Ok(ln_dlc::create_invoice(amount_sats)?.to_string())
 }
 
 pub fn send_payment(invoice: String) -> Result<()> {

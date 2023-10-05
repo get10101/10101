@@ -16,6 +16,7 @@ use anyhow::Context;
 use anyhow::Result;
 use base64::Engine;
 use bdk::bitcoin;
+use bitcoin::secp256k1::PublicKey;
 use diesel::connection::SimpleConnection;
 use diesel::r2d2;
 use diesel::r2d2::ConnectionManager;
@@ -427,6 +428,20 @@ pub fn get_all_non_pending_channels() -> Result<Vec<ln_dlc_node::channel::Channe
     tracing::trace!(?channels, "Got all non-pending channels");
 
     Ok(channels)
+}
+
+pub fn get_announced_channel(
+    counterparty_pubkey: PublicKey,
+) -> Result<Option<ln_dlc_node::channel::Channel>> {
+    tracing::debug!(%counterparty_pubkey, "Getting announced channel");
+
+    let mut db = connection()?;
+
+    let channel = Channel::get_announced_channel(&mut db, &counterparty_pubkey.to_string())
+        .map_err(|e| anyhow!("{e:#}"))?
+        .map(|c| c.into());
+
+    Ok(channel)
 }
 
 // Transaction

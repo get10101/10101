@@ -5,28 +5,28 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get_10101/common/application/channel_info_service.dart';
 import 'package:get_10101/common/domain/channel.dart';
+import 'package:get_10101/common/domain/model.dart';
+import 'package:get_10101/common/scrollable_safe_area.dart';
 import 'package:get_10101/common/value_data_row.dart';
 import 'package:get_10101/features/wallet/application/wallet_service.dart';
+import 'package:get_10101/features/wallet/domain/lightning_invoice.dart';
 import 'package:get_10101/features/wallet/send_payment_change_notifier.dart';
 import 'package:get_10101/features/wallet/wallet_change_notifier.dart';
 import 'package:get_10101/features/wallet/wallet_screen.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import 'package:get_10101/common/domain/model.dart';
-import 'package:get_10101/features/wallet/domain/lightning_invoice.dart';
-import 'package:get_10101/common/scrollable_safe_area.dart';
 
-class SendScreen extends StatefulWidget {
+class SendPaymentScreen extends StatefulWidget {
   static const route = "${WalletScreen.route}/$subRouteName";
   static const subRouteName = "send";
 
-  const SendScreen({super.key});
+  const SendPaymentScreen({super.key});
 
   @override
-  State<SendScreen> createState() => _SendScreenState();
+  State<SendPaymentScreen> createState() => _SendPaymentScreenState();
 }
 
-class _SendScreenState extends State<SendScreen> {
+class _SendPaymentScreenState extends State<SendPaymentScreen> {
   final TextEditingController _textEditingController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   LightningInvoice? _lightningInvoice;

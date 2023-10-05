@@ -1,5 +1,6 @@
 use crate::commons::reqwest_client;
 use crate::config;
+use crate::db;
 use crate::event::subscriber::Subscriber;
 use crate::event::EventInternal;
 use crate::event::EventType;
@@ -8,13 +9,14 @@ use anyhow::anyhow;
 use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
-use bitcoin::Txid;
+use ln_dlc_node::channel::ChannelState;
+use ln_dlc_node::channel::UserChannelId;
 use ln_dlc_node::node::rust_dlc_manager::subchannel::LNChannelManager;
 use ln_dlc_node::node::rust_dlc_manager::ChannelId;
 use ln_dlc_node::node::ChannelManager;
 use parking_lot::Mutex;
-use serde::Deserialize;
-use serde::Serialize;
+use rust_decimal::prelude::ToPrimitive;
+use rust_decimal::Decimal;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::runtime::Handle;
@@ -23,142 +25,156 @@ const WAIT_FOR_OUTBOUND_CAPACITY_TIMEOUT: Duration = Duration::from_secs(60);
 
 #[derive(Clone)]
 pub struct ChannelFeePaymentSubscriber {
-    open_channel_info: Arc<Mutex<Option<(ChannelId, EsploraTransaction)>>>,
+    open_fee_amount: Arc<Mutex<Option<Decimal>>>,
     channel_manager: Arc<ChannelManager>,
-}
-
-#[derive(Deserialize, Serialize, Debug, Clone)]
-struct EsploraTransaction {
-    txid: String,
-    fee: u32,
 }
 
 impl Subscriber for ChannelFeePaymentSubscriber {
     fn notify(&self, event: &EventInternal) {
-        let result = match event {
-            EventInternal::ChannelReady(channel_id) => self.register_channel_open_info(channel_id),
-            EventInternal::PaymentClaimed(amount_msats) => {
-                self.pay_funding_transaction_fees(*amount_msats)
+        if let EventInternal::PaymentClaimed(amount_msats) = event {
+            if let Err(e) = self.pay_jit_channel_open_fee(*amount_msats) {
+                tracing::error!("{e:#}");
             }
-            _ => Ok(()),
-        };
-
-        if let Err(e) = result {
-            tracing::error!("{e:#}");
         }
     }
 
     fn events(&self) -> Vec<EventType> {
-        vec![EventType::ChannelReady, EventType::PaymentClaimed]
+        vec![EventType::PaymentClaimed]
     }
 }
 
+/// This subscriber tries to pay the channel opening fees through a regular lightning payment.
+///
+/// TODO(holzeis): This shouldn't be required once we implement a proper LSP flow for opening an
+/// inbound channel to the user.
 impl ChannelFeePaymentSubscriber {
     pub fn new(channel_manager: Arc<ChannelManager>) -> Self {
         Self {
-            open_channel_info: Arc::new(Mutex::new(None)),
+            open_fee_amount: Arc::new(Mutex::new(None)),
             channel_manager,
         }
     }
 
-    /// Attempts to pay the transaction fees for opening an inbound channel.
-    fn pay_funding_transaction_fees(&self, amount_msats: u64) -> Result<()> {
-        let (channel_id, transaction) = match self.get_open_channel_info() {
-            Some((channel_id, transaction)) => (channel_id, transaction),
-            None => {
-                tracing::debug!("No pending funding transaction found!");
-                return Ok(());
-            }
-        };
-
-        let funding_tx_fees_msats = (transaction.fee * 1000) as u64;
-
-        tokio::task::block_in_place(|| {
-            tracing::debug!(
+    /// Attempts to pay the fees for opening an inbound channel.
+    fn pay_jit_channel_open_fee(&self, amount_msats: u64) -> Result<()> {
+        let channels = self.channel_manager.list_channels();
+        // Assuming the user ever only has one channel. Needs to be changed when we are supporting
+        // multiple open channels at the same time.
+        let channel_details = channels.first();
+        if channels.len() > 1 {
+            let channel_id = channel_details
+                .expect("expect channel detail to be some")
+                .channel_id;
+            tracing::warn!(
                 channel_id = hex::encode(channel_id),
-                funding_tx_fees_msats,
-                "Waiting for outbound capacity on channel to pay jit channel opening fee.",
+                "Found more than one channel! Using the first one"
             );
-            Handle::current().block_on(async {
-                self.wait_for_outbound_capacity(channel_id, funding_tx_fees_msats)
-                    .await?;
-                // We add another sleep to ensure that the channel has actually been updated after
-                // receiving the payment. Note, this is by no means ideal and should
-                // be revisited some other time.
-                tokio::time::sleep(Duration::from_millis(500)).await;
-                anyhow::Ok(())
-            })
-        })
-        .context("Failed during wait for outbound capacity")?;
-
-        tracing::debug!(
-            "Trying to pay channel opening fees of {} sats",
-            transaction.fee
-        );
-        let funding_txid = transaction.txid;
-
-        if funding_tx_fees_msats > amount_msats {
-            tracing::warn!("Trying to pay fees with an amount smaller than the fees!")
         }
 
-        let invoice_str = tokio::task::block_in_place(|| {
-            Handle::current().block_on(fetch_funding_transaction_fee_invoice(
-                transaction.fee,
-                funding_txid,
-            ))
-        })?;
+        match channel_details {
+            Some(channel_details) => {
+                let user_channel_id = UserChannelId::from(channel_details.user_channel_id);
+                let mut channel =
+                    db::get_channel(&user_channel_id.to_string())?.with_context(|| {
+                        format!("Couldn't find channel by user_channel_id {user_channel_id}")
+                    })?;
 
-        match ln_dlc::send_payment(&invoice_str) {
-            Ok(_) => {
-                // unset the funding transaction marking it as being paid.
-                self.unset_open_channel_info();
-                tracing::info!("Successfully triggered funding transaction fees payment of {funding_tx_fees_msats} msats to {}", config::get_coordinator_info().pubkey);
-            }
-            Err(e) => {
-                tracing::error!("Failed to pay funding transaction fees of {funding_tx_fees_msats} msats to {}. Error: {e:#}", config::get_coordinator_info().pubkey);
-            }
-        };
-
-        Ok(())
-    }
-
-    /// Register jit channel opening transaction for fee payment
-    fn register_channel_open_info(&self, channel_id: &ChannelId) -> Result<()> {
-        let channel_id_as_str = hex::encode(channel_id);
-        tracing::debug!("Received new inbound channel with id {channel_id_as_str}");
-
-        let txid = ln_dlc::get_funding_transaction(channel_id)?;
-
-        let transaction: EsploraTransaction = tokio::task::block_in_place(
-            || match Handle::current().block_on(fetch_funding_transaction(txid)) {
-                Ok(tx) => Ok(tx),
-                Err(err) => {
-                    tracing::warn!(
-                            tx_id = txid.to_string(),
-                            "Could not fetch opening transaction due to {err:#}, retrying after a short sleep."
-                        );
-                    Handle::current().block_on(async {
-                        tokio::time::sleep(Duration::from_secs(1)).await;
-                        fetch_funding_transaction(txid).await
-                    })
+                if channel.channel_state != ChannelState::OpenUnpaid {
+                    tracing::debug!("Channel inbound fees have already been paid. Skipping.");
+                    return Ok(());
                 }
-            },
-        )?;
-        tracing::debug!("Successfully fetched transaction fees of {} for new inbound channel with id {channel_id_as_str}", transaction.fee);
-        self.set_open_channel_info(channel_id, transaction);
+
+                let liquidity_option_id = match channel.liquidity_option_id {
+                    Some(liquidity_option_id) => liquidity_option_id,
+                    None => {
+                        tracing::warn!("Couldn't find liquidity option. Not charging for the inbound channel creation.");
+                        return Ok(());
+                    }
+                };
+
+                let liquidity_options = tokio::task::block_in_place(ln_dlc::liquidity_options)?;
+                let liquidity_option = liquidity_options
+                    .iter()
+                    .find(|l| l.id == liquidity_option_id)
+                    .with_context(|| {
+                        format!("Couldn't find liquidity option for id {liquidity_option_id}")
+                    })?;
+
+                let amount = Decimal::from(amount_msats) / Decimal::from(1000);
+                let fee = match self.get_open_fee_amount() {
+                    Some(fee) => fee,
+                    None => {
+                        let fee = liquidity_option.get_fee(amount);
+                        self.set_open_fee_amount(fee);
+                        fee
+                    }
+                };
+
+                let fee_msats = fee.to_u64().expect("to fit into u64") * 1000;
+                let channel_id = channel_details.channel_id;
+                tokio::task::block_in_place(|| {
+                    tracing::debug!(
+                        %user_channel_id,
+                        channel_id = hex::encode(channel_id),
+                        fee_msats,
+                        "Waiting for outbound capacity on channel to pay jit channel opening fee.",
+                    );
+                    Handle::current().block_on(async {
+                        self.wait_for_outbound_capacity(channel_id, fee_msats)
+                            .await?;
+                        // We add another sleep to ensure that the channel has actually been updated
+                        // after receiving the payment. Note, this is by no
+                        // means ideal and should be revisited some other
+                        // time.
+                        tokio::time::sleep(Duration::from_millis(500)).await;
+                        anyhow::Ok(())
+                    })
+                })
+                .context("Failed during wait for outbound capacity")?;
+
+                tracing::debug!("Trying to pay channel opening fees of {fee} sats");
+                let funding_txid = channel.funding_txid.with_context(|| format!("Funding transaction id for user_channel_id {user_channel_id} should be set after the ChannelReady event."))?;
+
+                if fee > amount {
+                    tracing::warn!("Trying to pay fees with an amount smaller than the fees!")
+                }
+
+                let invoice_str = tokio::task::block_in_place(|| {
+                    Handle::current().block_on(fetch_fee_invoice(
+                        fee.to_u32().expect("to fit into u32"),
+                        funding_txid.to_string(),
+                    ))
+                })?;
+
+                match ln_dlc::send_payment(&invoice_str) {
+                    Ok(_) => {
+                        // unset the open fee amount as the payment has been initiated.
+                        self.unset_open_fee_amount();
+                        channel.channel_state = ChannelState::Open;
+                        db::upsert_channel(channel)?;
+                        tracing::info!("Successfully triggered inbound channel fees payment of {fee} sats to {}", config::get_coordinator_info().pubkey);
+                    }
+                    Err(e) => {
+                        tracing::error!("Failed to pay funding transaction fees of {fee} sats to {}. Error: {e:#}", config::get_coordinator_info().pubkey);
+                    }
+                };
+            }
+            None => tracing::warn!("Received a payment, but did not have any channel details"),
+        }
+
         Ok(())
     }
 
-    fn set_open_channel_info(&self, channel_id: &ChannelId, transaction: EsploraTransaction) {
-        *self.open_channel_info.lock() = Some((*channel_id, transaction));
+    fn set_open_fee_amount(&self, fee: Decimal) {
+        *self.open_fee_amount.lock() = Some(fee);
     }
 
-    fn unset_open_channel_info(&self) {
-        *self.open_channel_info.lock() = None;
+    fn unset_open_fee_amount(&self) {
+        *self.open_fee_amount.lock() = None;
     }
 
-    fn get_open_channel_info(&self) -> Option<(ChannelId, EsploraTransaction)> {
-        self.open_channel_info.lock().clone()
+    fn get_open_fee_amount(&self) -> Option<Decimal> {
+        *self.open_fee_amount.lock()
     }
 
     async fn wait_for_outbound_capacity(
@@ -196,20 +212,7 @@ impl ChannelFeePaymentSubscriber {
     }
 }
 
-async fn fetch_funding_transaction(txid: Txid) -> Result<EsploraTransaction> {
-    reqwest_client()
-        .get(format!("{}/tx/{txid}", config::get_esplora_endpoint()))
-        .send()
-        .await?
-        .json()
-        .await
-        .map_err(|e| anyhow!("Failed to fetch transaction: {txid} from esplora. Error: {e:?}"))
-}
-
-async fn fetch_funding_transaction_fee_invoice(
-    funding_tx_fee: u32,
-    funding_txid: String,
-) -> Result<String> {
+async fn fetch_fee_invoice(funding_tx_fee: u32, funding_txid: String) -> Result<String> {
     reqwest_client()
         .get(format!(
             "http://{}/api/invoice/open_channel_fee?amount={}&channel_funding_txid={}",

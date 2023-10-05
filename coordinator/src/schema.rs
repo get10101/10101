@@ -49,15 +49,32 @@ diesel::table! {
     channels (user_channel_id) {
         user_channel_id -> Text,
         channel_id -> Nullable<Text>,
-        inbound -> Int8,
-        outbound -> Int8,
+        inbound_sats -> Int8,
+        outbound_sats -> Int8,
         funding_txid -> Nullable<Text>,
         channel_state -> ChannelStateType,
         counterparty_pubkey -> Text,
         created_at -> Timestamptz,
         updated_at -> Timestamptz,
         open_channel_fee_payment_hash -> Nullable<Text>,
-        fake_scid -> Nullable<Text>,
+        liquidity_option_id -> Nullable<Int4>,
+    }
+}
+
+diesel::table! {
+    liquidity_options (id) {
+        id -> Int4,
+        rank -> Int2,
+        title -> Text,
+        trade_up_to_sats -> Int8,
+        min_deposit_sats -> Int8,
+        max_deposit_sats -> Int8,
+        min_fee_sats -> Nullable<Int8>,
+        fee_percentage -> Float8,
+        coordinator_leverage -> Float4,
+        active -> Bool,
+        created_at -> Timestamptz,
+        updated_at -> Timestamptz,
     }
 }
 
@@ -150,6 +167,7 @@ diesel::table! {
         realized_pnl_sat -> Nullable<Int8>,
         unrealized_pnl_sat -> Nullable<Int8>,
         closing_price -> Nullable<Float4>,
+        coordinator_leverage -> Float4,
     }
 }
 
@@ -217,6 +235,7 @@ diesel::joinable!(trades -> positions (position_id));
 
 diesel::allow_tables_to_appear_in_same_query!(
     channels,
+    liquidity_options,
     matches,
     orders,
     payments,

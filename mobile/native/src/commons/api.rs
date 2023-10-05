@@ -1,5 +1,4 @@
 use flutter_rust_bridge::frb;
-use lightning::ln::channelmanager::ChannelDetails;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 
@@ -32,13 +31,5 @@ pub struct ChannelInfo {
     /// The total capacity of the channel as defined by the funding output
     pub channel_capacity: u64,
     pub reserve: Option<u64>,
-}
-
-impl From<ChannelDetails> for ChannelInfo {
-    fn from(value: ChannelDetails) -> Self {
-        ChannelInfo {
-            channel_capacity: value.channel_value_satoshis,
-            reserve: value.unspendable_punishment_reserve,
-        }
-    }
+    pub liquidity_option_id: Option<i32>,
 }

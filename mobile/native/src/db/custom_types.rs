@@ -251,6 +251,7 @@ impl ToSql<Text, Sqlite> for ChannelState {
     fn to_sql(&self, out: &mut Output<Sqlite>) -> serialize::Result {
         let text = match *self {
             ChannelState::Open => "Open",
+            ChannelState::OpenUnpaid => "OpenUnpaid",
             ChannelState::Announced => "Announced",
             ChannelState::Pending => "Pending",
             ChannelState::Closed => "Closed",
@@ -268,6 +269,7 @@ impl FromSql<Text, Sqlite> for ChannelState {
 
         return match string.as_str() {
             "Open" => Ok(ChannelState::Open),
+            "OpenUnpaid" => Ok(ChannelState::OpenUnpaid),
             "Announced" => Ok(ChannelState::Announced),
             "Pending" => Ok(ChannelState::Pending),
             "Closed" => Ok(ChannelState::Closed),

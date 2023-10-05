@@ -8,6 +8,7 @@ use crate::calculations;
 use crate::channel_fee::ChannelFeePaymentSubscriber;
 use crate::commons::reqwest_client;
 use crate::config;
+use crate::db;
 use crate::event;
 use crate::event::EventInternal;
 use crate::ln_dlc::channel_status::track_channel_status;
@@ -31,6 +32,8 @@ use bdk::BlockTime;
 use bdk::FeeRate;
 use bitcoin::hashes::hex::ToHex;
 use bitcoin::Amount;
+pub use channel_status::ChannelStatus;
+use coordinator_commons::LiquidityOption;
 use coordinator_commons::LspConfig;
 use coordinator_commons::TradeParams;
 use itertools::chain;
@@ -38,6 +41,8 @@ use itertools::Itertools;
 use lightning::ln::channelmanager::ChannelDetails;
 use lightning::util::events::Event;
 use lightning_invoice::Invoice;
+use ln_dlc_node::channel::Channel;
+use ln_dlc_node::channel::UserChannelId;
 use ln_dlc_node::channel::JIT_FEE_INVOICE_DESCRIPTION_PREFIX;
 use ln_dlc_node::config::app_config;
 use ln_dlc_node::node::rust_dlc_manager::subchannel::LNChannelManager;
@@ -46,6 +51,7 @@ use ln_dlc_node::node::rust_dlc_manager::ChannelId;
 use ln_dlc_node::node::rust_dlc_manager::Storage as DlcStorage;
 use ln_dlc_node::node::LnDlcNodeSettings;
 use ln_dlc_node::node::NodeInfo;
+use ln_dlc_node::node::Storage as LnDlcNodeStorage;
 use ln_dlc_node::scorer;
 use ln_dlc_node::seed::Bip39Seed;
 use ln_dlc_node::util;
@@ -58,6 +64,8 @@ use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::prelude::Signed;
 use rust_decimal::Decimal;
 use rust_decimal::RoundingStrategy;
+use serde::Deserialize;
+use serde::Serialize;
 use state::Storage;
 use std::net::IpAddr;
 use std::net::Ipv4Addr;
@@ -77,8 +85,6 @@ mod node;
 mod sync_position_to_dlc;
 
 pub mod channel_status;
-
-pub use channel_status::ChannelStatus;
 
 const PROCESS_INCOMING_DLC_MESSAGES_INTERVAL: Duration = Duration::from_millis(200);
 const UPDATE_WALLET_HISTORY_INTERVAL: Duration = Duration::from_secs(5);
@@ -665,10 +671,9 @@ pub fn get_fee_rate() -> Result<FeeRate> {
     Ok(node.inner.wallet().get_fee_rate(CONFIRMATION_TARGET))
 }
 
-/// Returns currently possible max channel value.
+/// Returns channel value or zero if there is no channel yet.
 ///
-/// This is to be used when requesting a new channel from the LSP or when checking max tradable
-/// amount
+/// This is used when checking max tradeable amount
 pub fn max_channel_value() -> Result<Amount> {
     let node = NODE.try_get().context("failed to get ln dlc node")?;
     if let Some(existing_channel) = node
@@ -679,16 +684,13 @@ pub fn max_channel_value() -> Result<Amount> {
     {
         Ok(Amount::from_sat(existing_channel))
     } else {
-        let lsp_config = poll_lsp_config()?;
-        tracing::info!(
-            channel_value_sats = lsp_config.max_channel_value_satoshi,
-            "Received channel config from LSP"
-        );
-        Ok(Amount::from_sat(lsp_config.max_channel_value_satoshi))
+        Ok(Amount::ZERO)
     }
 }
 
-fn poll_lsp_config() -> Result<LspConfig, Error> {
+// TODO(holzeis): We might want to consider caching the lsp config, as this shouldn't change too
+// often and even if, I guess we can live with the user having to restart to get the newest configs?
+fn fetch_lsp_config() -> Result<LspConfig, Error> {
     let runtime = get_or_create_tokio_runtime()?;
     runtime.block_on(async {
         let client = reqwest_client();
@@ -723,13 +725,93 @@ pub fn contract_tx_fee_rate() -> Result<u64> {
     {
         Ok(fee_rate_per_vb)
     } else {
-        let lsp_config = poll_lsp_config()?;
+        let lsp_config = fetch_lsp_config()?;
         tracing::info!(
-            channel_value_sats = lsp_config.contract_tx_fee_rate,
+            contract_tx_fee_rate = lsp_config.contract_tx_fee_rate,
             "Received channel config from LSP"
         );
         Ok(lsp_config.contract_tx_fee_rate)
     }
+}
+
+pub fn liquidity_options() -> Result<Vec<LiquidityOption>> {
+    let lsp_config = fetch_lsp_config()?;
+    tracing::trace!(liquidity_options=?lsp_config.liquidity_options, "Received liquidity options");
+    Ok(lsp_config.liquidity_options)
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+struct OnboardingParam {
+    user_channel_id: String,
+    liquidity_option_id: i32,
+}
+
+pub fn create_onboarding_invoice(amount_sats: u64, liquidity_option_id: i32) -> Result<Invoice> {
+    let runtime = get_or_create_tokio_runtime()?;
+
+    runtime.block_on(async {
+        let node = NODE.get();
+        let client = reqwest_client();
+
+        // check if we have already announced a channel before. If so we can reuse the `user_channel_id`
+        // instead of generating a new. This will reduce the garbarge record we create for everytime
+        // the user navigates to the invoice screen.
+        let channel = db::get_announced_channel(config::get_coordinator_info().pubkey)?;
+
+        let user_channel_id = match channel {
+            Some(channel) => channel.user_channel_id,
+            None => {
+                let user_channel_id = UserChannelId::new();
+                let channel = Channel::new_jit_channel(
+                    user_channel_id,
+                    config::get_coordinator_info().pubkey,
+                    liquidity_option_id
+                );
+                node.inner
+                    .storage
+                    .upsert_channel(channel)
+                    .with_context(|| {
+                        format!(
+                            "Failed to insert shadow JIT channel with user channel id {user_channel_id}"
+                        )
+                    })?;
+
+                user_channel_id
+            },
+        };
+
+        tracing::info!(
+            %user_channel_id,
+            "Registering interest to open JIT channel with coordinator"
+        );
+
+        let response = client
+            .post(format!(
+                "http://{}/api/prepare_onboarding_payment/{}",
+                config::get_http_endpoint(),
+                node.inner.info.pubkey
+            ))
+            .json(&OnboardingParam {
+                user_channel_id: user_channel_id.to_string(),
+                liquidity_option_id,
+            })
+            .send()
+            .await?;
+
+        if !response.status().is_success() {
+            let text = response.text().await?;
+            bail!("Failed to fetch route hint from coordinator: {text}")
+        }
+
+        let final_route_hint_hop: RouteHintHop = response.json().await?;
+
+        node.inner.create_invoice_with_route_hint(
+            Some(amount_sats),
+            None,
+            "Fund your 10101 wallet".to_string(),
+            final_route_hint_hop.into(),
+        )
+    })
 }
 
 pub fn create_invoice(amount_sats: Option<u64>) -> Result<Invoice> {
@@ -738,9 +820,10 @@ pub fn create_invoice(amount_sats: Option<u64>) -> Result<Invoice> {
     runtime.block_on(async {
         let node = NODE.get();
         let client = reqwest_client();
+
         let response = client
             .post(format!(
-                "http://{}/api/prepare_interceptable_payment/{}",
+                "http://{}/api/prepare_regular_payment/{}",
                 config::get_http_endpoint(),
                 node.inner.info.pubkey
             ))
@@ -749,21 +832,16 @@ pub fn create_invoice(amount_sats: Option<u64>) -> Result<Invoice> {
 
         if !response.status().is_success() {
             let text = response.text().await?;
-            bail!("Failed to fetch fake scid from coordinator: {text}")
+            bail!("Failed to fetch route hint from coordinator: {text}")
         }
 
         let final_route_hint_hop: RouteHintHop = response.json().await?;
         let final_route_hint_hop = final_route_hint_hop.into();
 
-        tracing::info!(
-            ?final_route_hint_hop,
-            "Registered interest to open JIT channel with coordinator"
-        );
-
-        node.inner.create_interceptable_invoice(
+        node.inner.create_invoice_with_route_hint(
             amount_sats,
             None,
-            "Fund your 10101 wallet".to_string(),
+            "".to_string(),
             final_route_hint_hop,
         )
     })

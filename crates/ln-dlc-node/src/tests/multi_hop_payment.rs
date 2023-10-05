@@ -2,6 +2,7 @@ use crate::node::InMemoryStore;
 use crate::node::Node;
 use crate::tests::calculate_routing_fee_msat;
 use crate::tests::init_tracing;
+use crate::tests::wait_for_n_usable_channels;
 use bitcoin::Amount;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
@@ -38,6 +39,10 @@ async fn multi_hop_payment() {
         .open_private_channel(&payee, 20_000, 0)
         .await
         .unwrap();
+
+    // after creating the just-in-time channel. The coordinator should have exactly 2 usable
+    // channels with short channel ids.
+    wait_for_n_usable_channels(1, &payer).await.unwrap();
 
     let payer_balance_before = payer.get_ldk_balance();
     let coordinator_balance_before = coordinator.get_ldk_balance();

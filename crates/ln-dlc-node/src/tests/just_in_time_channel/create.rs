@@ -1,7 +1,8 @@
 use crate::channel::ChannelState;
-use crate::config::LIQUIDITY_MULTIPLIER;
+use crate::channel::UserChannelId;
 use crate::fee_rate_estimator::EstimateFeeRate;
 use crate::node::InMemoryStore;
+use crate::node::LiquidityRequest;
 use crate::node::LnDlcNodeSettings;
 use crate::node::Node;
 use crate::node::Storage;
@@ -50,9 +51,8 @@ async fn open_jit_channel() {
     payer.connect(coordinator.info).await.unwrap();
     payee.connect(coordinator.info).await.unwrap();
 
-    // Test test covers opening a channel with the maximum channel value that the coordinator allows
-    // Dividing the maximum by the multiplier results in opening the maximum channel
-    let payer_to_payee_invoice_amount = settings.max_app_channel_size_sats / LIQUIDITY_MULTIPLIER;
+    // testing with a large invoice amount
+    let payer_to_payee_invoice_amount = 3_000_000;
 
     let expected_coordinator_payee_channel_value =
         setup_coordinator_payer_channel(payer_to_payee_invoice_amount, &coordinator, &payer).await;
@@ -62,7 +62,6 @@ async fn open_jit_channel() {
         &payer,
         &payee,
         &coordinator,
-        // We are testing with the maximum liquidity
         payer_to_payee_invoice_amount,
         Some(expected_coordinator_payee_channel_value),
     )
@@ -88,7 +87,7 @@ async fn open_jit_channel() {
         .get_channel(&user_channel_id)
         .unwrap()
         .unwrap();
-    assert_eq!(ChannelState::Open, channel.channel_state);
+    assert_eq!(ChannelState::OpenUnpaid, channel.channel_state);
 
     let transaction = coordinator_storage
         .get_transaction(&channel.funding_txid.unwrap().to_string())
@@ -130,11 +129,19 @@ async fn fail_to_open_jit_channel_with_fee_rate_over_max() {
 
     coordinator.wallet().update_settings(settings).await;
 
+    let liquidity_request = LiquidityRequest {
+        user_channel_id: UserChannelId::new(),
+        liquidity_option_id: 1,
+        trader_id: payee.info.pubkey,
+        trade_up_to_sats: 200_000,
+        max_deposit_sats: 200_000,
+        coordinator_leverage: 1.0,
+    };
     let final_route_hint_hop = coordinator
-        .prepare_interceptable_payment(payee.info.pubkey)
+        .prepare_onboarding_payment(liquidity_request)
         .unwrap();
     let invoice = payee
-        .create_interceptable_invoice(
+        .create_invoice_with_route_hint(
             Some(payer_to_payee_invoice_amount),
             None,
             "interceptable-invoice".to_string(),
@@ -175,11 +182,20 @@ async fn open_jit_channel_with_disconnected_payee() {
 
     // Act
 
+    let liquidity_request = LiquidityRequest {
+        user_channel_id: UserChannelId::new(),
+        liquidity_option_id: 1,
+        trader_id: payee.info.pubkey,
+        trade_up_to_sats: payer_to_payee_invoice_amount,
+        max_deposit_sats: payer_to_payee_invoice_amount,
+        coordinator_leverage: 1.0,
+    };
     let final_route_hint_hop = coordinator
-        .prepare_interceptable_payment(payee.info.pubkey)
+        .prepare_onboarding_payment(liquidity_request)
         .unwrap();
+
     let invoice = payee
-        .create_interceptable_invoice(
+        .create_invoice_with_route_hint(
             Some(payer_to_payee_invoice_amount),
             None,
             "interceptable-invoice".to_string(),
@@ -235,14 +251,103 @@ pub(crate) async fn send_interceptable_payment(
     let coordinator_balance_before = coordinator.get_ldk_balance();
     let payee_balance_before = payee.get_ldk_balance();
 
-    let interceptable_route_hint_hop =
-        coordinator.prepare_interceptable_payment(payee.info.pubkey)?;
+    let liquidity_request = LiquidityRequest {
+        user_channel_id: UserChannelId::new(),
+        liquidity_option_id: 1,
+        trader_id: payee.info.pubkey,
+        trade_up_to_sats: invoice_amount_sat,
+        max_deposit_sats: invoice_amount_sat,
+        coordinator_leverage: 1.0,
+    };
+    let interceptable_route_hint_hop = coordinator.prepare_onboarding_payment(liquidity_request)?;
 
-    let invoice = payee.create_interceptable_invoice(
+    let invoice = payee.create_invoice_with_route_hint(
         Some(invoice_amount_sat),
         None,
         "interceptable-invoice".to_string(),
         interceptable_route_hint_hop,
+    )?;
+    let invoice_amount_msat = invoice.amount_milli_satoshis().unwrap();
+
+    let routing_fee_msat = calculate_routing_fee_msat(
+        coordinator.ldk_config.read().channel_config,
+        invoice_amount_sat,
+    );
+
+    assert!(
+        does_inbound_htlc_fit_as_percent_of_channel(
+            coordinator,
+            &payer
+                .channel_manager
+                .list_channels()
+                .first()
+                .expect("payer channel should be created.")
+                .channel_id,
+            invoice_amount_sat + (routing_fee_msat / 1000)
+        )
+        .unwrap(),
+        "Invoice amount larger than maximum inbound HTLC in payer-coordinator channel"
+    );
+
+    payer.send_payment(&invoice)?;
+
+    payee
+        .wait_for_payment_claimed(invoice.payment_hash())
+        .await?;
+
+    // Assert
+
+    // Sync LN wallet after payment is claimed to update the balances
+    payer.wallet().sync()?;
+    coordinator.wallet().sync()?;
+    payee.wallet().sync()?;
+
+    let payer_balance_after = payer.get_ldk_balance();
+    let coordinator_balance_after = coordinator.get_ldk_balance();
+    let payee_balance_after = payee.get_ldk_balance();
+
+    assert_eq!(
+        payer_balance_before.available_msat() - payer_balance_after.available_msat(),
+        invoice_amount_msat + routing_fee_msat
+    );
+
+    assert_eq!(
+        coordinator_balance_after.available_msat() - coordinator_balance_before.available_msat(),
+        coordinator_just_in_time_channel_creation_outbound_liquidity.unwrap_or_default() * 1000
+            + routing_fee_msat
+    );
+
+    assert_eq!(
+        payee_balance_after.available() - payee_balance_before.available(),
+        invoice_amount_sat
+    );
+
+    Ok(())
+}
+
+/// Sends a regular payment assuming all channels on the path exist.
+pub(crate) async fn send_payment(
+    payer: &Node<InMemoryStore>,
+    payee: &Node<InMemoryStore>,
+    coordinator: &Node<InMemoryStore>,
+    invoice_amount_sat: u64,
+    coordinator_just_in_time_channel_creation_outbound_liquidity: Option<u64>,
+) -> Result<()> {
+    payer.wallet().sync()?;
+    coordinator.wallet().sync()?;
+    payee.wallet().sync()?;
+
+    let payer_balance_before = payer.get_ldk_balance();
+    let coordinator_balance_before = coordinator.get_ldk_balance();
+    let payee_balance_before = payee.get_ldk_balance();
+
+    let route_hint_hop = coordinator.prepare_payment_with_route_hint(payee.info.pubkey)?;
+
+    let invoice = payee.create_invoice_with_route_hint(
+        Some(invoice_amount_sat),
+        None,
+        "regular invoice".to_string(),
+        route_hint_hop,
     )?;
     let invoice_amount_msat = invoice.amount_milli_satoshis().unwrap();
 

@@ -1,5 +1,6 @@
 use crate::node::Node;
 use crate::tests::init_tracing;
+use crate::tests::wait_for_n_usable_channels;
 use bitcoin::Amount;
 
 #[tokio::test(flavor = "multi_thread")]
@@ -17,6 +18,10 @@ async fn single_hop_payment() {
     payer.fund(Amount::from_btc(0.1).unwrap()).await.unwrap();
 
     payer.open_private_channel(&payee, 30_000, 0).await.unwrap();
+
+    // after creating the just-in-time channel. The coordinator should have exactly 2 usable
+    // channels with short channel ids.
+    wait_for_n_usable_channels(1, &payer).await.unwrap();
 
     let payer_balance_before = payer.get_ldk_balance();
     let payee_balance_before = payee.get_ldk_balance();

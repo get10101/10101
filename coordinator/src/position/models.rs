@@ -1,4 +1,3 @@
-use crate::node::COORDINATOR_LEVERAGE;
 use anyhow::Context;
 use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
@@ -41,26 +40,30 @@ pub enum PositionState {
     Rollover,
 }
 
-/// A trader's position
-///
 /// The position acts as an aggregate of one contract of one user.
 /// The position represents the values of the trader; i.e. the leverage, collateral and direction
-/// are stored from the trader's perspective and not the coordinator's.
+/// and the coordinator leverage
 #[derive(Clone, Debug)]
 pub struct Position {
     pub id: i32,
     pub contract_symbol: ContractSymbol,
+    /// the traders leverage
     pub leverage: f32,
     pub quantity: f32,
+    /// the traders direction
     pub direction: Direction,
     pub average_entry_price: f32,
+    /// the traders liquidation price
     pub liquidation_price: f32,
     pub position_state: PositionState,
+    /// the traders collateral
     pub collateral: i64,
     pub creation_timestamp: OffsetDateTime,
     pub expiry_timestamp: OffsetDateTime,
     pub update_timestamp: OffsetDateTime,
     pub trader: PublicKey,
+    /// the coordinators leverage
+    pub coordinator_leverage: f32,
 
     /// The temporary contract id that is created when the contract is being offered
     ///
@@ -92,8 +95,8 @@ impl Position {
             .context("Failed to convert average entry price to Decimal")?;
 
         let (long_leverage, short_leverage) = match self.direction {
-            Direction::Long => (self.leverage, COORDINATOR_LEVERAGE),
-            Direction::Short => (COORDINATOR_LEVERAGE, self.leverage),
+            Direction::Long => (self.leverage, self.coordinator_leverage),
+            Direction::Short => (self.coordinator_leverage, self.leverage),
         };
 
         // the position in the database is the trader's position, our direction is opposite
@@ -115,8 +118,9 @@ impl Position {
     pub fn calculate_settlement_amount(&self, closing_price: Decimal) -> Result<u64> {
         let opening_price = Decimal::try_from(self.average_entry_price)?;
 
-        let leverage_long = leverage_long(self.direction, self.leverage);
-        let leverage_short = leverage_short(self.direction, self.leverage);
+        let leverage_long = leverage_long(self.direction, self.leverage, self.coordinator_leverage);
+        let leverage_short =
+            leverage_short(self.direction, self.leverage, self.coordinator_leverage);
 
         calculate_accept_settlement_amount(
             opening_price,
@@ -164,16 +168,20 @@ fn calculate_accept_settlement_amount(
     Ok(accept_settlement_amount)
 }
 
-pub fn leverage_long(direction: Direction, trader_leverage: f32) -> f32 {
+pub fn leverage_long(direction: Direction, trader_leverage: f32, coordinator_leverage: f32) -> f32 {
     match direction {
         Direction::Long => trader_leverage,
-        Direction::Short => COORDINATOR_LEVERAGE,
+        Direction::Short => coordinator_leverage,
     }
 }
 
-pub fn leverage_short(direction: Direction, trader_leverage: f32) -> f32 {
+pub fn leverage_short(
+    direction: Direction,
+    trader_leverage: f32,
+    coordinator_leverage: f32,
+) -> f32 {
     match direction {
-        Direction::Long => COORDINATOR_LEVERAGE,
+        Direction::Long => coordinator_leverage,
         Direction::Short => trader_leverage,
     }
 }
@@ -481,6 +489,7 @@ pub mod tests {
                 .unwrap(),
                 temporary_contract_id: None,
                 closing_price: None,
+                coordinator_leverage: 2.0,
             }
         }
 

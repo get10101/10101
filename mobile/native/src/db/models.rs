@@ -1095,6 +1095,7 @@ impl TryFrom<SpendableOutputQueryable>
 pub enum ChannelState {
     Announced,
     Pending,
+    OpenUnpaid,
     Open,
     Closed,
     ForceClosedRemote,
@@ -1113,12 +1114,24 @@ pub struct Channel {
     pub counterparty_pubkey: String,
     pub created_at: i64,
     pub updated_at: i64,
+    pub liquidity_option_id: Option<i32>,
 }
 
 impl Channel {
     pub fn get(user_channel_id: &str, conn: &mut SqliteConnection) -> QueryResult<Option<Channel>> {
         channels::table
             .filter(schema::channels::user_channel_id.eq(user_channel_id))
+            .first(conn)
+            .optional()
+    }
+
+    pub fn get_announced_channel(
+        conn: &mut SqliteConnection,
+        counterparty_pubkey: &str,
+    ) -> QueryResult<Option<Channel>> {
+        channels::table
+            .filter(schema::channels::counterparty_pubkey.eq(counterparty_pubkey))
+            .filter(schema::channels::channel_state.eq(ChannelState::Announced))
             .first(conn)
             .optional()
     }
@@ -1218,13 +1231,14 @@ impl From<ln_dlc_node::channel::Channel> for Channel {
         Channel {
             user_channel_id: value.user_channel_id.to_string(),
             channel_id: value.channel_id.map(|cid| cid.to_hex()),
-            inbound: value.inbound as i64,
-            outbound: value.outbound as i64,
+            inbound: value.inbound_sats as i64,
+            outbound: value.outbound_sats as i64,
             funding_txid: value.funding_txid.map(|txid| txid.to_string()),
             channel_state: value.channel_state.into(),
             counterparty_pubkey: value.counterparty.to_string(),
             created_at: value.created_at.unix_timestamp(),
             updated_at: value.updated_at.unix_timestamp(),
+            liquidity_option_id: value.liquidity_option_id,
         }
     }
 }
@@ -1234,6 +1248,7 @@ impl From<ln_dlc_node::channel::ChannelState> for ChannelState {
         match value {
             ln_dlc_node::channel::ChannelState::Announced => ChannelState::Announced,
             ln_dlc_node::channel::ChannelState::Pending => ChannelState::Pending,
+            ln_dlc_node::channel::ChannelState::OpenUnpaid => ChannelState::OpenUnpaid,
             ln_dlc_node::channel::ChannelState::Open => ChannelState::Open,
             ln_dlc_node::channel::ChannelState::Closed => ChannelState::Closed,
             ln_dlc_node::channel::ChannelState::ForceClosedLocal => ChannelState::ForceClosedLocal,
@@ -1252,9 +1267,9 @@ impl From<Channel> for ln_dlc_node::channel::Channel {
             channel_id: value
                 .channel_id
                 .map(|cid| ChannelId::from_hex(&cid).expect("valid channel id")),
-            fake_scid: None,
-            inbound: value.inbound as u64,
-            outbound: value.outbound as u64,
+            liquidity_option_id: value.liquidity_option_id,
+            inbound_sats: value.inbound as u64,
+            outbound_sats: value.outbound as u64,
             funding_txid: value
                 .funding_txid
                 .map(|txid| Txid::from_str(&txid).expect("valid transaction id")),
@@ -1274,6 +1289,7 @@ impl From<ChannelState> for ln_dlc_node::channel::ChannelState {
         match value {
             ChannelState::Announced => ln_dlc_node::channel::ChannelState::Announced,
             ChannelState::Pending => ln_dlc_node::channel::ChannelState::Pending,
+            ChannelState::OpenUnpaid => ln_dlc_node::channel::ChannelState::OpenUnpaid,
             ChannelState::Open => ln_dlc_node::channel::ChannelState::Open,
             ChannelState::Closed => ln_dlc_node::channel::ChannelState::Closed,
             ChannelState::ForceClosedLocal => ln_dlc_node::channel::ChannelState::ForceClosedLocal,
@@ -1716,9 +1732,9 @@ pub mod test {
         let channel = ln_dlc_node::channel::Channel {
             user_channel_id: UserChannelId::new(),
             channel_id: None,
-            fake_scid: None,
-            inbound: 0,
-            outbound: 0,
+            liquidity_option_id: None,
+            inbound_sats: 0,
+            outbound_sats: 0,
             funding_txid: None,
             channel_state: ln_dlc_node::channel::ChannelState::Pending,
             counterparty: PublicKey::from_str(

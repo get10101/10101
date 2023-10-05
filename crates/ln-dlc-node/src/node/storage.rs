@@ -1,12 +1,12 @@
 use crate::channel::Channel;
 use crate::channel::ChannelState;
-use crate::channel::FakeScid;
 use crate::transaction::Transaction;
 use crate::HTLCStatus;
 use crate::MillisatAmount;
 use crate::PaymentFlow;
 use crate::PaymentInfo;
 use anyhow::Result;
+use bitcoin::secp256k1::PublicKey;
 use lightning::chain::keysinterface::DelayedPaymentOutputDescriptor;
 use lightning::chain::keysinterface::SpendableOutputDescriptor;
 use lightning::chain::keysinterface::StaticPaymentOutputDescriptor;
@@ -78,12 +78,10 @@ pub trait Storage {
     fn upsert_channel(&self, channel: Channel) -> Result<()>;
     /// Get channel by `user_channel_id`
     fn get_channel(&self, user_channel_id: &str) -> Result<Option<Channel>>;
-
-    /// Get channel by `user_channel_id`
-    fn get_channel_by_fake_scid(&self, fake_scid: FakeScid) -> Result<Option<Channel>>;
-
     /// Get all non pending channels.
     fn all_non_pending_channels(&self) -> Result<Vec<Channel>>;
+    /// Get announced channel with counterparty
+    fn get_announced_channel(&self, counterparty_pubkey: PublicKey) -> Result<Option<Channel>>;
 
     // Transaction
 
@@ -230,16 +228,6 @@ impl Storage for InMemoryStore {
         Ok(channel)
     }
 
-    fn get_channel_by_fake_scid(&self, fake_scid: FakeScid) -> Result<Option<Channel>> {
-        let channel = self
-            .channels
-            .lock()
-            .values()
-            .find(|channel| channel.fake_scid == Some(fake_scid))
-            .cloned();
-        Ok(channel)
-    }
-
     fn all_non_pending_channels(&self) -> Result<Vec<Channel>> {
         Ok(self
             .channels
@@ -248,6 +236,17 @@ impl Storage for InMemoryStore {
             .filter(|c| c.channel_state != ChannelState::Pending && c.funding_txid.is_some())
             .cloned()
             .collect())
+    }
+
+    fn get_announced_channel(&self, counterparty_pubkey: PublicKey) -> Result<Option<Channel>> {
+        Ok(self
+            .channels
+            .lock()
+            .values()
+            .find(|c| {
+                c.channel_state == ChannelState::Announced && c.counterparty == counterparty_pubkey
+            })
+            .cloned())
     }
 
     // Transaction

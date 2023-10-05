@@ -49,7 +49,7 @@ class TradeDialog extends StatelessWidget {
 Widget createSubmitWidget(
     PendingOrder pendingOrder, Amount pnl, TradeValues? pendingOrderValues, BuildContext context) {
   String bottomText;
-  String pnlText = "Unrealized P/L";
+  String pnlText = "P/L";
 
   switch (pendingOrder.state) {
     case PendingOrderState.submittedSuccessfully:

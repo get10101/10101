@@ -48,21 +48,21 @@ class TradeValuesChangeNotifier extends ChangeNotifier implements Subscriber {
   }
 
   /// Calculates the counterparty margin based on leverage one
-  int? counterpartyMargin(Direction direction) {
+  int? counterpartyMargin(Direction direction, double leverage) {
     switch (direction) {
       case Direction.long:
         return tradeValuesService
             .calculateMargin(
                 price: _buyTradeValues.price,
                 quantity: _buyTradeValues.quantity,
-                leverage: Leverage(1))
+                leverage: Leverage(leverage))
             ?.sats;
       case Direction.short:
         return tradeValuesService
             .calculateMargin(
                 price: _sellTradeValues.price,
                 quantity: _sellTradeValues.quantity,
-                leverage: Leverage(1))
+                leverage: Leverage(leverage))
             ?.sats;
     }
   }
