@@ -118,7 +118,7 @@ fn build_notification_job(
                 let notification = notification.clone();
                 async move {
                     for (position, fcm_token) in positions_with_token {
-                        tracing::debug!(trader_id=%position.trader, "Sending reminder to rollover a soon to expire position.");
+                        tracing::debug!(trader_id=%position.trader, "Sending reminder to rollover position.");
                         if let Err(e) = notification_sender
                             .send(Notification::new(fcm_token.clone(), notification.clone()))
                             .await
