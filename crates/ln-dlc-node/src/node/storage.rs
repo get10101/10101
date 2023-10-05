@@ -124,7 +124,7 @@ impl Storage for InMemoryStore {
     ) -> Result<()> {
         let mut payments = self.payments.lock();
         match payments.get_mut(payment_hash) {
-            Some(mut payment) => {
+            Some(payment) => {
                 payment.status = htlc_status;
 
                 if let amt_msat @ MillisatAmount(Some(_)) = amt_msat {
