@@ -14,7 +14,6 @@ use coordinator::node::rollover;
 use coordinator::node::storage::NodeStorage;
 use coordinator::node::unrealized_pnl;
 use coordinator::node::Node;
-use coordinator::notifications::query_and_send_position_notifications;
 use coordinator::notifications::NotificationService;
 use coordinator::orderbook::async_match;
 use coordinator::orderbook::trading;
@@ -48,11 +47,6 @@ const EXPIRED_POSITION_SYNC_INTERVAL: Duration = Duration::from_secs(5 * 60);
 const CLOSED_POSITION_SYNC_INTERVAL: Duration = Duration::from_secs(30);
 const UNREALIZED_PNL_SYNC_INTERVAL: Duration = Duration::from_secs(10 * 60);
 const CONNECTION_CHECK_INTERVAL: Duration = Duration::from_secs(30);
-/// How often to check for expiring/expired positions to send push notifications for.
-/// This should be configured in conjunction with the time windows of
-/// expiring/expired notifications, ideally a bit less than the time window
-/// (e.g. 58min for a 1h time window).
-const POSITION_PUSH_NOTIFICATION_INTERVAL: Duration = Duration::from_secs(58 * 60);
 
 const NODE_ALIAS: &str = "10101.finance";
 
@@ -278,30 +272,6 @@ async fn main() -> Result<()> {
         tx_price_feed,
         tx_user_feed,
     );
-
-    tokio::spawn({
-        let sender = notification_service.get_sender();
-        let pool = pool.clone();
-        async move {
-            loop {
-                tracing::debug!("Running expiring/expired position push notification task");
-                match pool.get() {
-                    Ok(mut conn) => {
-                        if let Err(e) =
-                            query_and_send_position_notifications(&mut conn, &sender).await
-                        {
-                            tracing::error!("Failed to send notifications: {e:#}");
-                        }
-                    }
-                    Err(e) => {
-                        tracing::error!("Failed to get pool connection. Error: {e:?}");
-                    }
-                }
-
-                tokio::time::sleep(POSITION_PUSH_NOTIFICATION_INTERVAL).await;
-            }
-        }
-    });
 
     let sender = notification_service.get_sender();
     let notification_scheduler = NotificationScheduler::new(sender, settings, network);
