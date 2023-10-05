@@ -300,7 +300,7 @@ async fn main() -> Result<()> {
     });
 
     let sender = notification_service.get_sender();
-    let notification_scheduler = NotificationScheduler::new(sender, settings);
+    let notification_scheduler = NotificationScheduler::new(sender, settings, network);
     tokio::spawn({
         let pool = pool.clone();
         let scheduler = notification_scheduler;

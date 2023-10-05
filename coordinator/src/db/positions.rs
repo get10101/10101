@@ -53,6 +53,23 @@ impl Position {
         Ok(x.map(crate::position::models::Position::from))
     }
 
+    pub fn get_all_open_positions_with_expiry_before(
+        conn: &mut PgConnection,
+        expiry: OffsetDateTime,
+    ) -> QueryResult<Vec<crate::position::models::Position>> {
+        let positions = positions::table
+            .filter(positions::position_state.eq(PositionState::Open))
+            .filter(positions::expiry_timestamp.lt(expiry))
+            .load::<Position>(conn)?;
+
+        let positions = positions
+            .into_iter()
+            .map(crate::position::models::Position::from)
+            .collect();
+
+        Ok(positions)
+    }
+
     pub fn get_all_open_positions(
         conn: &mut PgConnection,
     ) -> QueryResult<Vec<crate::position::models::Position>> {

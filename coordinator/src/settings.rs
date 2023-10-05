@@ -15,8 +15,8 @@ const SETTINGS_FILE_NAME: &str = "coordinator-settings.toml";
 
 /// Reminding about the rollover window being open runs on Friday, 15:05 UTC and Saturday, 15:05 UTC
 const ROLLOVER_SCHEDULE_MAINNET: &str = "0 5 15 * * 5,6";
-/// Reminding about the rollover window being open runs daily at 14:05 UTC
-const ROLLOVER_SCHEDULE_REGTEST: &str = "0 5 14 * * *";
+/// Reminding about the rollover window being open runs daily at 16:05 UTC
+const ROLLOVER_SCHEDULE_REGTEST: &str = "0 5 16 * * *";
 
 /// Top-level settings.
 #[derive(Debug, Clone, Deserialize, Serialize)]
