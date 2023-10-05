@@ -1,7 +1,8 @@
 import 'package:get_10101/common/domain/model.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge.dart';
-import 'package:get_10101/features/wallet/domain/lightning_invoice.dart';
+import 'package:get_10101/features/wallet/domain/destination.dart';
 import 'package:get_10101/features/wallet/domain/share_payment_request.dart';
+import 'package:get_10101/features/wallet/domain/wallet_type.dart';
 import 'package:get_10101/ffi.dart' as rust;
 import 'package:get_10101/logger/logger.dart';
 
@@ -45,20 +46,38 @@ class WalletService {
     return null;
   }
 
-  Future<LightningInvoice?> decodeInvoice(String invoice) async {
+  Future<Destination?> decodeDestination(String destination) async {
     try {
-      logger.d("Decoding invoice $invoice");
-      rust.LightningInvoice lightningInvoice = await rust.api.decodeInvoice(invoice: invoice);
-      logger.d("Successfully decoded invoice.");
-      return LightningInvoice.fromApi(lightningInvoice);
+      rust.Destination result = await rust.api.decodeDestination(destination: destination);
+
+      if (result is rust.Destination_Bolt11) {
+        return LightningInvoice.fromApi(result, destination);
+      } else if (result is rust.Destination_Bip21) {
+        return OnChainAddress.fromApi(result);
+      } else if (result is rust.Destination_OnChainAddress) {
+        return OnChainAddress.fromAddress(result);
+      } else {
+        return null;
+      }
     } catch (error) {
       logger.d("Failed to decode invoice: $error", error: error);
       return null;
     }
   }
 
-  Future<void> payInvoice(String invoice) async {
-    await rust.api.sendPayment(invoice: invoice);
+  Future<void> sendPayment(Destination destination, Amount? amount) async {
+    logger.i("Sending payment of $amount");
+
+    rust.SendPayment payment;
+    switch (destination.getWalletType()) {
+      case WalletType.lightning:
+        payment = rust.SendPayment_Lightning(invoice: destination.raw, amount: amount?.sats);
+      case WalletType.onChain:
+        payment = rust.SendPayment_OnChain(address: destination.raw, amount: amount!.sats);
+      default:
+        throw Exception("unsupported wallet type: ${destination.getWalletType().name}");
+    }
+    await rust.api.sendPayment(payment: payment);
   }
 
   String getUnusedAddress() {

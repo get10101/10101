@@ -23,6 +23,7 @@ use anyhow::Result;
 use bitcoin::hashes::hex::ToHex;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::Network;
+use bitcoin::Txid;
 pub use channel_manager::ChannelManager;
 pub use dlc_channel::dlc_message_name;
 pub use dlc_channel::sub_channel_message_name;
@@ -552,6 +553,13 @@ where
             &self.chain_monitor,
             &self.esplora_client,
         )
+    }
+
+    /// Send the given `amount_sats` sats to the given `address` on-chain.
+    pub fn send_to_address(&self, address: &bitcoin::Address, amount_sats: u64) -> Result<Txid> {
+        self.wallet
+            .ldk_wallet()
+            .send_to_address(address, Some(amount_sats))
     }
 }
 

@@ -17,6 +17,12 @@ impl Node {
                             Event::PaymentClaimed { amount_msat, .. } => {
                                 event::publish(&EventInternal::PaymentClaimed(amount_msat))
                             }
+                            Event::PaymentSent { .. } => {
+                                event::publish(&EventInternal::PaymentSent)
+                            }
+                            Event::PaymentFailed { .. } => {
+                                event::publish(&EventInternal::PaymentFailed)
+                            }
                             _ => tracing::trace!("Ignoring event on the mobile app"),
                         }
                     }

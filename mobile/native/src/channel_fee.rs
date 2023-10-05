@@ -20,6 +20,7 @@ use rust_decimal::Decimal;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::runtime::Handle;
+use crate::api::SendPayment;
 
 const WAIT_FOR_OUTBOUND_CAPACITY_TIMEOUT: Duration = Duration::from_secs(60);
 
@@ -146,7 +147,7 @@ impl ChannelFeePaymentSubscriber {
                     ))
                 })?;
 
-                match ln_dlc::send_payment(&invoice_str) {
+                match ln_dlc::send_payment(SendPayment::Lightning {invoice: invoice_str, amount: None }) {
                     Ok(_) => {
                         // unset the open fee amount as the payment has been initiated.
                         self.unset_open_fee_amount();

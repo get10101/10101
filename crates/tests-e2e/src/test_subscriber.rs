@@ -202,6 +202,12 @@ impl Senders {
             native::event::EventInternal::BackgroundNotification(_task) => {
                 // ignored
             }
+            native::event::EventInternal::PaymentSent => {
+                unreachable!("PaymentSent event should not be sent to the subscriber");
+            }
+            native::event::EventInternal::PaymentFailed => {
+                unreachable!("PaymentFailed event should not be sent to the subscriber");
+            }
         }
         Ok(())
     }

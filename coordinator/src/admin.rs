@@ -240,7 +240,7 @@ pub async fn send_payment(
     state
         .node
         .inner
-        .send_payment(&invoice)
+        .pay_invoice(&invoice, None)
         .map_err(|e| AppError::InternalServerError(format!("{e:#}")))?;
 
     Ok(())

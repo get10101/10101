@@ -2,6 +2,7 @@ use native::api;
 use tests_e2e::setup;
 use tests_e2e::wait_until;
 use tokio::task::spawn_blocking;
+use native::api::SendPayment;
 
 #[tokio::test]
 #[ignore = "need to be run with 'just e2e' command"]
@@ -20,7 +21,7 @@ async fn can_send_payment_with_open_position() {
         .unwrap();
 
     tracing::info!("Sending payment to coordinator from the app");
-    spawn_blocking(move || api::send_payment(invoice.to_string()).unwrap())
+    spawn_blocking(move || api::send_payment(SendPayment::Lightning {invoice: invoice.to_string(), amount: None }).unwrap())
         .await
         .unwrap();
 

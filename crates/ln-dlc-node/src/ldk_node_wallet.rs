@@ -179,13 +179,12 @@ where
 
     /// Send funds to the given address.
     ///
-    /// If `amount_msat_or_drain` is `None` the wallet will be drained, i.e., all available funds
+    /// If `amount_sat_or_drain` is `None` the wallet will be drained, i.e., all available funds
     /// will be spent.
-    #[allow(dead_code)]
     pub(crate) fn send_to_address(
         &self,
         address: &bitcoin::Address,
-        amount_msat_or_drain: Option<u64>,
+        amount_sat_or_drain: Option<u64>,
     ) -> Result<Txid> {
         let fee_rate = self.fee_rate_estimator.estimate(ConfirmationTarget::Normal);
 
@@ -193,7 +192,7 @@ where
             let locked_wallet = self.bdk_lock();
             let mut tx_builder = locked_wallet.build_tx();
 
-            if let Some(amount_sats) = amount_msat_or_drain {
+            if let Some(amount_sats) = amount_sat_or_drain {
                 tx_builder
                     .add_recipient(address.script_pubkey(), amount_sats)
                     .fee_rate(fee_rate)
@@ -231,7 +230,7 @@ where
 
         let txid = self.broadcast_transaction(&tx)?;
 
-        if let Some(amount_sats) = amount_msat_or_drain {
+        if let Some(amount_sats) = amount_sat_or_drain {
             tracing::info!(
                 "Created new transaction {} sending {}sats on-chain to address {}",
                 txid,
