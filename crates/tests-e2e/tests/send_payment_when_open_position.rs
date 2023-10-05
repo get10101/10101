@@ -1,4 +1,5 @@
 use native::api;
+use native::api::SendPayment;
 use tests_e2e::setup;
 use tests_e2e::wait_until;
 use tokio::task::spawn_blocking;
@@ -20,9 +21,15 @@ async fn can_send_payment_with_open_position() {
         .unwrap();
 
     tracing::info!("Sending payment to coordinator from the app");
-    spawn_blocking(move || api::send_payment(invoice.to_string()).unwrap())
-        .await
-        .unwrap();
+    spawn_blocking(move || {
+        api::send_payment(SendPayment::Lightning {
+            invoice: invoice.to_string(),
+            amount: None,
+        })
+        .unwrap()
+    })
+    .await
+    .unwrap();
 
     wait_until!(app.rx.wallet_info().unwrap().balances.lightning < ln_balance_before);
     assert!(app.rx.wallet_info().unwrap().balances.lightning <= ln_balance_before - invoice_amount);

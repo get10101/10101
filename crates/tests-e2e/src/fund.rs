@@ -26,7 +26,7 @@ pub async fn fund_app_with_faucet(
     let invoice =
         spawn_blocking(move || api::create_onboarding_invoice(fund_amount, 1).expect("to succeed"))
             .await?;
-    api::decode_invoice(invoice.clone()).expect("to decode invoice we created");
+    api::decode_destination(invoice.clone()).expect("to decode invoice we created");
 
     pay_with_faucet(client, invoice).await?;
 

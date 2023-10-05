@@ -5,6 +5,7 @@ use crate::config;
 use crate::config::api::Config;
 use crate::config::get_network;
 use crate::db;
+use crate::destination;
 use crate::event;
 use crate::event::api::FlutterSubscriber;
 use crate::health;
@@ -24,18 +25,12 @@ use bitcoin::Amount;
 use flutter_rust_bridge::frb;
 use flutter_rust_bridge::StreamSink;
 use flutter_rust_bridge::SyncReturn;
-use lightning_invoice::Invoice;
-use lightning_invoice::InvoiceDescription;
 use ln_dlc_node::channel::UserChannelId;
 use orderbook_commons::order_matching_fee_taker;
 use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::Decimal;
 use state::Storage;
 use std::backtrace::Backtrace;
-use std::ops::Add;
-use std::str::FromStr;
-use std::time::Duration;
-use std::time::SystemTime;
 use time::OffsetDateTime;
 pub use trade::ContractSymbol;
 pub use trade::Direction;
@@ -394,8 +389,19 @@ pub fn create_payment_request(amount_sats: Option<u64>) -> Result<PaymentRequest
     })
 }
 
-pub fn send_payment(invoice: String) -> Result<()> {
-    ln_dlc::send_payment(&invoice)
+pub enum SendPayment {
+    Lightning {
+        invoice: String,
+        amount: Option<u64>,
+    },
+    OnChain {
+        address: String,
+        amount: u64,
+    },
+}
+
+pub fn send_payment(payment: SendPayment) -> Result<()> {
+    ln_dlc::send_payment(payment)
 }
 
 pub struct LastLogin {
@@ -418,45 +424,26 @@ pub async fn register_beta(email: String) -> Result<()> {
     users::register_beta(email).await
 }
 
-pub struct LightningInvoice {
-    pub description: String,
-    pub amount_sats: u64,
-    pub timestamp: u64,
-    pub payee: String,
-    pub expiry: u64,
+pub enum Destination {
+    Bolt11 {
+        description: String,
+        amount_sats: u64,
+        timestamp: u64,
+        payee: String,
+        expiry: u64,
+    },
+    OnChainAddress(String),
+    Bip21 {
+        address: String,
+        label: String,
+        message: String,
+        amount_sats: Option<u64>,
+    },
 }
 
-pub fn decode_invoice(invoice: String) -> Result<LightningInvoice> {
-    anyhow::ensure!(!invoice.is_empty(), "received empty invoice");
-    let invoice = &Invoice::from_str(&invoice).context("Could not parse invoice string")?;
-    let description = match invoice.description() {
-        InvoiceDescription::Direct(direct) => direct.to_string(),
-        InvoiceDescription::Hash(_) => "".to_string(),
-    };
-
-    let timestamp = invoice.timestamp();
-
-    let expiry = timestamp
-        .add(Duration::from_secs(invoice.expiry_time().as_secs()))
-        .duration_since(SystemTime::UNIX_EPOCH)?
-        .as_secs();
-
-    let timestamp = timestamp.duration_since(SystemTime::UNIX_EPOCH)?.as_secs();
-
-    let payee = match invoice.payee_pub_key() {
-        Some(pubkey) => pubkey.to_string(),
-        None => invoice.recover_payee_pub_key().to_string(),
-    };
-
-    let amount_sats = (invoice.amount_milli_satoshis().unwrap_or(0) as f64 / 1000.0) as u64;
-
-    Ok(LightningInvoice {
-        description,
-        timestamp,
-        expiry,
-        amount_sats,
-        payee,
-    })
+pub fn decode_destination(destination: String) -> Result<Destination> {
+    anyhow::ensure!(!destination.is_empty(), "Destination must be set");
+    destination::decode_destination(destination)
 }
 
 pub fn get_node_id() -> Result<SyncReturn<String>> {

@@ -23,6 +23,7 @@ use lightning::routing::gossip::RoutingFees;
 use lightning::routing::router::RouteHint;
 use lightning::routing::router::RouteHintHop;
 use lightning_invoice::payment::pay_invoice;
+use lightning_invoice::payment::pay_zero_value_invoice;
 use lightning_invoice::payment::PaymentError;
 use lightning_invoice::Currency;
 use lightning_invoice::Invoice;
@@ -223,17 +224,31 @@ where
         Ok(route_hint_hop)
     }
 
-    pub fn send_payment(&self, invoice: &Invoice) -> Result<()> {
-        let (status, err) = match pay_invoice(invoice, Retry::Attempts(10), &self.channel_manager) {
+    pub fn pay_invoice(&self, invoice: &Invoice, amount: Option<u64>) -> Result<()> {
+        let (result, amt_msat) = match invoice.amount_milli_satoshis() {
+            Some(_) => {
+                let result = pay_invoice(invoice, Retry::Attempts(10), &self.channel_manager);
+                (result, invoice.amount_milli_satoshis().expect("to be set"))
+            }
+            None => {
+                let amount_msats =
+                    amount.context("Can't pay zero amount invoice without amount")? * 1000;
+                let result = pay_zero_value_invoice(
+                    invoice,
+                    amount_msats,
+                    Retry::Attempts(10),
+                    &self.channel_manager,
+                );
+                (result, amount_msats)
+            }
+        };
+
+        let (status, err) = match result {
             Ok(payment_id) => {
                 let payee_pubkey = match invoice.payee_pub_key() {
                     Some(pubkey) => *pubkey,
                     None => invoice.recover_payee_pub_key(),
                 };
-
-                let amt_msat = invoice
-                    .amount_milli_satoshis()
-                    .context("invalid msat amount in the invoice")?;
 
                 tracing::info!(
                     peer_id = %payee_pubkey,
@@ -267,7 +282,7 @@ where
                 preimage: None,
                 secret: None,
                 status,
-                amt_msat: MillisatAmount(invoice.amount_milli_satoshis()),
+                amt_msat: MillisatAmount(Some(amt_msat)),
                 fee_msat: MillisatAmount(None),
                 flow: PaymentFlow::Outbound,
                 timestamp: OffsetDateTime::now_utc(),

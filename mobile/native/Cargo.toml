@@ -10,6 +10,7 @@ crate-type = ["rlib", "cdylib", "staticlib"]
 anyhow = "1"
 base64 = "0.21.0"
 bdk = { version = "0.27.0", default-features = false, features = ["key-value-db", "use-esplora-blocking"] }
+bip21 = "0.2.0"
 bitcoin = "0.29"
 coordinator-commons = { path = "../../crates/coordinator-commons" }
 diesel = { version = "2.0.0", features = ["sqlite", "r2d2", "extras"] }

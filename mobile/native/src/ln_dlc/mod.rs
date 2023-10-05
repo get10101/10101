@@ -1,6 +1,7 @@
 use self::node::WalletHistories;
 use crate::api;
 use crate::api::PaymentFlow;
+use crate::api::SendPayment;
 use crate::api::Status;
 use crate::api::WalletHistoryItem;
 use crate::api::WalletHistoryItemType;
@@ -984,9 +985,18 @@ pub fn create_invoice(amount_sats: Option<u64>) -> Result<Invoice> {
     })
 }
 
-pub fn send_payment(invoice: &str) -> Result<()> {
-    let invoice = Invoice::from_str(invoice).context("Could not parse Invoice string")?;
-    NODE.get().inner.send_payment(&invoice)
+pub fn send_payment(payment: SendPayment) -> Result<()> {
+    match payment {
+        SendPayment::Lightning { invoice, amount } => {
+            let invoice = Invoice::from_str(&invoice)?;
+            NODE.get().inner.pay_invoice(&invoice, amount)?;
+        }
+        SendPayment::OnChain { address, amount } => {
+            let address = Address::from_str(&address)?;
+            NODE.get().inner.send_to_address(&address, amount)?;
+        }
+    }
+    Ok(())
 }
 
 pub async fn trade(trade_params: TradeParams) -> Result<(), (FailureReason, Error)> {

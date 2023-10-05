@@ -254,7 +254,7 @@ pub async fn pay_invoice(
         .map_err(|e| AppError::BadRequest(format!("Invalid invoice provided {e:#}")))?;
     state
         .node
-        .send_payment(&invoice)
+        .pay_invoice(&invoice, None)
         .map_err(|e| AppError::InternalServerError(format!("Could not pay invoice {e:#}")))?;
     Ok(())
 }

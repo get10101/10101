@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - New default amount is 10 contracts
 - Fix: Show pnl on success dialog when closing a position
 - Add a feature to collaboratively close a (potentially broken) channel
+- Receive bitcoin in wallet
+- Send bitcoin in wallet to address or BIP21 URI
+- Redesign send and receive screens
 
 ## [1.4.1] - 2023-10-09
 
