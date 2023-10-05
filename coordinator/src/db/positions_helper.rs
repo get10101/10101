@@ -6,11 +6,12 @@ use diesel::PgConnection;
 use diesel::QueryResult;
 use time::OffsetDateTime;
 
-pub fn get_non_expired_positions_joined_with_fcm_token(
+pub fn get_all_open_positions_with_expiry_before(
     conn: &mut PgConnection,
+    expiry: OffsetDateTime,
 ) -> QueryResult<Vec<(crate::position::models::Position, FcmToken)>> {
     let result = conn.transaction(|conn| {
-        let positions = Position::get_all_open_positions(conn)?;
+        let positions = Position::get_all_open_positions_with_expiry_before(conn, expiry)?;
         join_with_fcm_token(conn, positions)
     })?;
     Ok(result)
