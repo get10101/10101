@@ -2,13 +2,11 @@ import 'package:f_logs/f_logs.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
-import 'package:get_10101/common/amount_text.dart';
 import 'package:get_10101/common/snack_bar.dart';
 import 'package:get_10101/common/value_data_row.dart';
 import 'package:get_10101/features/wallet/application/faucet_service.dart';
 import 'package:get_10101/features/wallet/domain/share_invoice.dart';
-import 'package:get_10101/features/wallet/domain/wallet_info.dart';
-import 'package:get_10101/features/wallet/wallet_change_notifier.dart';
+import 'package:get_10101/features/wallet/payment_claimed_change_notifier.dart';
 import 'package:get_10101/features/wallet/wallet_screen.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -30,11 +28,22 @@ class _ShareInvoiceScreenState extends State<ShareInvoiceScreen> {
   bool _isPayInvoiceButtonDisabled = false;
 
   @override
+  void initState() {
+    super.initState();
+    context.read<PaymentClaimedChangeNotifier>().waitForPayment();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    WalletInfo info = context.watch<WalletChangeNotifier>().walletInfo;
     final bridge.Config config = context.read<bridge.Config>();
 
-    FLog.debug(text: "Refresh receive screen: ${formatSats(info.balances.onChain)}");
+    if (context.watch<PaymentClaimedChangeNotifier>().isClaimed()) {
+      // routing is not allowed during building a widget, hence we need to register the route navigation after the widget has been build.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        FLog.debug(text: "Payment received!");
+        GoRouter.of(context).pop();
+      });
+    }
 
     const EdgeInsets buttonSpacing = EdgeInsets.symmetric(vertical: 8.0, horizontal: 24.0);
 
@@ -92,17 +101,12 @@ class _ShareInvoiceScreenState extends State<ShareInvoiceScreen> {
                           _isPayInvoiceButtonDisabled = true;
                         });
 
-                        final router = GoRouter.of(context);
                         final messenger = ScaffoldMessenger.of(context);
                         try {
                           final faucetService = context.read<FaucetService>();
                           await faucetService.payInvoiceWithLndFaucet(widget.invoice.rawInvoice);
-                          // Pop both create invoice screen and share invoice screen
-                          router.pop();
-                          router.pop();
                         } catch (error) {
                           showSnackBar(messenger, error.toString());
-                        } finally {
                           setState(() {
                             _isPayInvoiceButtonDisabled = false;
                           });
@@ -126,17 +130,12 @@ class _ShareInvoiceScreenState extends State<ShareInvoiceScreen> {
                           _isPayInvoiceButtonDisabled = true;
                         });
 
-                        final router = GoRouter.of(context);
                         final messenger = ScaffoldMessenger.of(context);
                         try {
                           final faucetService = context.read<FaucetService>();
                           await faucetService.payInvoiceWithMakerFaucet(widget.invoice.rawInvoice);
-                          // Pop both create invoice screen and share invoice screen
-                          router.pop();
-                          router.pop();
                         } catch (error) {
                           showSnackBar(messenger, error.toString());
-                        } finally {
                           setState(() {
                             _isPayInvoiceButtonDisabled = false;
                           });
@@ -217,7 +216,6 @@ class _ShareInvoiceScreenState extends State<ShareInvoiceScreen> {
                     ? null
                     : () {
                         // Pop both create invoice screen and share invoice screen
-                        GoRouter.of(context).pop();
                         GoRouter.of(context).pop();
                       },
                 style: ElevatedButton.styleFrom(

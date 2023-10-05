@@ -42,6 +42,7 @@ import 'package:get_10101/features/wallet/create_on_chain_payment_request.dart';
 import 'package:get_10101/features/wallet/domain/share_invoice.dart';
 import 'package:get_10101/features/wallet/domain/wallet_info.dart';
 import 'package:get_10101/features/wallet/onboarding/onboarding_screen.dart';
+import 'package:get_10101/features/wallet/payment_claimed_change_notifier.dart';
 import 'package:get_10101/features/wallet/scanner_screen.dart';
 import 'package:get_10101/features/wallet/seed_screen.dart';
 import 'package:get_10101/features/wallet/send_payment_change_notifier.dart';
@@ -99,6 +100,7 @@ void main() async {
     ChangeNotifierProvider(create: (context) => AsyncOrderChangeNotifier(OrderService())),
     ChangeNotifierProvider(create: (context) => RolloverChangeNotifier()),
     ChangeNotifierProvider(create: (context) => RecoverDlcChangeNotifier()),
+    ChangeNotifierProvider(create: (context) => PaymentClaimedChangeNotifier()),
     Provider(create: (context) => config),
     Provider(create: (context) => channelInfoService)
   ];
@@ -508,6 +510,7 @@ void subscribeToNotifiers(BuildContext context) {
   final asyncOrderChangeNotifier = context.read<AsyncOrderChangeNotifier>();
   final rolloverChangeNotifier = context.read<RolloverChangeNotifier>();
   final recoverDlcChangeNotifier = context.read<RecoverDlcChangeNotifier>();
+  final paymentClaimedChangeNotifier = context.read<PaymentClaimedChangeNotifier>();
 
   eventService.subscribe(
       orderChangeNotifier, bridge.Event.orderUpdateNotification(Order.apiDummy()));
@@ -548,6 +551,8 @@ void subscribeToNotifiers(BuildContext context) {
 
   eventService.subscribe(
       recoverDlcChangeNotifier, bridge.Event.backgroundNotification(RecoverDlc.apiDummy()));
+
+  eventService.subscribe(paymentClaimedChangeNotifier, const bridge.Event.paymentClaimed());
 
   channelStatusNotifier.subscribe(eventService);
 

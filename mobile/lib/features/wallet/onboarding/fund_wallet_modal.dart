@@ -1,3 +1,4 @@
+import 'package:f_logs/model/flog/flog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
@@ -5,6 +6,8 @@ import 'package:get_10101/common/domain/model.dart';
 import 'package:get_10101/common/snack_bar.dart';
 import 'package:get_10101/common/value_data_row.dart';
 import 'package:get_10101/features/wallet/application/faucet_service.dart';
+import 'package:get_10101/features/wallet/payment_claimed_change_notifier.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
@@ -51,9 +54,24 @@ class _FundWalletModalState extends State<FundWalletModal> {
   bool _isPayInvoiceButtonDisabled = false;
 
   @override
+  void initState() {
+    super.initState();
+    context.read<PaymentClaimedChangeNotifier>().waitForPayment();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final bridge.Config config = context.read<bridge.Config>();
     const style = TextStyle(fontSize: 20);
+
+    if (context.watch<PaymentClaimedChangeNotifier>().isClaimed()) {
+      // routing is not allowed during building a widget, hence we need to register the route navigation after the widget has been build.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        FLog.debug(text: "Payment received!");
+        GoRouter.of(context).pop();
+        GoRouter.of(context).pop();
+      });
+    }
 
     return SafeArea(
         child: Container(
@@ -109,15 +127,13 @@ class _FundWalletModalState extends State<FundWalletModal> {
                                     : () async {
                                         setState(() => _isPayInvoiceButtonDisabled = true);
                                         final faucetService = context.read<FaucetService>();
-                                        faucetService.payInvoiceWithLndFaucet(widget.invoice).then(
-                                            (value) {
-                                          Navigator.pop(context);
-                                          Navigator.pop(context);
-                                        }).catchError((error) {
+                                        faucetService
+                                            .payInvoiceWithLndFaucet(widget.invoice)
+                                            .catchError((error) {
+                                          setState(() => _isPayInvoiceButtonDisabled = false);
                                           showSnackBar(
                                               ScaffoldMessenger.of(context), error.toString());
-                                        }).whenComplete(() =>
-                                            setState(() => _isPayInvoiceButtonDisabled = false));
+                                        });
                                       },
                                 style: ElevatedButton.styleFrom(
                                   shape: const RoundedRectangleBorder(
@@ -133,14 +149,11 @@ class _FundWalletModalState extends State<FundWalletModal> {
                                         final faucetService = context.read<FaucetService>();
                                         faucetService
                                             .payInvoiceWithMakerFaucet(widget.invoice)
-                                            .then((value) {
-                                          Navigator.pop(context);
-                                          Navigator.pop(context);
-                                        }).catchError((error) {
+                                            .catchError((error) {
+                                          setState(() => _isPayInvoiceButtonDisabled = false);
                                           showSnackBar(
                                               ScaffoldMessenger.of(context), error.toString());
-                                        }).whenComplete(() => setState(
-                                                () => _isPayInvoiceButtonDisabled = false));
+                                        });
                                       },
                                 style: ElevatedButton.styleFrom(
                                   shape: const RoundedRectangleBorder(
