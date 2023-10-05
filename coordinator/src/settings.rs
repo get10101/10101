@@ -18,6 +18,11 @@ const ROLLOVER_SCHEDULE_MAINNET: &str = "0 5 15 * * 5,6";
 /// Reminding about the rollover window being open runs daily at 16:05 UTC
 const ROLLOVER_SCHEDULE_REGTEST: &str = "0 5 16 * * *";
 
+/// Reminding about the rollover window being closed runs on Sunday, 13:05 UTC
+const ROLLOVER_CLOSE_SCHEDULE_MAINNET: &str = "0 5 13 * * 5,6";
+/// Reminding about the rollover window being closed runs daily at 22:05 UTC
+const ROLLOVER_CLOSE_SCHEDULE_REGTEST: &str = "0 5 22 * * *";
+
 /// Top-level settings.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Settings {
@@ -50,6 +55,15 @@ pub struct Settings {
     /// sec   min   hour   day of month   month   day of week   year
     /// *     *     *      *              *       *             *
     pub rollover_window_open_scheduler: String,
+
+    /// We don't want the below doc block be formatted
+    #[rustfmt::skip]
+    /// A cron syntax for sending notifications about the rollover window being open
+    ///
+    /// The format is :
+    /// sec   min   hour   day of month   month   day of week   year
+    /// *     *     *      *              *       *             *
+    pub rollover_window_close_scheduler: String,
 }
 
 impl Settings {
@@ -57,6 +71,13 @@ impl Settings {
         let rollover_window_open_scheduler = match network {
             Network::Regtest | Network::Signet | Network::Testnet => ROLLOVER_SCHEDULE_REGTEST,
             Network::Mainnet => ROLLOVER_SCHEDULE_MAINNET,
+        }
+        .to_string();
+        let rollover_window_close_scheduler = match network {
+            Network::Regtest | Network::Signet | Network::Testnet => {
+                ROLLOVER_CLOSE_SCHEDULE_REGTEST
+            }
+            Network::Mainnet => ROLLOVER_CLOSE_SCHEDULE_MAINNET,
         }
         .to_string();
         Self {
@@ -70,6 +91,7 @@ impl Settings {
             forwarding_fee_proportional_millionths: 50,
             path: None,
             rollover_window_open_scheduler,
+            rollover_window_close_scheduler,
         }
     }
 }
