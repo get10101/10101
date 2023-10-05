@@ -1,5 +1,6 @@
 use anyhow::Context;
 use anyhow::Result;
+use bitcoin::Network;
 use diesel::r2d2;
 use diesel::r2d2::ConnectionManager;
 use diesel::PgConnection;
@@ -55,6 +56,8 @@ async fn main() -> Result<()> {
     let address = opts.p2p_address;
     let http_address = opts.http_address;
     let network = opts.network();
+    let bitmex_api_key = opts.bitmex_api_key.clone();
+    let bitmex_api_secret = opts.bitmex_api_secret.clone();
 
     logger::init_tracing(LevelFilter::DEBUG, opts.json)?;
 
@@ -99,9 +102,32 @@ async fn main() -> Result<()> {
 
     let (health, health_tx) = health::Health::new();
 
+    let bitmex_http_client = bitmex_client::client::Client::new(match network {
+        Network::Bitcoin => bitmex_client::models::Network::Mainnet,
+        _ => bitmex_client::models::Network::Testnet,
+    });
+
+    let bitmex_http_client = match (bitmex_api_key.clone(), bitmex_api_secret.clone()) {
+        (Some(bitmex_api_key), Some(bitmex_secret)) => {
+            tracing::info!("BitMEX credentials provided");
+            bitmex_http_client.with_credentials(bitmex_api_key, bitmex_secret)
+        }
+        _ => {
+            tracing::info!("BitMEX credentials not provided");
+            bitmex_http_client
+        }
+    };
+
+    let (position_manager, mailbox) = xtra::Mailbox::unbounded();
+    tokio::spawn(xtra::run(
+        mailbox,
+        position::Manager::new(bitmex_http_client),
+    ));
+
     let node_pubkey = node.info.pubkey;
     tokio::spawn({
         let orderbook_url = opts.orderbook.clone();
+        let position_manager = position_manager.clone();
         async move {
             trading::run(
                 &orderbook_url,
@@ -110,6 +136,9 @@ async fn main() -> Result<()> {
                 opts.concurrent_orders,
                 time::Duration::seconds(opts.order_expiry_after_seconds as i64),
                 health_tx.bitmex_pricefeed,
+                position_manager,
+                bitmex_api_key,
+                bitmex_api_secret,
                 PRICEFEED_RECONNECT_INTERVAL,
             )
             .await;
@@ -147,9 +176,6 @@ async fn main() -> Result<()> {
 
     let mut conn = pool.get().expect("to get connection from pool");
     run_migration(&mut conn);
-
-    let (position_manager, mailbox) = xtra::Mailbox::unbounded();
-    tokio::spawn(xtra::run(mailbox, position::Manager::new()));
 
     orderbook_ws::Client::new(
         opts.orderbook,

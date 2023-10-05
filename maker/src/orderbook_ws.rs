@@ -129,12 +129,15 @@ impl Client {
                         tracing::error!("Failed to connect to orderbook WS: {e:#}");
                     }
                 }
+
                 let _ = orderbook_status.send(ServiceStatus::Offline);
-                tokio::time::sleep(RECONNECT_TIMEOUT).await;
+
                 tracing::debug!(
-                    ?RECONNECT_TIMEOUT,
+                    timeout = ?RECONNECT_TIMEOUT,
                     "Reconnecting to orderbook WS after timeout"
                 );
+
+                tokio::time::sleep(RECONNECT_TIMEOUT).await;
             }
         });
     }

@@ -1,30 +1,109 @@
+use anyhow::Result;
 use async_trait::async_trait;
+use hedging::derive_hedging_action;
+use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
+use rust_decimal::RoundingStrategy;
 use serde::Serialize;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::fmt::Display;
 use std::hash::Hash;
 use std::ops::Add;
+use std::time::Duration;
 use uuid::Uuid;
+use xtra::Mailbox;
 
+mod bitmex;
+mod hedging;
 mod tentenone;
 
 pub struct Manager {
     position: Position,
+    bitmex_http_client: bitmex_client::client::Client,
+}
+
+#[async_trait]
+impl xtra::Actor for Manager {
+    type Stop = ();
+
+    async fn started(&mut self, mailbox: &mut Mailbox<Self>) -> Result<(), Self::Stop> {
+        tokio::spawn({
+            let mailbox = mailbox.clone();
+            async move {
+                loop {
+                    // We sleep first to allow the 10101 and BitMEX positions to be up-to-date
+                    // before we start hedging.
+                    tokio::time::sleep(Duration::from_secs(60)).await;
+
+                    let _ = mailbox.address().send(Hedge).await;
+                }
+            }
+        });
+
+        Ok(())
+    }
+
+    async fn stopped(self) -> Self::Stop {}
 }
 
 impl Manager {
-    pub fn new() -> Self {
+    pub fn new(bitmex_http_client: bitmex_client::client::Client) -> Self {
         Self {
             position: Position::new(),
+            bitmex_http_client,
         }
     }
-}
 
-impl Default for Manager {
-    fn default() -> Self {
-        Self::new()
+    /// Adjust hedging on _BitMEX_ based on the balance between the [`bitmex::Position`] and the
+    /// [`tentenone::Position`].
+    async fn hedge(&self, contract_symbol: &ContractSymbol) {
+        let tentenone = self.position.get_tentenone(contract_symbol);
+
+        // For the purposes of hedging we have to round to the number of 10101 contracts to the
+        // nearest whole number.
+        let tentenone = tentenone
+            .round_dp_with_strategy(0, RoundingStrategy::MidpointAwayFromZero)
+            .to_i32()
+            .expect("10101 position to fit in i32");
+
+        let bitmex = self.position.get_bitmex(contract_symbol);
+
+        let action = derive_hedging_action(tentenone, bitmex);
+
+        if let Err(e) = self.create_bitmex_order(&action, contract_symbol).await {
+            tracing::error!(
+                ?action,
+                "Failed to create order on BitMEX based on required hedging action: {e:#}"
+            )
+        }
+    }
+
+    async fn create_bitmex_order(
+        &self,
+        action: &hedging::Action,
+        contract_symbol: &ContractSymbol,
+    ) -> Result<()> {
+        let (contracts, side) = match action.contracts() {
+            0 => return Ok(()),
+            n @ 1..=i32::MAX => (n.abs(), bitmex_client::models::Side::Buy),
+            n @ i32::MIN..=-1 => (n.abs(), bitmex_client::models::Side::Sell),
+        };
+
+        tracing::info!(
+            ?action,
+            "Creating BitMEX order based on required hedging action"
+        );
+
+        let contract_symbol = match contract_symbol {
+            ContractSymbol::BtcUsd => bitmex_client::models::ContractSymbol::XbtUsd,
+        };
+
+        self.bitmex_http_client
+            .create_order(contract_symbol, contracts, side, None)
+            .await?;
+
+        Ok(())
     }
 }
 
@@ -50,18 +129,18 @@ impl OrderTenTenOne {
     }
 }
 
+pub struct PositionUpdateBitmex {
+    pub contract_symbol: ContractSymbol,
+    pub contracts: i32,
+}
+
 pub struct GetPosition;
 
 pub struct GetPositionResponse {
     pub tentenone: HashMap<ContractSymbol, Decimal>,
 }
 
-#[async_trait]
-impl xtra::Actor for Manager {
-    type Stop = ();
-
-    async fn stopped(self) -> Self::Stop {}
-}
+struct Hedge;
 
 #[async_trait]
 impl xtra::Handler<PositionUpdateTenTenOne> for Manager {
@@ -79,8 +158,22 @@ impl xtra::Handler<PositionUpdateTenTenOne> for Manager {
         } in update.0
         {
             self.position
-                .update_tentenone(contract_symbol, order_id, contracts)
+                .update_tentenone(contract_symbol, order_id, contracts);
         }
+    }
+}
+
+#[async_trait]
+impl xtra::Handler<PositionUpdateBitmex> for Manager {
+    type Return = ();
+
+    async fn handle(
+        &mut self,
+        update: PositionUpdateBitmex,
+        _: &mut xtra::Context<Self>,
+    ) -> Self::Return {
+        self.position
+            .update_bitmex(update.contract_symbol, update.contracts);
     }
 }
 
@@ -101,16 +194,28 @@ impl xtra::Handler<GetPosition> for Manager {
     }
 }
 
+#[async_trait]
+impl xtra::Handler<Hedge> for Manager {
+    type Return = ();
+
+    async fn handle(&mut self, _: Hedge, _: &mut xtra::Context<Self>) -> Self::Return {
+        // TODO(lucas): Hedge for all `ContractSymbol` enum variants.
+        self.hedge(&ContractSymbol::BtcUsd).await;
+    }
+}
+
 /// The overall position of the maker.
 #[derive(Debug)]
 struct Position {
     tentenone: HashSet<tentenone::Position>,
+    bitmex: HashSet<bitmex::Position>,
 }
 
 impl Position {
     pub fn new() -> Self {
         Self {
             tentenone: HashSet::from_iter([tentenone::Position::new(ContractSymbol::BtcUsd)]),
+            bitmex: HashSet::from_iter([bitmex::Position::new(ContractSymbol::BtcUsd)]),
         }
     }
 
@@ -131,7 +236,18 @@ impl Position {
         self.tentenone.replace(position);
     }
 
-    #[cfg(test)]
+    fn update_bitmex(&mut self, contract_symbol: ContractSymbol, contracts: i32) {
+        let mut position = self
+            .bitmex
+            .get(&contract_symbol)
+            .cloned()
+            .unwrap_or(bitmex::Position::new(ContractSymbol::BtcUsd));
+
+        position.update(contracts);
+
+        self.bitmex.replace(position);
+    }
+
     fn get_tentenone(&self, contract_symbol: &ContractSymbol) -> Decimal {
         match self.tentenone.get(contract_symbol) {
             Some(position) => match position.contracts() {
@@ -142,11 +258,26 @@ impl Position {
             None => Decimal::ZERO,
         }
     }
+
+    fn get_bitmex(&self, contract_symbol: &ContractSymbol) -> i32 {
+        match self.bitmex.get(contract_symbol) {
+            Some(position) => position.contracts(),
+            None => 0,
+        }
+    }
 }
 
 #[derive(Clone, Copy, Hash, PartialEq, Eq, Debug, Serialize)]
 pub enum ContractSymbol {
     BtcUsd,
+}
+
+impl From<trade::ContractSymbol> for ContractSymbol {
+    fn from(value: trade::ContractSymbol) -> Self {
+        match value {
+            trade::ContractSymbol::BtcUsd => Self::BtcUsd,
+        }
+    }
 }
 
 /// The number of contracts in the position, including their direction.
