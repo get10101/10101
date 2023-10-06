@@ -370,6 +370,11 @@ pub fn run(data_dir: String, seed_dir: String, runtime: &Runtime) -> Result<()> 
     })
 }
 
+pub fn restore_from_mnemonic(seed_words: &str, target_seed_file: &Path) -> Result<()> {
+    Bip39Seed::restore_from_mnemonic(seed_words, target_seed_file)?;
+    Ok(())
+}
+
 fn keep_wallet_balance_and_history_up_to_date(node: &Node) -> Result<()> {
     let wallet_balances = node
         .get_wallet_balances()

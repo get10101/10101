@@ -8,13 +8,15 @@ import 'package:get_10101/features/wallet/domain/wallet_type.dart';
 import 'package:get_10101/features/wallet/onboarding/onboarding_screen.dart';
 import 'package:get_10101/features/wallet/receive_screen.dart';
 import 'package:get_10101/features/wallet/scanner_screen.dart';
+import 'package:get_10101/features/welcome/seed_import_screen.dart';
 import 'package:get_10101/features/wallet/seed_screen.dart';
 import 'package:get_10101/features/wallet/send/send_screen.dart';
 import 'package:get_10101/features/wallet/wallet_screen.dart';
 import 'package:get_10101/features/welcome/welcome_screen.dart';
 import 'package:go_router/go_router.dart';
+import 'package:get_10101/features/welcome/new_wallet_screen.dart';
 
-GoRouter createRouter() {
+GoRouter createRoutes() {
   return GoRouter(
       navigatorKey: rootNavigatorKey,
       initialLocation: LoadingScreen.route,
@@ -98,6 +100,20 @@ GoRouter createRouter() {
             ),
           ],
         ),
+        GoRoute(
+            path: NewWalletScreen.route,
+            builder: (BuildContext context, GoRouterState state) {
+              return const NewWalletScreen();
+            },
+            routes: <RouteBase>[
+              GoRoute(
+                  path: SeedPhraseImporter.subRouteName,
+                  parentNavigatorKey: rootNavigatorKey,
+                  builder: (BuildContext context, GoRouterState state) {
+                    return const SeedPhraseImporter();
+                  },
+                  routes: const []),
+            ]),
         GoRoute(
             path: WelcomeScreen.route,
             parentNavigatorKey: rootNavigatorKey,

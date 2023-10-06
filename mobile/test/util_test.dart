@@ -1,4 +1,5 @@
 import 'package:get_10101/features/wallet/application/util.dart';
+import 'package:get_10101/features/welcome/seed_import_screen.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -26,5 +27,19 @@ void main() {
       expect(leading, "");
       expect(balance, "2.11 010 000");
     });
+  });
+
+  test('calculateIndex returns the correct index for col=0', () {
+    const col = 0;
+
+    expect(calculateIndex(col, 0), 0);
+    expect(calculateIndex(col, 2), 2);
+  });
+
+  test('calculateIndex returns the correct index for col=1', () {
+    const col = 1;
+
+    expect(calculateIndex(col, 0), 6);
+    expect(calculateIndex(col, 2), 8);
   });
 }

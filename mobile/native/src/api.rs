@@ -31,6 +31,7 @@ use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::Decimal;
 use state::Storage;
 use std::backtrace::Backtrace;
+use std::path::PathBuf;
 use time::OffsetDateTime;
 pub use trade::ContractSymbol;
 pub use trade::Direction;
@@ -418,6 +419,12 @@ pub fn update_last_login() -> Result<LastLogin> {
 
 pub fn get_seed_phrase() -> SyncReturn<Vec<String>> {
     SyncReturn(ln_dlc::get_seed_phrase())
+}
+
+pub fn restore_from_seed_phrase(seed_phrase: String, target_seed_file_path: String) -> Result<()> {
+    let file_path = PathBuf::from(target_seed_file_path);
+    tracing::info!("Restoring seed from phrase to {:?}", file_path);
+    ln_dlc::restore_from_mnemonic(&seed_phrase, file_path.as_path())
 }
 
 /// Enroll a user in the beta program
