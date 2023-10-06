@@ -1,4 +1,3 @@
-import 'package:f_logs/model/flog/flog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
@@ -7,6 +6,7 @@ import 'package:get_10101/common/snack_bar.dart';
 import 'package:get_10101/common/value_data_row.dart';
 import 'package:get_10101/features/wallet/application/faucet_service.dart';
 import 'package:get_10101/features/wallet/payment_claimed_change_notifier.dart';
+import 'package:get_10101/features/wallet/wallet_screen.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
@@ -65,12 +65,7 @@ class _FundWalletModalState extends State<FundWalletModal> {
     const style = TextStyle(fontSize: 20);
 
     if (context.watch<PaymentClaimedChangeNotifier>().isClaimed()) {
-      // routing is not allowed during building a widget, hence we need to register the route navigation after the widget has been build.
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        FLog.debug(text: "Payment received!");
-        GoRouter.of(context).pop();
-        GoRouter.of(context).pop();
-      });
+      GoRouter.of(context).go(WalletScreen.route);
     }
 
     return SafeArea(
