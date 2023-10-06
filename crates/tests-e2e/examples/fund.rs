@@ -76,16 +76,6 @@ async fn fund_everything(faucet: &str, coordinator: &str, maker: &str) -> Result
         .get_node_info()
         .await
         .expect("To get coordinator's node info");
-    maker
-        .open_channel(coordinator_info, 10_000_000, None)
-        .await
-        .expect("To be able to open a channel from maker to coordinator");
-    let maker_info = maker.get_node_info().await.expect("To get node info");
-    tracing::info!(
-        "Opened channel from maker ({}) to coordinator ({})",
-        maker_info.pubkey,
-        coordinator_info.pubkey
-    );
 
     let node: NodeInfo = coordinator.get_node_info().await?;
     tracing::info!("lightning node: {}", node);
@@ -104,17 +94,6 @@ async fn fund_everything(faucet: &str, coordinator: &str, maker: &str) -> Result
         )
         .await?;
     bitcoind.mine(10).await?;
-
-    maker
-        .sync_on_chain()
-        .await
-        .expect("to be able to sync on-chain wallet for maker");
-    let maker_balance = maker.get_balance().await?;
-    tracing::info!(
-        onchain = %maker_balance.onchain,
-        offchain = %maker_balance.offchain,
-        "Maker balance",
-    );
 
     if let Err(e) = coordinator.sync_wallet().await {
         tracing::warn!("failed to sync coordinator: {}", e);
@@ -148,6 +127,32 @@ async fn fund_everything(faucet: &str, coordinator: &str, maker: &str) -> Result
 
     let lnd_channels = get_text(&format!("{faucet}/lnd/v1/channels")).await?;
     tracing::info!("open LND channels: {}", lnd_channels);
+
+    maker
+        .open_channel(coordinator_info, 10_000_000, None)
+        .await
+        .expect("To be able to open a channel from maker to coordinator");
+    let maker_info = maker.get_node_info().await.expect("To get node info");
+
+    tracing::info!(
+        "Opened channel from maker ({}) to coordinator ({})",
+        maker_info.pubkey,
+        coordinator_info.pubkey
+    );
+
+    bitcoind.mine(10).await?;
+
+    maker
+        .sync_on_chain()
+        .await
+        .expect("to be able to sync on-chain wallet for maker");
+    let maker_balance = maker.get_balance().await?;
+    tracing::info!(
+        onchain = %maker_balance.onchain,
+        offchain = %maker_balance.offchain,
+        "Maker balance",
+    );
+
     Ok(())
 }
 
