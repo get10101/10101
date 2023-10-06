@@ -83,7 +83,9 @@ pub struct LiquidityOption {
     pub min_fee_sats: u64,
     pub fee_percentage: f64,
     pub coordinator_leverage: f32,
+    #[serde(with = "time::serde::rfc3339")]
     pub created_at: OffsetDateTime,
+    #[serde(with = "time::serde::rfc3339")]
     pub updated_at: OffsetDateTime,
     pub active: bool,
 }
