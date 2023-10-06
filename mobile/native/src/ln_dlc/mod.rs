@@ -35,6 +35,7 @@ use bitcoin::Amount;
 pub use channel_status::ChannelStatus;
 use coordinator_commons::LiquidityOption;
 use coordinator_commons::LspConfig;
+use coordinator_commons::OnboardingParam;
 use coordinator_commons::TradeParams;
 use itertools::chain;
 use itertools::Itertools;
@@ -64,8 +65,6 @@ use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::prelude::Signed;
 use rust_decimal::Decimal;
 use rust_decimal::RoundingStrategy;
-use serde::Deserialize;
-use serde::Serialize;
 use state::Storage;
 use std::net::IpAddr;
 use std::net::Ipv4Addr;
@@ -740,12 +739,6 @@ pub fn liquidity_options() -> Result<Vec<LiquidityOption>> {
     Ok(lsp_config.liquidity_options)
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
-struct OnboardingParam {
-    user_channel_id: String,
-    liquidity_option_id: i32,
-}
-
 pub fn create_onboarding_invoice(amount_sats: u64, liquidity_option_id: i32) -> Result<Invoice> {
     let runtime = get_or_create_tokio_runtime()?;
 
@@ -754,7 +747,6 @@ pub fn create_onboarding_invoice(amount_sats: u64, liquidity_option_id: i32) -> 
         let client = reqwest_client();
 
         // check if we have already announced a channel before. If so we can reuse the `user_channel_id`
-        // instead of generating a new. This will reduce the garbarge record we create for everytime
         // the user navigates to the invoice screen.
         let channel = db::get_announced_channel(config::get_coordinator_info().pubkey)?;
 
@@ -782,28 +774,29 @@ pub fn create_onboarding_invoice(amount_sats: u64, liquidity_option_id: i32) -> 
 
         tracing::info!(
             %user_channel_id,
-            "Registering interest to open JIT channel with coordinator"
         );
 
-        let response = client
+        let final_route_hint_hop : RouteHintHop= match client
             .post(format!(
-                "http://{}/api/prepare_onboarding_payment/{}",
+                "http://{}/api/prepare_onboarding_payment",
                 config::get_http_endpoint(),
-                node.inner.info.pubkey
             ))
             .json(&OnboardingParam {
+                target_node: node.inner.info.pubkey.to_string(),
                 user_channel_id: user_channel_id.to_string(),
                 liquidity_option_id,
+                amount_sats,
             })
             .send()
-            .await?;
-
-        if !response.status().is_success() {
-            let text = response.text().await?;
-            bail!("Failed to fetch route hint from coordinator: {text}")
-        }
-
-        let final_route_hint_hop: RouteHintHop = response.json().await?;
+            .await?.error_for_status() {
+                Ok(resp) => resp.json().await?,
+                Err(e) => if e.status() == Some(reqwest::StatusCode::SERVICE_UNAVAILABLE) {
+                    // Hack: Do not change the string below as it's matched in the frontend
+                    bail!("Coordinator cannot provide required liquidity");
+                } else {
+                    bail!("Failed to fetch route hint from coordinator: {e:#}")
+                }
+            };
 
         node.inner.create_invoice_with_route_hint(
             Some(amount_sats),

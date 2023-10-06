@@ -79,6 +79,17 @@ diesel::table! {
 }
 
 diesel::table! {
+    liquidity_request_logs (id) {
+        id -> Int4,
+        trader_pk -> Text,
+        timestamp -> Timestamptz,
+        requested_amount_sats -> Int8,
+        liquidity_option -> Int4,
+        successfully_requested -> Bool,
+    }
+}
+
+diesel::table! {
     use diesel::sql_types::*;
     use super::sql_types::MatchStateType;
 
@@ -231,11 +242,13 @@ diesel::table! {
     }
 }
 
+diesel::joinable!(liquidity_request_logs -> liquidity_options (liquidity_option));
 diesel::joinable!(trades -> positions (position_id));
 
 diesel::allow_tables_to_appear_in_same_query!(
     channels,
     liquidity_options,
+    liquidity_request_logs,
     matches,
     orders,
     payments,

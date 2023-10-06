@@ -1,5 +1,6 @@
 pub mod channels;
 pub mod custom_types;
+pub mod liquidity;
 pub mod liquidity_options;
 pub mod payments;
 pub mod positions;
