@@ -6,13 +6,9 @@ import 'package:get_10101/common/application/event_service.dart';
 class PaymentClaimedChangeNotifier extends ChangeNotifier implements Subscriber {
   bool _claimed = false;
 
-  void waitForPayment() {
-    _claimed = false;
-  }
+  void waitForPayment() => _claimed = false;
 
-  bool isClaimed() {
-    return _claimed;
-  }
+  bool isClaimed() => _claimed;
 
   @override
   void notify(Event event) {
