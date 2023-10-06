@@ -1,4 +1,3 @@
-import 'package:f_logs/f_logs.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge.dart';
@@ -10,6 +9,7 @@ import 'package:get_10101/common/snack_bar.dart';
 import 'package:get_10101/common/value_data_row.dart';
 import 'package:get_10101/features/wallet/onboarding/fund_wallet_modal.dart';
 import 'package:get_10101/features/wallet/wallet_change_notifier.dart';
+import 'package:get_10101/logger.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -65,7 +65,7 @@ class _LiquidityCardState extends State<LiquidityCard> {
                       .then(
                           (invoice) => showFundWalletModal(context, widget.amount!, fee, invoice!))
                       .catchError((error) {
-                    FLog.error(text: "Failed to create invoice! Error: $error");
+                    logger.e("Failed to create invoice!", error: error);
                     if (error is FfiException &&
                         error.message.contains("cannot provide required liquidity")) {
                       showNoLiquidityDialog();

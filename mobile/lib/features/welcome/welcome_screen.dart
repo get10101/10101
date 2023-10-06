@@ -1,4 +1,4 @@
-import 'package:f_logs/model/flog/flog.dart';
+import 'package:get_10101/logger.dart';
 import 'package:flutter/material.dart';
 import 'package:get_10101/common/scrollable_safe_area.dart';
 import 'package:get_10101/common/snack_bar.dart';
@@ -80,7 +80,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                       try {
                         api.registerBeta(email: _email);
                         Preferences.instance.setEmailAddress(_email);
-                        FLog.info(text: "Successfully stored the email address $_email .");
+                        logger.i("Successfully stored the email address $_email .");
                         context.go(WalletScreen.route);
                       } catch (e) {
                         showSnackBar(ScaffoldMessenger.of(context), "$e");
@@ -104,7 +104,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
 
     Preferences.instance.getEmailAddress().then((value) => setState(() {
           _email = value;
-          FLog.info(text: "retrieved stored email from the preferences: $_email.");
+          logger.i("retrieved stored email from the preferences: $_email.");
         }));
   }
 }

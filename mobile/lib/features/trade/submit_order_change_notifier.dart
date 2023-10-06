@@ -1,4 +1,4 @@
-import 'package:f_logs/model/flog/flog.dart';
+import 'package:get_10101/logger.dart';
 import 'package:flutter/material.dart';
 import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
 import 'package:get_10101/common/application/event_service.dart';
@@ -54,7 +54,7 @@ class SubmitOrderChangeNotifier extends ChangeNotifier implements Subscriber {
           tradeValues.quantity!, ContractSymbol.btcusd, tradeValues.direction);
       _pendingOrder!.state = PendingOrderState.submittedSuccessfully;
     } catch (exception) {
-      FLog.error(text: "Failed to submit order: $exception");
+      logger.e("Failed to submit order: $exception");
       _pendingOrder!.state = PendingOrderState.submissionFailed;
     }
 
@@ -82,7 +82,7 @@ class SubmitOrderChangeNotifier extends ChangeNotifier implements Subscriber {
         notifyListeners();
       }
     } else {
-      FLog.warning(text: "Received unexpected event: ${event.toString()}");
+      logger.w("Received unexpected event: ${event.toString()}");
     }
   }
 

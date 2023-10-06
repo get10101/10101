@@ -1,6 +1,6 @@
 import 'dart:collection';
 
-import 'package:f_logs/model/flog/flog.dart';
+import 'package:get_10101/logger.dart';
 import 'package:get_10101/ffi.dart';
 
 abstract class Subscriber {
@@ -13,7 +13,7 @@ class EventService {
   EventService.create() {
     api.subscribe().listen((Event event) {
       if (subscribers[event.runtimeType] == null) {
-        FLog.debug(text: "found no subscribers, skipping event");
+        logger.d("found no subscribers, skipping event");
         return;
       }
 

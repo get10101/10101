@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:f_logs/model/flog/flog.dart';
+import 'package:get_10101/logger.dart';
 import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
 import 'package:get_10101/common/application/event_service.dart';
 import 'package:get_10101/features/trade/application/order_service.dart';
@@ -33,7 +33,7 @@ class OrderChangeNotifier extends ChangeNotifier implements Subscriber {
 
       notifyListeners();
     } else {
-      FLog.warning(text: "Received unexpected event: ${event.toString()}");
+      logger.w("Received unexpected event: ${event.toString()}");
     }
   }
 

@@ -1,6 +1,5 @@
 import 'dart:math';
 
-import 'package:f_logs/f_logs.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get_10101/common/application/channel_info_service.dart';
@@ -13,6 +12,7 @@ import 'package:get_10101/features/wallet/domain/lightning_invoice.dart';
 import 'package:get_10101/features/wallet/send_payment_change_notifier.dart';
 import 'package:get_10101/features/wallet/wallet_change_notifier.dart';
 import 'package:get_10101/features/wallet/wallet_screen.dart';
+import 'package:get_10101/logger.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
@@ -106,7 +106,7 @@ class _SendPaymentScreenState extends State<SendPaymentScreen> {
                     ),
                     controller: _textEditingController,
                     onChanged: (value) async {
-                      FLog.debug(text: value);
+                      logger.d(value);
 
                       setState(() {
                         isDecoding = true;

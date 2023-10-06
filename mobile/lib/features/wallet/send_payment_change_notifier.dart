@@ -1,4 +1,4 @@
-import 'package:f_logs/model/flog/flog.dart';
+import 'package:get_10101/logger.dart';
 import 'package:flutter/material.dart';
 import 'package:get_10101/features/wallet/application/wallet_service.dart';
 import 'package:get_10101/features/wallet/domain/lightning_invoice.dart';
@@ -37,7 +37,7 @@ class SendPaymentChangeNotifier extends ChangeNotifier {
       await walletService.payInvoice(raw);
       _pendingPayment!.state = PendingPaymentState.succeeded;
     } catch (exception) {
-      FLog.error(text: "Failed to submit order: $exception");
+      logger.e("Failed to submit order: $exception");
       _pendingPayment!.state = PendingPaymentState.failed;
     }
 

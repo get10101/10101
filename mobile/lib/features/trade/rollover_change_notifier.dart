@@ -1,4 +1,4 @@
-import 'package:f_logs/model/flog/flog.dart';
+import 'package:get_10101/logger.dart';
 import 'package:flutter/material.dart';
 import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
 import 'package:get_10101/common/application/event_service.dart';
@@ -19,7 +19,7 @@ class RolloverChangeNotifier extends ChangeNotifier implements Subscriber {
       }
 
       Rollover rollover = Rollover.fromApi(event.field0 as bridge.BackgroundTask_Rollover);
-      FLog.debug(text: "Received a rollover event. Status: ${rollover.taskStatus}");
+      logger.d("Received a rollover event. Status: ${rollover.taskStatus}");
 
       taskStatus = rollover.taskStatus;
 
@@ -44,7 +44,7 @@ class RolloverChangeNotifier extends ChangeNotifier implements Subscriber {
         notifyListeners();
       }
     } else {
-      FLog.warning(text: "Received unexpected event: ${event.toString()}");
+      logger.w("Received unexpected event: ${event.toString()}");
     }
   }
 }

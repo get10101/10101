@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:f_logs/f_logs.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
@@ -64,6 +63,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:version/version.dart';
+import 'package:get_10101/logger.dart';
 
 import 'features/stable/stable_value_change_notifier.dart';
 
@@ -71,10 +71,7 @@ void main() async {
   WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
   FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
 
-  setupFlutterLogs();
-
   await initFirebase();
-  FLog.info(text: "Initialised firebase!");
 
   const ChannelInfoService channelInfoService = ChannelInfoService();
   var tradeValuesService = TradeValuesService();
@@ -110,23 +107,6 @@ void main() async {
   }
 
   runApp(MultiProvider(providers: providers, child: const TenTenOneApp()));
-}
-
-void setupFlutterLogs() {
-  final config = FLog.getDefaultConfigurations();
-  config.activeLogLevel = LogLevel.TRACE;
-  config.formatType = FormatType.FORMAT_CUSTOM;
-  config.timestampFormat = 'yyyy-MM-dd HH:mm:ss.SSS';
-  config.fieldOrderFormatCustom = [
-    FieldName.TIMESTAMP,
-    FieldName.LOG_LEVEL,
-    FieldName.TEXT,
-    FieldName.STACKTRACE
-  ];
-  config.customClosingDivider = " ";
-  config.customOpeningDivider = "";
-
-  FLog.applyConfigurations(config);
 }
 
 class TenTenOneApp extends StatefulWidget {
@@ -239,7 +219,7 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
         // TODO: It's not optimal that we read this from shared preferences every time, should probably be set through a provider
         final hasEmailAddress = await Preferences.instance.hasEmailAddress();
         if (!hasEmailAddress) {
-          FLog.info(text: "adding the email...");
+          logger.i("adding the email...");
           return WelcomeScreen.route;
         }
 
@@ -293,7 +273,7 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
       subscribeToNotifiers(context);
 
       await runBackend(config);
-      FLog.info(text: "Backend started");
+      logger.i("Backend started");
 
       orderChangeNotifier.initialize();
       positionChangeNotifier.initialize();
@@ -303,11 +283,11 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
 
       rust.api
           .updateLastLogin()
-          .then((lastLogin) => FLog.debug(text: "Last login was at ${lastLogin.date}"));
+          .then((lastLogin) => logger.d("Last login was at ${lastLogin.date}"));
     } on FfiException catch (error) {
-      FLog.error(text: "Failed to initialise: Error: ${error.message}", exception: error);
+      logger.e("Failed to initialise: Error: ${error.message}", error: error);
     } catch (error) {
-      FLog.error(text: "Failed to initialise: $error", exception: error);
+      logger.e("Failed to initialise: $error", error: error);
     } finally {
       FlutterNativeSplash.remove();
     }
@@ -315,32 +295,26 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
 
   void setupRustLogging() {
     rust.api.initLogging().listen((event) {
-      // TODO: this should not be required if we enable mobile loggers for FLog.
       if (Platform.isAndroid || Platform.isIOS) {
-        FLog.logThis(
-            text: event.target != ""
-                ? '${event.target}: ${event.msg} ${event.data}'
-                : '${event.msg} ${event.data}',
-            type: mapLogLevel(event.level));
+        var message = event.target != ""
+            ? '${event.target}: ${event.msg} ${event.data}'
+            : '${event.msg} ${event.data}';
+        switch (event.level) {
+          case "INFO":
+            logger.i(message);
+          case "DEBUG":
+            logger.d(message);
+          case "ERROR":
+            logger.e(message);
+          case "WARN":
+            logger.w(message);
+          case "TRACE":
+            logger.t(message);
+          default:
+            logger.d(message);
+        }
       }
     });
-  }
-}
-
-LogLevel mapLogLevel(String level) {
-  switch (level) {
-    case "INFO":
-      return LogLevel.INFO;
-    case "DEBUG":
-      return LogLevel.DEBUG;
-    case "ERROR":
-      return LogLevel.ERROR;
-    case "WARN":
-      return LogLevel.WARNING;
-    case "TRACE":
-      return LogLevel.TRACE;
-    default:
-      return LogLevel.DEBUG;
   }
 }
 
@@ -358,10 +332,10 @@ Future<void> compareCoordinatorVersion(bridge.Config config) async {
 
     final clientVersion = Version.parse(packageInfo.version);
     final coordinatorVersion = CoordinatorVersion.fromJson(jsonDecode(response.body));
-    FLog.info(text: "Coordinator version: ${coordinatorVersion.version.toString()}");
+    logger.i("Coordinator version: ${coordinatorVersion.version.toString()}");
 
     if (coordinatorVersion.version > clientVersion) {
-      FLog.warning(text: "Client out of date. Current version: ${clientVersion.toString()}");
+      logger.w("Client out of date. Current version: ${clientVersion.toString()}");
       showDialog(
           context: shellNavigatorKey.currentContext!,
           builder: (context) => AlertDialog(
@@ -377,12 +351,12 @@ Future<void> compareCoordinatorVersion(bridge.Config config) async {
                     ),
                   ]));
     } else if (coordinatorVersion.version < clientVersion) {
-      FLog.warning(text: "10101 is newer than LSP: ${coordinatorVersion.version.toString()}");
+      logger.w("10101 is newer than LSP: ${coordinatorVersion.version.toString()}");
     } else {
-      FLog.info(text: "Client is up to date: ${clientVersion.toString()}");
+      logger.i("Client is up to date: ${clientVersion.toString()}");
     }
   } catch (e) {
-    FLog.error(text: "Error getting coordinator version: ${e.toString()}");
+    logger.e("Error getting coordinator version: ${e.toString()}");
     showDialog(
         context: shellNavigatorKey.currentContext!,
         builder: (context) => AlertDialog(
@@ -467,29 +441,29 @@ class ScaffoldWithNavBar extends StatelessWidget {
 Future<void> logAppSettings(bridge.Config config) async {
   String commit = const String.fromEnvironment('COMMIT');
   if (commit.isNotEmpty) {
-    FLog.info(text: "Built on commit: $commit");
+    logger.i("Built on commit: $commit");
   }
 
   String branch = const String.fromEnvironment('BRANCH');
   if (branch.isNotEmpty) {
-    FLog.info(text: "Built on branch: $branch");
+    logger.i("Built on branch: $branch");
   }
 
   PackageInfo packageInfo = await PackageInfo.fromPlatform();
-  FLog.info(text: "Build number: ${packageInfo.buildNumber}");
-  FLog.info(text: "Build version: ${packageInfo.version}");
+  logger.i("Build number: ${packageInfo.buildNumber}");
+  logger.i("Build version: ${packageInfo.version}");
 
-  FLog.info(text: "Network: ${config.network}");
-  FLog.info(text: "Esplora endpoint: ${config.esploraEndpoint}");
-  FLog.info(text: "Coordinator: ${config.coordinatorPubkey}@${config.host}:${config.p2PPort}");
-  FLog.info(text: "Oracle endpoint: ${config.oracleEndpoint}");
-  FLog.info(text: "Oracle PK: ${config.oraclePubkey}");
+  logger.i("Network: ${config.network}");
+  logger.i("Esplora endpoint: ${config.esploraEndpoint}");
+  logger.i("Coordinator: ${config.coordinatorPubkey}@${config.host}:${config.p2PPort}");
+  logger.i("Oracle endpoint: ${config.oracleEndpoint}");
+  logger.i("Oracle PK: ${config.oraclePubkey}");
 
   try {
     String nodeId = rust.api.getNodeId();
-    FLog.info(text: "Node ID: $nodeId");
+    logger.i("Node ID: $nodeId");
   } catch (e) {
-    FLog.error(text: "Failed to get node ID: $e");
+    logger.e("Failed to get node ID: $e");
   }
 }
 
@@ -557,7 +531,7 @@ void subscribeToNotifiers(BuildContext context) {
   channelStatusNotifier.subscribe(eventService);
 
   eventService.subscribe(
-      AnonSubscriber((event) => FLog.info(text: event.field0)), const bridge.Event.log(""));
+      AnonSubscriber((event) => logger.i(event.field0)), const bridge.Event.log(""));
 }
 
 Future<void> runBackend(bridge.Config config) async {
@@ -571,9 +545,8 @@ Future<void> runBackend(bridge.Config config) async {
 
   final network = config.network == "mainnet" ? "bitcoin" : config.network;
   if (File('$seedDir/$network/db').existsSync()) {
-    FLog.info(
-        text:
-            "App has already data in the seed dir. For compatibility reasons we will not switch to the new app dir.");
+    logger.i(
+        "App has already data in the seed dir. For compatibility reasons we will not switch to the new app dir.");
     appDir = seedDir;
   }
 
@@ -581,12 +554,12 @@ Future<void> runBackend(bridge.Config config) async {
   try {
     fcmToken = await FirebaseMessaging.instance.getToken().then((value) => value ?? '');
   } catch (e) {
-    FLog.error(text: "Error fetching FCM token: $e");
+    logger.e("Error fetching FCM token: $e");
     fcmToken = '';
   }
 
-  FLog.info(text: "App data will be stored in: $appDir");
-  FLog.info(text: "Seed data will be stored in: $seedDir");
+  logger.i("App data will be stored in: $appDir");
+  logger.i("Seed data will be stored in: $seedDir");
   await startBackend(config: config, appDir: appDir, seedDir: seedDir, fcmToken: fcmToken);
 }
 
@@ -600,11 +573,11 @@ Future<void> startBackend({config, appDir, seedDir, fcmToken}) async {
           .runInFlutter(config: config, appDir: appDir, seedDir: seedDir, fcmToken: fcmToken);
       break; // If successful, exit loop
     } catch (e) {
-      FLog.info(text: "Attempt ${i + 1} failed: $e");
+      logger.i("Attempt ${i + 1} failed: $e");
       if (i < retries - 1) {
         await Future.delayed(const Duration(seconds: 5));
       } else {
-        FLog.error(text: "Max retries reached, backend could not start.");
+        logger.e("Max retries reached, backend could not start.");
         exit(-1);
       }
     }
