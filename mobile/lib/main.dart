@@ -297,8 +297,8 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
     rust.api.initLogging().listen((event) {
       if (Platform.isAndroid || Platform.isIOS) {
         var message = event.target != ""
-            ? '${event.target}: ${event.msg} ${event.data}'
-            : '${event.msg} ${event.data}';
+            ? 'r: ${event.target}: ${event.msg} ${event.data}'
+            : 'r: ${event.msg} ${event.data}';
         switch (event.level) {
           case "INFO":
             logger.i(message);
