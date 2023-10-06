@@ -34,6 +34,28 @@ impl NotificationScheduler {
         }
     }
 
+    pub async fn add_reminder_to_close_expired_position_job(
+        &self,
+        pool: Pool<ConnectionManager<PgConnection>>,
+    ) -> Result<()> {
+        let sender = self.sender.clone();
+        let schedule = self.settings.close_expired_position_scheduler.clone();
+
+        let uuid = self
+            .scheduler
+            .add(build_remind_to_close_expired_position_notification_job(
+                schedule.as_str(),
+                sender,
+                pool,
+            )?)
+            .await?;
+        tracing::debug!(
+            job_id = uuid.to_string(),
+            "Started new job to remind to close an expired position"
+        );
+        Ok(())
+    }
+
     pub async fn add_rollover_window_reminder_job(
         &self,
         pool: Pool<ConnectionManager<PgConnection>>,
@@ -44,7 +66,7 @@ impl NotificationScheduler {
 
         let uuid = self
             .scheduler
-            .add(build_notification_job(
+            .add(build_rollover_notification_job(
                 schedule.as_str(),
                 sender,
                 pool,
@@ -69,7 +91,7 @@ impl NotificationScheduler {
 
         let uuid = self
             .scheduler
-            .add(build_notification_job(
+            .add(build_rollover_notification_job(
                 schedule.as_str(),
                 sender,
                 pool,
@@ -91,7 +113,7 @@ impl NotificationScheduler {
     }
 }
 
-fn build_notification_job(
+fn build_rollover_notification_job(
     schedule: &str,
     notification_sender: Sender<Notification>,
     pool: Pool<ConnectionManager<PgConnection>>,
@@ -104,9 +126,7 @@ fn build_notification_job(
 
         if !coordinator_commons::is_eligible_for_rollover(OffsetDateTime::now_utc(), network) {
             return Box::pin(async move {
-                tracing::warn!(
-                                "Rollover window hasn't started yet. Job schedule seems to be miss-aligned with the rollover window. Skipping user notifications."
-                            );
+                tracing::warn!("Rollover window hasn't started yet. Job schedule seems to be miss-aligned with the rollover window. Skipping user notifications.");
             });
         }
 
@@ -124,6 +144,45 @@ fn build_notification_job(
                             .await
                         {
                             tracing::error!("Failed to send {notification:?} notification: {e:?}");
+                        }
+                    }
+                }
+            }),
+            Err(error) => Box::pin(async move {
+                tracing::error!("Could not load positions with fcm token {error:#}")
+            }),
+        }
+    })
+}
+
+fn build_remind_to_close_expired_position_notification_job(
+    schedule: &str,
+    notification_sender: Sender<Notification>,
+    pool: Pool<ConnectionManager<PgConnection>>,
+) -> Result<Job, JobSchedulerError> {
+    Job::new_async(schedule, move |_, _| {
+        let notification_sender = notification_sender.clone();
+        let mut conn = pool.get().expect("To be able to get a db connection");
+
+        // Note, positions that are expired longer than
+        // [`crate::node::expired_positions::EXPIRED_POSITION_TIMEOUT`] are set to closing, hence
+        // those positions will not get notified anymore afterwards.
+        match get_all_open_positions_with_expiry_before(&mut conn, OffsetDateTime::now_utc()) {
+            Ok(positions_with_token) => Box::pin({
+                async move {
+                    for (position, fcm_token) in positions_with_token {
+                        tracing::debug!(trader_id=%position.trader, "Sending reminder to close expired position.");
+                        if let Err(e) = notification_sender
+                            .send(Notification::new(
+                                fcm_token.clone(),
+                                NotificationKind::PositionExpired,
+                            ))
+                            .await
+                        {
+                            tracing::error!(
+                                "Failed to send {:?} notification: {e:?}",
+                                NotificationKind::PositionExpired
+                            );
                         }
                     }
                 }

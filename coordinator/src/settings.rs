@@ -23,6 +23,9 @@ const ROLLOVER_CLOSE_SCHEDULE_MAINNET: &str = "0 5 13 * * 5,6";
 /// Reminding about the rollover window being closed runs daily at 22:05 UTC
 const ROLLOVER_CLOSE_SCHEDULE_REGTEST: &str = "0 5 22 * * *";
 
+/// Reminding to close an expired position every day at 12:00 UTC
+const CLOSE_EXPIRED_POSITION_SCHEDULE: &str = "0 0 12 * * *";
+
 /// Top-level settings.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Settings {
@@ -65,6 +68,15 @@ pub struct Settings {
     /// *     *     *      *              *       *             *
     pub rollover_window_close_scheduler: String,
 
+    /// We don't want the below doc block be formatted
+    #[rustfmt::skip]
+    /// A cron syntax for sending notifications to close an expired position
+    ///
+    /// The format is :
+    /// sec   min   hour   day of month   month   day of week   year
+    /// *     *     *      *              *       *             *
+    pub close_expired_position_scheduler: String,
+
     /// Min balance to keep in on-chain wallet at all times
     pub min_liquidity_threshold_sats: u64,
 }
@@ -95,6 +107,7 @@ impl Settings {
             path: None,
             rollover_window_open_scheduler,
             rollover_window_close_scheduler,
+            close_expired_position_scheduler: CLOSE_EXPIRED_POSITION_SCHEDULE.to_string(),
             min_liquidity_threshold_sats: 10_000_000, // 0.1 BTC
         }
     }
