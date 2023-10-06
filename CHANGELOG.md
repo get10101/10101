@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.0] - 2023-10-06
+
 - Allow up to 5BTC wumbo channels
 - Add push notification reminder that the rollover window is open now.
 - Add liquidity options to the onboaring flow
@@ -116,7 +118,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Self-Custodial CFD Trading based on DLC and lightning
 
-[Unreleased]: https://github.com/get10101/10101/compare/1.3.0...HEAD
+[Unreleased]: https://github.com/get10101/10101/compare/1.4.0...HEAD
+[1.4.0]: https://github.com/get10101/10101/compare/1.3.0...1.4.0
 [1.3.0]: https://github.com/get10101/10101/compare/1.2.6...1.3.0
 [1.2.6]: https://github.com/get10101/10101/compare/1.2.5...1.2.6
 [1.2.5]: https://github.com/get10101/10101/compare/1.2.4...1.2.5
