@@ -67,6 +67,13 @@ pub mod routing_fees;
 pub mod storage;
 pub mod unrealized_pnl;
 
+/// We use this variable to indicate the step interval for our payout function. It should be
+/// relative to the overall collateral so that we use the same amount of payouts for all intervals.
+/// This means, the higher the overall collateral, the bigger the steps.
+///
+/// 0.01 means 1%, i.e. we always have ~100 payouts.
+pub const ROUNDING_PERCENT: f32 = 0.01;
+
 #[derive(Debug, Clone)]
 pub struct NodeSettings {
     // At times, we want to disallow opening new positions (e.g. before
@@ -299,6 +306,7 @@ impl Node {
             trade_params.average_execution_price(),
             leverage_long,
             leverage_short,
+            create_rounting_interval((total_collateral as f32 * ROUNDING_PERCENT) as u64),
         )
         .context("Could not build contract descriptor")?;
 
@@ -624,11 +632,11 @@ fn liquidation_price(trade_params: &TradeParams) -> f32 {
     .expect("to fit into f32")
 }
 
-fn get_rounding_intervals() -> RoundingIntervals {
+fn create_rounting_interval(rounding_mod: u64) -> RoundingIntervals {
     RoundingIntervals {
         intervals: vec![RoundingInterval {
             begin_interval: 0,
-            rounding_mod: 500,
+            rounding_mod,
         }],
     }
 }
@@ -639,6 +647,7 @@ fn build_contract_descriptor(
     initial_price: Decimal,
     leverage_long: f32,
     leverage_short: f32,
+    rounding_intervals: RoundingIntervals,
 ) -> Result<ContractDescriptor> {
     Ok(ContractDescriptor::Numerical(NumericalDescriptor {
         payout_function: build_payout_function(
@@ -647,7 +656,7 @@ fn build_contract_descriptor(
             leverage_long,
             leverage_short,
         )?,
-        rounding_intervals: get_rounding_intervals(),
+        rounding_intervals,
         difference_params: None,
         oracle_numeric_infos: dlc_trie::OracleNumericInfo {
             base: 2,
