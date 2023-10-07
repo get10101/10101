@@ -30,8 +30,9 @@ class PendingOrder {
   String? pendingOrderError;
   final PositionAction positionAction;
   String? id;
+  Amount? pnl;
 
-  PendingOrder(this._tradeValues, this.positionAction);
+  PendingOrder(this._tradeValues, this.positionAction, this.pnl);
 
   TradeValues? get tradeValues => _tradeValues;
 }
@@ -42,8 +43,8 @@ class SubmitOrderChangeNotifier extends ChangeNotifier implements Subscriber {
 
   SubmitOrderChangeNotifier(this.orderService);
 
-  submitPendingOrder(TradeValues tradeValues, PositionAction positionAction) async {
-    _pendingOrder = PendingOrder(tradeValues, positionAction);
+  submitPendingOrder(TradeValues tradeValues, PositionAction positionAction, {Amount? pnl}) async {
+    _pendingOrder = PendingOrder(tradeValues, positionAction, pnl);
 
     // notify listeners about pending order in state "pending"
     notifyListeners();
@@ -99,7 +100,8 @@ class SubmitOrderChangeNotifier extends ChangeNotifier implements Subscriber {
             fundingRate: 0,
             expiry: position.expiry,
             tradeValuesService: TradeValuesService()),
-        PositionAction.close);
+        PositionAction.close,
+        pnl: position.unrealizedPnl);
   }
 
   PendingOrder? get pendingOrder => _pendingOrder;
