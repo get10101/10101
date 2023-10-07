@@ -1,4 +1,4 @@
-import 'package:f_logs/model/flog/flog.dart';
+import 'package:get_10101/logger.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -18,14 +18,14 @@ Future<void> requestNotificationPermission() async {
     sound: true,
   );
 
-  FLog.info(text: "User granted permission: ${settings.authorizationStatus}");
+  logger.i("User granted permission: ${settings.authorizationStatus}");
 }
 
 Future<void> initFirebase() async {
   final env = Environment.parse();
 
   try {
-    FLog.info(text: "Initialising Firebase");
+    logger.i("Initialising Firebase");
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions(env.network).currentPlatform,
     );
@@ -33,7 +33,7 @@ Future<void> initFirebase() async {
     final flutterLocalNotificationsPlugin = initLocalNotifications();
     await configureFirebase(flutterLocalNotificationsPlugin);
   } catch (e) {
-    FLog.error(text: "Error setting up Firebase: ${e.toString()}");
+    logger.e("Error setting up Firebase: ${e.toString()}");
   }
 }
 
@@ -41,10 +41,10 @@ Future<void> configureFirebase(FlutterLocalNotificationsPlugin localNotification
   // Configure message handler
   FirebaseMessaging.onMessage.listen((RemoteMessage message) {
     // TODO: Handle messages from Firebase
-    FLog.debug(text: "Firebase message received: ${message.data}");
+    logger.d("Firebase message received: ${message.data}");
 
     if (message.notification != null) {
-      FLog.debug(text: "Message also contained a notification: ${message.notification}");
+      logger.d("Message also contained a notification: ${message.notification}");
       showNotification(message.notification!.toMap(), localNotifications);
     }
   });
@@ -69,13 +69,13 @@ FlutterLocalNotificationsPlugin initLocalNotifications() {
 
 /// Handle background messages (when the app is not running)
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  FLog.debug(text: "Handling a background message: ${message.messageId}");
+  logger.d("Handling a background message: ${message.messageId}");
 
   await Firebase.initializeApp();
   final localNotifications = initLocalNotifications();
 
   if (message.notification != null) {
-    FLog.debug(text: "Message also contained a notification: ${message.notification}");
+    logger.d("Message also contained a notification: ${message.notification}");
     showNotification(message.notification!.toMap(), localNotifications);
   }
 }
@@ -103,7 +103,7 @@ void showNotification(
     macOS: darwinPlatformChannelSpecifics,
   );
 
-  FLog.debug(text: "Showing notification: ${message['title']} with body ${message['body']}");
+  logger.d("Showing notification: ${message['title']} with body ${message['body']}");
 
   await localNotifications.show(
     0,

@@ -1,7 +1,7 @@
-import 'package:f_logs/f_logs.dart';
 import 'package:flutter/material.dart';
 import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
 import 'package:get_10101/common/application/event_service.dart';
+import 'package:get_10101/logger.dart';
 
 class ServiceStatusNotifier extends ChangeNotifier implements Subscriber {
   Map<bridge.Service, bridge.ServiceStatus> services = <bridge.Service, bridge.ServiceStatus>{};
@@ -20,13 +20,13 @@ class ServiceStatusNotifier extends ChangeNotifier implements Subscriber {
   @override
   void notify(bridge.Event event) {
     if (event is bridge.Event_ServiceHealthUpdate) {
-      FLog.debug(text: "Received event: ${event.toString()}");
+      logger.d("Received event: ${event.toString()}");
       var update = event.field0;
       services[update.service] = update.status;
 
       notifyListeners();
     } else {
-      FLog.warning(text: "Received unexpected event: ${event.toString()}");
+      logger.w("Received unexpected event: ${event.toString()}");
     }
   }
 }

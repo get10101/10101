@@ -1,19 +1,20 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:f_logs/f_logs.dart';
 import 'package:flutter/material.dart';
 import 'package:get_10101/common/channel_status_notifier.dart';
 import 'package:get_10101/common/scrollable_safe_area.dart';
 import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
 import 'package:get_10101/common/snack_bar.dart';
 import 'package:get_10101/features/trade/position_change_notifier.dart';
+import 'package:get_10101/hybrid_logger.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:get_10101/ffi.dart' as rust;
+import 'package:get_10101/logger.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -36,7 +37,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       var nodeId = rust.api.getNodeId();
       _nodeId = nodeId;
     } catch (e) {
-      FLog.error(text: "Error getting node id: $e");
+      logger.e("Error getting node id: $e");
       _nodeId = "UNKNOWN";
     }
 
@@ -47,7 +48,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> loadValues() async {
     var value = await PackageInfo.fromPlatform();
 
-    FLog.info(text: "All values $value");
+    logger.i("All values $value");
     setState(() {
       _buildNumber = value.buildNumber;
       _version = value.version;
@@ -202,7 +203,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
         ElevatedButton(
             onPressed: () async {
-              var file = await FLog.exportLogs();
+              // TODO:
+              logger.toString();
+
+              // TODO: fix me
+              var file = await HybridOutput.logFilePath();
               var logsAsString = await file.readAsString();
               final List<int> bytes = utf8.encode(logsAsString);
               final Directory tempDir = await getTemporaryDirectory();

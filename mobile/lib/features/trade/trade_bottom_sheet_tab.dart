@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:math';
 
-import 'package:f_logs/f_logs.dart';
 import 'package:flutter/material.dart';
 import 'package:get_10101/common/amount_text.dart';
 import 'package:get_10101/common/amount_text_input_form_field.dart';
@@ -23,6 +22,7 @@ import 'package:get_10101/features/trade/trade_theme.dart';
 import 'package:get_10101/features/trade/trade_value_change_notifier.dart';
 import 'package:get_10101/features/wallet/domain/wallet_info.dart';
 import 'package:get_10101/features/wallet/wallet_change_notifier.dart';
+import 'package:get_10101/logger.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
@@ -332,7 +332,7 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
                         Amount margin = Amount.parseAmount(value);
                         context.read<TradeValuesChangeNotifier>().updateMargin(direction, margin);
                       } catch (error) {
-                        FLog.error(text: "Error: $error");
+                        logger.e("Error: $error");
                         context
                             .read<TradeValuesChangeNotifier>()
                             .updateMargin(direction, Amount.zero());

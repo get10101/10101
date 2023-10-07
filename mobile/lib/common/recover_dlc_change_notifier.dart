@@ -1,10 +1,10 @@
-import 'package:f_logs/model/flog/flog.dart';
 import 'package:flutter/material.dart';
 import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
 import 'package:get_10101/common/application/event_service.dart';
 import 'package:get_10101/common/domain/background_task.dart';
 import 'package:get_10101/common/global_keys.dart';
 import 'package:get_10101/common/task_status_dialog.dart';
+import 'package:get_10101/logger.dart';
 import 'package:provider/provider.dart';
 
 class RecoverDlcChangeNotifier extends ChangeNotifier implements Subscriber {
@@ -18,7 +18,7 @@ class RecoverDlcChangeNotifier extends ChangeNotifier implements Subscriber {
         return;
       }
       RecoverDlc recoverDlc = RecoverDlc.fromApi(event.field0 as bridge.BackgroundTask_RecoverDlc);
-      FLog.debug(text: "Received a recover dlc event. Status: ${recoverDlc.taskStatus}");
+      logger.d("Received a recover dlc event. Status: ${recoverDlc.taskStatus}");
 
       taskStatus = recoverDlc.taskStatus;
 

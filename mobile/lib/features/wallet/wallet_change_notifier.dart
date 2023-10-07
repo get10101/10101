@@ -1,11 +1,12 @@
 import 'dart:async';
-import 'package:f_logs/f_logs.dart';
+
 import 'package:flutter/material.dart' hide Flow;
 import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
 import 'package:get_10101/common/application/event_service.dart';
 import 'package:get_10101/common/domain/model.dart';
 import 'package:get_10101/features/wallet/application/wallet_service.dart';
 import 'package:get_10101/features/wallet/domain/wallet_balances.dart';
+import 'package:get_10101/logger.dart';
 import 'domain/wallet_info.dart';
 
 class WalletChangeNotifier extends ChangeNotifier implements Subscriber {
@@ -26,7 +27,7 @@ class WalletChangeNotifier extends ChangeNotifier implements Subscriber {
     this.walletInfo = walletInfo;
     syncing = false;
 
-    FLog.trace(text: 'Successfully synced payment history');
+    logger.t('Successfully synced payment history');
     super.notifyListeners();
   }
 
@@ -44,7 +45,7 @@ class WalletChangeNotifier extends ChangeNotifier implements Subscriber {
     if (event is bridge.Event_WalletInfoUpdateNotification) {
       update(WalletInfo.fromApi(event.field0));
     } else {
-      FLog.warning(text: "Received unexpected event: ${event.toString()}");
+      logger.w("Received unexpected event: ${event.toString()}");
     }
     syncing = false;
   }

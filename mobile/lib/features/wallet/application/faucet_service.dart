@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:f_logs/f_logs.dart';
+import 'package:get_10101/logger.dart';
 import 'package:http/http.dart' as http;
 
 class FaucetService {
@@ -24,7 +24,7 @@ class FaucetService {
     if (response.statusCode != 200 || !response.body.contains('"payment_error":""')) {
       throw Exception("Payment failed: Received ${response.statusCode} ${response.body}");
     } else {
-      FLog.info(text: "Paying invoice succeeded: ${response.body}");
+      logger.i("Paying invoice succeeded: ${response.body}");
     }
   }
 
@@ -40,12 +40,12 @@ class FaucetService {
       Uri.parse('$faucet/$invoice'),
     );
 
-    FLog.info(text: "Response ${response.body}${response.statusCode}");
+    logger.i("Response ${response.body}${response.statusCode}");
 
     if (response.statusCode != 200) {
       throw Exception("Payment failed: Received ${response.statusCode}. ${response.body}");
     } else {
-      FLog.info(text: "Paying invoice succeeded: ${response.body}");
+      logger.i("Paying invoice succeeded: ${response.body}");
     }
   }
 }

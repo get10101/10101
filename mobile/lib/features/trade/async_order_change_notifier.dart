@@ -1,4 +1,4 @@
-import 'package:f_logs/model/flog/flog.dart';
+import 'package:get_10101/logger.dart';
 import 'package:flutter/material.dart';
 import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
 import 'package:get_10101/common/application/event_service.dart';
@@ -33,7 +33,7 @@ class AsyncOrderChangeNotifier extends ChangeNotifier implements Subscriber {
         return;
       }
       AsyncTrade asyncTrade = AsyncTrade.fromApi(event.field0 as bridge.BackgroundTask_AsyncTrade);
-      FLog.debug(text: "Received a async trade event. Reason: ${asyncTrade.orderReason}");
+      logger.d("Received a async trade event. Reason: ${asyncTrade.orderReason}");
       showDialog(
         context: shellNavigatorKey.currentContext!,
         builder: (context) {
@@ -56,7 +56,7 @@ class AsyncOrderChangeNotifier extends ChangeNotifier implements Subscriber {
             case OrderReason.expired:
               content = const Text("Your position has been closed due to expiry.");
             case OrderReason.manual:
-              FLog.error(text: "A manual order should not appear as an async trade!");
+              logger.e("A manual order should not appear as an async trade!");
               content = Container();
           }
 
@@ -70,7 +70,7 @@ class AsyncOrderChangeNotifier extends ChangeNotifier implements Subscriber {
         notifyListeners();
       }
     } else {
-      FLog.warning(text: "Received unexpected event: ${event.toString()}");
+      logger.w("Received unexpected event: ${event.toString()}");
     }
   }
 }
