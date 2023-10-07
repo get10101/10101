@@ -75,7 +75,7 @@ class TradeBottomSheet extends StatelessWidget {
               style: TextStyle(color: Colors.grey),
             ),
             ModalBottomSheetInfo(
-                closeButtonText: "Back to order...",
+                closeButtonText: "Back to order",
                 child: Text("While in beta only market orders are enabled in the 10101 app.\n\n"
                     "Market orders are executed at the best market price. \n\nPlease note that the displayed "
                     "price is the best market price at the time but due to fast market "

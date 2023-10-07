@@ -2,10 +2,10 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:get_10101/common/amount_text_input_form_field.dart';
 import 'package:get_10101/common/application/channel_info_service.dart';
 import 'package:get_10101/common/domain/channel.dart';
 import 'package:get_10101/common/domain/model.dart';
-import 'package:get_10101/common/fiat_input_form_field.dart';
 import 'package:get_10101/common/value_data_row.dart';
 import 'package:get_10101/features/stable/stable_dialog.dart';
 import 'package:get_10101/features/stable/stable_value_change_notifier.dart';
@@ -65,24 +65,7 @@ class StableBottomSheet extends StatefulWidget {
 class _StableBottomSheet extends State<StableBottomSheet> {
   late final SubmitOrderChangeNotifier submitOrderChangeNotifier;
 
-  late final TextEditingController quantityController;
-
   final _formKey = GlobalKey<FormState>();
-
-  @override
-  void initState() {
-    submitOrderChangeNotifier = context.read<SubmitOrderChangeNotifier>();
-    final stableValuesChangeNotifier = context.read<StableValuesChangeNotifier>();
-    quantityController = TextEditingController(
-        text: stableValuesChangeNotifier.stableValues().quantity!.ceil().toString());
-    super.initState();
-  }
-
-  @override
-  void dispose() {
-    quantityController.dispose();
-    super.dispose();
-  }
 
   Future<(ChannelInfo?, Amount, Amount)> _getChannelInfo(
       ChannelInfoService channelInfoService) async {
@@ -155,23 +138,23 @@ class _StableBottomSheet extends State<StableBottomSheet> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Flexible(
-                                  child: Selector<StableValuesChangeNotifier, double>(
+                                  child: Selector<StableValuesChangeNotifier, Amount>(
                                       selector: (_, provider) =>
-                                          provider.stableValues().quantity ?? 0.0,
+                                          provider.stableValues().quantity ?? Amount.zero(),
                                       builder: (context, quantity, child) {
-                                        return FiatAmountInputField(
+                                        return AmountInputField(
                                           value: tradeValues.quantity!,
                                           hint: "e.g. 10 USD",
                                           label: "Quantity (USD)",
-                                          controller: quantityController,
                                           onChanged: (value) {
                                             if (value.isEmpty) {
-                                              stableValuesChangeNotifier.updateQuantity(0);
+                                              stableValuesChangeNotifier
+                                                  .updateQuantity(Amount.zero());
                                               return;
                                             }
 
-                                            stableValuesChangeNotifier
-                                                .updateQuantity(double.parse(value));
+                                            final quantity = Amount.parseAmount(value);
+                                            stableValuesChangeNotifier.updateQuantity(quantity);
                                           },
                                           validator: (value) {
                                             if (value == null || value.isEmpty || value == "0") {

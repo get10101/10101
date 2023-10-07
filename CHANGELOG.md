@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Only contracts are editable for new orders
+- Contracts can only be entered in full amounts
+- New default amount is 10 contracts
+
 ## [1.4.1] - 2023-10-09
 
 - Make trade / stable screen default if user has a position

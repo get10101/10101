@@ -52,7 +52,7 @@ class OrderListItem extends StatelessWidget {
                       color: order.direction == Direction.long ? tradeTheme.buy : tradeTheme.sell,
                       fontWeight: FontWeight.bold)),
               TextSpan(
-                  text: " ${formatter.format(order.quantity)} ",
+                  text: " ${formatter.format(order.quantity.toInt)} ",
                   style: const TextStyle(fontWeight: FontWeight.bold)),
               const TextSpan(text: "contracts")
             ],

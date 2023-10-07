@@ -22,7 +22,7 @@ class StableValuesChangeNotifier extends ChangeNotifier implements Subscriber {
 
   TradeValues _initOrder() {
     return TradeValues.fromQuantity(
-        quantity: 1,
+        quantity: Amount(10),
         leverage: Leverage(1),
         price: null,
         fundingRate: fundingRateSell,
@@ -44,7 +44,7 @@ class StableValuesChangeNotifier extends ChangeNotifier implements Subscriber {
     return stableValues().fee;
   }
 
-  void updateQuantity(double quantity) {
+  void updateQuantity(Amount quantity) {
     stableValues().updateQuantity(quantity);
     notifyListeners();
   }

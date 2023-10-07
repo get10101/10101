@@ -1,4 +1,5 @@
 import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
+import 'package:get_10101/common/domain/model.dart';
 import 'package:get_10101/features/trade/domain/contract_symbol.dart';
 import 'package:get_10101/features/trade/domain/direction.dart';
 import 'package:get_10101/features/trade/domain/leverage.dart';
@@ -53,7 +54,7 @@ enum OrderType {
 class Order {
   late String id;
   final Leverage leverage;
-  final double quantity;
+  final Amount quantity;
   final ContractSymbol contractSymbol;
   final Direction direction;
   final OrderState state;
@@ -78,7 +79,7 @@ class Order {
     return Order(
         id: order.id,
         leverage: Leverage(order.leverage),
-        quantity: order.quantity,
+        quantity: Amount(order.quantity.ceil()),
         contractSymbol: ContractSymbol.fromApi(order.contractSymbol),
         direction: Direction.fromApi(order.direction),
         state: OrderState.fromApi(order.state),

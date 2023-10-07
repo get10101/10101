@@ -13,7 +13,11 @@ class Amount {
 
   int get sats => _sats.toBigInt().toInt();
 
+  int get toInt => _sats.toBigInt().toInt();
+
   double get btc => _sats.shift(-8).toDouble();
+
+  double asDouble() => _sats.toDouble();
 
   Amount.parse(dynamic value) : _sats = Decimal.parse(value);
 

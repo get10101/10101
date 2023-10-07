@@ -70,7 +70,7 @@ class BitcoinizeBottomSheet extends StatelessWidget {
           const SizedBox(height: 16.0),
           ValueDataRow(
               type: ValueType.fiat,
-              value: position.quantity,
+              value: position.quantity.asDouble(),
               label: 'You have',
               valueTextStyle: const TextStyle(fontSize: 18),
               labelTextStyle: const TextStyle(fontSize: 18)),
@@ -98,8 +98,8 @@ class BitcoinizeBottomSheet extends StatelessWidget {
                   onPressed: () {
                     final submitOrderChangeNotifier = context.read<SubmitOrderChangeNotifier>();
                     stableValues.margin = position.getAmountWithUnrealizedPnl();
-                    submitOrderChangeNotifier.submitPendingOrder(
-                        stableValues, PositionAction.close);
+                    submitOrderChangeNotifier.closePosition(
+                        position, stableValues.price, stableValues.fee);
 
                     // Return to the stable screen before submitting the pending order so that the dialog is displayed under the correct context
                     GoRouter.of(context).pop();

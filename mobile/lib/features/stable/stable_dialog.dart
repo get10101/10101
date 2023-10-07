@@ -82,7 +82,7 @@ Widget createSubmitWidget(PendingOrder pendingOrder, TextStyle style) {
                     ? ValueType.text
                     : ValueType.amount,
                 value: pendingOrder.positionAction == PositionAction.close
-                    ? "${pendingOrder.tradeValues?.quantity!.ceil()} \$"
+                    ? "${pendingOrder.tradeValues?.quantity!.toInt} \$"
                     : pendingOrder.tradeValues?.margin,
                 label: pendingOrder.positionAction == PositionAction.open
                     ? "Stabilize"
@@ -92,7 +92,7 @@ Widget createSubmitWidget(PendingOrder pendingOrder, TextStyle style) {
                     ? ValueType.text
                     : ValueType.amount,
                 value: pendingOrder.positionAction == PositionAction.open
-                    ? "${pendingOrder.tradeValues?.quantity!.ceil()} \$"
+                    ? "${pendingOrder.tradeValues?.quantity!.toInt} \$"
                     : pendingOrder.tradeValues?.margin,
                 label: "Into"),
             ValueDataRow(type: ValueType.amount, value: pendingOrder.tradeValues?.fee, label: "Fee")

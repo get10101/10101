@@ -23,7 +23,7 @@ class PositionChangeNotifier extends ChangeNotifier implements Subscriber {
   double getStableUSDAmountInFiat() {
     if (hasStableUSD()) {
       final positionUsd = positions[ContractSymbol.btcusd];
-      return positionUsd!.quantity;
+      return positionUsd!.quantity.asDouble();
     } else {
       return 0.0;
     }
