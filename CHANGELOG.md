@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Make trade / stable screen default if user has a position
+
 ## [1.4.0] - 2023-10-06
 
 - Allow up to 5BTC wumbo channels

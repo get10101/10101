@@ -49,6 +49,8 @@ class Position {
       required this.collateral,
       required this.expiry});
 
+  bool isStable() => direction == Direction.short && leverage == Leverage(1);
+
   Amount getAmountWithUnrealizedPnl() {
     if (unrealizedPnl != null) {
       return Amount(collateral.sats + unrealizedPnl!.sats);

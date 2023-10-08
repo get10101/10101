@@ -79,7 +79,7 @@ class TradeScreen extends StatelessWidget {
                     "Positions",
                     "Orders",
                   ],
-                  selectedIndex: positionChangeNotifier.positions.isEmpty ? 1 : 0,
+                  selectedIndex: 0,
                   keys: const [tradeScreenTabsPositions, tradeScreenTabsOrders],
                   tabBarViewChildren: [
                     ListView.builder(

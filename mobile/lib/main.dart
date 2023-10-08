@@ -15,6 +15,7 @@ import 'package:get_10101/common/color.dart';
 import 'package:get_10101/common/domain/background_task.dart';
 import 'package:get_10101/common/domain/service_status.dart';
 import 'package:get_10101/common/global_keys.dart';
+import 'package:get_10101/common/loading_screen.dart';
 import 'package:get_10101/common/recover_dlc_change_notifier.dart';
 import 'package:get_10101/common/service_status_notifier.dart';
 import 'package:get_10101/features/stable/stable_screen.dart';
@@ -56,7 +57,6 @@ import 'package:get_10101/util/constants.dart';
 import 'package:get_10101/util/coordinator_version.dart';
 import 'package:get_10101/util/environment.dart';
 import 'package:get_10101/util/notifications.dart';
-import 'package:get_10101/util/preferences.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
@@ -122,7 +122,7 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
 
   final GoRouter _router = GoRouter(
       navigatorKey: rootNavigatorKey,
-      initialLocation: WalletScreen.route,
+      initialLocation: LoadingScreen.route,
       routes: <RouteBase>[
         ShellRoute(
           navigatorKey: shellNavigatorKey,
@@ -132,6 +132,12 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
             );
           },
           routes: <RouteBase>[
+            GoRoute(
+              path: LoadingScreen.route,
+              builder: (BuildContext context, GoRouterState state) {
+                return const LoadingScreen();
+              },
+            ),
             GoRoute(
               path: WalletScreen.route,
               builder: (BuildContext context, GoRouterState state) {
@@ -214,17 +220,7 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
               return const WelcomeScreen();
             },
             routes: const []),
-      ],
-      redirect: (BuildContext context, GoRouterState state) async {
-        // TODO: It's not optimal that we read this from shared preferences every time, should probably be set through a provider
-        final hasEmailAddress = await Preferences.instance.hasEmailAddress();
-        if (!hasEmailAddress) {
-          logger.i("adding the email...");
-          return WelcomeScreen.route;
-        }
-
-        return null;
-      });
+      ]);
 
   @override
   void initState() {
