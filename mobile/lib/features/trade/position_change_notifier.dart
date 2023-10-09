@@ -7,6 +7,7 @@ import 'package:get_10101/features/trade/application/position_service.dart';
 import 'package:get_10101/features/trade/domain/contract_symbol.dart';
 import 'package:get_10101/features/trade/domain/direction.dart';
 import 'package:get_10101/features/trade/domain/leverage.dart';
+import 'package:get_10101/util/preferences.dart';
 
 import 'domain/position.dart';
 import 'domain/price.dart';
@@ -68,10 +69,18 @@ class PositionChangeNotifier extends ChangeNotifier implements Subscriber {
       }
       positions[position.contractSymbol] = position;
 
+      if (position.isStable()) {
+        Preferences.instance.setOpenStablePosition();
+      } else {
+        Preferences.instance.setOpenTradePosition();
+      }
+
       notifyListeners();
     } else if (event is bridge.Event_PositionClosedNotification) {
       ContractSymbol contractSymbol = ContractSymbol.fromApi(event.field0.contractSymbol);
       positions.remove(contractSymbol);
+
+      Preferences.instance.unsetOpenPosition();
 
       notifyListeners();
     } else if (event is bridge.Event_PriceUpdateNotification) {

@@ -1,3 +1,5 @@
+import 'package:get_10101/features/stable/stable_screen.dart';
+import 'package:get_10101/features/trade/trade_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class Preferences {
@@ -7,6 +9,27 @@ class Preferences {
 
   static const userSeedBackupConfirmed = "userSeedBackupConfirmed";
   static const emailAddress = "emailAddress";
+  static const openPosition = "openPosition";
+
+  getOpenPosition() async {
+    SharedPreferences preferences = await SharedPreferences.getInstance();
+    return preferences.getString(openPosition);
+  }
+
+  setOpenStablePosition() async {
+    SharedPreferences preferences = await SharedPreferences.getInstance();
+    preferences.setString(openPosition, StableScreen.label);
+  }
+
+  setOpenTradePosition() async {
+    SharedPreferences preferences = await SharedPreferences.getInstance();
+    preferences.setString(openPosition, TradeScreen.label);
+  }
+
+  unsetOpenPosition() async {
+    SharedPreferences preferences = await SharedPreferences.getInstance();
+    preferences.remove(openPosition);
+  }
 
   setUserSeedBackupConfirmed() async {
     SharedPreferences preferences = await SharedPreferences.getInstance();
