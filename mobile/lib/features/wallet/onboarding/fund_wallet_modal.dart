@@ -65,7 +65,10 @@ class _FundWalletModalState extends State<FundWalletModal> {
     const style = TextStyle(fontSize: 20);
 
     if (context.watch<PaymentClaimedChangeNotifier>().isClaimed()) {
-      GoRouter.of(context).go(WalletScreen.route);
+      // We must not navigate during widget build, hence we are registering the navigation post frame.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        GoRouter.of(context).go(WalletScreen.route);
+      });
     }
 
     return SafeArea(
