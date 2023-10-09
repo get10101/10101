@@ -4,7 +4,7 @@ import 'package:get_10101/common/application/event_service.dart';
 import 'package:get_10101/common/domain/background_task.dart';
 import 'package:get_10101/common/global_keys.dart';
 import 'package:get_10101/common/task_status_dialog.dart';
-import 'package:get_10101/logger.dart';
+import 'package:get_10101/logger/logger.dart';
 import 'package:provider/provider.dart';
 
 class RecoverDlcChangeNotifier extends ChangeNotifier implements Subscriber {

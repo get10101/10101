@@ -1,6 +1,6 @@
 import 'dart:collection';
 
-import 'package:get_10101/logger.dart';
+import 'package:get_10101/logger/logger.dart';
 import 'package:get_10101/ffi.dart';
 
 abstract class Subscriber {

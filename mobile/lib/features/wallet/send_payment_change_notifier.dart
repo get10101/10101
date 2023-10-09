@@ -1,4 +1,4 @@
-import 'package:get_10101/logger.dart';
+import 'package:get_10101/logger/logger.dart';
 import 'package:flutter/material.dart';
 import 'package:get_10101/features/wallet/application/wallet_service.dart';
 import 'package:get_10101/features/wallet/domain/lightning_invoice.dart';

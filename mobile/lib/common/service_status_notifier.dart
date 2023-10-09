@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
 import 'package:get_10101/common/application/event_service.dart';
-import 'package:get_10101/logger.dart';
+import 'package:get_10101/logger/logger.dart';
 
 class ServiceStatusNotifier extends ChangeNotifier implements Subscriber {
   Map<bridge.Service, bridge.ServiceStatus> services = <bridge.Service, bridge.ServiceStatus>{};

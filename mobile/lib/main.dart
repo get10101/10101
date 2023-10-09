@@ -63,7 +63,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:version/version.dart';
-import 'package:get_10101/logger.dart';
+import 'package:get_10101/logger/logger.dart';
 
 import 'features/stable/stable_value_change_notifier.dart';
 

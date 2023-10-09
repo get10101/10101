@@ -22,7 +22,7 @@ import 'package:get_10101/features/trade/trade_theme.dart';
 import 'package:get_10101/features/trade/trade_value_change_notifier.dart';
 import 'package:get_10101/features/wallet/domain/wallet_info.dart';
 import 'package:get_10101/features/wallet/wallet_change_notifier.dart';
-import 'package:get_10101/logger.dart';
+import 'package:get_10101/logger/logger.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 

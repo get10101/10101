@@ -9,7 +9,7 @@ import 'package:get_10101/common/snack_bar.dart';
 import 'package:get_10101/common/value_data_row.dart';
 import 'package:get_10101/features/wallet/onboarding/fund_wallet_modal.dart';
 import 'package:get_10101/features/wallet/wallet_change_notifier.dart';
-import 'package:get_10101/logger.dart';
+import 'package:get_10101/logger/logger.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
