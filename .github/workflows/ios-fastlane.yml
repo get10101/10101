@@ -41,14 +41,14 @@ on:
         type: string
   workflow_dispatch:
     inputs:
-      coordinator_port_http:
-        required: true
-        type: string
-        description: "Coordinator's HTTP port"
       esplora_endpoint:
         required: true
         type: string
         description: "Esplora's endpoint"
+      coordinator_port_http:
+        required: true
+        type: string
+        description: "Coordinator's HTTP port"
       coordinator_p2p_endpoint:
         required: true
         type: string
@@ -68,6 +68,10 @@ on:
       oracle_pubkey:
         required: true
         description: "The public key of the oracle. Must match with the public key returned at http://${oracle_endpoint}/oracle/publickey"
+        type: string
+      app_scheme:
+        required: true
+        description: "For regtest enter 'test' or mainnet enter 'Runner'"
         type: string
 
 env:
