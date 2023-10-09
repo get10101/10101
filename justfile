@@ -198,7 +198,7 @@ wipe-app:
     fi
 
     # If no path was found, use a dummy path to avoid errors
-    if [[ ! $MACOS_PATH || ! ${MACOS_PATH//[[:space:]]/} ]]; then
+    if [[ -z ${MACOS_PATH+x} || ! $MACOS_PATH || ! ${MACOS_PATH//[[:space:]]/} ]]; then
         echo "no macos path found, setting dummy value" 
         MACOS_PATH="/path/to/dummy/directory"
     fi
