@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:get_10101/logger.dart';
+import 'package:get_10101/logger/logger.dart';
 import 'package:http/http.dart' as http;
 
 class FaucetService {

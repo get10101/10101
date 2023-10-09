@@ -7,14 +7,14 @@ import 'package:get_10101/common/scrollable_safe_area.dart';
 import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
 import 'package:get_10101/common/snack_bar.dart';
 import 'package:get_10101/features/trade/position_change_notifier.dart';
-import 'package:get_10101/hybrid_logger.dart';
+import 'package:get_10101/logger/hybrid_logger.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:get_10101/ffi.dart' as rust;
-import 'package:get_10101/logger.dart';
+import 'package:get_10101/logger/logger.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});

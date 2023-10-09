@@ -1,4 +1,4 @@
-import 'package:get_10101/logger.dart';
+import 'package:get_10101/logger/logger.dart';
 import 'package:flutter/material.dart';
 import 'package:get_10101/common/scrollable_safe_area.dart';
 import 'package:get_10101/common/snack_bar.dart';

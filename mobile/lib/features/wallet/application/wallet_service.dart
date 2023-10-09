@@ -2,7 +2,7 @@ import 'package:get_10101/common/domain/model.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge.dart';
 import 'package:get_10101/features/wallet/domain/lightning_invoice.dart';
 import 'package:get_10101/ffi.dart' as rust;
-import 'package:get_10101/logger.dart';
+import 'package:get_10101/logger/logger.dart';
 
 class WalletService {
   const WalletService();

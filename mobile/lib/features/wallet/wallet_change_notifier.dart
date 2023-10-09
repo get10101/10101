@@ -6,7 +6,7 @@ import 'package:get_10101/common/application/event_service.dart';
 import 'package:get_10101/common/domain/model.dart';
 import 'package:get_10101/features/wallet/application/wallet_service.dart';
 import 'package:get_10101/features/wallet/domain/wallet_balances.dart';
-import 'package:get_10101/logger.dart';
+import 'package:get_10101/logger/logger.dart';
 import 'domain/wallet_info.dart';
 
 class WalletChangeNotifier extends ChangeNotifier implements Subscriber {

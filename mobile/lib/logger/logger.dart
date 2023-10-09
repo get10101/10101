@@ -1,5 +1,5 @@
-import 'package:get_10101/hybrid_logger.dart';
-import 'package:get_10101/simple_utc_printer.dart';
+import 'package:get_10101/logger/hybrid_logger.dart';
+import 'package:get_10101/logger/simple_utc_printer.dart';
 import 'package:logger/logger.dart';
 
 Logger get logger => AppLogger.instance;
