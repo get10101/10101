@@ -97,15 +97,15 @@ fn build_notification<'a>(kind: NotificationKind) -> fcm::Notification<'a> {
     match kind {
         NotificationKind::PositionSoonToExpire => {
             notification_builder.title("Your position is about to expire");
-            notification_builder.body("Open the app to react.");
+            notification_builder.body("Rollover your position for the next cycle.");
         }
         NotificationKind::PositionExpired => {
             notification_builder.title("Your position has expired");
-            notification_builder.body("Open the app to react.");
+            notification_builder.body("Close your position.");
         }
         NotificationKind::RolloverWindowOpen => {
             notification_builder.title("Rollover window is open");
-            notification_builder.body("Open the app to rollover your position for the next cycle.");
+            notification_builder.body("Rollover your position for the next cycle.");
         }
     }
     notification_builder.finalize()

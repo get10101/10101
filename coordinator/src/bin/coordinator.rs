@@ -285,6 +285,12 @@ async fn main() -> Result<()> {
                 .add_rollover_window_close_reminder_job(pool.clone())
                 .await
                 .expect("To add the rollover window close reminder job");
+
+            scheduler
+                .add_reminder_to_close_expired_position_job(pool.clone())
+                .await
+                .expect("To add the close expired positiosn reminder job");
+
             scheduler
                 .start()
                 .await

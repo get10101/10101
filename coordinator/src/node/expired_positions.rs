@@ -21,6 +21,10 @@ use time::Duration;
 use time::OffsetDateTime;
 use tokio::sync::mpsc;
 
+/// The timeout before we give up on closing an expired position collaboratively. This value should
+/// not be larger than our refund transaction time lock.
+pub const EXPIRED_POSITION_TIMEOUT: Duration = Duration::days(7);
+
 pub async fn close(node: Node, trading_sender: mpsc::Sender<NewOrderMessage>) -> Result<()> {
     let mut conn = node.pool.get()?;
 
@@ -86,9 +90,9 @@ pub async fn close(node: Node, trading_sender: mpsc::Sender<NewOrderMessage>) ->
             leverage: position.leverage,
             order_type: OrderType::Market,
             // This order can basically not expire, but if the user does not come back online within
-            // 8 weeks I guess we can safely assume that this channel is abandoned and we should
-            // consider force closing.
-            expiry: OffsetDateTime::now_utc().add(Duration::weeks(8)),
+            // a certain time period we can assume the channel to be abandoned and we should force
+            // close.
+            expiry: OffsetDateTime::now_utc().add(EXPIRED_POSITION_TIMEOUT),
         };
 
         let (sender, mut receiver) = mpsc::channel::<Result<Order>>(1);

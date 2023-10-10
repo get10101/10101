@@ -17,18 +17,6 @@ pub fn get_all_open_positions_with_expiry_before(
     Ok(result)
 }
 
-pub fn get_positions_joined_with_fcm_token_with_expiry_within(
-    conn: &mut PgConnection,
-    start: OffsetDateTime,
-    end: OffsetDateTime,
-) -> QueryResult<Vec<(crate::position::models::Position, FcmToken)>> {
-    let result = conn.transaction(|conn| {
-        let positions = Position::get_all_positions_with_expiry_within(conn, start, end)?;
-        join_with_fcm_token(conn, positions)
-    })?;
-    Ok(result)
-}
-
 pub fn join_with_fcm_token(
     conn: &mut PgConnection,
     positions: Vec<crate::position::models::Position>,
