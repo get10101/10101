@@ -5,9 +5,7 @@ import 'package:get_10101/common/domain/background_task.dart';
 import 'package:get_10101/common/domain/model.dart';
 import 'package:get_10101/common/task_status_dialog.dart';
 import 'package:get_10101/common/value_data_row.dart';
-import 'package:get_10101/features/trade/domain/contract_symbol.dart';
 import 'package:get_10101/features/trade/domain/trade_values.dart';
-import 'package:get_10101/features/trade/position_change_notifier.dart';
 import 'package:get_10101/features/trade/submit_order_change_notifier.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
@@ -18,18 +16,11 @@ class TradeDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    Amount pnl = Amount(0);
     final submitOrderChangeNotifier = context.watch<SubmitOrderChangeNotifier>();
     final pendingOrder = submitOrderChangeNotifier.pendingOrder!;
     final pendingOrderValues = submitOrderChangeNotifier.pendingOrderValues;
 
-    if (pendingOrder.positionAction == PositionAction.close &&
-        context.read<PositionChangeNotifier>().positions.containsKey(ContractSymbol.btcusd)) {
-      final position = context.read<PositionChangeNotifier>().positions[ContractSymbol.btcusd];
-      pnl = position!.unrealizedPnl != null ? position.unrealizedPnl! : Amount(0);
-    }
-
-    Widget body = createSubmitWidget(pendingOrder, pnl, pendingOrderValues, context);
+    Widget body = createSubmitWidget(pendingOrder, pendingOrderValues, context);
 
     switch (pendingOrder.state) {
       case PendingOrderState.submitting:
@@ -47,7 +38,7 @@ class TradeDialog extends StatelessWidget {
 }
 
 Widget createSubmitWidget(
-    PendingOrder pendingOrder, Amount pnl, TradeValues? pendingOrderValues, BuildContext context) {
+    PendingOrder pendingOrder, TradeValues? pendingOrderValues, BuildContext context) {
   String bottomText;
   String pnlText = "P/L";
 
@@ -81,7 +72,7 @@ Widget createSubmitWidget(
           runSpacing: 10,
           children: [
             pendingOrder.positionAction == PositionAction.close
-                ? ValueDataRow(type: ValueType.amount, value: pnl, label: pnlText)
+                ? ValueDataRow(type: ValueType.amount, value: pendingOrder.pnl, label: pnlText)
                 : ValueDataRow(
                     type: ValueType.amount, value: pendingOrderValues?.margin, label: "Margin"),
             ValueDataRow(
