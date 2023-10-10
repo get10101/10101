@@ -239,6 +239,7 @@ diesel::table! {
         nostr -> Text,
         timestamp -> Timestamptz,
         fcm_token -> Text,
+        last_login -> Timestamptz,
     }
 }
 

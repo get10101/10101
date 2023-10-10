@@ -139,11 +139,9 @@ pub async fn websocket_connection(stream: WebSocket, state: Arc<AppState>) {
                                 return;
                             }
 
-                            if let Some(token) = fcm_token {
-                                if let Err(e) = user::upsert_fcm_token(&mut conn, trader_id, token)
-                                {
-                                    tracing::error!(%trader_id, "Failed to update fcm token. Error: {e:#}")
-                                }
+                            let token = fcm_token.unwrap_or("unavailable".to_string());
+                            if let Err(e) = user::login_user(&mut conn, trader_id, token) {
+                                tracing::error!(%trader_id, "Failed to update logged in user. Error: {e:#}")
                             }
 
                             let message = NewUserMessage {
