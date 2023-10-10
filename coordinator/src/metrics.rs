@@ -1,6 +1,7 @@
 use crate::db;
 use crate::node::storage::NodeStorage;
 use crate::node::Node;
+use dlc_manager::subchannel::SubChannelState;
 use lazy_static::lazy_static;
 use lightning::ln::channelmanager::ChannelDetails;
 use opentelemetry::global;
@@ -42,6 +43,10 @@ lazy_static! {
         .u64_observable_gauge("dlc_channel_amount")
         .with_description("Number of DLC channels")
         .init();
+    pub static ref PUNISHED_DLC_CHANNELS_AMOUNT: ObservableGauge<u64> = METER
+        .u64_observable_gauge("punished_dlc_channel_amount")
+        .with_description("Number of punished DLC channels")
+        .init();
 
     // general node metrics
     pub static ref CONNECTED_PEERS: ObservableGauge<u64> = METER
@@ -81,7 +86,41 @@ pub fn collect(node: Node) {
 
     let inner_node = node.inner;
     if let Ok(dlc_channels) = inner_node.list_dlc_channels() {
-        DLC_CHANNELS_AMOUNT.observe(&cx, dlc_channels.len() as u64, &[]);
+        let (healthy, unhealthy, close_punished) =
+            dlc_channels
+                .iter()
+                .fold(
+                    (0, 0, 0),
+                    |(healthy, unhealthy, close_punished), c| match c.state {
+                        // these are the healthy channels
+                        SubChannelState::Signed(_)
+                        | SubChannelState::OffChainClosed
+                        | SubChannelState::Closing(_) => (healthy + 1, unhealthy, close_punished),
+                        // these are settled already, we don't have to look at them anymore
+                        SubChannelState::OnChainClosed | SubChannelState::CounterOnChainClosed => {
+                            (healthy, unhealthy, close_punished)
+                        }
+                        SubChannelState::Offered(_)
+                        | SubChannelState::Accepted(_)
+                        | SubChannelState::Confirmed(_)
+                        | SubChannelState::Finalized(_)
+                        | SubChannelState::CloseOffered(_)
+                        | SubChannelState::CloseAccepted(_)
+                        | SubChannelState::CloseConfirmed(_)
+                        | SubChannelState::Rejected => (healthy, unhealthy + 1, close_punished),
+                        SubChannelState::ClosedPunished(_) => {
+                            (healthy, unhealthy, close_punished + 1)
+                        }
+                    },
+                );
+        // healthy
+        let key_values = [KeyValue::new("is_healthy", true)];
+        DLC_CHANNELS_AMOUNT.observe(&cx, healthy as u64, &key_values);
+        // unhealthy
+        let key_values = [KeyValue::new("is_healthy", false)];
+        DLC_CHANNELS_AMOUNT.observe(&cx, unhealthy as u64, &key_values);
+        // punished
+        PUNISHED_DLC_CHANNELS_AMOUNT.observe(&cx, close_punished as u64, &[]);
     }
     let channels = inner_node.channel_manager.list_channels();
     channel_metrics(&cx, channels);
