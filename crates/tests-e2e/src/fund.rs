@@ -19,6 +19,10 @@ pub async fn fund_app_with_faucet(
     client: &Client,
     fund_amount: u64,
 ) -> Result<()> {
+    spawn_blocking(move || {
+        api::register_beta("satoshi@vistomail.com".to_string()).expect("to succeed")
+    })
+    .await?;
     let invoice =
         spawn_blocking(move || api::create_onboarding_invoice(fund_amount, 1).expect("to succeed"))
             .await?;
