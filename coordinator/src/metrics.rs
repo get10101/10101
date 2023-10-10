@@ -38,6 +38,10 @@ lazy_static! {
         .u64_observable_gauge("channel_is_usable")
         .with_description("If a channel is usable")
         .init();
+    pub static ref DLC_CHANNELS_AMOUNT: ObservableGauge<u64> = METER
+        .u64_observable_gauge("dlc_channel_amount")
+        .with_description("Number of DLC channels")
+        .init();
 
     // general node metrics
     pub static ref CONNECTED_PEERS: ObservableGauge<u64> = METER
@@ -76,6 +80,9 @@ pub fn collect(node: Node) {
     position_metrics(&cx, &node);
 
     let inner_node = node.inner;
+    if let Ok(dlc_channels) = inner_node.list_dlc_channels() {
+        DLC_CHANNELS_AMOUNT.observe(&cx, dlc_channels.len() as u64, &[]);
+    }
     let channels = inner_node.channel_manager.list_channels();
     channel_metrics(&cx, channels);
     node_metrics(&cx, inner_node);
