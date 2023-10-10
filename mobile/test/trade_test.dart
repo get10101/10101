@@ -91,7 +91,7 @@ void main() {
         .thenReturn(10000);
     when(tradeValueService.calculateQuantity(
             price: anyNamed('price'), leverage: anyNamed('leverage'), margin: anyNamed('margin')))
-        .thenReturn(0.1);
+        .thenReturn(Amount(1));
     when(tradeValueService.getExpiryTimestamp()).thenReturn(DateTime.now());
 
     // assuming this is an initial funding, no channel exists yet

@@ -21,13 +21,6 @@ class CreateInvoiceScreen extends StatefulWidget {
 
 class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
   Amount? amount;
-  final TextEditingController _amountController = TextEditingController();
-
-  @override
-  void dispose() {
-    _amountController.dispose();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -60,7 +53,6 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
                     setState(() => amount = Amount.parseAmount(value));
                   },
                   isLoading: false,
-                  controller: _amountController,
                 ),
               ),
             ],

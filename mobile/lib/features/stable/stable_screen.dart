@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:get_10101/common/fiat_text.dart';
+import 'package:get_10101/common/value_data_row.dart';
 import 'package:get_10101/features/stable/bitcoinize_confirmation_sheet.dart';
 import 'package:get_10101/features/stable/stable_confirmation_sheet.dart';
+import 'package:get_10101/features/trade/domain/contract_symbol.dart';
 import 'package:get_10101/features/trade/position_change_notifier.dart';
 import 'package:provider/provider.dart';
-
-import '../../common/value_data_row.dart';
-import '../trade/domain/contract_symbol.dart';
 
 class StableScreen extends StatefulWidget {
   static const route = "/stable";

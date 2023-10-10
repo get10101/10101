@@ -25,7 +25,7 @@ enum PositionState {
 
 class Position {
   final Leverage leverage;
-  final double quantity;
+  final Amount quantity;
   final ContractSymbol contractSymbol;
   final Direction direction;
   final double averageEntryPrice;
@@ -62,7 +62,7 @@ class Position {
   static Position fromApi(bridge.Position position) {
     return Position(
       leverage: Leverage(position.leverage),
-      quantity: position.quantity,
+      quantity: Amount(position.quantity.ceil()),
       contractSymbol: ContractSymbol.fromApi(position.contractSymbol),
       direction: Direction.fromApi(position.direction),
       positionState: PositionState.fromApi(position.positionState),

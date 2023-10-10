@@ -24,13 +24,13 @@ class TradeValuesChangeNotifier extends ChangeNotifier implements Subscriber {
   }
 
   TradeValues _initOrder(Direction direction) {
-    Amount defaultMargin = channelInfoService.getMinTradeMargin();
+    Amount defaultQuantity = Amount(10);
     Leverage defaultLeverage = Leverage(2);
 
     switch (direction) {
       case Direction.long:
-        return TradeValues.fromMargin(
-            margin: defaultMargin,
+        return TradeValues.fromQuantity(
+            quantity: defaultQuantity,
             leverage: defaultLeverage,
             price: null,
             fundingRate: fundingRateBuy,
@@ -38,7 +38,7 @@ class TradeValuesChangeNotifier extends ChangeNotifier implements Subscriber {
             tradeValuesService: tradeValuesService);
       case Direction.short:
         return TradeValues.fromMargin(
-            margin: defaultMargin,
+            margin: defaultQuantity,
             leverage: defaultLeverage,
             price: null,
             fundingRate: fundingRateSell,
@@ -71,7 +71,7 @@ class TradeValuesChangeNotifier extends ChangeNotifier implements Subscriber {
     return fromDirection(direction).fee;
   }
 
-  void updateQuantity(Direction direction, double quantity) {
+  void updateQuantity(Direction direction, Amount quantity) {
     fromDirection(direction).updateQuantity(quantity);
     notifyListeners();
   }
@@ -91,11 +91,11 @@ class TradeValuesChangeNotifier extends ChangeNotifier implements Subscriber {
     bool update = false;
 
     if (price.ask != _buyTradeValues.price) {
-      _buyTradeValues.updatePriceAndQuantity(price.ask);
+      _buyTradeValues.updatePriceAndMargin(price.ask);
       update = true;
     }
     if (price.bid != _sellTradeValues.price) {
-      _sellTradeValues.updatePriceAndQuantity(price.bid);
+      _sellTradeValues.updatePriceAndMargin(price.bid);
       update = true;
     }
 

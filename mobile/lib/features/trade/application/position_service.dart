@@ -22,7 +22,7 @@ class PositionService {
     return rust.api.calculatePnl(
         openingPrice: position.averageEntryPrice,
         closingPrice: closingPrice,
-        quantity: position.quantity,
+        quantity: position.quantity.asDouble(),
         leverage: position.leverage.leverage,
         direction: position.direction.toApi());
   }

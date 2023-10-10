@@ -25,16 +25,9 @@ class CreateOnChainPaymentRequestScreen extends StatefulWidget {
 
 class _CreateOnChainPaymentRequestScreenState extends State<CreateOnChainPaymentRequestScreen> {
   Amount? amount;
-  final TextEditingController _amountController = TextEditingController();
 
   final _formKey = GlobalKey<FormState>();
   bool showValidationHint = false;
-
-  @override
-  void dispose() {
-    _amountController.dispose();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -65,7 +58,6 @@ class _CreateOnChainPaymentRequestScreenState extends State<CreateOnChainPayment
                         value: amount != null ? amount! : Amount(0),
                         hint: "e.g. ${formatSats(Amount(5000))}",
                         label: "Amount",
-                        controller: _amountController,
                         isLoading: false,
                         onChanged: (value) {
                           if (value.isEmpty) {

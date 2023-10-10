@@ -24,7 +24,6 @@ class OnboardingScreen extends StatefulWidget {
 
 class _OnboardingScreenState extends State<OnboardingScreen> {
   Amount? amount;
-  final TextEditingController _amountController = TextEditingController();
   bool valid = true;
 
   Amount minDeposit = Amount(0);
@@ -38,12 +37,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   ///
   /// These fees have to be added on top of the receive amount because they are collected after receiving the funds.
   Amount? feeEstimate;
-
-  @override
-  void dispose() {
-    _amountController.dispose();
-    super.dispose();
-  }
 
   @override
   void initState() {
@@ -104,7 +97,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                                 value: amount ?? Amount(0),
                                 hint: "e.g. ${Amount(100000)}",
                                 label: "Amount",
-                                controller: _amountController,
                                 isLoading: false,
                                 onChanged: (value) {
                                   if (value.isEmpty) {

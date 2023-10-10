@@ -10,7 +10,7 @@ class TradeValues {
   Direction direction;
 
   // These values  can be null if coordinator is down
-  double? quantity;
+  Amount? quantity;
   double? price;
   double? liquidationPrice;
   Amount? fee; // This fee is an estimate of the order-matching fee.
@@ -34,7 +34,7 @@ class TradeValues {
       required this.tradeValuesService});
 
   factory TradeValues.fromQuantity(
-      {required double quantity,
+      {required Amount quantity,
       required Leverage leverage,
       required double? price,
       required double fundingRate,
@@ -71,7 +71,7 @@ class TradeValues {
       required double fundingRate,
       required Direction direction,
       required TradeValuesService tradeValuesService}) {
-    double? quantity =
+    Amount? quantity =
         tradeValuesService.calculateQuantity(price: price, margin: margin, leverage: leverage);
     double? liquidationPrice = price != null
         ? tradeValuesService.calculateLiquidationPrice(
@@ -95,7 +95,7 @@ class TradeValues {
         tradeValuesService: tradeValuesService);
   }
 
-  updateQuantity(double quantity) {
+  updateQuantity(Amount quantity) {
     this.quantity = quantity;
     _recalculateMargin();
     _recalculateFee();
@@ -134,7 +134,7 @@ class TradeValues {
   }
 
   _recalculateQuantity() {
-    double? quantity =
+    Amount? quantity =
         tradeValuesService.calculateQuantity(price: price, margin: margin, leverage: leverage);
     this.quantity = quantity;
   }
@@ -150,8 +150,8 @@ class TradeValues {
   }
 }
 
-Amount? orderMatchingFee(double? quantity, double? price) {
+Amount? orderMatchingFee(Amount? quantity, double? price) {
   return quantity != null && price != null
-      ? Amount(rust.api.orderMatchingFee(quantity: quantity, price: price))
+      ? Amount(rust.api.orderMatchingFee(quantity: quantity.asDouble(), price: price))
       : null;
 }
