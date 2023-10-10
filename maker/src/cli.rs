@@ -60,6 +60,14 @@ pub struct Opts {
         default_value = "16f88cf7d21e6c0f46bcbc983a4e3b19726c6c98858cc31c83551a88fde171c0"
     )]
     oracle_pubkey: String,
+
+    /// BitMEX API key.
+    #[clap(long)]
+    pub bitmex_api_key: Option<String>,
+
+    /// BitMEX API secret.
+    #[clap(long)]
+    pub bitmex_api_secret: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, clap::ValueEnum)]

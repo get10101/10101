@@ -149,8 +149,8 @@ pub enum Network {
 impl Network {
     pub fn to_url(&self) -> String {
         match self {
-            Network::Mainnet => "www.bitmex.com".to_string(),
-            Network::Testnet => "testnet.bitmex.com".to_string(),
+            Network::Mainnet => "ws.bitmex.com".to_string(),
+            Network::Testnet => "ws.testnet.bitmex.com".to_string(),
         }
     }
 }

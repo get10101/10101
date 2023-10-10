@@ -1,6 +1,10 @@
 use crate::health::ServiceStatus;
+use crate::position;
+use crate::position::PositionUpdateBitmex;
+use crate::trading::bitmex_ws_client::Event;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::Network;
+use bitmex_stream::Credentials;
 use futures::TryStreamExt;
 use orderbook_commons::NewOrder;
 use orderbook_commons::OrderResponse;
@@ -9,28 +13,35 @@ use orderbook_http_client::OrderbookClient;
 use reqwest::Url;
 use rust_decimal::Decimal;
 use rust_decimal_macros::dec;
-use time::Duration;
+use std::time::Duration;
 use time::OffsetDateTime;
 use tokio::sync::watch;
 use trade::ContractSymbol;
 use trade::Direction;
 use uuid::Uuid;
 
-mod bitmex_client;
+mod bitmex_ws_client;
 mod orderbook_http_client;
 
-/// Creates orders based of the current price feed from Bitmex.
+/// Perform trading related actions based on a subscription to BitMEX's WebSocket API. Specifically:
 ///
-/// In the unlikely event that the price feed is closed, the function will
-/// continue to try to reconnect after Duration specified in `reconnect_after`.
+/// - Create orders based on relevant price updates from BitMEX.
+/// - Forward updates about all BitMEX positions.
+///
+/// In the unlikely event that the stream is closed, the function will continue to try to reconnect
+/// after the [`Duration`] specified by `reconnect_after`.
+#[allow(clippy::too_many_arguments)]
 pub async fn run(
     orderbook_url: &Url,
     maker_id: PublicKey,
     network: Network,
     concurrent_orders: usize,
-    order_expiry_after: Duration,
+    order_expiry_after: time::Duration,
     bitmex_pricefeed_tx: watch::Sender<ServiceStatus>,
-    reconnect_after: std::time::Duration,
+    position_manager: xtra::Address<position::Manager>,
+    bitmex_api_key: Option<String>,
+    bitmex_api_secret: Option<String>,
+    reconnect_after: Duration,
 ) {
     let network = match network {
         Network::Bitcoin => bitmex_stream::Network::Mainnet,
@@ -42,8 +53,8 @@ pub async fn run(
     let mut orders: Vec<OrderResponse> = Vec::new();
 
     // Closure to avoid repeating the same code
-    let add_new_order = |price, direction| {
-        add_order(
+    let add_new_10101_order = |price, direction| {
+        add_10101_order(
             &orderbook_client,
             orderbook_url,
             price,
@@ -54,31 +65,62 @@ pub async fn run(
         )
     };
 
+    let credentials = match (bitmex_api_key, bitmex_api_secret) {
+        (Some(api_key), Some(secret)) => Some(Credentials { api_key, secret }),
+        _ => None,
+    };
+
     loop {
-        let mut price_stream = bitmex_client::bitmex(network).await;
-        while let Ok(Some(quote)) = price_stream.try_next().await {
-            let _ = bitmex_pricefeed_tx.send(ServiceStatus::Online);
-            tracing::debug!("Received new quote {quote:?}");
+        let mut stream = bitmex_ws_client::stream(network, credentials.clone()).await;
+        loop {
+            match stream.try_next().await {
+                Ok(Some(Event::Quote(quote))) => {
+                    let _ = bitmex_pricefeed_tx.send(ServiceStatus::Online);
+                    tracing::debug!("Received new quote {quote:?}");
 
-            orders.clear();
+                    orders.clear();
 
-            for _i in 0..concurrent_orders {
-                if let Some(order) = add_new_order(quote.bid(), Direction::Long).await {
-                    orders.push(order)
-                };
+                    for _i in 0..concurrent_orders {
+                        if let Some(order) = add_new_10101_order(quote.bid(), Direction::Long).await
+                        {
+                            orders.push(order)
+                        };
 
-                if let Some(order) = add_new_order(quote.ask(), Direction::Short).await {
-                    orders.push(order)
-                };
+                        if let Some(order) =
+                            add_new_10101_order(quote.ask(), Direction::Short).await
+                        {
+                            orders.push(order)
+                        };
+                    }
+                }
+                Ok(Some(Event::Position(position))) => {
+                    let _ = position_manager
+                        .send(PositionUpdateBitmex {
+                            contract_symbol: position.contract_symbol.into(),
+                            contracts: position.contracts,
+                        })
+                        .await;
+                }
+                Err(e) => {
+                    tracing::error!("Closing BitMEX WS after encountering error: {e:#}");
+                    break;
+                }
+                Ok(None) => {
+                    tracing::error!("BitMEX WS closed");
+                    break;
+                }
             }
         }
-        tracing::error!("Bitmex pricefeed stream closed");
+
         let _ = bitmex_pricefeed_tx.send(ServiceStatus::Offline);
+
+        tracing::error!(timeout = ?reconnect_after, "Reconnecting to BitMEX WS after timeout");
+
         tokio::time::sleep(reconnect_after).await;
     }
 }
 
-async fn add_order(
+async fn add_10101_order(
     orderbook_client: &OrderbookClient,
     orderbook_url: &Url,
     price: Decimal,

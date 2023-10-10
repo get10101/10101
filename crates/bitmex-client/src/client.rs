@@ -10,10 +10,10 @@ use crate::models::Side;
 use anyhow::bail;
 use anyhow::Result;
 use hex::encode as hexify;
+use reqwest;
 use reqwest::Method;
 use reqwest::Response;
 use reqwest::Url;
-use reqwest::{self};
 use ring::hmac;
 use serde::de::DeserializeOwned;
 use serde::Deserialize;
@@ -150,7 +150,7 @@ impl Client {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 struct Credentials {
     api_key: String,
     secret: String,
