@@ -158,11 +158,12 @@ fn position_metrics(cx: &Context, node: &Node) {
         );
         match position.direction {
             Direction::Long => {
-                margin_long += position.collateral;
+                // TODO: fix me: this was meant to be the traders margin
+                margin_long += position.coordinator_margin;
                 quantity_long += position.quantity;
             }
             Direction::Short => {
-                margin_short += position.collateral;
+                margin_short += position.coordinator_margin;
                 quantity_short += position.quantity;
             }
         }

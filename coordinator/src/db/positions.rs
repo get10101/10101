@@ -20,13 +20,13 @@ use time::OffsetDateTime;
 pub struct Position {
     pub id: i32,
     pub contract_symbol: ContractSymbol,
-    pub leverage: f32,
+    pub trader_leverage: f32,
     pub quantity: f32,
     pub direction: Direction,
     pub average_entry_price: f32,
     pub liquidation_price: f32,
     pub position_state: PositionState,
-    pub collateral: i64,
+    pub coordinator_margin: i64,
     pub creation_timestamp: OffsetDateTime,
     pub expiry_timestamp: OffsetDateTime,
     pub update_timestamp: OffsetDateTime,
@@ -36,6 +36,7 @@ pub struct Position {
     pub unrealized_pnl_sat: Option<i64>,
     pub closing_price: Option<f32>,
     pub coordinator_leverage: f32,
+    pub trader_margin: i64,
 }
 
 impl Position {
@@ -219,7 +220,7 @@ impl From<Position> for crate::position::models::Position {
         crate::position::models::Position {
             id: value.id,
             contract_symbol: trade::ContractSymbol::from(value.contract_symbol),
-            leverage: value.leverage,
+            trader_leverage: value.trader_leverage,
             quantity: value.quantity,
             direction: trade::Direction::from(value.direction),
             average_entry_price: value.average_entry_price,
@@ -229,7 +230,7 @@ impl From<Position> for crate::position::models::Position {
                 value.realized_pnl_sat,
                 value.closing_price,
             )),
-            collateral: value.collateral,
+            coordinator_margin: value.coordinator_margin,
             creation_timestamp: value.creation_timestamp,
             expiry_timestamp: value.expiry_timestamp,
             update_timestamp: value.update_timestamp,
@@ -239,6 +240,7 @@ impl From<Position> for crate::position::models::Position {
             }),
             closing_price: value.closing_price,
             coordinator_leverage: value.coordinator_leverage,
+            trader_margin: value.trader_margin,
         }
     }
 }
@@ -247,32 +249,34 @@ impl From<Position> for crate::position::models::Position {
 #[diesel(table_name = positions)]
 struct NewPosition {
     pub contract_symbol: ContractSymbol,
-    pub leverage: f32,
+    pub trader_leverage: f32,
     pub quantity: f32,
     pub direction: Direction,
     pub average_entry_price: f32,
     pub liquidation_price: f32,
     pub position_state: PositionState,
-    pub collateral: i64,
+    pub coordinator_margin: i64,
     pub expiry_timestamp: OffsetDateTime,
     pub trader_pubkey: String,
     pub temporary_contract_id: String,
+    pub trader_margin: i64,
 }
 
 impl From<crate::position::models::NewPosition> for NewPosition {
     fn from(value: crate::position::models::NewPosition) -> Self {
         NewPosition {
             contract_symbol: ContractSymbol::from(value.contract_symbol),
-            leverage: value.leverage,
+            trader_leverage: value.trader_leverage,
             quantity: value.quantity,
             direction: Direction::from(value.direction),
             average_entry_price: value.average_entry_price,
             liquidation_price: value.liquidation_price,
             position_state: PositionState::Open,
-            collateral: value.collateral,
+            coordinator_margin: value.coordinator_margin,
             expiry_timestamp: value.expiry_timestamp,
             trader_pubkey: value.trader.to_string(),
             temporary_contract_id: value.temporary_contract_id.to_hex(),
+            trader_margin: value.trader_margin,
         }
     }
 }

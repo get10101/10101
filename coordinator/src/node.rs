@@ -372,6 +372,7 @@ impl Node {
     ) -> Result<()> {
         let liquidation_price = liquidation_price(trade_params);
         let margin_coordinator = margin_coordinator(trade_params, coordinator_leverage);
+        let margin_trader = margin_trader(trade_params);
 
         let average_entry_price = trade_params
             .average_execution_price()
@@ -380,15 +381,16 @@ impl Node {
 
         let new_position = NewPosition {
             contract_symbol: trade_params.contract_symbol,
-            leverage: trade_params.leverage,
+            trader_leverage: trade_params.leverage,
             quantity: trade_params.quantity,
             direction: trade_params.direction,
             trader: trade_params.pubkey,
             average_entry_price,
             liquidation_price,
-            collateral: margin_coordinator as i64,
+            coordinator_margin: margin_coordinator as i64,
             expiry_timestamp: trade_params.filled_with.expiry_timestamp,
             temporary_contract_id,
+            trader_margin: margin_trader as i64,
         };
         tracing::debug!(?new_position, "Inserting new position into db");
 
@@ -401,8 +403,8 @@ impl Node {
                 contract_symbol: new_position.contract_symbol,
                 trader_pubkey: new_position.trader,
                 quantity: new_position.quantity,
-                leverage: new_position.leverage,
-                collateral: new_position.collateral,
+                trader_leverage: new_position.trader_leverage,
+                coordinator_margin: new_position.coordinator_margin,
                 direction: new_position.direction,
                 average_price: average_entry_price,
                 fee_payment_hash,
@@ -442,8 +444,8 @@ impl Node {
                 contract_symbol: position.contract_symbol,
                 trader_pubkey: position.trader,
                 quantity: position.quantity,
-                leverage: position.leverage,
-                collateral: position.collateral,
+                trader_leverage: position.trader_leverage,
+                coordinator_margin: position.coordinator_margin,
                 direction: position.direction.opposite(),
                 average_price: closing_price.to_f32().expect("To fit into f32"),
                 fee_payment_hash,

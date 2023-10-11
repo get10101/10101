@@ -163,13 +163,13 @@ diesel::table! {
     positions (id) {
         id -> Int4,
         contract_symbol -> ContractSymbolType,
-        leverage -> Float4,
+        trader_leverage -> Float4,
         quantity -> Float4,
         direction -> DirectionType,
         average_entry_price -> Float4,
         liquidation_price -> Float4,
         position_state -> PositionStateType,
-        collateral -> Int8,
+        coordinator_margin -> Int8,
         creation_timestamp -> Timestamptz,
         expiry_timestamp -> Timestamptz,
         update_timestamp -> Timestamptz,
@@ -179,6 +179,7 @@ diesel::table! {
         unrealized_pnl_sat -> Nullable<Int8>,
         closing_price -> Nullable<Float4>,
         coordinator_leverage -> Float4,
+        trader_margin -> Int8,
     }
 }
 
@@ -212,7 +213,7 @@ diesel::table! {
         contract_symbol -> ContractSymbolType,
         trader_pubkey -> Text,
         quantity -> Float4,
-        leverage -> Float4,
+        trader_leverage -> Float4,
         collateral -> Int8,
         direction -> DirectionType,
         average_price -> Float4,
