@@ -380,7 +380,7 @@ impl Node {
 
         let new_position = NewPosition {
             contract_symbol: trade_params.contract_symbol,
-            leverage: trade_params.leverage,
+            trader_leverage: trade_params.leverage,
             quantity: trade_params.quantity,
             direction: trade_params.direction,
             trader: trade_params.pubkey,
@@ -401,7 +401,7 @@ impl Node {
                 contract_symbol: new_position.contract_symbol,
                 trader_pubkey: new_position.trader,
                 quantity: new_position.quantity,
-                leverage: new_position.leverage,
+                trader_leverage: new_position.trader_leverage,
                 coordinator_margin: new_position.coordinator_margin,
                 direction: new_position.direction,
                 average_price: average_entry_price,
@@ -442,7 +442,7 @@ impl Node {
                 contract_symbol: position.contract_symbol,
                 trader_pubkey: position.trader,
                 quantity: position.quantity,
-                leverage: position.leverage,
+                trader_leverage: position.trader_leverage,
                 coordinator_margin: position.coordinator_margin,
                 direction: position.direction.opposite(),
                 average_price: closing_price.to_f32().expect("To fit into f32"),

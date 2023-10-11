@@ -20,7 +20,7 @@ use time::OffsetDateTime;
 pub struct Position {
     pub id: i32,
     pub contract_symbol: ContractSymbol,
-    pub leverage: f32,
+    pub trader_leverage: f32,
     pub quantity: f32,
     pub direction: Direction,
     pub average_entry_price: f32,
@@ -219,7 +219,7 @@ impl From<Position> for crate::position::models::Position {
         crate::position::models::Position {
             id: value.id,
             contract_symbol: trade::ContractSymbol::from(value.contract_symbol),
-            leverage: value.leverage,
+            trader_leverage: value.trader_leverage,
             quantity: value.quantity,
             direction: trade::Direction::from(value.direction),
             average_entry_price: value.average_entry_price,
@@ -247,7 +247,7 @@ impl From<Position> for crate::position::models::Position {
 #[diesel(table_name = positions)]
 struct NewPosition {
     pub contract_symbol: ContractSymbol,
-    pub leverage: f32,
+    pub trader_leverage: f32,
     pub quantity: f32,
     pub direction: Direction,
     pub average_entry_price: f32,
@@ -263,7 +263,7 @@ impl From<crate::position::models::NewPosition> for NewPosition {
     fn from(value: crate::position::models::NewPosition) -> Self {
         NewPosition {
             contract_symbol: ContractSymbol::from(value.contract_symbol),
-            leverage: value.leverage,
+            trader_leverage: value.trader_leverage,
             quantity: value.quantity,
             direction: Direction::from(value.direction),
             average_entry_price: value.average_entry_price,

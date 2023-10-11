@@ -163,7 +163,7 @@ diesel::table! {
     positions (id) {
         id -> Int4,
         contract_symbol -> ContractSymbolType,
-        leverage -> Float4,
+        trader_leverage -> Float4,
         quantity -> Float4,
         direction -> DirectionType,
         average_entry_price -> Float4,
@@ -212,7 +212,7 @@ diesel::table! {
         contract_symbol -> ContractSymbolType,
         trader_pubkey -> Text,
         quantity -> Float4,
-        leverage -> Float4,
+        trader_leverage -> Float4,
         collateral -> Int8,
         direction -> DirectionType,
         average_price -> Float4,

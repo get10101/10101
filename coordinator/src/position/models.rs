@@ -14,7 +14,7 @@ use trade::Direction;
 #[derive(Debug, Clone)]
 pub struct NewPosition {
     pub contract_symbol: ContractSymbol,
-    pub leverage: f32,
+    pub trader_leverage: f32,
     pub quantity: f32,
     pub direction: Direction,
     pub trader: PublicKey,
@@ -48,7 +48,7 @@ pub struct Position {
     pub id: i32,
     pub contract_symbol: ContractSymbol,
     /// the traders leverage
-    pub leverage: f32,
+    pub trader_leverage: f32,
     pub quantity: f32,
     /// the traders direction
     pub direction: Direction,
@@ -95,8 +95,8 @@ impl Position {
             .context("Failed to convert average entry price to Decimal")?;
 
         let (long_leverage, short_leverage) = match self.direction {
-            Direction::Long => (self.leverage, self.coordinator_leverage),
-            Direction::Short => (self.coordinator_leverage, self.leverage),
+            Direction::Long => (self.trader_leverage, self.coordinator_leverage),
+            Direction::Short => (self.coordinator_leverage, self.trader_leverage),
         };
 
         // the position in the database is the trader's position, our direction is opposite
@@ -118,9 +118,16 @@ impl Position {
     pub fn calculate_settlement_amount(&self, closing_price: Decimal) -> Result<u64> {
         let opening_price = Decimal::try_from(self.average_entry_price)?;
 
-        let leverage_long = leverage_long(self.direction, self.leverage, self.coordinator_leverage);
-        let leverage_short =
-            leverage_short(self.direction, self.leverage, self.coordinator_leverage);
+        let leverage_long = leverage_long(
+            self.direction,
+            self.trader_leverage,
+            self.coordinator_leverage,
+        );
+        let leverage_short = leverage_short(
+            self.direction,
+            self.trader_leverage,
+            self.coordinator_leverage,
+        );
 
         calculate_accept_settlement_amount(
             opening_price,
@@ -473,7 +480,7 @@ pub mod tests {
             Position {
                 id: 0,
                 contract_symbol: ContractSymbol::BtcUsd,
-                leverage: 2.0,
+                trader_leverage: 2.0,
                 quantity: 100.0,
                 direction: Direction::Long,
                 average_entry_price: 10000.0,
@@ -504,7 +511,7 @@ pub mod tests {
         }
 
         fn with_leverage(mut self, leverage: f32) -> Self {
-            self.leverage = leverage;
+            self.trader_leverage = leverage;
             self
         }
 
