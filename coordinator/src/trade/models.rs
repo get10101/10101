@@ -11,7 +11,7 @@ pub struct NewTrade {
     pub trader_pubkey: PublicKey,
     pub quantity: f32,
     pub leverage: f32,
-    pub collateral: i64,
+    pub coordinator_margin: i64,
     pub direction: Direction,
     pub average_price: f32,
     pub fee_payment_hash: PaymentHash,

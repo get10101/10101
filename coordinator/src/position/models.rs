@@ -20,7 +20,7 @@ pub struct NewPosition {
     pub trader: PublicKey,
     pub average_entry_price: f32,
     pub liquidation_price: f32,
-    pub collateral: i64,
+    pub coordinator_margin: i64,
     pub expiry_timestamp: OffsetDateTime,
     pub temporary_contract_id: ContractId,
 }
@@ -57,7 +57,7 @@ pub struct Position {
     pub liquidation_price: f32,
     pub position_state: PositionState,
     /// the traders collateral
-    pub collateral: i64,
+    pub coordinator_margin: i64,
     pub creation_timestamp: OffsetDateTime,
     pub expiry_timestamp: OffsetDateTime,
     pub update_timestamp: OffsetDateTime,
@@ -479,7 +479,7 @@ pub mod tests {
                 average_entry_price: 10000.0,
                 liquidation_price: 0.0,
                 position_state: PositionState::Open,
-                collateral: 1000,
+                coordinator_margin: 1000,
                 creation_timestamp: OffsetDateTime::now_utc(),
                 expiry_timestamp: OffsetDateTime::now_utc(),
                 update_timestamp: OffsetDateTime::now_utc(),

@@ -169,7 +169,7 @@ diesel::table! {
         average_entry_price -> Float4,
         liquidation_price -> Float4,
         position_state -> PositionStateType,
-        collateral -> Int8,
+        coordinator_margin -> Int8,
         creation_timestamp -> Timestamptz,
         expiry_timestamp -> Timestamptz,
         update_timestamp -> Timestamptz,

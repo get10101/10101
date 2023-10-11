@@ -74,7 +74,7 @@ impl From<crate::trade::models::NewTrade> for NewTrade {
             trader_pubkey: value.trader_pubkey.to_string(),
             quantity: value.quantity,
             leverage: value.leverage,
-            collateral: value.collateral,
+            collateral: value.coordinator_margin,
             direction: value.direction.into(),
             average_price: value.average_price,
             fee_payment_hash: value.fee_payment_hash.0.to_hex(),
