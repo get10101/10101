@@ -57,11 +57,9 @@ pub async fn notify_user_to_collaboratively_revert(
         .find(|c| c.channel_id == channel_id)
         .context("Could not find provided channel")?;
 
-    let position = Position::get_position_by_trader(
-        &mut conn,
-        channel_details.counterparty.node_id.to_string(),
-    )
-    .context("Could not load position for channel_id")?;
+    let position =
+        Position::get_position_by_trader(&mut conn, channel_details.counterparty.node_id, vec![])?
+            .context("Could not load position for channel_id")?;
 
     let settlement_amount = position
         .calculate_settlement_amount(revert_params.price)
@@ -205,7 +203,7 @@ pub fn confirm_collaborative_revert(
 
     let mut revert_transaction = revert_params.transaction.clone();
 
-    let position = Position::get_position_by_trader(conn, sub_channel.counter_party.to_string())
+    let position = Position::get_position_by_trader(conn, sub_channel.counter_party, vec![])?
         .context("Could not load position for channel_id")?;
 
     channel_manager

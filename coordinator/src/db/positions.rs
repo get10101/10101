@@ -6,6 +6,7 @@ use anyhow::bail;
 use anyhow::ensure;
 use anyhow::Result;
 use bitcoin::hashes::hex::ToHex;
+use bitcoin::secp256k1::PublicKey;
 use diesel::prelude::*;
 use diesel::query_builder::QueryId;
 use diesel::result::QueryResult;
@@ -41,28 +42,24 @@ pub struct Position {
 
 impl Position {
     /// Returns the position by trader pub key
-    pub fn get_open_position_by_trader(
-        conn: &mut PgConnection,
-        trader_pubkey: String,
-    ) -> QueryResult<Option<crate::position::models::Position>> {
-        let x = positions::table
-            .filter(positions::trader_pubkey.eq(trader_pubkey))
-            .filter(positions::position_state.eq(PositionState::Open))
-            .first::<Position>(conn)
-            .optional()?;
-
-        Ok(x.map(crate::position::models::Position::from))
-    }
-    /// Returns the position by trader pub key
     pub fn get_position_by_trader(
         conn: &mut PgConnection,
-        trader_pubkey: String,
-    ) -> QueryResult<crate::position::models::Position> {
-        let x = positions::table
-            .filter(positions::trader_pubkey.eq(trader_pubkey))
-            .first::<Position>(conn)?;
+        trader_pubkey: PublicKey,
+        states: Vec<crate::position::models::PositionState>,
+    ) -> QueryResult<Option<crate::position::models::Position>> {
+        let mut query = positions::table.into_boxed();
 
-        Ok(crate::position::models::Position::from(x))
+        query = query.filter(positions::trader_pubkey.eq(trader_pubkey.to_string()));
+
+        if !states.is_empty() {
+            query = query.filter(
+                positions::position_state.eq_any(states.into_iter().map(PositionState::from)),
+            )
+        }
+
+        let x = query.first::<Position>(conn).optional()?;
+
+        Ok(x.map(crate::position::models::Position::from))
     }
 
     pub fn get_all_open_positions_with_expiry_before(
@@ -243,6 +240,17 @@ impl Position {
             .get_result(conn)?;
 
         Ok(position.into())
+    }
+}
+
+impl From<crate::position::models::PositionState> for PositionState {
+    fn from(value: crate::position::models::PositionState) -> Self {
+        match value {
+            crate::position::models::PositionState::Open => PositionState::Open,
+            crate::position::models::PositionState::Closing { .. } => PositionState::Closing,
+            crate::position::models::PositionState::Closed { .. } => PositionState::Closed,
+            crate::position::models::PositionState::Rollover => PositionState::Rollover,
+        }
     }
 }
 

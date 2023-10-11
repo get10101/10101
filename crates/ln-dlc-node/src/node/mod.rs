@@ -1,3 +1,4 @@
+pub use self::dlc_manager::signed_channel_state_name;
 pub use self::dlc_manager::DlcManager;
 use crate::channel::UserChannelId;
 use crate::disk;

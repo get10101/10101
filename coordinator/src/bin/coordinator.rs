@@ -225,6 +225,7 @@ async fn main() -> Result<()> {
         tx_user_feed.clone(),
         auth_users_notifier.clone(),
         network,
+        node.clone(),
     );
     let _handle = collaborative_revert::monitor(
         pool.clone(),

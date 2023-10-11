@@ -103,8 +103,8 @@ pub async fn async_trade(order: orderbook_commons::Order, filled_with: FilledWit
 }
 
 /// Rollover dlc to new expiry timestamp
-pub async fn rollover() -> Result<()> {
-    ln_dlc::rollover().await
+pub async fn rollover(contract_id: Option<String>) -> Result<()> {
+    ln_dlc::rollover(contract_id).await
 }
 
 /// Fetch the positions from the database

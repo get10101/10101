@@ -372,7 +372,7 @@ pub async fn rollover(
 
     state
         .node
-        .propose_rollover(dlc_channel_id, state.node.inner.network)
+        .propose_rollover(&dlc_channel_id, state.node.inner.network)
         .await
         .map_err(|e| {
             AppError::InternalServerError(format!(

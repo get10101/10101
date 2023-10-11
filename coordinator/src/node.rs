@@ -6,6 +6,7 @@ use crate::position::models::leverage_long;
 use crate::position::models::leverage_short;
 use crate::position::models::NewPosition;
 use crate::position::models::Position;
+use crate::position::models::PositionState;
 use crate::trade::models::NewTrade;
 use anyhow::anyhow;
 use anyhow::bail;
@@ -252,9 +253,10 @@ impl Node {
 
                 let closing_price = trade_params.average_execution_price();
 
-                let position = match db::positions::Position::get_open_position_by_trader(
+                let position = match db::positions::Position::get_position_by_trader(
                     connection,
-                    trade_params.pubkey.to_string(),
+                    trade_params.pubkey,
+                    vec![PositionState::Open],
                 )? {
                     Some(position) => position,
                     None => bail!("Failed to find open position : {}", trade_params.pubkey),
@@ -565,7 +567,7 @@ impl Node {
         // receiver can decide what events to process and we can skip this component specific logic
         // here.
         if let Message::Channel(ChannelMessage::RenewFinalize(r)) = &msg {
-            self.finalize_rollover(r.channel_id)?;
+            self.finalize_rollover(&r.channel_id)?;
         }
 
         if let Some(msg) = resp {
