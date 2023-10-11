@@ -22,8 +22,8 @@ async fn can_rollover_position() {
         .find(|chan| chan.counter_party == app_pubkey)
         .unwrap();
 
-    let position = test.app.rx.position().expect("position to exist");
-    let new_expiry = coordinator_commons::calculate_next_expiry(position.expiry, Network::Bitcoin);
+    let new_expiry =
+        coordinator_commons::calculate_next_expiry(OffsetDateTime::now_utc(), Network::Regtest);
 
     coordinator
         .rollover(&dlc_channel.dlc_channel_id.unwrap())
