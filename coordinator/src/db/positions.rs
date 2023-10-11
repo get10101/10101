@@ -36,6 +36,7 @@ pub struct Position {
     pub unrealized_pnl_sat: Option<i64>,
     pub closing_price: Option<f32>,
     pub coordinator_leverage: f32,
+    pub trader_margin: i64,
 }
 
 impl Position {
@@ -239,6 +240,7 @@ impl From<Position> for crate::position::models::Position {
             }),
             closing_price: value.closing_price,
             coordinator_leverage: value.coordinator_leverage,
+            trader_margin: value.trader_margin,
         }
     }
 }
@@ -257,6 +259,7 @@ struct NewPosition {
     pub expiry_timestamp: OffsetDateTime,
     pub trader_pubkey: String,
     pub temporary_contract_id: String,
+    pub trader_margin: i64,
 }
 
 impl From<crate::position::models::NewPosition> for NewPosition {
@@ -273,6 +276,7 @@ impl From<crate::position::models::NewPosition> for NewPosition {
             expiry_timestamp: value.expiry_timestamp,
             trader_pubkey: value.trader.to_string(),
             temporary_contract_id: value.temporary_contract_id.to_hex(),
+            trader_margin: value.trader_margin,
         }
     }
 }

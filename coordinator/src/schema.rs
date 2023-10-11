@@ -179,6 +179,7 @@ diesel::table! {
         unrealized_pnl_sat -> Nullable<Int8>,
         closing_price -> Nullable<Float4>,
         coordinator_leverage -> Float4,
+        trader_margin -> Int8,
     }
 }
 

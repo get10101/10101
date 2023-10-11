@@ -23,6 +23,7 @@ pub struct NewPosition {
     pub coordinator_margin: i64,
     pub expiry_timestamp: OffsetDateTime,
     pub temporary_contract_id: ContractId,
+    pub trader_margin: i64,
 }
 
 #[derive(Clone, PartialEq, Debug)]
@@ -56,7 +57,6 @@ pub struct Position {
     /// the traders liquidation price
     pub liquidation_price: f32,
     pub position_state: PositionState,
-    /// the traders collateral
     pub coordinator_margin: i64,
     pub creation_timestamp: OffsetDateTime,
     pub expiry_timestamp: OffsetDateTime,
@@ -74,6 +74,7 @@ pub struct Position {
     /// associate already existing contracts with positions.
     pub temporary_contract_id: Option<ContractId>,
     pub closing_price: Option<f32>,
+    pub trader_margin: i64,
 }
 
 impl Position {
@@ -497,6 +498,7 @@ pub mod tests {
                 temporary_contract_id: None,
                 closing_price: None,
                 coordinator_leverage: 2.0,
+                trader_margin: 1000,
             }
         }
 

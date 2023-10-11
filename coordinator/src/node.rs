@@ -372,6 +372,7 @@ impl Node {
     ) -> Result<()> {
         let liquidation_price = liquidation_price(trade_params);
         let margin_coordinator = margin_coordinator(trade_params, coordinator_leverage);
+        let margin_trader = margin_trader(trade_params);
 
         let average_entry_price = trade_params
             .average_execution_price()
@@ -389,6 +390,7 @@ impl Node {
             coordinator_margin: margin_coordinator as i64,
             expiry_timestamp: trade_params.filled_with.expiry_timestamp,
             temporary_contract_id,
+            trader_margin: margin_trader as i64,
         };
         tracing::debug!(?new_position, "Inserting new position into db");
 
