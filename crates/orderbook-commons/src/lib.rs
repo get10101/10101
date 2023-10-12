@@ -1,4 +1,6 @@
 use anyhow::Result;
+use bitcoin::Address;
+use bitcoin::Amount;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use secp256k1::Message as SecpMessage;
@@ -130,6 +132,8 @@ impl TryFrom<OrderbookRequest> for tungstenite::Message {
     }
 }
 
+pub type ChannelId = [u8; 32];
+
 // TODO(holzeis): The message enum should not be in the orderbook-commons crate as it also contains
 // coordinator messages. We should move all common crates into a single one.
 #[derive(Serialize, Clone, Deserialize, Debug)]
@@ -150,6 +154,14 @@ pub enum Message {
         filled_with: FilledWith,
     },
     Rollover,
+    CollaborativeRevert {
+        channel_id: ChannelId,
+        coordinator_address: Address,
+        #[serde(with = "bitcoin::util::amount::serde::as_sat")]
+        coordinator_amount: Amount,
+        #[serde(with = "bitcoin::util::amount::serde::as_sat")]
+        trader_amount: Amount,
+    },
 }
 
 impl Display for Message {
@@ -184,6 +196,9 @@ impl Display for Message {
             }
             Message::Rollover => {
                 write!(f, "Rollover")
+            }
+            Message::CollaborativeRevert { .. } => {
+                write!(f, "CollaborativeRevert")
             }
         }
     }

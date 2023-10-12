@@ -31,8 +31,16 @@ use bdk::bitcoin::XOnlyPublicKey;
 use bdk::BlockTime;
 use bdk::FeeRate;
 use bitcoin::hashes::hex::ToHex;
+use bitcoin::secp256k1::Secp256k1;
+use bitcoin::Address;
 use bitcoin::Amount;
+use bitcoin::OutPoint;
+use bitcoin::PackedLockTime;
+use bitcoin::Transaction;
+use bitcoin::TxIn;
+use bitcoin::TxOut;
 pub use channel_status::ChannelStatus;
+use coordinator_commons::CollaborativeRevertData;
 use coordinator_commons::LiquidityOption;
 use coordinator_commons::LspConfig;
 use coordinator_commons::OnboardingParam;
@@ -78,6 +86,7 @@ use time::OffsetDateTime;
 use tokio::runtime::Runtime;
 use tokio::sync::watch;
 use tokio::task::spawn_blocking;
+use trade::ContractSymbol;
 
 mod lightning_subscriber;
 mod node;
@@ -658,6 +667,133 @@ pub fn close_channel(is_force_close: bool) -> Result<()> {
     Ok(())
 }
 
+pub fn collaborative_revert_channel(
+    channel_id: ChannelId,
+    coordinator_address: Address,
+    coordinator_amount: Amount,
+    trader_amount: Amount,
+) -> Result<()> {
+    let node = NODE.try_get().context("failed to get ln dlc node")?;
+
+    let node = node.inner.clone();
+
+    let sub_channels = node.list_dlc_channels()?;
+    let subchannel = sub_channels
+        .iter()
+        .find(|c| c.channel_id == channel_id)
+        .context("Could not find provided channel")?;
+
+    let channel_manager = node.channel_manager.clone();
+    let details = channel_manager
+        .get_channel_details(&subchannel.channel_id)
+        .context("Could not get channel details")?;
+    let out_point = details
+        .original_funding_outpoint
+        .context("Original funding tx didn't have an outpoint")?;
+
+    let address = node.get_unused_address();
+
+    let collab_revert_tx = Transaction {
+        version: 2,
+        lock_time: PackedLockTime::ZERO,
+        input: vec![TxIn {
+            previous_output: OutPoint {
+                txid: out_point.txid,
+                vout: out_point.index as u32,
+            },
+            script_sig: Default::default(),
+            sequence: Default::default(),
+            witness: Default::default(),
+        }],
+        output: vec![
+            TxOut {
+                value: coordinator_amount.to_sat(),
+                script_pubkey: coordinator_address.script_pubkey(),
+            },
+            TxOut {
+                value: trader_amount.to_sat(),
+                script_pubkey: address.script_pubkey(),
+            },
+        ],
+    };
+    let mut own_sig = None;
+
+    channel_manager
+        .with_channel_lock_no_check(
+            &subchannel.channel_id,
+            &subchannel.counter_party,
+            |channel_lock| {
+                channel_manager.sign_with_fund_key_cb(channel_lock, &mut |fund_sk| {
+                    let secp = Secp256k1::new();
+
+                    own_sig = Some(
+                        dlc::util::get_raw_sig_for_tx_input(
+                            &secp,
+                            &collab_revert_tx,
+                            0,
+                            &subchannel.original_funding_redeemscript,
+                            subchannel.fund_value_satoshis,
+                            fund_sk,
+                        )
+                        .expect("to be able to get raw sig for tx input"),
+                    );
+                });
+                Ok(())
+            },
+        )
+        .expect("To be able to get channel lock");
+
+    if let Some(own_sig) = own_sig {
+        let data = CollaborativeRevertData {
+            channel_id: hex::encode(subchannel.channel_id),
+            transaction: collab_revert_tx,
+            signature: own_sig,
+        };
+
+        let client = reqwest_client();
+        let runtime = get_or_create_tokio_runtime()?;
+        runtime.spawn(async move {
+            match client
+                .post(format!(
+                    "http://{}/api/channels/revertconfirm",
+                    config::get_http_endpoint(),
+                ))
+                .json(&data)
+                .send()
+                .await
+            {
+                Ok(response) => match response.text().await {
+                    Ok(response) => {
+                        tracing::info!(
+                            response,
+                            "Received response from confirming reverting a channel"
+                        );
+
+                        match db::delete_positions() {
+                            Ok(_) => {
+                                event::publish(&EventInternal::PositionCloseNotification(
+                                    ContractSymbol::BtcUsd,
+                                ));
+                            }
+                            Err(error) => {
+                                tracing::error!("Could not delete position : {error:#}");
+                            }
+                        }
+                    }
+                    Err(error) => {
+                        tracing::error!("Failed at confirming reverting a channel  : {error:#}");
+                    }
+                },
+                Err(err) => {
+                    tracing::error!("Could not confirm collaborative revert {err:#}");
+                }
+            }
+        });
+    }
+
+    Ok(())
+}
+
 pub fn get_usable_channel_details() -> Result<Vec<ChannelDetails>> {
     let node = NODE.try_get().context("failed to get ln dlc node")?;
     let channels = node.inner.list_usable_channels();
@@ -825,7 +961,7 @@ pub fn create_invoice(amount_sats: Option<u64>) -> Result<Invoice> {
 
         if !response.status().is_success() {
             let text = response.text().await?;
-            bail!("Failed to fetch route hint from coordinator: {text}")
+            bail!("Failed to fetch route hint from coordinator for regular payment: {text}")
         }
 
         let final_route_hint_hop: RouteHintHop = response.json().await?;

@@ -36,9 +36,11 @@ pub fn sync(node: Node) -> Result<()> {
             "Setting position to closed to match the contract state."
         );
 
-        if let Err(e) =
-            db::positions::Position::set_position_to_closed(&mut conn, position.id, contract.pnl)
-        {
+        if let Err(e) = db::positions::Position::set_position_to_closed_with_pnl(
+            &mut conn,
+            position.id,
+            contract.pnl,
+        ) {
             tracing::error!(position_id=%position.id, temporary_contract_id=%temporary_contract_id.to_hex(), pnl=%contract.pnl, "Failed to set position to closed: {e:#}")
         }
     }

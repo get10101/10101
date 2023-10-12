@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Contracts can only be entered in full amounts
 - New default amount is 10 contracts
 - Fix: Show pnl on success dialog when closing a position
+- Add a feature to collaboratively close a (potentially broken) channel
 
 ## [1.4.1] - 2023-10-09
 

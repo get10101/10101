@@ -173,6 +173,10 @@ where
             .address)
     }
 
+    pub fn is_mine(&self, script: &Script) -> Result<bool, Error> {
+        Ok(self.bdk_lock().is_mine(script)?)
+    }
+
     pub(crate) fn get_balance(&self) -> Result<bdk::Balance, Error> {
         Ok(self.bdk_lock().get_balance()?)
     }

@@ -1,3 +1,4 @@
+use crate::db::channels;
 use crate::orderbook::db::custom_types::Direction;
 use crate::schema::positions;
 use crate::schema::sql_types::ContractSymbolType;
@@ -52,6 +53,21 @@ impl Position {
             .optional()?;
 
         Ok(x.map(crate::position::models::Position::from))
+    }
+
+    /// Returns the position by channel id
+    pub fn get_position_by_channel_id(
+        conn: &mut PgConnection,
+        channel_id: String,
+    ) -> QueryResult<crate::position::models::Position> {
+        let channel = channels::get_by_channel_id(channel_id.as_str(), conn)?;
+
+        let maybe_position = positions::table
+            .filter(positions::trader_pubkey.eq(channel.counterparty_pubkey))
+            .order_by(positions::update_timestamp.desc())
+            .first::<Position>(conn)?;
+
+        Ok(crate::position::models::Position::from(maybe_position))
     }
 
     pub fn get_all_open_positions_with_expiry_before(
@@ -129,7 +145,11 @@ impl Position {
         Ok(())
     }
 
-    pub fn set_position_to_closed(conn: &mut PgConnection, id: i32, pnl: i64) -> Result<()> {
+    pub fn set_position_to_closed_with_pnl(
+        conn: &mut PgConnection,
+        id: i32,
+        pnl: i64,
+    ) -> Result<()> {
         let affected_rows = diesel::update(positions::table)
             .filter(positions::id.eq(id))
             .set((
@@ -141,6 +161,22 @@ impl Position {
 
         if affected_rows == 0 {
             bail!("Could not update position to Closed with realized pnl {pnl} for position {id}")
+        }
+
+        Ok(())
+    }
+
+    pub fn set_position_to_closed(conn: &mut PgConnection, id: i32) -> Result<()> {
+        let affected_rows = diesel::update(positions::table)
+            .filter(positions::id.eq(id))
+            .set((
+                positions::position_state.eq(PositionState::Closed),
+                positions::update_timestamp.eq(OffsetDateTime::now_utc()),
+            ))
+            .execute(conn)?;
+
+        if affected_rows == 0 {
+            bail!("Could not update position to Closed for position {id}")
         }
 
         Ok(())

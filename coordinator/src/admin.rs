@@ -1,4 +1,5 @@
 use crate::db;
+use crate::db::positions::Position;
 use crate::routes::AppState;
 use crate::AppError;
 use anyhow::Context;
@@ -9,9 +10,14 @@ use axum::extract::State;
 use axum::Json;
 use bdk::TransactionDetails;
 use bitcoin::secp256k1::PublicKey;
+use bitcoin::Amount;
+use coordinator_commons::CollaborativeRevert;
+use dlc::util::weight_to_fee;
+use dlc_manager::subchannel::LNChannelManager;
 use dlc_manager::subchannel::SubChannel;
 use lightning_invoice::Invoice;
 use ln_dlc_node::node::NodeInfo;
+use orderbook_commons::Message;
 use serde::de;
 use serde::Deserialize;
 use serde::Deserializer;
@@ -23,7 +29,13 @@ use time::OffsetDateTime;
 use tokio::task::spawn_blocking;
 use tracing::instrument;
 
-#[derive(Serialize, Deserialize)]
+/// The weight for the collaborative close transaction. It's expected to have 1 input (from the fund
+/// transaction) and 2 outputs, one for each party.
+/// Note: if either party would have a 0 output, the actual weight will be smaller and we will be
+/// overspending tx fee.
+const COLLABORATIVE_REVERT_TX_WEIGHT: usize = 672;
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Balance {
     pub offchain: u64,
     pub onchain: u64,
@@ -142,6 +154,98 @@ pub async fn list_dlc_channels(
         .collect::<Vec<_>>();
 
     Ok(Json(dlc_channels))
+}
+
+pub async fn collaborative_revert(
+    State(state): State<Arc<AppState>>,
+    revert_params: Json<CollaborativeRevert>,
+) -> Result<Json<String>, AppError> {
+    let channel_id_string = revert_params.channel_id.clone();
+    let channel_id = hex::decode(channel_id_string.clone())
+        .map_err(|err| AppError::BadRequest(err.to_string()))?;
+    let channel_id: [u8; 32] = channel_id
+        .try_into()
+        .map_err(|_| AppError::BadRequest("Provided channel ID was invalid".to_string()))?;
+
+    let mut conn =
+        state.pool.clone().get().map_err(|e| {
+            AppError::InternalServerError(format!("Failed to acquire db lock: {e:#}"))
+        })?;
+
+    let channel_details = state
+        .node
+        .inner
+        .channel_manager
+        .get_channel_details(&channel_id)
+        .context("Could not get channel")
+        .map_err(|error| {
+            AppError::InternalServerError(format!("No ln channel found: {error:#}"))
+        })?;
+
+    let sub_channels = state.node.inner.list_dlc_channels().map_err(|e| {
+        AppError::InternalServerError(format!("Failed to list DLC channels: {e:#}"))
+    })?;
+    let subchannel = sub_channels
+        .iter()
+        .find(|c| c.channel_id == channel_id)
+        .context("Could not find provided channel")
+        .map_err(|e| AppError::BadRequest(format!("Channel not found: {e:#}")))?;
+
+    let position = Position::get_position_by_channel_id(&mut conn, channel_id_string.clone())
+        .map_err(|error| {
+            tracing::error!(
+                channel_id = revert_params.channel_id.clone(),
+                "Could not get position for channel {error:#}"
+            );
+            AppError::InternalServerError(format!("Failed to load position from db: {error:#}"))
+        })?;
+
+    let settlement_amount = position
+        .calculate_settlement_amount(revert_params.price)
+        .map_err(|error| {
+            AppError::InternalServerError(format!("Could not calculate pnl {error:#}"))
+        })?;
+
+    // the coordinator gets the channel value - trader's balance - settlement_amount, i.e. the
+    // trader loses the tx fee locked up in the sub_channel transactions
+    // TODO: share the transaction fees between both parties
+    let coordinator_amount = subchannel.fund_value_satoshis as i64
+        - (channel_details.inbound_capacity_msat / 1000) as i64
+        - settlement_amount as i64;
+    let trader_amount = subchannel.fund_value_satoshis - coordinator_amount as u64;
+
+    let fee = weight_to_fee(
+        COLLABORATIVE_REVERT_TX_WEIGHT,
+        revert_params.fee_rate_sats_vb,
+    )
+    .expect("To be able to calculate constant fee rate");
+    let address = state.node.inner.get_unused_address();
+    let coordinator_amount = Amount::from_sat(coordinator_amount as u64 - fee / 2);
+    let trader_amount = Amount::from_sat(trader_amount - fee / 2);
+
+    // TODO: check if trader still has more than dust
+    tracing::info!(
+        channel_id = channel_id_string,
+        coordinator_address = %address,
+        coordinator_amount = coordinator_amount.to_sat(),
+        trader_amount = trader_amount.to_sat(),
+        "Proposing collaborative revert");
+
+    let _ = state
+        .tx_price_feed
+        .send(Message::CollaborativeRevert {
+            channel_id,
+            coordinator_address: address,
+            coordinator_amount,
+            trader_amount,
+        })
+        .map_err(|error| {
+            AppError::InternalServerError(format!("Could not get notify trader {error:#}"))
+        })?;
+
+    Ok(Json(
+        "Successfully notified trader, waiting for him to ping us again".to_string(),
+    ))
 }
 
 pub async fn list_on_chain_transactions(

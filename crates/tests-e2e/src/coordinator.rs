@@ -3,10 +3,13 @@ use anyhow::Result;
 use bitcoin::Address;
 use coordinator::admin::Balance;
 use coordinator::routes::InvoiceParams;
+use coordinator_commons::CollaborativeRevert;
 use ln_dlc_node::lightning_invoice;
 use ln_dlc_node::node::NodeInfo;
 use reqwest::Client;
+use rust_decimal_macros::dec;
 use serde::Deserialize;
+use serde::Serialize;
 
 /// A wrapper over the coordinator HTTP API.
 ///
@@ -28,6 +31,11 @@ pub struct DlcChannel {
     pub dlc_channel_id: Option<String>,
     pub counter_party: String,
     pub state: SubChannelState,
+}
+#[derive(Deserialize, Debug)]
+pub struct Channel {
+    pub channel_id: String,
+    pub counterparty: String,
 }
 
 #[derive(Deserialize, Debug, PartialEq, Eq)]
@@ -124,9 +132,28 @@ impl Coordinator {
         Ok(self.get("/api/admin/dlc_channels").await?.json().await?)
     }
 
+    pub async fn get_channels(&self) -> Result<Vec<Channel>> {
+        Ok(self.get("/api/admin/channels").await?.json().await?)
+    }
+
     pub async fn force_close_channel(&self, channel_id: &str) -> Result<reqwest::Response> {
         self.delete(format!("/api/admin/channels/{channel_id}?force=true").as_str())
             .await
+    }
+
+    pub async fn collaborative_revert_channel(
+        &self,
+        channel_id: &str,
+    ) -> Result<reqwest::Response> {
+        self.post_with_body(
+            "/api/admin/channels/revert",
+            &CollaborativeRevert {
+                channel_id: channel_id.to_string(),
+                price: dec!(30_000.0),
+                fee_rate_sats_vb: 4,
+            },
+        )
+        .await
     }
 
     pub async fn rollover(&self, dlc_channel_id: &str) -> Result<reqwest::Response> {
@@ -147,6 +174,21 @@ impl Coordinator {
     async fn post(&self, path: &str) -> Result<reqwest::Response> {
         self.client
             .post(format!("{0}{path}", self.host))
+            .send()
+            .await
+            .context("Could not send POST request to coordinator")?
+            .error_for_status()
+            .context("Coordinator did not return 200 OK")
+    }
+
+    async fn post_with_body<T: Serialize + ?Sized>(
+        &self,
+        path: &str,
+        body: &T,
+    ) -> Result<reqwest::Response> {
+        self.client
+            .post(format!("{0}{path}", self.host))
+            .json(body)
             .send()
             .await
             .context("Could not send POST request to coordinator")?

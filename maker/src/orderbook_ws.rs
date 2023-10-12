@@ -195,7 +195,8 @@ async fn process_message(
         | Message::DeleteOrder(_)
         | Message::Update(_)
         | Message::AsyncMatch { .. }
-        | Message::Rollover => {
+        | Message::Rollover
+        | Message::CollaborativeRevert { .. } => {
             // Nothing to do.
         }
     }
