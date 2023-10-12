@@ -2,12 +2,13 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_speed_dial/flutter_speed_dial.dart';
 import 'package:get_10101/common/amount_text.dart';
+import 'package:get_10101/common/channel_status_notifier.dart';
 import 'package:get_10101/common/fiat_text.dart';
 import 'package:get_10101/common/submission_status_dialog.dart';
 import 'package:get_10101/common/value_data_row.dart';
 import 'package:get_10101/features/trade/position_change_notifier.dart';
 import 'package:get_10101/features/wallet/balance_row.dart';
-import 'package:get_10101/features/wallet/create_invoice_screen.dart';
+import 'package:get_10101/features/wallet/receive_screen.dart';
 import 'package:get_10101/features/wallet/domain/wallet_history.dart';
 import 'package:get_10101/features/wallet/domain/wallet_type.dart';
 import 'package:get_10101/features/wallet/onboarding/onboarding_screen.dart';
@@ -45,6 +46,8 @@ class _WalletScreenState extends State<WalletScreen> {
   Widget build(BuildContext context) {
     final walletChangeNotifier = context.watch<WalletChangeNotifier>();
     final sendPaymentChangeNotifier = context.watch<SendPaymentChangeNotifier>();
+
+    final hasChannel = context.watch<ChannelStatusNotifier>().hasChannel();
 
     // For displaying synthetic USD balance
     final positionChangeNotifier = context.watch<PositionChangeNotifier>();
@@ -275,7 +278,10 @@ class _WalletScreenState extends State<WalletScreen> {
             child: const Icon(SendReceiveIcons.receive, size: 20.0),
             label: 'Receive',
             labelStyle: const TextStyle(fontSize: 18.0),
-            onTap: () => context.go(CreateInvoiceScreen.route),
+            // additionally checking the lightning balance here, as when hot reloading the app the channel info appears to be unknown.
+            onTap: () => context.go((hasChannel || walletChangeNotifier.lightning().sats > 0)
+                ? ReceiveScreen.route
+                : OnboardingScreen.route),
           ),
           SpeedDialChild(
             child: const Icon(SendReceiveIcons.sendWithQr, size: 24.0),
