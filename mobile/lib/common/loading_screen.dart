@@ -22,8 +22,8 @@ class _LoadingScreenState extends State<LoadingScreen> {
     Future.wait<dynamic>(
             [Preferences.instance.hasEmailAddress(), Preferences.instance.getOpenPosition()])
         .then((value) {
-      final hasEmailAddress = value[0];
-      final position = value[1];
+      final bool hasEmailAddress = value[0];
+      final String? position = value[1];
 
       if (!hasEmailAddress) {
         GoRouter.of(context).go(WelcomeScreen.route);

@@ -11,7 +11,7 @@ class Preferences {
   static const emailAddress = "emailAddress";
   static const openPosition = "openPosition";
 
-  getOpenPosition() async {
+  Future<String?> getOpenPosition() async {
     SharedPreferences preferences = await SharedPreferences.getInstance();
     return preferences.getString(openPosition);
   }
