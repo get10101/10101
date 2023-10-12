@@ -19,7 +19,7 @@ class Amount {
 
   double asDouble() => _sats.toDouble();
 
-  Amount.parse(dynamic value) : _sats = Decimal.parse(value);
+  Amount.parse(String value) : _sats = Decimal.parse(value);
 
   Amount.zero() : _sats = Decimal.zero;
 
