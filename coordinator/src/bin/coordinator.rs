@@ -16,6 +16,7 @@ use coordinator::node::unrealized_pnl;
 use coordinator::node::Node;
 use coordinator::notifications::NotificationService;
 use coordinator::orderbook::async_match;
+use coordinator::orderbook::collaborative_revert;
 use coordinator::orderbook::trading;
 use coordinator::routes::router;
 use coordinator::run_migration;
@@ -222,8 +223,13 @@ async fn main() -> Result<()> {
     let _handle = rollover::monitor(
         pool.clone(),
         tx_user_feed.clone(),
-        auth_users_notifier,
+        auth_users_notifier.clone(),
         network,
+    );
+    let _handle = collaborative_revert::monitor(
+        pool.clone(),
+        tx_user_feed.clone(),
+        auth_users_notifier.clone(),
     );
 
     tokio::spawn({
@@ -267,6 +273,7 @@ async fn main() -> Result<()> {
         trading_sender,
         tx_price_feed,
         tx_user_feed,
+        auth_users_notifier,
     );
 
     let sender = notification_service.get_sender();

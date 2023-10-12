@@ -16,6 +16,7 @@ use crate::db::positions::Position;
 use crate::db::user;
 use crate::is_liquidity_sufficient;
 use crate::message::NewUserMessage;
+use crate::message::OrderbookMessage;
 use crate::node::Node;
 use crate::orderbook::routes::get_order;
 use crate::orderbook::routes::get_orders;
@@ -86,6 +87,7 @@ pub struct AppState {
     pub exporter: PrometheusExporter,
     pub announcement_addresses: Vec<NetAddress>,
     pub node_alias: String,
+    pub auth_users_notifier: mpsc::Sender<OrderbookMessage>,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -99,6 +101,7 @@ pub fn router(
     trading_sender: mpsc::Sender<NewOrderMessage>,
     tx_price_feed: broadcast::Sender<Message>,
     tx_user_feed: broadcast::Sender<NewUserMessage>,
+    auth_users_notifier: mpsc::Sender<OrderbookMessage>,
 ) -> Router {
     let app_state = Arc::new(AppState {
         node,
@@ -110,6 +113,7 @@ pub fn router(
         exporter,
         announcement_addresses,
         node_alias: node_alias.to_string(),
+        auth_users_notifier,
     });
 
     Router::new()

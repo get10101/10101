@@ -1,4 +1,5 @@
 pub mod channels;
+pub mod collaborative_reverts;
 pub mod custom_types;
 pub mod liquidity;
 pub mod liquidity_options;

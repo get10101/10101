@@ -1,5 +1,7 @@
 use crate::db;
 use crate::db::positions::Position;
+use crate::message::OrderbookMessage;
+use crate::position;
 use crate::routes::AppState;
 use crate::AppError;
 use anyhow::Context;
@@ -18,6 +20,7 @@ use dlc_manager::subchannel::SubChannel;
 use lightning_invoice::Invoice;
 use ln_dlc_node::node::NodeInfo;
 use orderbook_commons::Message;
+use rust_decimal::prelude::ToPrimitive;
 use serde::de;
 use serde::Deserialize;
 use serde::Deserializer;
@@ -244,26 +247,50 @@ pub async fn collaborative_revert(
         revert_params.fee_rate_sats_vb,
     )
     .expect("To be able to calculate constant fee rate");
-    let address = state.node.inner.get_unused_address();
+    let coordinator_addrss = state.node.inner.get_unused_address();
     let coordinator_amount = Amount::from_sat(coordinator_amount as u64 - fee / 2);
     let trader_amount = Amount::from_sat(trader_amount - fee / 2);
 
     // TODO: check if trader still has more than dust
     tracing::info!(
         channel_id = channel_id_string,
-        coordinator_address = %address,
+        coordinator_address = %coordinator_addrss,
         coordinator_amount = coordinator_amount.to_sat(),
         trader_amount = trader_amount.to_sat(),
         "Proposing collaborative revert");
 
-    let _ = state
-        .tx_price_feed
-        .send(Message::CollaborativeRevert {
+    db::collaborative_reverts::insert(
+        &mut conn,
+        position::models::CollaborativeRevert {
             channel_id,
-            coordinator_address: address,
-            coordinator_amount,
-            trader_amount,
+            trader_pubkey: position.trader,
+            price: revert_params.price.to_f32().expect("to fit into f32"),
+            coordinator_address: coordinator_addrss.clone(),
+            coordinator_amount_sats: coordinator_amount,
+            trader_amount_sats: trader_amount,
+            timestamp: OffsetDateTime::now_utc(),
+        },
+    )
+    .map_err(|err| {
+        let error_msg = format!("Could not insert new collaborative revert {err:#}");
+        tracing::error!("{}", error_msg);
+
+        AppError::InternalServerError(error_msg)
+    })?;
+
+    // try to notify user
+    state
+        .auth_users_notifier
+        .send(OrderbookMessage::CollaborativeRevert {
+            trader_id: position.trader,
+            message: Message::CollaborativeRevert {
+                channel_id,
+                coordinator_address: coordinator_addrss,
+                coordinator_amount,
+                trader_amount,
+            },
         })
+        .await
         .map_err(|error| {
             AppError::InternalServerError(format!("Could not get notify trader {error:#}"))
         })?;

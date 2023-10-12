@@ -88,6 +88,18 @@ pub(crate) fn get_announced_channel(
         .optional()
 }
 
+pub(crate) fn get_by_trader_pubkey(
+    counterparty_pubkey: PublicKey,
+    conn: &mut PgConnection,
+) -> QueryResult<Option<Channel>> {
+    channels::table
+        .filter(channels::counterparty_pubkey.eq(counterparty_pubkey.to_string()))
+        .filter(channels::channel_state.eq(ChannelState::Open))
+        .order_by(channels::created_at.desc())
+        .first(conn)
+        .optional()
+}
+
 pub(crate) fn get_all_non_pending_channels(conn: &mut PgConnection) -> QueryResult<Vec<Channel>> {
     channels::table
         .filter(
