@@ -20,6 +20,7 @@ use crate::trade::position::api::Position;
 use crate::trade::users;
 use anyhow::Context;
 use anyhow::Result;
+use bitcoin::Amount;
 use flutter_rust_bridge::frb;
 use flutter_rust_bridge::StreamSink;
 use flutter_rust_bridge::SyncReturn;
@@ -376,8 +377,21 @@ pub fn create_onboarding_invoice(amount_sats: u64, liquidity_option_id: i32) -> 
     Ok(ln_dlc::create_onboarding_invoice(amount_sats, liquidity_option_id)?.to_string())
 }
 
-pub fn create_invoice(amount_sats: Option<u64>) -> Result<String> {
-    Ok(ln_dlc::create_invoice(amount_sats)?.to_string())
+pub struct PaymentRequest {
+    pub bip21: String,
+    pub lightning: String,
+}
+
+pub fn create_payment_request(amount_sats: Option<u64>) -> Result<PaymentRequest> {
+    let amount_query = amount_sats
+        .map(|amt| format!("?amount={}", Amount::from_sat(amt).to_btc()))
+        .unwrap_or_default();
+    let addr = ln_dlc::get_unused_address();
+
+    Ok(PaymentRequest {
+        bip21: format!("bitcoin:{addr}{amount_query}"),
+        lightning: ln_dlc::create_invoice(amount_sats)?.to_string(),
+    })
 }
 
 pub fn send_payment(invoice: String) -> Result<()> {

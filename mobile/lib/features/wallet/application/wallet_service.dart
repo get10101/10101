@@ -1,6 +1,7 @@
 import 'package:get_10101/common/domain/model.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge.dart';
 import 'package:get_10101/features/wallet/domain/lightning_invoice.dart';
+import 'package:get_10101/features/wallet/domain/share_payment_request.dart';
 import 'package:get_10101/ffi.dart' as rust;
 import 'package:get_10101/logger/logger.dart';
 
@@ -32,11 +33,12 @@ class WalletService {
     }
   }
 
-  Future<String?> createInvoice(Amount? amount) async {
+  Future<SharePaymentRequest?> createPaymentRequest(Amount? amount) async {
     try {
-      String invoice = await rust.api.createInvoice(amountSats: amount?.sats);
-      logger.i("Successfully created invoice.");
-      return invoice;
+      rust.PaymentRequest req = await rust.api.createPaymentRequest(amountSats: amount?.sats);
+      logger.i("Successfully created payment request.");
+      return SharePaymentRequest(
+          lightningInvoice: req.lightning, bip21Uri: req.bip21, amount: amount);
     } catch (error) {
       logger.e("Error: $error", error: error);
     }
