@@ -9,6 +9,7 @@ import 'package:get_10101/common/application/channel_info_service.dart';
 import 'package:get_10101/common/domain/channel.dart';
 import 'package:get_10101/common/domain/liquidity_option.dart';
 import 'package:get_10101/common/domain/model.dart';
+import 'package:get_10101/common/fiat_text.dart';
 import 'package:get_10101/common/modal_bottom_sheet_info.dart';
 import 'package:get_10101/common/value_data_row.dart';
 import 'package:get_10101/features/trade/domain/direction.dart';
@@ -376,14 +377,13 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
                     provider.fromDirection(direction).liquidationPrice ?? 0.0,
                 builder: (context, liquidationPrice, child) {
                   return ValueDataRow(
-                      type: ValueType.fiat, value: liquidationPrice, label: "Liquidation:");
+                      value: FiatText(amount: liquidationPrice), label: "Liquidation:");
                 }),
             const SizedBox(width: 55),
             Selector<TradeValuesChangeNotifier, Amount>(
                 selector: (_, provider) => provider.orderMatchingFee(direction) ?? Amount.zero(),
-                builder: (context, fee, child) {
-                  return ValueDataRow(type: ValueType.amount, value: fee, label: "Fee:");
-                }),
+                builder: (context, fee, child) =>
+                    ValueDataRow(value: AmountText(amount: fee), label: "Fee:")),
           ],
         )
       ],

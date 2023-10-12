@@ -70,14 +70,15 @@ class _WalletScreenState extends State<WalletScreen> {
                           runSpacing: 10,
                           children: [
                             ValueDataRow(
-                                type: ValueType.amount,
-                                value: sendPaymentChangeNotifier
-                                    .pendingPayment?.decodedInvoice.amountSats,
+                                value: AmountText(
+                                    amount: (sendPaymentChangeNotifier
+                                        .pendingPayment
+                                        ?.decodedInvoice
+                                        .amountSats)!), // TODO: what to do when null
                                 label: "Amount"),
                             ValueDataRow(
-                                type: ValueType.text,
-                                value:
-                                    sendPaymentChangeNotifier.pendingPayment?.decodedInvoice.payee,
+                                value: Text((sendPaymentChangeNotifier.pendingPayment
+                                    ?.decodedInvoice.payee)!), // TODO: what to do when null
                                 label: "Recipient")
                           ],
                         ),

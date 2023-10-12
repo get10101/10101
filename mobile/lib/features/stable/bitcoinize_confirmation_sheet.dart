@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:get_10101/common/amount_text.dart';
+import 'package:get_10101/common/fiat_text.dart';
 import 'package:get_10101/common/value_data_row.dart';
 import 'package:get_10101/features/stable/stable_dialog.dart';
 import 'package:get_10101/features/stable/stable_value_change_notifier.dart';
@@ -69,22 +71,20 @@ class BitcoinizeBottomSheet extends StatelessWidget {
           ),
           const SizedBox(height: 16.0),
           ValueDataRow(
-              type: ValueType.fiat,
-              value: position.quantity.asDouble(),
+              value: FiatText(amount: position.quantity.asDouble()),
               label: 'You have',
               valueTextStyle: const TextStyle(fontSize: 18),
               labelTextStyle: const TextStyle(fontSize: 18)),
           const SizedBox(height: 16.0),
           ValueDataRow(
-              type: ValueType.amount,
-              value: position.getAmountWithUnrealizedPnl(),
+              value: AmountText(amount: position.getAmountWithUnrealizedPnl()),
               label: 'You will receive',
               valueTextStyle: const TextStyle(fontSize: 18),
               labelTextStyle: const TextStyle(fontSize: 18)),
           const SizedBox(height: 16.0),
           ValueDataRow(
-              type: ValueType.amount,
-              value: stableValues.fee,
+              // TODO: what should we do if null?
+              value: AmountText(amount: stableValues.fee!),
               label: 'Fees',
               valueTextStyle: const TextStyle(fontSize: 18),
               labelTextStyle: const TextStyle(fontSize: 18)),

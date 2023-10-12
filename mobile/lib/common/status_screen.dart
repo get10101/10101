@@ -35,22 +35,19 @@ class _StatusScreenState extends State<StatusScreen> {
             children: [
               const SizedBox(height: 20),
               ValueDataRow(
-                type: ValueType.text,
-                value: overallStatus,
+                value: Text(overallStatus),
                 label: "Services",
                 valueTextStyle: const TextStyle(fontWeight: FontWeight.bold),
               ),
               const Divider(),
               ValueDataRow(
-                type: ValueType.text,
-                value: orderbookStatus,
+                value: Text(orderbookStatus),
                 label: "Orderbook",
                 valueTextStyle: const TextStyle(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 10),
               ValueDataRow(
-                type: ValueType.text,
-                value: coordinatorStatus,
+                value: Text(coordinatorStatus),
                 label: "LSP",
                 valueTextStyle: const TextStyle(fontWeight: FontWeight.bold),
               ),
@@ -62,8 +59,7 @@ class _StatusScreenState extends State<StatusScreen> {
             children: [
               const SizedBox(height: 20),
               ValueDataRow(
-                type: ValueType.text,
-                value: channelStatus,
+                value: Text(channelStatus),
                 label: "Channel status",
                 valueTextStyle: const TextStyle(fontWeight: FontWeight.bold),
               ),

@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:get_10101/common/amount_text.dart';
 import 'package:get_10101/common/domain/background_task.dart';
 import 'package:get_10101/common/domain/model.dart';
 import 'package:get_10101/common/task_status_dialog.dart';
@@ -72,11 +73,13 @@ Widget createSubmitWidget(
           runSpacing: 10,
           children: [
             pendingOrder.positionAction == PositionAction.close
-                ? ValueDataRow(type: ValueType.amount, value: pendingOrder.pnl, label: pnlText)
+                ? ValueDataRow(
+                    value: AmountText(amount: pendingOrder.pnl!),
+                    label: pnlText) // TODO:  what to do when null
                 : ValueDataRow(
-                    type: ValueType.amount, value: pendingOrderValues?.margin, label: "Margin"),
+                    value: AmountText(amount: (pendingOrderValues?.margin)!), label: "Margin"),
             ValueDataRow(
-                type: ValueType.amount, value: pendingOrderValues?.fee ?? Amount(0), label: "Fee")
+                value: AmountText(amount: pendingOrderValues?.fee ?? Amount(0)), label: "Fee")
           ],
         ),
       ),

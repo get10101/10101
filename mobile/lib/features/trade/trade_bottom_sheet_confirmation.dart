@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get_10101/common/amount_text.dart';
 import 'package:get_10101/common/domain/model.dart';
+import 'package:get_10101/common/fiat_text.dart';
 import 'package:get_10101/common/value_data_row.dart';
 import 'package:get_10101/features/trade/contract_symbol_icon.dart';
 import 'package:get_10101/features/trade/domain/contract_symbol.dart';
@@ -120,39 +121,34 @@ class TradeBottomSheetConfirmation extends StatelessWidget {
                       children: [
                         if (!close)
                           ValueDataRow(
-                              type: ValueType.date,
-                              value: tradeValues.expiry.toLocal(),
-                              label: 'Expiry'),
+                              value: DateValue(tradeValues.expiry.toLocal()), label: 'Expiry'),
                         close
                             ? ValueDataRow(
-                                type: ValueType.fiat,
-                                value: tradeValues.price ?? 0.0,
+                                value: FiatText(amount: tradeValues.price ?? 0.0),
                                 label: 'Market Price')
                             : ValueDataRow(
-                                type: ValueType.amount, value: tradeValues.margin, label: 'Margin'),
+                                value: AmountText(amount: tradeValues.margin!),
+                                label: 'Margin'), // TODO: what to do if null
                         close
                             ? ValueDataRow(
-                                type: ValueType.amount,
-                                value: pnl,
+                                value: AmountText(amount: pnl),
                                 label: 'Unrealized P/L',
                                 valueTextStyle: dataRowStyle.apply(
                                     color:
                                         pnl.sats.isNegative ? tradeTheme.loss : tradeTheme.profit))
                             : ValueDataRow(
-                                type: ValueType.fiat,
-                                value: tradeValues.liquidationPrice ?? 0.0,
+                                value: FiatText(amount: tradeValues.liquidationPrice ?? 0.0),
                                 label: 'Liquidation Price',
                               ),
                         ValueDataRow(
-                          type: ValueType.amount,
-                          value: tradeValues.fee ?? Amount.zero(),
+                          value: AmountText(amount: tradeValues.fee ?? Amount.zero()),
                           label: "Fee estimate",
                         ),
                       ],
                     ),
                     !close ? const Divider() : const SizedBox(height: 0),
                     !close
-                        ? ValueDataRow(type: ValueType.amount, value: total, label: "Total")
+                        ? ValueDataRow(value: AmountText(amount: total), label: "Total")
                         : const SizedBox(height: 0),
                   ],
                 ),

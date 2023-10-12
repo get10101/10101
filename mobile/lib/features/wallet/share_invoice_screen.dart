@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
+import 'package:get_10101/common/amount_text.dart';
 import 'package:get_10101/common/snack_bar.dart';
 import 'package:get_10101/common/value_data_row.dart';
 import 'package:get_10101/features/wallet/application/faucet_service.dart';
@@ -82,8 +83,7 @@ class _ShareInvoiceScreenState extends State<ShareInvoiceScreen> {
                         // Size of the qr image minus padding
                         width: qrWidth - 2 * qrPadding,
                         child: ValueDataRow(
-                          type: ValueType.amount,
-                          value: widget.invoice.invoiceAmount,
+                          value: AmountText(amount: widget.invoice.invoiceAmount),
                           label: 'Amount',
                         ))),
                 const SizedBox(height: 10)

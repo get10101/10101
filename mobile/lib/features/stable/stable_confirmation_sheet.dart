@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:get_10101/common/amount_text.dart';
 import 'package:get_10101/common/amount_text_input_form_field.dart';
 import 'package:get_10101/common/application/channel_info_service.dart';
 import 'package:get_10101/common/domain/channel.dart';
@@ -186,22 +187,22 @@ class _StableBottomSheet extends State<StableBottomSheet> {
                           ),
                           const SizedBox(height: 20.0),
                           ValueDataRow(
-                              type: ValueType.amount,
-                              value: tradeValues.margin,
+                              value: AmountText(
+                                  amount: tradeValues.margin!,
+                                  textStyle:
+                                      const TextStyle(fontSize: 18)), // TODO: what to do if null?
                               label: "Costs in Sats",
-                              valueTextStyle: const TextStyle(fontSize: 18),
                               labelTextStyle: const TextStyle(fontSize: 18)),
                           const SizedBox(height: 16.0),
                           ValueDataRow(
-                              type: ValueType.date,
-                              value: tradeValues.expiry.toLocal(),
+                              value: DateValue(tradeValues.expiry.toLocal(),
+                                  textStyle: const TextStyle(fontSize: 18)),
                               label: "Expiry",
-                              valueTextStyle: const TextStyle(fontSize: 18),
                               labelTextStyle: const TextStyle(fontSize: 18)),
                           const SizedBox(height: 16.0),
                           ValueDataRow(
-                              type: ValueType.amount,
-                              value: tradeValues.fee,
+                              value:
+                                  AmountText(amount: tradeValues.fee!), // TODO: what to do if null?
                               label: "Fees",
                               valueTextStyle: const TextStyle(fontSize: 18),
                               labelTextStyle: const TextStyle(fontSize: 18)),

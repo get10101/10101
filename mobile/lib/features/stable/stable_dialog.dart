@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:get_10101/common/amount_text.dart';
 import 'package:get_10101/common/domain/background_task.dart';
 import 'package:get_10101/common/task_status_dialog.dart';
 import 'package:get_10101/common/value_data_row.dart';
@@ -78,24 +79,22 @@ Widget createSubmitWidget(PendingOrder pendingOrder, TextStyle style) {
           runSpacing: 10,
           children: [
             ValueDataRow(
-                type: pendingOrder.positionAction == PositionAction.close
-                    ? ValueType.text
-                    : ValueType.amount,
                 value: pendingOrder.positionAction == PositionAction.close
-                    ? "${pendingOrder.tradeValues?.quantity!.toInt} \$"
-                    : pendingOrder.tradeValues?.margin,
+                    ? Text("${pendingOrder.tradeValues?.quantity!.toInt} \$")
+                    : AmountText(
+                        amount:
+                            (pendingOrder.tradeValues?.margin)!), // TODO: what to do if null here?
                 label: pendingOrder.positionAction == PositionAction.open
                     ? "Stabilize"
                     : "Bitcoinize"),
             ValueDataRow(
-                type: pendingOrder.positionAction == PositionAction.open
-                    ? ValueType.text
-                    : ValueType.amount,
                 value: pendingOrder.positionAction == PositionAction.open
-                    ? "${pendingOrder.tradeValues?.quantity!.toInt} \$"
-                    : pendingOrder.tradeValues?.margin,
+                    ? Text("${pendingOrder.tradeValues?.quantity!.toInt} \$")
+                    : AmountText(
+                        amount:
+                            (pendingOrder.tradeValues?.margin)!), // TODO: what to do if null here?
                 label: "Into"),
-            ValueDataRow(type: ValueType.amount, value: pendingOrder.tradeValues?.fee, label: "Fee")
+            ValueDataRow(value: AmountText(amount: (pendingOrder.tradeValues?.fee)!), label: "Fee")
           ],
         ),
       ),

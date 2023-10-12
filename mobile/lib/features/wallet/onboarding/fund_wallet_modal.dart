@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
+import 'package:get_10101/common/amount_text.dart';
 import 'package:get_10101/common/domain/model.dart';
 import 'package:get_10101/common/snack_bar.dart';
 import 'package:get_10101/common/value_data_row.dart';
@@ -179,16 +180,14 @@ class _FundWalletModalState extends State<FundWalletModal> {
             child: Column(
               children: [
                 ValueDataRow(
-                  type: ValueType.amount,
-                  value: widget.amount,
+                  value: AmountText(amount: widget.amount),
                   label: "Amount",
                   labelTextStyle: style,
                   valueTextStyle: style,
                 ),
                 const Divider(),
                 ValueDataRow(
-                  type: ValueType.amount,
-                  value: widget.fee,
+                  value: AmountText(amount: widget.fee),
                   label: "Fee",
                   labelTextStyle: style,
                   valueTextStyle: style,

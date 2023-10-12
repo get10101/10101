@@ -1,6 +1,7 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge.dart';
+import 'package:get_10101/common/amount_text.dart';
 import 'package:get_10101/common/color.dart';
 import 'package:get_10101/common/domain/liquidity_option.dart';
 import 'package:get_10101/common/domain/model.dart';
@@ -101,8 +102,7 @@ class _LiquidityCardState extends State<LiquidityCard> {
                 Container(
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
                   child: ValueDataRow(
-                    type: ValueType.amount,
-                    value: widget.tradeUpTo,
+                    value: AmountText(amount: widget.tradeUpTo),
                     label: "Trade up to",
                     valueTextStyle: fontStyle,
                     labelTextStyle: fontStyle,
@@ -112,8 +112,7 @@ class _LiquidityCardState extends State<LiquidityCard> {
                 Container(
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
                   child: ValueDataRow(
-                      type: ValueType.amount,
-                      value: fee,
+                      value: AmountText(amount: fee),
                       label: "Fee",
                       valueTextStyle: fontStyle,
                       labelTextStyle: fontStyle),
@@ -122,8 +121,7 @@ class _LiquidityCardState extends State<LiquidityCard> {
                 Container(
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
                   child: ValueDataRow(
-                      type: ValueType.amount,
-                      value: minDeposit,
+                      value: AmountText(amount: minDeposit),
                       label: "Min deposit",
                       valueTextStyle: fontStyle,
                       labelTextStyle: fontStyle),
@@ -132,8 +130,7 @@ class _LiquidityCardState extends State<LiquidityCard> {
                 Container(
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
                   child: ValueDataRow(
-                    type: ValueType.amount,
-                    value: widget.maxDeposit,
+                    value: AmountText(amount: widget.maxDeposit),
                     label: "Max deposit",
                     valueTextStyle: fontStyle,
                     labelTextStyle: fontStyle,

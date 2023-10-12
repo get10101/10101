@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:get_10101/common/amount_text.dart';
+import 'package:get_10101/common/fiat_text.dart';
 import 'package:get_10101/common/value_data_row.dart';
 import 'package:get_10101/features/trade/domain/direction.dart';
 import 'package:get_10101/features/trade/domain/position.dart';
@@ -102,57 +104,50 @@ class _PositionListItemState extends State<PositionListItem> {
               child: Wrap(
                 runSpacing: 5,
                 children: [
-                  notNullPosition.unrealizedPnl == null
-                      ? const ValueDataRow(
-                          type: ValueType.loading, value: "", label: "Unrealized P/L")
-                      : ValueDataRow(
-                          type: ValueType.amount,
-                          value: notNullPosition.unrealizedPnl,
-                          label: "Unrealized P/L",
-                          valueTextStyle: dataRowStyle.apply(
-                              color: notNullPosition.unrealizedPnl!.sats.isNegative
-                                  ? tradeTheme.loss
-                                  : tradeTheme.profit),
-                          labelTextStyle: dataRowStyle,
-                        ),
                   ValueDataRow(
-                    type: ValueType.amount,
-                    value: notNullPosition.collateral,
+                      value: LoadingValue(
+                          value: notNullPosition.unrealizedPnl,
+                          builder: (pnl) {
+                            return AmountText(
+                                amount: pnl,
+                                textStyle: dataRowStyle.apply(
+                                    color: notNullPosition.unrealizedPnl!.sats.isNegative
+                                        ? tradeTheme.loss
+                                        : tradeTheme.profit));
+                          }),
+                      label: "Unrealized P/L"),
+                  ValueDataRow(
+                    value: AmountText(amount: notNullPosition.collateral),
                     label: "Margin",
                     valueTextStyle: dataRowStyle,
                     labelTextStyle: dataRowStyle,
                   ),
                   ValueDataRow(
-                    type: ValueType.text,
-                    value: notNullPosition.leverage.formatted(),
+                    value: Text(notNullPosition.leverage.formatted()),
                     label: "Leverage",
                     valueTextStyle: dataRowStyle,
                     labelTextStyle: dataRowStyle,
                   ),
                   ValueDataRow(
-                    type: ValueType.date,
-                    value: notNullPosition.expiry,
+                    value: DateValue(notNullPosition.expiry),
                     label: "Expiry",
                     valueTextStyle: dataRowStyle,
                     labelTextStyle: dataRowStyle,
                   ),
                   ValueDataRow(
-                    type: ValueType.contracts,
-                    value: formatter.format(notNullPosition.quantity.toInt),
+                    value: Text("${formatter.format(notNullPosition.quantity.toInt)} contracts",
+                        style: dataRowStyle),
                     label: "Quantity",
-                    valueTextStyle: dataRowStyle,
                     labelTextStyle: dataRowStyle,
                   ),
                   ValueDataRow(
-                    type: ValueType.fiat,
-                    value: notNullPosition.liquidationPrice,
+                    value: FiatText(amount: notNullPosition.liquidationPrice),
                     label: "Liquidation price",
                     valueTextStyle: dataRowStyle,
                     labelTextStyle: dataRowStyle,
                   ),
                   ValueDataRow(
-                    type: ValueType.fiat,
-                    value: notNullPosition.averageEntryPrice,
+                    value: FiatText(amount: notNullPosition.averageEntryPrice),
                     label: "Average entry price",
                     valueTextStyle: dataRowStyle,
                     labelTextStyle: dataRowStyle,

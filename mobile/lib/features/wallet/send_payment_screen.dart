@@ -2,6 +2,7 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:get_10101/common/amount_text.dart';
 import 'package:get_10101/common/application/channel_info_service.dart';
 import 'package:get_10101/common/domain/channel.dart';
 import 'package:get_10101/common/domain/model.dart';
@@ -164,24 +165,21 @@ class _SendPaymentScreenState extends State<SendPaymentScreen> {
                             height: 10,
                           ),
                           ValueDataRow(
-                            type: ValueType.amount,
-                            value: _lightningInvoice!.amountSats,
+                            value: AmountText(amount: _lightningInvoice!.amountSats),
                             label: "Amount",
                           ),
                           const SizedBox(
                             height: 5,
                           ),
                           ValueDataRow(
-                            type: ValueType.text,
-                            value: _lightningInvoice!.payee,
+                            value: Text(_lightningInvoice!.payee),
                             label: "Recipient",
                           ),
                           const SizedBox(
                             height: 5,
                           ),
                           ValueDataRow(
-                            type: ValueType.date,
-                            value: _lightningInvoice!.expiry,
+                            value: DateValue(_lightningInvoice!.expiry),
                             label: "Expiry",
                           ),
                           if (_lightningInvoice!.amountSats == Amount.zero())

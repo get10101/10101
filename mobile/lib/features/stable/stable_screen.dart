@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:get_10101/common/amount_text.dart';
 import 'package:get_10101/common/fiat_text.dart';
 import 'package:get_10101/common/value_data_row.dart';
 import 'package:get_10101/features/stable/bitcoinize_confirmation_sheet.dart';
@@ -62,16 +63,14 @@ class _StableScreenState extends State<StableScreen> {
       widgets = [
         Column(children: [
           ValueDataRow(
-            type: ValueType.date,
-            value: position.expiry,
+            value: DateValue(position.expiry),
             valueTextStyle: const TextStyle(fontSize: 18),
             label: "Expiry",
             labelTextStyle: const TextStyle(fontSize: 18),
           ),
           const SizedBox(height: 10),
           ValueDataRow(
-            type: ValueType.amount,
-            value: position.getAmountWithUnrealizedPnl(),
+            value: AmountText(amount: position.getAmountWithUnrealizedPnl()),
             valueTextStyle: const TextStyle(fontSize: 18),
             label: "Sats",
             labelTextStyle: const TextStyle(fontSize: 18),
