@@ -28,6 +28,7 @@ use std::sync::Arc;
 use time::OffsetDateTime;
 use tokio::task::spawn_blocking;
 use tracing::instrument;
+use trade::bitmex_client::Quote;
 
 /// The weight for the collaborative close transaction. It's expected to have 1 input (from the fund
 /// transaction) and 2 outputs, one for each party.
@@ -206,12 +207,36 @@ pub async fn collaborative_revert(
             AppError::InternalServerError(format!("Could not calculate pnl {error:#}"))
         })?;
 
-    // the coordinator gets the channel value - trader's balance - settlement_amount, i.e. the
-    // trader loses the tx fee locked up in the sub_channel transactions
-    // TODO: share the transaction fees between both parties
+    let pnl = position
+        .calculate_coordinator_pnl(Quote {
+            bid_size: 0,
+            ask_size: 0,
+            bid_price: revert_params.price,
+            ask_price: revert_params.price,
+            symbol: "".to_string(),
+            timestamp: OffsetDateTime::now_utc(),
+        })
+        .map_err(|error| {
+            AppError::InternalServerError(format!("Could not calculate pnl {error:#}"))
+        })?;
+
+    // There is no easy way to get the total tx fee for all subchannel transactions, hence, we
+    // estimate it. This transaction fee is shared among both users fairly
+    let dlc_channel_fee = calculate_dlc_channel_tx_fees(
+        subchannel.fund_value_satoshis,
+        pnl,
+        channel_details.inbound_capacity_msat / 1000,
+        channel_details.outbound_capacity_msat / 1000,
+        position.trader_margin,
+        position.coordinator_margin,
+    );
+
+    // Coordinator's amount is the total channel's value (fund_value_satoshis) whatever the taker
+    // had (inbound_capacity), the taker's PnL (settlement_amount) and the transaction fee
     let coordinator_amount = subchannel.fund_value_satoshis as i64
         - (channel_details.inbound_capacity_msat / 1000) as i64
-        - settlement_amount as i64;
+        - settlement_amount as i64
+        - (dlc_channel_fee as f64 / 2.0) as i64;
     let trader_amount = subchannel.fund_value_satoshis - coordinator_amount as u64;
 
     let fee = weight_to_fee(
@@ -405,4 +430,31 @@ pub async fn is_connected(
         AppError::BadRequest(format!("Invalid public key {target_pubkey}. Error: {err}"))
     })?;
     Ok(Json(state.node.is_connected(&target)))
+}
+
+fn calculate_dlc_channel_tx_fees(
+    initial_funding: u64,
+    pnl: i64,
+    inbound_capacity: u64,
+    outbound_capacity: u64,
+    trader_margin: i64,
+    coordinator_margin: i64,
+) -> u64 {
+    initial_funding
+        - (inbound_capacity
+            + outbound_capacity
+            + (trader_margin - pnl) as u64
+            + (coordinator_margin + pnl) as u64)
+}
+
+#[cfg(test)]
+pub mod tests {
+    use crate::admin::calculate_dlc_channel_tx_fees;
+
+    #[test]
+    pub fn calculate_transaction_fee_for_dlc_channel_transactions() {
+        let total_fee =
+            calculate_dlc_channel_tx_fees(200_000, -4047, 65_450, 85_673, 18_690, 18_690);
+        assert_eq!(total_fee, 11_497);
+    }
 }
