@@ -5,10 +5,7 @@ import 'package:get_10101/ffi.dart' as rust;
 
 class TradeValuesService {
   Amount? calculateMargin(
-      {required double? price,
-      required Amount? quantity,
-      required Leverage leverage,
-      dynamic hint}) {
+      {required double? price, required Amount? quantity, required Leverage leverage}) {
     if (price == null || quantity == null) {
       return null;
     } else {
@@ -18,7 +15,7 @@ class TradeValuesService {
   }
 
   Amount? calculateQuantity(
-      {required double? price, required Amount? margin, required Leverage leverage, dynamic hint}) {
+      {required double? price, required Amount? margin, required Leverage leverage}) {
     if (price == null || margin == null) {
       return null;
     } else {
@@ -29,10 +26,7 @@ class TradeValuesService {
   }
 
   double? calculateLiquidationPrice(
-      {required double? price,
-      required Leverage leverage,
-      required Direction direction,
-      dynamic hint}) {
+      {required double? price, required Leverage leverage, required Direction direction}) {
     if (price == null) {
       return null;
     } else {
