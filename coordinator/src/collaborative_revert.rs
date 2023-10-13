@@ -4,15 +4,21 @@ use crate::message::OrderbookMessage;
 use crate::node::storage::NodeStorage;
 use crate::position;
 use anyhow::anyhow;
+use anyhow::bail;
 use anyhow::Context;
 use axum::Json;
+use bdk::bitcoin::Transaction;
+use bitcoin::secp256k1::Secp256k1;
 use bitcoin::Amount;
 use coordinator_commons::CollaborativeRevert;
+use coordinator_commons::CollaborativeRevertData;
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::Pool;
+use diesel::r2d2::PooledConnection;
 use diesel::PgConnection;
 use dlc::util::weight_to_fee;
 use dlc_manager::subchannel::LNChannelManager;
+use lightning::util::errors::APIError;
 use ln_dlc_node::node::Node;
 use orderbook_commons::Message;
 use rust_decimal::prelude::ToPrimitive;
@@ -161,5 +167,106 @@ pub mod tests {
         let total_fee =
             calculate_dlc_channel_tx_fees(200_000, -4047, 65_450, 85_673, 18_690, 18_690);
         assert_eq!(total_fee, 11_497);
+    }
+}
+
+pub fn confirm_collaborative_revert(
+    revert_params: &Json<CollaborativeRevertData>,
+    conn: &mut PooledConnection<ConnectionManager<PgConnection>>,
+    channel_id_string: String,
+    channel_id: [u8; 32],
+    inner_node: Arc<Node<NodeStorage>>,
+) -> anyhow::Result<Transaction> {
+    // TODO: check if provided amounts are as expected
+    if !revert_params
+        .transaction
+        .output
+        .iter()
+        .any(|output| inner_node.wallet().is_mine(&output.script_pubkey).is_ok())
+    {
+        let error_message = "Invalid request: no address for coordinator provided".to_string();
+        tracing::error!(error_message);
+        bail!(error_message);
+    }
+
+    let sub_channels = inner_node
+        .list_dlc_channels()
+        .context("Failed to list dlc channels")?;
+    let sub_channel = sub_channels
+        .iter()
+        .find(|c| c.channel_id == channel_id)
+        .context("Could not find provided channel")?;
+
+    let channel_manager = inner_node.channel_manager.clone();
+
+    let mut own_sig = None;
+
+    let mut revert_transaction = revert_params.transaction.clone();
+
+    let position = Position::get_position_by_channel_id(conn, channel_id_string)
+        .context("Could not get position by channel_id")?;
+
+    channel_manager
+        .with_channel_lock_no_check(
+            &sub_channel.channel_id,
+            &sub_channel.counter_party,
+            |channel_lock| {
+                channel_manager.sign_with_fund_key_cb(channel_lock, &mut |fund_sk| {
+                    let secp = Secp256k1::new();
+
+                    own_sig = Some(
+                        dlc::util::get_raw_sig_for_tx_input(
+                            &secp,
+                            &revert_transaction,
+                            0,
+                            &sub_channel.original_funding_redeemscript,
+                            sub_channel.fund_value_satoshis,
+                            fund_sk,
+                        )
+                        .expect("To be able to get raw sig for tx inpout"),
+                    );
+
+                    dlc::util::sign_multi_sig_input(
+                        &secp,
+                        &mut revert_transaction,
+                        &revert_params.signature,
+                        &sub_channel.counter_fund_pk,
+                        fund_sk,
+                        &sub_channel.original_funding_redeemscript,
+                        sub_channel.fund_value_satoshis,
+                        0,
+                    )
+                    .expect("To be able to sign multi sig");
+                });
+                Ok(())
+            },
+        )
+        .map_err(|error| {
+            let error = match error {
+                APIError::APIMisuseError { .. } => "APIMisuseError",
+                APIError::FeeRateTooHigh { .. } => "FeeRateTooHigh",
+                APIError::InvalidRoute { .. } => "InvalidRoute",
+                APIError::ChannelUnavailable { .. } => "ChannelUnavailable",
+                APIError::MonitorUpdateInProgress => "MonitorUpdateInProgress",
+                APIError::IncompatibleShutdownScript { .. } => "IncompatibleShutdownScript",
+                APIError::ExternalError { .. } => "ExternalError",
+            };
+            tracing::error!("Could not get channel lock {error:#}");
+            anyhow!("Could not get channel lock")
+        })?;
+
+    // if we have a sig here, it means we were able to sign the transaction and can broadcast it
+    if own_sig.is_some() {
+        inner_node
+            .wallet()
+            .broadcast_transaction(&revert_transaction)
+            .context("Could not broadcast transaction")?;
+
+        Position::set_position_to_closed(conn, position.id)
+            .context("Could not set position to closed")?;
+
+        Ok(revert_transaction)
+    } else {
+        bail!("Failed to sign revert transaction")
     }
 }

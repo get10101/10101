@@ -10,9 +10,9 @@ use crate::admin::list_peers;
 use crate::admin::open_channel;
 use crate::admin::send_payment;
 use crate::admin::sign_message;
+use crate::collaborative_revert;
 use crate::db;
 use crate::db::liquidity::LiquidityRequestLog;
-use crate::db::positions::Position;
 use crate::db::user;
 use crate::is_liquidity_sufficient;
 use crate::message::NewUserMessage;
@@ -24,9 +24,9 @@ use crate::orderbook::routes::post_order;
 use crate::orderbook::routes::put_order;
 use crate::orderbook::routes::websocket_handler;
 use crate::orderbook::trading::NewOrderMessage;
+use crate::position::models::parse_channel_id;
 use crate::settings::Settings;
 use crate::AppError;
-use anyhow::Context;
 use autometrics::autometrics;
 use axum::extract::Path;
 use axum::extract::Query;
@@ -41,7 +41,6 @@ use axum::Router;
 use bitcoin::consensus::encode::serialize_hex;
 use bitcoin::hashes::hex::ToHex;
 use bitcoin::secp256k1::PublicKey;
-use bitcoin::secp256k1::Secp256k1;
 use bitcoin::Network;
 use coordinator_commons::CollaborativeRevertData;
 use coordinator_commons::LspConfig;
@@ -51,11 +50,9 @@ use coordinator_commons::TradeParams;
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::Pool;
 use diesel::PgConnection;
-use dlc_manager::subchannel::LNChannelManager;
 use dlc_manager::ChannelId;
 use hex::FromHex;
 use lightning::ln::msgs::NetAddress;
-use lightning::util::errors::APIError;
 use ln_dlc_node::channel::UserChannelId;
 use ln_dlc_node::node::peer_manager::alias_as_bytes;
 use ln_dlc_node::node::peer_manager::broadcast_node_announcement;
@@ -631,11 +628,13 @@ pub async fn collaborative_revert_confirm(
     })?;
 
     let channel_id_string = revert_params.channel_id.clone();
-    let channel_id = hex::decode(channel_id_string.clone())
-        .map_err(|err| AppError::BadRequest(err.to_string()))?;
-    let channel_id: [u8; 32] = channel_id
-        .try_into()
-        .map_err(|_| AppError::BadRequest("Provided channel ID was invalid".to_string()))?;
+    let channel_id = parse_channel_id(channel_id_string.as_str()).map_err(|error| {
+        tracing::error!(
+            channel_id = channel_id_string,
+            "Invalid channel id provided. {error:#}"
+        );
+        AppError::BadRequest("Invalid channel id provided".to_string())
+    })?;
 
     tracing::info!(
         channel_id = channel_id_string,
@@ -643,110 +642,19 @@ pub async fn collaborative_revert_confirm(
     );
     let inner_node = state.node.inner.clone();
 
-    // TODO: check if provided amounts are as expected
-    if !revert_params
-        .transaction
-        .output
-        .iter()
-        .any(|output| inner_node.wallet().is_mine(&output.script_pubkey).is_ok())
-    {
-        let error_message = "Invalid request: no address for coordinator provided".to_string();
-        tracing::error!(error_message);
-        return Err(AppError::BadRequest(error_message));
-    }
-
-    let sub_channels = inner_node.list_dlc_channels().map_err(|e| {
-        AppError::InternalServerError(format!("Failed to list DLC channels: {e:#}"))
+    let raw_tx = collaborative_revert::confirm_collaborative_revert(
+        &revert_params,
+        &mut conn,
+        channel_id_string.clone(),
+        channel_id,
+        inner_node,
+    )
+    .map_err(|error| {
+        tracing::error!(
+            channel_id = channel_id_string,
+            "Could not confirm collaborative revert: {error:#}"
+        );
+        AppError::InternalServerError("Could not confirm collaborative revert".to_string())
     })?;
-    let subchannel = sub_channels
-        .iter()
-        .find(|c| c.channel_id == channel_id)
-        .context("Could not find provided channel")
-        .map_err(|e| AppError::BadRequest(format!("Channel not found: {e:#}")))?;
-
-    let channel_manager = inner_node.channel_manager.clone();
-
-    let mut own_sig = None;
-
-    let mut revert_transaction = revert_params.transaction.clone();
-
-    let position = Position::get_position_by_channel_id(&mut conn, channel_id_string.clone())
-        .map_err(|error| {
-            tracing::error!(
-                channel_id = channel_id_string,
-                "Could not get position by channel_id"
-            );
-            AppError::InternalServerError(format!(
-                "Could not get open position by channel id {channel_id_string}. {error:#}"
-            ))
-        })?;
-
-    channel_manager
-        .with_channel_lock_no_check(
-            &subchannel.channel_id,
-            &subchannel.counter_party,
-            |channel_lock| {
-                channel_manager.sign_with_fund_key_cb(channel_lock, &mut |fund_sk| {
-                    let secp = Secp256k1::new();
-
-                    own_sig = Some(
-                        dlc::util::get_raw_sig_for_tx_input(
-                            &secp,
-                            &revert_transaction,
-                            0,
-                            &subchannel.original_funding_redeemscript,
-                            subchannel.fund_value_satoshis,
-                            fund_sk,
-                        )
-                        .expect("To be able to get raw sig for tx inpout"),
-                    );
-
-                    dlc::util::sign_multi_sig_input(
-                        &secp,
-                        &mut revert_transaction,
-                        &revert_params.signature,
-                        &subchannel.counter_fund_pk,
-                        fund_sk,
-                        &subchannel.original_funding_redeemscript,
-                        subchannel.fund_value_satoshis,
-                        0,
-                    )
-                    .expect("To be able to sign multi sig");
-                });
-                Ok(())
-            },
-        )
-        .map_err(|error| {
-            let error = match error {
-                APIError::APIMisuseError { .. } => "APIMisuseError",
-                APIError::FeeRateTooHigh { .. } => "FeeRateTooHigh",
-                APIError::InvalidRoute { .. } => "InvalidRoute",
-                APIError::ChannelUnavailable { .. } => "ChannelUnavailable",
-                APIError::MonitorUpdateInProgress => "MonitorUpdateInProgress",
-                APIError::IncompatibleShutdownScript { .. } => "IncompatibleShutdownScript",
-                APIError::ExternalError { .. } => "ExternalError",
-            };
-            AppError::InternalServerError(format!("Could not sign revert transaction {error:#}"))
-        })?;
-
-    // if we have a sig here, it means we were able to sign the transaction and can broadcast it
-    if own_sig.is_some() {
-        let string = serialize_hex(&revert_transaction);
-        inner_node
-            .wallet()
-            .broadcast_transaction(&revert_transaction)
-            .map_err(|error| {
-                AppError::InternalServerError(format!("Could not broadcast transaction {error:#}"))
-            })?;
-
-        Position::set_position_to_closed(&mut conn, position.id).map_err(|error| {
-            AppError::InternalServerError(format!("Could set position to closed {error:#}"))
-        })?;
-
-        Ok(Json(string))
-    } else {
-        Err(AppError::InternalServerError(
-            "Failed to sign revert transaction ".to_string(),
-        ))
-    }
+    Ok(Json(serialize_hex(&raw_tx)))
 }
