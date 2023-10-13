@@ -1,7 +1,6 @@
+use crate::collaborative_revert;
 use crate::db;
-use crate::db::positions::Position;
-use crate::message::OrderbookMessage;
-use crate::position;
+use crate::position::models::parse_channel_id;
 use crate::routes::AppState;
 use crate::AppError;
 use anyhow::Context;
@@ -12,15 +11,10 @@ use axum::extract::State;
 use axum::Json;
 use bdk::TransactionDetails;
 use bitcoin::secp256k1::PublicKey;
-use bitcoin::Amount;
 use coordinator_commons::CollaborativeRevert;
-use dlc::util::weight_to_fee;
-use dlc_manager::subchannel::LNChannelManager;
 use dlc_manager::subchannel::SubChannel;
 use lightning_invoice::Invoice;
 use ln_dlc_node::node::NodeInfo;
-use orderbook_commons::Message;
-use rust_decimal::prelude::ToPrimitive;
 use serde::de;
 use serde::Deserialize;
 use serde::Deserializer;
@@ -31,13 +25,6 @@ use std::sync::Arc;
 use time::OffsetDateTime;
 use tokio::task::spawn_blocking;
 use tracing::instrument;
-use trade::bitmex_client::Quote;
-
-/// The weight for the collaborative close transaction. It's expected to have 1 input (from the fund
-/// transaction) and 2 outputs, one for each party.
-/// Note: if either party would have a 0 output, the actual weight will be smaller and we will be
-/// overspending tx fee.
-const COLLABORATIVE_REVERT_TX_WEIGHT: usize = 672;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Balance {
@@ -165,135 +152,30 @@ pub async fn collaborative_revert(
     revert_params: Json<CollaborativeRevert>,
 ) -> Result<Json<String>, AppError> {
     let channel_id_string = revert_params.channel_id.clone();
-    let channel_id = hex::decode(channel_id_string.clone())
-        .map_err(|err| AppError::BadRequest(err.to_string()))?;
-    let channel_id: [u8; 32] = channel_id
-        .try_into()
-        .map_err(|_| AppError::BadRequest("Provided channel ID was invalid".to_string()))?;
-
-    let mut conn =
-        state.pool.clone().get().map_err(|e| {
-            AppError::InternalServerError(format!("Failed to acquire db lock: {e:#}"))
-        })?;
-
-    let channel_details = state
-        .node
-        .inner
-        .channel_manager
-        .get_channel_details(&channel_id)
-        .context("Could not get channel")
-        .map_err(|error| {
-            AppError::InternalServerError(format!("No ln channel found: {error:#}"))
-        })?;
-
-    let sub_channels = state.node.inner.list_dlc_channels().map_err(|e| {
-        AppError::InternalServerError(format!("Failed to list DLC channels: {e:#}"))
-    })?;
-    let subchannel = sub_channels
-        .iter()
-        .find(|c| c.channel_id == channel_id)
-        .context("Could not find provided channel")
-        .map_err(|e| AppError::BadRequest(format!("Channel not found: {e:#}")))?;
-
-    let position = Position::get_position_by_channel_id(&mut conn, channel_id_string.clone())
-        .map_err(|error| {
-            tracing::error!(
-                channel_id = revert_params.channel_id.clone(),
-                "Could not get position for channel {error:#}"
-            );
-            AppError::InternalServerError(format!("Failed to load position from db: {error:#}"))
-        })?;
-
-    let settlement_amount = position
-        .calculate_settlement_amount(revert_params.price)
-        .map_err(|error| {
-            AppError::InternalServerError(format!("Could not calculate pnl {error:#}"))
-        })?;
-
-    let pnl = position
-        .calculate_coordinator_pnl(Quote {
-            bid_size: 0,
-            ask_size: 0,
-            bid_price: revert_params.price,
-            ask_price: revert_params.price,
-            symbol: "".to_string(),
-            timestamp: OffsetDateTime::now_utc(),
-        })
-        .map_err(|error| {
-            AppError::InternalServerError(format!("Could not calculate pnl {error:#}"))
-        })?;
-
-    // There is no easy way to get the total tx fee for all subchannel transactions, hence, we
-    // estimate it. This transaction fee is shared among both users fairly
-    let dlc_channel_fee = calculate_dlc_channel_tx_fees(
-        subchannel.fund_value_satoshis,
-        pnl,
-        channel_details.inbound_capacity_msat / 1000,
-        channel_details.outbound_capacity_msat / 1000,
-        position.trader_margin,
-        position.coordinator_margin,
-    );
-
-    // Coordinator's amount is the total channel's value (fund_value_satoshis) whatever the taker
-    // had (inbound_capacity), the taker's PnL (settlement_amount) and the transaction fee
-    let coordinator_amount = subchannel.fund_value_satoshis as i64
-        - (channel_details.inbound_capacity_msat / 1000) as i64
-        - settlement_amount as i64
-        - (dlc_channel_fee as f64 / 2.0) as i64;
-    let trader_amount = subchannel.fund_value_satoshis - coordinator_amount as u64;
-
-    let fee = weight_to_fee(
-        COLLABORATIVE_REVERT_TX_WEIGHT,
-        revert_params.fee_rate_sats_vb,
-    )
-    .expect("To be able to calculate constant fee rate");
-    let coordinator_addrss = state.node.inner.get_unused_address();
-    let coordinator_amount = Amount::from_sat(coordinator_amount as u64 - fee / 2);
-    let trader_amount = Amount::from_sat(trader_amount - fee / 2);
-
-    // TODO: check if trader still has more than dust
-    tracing::info!(
-        channel_id = channel_id_string,
-        coordinator_address = %coordinator_addrss,
-        coordinator_amount = coordinator_amount.to_sat(),
-        trader_amount = trader_amount.to_sat(),
-        "Proposing collaborative revert");
-
-    db::collaborative_reverts::insert(
-        &mut conn,
-        position::models::CollaborativeRevert {
-            channel_id,
-            trader_pubkey: position.trader,
-            price: revert_params.price.to_f32().expect("to fit into f32"),
-            coordinator_address: coordinator_addrss.clone(),
-            coordinator_amount_sats: coordinator_amount,
-            trader_amount_sats: trader_amount,
-            timestamp: OffsetDateTime::now_utc(),
-        },
-    )
-    .map_err(|err| {
-        let error_msg = format!("Could not insert new collaborative revert {err:#}");
-        tracing::error!("{}", error_msg);
-
-        AppError::InternalServerError(error_msg)
+    let channel_id = parse_channel_id(channel_id_string.as_str()).map_err(|error| {
+        tracing::error!(
+            channel_id = channel_id_string,
+            "Invalid channel id provided. {error:#}"
+        );
+        AppError::BadRequest("Invalid channel id provided".to_string())
     })?;
 
-    // try to notify user
-    state
-        .auth_users_notifier
-        .send(OrderbookMessage::CollaborativeRevert {
-            trader_id: position.trader,
-            message: Message::CollaborativeRevert {
-                channel_id,
-                coordinator_address: coordinator_addrss,
-                coordinator_amount,
-                trader_amount,
-            },
-        })
-        .await
-        .map_err(|error| {
-            AppError::InternalServerError(format!("Could not get notify trader {error:#}"))
-        })?;
+    collaborative_revert::notify_user_to_collaboratively_revert(
+        revert_params,
+        channel_id_string.clone(),
+        channel_id,
+        state.pool.clone(),
+        state.node.inner.clone(),
+        state.auth_users_notifier.clone(),
+    )
+    .await
+    .map_err(move |error| {
+        tracing::error!(
+            channel_id = channel_id_string,
+            "Could not collaborativel revert channel. {error:#}"
+        );
+        AppError::InternalServerError("Could not collaboratively revert channel".to_string())
+    })?;
 
     Ok(Json(
         "Successfully notified trader, waiting for him to ping us again".to_string(),
@@ -457,31 +339,4 @@ pub async fn is_connected(
         AppError::BadRequest(format!("Invalid public key {target_pubkey}. Error: {err}"))
     })?;
     Ok(Json(state.node.is_connected(&target)))
-}
-
-fn calculate_dlc_channel_tx_fees(
-    initial_funding: u64,
-    pnl: i64,
-    inbound_capacity: u64,
-    outbound_capacity: u64,
-    trader_margin: i64,
-    coordinator_margin: i64,
-) -> u64 {
-    initial_funding
-        - (inbound_capacity
-            + outbound_capacity
-            + (trader_margin - pnl) as u64
-            + (coordinator_margin + pnl) as u64)
-}
-
-#[cfg(test)]
-pub mod tests {
-    use crate::admin::calculate_dlc_channel_tx_fees;
-
-    #[test]
-    pub fn calculate_transaction_fee_for_dlc_channel_transactions() {
-        let total_fee =
-            calculate_dlc_channel_tx_fees(200_000, -4047, 65_450, 85_673, 18_690, 18_690);
-        assert_eq!(total_fee, 11_497);
-    }
 }

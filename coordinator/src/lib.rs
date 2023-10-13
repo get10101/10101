@@ -11,6 +11,7 @@ use settings::Settings;
 
 pub mod admin;
 pub mod cli;
+mod collaborative_revert;
 pub mod db;
 pub mod logger;
 pub mod message;
