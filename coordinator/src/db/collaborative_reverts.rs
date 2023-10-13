@@ -42,12 +42,12 @@ pub(crate) struct NewCollaborativeRevert {
     pub timestamp: OffsetDateTime,
 }
 
-pub(crate) fn get(
-    channel_id: &str,
+pub(crate) fn by_trader_pubkey(
+    trader_pubkey: &str,
     conn: &mut PgConnection,
 ) -> Result<Option<position::models::CollaborativeRevert>> {
     let result: Option<CollaborativeRevert> = collaborative_reverts::table
-        .filter(collaborative_reverts::channel_id.eq(channel_id))
+        .filter(collaborative_reverts::trader_pubkey.eq(trader_pubkey))
         .first(conn)
         .optional()?;
     if let Some(rev) = result {

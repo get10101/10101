@@ -1,8 +1,6 @@
-use crate::db::channels;
 use crate::db::collaborative_reverts;
 use crate::message::NewUserMessage;
 use crate::message::OrderbookMessage;
-use crate::position::models::parse_channel_id;
 use anyhow::bail;
 use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
@@ -48,33 +46,26 @@ async fn process_pending_collaborative_revert(
     notifier: mpsc::Sender<OrderbookMessage>,
     trader_id: PublicKey,
 ) -> Result<()> {
-    if let Some(channel) = channels::get_by_trader_pubkey(trader_id, conn)? {
-        if channel.channel_id.is_none() {
-            bail!("Can't revert a channel which does not have a channel_id");
+    match collaborative_reverts::by_trader_pubkey(trader_id.to_string().as_str(), conn)? {
+        None => {
+            // nothing to revert
         }
-        let channel_id = channel.channel_id.expect("To exist");
-        tracing::debug!(%trader_id, channel_id, "Notifying trader about pending collaborative revert");
+        Some(revert) => {
+            tracing::debug!(%trader_id, channel_id = hex::encode(revert.channel_id), "Notifying trader about pending collaborative revert");
 
-        match collaborative_reverts::get(channel_id.as_str(), conn)? {
-            None => {
-                tracing::warn!("No pending collaborative revert for user {trader_id}");
-                return Ok(());
-            }
-            Some(collaborative_reverts) => {
-                // Sending no optional push notification as this is only executed if the user just
-                // registered on the websocket. So we can assume that the user is still online.
-                let msg = OrderbookMessage::CollaborativeRevert {
-                    trader_id,
-                    message: Message::CollaborativeRevert {
-                        channel_id: parse_channel_id(channel_id.as_str())?,
-                        coordinator_address: collaborative_reverts.coordinator_address,
-                        coordinator_amount: collaborative_reverts.coordinator_amount_sats,
-                        trader_amount: collaborative_reverts.trader_amount_sats,
-                    },
-                };
-                if let Err(e) = notifier.send(msg).await {
-                    bail!("Failed to send notification. Error: {e:#}");
-                }
+            // Sending no optional push notification as this is only executed if the user just
+            // registered on the websocket. So we can assume that the user is still online.
+            let msg = OrderbookMessage::CollaborativeRevert {
+                trader_id,
+                message: Message::CollaborativeRevert {
+                    channel_id: revert.channel_id,
+                    coordinator_address: revert.coordinator_address,
+                    coordinator_amount: revert.coordinator_amount_sats,
+                    trader_amount: revert.trader_amount_sats,
+                },
+            };
+            if let Err(e) = notifier.send(msg).await {
+                bail!("Failed to send notification. Error: {e:#}");
             }
         }
     }
