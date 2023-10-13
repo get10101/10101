@@ -4,7 +4,7 @@ import 'package:get_10101/common/amount_text.dart';
 import 'package:get_10101/common/fiat_text.dart';
 import 'package:get_10101/features/stable/stable_screen.dart';
 import 'package:get_10101/features/trade/position_change_notifier.dart';
-import 'package:get_10101/features/wallet/create_invoice_screen.dart';
+import 'package:get_10101/features/wallet/receive_screen.dart';
 import 'package:get_10101/features/wallet/domain/wallet_type.dart';
 import 'package:get_10101/features/wallet/send_payment_screen.dart';
 import 'package:get_10101/features/wallet/wallet_change_notifier.dart';
@@ -192,7 +192,7 @@ class BalanceRowButton extends StatelessWidget {
                 final route = switch ((type, flow)) {
                   (WalletType.stable, _) => StableScreen.route,
                   (_, PaymentFlow.outbound) => SendPaymentScreen.route,
-                  (_, PaymentFlow.inbound) => CreateInvoiceScreen.route,
+                  (_, PaymentFlow.inbound) => ReceiveScreen.route,
                 };
 
                 context.go(route);

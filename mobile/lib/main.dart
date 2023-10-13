@@ -37,8 +37,7 @@ import 'package:get_10101/features/trade/trade_theme.dart';
 import 'package:get_10101/features/trade/trade_value_change_notifier.dart';
 import 'package:get_10101/features/wallet/application/faucet_service.dart';
 import 'package:get_10101/features/wallet/application/wallet_service.dart';
-import 'package:get_10101/features/wallet/create_invoice_screen.dart';
-import 'package:get_10101/features/wallet/domain/share_payment_request.dart';
+import 'package:get_10101/features/wallet/receive_screen.dart';
 import 'package:get_10101/features/wallet/domain/wallet_info.dart';
 import 'package:get_10101/features/wallet/onboarding/onboarding_screen.dart';
 import 'package:get_10101/features/wallet/payment_claimed_change_notifier.dart';
@@ -46,7 +45,6 @@ import 'package:get_10101/features/wallet/scanner_screen.dart';
 import 'package:get_10101/features/wallet/seed_screen.dart';
 import 'package:get_10101/features/wallet/send_payment_change_notifier.dart';
 import 'package:get_10101/features/wallet/send_payment_screen.dart';
-import 'package:get_10101/features/wallet/share_payment_request_screen.dart';
 import 'package:get_10101/features/wallet/wallet_change_notifier.dart';
 import 'package:get_10101/features/wallet/wallet_screen.dart';
 import 'package:get_10101/features/wallet/wallet_theme.dart';
@@ -166,19 +164,11 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
                       return const OnboardingScreen();
                     }),
                 GoRoute(
-                  path: CreateInvoiceScreen.subRouteName,
+                  path: ReceiveScreen.subRouteName,
                   // Use root navigator so the screen overlays the application shell
                   parentNavigatorKey: rootNavigatorKey,
                   builder: (BuildContext context, GoRouterState state) {
-                    return const CreateInvoiceScreen();
-                  },
-                ),
-                GoRoute(
-                  path: SharePaymentRequestScreen.subRouteName,
-                  // Use root navigator so the screen overlays the application shell
-                  parentNavigatorKey: rootNavigatorKey,
-                  builder: (BuildContext context, GoRouterState state) {
-                    return SharePaymentRequestScreen(request: state.extra as SharePaymentRequest);
+                    return const ReceiveScreen();
                   },
                 ),
                 GoRoute(
