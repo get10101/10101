@@ -71,11 +71,6 @@ pub(crate) fn get(user_channel_id: &str, conn: &mut PgConnection) -> QueryResult
         .first(conn)
         .optional()
 }
-pub(crate) fn get_by_channel_id(channel_id: &str, conn: &mut PgConnection) -> QueryResult<Channel> {
-    channels::table
-        .filter(channels::channel_id.eq(channel_id))
-        .first(conn)
-}
 
 pub(crate) fn get_announced_channel(
     counterparty_pubkey: &str,

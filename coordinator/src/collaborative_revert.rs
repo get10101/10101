@@ -57,8 +57,11 @@ pub async fn notify_user_to_collaboratively_revert(
         .find(|c| c.channel_id == channel_id)
         .context("Could not find provided channel")?;
 
-    let position = Position::get_position_by_channel_id(&mut conn, channel_id_string.clone())
-        .context("Could not load position for channel_id")?;
+    let position = Position::get_position_by_trader(
+        &mut conn,
+        channel_details.counterparty.node_id.to_string(),
+    )
+    .context("Could not load position for channel_id")?;
 
     let settlement_amount = position
         .calculate_settlement_amount(revert_params.price)
@@ -173,7 +176,6 @@ pub mod tests {
 pub fn confirm_collaborative_revert(
     revert_params: &Json<CollaborativeRevertData>,
     conn: &mut PooledConnection<ConnectionManager<PgConnection>>,
-    channel_id_string: String,
     channel_id: [u8; 32],
     inner_node: Arc<Node<NodeStorage>>,
 ) -> anyhow::Result<Transaction> {
@@ -203,8 +205,8 @@ pub fn confirm_collaborative_revert(
 
     let mut revert_transaction = revert_params.transaction.clone();
 
-    let position = Position::get_position_by_channel_id(conn, channel_id_string)
-        .context("Could not get position by channel_id")?;
+    let position = Position::get_position_by_trader(conn, sub_channel.counter_party.to_string())
+        .context("Could not load position for channel_id")?;
 
     channel_manager
         .with_channel_lock_no_check(

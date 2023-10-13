@@ -1,4 +1,3 @@
-use crate::db::channels;
 use crate::orderbook::db::custom_types::Direction;
 use crate::schema::positions;
 use crate::schema::sql_types::ContractSymbolType;
@@ -54,20 +53,16 @@ impl Position {
 
         Ok(x.map(crate::position::models::Position::from))
     }
-
-    /// Returns the position by channel id
-    pub fn get_position_by_channel_id(
+    /// Returns the position by trader pub key
+    pub fn get_position_by_trader(
         conn: &mut PgConnection,
-        channel_id: String,
+        trader_pubkey: String,
     ) -> QueryResult<crate::position::models::Position> {
-        let channel = channels::get_by_channel_id(channel_id.as_str(), conn)?;
-
-        let maybe_position = positions::table
-            .filter(positions::trader_pubkey.eq(channel.counterparty_pubkey))
-            .order_by(positions::update_timestamp.desc())
+        let x = positions::table
+            .filter(positions::trader_pubkey.eq(trader_pubkey))
             .first::<Position>(conn)?;
 
-        Ok(crate::position::models::Position::from(maybe_position))
+        Ok(crate::position::models::Position::from(x))
     }
 
     pub fn get_all_open_positions_with_expiry_before(

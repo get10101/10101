@@ -645,7 +645,6 @@ pub async fn collaborative_revert_confirm(
     let raw_tx = collaborative_revert::confirm_collaborative_revert(
         &revert_params,
         &mut conn,
-        channel_id_string.clone(),
         channel_id,
         inner_node,
     )
