@@ -1,4 +1,6 @@
+use crate::collaborative_revert;
 use crate::db;
+use crate::position::models::parse_channel_id;
 use crate::routes::AppState;
 use crate::AppError;
 use anyhow::Context;
@@ -9,6 +11,7 @@ use axum::extract::State;
 use axum::Json;
 use bdk::TransactionDetails;
 use bitcoin::secp256k1::PublicKey;
+use coordinator_commons::CollaborativeRevert;
 use dlc_manager::subchannel::SubChannel;
 use lightning_invoice::Invoice;
 use ln_dlc_node::node::NodeInfo;
@@ -23,7 +26,7 @@ use time::OffsetDateTime;
 use tokio::task::spawn_blocking;
 use tracing::instrument;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Balance {
     pub offchain: u64,
     pub onchain: u64,
@@ -142,6 +145,41 @@ pub async fn list_dlc_channels(
         .collect::<Vec<_>>();
 
     Ok(Json(dlc_channels))
+}
+
+pub async fn collaborative_revert(
+    State(state): State<Arc<AppState>>,
+    revert_params: Json<CollaborativeRevert>,
+) -> Result<Json<String>, AppError> {
+    let channel_id_string = revert_params.channel_id.clone();
+    let channel_id = parse_channel_id(channel_id_string.as_str()).map_err(|error| {
+        tracing::error!(
+            channel_id = channel_id_string,
+            "Invalid channel id provided. {error:#}"
+        );
+        AppError::BadRequest("Invalid channel id provided".to_string())
+    })?;
+
+    collaborative_revert::notify_user_to_collaboratively_revert(
+        revert_params,
+        channel_id_string.clone(),
+        channel_id,
+        state.pool.clone(),
+        state.node.inner.clone(),
+        state.auth_users_notifier.clone(),
+    )
+    .await
+    .map_err(move |error| {
+        tracing::error!(
+            channel_id = channel_id_string,
+            "Could not collaborativel revert channel. {error:#}"
+        );
+        AppError::InternalServerError("Could not collaboratively revert channel".to_string())
+    })?;
+
+    Ok(Json(
+        "Successfully notified trader, waiting for him to ping us again".to_string(),
+    ))
 }
 
 pub async fn list_on_chain_transactions(

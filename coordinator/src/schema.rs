@@ -62,6 +62,19 @@ diesel::table! {
 }
 
 diesel::table! {
+    collaborative_reverts (id) {
+        id -> Int4,
+        channel_id -> Text,
+        trader_pubkey -> Text,
+        price -> Float4,
+        coordinator_address -> Text,
+        coordinator_amount_sats -> Int8,
+        trader_amount_sats -> Int8,
+        timestamp -> Timestamptz,
+    }
+}
+
+diesel::table! {
     liquidity_options (id) {
         id -> Int4,
         rank -> Int2,
@@ -249,6 +262,7 @@ diesel::joinable!(trades -> positions (position_id));
 
 diesel::allow_tables_to_appear_in_same_query!(
     channels,
+    collaborative_reverts,
     liquidity_options,
     liquidity_request_logs,
     matches,

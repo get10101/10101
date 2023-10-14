@@ -1,4 +1,5 @@
 use crate::admin::close_channel;
+use crate::admin::collaborative_revert;
 use crate::admin::connect_to_peer;
 use crate::admin::get_balance;
 use crate::admin::is_connected;
@@ -9,11 +10,13 @@ use crate::admin::list_peers;
 use crate::admin::open_channel;
 use crate::admin::send_payment;
 use crate::admin::sign_message;
+use crate::collaborative_revert;
 use crate::db;
 use crate::db::liquidity::LiquidityRequestLog;
 use crate::db::user;
 use crate::is_liquidity_sufficient;
 use crate::message::NewUserMessage;
+use crate::message::OrderbookMessage;
 use crate::node::Node;
 use crate::orderbook::routes::get_order;
 use crate::orderbook::routes::get_orders;
@@ -21,6 +24,7 @@ use crate::orderbook::routes::post_order;
 use crate::orderbook::routes::put_order;
 use crate::orderbook::routes::websocket_handler;
 use crate::orderbook::trading::NewOrderMessage;
+use crate::position::models::parse_channel_id;
 use crate::settings::Settings;
 use crate::AppError;
 use autometrics::autometrics;
@@ -34,9 +38,11 @@ use axum::routing::get;
 use axum::routing::post;
 use axum::Json;
 use axum::Router;
+use bitcoin::consensus::encode::serialize_hex;
 use bitcoin::hashes::hex::ToHex;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::Network;
+use coordinator_commons::CollaborativeRevertData;
 use coordinator_commons::LspConfig;
 use coordinator_commons::OnboardingParam;
 use coordinator_commons::RegisterParams;
@@ -78,6 +84,7 @@ pub struct AppState {
     pub exporter: PrometheusExporter,
     pub announcement_addresses: Vec<NetAddress>,
     pub node_alias: String,
+    pub auth_users_notifier: mpsc::Sender<OrderbookMessage>,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -91,6 +98,7 @@ pub fn router(
     trading_sender: mpsc::Sender<NewOrderMessage>,
     tx_price_feed: broadcast::Sender<Message>,
     tx_user_feed: broadcast::Sender<NewUserMessage>,
+    auth_users_notifier: mpsc::Sender<OrderbookMessage>,
 ) -> Router {
     let app_state = Arc::new(AppState {
         node,
@@ -102,6 +110,7 @@ pub fn router(
         exporter,
         announcement_addresses,
         node_alias: node_alias.to_string(),
+        auth_users_notifier,
     });
 
     Router::new()
@@ -142,6 +151,11 @@ pub fn router(
         .route("/api/admin/transactions", get(list_on_chain_transactions))
         .route("/api/admin/sign/:msg", get(sign_message))
         .route("/api/admin/connect", post(connect_to_peer))
+        .route("/api/admin/channels/revert", post(collaborative_revert))
+        .route(
+            "/api/channels/revertconfirm",
+            post(collaborative_revert_confirm),
+        )
         .route("/api/admin/is_connected/:target_pubkey", get(is_connected))
         .route(
             "/api/admin/settings",
@@ -603,4 +617,43 @@ pub async fn version() -> Result<Json<Version>, AppError> {
         commit_hash: env!("COMMIT_HASH").to_string(),
         branch: env!("BRANCH_NAME").to_string(),
     }))
+}
+
+pub async fn collaborative_revert_confirm(
+    State(state): State<Arc<AppState>>,
+    revert_params: Json<CollaborativeRevertData>,
+) -> Result<Json<String>, AppError> {
+    let mut conn = state.pool.clone().get().map_err(|error| {
+        AppError::InternalServerError(format!("Could not acquire db lock {error:#}"))
+    })?;
+
+    let channel_id_string = revert_params.channel_id.clone();
+    let channel_id = parse_channel_id(channel_id_string.as_str()).map_err(|error| {
+        tracing::error!(
+            channel_id = channel_id_string,
+            "Invalid channel id provided. {error:#}"
+        );
+        AppError::BadRequest("Invalid channel id provided".to_string())
+    })?;
+
+    tracing::info!(
+        channel_id = channel_id_string,
+        "Confirming collaborative channel revert"
+    );
+    let inner_node = state.node.inner.clone();
+
+    let raw_tx = collaborative_revert::confirm_collaborative_revert(
+        &revert_params,
+        &mut conn,
+        channel_id,
+        inner_node,
+    )
+    .map_err(|error| {
+        tracing::error!(
+            channel_id = channel_id_string,
+            "Could not confirm collaborative revert: {error:#}"
+        );
+        AppError::InternalServerError("Could not confirm collaborative revert".to_string())
+    })?;
+    Ok(Json(serialize_hex(&raw_tx)))
 }

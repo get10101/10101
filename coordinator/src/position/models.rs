@@ -1,6 +1,9 @@
+use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
+use bitcoin::Address;
+use bitcoin::Amount;
 use dlc_manager::ContractId;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
@@ -520,6 +523,27 @@ pub mod tests {
         fn with_direction(mut self, direction: Direction) -> Self {
             self.direction = direction;
             self
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct CollaborativeRevert {
+    pub channel_id: [u8; 32],
+    pub trader_pubkey: PublicKey,
+    pub price: f32,
+    pub coordinator_address: Address,
+    pub coordinator_amount_sats: Amount,
+    pub trader_amount_sats: Amount,
+    pub timestamp: OffsetDateTime,
+}
+
+pub fn parse_channel_id(channel_id: &str) -> Result<[u8; 32]> {
+    let channel_id = hex::decode(channel_id)?;
+    match channel_id.try_into() {
+        Ok(channel_id) => Ok(channel_id),
+        Err(_) => {
+            bail!("Could not parse channel id")
         }
     }
 }

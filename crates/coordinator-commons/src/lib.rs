@@ -1,5 +1,7 @@
+use bdk::bitcoin::secp256k1::ecdsa::Signature;
 use bdk::bitcoin::secp256k1::PublicKey;
 use bdk::bitcoin::Network;
+use bdk::bitcoin::Transaction;
 use orderbook_commons::FilledWith;
 use rust_decimal::Decimal;
 use serde::Deserialize;
@@ -364,4 +366,23 @@ pub struct OnboardingParam {
     pub user_channel_id: String,
     pub amount_sats: u64,
     pub liquidity_option_id: i32,
+}
+
+#[derive(Deserialize, Serialize)]
+pub struct CollaborativeRevert {
+    /// Channel to collaboratively close
+    pub channel_id: String,
+    /// Price to calculate PnL for trader and coordinator
+    pub price: Decimal,
+    /// Fee rate for the closing transaction
+    pub fee_rate_sats_vb: u64,
+}
+
+#[derive(Deserialize, Serialize)]
+pub struct CollaborativeRevertData {
+    pub channel_id: String,
+    /// the collaborative closing transaction unsigned
+    pub transaction: Transaction,
+    /// the trader's signature on the provided transaction
+    pub signature: Signature,
 }

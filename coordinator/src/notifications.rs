@@ -10,6 +10,7 @@ pub enum NotificationKind {
     RolloverWindowOpen,
     PositionSoonToExpire,
     PositionExpired,
+    CollaborativeRevert,
 }
 
 impl Display for NotificationKind {
@@ -18,6 +19,7 @@ impl Display for NotificationKind {
             NotificationKind::PositionSoonToExpire => write!(f, "PositionSoonToExpire"),
             NotificationKind::PositionExpired => write!(f, "PositionExpired"),
             NotificationKind::RolloverWindowOpen => write!(f, "RolloverWindowOpen"),
+            NotificationKind::CollaborativeRevert => write!(f, "CollaborativeRevertPending"),
         }
     }
 }
@@ -106,6 +108,10 @@ fn build_notification<'a>(kind: NotificationKind) -> fcm::Notification<'a> {
         NotificationKind::RolloverWindowOpen => {
             notification_builder.title("Rollover window is open");
             notification_builder.body("Rollover your position for the next cycle.");
+        }
+        NotificationKind::CollaborativeRevert => {
+            notification_builder.title("Error detected");
+            notification_builder.body("Please open your app to recover your funds.");
         }
     }
     notification_builder.finalize()

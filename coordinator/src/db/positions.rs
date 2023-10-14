@@ -53,6 +53,17 @@ impl Position {
 
         Ok(x.map(crate::position::models::Position::from))
     }
+    /// Returns the position by trader pub key
+    pub fn get_position_by_trader(
+        conn: &mut PgConnection,
+        trader_pubkey: String,
+    ) -> QueryResult<crate::position::models::Position> {
+        let x = positions::table
+            .filter(positions::trader_pubkey.eq(trader_pubkey))
+            .first::<Position>(conn)?;
+
+        Ok(crate::position::models::Position::from(x))
+    }
 
     pub fn get_all_open_positions_with_expiry_before(
         conn: &mut PgConnection,
@@ -129,7 +140,11 @@ impl Position {
         Ok(())
     }
 
-    pub fn set_position_to_closed(conn: &mut PgConnection, id: i32, pnl: i64) -> Result<()> {
+    pub fn set_position_to_closed_with_pnl(
+        conn: &mut PgConnection,
+        id: i32,
+        pnl: i64,
+    ) -> Result<()> {
         let affected_rows = diesel::update(positions::table)
             .filter(positions::id.eq(id))
             .set((
@@ -141,6 +156,22 @@ impl Position {
 
         if affected_rows == 0 {
             bail!("Could not update position to Closed with realized pnl {pnl} for position {id}")
+        }
+
+        Ok(())
+    }
+
+    pub fn set_position_to_closed(conn: &mut PgConnection, id: i32) -> Result<()> {
+        let affected_rows = diesel::update(positions::table)
+            .filter(positions::id.eq(id))
+            .set((
+                positions::position_state.eq(PositionState::Closed),
+                positions::update_timestamp.eq(OffsetDateTime::now_utc()),
+            ))
+            .execute(conn)?;
+
+        if affected_rows == 0 {
+            bail!("Could not update position to Closed for position {id}")
         }
 
         Ok(())

@@ -117,6 +117,10 @@ impl LnDlcWallet {
         self.address_cache.read().clone()
     }
 
+    pub fn is_mine(&self, script: &Script) -> Result<bool> {
+        self.ldk_wallet().is_mine(script)
+    }
+
     pub fn sync_and_update_address_cache(&self) -> Result<()> {
         self.ldk_wallet().sync()?;
 

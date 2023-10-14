@@ -4,6 +4,7 @@ use crate::event::BackgroundTask;
 use crate::event::EventInternal;
 use crate::event::TaskStatus;
 use crate::health::ServiceStatus;
+use crate::ln_dlc;
 use crate::trade::position;
 use anyhow::Result;
 use bdk::bitcoin::secp256k1::SecretKey;
@@ -173,7 +174,17 @@ pub fn subscribe(
                                         orders.push(updated_order);
                                         update_prices_if_needed(&mut cached_best_price, &orders);
                                     },
-                                    _ => tracing::debug!(?msg, "Skipping message from orderbook"),
+                                    msg @ Message::LimitOrderFilledMatches { .. } |
+                                    msg @ Message::InvalidAuthentication(_) |
+                                    msg @ Message::Authenticated => {
+                                        tracing::debug!(?msg, "Skipping message from orderbook");
+                                    }
+                                    Message::CollaborativeRevert { channel_id, coordinator_address, coordinator_amount, trader_amount } => {
+                                        tracing::debug!("Received request to revert channel");
+                                        if let Err(err) = ln_dlc::collaborative_revert_channel(channel_id, coordinator_address, coordinator_amount, trader_amount) {
+                                            tracing::error!("Could not collaboratively revert channel {err:#}");
+                                        }
+                                    }
                                 }
                             }
                             Ok(None) => {
