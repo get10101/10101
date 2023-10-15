@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:get_10101/features/wallet/scanner_screen.dart';
 import 'package:go_router/go_router.dart';
 
 void showEnterDestinationModal(BuildContext context, Function onSetDestination) {
@@ -58,10 +59,14 @@ class _EnterDestinationModalState extends State<EnterDestinationModal> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           TextFormField(
-            decoration: const InputDecoration(
-              labelText: "Destination",
-              hintText: "e.g an invoice, bip21 uri or on-chain address",
-            ),
+            decoration: InputDecoration(
+                labelText: "Destination",
+                hintText: "e.g. an invoice, BIP21 URI or on-chain address",
+                suffixIcon: IconButton(
+                    icon: const Icon(Icons.qr_code),
+                    onPressed: () {
+                      GoRouter.of(context).go(ScannerScreen.route);
+                    })),
             onChanged: (value) {
               destination = value;
             },

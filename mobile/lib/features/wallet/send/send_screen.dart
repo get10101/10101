@@ -22,7 +22,9 @@ class SendScreen extends StatefulWidget {
   static const route = "${WalletScreen.route}/$subRouteName";
   static const subRouteName = "send";
 
-  const SendScreen({super.key});
+  final String? encodedDestination;
+
+  const SendScreen({super.key, this.encodedDestination});
 
   @override
   State<SendScreen> createState() => _SendScreenState();
@@ -44,7 +46,8 @@ class _SendScreenState extends State<SendScreen> {
   void initState() {
     super.initState();
     final ChannelInfoService channelInfoService = context.read<ChannelInfoService>();
-    initChannelValues(channelInfoService);
+    final WalletService walletService = context.read<WalletChangeNotifier>().service;
+    init(channelInfoService, walletService);
   }
 
   @override
@@ -53,8 +56,23 @@ class _SendScreenState extends State<SendScreen> {
     _controller.dispose();
   }
 
-  Future<void> initChannelValues(ChannelInfoService channelInfoService) async {
+  Future<void> init(ChannelInfoService channelInfoService, WalletService walletService) async {
     channelInfo = await channelInfoService.getChannelInfo();
+    if (widget.encodedDestination != null) {
+      final destination = await walletService.decodeDestination(widget.encodedDestination!);
+      setState(() {
+        if (destination != null) {
+          _destination = destination;
+          _amount = destination.amount;
+          _controller.text = _amount!.formatted();
+
+          _invalidDestination = false;
+          _valid = _formKey.currentState?.validate() ?? false;
+        } else {
+          _invalidDestination = false;
+        }
+      });
+    }
   }
 
   @override
@@ -169,7 +187,6 @@ class _SendScreenState extends State<SendScreen> {
                   setState(() {
                     _amount = Amount.parseAmount(value);
                     _valid = _formKey.currentState?.validate() ?? false;
-                    logger.i("valid --> $_valid");
                   });
                 },
                 validator: (value) {
