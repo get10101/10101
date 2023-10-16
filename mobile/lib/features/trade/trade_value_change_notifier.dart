@@ -37,8 +37,8 @@ class TradeValuesChangeNotifier extends ChangeNotifier implements Subscriber {
             direction: direction,
             tradeValuesService: tradeValuesService);
       case Direction.short:
-        return TradeValues.fromMargin(
-            margin: defaultQuantity,
+        return TradeValues.fromQuantity(
+            quantity: defaultQuantity,
             leverage: defaultLeverage,
             price: null,
             fundingRate: fundingRateSell,
