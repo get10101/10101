@@ -3,6 +3,8 @@ use crate::db::positions;
 use crate::message::NewUserMessage;
 use crate::message::OrderbookMessage;
 use crate::node::Node;
+use crate::position::models::PositionState;
+use anyhow::anyhow;
 use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
@@ -13,12 +15,15 @@ use bitcoin::XOnlyPublicKey;
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::Pool;
 use diesel::PgConnection;
+use dlc_manager::channel::signed_channel::SignedChannel;
+use dlc_manager::channel::Channel;
 use dlc_manager::contract::contract_input::ContractInput;
 use dlc_manager::contract::contract_input::ContractInputInfo;
 use dlc_manager::contract::contract_input::OracleInput;
 use dlc_manager::contract::Contract;
 use dlc_manager::contract::ContractDescriptor;
 use dlc_manager::ChannelId;
+use dlc_manager::ContractId;
 use futures::future::RemoteHandle;
 use futures::FutureExt;
 use orderbook_commons::Message;
@@ -45,6 +50,7 @@ pub fn monitor(
     tx_user_feed: broadcast::Sender<NewUserMessage>,
     notifier: mpsc::Sender<OrderbookMessage>,
     network: Network,
+    node: Node,
 ) -> RemoteHandle<Result<()>> {
     let mut user_feed = tx_user_feed.subscribe();
     let (fut, remote_handle) = async move {
@@ -52,14 +58,16 @@ pub fn monitor(
             tokio::spawn({
                 let mut conn = pool.get()?;
                 let notifier = notifier.clone();
+                let node = node.clone();
                 async move {
-                    if let Err(e) = check_if_eligible_for_rollover(
-                        &mut conn,
-                        notifier,
-                        new_user_msg.new_user,
-                        network,
-                    )
-                    .await
+                    if let Err(e) = node
+                        .check_if_eligible_for_rollover(
+                            &mut conn,
+                            notifier,
+                            new_user_msg.new_user,
+                            network,
+                        )
+                        .await
                     {
                         tracing::error!("Failed to check if eligible for rollover. Error: {e:#}");
                     }
@@ -73,45 +81,6 @@ pub fn monitor(
     tokio::spawn(fut);
 
     remote_handle
-}
-
-async fn check_if_eligible_for_rollover(
-    conn: &mut PgConnection,
-    notifier: mpsc::Sender<OrderbookMessage>,
-    trader_id: PublicKey,
-    network: Network,
-) -> Result<()> {
-    tracing::debug!(%trader_id, "Checking if the users positions is eligible for rollover");
-    if let Some(position) =
-        positions::Position::get_open_position_by_trader(conn, trader_id.to_string())?
-    {
-        if coordinator_commons::is_eligible_for_rollover(OffsetDateTime::now_utc(), network)
-            && !position.is_expired()
-        {
-            let next_expiry =
-                coordinator_commons::calculate_next_expiry(OffsetDateTime::now_utc(), network);
-            if position.expiry_timestamp == next_expiry {
-                tracing::trace!(%trader_id, position_id=position.id, "Position has already been rolled over");
-                return Ok(());
-            }
-
-            tracing::debug!(%trader_id, position_id=position.id, "Proposing to rollover users position");
-
-            let message = OrderbookMessage::TraderMessage {
-                trader_id,
-                message: Message::Rollover,
-                // Ignore push notifying the user for that message as this is anyways only triggered
-                // when the user just connected to the websocket and we have a separate task that is
-                // push notifying the user if the rollover window is about to start.
-                notification: None,
-            };
-            if let Err(e) = notifier.send(message).await {
-                tracing::debug!("Failed to notify trader. Error: {e:#}");
-            }
-        }
-    }
-
-    Ok(())
 }
 
 impl Rollover {
@@ -172,10 +141,77 @@ impl Rollover {
 }
 
 impl Node {
+    async fn check_if_eligible_for_rollover(
+        &self,
+        conn: &mut PgConnection,
+        notifier: mpsc::Sender<OrderbookMessage>,
+        trader_id: PublicKey,
+        network: Network,
+    ) -> Result<()> {
+        tracing::debug!(%trader_id, "Checking if the users positions is eligible for rollover");
+        if let Some(position) = positions::Position::get_position_by_trader(
+            conn,
+            trader_id,
+            vec![PositionState::Open, PositionState::Rollover],
+        )? {
+            let channel = self
+                .inner
+                .get_dlc_channel_signed(&position.trader)?
+                .with_context(|| {
+                    format!("Expect signed dlc channel to exist. trader_id={trader_id}")
+                })?;
+
+            let dlc_channel_id = channel.get_dlc_channel_id(0).with_context(|| {
+                format!("Expected to get dlc_channel id. trader_id={trader_id}")
+            })?;
+
+            let channel = self.inner.get_dlc_channel_by_id(&dlc_channel_id)?;
+            let trader_id = channel.get_counter_party_id();
+            let signed_channel = match channel {
+                Channel::Signed(signed_channel) => signed_channel,
+                _ => bail!("Expected channel to be signed. trader_id={}", trader_id),
+            };
+
+            let (retry_rollover, contract_id) = match position.position_state {
+                PositionState::Rollover => self.rollback_channel_if_needed(conn, signed_channel)?,
+                PositionState::Open => (false, signed_channel.get_contract_id()),
+                _ => bail!("Unexpected position state {:?}", position.position_state),
+            };
+
+            if coordinator_commons::is_eligible_for_rollover(OffsetDateTime::now_utc(), network)
+                && !position.is_expired()
+            {
+                let next_expiry =
+                    coordinator_commons::calculate_next_expiry(OffsetDateTime::now_utc(), network);
+                if position.expiry_timestamp == next_expiry && !retry_rollover {
+                    tracing::trace!(%trader_id, position_id=position.id, "Position has already been rolled over");
+                    return Ok(());
+                }
+
+                tracing::debug!(%trader_id, position_id=position.id, retry_rollover, "Proposing to rollover users position");
+
+                let message = OrderbookMessage::TraderMessage {
+                    trader_id,
+                    message: Message::Rollover(contract_id.map(hex::encode)),
+                    // Ignore push notifying the user for that message as this is anyways only
+                    // triggered when the user just connected to the websocket
+                    // and we have a separate task that is push notifying the
+                    // user if the rollover window is about to start.
+                    notification: None,
+                };
+                if let Err(e) = notifier.send(message).await {
+                    tracing::debug!("Failed to notify trader. Error: {e:#}");
+                }
+            }
+        }
+
+        Ok(())
+    }
+
     /// Initiates the rollover protocol with the app.
     pub async fn propose_rollover(
         &self,
-        dlc_channel_id: ChannelId,
+        dlc_channel_id: &ChannelId,
         network: Network,
     ) -> Result<()> {
         let contract = self.inner.get_contract_by_dlc_channel_id(dlc_channel_id)?;
@@ -188,7 +224,7 @@ impl Node {
         // As the average entry price does not change with a rollover, we can simply use the traders
         // margin as payout here. The funding rate should be considered here once https://github.com/get10101/10101/issues/1069 gets implemented.
         self.inner
-            .propose_dlc_channel_update(&dlc_channel_id, rollover.margin_trader, contract_input)
+            .propose_dlc_channel_update(dlc_channel_id, rollover.margin_trader, contract_input)
             .await?;
 
         // Sets the position state to rollover indicating that a rollover is in progress.
@@ -201,12 +237,13 @@ impl Node {
     }
 
     /// Finalizes the rollover protocol with the app setting the position to open.
-    pub fn finalize_rollover(&self, dlc_channel_id: ChannelId) -> Result<()> {
-        tracing::debug!(
+    pub fn finalize_rollover(&self, dlc_channel_id: &ChannelId) -> Result<()> {
+        let contract = self.inner.get_contract_by_dlc_channel_id(dlc_channel_id)?;
+        let trader_id = contract.get_counter_party_id();
+        tracing::debug!(%trader_id,
             "Finalizing rollover for dlc channel: {}",
             dlc_channel_id.to_hex()
         );
-        let contract = self.inner.get_contract_by_dlc_channel_id(dlc_channel_id)?;
 
         let mut connection = self.pool.get()?;
         db::positions::Position::set_position_to_open(
@@ -215,6 +252,45 @@ impl Node {
             contract.get_temporary_id(),
         )
     }
+
+    fn rollback_channel_if_needed(
+        &self,
+        connection: &mut PgConnection,
+        signed_channel: SignedChannel,
+    ) -> Result<(bool, Option<ContractId>)> {
+        if is_channel_in_intermediate_state(&signed_channel) {
+            let trader_id = signed_channel.counter_party;
+            let state = ln_dlc_node::node::signed_channel_state_name(&signed_channel);
+            tracing::warn!(%trader_id, state, "Found signed channel contract in an intermediate state. Trying to rollback channel to the last stable state!");
+            self.inner
+                .rollback_channel(&signed_channel)
+                .map_err(|e| anyhow!("{e:#}"))?;
+
+            let contract = self
+                .inner
+                .get_contract_by_dlc_channel_id(&signed_channel.channel_id)?;
+            db::positions::Position::set_position_to_open(
+                connection,
+                trader_id.to_string(),
+                contract.get_temporary_id(),
+            )?;
+
+            return Ok((true, Some(contract.get_id())));
+        }
+
+        Ok((false, signed_channel.get_contract_id()))
+    }
+}
+
+fn is_channel_in_intermediate_state(signed_channel: &SignedChannel) -> bool {
+    use dlc_manager::channel::signed_channel::SignedChannelState;
+    matches!(
+        signed_channel.state,
+        SignedChannelState::RenewOffered { .. }
+            | SignedChannelState::RenewAccepted { .. }
+            | SignedChannelState::RenewConfirmed { .. }
+            | SignedChannelState::RenewFinalized { .. }
+    )
 }
 
 impl From<Rollover> for ContractInput {

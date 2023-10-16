@@ -153,7 +153,7 @@ pub enum Message {
         order: Order,
         filled_with: FilledWith,
     },
-    Rollover,
+    Rollover(Option<String>),
     CollaborativeRevert {
         channel_id: ChannelId,
         coordinator_address: Address,
@@ -194,7 +194,7 @@ impl Display for Message {
             Message::AsyncMatch { .. } => {
                 write!(f, "AsyncMatch")
             }
-            Message::Rollover => {
+            Message::Rollover(_) => {
                 write!(f, "Rollover")
             }
             Message::CollaborativeRevert { .. } => {

@@ -8,6 +8,8 @@ use anyhow::Context;
 use anyhow::Result;
 use autometrics::autometrics;
 use bitcoin::secp256k1::PublicKey;
+use dlc_manager::channel::signed_channel::SignedChannel;
+use dlc_manager::channel::Channel;
 use dlc_manager::contract::contract_input::ContractInput;
 use dlc_manager::contract::ClosedContract;
 use dlc_manager::contract::Contract;
@@ -312,7 +314,7 @@ where
             .get_dlc_channel_id(0)
             .context("Could not fetch dlc channel id")?;
 
-        match self.get_contract_by_dlc_channel_id(dlc_channel_id)? {
+        match self.get_contract_by_dlc_channel_id(&dlc_channel_id)? {
             Contract::Confirmed(contract) => {
                 let offered_contract = contract.accepted_contract.offered_contract;
                 let contract_info = offered_contract
@@ -350,20 +352,43 @@ where
         Ok(dlc_channel.cloned())
     }
 
-    /// Fetches the contract for a given dlc channel id
-    pub fn get_contract_by_dlc_channel_id(&self, dlc_channel_id: ChannelId) -> Result<Contract> {
-        let dlc_channel = self
-            .dlc_manager
+    // Rollback the channel to the last "stable" state. Note, this is potentially risky to do as the
+    // counterparty may still old signed transactions, that would allow them to punish us if we were
+    // to publish an outdated transaction.
+    pub fn rollback_channel(&self, signed_channel: &SignedChannel) -> Result<()> {
+        let mut signed_channel = signed_channel.clone();
+
+        let state = signed_channel
+            .clone()
+            .roll_back_state
+            .context("Missing rollback state")?;
+
+        signed_channel.state = state;
+        self.dlc_manager
             .get_store()
-            .get_channel(&dlc_channel_id)?
+            .upsert_channel(Channel::Signed(signed_channel), None)?;
+
+        Ok(())
+    }
+
+    /// Gets the dlc channel by the dlc channel id
+    pub fn get_dlc_channel_by_id(&self, dlc_channel_id: &ChannelId) -> Result<Channel> {
+        self.dlc_manager
+            .get_store()
+            .get_channel(dlc_channel_id)
+            .map_err(|e| anyhow!("{e:#}"))?
             .with_context(|| {
                 format!(
-                    "Could not find dlc channel by channel id: {}",
-                    dlc_channel_id.to_hex()
+                    "Couldn't find channel by id {}",
+                    hex::encode(dlc_channel_id)
                 )
-            })?;
+            })
+    }
 
-        let contract_id = dlc_channel
+    /// Fetches the contract for a given dlc channel id
+    pub fn get_contract_by_dlc_channel_id(&self, dlc_channel_id: &ChannelId) -> Result<Contract> {
+        let channel = self.get_dlc_channel_by_id(dlc_channel_id)?;
+        let contract_id = channel
             .get_contract_id()
             .context("Could not find contract id")?;
 

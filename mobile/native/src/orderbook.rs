@@ -116,11 +116,11 @@ pub fn subscribe(
                                 };
 
                                 match msg {
-                                    Message::Rollover => {
+                                    Message::Rollover(contract_id) => {
                                         tracing::info!("Received a rollover request from orderbook.");
                                         event::publish(&EventInternal::BackgroundNotification(BackgroundTask::Rollover(TaskStatus::Pending)));
 
-                                        if let Err(e) = position::handler::rollover().await {
+                                        if let Err(e) = position::handler::rollover(contract_id).await {
                                             tracing::error!("Failed to rollover dlc. Error: {e:#}");
                                             event::publish(&EventInternal::BackgroundNotification(BackgroundTask::Rollover(TaskStatus::Failed)));
                                         }

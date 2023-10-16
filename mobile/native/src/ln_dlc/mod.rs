@@ -54,6 +54,7 @@ use ln_dlc_node::channel::Channel;
 use ln_dlc_node::channel::UserChannelId;
 use ln_dlc_node::channel::JIT_FEE_INVOICE_DESCRIPTION_PREFIX;
 use ln_dlc_node::config::app_config;
+use ln_dlc_node::node::rust_dlc_manager;
 use ln_dlc_node::node::rust_dlc_manager::subchannel::LNChannelManager;
 use ln_dlc_node::node::rust_dlc_manager::subchannel::SubChannelState;
 use ln_dlc_node::node::rust_dlc_manager::ChannelId;
@@ -93,6 +94,7 @@ mod node;
 mod sync_position_to_dlc;
 
 pub mod channel_status;
+mod recover_rollover;
 
 const PROCESS_INCOMING_DLC_MESSAGES_INTERVAL: Duration = Duration::from_millis(200);
 const UPDATE_WALLET_HISTORY_INTERVAL: Duration = Duration::from_secs(5);
@@ -351,6 +353,12 @@ pub fn run(data_dir: String, seed_dir: String, runtime: &Runtime) -> Result<()> 
 
         if let Err(e) = node.sync_position_with_dlc_channel_state().await {
             tracing::error!("Failed to sync position with dlc channel state. Error: {e:#}");
+        }
+
+        if let Err(e) = node.recover_rollover().await {
+            tracing::error!(
+                "Failed to check and recover from a stuck rollover state. Error: {e:#}"
+            );
         }
 
         NODE.set(node);
@@ -1031,7 +1039,7 @@ pub async fn trade(trade_params: TradeParams) -> Result<(), (FailureReason, Erro
 }
 
 /// initiates the rollover protocol with the coordinator
-pub async fn rollover() -> Result<()> {
+pub async fn rollover(contract_id: Option<String>) -> Result<()> {
     let node = NODE.get();
 
     let dlc_channels = node
@@ -1052,6 +1060,30 @@ pub async fn rollover() -> Result<()> {
     let dlc_channel_id = dlc_channel
         .get_dlc_channel_id(0)
         .context("Couldn't get dlc channel id")?;
+
+    let channel = node
+        .inner
+        .dlc_manager
+        .get_store()
+        .get_channel(&dlc_channel_id)?;
+
+    match channel {
+        Some(rust_dlc_manager::channel::Channel::Signed(signed_channel)) => {
+            let current_contract_id = signed_channel.get_contract_id().map(hex::encode);
+            if current_contract_id != contract_id {
+                bail!("Rejecting to rollover a contract that we are not aware of. Expected: {current_contract_id:?}, Got: {contract_id:?}");
+            }
+        }
+        Some(channel) => {
+            bail!("Found channel in unexpected state. Expected: Signed, Found: {channel:?}");
+        }
+        None => {
+            bail!(
+                "Couldn't find channel by dlc_channel_id: {}",
+                hex::encode(dlc_channel_id)
+            );
+        }
+    };
 
     let client = reqwest_client();
     let response = client
