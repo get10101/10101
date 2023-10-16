@@ -6,6 +6,7 @@ import 'package:get_10101/common/amount_text.dart';
 import 'package:get_10101/common/amount_text_input_form_field.dart';
 import 'package:get_10101/common/color.dart';
 import 'package:get_10101/common/domain/model.dart';
+import 'package:get_10101/common/scrollable_safe_area.dart';
 import 'package:get_10101/common/snack_bar.dart';
 import 'package:get_10101/features/wallet/application/faucet_service.dart';
 import 'package:get_10101/features/wallet/domain/share_payment_request.dart';
@@ -78,112 +79,112 @@ class _ReceiveScreenState extends State<ReceiveScreen> {
 
     return Scaffold(
         appBar: AppBar(title: const Text("Receive funds")),
-        body: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(20.0),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                const SizedBox(height: 10),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    Expanded(
+        body: ScrollableSafeArea(
+            child: Container(
+          padding: const EdgeInsets.all(20.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const SizedBox(height: 5),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                        onPressed: () => setState(() => _isLightning = true),
+                        style: OutlinedButton.styleFrom(
+                            minimumSize: const Size(20, 50),
+                            side: BorderSide(color: lightningColor),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            backgroundColor: Colors.white),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text("Lightning",
+                                style: TextStyle(color: lightningColor, fontSize: 16)),
+                            Icon(Icons.bolt, color: lightningColor),
+                          ],
+                        )),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
                       child: OutlinedButton(
-                          onPressed: () => setState(() => _isLightning = true),
+                          onPressed: () => setState(() => _isLightning = false),
                           style: OutlinedButton.styleFrom(
-                              minimumSize: const Size(20, 50),
-                              side: BorderSide(color: lightningColor),
-                              shape:
-                                  RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                              backgroundColor: Colors.white),
+                            minimumSize: const Size(20, 50),
+                            side: BorderSide(color: bitcoinColor),
+                            backgroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text("Lightning",
-                                  style: TextStyle(color: lightningColor, fontSize: 16)),
-                              Icon(Icons.bolt, color: lightningColor),
+                              Text("Bitcoin", style: TextStyle(color: bitcoinColor, fontSize: 16)),
+                              Icon(
+                                Icons.currency_bitcoin,
+                                color: bitcoinColor,
+                              ),
                             ],
-                          )),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                        child: OutlinedButton(
-                            onPressed: () => setState(() => _isLightning = false),
-                            style: OutlinedButton.styleFrom(
-                              minimumSize: const Size(20, 50),
-                              side: BorderSide(color: bitcoinColor),
-                              backgroundColor: Colors.white,
-                              shape:
-                                  RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          )))
+                ],
+              ),
+              const SizedBox(height: 15),
+              GestureDetector(
+                onDoubleTap: config.network == "regtest" && _isLightning
+                    ? () => setState(() => _faucet = !_faucet)
+                    : null,
+                child: Center(
+                  child: _faucet && _isLightning
+                      ? Column(
+                          children: [
+                            const SizedBox(height: 125),
+                            OutlinedButton(
+                              onPressed: _isPayInvoiceButtonDisabled
+                                  ? null
+                                  : () async {
+                                      setState(() => _isPayInvoiceButtonDisabled = true);
+                                      final faucetService = context.read<FaucetService>();
+                                      faucetService
+                                          .payInvoiceWithLndFaucet(rawInvoice())
+                                          .catchError((error) {
+                                        setState(() => _isPayInvoiceButtonDisabled = false);
+                                        showSnackBar(
+                                            ScaffoldMessenger.of(context), error.toString());
+                                      });
+                                    },
+                              style: ElevatedButton.styleFrom(
+                                shape: const RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.all(Radius.circular(5.0))),
+                              ),
+                              child: const Text("Pay the invoice with 10101 faucet"),
                             ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text("Bitcoin",
-                                    style: TextStyle(color: bitcoinColor, fontSize: 16)),
-                                Icon(
-                                  Icons.currency_bitcoin,
-                                  color: bitcoinColor,
-                                ),
-                              ],
-                            )))
-                  ],
-                ),
-                const SizedBox(height: 25),
-                GestureDetector(
-                  onDoubleTap: config.network == "regtest" && _isLightning
-                      ? () => setState(() => _faucet = !_faucet)
-                      : null,
-                  child: Center(
-                    child: _faucet && _isLightning
-                        ? Column(
-                            children: [
-                              const SizedBox(height: 125),
-                              OutlinedButton(
-                                onPressed: _isPayInvoiceButtonDisabled
-                                    ? null
-                                    : () async {
-                                        setState(() => _isPayInvoiceButtonDisabled = true);
-                                        final faucetService = context.read<FaucetService>();
-                                        faucetService
-                                            .payInvoiceWithLndFaucet(rawInvoice())
-                                            .catchError((error) {
-                                          setState(() => _isPayInvoiceButtonDisabled = false);
-                                          showSnackBar(
-                                              ScaffoldMessenger.of(context), error.toString());
-                                        });
-                                      },
-                                style: ElevatedButton.styleFrom(
-                                  shape: const RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.all(Radius.circular(5.0))),
-                                ),
-                                child: const Text("Pay the invoice with 10101 faucet"),
+                            OutlinedButton(
+                              onPressed: _isPayInvoiceButtonDisabled
+                                  ? null
+                                  : () async {
+                                      setState(() => _isPayInvoiceButtonDisabled = true);
+                                      final faucetService = context.read<FaucetService>();
+                                      faucetService
+                                          .payInvoiceWithMakerFaucet(rawInvoice())
+                                          .catchError((error) {
+                                        setState(() => _isPayInvoiceButtonDisabled = false);
+                                        showSnackBar(
+                                            ScaffoldMessenger.of(context), error.toString());
+                                      });
+                                    },
+                              style: ElevatedButton.styleFrom(
+                                shape: const RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.all(Radius.circular(5.0))),
                               ),
-                              OutlinedButton(
-                                onPressed: _isPayInvoiceButtonDisabled
-                                    ? null
-                                    : () async {
-                                        setState(() => _isPayInvoiceButtonDisabled = true);
-                                        final faucetService = context.read<FaucetService>();
-                                        faucetService
-                                            .payInvoiceWithMakerFaucet(rawInvoice())
-                                            .catchError((error) {
-                                          setState(() => _isPayInvoiceButtonDisabled = false);
-                                          showSnackBar(
-                                              ScaffoldMessenger.of(context), error.toString());
-                                        });
-                                      },
-                                style: ElevatedButton.styleFrom(
-                                  shape: const RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.all(Radius.circular(5.0))),
-                                ),
-                                child: const Text("Pay the invoice with 10101 maker"),
-                              ),
-                              const SizedBox(height: 125),
-                            ],
-                          )
-                        : QrImageView(
+                              child: const Text("Pay the invoice with 10101 maker"),
+                            ),
+                            const SizedBox(height: 125),
+                          ],
+                        )
+                      : SizedBox(
+                          width: 300,
+                          height: 300,
+                          child: QrImageView(
                             data: rawInvoice(),
                             embeddedImage:
                                 const AssetImage('assets/10101_logo_icon_white_background.png'),
@@ -193,15 +194,31 @@ class _ReceiveScreenState extends State<ReceiveScreen> {
                             version: QrVersions.auto,
                             padding: const EdgeInsets.all(5),
                           ),
+                        ),
+                ),
+              ),
+              Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                OutlinedButton(
+                  onPressed: () {
+                    Clipboard.setData(ClipboardData(text: rawInvoice())).then((_) => showSnackBar(
+                        ScaffoldMessenger.of(context), "${requestTypeName()} copied to clipboard"));
+                  },
+                  style: ElevatedButton.styleFrom(
+                    minimumSize: const Size(150, 40),
+                    side: const BorderSide(color: tenTenOnePurple),
+                    shape: const RoundedRectangleBorder(
+                        borderRadius: BorderRadius.all(Radius.circular(5.0))),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.copy, size: 15),
+                      SizedBox(width: 10),
+                      Text("Copy"),
+                    ],
                   ),
                 ),
-                Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                  OutlinedButton(
-                    onPressed: () {
-                      Clipboard.setData(ClipboardData(text: rawInvoice())).then((_) => showSnackBar(
-                          ScaffoldMessenger.of(context),
-                          "${requestTypeName()} copied to clipboard"));
-                    },
+                OutlinedButton(
+                    onPressed: () => Share.share(rawInvoice()),
                     style: ElevatedButton.styleFrom(
                       minimumSize: const Size(150, 40),
                       side: const BorderSide(color: tenTenOnePurple),
@@ -210,62 +227,42 @@ class _ReceiveScreenState extends State<ReceiveScreen> {
                     ),
                     child: const Row(
                       children: [
-                        Icon(Icons.copy, size: 15),
+                        Icon(Icons.share, size: 15),
                         SizedBox(width: 10),
-                        Text("Copy"),
-                      ],
-                    ),
-                  ),
-                  OutlinedButton(
-                      onPressed: () => Share.share(rawInvoice()),
-                      style: ElevatedButton.styleFrom(
-                        minimumSize: const Size(150, 40),
-                        side: const BorderSide(color: tenTenOnePurple),
-                        shape: const RoundedRectangleBorder(
-                            borderRadius: BorderRadius.all(Radius.circular(5.0))),
-                      ),
-                      child: const Row(
-                        children: [
-                          Icon(Icons.share, size: 15),
-                          SizedBox(width: 10),
-                          Text(
-                            "Share",
-                            style: TextStyle(color: tenTenOnePurple, fontSize: 16),
-                          ),
-                        ],
-                      ))
-                ]),
-                const SizedBox(height: 25),
-                OutlinedButton(
-                    onPressed: () => showEnterAmountModal(context, amount, (amt) {
-                          _createPaymentRequest(amt).then((paymentRequest) {
-                            setState(() {
-                              _paymentRequest = paymentRequest;
-                              amount = amt;
-                            });
-                          });
-                        }),
-                    style: OutlinedButton.styleFrom(
-                      minimumSize: const Size(20, 50),
-                      backgroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
                         Text(
-                          amount != null ? formatSats(amount!) : "Set amount",
-                          style: const TextStyle(color: Colors.black87, fontSize: 16),
+                          "Share",
+                          style: TextStyle(color: tenTenOnePurple, fontSize: 16),
                         ),
-                        const Icon(Icons.edit, size: 20)
                       ],
-                    )),
+                    ))
               ]),
-            ),
-            Expanded(child: Container()),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-              child: ElevatedButton(
+              const SizedBox(height: 15),
+              OutlinedButton(
+                  onPressed: () => showEnterAmountModal(context, amount, (amt) {
+                        _createPaymentRequest(amt).then((paymentRequest) {
+                          setState(() {
+                            _paymentRequest = paymentRequest;
+                            amount = amt;
+                          });
+                        });
+                      }),
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size(20, 50),
+                    backgroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        amount != null ? formatSats(amount!) : "Set amount",
+                        style: const TextStyle(color: Colors.black87, fontSize: 16),
+                      ),
+                      const Icon(Icons.edit, size: 20)
+                    ],
+                  )),
+              Expanded(child: Container()),
+              ElevatedButton(
                 onPressed: _isPayInvoiceButtonDisabled
                     ? null
                     : () {
@@ -278,10 +275,9 @@ class _ReceiveScreenState extends State<ReceiveScreen> {
                 ),
                 child: const Text("Done"),
               ),
-            ),
-            const SizedBox(height: 30.0),
-          ],
-        ));
+            ],
+          ),
+        )));
   }
 
   Future<SharePaymentRequest> _createPaymentRequest(Amount? amount) async {
@@ -305,13 +301,30 @@ void showEnterAmountModal(BuildContext context, Amount? amount, Function onSetAm
       ),
       clipBehavior: Clip.antiAlias,
       isScrollControlled: true,
-      useRootNavigator: false,
+      useRootNavigator: true,
       context: context,
       builder: (BuildContext context) {
-        return SingleChildScrollView(
-            child: SizedBox(
-                height: 230,
-                child: Scaffold(body: EnterAmountModal(amount: amount, onSetAmount: onSetAmount))));
+        return SafeArea(
+            child: Padding(
+                padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+                // the GestureDetector ensures that we can close the keyboard by tapping into the modal
+                child: GestureDetector(
+                  onTap: () {
+                    FocusScopeNode currentFocus = FocusScope.of(context);
+
+                    if (!currentFocus.hasPrimaryFocus) {
+                      currentFocus.unfocus();
+                    }
+                  },
+                  child: SingleChildScrollView(
+                    child: SizedBox(
+                      // TODO: Find a way to make height dynamic depending on the children size
+                      // This is needed because otherwise the keyboard does not push the sheet up correctly
+                      height: 200,
+                      child: EnterAmountModal(amount: amount, onSetAmount: onSetAmount),
+                    ),
+                  ),
+                )));
       });
 }
 
@@ -336,32 +349,30 @@ class _EnterAmountModalState extends State<EnterAmountModal> {
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.only(left: 20.0, top: 35.0, right: 20.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            AmountInputField(
-              value: widget.amount ?? Amount.zero(),
-              hint: "e.g. ${formatSats(Amount(50000))}",
-              label: "Amount",
-              onChanged: (value) {
-                if (value.isEmpty) {
-                  amount = null;
-                }
-                amount = Amount.parseAmount(value);
+    return Padding(
+      padding: const EdgeInsets.only(left: 20.0, top: 30.0, right: 20.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          AmountInputField(
+            value: widget.amount ?? Amount.zero(),
+            hint: "e.g. ${formatSats(Amount(50000))}",
+            label: "Amount",
+            onChanged: (value) {
+              if (value.isEmpty) {
+                amount = null;
+              }
+              amount = Amount.parseAmount(value);
+            },
+          ),
+          const SizedBox(height: 20),
+          ElevatedButton(
+              onPressed: () {
+                widget.onSetAmount(amount);
+                GoRouter.of(context).pop();
               },
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-                onPressed: () {
-                  widget.onSetAmount(amount);
-                  GoRouter.of(context).pop();
-                },
-                child: const Text("Set Amount", style: TextStyle(fontSize: 16)))
-          ],
-        ),
+              child: const Text("Set Amount", style: TextStyle(fontSize: 16)))
+        ],
       ),
     );
   }
