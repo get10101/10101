@@ -8,8 +8,7 @@ import 'package:get_10101/features/trade/position_change_notifier.dart';
 import 'package:get_10101/features/trade/trade_theme.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-
-import 'contract_symbol_icon.dart';
+import 'package:get_10101/features/trade/contract_symbol_icon.dart';
 
 class PositionListItem extends StatefulWidget {
   const PositionListItem({super.key, required this.position, required this.onClose});

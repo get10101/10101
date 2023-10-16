@@ -1,6 +1,5 @@
 import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
-
-import 'model.dart';
+import 'package:get_10101/common/domain/model.dart';
 
 class ChannelInfo {
   final Amount channelCapacity;

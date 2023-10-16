@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-
-import 'domain/model.dart';
+import 'package:get_10101/common/domain/model.dart';
 
 class AmountTextField extends StatefulWidget {
   const AmountTextField({super.key, required this.label, required this.value});

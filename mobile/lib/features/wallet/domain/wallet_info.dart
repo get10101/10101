@@ -1,7 +1,7 @@
 import 'package:get_10101/bridge_generated/bridge_definitions.dart' as rust;
 import 'package:get_10101/common/domain/model.dart';
-import 'wallet_history.dart';
-import 'wallet_balances.dart';
+import 'package:get_10101/features/wallet/domain/wallet_history.dart';
+import 'package:get_10101/features/wallet/domain/wallet_balances.dart';
 
 class WalletInfo {
   WalletBalances balances;
