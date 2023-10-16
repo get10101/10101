@@ -46,8 +46,7 @@ class ConfirmPayment extends StatelessWidget {
   Widget build(BuildContext context) {
     final walletService = context.read<WalletChangeNotifier>().service;
 
-    final amt =
-        destination.amount != null && destination.amount!.sats > 0 ? destination.amount! : amount!;
+    final amt = destination.amount.sats > 0 ? destination.amount : amount!;
 
     return SafeArea(
       child: Padding(

@@ -3,12 +3,12 @@ import 'package:get_10101/common/domain/model.dart';
 import 'package:get_10101/features/wallet/domain/wallet_type.dart';
 
 abstract class Destination {
-  final Amount? amount;
+  final Amount amount;
   final String description;
   final String payee;
   final String raw;
 
-  Destination({this.amount, this.description = "", this.payee = "", required this.raw});
+  Destination({required this.amount, this.description = "", this.payee = "", required this.raw});
 
   WalletType getWalletType();
 }
@@ -17,14 +17,15 @@ class OnChainAddress extends Destination {
   final String address;
 
   OnChainAddress(
-      {super.amount,
+      {required super.amount,
       super.description = "",
       super.payee = "",
       required this.address,
       required super.raw});
 
   static fromAddress(rust.Destination_OnChainAddress address) {
-    return OnChainAddress(address: address.field0, payee: address.field0, raw: address.field0);
+    return OnChainAddress(
+        amount: Amount.zero(), address: address.field0, payee: address.field0, raw: address.field0);
   }
 
   static fromApi(rust.Destination_Bip21 uri) {
