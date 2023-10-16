@@ -40,7 +40,7 @@ version = "0.5"
 features = ["prometheus-exporter"]
 
 [dependencies.axum]
-version = "0.6.7"
+version = "0.6.20"
 features = ["ws", "query"]
 
 [dependencies.bdk]

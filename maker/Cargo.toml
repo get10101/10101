@@ -9,7 +9,7 @@ async-stream = "0.3"
 async-trait = "0.1"
 atty = "0.2.14"
 autometrics = { version = "0.5", features = ["prometheus-exporter"] }
-axum = { version = "0.6.7", features = ["ws"] }
+axum = { version = "0.6.20", features = ["ws"] }
 bdk = { version = "0.27.0", default-features = false, features = ["key-value-db", "use-esplora-blocking"] }
 bitcoin = "0.29"
 bitmex-client = { path = "../crates/bitmex-client" }
@@ -37,7 +37,7 @@ serde = "1.0.147"
 serde_json = "1"
 time = { version = "0.3", features = ["serde", "parsing", "std", "formatting", "macros", "serde-well-known"] }
 tokio = { version = "1", features = ["full", "tracing"] }
-tokio-tungstenite = { version = "0.18", features = ["native-tls"] }
+tokio-tungstenite = { version = "0.20", features = ["native-tls"] }
 tracing = "0.1.37"
 tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "ansi", "env-filter", "time", "tracing-log", "json"] }
 trade = { path = "../crates/trade" }

@@ -13,7 +13,7 @@ ring = "0.16"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tokio = { version = "1", features = ["macros", "time", "tracing"] }
-tokio-tungstenite = { version = "0.18", features = ["native-tls"] }
+tokio-tungstenite = { version = "0.20", features = ["native-tls"] }
 tracing = "0.1"
 url = "2.3.0"
 
