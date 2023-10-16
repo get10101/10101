@@ -97,7 +97,7 @@ class ConfirmPayment extends StatelessWidget {
                   }).catchError((error) {
                     logger.e("Failed to send payment: $error");
                     if (destination.getWalletType() == WalletType.onChain) {
-                      showSnackBar(messenger, error);
+                      showSnackBar(messenger, error.toString());
                     }
                     context.read<PaymentChangeNotifier>().failPayment();
                   });
