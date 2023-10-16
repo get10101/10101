@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:get_10101/common/domain/model.dart';
 import 'package:get_10101/common/value_data_row.dart';
 import 'package:get_10101/features/stable/stable_dialog.dart';
 import 'package:get_10101/features/stable/stable_value_change_notifier.dart';
@@ -84,7 +85,7 @@ class BitcoinizeBottomSheet extends StatelessWidget {
           const SizedBox(height: 16.0),
           ValueDataRow(
               type: ValueType.amount,
-              value: stableValues.fee,
+              value: stableValues.fee ?? Amount.zero(),
               label: 'Fees',
               valueTextStyle: const TextStyle(fontSize: 18),
               labelTextStyle: const TextStyle(fontSize: 18)),
