@@ -57,7 +57,7 @@ async fn fail_intercepted_htlc_if_coordinator_cannot_reconnect_to_payee() {
     payee.disconnect(coordinator.info);
     tokio::time::sleep(Duration::from_secs(1)).await;
 
-    payer.send_payment(&invoice).unwrap();
+    payer.pay_invoice(&invoice, None).unwrap();
 
     // Assert
 
@@ -126,7 +126,7 @@ async fn fail_intercepted_htlc_if_connection_lost_after_funding_tx_generated() {
 
     // Act
 
-    payer.send_payment(&invoice).unwrap();
+    payer.pay_invoice(&invoice, None).unwrap();
 
     tokio::time::timeout(Duration::from_secs(30), async {
         loop {
@@ -201,7 +201,7 @@ async fn fail_intercepted_htlc_if_coordinator_cannot_pay_to_open_jit_channel() {
         )
         .unwrap();
 
-    payer.send_payment(&invoice).unwrap();
+    payer.pay_invoice(&invoice, None).unwrap();
 
     // Assert
 

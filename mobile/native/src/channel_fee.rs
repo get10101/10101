@@ -1,3 +1,4 @@
+use crate::api::SendPayment;
 use crate::commons::reqwest_client;
 use crate::config;
 use crate::db;
@@ -146,7 +147,10 @@ impl ChannelFeePaymentSubscriber {
                     ))
                 })?;
 
-                match ln_dlc::send_payment(&invoice_str) {
+                match ln_dlc::send_payment(SendPayment::Lightning {
+                    invoice: invoice_str,
+                    amount: None,
+                }) {
                     Ok(_) => {
                         // unset the open fee amount as the payment has been initiated.
                         self.unset_open_fee_amount();

@@ -338,7 +338,7 @@ impl Node {
         std::thread::sleep(Duration::from_secs(5));
 
         self.inner
-            .send_payment(&invoice)
+            .pay_invoice(&invoice, None)
             .context("Failed order-matching fee invoice payment")?;
 
         tracing::info!(

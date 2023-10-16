@@ -6,7 +6,7 @@ import 'package:get_10101/features/stable/stable_screen.dart';
 import 'package:get_10101/features/trade/position_change_notifier.dart';
 import 'package:get_10101/features/wallet/receive_screen.dart';
 import 'package:get_10101/features/wallet/domain/wallet_type.dart';
-import 'package:get_10101/features/wallet/send_payment_screen.dart';
+import 'package:get_10101/features/wallet/send/send_screen.dart';
 import 'package:get_10101/features/wallet/wallet_change_notifier.dart';
 import 'package:get_10101/features/wallet/wallet_theme.dart';
 import 'package:go_router/go_router.dart';
@@ -191,11 +191,11 @@ class BalanceRowButton extends StatelessWidget {
             : () {
                 final route = switch ((type, flow)) {
                   (WalletType.stable, _) => StableScreen.route,
-                  (_, PaymentFlow.outbound) => SendPaymentScreen.route,
+                  (_, PaymentFlow.outbound) => SendScreen.route,
                   (_, PaymentFlow.inbound) => ReceiveScreen.route,
                 };
 
-                context.go(route);
+                context.go(route, extra: type);
               },
         style: ElevatedButton.styleFrom(
           shape: const CircleBorder(),

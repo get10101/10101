@@ -4,8 +4,6 @@ import 'package:flutter_speed_dial/flutter_speed_dial.dart';
 import 'package:get_10101/common/amount_text.dart';
 import 'package:get_10101/common/channel_status_notifier.dart';
 import 'package:get_10101/common/fiat_text.dart';
-import 'package:get_10101/common/submission_status_dialog.dart';
-import 'package:get_10101/common/value_data_row.dart';
 import 'package:get_10101/features/trade/position_change_notifier.dart';
 import 'package:get_10101/features/wallet/balance_row.dart';
 import 'package:get_10101/features/wallet/receive_screen.dart';
@@ -13,8 +11,7 @@ import 'package:get_10101/features/wallet/domain/wallet_history.dart';
 import 'package:get_10101/features/wallet/domain/wallet_type.dart';
 import 'package:get_10101/features/wallet/onboarding/onboarding_screen.dart';
 import 'package:get_10101/features/wallet/seed_screen.dart';
-import 'package:get_10101/features/wallet/send_payment_change_notifier.dart';
-import 'package:get_10101/features/wallet/send_payment_screen.dart';
+import 'package:get_10101/features/wallet/send/send_screen.dart';
 import 'package:get_10101/features/wallet/wallet_change_notifier.dart';
 import 'package:get_10101/features/wallet/wallet_theme.dart';
 import 'package:get_10101/util/preferences.dart';
@@ -45,73 +42,11 @@ class _WalletScreenState extends State<WalletScreen> {
   @override
   Widget build(BuildContext context) {
     final walletChangeNotifier = context.watch<WalletChangeNotifier>();
-    final sendPaymentChangeNotifier = context.watch<SendPaymentChangeNotifier>();
 
     final hasChannel = context.watch<ChannelStatusNotifier>().hasChannel();
 
     // For displaying synthetic USD balance
     final positionChangeNotifier = context.watch<PositionChangeNotifier>();
-
-    if (sendPaymentChangeNotifier.pendingPayment != null &&
-        !sendPaymentChangeNotifier.pendingPayment!.displayed) {
-      sendPaymentChangeNotifier.pendingPayment!.displayed = true;
-      WidgetsBinding.instance.addPostFrameCallback((_) async {
-        return await showDialog(
-            context: context,
-            useRootNavigator: true,
-            builder: (BuildContext context) {
-              return Selector<SendPaymentChangeNotifier, PendingPaymentState>(
-                selector: (_, provider) => provider.pendingPayment!.state,
-                builder: (context, state, child) {
-                  const String title = "Send Payment";
-                  Widget body = Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      SizedBox(
-                        width: 200,
-                        child: Wrap(
-                          runSpacing: 10,
-                          children: [
-                            ValueDataRow(
-                                type: ValueType.amount,
-                                value: sendPaymentChangeNotifier
-                                    .pendingPayment?.decodedInvoice.amountSats,
-                                label: "Amount"),
-                            ValueDataRow(
-                                type: ValueType.text,
-                                value:
-                                    sendPaymentChangeNotifier.pendingPayment?.decodedInvoice.payee,
-                                label: "Recipient")
-                          ],
-                        ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.only(top: 20, left: 10, right: 10, bottom: 5),
-                        child: Text(
-                            PendingPaymentState.failed == state
-                                ? "Failed to submit your payment. Please make sure that you have sufficient funds that the receiver is able to receive."
-                                : "Your Payment will be shown up in the wallet history automatically once it has been processed!",
-                            style: DefaultTextStyle.of(context).style.apply(fontSizeFactor: 1.0)),
-                      )
-                    ],
-                  );
-
-                  switch (state) {
-                    case PendingPaymentState.pending:
-                      return SubmissionStatusDialog(
-                          title: title, type: SubmissionStatusDialogType.pending, content: body);
-                    case PendingPaymentState.succeeded:
-                      return SubmissionStatusDialog(
-                          title: title, type: SubmissionStatusDialogType.success, content: body);
-                    case PendingPaymentState.failed:
-                      return SubmissionStatusDialog(
-                          title: title, type: SubmissionStatusDialogType.failure, content: body);
-                  }
-                },
-              );
-            });
-      });
-    }
 
     WalletTheme theme = Theme.of(context).extension<WalletTheme>()!;
 
@@ -287,7 +222,7 @@ class _WalletScreenState extends State<WalletScreen> {
             child: const Icon(SendReceiveIcons.sendWithQr, size: 24.0),
             label: 'Send',
             labelStyle: const TextStyle(fontSize: 18.0),
-            onTap: () => GoRouter.of(context).go(SendPaymentScreen.route),
+            onTap: () => GoRouter.of(context).go(SendScreen.route),
           ),
         ],
       ),

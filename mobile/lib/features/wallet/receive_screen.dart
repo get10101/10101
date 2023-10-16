@@ -9,6 +9,7 @@ import 'package:get_10101/common/domain/model.dart';
 import 'package:get_10101/common/snack_bar.dart';
 import 'package:get_10101/features/wallet/application/faucet_service.dart';
 import 'package:get_10101/features/wallet/domain/share_payment_request.dart';
+import 'package:get_10101/features/wallet/domain/wallet_type.dart';
 import 'package:get_10101/features/wallet/payment_claimed_change_notifier.dart';
 import 'package:get_10101/features/wallet/wallet_change_notifier.dart';
 import 'package:get_10101/features/wallet/wallet_screen.dart';
@@ -22,7 +23,9 @@ class ReceiveScreen extends StatefulWidget {
   static const route = "${WalletScreen.route}/$subRouteName";
   static const subRouteName = "receive";
 
-  const ReceiveScreen({super.key});
+  final WalletType walletType;
+
+  const ReceiveScreen({super.key, this.walletType = WalletType.lightning});
 
   @override
   State<ReceiveScreen> createState() => _ReceiveScreenState();
@@ -32,7 +35,7 @@ class _ReceiveScreenState extends State<ReceiveScreen> {
   Amount? amount;
 
   bool _isPayInvoiceButtonDisabled = false;
-  bool _isLightning = true;
+  late bool _isLightning;
   SharePaymentRequest? _paymentRequest;
   bool _faucet = false;
 
@@ -42,6 +45,7 @@ class _ReceiveScreenState extends State<ReceiveScreen> {
     context.read<PaymentClaimedChangeNotifier>().waitForPayment();
     _createPaymentRequest(amount)
         .then((paymentRequest) => setState(() => _paymentRequest = paymentRequest));
+    _isLightning = widget.walletType == WalletType.lightning;
   }
 
   String rawInvoice() {

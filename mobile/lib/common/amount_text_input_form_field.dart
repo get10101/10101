@@ -15,8 +15,10 @@ class AmountInputField extends StatefulWidget {
       required this.value,
       this.isLoading = false,
       this.infoText,
+      this.controller,
       this.validator});
 
+  final TextEditingController? controller;
   final Amount value;
   final bool enabled;
   final String label;
@@ -35,8 +37,10 @@ class _AmountInputFieldState extends State<AmountInputField> {
   @override
   Widget build(BuildContext context) {
     return TextFormField(
+      style: const TextStyle(color: Colors.black87),
       enabled: widget.enabled,
-      initialValue: widget.value.formatted(),
+      controller: widget.controller,
+      initialValue: widget.controller != null ? null : widget.value.formatted(),
       keyboardType: TextInputType.number,
       decoration: InputDecoration(
         border: const OutlineInputBorder(),
@@ -45,6 +49,9 @@ class _AmountInputFieldState extends State<AmountInputField> {
         labelStyle: const TextStyle(color: Colors.black87),
         filled: true,
         fillColor: widget.enabled ? Colors.white : Colors.grey[50],
+        errorStyle: TextStyle(
+          color: Colors.red[900],
+        ),
         suffixIcon: widget.isLoading
             ? const CircularProgressIndicator()
             : widget.infoText != null

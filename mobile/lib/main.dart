@@ -37,14 +37,15 @@ import 'package:get_10101/features/trade/trade_theme.dart';
 import 'package:get_10101/features/trade/trade_value_change_notifier.dart';
 import 'package:get_10101/features/wallet/application/faucet_service.dart';
 import 'package:get_10101/features/wallet/application/wallet_service.dart';
+import 'package:get_10101/features/wallet/domain/wallet_type.dart';
+import 'package:get_10101/features/wallet/send/payment_sent_change_notifier.dart';
 import 'package:get_10101/features/wallet/receive_screen.dart';
 import 'package:get_10101/features/wallet/domain/wallet_info.dart';
 import 'package:get_10101/features/wallet/onboarding/onboarding_screen.dart';
 import 'package:get_10101/features/wallet/payment_claimed_change_notifier.dart';
 import 'package:get_10101/features/wallet/scanner_screen.dart';
 import 'package:get_10101/features/wallet/seed_screen.dart';
-import 'package:get_10101/features/wallet/send_payment_change_notifier.dart';
-import 'package:get_10101/features/wallet/send_payment_screen.dart';
+import 'package:get_10101/features/wallet/send/send_screen.dart';
 import 'package:get_10101/features/wallet/wallet_change_notifier.dart';
 import 'package:get_10101/features/wallet/wallet_screen.dart';
 import 'package:get_10101/features/wallet/wallet_theme.dart';
@@ -86,7 +87,6 @@ void main() async {
     ChangeNotifierProvider(create: (context) => OrderChangeNotifier(OrderService())),
     ChangeNotifierProvider(create: (context) => PositionChangeNotifier(PositionService())),
     ChangeNotifierProvider(create: (context) => WalletChangeNotifier(const WalletService())),
-    ChangeNotifierProvider(create: (context) => SendPaymentChangeNotifier(const WalletService())),
     ChangeNotifierProvider(
         create: (context) => CandlestickChangeNotifier(const CandlestickService())),
     ChangeNotifierProvider(create: (context) => ServiceStatusNotifier()),
@@ -95,6 +95,7 @@ void main() async {
     ChangeNotifierProvider(create: (context) => RolloverChangeNotifier()),
     ChangeNotifierProvider(create: (context) => RecoverDlcChangeNotifier()),
     ChangeNotifierProvider(create: (context) => PaymentClaimedChangeNotifier()),
+    ChangeNotifierProvider(create: (context) => PaymentChangeNotifier()),
     Provider(create: (context) => config),
     Provider(create: (context) => channelInfoService)
   ];
@@ -142,11 +143,11 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
               },
               routes: <RouteBase>[
                 GoRoute(
-                  path: SendPaymentScreen.subRouteName,
+                  path: SendScreen.subRouteName,
                   // Use root navigator so the screen overlays the application shell
                   parentNavigatorKey: rootNavigatorKey,
                   builder: (BuildContext context, GoRouterState state) {
-                    return const SendPaymentScreen();
+                    return const SendScreen();
                   },
                 ),
                 GoRoute(
@@ -168,6 +169,9 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
                   // Use root navigator so the screen overlays the application shell
                   parentNavigatorKey: rootNavigatorKey,
                   builder: (BuildContext context, GoRouterState state) {
+                    if (state.extra != null) {
+                      return ReceiveScreen(walletType: state.extra as WalletType);
+                    }
                     return const ReceiveScreen();
                   },
                 ),
@@ -462,6 +466,7 @@ void subscribeToNotifiers(BuildContext context) {
   final rolloverChangeNotifier = context.read<RolloverChangeNotifier>();
   final recoverDlcChangeNotifier = context.read<RecoverDlcChangeNotifier>();
   final paymentClaimedChangeNotifier = context.read<PaymentClaimedChangeNotifier>();
+  final paymentChangeNotifier = context.read<PaymentChangeNotifier>();
 
   eventService.subscribe(
       orderChangeNotifier, bridge.Event.orderUpdateNotification(Order.apiDummy()));
@@ -504,6 +509,9 @@ void subscribeToNotifiers(BuildContext context) {
       recoverDlcChangeNotifier, bridge.Event.backgroundNotification(RecoverDlc.apiDummy()));
 
   eventService.subscribe(paymentClaimedChangeNotifier, const bridge.Event.paymentClaimed());
+
+  eventService.subscribe(paymentChangeNotifier, const bridge.Event.paymentSent());
+  eventService.subscribe(paymentChangeNotifier, const bridge.Event.paymentFailed());
 
   channelStatusNotifier.subscribe(eventService);
 
