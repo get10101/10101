@@ -148,8 +148,9 @@ pub async fn websocket_connection(stream: WebSocket, state: Arc<AppState>) {
                                 new_user: trader_id,
                                 sender: local_sender.clone(),
                             };
+                            tracing::debug!(%trader_id, "New login");
                             if let Err(e) = state.tx_user_feed.send(message) {
-                                tracing::error!(%trader_id, "Could not send trading message. Error: {e:#}");
+                                tracing::error!(%trader_id, "Could not send new user message. Error: {e:#}");
                             }
                         }
                         Err(err) => {
