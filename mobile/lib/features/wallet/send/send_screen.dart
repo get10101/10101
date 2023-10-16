@@ -81,25 +81,15 @@ class _SendScreenState extends State<SendScreen> {
                             setState(() => _invalidDestination = true);
                             return;
                           }
-                          if (destination.amount != null) {
-                            setState(() {
-                              _destination = destination;
-                              _amount = destination.amount!;
-                              _controller.text = _amount!.formatted();
 
-                              _invalidDestination = false;
-                              _valid = _formKey.currentState?.validate() ?? false;
-                            });
-                          } else {
-                            setState(() {
-                              _destination = destination;
-                              _amount = Amount.zero();
-                              _controller.text = _amount!.formatted();
+                          setState(() {
+                            _destination = destination;
+                            _amount = destination.amount;
+                            _controller.text = _amount!.formatted();
 
-                              _invalidDestination = false;
-                              _valid = _formKey.currentState?.validate() ?? false;
-                            });
-                          }
+                            _invalidDestination = false;
+                            _valid = _formKey.currentState?.validate() ?? false;
+                          });
                         });
                       }),
                   style: OutlinedButton.styleFrom(
@@ -174,9 +164,7 @@ class _SendScreenState extends State<SendScreen> {
                 controller: _controller,
                 label: "",
                 value: _amount ?? Amount.zero(),
-                enabled: _destination != null &&
-                    _destination!.amount != null &&
-                    _destination!.amount!.sats == 0,
+                enabled: _destination != null && _destination!.amount.sats == 0,
                 onChanged: (value) {
                   setState(() {
                     _amount = Amount.parseAmount(value);

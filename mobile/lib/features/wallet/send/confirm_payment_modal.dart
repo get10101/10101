@@ -46,8 +46,7 @@ class ConfirmPayment extends StatelessWidget {
   Widget build(BuildContext context) {
     final walletService = context.read<WalletChangeNotifier>().service;
 
-    final amt =
-        destination.amount != null && destination.amount!.sats > 0 ? destination.amount! : amount!;
+    final amt = destination.amount.sats > 0 ? destination.amount : amount!;
 
     return SafeArea(
       child: Padding(
@@ -98,7 +97,7 @@ class ConfirmPayment extends StatelessWidget {
                   }).catchError((error) {
                     logger.e("Failed to send payment: $error");
                     if (destination.getWalletType() == WalletType.onChain) {
-                      showSnackBar(messenger, error);
+                      showSnackBar(messenger, error.toString());
                     }
                     context.read<PaymentChangeNotifier>().failPayment();
                   });
