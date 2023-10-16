@@ -45,6 +45,8 @@ pub struct NewOrder {
     // missing
     #[frb(non_final)]
     pub order_type: Box<OrderType>,
+    #[frb(non_final)]
+    pub stable: bool,
 }
 
 #[frb]
@@ -154,6 +156,7 @@ impl From<NewOrder> for order::Order {
             // We do not support setting order expiry from the frontend for now
             order_expiry_timestamp: OffsetDateTime::now_utc() + time::Duration::minutes(1),
             reason: order::OrderReason::Manual,
+            stable: value.stable,
         }
     }
 }

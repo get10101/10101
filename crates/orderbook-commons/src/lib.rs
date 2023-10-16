@@ -61,6 +61,7 @@ pub struct Order {
     pub expiry: OffsetDateTime,
     pub order_state: OrderState,
     pub order_reason: OrderReason,
+    pub stable: bool,
 }
 
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
@@ -91,6 +92,7 @@ pub struct NewOrder {
     pub leverage: f32,
     pub order_type: OrderType,
     pub expiry: OffsetDateTime,
+    pub stable: bool,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]

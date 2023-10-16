@@ -126,6 +126,7 @@ pub(crate) struct Order {
     pub failure_reason: Option<FailureReason>,
     pub order_expiry_timestamp: i64,
     pub reason: OrderReason,
+    pub stable: bool,
 }
 
 impl Order {
@@ -271,6 +272,7 @@ impl From<crate::trade::order::Order> for Order {
             failure_reason,
             order_expiry_timestamp: value.order_expiry_timestamp.unix_timestamp(),
             reason: value.reason.into(),
+            stable: value.stable,
         }
     }
 }
@@ -312,6 +314,7 @@ impl TryFrom<Order> for crate::trade::order::Order {
             )
             .expect("unix timestamp to fit in itself"),
             reason: value.reason.into(),
+            stable: value.stable,
         };
 
         Ok(order)
@@ -332,6 +335,7 @@ pub(crate) struct Position {
     pub creation_timestamp: i64,
     pub expiry_timestamp: i64,
     pub updated_timestamp: i64,
+    pub stable: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, FromSqlRow, AsExpression)]
@@ -422,6 +426,7 @@ impl From<Position> for crate::trade::position::Position {
                 .expect("to fit into unix timestamp"),
             created: OffsetDateTime::from_unix_timestamp(value.creation_timestamp)
                 .expect("to fit into unix timestamp"),
+            stable: value.stable,
         }
     }
 }
@@ -440,6 +445,7 @@ impl From<crate::trade::position::Position> for Position {
             creation_timestamp: OffsetDateTime::now_utc().unix_timestamp(),
             updated_timestamp: OffsetDateTime::now_utc().unix_timestamp(),
             expiry_timestamp: value.expiry.unix_timestamp(),
+            stable: value.stable,
         }
     }
 }
@@ -1377,6 +1383,7 @@ pub mod test {
             failure_reason,
             order_expiry_timestamp: expiry_timestamp.unix_timestamp(),
             reason: OrderReason::Manual,
+            stable: false,
         };
 
         Order::insert(
@@ -1391,6 +1398,7 @@ pub mod test {
                 creation_timestamp,
                 order_expiry_timestamp: expiry_timestamp,
                 reason: crate::trade::order::OrderReason::Manual,
+                stable: false,
             }
             .into(),
             &mut connection,
@@ -1410,6 +1418,7 @@ pub mod test {
                 creation_timestamp,
                 order_expiry_timestamp: expiry_timestamp,
                 reason: crate::trade::order::OrderReason::Manual,
+                stable: false,
             }
             .into(),
             &mut connection,
@@ -1478,6 +1487,7 @@ pub mod test {
                 creation_timestamp,
                 order_expiry_timestamp,
                 reason: crate::trade::order::OrderReason::Manual,
+                stable: false,
             }
             .into(),
             &mut connection,
@@ -1500,6 +1510,7 @@ pub mod test {
                 creation_timestamp,
                 order_expiry_timestamp,
                 reason: crate::trade::order::OrderReason::Manual,
+                stable: false,
             }
             .into(),
             &mut connection,

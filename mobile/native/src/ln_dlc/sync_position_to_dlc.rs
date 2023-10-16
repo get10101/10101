@@ -364,6 +364,7 @@ mod test {
             expiry: OffsetDateTime::now_utc(),
             updated: OffsetDateTime::now_utc(),
             created: OffsetDateTime::now_utc(),
+            stable: false,
         }
     }
 

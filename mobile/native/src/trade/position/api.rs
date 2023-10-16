@@ -48,6 +48,7 @@ pub struct Position {
     pub position_state: PositionState,
     pub collateral: u64,
     pub expiry: i64,
+    pub stable: bool,
 }
 
 impl From<position::PositionState> for PositionState {
@@ -72,6 +73,7 @@ impl From<position::Position> for Position {
             position_state: value.position_state.into(),
             collateral: value.collateral,
             expiry: value.expiry.unix_timestamp(),
+            stable: value.stable,
         }
     }
 }

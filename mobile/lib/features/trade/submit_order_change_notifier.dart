@@ -43,7 +43,8 @@ class SubmitOrderChangeNotifier extends ChangeNotifier implements Subscriber {
 
   SubmitOrderChangeNotifier(this.orderService);
 
-  submitPendingOrder(TradeValues tradeValues, PositionAction positionAction, {Amount? pnl}) async {
+  submitPendingOrder(TradeValues tradeValues, PositionAction positionAction,
+      {Amount? pnl, bool stable = false}) async {
     _pendingOrder = PendingOrder(tradeValues, positionAction, pnl);
 
     // notify listeners about pending order in state "pending"
@@ -52,7 +53,7 @@ class SubmitOrderChangeNotifier extends ChangeNotifier implements Subscriber {
     try {
       assert(tradeValues.quantity != null, 'Quantity cannot be null when submitting order');
       _pendingOrder!.id = await orderService.submitMarketOrder(tradeValues.leverage,
-          tradeValues.quantity!, ContractSymbol.btcusd, tradeValues.direction);
+          tradeValues.quantity!, ContractSymbol.btcusd, tradeValues.direction, stable);
       _pendingOrder!.state = PendingOrderState.submittedSuccessfully;
     } catch (exception) {
       logger.e("Failed to submit order: $exception");
@@ -87,7 +88,8 @@ class SubmitOrderChangeNotifier extends ChangeNotifier implements Subscriber {
     }
   }
 
-  Future<void> closePosition(Position position, double? closingPrice, Amount? fee) async {
+  Future<void> closePosition(Position position, double? closingPrice, Amount? fee,
+      {bool stable = false}) async {
     await submitPendingOrder(
         TradeValues(
             direction: position.direction.opposite(),
@@ -101,7 +103,8 @@ class SubmitOrderChangeNotifier extends ChangeNotifier implements Subscriber {
             expiry: position.expiry,
             tradeValuesService: TradeValuesService()),
         PositionAction.close,
-        pnl: position.unrealizedPnl);
+        pnl: position.unrealizedPnl,
+        stable: stable);
   }
 
   PendingOrder? get pendingOrder => _pendingOrder;

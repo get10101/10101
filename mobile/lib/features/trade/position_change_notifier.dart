@@ -5,8 +5,6 @@ import 'package:get_10101/common/application/event_service.dart';
 import 'package:get_10101/common/domain/model.dart';
 import 'package:get_10101/features/trade/application/position_service.dart';
 import 'package:get_10101/features/trade/domain/contract_symbol.dart';
-import 'package:get_10101/features/trade/domain/direction.dart';
-import 'package:get_10101/features/trade/domain/leverage.dart';
 import 'package:get_10101/util/preferences.dart';
 
 import 'domain/position.dart';
@@ -40,9 +38,7 @@ class PositionChangeNotifier extends ChangeNotifier implements Subscriber {
 
   bool hasStableUSD() {
     final positionUsd = positions[ContractSymbol.btcusd];
-    return positionUsd != null &&
-        positionUsd.direction == Direction.short &&
-        positionUsd.leverage == Leverage(1);
+    return positionUsd != null && positionUsd.stable;
   }
 
   Future<void> initialize() async {

@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Receive bitcoin in wallet
 - Send bitcoin in wallet to address or BIP21 URI
 - Redesign send and receive screens
+- Add stable flag to position and order
 
 ## [1.4.1] - 2023-10-09
 

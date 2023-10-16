@@ -97,6 +97,7 @@ struct Order {
     pub contract_symbol: ContractSymbol,
     pub leverage: f32,
     pub order_reason: OrderReason,
+    pub stable: bool,
 }
 
 impl From<Order> for OrderbookOrder {
@@ -115,6 +116,7 @@ impl From<Order> for OrderbookOrder {
             expiry: value.expiry,
             order_state: value.order_state.into(),
             order_reason: value.order_reason.into(),
+            stable: value.stable,
         }
     }
 }
@@ -150,6 +152,7 @@ struct NewOrder {
     pub order_reason: OrderReason,
     pub contract_symbol: ContractSymbol,
     pub leverage: f32,
+    pub stable: bool,
 }
 
 impl From<OrderbookNewOrder> for NewOrder {
@@ -173,6 +176,7 @@ impl From<OrderbookNewOrder> for NewOrder {
             order_reason: OrderReason::Manual,
             contract_symbol: value.contract_symbol.into(),
             leverage: value.leverage,
+            stable: value.stable,
         }
     }
 }

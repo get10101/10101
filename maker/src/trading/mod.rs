@@ -142,6 +142,7 @@ async fn add_10101_order(
                 leverage: 1.0,
                 order_type: OrderType::Limit,
                 expiry,
+                stable: false,
             },
         )
         .await

@@ -216,7 +216,8 @@ class _StableBottomSheet extends State<StableBottomSheet> {
                                       stableValuesChangeNotifier.stableValues();
 
                                   submitOrderChangeNotifier.submitPendingOrder(
-                                      tradeValues, PositionAction.open);
+                                      tradeValues, PositionAction.open,
+                                      stable: true);
 
                                   // Return to the trade screen before submitting the pending order so that the dialog is displayed under the correct context
                                   GoRouter.of(context).pop();
