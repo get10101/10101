@@ -1,27 +1,41 @@
+use crate::db;
 use crate::db::positions_helper::get_all_open_positions_with_expiry_before;
+use crate::message::OrderbookMessage;
+use crate::node::Node;
 use crate::notifications::Notification;
 use crate::notifications::NotificationKind;
+use crate::position::models::Position;
 use crate::settings::Settings;
+use anyhow::anyhow;
 use anyhow::Result;
 use bitcoin::Network;
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::Pool;
 use diesel::PgConnection;
+use orderbook_commons::Message;
 use time::OffsetDateTime;
-use tokio::sync::mpsc::Sender;
+use tokio::sync::mpsc;
 use tokio_cron_scheduler::Job;
 use tokio_cron_scheduler::JobScheduler;
 use tokio_cron_scheduler::JobSchedulerError;
 
 pub struct NotificationScheduler {
     scheduler: JobScheduler,
-    sender: Sender<Notification>,
+    sender: mpsc::Sender<Notification>,
     settings: Settings,
     network: Network,
+    node: Node,
+    notifier: mpsc::Sender<OrderbookMessage>,
 }
 
 impl NotificationScheduler {
-    pub async fn new(sender: Sender<Notification>, settings: Settings, network: Network) -> Self {
+    pub async fn new(
+        sender: mpsc::Sender<Notification>,
+        settings: Settings,
+        network: Network,
+        node: Node,
+        notifier: mpsc::Sender<OrderbookMessage>,
+    ) -> Self {
         let scheduler = JobScheduler::new()
             .await
             .expect("To be able to start the scheduler");
@@ -31,6 +45,8 @@ impl NotificationScheduler {
             sender,
             settings,
             network,
+            node,
+            notifier,
         }
     }
 
@@ -60,18 +76,20 @@ impl NotificationScheduler {
         &self,
         pool: Pool<ConnectionManager<PgConnection>>,
     ) -> Result<()> {
-        let sender = self.sender.clone();
         let schedule = self.settings.rollover_window_open_scheduler.clone();
         let network = self.network;
+        let node = self.node.clone();
+        let notifier = self.notifier.clone();
 
         let uuid = self
             .scheduler
             .add(build_rollover_notification_job(
                 schedule.as_str(),
-                sender,
                 pool,
                 network,
                 NotificationKind::RolloverWindowOpen,
+                node,
+                notifier,
             )?)
             .await?;
         tracing::debug!(
@@ -85,18 +103,20 @@ impl NotificationScheduler {
         &self,
         pool: Pool<ConnectionManager<PgConnection>>,
     ) -> Result<()> {
-        let sender = self.sender.clone();
         let schedule = self.settings.rollover_window_close_scheduler.clone();
         let network = self.network;
+        let node = self.node.clone();
+        let notifier = self.notifier.clone();
 
         let uuid = self
             .scheduler
             .add(build_rollover_notification_job(
                 schedule.as_str(),
-                sender,
                 pool,
                 network,
                 NotificationKind::PositionSoonToExpire,
+                node,
+                notifier,
             )?)
             .await?;
 
@@ -115,13 +135,14 @@ impl NotificationScheduler {
 
 fn build_rollover_notification_job(
     schedule: &str,
-    notification_sender: Sender<Notification>,
     pool: Pool<ConnectionManager<PgConnection>>,
     network: Network,
     notification: NotificationKind,
+    node: Node,
+    notifier: mpsc::Sender<OrderbookMessage>,
 ) -> Result<Job, JobSchedulerError> {
     Job::new_async(schedule, move |_, _| {
-        let notification_sender = notification_sender.clone();
+        let notifier = notifier.clone();
         let mut conn = pool.get().expect("To be able to get a db connection");
 
         if !coordinator_commons::is_eligible_for_rollover(OffsetDateTime::now_utc(), network) {
@@ -133,17 +154,17 @@ fn build_rollover_notification_job(
         // calculates the expiry of the next rollover window. positions which have an
         // expiry before that haven't rolled over yet, and need to be reminded.
         let expiry = coordinator_commons::calculate_next_expiry(OffsetDateTime::now_utc(), network);
-        match get_all_open_positions_with_expiry_before(&mut conn, expiry) {
-            Ok(positions_with_token) => Box::pin({
+        match db::positions::Position::get_all_open_positions_with_expiry_before(&mut conn, expiry)
+        {
+            Ok(positions) => Box::pin({
                 let notification = notification.clone();
+                let node = node.clone();
                 async move {
-                    for (position, fcm_token) in positions_with_token {
-                        tracing::debug!(trader_id=%position.trader, "Sending reminder to rollover position.");
-                        if let Err(e) = notification_sender
-                            .send(Notification::new(fcm_token.clone(), notification.clone()))
-                            .await
+                    for position in positions {
+                        if let Err(e) =
+                            send_rollover_reminder(&notifier, &node, &position, &notification).await
                         {
-                            tracing::error!("Failed to send {notification:?} notification: {e:?}");
+                            tracing::error!(trader_id=%position.trader, "Failed to notify trader to rollover. {e:#}");
                         }
                     }
                 }
@@ -155,9 +176,31 @@ fn build_rollover_notification_job(
     })
 }
 
+async fn send_rollover_reminder(
+    notifier: &mpsc::Sender<OrderbookMessage>,
+    node: &Node,
+    position: &Position,
+    notification: &NotificationKind,
+) -> Result<()> {
+    let trader_id = position.trader;
+    tracing::debug!(%trader_id, "Sending rollover reminder.");
+
+    let signed_channel = node.inner.get_signed_channel_by_trader_id(trader_id)?;
+
+    tracing::debug!(%trader_id, position_id=position.id, "Proposing to rollover user's position");
+
+    let message = OrderbookMessage::TraderMessage {
+        trader_id,
+        message: Message::Rollover(signed_channel.get_contract_id().map(hex::encode)),
+        notification: Some(notification.clone()),
+    };
+
+    notifier.send(message).await.map_err(|e| anyhow!("{e:#}"))
+}
+
 fn build_remind_to_close_expired_position_notification_job(
     schedule: &str,
-    notification_sender: Sender<Notification>,
+    notification_sender: mpsc::Sender<Notification>,
     pool: Pool<ConnectionManager<PgConnection>>,
 ) -> Result<Job, JobSchedulerError> {
     Job::new_async(schedule, move |_, _| {

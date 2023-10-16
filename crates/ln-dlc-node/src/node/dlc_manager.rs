@@ -1,9 +1,13 @@
 use crate::fee_rate_estimator::FeeRateEstimator;
 use crate::ln_dlc_wallet::LnDlcWallet;
+use crate::node::Node;
+use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
+use bitcoin::secp256k1::PublicKey;
 use dlc_manager::channel::signed_channel::SignedChannel;
 use dlc_manager::channel::signed_channel::SignedChannelState;
+use dlc_manager::channel::Channel;
 use dlc_manager::Oracle;
 use dlc_manager::SystemTimeProvider;
 use dlc_sled_storage_provider::SledStorageProvider;
@@ -63,4 +67,27 @@ pub fn signed_channel_state_name(signed_channel: &SignedChannel) -> String {
     };
 
     name.to_string()
+}
+
+impl<P> Node<P>
+where
+    P: Send + Sync,
+{
+    pub fn get_signed_channel_by_trader_id(&self, trader_id: PublicKey) -> Result<SignedChannel> {
+        let channel = self
+            .get_dlc_channel_signed(&trader_id)?
+            .with_context(|| format!("Could not find signed DLC channel. trader_id={trader_id}"))?;
+
+        let dlc_channel_id = channel
+            .get_dlc_channel_id(0)
+            .expect("Expect to get dlc_channel id");
+
+        let channel = self.get_dlc_channel_by_id(&dlc_channel_id)?;
+        let signed_channel = match channel {
+            Channel::Signed(signed_channel) => signed_channel,
+            _ => bail!("Couldn't find signed channel for trader_id={trader_id}"),
+        };
+
+        Ok(signed_channel)
+    }
 }
