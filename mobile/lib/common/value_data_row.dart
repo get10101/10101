@@ -26,34 +26,41 @@ class ValueDataRow extends StatelessWidget {
   Widget build(BuildContext context) {
     Widget widget;
 
-    switch (type) {
-      case ValueType.amount:
-        widget = AmountText(
-          amount: value,
-          textStyle: valueTextStyle,
-        );
-        break;
-      case ValueType.fiat:
-        widget = FiatText(amount: value, textStyle: valueTextStyle);
-        break;
-      case ValueType.percentage:
-        widget = Text("$value %", style: valueTextStyle);
-        break;
-      case ValueType.contracts:
-        widget = Text("$value contracts", style: valueTextStyle);
-        break;
-      case ValueType.loading:
-        widget = const SizedBox(width: 20, height: 20, child: CircularProgressIndicator());
-        break;
-      case ValueType.date:
-        widget = Text(DateFormat('dd.MM.yy-kk:mm').format(value), style: valueTextStyle);
-        break;
-      case ValueType.text:
-        widget = SizedBox(
-            width: 100,
-            child: Text(value,
-                textAlign: TextAlign.end, style: valueTextStyle, overflow: TextOverflow.ellipsis));
-        break;
+    if (value != null) {
+      switch (type) {
+        case ValueType.amount:
+          widget = AmountText(
+            amount: value,
+            textStyle: valueTextStyle,
+          );
+          break;
+        case ValueType.fiat:
+          widget = FiatText(amount: value, textStyle: valueTextStyle);
+          break;
+        case ValueType.percentage:
+          widget = Text("$value %", style: valueTextStyle);
+          break;
+        case ValueType.contracts:
+          widget = Text("$value contracts", style: valueTextStyle);
+          break;
+        case ValueType.loading:
+          widget = const SizedBox(width: 20, height: 20, child: CircularProgressIndicator());
+          break;
+        case ValueType.date:
+          widget = Text(DateFormat('dd.MM.yy-kk:mm').format(value), style: valueTextStyle);
+          break;
+        case ValueType.text:
+          widget = SizedBox(
+              width: 100,
+              child: Text(value,
+                  textAlign: TextAlign.end,
+                  style: valueTextStyle,
+                  overflow: TextOverflow.ellipsis));
+          break;
+      }
+    } else {
+      // Gracefully handle the case when we passed in a null value
+      widget = Container();
     }
 
     return Row(
