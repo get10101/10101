@@ -60,7 +60,6 @@ pub fn calculate_short_liquidation_price(leverage: Decimal, price: Decimal) -> D
     price * leverage / (leverage - Decimal::ONE)
 }
 
-// TODO: This was copied from ItchySats and adapted; we need tests for this!
 /// Compute the payout for the given CFD parameters at a particular `closing_price`.
 ///
 /// The `opening_price` of the position is the weighted opening price per quantity.
