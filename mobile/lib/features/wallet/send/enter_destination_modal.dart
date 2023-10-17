@@ -10,13 +10,31 @@ void showEnterDestinationModal(BuildContext context, Function onSetDestination) 
       ),
       clipBehavior: Clip.antiAlias,
       isScrollControlled: true,
-      useRootNavigator: false,
+      useRootNavigator: true,
       context: context,
       builder: (BuildContext context) {
-        return SingleChildScrollView(
-            child: SizedBox(
-                height: 230,
-                child: Scaffold(body: EnterDestinationModal(onSetDestination: onSetDestination))));
+        return SafeArea(
+            child: Padding(
+          padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+          // the GestureDetector ensures that we can close the keyboard by tapping into the modal
+          child: GestureDetector(
+            onTap: () {
+              FocusScopeNode currentFocus = FocusScope.of(context);
+
+              if (!currentFocus.hasPrimaryFocus) {
+                currentFocus.unfocus();
+              }
+            },
+            child: SingleChildScrollView(
+              child: SizedBox(
+                // TODO: Find a way to make height dynamic depending on the children size
+                // This is needed because otherwise the keyboard does not push the sheet up correctly
+                height: 200,
+                child: EnterDestinationModal(onSetDestination: onSetDestination),
+              ),
+            ),
+          ),
+        ));
       });
 }
 
@@ -34,30 +52,28 @@ class _EnterDestinationModalState extends State<EnterDestinationModal> {
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.only(left: 20.0, top: 35.0, right: 20.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            TextFormField(
-              decoration: const InputDecoration(
-                labelText: "Destination",
-                hintText: "e.g an invoice, bip21 uri or on-chain address",
-              ),
-              onChanged: (value) {
-                destination = value;
-              },
+    return Padding(
+      padding: const EdgeInsets.only(left: 20.0, top: 30.0, right: 20.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          TextFormField(
+            decoration: const InputDecoration(
+              labelText: "Destination",
+              hintText: "e.g an invoice, bip21 uri or on-chain address",
             ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-                onPressed: () {
-                  widget.onSetDestination(destination);
-                  GoRouter.of(context).pop();
-                },
-                child: const Text("Set Destination", style: TextStyle(fontSize: 16)))
-          ],
-        ),
+            onChanged: (value) {
+              destination = value;
+            },
+          ),
+          const SizedBox(height: 20),
+          ElevatedButton(
+              onPressed: () {
+                widget.onSetDestination(destination);
+                GoRouter.of(context).pop();
+              },
+              child: const Text("Set Destination", style: TextStyle(fontSize: 16)))
+        ],
       ),
     );
   }
