@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.2] - 2023-10-18
+
 - Only contracts are editable for new orders
 - Contracts can only be entered in full amounts
 - New default amount is 10 contracts
@@ -134,7 +136,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Self-Custodial CFD Trading based on DLC and lightning
 
-[Unreleased]: https://github.com/get10101/10101/compare/1.4.1...HEAD
+[Unreleased]: https://github.com/get10101/10101/compare/1.4.2...HEAD
+[1.4.2]: https://github.com/get10101/10101/compare/1.4.1...1.4.2
 [1.4.1]: https://github.com/get10101/10101/compare/1.4.0...1.4.1
 [1.4.0]: https://github.com/get10101/10101/compare/1.3.0...1.4.0
 [1.3.0]: https://github.com/get10101/10101/compare/1.2.6...1.3.0
