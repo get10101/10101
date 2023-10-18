@@ -85,7 +85,7 @@ pub async fn notify_user_to_collaboratively_revert(
         channel_details.outbound_capacity_msat / 1000,
         position.trader_margin,
         position.coordinator_margin,
-    );
+    )?;
 
     // Coordinator's amount is the total channel's value (fund_value_satoshis) whatever the taker
     // had (inbound_capacity), the taker's PnL (settlement_amount) and the transaction fee
@@ -165,23 +165,51 @@ fn calculate_dlc_channel_tx_fees(
     outbound_capacity: u64,
     trader_margin: i64,
     coordinator_margin: i64,
-) -> u64 {
-    initial_funding
-        - (inbound_capacity
-            + outbound_capacity
-            + (trader_margin - pnl) as u64
-            + (coordinator_margin + pnl) as u64)
+) -> anyhow::Result<u64> {
+    let dlc_tx_fee = initial_funding
+        .checked_sub(inbound_capacity)
+        .context("could not subtract inbound capacity")?
+        .checked_sub(outbound_capacity)
+        .context("could not subtract outbound capacity")?
+        .checked_sub(
+            trader_margin
+                .checked_sub(pnl)
+                .context("could not substract pnl")? as u64,
+        )
+        .context("could not subtract trader margin")?
+        .checked_sub(
+            coordinator_margin
+                .checked_add(pnl)
+                .context("could not add pnl")? as u64,
+        )
+        .context("could not subtract coordinator margin")?;
+    Ok(dlc_tx_fee)
 }
 
 #[cfg(test)]
 pub mod tests {
     use crate::collaborative_revert::calculate_dlc_channel_tx_fees;
+    use crate::position::models::Position;
+    use trade::Direction;
 
     #[test]
     pub fn calculate_transaction_fee_for_dlc_channel_transactions() {
         let total_fee =
             calculate_dlc_channel_tx_fees(200_000, -4047, 65_450, 85_673, 18_690, 18_690);
         assert_eq!(total_fee, 11_497);
+    }
+
+    #[test]
+    pub fn ensure_overflow_being_caught() {
+        let position = Position::dummy()
+            .with_direction(Direction::Long)
+            .with_quantity(10.0)
+            .with_leverage(2.0)
+            .with_average_entry_price(28743.5);
+
+        assert!(
+            calculate_dlc_channel_tx_fees(200_000, -100, 65_383, 88_330, 180_362, 180_362).is_err()
+        );
     }
 }
 

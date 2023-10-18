@@ -479,6 +479,7 @@ pub mod tests {
         }
     }
 
+    #[cfg(test)]
     impl Position {
         pub(crate) fn dummy() -> Self {
             Position {
@@ -505,22 +506,22 @@ pub mod tests {
             }
         }
 
-        fn with_quantity(mut self, quantity: f32) -> Self {
+        pub(crate) fn with_quantity(mut self, quantity: f32) -> Self {
             self.quantity = quantity;
             self
         }
 
-        fn with_average_entry_price(mut self, average_entry_price: f32) -> Self {
+        pub(crate) fn with_average_entry_price(mut self, average_entry_price: f32) -> Self {
             self.average_entry_price = average_entry_price;
             self
         }
 
-        fn with_leverage(mut self, leverage: f32) -> Self {
+        pub(crate) fn with_leverage(mut self, leverage: f32) -> Self {
             self.trader_leverage = leverage;
             self
         }
 
-        fn with_direction(mut self, direction: Direction) -> Self {
+        pub(crate) fn with_direction(mut self, direction: Direction) -> Self {
             self.direction = direction;
             self
         }
