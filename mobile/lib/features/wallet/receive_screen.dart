@@ -62,8 +62,10 @@ class _ReceiveScreenState extends State<ReceiveScreen> {
     final bridge.Config config = context.read<bridge.Config>();
 
     if (_paymentRequest == null) {
-      return const Center(
-          child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator()));
+      return Scaffold(
+          appBar: AppBar(title: const Text("Receive funds")),
+          body: const Center(
+              child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator())));
     }
 
     final isPaymentClaimed = context.watch<PaymentClaimedChangeNotifier>().isClaimed();
