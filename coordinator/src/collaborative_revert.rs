@@ -189,24 +189,16 @@ fn calculate_dlc_channel_tx_fees(
 #[cfg(test)]
 pub mod tests {
     use crate::collaborative_revert::calculate_dlc_channel_tx_fees;
-    use crate::position::models::Position;
-    use trade::Direction;
 
     #[test]
     pub fn calculate_transaction_fee_for_dlc_channel_transactions() {
         let total_fee =
-            calculate_dlc_channel_tx_fees(200_000, -4047, 65_450, 85_673, 18_690, 18_690);
+            calculate_dlc_channel_tx_fees(200_000, -4047, 65_450, 85_673, 18_690, 18_690).unwrap();
         assert_eq!(total_fee, 11_497);
     }
 
     #[test]
     pub fn ensure_overflow_being_caught() {
-        let position = Position::dummy()
-            .with_direction(Direction::Long)
-            .with_quantity(10.0)
-            .with_leverage(2.0)
-            .with_average_entry_price(28743.5);
-
         assert!(
             calculate_dlc_channel_tx_fees(200_000, -100, 65_383, 88_330, 180_362, 180_362).is_err()
         );
