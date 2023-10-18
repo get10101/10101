@@ -16,7 +16,6 @@ use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::Pool;
 use diesel::PgConnection;
 use dlc_manager::channel::signed_channel::SignedChannel;
-use dlc_manager::channel::Channel;
 use dlc_manager::contract::contract_input::ContractInput;
 use dlc_manager::contract::contract_input::ContractInputInfo;
 use dlc_manager::contract::contract_input::OracleInput;
@@ -154,23 +153,9 @@ impl Node {
             trader_id,
             vec![PositionState::Open, PositionState::Rollover],
         )? {
-            let channel = self
+            let signed_channel = self
                 .inner
-                .get_dlc_channel_signed(&position.trader)?
-                .with_context(|| {
-                    format!("Expect signed dlc channel to exist. trader_id={trader_id}")
-                })?;
-
-            let dlc_channel_id = channel.get_dlc_channel_id(0).with_context(|| {
-                format!("Expected to get dlc_channel id. trader_id={trader_id}")
-            })?;
-
-            let channel = self.inner.get_dlc_channel_by_id(&dlc_channel_id)?;
-            let trader_id = channel.get_counter_party_id();
-            let signed_channel = match channel {
-                Channel::Signed(signed_channel) => signed_channel,
-                _ => bail!("Expected channel to be signed. trader_id={}", trader_id),
-            };
+                .get_signed_channel_by_trader_id(position.trader)?;
 
             let (retry_rollover, contract_id) = match position.position_state {
                 PositionState::Rollover => self.rollback_channel_if_needed(conn, signed_channel)?,
@@ -188,7 +173,7 @@ impl Node {
                     return Ok(());
                 }
 
-                tracing::debug!(%trader_id, position_id=position.id, retry_rollover, "Proposing to rollover users position");
+                tracing::debug!(%trader_id, position_id=position.id, retry_rollover, "Proposing to rollover user's position");
 
                 let message = OrderbookMessage::TraderMessage {
                     trader_id,

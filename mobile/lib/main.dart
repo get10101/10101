@@ -114,7 +114,7 @@ class TenTenOneApp extends StatefulWidget {
   State<TenTenOneApp> createState() => _TenTenOneAppState();
 }
 
-class _TenTenOneAppState extends State<TenTenOneApp> {
+class _TenTenOneAppState extends State<TenTenOneApp> with WidgetsBindingObserver {
   final GlobalKey<ScaffoldMessengerState> scaffoldMessengerKey =
       GlobalKey<ScaffoldMessengerState>();
 
@@ -215,6 +215,8 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
   void initState() {
     super.initState();
 
+    WidgetsBinding.instance.addObserver(this);
+
     final config = context.read<bridge.Config>();
 
     init(config);
@@ -222,6 +224,17 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await compareCoordinatorVersion(config);
     });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    logger.d("AppLifecycleState changed to: $state");
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
   }
 
   @override

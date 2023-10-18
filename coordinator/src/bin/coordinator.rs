@@ -265,7 +265,7 @@ async fn main() -> Result<()> {
     });
 
     let app = router(
-        node,
+        node.clone(),
         pool.clone(),
         settings.clone(),
         exporter,
@@ -274,11 +274,12 @@ async fn main() -> Result<()> {
         trading_sender,
         tx_price_feed,
         tx_user_feed,
-        auth_users_notifier,
+        auth_users_notifier.clone(),
     );
 
     let sender = notification_service.get_sender();
-    let notification_scheduler = NotificationScheduler::new(sender, settings, network);
+    let notification_scheduler =
+        NotificationScheduler::new(sender, settings, network, node, auth_users_notifier);
     tokio::spawn({
         let pool = pool.clone();
         let scheduler = notification_scheduler;
