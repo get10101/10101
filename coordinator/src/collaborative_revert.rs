@@ -101,6 +101,20 @@ pub async fn notify_user_to_collaboratively_revert(
     )
     .expect("To be able to calculate constant fee rate");
 
+    tracing::debug!(
+        coordinator_amount,
+        fund_value_satoshis = sub_channel.fund_value_satoshis,
+        inbound_capacity_msat = channel_details.inbound_capacity_msat,
+        settlement_amount,
+        dlc_channel_fee,
+        inbound_capacity_msat = channel_details.inbound_capacity_msat,
+        outbound_capacity_msat = channel_details.outbound_capacity_msat,
+        trader_margin = position.trader_margin,
+        coordinator_margin = position.coordinator_margin,
+        position_id = position.id,
+        "Collaborative revert temporary values"
+    );
+
     let coordinator_addrss = node.get_unused_address();
     let coordinator_amount = Amount::from_sat(coordinator_amount as u64 - fee / 2);
     let trader_amount = Amount::from_sat(trader_amount - fee / 2);
