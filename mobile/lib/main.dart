@@ -147,6 +147,10 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
                   // Use root navigator so the screen overlays the application shell
                   parentNavigatorKey: rootNavigatorKey,
                   builder: (BuildContext context, GoRouterState state) {
+                    if (state.extra != null) {
+                      return SendScreen(encodedDestination: state.extra as String?);
+                    }
+
                     return const SendScreen();
                   },
                 ),
