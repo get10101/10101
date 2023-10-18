@@ -11,8 +11,7 @@ import 'package:get_10101/features/wallet/wallet_change_notifier.dart';
 import 'package:get_10101/features/wallet/wallet_theme.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-
-import 'domain/payment_flow.dart';
+import 'package:get_10101/features/wallet/domain/payment_flow.dart';
 
 class BalanceRow extends StatefulWidget {
   final WalletType walletType;

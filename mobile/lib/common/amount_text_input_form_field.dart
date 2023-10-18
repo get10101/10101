@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get_10101/common/application/numeric_text_formatter.dart';
-
-import 'domain/model.dart';
-import 'modal_bottom_sheet_info.dart';
+import 'package:get_10101/common/domain/model.dart';
+import 'package:get_10101/common/modal_bottom_sheet_info.dart';
 
 class AmountInputField extends StatefulWidget {
   const AmountInputField(

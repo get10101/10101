@@ -2,9 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:get_10101/features/trade/domain/direction.dart';
 import 'package:get_10101/features/trade/trade_theme.dart';
 import 'package:intl/intl.dart';
-
-import 'contract_symbol_icon.dart';
-import 'domain/order.dart';
+import 'package:get_10101/features/trade/contract_symbol_icon.dart';
+import 'package:get_10101/features/trade/domain/order.dart';
 
 class OrderListItem extends StatelessWidget {
   const OrderListItem({super.key, required this.order});

@@ -6,9 +6,8 @@ import 'package:get_10101/common/domain/model.dart';
 import 'package:get_10101/features/trade/application/position_service.dart';
 import 'package:get_10101/features/trade/domain/contract_symbol.dart';
 import 'package:get_10101/util/preferences.dart';
-
-import 'domain/position.dart';
-import 'domain/price.dart';
+import 'package:get_10101/features/trade/domain/position.dart';
+import 'package:get_10101/features/trade/domain/price.dart';
 
 class PositionChangeNotifier extends ChangeNotifier implements Subscriber {
   final PositionService _positionService;

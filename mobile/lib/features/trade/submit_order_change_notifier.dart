@@ -7,9 +7,8 @@ import 'package:get_10101/features/trade/application/order_service.dart';
 import 'package:get_10101/features/trade/application/trade_values_service.dart';
 import 'package:get_10101/features/trade/domain/contract_symbol.dart';
 import 'package:get_10101/features/trade/domain/position.dart';
-
-import 'domain/order.dart';
-import 'domain/trade_values.dart';
+import 'package:get_10101/features/trade/domain/order.dart';
+import 'package:get_10101/features/trade/domain/trade_values.dart';
 
 enum PendingOrderState {
   submitting,

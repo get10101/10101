@@ -39,6 +39,7 @@ dependencies:
   firebase_messaging: ^14.6.5
   flutter_local_notifications: ^15.1.0+1
   url_launcher: ^6.1.14
+  nested: ^1.0.0
   qr_code_scanner: ^1.0.1
 dependency_overrides:
   intl: ^0.18.0

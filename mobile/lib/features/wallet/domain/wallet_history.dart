@@ -1,6 +1,6 @@
 import 'package:get_10101/common/domain/model.dart';
 import 'package:get_10101/features/wallet/wallet_history_item.dart';
-import 'payment_flow.dart';
+import 'package:get_10101/features/wallet/domain/payment_flow.dart';
 import 'package:get_10101/bridge_generated/bridge_definitions.dart' as rust;
 
 enum WalletHistoryStatus {
