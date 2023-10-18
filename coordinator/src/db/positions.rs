@@ -58,7 +58,10 @@ impl Position {
             )
         }
 
-        let x = query.first::<Position>(conn).optional()?;
+        let x = query
+            .order_by(positions::creation_timestamp.desc())
+            .first::<Position>(conn)
+            .optional()?;
 
         Ok(x.map(crate::position::models::Position::from))
     }
