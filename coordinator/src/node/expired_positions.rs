@@ -93,6 +93,7 @@ pub async fn close(node: Node, trading_sender: mpsc::Sender<NewOrderMessage>) ->
             // a certain time period we can assume the channel to be abandoned and we should force
             // close.
             expiry: OffsetDateTime::now_utc().add(EXPIRED_POSITION_TIMEOUT),
+            stable: position.stable,
         };
 
         let (sender, mut receiver) = mpsc::channel::<Result<Order>>(1);

@@ -133,6 +133,7 @@ pub struct Order {
     pub creation_timestamp: OffsetDateTime,
     pub order_expiry_timestamp: OffsetDateTime,
     pub reason: OrderReason,
+    pub stable: bool,
 }
 
 impl Order {
@@ -180,6 +181,7 @@ impl From<Order> for orderbook_commons::NewOrder {
             leverage: order.leverage,
             order_type: order.order_type.into(),
             expiry: order.order_expiry_timestamp,
+            stable: order.stable,
         }
     }
 }

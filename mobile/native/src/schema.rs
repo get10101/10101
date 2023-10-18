@@ -37,6 +37,7 @@ diesel::table! {
         failure_reason -> Nullable<Text>,
         order_expiry_timestamp -> BigInt,
         reason -> Text,
+        stable -> Bool,
     }
 }
 
@@ -70,6 +71,7 @@ diesel::table! {
         creation_timestamp -> BigInt,
         expiry_timestamp -> BigInt,
         updated_timestamp -> BigInt,
+        stable -> Bool,
     }
 }
 

@@ -169,7 +169,7 @@ void main() {
         const Offset(275, 0), const Duration(seconds: 2),
         pointer: 7);
 
-    verify(orderService.submitMarketOrder(any, any, any, any)).called(1);
+    verify(orderService.submitMarketOrder(any, any, any, any, any)).called(1);
   });
 }
 

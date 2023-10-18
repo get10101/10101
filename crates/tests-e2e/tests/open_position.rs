@@ -17,6 +17,7 @@ fn dummy_order() -> NewOrder {
         direction: api::Direction::Long,
         quantity: 1.0,
         order_type: Box::new(OrderType::Market),
+        stable: false,
     }
 }
 

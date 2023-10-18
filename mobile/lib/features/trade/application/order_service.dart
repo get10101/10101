@@ -7,13 +7,14 @@ import 'package:get_10101/ffi.dart' as rust;
 
 class OrderService {
   Future<String> submitMarketOrder(Leverage leverage, Amount quantity,
-      ContractSymbol contractSymbol, Direction direction) async {
+      ContractSymbol contractSymbol, Direction direction, bool stable) async {
     rust.NewOrder order = rust.NewOrder(
         leverage: leverage.leverage,
         quantity: quantity.asDouble(),
         contractSymbol: contractSymbol.toApi(),
         direction: direction.toApi(),
-        orderType: const rust.OrderType.market());
+        orderType: const rust.OrderType.market(),
+        stable: stable);
 
     // The problem here is that we have a concurrency issue when sending a payment and trying to open/close a position.
     // The sleep here tries to ensure that we do not process the order matching fee payment from an older order while triggering the next order.

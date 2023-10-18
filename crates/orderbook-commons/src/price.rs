@@ -104,6 +104,7 @@ mod test {
             expiry: OffsetDateTime::now_utc(),
             order_state,
             order_reason: OrderReason::Manual,
+            stable: false,
         }
     }
 

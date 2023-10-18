@@ -99,7 +99,8 @@ class BitcoinizeBottomSheet extends StatelessWidget {
                     final submitOrderChangeNotifier = context.read<SubmitOrderChangeNotifier>();
                     stableValues.margin = position.getAmountWithUnrealizedPnl();
                     submitOrderChangeNotifier.closePosition(
-                        position, stableValues.price, stableValues.fee);
+                        position, stableValues.price, stableValues.fee,
+                        stable: true);
 
                     // Return to the stable screen before submitting the pending order so that the dialog is displayed under the correct context
                     GoRouter.of(context).pop();

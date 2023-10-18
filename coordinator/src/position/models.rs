@@ -27,6 +27,7 @@ pub struct NewPosition {
     pub expiry_timestamp: OffsetDateTime,
     pub temporary_contract_id: ContractId,
     pub trader_margin: i64,
+    pub stable: bool,
 }
 
 #[derive(Clone, PartialEq, Debug)]
@@ -78,6 +79,7 @@ pub struct Position {
     pub temporary_contract_id: Option<ContractId>,
     pub closing_price: Option<f32>,
     pub trader_margin: i64,
+    pub stable: bool,
 }
 
 impl Position {
@@ -502,6 +504,7 @@ pub mod tests {
                 closing_price: None,
                 coordinator_leverage: 2.0,
                 trader_margin: 1000,
+                stable: false,
             }
         }
 

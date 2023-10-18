@@ -79,6 +79,7 @@ pub async fn async_trade(order: orderbook_commons::Order, filled_with: FilledWit
         creation_timestamp: order.timestamp,
         order_expiry_timestamp: order.expiry,
         reason: order.order_reason.into(),
+        stable: order.stable,
     };
 
     db::insert_order(order)?;
@@ -200,6 +201,7 @@ pub fn update_position_after_dlc_creation(
         expiry,
         updated: OffsetDateTime::now_utc(),
         created: OffsetDateTime::now_utc(),
+        stable: filled_order.stable,
     };
 
     let position = db::insert_position(have_a_position)?;

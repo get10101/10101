@@ -30,6 +30,7 @@ class Position {
   final Direction direction;
   final double averageEntryPrice;
   final double liquidationPrice;
+  final bool stable;
 
   // The unrealized PnL is calculated from the current price
   Amount? unrealizedPnl;
@@ -47,9 +48,10 @@ class Position {
       required this.positionState,
       this.unrealizedPnl,
       required this.collateral,
-      required this.expiry});
+      required this.expiry,
+      required this.stable});
 
-  bool isStable() => direction == Direction.short && leverage == Leverage(1);
+  bool isStable() => stable;
 
   Amount getAmountWithUnrealizedPnl() {
     if (unrealizedPnl != null) {
@@ -70,6 +72,7 @@ class Position {
       liquidationPrice: position.liquidationPrice,
       collateral: Amount(position.collateral),
       expiry: DateTime.fromMillisecondsSinceEpoch(position.expiry * 1000),
+      stable: position.stable,
     );
   }
 
@@ -84,6 +87,7 @@ class Position {
       liquidationPrice: 0,
       collateral: 0,
       expiry: 0,
+      stable: false,
     );
   }
 }

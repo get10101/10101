@@ -51,4 +51,5 @@ pub struct Position {
     pub expiry: OffsetDateTime,
     pub updated: OffsetDateTime,
     pub created: OffsetDateTime,
+    pub stable: bool,
 }

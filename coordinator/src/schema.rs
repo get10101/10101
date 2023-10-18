@@ -142,6 +142,7 @@ diesel::table! {
         contract_symbol -> ContractSymbolType,
         leverage -> Float4,
         order_reason -> OrderReasonType,
+        stable -> Bool,
     }
 }
 
@@ -193,6 +194,7 @@ diesel::table! {
         closing_price -> Nullable<Float4>,
         coordinator_leverage -> Float4,
         trader_margin -> Int8,
+        stable -> Bool,
     }
 }
 

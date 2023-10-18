@@ -439,6 +439,7 @@ pub mod tests {
             expiry: OffsetDateTime::now_utc() + Duration::minutes(1),
             order_state: OrderState::Open,
             order_reason: OrderReason::Manual,
+            stable: false,
         }
     }
 
@@ -579,6 +580,7 @@ pub mod tests {
             expiry: OffsetDateTime::now_utc() + Duration::minutes(1),
             order_state: OrderState::Open,
             order_reason: OrderReason::Manual,
+            stable: false,
         };
 
         let matched_orders = match_order(&order, all_orders, Network::Bitcoin)
@@ -655,6 +657,7 @@ pub mod tests {
             expiry: OffsetDateTime::now_utc() + Duration::minutes(1),
             order_state: OrderState::Open,
             order_reason: OrderReason::Manual,
+            stable: false,
         };
 
         assert!(match_order(&order, all_orders, Network::Bitcoin).is_err());
@@ -705,6 +708,7 @@ pub mod tests {
             expiry: OffsetDateTime::now_utc() + Duration::minutes(1),
             order_state: OrderState::Open,
             order_reason: OrderReason::Manual,
+            stable: false,
         };
 
         let matched_orders = match_order(&order, all_orders, Network::Bitcoin).unwrap();

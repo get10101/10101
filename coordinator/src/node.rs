@@ -244,6 +244,7 @@ impl Node {
                     trade_params,
                     fee_payment_hash,
                     coordinator_leverage,
+                    order.stable,
                 )
                 .await?;
             }
@@ -283,6 +284,7 @@ impl Node {
         trade_params: &TradeParams,
         fee_payment_hash: PaymentHash,
         coordinator_leverage: f32,
+        stable: bool,
     ) -> Result<()> {
         let peer_id = trade_params.pubkey;
         tracing::info!(%peer_id, ?trade_params, "Opening position");
@@ -360,6 +362,7 @@ impl Node {
             fee_payment_hash,
             temporary_contract_id,
             coordinator_leverage,
+            stable,
         )
     }
 
@@ -371,6 +374,7 @@ impl Node {
         fee_payment_hash: PaymentHash,
         temporary_contract_id: ContractId,
         coordinator_leverage: f32,
+        stable: bool,
     ) -> Result<()> {
         let liquidation_price = liquidation_price(trade_params);
         let margin_coordinator = margin_coordinator(trade_params, coordinator_leverage);
@@ -393,6 +397,7 @@ impl Node {
             expiry_timestamp: trade_params.filled_with.expiry_timestamp,
             temporary_contract_id,
             trader_margin: margin_trader as i64,
+            stable,
         };
         tracing::debug!(?new_position, "Inserting new position into db");
 
