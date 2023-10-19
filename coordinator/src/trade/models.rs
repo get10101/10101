@@ -14,7 +14,6 @@ pub struct NewTrade {
     pub coordinator_margin: i64,
     pub direction: Direction,
     pub average_price: f32,
-    pub fee_payment_hash: PaymentHash,
 }
 
 #[derive(Debug)]

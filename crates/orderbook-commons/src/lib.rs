@@ -26,9 +26,6 @@ pub use crate::price::best_current_price;
 pub use crate::price::Price;
 pub use crate::price::Prices;
 
-/// The prefix used in the description field of an order-matching fee invoice to be paid by a taker.
-pub const FEE_INVOICE_DESCRIPTION_PREFIX_TAKER: &str = "taker-fee-";
-
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub enum OrderState {
     Open,

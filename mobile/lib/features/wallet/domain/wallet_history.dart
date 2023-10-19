@@ -61,7 +61,13 @@ abstract class WalletHistoryItemData {
       rust.WalletHistoryItemType_Trade type = item.walletType as rust.WalletHistoryItemType_Trade;
 
       return TradeData(
-          flow: flow, amount: amount, status: status, timestamp: timestamp, orderId: type.orderId);
+          flow: flow,
+          amount: amount,
+          status: status,
+          timestamp: timestamp,
+          orderId: type.orderId,
+          fee: Amount(type.feeSat),
+          pnl: type.pnl != null ? Amount(type.pnl!) : null);
     }
 
     if (item.walletType is rust.WalletHistoryItemType_OrderMatchingFee) {
@@ -193,12 +199,16 @@ class JitChannelOpenFeeData extends WalletHistoryItemData {
 
 class TradeData extends WalletHistoryItemData {
   final String orderId;
+  final Amount fee;
+  final Amount? pnl;
 
   TradeData(
       {required super.flow,
       required super.amount,
       required super.status,
       required super.timestamp,
+      required this.fee,
+      this.pnl,
       required this.orderId});
 
   @override

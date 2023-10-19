@@ -17,6 +17,7 @@ pub fn calculate_quantity(opening_price: f32, margin: u64, leverage: f32) -> f32
     cfd::calculate_quantity(opening_price, margin, leverage)
 }
 
+/// PnL is calculated using the margin without fees to show the effective profit or loss.
 pub fn calculate_pnl(
     opening_price: f32,
     closing_price: Price,

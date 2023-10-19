@@ -7,11 +7,14 @@ use crate::ln_dlc::node::Node;
 use crate::trade::order;
 use crate::trade::position;
 use crate::trade::position::Position;
+use anyhow::Context;
 use anyhow::Result;
 use ln_dlc_node::node::rust_dlc_manager::subchannel::SubChannel;
 use ln_dlc_node::node::rust_dlc_manager::subchannel::SubChannelState;
 use ln_dlc_node::node::rust_dlc_manager::ChannelId;
 use ln_dlc_node::node::rust_dlc_manager::Storage;
+use orderbook_commons::order_matching_fee_taker;
+use rust_decimal::Decimal;
 use std::time::Duration;
 
 #[derive(PartialEq, Clone, Debug)]
@@ -52,13 +55,20 @@ impl Node {
             Some(SyncPositionToDlcAction::CreatePosition(channel_id)) => {
                 match order::handler::order_filled() {
                     Ok(order) => {
+                        let execution_price =
+                            order.execution_price().context("expect execution price")?;
+                        let open_position_fee = order_matching_fee_taker(
+                            order.quantity,
+                            Decimal::try_from(execution_price)?,
+                        );
+
                         let (accept_collateral, expiry_timestamp) = self
                             .inner
                             .get_collateral_and_expiry_for_confirmed_contract(channel_id)?;
 
                         position::handler::update_position_after_dlc_creation(
                             order,
-                            accept_collateral,
+                            accept_collateral - open_position_fee.to_sat(),
                             expiry_timestamp,
                         )?;
 

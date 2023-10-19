@@ -37,7 +37,6 @@ struct NewTrade {
     collateral: i64,
     direction: Direction,
     average_price: f32,
-    pub fee_payment_hash: String,
 }
 
 pub fn insert(
@@ -77,7 +76,6 @@ impl From<crate::trade::models::NewTrade> for NewTrade {
             collateral: value.coordinator_margin,
             direction: value.direction.into(),
             average_price: value.average_price,
-            fee_payment_hash: value.fee_payment_hash.0.to_hex(),
         }
     }
 }

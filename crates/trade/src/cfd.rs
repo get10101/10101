@@ -100,8 +100,6 @@ pub fn calculate_pnl(
         SignedAmount::from_btc(uncapped_pnl)?.to_sat()
     };
 
-    // TODO: Fees are still missing; see ItchySats FeeAccount
-
     let pnl = match direction {
         Direction::Long => uncapped_pnl_long.min(short_margin as i64),
         Direction::Short => uncapped_pnl_long.neg().min(long_margin as i64),

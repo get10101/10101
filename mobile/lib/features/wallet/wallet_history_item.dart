@@ -3,12 +3,12 @@ import 'package:flutter/services.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
 import 'package:get_10101/common/amount_text.dart';
+import 'package:get_10101/common/color.dart';
 import 'package:get_10101/common/domain/model.dart';
-import 'package:get_10101/common/middle_ellipsised_text.dart';
 import 'package:get_10101/common/snack_bar.dart';
+import 'package:get_10101/features/wallet/application/util.dart';
 import 'package:get_10101/features/wallet/domain/payment_flow.dart';
 import 'package:get_10101/features/wallet/domain/wallet_history.dart';
-import 'package:get_10101/features/wallet/wallet_theme.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:timeago/timeago.dart' as timeago;
@@ -21,8 +21,11 @@ abstract class WalletHistoryItem extends StatelessWidget {
   const WalletHistoryItem({super.key});
 
   List<Widget> getDetails();
+
   IconData getFlowIcon();
+
   bool isOnChain();
+
   String getTitle();
 
   @override
@@ -130,16 +133,12 @@ abstract class WalletHistoryItem extends StatelessWidget {
 
     int sats = data.amount.sats * directionMultiplier;
 
-    WalletTheme theme = Theme.of(context).extension<WalletTheme>()!;
-    HSLColor hsl = HSLColor.fromColor(theme.lightning);
-    Color lightningColor = hsl.withLightness(hsl.lightness - 0.15).toColor();
-
-    // TODO(stable): when we have stablesats send & receive, we can
+    // TODO(pegz): when we have pegz send & receive, we can
     // set the right icon here
     SvgPicture icon = switch (isOnChain()) {
       true => SvgPicture.asset("assets/Bitcoin_logo.svg"),
       false => SvgPicture.asset("assets/Lightning_logo.svg",
-          colorFilter: ColorFilter.mode(lightningColor, BlendMode.srcIn)),
+          colorFilter: const ColorFilter.mode(tenTenOnePurple, BlendMode.srcIn)),
     };
 
     List<Widget> details = [
@@ -169,11 +168,10 @@ abstract class WalletHistoryItem extends StatelessWidget {
         context: context,
         builder: (BuildContext context) => SafeArea(
                 child: Padding(
-              padding: EdgeInsets.fromLTRB(
-                16,
-                16,
-                16,
-                MediaQuery.of(context).viewInsets.bottom + 16,
+              padding: const EdgeInsets.only(
+                top: 16,
+                left: 20,
+                right: 10,
               ),
               child: Column(mainAxisSize: MainAxisSize.min, children: [
                 SizedBox(width: 50, height: 50, child: icon),
@@ -186,7 +184,7 @@ abstract class WalletHistoryItem extends StatelessWidget {
                 ...details
                     .take(details.length - 1)
                     .where((child) => child is! Visibility || child.visible)
-                    .expand((child) => [child, const Divider()]),
+                    .expand((child) => [child, const Divider(height: 0)]),
                 details.last,
               ]),
             )));
@@ -199,26 +197,20 @@ class HistoryDetail extends StatelessWidget {
   final Widget? displayWidget;
 
   static const TextStyle defaultValueStyle = TextStyle(fontSize: 16);
-  static const TextStyle codeStyle = TextStyle(fontSize: 16, fontFamily: "Courier");
-  final TextStyle? valueStyle;
 
-  const HistoryDetail(
-      {super.key, required this.label, required this.value, this.displayWidget, this.valueStyle});
+  const HistoryDetail({super.key, required this.label, required this.value, this.displayWidget});
 
   @override
   Widget build(BuildContext context) {
     return Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-      Padding(
-        padding: const EdgeInsets.only(right: 8.0),
-        child: Text(label, style: defaultValueStyle.copyWith(fontWeight: FontWeight.bold)),
-      ),
+      Text(label, style: defaultValueStyle.copyWith(fontWeight: FontWeight.bold)),
       Expanded(
         child: Row(children: [
           Expanded(
               child: Align(
                   alignment: Alignment.centerRight,
                   child: displayWidget ??
-                      MiddleEllipsisedText(value, style: valueStyle ?? defaultValueStyle))),
+                      Text(truncateWithEllipsis(10, value), style: defaultValueStyle))),
           IconButton(
               padding: EdgeInsets.zero,
               onPressed: () {
@@ -251,22 +243,33 @@ class TransactionIdText extends StatelessWidget {
   Widget build(BuildContext context) {
     final bridge.Config config = context.read<bridge.Config>();
 
-    List<String> network = switch (config.network) {
-      "signet" => ["signet"],
-      "testnet" => ["testnet"],
-      _ => [],
+    Uri uri = switch (config.network) {
+      "signet" => Uri(
+          scheme: 'https',
+          host: 'mempool.space',
+          pathSegments: ['signet', 'tx', txId],
+        ),
+      "testnet" => Uri(
+          scheme: 'https',
+          host: 'mempool.space',
+          pathSegments: ['testnet', 'tx', txId],
+        ),
+      "regtest" => Uri.parse(
+          "${const String.fromEnvironment("REGTEST_FAUCET", defaultValue: "http://34.32.0.52:8080")}/tx/$txId"),
+      _ => Uri(
+          scheme: 'https',
+          host: 'mempool.space',
+          pathSegments: ['tx', txId],
+        ),
     };
 
     return Row(
+      mainAxisAlignment: MainAxisAlignment.end,
       children: [
-        Expanded(child: MiddleEllipsisedText(txId, style: HistoryDetail.codeStyle)),
+        Text(truncateWithEllipsis(10, txId)),
         IconButton(
             padding: EdgeInsets.zero,
-            onPressed: () => launchUrl(Uri(
-                  scheme: 'https',
-                  host: 'mempool.space',
-                  pathSegments: [...network, 'tx', txId],
-                )),
+            onPressed: () => launchUrl(uri),
             icon: const Icon(Icons.open_in_new, size: 18))
       ],
     );
@@ -276,6 +279,7 @@ class TransactionIdText extends StatelessWidget {
 class LightningPaymentHistoryItem extends WalletHistoryItem {
   @override
   final LightningPaymentData data;
+
   const LightningPaymentHistoryItem({super.key, required this.data});
 
   @override
@@ -293,20 +297,16 @@ class LightningPaymentHistoryItem extends WalletHistoryItem {
       ),
       Visibility(
         visible: data.invoice != null,
-        child: HistoryDetail(
-            label: "Lightning invoice",
-            value: data.invoice ?? '',
-            valueStyle: HistoryDetail.codeStyle),
+        child: HistoryDetail(label: "Lightning invoice", value: data.invoice ?? ''),
       ),
       HistoryDetail(label: "Invoice description", value: data.description),
-      HistoryDetail(
-          label: "Payment hash", value: data.paymentHash, valueStyle: HistoryDetail.codeStyle),
+      HistoryDetail(label: "Payment hash", value: data.paymentHash),
       Visibility(
         visible: data.preimage != null,
         child: HistoryDetail(
-            label: "Payment preimage",
-            value: data.preimage ?? '',
-            valueStyle: HistoryDetail.codeStyle),
+          label: "Payment preimage",
+          value: data.preimage ?? '',
+        ),
       ),
     ];
   }
@@ -330,12 +330,17 @@ class LightningPaymentHistoryItem extends WalletHistoryItem {
 class TradeHistoryItem extends WalletHistoryItem {
   @override
   final TradeData data;
+
   const TradeHistoryItem({super.key, required this.data});
 
   @override
   List<Widget> getDetails() {
     return [
-      HistoryDetail(label: "Order", value: data.orderId, valueStyle: HistoryDetail.codeStyle)
+      HistoryDetail(label: "Order", value: data.orderId),
+      HistoryDetail(label: "Fee", value: formatSats(data.fee)),
+      Visibility(
+          visible: data.pnl != null,
+          child: HistoryDetail(label: "PnL", value: formatSats(data.pnl ?? Amount.zero()))),
     ];
   }
 
@@ -363,14 +368,14 @@ class TradeHistoryItem extends WalletHistoryItem {
 class OrderMatchingFeeHistoryItem extends WalletHistoryItem {
   @override
   final OrderMatchingFeeData data;
+
   const OrderMatchingFeeHistoryItem({super.key, required this.data});
 
   @override
   List<Widget> getDetails() {
     return [
-      HistoryDetail(label: "Order", value: data.orderId, valueStyle: HistoryDetail.codeStyle),
-      HistoryDetail(
-          label: "Payment hash", value: data.paymentHash, valueStyle: HistoryDetail.codeStyle)
+      HistoryDetail(label: "Order", value: data.orderId),
+      HistoryDetail(label: "Payment hash", value: data.paymentHash)
     ];
   }
 
@@ -393,15 +398,14 @@ class OrderMatchingFeeHistoryItem extends WalletHistoryItem {
 class JitChannelOpenFeeHistoryItem extends WalletHistoryItem {
   @override
   final JitChannelOpenFeeData data;
+
   const JitChannelOpenFeeHistoryItem({super.key, required this.data});
 
   @override
   List<Widget> getDetails() {
     return [
       HistoryDetail(
-          label: "Funding transaction ID",
-          displayWidget: TransactionIdText(data.txid),
-          value: data.txid)
+          label: "Funding tx ID", displayWidget: TransactionIdText(data.txid), value: data.txid)
     ];
   }
 
@@ -424,6 +428,7 @@ class JitChannelOpenFeeHistoryItem extends WalletHistoryItem {
 class OnChainPaymentHistoryItem extends WalletHistoryItem {
   @override
   final OnChainPaymentData data;
+
   const OnChainPaymentHistoryItem({super.key, required this.data});
 
   @override
