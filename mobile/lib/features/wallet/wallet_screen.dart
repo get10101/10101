@@ -1,14 +1,10 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_speed_dial/flutter_speed_dial.dart';
-import 'package:get_10101/common/amount_text.dart';
 import 'package:get_10101/common/channel_status_notifier.dart';
-import 'package:get_10101/common/fiat_text.dart';
-import 'package:get_10101/features/trade/position_change_notifier.dart';
-import 'package:get_10101/features/wallet/balance_row.dart';
+import 'package:get_10101/features/wallet/balance.dart';
 import 'package:get_10101/features/wallet/receive_screen.dart';
 import 'package:get_10101/features/wallet/domain/wallet_history.dart';
-import 'package:get_10101/features/wallet/domain/wallet_type.dart';
 import 'package:get_10101/features/wallet/onboarding/onboarding_screen.dart';
 import 'package:get_10101/features/wallet/seed_screen.dart';
 import 'package:get_10101/features/wallet/send/send_screen.dart';
@@ -30,7 +26,6 @@ class WalletScreen extends StatefulWidget {
 }
 
 class _WalletScreenState extends State<WalletScreen> {
-  bool _isBalanceBreakdownOpen = false;
   Future<bool>? isUserSeedBackupConfirmed;
 
   @override
@@ -44,9 +39,6 @@ class _WalletScreenState extends State<WalletScreen> {
     final walletChangeNotifier = context.watch<WalletChangeNotifier>();
 
     final hasChannel = context.watch<ChannelStatusNotifier>().hasChannel();
-
-    // For displaying synthetic USD balance
-    final positionChangeNotifier = context.watch<PositionChangeNotifier>();
 
     WalletTheme theme = Theme.of(context).extension<WalletTheme>()!;
 
@@ -66,98 +58,44 @@ class _WalletScreenState extends State<WalletScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              ExpansionPanelList(
-                children: [
-                  ExpansionPanel(
-                    headerBuilder: (BuildContext context, bool isExpanded) {
-                      return Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          // https://stackoverflow.com/a/70192038 - do not know if this is principled
-                          const SizedBox(width: 64),
-                          // ExpansionPanelList IconContainer size: end margin 8 + padding 16*2 + size 24),
-                          Center(
-                              child: walletChangeNotifier.syncing
-                                  ? const Text(
-                                      'Wallet syncing',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontStyle: FontStyle.italic,
-                                      ),
-                                    )
-                                  : Row(
-                                      children: [
-                                        AmountText(
-                                            amount: walletChangeNotifier.total(),
-                                            textStyle: const TextStyle(
-                                                fontSize: 20.0, fontWeight: FontWeight.bold)),
-                                        Visibility(
-                                            visible:
-                                                positionChangeNotifier.getStableUSDAmountInFiat() !=
-                                                    0.0,
-                                            child: Row(
-                                              children: [
-                                                const SizedBox(width: 5),
-                                                const Text("+"),
-                                                const SizedBox(width: 5),
-                                                FiatText(
-                                                    amount: positionChangeNotifier
-                                                        .getStableUSDAmountInFiat(),
-                                                    textStyle: const TextStyle(
-                                                        fontSize: 20.0,
-                                                        fontWeight: FontWeight.bold)),
-                                              ],
-                                            )),
-                                      ],
-                                    )),
-                        ],
-                      );
-                    },
-                    body: Container(
-                      margin: const EdgeInsets.only(left: 20.0, right: 20.0, bottom: 8.0),
-                      child: const Column(
-                        children: [
-                          BalanceRow(walletType: WalletType.lightning),
-                          BalanceRow(walletType: WalletType.onChain),
-                          BalanceRow(walletType: WalletType.stable),
-                        ],
-                      ),
-                    ),
-                    isExpanded: _isBalanceBreakdownOpen,
-                  )
-                ],
-                expansionCallback: (i, isOpen) => setState(() => _isBalanceBreakdownOpen = isOpen),
-              ),
+              const Balance(),
               const SizedBox(height: 10.0),
               if (walletChangeNotifier.lightning().sats == 0)
-                ElevatedButton(
-                  onPressed: () {
-                    context.go(OnboardingScreen.route);
-                  },
-                  child: const Text("Fund Wallet"),
+                Container(
+                  margin: const EdgeInsets.only(left: 4, right: 4),
+                  child: ElevatedButton(
+                    onPressed: () {
+                      context.go(OnboardingScreen.route);
+                    },
+                    child: const Text("Fund Wallet"),
+                  ),
                 ),
               FutureBuilder(
                   future: isUserSeedBackupConfirmed,
                   builder: (BuildContext context, AsyncSnapshot<bool> snapshot) {
+                    // TODO(holzeis): Move backup seed phrase to settings
                     // FIXME: We ignore the value of `isUserSeedBackupConfirmed` stored in
                     // `snapshot.data` to keep the `Backup Wallet` button visible at all times for
                     // now. We need to rework this.
                     if (snapshot.connectionState == ConnectionState.done) {
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          const SizedBox(height: 3),
-                          ElevatedButton(
-                            onPressed: () async {
-                              final res = await context.push(SeedScreen.route);
+                      return Container(
+                        margin: const EdgeInsets.only(left: 4, right: 4),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            const SizedBox(height: 3),
+                            ElevatedButton(
+                              onPressed: () async {
+                                final res = await context.push(SeedScreen.route);
 
-                              setState(() {
-                                isUserSeedBackupConfirmed = Future.value(res as bool);
-                              });
-                            },
-                            child: const Text("Backup Wallet"),
-                          ),
-                        ],
+                                setState(() {
+                                  isUserSeedBackupConfirmed = Future.value(res as bool);
+                                });
+                              },
+                              child: const Text("Backup Wallet"),
+                            ),
+                          ],
+                        ),
                       );
                     }
                     // return an empty box if the wallet has already been backed up or the data has not been fetched yet.
