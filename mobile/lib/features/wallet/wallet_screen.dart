@@ -1,10 +1,8 @@
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_speed_dial/flutter_speed_dial.dart';
 import 'package:get_10101/common/channel_status_notifier.dart';
 import 'package:get_10101/features/wallet/balance.dart';
 import 'package:get_10101/features/wallet/receive_screen.dart';
-import 'package:get_10101/features/wallet/domain/wallet_history.dart';
 import 'package:get_10101/features/wallet/onboarding/onboarding_screen.dart';
 import 'package:get_10101/features/wallet/seed_screen.dart';
 import 'package:get_10101/features/wallet/send/send_screen.dart';
@@ -41,10 +39,6 @@ class _WalletScreenState extends State<WalletScreen> {
     final hasChannel = context.watch<ChannelStatusNotifier>().hasChannel();
 
     WalletTheme theme = Theme.of(context).extension<WalletTheme>()!;
-
-    SizedBox listBottomScrollSpace = const SizedBox(
-      height: 100,
-    );
 
     return Scaffold(
       body: RefreshIndicator(
@@ -105,28 +99,13 @@ class _WalletScreenState extends State<WalletScreen> {
                 height: 5,
               ),
               Expanded(
-                child: ScrollConfiguration(
-                  behavior: ScrollConfiguration.of(context).copyWith(
-                    dragDevices: {
-                      PointerDeviceKind.touch,
-                      PointerDeviceKind.mouse,
-                    },
-                  ),
-                  child: ListView.builder(
-                    shrinkWrap: true,
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    itemCount: walletChangeNotifier.walletInfo.history.length + 1,
-                    itemBuilder: (BuildContext context, int index) {
-                      // Spacer at the bottom of the list
-                      if (index == walletChangeNotifier.walletInfo.history.length) {
-                        return listBottomScrollSpace;
-                      }
-
-                      WalletHistoryItemData itemData =
-                          walletChangeNotifier.walletInfo.history[index];
-
-                      return itemData.toWidget();
-                    },
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  child: Card(
+                    child: Column(
+                      children:
+                          walletChangeNotifier.walletInfo.history.map((e) => e.toWidget()).toList(),
+                    ),
                   ),
                 ),
               ),

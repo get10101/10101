@@ -29,48 +29,56 @@ class OrderListItem extends StatelessWidget {
       OrderState.failed => const Icon(Icons.error, color: Colors.red, size: iconSize),
     };
 
-    return Card(
-      child: ListTile(
-        leading: const Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            ContractSymbolIcon(
-              height: 20,
-              width: 20,
-              paddingUsd: EdgeInsets.only(left: 12.0),
+    return Column(
+      children: [
+        Card(
+          margin: const EdgeInsets.all(0),
+          elevation: 0,
+          child: ListTile(
+            leading: const Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                ContractSymbolIcon(
+                  height: 20,
+                  width: 20,
+                  paddingUsd: EdgeInsets.only(left: 12.0),
+                ),
+              ],
             ),
-          ],
-        ),
-        title: RichText(
-          text: TextSpan(
-            style: DefaultTextStyle.of(context).style,
-            children: <TextSpan>[
-              TextSpan(text: "${order.leverage.formatted()} "),
-              TextSpan(
-                  text: order.direction.nameU,
-                  style: TextStyle(
-                      color: order.direction == Direction.long ? tradeTheme.buy : tradeTheme.sell,
-                      fontWeight: FontWeight.bold)),
-              TextSpan(
-                  text: " ${formatter.format(order.quantity.toInt)} ",
-                  style: const TextStyle(fontWeight: FontWeight.bold)),
-              const TextSpan(text: "contracts")
-            ],
+            title: RichText(
+              text: TextSpan(
+                style: DefaultTextStyle.of(context).style,
+                children: <TextSpan>[
+                  TextSpan(text: "${order.leverage.formatted()} "),
+                  TextSpan(
+                      text: order.direction.nameU,
+                      style: TextStyle(
+                          color:
+                              order.direction == Direction.long ? tradeTheme.buy : tradeTheme.sell,
+                          fontWeight: FontWeight.bold)),
+                  TextSpan(
+                      text: " ${formatter.format(order.quantity.toInt)} ",
+                      style: const TextStyle(fontWeight: FontWeight.bold)),
+                  const TextSpan(text: "contracts")
+                ],
+              ),
+            ),
+            trailing: RichText(
+              text: TextSpan(style: DefaultTextStyle.of(context).style, children: <InlineSpan>[
+                WidgetSpan(alignment: PlaceholderAlignment.middle, child: statusIcon),
+                TextSpan(text: " ${order.state.name}")
+              ]),
+            ),
+            subtitle: RichText(
+                textWidthBasis: TextWidthBasis.longestLine,
+                text: TextSpan(style: DefaultTextStyle.of(context).style, children: <TextSpan>[
+                  const TextSpan(text: "@ ", style: TextStyle(color: Colors.grey)),
+                  TextSpan(text: "${order.executionPrice ?? "Market Price"}")
+                ])),
           ),
         ),
-        trailing: RichText(
-          text: TextSpan(style: DefaultTextStyle.of(context).style, children: <InlineSpan>[
-            WidgetSpan(alignment: PlaceholderAlignment.middle, child: statusIcon),
-            TextSpan(text: " ${order.state.name}")
-          ]),
-        ),
-        subtitle: RichText(
-            textWidthBasis: TextWidthBasis.longestLine,
-            text: TextSpan(style: DefaultTextStyle.of(context).style, children: <TextSpan>[
-              const TextSpan(text: "@ ", style: TextStyle(color: Colors.grey)),
-              TextSpan(text: "${order.executionPrice ?? "Market Price"}")
-            ])),
-      ),
+        const Divider(height: 0, thickness: 1, indent: 10, endIndent: 10)
+      ],
     );
   }
 }

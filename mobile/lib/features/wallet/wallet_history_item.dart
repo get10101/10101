@@ -62,60 +62,71 @@ abstract class WalletHistoryItem extends StatelessWidget {
 
     var amountFormatter = NumberFormat.compact(locale: "en_UK");
 
-    return Card(
-      child: ListTile(
-          onTap: () async {
-            await showItemDetails(title, context);
-          },
-          leading: Stack(children: [
-            Container(
-              padding: const EdgeInsets.only(bottom: 20.0),
-              child: SizedBox(height: statusIconSize, width: statusIconSize, child: statusIcon),
-            ),
-            Container(
-                padding: const EdgeInsets.only(left: 5.0, top: 10.0),
-                child: SizedBox(height: flowIconSize, width: flowIconSize, child: flowIcon)),
-          ]),
-          title: RichText(
-            overflow: TextOverflow.ellipsis,
-            text: TextSpan(
-              style: DefaultTextStyle.of(context).style,
-              children: <TextSpan>[
-                TextSpan(text: title),
-              ],
-            ),
-          ),
-          subtitle: RichText(
-              textWidthBasis: TextWidthBasis.longestLine,
-              text: TextSpan(style: DefaultTextStyle.of(context).style, children: <TextSpan>[
-                TextSpan(
-                    text: timeago.format(data.timestamp),
-                    style: const TextStyle(color: Colors.grey)),
-              ])),
-          trailing: Padding(
-            padding: const EdgeInsets.only(top: 11.0, bottom: 5.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                RichText(
-                  text: TextSpan(style: DefaultTextStyle.of(context).style, children: <InlineSpan>[
-                    TextSpan(
-                        text: "$sign${amountFormatter.format(data.amount.sats)} sats",
-                        style: TextStyle(
-                            color: color,
-                            fontFamily: "Courier",
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold))
-                  ]),
+    return Column(
+      children: [
+        Card(
+          margin: const EdgeInsets.all(0),
+          elevation: 0,
+          child: ListTile(
+              onTap: () async {
+                await showItemDetails(title, context);
+              },
+              leading: Stack(children: [
+                Container(
+                  padding: const EdgeInsets.only(bottom: 20.0),
+                  child: SizedBox(height: statusIconSize, width: statusIconSize, child: statusIcon),
                 ),
-                RichText(
-                    text: TextSpan(style: DefaultTextStyle.of(context).style, children: <TextSpan>[
-                  TextSpan(text: onOrOff, style: const TextStyle(color: Colors.grey)),
-                ]))
-              ],
-            ),
-          )),
+                Container(
+                    padding: const EdgeInsets.only(left: 5.0, top: 10.0),
+                    child: SizedBox(height: flowIconSize, width: flowIconSize, child: flowIcon)),
+              ]),
+              title: RichText(
+                overflow: TextOverflow.ellipsis,
+                text: TextSpan(
+                  style: DefaultTextStyle.of(context).style,
+                  children: <TextSpan>[
+                    TextSpan(text: title),
+                  ],
+                ),
+              ),
+              subtitle: RichText(
+                  textWidthBasis: TextWidthBasis.longestLine,
+                  text: TextSpan(style: DefaultTextStyle.of(context).style, children: <TextSpan>[
+                    TextSpan(
+                        text: timeago.format(data.timestamp),
+                        style: const TextStyle(color: Colors.grey)),
+                  ])),
+              trailing: Padding(
+                padding: const EdgeInsets.only(top: 11.0, bottom: 5.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    RichText(
+                      text: TextSpan(
+                          style: DefaultTextStyle.of(context).style,
+                          children: <InlineSpan>[
+                            TextSpan(
+                                text: "$sign${amountFormatter.format(data.amount.sats)} sats",
+                                style: TextStyle(
+                                    color: color,
+                                    fontFamily: "Courier",
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold))
+                          ]),
+                    ),
+                    RichText(
+                        text: TextSpan(
+                            style: DefaultTextStyle.of(context).style,
+                            children: <TextSpan>[
+                          TextSpan(text: onOrOff, style: const TextStyle(color: Colors.grey)),
+                        ])),
+                  ],
+                ),
+              )),
+        ),
+        const Divider(height: 0, thickness: 1, indent: 10, endIndent: 10)
+      ],
     );
   }
 
