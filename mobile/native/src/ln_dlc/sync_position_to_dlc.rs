@@ -39,18 +39,27 @@ impl Node {
     ///   been force closed.
     pub async fn sync_position_with_dlc_channel_state(&self) -> Result<()> {
         let channels = self.inner.channel_manager.list_channels();
+
+        let positions = db::get_positions()?;
+        let first_position = positions.first();
+
         let channel_details = match channels.first() {
             Some(channel_details) => channel_details,
-            None => return Ok(()),
+            None => {
+                // if we don't have a channel, but still a position, we can safely close said
+                // position
+                if first_position.is_some() {
+                    close_position_with_order()?;
+                }
+                return Ok(());
+            }
         };
         let dlc_channels = self.inner.dlc_manager.get_store().get_sub_channels()?;
         let dlc_channel = dlc_channels
             .iter()
             .find(|dlc_channel| dlc_channel.channel_id == channel_details.channel_id);
 
-        let positions = db::get_positions()?;
-
-        match determine_sync_position_to_dlc_action(&positions.first(), &dlc_channel) {
+        match determine_sync_position_to_dlc_action(&first_position, &dlc_channel) {
             Some(SyncPositionToDlcAction::ContinueSubchannelProtocol) => self.recover_dlc().await?,
             Some(SyncPositionToDlcAction::CreatePosition(channel_id)) => {
                 match order::handler::order_filled() {
@@ -80,12 +89,7 @@ impl Node {
                 }
             }
             Some(SyncPositionToDlcAction::RemovePosition) => {
-                let filled_order = match order::handler::order_filled() {
-                    Ok(filled_order) => Some(filled_order),
-                    Err(_) => None,
-                };
-
-                position::handler::update_position_after_dlc_closure(filled_order)?;
+                close_position_with_order()?;
             }
             None => (),
         }
@@ -122,6 +126,16 @@ impl Node {
 
         Ok(())
     }
+}
+
+fn close_position_with_order() -> Result<()> {
+    let filled_order = match order::handler::order_filled() {
+        Ok(filled_order) => Some(filled_order),
+        Err(_) => None,
+    };
+
+    position::handler::update_position_after_dlc_closure(filled_order)?;
+    Ok(())
 }
 
 /// Determines the action required in case the position and the dlc state get out of sync.
