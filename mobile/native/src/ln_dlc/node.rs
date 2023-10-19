@@ -22,7 +22,6 @@ use lightning::chain::transaction::OutPoint;
 use lightning::ln::PaymentHash;
 use lightning::ln::PaymentPreimage;
 use lightning::ln::PaymentSecret;
-use lightning_invoice::Invoice;
 use ln_dlc_node::channel::Channel;
 use ln_dlc_node::node;
 use ln_dlc_node::node::dlc_message_name;
@@ -35,7 +34,8 @@ use ln_dlc_node::HTLCStatus;
 use ln_dlc_node::MillisatAmount;
 use ln_dlc_node::PaymentFlow;
 use ln_dlc_node::PaymentInfo;
-use parking_lot::RwLock;
+use orderbook_commons::order_matching_fee_taker;
+use rust_decimal::Decimal;
 use std::sync::Arc;
 use std::time::Duration;
 use time::OffsetDateTime;
@@ -44,10 +44,6 @@ use time::OffsetDateTime;
 pub struct Node {
     pub inner: Arc<ln_dlc_node::node::Node<NodeStorage>>,
     _running: Arc<RunningNode>,
-    /// The order-matching fee invoice to be paid once the current trade is executed.
-    ///
-    /// We assume that only one trade can be executed at a time.
-    pub order_matching_fee_invoice: Arc<RwLock<Option<Invoice>>>,
 }
 
 impl Node {
@@ -55,7 +51,6 @@ impl Node {
         Self {
             inner: node,
             _running: Arc::new(running),
-            order_matching_fee_invoice: Arc::new(RwLock::new(None)),
         }
     }
 }
@@ -247,9 +242,17 @@ impl Node {
             let filled_order = order::handler::order_filled()
                 .context("Cannot mark order as filled for confirmed DLC")?;
 
+            let execution_price = filled_order
+                .execution_price()
+                .context("expect execution price")?;
+            let open_position_fee = order_matching_fee_taker(
+                filled_order.quantity,
+                Decimal::try_from(execution_price)?,
+            );
+
             position::handler::update_position_after_dlc_creation(
                 filled_order,
-                accept_collateral,
+                accept_collateral - open_position_fee.to_sat(),
                 expiry_timestamp,
             )
             .context("Failed to update position after DLC creation")?;
@@ -266,10 +269,6 @@ impl Node {
             event::publish(&EventInternal::BackgroundNotification(
                 BackgroundTask::RecoverDlc(TaskStatus::Success),
             ));
-
-            if let Err(e) = self.pay_order_matching_fee(&channel_id) {
-                tracing::error!("{e:#}");
-            }
         }
 
         if let Some(msg) = resp {
@@ -293,7 +292,6 @@ impl Node {
         // After sending the `CloseFinalize` message, we need to do some post-processing based on
         // the fact that the DLC channel has been closed
         if let Message::SubChannel(SubChannelMessage::CloseFinalize(SubChannelCloseFinalize {
-            channel_id,
             ..
         })) = msg
         {
@@ -313,41 +311,7 @@ impl Node {
             event::publish(&EventInternal::BackgroundNotification(
                 BackgroundTask::RecoverDlc(TaskStatus::Success),
             ));
-
-            if let Err(e) = self.pay_order_matching_fee(&channel_id) {
-                tracing::error!("{e:#}");
-            }
         };
-
-        Ok(())
-    }
-
-    fn pay_order_matching_fee(&self, channel_id: &[u8; 32]) -> Result<()> {
-        let channel_id_str = hex::encode(channel_id);
-
-        tracing::info!(channel_id = %channel_id_str, "Paying order-matching fee");
-
-        let invoice = self
-            .order_matching_fee_invoice
-            .write()
-            .take()
-            .context("Expected to have to pay an order-matching fee invoice")?;
-
-        // Without this `sleep` the coordinator can end up not generating the corresponding
-        // `PaymentClaimable` event, leaving the payment in a pending state seemingly forever
-        std::thread::sleep(Duration::from_secs(5));
-
-        self.inner
-            .pay_invoice(&invoice, None)
-            .context("Failed order-matching fee invoice payment")?;
-
-        tracing::info!(
-            channel_id = %channel_id_str,
-            payment_hash = %invoice.payment_hash(),
-            description = ?invoice.description(),
-            amount_msat = ?invoice.amount_milli_satoshis(),
-            "Triggered payment of order-matching fee"
-        );
 
         Ok(())
     }

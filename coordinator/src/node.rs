@@ -36,14 +36,13 @@ use dlc_manager::ContractId;
 use dlc_messages::ChannelMessage;
 use dlc_messages::Message;
 use lightning::ln::channelmanager::ChannelDetails;
-use lightning::ln::PaymentHash;
 use lightning::util::config::UserConfig;
-use lightning_invoice::Invoice;
 use ln_dlc_node::node;
 use ln_dlc_node::node::dlc_message_name;
 use ln_dlc_node::node::sub_channel_message_name;
 use ln_dlc_node::node::RunningNode;
 use ln_dlc_node::WalletSettings;
+use orderbook_commons::order_matching_fee_taker;
 use orderbook_commons::MatchState;
 use orderbook_commons::OrderState;
 use rust_decimal::prelude::ToPrimitive;
@@ -62,7 +61,6 @@ pub mod channel_opening_fee;
 pub mod closed_positions;
 pub mod connection;
 pub mod expired_positions;
-pub mod order_matching_fee;
 pub mod rollover;
 pub mod routing_fees;
 pub mod storage;
@@ -147,12 +145,12 @@ impl Node {
         !usable_channels.is_empty()
     }
 
-    pub async fn trade(&self, trade_params: &TradeParams) -> Result<Invoice> {
+    pub async fn trade(&self, trade_params: &TradeParams) -> Result<()> {
         let mut connection = self.pool.get()?;
         let order_id = trade_params.filled_with.order_id;
         let trader_id = trade_params.pubkey;
         match self.trade_internal(trade_params, &mut connection).await {
-            Ok(invoice) => {
+            Ok(()) => {
                 tracing::info!(
                     %trader_id,
                     %order_id,
@@ -165,7 +163,7 @@ impl Node {
                     MatchState::Filled,
                     OrderState::Taken,
                 )?;
-                Ok(invoice)
+                Ok(())
             }
             Err(e) => {
                 tracing::error!(
@@ -189,9 +187,7 @@ impl Node {
         &self,
         trade_params: &TradeParams,
         connection: &mut PgConnection,
-    ) -> Result<Invoice> {
-        let (fee_payment_hash, invoice) = self.fee_invoice_taker(trade_params).await?;
-
+    ) -> Result<()> {
         let order_id = trade_params.filled_with.order_id;
         let trader_id = trade_params.pubkey.to_string();
         let order = orders::get_with_id(connection, order_id)?.with_context(|| {
@@ -239,14 +235,8 @@ impl Node {
                     None => 1.0,
                 };
 
-                self.open_position(
-                    connection,
-                    trade_params,
-                    fee_payment_hash,
-                    coordinator_leverage,
-                    order.stable,
-                )
-                .await?;
+                self.open_position(connection, trade_params, coordinator_leverage, order.stable)
+                    .await?;
             }
             TradeAction::Close(channel_id) => {
                 let peer_id = trade_params.pubkey;
@@ -263,18 +253,12 @@ impl Node {
                     None => bail!("Failed to find open position : {}", trade_params.pubkey),
                 };
 
-                self.close_position(
-                    connection,
-                    &position,
-                    closing_price,
-                    channel_id,
-                    fee_payment_hash,
-                )
-                .await?;
+                self.close_position(connection, &position, closing_price, channel_id)
+                    .await?;
             }
         };
 
-        Ok(invoice)
+        Ok(())
     }
 
     #[autometrics]
@@ -282,7 +266,6 @@ impl Node {
         &self,
         conn: &mut PgConnection,
         trade_params: &TradeParams,
-        fee_payment_hash: PaymentHash,
         coordinator_leverage: f32,
         stable: bool,
     ) -> Result<()> {
@@ -305,12 +288,19 @@ impl Node {
 
         let total_collateral = margin_coordinator + margin_trader;
 
+        let fee = order_matching_fee_taker(
+            trade_params.quantity,
+            trade_params.average_execution_price(),
+        )
+        .to_sat();
+
         let contract_descriptor = build_contract_descriptor(
             total_collateral,
             trade_params.average_execution_price(),
             leverage_long,
             leverage_short,
             create_rounting_interval((total_collateral as f32 * ROUNDING_PERCENT) as u64),
+            fee,
         )
         .context("Could not build contract descriptor")?;
 
@@ -325,8 +315,9 @@ impl Node {
         let event_id = format!("{contract_symbol}{maturity_time}");
         tracing::debug!(event_id, "Proposing dlc channel");
         let contract_input = ContractInput {
-            offer_collateral: margin_coordinator,
-            accept_collateral: margin_trader,
+            offer_collateral: margin_coordinator - fee,
+            // the accepting party has do bring in additional margin for the fees
+            accept_collateral: margin_trader + fee,
             fee_rate,
             contract_infos: vec![ContractInputInfo {
                 contract_descriptor,
@@ -359,7 +350,6 @@ impl Node {
         self.persist_position_and_trade(
             conn,
             trade_params,
-            fee_payment_hash,
             temporary_contract_id,
             coordinator_leverage,
             stable,
@@ -371,7 +361,6 @@ impl Node {
         &self,
         connection: &mut PgConnection,
         trade_params: &TradeParams,
-        fee_payment_hash: PaymentHash,
         temporary_contract_id: ContractId,
         coordinator_leverage: f32,
         stable: bool,
@@ -414,7 +403,6 @@ impl Node {
                 coordinator_margin: new_position.coordinator_margin,
                 direction: new_position.direction,
                 average_price: average_entry_price,
-                fee_payment_hash,
             },
         )?;
 
@@ -428,7 +416,6 @@ impl Node {
         position: &Position,
         closing_price: Decimal,
         channel_id: ChannelId,
-        fee_payment_hash: PaymentHash,
     ) -> Result<()> {
         let accept_settlement_amount = position.calculate_settlement_amount(closing_price)?;
 
@@ -455,7 +442,6 @@ impl Node {
                 coordinator_margin: position.coordinator_margin,
                 direction: position.direction.opposite(),
                 average_price: closing_price.to_f32().expect("To fit into f32"),
-                fee_payment_hash,
             },
         )?;
 
@@ -657,6 +643,7 @@ fn build_contract_descriptor(
     leverage_long: f32,
     leverage_short: f32,
     rounding_intervals: RoundingIntervals,
+    fee: u64,
 ) -> Result<ContractDescriptor> {
     Ok(ContractDescriptor::Numerical(NumericalDescriptor {
         payout_function: build_payout_function(
@@ -664,6 +651,7 @@ fn build_contract_descriptor(
             initial_price,
             leverage_long,
             leverage_short,
+            fee,
         )?,
         rounding_intervals,
         difference_params: None,
@@ -684,6 +672,7 @@ fn build_payout_function(
     initial_price: Decimal,
     leverage_long: f32,
     leverage_short: f32,
+    fee: u64,
 ) -> Result<PayoutFunction> {
     let leverage_short = Decimal::try_from(leverage_short)?;
     let liquidation_price_short = calculate_short_liquidation_price(leverage_short, initial_price);
@@ -703,12 +692,12 @@ fn build_payout_function(
     let lower_range = PolynomialPayoutCurvePiece::new(vec![
         PayoutPoint {
             event_outcome: 0,
-            outcome_payout: 0,
+            outcome_payout: fee,
             extra_precision: 0,
         },
         PayoutPoint {
             event_outcome: lower_limit,
-            outcome_payout: 0,
+            outcome_payout: fee,
             extra_precision: 0,
         },
     ])?;
@@ -716,7 +705,7 @@ fn build_payout_function(
     let middle_range = PolynomialPayoutCurvePiece::new(vec![
         PayoutPoint {
             event_outcome: lower_limit,
-            outcome_payout: 0,
+            outcome_payout: fee,
             extra_precision: 0,
         },
         PayoutPoint {

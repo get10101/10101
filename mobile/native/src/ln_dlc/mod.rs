@@ -69,8 +69,8 @@ use ln_dlc_node::util;
 use ln_dlc_node::AppEventHandler;
 use ln_dlc_node::HTLCStatus;
 use ln_dlc_node::CONFIRMATION_TARGET;
+use orderbook_commons::order_matching_fee_taker;
 use orderbook_commons::RouteHintHop;
-use orderbook_commons::FEE_INVOICE_DESCRIPTION_PREFIX_TAKER;
 use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::prelude::Signed;
 use rust_decimal::Decimal;
@@ -476,14 +476,7 @@ fn keep_wallet_balance_and_history_up_to_date(node: &Node) -> Result<()> {
         let payment_hash = hex::encode(details.payment_hash.0);
 
         let description = &details.description;
-        let wallet_type = if let Some(order_id) =
-            description.strip_prefix(FEE_INVOICE_DESCRIPTION_PREFIX_TAKER)
-        {
-            WalletHistoryItemType::OrderMatchingFee {
-                order_id: order_id.to_string(),
-                payment_hash,
-            }
-        } else if let Some(funding_txid) =
+        let wallet_type = if let Some(funding_txid) =
             description.strip_prefix(JIT_FEE_INVOICE_DESCRIPTION_PREFIX)
         {
             WalletHistoryItemType::JitChannelFee {
@@ -544,6 +537,14 @@ fn derive_trades_from_filled_orders() -> Result<Vec<WalletHistoryItem>> {
                 .trader_margin()
                 .expect("Filled order to have a margin");
 
+            let execution_price = Decimal::try_from(
+                first
+                    .execution_price()
+                    .context("execution price to be set on a filled order")?,
+            )?;
+            let fee = order_matching_fee_taker(first.quantity, execution_price).to_sat();
+            let amount_sats = amount_sats + fee;
+
             trades.push(WalletHistoryItem {
                 flow,
                 amount_sats,
@@ -551,6 +552,8 @@ fn derive_trades_from_filled_orders() -> Result<Vec<WalletHistoryItem>> {
                 status: Status::Confirmed, // TODO: Support other order/trade statuses
                 wallet_type: WalletHistoryItemType::Trade {
                     order_id: first.id.to_string(),
+                    fee_sat: fee,
+                    pnl: None,
                 },
             });
 
@@ -560,17 +563,18 @@ fn derive_trades_from_filled_orders() -> Result<Vec<WalletHistoryItem>> {
                 let new_contracts = compute_relative_contracts(order);
                 let updated_total_contracts = total_contracts + new_contracts;
 
+                let execution_price = Decimal::try_from(
+                    order
+                        .execution_price()
+                        .context("execution price to be set on a filled order")?,
+                )?;
+
                 // Closing the position.
                 if updated_total_contracts.is_zero() {
                     let open_order = previous_order;
                     let trader_margin = open_order
                         .trader_margin()
                         .expect("Filled order to have a margin");
-                    let execution_price = Decimal::try_from(
-                        order
-                            .execution_price()
-                            .expect("execution price to be set on a filled order"),
-                    )?;
 
                     let opening_price = open_order
                         .execution_price()
@@ -587,6 +591,9 @@ fn derive_trades_from_filled_orders() -> Result<Vec<WalletHistoryItem>> {
                         open_order.direction,
                     )?;
 
+                    let close_position_fee =
+                        order_matching_fee_taker(order.quantity, execution_price).to_sat();
+
                     // Closing a position is an inbound "payment", because the DLC channel is closed
                     // into the Lightning channel.
                     let flow = PaymentFlow::Inbound;
@@ -594,22 +601,28 @@ fn derive_trades_from_filled_orders() -> Result<Vec<WalletHistoryItem>> {
 
                     trades.push(WalletHistoryItem {
                         flow,
-                        amount_sats,
+                        amount_sats: amount_sats - close_position_fee,
                         timestamp: order.creation_timestamp.unix_timestamp() as u64,
                         status: Status::Confirmed,
                         wallet_type: WalletHistoryItemType::Trade {
                             order_id: order.id.to_string(),
+                            fee_sat: close_position_fee,
+                            pnl: Some(pnl),
                         },
                     });
                 }
                 // Opening the position.
                 else if total_contracts.is_zero() && !updated_total_contracts.is_zero() {
-                    // Closing a position is an outbound "payment", since coins need to leave the
+                    // Opening a position is an outbound "payment", since coins need to leave the
                     // Lightning wallet to open a DLC channel.
                     let flow = PaymentFlow::Outbound;
                     let amount_sats = order
                         .trader_margin()
                         .expect("Filled order to have a margin");
+
+                    let open_positions_fee =
+                        order_matching_fee_taker(order.quantity, execution_price).to_sat();
+                    let amount_sats = amount_sats + open_positions_fee;
 
                     trades.push(WalletHistoryItem {
                         flow,
@@ -618,6 +631,8 @@ fn derive_trades_from_filled_orders() -> Result<Vec<WalletHistoryItem>> {
                         status: Status::Confirmed, // TODO: Support other order/trade statuses
                         wallet_type: WalletHistoryItemType::Trade {
                             order_id: order.id.to_string(),
+                            fee_sat: open_positions_fee,
+                            pnl: None,
                         },
                     });
                 } else if total_contracts.signum() == updated_total_contracts.signum()
@@ -1023,27 +1038,6 @@ pub async fn trade(trade_params: TradeParams) -> Result<(), (FailureReason, Erro
     }
 
     tracing::info!("Sent trade request to coordinator successfully");
-
-    let order_matching_fee_invoice = response.text().await.map_err(|e| {
-        (
-            FailureReason::TradeResponse,
-            anyhow!("Could not deserialize order-matching fee invoice: {e:#}"),
-        )
-    })?;
-    let order_matching_fee_invoice: Invoice = order_matching_fee_invoice.parse().map_err(|e| {
-        (
-            FailureReason::TradeResponse,
-            anyhow!("Could not parse order-matching fee invoice: {e:#}"),
-        )
-    })?;
-
-    let payment_hash = *order_matching_fee_invoice.payment_hash();
-
-    spawn_blocking(|| {
-        *NODE.get().order_matching_fee_invoice.write() = Some(order_matching_fee_invoice);
-    });
-
-    tracing::info!(%payment_hash, "Registered order-matching fee invoice to be paid later");
 
     Ok(())
 }

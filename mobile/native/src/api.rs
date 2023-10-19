@@ -89,6 +89,8 @@ pub enum WalletHistoryItemType {
     },
     Trade {
         order_id: String,
+        fee_sat: u64,
+        pnl: Option<i64>,
     },
     OrderMatchingFee {
         order_id: String,

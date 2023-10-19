@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Charge order matching fee through the margin
+
 ## [1.4.2] - 2023-10-18
 
 - Only contracts are editable for new orders

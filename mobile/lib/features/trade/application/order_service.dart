@@ -16,11 +16,6 @@ class OrderService {
         orderType: const rust.OrderType.market(),
         stable: stable);
 
-    // The problem here is that we have a concurrency issue when sending a payment and trying to open/close a position.
-    // The sleep here tries to ensure that we do not process the order matching fee payment from an older order while triggering the next order.
-    // This does not fix the underlying issue though: we should block in the protocol that a payment cannot be sent or received at the same time as a subchannel is being added or removed.
-    await Future.delayed(const Duration(seconds: 5));
-
     return await rust.api.submitOrder(order: order);
   }
 

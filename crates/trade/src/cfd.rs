@@ -60,7 +60,6 @@ pub fn calculate_short_liquidation_price(leverage: Decimal, price: Decimal) -> D
     price * leverage / (leverage - Decimal::ONE)
 }
 
-// TODO: This was copied from ItchySats and adapted; we need tests for this!
 /// Compute the payout for the given CFD parameters at a particular `closing_price`.
 ///
 /// The `opening_price` of the position is the weighted opening price per quantity.
@@ -100,8 +99,6 @@ pub fn calculate_pnl(
 
         SignedAmount::from_btc(uncapped_pnl)?.to_sat()
     };
-
-    // TODO: Fees are still missing; see ItchySats FeeAccount
 
     let pnl = match direction {
         Direction::Long => uncapped_pnl_long.min(short_margin as i64),

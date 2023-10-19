@@ -5,6 +5,7 @@ use bitcoin::secp256k1::PublicKey;
 use bitcoin::Address;
 use bitcoin::Amount;
 use dlc_manager::ContractId;
+use orderbook_commons::order_matching_fee_taker;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use time::OffsetDateTime;
@@ -155,6 +156,8 @@ fn calculate_accept_settlement_amount(
     short_leverage: f32,
     direction: Direction,
 ) -> Result<u64> {
+    let close_position_fee = order_matching_fee_taker(quantity, closing_price).to_sat() as i64;
+
     let pnl = calculate_pnl(
         opening_price,
         closing_price,
@@ -169,9 +172,11 @@ fn calculate_accept_settlement_amount(
         Direction::Short => short_leverage,
     };
 
-    let margin_trader = calculate_margin(opening_price, quantity, leverage);
+    let margin_trader_without_opening_fees = calculate_margin(opening_price, quantity, leverage);
 
-    let accept_settlement_amount = Decimal::from(margin_trader) + Decimal::from(pnl);
+    let accept_settlement_amount = Decimal::from(margin_trader_without_opening_fees)
+        + Decimal::from(pnl)
+        - Decimal::from(close_position_fee);
     // the amount can only be positive, adding a safeguard here with the max comparison to
     // ensure the i64 fits into u64
     let accept_settlement_amount = accept_settlement_amount
