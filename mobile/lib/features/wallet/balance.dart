@@ -3,6 +3,7 @@ import 'package:get_10101/common/color.dart';
 import 'package:get_10101/common/domain/model.dart';
 import 'package:get_10101/features/trade/domain/contract_symbol.dart';
 import 'package:get_10101/features/trade/position_change_notifier.dart';
+import 'package:get_10101/features/wallet/application/util.dart';
 import 'package:get_10101/features/wallet/balance_row.dart';
 import 'package:get_10101/features/wallet/domain/wallet_type.dart';
 import 'package:get_10101/features/wallet/wallet_change_notifier.dart';
@@ -71,30 +72,4 @@ class Balance extends StatelessWidget {
       ),
     );
   }
-}
-
-(String, String) getFormattedBalance(int total) {
-  String totalFormatted = total
-      .toString()
-      .padLeft(9, "0")
-      .replaceAllMapped(RegExp(r".{3}"), (match) => "${match.group(0)} ");
-  String satsFormatted =
-      totalFormatted.substring(totalFormatted.length - 11, totalFormatted.length);
-
-  totalFormatted = "${totalFormatted.substring(0, totalFormatted.length - 11)}.$satsFormatted";
-
-  String leading = "";
-  String balance = "";
-  bool remainder = false;
-  for (int i = 0; i < totalFormatted.length; i++) {
-    var char = totalFormatted[i];
-    if (!remainder && (char == "0" || char == " " || char == ".")) {
-      leading += char;
-    } else {
-      remainder = true;
-      balance += char;
-    }
-  }
-
-  return (leading, balance);
 }
