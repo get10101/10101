@@ -172,19 +172,12 @@ class TradeScreen extends StatelessWidget {
                         );
                       },
                     ),
-                    ListView.builder(
-                      shrinkWrap: true,
-                      physics: const ClampingScrollPhysics(),
-                      itemCount: orderChangeNotifier.orders.isEmpty
-                          ? 1
-                          : orderChangeNotifier.orders.length + 1,
-                      itemBuilder: (BuildContext context, int index) {
-                        // If there are no positions we early-return with placeholder
-                        if (orderChangeNotifier.orders.isEmpty) {
-                          return RichText(
-                              text: TextSpan(
-                                  style: DefaultTextStyle.of(context).style,
-                                  children: <TextSpan>[
+                    // If there are no positions we early-return with placeholder
+                    orderChangeNotifier.orders.isEmpty
+                        ? RichText(
+                            text: TextSpan(
+                                style: DefaultTextStyle.of(context).style,
+                                children: <TextSpan>[
                                 const TextSpan(
                                     text: "You don't have any orders yet...\n\n",
                                     style: TextStyle(color: Colors.grey)),
@@ -199,18 +192,15 @@ class TradeScreen extends StatelessWidget {
                                         color: tradeTheme.sell, fontWeight: FontWeight.bold)),
                                 const TextSpan(
                                     text: " to create one!", style: TextStyle(color: Colors.grey)),
-                              ]));
-                        }
-
-                        // Spacer at the bottom of the list
-                        if (index == orderChangeNotifier.orders.length) {
-                          return listBottomScrollSpace;
-                        }
-
-                        return OrderListItem(
-                            order: orderChangeNotifier.orders.values.toList()[index]);
-                      },
-                    )
+                              ]))
+                        : SingleChildScrollView(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            child: Card(
+                              child: Column(
+                                  children: orderChangeNotifier.orders.values
+                                      .map((e) => OrderListItem(order: e))
+                                      .toList()),
+                            ))
                   ],
                 ),
               )
