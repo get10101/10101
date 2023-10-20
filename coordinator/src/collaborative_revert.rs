@@ -211,6 +211,11 @@ pub fn confirm_collaborative_revert(
     channel_id: [u8; 32],
     inner_node: Arc<Node<NodeStorage>>,
 ) -> anyhow::Result<Transaction> {
+    tracing::debug!(
+        channel_id = revert_params.channel_id,
+        txid = revert_params.transaction.txid().to_string(),
+        "Confirming collaborative revert"
+    );
     // TODO: check if provided amounts are as expected
     if !revert_params
         .transaction
@@ -291,6 +296,10 @@ pub fn confirm_collaborative_revert(
 
     // if we have a sig here, it means we were able to sign the transaction and can broadcast it
     if own_sig.is_some() {
+        tracing::info!(
+            txid = revert_transaction.txid().to_string(),
+            "Broadcasting collaborative revert transaction"
+        );
         inner_node
             .wallet()
             .broadcast_transaction(&revert_transaction)
