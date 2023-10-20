@@ -42,7 +42,6 @@ use ln_dlc_node::node::dlc_message_name;
 use ln_dlc_node::node::sub_channel_message_name;
 use ln_dlc_node::node::RunningNode;
 use ln_dlc_node::WalletSettings;
-use orderbook_commons::order_matching_fee_taker;
 use orderbook_commons::MatchState;
 use orderbook_commons::OrderState;
 use rust_decimal::prelude::ToPrimitive;
@@ -288,19 +287,12 @@ impl Node {
 
         let total_collateral = margin_coordinator + margin_trader;
 
-        let fee = order_matching_fee_taker(
-            trade_params.quantity,
-            trade_params.average_execution_price(),
-        )
-        .to_sat();
-
         let contract_descriptor = build_contract_descriptor(
             total_collateral,
             trade_params.average_execution_price(),
             leverage_long,
             leverage_short,
             create_rounting_interval((total_collateral as f32 * ROUNDING_PERCENT) as u64),
-            fee,
         )
         .context("Could not build contract descriptor")?;
 
@@ -315,9 +307,8 @@ impl Node {
         let event_id = format!("{contract_symbol}{maturity_time}");
         tracing::debug!(event_id, "Proposing dlc channel");
         let contract_input = ContractInput {
-            offer_collateral: margin_coordinator - fee,
-            // the accepting party has do bring in additional margin for the fees
-            accept_collateral: margin_trader + fee,
+            offer_collateral: margin_coordinator,
+            accept_collateral: margin_trader,
             fee_rate,
             contract_infos: vec![ContractInputInfo {
                 contract_descriptor,
@@ -643,7 +634,6 @@ fn build_contract_descriptor(
     leverage_long: f32,
     leverage_short: f32,
     rounding_intervals: RoundingIntervals,
-    fee: u64,
 ) -> Result<ContractDescriptor> {
     Ok(ContractDescriptor::Numerical(NumericalDescriptor {
         payout_function: build_payout_function(
@@ -651,7 +641,6 @@ fn build_contract_descriptor(
             initial_price,
             leverage_long,
             leverage_short,
-            fee,
         )?,
         rounding_intervals,
         difference_params: None,
@@ -672,7 +661,6 @@ fn build_payout_function(
     initial_price: Decimal,
     leverage_long: f32,
     leverage_short: f32,
-    fee: u64,
 ) -> Result<PayoutFunction> {
     let leverage_short = Decimal::try_from(leverage_short)?;
     let liquidation_price_short = calculate_short_liquidation_price(leverage_short, initial_price);
@@ -692,12 +680,12 @@ fn build_payout_function(
     let lower_range = PolynomialPayoutCurvePiece::new(vec![
         PayoutPoint {
             event_outcome: 0,
-            outcome_payout: fee,
+            outcome_payout: 0,
             extra_precision: 0,
         },
         PayoutPoint {
             event_outcome: lower_limit,
-            outcome_payout: fee,
+            outcome_payout: 0,
             extra_precision: 0,
         },
     ])?;
@@ -705,7 +693,7 @@ fn build_payout_function(
     let middle_range = PolynomialPayoutCurvePiece::new(vec![
         PayoutPoint {
             event_outcome: lower_limit,
-            outcome_payout: fee,
+            outcome_payout: 0,
             extra_precision: 0,
         },
         PayoutPoint {

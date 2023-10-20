@@ -34,8 +34,6 @@ use ln_dlc_node::HTLCStatus;
 use ln_dlc_node::MillisatAmount;
 use ln_dlc_node::PaymentFlow;
 use ln_dlc_node::PaymentInfo;
-use orderbook_commons::order_matching_fee_taker;
-use rust_decimal::Decimal;
 use std::sync::Arc;
 use std::time::Duration;
 use time::OffsetDateTime;
@@ -242,17 +240,9 @@ impl Node {
             let filled_order = order::handler::order_filled()
                 .context("Cannot mark order as filled for confirmed DLC")?;
 
-            let execution_price = filled_order
-                .execution_price()
-                .context("expect execution price")?;
-            let open_position_fee = order_matching_fee_taker(
-                filled_order.quantity,
-                Decimal::try_from(execution_price)?,
-            );
-
             position::handler::update_position_after_dlc_creation(
                 filled_order,
-                accept_collateral - open_position_fee.to_sat(),
+                accept_collateral,
                 expiry_timestamp,
             )
             .context("Failed to update position after DLC creation")?;

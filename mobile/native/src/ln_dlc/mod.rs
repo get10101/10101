@@ -540,7 +540,7 @@ fn derive_trades_from_filled_orders() -> Result<Vec<WalletHistoryItem>> {
             let execution_price = Decimal::try_from(
                 first
                     .execution_price()
-                    .context("execution price to be set on a filled order")?,
+                    .expect("execution price to be set on a filled order"),
             )?;
             let fee = order_matching_fee_taker(first.quantity, execution_price).to_sat();
             let amount_sats = amount_sats + fee;
@@ -566,7 +566,7 @@ fn derive_trades_from_filled_orders() -> Result<Vec<WalletHistoryItem>> {
                 let execution_price = Decimal::try_from(
                     order
                         .execution_price()
-                        .context("execution price to be set on a filled order")?,
+                        .expect("execution price to be set on a filled order"),
                 )?;
 
                 // Closing the position.
