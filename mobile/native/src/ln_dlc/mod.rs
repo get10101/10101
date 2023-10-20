@@ -711,9 +711,11 @@ pub fn collaborative_revert_channel(
     let details = channel_manager
         .get_channel_details(&subchannel.channel_id)
         .context("Could not get channel details")?;
+
     let out_point = details
         .original_funding_outpoint
-        .context("Original funding tx didn't have an outpoint")?;
+        .or(details.funding_txo)
+        .context("Could not find original funding outpoint")?;
 
     let address = node.get_unused_address();
 
