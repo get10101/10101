@@ -9,7 +9,7 @@ import 'package:provider/provider.dart';
 
 class StableScreen extends StatefulWidget {
   static const route = "/stable";
-  static const label = "Stable";
+  static const label = "USDP";
 
   const StableScreen({Key? key}) : super(key: key);
 

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:get_10101/common/color.dart';
 import 'package:get_10101/features/trade/domain/direction.dart';
 import 'package:get_10101/features/trade/trade_theme.dart';
 import 'package:intl/intl.dart';
@@ -24,7 +25,7 @@ class OrderListItem extends StatelessWidget {
           Icons.pending,
           size: iconSize,
         ),
-      OrderState.filled => const Icon(Icons.check_circle, color: Colors.green, size: iconSize),
+      OrderState.filled => const Icon(Icons.check_circle, color: tenTenOnePurple, size: iconSize),
       OrderState.failed => const Icon(Icons.error, color: Colors.red, size: iconSize),
     };
 

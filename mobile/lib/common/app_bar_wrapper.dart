@@ -23,7 +23,7 @@ class AppBarWrapper extends StatelessWidget {
     ]);
 
     return Container(
-        margin: const EdgeInsets.only(left: 6.0),
+        margin: const EdgeInsets.only(left: 10.0, right: 5.0),
         child: AppBar(
             elevation: 0,
             backgroundColor: Colors.transparent,
@@ -32,10 +32,6 @@ class AppBarWrapper extends StatelessWidget {
                 // Without adjustment, the icon appears off-center from the title (logo)
                 size: appBarHeight - 8.0),
             leading: leadingButton,
-            title: SizedBox(
-              height: appBarHeight - 10.0,
-              child: Image.asset('assets/10101_logo_icon.png'),
-            ),
             actions: const [
               StatusIconButton(),
             ]));
