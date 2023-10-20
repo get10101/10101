@@ -17,7 +17,7 @@ class Balance extends StatelessWidget {
     Amount total = walletChangeNotifier.total();
     PositionChangeNotifier positionChangeNotifier = context.watch<PositionChangeNotifier>();
     final position = positionChangeNotifier.positions[ContractSymbol.btcusd];
-    if (position != null) {
+    if (position != null && position.isStable()) {
       total = total.add(position.getAmountWithUnrealizedPnl());
     }
 
