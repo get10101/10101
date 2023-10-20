@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Charge order matching fee through the margin
 - Improve wallet balance design
+- Fix a bug where a position remained open even though the channel has been force closed.
 
 ## [1.4.2] - 2023-10-18
 
