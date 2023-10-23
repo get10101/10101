@@ -341,7 +341,7 @@ pub(crate) async fn send_payment(
     let coordinator_balance_before = coordinator.get_ldk_balance();
     let payee_balance_before = payee.get_ldk_balance();
 
-    let route_hint_hop = coordinator.prepare_payment_with_route_hint(payee.info.pubkey)?;
+    let route_hint_hop = payee.prepare_payment_with_route_hint(coordinator.info.pubkey)?;
 
     let invoice = payee.create_invoice_with_route_hint(
         Some(invoice_amount_sat),

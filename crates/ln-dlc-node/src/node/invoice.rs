@@ -132,10 +132,6 @@ where
     ///
     /// We also specify the [`RoutingFees`] to ensure that the payment is made in accordance with
     /// the fees that we want to charge.
-    ///
-    /// # Errors
-    ///
-    /// An error if the user already has a channel. Use `prepare_payment_with_route_hint` instead.
     pub fn prepare_onboarding_payment(
         &self,
         liquidity_request: LiquidityRequest,
@@ -185,38 +181,40 @@ where
         Ok(route_hint_hop)
     }
 
-    pub fn prepare_payment_with_route_hint(&self, target_node: PublicKey) -> Result<RouteHintHop> {
+    pub fn prepare_payment_with_route_hint(&self, hop_node_id: PublicKey) -> Result<RouteHintHop> {
         let channels = self.channel_manager.list_channels();
         let channel = channels
             .iter()
-            .find(|channel| channel.counterparty.node_id == target_node)
-            .with_context(|| format!("Couldn't find channel for {target_node}"))?;
+            .find(|channel| channel.counterparty.node_id == hop_node_id)
+            .with_context(|| format!("Couldn't find channel for {hop_node_id}"))?;
 
-        let short_channel_id = channel.short_channel_id.with_context(|| {
+        let short_channel_id = channel.get_inbound_payment_scid().with_context(|| {
             format!(
-                "Couldn't find short channel id for channel: {}, trader_id={target_node}",
+                "Couldn't find short channel id for channel: {}, hop_node_id={hop_node_id}",
                 channel.channel_id.to_hex()
             )
         })?;
 
-        let ldk_config = self.ldk_config.read();
+        let counterparty_forwarding_info = channel
+            .clone()
+            .counterparty
+            .forwarding_info
+            .context("Couldn't find forwarding info")?;
 
         let route_hint_hop = RouteHintHop {
-            src_node_id: self.info.pubkey,
+            src_node_id: hop_node_id,
             short_channel_id,
             fees: RoutingFees {
-                base_msat: ldk_config.channel_config.forwarding_fee_base_msat,
-                proportional_millionths: ldk_config
-                    .channel_config
-                    .forwarding_fee_proportional_millionths,
+                base_msat: counterparty_forwarding_info.fee_base_msat,
+                proportional_millionths: counterparty_forwarding_info.fee_proportional_millionths,
             },
-            cltv_expiry_delta: MIN_CLTV_EXPIRY_DELTA,
+            cltv_expiry_delta: counterparty_forwarding_info.cltv_expiry_delta,
             htlc_minimum_msat: None,
             htlc_maximum_msat: None,
         };
 
         tracing::info!(
-            peer_id = %target_node,
+            peer_id = %hop_node_id,
             route_hint_hop = ?route_hint_hop,
             "Created route hint for payment to private channel"
         );

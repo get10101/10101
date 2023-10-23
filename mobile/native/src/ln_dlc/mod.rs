@@ -938,7 +938,7 @@ pub fn create_onboarding_invoice(amount_sats: u64, liquidity_option_id: i32) -> 
             %user_channel_id,
         );
 
-        let final_route_hint_hop : RouteHintHop= match client
+        let final_route_hint_hop : RouteHintHop = match client
             .post(format!(
                 "http://{}/api/prepare_onboarding_payment",
                 config::get_http_endpoint(),
@@ -970,36 +970,18 @@ pub fn create_onboarding_invoice(amount_sats: u64, liquidity_option_id: i32) -> 
 }
 
 pub fn create_invoice(amount_sats: Option<u64>) -> Result<Invoice> {
-    let runtime = get_or_create_tokio_runtime()?;
+    let node = NODE.get();
 
-    runtime.block_on(async {
-        let node = NODE.get();
-        let client = reqwest_client();
+    let final_route_hint_hop = node
+        .inner
+        .prepare_payment_with_route_hint(config::get_coordinator_info().pubkey)?;
 
-        let response = client
-            .post(format!(
-                "http://{}/api/prepare_regular_payment/{}",
-                config::get_http_endpoint(),
-                node.inner.info.pubkey
-            ))
-            .send()
-            .await?;
-
-        if !response.status().is_success() {
-            let text = response.text().await?;
-            bail!("Failed to fetch route hint from coordinator for regular payment: {text}")
-        }
-
-        let final_route_hint_hop: RouteHintHop = response.json().await?;
-        let final_route_hint_hop = final_route_hint_hop.into();
-
-        node.inner.create_invoice_with_route_hint(
-            amount_sats,
-            None,
-            "".to_string(),
-            final_route_hint_hop,
-        )
-    })
+    node.inner.create_invoice_with_route_hint(
+        amount_sats,
+        None,
+        "".to_string(),
+        final_route_hint_hop,
+    )
 }
 
 pub fn send_payment(payment: SendPayment) -> Result<()> {
