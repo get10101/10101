@@ -120,10 +120,6 @@ pub fn router(
             "/api/prepare_onboarding_payment",
             post(prepare_onboarding_payment),
         )
-        .route(
-            "/api/prepare_regular_payment/:peer_id",
-            post(prepare_regular_payment),
-        )
         .route("/api/newaddress", get(get_unused_address))
         .route("/api/node", get(get_node_info))
         .route("/api/invoice", get(get_invoice))
@@ -252,33 +248,6 @@ pub async fn prepare_onboarding_payment(
                     max_deposit_sats: liquidity_option.max_deposit_sats,
                     coordinator_leverage: liquidity_option.coordinator_leverage,
                 })
-        }
-    })
-    .await
-    .expect("task to complete")
-    .map_err(|e| AppError::InternalServerError(format!("Could not prepare payment: {e:#}")))?;
-
-    Ok(Json(route_hint_hop.into()))
-}
-
-pub async fn prepare_regular_payment(
-    peer_id: Path<String>,
-    State(app_state): State<Arc<AppState>>,
-) -> Result<Json<RouteHintHop>, AppError> {
-    let peer_id = peer_id.0;
-    let peer_id: PublicKey = peer_id.parse().map_err(|e| {
-        AppError::BadRequest(format!(
-            "Provided public key {peer_id} was not valid: {e:#}"
-        ))
-    })?;
-
-    let route_hint_hop = spawn_blocking({
-        let app_state = app_state.clone();
-        move || {
-            app_state
-                .node
-                .inner
-                .prepare_payment_with_route_hint(peer_id)
         }
     })
     .await

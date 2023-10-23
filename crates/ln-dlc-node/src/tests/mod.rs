@@ -462,7 +462,7 @@ async fn wait_for_n_usable_channels(
             .channel_manager
             .list_usable_channels()
             .iter()
-            .all(|c| c.get_outbound_payment_scid().is_some());
+            .all(|c| c.get_inbound_payment_scid().is_some());
 
         Ok((usable_channels_length == channel_count && scids_set).then_some(()))
     })
