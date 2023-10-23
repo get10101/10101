@@ -55,7 +55,7 @@ async fn process_pending_collaborative_revert(
 
             // Sending no optional push notification as this is only executed if the user just
             // registered on the websocket. So we can assume that the user is still online.
-            let msg = OrderbookMessage::CollaborativeRevert {
+            let msg = OrderbookMessage::TraderMessage {
                 trader_id,
                 message: Message::CollaborativeRevert {
                     channel_id: revert.channel_id,
@@ -63,6 +63,7 @@ async fn process_pending_collaborative_revert(
                     coordinator_amount: revert.coordinator_amount_sats,
                     trader_amount: revert.trader_amount_sats,
                 },
+                notification: None
             };
             if let Err(e) = notifier.send(msg).await {
                 bail!("Failed to send notification. Error: {e:#}");
