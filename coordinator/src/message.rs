@@ -27,10 +27,6 @@ pub enum OrderbookMessage {
         message: Message,
         notification: Option<NotificationKind>,
     },
-    CollaborativeRevert {
-        trader_id: PublicKey,
-        message: Message,
-    },
 }
 
 #[derive(Clone)]
@@ -98,43 +94,6 @@ pub fn spawn_delivering_messages_to_authenticated_users(
                                 }
                                 Err(error) => {
                                     tracing::error!(%trader_id, "Could not send notification to user. Error: {error:#}");
-                                }
-                            }
-                        }
-                    }
-                    OrderbookMessage::CollaborativeRevert { trader_id, message } => {
-                        tracing::info!(%trader_id, "Sending collaborative revert message: {message:?}");
-
-                        let trader = authenticated_users.read().get(&trader_id).cloned();
-
-                        match trader {
-                            Some(sender) => {
-                                if let Err(e) = sender.send(message).await {
-                                    tracing::warn!(%trader_id, "Connection lost to trader {e:#}");
-                                } else {
-                                    tracing::trace!(%trader_id, "Skipping optional push notifications as the user was successfully notified via the websocket.");
-                                    continue;
-                                }
-                            }
-                            None => tracing::warn!(%trader_id, "Trader is not connected. Trying to send push notification for collab revert channel."),
-                        };
-
-                        if let Some(user) = user::by_id(&mut conn, trader_id.to_string())? {
-                            tracing::debug!(%trader_id, "Sending push notification to user to come online and collaboratively revert the channel");
-
-                            match FcmToken::new(user.fcm_token) {
-                                Ok(fcm_token) => {
-                                    if let Err(e) = notification_sender
-                                        .send(Notification {
-                                            user_fcm_token: fcm_token,
-                                            notification_kind: NotificationKind::CollaborativeRevert,
-                                        })
-                                        .await {
-                                        tracing::error!(%trader_id, "Failed to send push notification about collab revert. Error: {e:#}");
-                                    }
-                                }
-                                Err(error) => {
-                                    tracing::error!(%trader_id, "Could not send notification to user about collab revert. Error: {error:#}");
                                 }
                             }
                         }

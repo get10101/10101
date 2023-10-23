@@ -2,6 +2,7 @@ use crate::db;
 use crate::db::positions::Position;
 use crate::message::OrderbookMessage;
 use crate::node::storage::NodeStorage;
+use crate::notifications::NotificationKind;
 use crate::position;
 use anyhow::anyhow;
 use anyhow::bail;
@@ -144,7 +145,7 @@ pub async fn notify_user_to_collaboratively_revert(
     // try to notify user
     let sender = auth_users_notifier;
     sender
-        .send(OrderbookMessage::CollaborativeRevert {
+        .send(OrderbookMessage::TraderMessage {
             trader_id: position.trader,
             message: Message::CollaborativeRevert {
                 channel_id,
@@ -152,6 +153,7 @@ pub async fn notify_user_to_collaboratively_revert(
                 coordinator_amount,
                 trader_amount,
             },
+            notification: Some(NotificationKind::CollaborativeRevert),
         })
         .await
         .map_err(|error| anyhow!("Could send message to notify user {error:#}"))?;
