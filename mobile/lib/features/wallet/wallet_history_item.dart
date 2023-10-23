@@ -37,7 +37,7 @@ abstract class WalletHistoryItem extends StatelessWidget {
           size: statusIconSize,
         ),
       WalletHistoryStatus.confirmed =>
-        const Icon(Icons.check_circle, color: tenTenOnePurple, size: statusIconSize),
+        const Icon(Icons.check_circle, color: Colors.green, size: statusIconSize),
       WalletHistoryStatus.expired =>
         const Icon(Icons.timer_off, color: Colors.red, size: statusIconSize),
       WalletHistoryStatus.failed =>
@@ -56,7 +56,7 @@ abstract class WalletHistoryItem extends StatelessWidget {
     };
 
     Color color = switch (data.flow) {
-      PaymentFlow.inbound => tenTenOnePurple,
+      PaymentFlow.inbound => Colors.green.shade600,
       PaymentFlow.outbound => Colors.red.shade600,
     };
 
