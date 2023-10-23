@@ -370,6 +370,11 @@ pub fn run(data_dir: String, seed_dir: String, runtime: &Runtime) -> Result<()> 
     })
 }
 
+pub fn init_new_mnemonic(target_seed_file: &Path) -> Result<()> {
+    Bip39Seed::initialize(target_seed_file)?;
+    Ok(())
+}
+
 pub fn restore_from_mnemonic(seed_words: &str, target_seed_file: &Path) -> Result<()> {
     Bip39Seed::restore_from_mnemonic(seed_words, target_seed_file)?;
     Ok(())

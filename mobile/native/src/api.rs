@@ -422,6 +422,12 @@ pub fn restore_from_seed_phrase(seed_phrase: String, target_seed_file_path: Stri
     ln_dlc::restore_from_mnemonic(&seed_phrase, file_path.as_path())
 }
 
+pub fn init_new_mnemonic(target_seed_file_path: String) -> Result<()> {
+    let file_path = PathBuf::from(target_seed_file_path);
+    tracing::info!("Creating a new seed in {:?}", file_path);
+    ln_dlc::init_new_mnemonic(file_path.as_path())
+}
+
 /// Enroll a user in the beta program
 #[tokio::main(flavor = "current_thread")]
 pub async fn register_beta(email: String) -> Result<()> {

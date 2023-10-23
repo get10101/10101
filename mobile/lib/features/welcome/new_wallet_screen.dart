@@ -1,10 +1,14 @@
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:get_10101/common/color.dart';
+import 'package:get_10101/common/global_keys.dart';
 import 'package:get_10101/common/loading_screen.dart';
+import 'package:get_10101/common/snack_bar.dart';
 import 'package:get_10101/features/welcome/seed_import_screen.dart';
+import 'package:get_10101/ffi.dart';
 import 'package:get_10101/logger/logger.dart';
 import 'package:flutter/material.dart';
 import 'package:get_10101/common/scrollable_safe_area.dart';
+import 'package:get_10101/util/file.dart';
 import 'package:go_router/go_router.dart';
 
 class NewWalletScreen extends StatefulWidget {
@@ -49,13 +53,18 @@ class _NewWalletScreenState extends State<NewWalletScreen> {
                           setState(() {
                             buttonsDisabled = true;
                           });
-
-                          runBackend(context).then((value) {
-                            logger.i("Backend started");
+                          final seedPath = await getSeedFilePath();
+                          await api.initNewMnemonic(targetSeedFilePath: seedPath).then((value) {
                             GoRouter.of(context).go(LoadingScreen.route);
-                            setState(() {
-                              buttonsDisabled = true;
-                            });
+                          }).catchError((error) {
+                            logger.e("Could not create seed", error: error);
+                            showSnackBar(ScaffoldMessenger.of(rootNavigatorKey.currentContext!),
+                                "Failed to create seed: $error");
+                          });
+
+                          // In case there was an error and we did not go forward, we want to be able to click the button again.
+                          setState(() {
+                            buttonsDisabled = false;
                           });
                         },
                   style: ButtonStyle(

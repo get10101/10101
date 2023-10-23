@@ -43,6 +43,10 @@ impl Bip39Seed {
     /// Initialise a [`Seed`] from a path.
     /// Generates new seed if there was no seed found in the given path
     pub fn initialize(seed_file: &Path) -> Result<Self> {
+        // Ensure parent directory exists
+        if let Some(parent) = seed_file.parent() {
+            create_dir_all(parent)?;
+        }
         let seed = if !seed_file.exists() {
             tracing::info!("No seed found. Generating new seed");
             let seed = Self::new()?;
