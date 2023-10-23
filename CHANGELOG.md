@@ -7,9 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.3] - 2023-10-23
+
 - Charge order matching fee through the margin
 - Improve wallet balance design
 - Fix a bug where a position remained open even though the channel has been force closed.
+- Fix a bug where the app got stuck when opening the receive screen.
 
 ## [1.4.2] - 2023-10-18
 
@@ -140,7 +143,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Self-Custodial CFD Trading based on DLC and lightning
 
-[Unreleased]: https://github.com/get10101/10101/compare/1.4.2...HEAD
+[Unreleased]: https://github.com/get10101/10101/compare/1.4.3...HEAD
+[1.4.3]: https://github.com/get10101/10101/compare/1.4.2...1.4.3
 [1.4.2]: https://github.com/get10101/10101/compare/1.4.1...1.4.2
 [1.4.1]: https://github.com/get10101/10101/compare/1.4.0...1.4.1
 [1.4.0]: https://github.com/get10101/10101/compare/1.3.0...1.4.0
