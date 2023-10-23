@@ -132,10 +132,6 @@ where
     ///
     /// We also specify the [`RoutingFees`] to ensure that the payment is made in accordance with
     /// the fees that we want to charge.
-    ///
-    /// # Errors
-    ///
-    /// An error if the user already has a channel. Use `prepare_payment_with_route_hint` instead.
     pub fn prepare_onboarding_payment(
         &self,
         liquidity_request: LiquidityRequest,
@@ -192,7 +188,7 @@ where
             .find(|channel| channel.counterparty.node_id == target_node)
             .with_context(|| format!("Couldn't find channel for {target_node}"))?;
 
-        let short_channel_id = channel.short_channel_id.with_context(|| {
+        let short_channel_id = channel.get_outbound_payment_scid().with_context(|| {
             format!(
                 "Couldn't find short channel id for channel: {}, trader_id={target_node}",
                 channel.channel_id.to_hex()

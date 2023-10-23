@@ -33,6 +33,7 @@ pub struct ChannelDetails {
     pub inbound_htlc_minimum_msat: Option<u64>,
     pub inbound_htlc_maximum_msat: Option<u64>,
     pub config: Option<ChannelConfig>,
+    pub scid: Option<u64>,
 }
 
 #[derive(Serialize, Debug)]
@@ -46,6 +47,7 @@ pub struct ChannelConfig {
 
 impl From<lightning::ln::channelmanager::ChannelDetails> for ChannelDetails {
     fn from(cd: lightning::ln::channelmanager::ChannelDetails) -> Self {
+        let scid = cd.get_outbound_payment_scid();
         ChannelDetails {
             channel_id: cd.channel_id,
             counterparty: cd.counterparty.node_id,
@@ -74,6 +76,7 @@ impl From<lightning::ln::channelmanager::ChannelDetails> for ChannelDetails {
                 max_dust_htlc_exposure_msat: c.max_dust_htlc_exposure_msat,
                 force_close_avoidance_max_fee_satoshis: c.force_close_avoidance_max_fee_satoshis,
             }),
+            scid,
         }
     }
 }

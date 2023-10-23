@@ -938,7 +938,7 @@ pub fn create_onboarding_invoice(amount_sats: u64, liquidity_option_id: i32) -> 
             %user_channel_id,
         );
 
-        let final_route_hint_hop : RouteHintHop= match client
+        let final_route_hint_hop : RouteHintHop = match client
             .post(format!(
                 "http://{}/api/prepare_onboarding_payment",
                 config::get_http_endpoint(),
