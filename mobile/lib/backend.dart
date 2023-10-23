@@ -55,21 +55,12 @@ Future<void> runBackend(BuildContext context) async {
 }
 
 Future<void> _startBackend({config, appDir, seedDir, fcmToken}) async {
-  int retries = 3;
-
-  for (int i = 0; i < retries; i++) {
-    try {
-      await rust.api
-          .runInFlutter(config: config, appDir: appDir, seedDir: seedDir, fcmToken: fcmToken);
-      break; // If successful, exit loop
-    } catch (e) {
-      logger.i("Attempt ${i + 1} failed: $e");
-      if (i < retries - 1) {
-        await Future.delayed(const Duration(seconds: 5));
-      } else {
-        logger.e("Max retries reached, backend could not start.");
-        exit(-1);
-      }
-    }
+  try {
+    await rust.api
+        .runInFlutter(config: config, appDir: appDir, seedDir: seedDir, fcmToken: fcmToken);
+  } catch (e) {
+    logger.e("Launching the app failed $e");
+    await Future.delayed(const Duration(seconds: 5));
+    exit(-1);
   }
 }
