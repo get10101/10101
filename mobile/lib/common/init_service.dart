@@ -156,7 +156,6 @@ void prepareBackend(BuildContext context, bridge.Config config) {
   subscribeToNotifiers(context);
 
   _logAppSettings(config);
-
 }
 
 void _setupRustLogging() {
@@ -203,11 +202,4 @@ Future<void> _logAppSettings(bridge.Config config) async {
   logger.i("Coordinator: ${config.coordinatorPubkey}@${config.host}:${config.p2PPort}");
   logger.i("Oracle endpoint: ${config.oracleEndpoint}");
   logger.i("Oracle PK: ${config.oraclePubkey}");
-
-  try {
-    String nodeId = rust.api.getNodeId();
-    logger.i("Node ID: $nodeId");
-  } catch (e) {
-    logger.e("Failed to get node ID: $e");
-  }
 }
