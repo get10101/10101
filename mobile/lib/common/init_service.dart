@@ -157,7 +157,6 @@ void prepareBackend(BuildContext context, bridge.Config config) {
 
   _logAppSettings(config);
 
-  rust.api.updateLastLogin().then((lastLogin) => logger.d("Last login was at ${lastLogin.date}"));
 }
 
 void _setupRustLogging() {

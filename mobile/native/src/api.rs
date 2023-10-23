@@ -412,11 +412,6 @@ pub struct LastLogin {
     pub date: String,
 }
 
-pub fn update_last_login() -> Result<LastLogin> {
-    let last_login = db::update_last_login()?;
-    Ok(last_login)
-}
-
 pub fn get_seed_phrase() -> SyncReturn<Vec<String>> {
     SyncReturn(ln_dlc::get_seed_phrase())
 }

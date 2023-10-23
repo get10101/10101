@@ -1,4 +1,3 @@
-use crate::api;
 use crate::db::models::base64_engine;
 use crate::db::models::Channel;
 use crate::db::models::Order;
@@ -103,13 +102,6 @@ pub fn connection() -> Result<PooledConnection<ConnectionManager<SqliteConnectio
 
     pool.get()
         .map_err(|e| anyhow!("cannot acquire database connection: {e:#}"))
-}
-
-pub fn update_last_login() -> Result<api::LastLogin> {
-    let mut db = connection()?;
-    let now = OffsetDateTime::now_utc();
-    let last_login = models::LastLogin::update_last_login(now, &mut db)?.into();
-    Ok(last_login)
 }
 
 pub fn insert_order(order: trade::order::Order) -> Result<trade::order::Order> {
