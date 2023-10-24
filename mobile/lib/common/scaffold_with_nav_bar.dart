@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get_10101/common/app_bar_wrapper.dart';
 import 'package:get_10101/features/stable/stable_screen.dart';
 import 'package:get_10101/features/trade/trade_screen.dart';
@@ -17,27 +18,30 @@ class ScaffoldWithNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: child,
-      appBar: const PreferredSize(
-          preferredSize: Size.fromHeight(40), child: SafeArea(child: AppBarWrapper())),
-      bottomNavigationBar: BottomNavigationBar(
-        items: <BottomNavigationBarItem>[
-          BottomNavigationBarItem(
-            icon: Container(key: tabStable, child: const Icon(Icons.currency_exchange)),
-            label: StableScreen.label,
-          ),
-          BottomNavigationBarItem(
-            icon: Container(key: tabWallet, child: const Icon(Icons.wallet)),
-            label: WalletScreen.label,
-          ),
-          BottomNavigationBarItem(
-            icon: Container(key: tabTrade, child: const Icon(Icons.bar_chart)),
-            label: TradeScreen.label,
-          ),
-        ],
-        currentIndex: _calculateSelectedIndex(context),
-        onTap: (int idx) => _onItemTapped(idx, context),
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.dark,
+      child: Scaffold(
+        body: child,
+        appBar: const PreferredSize(
+            preferredSize: Size.fromHeight(40), child: SafeArea(child: AppBarWrapper())),
+        bottomNavigationBar: BottomNavigationBar(
+          items: <BottomNavigationBarItem>[
+            BottomNavigationBarItem(
+              icon: Container(key: tabStable, child: const Icon(Icons.currency_exchange)),
+              label: StableScreen.label,
+            ),
+            BottomNavigationBarItem(
+              icon: Container(key: tabWallet, child: const Icon(Icons.wallet)),
+              label: WalletScreen.label,
+            ),
+            BottomNavigationBarItem(
+              icon: Container(key: tabTrade, child: const Icon(Icons.bar_chart)),
+              label: TradeScreen.label,
+            ),
+          ],
+          currentIndex: _calculateSelectedIndex(context),
+          onTap: (int idx) => _onItemTapped(idx, context),
+        ),
       ),
     );
   }
