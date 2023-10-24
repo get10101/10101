@@ -4,9 +4,9 @@ import 'package:get_10101/common/channel_status_notifier.dart';
 import 'package:get_10101/common/color.dart';
 
 import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
-import 'package:get_10101/common/settings_details.dart';
-import 'package:get_10101/common/settings_force_close.dart';
-import 'package:get_10101/common/settings_logs.dart';
+import 'package:get_10101/common/settings/app_details_screen.dart';
+import 'package:get_10101/common/settings/force_close_screen.dart';
+import 'package:get_10101/common/settings/share_logs_screen.dart';
 import 'package:get_10101/common/snack_bar.dart';
 import 'package:get_10101/features/trade/position_change_notifier.dart';
 

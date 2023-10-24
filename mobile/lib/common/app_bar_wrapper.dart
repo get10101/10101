@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get_10101/common/color.dart';
-import 'package:get_10101/common/settings_screen.dart';
+import 'package:get_10101/common/settings/settings_screen.dart';
 import 'package:get_10101/common/status_icon_button.dart';
 
 class AppBarWrapper extends StatelessWidget {

@@ -1,19 +1,19 @@
 import 'package:flutter/material.dart';
-import 'package:get_10101/common/settings_screen.dart';
+import 'package:get_10101/common/settings/settings_screen.dart';
 import 'package:get_10101/common/snack_bar.dart';
 import 'package:go_router/go_router.dart';
 import 'package:get_10101/ffi.dart' as rust;
 
-class ForceClose extends StatefulWidget {
-  const ForceClose({
+class ForceCloseScreen extends StatefulWidget {
+  const ForceCloseScreen({
     super.key,
   });
 
   @override
-  State<ForceClose> createState() => _ForceCloseState();
+  State<ForceCloseScreen> createState() => _ForceCloseScreenState();
 }
 
-class _ForceCloseState extends State<ForceClose> {
+class _ForceCloseScreenState extends State<ForceCloseScreen> {
   bool isCloseChannelButtonDisabled = false;
 
   @override
