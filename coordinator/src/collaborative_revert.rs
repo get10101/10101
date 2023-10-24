@@ -19,6 +19,8 @@ use diesel::r2d2::PooledConnection;
 use diesel::PgConnection;
 use dlc::util::weight_to_fee;
 use dlc_manager::subchannel::LNChannelManager;
+use dlc_manager::subchannel::SubChannelState;
+use dlc_manager::Storage;
 use lightning::util::errors::APIError;
 use ln_dlc_node::node::Node;
 use orderbook_commons::Message;
@@ -310,6 +312,17 @@ pub fn confirm_collaborative_revert(
 
         Position::set_position_to_closed(conn, position.id)
             .context("Could not set position to closed")?;
+
+        let mut sub_channel = sub_channel.clone();
+
+        sub_channel.state = SubChannelState::OnChainClosed;
+        inner_node
+            .sub_channel_manager
+            .get_dlc_manager()
+            .get_store()
+            .upsert_sub_channel(&sub_channel)?;
+
+        db::collaborative_reverts::delete(conn, channel_id)?;
 
         Ok(revert_transaction)
     } else {

@@ -18,6 +18,9 @@ use crate::ln_dlc::node::NodeStorage;
 use crate::trade::order;
 use crate::trade::order::FailureReason;
 use crate::trade::order::Order;
+use crate::trade::order::OrderReason;
+use crate::trade::order::OrderState;
+use crate::trade::order::OrderType;
 use crate::trade::position;
 use anyhow::anyhow;
 use anyhow::bail;
@@ -57,6 +60,7 @@ use ln_dlc_node::channel::JIT_FEE_INVOICE_DESCRIPTION_PREFIX;
 use ln_dlc_node::config::app_config;
 use ln_dlc_node::node::rust_dlc_manager;
 use ln_dlc_node::node::rust_dlc_manager::subchannel::LNChannelManager;
+use ln_dlc_node::node::rust_dlc_manager::subchannel::SubChannel;
 use ln_dlc_node::node::rust_dlc_manager::subchannel::SubChannelState;
 use ln_dlc_node::node::rust_dlc_manager::ChannelId;
 use ln_dlc_node::node::rust_dlc_manager::Storage as DlcStorage;
@@ -73,6 +77,7 @@ use orderbook_commons::order_matching_fee_taker;
 use orderbook_commons::RouteHintHop;
 use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::prelude::Signed;
+use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use rust_decimal::RoundingStrategy;
 use state::Storage;
@@ -779,46 +784,118 @@ pub fn collaborative_revert_channel(
 
         let client = reqwest_client();
         let runtime = get_or_create_tokio_runtime()?;
-        runtime.spawn(async move {
-            match client
-                .post(format!(
-                    "http://{}/api/channels/revertconfirm",
-                    config::get_http_endpoint(),
-                ))
-                .json(&data)
-                .send()
-                .await
-            {
-                Ok(response) => match response.text().await {
-                    Ok(response) => {
-                        tracing::info!(
-                            response,
-                            "Received response from confirming reverting a channel"
-                        );
-
-                        match db::delete_positions() {
-                            Ok(_) => {
-                                event::publish(&EventInternal::PositionCloseNotification(
-                                    ContractSymbol::BtcUsd,
-                                ));
-                            }
-                            Err(error) => {
-                                tracing::error!("Could not delete position : {error:#}");
+        runtime.spawn({
+            let sub_channel = subchannel.clone();
+            async move {
+                match client
+                    .post(format!(
+                        "http://{}/api/channels/revertconfirm",
+                        config::get_http_endpoint(),
+                    ))
+                    .json(&data)
+                    .send()
+                    .await
+                {
+                    Ok(response) => match response.text().await {
+                        Ok(response) => {
+                            tracing::info!(
+                                response,
+                                "Received response from confirming reverting a channel"
+                            );
+                            if let Err(e) =
+                                update_state_after_collab_revert(sub_channel, execution_price)
+                            {
+                                tracing::error!(
+                                    "Failed to update state after collab revert. {e:#}"
+                                );
                             }
                         }
+                        Err(error) => {
+                            tracing::error!("Failed at confirming reverting a channel {error:#}");
+                        }
+                    },
+                    Err(err) => {
+                        tracing::error!("Could not confirm collaborative revert {err:#}");
                     }
-                    Err(error) => {
-                        tracing::error!("Failed at confirming reverting a channel  : {error:#}");
-                    }
-                },
-                Err(err) => {
-                    tracing::error!("Could not confirm collaborative revert {err:#}");
                 }
             }
         });
     }
 
     Ok(())
+}
+
+fn update_state_after_collab_revert(
+    sub_channel: SubChannel,
+    execution_price: Decimal,
+) -> Result<()> {
+    let positions = db::get_positions()?;
+
+    let position = match positions.first() {
+        Some(position) => {
+            tracing::info!("Channel is reverted before the position got closed successfully.");
+            position
+        }
+        None => {
+            tracing::info!("Channel is reverted before the position got opened successfully.");
+            if let Some(order) = db::maybe_get_order_in_filling()? {
+                order::handler::order_failed(
+                    Some(order.id),
+                    FailureReason::ProposeDlcChannel,
+                    anyhow!("Order failed due collab revert of the channel"),
+                )?;
+            }
+            return Ok(());
+        }
+    };
+
+    let filled_order = match order::handler::order_filled() {
+        Ok(order) => order,
+        Err(_) => {
+            let order = Order {
+                id: uuid::Uuid::new_v4(),
+                leverage: position.leverage,
+                quantity: position.quantity,
+                contract_symbol: position.contract_symbol,
+                direction: position.direction.opposite(),
+                order_type: OrderType::Market,
+                state: OrderState::Filled {
+                    execution_price: execution_price.to_f32().expect("to fit into f32"),
+                },
+                creation_timestamp: OffsetDateTime::now_utc(),
+                order_expiry_timestamp: OffsetDateTime::now_utc(),
+                reason: OrderReason::Expired,
+                stable: position.stable,
+            };
+            db::insert_order(order)?;
+            event::publish(&EventInternal::OrderUpdateNotification(order));
+            order
+        }
+    };
+
+    position::handler::update_position_after_dlc_closure(Some(filled_order))?;
+
+    match db::delete_positions() {
+        Ok(_) => {
+            event::publish(&EventInternal::PositionCloseNotification(
+                ContractSymbol::BtcUsd,
+            ));
+        }
+        Err(error) => {
+            tracing::error!("Could not delete position : {error:#}");
+        }
+    }
+
+    let mut sub_channel = sub_channel;
+    sub_channel.state = SubChannelState::OnChainClosed;
+
+    let node = NODE.try_get().context("failed to get ln dlc node")?;
+    let node = node.inner.clone();
+
+    node.dlc_manager
+        .get_store()
+        .upsert_sub_channel(&sub_channel)
+        .map_err(|e| anyhow!("{e:#}"))
 }
 
 pub fn get_usable_channel_details() -> Result<Vec<ChannelDetails>> {
