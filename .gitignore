@@ -46,3 +46,4 @@ services/prometheus/data
 mobile/ios/build
 mobile/ios/fastlane/report.xml
 mobile/ios/fastlane/README.md
+.DS_Store
