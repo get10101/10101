@@ -116,14 +116,14 @@ pub async fn notify_user_to_collaboratively_revert(
         "Collaborative revert temporary values"
     );
 
-    let coordinator_addrss = node.get_unused_address();
+    let coordinator_address = node.get_unused_address();
     let coordinator_amount = Amount::from_sat(coordinator_amount as u64 - fee / 2);
     let trader_amount = Amount::from_sat(trader_amount - fee / 2);
 
     // TODO: check if trader still has more than dust
     tracing::info!(
         channel_id = channel_id_string,
-        coordinator_address = %coordinator_addrss,
+        coordinator_address = %coordinator_address,
         coordinator_amount = coordinator_amount.to_sat(),
         trader_amount = trader_amount.to_sat(),
         "Proposing collaborative revert");
@@ -134,7 +134,7 @@ pub async fn notify_user_to_collaboratively_revert(
             channel_id,
             trader_pubkey: position.trader,
             price: revert_params.price.to_f32().expect("to fit into f32"),
-            coordinator_address: coordinator_addrss.clone(),
+            coordinator_address: coordinator_address.clone(),
             coordinator_amount_sats: coordinator_amount,
             trader_amount_sats: trader_amount,
             timestamp: OffsetDateTime::now_utc(),
@@ -149,7 +149,7 @@ pub async fn notify_user_to_collaboratively_revert(
             trader_id: position.trader,
             message: Message::CollaborativeRevert {
                 channel_id,
-                coordinator_address: coordinator_addrss,
+                coordinator_address,
                 coordinator_amount,
                 trader_amount,
                 execution_price: revert_params.price,
