@@ -92,66 +92,73 @@ class SeedPhraseImporterState extends State<SeedPhraseImporter> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
-                  ElevatedButton(
-                    style: ButtonStyle(
-                      padding: MaterialStateProperty.all<EdgeInsets>(
-                          const EdgeInsets.fromLTRB(20, 14, 20, 14)),
-                    ),
-                    onPressed: () {
-                      setState(() {
-                        twelveWords.clear();
-                        _controller.clear();
-                      });
-                    },
-                    child: const Text(
-                      "Clear",
-                      style: TextStyle(fontSize: 20),
+                  SizedBox(
+                    width: 120,
+                    child: ElevatedButton(
+                      style: ButtonStyle(
+                        padding: MaterialStateProperty.all<EdgeInsets>(
+                            const EdgeInsets.fromLTRB(20, 10, 20, 10)),
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          twelveWords.clear();
+                          _controller.clear();
+                        });
+                      },
+                      child: const Text(
+                        "Clear",
+                        style: TextStyle(fontSize: 20),
+                      ),
                     ),
                   ),
-                  ElevatedButton(
-                    style: ButtonStyle(
-                      padding: MaterialStateProperty.all<EdgeInsets>(
-                          const EdgeInsets.fromLTRB(20, 14, 20, 14)),
-                      backgroundColor:
-                          MaterialStateProperty.resolveWith<Color>((Set<MaterialState> states) {
-                        if (states.contains(MaterialState.disabled)) {
-                          return Colors.grey; // Change to the desired disabled color
-                        }
-                        return tenTenOnePurple; // Change to the desired enabled color
-                      }),
-                      foregroundColor:
-                          MaterialStateProperty.resolveWith<Color>((Set<MaterialState> states) {
-                        if (states.contains(MaterialState.disabled)) {
-                          return Colors.black; // Change to the desired disabled text color
-                        }
-                        return Colors.white; // Change to the desired enabled text color
-                      }),
-                    ),
-                    onPressed: isImportDisabled
-                        ? null
-                        : () async {
-                            logger.i("Restoring a previous wallet from a given seed phrase");
-                            final seedPhrase = twelveWords.join(" ");
-                            try {
-                              final seedPath = await getSeedFilePath();
-                              logger.i("Restoring seed into $seedPath");
-                              await api
-                                  .restoreFromSeedPhrase(
-                                      seedPhrase: seedPhrase, targetSeedFilePath: seedPath)
-                                  .then((value) => GoRouter.of(context).go(LoadingScreen.route))
-                                  .catchError((error) {
+                  SizedBox(
+                    width: 120,
+                    child: ElevatedButton(
+                      style: ButtonStyle(
+                        padding: MaterialStateProperty.all<EdgeInsets>(
+                            const EdgeInsets.fromLTRB(20, 10, 20, 10)),
+                        backgroundColor:
+                            MaterialStateProperty.resolveWith<Color>((Set<MaterialState> states) {
+                          if (states.contains(MaterialState.disabled)) {
+                            return Colors.grey; // Change to the desired disabled color
+                          }
+                          return tenTenOnePurple; // Change to the desired enabled color
+                        }),
+                        foregroundColor:
+                            MaterialStateProperty.resolveWith<Color>((Set<MaterialState> states) {
+                          if (states.contains(MaterialState.disabled)) {
+                            return Colors.black; // Change to the desired disabled text color
+                          }
+                          return Colors.white; // Change to the desired enabled text color
+                        }),
+                      ),
+                      onPressed: isImportDisabled
+                          ? null
+                          : () async {
+                              logger.i("Restoring a previous wallet from a given seed phrase");
+                              final seedPhrase = twelveWords.join(" ");
+                              try {
+                                final seedPath = await getSeedFilePath();
+                                logger.i("Restoring seed into $seedPath");
+                                await api
+                                    .restoreFromSeedPhrase(
+                                        seedPhrase: seedPhrase, targetSeedFilePath: seedPath)
+                                    .then((value) => GoRouter.of(context).go(LoadingScreen.route))
+                                    .catchError((error) {
+                                  showSnackBar(
+                                      ScaffoldMessenger.of(rootNavigatorKey.currentContext!),
+                                      "Failed to restore seed: $error");
+                                });
+                              } catch (e) {
+                                logger.e("Error restoring from seed phrase: $e");
                                 showSnackBar(ScaffoldMessenger.of(rootNavigatorKey.currentContext!),
-                                    "Failed to restore seed: $error");
-                              });
-                            } catch (e) {
-                              logger.e("Error restoring from seed phrase: $e");
-                              showSnackBar(ScaffoldMessenger.of(rootNavigatorKey.currentContext!),
-                                  "Failed to restore seed: $e");
-                            }
-                          },
-                    child: const Text(
-                      "Import",
-                      style: TextStyle(fontSize: 20),
+                                    "Failed to restore seed: $e");
+                              }
+                            },
+                      child: const Text(
+                        "Import",
+                        style: TextStyle(fontSize: 20),
+                      ),
                     ),
                   ),
                 ],
