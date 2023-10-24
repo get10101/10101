@@ -201,7 +201,7 @@ pub async fn list_peers(State(state): State<Arc<AppState>>) -> Json<Vec<PublicKe
 }
 
 #[derive(Debug, Deserialize)]
-pub struct CloseChanelParams {
+pub struct CloseChannelParams {
     #[serde(default, deserialize_with = "empty_string_as_none")]
     force: Option<bool>,
 }
@@ -287,7 +287,7 @@ pub async fn send_payment(
 #[instrument(skip_all, err(Debug))]
 pub async fn close_channel(
     Path(channel_id_string): Path<String>,
-    Query(params): Query<CloseChanelParams>,
+    Query(params): Query<CloseChannelParams>,
     State(state): State<Arc<AppState>>,
 ) -> Result<(), AppError> {
     let channel_id = hex::decode(channel_id_string.clone())
