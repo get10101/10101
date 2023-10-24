@@ -28,7 +28,6 @@ use rust_decimal::prelude::ToPrimitive;
 use std::sync::Arc;
 use time::OffsetDateTime;
 use tokio::sync::mpsc;
-use trade::bitmex_client::Quote;
 
 /// The weight for the collaborative close transaction. It's expected to have 1 input (from the fund
 /// transaction) and 2 outputs, one for each party.
@@ -68,34 +67,36 @@ pub async fn notify_user_to_collaboratively_revert(
         .calculate_settlement_amount(revert_params.price)
         .context("Could not calculate settlement amount")?;
 
-    let pnl = position
-        .calculate_coordinator_pnl(Quote {
-            bid_size: 0,
-            ask_size: 0,
-            bid_price: revert_params.price,
-            ask_price: revert_params.price,
-            symbol: "".to_string(),
-            timestamp: OffsetDateTime::now_utc(),
-        })
-        .context("Could not calculate coordinator pnl")?;
+    let trade_settled = sub_channel.fund_value_satoshis == channel_details.channel_value_satoshis;
 
     // There is no easy way to get the total tx fee for all subchannel transactions, hence, we
     // estimate it. This transaction fee is shared among both users fairly
     let dlc_channel_fee = calculate_dlc_channel_tx_fees(
+        trade_settled,
         sub_channel.fund_value_satoshis,
-        pnl,
         channel_details.inbound_capacity_msat / 1000,
         channel_details.outbound_capacity_msat / 1000,
-        position.trader_margin,
-        position.coordinator_margin,
+        position.trader_margin as u64,
+        position.coordinator_margin as u64,
+        channel_details.unspendable_punishment_reserve.unwrap_or(0),
     )?;
 
     // Coordinator's amount is the total channel's value (fund_value_satoshis) whatever the taker
     // had (inbound_capacity), the taker's PnL (settlement_amount) and the transaction fee
-    let coordinator_amount = sub_channel.fund_value_satoshis as i64
-        - (channel_details.inbound_capacity_msat / 1000) as i64
-        - settlement_amount as i64
-        - (dlc_channel_fee as f64 / 2.0) as i64;
+    let coordinator_amount = match trade_settled {
+        false => {
+            sub_channel.fund_value_satoshis as i64
+                - (channel_details.inbound_capacity_msat / 1000) as i64
+                - settlement_amount as i64
+                - (dlc_channel_fee as f64 / 2.0) as i64
+                - channel_details.unspendable_punishment_reserve.unwrap_or(0) as i64
+        }
+        true => {
+            sub_channel.fund_value_satoshis as i64
+                - (channel_details.inbound_capacity_msat / 1000) as i64
+                - channel_details.unspendable_punishment_reserve.unwrap_or(0) as i64
+        }
+    };
     let trader_amount = sub_channel.fund_value_satoshis - coordinator_amount as u64;
 
     let fee = weight_to_fee(
@@ -164,30 +165,31 @@ pub async fn notify_user_to_collaboratively_revert(
 }
 
 fn calculate_dlc_channel_tx_fees(
-    initial_funding: u64,
-    pnl: i64,
+    trade_settled: bool,
+    sub_channel_sats: u64,
     inbound_capacity: u64,
     outbound_capacity: u64,
-    trader_margin: i64,
-    coordinator_margin: i64,
+    trader_margin: u64,
+    coordinator_margin: u64,
+    reserve: u64,
 ) -> anyhow::Result<u64> {
-    let dlc_tx_fee = initial_funding
+    let mut dlc_tx_fee = sub_channel_sats
         .checked_sub(inbound_capacity)
         .context("could not subtract inbound capacity")?
         .checked_sub(outbound_capacity)
         .context("could not subtract outbound capacity")?
-        .checked_sub(
-            trader_margin
-                .checked_sub(pnl)
-                .context("could not substract pnl")? as u64,
-        )
-        .context("could not subtract trader margin")?
-        .checked_sub(
-            coordinator_margin
-                .checked_add(pnl)
-                .context("could not add pnl")? as u64,
-        )
-        .context("could not subtract coordinator margin")?;
+        .checked_sub(reserve * 2)
+        .context("could not substract the reserve")?;
+
+    if !trade_settled {
+        // the ln channel has not yet been updated so we need to take the margins into account.
+        dlc_tx_fee = dlc_tx_fee
+            .checked_sub(trader_margin)
+            .context("could not subtract trader margin")?
+            .checked_sub(coordinator_margin)
+            .context("could not subtract coordinator margin")?;
+    }
+
     Ok(dlc_tx_fee)
 }
 
@@ -196,17 +198,27 @@ pub mod tests {
     use crate::collaborative_revert::calculate_dlc_channel_tx_fees;
 
     #[test]
-    pub fn calculate_transaction_fee_for_dlc_channel_transactions() {
+    pub fn calculate_transaction_fee_for_dlc_channel_transactions_with_smaller_ln_channel() {
         let total_fee =
-            calculate_dlc_channel_tx_fees(200_000, -4047, 65_450, 85_673, 18_690, 18_690).unwrap();
-        assert_eq!(total_fee, 11_497);
+            calculate_dlc_channel_tx_fees(false, 200_000, 65_450, 85_673, 18_690, 18_690, 1_000)
+                .unwrap();
+        assert_eq!(total_fee, 9_497);
+    }
+
+    #[test]
+    pub fn calculate_transaction_fee_for_dlc_channel_transactions_with_equal_ln_channel() {
+        let total_fee =
+            calculate_dlc_channel_tx_fees(true, 200_000, 84_140, 104_363, 18_690, 18_690, 1_000)
+                .unwrap();
+        assert_eq!(total_fee, 9_497);
     }
 
     #[test]
     pub fn ensure_overflow_being_caught() {
-        assert!(
-            calculate_dlc_channel_tx_fees(200_000, -100, 65_383, 88_330, 180_362, 180_362).is_err()
-        );
+        assert!(calculate_dlc_channel_tx_fees(
+            false, 200_000, 84_140, 104_363, 18_690, 18_690, 1_000
+        )
+        .is_err());
     }
 }
 
