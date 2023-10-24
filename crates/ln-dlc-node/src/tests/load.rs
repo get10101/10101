@@ -89,7 +89,7 @@ async fn open_position(coordinator: &Coordinator, app: &Node<InMemoryStore>) -> 
                 }
             }
 
-            tokio::time::sleep(Duration::from_millis(500)).await;
+            tokio::time::sleep(Duration::from_millis(100)).await;
         }
     })
     .await
@@ -134,7 +134,7 @@ async fn close_position(coordinator: &Coordinator, app: &Node<InMemoryStore>) ->
                 }
             }
 
-            tokio::time::sleep(Duration::from_millis(500)).await;
+            tokio::time::sleep(Duration::from_millis(100)).await;
         }
     })
     .await

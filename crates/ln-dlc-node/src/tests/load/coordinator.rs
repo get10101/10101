@@ -104,7 +104,7 @@ impl Coordinator {
                 }
 
                 tracing::debug!("Waiting for channel to be usable");
-                tokio::time::sleep(Duration::from_millis(500)).await;
+                tokio::time::sleep(Duration::from_millis(100)).await;
             }
 
             anyhow::Ok(())

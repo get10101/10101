@@ -320,7 +320,7 @@ impl Node<InMemoryStore> {
                     temp_channel_id = %hex::encode(temp_channel_id),
                     "Waiting for channel to be usable"
                 );
-                tokio::time::sleep(Duration::from_millis(500)).await;
+                tokio::time::sleep(Duration::from_millis(100)).await;
             }
         })
         .await?;
@@ -478,7 +478,7 @@ where
         loop {
             match predicate_fn().await? {
                 Some(value) => return Ok(value),
-                None => tokio::time::sleep(Duration::from_millis(500)).await,
+                None => tokio::time::sleep(Duration::from_millis(100)).await,
             };
         }
     })

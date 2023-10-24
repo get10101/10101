@@ -55,7 +55,7 @@ async fn ln_collab_close() {
         .unwrap();
 
     while !payee.list_channels().is_empty() {
-        tokio::time::sleep(Duration::from_millis(500)).await;
+        tokio::time::sleep(Duration::from_millis(100)).await;
     }
 
     // Give some time for the close transaction to be broadcast before trying to include it in a
