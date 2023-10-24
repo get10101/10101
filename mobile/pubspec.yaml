@@ -60,6 +60,9 @@ flutter:
     - family: SendReceiveIcons
       fonts:
         - asset: fonts/SendReceiveIcons.ttf
+    - family: CustomIcon
+      fonts:
+        - asset: assets/fonts/CustomIcon.ttf
 flutter_native_splash:
   color: '#FFFFFF'
   image: assets/LaunchImage.png
