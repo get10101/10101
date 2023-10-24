@@ -8,7 +8,7 @@ use crate::tests::init_tracing;
 use crate::tests::setup_coordinator_payer_channel;
 use crate::HTLCStatus;
 use bitcoin::Amount;
-use lightning::util::events::Event;
+use lightning::events::Event;
 use std::ops::Add;
 use std::sync::Arc;
 use std::time::Duration;

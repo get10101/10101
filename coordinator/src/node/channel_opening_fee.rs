@@ -5,7 +5,7 @@ use anyhow::Result;
 use bitcoin::hashes::hex::ToHex;
 use bitcoin::secp256k1::ThirtyTwoByteHash;
 use lightning::ln::PaymentHash;
-use lightning_invoice::Invoice;
+use lightning_invoice::Bolt11Invoice;
 use ln_dlc_node::channel::JIT_FEE_INVOICE_DESCRIPTION_PREFIX;
 use ln_dlc_node::PaymentInfo;
 
@@ -15,7 +15,7 @@ impl Node {
         amount: u64,
         funding_txid: String,
         expiry: Option<u32>,
-    ) -> Result<Invoice> {
+    ) -> Result<Bolt11Invoice> {
         let description = format!("{JIT_FEE_INVOICE_DESCRIPTION_PREFIX}{funding_txid}");
         let invoice = self
             .inner

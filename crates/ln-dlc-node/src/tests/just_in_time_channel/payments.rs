@@ -22,7 +22,7 @@ async fn just_in_time_channel_with_multiple_payments() {
     payer.connect(coordinator.info).await.unwrap();
     payee.connect(coordinator.info).await.unwrap();
 
-    let payer_to_payee_invoice_amount = 5_000;
+    let payer_to_payee_invoice_amount = 25_000;
     let expected_coordinator_payee_channel_value =
         setup_coordinator_payer_channel(payer_to_payee_invoice_amount, &coordinator, &payer).await;
 

@@ -994,13 +994,13 @@ fn outpoint_to_string(outpoint: lightning::chain::transaction::OutPoint) -> Stri
 impl
     From<(
         lightning::chain::transaction::OutPoint,
-        lightning::chain::keysinterface::SpendableOutputDescriptor,
+        lightning::sign::SpendableOutputDescriptor,
     )> for SpendableOutputInsertable
 {
     fn from(
         (outpoint, descriptor): (
             lightning::chain::transaction::OutPoint,
-            lightning::chain::keysinterface::SpendableOutputDescriptor,
+            lightning::sign::SpendableOutputDescriptor,
         ),
     ) -> Self {
         let outpoint = outpoint_to_string(outpoint);
@@ -1013,9 +1013,7 @@ impl
     }
 }
 
-impl TryFrom<SpendableOutputQueryable>
-    for lightning::chain::keysinterface::SpendableOutputDescriptor
-{
+impl TryFrom<SpendableOutputQueryable> for lightning::sign::SpendableOutputDescriptor {
     type Error = anyhow::Error;
 
     fn try_from(value: SpendableOutputQueryable) -> Result<Self, Self::Error> {
@@ -1581,7 +1579,7 @@ pub mod test {
             .unwrap(),
             index: 2,
         };
-        let descriptor = lightning::chain::keysinterface::SpendableOutputDescriptor::StaticOutput {
+        let descriptor = lightning::sign::SpendableOutputDescriptor::StaticOutput {
             outpoint,
             output: bitcoin::TxOut {
                 value: 10_000,
@@ -1604,7 +1602,7 @@ pub mod test {
                 };
                 (
                     outpoint,
-                    lightning::chain::keysinterface::SpendableOutputDescriptor::StaticOutput {
+                    lightning::sign::SpendableOutputDescriptor::StaticOutput {
                         outpoint,
                         output: bitcoin::TxOut {
                             value: 25_000,

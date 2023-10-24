@@ -10,24 +10,24 @@ description = "A common interface for using Lightning and DLC channels side-by-s
 anyhow = { version = "1", features = ["backtrace"] }
 async-trait = "0.1.71"
 autometrics = "0.5"
-bdk = { version = "0.27.0", default-features = false, features = ["key-value-db", "use-esplora-blocking"] }
+bdk = { version = "0.28.0", default-features = false, features = ["key-value-db", "use-esplora-blocking", "std"] }
 bip39 = { version = "2", features = ["rand_core"] }
-bitcoin = "0.29"
+bitcoin = "0.29.2"
 dlc = { version = "0.4.0" }
 dlc-manager = { version = "0.4.0", features = ["use-serde"] }
 dlc-messages = { version = "0.4.0" }
 dlc-sled-storage-provider = { version = "0.1.0", features = ["wallet"] }
 dlc-trie = { version = "0.4.0" }
-esplora-client = { version = "0.3", default-features = false }
+esplora-client = { version = "0.4", default-features = false }
 futures = "0.3"
 hex = "0.4"
 hkdf = "0.12"
-lightning = { version = "0.0.114", features = ["max_level_trace"] }
-lightning-background-processor = { version = "0.0.114", features = ["futures"] }
-lightning-invoice = { version = "0.22" }
-lightning-net-tokio = { version = "0.0.114" }
-lightning-persister = { version = "0.0.114" }
-lightning-transaction-sync = { version = "0.0.114", features = ["esplora-blocking"] }
+lightning = { version = "0.0.116", features = ["max_level_trace", "std"] }
+lightning-background-processor = { version = "0.0.116", features = ["futures"] }
+lightning-invoice = { version = "0.24" }
+lightning-net-tokio = { version = "0.0.116" }
+lightning-persister = { version = "0.0.116" }
+lightning-transaction-sync = { version = "0.0.116", features = ["esplora-blocking"] }
 log = "0.4.17"
 p2pd-oracle-client = { version = "0.1.0" }
 parking_lot = { version = "0.12.1" }

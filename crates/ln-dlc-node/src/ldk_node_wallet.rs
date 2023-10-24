@@ -295,12 +295,14 @@ where
     B: Blockchain,
     F: EstimateFeeRate,
 {
-    fn broadcast_transaction(&self, tx: &Transaction) {
-        if let Err(e) = self.broadcast_transaction(tx) {
-            tracing::error!(
-                txid = %tx.txid(),
-                "Error when broadcasting transaction: {e:#}"
-            );
+    fn broadcast_transactions(&self, txs: &[&Transaction]) {
+        for tx in txs {
+            if let Err(e) = self.broadcast_transaction(tx) {
+                tracing::error!(
+                    txid = %tx.txid(),
+                    "Error when broadcasting transaction: {e:#}"
+                );
+            }
         }
     }
 }
@@ -507,7 +509,7 @@ pub mod tests {
 
         fn insert_spendable_output(
             &self,
-            _descriptor: lightning::chain::keysinterface::SpendableOutputDescriptor,
+            _descriptor: lightning::sign::SpendableOutputDescriptor,
         ) -> Result<()> {
             unimplemented!();
         }
@@ -515,7 +517,7 @@ pub mod tests {
         fn get_spendable_output(
             &self,
             _outpoint: &lightning::chain::transaction::OutPoint,
-        ) -> Result<Option<lightning::chain::keysinterface::SpendableOutputDescriptor>> {
+        ) -> Result<Option<lightning::sign::SpendableOutputDescriptor>> {
             unimplemented!();
         }
 
@@ -526,9 +528,7 @@ pub mod tests {
             unimplemented!();
         }
 
-        fn all_spendable_outputs(
-            &self,
-        ) -> Result<Vec<lightning::chain::keysinterface::SpendableOutputDescriptor>> {
+        fn all_spendable_outputs(&self) -> Result<Vec<lightning::sign::SpendableOutputDescriptor>> {
             unimplemented!();
         }
 

@@ -25,7 +25,7 @@ use coordinator::settings::Settings;
 use diesel::r2d2;
 use diesel::r2d2::ConnectionManager;
 use diesel::PgConnection;
-use lightning::util::events::Event;
+use lightning::events::Event;
 use ln_dlc_node::scorer;
 use ln_dlc_node::seed::Bip39Seed;
 use ln_dlc_node::CoordinatorEventHandler;
@@ -121,7 +121,7 @@ async fn main() -> Result<()> {
     )?);
 
     let event_handler = CoordinatorEventHandler::new(node.clone(), Some(node_event_sender));
-    let running = node.start(event_handler)?;
+    let running = node.start(event_handler, false)?;
     let node = Node::new(node, running, pool.clone(), settings.to_node_settings());
 
     // TODO: Pass the tokio metrics into Prometheus

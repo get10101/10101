@@ -69,6 +69,9 @@ pub(crate) fn build(
                     network,
                     best_block: BestBlock::new(block_hash, height),
                 },
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)?
+                    .as_secs() as u32,
             ));
         }
     };

@@ -2,6 +2,7 @@ use crate::node::InMemoryStore;
 use crate::node::Node;
 use crate::tests::dummy_contract_input;
 use crate::tests::init_tracing;
+use crate::tests::wait_for_n_usable_channels;
 use crate::tests::wait_until_dlc_channel_state;
 use crate::tests::SubChannelStateName;
 use anyhow::Context;
@@ -39,8 +40,6 @@ async fn given_lightning_channel_then_can_add_dlc_channel() {
         .await
         .unwrap();
 
-    tokio::time::sleep(Duration::from_secs(5)).await;
-
     // Act and assert
 
     create_dlc_channel(
@@ -54,44 +53,46 @@ async fn given_lightning_channel_then_can_add_dlc_channel() {
 }
 
 pub async fn create_dlc_channel(
-    app: &Node<InMemoryStore>,
-    coordinator: &Node<InMemoryStore>,
+    offer_node: &Node<InMemoryStore>,
+    accept_node: &Node<InMemoryStore>,
     app_dlc_collateral: u64,
     coordinator_dlc_collateral: u64,
 ) -> Result<()> {
     // Act
 
-    let oracle_pk = app.oracle_pk();
+    let oracle_pk = offer_node.oracle_pk();
     let contract_input =
         dummy_contract_input(app_dlc_collateral, coordinator_dlc_collateral, oracle_pk);
 
-    let channel_details = app
+    wait_for_n_usable_channels(1, offer_node).await?;
+    let channel_details = offer_node
         .channel_manager
         .list_usable_channels()
         .iter()
-        .find(|c| c.counterparty.node_id == coordinator.info.pubkey)
+        .find(|c| c.counterparty.node_id == accept_node.info.pubkey)
         .context("Could not find usable channel with peer")?
         .clone();
 
-    app.propose_dlc_channel(channel_details.clone(), contract_input)
+    offer_node
+        .propose_dlc_channel(channel_details.clone(), contract_input)
         .await?;
 
     // Process the app's `Offer`
     let sub_channel = wait_until_dlc_channel_state(
         Duration::from_secs(30),
-        coordinator,
-        app.info.pubkey,
+        accept_node,
+        offer_node.info.pubkey,
         SubChannelStateName::Offered,
     )
     .await?;
 
-    coordinator.accept_dlc_channel_offer(&sub_channel.channel_id)?;
+    accept_node.accept_dlc_channel_offer(&sub_channel.channel_id)?;
 
     // Process the coordinator's `Accept` and send `Confirm`
     wait_until_dlc_channel_state(
         Duration::from_secs(30),
-        app,
-        coordinator.info.pubkey,
+        offer_node,
+        accept_node.info.pubkey,
         SubChannelStateName::Confirmed,
     )
     .await?;
@@ -99,8 +100,8 @@ pub async fn create_dlc_channel(
     // Process the app's `Confirm` and send `Finalize`
     wait_until_dlc_channel_state(
         Duration::from_secs(30),
-        coordinator,
-        app.info.pubkey,
+        accept_node,
+        offer_node.info.pubkey,
         SubChannelStateName::Finalized,
     )
     .await?;
@@ -110,8 +111,8 @@ pub async fn create_dlc_channel(
     // Process the coordinator's `Finalize` and send `Revoke`
     wait_until_dlc_channel_state(
         Duration::from_secs(30),
-        app,
-        coordinator.info.pubkey,
+        offer_node,
+        accept_node.info.pubkey,
         SubChannelStateName::Signed,
     )
     .await?;
@@ -119,8 +120,8 @@ pub async fn create_dlc_channel(
     // Process the app's `Revoke`
     wait_until_dlc_channel_state(
         Duration::from_secs(30),
-        coordinator,
-        app.info.pubkey,
+        accept_node,
+        offer_node.info.pubkey,
         SubChannelStateName::Signed,
     )
     .await?;

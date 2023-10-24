@@ -1,8 +1,8 @@
 use anyhow::Result;
 use async_trait::async_trait;
 use bitcoin::secp256k1::PublicKey;
+use lightning::events::Event;
 use lightning::ln::channelmanager::InterceptId;
-use lightning::util::events::Event;
 use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::sync::Arc;

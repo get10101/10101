@@ -4,8 +4,8 @@ use anyhow::Context;
 use anyhow::Result;
 use bitcoin::Address;
 use bitcoin::Amount;
-use lightning_invoice::Invoice;
-use lightning_invoice::InvoiceDescription;
+use lightning_invoice::Bolt11Invoice;
+use lightning_invoice::Bolt11InvoiceDescription;
 use std::ops::Add;
 use std::str::FromStr;
 use std::time::Duration;
@@ -45,10 +45,11 @@ fn decode_address(request: String) -> Result<Destination> {
 }
 
 fn decode_invoice(request: &str) -> Result<Destination> {
-    let invoice = &Invoice::from_str(request).context("request is not valid BOLT11 invoice")?;
+    let invoice =
+        &Bolt11Invoice::from_str(request).context("request is not valid BOLT11 invoice")?;
     let description = match invoice.description() {
-        InvoiceDescription::Direct(direct) => direct.to_string(),
-        InvoiceDescription::Hash(_) => "".to_string(),
+        Bolt11InvoiceDescription::Direct(direct) => direct.to_string(),
+        Bolt11InvoiceDescription::Hash(_) => "".to_string(),
     };
 
     let timestamp = invoice.timestamp();

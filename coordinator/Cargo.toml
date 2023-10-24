@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 atty = "0.2.14"
-bitcoin = "0.29"
+bitcoin = "0.29.2"
 console-subscriber = "0.1.6"
 diesel_migrations = "2.0.0"
 dlc = "0.4.0"
@@ -44,7 +44,7 @@ version = "0.6.20"
 features = ["ws", "query"]
 
 [dependencies.bdk]
-version = "0.27.0"
+version = "0.28.0"
 default-features = false
 features = ["key-value-db", "use-esplora-blocking"]
 
@@ -64,11 +64,11 @@ version = "0.4.0"
 features = ["use-serde"]
 
 [dependencies.lightning]
-version = "0.0.114"
+version = "0.0.116"
 features = ["max_level_trace"]
 
 [dependencies.lightning-invoice]
-version = "0.22"
+version = "0.24"
 
 [dependencies.ln-dlc-node]
 path = "../crates/ln-dlc-node"

@@ -89,7 +89,10 @@ impl Coordinator {
         Ok(())
     }
 
-    pub async fn create_invoice(&self, amount: Option<u64>) -> Result<lightning_invoice::Invoice> {
+    pub async fn create_invoice(
+        &self,
+        amount: Option<u64>,
+    ) -> Result<lightning_invoice::Bolt11Invoice> {
         let invoice_params = InvoiceParams {
             amount,
             description: Some("Fee for tests".to_string()),

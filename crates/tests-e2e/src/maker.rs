@@ -1,7 +1,7 @@
 use anyhow::Context;
 use anyhow::Result;
 use bitcoin::Address;
-use ln_dlc_node::lightning_invoice::Invoice;
+use ln_dlc_node::lightning_invoice::Bolt11Invoice;
 use ln_dlc_node::node::NodeInfo;
 use maker::routes::Balance;
 use maker::routes::ChannelParams;
@@ -43,7 +43,7 @@ impl Maker {
         Ok(())
     }
 
-    pub async fn pay_invoice(&self, invoice: Invoice) -> Result<()> {
+    pub async fn pay_invoice(&self, invoice: Bolt11Invoice) -> Result<()> {
         let no_json: Option<()> = None;
         self.post(&format!("/api/pay-invoice/{invoice}"), no_json)
             .await?;

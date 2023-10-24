@@ -1,4 +1,3 @@
-use self::node::WalletHistories;
 use crate::api;
 use crate::api::PaymentFlow;
 use crate::api::SendPayment;
@@ -15,6 +14,7 @@ use crate::event::EventInternal;
 use crate::ln_dlc::channel_status::track_channel_status;
 use crate::ln_dlc::node::Node;
 use crate::ln_dlc::node::NodeStorage;
+use crate::ln_dlc::node::WalletHistories;
 use crate::trade::order;
 use crate::trade::order::FailureReason;
 use crate::trade::order::Order;
@@ -43,7 +43,6 @@ use bitcoin::PackedLockTime;
 use bitcoin::Transaction;
 use bitcoin::TxIn;
 use bitcoin::TxOut;
-pub use channel_status::ChannelStatus;
 use coordinator_commons::CollaborativeRevertData;
 use coordinator_commons::LiquidityOption;
 use coordinator_commons::LspConfig;
@@ -51,15 +50,17 @@ use coordinator_commons::OnboardingParam;
 use coordinator_commons::TradeParams;
 use itertools::chain;
 use itertools::Itertools;
+use lightning::events::Event;
 use lightning::ln::channelmanager::ChannelDetails;
-use lightning::util::events::Event;
-use lightning_invoice::Invoice;
 use ln_dlc_node::channel::Channel;
 use ln_dlc_node::channel::UserChannelId;
 use ln_dlc_node::channel::JIT_FEE_INVOICE_DESCRIPTION_PREFIX;
 use ln_dlc_node::config::app_config;
+use ln_dlc_node::lightning_invoice::Bolt11Invoice;
 use ln_dlc_node::node::rust_dlc_manager;
 use ln_dlc_node::node::rust_dlc_manager::subchannel::LNChannelManager;
+use ln_dlc_node::node::rust_dlc_manager::subchannel::LnDlcChannelSigner;
+use ln_dlc_node::node::rust_dlc_manager::subchannel::LnDlcSignerProvider;
 use ln_dlc_node::node::rust_dlc_manager::subchannel::SubChannel;
 use ln_dlc_node::node::rust_dlc_manager::subchannel::SubChannelState;
 use ln_dlc_node::node::rust_dlc_manager::ChannelId;
@@ -97,10 +98,12 @@ use trade::ContractSymbol;
 
 mod lightning_subscriber;
 mod node;
+mod recover_rollover;
 mod sync_position_to_dlc;
 
 pub mod channel_status;
-mod recover_rollover;
+
+pub use channel_status::ChannelStatus;
 
 const PROCESS_INCOMING_DLC_MESSAGES_INTERVAL: Duration = Duration::from_millis(200);
 const UPDATE_WALLET_HISTORY_INTERVAL: Duration = Duration::from_secs(5);
@@ -271,7 +274,7 @@ pub fn run(data_dir: String, seed_dir: String, runtime: &Runtime) -> Result<()> 
         let node = Arc::new(node);
 
         let event_handler = AppEventHandler::new(node.clone(), Some(event_sender));
-        let _running = node.start(event_handler)?;
+        let _running = node.start(event_handler, true)?;
         let node = Arc::new(Node::new(node, _running));
 
         // Refresh the wallet balance and history eagerly so that it can complete before the
@@ -457,7 +460,7 @@ fn keep_wallet_balance_and_history_up_to_date(node: &Node) -> Result<()> {
             None => return None,
         };
 
-        let decoded_invoice = match details.invoice.as_deref().map(Invoice::from_str) {
+        let decoded_invoice = match details.invoice.as_deref().map(Bolt11Invoice::from_str) {
             Some(Ok(inv)) => {
                 tracing::trace!(?inv, "Decoded invoice");
                 Some(inv)
@@ -713,35 +716,54 @@ pub fn collaborative_revert_channel(
     trader_amount: Amount,
     execution_price: Decimal,
 ) -> Result<()> {
-    let node = NODE.try_get().context("failed to get ln dlc node")?;
-
+    let node = NODE.try_get().context("Failed to get Node")?;
     let node = node.inner.clone();
 
-    let sub_channels = node.list_dlc_channels()?;
-    let subchannel = sub_channels
+    let channel_id_hex = hex::encode(channel_id);
+
+    let subchannels = node.list_dlc_channels()?;
+    let subchannel = subchannels
         .iter()
         .find(|c| c.channel_id == channel_id)
-        .context("Could not find provided channel")?;
+        .with_context(|| format!("Could not find subchannel {channel_id_hex}"))?;
 
-    let channel_manager = node.channel_manager.clone();
-    let details = channel_manager
-        .get_channel_details(&subchannel.channel_id)
-        .context("Could not get channel details")?;
+    let channel_keys_id = subchannel
+        .channel_keys_id
+        .or(node
+            .channel_manager
+            .get_channel_details(&subchannel.channel_id)
+            .map(|details| details.channel_keys_id))
+        .with_context(|| {
+            format!("Could not get channel keys ID for subchannel {channel_id_hex}")
+        })?;
 
-    let out_point = details
-        .original_funding_outpoint
-        .or(details.funding_txo)
-        .context("Could not find original funding outpoint")?;
+    // TODO: Should get the funding TXO from the coordinator, since we pass it in as an argument to
+    // the API to collaboratively revert anyway. This way we can avoid depending on the channel
+    // still being tracked by the `ChannelManager`.
 
-    let address = node.get_unused_address();
+    let funding_outpoint = {
+        let details = node
+            .channel_manager
+            .get_channel_details(&subchannel.channel_id)
+            .with_context(|| {
+                format!("Could not get channel details for subchannel {channel_id_hex}")
+            })?;
+
+        details
+            .original_funding_outpoint
+            .or(details.funding_txo)
+            .context("Could not find original funding TXO for subchannel {channel_id_hex}")?
+    };
+
+    let trader_address = node.get_unused_address();
 
     let collab_revert_tx = Transaction {
         version: 2,
         lock_time: PackedLockTime::ZERO,
         input: vec![TxIn {
             previous_output: OutPoint {
-                txid: out_point.txid,
-                vout: out_point.index as u32,
+                txid: funding_outpoint.txid,
+                vout: funding_outpoint.index as u32,
             },
             script_sig: Default::default(),
             sequence: Default::default(),
@@ -754,83 +776,72 @@ pub fn collaborative_revert_channel(
             },
             TxOut {
                 value: trader_amount.to_sat(),
-                script_pubkey: address.script_pubkey(),
+                script_pubkey: trader_address.script_pubkey(),
             },
         ],
     };
-    let mut own_sig = None;
 
-    channel_manager
-        .with_channel_lock_no_check(
-            &subchannel.channel_id,
-            &subchannel.counter_party,
-            |channel_lock| {
-                channel_manager.sign_with_fund_key_cb(channel_lock, &mut |fund_sk| {
-                    let secp = Secp256k1::new();
+    let own_sig = {
+        let signer = node
+            .keys_manager
+            .derive_ln_dlc_channel_signer(subchannel.fund_value_satoshis, channel_keys_id);
 
-                    own_sig = Some(
-                        dlc::util::get_raw_sig_for_tx_input(
-                            &secp,
-                            &collab_revert_tx,
-                            0,
-                            &subchannel.original_funding_redeemscript,
-                            subchannel.fund_value_satoshis,
-                            fund_sk,
-                        )
-                        .expect("to be able to get raw sig for tx input"),
-                    );
-                });
-                Ok(())
-            },
-        )
-        .expect("To be able to get channel lock");
+        signer
+            .get_holder_split_tx_signature(
+                &Secp256k1::new(),
+                &collab_revert_tx,
+                &subchannel.original_funding_redeemscript,
+                subchannel.fund_value_satoshis,
+            )
+            .context("Could not get own signature for collaborative revert transaction")?
+    };
 
-    if let Some(own_sig) = own_sig {
-        let data = CollaborativeRevertData {
-            channel_id: hex::encode(subchannel.channel_id),
-            transaction: collab_revert_tx,
-            signature: own_sig,
-        };
+    let data = CollaborativeRevertData {
+        channel_id: channel_id_hex,
+        transaction: collab_revert_tx,
+        signature: own_sig,
+    };
 
-        let client = reqwest_client();
-        let runtime = get_or_create_tokio_runtime()?;
-        runtime.spawn({
-            let sub_channel = subchannel.clone();
-            async move {
-                match client
-                    .post(format!(
-                        "http://{}/api/channels/revertconfirm",
-                        config::get_http_endpoint(),
-                    ))
-                    .json(&data)
-                    .send()
-                    .await
-                {
-                    Ok(response) => match response.text().await {
-                        Ok(response) => {
-                            tracing::info!(
-                                response,
-                                "Received response from confirming reverting a channel"
+    let client = reqwest_client();
+    let runtime = get_or_create_tokio_runtime()?;
+    runtime.spawn({
+        let subchannel = subchannel.clone();
+        async move {
+            match client
+                .post(format!(
+                    "http://{}/api/channels/revertconfirm",
+                    config::get_http_endpoint(),
+                ))
+                .json(&data)
+                .send()
+                .await
+            {
+                Ok(response) => match response.text().await {
+                    Ok(response) => {
+                        tracing::info!(
+                            response,
+                            "Received response from confirming reverting a channel"
+                        );
+                        if let Err(e) =
+                            update_state_after_collab_revert(subchannel, execution_price)
+                        {
+                            tracing::error!(
+                                "Failed to update state after collaborative revert confirmation: {e:#}"
                             );
-                            if let Err(e) =
-                                update_state_after_collab_revert(sub_channel, execution_price)
-                            {
-                                tracing::error!(
-                                    "Failed to update state after collab revert. {e:#}"
-                                );
-                            }
                         }
-                        Err(error) => {
-                            tracing::error!("Failed at confirming reverting a channel {error:#}");
-                        }
-                    },
-                    Err(err) => {
-                        tracing::error!("Could not confirm collaborative revert {err:#}");
                     }
+                    Err(e) => {
+                        tracing::error!(
+                            "Failed to decode collaborative revert confirmation response text: {e:#}"
+                        );
+                    }
+                },
+                Err(e) => {
+                    tracing::error!("Failed to confirm collaborative revert: {e:#}");
                 }
             }
-        });
-    }
+        }
+    });
 
     Ok(())
 }
@@ -989,7 +1000,10 @@ pub fn liquidity_options() -> Result<Vec<LiquidityOption>> {
     Ok(lsp_config.liquidity_options)
 }
 
-pub fn create_onboarding_invoice(amount_sats: u64, liquidity_option_id: i32) -> Result<Invoice> {
+pub fn create_onboarding_invoice(
+    amount_sats: u64,
+    liquidity_option_id: i32,
+) -> Result<Bolt11Invoice> {
     let runtime = get_or_create_tokio_runtime()?;
 
     runtime.block_on(async {
@@ -1057,7 +1071,7 @@ pub fn create_onboarding_invoice(amount_sats: u64, liquidity_option_id: i32) -> 
     })
 }
 
-pub fn create_invoice(amount_sats: Option<u64>) -> Result<Invoice> {
+pub fn create_invoice(amount_sats: Option<u64>) -> Result<Bolt11Invoice> {
     let node = NODE.get();
 
     let final_route_hint_hop = node
@@ -1075,7 +1089,7 @@ pub fn create_invoice(amount_sats: Option<u64>) -> Result<Invoice> {
 pub fn send_payment(payment: SendPayment) -> Result<()> {
     match payment {
         SendPayment::Lightning { invoice, amount } => {
-            let invoice = Invoice::from_str(&invoice)?;
+            let invoice = Bolt11Invoice::from_str(&invoice)?;
             NODE.get().inner.pay_invoice(&invoice, amount)?;
         }
         SendPayment::OnChain { address, amount } => {

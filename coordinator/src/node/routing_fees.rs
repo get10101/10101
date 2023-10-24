@@ -1,7 +1,7 @@
 use crate::db;
 use crate::node::Node;
 use crate::routing_fee::models::NewRoutingFee;
-use lightning::util::events::Event;
+use lightning::events::Event;
 
 /// Save the routing fee in the database upon `PaymentForwarded` event
 ///

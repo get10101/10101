@@ -22,9 +22,9 @@ use bitcoin::hashes::hex::ToHex;
 use bitcoin::secp256k1::PublicKey;
 use dlc_manager::subchannel::LNChannelManager;
 use lightning::chain::chaininterface::FeeEstimator;
+use lightning::events::Event;
 use lightning::ln::channelmanager::InterceptId;
 use lightning::ln::PaymentHash;
-use lightning::util::events::Event;
 use parking_lot::Mutex;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
@@ -143,6 +143,7 @@ where
                 next_channel_id,
                 fee_earned_msat,
                 claim_from_onchain_tx,
+                outbound_amount_forwarded_msat,
             } => {
                 common_handlers::handle_payment_forwarded(
                     &self.node,
@@ -150,6 +151,7 @@ where
                     next_channel_id,
                     claim_from_onchain_tx,
                     fee_earned_msat,
+                    outbound_amount_forwarded_msat,
                 );
             }
             Event::PendingHTLCsForwardable { time_forwardable } => {
@@ -227,10 +229,13 @@ where
             Event::PaymentClaimable {
                 receiver_node_id: _,
                 payment_hash,
+                onion_fields: _,
                 amount_msat,
+                counterparty_skimmed_fee_msat: _,
                 purpose,
                 via_channel_id: _,
                 via_user_channel_id: _,
+                claim_deadline: _,
             } => {
                 common_handlers::handle_payment_claimable(
                     &self.node.channel_manager,
@@ -256,6 +261,27 @@ where
                     expected_outbound_amount_msat,
                 )
                 .await?;
+            }
+            Event::ChannelPending {
+                channel_id,
+                user_channel_id: _,
+                former_temporary_channel_id,
+                counterparty_node_id,
+                funding_txo,
+            } => {
+                let former_temporary_channel_id =
+                    former_temporary_channel_id.unwrap_or([0; 32]).to_hex();
+                tracing::debug!(
+                    channel_id = channel_id.to_hex(),
+                    former_temporary_channel_id,
+                    counterparty_node_id = counterparty_node_id.to_string(),
+                    funding_txo_tx_id = funding_txo.txid.to_string(),
+                    funding_txo_tx_vout = funding_txo.vout,
+                    "Channel pending"
+                )
+            }
+            Event::BumpTransaction(_) => {
+                tracing::error!("We do not support anchor outputs yet");
             }
         };
 
