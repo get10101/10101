@@ -706,6 +706,7 @@ pub fn collaborative_revert_channel(
     coordinator_address: Address,
     coordinator_amount: Amount,
     trader_amount: Amount,
+    execution_price: Decimal,
 ) -> Result<()> {
     let node = NODE.try_get().context("failed to get ln dlc node")?;
 

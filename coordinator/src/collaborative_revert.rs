@@ -152,6 +152,7 @@ pub async fn notify_user_to_collaboratively_revert(
                 coordinator_address: coordinator_addrss,
                 coordinator_amount,
                 trader_amount,
+                execution_price: revert_params.price,
             },
             notification: Some(NotificationKind::CollaborativeRevert),
         })
