@@ -247,7 +247,7 @@ class _SettingsClickableState extends State<SettingsClickable> {
           children: [
             Icon(
               widget.icon,
-              size: 22,
+              size: 20,
               color: widget.isForce ? Colors.red.shade400 : tenTenOnePurple.shade800,
             ),
             const SizedBox(
