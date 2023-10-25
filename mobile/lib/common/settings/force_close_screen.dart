@@ -5,6 +5,9 @@ import 'package:go_router/go_router.dart';
 import 'package:get_10101/ffi.dart' as rust;
 
 class ForceCloseScreen extends StatefulWidget {
+  static const route = "${SettingsScreen.route}/$subRouteName";
+  static const subRouteName = "forceclose";
+
   const ForceCloseScreen({
     super.key,
   });

@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:get_10101/common/color.dart';
+import 'package:get_10101/common/settings/settings_screen.dart';
 import 'package:get_10101/logger/hybrid_logger.dart';
 import 'package:get_10101/logger/logger.dart';
 import 'package:go_router/go_router.dart';
@@ -10,8 +11,11 @@ import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
-class ShareLogs extends StatelessWidget {
-  const ShareLogs({super.key});
+class ShareLogsScreen extends StatelessWidget {
+  static const route = "${SettingsScreen.route}/$subRouteName";
+  static const subRouteName = "sharelogs";
+
+  const ShareLogsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {

@@ -4,22 +4,21 @@ import 'package:get_10101/common/channel_status_notifier.dart';
 import 'package:get_10101/common/color.dart';
 
 import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
-import 'package:get_10101/common/settings/app_details_screen.dart';
+import 'package:get_10101/common/settings/app_info_screen.dart';
+import 'package:get_10101/common/settings/collab_close_screen.dart';
 import 'package:get_10101/common/settings/force_close_screen.dart';
 import 'package:get_10101/common/settings/share_logs_screen.dart';
 import 'package:get_10101/common/snack_bar.dart';
-import 'package:get_10101/features/trade/position_change_notifier.dart';
+import 'package:get_10101/features/wallet/wallet_screen.dart';
 
 import 'package:get_10101/util/custom_icon_icons.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:provider/provider.dart';
 
-import 'package:package_info_plus/package_info_plus.dart';
-import 'package:get_10101/ffi.dart' as rust;
-import 'package:get_10101/logger/logger.dart';
-
 class SettingsScreen extends StatefulWidget {
+  static const route = "/settings";
+
   const SettingsScreen({super.key});
 
   @override
@@ -27,49 +26,16 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  String _buildNumber = '';
-  String _version = '';
-  String _nodeId = "";
-
-  // Variable preventing the user from spamming the close channel buttons
-  bool _isCloseChannelButtonDisabled = false;
-
-  @override
-  void initState() {
-    try {
-      var nodeId = rust.api.getNodeId();
-      _nodeId = nodeId;
-    } catch (e) {
-      logger.e("Error getting node id: $e");
-      _nodeId = "UNKNOWN";
-    }
-
-    loadValues();
-    super.initState();
-  }
-
-  Future<void> loadValues() async {
-    var value = await PackageInfo.fromPlatform();
-
-    logger.i("All values $value");
-    setState(() {
-      _buildNumber = value.buildNumber;
-      _version = value.version;
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     final bridge.Config config = context.read<bridge.Config>();
 
-    String commit = const String.fromEnvironment('COMMIT', defaultValue: 'not available');
-    String branch = const String.fromEnvironment('BRANCH', defaultValue: 'not available');
     EdgeInsets margin = const EdgeInsets.all(10);
     return Scaffold(
       body: SafeArea(
           child: SingleChildScrollView(
         child: Container(
-          padding: const EdgeInsets.all(10),
+          padding: const EdgeInsets.only(top: 20, left: 10, right: 0),
           child: Column(
             children: [
               Row(
@@ -83,7 +49,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           size: 22,
                         ),
                         onTap: () {
-                          context.pop();
+                          GoRouter.of(context).go(WalletScreen.route);
                         },
                       ),
                     ],
@@ -97,7 +63,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           style: TextStyle(fontWeight: FontWeight.w500, fontSize: 20),
                         ),
                         // shift the row the size of the icon into the middle so that it is properly centered.
-                        SizedBox(width: 22)
+                        SizedBox(width: 34)
                       ],
                     ),
                   )
@@ -111,9 +77,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      "General".toUpperCase(),
-                      style: const TextStyle(color: Colors.grey, fontSize: 17),
+                    const Text(
+                      "GENERAL",
+                      style: TextStyle(color: Colors.grey, fontSize: 17),
                     ),
                     const SizedBox(
                       height: 10,
@@ -126,29 +92,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           SettingsClickable(
                               icon: Icons.info_outline,
                               title: "App Info",
-                              callBackFunc: (() {
-                                Navigator.of(context).push(MaterialPageRoute(
-                                  builder: (context) {
-                                    return AppDetails(
-                                      nodeId: _nodeId,
-                                      version: _version,
-                                      number: _buildNumber,
-                                      branch: branch,
-                                      commitHash: commit,
-                                    );
-                                  },
-                                ));
-                              })),
+                              callBackFunc: () => GoRouter.of(context).push(AppInfoScreen.route)),
                           SettingsClickable(
                               icon: Icons.feed_outlined,
                               title: "Share Logs",
-                              callBackFunc: (() {
-                                Navigator.of(context).push(MaterialPageRoute(
-                                  builder: (context) {
-                                    return const ShareLogs();
-                                  },
-                                ));
-                              })),
+                              callBackFunc: () => GoRouter.of(context).push(ShareLogsScreen.route)),
                         ],
                       ),
                     )
@@ -160,9 +108,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      "Endpoint".toUpperCase(),
-                      style: const TextStyle(color: Colors.grey, fontSize: 17),
+                    const Text(
+                      "ENDPOINT",
+                      style: TextStyle(color: Colors.grey, fontSize: 17),
                     ),
                     const SizedBox(
                       height: 10,
@@ -193,9 +141,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      "Danger Zone".toUpperCase(),
-                      style: const TextStyle(color: Colors.grey, fontSize: 17),
+                    const Text(
+                      "DANGER ZONE",
+                      style: TextStyle(color: Colors.grey, fontSize: 17),
                     ),
                     const SizedBox(
                       height: 10,
@@ -233,13 +181,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 icon: Icons.dangerous,
                                 isForce: true,
                                 title: "Force-Close Channel",
-                                callBackFunc: (() {
-                                  Navigator.of(context).push(MaterialPageRoute(
-                                    builder: (context) {
-                                      return const ForceClose();
-                                    },
-                                  ));
-                                })),
+                                callBackFunc: () =>
+                                    GoRouter.of(context).push(ForceCloseScreen.route)),
                           ),
                         ],
                       ),

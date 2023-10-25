@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get_10101/common/color.dart';
 import 'package:get_10101/common/settings/settings_screen.dart';
 import 'package:get_10101/common/status_icon_button.dart';
+import 'package:go_router/go_router.dart';
 
 class AppBarWrapper extends StatelessWidget {
   const AppBarWrapper({
@@ -17,7 +18,7 @@ class AppBarWrapper extends StatelessWidget {
         icon: const Icon(Icons.settings),
         tooltip: 'Settings',
         onPressed: () {
-          Navigator.of(context).push(_createSettingsRoute());
+          GoRouter.of(context).go(SettingsScreen.route);
         },
       )
     ]);
@@ -36,22 +37,4 @@ class AppBarWrapper extends StatelessWidget {
               StatusIconButton(),
             ]));
   }
-}
-
-Route _createSettingsRoute() {
-  return PageRouteBuilder(
-    pageBuilder: (context, animation, secondaryAnimation) => const SettingsScreen(),
-    transitionsBuilder: (context, animation, secondaryAnimation, child) {
-      const begin = Offset(-1.0, 0.0);
-      const end = Offset.zero;
-      const curve = Curves.ease;
-
-      var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
-
-      return SlideTransition(
-        position: animation.drive(tween),
-        child: child,
-      );
-    },
-  );
 }
