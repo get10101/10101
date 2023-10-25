@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:get_10101/common/channel_status_notifier.dart';
 import 'package:get_10101/common/settings/settings_screen.dart';
 import 'package:get_10101/common/snack_bar.dart';
+import 'package:get_10101/features/wallet/wallet_screen.dart';
 import 'package:go_router/go_router.dart';
 import 'package:get_10101/ffi.dart' as rust;
+import 'package:provider/provider.dart';
+import 'package:slide_to_confirm/slide_to_confirm.dart';
 
 class ForceCloseScreen extends StatefulWidget {
   static const route = "${SettingsScreen.route}/$subRouteName";
@@ -21,129 +25,118 @@ class _ForceCloseScreenState extends State<ForceCloseScreen> {
 
   @override
   Widget build(BuildContext context) {
+    ChannelStatusNotifier channelStatusNotifier = context.watch<ChannelStatusNotifier>();
+
     return Scaffold(
       body: Container(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.only(top: 20, left: 10, right: 10),
           child: SafeArea(
-            child: SingleChildScrollView(
-              child: Column(
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Row(
-                        children: [
-                          GestureDetector(
-                            child: const Icon(
-                              Icons.arrow_back_ios_new_rounded,
-                              size: 22,
-                            ),
-                            onTap: () {
-                              context.pop();
-                            },
+            child: Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Row(
+                      children: [
+                        GestureDetector(
+                          child: const Icon(
+                            Icons.arrow_back_ios_new_rounded,
+                            size: 22,
                           ),
-                        ],
-                      ),
-                      const Expanded(
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              "Force-Close Channel ",
-                              style: TextStyle(fontWeight: FontWeight.w500, fontSize: 20),
-                            ),
-                          ],
-                        ),
-                      )
-                    ],
-                  ),
-                  const SizedBox(
-                    height: 20,
-                  ),
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(borderRadius: BorderRadius.circular(15)),
-                    child: RichText(
-                      text: const TextSpan(
-                        style: TextStyle(fontSize: 18, color: Colors.black, letterSpacing: 0.4),
-                        children: [
-                          TextSpan(
-                            text: "Warning",
-                            style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600),
-                          ),
-                          TextSpan(
-                            text:
-                                ": Force-closing your channel should only be considered as a last resort if 10101 is not reachable.\n\n",
-                          ),
-                          TextSpan(
-                              text:
-                                  "It's always better to collaboratively close as it will also save transaction fees.\n\n"),
-                          TextSpan(text: "If you "),
-                          TextSpan(
-                              text: "force-close",
-                              style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600)),
-                          TextSpan(text: ", you will have to pay the fees for going on-chain.\n\n"),
-                          TextSpan(
-                              text:
-                                  "Your funds can be claimed by your on-chain wallet after a while.\n\n"),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(
-                    height: 20,
-                  ),
-                  GestureDetector(
-                    onTap: isCloseChannelButtonDisabled
-                        ? null
-                        : () async {
-                            setState(() {
-                              isCloseChannelButtonDisabled = true;
-                            });
-                            final messenger = ScaffoldMessenger.of(context);
-                            try {
-                              ensureCanCloseChannel(context);
-                              await rust.api.forceCloseChannel();
-                            } catch (e) {
-                              showSnackBar(
-                                messenger,
-                                e.toString(),
-                              );
-                            } finally {
-                              setState(() {
-                                isCloseChannelButtonDisabled = false;
-                              });
-                            }
+                          onTap: () {
+                            context.pop();
                           },
-                    child: Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(15), color: Colors.white),
+                        ),
+                      ],
+                    ),
+                    const Expanded(
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(
-                            Icons.close_rounded,
-                            color: Colors.red.shade400,
-                          ),
-                          const SizedBox(
-                            width: 20,
-                          ),
                           Text(
                             "Force-Close Channel",
-                            style: TextStyle(
-                                color: Colors.red.shade400,
-                                fontSize: 18,
-                                fontWeight: FontWeight.w400),
-                          )
+                            style: TextStyle(fontWeight: FontWeight.w500, fontSize: 20),
+                          ),
+                          SizedBox(width: 24)
                         ],
                       ),
-                    ),
-                  )
-                ],
-              ),
+                    )
+                  ],
+                ),
+                const SizedBox(
+                  height: 20,
+                ),
+                Container(
+                    margin: const EdgeInsets.all(10),
+                    child: getForceCloseChannelText(channelStatusNotifier)),
+                Expanded(child: Container()),
+                Visibility(
+                  visible: channelStatusNotifier.hasChannel(),
+                  child: Container(
+                    margin: const EdgeInsets.all(10),
+                    child: ConfirmationSlider(
+                        text: "Swipe to force-close",
+                        textStyle: const TextStyle(color: Colors.black87, fontSize: 18),
+                        height: 40,
+                        foregroundColor: Colors.red,
+                        sliderButtonContent: const Icon(
+                          Icons.chevron_right,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                        onConfirmation: () async {
+                          final messenger = ScaffoldMessenger.of(context);
+                          try {
+                            await rust.api
+                                .forceCloseChannel()
+                                .then((value) => GoRouter.of(context).go(WalletScreen.route));
+                          } catch (e) {
+                            showSnackBar(
+                              messenger,
+                              e.toString(),
+                            );
+                          }
+                        }),
+                  ),
+                )
+              ],
             ),
           )),
     );
   }
+}
+
+RichText getForceCloseChannelText(ChannelStatusNotifier channelStatusNotifier) {
+  if (!channelStatusNotifier.hasChannel()) {
+    return RichText(
+        text: const TextSpan(
+      text:
+          "You do not have a channel! Go fund your wallet and create one! Then you can come back here and force-close it.",
+      style: TextStyle(fontSize: 18, color: Colors.black, letterSpacing: 0.4),
+    ));
+  }
+
+  return RichText(
+    text: const TextSpan(
+      style: TextStyle(fontSize: 18, color: Colors.black, letterSpacing: 0.4),
+      children: [
+        TextSpan(
+          text: "Warning",
+          style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600),
+        ),
+        TextSpan(
+          text:
+              ": Force-closing your channel should only be considered as a last resort if 10101 is not reachable.\n\n",
+        ),
+        TextSpan(
+            text:
+                "It's always better to collaboratively close as it will also save transaction fees.\n\n"),
+        TextSpan(text: "If you "),
+        TextSpan(
+            text: "force-close", style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600)),
+        TextSpan(text: ", you will have to pay the fees for going on-chain.\n\n"),
+        TextSpan(text: "Your funds can be claimed by your on-chain wallet after a while.\n\n"),
+      ],
+    ),
+  );
 }

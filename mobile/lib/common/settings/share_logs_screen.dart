@@ -22,7 +22,7 @@ class ShareLogsScreen extends StatelessWidget {
     return Scaffold(
       body: SafeArea(
         child: Container(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.only(top: 20, left: 10, right: 10),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -50,58 +50,66 @@ class ShareLogsScreen extends StatelessWidget {
                           "Logs",
                           style: TextStyle(fontWeight: FontWeight.w500, fontSize: 20),
                         ),
+                        SizedBox(width: 24)
                       ],
                     ),
                   )
                 ],
               ),
-              const SizedBox(
-                height: 20,
-              ),
-              const Text(
-                "You can  either  export your application logs or save them for future reference.",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w400),
-              ),
-              const SizedBox(
-                height: 20,
-              ),
-              GestureDetector(
-                onTap: () async {
-                  logger.toString();
+              Container(
+                margin: const EdgeInsets.all(10),
+                child: Column(
+                  children: [
+                    const SizedBox(
+                      height: 20,
+                    ),
+                    const Text(
+                      "You can  either  export your application logs or save them for future reference.",
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.w400),
+                    ),
+                    const SizedBox(
+                      height: 20,
+                    ),
+                    GestureDetector(
+                      onTap: () async {
+                        logger.toString();
 
-                  var file = await HybridOutput.logFilePath();
-                  var logsAsString = await file.readAsString();
-                  final List<int> bytes = utf8.encode(logsAsString);
-                  final Directory tempDir = await getTemporaryDirectory();
-                  String now = DateFormat('yyyy-MM-dd_HHmmss').format(DateTime.now());
-                  final String filePath = '${tempDir.path}/$now.log';
-                  await File(filePath).writeAsBytes(bytes);
-                  final XFile logFile = XFile(filePath);
-                  Share.shareXFiles([logFile], text: 'Logs from $now');
-                },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 20),
-                  decoration:
-                      BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(15)),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.ios_share_outlined,
-                        color: tenTenOnePurple.shade800,
-                        size: 22,
+                        var file = await HybridOutput.logFilePath();
+                        var logsAsString = await file.readAsString();
+                        final List<int> bytes = utf8.encode(logsAsString);
+                        final Directory tempDir = await getTemporaryDirectory();
+                        String now = DateFormat('yyyy-MM-dd_HHmmss').format(DateTime.now());
+                        final String filePath = '${tempDir.path}/$now.log';
+                        await File(filePath).writeAsBytes(bytes);
+                        final XFile logFile = XFile(filePath);
+                        Share.shareXFiles([logFile], text: 'Logs from $now');
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 20),
+                        decoration: BoxDecoration(
+                            color: Colors.white, borderRadius: BorderRadius.circular(15)),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.ios_share_outlined,
+                              color: tenTenOnePurple.shade800,
+                              size: 22,
+                            ),
+                            const SizedBox(
+                              width: 20,
+                            ),
+                            Text(
+                              "Share Logs",
+                              style: TextStyle(
+                                  color: tenTenOnePurple.shade800,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w500),
+                            )
+                          ],
+                        ),
                       ),
-                      const SizedBox(
-                        width: 20,
-                      ),
-                      Text(
-                        "Share Logs",
-                        style: TextStyle(
-                            color: tenTenOnePurple.shade800,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w500),
-                      )
-                    ],
-                  ),
+                    )
+                  ],
                 ),
               )
             ],
