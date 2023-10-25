@@ -1,4 +1,5 @@
 use anyhow::bail;
+use anyhow::Context;
 use anyhow::Result;
 use bdk::bitcoin;
 use bdk::bitcoin::util::bip32::ExtendedPrivKey;
@@ -7,9 +8,10 @@ use bip39::Mnemonic;
 use bitcoin::Network;
 use hkdf::Hkdf;
 use sha2::Sha256;
+use std::fs::create_dir_all;
 use std::path::Path;
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct Bip39Seed {
     mnemonic: Mnemonic,
 }
@@ -24,9 +26,27 @@ impl Bip39Seed {
         Ok(Self { mnemonic })
     }
 
+    /// Restore a [`Seed`] from a mnemonic. Writes the seed to the given path.
+    pub fn restore_from_mnemonic(seed_words: &str, target_seed_file: &Path) -> Result<Self> {
+        let mnemonic = Mnemonic::parse(seed_words)?;
+        let seed = Self { mnemonic };
+
+        // Ensure parent directory exists
+        if let Some(parent) = target_seed_file.parent() {
+            create_dir_all(parent)?;
+        }
+        seed.write_to(target_seed_file)
+            .context("cannot write to file")?;
+        Ok(seed)
+    }
+
     /// Initialise a [`Seed`] from a path.
     /// Generates new seed if there was no seed found in the given path
     pub fn initialize(seed_file: &Path) -> Result<Self> {
+        // Ensure parent directory exists
+        if let Some(parent) = seed_file.parent() {
+            create_dir_all(parent)?;
+        }
         let seed = if !seed_file.exists() {
             tracing::info!("No seed found. Generating new seed");
             let seed = Self::new()?;
@@ -161,5 +181,21 @@ mod tests {
             hex::encode(ln_seed),
             "1cf21ab62bf5a5ee40896158cbbc18b9ad75805e1824a252d8060c6c075b228f"
         );
+    }
+
+    #[test]
+    fn restore_same_seed_from_exported_mnemonic() {
+        let seed = Bip39Seed::new().unwrap();
+        let seed_words = seed.get_seed_phrase().join(" ");
+
+        let restore_path = &temp_dir().join("seed_restored");
+        let seed_restored = Bip39Seed::restore_from_mnemonic(&seed_words, restore_path).unwrap();
+
+        assert!(
+            seed == seed_restored,
+            "Restored seed should be the same as the original seed"
+        );
+
+        std::fs::remove_file(restore_path).unwrap(); // clear the temp file
     }
 }

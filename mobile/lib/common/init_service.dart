@@ -1,11 +1,14 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:get_10101/features/trade/candlestick_change_notifier.dart';
+import 'package:get_10101/features/trade/order_change_notifier.dart';
+import 'package:get_10101/ffi.dart' as rust;
+import 'package:get_10101/features/trade/position_change_notifier.dart';
 import 'package:get_10101/common/amount_denomination_change_notifier.dart';
 import 'package:get_10101/common/service_status_notifier.dart';
 import 'package:get_10101/common/recover_dlc_change_notifier.dart';
 import 'package:get_10101/features/stable/stable_value_change_notifier.dart';
-import 'package:get_10101/features/trade/candlestick_change_notifier.dart';
-import 'package:get_10101/features/trade/order_change_notifier.dart';
-import 'package:get_10101/features/trade/position_change_notifier.dart';
 import 'package:get_10101/features/wallet/application/faucet_service.dart';
 import 'package:get_10101/features/trade/rollover_change_notifier.dart';
 import 'package:get_10101/features/trade/trade_value_change_notifier.dart';
@@ -29,11 +32,15 @@ import 'package:get_10101/features/trade/domain/price.dart';
 import 'package:get_10101/features/wallet/domain/wallet_info.dart';
 import 'package:get_10101/common/application/event_service.dart';
 import 'package:get_10101/logger/logger.dart';
+import 'package:get_10101/util/environment.dart';
 import 'package:nested/nested.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
 
-List<SingleChildWidget> createProviders(bridge.Config config) {
+List<SingleChildWidget> createProviders() {
+  bridge.Config config = Environment.parse();
+
   const ChannelInfoService channelInfoService = ChannelInfoService();
   var tradeValuesService = TradeValuesService();
 
@@ -137,4 +144,62 @@ void subscribeToNotifiers(BuildContext context) {
 
   eventService.subscribe(
       AnonSubscriber((event) => logger.i(event.field0)), const bridge.Event.log(""));
+}
+
+/// Initialisation step of the app.
+/// Prepares the backend and the notifiers.
+///
+/// Throws an exception if we cannot update the last login time.
+void prepareBackend(BuildContext context, bridge.Config config) {
+  _setupRustLogging();
+
+  subscribeToNotifiers(context);
+
+  _logAppSettings(config);
+}
+
+void _setupRustLogging() {
+  rust.api.initLogging().listen((event) {
+    if (Platform.isAndroid || Platform.isIOS) {
+      var message = event.target != ""
+          ? 'r: ${event.target}: ${event.msg} ${event.data}'
+          : 'r: ${event.msg} ${event.data}';
+      switch (event.level) {
+        case "INFO":
+          logger.i(message);
+        case "DEBUG":
+          logger.d(message);
+        case "ERROR":
+          logger.e(message);
+        case "WARN":
+          logger.w(message);
+        case "TRACE":
+          logger.t(message);
+        default:
+          logger.d(message);
+      }
+    }
+  });
+}
+
+Future<void> _logAppSettings(bridge.Config config) async {
+  String commit = const String.fromEnvironment('COMMIT');
+  if (commit.isNotEmpty) {
+    logger.i("Built on commit: $commit");
+  }
+
+  String branch = const String.fromEnvironment('BRANCH');
+  if (branch.isNotEmpty) {
+    logger.i("Built on branch: $branch");
+  }
+
+  PackageInfo packageInfo = await PackageInfo.fromPlatform();
+  logger.i("Build number: ${packageInfo.buildNumber}");
+  logger.i("Build version: ${packageInfo.version}");
+
+  logger.i("Network: ${config.network}");
+  logger.i("Esplora endpoint: ${config.esploraEndpoint}");
+  logger.i("Coordinator: ${config.coordinatorPubkey}@${config.host}:${config.p2PPort}");
+  logger.i("Oracle endpoint: ${config.oracleEndpoint}");
+  logger.i("Oracle PK: ${config.oraclePubkey}");
 }

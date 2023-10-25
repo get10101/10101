@@ -21,6 +21,7 @@ dependencies:
   slide_to_confirm: ^1.1.0
   path_provider: ^2.0.15
   freezed_annotation: ^2.2.0
+  font_awesome_flutter: 10.6.0
   expandable: ^5.0.1
   qr_flutter: ^4.0.0
   share_plus: ^7.0.2
