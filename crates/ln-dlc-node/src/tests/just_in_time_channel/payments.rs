@@ -5,6 +5,8 @@ use crate::tests::just_in_time_channel::create::send_interceptable_payment;
 use crate::tests::just_in_time_channel::create::send_payment;
 use crate::tests::setup_coordinator_payer_channel;
 use crate::tests::wait_for_n_usable_channels;
+use crate::tests::wait_until;
+use std::time::Duration;
 
 #[tokio::test(flavor = "multi_thread")]
 #[ignore]
@@ -102,7 +104,29 @@ async fn new_config_affects_routing_fees() {
         .channel_config
         .forwarding_fee_proportional_millionths *= 10;
 
+    let fee_rate = ldk_config_coordinator
+        .channel_config
+        .forwarding_fee_proportional_millionths;
+
     coordinator.update_ldk_settings(ldk_config_coordinator);
+
+    wait_until(Duration::from_secs(30), || async {
+        let payer_channels = payer.channel_manager.list_channels();
+        Ok(payer_channels
+            .iter()
+            .any(|channel| {
+                channel
+                    .counterparty
+                    .forwarding_info
+                    .clone()
+                    .expect("to have forwarding info")
+                    .fee_proportional_millionths
+                    == fee_rate
+            })
+            .then_some(()))
+    })
+    .await
+    .expect("all channels to have updated fee");
 
     let payment_amount_sat = 5_000;
     send_payment(&payer, &payee, &coordinator, payment_amount_sat, None)
