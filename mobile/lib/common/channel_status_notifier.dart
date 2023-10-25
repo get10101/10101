@@ -18,9 +18,15 @@ class ChannelStatusNotifier extends ChangeNotifier implements Subscriber {
   }
 
   bool hasChannel() {
-    final status = getChannelStatus();
+    return hasLnChannel() || hasDlcChannel();
+  }
 
-    return status == ChannelStatus.LnDlcOpen || status == ChannelStatus.LnOpen;
+  bool hasLnChannel() {
+    return getChannelStatus() == ChannelStatus.LnOpen;
+  }
+
+  bool hasDlcChannel() {
+    return getChannelStatus() == ChannelStatus.LnDlcOpen;
   }
 
   /// Whether the current LN-DLC channel is closed or not.

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:get_10101/common/channel_status_notifier.dart';
 import 'package:get_10101/common/color.dart';
 
 import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
@@ -154,27 +153,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       child: Column(
                         children: [
                           SettingsClickable(
-                            icon: Icons.close,
-                            title: "Close Channel",
-                            callBackFunc: _isCloseChannelButtonDisabled
-                                ? null
-                                : () async {
-                                    setState(() {
-                                      _isCloseChannelButtonDisabled = true;
-                                    });
-                                    final messenger = ScaffoldMessenger.of(context);
-                                    try {
-                                      ensureCanCloseChannel(context);
-                                      await rust.api.closeChannel();
-                                    } catch (e) {
-                                      showSnackBar(messenger, e.toString());
-                                    } finally {
-                                      setState(() {
-                                        _isCloseChannelButtonDisabled = false;
-                                      });
-                                    }
-                                  },
-                          ),
+                              icon: Icons.close,
+                              title: "Close Channel",
+                              callBackFunc: () =>
+                                  GoRouter.of(context).push(CollabCloseScreen.route)),
                           Visibility(
                             visible: config.network == "regtest",
                             child: SettingsClickable(
@@ -195,16 +177,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
       )),
     );
-  }
-}
-
-/// Throws if the channel is not in a state where it can be closed.
-void ensureCanCloseChannel(BuildContext context) {
-  if (context.read<PositionChangeNotifier>().positions.isNotEmpty) {
-    throw Exception("In order to close your Lighting Channel you need to close all your positions");
-  }
-  if (context.read<ChannelStatusNotifier>().isClosing()) {
-    throw Exception("Your channel is already closing");
   }
 }
 
