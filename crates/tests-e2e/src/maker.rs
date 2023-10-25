@@ -93,7 +93,7 @@ impl Maker {
             .get(format!("{0}{path}", self.host))
             .send()
             .await
-            .context("Could not send GET request to coordinator")?
+            .context("Could not send GET request to maker")?
             .error_for_status()
             .context("Maker did not return 200 OK")
     }
@@ -113,7 +113,7 @@ impl Maker {
             .json(&json)
             .send()
             .await
-            .context("Could not send POST request to coordinator")?
+            .context("Could not send POST request to maker")?
             .error_for_status()
             .context("Maker did not return 200 OK")
     }
