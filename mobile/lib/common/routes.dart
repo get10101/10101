@@ -2,6 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:get_10101/common/global_keys.dart';
 import 'package:get_10101/common/loading_screen.dart';
 import 'package:get_10101/common/scaffold_with_nav_bar.dart';
+import 'package:get_10101/common/settings/app_info_screen.dart';
+import 'package:get_10101/common/settings/collab_close_screen.dart';
+import 'package:get_10101/common/settings/force_close_screen.dart';
+import 'package:get_10101/common/settings/settings_screen.dart';
+import 'package:get_10101/common/settings/share_logs_screen.dart';
 import 'package:get_10101/features/stable/stable_screen.dart';
 import 'package:get_10101/features/trade/trade_screen.dart';
 import 'package:get_10101/features/wallet/domain/wallet_type.dart';
@@ -21,6 +26,60 @@ GoRouter createRoutes() {
       navigatorKey: rootNavigatorKey,
       initialLocation: LoadingScreen.route,
       routes: <RouteBase>[
+        GoRoute(
+            path: SettingsScreen.route,
+            pageBuilder: (BuildContext context, GoRouterState state) {
+              return CustomTransitionPage<void>(
+                transitionsBuilder: (BuildContext context, Animation<double> animation,
+                    Animation<double> secondaryAnimation, Widget child) {
+                  const begin = Offset(-1.0, 0.0);
+                  const end = Offset.zero;
+                  const curve = Curves.ease;
+
+                  var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+
+                  return SlideTransition(
+                    position: animation.drive(tween),
+                    child: child,
+                  );
+                },
+                child: const SettingsScreen(),
+              );
+            },
+            routes: <RouteBase>[
+              GoRoute(
+                path: AppInfoScreen.subRouteName,
+                // Use root navigator so the screen overlays the application shell
+                parentNavigatorKey: rootNavigatorKey,
+                builder: (BuildContext context, GoRouterState state) {
+                  return const AppInfoScreen();
+                },
+              ),
+              GoRoute(
+                path: ShareLogsScreen.subRouteName,
+                // Use root navigator so the screen overlays the application shell
+                parentNavigatorKey: rootNavigatorKey,
+                builder: (BuildContext context, GoRouterState state) {
+                  return const ShareLogsScreen();
+                },
+              ),
+              GoRoute(
+                path: CollabCloseScreen.subRouteName,
+                // Use root navigator so the screen overlays the application shell
+                parentNavigatorKey: rootNavigatorKey,
+                builder: (BuildContext context, GoRouterState state) {
+                  return const CollabCloseScreen();
+                },
+              ),
+              GoRoute(
+                path: ForceCloseScreen.subRouteName,
+                // Use root navigator so the screen overlays the application shell
+                parentNavigatorKey: rootNavigatorKey,
+                builder: (BuildContext context, GoRouterState state) {
+                  return const ForceCloseScreen();
+                },
+              )
+            ]),
         ShellRoute(
           navigatorKey: shellNavigatorKey,
           builder: (BuildContext context, GoRouterState state, Widget child) {

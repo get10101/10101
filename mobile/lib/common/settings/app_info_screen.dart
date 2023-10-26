@@ -1,33 +1,63 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get_10101/common/color.dart';
+import 'package:get_10101/common/settings/settings_screen.dart';
 import 'package:get_10101/common/snack_bar.dart';
+import 'package:get_10101/logger/logger.dart';
 
 import 'package:go_router/go_router.dart';
 
-class AppDetails extends StatefulWidget {
-  const AppDetails(
-      {super.key,
-      required this.nodeId,
-      required this.number,
-      required this.version,
-      required this.commitHash,
-      required this.branch});
+import 'package:package_info_plus/package_info_plus.dart';
+import 'package:get_10101/ffi.dart' as rust;
 
-  final String nodeId, number, version, commitHash, branch;
+class AppInfoScreen extends StatefulWidget {
+  static const route = "${SettingsScreen.route}/$subRouteName";
+  static const subRouteName = "appdetails";
+
+  const AppInfoScreen({super.key});
 
   @override
-  State<AppDetails> createState() => _AppDetailsState();
+  State<AppInfoScreen> createState() => _AppInfoScreenState();
 }
 
-class _AppDetailsState extends State<AppDetails> {
+class _AppInfoScreenState extends State<AppInfoScreen> {
   EdgeInsets margin = const EdgeInsets.all(10);
+
+  String _buildNumber = '';
+  String _version = '';
+  String _nodeId = "";
+
+  @override
+  void initState() {
+    try {
+      var nodeId = rust.api.getNodeId();
+      _nodeId = nodeId;
+    } catch (e) {
+      logger.e("Error getting node id: $e");
+      _nodeId = "UNKNOWN";
+    }
+
+    loadValues();
+    super.initState();
+  }
+
+  Future<void> loadValues() async {
+    var value = await PackageInfo.fromPlatform();
+
+    setState(() {
+      _buildNumber = value.buildNumber;
+      _version = value.version;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
+    String commit = const String.fromEnvironment('COMMIT', defaultValue: 'not available');
+    String branch = const String.fromEnvironment('BRANCH', defaultValue: 'not available');
+
     return Scaffold(
       body: Container(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.only(top: 20, left: 10, right: 10),
           child: SafeArea(
             child: SingleChildScrollView(
               child: Column(
@@ -57,7 +87,7 @@ class _AppDetailsState extends State<AppDetails> {
                               style: TextStyle(fontWeight: FontWeight.w500, fontSize: 20),
                             ),
                             // shift the row the size of the icon into the middle so that it is properly centered.
-                            SizedBox(width: 22)
+                            SizedBox(width: 24)
                           ],
                         ),
                       )
@@ -66,50 +96,56 @@ class _AppDetailsState extends State<AppDetails> {
                   const SizedBox(
                     height: 20,
                   ),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        "NODE INFO",
-                        style: TextStyle(color: Colors.grey, fontSize: 17),
-                      ),
-                      const SizedBox(
-                        height: 10,
-                      ),
-                      Container(
-                          decoration: BoxDecoration(
-                              color: Colors.white, borderRadius: BorderRadius.circular(15)),
-                          child: Column(
-                            children: [moreInfo(context, title: "Node Id", info: widget.nodeId)],
-                          ))
-                    ],
+                  Container(
+                    margin: const EdgeInsets.all(10),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          "NODE INFO",
+                          style: TextStyle(color: Colors.grey, fontSize: 17),
+                        ),
+                        const SizedBox(
+                          height: 10,
+                        ),
+                        Container(
+                            decoration: BoxDecoration(
+                                color: Colors.white, borderRadius: BorderRadius.circular(15)),
+                            child: Column(
+                              children: [moreInfo(context, title: "Node Id", info: _nodeId)],
+                            ))
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 20),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        "BUILD INFO",
-                        style: TextStyle(color: Colors.grey, fontSize: 18),
-                      ),
-                      const SizedBox(
-                        height: 10,
-                      ),
-                      Container(
-                          decoration: BoxDecoration(
-                              color: Colors.white, borderRadius: BorderRadius.circular(15)),
-                          child: Column(
-                            children: [
-                              moreInfo(context,
-                                  title: "Number", info: widget.number, showCopyButton: true),
-                              moreInfo(context,
-                                  title: "Version", info: widget.version, showCopyButton: true),
-                              moreInfo(context, title: "Commit Hash", info: widget.commitHash),
-                              moreInfo(context,
-                                  title: "Branch", info: widget.branch, showCopyButton: true)
-                            ],
-                          ))
-                    ],
+                  Container(
+                    margin: const EdgeInsets.all(10),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          "BUILD INFO",
+                          style: TextStyle(color: Colors.grey, fontSize: 18),
+                        ),
+                        const SizedBox(
+                          height: 10,
+                        ),
+                        Container(
+                            decoration: BoxDecoration(
+                                color: Colors.white, borderRadius: BorderRadius.circular(15)),
+                            child: Column(
+                              children: [
+                                moreInfo(context,
+                                    title: "Number", info: _buildNumber, showCopyButton: true),
+                                moreInfo(context,
+                                    title: "Version", info: _version, showCopyButton: true),
+                                moreInfo(context, title: "Commit Hash", info: commit),
+                                moreInfo(context,
+                                    title: "Branch", info: branch, showCopyButton: true)
+                              ],
+                            ))
+                      ],
+                    ),
                   ),
                 ],
               ),
