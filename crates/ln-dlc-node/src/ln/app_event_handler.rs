@@ -1,6 +1,5 @@
 use super::common_handlers;
 use super::event_handler::EventSender;
-use super::event_handler::PendingInterceptedHtlcs;
 use crate::channel::Channel;
 use crate::channel::ChannelState;
 use crate::channel::UserChannelId;
@@ -24,7 +23,6 @@ use std::sync::Arc;
 // TODO: Move it out of this crate
 pub struct AppEventHandler<S> {
     pub(crate) node: Arc<Node<S>>,
-    pub(crate) pending_intercepted_htlcs: PendingInterceptedHtlcs,
     pub(crate) event_sender: Option<EventSender>,
 }
 
@@ -33,11 +31,7 @@ where
     S: Storage + Send + Sync + 'static,
 {
     pub fn new(node: Arc<Node<S>>, event_sender: Option<EventSender>) -> Self {
-        Self {
-            node,
-            event_sender,
-            pending_intercepted_htlcs: Arc::new(Mutex::new(HashMap::new())),
-        }
+        Self { node, event_sender }
     }
 }
 
@@ -180,9 +174,11 @@ where
                 reason,
                 user_channel_id,
             } => {
+                // we won't intercept htlcs in the app, hence we can pass an empty map
+                let pending_intercepted_htlcs = Arc::new(Mutex::new(HashMap::new()));
                 common_handlers::handle_channel_closed(
                     &self.node,
-                    &self.pending_intercepted_htlcs,
+                    &pending_intercepted_htlcs,
                     user_channel_id,
                     reason,
                     channel_id,
