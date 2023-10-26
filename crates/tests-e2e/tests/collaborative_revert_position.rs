@@ -1,5 +1,7 @@
+use bitcoin::Txid;
 use coordinator::admin::Balance;
 use native::api;
+use std::str::FromStr;
 use tests_e2e::bitcoind::Bitcoind;
 use tests_e2e::coordinator::Coordinator;
 use tests_e2e::setup;
@@ -25,6 +27,10 @@ async fn can_revert_channel() {
     let wallet_info = app.rx.wallet_info().expect("To be able to get wallet info");
     assert_eq!(wallet_info.balances.on_chain, 0);
 
+    let split: Vec<_> = channel.original_funding_txo.split(":").collect();
+    let txid = Txid::from_str(&split[0]).expect("To have a channel id");
+    let vout = u32::from_str(&split[1]).expect("To have valid vout");
+
     coordinator
         .sync_wallet()
         .await
@@ -34,7 +40,7 @@ async fn can_revert_channel() {
         .await
         .expect("to be able to get balance");
     coordinator
-        .collaborative_revert_channel(&channel.channel_id)
+        .collaborative_revert_channel(&channel.channel_id, txid, vout)
         .await
         .expect("To be able to invoke revert");
 
