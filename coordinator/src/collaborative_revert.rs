@@ -137,6 +137,8 @@ pub async fn notify_user_to_collaboratively_revert(
             coordinator_amount_sats: coordinator_amount,
             trader_amount_sats: trader_amount,
             timestamp: OffsetDateTime::now_utc(),
+            txid: revert_params.txid,
+            vout: revert_params.vout,
         },
     )
     .context("Could not insert new collaborative revert")?;

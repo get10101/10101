@@ -107,6 +107,18 @@ pub(crate) fn update_payment_hash(
     upsert(channel, conn)
 }
 
+pub fn get_by_channel_id(
+    channel_id: String,
+    conn: &mut PgConnection,
+) -> Result<Option<ln_dlc_node::channel::Channel>> {
+    let channel = channels::table
+        .filter(channels::channel_id.eq(channel_id))
+        .first::<Channel>(conn)
+        .optional()?
+        .map(ln_dlc_node::channel::Channel::from);
+    Ok(channel)
+}
+
 pub(crate) fn upsert(channel: Channel, conn: &mut PgConnection) -> Result<()> {
     let affected_rows = diesel::insert_into(channels::table)
         .values(channel.clone())

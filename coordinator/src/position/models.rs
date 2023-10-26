@@ -4,6 +4,7 @@ use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::Address;
 use bitcoin::Amount;
+use bitcoin::Txid;
 use dlc_manager::ContractId;
 use orderbook_commons::order_matching_fee_taker;
 use rust_decimal::prelude::ToPrimitive;
@@ -545,6 +546,8 @@ pub struct CollaborativeRevert {
     pub coordinator_amount_sats: Amount,
     pub trader_amount_sats: Amount,
     pub timestamp: OffsetDateTime,
+    pub txid: Txid,
+    pub vout: u32,
 }
 
 pub fn parse_channel_id(channel_id: &str) -> Result<[u8; 32]> {

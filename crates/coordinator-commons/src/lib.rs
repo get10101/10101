@@ -2,6 +2,7 @@ use bdk::bitcoin::secp256k1::ecdsa::Signature;
 use bdk::bitcoin::secp256k1::PublicKey;
 use bdk::bitcoin::Network;
 use bdk::bitcoin::Transaction;
+use bdk::bitcoin::Txid;
 use orderbook_commons::FilledWith;
 use rust_decimal::Decimal;
 use serde::Deserialize;
@@ -376,6 +377,10 @@ pub struct CollaborativeRevert {
     pub price: Decimal,
     /// Fee rate for the closing transaction
     pub fee_rate_sats_vb: u64,
+    /// The UTXO of the funding transaction
+    pub txid: Txid,
+    /// The vout of the funding transaction
+    pub vout: u32,
 }
 
 #[derive(Deserialize, Serialize)]

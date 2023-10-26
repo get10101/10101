@@ -71,6 +71,8 @@ diesel::table! {
         coordinator_amount_sats -> Int8,
         trader_amount_sats -> Int8,
         timestamp -> Timestamptz,
+        funding_txid -> Text,
+        funding_vout -> Int4,
     }
 }
 
