@@ -63,3 +63,17 @@ class RecoverDlc {
     return bridge.BackgroundTask_RecoverDlc(TaskStatus.apiDummy());
   }
 }
+
+class CollabRevert {
+  final TaskStatus taskStatus;
+
+  CollabRevert({required this.taskStatus});
+
+  static CollabRevert fromApi(bridge.BackgroundTask_CollabRevert collabRevert) {
+    return CollabRevert(taskStatus: TaskStatus.fromApi(collabRevert.field0));
+  }
+
+  static bridge.BackgroundTask apiDummy() {
+    return bridge.BackgroundTask_CollabRevert(TaskStatus.apiDummy());
+  }
+}

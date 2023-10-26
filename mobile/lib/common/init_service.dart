@@ -6,6 +6,7 @@ import 'package:get_10101/features/trade/order_change_notifier.dart';
 import 'package:get_10101/ffi.dart' as rust;
 import 'package:get_10101/features/trade/position_change_notifier.dart';
 import 'package:get_10101/common/amount_denomination_change_notifier.dart';
+import 'package:get_10101/common/collab_revert_change_notifier.dart';
 import 'package:get_10101/common/service_status_notifier.dart';
 import 'package:get_10101/common/recover_dlc_change_notifier.dart';
 import 'package:get_10101/features/stable/stable_value_change_notifier.dart';
@@ -65,6 +66,7 @@ List<SingleChildWidget> createProviders() {
     ChangeNotifierProvider(create: (context) => RecoverDlcChangeNotifier()),
     ChangeNotifierProvider(create: (context) => PaymentClaimedChangeNotifier()),
     ChangeNotifierProvider(create: (context) => PaymentChangeNotifier()),
+    ChangeNotifierProvider(create: (context) => CollabRevertChangeNotifier()),
     Provider(create: (context) => config),
     Provider(create: (context) => channelInfoService)
   ];
@@ -94,6 +96,7 @@ void subscribeToNotifiers(BuildContext context) {
   final recoverDlcChangeNotifier = context.read<RecoverDlcChangeNotifier>();
   final paymentClaimedChangeNotifier = context.read<PaymentClaimedChangeNotifier>();
   final paymentChangeNotifier = context.read<PaymentChangeNotifier>();
+  final collabRevertChangeNotifier = context.read<CollabRevertChangeNotifier>();
 
   eventService.subscribe(
       orderChangeNotifier, bridge.Event.orderUpdateNotification(Order.apiDummy()));
@@ -139,6 +142,9 @@ void subscribeToNotifiers(BuildContext context) {
 
   eventService.subscribe(paymentChangeNotifier, const bridge.Event.paymentSent());
   eventService.subscribe(paymentChangeNotifier, const bridge.Event.paymentFailed());
+
+  eventService.subscribe(
+      collabRevertChangeNotifier, bridge.Event.backgroundNotification(CollabRevert.apiDummy()));
 
   channelStatusNotifier.subscribe(eventService);
 

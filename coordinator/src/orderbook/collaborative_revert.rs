@@ -10,6 +10,7 @@ use diesel::PgConnection;
 use futures::future::RemoteHandle;
 use futures::FutureExt;
 use orderbook_commons::Message;
+use rust_decimal::Decimal;
 use tokio::sync::broadcast;
 use tokio::sync::mpsc;
 
@@ -55,14 +56,16 @@ async fn process_pending_collaborative_revert(
 
             // Sending no optional push notification as this is only executed if the user just
             // registered on the websocket. So we can assume that the user is still online.
-            let msg = OrderbookMessage::CollaborativeRevert {
+            let msg = OrderbookMessage::TraderMessage {
                 trader_id,
                 message: Message::CollaborativeRevert {
                     channel_id: revert.channel_id,
                     coordinator_address: revert.coordinator_address,
                     coordinator_amount: revert.coordinator_amount_sats,
                     trader_amount: revert.trader_amount_sats,
+                    execution_price: Decimal::try_from(revert.price).expect("to fit into decimal"),
                 },
+                notification: None,
             };
             if let Err(e) = notifier.send(msg).await {
                 bail!("Failed to send notification. Error: {e:#}");

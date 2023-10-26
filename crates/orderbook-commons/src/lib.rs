@@ -160,6 +160,8 @@ pub enum Message {
         coordinator_amount: Amount,
         #[serde(with = "bitcoin::util::amount::serde::as_sat")]
         trader_amount: Amount,
+        #[serde(with = "rust_decimal::serde::float")]
+        execution_price: Decimal,
     },
 }
 

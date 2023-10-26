@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Improve collab revert
 - Improved settings screen
 
 ## [1.4.3] - 2023-10-23

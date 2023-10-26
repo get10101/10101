@@ -43,6 +43,8 @@ pub enum BackgroundTask {
     /// The app was started with a dlc channel in an intermediate state. This task is in pending
     /// until the dlc protocol reaches a final state.
     RecoverDlc(TaskStatus),
+    /// The coordinator wants to collaboratively close a ln channel with a stuck position.
+    CollabRevert(TaskStatus),
 }
 
 impl From<EventInternal> for Event {
@@ -141,6 +143,9 @@ impl From<event::BackgroundTask> for BackgroundTask {
             }
             event::BackgroundTask::Rollover(status) => BackgroundTask::Rollover(status.into()),
             event::BackgroundTask::RecoverDlc(status) => BackgroundTask::RecoverDlc(status.into()),
+            event::BackgroundTask::CollabRevert(status) => {
+                BackgroundTask::CollabRevert(status.into())
+            }
         }
     }
 }

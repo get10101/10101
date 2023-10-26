@@ -3,6 +3,7 @@ use crate::position::models::parse_channel_id;
 use crate::schema::collaborative_reverts;
 use anyhow::ensure;
 use anyhow::Result;
+use bitcoin::hashes::hex::ToHex;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::Address;
 use bitcoin::Amount;
@@ -14,6 +15,7 @@ use diesel::OptionalExtension;
 use diesel::PgConnection;
 use diesel::Queryable;
 use diesel::RunQueryDsl;
+use dlc_manager::ChannelId;
 use std::str::FromStr;
 use time::OffsetDateTime;
 
@@ -68,6 +70,14 @@ pub(crate) fn insert(
         .execute(conn)?;
 
     ensure!(affected_rows > 0, "Could not insert collaborative revert");
+
+    Ok(())
+}
+
+pub(crate) fn delete(conn: &mut PgConnection, channel_id: ChannelId) -> Result<()> {
+    diesel::delete(collaborative_reverts::table)
+        .filter(collaborative_reverts::channel_id.eq(channel_id.to_hex()))
+        .execute(conn)?;
 
     Ok(())
 }
