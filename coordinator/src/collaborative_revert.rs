@@ -11,6 +11,7 @@ use axum::Json;
 use bdk::bitcoin::Transaction;
 use bitcoin::secp256k1::Secp256k1;
 use bitcoin::Amount;
+use bitcoin::OutPoint;
 use coordinator_commons::CollaborativeRevert;
 use coordinator_commons::CollaborativeRevertData;
 use diesel::r2d2::ConnectionManager;
@@ -21,10 +22,12 @@ use dlc::util::weight_to_fee;
 use dlc_manager::subchannel::LNChannelManager;
 use dlc_manager::subchannel::SubChannelState;
 use dlc_manager::Storage;
-use lightning::util::errors::APIError;
+use lightning::chain::keysinterface::ExtraSign;
+use lightning::chain::keysinterface::SignerProvider;
 use ln_dlc_node::node::Node;
 use orderbook_commons::Message;
 use rust_decimal::prelude::ToPrimitive;
+use std::ops::Deref;
 use std::sync::Arc;
 use time::OffsetDateTime;
 use tokio::sync::mpsc;
@@ -42,6 +45,7 @@ pub async fn notify_user_to_collaboratively_revert(
     pool: Pool<ConnectionManager<PgConnection>>,
     node: Arc<Node<NodeStorage>>,
     auth_users_notifier: mpsc::Sender<OrderbookMessage>,
+    funding_outpoint: OutPoint,
 ) -> anyhow::Result<()> {
     let mut conn = pool.get().context("Could not acquire db lock")?;
 
@@ -141,6 +145,8 @@ pub async fn notify_user_to_collaboratively_revert(
             coordinator_amount_sats: coordinator_amount,
             trader_amount_sats: trader_amount,
             timestamp: OffsetDateTime::now_utc(),
+            txid: funding_outpoint.txid,
+            vout: funding_outpoint.vout,
         },
     )
     .context("Could not insert new collaborative revert")?;
@@ -156,6 +162,7 @@ pub async fn notify_user_to_collaboratively_revert(
                 coordinator_amount,
                 trader_amount,
                 execution_price: revert_params.price,
+                outpoint: funding_outpoint,
             },
             notification: Some(NotificationKind::CollaborativeRevert),
         })
@@ -253,63 +260,63 @@ pub fn confirm_collaborative_revert(
         .find(|c| c.channel_id == channel_id)
         .context("Could not find provided channel")?;
 
-    let channel_manager = inner_node.channel_manager.clone();
-
-    let mut own_sig = None;
-
     let mut revert_transaction = revert_params.transaction.clone();
 
     let position = Position::get_position_by_trader(conn, sub_channel.counter_party, vec![])?
         .context("Could not load position for channel_id")?;
 
-    channel_manager
-        .with_channel_lock_no_check(
-            &sub_channel.channel_id,
-            &sub_channel.counter_party,
-            |channel_lock| {
-                channel_manager.sign_with_fund_key_cb(channel_lock, &mut |fund_sk| {
-                    let secp = Secp256k1::new();
+    let channel_value = sub_channel.fund_value_satoshis;
 
-                    own_sig = Some(
-                        dlc::util::get_raw_sig_for_tx_input(
-                            &secp,
-                            &revert_transaction,
-                            0,
-                            &sub_channel.original_funding_redeemscript,
-                            sub_channel.fund_value_satoshis,
-                            fund_sk,
-                        )
-                        .expect("To be able to get raw sig for tx inpout"),
-                    );
+    let previous_outpoint = revert_transaction
+        .input
+        .get(0)
+        .context("Revert transaction didn't have an input")?
+        .previous_output;
+    let monitor = inner_node
+        .chain_monitor
+        .get_monitor(lightning::chain::transaction::OutPoint {
+            txid: previous_outpoint.txid,
+            index: previous_outpoint.vout as u16,
+        })
+        .map_err(|_| anyhow!("Could not get chain monitor"))?;
+    let channel_monitor = monitor.deref();
+    let user_channel_keys = channel_monitor
+        .inner
+        .lock()
+        .map_err(|_| anyhow!("Could not acquire channel monitor lock"))?
+        .channel_keys_id;
 
-                    dlc::util::sign_multi_sig_input(
-                        &secp,
-                        &mut revert_transaction,
-                        &revert_params.signature,
-                        &sub_channel.counter_fund_pk,
-                        fund_sk,
-                        &sub_channel.original_funding_redeemscript,
-                        sub_channel.fund_value_satoshis,
-                        0,
-                    )
-                    .expect("To be able to sign multi sig");
-                });
-                Ok(())
-            },
+    let signer = inner_node
+        .keys_manager
+        .derive_channel_signer(channel_value, user_channel_keys);
+
+    let mut own_sig = None;
+    signer.sign_with_fund_key_callback(&mut |key| {
+        let secp = Secp256k1::new();
+        own_sig = Some(
+            dlc::util::get_raw_sig_for_tx_input(
+                &secp,
+                &revert_transaction,
+                0,
+                &sub_channel.original_funding_redeemscript,
+                channel_value,
+                key,
+            )
+            .expect("To be able to get raw sig for tx input"),
+        );
+
+        dlc::util::sign_multi_sig_input(
+            &secp,
+            &mut revert_transaction,
+            &revert_params.signature,
+            &sub_channel.counter_fund_pk,
+            key,
+            &sub_channel.original_funding_redeemscript,
+            channel_value,
+            0,
         )
-        .map_err(|error| {
-            let error = match error {
-                APIError::APIMisuseError { .. } => "APIMisuseError",
-                APIError::FeeRateTooHigh { .. } => "FeeRateTooHigh",
-                APIError::InvalidRoute { .. } => "InvalidRoute",
-                APIError::ChannelUnavailable { .. } => "ChannelUnavailable",
-                APIError::MonitorUpdateInProgress => "MonitorUpdateInProgress",
-                APIError::IncompatibleShutdownScript { .. } => "IncompatibleShutdownScript",
-                APIError::ExternalError { .. } => "ExternalError",
-            };
-            tracing::error!("Could not get channel lock {error:#}");
-            anyhow!("Could not get channel lock")
-        })?;
+        .expect("To be able to sign multi sig");
+    });
 
     // if we have a sig here, it means we were able to sign the transaction and can broadcast it
     if own_sig.is_some() {

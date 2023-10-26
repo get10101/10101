@@ -1141,6 +1141,15 @@ impl Channel {
             .first(conn)
             .optional()
     }
+    pub fn get_by_channel_id(
+        conn: &mut SqliteConnection,
+        channel_id: &str,
+    ) -> QueryResult<Option<Channel>> {
+        channels::table
+            .filter(schema::channels::channel_id.eq(channel_id))
+            .first(conn)
+            .optional()
+    }
 
     pub fn get_all(conn: &mut SqliteConnection) -> QueryResult<Vec<Channel>> {
         channels::table.load(conn)

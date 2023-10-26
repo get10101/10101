@@ -11,6 +11,7 @@ use axum::extract::State;
 use axum::Json;
 use bdk::TransactionDetails;
 use bitcoin::secp256k1::PublicKey;
+use bitcoin::OutPoint;
 use coordinator_commons::CollaborativeRevert;
 use dlc_manager::subchannel::SubChannel;
 use lightning_invoice::Invoice;
@@ -160,6 +161,10 @@ pub async fn collaborative_revert(
         AppError::BadRequest("Invalid channel id provided".to_string())
     })?;
 
+    let out_point = OutPoint {
+        txid: revert_params.txid,
+        vout: revert_params.vout,
+    };
     collaborative_revert::notify_user_to_collaboratively_revert(
         revert_params,
         channel_id_string.clone(),
@@ -167,6 +172,7 @@ pub async fn collaborative_revert(
         state.pool.clone(),
         state.node.inner.clone(),
         state.auth_users_notifier.clone(),
+        out_point,
     )
     .await
     .map_err(move |error| {

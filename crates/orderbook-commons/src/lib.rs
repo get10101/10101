@@ -1,6 +1,7 @@
 use anyhow::Result;
 use bitcoin::Address;
 use bitcoin::Amount;
+use bitcoin::OutPoint;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use secp256k1::Message as SecpMessage;
@@ -162,6 +163,7 @@ pub enum Message {
         trader_amount: Amount,
         #[serde(with = "rust_decimal::serde::float")]
         execution_price: Decimal,
+        outpoint: OutPoint,
     },
 }
 

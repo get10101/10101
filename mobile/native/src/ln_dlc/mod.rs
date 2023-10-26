@@ -51,6 +51,8 @@ use coordinator_commons::OnboardingParam;
 use coordinator_commons::TradeParams;
 use itertools::chain;
 use itertools::Itertools;
+use lightning::chain::keysinterface::ExtraSign;
+use lightning::chain::keysinterface::SignerProvider;
 use lightning::ln::channelmanager::ChannelDetails;
 use lightning::util::events::Event;
 use lightning_invoice::Invoice;
@@ -85,6 +87,7 @@ use std::net::IpAddr;
 use std::net::Ipv4Addr;
 use std::net::SocketAddr;
 use std::net::TcpListener;
+use std::ops::Deref;
 use std::path::Path;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -702,7 +705,14 @@ pub fn collaborative_revert_channel(
     coordinator_amount: Amount,
     trader_amount: Amount,
     execution_price: Decimal,
+    outpoint: OutPoint,
 ) -> Result<()> {
+    tracing::info!(
+        txid = outpoint.txid.to_string(),
+        channel_id = channel_id.to_hex(),
+        "Confirming collaborative revert"
+    );
+
     let node = NODE.try_get().context("failed to get ln dlc node")?;
 
     let node = node.inner.clone();
@@ -713,16 +723,6 @@ pub fn collaborative_revert_channel(
         .find(|c| c.channel_id == channel_id)
         .context("Could not find provided channel")?;
 
-    let channel_manager = node.channel_manager.clone();
-    let details = channel_manager
-        .get_channel_details(&subchannel.channel_id)
-        .context("Could not get channel details")?;
-
-    let out_point = details
-        .original_funding_outpoint
-        .or(details.funding_txo)
-        .context("Could not find original funding outpoint")?;
-
     let address = node.get_unused_address();
 
     let collab_revert_tx = Transaction {
@@ -730,8 +730,8 @@ pub fn collaborative_revert_channel(
         lock_time: PackedLockTime::ZERO,
         input: vec![TxIn {
             previous_output: OutPoint {
-                txid: out_point.txid,
-                vout: out_point.index as u32,
+                txid: outpoint.txid,
+                vout: outpoint.vout,
             },
             script_sig: Default::default(),
             sequence: Default::default(),
@@ -748,32 +748,41 @@ pub fn collaborative_revert_channel(
             },
         ],
     };
+
+    let channel_value = subchannel.fund_value_satoshis;
+
+    let monitor = node
+        .chain_monitor
+        .get_monitor(lightning::chain::transaction::OutPoint {
+            txid: outpoint.txid,
+            index: outpoint.vout as u16,
+        })
+        .map_err(|_| anyhow!("Could not get chain monitor"))?;
+    let channel_monitor = monitor.deref();
+    let user_channel_keys = channel_monitor
+        .inner
+        .lock()
+        .map_err(|_| anyhow!("Could not acquire channel monitor lock"))?
+        .channel_keys_id;
+
+    let signer = node
+        .keys_manager
+        .derive_channel_signer(channel_value, user_channel_keys);
+
     let mut own_sig = None;
-
-    channel_manager
-        .with_channel_lock_no_check(
-            &subchannel.channel_id,
-            &subchannel.counter_party,
-            |channel_lock| {
-                channel_manager.sign_with_fund_key_cb(channel_lock, &mut |fund_sk| {
-                    let secp = Secp256k1::new();
-
-                    own_sig = Some(
-                        dlc::util::get_raw_sig_for_tx_input(
-                            &secp,
-                            &collab_revert_tx,
-                            0,
-                            &subchannel.original_funding_redeemscript,
-                            subchannel.fund_value_satoshis,
-                            fund_sk,
-                        )
-                        .expect("to be able to get raw sig for tx input"),
-                    );
-                });
-                Ok(())
-            },
-        )
-        .expect("To be able to get channel lock");
+    signer.sign_with_fund_key_callback(&mut |key| {
+        own_sig = Some(
+            dlc::util::get_raw_sig_for_tx_input(
+                &Secp256k1::new(),
+                &collab_revert_tx,
+                0,
+                &subchannel.original_funding_redeemscript,
+                channel_value,
+                key,
+            )
+            .expect("To be able to get raw sig for tx input"),
+        );
+    });
 
     if let Some(own_sig) = own_sig {
         let data = CollaborativeRevertData {

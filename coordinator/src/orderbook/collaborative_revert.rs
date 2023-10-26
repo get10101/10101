@@ -4,6 +4,7 @@ use crate::message::OrderbookMessage;
 use anyhow::bail;
 use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
+use bitcoin::OutPoint;
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::Pool;
 use diesel::PgConnection;
@@ -64,6 +65,10 @@ async fn process_pending_collaborative_revert(
                     coordinator_amount: revert.coordinator_amount_sats,
                     trader_amount: revert.trader_amount_sats,
                     execution_price: Decimal::try_from(revert.price).expect("to fit into decimal"),
+                    outpoint: OutPoint {
+                        txid: revert.txid,
+                        vout: revert.vout,
+                    },
                 },
                 notification: None,
             };

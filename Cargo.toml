@@ -26,13 +26,20 @@ dlc-trie = { git = "https://github.com/p2pderivatives/rust-dlc", rev = "9815582"
 simple-wallet = { git = "https://github.com/p2pderivatives/rust-dlc", rev = "9815582" }
 
 # We should usually track the `p2pderivatives/split-tx-experiment[-10101]` branch
-lightning = { git = "https://github.com/p2pderivatives/rust-lightning/", rev = "3b69cecf" }
-lightning-background-processor = { git = "https://github.com/p2pderivatives/rust-lightning/", rev = "3b69cecf" }
-lightning-transaction-sync = { git = "https://github.com/p2pderivatives/rust-lightning/", rev = "3b69cecf" }
-lightning-net-tokio = { git = "https://github.com/p2pderivatives/rust-lightning/", rev = "3b69cecf" }
-lightning-persister = { git = "https://github.com/p2pderivatives/rust-lightning/", rev = "3b69cecf" }
+# Temporary fix: this fork allows us to access the channel monitor's channel_key_ids
+lightning = { git = "https://github.com/p2pderivatives/rust-lightning/", rev = "698be7fb" }
+lightning-background-processor = { git = "https://github.com/p2pderivatives/rust-lightning/", rev = "698be7fb" }
+lightning-transaction-sync = { git = "https://github.com/p2pderivatives/rust-lightning/", rev = "698be7fb" }
+lightning-net-tokio = { git = "https://github.com/p2pderivatives/rust-lightning/", rev = "698be7fb" }
+lightning-persister = { git = "https://github.com/p2pderivatives/rust-lightning/", rev = "698be7fb" }
 
 rust-bitcoin-coin-selection = { git = "https://github.com/p2pderivatives/rust-bitcoin-coin-selection" }
 
 # Waiting for the next release
 xtra = { git = "https://github.com/Restioson/xtra/", rev = "d98393a" }
+
+# lightning = {path = "/Users/bonomat/src/github/p2pderivatives/rust-lightning/lightning"}
+# lightning-background-processor = {path = "/Users/bonomat/src/github/p2pderivatives/rust-lightning/lightning-background-processor"}
+# lightning-transaction-sync = {path = "/Users/bonomat/src/github/p2pderivatives/rust-lightning/lightning-transaction-sync"}
+# lightning-net-tokio = {path = "/Users/bonomat/src/github/p2pderivatives/rust-lightning/lightning-net-tokio"}
+# lightning-persister = {path = "/Users/bonomat/src/github/p2pderivatives/rust-lightning/lightning-persister"}

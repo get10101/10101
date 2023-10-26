@@ -1,6 +1,7 @@
 use anyhow::Context;
 use anyhow::Result;
 use bitcoin::Address;
+use bitcoin::Txid;
 use coordinator::admin::Balance;
 use coordinator::routes::InvoiceParams;
 use coordinator_commons::CollaborativeRevert;
@@ -9,6 +10,7 @@ use ln_dlc_node::node::NodeInfo;
 use reqwest::Client;
 use rust_decimal_macros::dec;
 use serde::Deserialize;
+use serde::Deserializer;
 use serde::Serialize;
 
 /// A wrapper over the coordinator HTTP API.
@@ -36,6 +38,8 @@ pub struct DlcChannel {
 pub struct Channel {
     pub channel_id: String,
     pub counterparty: String,
+    #[serde(deserialize_with = "null_to_default")]
+    pub original_funding_txo: String,
 }
 
 #[derive(Deserialize, Debug, PartialEq, Eq)]
@@ -144,6 +148,8 @@ impl Coordinator {
     pub async fn collaborative_revert_channel(
         &self,
         channel_id: &str,
+        txid: Txid,
+        vout: u32,
     ) -> Result<reqwest::Response> {
         self.post_with_body(
             "/api/admin/channels/revert",
@@ -151,6 +157,8 @@ impl Coordinator {
                 channel_id: channel_id.to_string(),
                 price: dec!(30_000.0),
                 fee_rate_sats_vb: 4,
+                txid,
+                vout,
             },
         )
         .await
@@ -205,4 +213,13 @@ impl Coordinator {
             .error_for_status()
             .context("Coordinator did not return 200 OK")
     }
+}
+
+fn null_to_default<'de, D, T>(de: D) -> Result<T, D::Error>
+where
+    D: Deserializer<'de>,
+    T: Default + Deserialize<'de>,
+{
+    let key = Option::<T>::deserialize(de)?;
+    Ok(key.unwrap_or_default())
 }

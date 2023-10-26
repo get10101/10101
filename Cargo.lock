@@ -642,7 +642,7 @@ dependencies = [
 
 [[package]]
 name = "coordinator"
-version = "1.4.2"
+version = "1.4.3"
 dependencies = [
  "anyhow",
  "atty",
@@ -1747,7 +1747,7 @@ dependencies = [
 [[package]]
 name = "lightning"
 version = "0.0.114"
-source = "git+https://github.com/p2pderivatives/rust-lightning/?rev=3b69cecf#3b69cecf0db70ae900e85569fe78d8573a5b01b0"
+source = "git+https://github.com/p2pderivatives/rust-lightning/?rev=698be7fb#698be7fb822907e32afbde5144e70f6c9fe48f26"
 dependencies = [
  "bitcoin",
 ]
@@ -1755,7 +1755,7 @@ dependencies = [
 [[package]]
 name = "lightning-background-processor"
 version = "0.0.114"
-source = "git+https://github.com/p2pderivatives/rust-lightning/?rev=3b69cecf#3b69cecf0db70ae900e85569fe78d8573a5b01b0"
+source = "git+https://github.com/p2pderivatives/rust-lightning/?rev=698be7fb#698be7fb822907e32afbde5144e70f6c9fe48f26"
 dependencies = [
  "bitcoin",
  "futures-util",
@@ -1779,7 +1779,7 @@ dependencies = [
 [[package]]
 name = "lightning-net-tokio"
 version = "0.0.114"
-source = "git+https://github.com/p2pderivatives/rust-lightning/?rev=3b69cecf#3b69cecf0db70ae900e85569fe78d8573a5b01b0"
+source = "git+https://github.com/p2pderivatives/rust-lightning/?rev=698be7fb#698be7fb822907e32afbde5144e70f6c9fe48f26"
 dependencies = [
  "bitcoin",
  "lightning",
@@ -1789,7 +1789,7 @@ dependencies = [
 [[package]]
 name = "lightning-persister"
 version = "0.0.114"
-source = "git+https://github.com/p2pderivatives/rust-lightning/?rev=3b69cecf#3b69cecf0db70ae900e85569fe78d8573a5b01b0"
+source = "git+https://github.com/p2pderivatives/rust-lightning/?rev=698be7fb#698be7fb822907e32afbde5144e70f6c9fe48f26"
 dependencies = [
  "bitcoin",
  "libc",
@@ -1800,7 +1800,7 @@ dependencies = [
 [[package]]
 name = "lightning-rapid-gossip-sync"
 version = "0.0.114"
-source = "git+https://github.com/p2pderivatives/rust-lightning/?rev=3b69cecf#3b69cecf0db70ae900e85569fe78d8573a5b01b0"
+source = "git+https://github.com/p2pderivatives/rust-lightning/?rev=698be7fb#698be7fb822907e32afbde5144e70f6c9fe48f26"
 dependencies = [
  "bitcoin",
  "lightning",
@@ -1809,7 +1809,7 @@ dependencies = [
 [[package]]
 name = "lightning-transaction-sync"
 version = "0.0.114"
-source = "git+https://github.com/p2pderivatives/rust-lightning/?rev=3b69cecf#3b69cecf0db70ae900e85569fe78d8573a5b01b0"
+source = "git+https://github.com/p2pderivatives/rust-lightning/?rev=698be7fb#698be7fb822907e32afbde5144e70f6c9fe48f26"
 dependencies = [
  "bdk-macros",
  "bitcoin",

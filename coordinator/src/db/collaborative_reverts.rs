@@ -2,12 +2,14 @@ use crate::position;
 use crate::position::models::parse_channel_id;
 use crate::schema::collaborative_reverts;
 use anyhow::ensure;
+use anyhow::Context;
 use anyhow::Result;
 use bitcoin::hashes::hex::ToHex;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::Address;
 use bitcoin::Amount;
 use bitcoin::Denomination;
+use bitcoin::Txid;
 use diesel::prelude::*;
 use diesel::AsChangeset;
 use diesel::Insertable;
@@ -30,6 +32,8 @@ pub(crate) struct CollaborativeRevert {
     pub coordinator_amount_sats: i64,
     pub trader_amount_sats: i64,
     pub timestamp: OffsetDateTime,
+    pub funding_txid: String,
+    pub funding_vout: i32,
 }
 
 #[derive(Insertable, Queryable, AsChangeset, Debug, Clone, PartialEq)]
@@ -114,6 +118,8 @@ impl TryFrom<CollaborativeRevert> for position::models::CollaborativeRevert {
                 Denomination::Satoshi,
             )?,
             timestamp: value.timestamp,
+            txid: Txid::from_str(&value.funding_txid).context("To have valid txid")?,
+            vout: value.funding_vout as u32,
         })
     }
 }

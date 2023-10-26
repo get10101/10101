@@ -179,10 +179,10 @@ pub fn subscribe(
                                     msg @ Message::Authenticated => {
                                         tracing::debug!(?msg, "Skipping message from orderbook");
                                     }
-                                    Message::CollaborativeRevert { channel_id, coordinator_address, coordinator_amount, trader_amount, execution_price } => {
+                                    Message::CollaborativeRevert { channel_id, coordinator_address, coordinator_amount, trader_amount, execution_price, outpoint } => {
                                         tracing::debug!("Received request to revert channel");
                                         event::publish(&EventInternal::BackgroundNotification(BackgroundTask::CollabRevert(TaskStatus::Pending)));
-                                        if let Err(err) = ln_dlc::collaborative_revert_channel(channel_id, coordinator_address, coordinator_amount, trader_amount, execution_price) {
+                                        if let Err(err) = ln_dlc::collaborative_revert_channel(channel_id, coordinator_address, coordinator_amount, trader_amount, execution_price, outpoint) {
                                             event::publish(&EventInternal::BackgroundNotification(BackgroundTask::CollabRevert(TaskStatus::Failed)));
                                             tracing::error!("Could not collaboratively revert channel {err:#}");
                                         } else {

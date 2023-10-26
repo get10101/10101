@@ -123,7 +123,7 @@ pub struct Node<S> {
 
     pub peer_manager: Arc<PeerManager>,
     pub channel_manager: Arc<ChannelManager>,
-    chain_monitor: Arc<ChainMonitor>,
+    pub chain_monitor: Arc<ChainMonitor>,
     pub(crate) keys_manager: Arc<CustomKeysManager>,
     pub network_graph: Arc<NetworkGraph>,
     pub fee_rate_estimator: Arc<FeeRateEstimator>,
