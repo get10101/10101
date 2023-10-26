@@ -31,6 +31,7 @@ use commons::OrderbookRequest;
 use flutter_rust_bridge::frb;
 use flutter_rust_bridge::StreamSink;
 use flutter_rust_bridge::SyncReturn;
+use lightning::chain::chaininterface::ConfirmationTarget as LnConfirmationTarget;
 use lightning::util::persist::KVStore;
 use lightning::util::persist::NETWORK_GRAPH_PERSISTENCE_KEY;
 use lightning::util::persist::NETWORK_GRAPH_PERSISTENCE_PRIMARY_NAMESPACE;
@@ -494,7 +495,76 @@ pub enum SendPayment {
     OnChain {
         address: String,
         amount: u64,
+        fee: Fee,
     },
+}
+
+/// The choice of on-chain network fee
+pub enum Fee {
+    /// A fee based on the priority of the payment
+    Priority(ConfirmationTarget),
+    /// A custom fee
+    Custom { sats: u64 },
+}
+
+impl From<Fee> for ln_dlc_node::node::Fee {
+    fn from(value: Fee) -> Self {
+        match value {
+            Fee::Priority(target) => ln_dlc_node::node::Fee::Priority(target.into()),
+            Fee::Custom { sats } => ln_dlc_node::node::Fee::Custom(Amount::from_sat(sats)),
+        }
+    }
+}
+
+/// Analogous to [`lightning::chain::chaininterface::ConfirmationTarget`] but for the Flutter API
+pub enum ConfirmationTarget {
+    Minimum,
+    Background,
+    Normal,
+    HighPriority,
+}
+
+impl From<ConfirmationTarget> for LnConfirmationTarget {
+    fn from(value: ConfirmationTarget) -> Self {
+        match value {
+            ConfirmationTarget::Minimum => LnConfirmationTarget::MempoolMinimum,
+            ConfirmationTarget::Background => LnConfirmationTarget::Background,
+            ConfirmationTarget::Normal => LnConfirmationTarget::Normal,
+            ConfirmationTarget::HighPriority => LnConfirmationTarget::HighPriority,
+        }
+    }
+}
+
+/// Calculate the fees for an on-chain transaction, using the 3 default fee rates (background,
+/// normal, and high priority). This both estimates the fee rate and calculates the TX rate.
+pub fn calculate_all_fees_for_on_chain(address: String, amount: u64) -> Result<Vec<u64>> {
+    const TARGETS: [ConfirmationTarget; 4] = [
+        ConfirmationTarget::Minimum,
+        ConfirmationTarget::Background,
+        ConfirmationTarget::Normal,
+        ConfirmationTarget::HighPriority,
+    ];
+
+    let runtime = crate::state::get_or_create_tokio_runtime()?;
+    runtime.block_on(async {
+        let mut fees = Vec::with_capacity(TARGETS.len());
+
+        for confirmation_target in TARGETS {
+            let payment = SendPayment::OnChain {
+                address: address.clone(),
+                amount,
+                fee: Fee::Priority(confirmation_target),
+            };
+
+            fees.push(ln_dlc::estimate_payment_fee_msat(payment).await? / 1000);
+        }
+
+        Ok(fees)
+    })
+}
+
+pub fn fee_rate(confirmation_target: ConfirmationTarget) -> Result<f32> {
+    ln_dlc::get_fee_rate_for_target(confirmation_target.into()).map(|rate| rate.as_sat_per_vb())
 }
 
 pub fn send_payment(payment: SendPayment) -> Result<()> {

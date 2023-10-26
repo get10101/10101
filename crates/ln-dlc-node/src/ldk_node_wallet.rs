@@ -1,4 +1,5 @@
 use crate::fee_rate_estimator::EstimateFeeRate;
+use crate::node::Fee;
 use crate::node::Storage;
 use anyhow::anyhow;
 use anyhow::bail;
@@ -9,12 +10,15 @@ use bdk::blockchain::Blockchain;
 use bdk::blockchain::GetBlockHash;
 use bdk::blockchain::GetHeight;
 use bdk::database::BatchDatabase;
+use bdk::psbt::PsbtUtils;
 use bdk::wallet::AddressIndex;
 use bdk::FeeRate;
 use bdk::SignOptions;
 use bdk::SyncOptions;
 use bdk::TransactionDetails;
 use bitcoin::consensus::encode::serialize_hex;
+use bitcoin::psbt::PartiallySignedTransaction;
+use bitcoin::Amount;
 use bitcoin::BlockHash;
 use bitcoin::OutPoint;
 use bitcoin::Script;
@@ -27,6 +31,9 @@ use parking_lot::MutexGuard;
 use std::sync::Arc;
 use std::time::Instant;
 use tokio::sync::RwLock;
+
+/// Taken from mempool.space
+const AVG_SEGWIT_TX_WEIGHT_VB: usize = 140;
 
 pub struct Wallet<D, B, F, N>
 where
@@ -182,6 +189,82 @@ where
         Ok(self.bdk_lock().get_balance()?)
     }
 
+    /// Build the PSBT for sending funds to a given address.
+    fn build_psbt(
+        &self,
+        address: &bitcoin::Address,
+        amount_sat_or_drain: u64,
+        fee: Fee,
+    ) -> Result<PartiallySignedTransaction> {
+        let locked_wallet = self.bdk_lock();
+        let mut tx_builder = locked_wallet.build_tx();
+
+        if amount_sat_or_drain > 0 {
+            tx_builder
+                .add_recipient(address.script_pubkey(), amount_sat_or_drain)
+                .enable_rbf();
+        } else {
+            tx_builder
+                .drain_wallet()
+                .drain_to(address.script_pubkey())
+                .enable_rbf();
+        }
+
+        match fee {
+            Fee::Priority(target) => tx_builder.fee_rate(self.fee_rate_estimator.estimate(target)),
+            Fee::Custom(amt) => tx_builder.fee_absolute(amt.to_sat()),
+        };
+
+        let mut psbt = match tx_builder.finish() {
+            Ok((psbt, _)) => {
+                tracing::trace!("Created PSBT: {:?}", psbt);
+                psbt
+            }
+            Err(err) => {
+                bail!(err)
+            }
+        };
+
+        match locked_wallet.sign(&mut psbt, SignOptions::default()) {
+            Ok(finalized) => {
+                if !finalized {
+                    bail!("On chain creation failed");
+                }
+            }
+            Err(err) => {
+                bail!(err)
+            }
+        }
+
+        Ok(psbt)
+    }
+
+    /// Estimate the fee for sending funds to a given address
+    pub(crate) fn calculate_fee(
+        &self,
+        address: &bitcoin::Address,
+        amount_sat_or_drain: u64,
+        confirmation_target: ConfirmationTarget,
+    ) -> Result<Amount> {
+        let psbt = self.build_psbt(
+            address,
+            amount_sat_or_drain,
+            Fee::Priority(confirmation_target),
+        );
+
+        let fee_sat = match psbt {
+            Ok(psbt) => psbt
+                .fee_amount()
+                .context("Fee info could not be calculated")?,
+            Err(_) => {
+                let rate = self.fee_rate_estimator.estimate(confirmation_target);
+                rate.fee_vb(AVG_SEGWIT_TX_WEIGHT_VB)
+            }
+        };
+
+        Ok(Amount::from_sat(fee_sat))
+    }
+
     /// Send funds to the given address.
     ///
     /// If `amount_sat_or_drain` is `0` the wallet will be drained, i.e., all available funds
@@ -190,49 +273,11 @@ where
         &self,
         address: &bitcoin::Address,
         amount_sat_or_drain: u64,
+        fee: Fee,
     ) -> Result<Txid> {
-        let fee_rate = self.fee_rate_estimator.estimate(ConfirmationTarget::Normal);
-
-        let tx = {
-            let locked_wallet = self.bdk_lock();
-            let mut tx_builder = locked_wallet.build_tx();
-
-            if amount_sat_or_drain > 0 {
-                tx_builder
-                    .add_recipient(address.script_pubkey(), amount_sat_or_drain)
-                    .fee_rate(fee_rate)
-                    .enable_rbf();
-            } else {
-                tx_builder
-                    .drain_wallet()
-                    .drain_to(address.script_pubkey())
-                    .fee_rate(fee_rate)
-                    .enable_rbf();
-            }
-
-            let mut psbt = match tx_builder.finish() {
-                Ok((psbt, _)) => {
-                    tracing::trace!("Created PSBT: {:?}", psbt);
-                    psbt
-                }
-                Err(err) => {
-                    bail!(err)
-                }
-            };
-
-            match locked_wallet.sign(&mut psbt, SignOptions::default()) {
-                Ok(finalized) => {
-                    if !finalized {
-                        bail!("On chain creation failed");
-                    }
-                }
-                Err(err) => {
-                    bail!(err)
-                }
-            }
-            psbt.extract_tx()
-        };
-
+        let tx = self
+            .build_psbt(address, amount_sat_or_drain, fee)?
+            .extract_tx();
         let txid = self.broadcast_transaction(&tx)?;
 
         if amount_sat_or_drain > 0 {

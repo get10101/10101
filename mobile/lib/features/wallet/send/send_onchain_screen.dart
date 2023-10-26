@@ -7,8 +7,11 @@ import 'package:get_10101/common/domain/model.dart';
 import 'package:get_10101/common/scrollable_safe_area.dart';
 import 'package:get_10101/features/wallet/application/util.dart';
 import 'package:get_10101/features/wallet/application/wallet_service.dart';
+import 'package:get_10101/features/wallet/domain/confirmation_target.dart';
 import 'package:get_10101/features/wallet/domain/destination.dart';
+import 'package:get_10101/features/wallet/domain/fee.dart';
 import 'package:get_10101/features/wallet/send/confirm_payment_modal.dart';
+import 'package:get_10101/features/wallet/send/fee_picker.dart';
 import 'package:get_10101/features/wallet/wallet_change_notifier.dart';
 import 'package:get_10101/features/wallet/wallet_screen.dart';
 import 'package:provider/provider.dart';
@@ -31,6 +34,9 @@ class _SendOnChainScreenState extends State<SendOnChainScreen> {
   ChannelInfo? channelInfo;
 
   Amount _amount = Amount.zero();
+  Fee _fee = PriorityFee(ConfirmationTarget.normal);
+  Map<ConfirmationTarget, int>? _feeAmounts;
+  late WalletService _walletService;
 
   final TextEditingController _controller = TextEditingController();
 
@@ -38,8 +44,8 @@ class _SendOnChainScreenState extends State<SendOnChainScreen> {
   void initState() {
     super.initState();
     final ChannelInfoService channelInfoService = context.read<ChannelInfoService>();
-    final WalletService walletService = context.read<WalletChangeNotifier>().service;
-    init(channelInfoService, walletService);
+    _walletService = context.read<WalletChangeNotifier>().service;
+    init(channelInfoService);
   }
 
   @override
@@ -48,9 +54,13 @@ class _SendOnChainScreenState extends State<SendOnChainScreen> {
     _controller.dispose();
   }
 
-  Future<void> init(ChannelInfoService channelInfoService, WalletService walletService) async {
+  Future<void> init(ChannelInfoService channelInfoService) async {
     channelInfo = await channelInfoService.getChannelInfo();
+    final fees = await _walletService.calculateFeesForOnChain(
+        widget.destination.address, widget.destination.amount);
+
     setState(() {
+      _feeAmounts = fees;
       _amount = widget.destination.amount;
       _controller.text = _amount.formatted();
     });
@@ -68,6 +78,7 @@ class _SendOnChainScreenState extends State<SendOnChainScreen> {
         body: ScrollableSafeArea(
           child: Form(
             key: _formKey,
+            autovalidateMode: AutovalidateMode.always,
             child: SafeArea(
               child: GestureDetector(
                 onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
@@ -132,7 +143,12 @@ class _SendOnChainScreenState extends State<SendOnChainScreen> {
                               return "Amount cannot be negative";
                             }
 
-                            if (amount.sats > balance.sats) {
+                            final fee = switch (_fee) {
+                              PriorityFee() => _feeAmounts?[(_fee as PriorityFee).priority] ?? 0,
+                              CustomFee() => (_fee as CustomFee).amount.sats,
+                            };
+
+                            if (amount.sats + fee > balance.sats) {
                               return "Not enough funds.";
                             }
 
@@ -163,6 +179,11 @@ class _SendOnChainScreenState extends State<SendOnChainScreen> {
                                       _amount = Amount.parseAmount(value);
                                       _controller.text = _amount.formatted();
                                     });
+
+                                    _walletService
+                                        .calculateFeesForOnChain(
+                                            widget.destination.address, _amount)
+                                        .then((fees) => setState(() => _feeAmounts = fees));
                                   },
                                 ),
                                 Visibility(
@@ -241,13 +262,21 @@ class _SendOnChainScreenState extends State<SendOnChainScreen> {
                         ])
                       ]),
                     ),
+                    const SizedBox(height: 20),
+                    const Text("Select Network Fee", style: TextStyle(fontSize: 16)),
+                    const SizedBox(height: 10),
+                    FeePicker(
+                      initialSelection: _fee,
+                      feeAmounts: _feeAmounts,
+                      onChange: (target) => setState(() => _fee = target),
+                    ),
                     const Spacer(),
                     SizedBox(
                       width: MediaQuery.of(context).size.width * 0.9,
                       child: ElevatedButton(
                           onPressed: (_formKey.currentState?.validate() ?? false)
                               ? () => showConfirmPaymentModal(
-                                  context, widget.destination, false, _amount, _amount)
+                                  context, widget.destination, false, _amount, _amount, fee: _fee)
                               : null,
                           style: ButtonStyle(
                               padding:
