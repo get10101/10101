@@ -38,7 +38,6 @@ pub fn handle_payment_claimable(
     purpose: PaymentPurpose,
     amount_msat: u64,
 ) -> Result<()> {
-    let payment_hash = util::hex_str(&payment_hash.0);
     let preimage = match purpose {
         PaymentPurpose::InvoicePayment {
             payment_preimage: Some(preimage),
@@ -47,9 +46,11 @@ pub fn handle_payment_claimable(
         | PaymentPurpose::SpontaneousPayment(preimage) => preimage,
         _ => {
             tracing::debug!("Received PaymentClaimable event without preimage");
+            channel_manager.fail_htlc_backwards(&payment_hash);
             return Ok(());
         }
     };
+    let payment_hash = util::hex_str(&payment_hash.0);
     tracing::info!(%payment_hash, %amount_msat, "Received payment");
     channel_manager.claim_funds(preimage);
     Ok(())
