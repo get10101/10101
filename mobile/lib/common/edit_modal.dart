@@ -19,26 +19,28 @@ Future<T?> showEditModal<T>(
       useRootNavigator: true,
       context: context,
       builder: (BuildContext context) {
-        return SafeArea(
-            child: Padding(
-                padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
-                // the GestureDetector ensures that we can close the keyboard by tapping into the modal
-                child: GestureDetector(
-                  onTap: () {
-                    FocusScopeNode currentFocus = FocusScope.of(context);
+        return Container(
+            decoration: const BoxDecoration(color: Colors.white),
+            child: SafeArea(
+                child: Padding(
+                    padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+                    // the GestureDetector ensures that we can close the keyboard by tapping into the modal
+                    child: GestureDetector(
+                      onTap: () {
+                        FocusScopeNode currentFocus = FocusScope.of(context);
 
-                    if (!currentFocus.hasPrimaryFocus) {
-                      currentFocus.unfocus();
-                    }
-                  },
-                  child: SingleChildScrollView(
-                    child: SizedBox(
-                      // TODO: Find a way to make height dynamic depending on the children size
-                      // This is needed because otherwise the keyboard does not push the sheet up correctly
-                      height: height,
-                      child: builder(context, (newVal) => val = newVal),
-                    ),
-                  ),
-                )));
+                        if (!currentFocus.hasPrimaryFocus) {
+                          currentFocus.unfocus();
+                        }
+                      },
+                      child: SingleChildScrollView(
+                        child: SizedBox(
+                          // TODO: Find a way to make height dynamic depending on the children size
+                          // This is needed because otherwise the keyboard does not push the sheet up correctly
+                          height: height,
+                          child: builder(context, (newVal) => val = newVal),
+                        ),
+                      ),
+                    ))));
       }).then((res) => res ?? val);
 }
