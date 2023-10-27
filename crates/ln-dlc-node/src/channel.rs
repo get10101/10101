@@ -13,10 +13,6 @@ use std::str::FromStr;
 use time::OffsetDateTime;
 use uuid::Uuid;
 
-/// The prefix used in the description field of an JIT channel opening invoice to be paid by the
-/// client.
-pub const JIT_FEE_INVOICE_DESCRIPTION_PREFIX: &str = "jit-channel-fee-";
-
 /// We introduce a shadow copy of the Lightning channel as LDK deletes channels from its
 /// [`ChannelManager`] as soon as they are closed.
 ///
@@ -46,6 +42,8 @@ pub struct Channel {
     pub counterparty: PublicKey,
     pub created_at: OffsetDateTime,
     pub updated_at: OffsetDateTime,
+    pub fee_sats: Option<u64>,
+    pub open_channel_payment_hash: Option<String>,
 }
 
 impl Channel {
@@ -66,6 +64,8 @@ impl Channel {
             channel_id: None,
             funding_txid: None,
             liquidity_option_id: None,
+            fee_sats: None,
+            open_channel_payment_hash: None,
         }
     }
 
@@ -73,6 +73,7 @@ impl Channel {
         user_channel_id: UserChannelId,
         counterparty: PublicKey,
         liquidity_option_id: i32,
+        fee: u64,
     ) -> Self {
         Channel {
             user_channel_id,
@@ -85,6 +86,8 @@ impl Channel {
             channel_id: None,
             funding_txid: None,
             liquidity_option_id: Some(liquidity_option_id),
+            fee_sats: Some(fee),
+            open_channel_payment_hash: None,
         }
     }
 

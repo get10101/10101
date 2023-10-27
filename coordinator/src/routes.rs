@@ -63,6 +63,8 @@ use orderbook_commons::Message;
 use orderbook_commons::RouteHintHop;
 use prometheus::Encoder;
 use prometheus::TextEncoder;
+use rust_decimal::prelude::ToPrimitive;
+use rust_decimal::Decimal;
 use serde::Deserialize;
 use serde::Serialize;
 use std::str::FromStr;
@@ -123,10 +125,6 @@ pub fn router(
         .route("/api/newaddress", get(get_unused_address))
         .route("/api/node", get(get_node_info))
         .route("/api/invoice", get(get_invoice))
-        .route(
-            "/api/invoice/open_channel_fee",
-            get(get_open_channel_fee_invoice),
-        )
         .route("/api/orderbook/orders", get(get_orders).post(post_order))
         .route(
             "/api/orderbook/orders/:order_id",
@@ -247,6 +245,10 @@ pub async fn prepare_onboarding_payment(
                     trade_up_to_sats: liquidity_option.trade_up_to_sats,
                     max_deposit_sats: liquidity_option.max_deposit_sats,
                     coordinator_leverage: liquidity_option.coordinator_leverage,
+                    fee_sats: liquidity_option
+                        .get_fee(Decimal::from(amount_sats))
+                        .to_u64()
+                        .expect("to fit into u64"),
                 })
         }
     })
@@ -294,19 +296,6 @@ pub async fn get_invoice(
             params.description.unwrap_or_default(),
             params.expiry.unwrap_or(180),
         )
-        .map_err(|e| AppError::InternalServerError(format!("Failed to create invoice: {e:#}")))?;
-
-    Ok(invoice.to_string())
-}
-
-pub async fn get_open_channel_fee_invoice(
-    Query(params): Query<OpenChannelFeeInvoiceParams>,
-    State(state): State<Arc<AppState>>,
-) -> Result<String, AppError> {
-    let invoice = state
-        .node
-        .channel_opening_fee_invoice(params.amount, params.channel_funding_txid, params.expiry)
-        .await
         .map_err(|e| AppError::InternalServerError(format!("Failed to create invoice: {e:#}")))?;
 
     Ok(invoice.to_string())

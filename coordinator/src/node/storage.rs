@@ -3,6 +3,7 @@ use crate::db::payments;
 use anyhow::anyhow;
 use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
+use bitcoin::Txid;
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::Pool;
 use diesel::PgConnection;
@@ -48,6 +49,7 @@ impl node::Storage for NodeStorage {
         htlc_status: HTLCStatus,
         preimage: Option<PaymentPreimage>,
         secret: Option<PaymentSecret>,
+        _: Option<Txid>,
     ) -> Result<()> {
         let mut conn = self.pool.get()?;
 
@@ -77,6 +79,7 @@ impl node::Storage for NodeStorage {
                             timestamp: OffsetDateTime::now_utc(),
                             description: "".to_string(),
                             invoice: None,
+                            funding_txid: None,
                         },
                     ),
                     &mut conn,
@@ -159,6 +162,11 @@ impl node::Storage for NodeStorage {
                 .map_err(|e| anyhow!("{e:#}"))?
                 .map(|c| c.into());
         Ok(channel)
+    }
+
+    fn get_channel_by_payment_hash(&self, _payment_hash: String) -> Result<Option<Channel>> {
+        // the payment hash is not stored on the coordinator side.
+        unimplemented!()
     }
 
     // Transaction

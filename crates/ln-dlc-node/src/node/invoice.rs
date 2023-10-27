@@ -164,6 +164,7 @@ where
             user_channel_id,
             trader_id,
             liquidity_request.liquidity_option_id,
+            liquidity_request.fee_sats,
         );
         self.storage.upsert_channel(channel).with_context(|| {
             format!(
@@ -286,6 +287,7 @@ where
                 timestamp: OffsetDateTime::now_utc(),
                 description,
                 invoice: Some(format!("{invoice}")),
+                funding_txid: None,
             },
         )?;
 

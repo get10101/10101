@@ -49,7 +49,6 @@ use trade::cfd::calculate_short_liquidation_price;
 use trade::Direction;
 use uuid::Uuid;
 
-pub mod channel_opening_fee;
 pub mod closed_positions;
 pub mod connection;
 pub mod expired_positions;

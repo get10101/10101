@@ -32,6 +32,7 @@ async fn just_in_time_channel_with_multiple_payments() {
         &payee,
         &coordinator,
         payer_to_payee_invoice_amount,
+        10_000,
         Some(expected_coordinator_payee_channel_value),
     )
     .await
@@ -76,7 +77,7 @@ async fn new_config_affects_routing_fees() {
     payer.connect(coordinator.info).await.unwrap();
     payee.connect(coordinator.info).await.unwrap();
 
-    let opening_invoice_amount = 10_000;
+    let opening_invoice_amount = 60_000;
     let expected_coordinator_payee_channel_value =
         setup_coordinator_payer_channel(opening_invoice_amount, &coordinator, &payer).await;
 
@@ -85,6 +86,7 @@ async fn new_config_affects_routing_fees() {
         &payee,
         &coordinator,
         opening_invoice_amount,
+        10_000,
         Some(expected_coordinator_payee_channel_value),
     )
     .await

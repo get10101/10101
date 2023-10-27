@@ -5,7 +5,6 @@ use crate::api::Status;
 use crate::api::WalletHistoryItem;
 use crate::api::WalletHistoryItemType;
 use crate::calculations;
-use crate::channel_fee::ChannelFeePaymentSubscriber;
 use crate::commons::reqwest_client;
 use crate::config;
 use crate::db;
@@ -54,7 +53,6 @@ use lightning::events::Event;
 use lightning::ln::channelmanager::ChannelDetails;
 use ln_dlc_node::channel::Channel;
 use ln_dlc_node::channel::UserChannelId;
-use ln_dlc_node::channel::JIT_FEE_INVOICE_DESCRIPTION_PREFIX;
 use ln_dlc_node::config::app_config;
 use ln_dlc_node::lightning_invoice::Bolt11Invoice;
 use ln_dlc_node::node::rust_dlc_manager;
@@ -354,10 +352,6 @@ pub fn run(data_dir: String, seed_dir: String, runtime: &Runtime) -> Result<()> 
             }
         });
 
-        event::subscribe(ChannelFeePaymentSubscriber::new(
-            node.inner.channel_manager.clone(),
-        ));
-
         runtime.spawn(track_channel_status(node.clone()));
 
         if let Err(e) = node.sync_position_with_dlc_channel_state().await {
@@ -493,27 +487,18 @@ fn keep_wallet_balance_and_history_up_to_date(node: &Node) -> Result<()> {
 
         let payment_hash = hex::encode(details.payment_hash.0);
 
-        let description = &details.description;
-        let wallet_type = if let Some(funding_txid) =
-            description.strip_prefix(JIT_FEE_INVOICE_DESCRIPTION_PREFIX)
-        {
-            WalletHistoryItemType::JitChannelFee {
-                funding_txid: funding_txid.to_string(),
-                payment_hash,
-            }
-        } else {
-            let expiry_timestamp = decoded_invoice
-                .and_then(|inv| inv.timestamp().checked_add(inv.expiry_time()))
-                .map(|time| OffsetDateTime::from(time).unix_timestamp() as u64);
+        let expiry_timestamp = decoded_invoice
+            .and_then(|inv| inv.timestamp().checked_add(inv.expiry_time()))
+            .map(|time| OffsetDateTime::from(time).unix_timestamp() as u64);
 
-            WalletHistoryItemType::Lightning {
-                payment_hash,
-                description: details.description.clone(),
-                payment_preimage: details.preimage.clone(),
-                invoice: details.invoice.clone(),
-                fee_msat: details.fee_msat,
-                expiry_timestamp,
-            }
+        let wallet_type = WalletHistoryItemType::Lightning {
+            payment_hash,
+            description: details.description.clone(),
+            payment_preimage: details.preimage.clone(),
+            invoice: details.invoice.clone(),
+            fee_msat: details.fee_msat,
+            expiry_timestamp,
+            funding_txid: details.funding_txid.clone(),
         };
 
         Some(WalletHistoryItem {
@@ -1001,8 +986,9 @@ pub fn liquidity_options() -> Result<Vec<LiquidityOption>> {
 }
 
 pub fn create_onboarding_invoice(
-    amount_sats: u64,
     liquidity_option_id: i32,
+    amount_sats: u64,
+    fee_sats: u64,
 ) -> Result<Bolt11Invoice> {
     let runtime = get_or_create_tokio_runtime()?;
 
@@ -1021,7 +1007,8 @@ pub fn create_onboarding_invoice(
                 let channel = Channel::new_jit_channel(
                     user_channel_id,
                     config::get_coordinator_info().pubkey,
-                    liquidity_option_id
+                    liquidity_option_id,
+                    fee_sats,
                 );
                 node.inner
                     .storage

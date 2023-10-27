@@ -15,6 +15,7 @@ use anyhow::Result;
 use bitcoin::consensus::encode::serialize_hex;
 use bitcoin::hashes::hex::ToHex;
 use bitcoin::secp256k1::PublicKey;
+use bitcoin::Txid;
 use lightning::chain::chaininterface::BroadcasterInterface;
 use lightning::chain::chaininterface::ConfirmationTarget;
 use lightning::chain::chaininterface::FeeEstimator;
@@ -163,6 +164,7 @@ where
                 HTLCStatus::Succeeded,
                 Some(payment_preimage),
                 None,
+                None,
             ) {
                 anyhow::bail!(
                     "Failed to update sent payment: {e:#}, hash: {payment_hash}",
@@ -187,6 +189,7 @@ where
                     timestamp: OffsetDateTime::now_utc(),
                     description: "".to_string(),
                     invoice: None,
+                    funding_txid: None,
                 },
             ) {
                 tracing::error!(
@@ -305,6 +308,8 @@ where
 pub fn handle_payment_claimed<S>(
     node: &Arc<Node<S>>,
     amount_msat: u64,
+    fee_sats: Option<u64>,
+    funding_txid: Option<Txid>,
     payment_hash: PaymentHash,
     purpose: PaymentPurpose,
 ) where
@@ -330,10 +335,11 @@ pub fn handle_payment_claimed<S>(
         &payment_hash,
         PaymentFlow::Inbound,
         amount_msat,
-        MillisatAmount(None),
+        MillisatAmount(fee_sats),
         HTLCStatus::Succeeded,
         payment_preimage,
         payment_secret,
+        funding_txid,
     ) {
         tracing::error!(
             payment_hash = %payment_hash.0.to_hex(),
@@ -358,6 +364,7 @@ where
         amount_msat,
         MillisatAmount(None),
         HTLCStatus::Failed,
+        None,
         None,
         None,
     ) {

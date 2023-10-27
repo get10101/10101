@@ -12,7 +12,6 @@ pub mod health;
 pub mod logger;
 pub mod schema;
 
-mod channel_fee;
 mod orderbook;
 
 #[allow(

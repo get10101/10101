@@ -69,6 +69,8 @@ where
                 common_handlers::handle_payment_claimed(
                     &self.node,
                     amount_msat,
+                    None,
+                    None,
                     payment_hash,
                     purpose,
                 );

@@ -61,7 +61,7 @@ class _LiquidityCardState extends State<LiquidityCard> {
                 widget.onTap(minDeposit, maxDeposit);
                 if (amount.sats >= minDeposit.sats && amount.sats <= maxDeposit.sats) {
                   walletService
-                      .createOnboardingInvoice(amount, widget.liquidityOptionId)
+                      .createOnboardingInvoice(amount, widget.liquidityOptionId, fee)
                       .then(
                           (invoice) => showFundWalletModal(context, widget.amount!, fee, invoice!))
                       .catchError((error) {

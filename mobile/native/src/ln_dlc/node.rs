@@ -10,6 +10,7 @@ use anyhow::Context;
 use anyhow::Result;
 use bdk::bitcoin::secp256k1::PublicKey;
 use bdk::TransactionDetails;
+use bitcoin::Txid;
 use dlc_messages::sub_channel::SubChannelCloseFinalize;
 use dlc_messages::sub_channel::SubChannelRevoke;
 use dlc_messages::ChannelMessage;
@@ -363,6 +364,7 @@ impl node::Storage for NodeStorage {
         htlc_status: HTLCStatus,
         preimage: Option<PaymentPreimage>,
         secret: Option<PaymentSecret>,
+        funding_txid: Option<Txid>,
     ) -> Result<()> {
         match db::get_payment(*payment_hash)? {
             Some(_) => {
@@ -373,6 +375,7 @@ impl node::Storage for NodeStorage {
                     fee_msat,
                     preimage,
                     secret,
+                    funding_txid,
                 )?;
             }
             None => {
@@ -388,6 +391,7 @@ impl node::Storage for NodeStorage {
                         timestamp: OffsetDateTime::now_utc(),
                         description: "".to_string(),
                         invoice: None,
+                        funding_txid,
                     },
                 )?;
             }
@@ -451,6 +455,10 @@ impl node::Storage for NodeStorage {
 
     fn get_announced_channel(&self, counterparty_pubkey: PublicKey) -> Result<Option<Channel>> {
         db::get_announced_channel(counterparty_pubkey)
+    }
+
+    fn get_channel_by_payment_hash(&self, payment_hash: String) -> Result<Option<Channel>> {
+        db::get_channel_by_payment_hash(payment_hash)
     }
 
     // Transactions

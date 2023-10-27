@@ -311,6 +311,12 @@ class LightningPaymentHistoryItem extends WalletHistoryItem {
           truncate: false,
         ),
       ),
+      Visibility(
+        visible: data.fundingTxid != null,
+        child: HistoryDetail(
+            label: "Funding txid",
+            displayWidget: TransactionIdText(data.fundingTxid ?? ""),
+            value: data.fundingTxid ?? ""),
       ),
       Visibility(
         visible: data.expiry != null,
@@ -381,66 +387,6 @@ class TradeHistoryItem extends WalletHistoryItem {
       case PaymentFlow.outbound:
         return "Opened position";
     }
-  }
-
-  @override
-  bool isOnChain() {
-    return false;
-  }
-}
-
-class OrderMatchingFeeHistoryItem extends WalletHistoryItem {
-  @override
-  final OrderMatchingFeeData data;
-
-  const OrderMatchingFeeHistoryItem({super.key, required this.data});
-
-  @override
-  List<Widget> getDetails() {
-    return [
-      HistoryDetail(label: "Order", value: data.orderId),
-      HistoryDetail(label: "Payment hash", value: data.paymentHash)
-    ];
-  }
-
-  @override
-  IconData getFlowIcon() {
-    return Icons.toll;
-  }
-
-  @override
-  String getTitle() {
-    return "Matching fee";
-  }
-
-  @override
-  bool isOnChain() {
-    return false;
-  }
-}
-
-class JitChannelOpenFeeHistoryItem extends WalletHistoryItem {
-  @override
-  final JitChannelOpenFeeData data;
-
-  const JitChannelOpenFeeHistoryItem({super.key, required this.data});
-
-  @override
-  List<Widget> getDetails() {
-    return [
-      HistoryDetail(
-          label: "Funding tx ID", displayWidget: TransactionIdText(data.txid), value: data.txid)
-    ];
-  }
-
-  @override
-  IconData getFlowIcon() {
-    return Icons.toll;
-  }
-
-  @override
-  String getTitle() {
-    return "Channel opening fee";
   }
 
   @override

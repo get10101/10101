@@ -53,6 +53,9 @@ pub fn app_config() -> UserConfig {
         },
         channel_config: ChannelConfig {
             cltv_expiry_delta: MIN_CLTV_EXPIRY_DELTA,
+            // Allows the coordinator to charge us a channel-opening fee after intercepting the
+            // app's funding HTLC.
+            accept_underpaying_htlcs: true,
             ..Default::default()
         },
         // we want to accept 0-conf channels from the coordinator

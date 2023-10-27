@@ -1,3 +1,4 @@
+use crate::channel::Channel;
 use crate::channel::ChannelState;
 use crate::channel::UserChannelId;
 use crate::fee_rate_estimator::EstimateFeeRate;
@@ -63,6 +64,7 @@ async fn open_jit_channel() {
         &payee,
         &coordinator,
         payer_to_payee_invoice_amount,
+        10_000,
         Some(expected_coordinator_payee_channel_value),
     )
     .await
@@ -136,6 +138,7 @@ async fn fail_to_open_jit_channel_with_fee_rate_over_max() {
         trade_up_to_sats: 200_000,
         max_deposit_sats: 200_000,
         coordinator_leverage: 1.0,
+        fee_sats: 10_000,
     };
     let final_route_hint_hop = coordinator
         .prepare_onboarding_payment(liquidity_request)
@@ -189,6 +192,7 @@ async fn open_jit_channel_with_disconnected_payee() {
         trade_up_to_sats: payer_to_payee_invoice_amount,
         max_deposit_sats: payer_to_payee_invoice_amount,
         coordinator_leverage: 1.0,
+        fee_sats: 0,
     };
     let final_route_hint_hop = coordinator
         .prepare_onboarding_payment(liquidity_request)
@@ -241,6 +245,7 @@ pub(crate) async fn send_interceptable_payment(
     payee: &Node<InMemoryStore>,
     coordinator: &Node<InMemoryStore>,
     invoice_amount_sat: u64,
+    fee_sats: u64,
     coordinator_just_in_time_channel_creation_outbound_liquidity: Option<u64>,
 ) -> Result<()> {
     payer.wallet().sync()?;
@@ -251,15 +256,25 @@ pub(crate) async fn send_interceptable_payment(
     let coordinator_balance_before = coordinator.get_ldk_balance();
     let payee_balance_before = payee.get_ldk_balance();
 
+    let user_channel_id = UserChannelId::new();
     let liquidity_request = LiquidityRequest {
-        user_channel_id: UserChannelId::new(),
+        user_channel_id,
         liquidity_option_id: 1,
         trader_id: payee.info.pubkey,
         trade_up_to_sats: invoice_amount_sat,
         max_deposit_sats: invoice_amount_sat,
         coordinator_leverage: 1.0,
+        fee_sats,
     };
     let interceptable_route_hint_hop = coordinator.prepare_onboarding_payment(liquidity_request)?;
+
+    // Announce the jit channel on the app side. This is done by the app when preparing the
+    // onboarding invoice. But since we do not have the app available here, we need to do this
+    // manually.
+    let channel = Channel::new_jit_channel(user_channel_id, coordinator.info.pubkey, 1, fee_sats);
+    payee.storage.upsert_channel(channel).with_context(|| {
+        format!("Failed to insert shadow JIT channel with user channel id {user_channel_id}")
+    })?;
 
     let invoice = payee.create_invoice_with_route_hint(
         Some(invoice_amount_sat),
@@ -315,11 +330,12 @@ pub(crate) async fn send_interceptable_payment(
         coordinator_balance_after.available_msat() - coordinator_balance_before.available_msat(),
         coordinator_just_in_time_channel_creation_outbound_liquidity.unwrap_or_default() * 1000
             + routing_fee_msat
+            + fee_sats * 1000
     );
 
     assert_eq!(
         payee_balance_after.available() - payee_balance_before.available(),
-        invoice_amount_sat
+        invoice_amount_sat - fee_sats
     );
 
     Ok(())

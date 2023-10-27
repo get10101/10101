@@ -37,6 +37,7 @@ async fn fail_intercepted_htlc_if_coordinator_cannot_reconnect_to_payee() {
         trade_up_to_sats: 100_000,
         max_deposit_sats: 100_000,
         coordinator_leverage: 1.0,
+        fee_sats: 10_000,
     };
     let interceptable_route_hint_hop = coordinator
         .prepare_onboarding_payment(liquidity_request)
@@ -110,6 +111,7 @@ async fn fail_intercepted_htlc_if_connection_lost_after_funding_tx_generated() {
         trade_up_to_sats: 100_000,
         max_deposit_sats: 100_000,
         coordinator_leverage: 1.0,
+        fee_sats: 10_000,
     };
     let interceptable_route_hint_hop = coordinator
         .prepare_onboarding_payment(liquidity_request)
@@ -188,6 +190,7 @@ async fn fail_intercepted_htlc_if_coordinator_cannot_pay_to_open_jit_channel() {
         trade_up_to_sats: 100_000,
         max_deposit_sats: 100_000,
         coordinator_leverage: 1.0,
+        fee_sats: 10_000,
     };
     let interceptable_route_hint_hop = coordinator
         .prepare_onboarding_payment(liquidity_request)

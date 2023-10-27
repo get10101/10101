@@ -18,10 +18,11 @@ class WalletService {
   }
 
   /// Throws an exception if coordinator cannot provide required liquidity.
-  Future<String?> createOnboardingInvoice(Amount amount, int liquidityOptionId) async {
+  Future<String?> createOnboardingInvoice(
+      Amount amount, int liquidityOptionId, Amount feeSats) async {
     try {
-      String invoice = await rust.api
-          .createOnboardingInvoice(amountSats: amount.sats, liquidityOptionId: liquidityOptionId);
+      String invoice = await rust.api.createOnboardingInvoice(
+          amountSats: amount.sats, liquidityOptionId: liquidityOptionId, feeSats: feeSats.sats);
       logger.i("Successfully created invoice.");
       return invoice;
     } catch (error) {

@@ -87,19 +87,12 @@ pub enum WalletHistoryItemType {
         invoice: Option<String>,
         fee_msat: Option<u64>,
         expiry_timestamp: Option<u64>,
+        funding_txid: Option<String>,
     },
     Trade {
         order_id: String,
         fee_sat: u64,
         pnl: Option<i64>,
-    },
-    OrderMatchingFee {
-        order_id: String,
-        payment_hash: String,
-    },
-    JitChannelFee {
-        funding_txid: String,
-        payment_hash: String,
     },
 }
 
@@ -371,8 +364,12 @@ pub fn liquidity_options() -> Result<Vec<LiquidityOption>> {
     Ok(options)
 }
 
-pub fn create_onboarding_invoice(amount_sats: u64, liquidity_option_id: i32) -> Result<String> {
-    Ok(ln_dlc::create_onboarding_invoice(amount_sats, liquidity_option_id)?.to_string())
+pub fn create_onboarding_invoice(
+    liquidity_option_id: i32,
+    amount_sats: u64,
+    fee_sats: u64,
+) -> Result<String> {
+    Ok(ln_dlc::create_onboarding_invoice(liquidity_option_id, amount_sats, fee_sats)?.to_string())
 }
 
 pub struct PaymentRequest {

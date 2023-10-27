@@ -2,7 +2,6 @@ use crate::schema;
 use crate::schema::channels;
 use crate::schema::sql_types::ChannelStateType;
 use anyhow::ensure;
-use anyhow::Context;
 use anyhow::Result;
 use bitcoin::hashes::hex::ToHex;
 use bitcoin::secp256k1::PublicKey;
@@ -23,7 +22,6 @@ use diesel::QueryableByName;
 use diesel::RunQueryDsl;
 use dlc_manager::ChannelId;
 use hex::FromHex;
-use lightning::ln::PaymentHash;
 use ln_dlc_node::channel::UserChannelId;
 use std::any::TypeId;
 use std::str::FromStr;
@@ -61,8 +59,8 @@ pub(crate) struct Channel {
     pub counterparty_pubkey: String,
     pub created_at: OffsetDateTime,
     pub updated_at: OffsetDateTime,
-    pub open_channel_fee_payment_hash: Option<String>,
     pub liquidity_option_id: Option<i32>,
+    pub fee_sats: Option<i64>,
 }
 
 pub(crate) fn get(user_channel_id: &str, conn: &mut PgConnection) -> QueryResult<Option<Channel>> {
@@ -91,20 +89,6 @@ pub(crate) fn get_all_non_pending_channels(conn: &mut PgConnection) -> QueryResu
                 .and(schema::channels::funding_txid.is_not_null()),
         )
         .load(conn)
-}
-
-pub(crate) fn update_payment_hash(
-    payment_hash: PaymentHash,
-    funding_txid: String,
-    conn: &mut PgConnection,
-) -> Result<()> {
-    let mut channel: Channel = channels::table
-        .filter(channels::funding_txid.eq(funding_txid.clone()))
-        .first(conn)
-        .with_context(|| format!("No channel found for funding txid {funding_txid}"))?;
-
-    channel.open_channel_fee_payment_hash = Some(payment_hash.0.to_hex());
-    upsert(channel, conn)
 }
 
 pub fn get_by_channel_id(
@@ -145,7 +129,7 @@ impl From<ln_dlc_node::channel::Channel> for Channel {
             counterparty_pubkey: value.counterparty.to_string(),
             created_at: value.created_at,
             updated_at: value.updated_at,
-            open_channel_fee_payment_hash: None,
+            fee_sats: value.fee_sats.map(|fee| fee as i64),
         }
     }
 }
@@ -187,6 +171,8 @@ impl From<Channel> for ln_dlc_node::channel::Channel {
                 .expect("valid public key"),
             created_at: value.created_at,
             updated_at: value.updated_at,
+            fee_sats: value.fee_sats.map(|fee| fee as u64),
+            open_channel_payment_hash: None,
         }
     }
 }
