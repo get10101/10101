@@ -206,10 +206,16 @@ class HistoryDetail extends StatelessWidget {
   final String label;
   final String value;
   final Widget? displayWidget;
+  final bool truncate;
 
   static const TextStyle defaultValueStyle = TextStyle(fontSize: 16);
 
-  const HistoryDetail({super.key, required this.label, required this.value, this.displayWidget});
+  const HistoryDetail(
+      {super.key,
+      required this.label,
+      required this.value,
+      this.displayWidget,
+      this.truncate = true});
 
   @override
   Widget build(BuildContext context) {
@@ -221,7 +227,8 @@ class HistoryDetail extends StatelessWidget {
               child: Align(
                   alignment: Alignment.centerRight,
                   child: displayWidget ??
-                      Text(truncateWithEllipsis(10, value), style: defaultValueStyle))),
+                      Text(truncate ? truncateWithEllipsis(10, value) : value,
+                          style: defaultValueStyle))),
           IconButton(
               padding: EdgeInsets.zero,
               onPressed: () {
@@ -297,8 +304,13 @@ class LightningPaymentHistoryItem extends WalletHistoryItem {
   List<Widget> getDetails() {
     return [
       Visibility(
-        visible: data.feeMsats != null && data.flow == PaymentFlow.outbound,
-        child: HistoryDetail(label: "Fee", value: "${(data.feeMsats ?? 0) / 1000} sats"),
+        visible: data.feeMsats != null,
+        child: HistoryDetail(
+          label: "Fee",
+          value: formatSats(Amount(((data.feeMsats ?? 0) / 1000).ceil())),
+          truncate: false,
+        ),
+      ),
       ),
       Visibility(
         visible: data.expiry != null,
@@ -351,7 +363,8 @@ class TradeHistoryItem extends WalletHistoryItem {
       HistoryDetail(label: "Fee", value: formatSats(data.fee)),
       Visibility(
           visible: data.pnl != null,
-          child: HistoryDetail(label: "PnL", value: formatSats(data.pnl ?? Amount.zero()))),
+          child: HistoryDetail(
+              label: "PnL", value: formatSats(data.pnl ?? Amount.zero()), truncate: false)),
     ];
   }
 
