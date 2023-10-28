@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Improve collab revert
 - Improved settings screen
+- Add recover from seed phrase. Note: for now we are only able to recover on-chain funds.
 
 ## [1.4.3] - 2023-10-23
 
