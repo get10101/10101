@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.4] - 2023-10-28
+
 - Improve collab revert
 - Improved settings screen
 
@@ -146,7 +148,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Self-Custodial CFD Trading based on DLC and lightning
 
-[Unreleased]: https://github.com/get10101/10101/compare/1.4.3...HEAD
+[Unreleased]: https://github.com/get10101/10101/compare/1.4.4...HEAD
+[1.4.4]: https://github.com/get10101/10101/compare/1.4.3...1.4.4
 [1.4.3]: https://github.com/get10101/10101/compare/1.4.2...1.4.3
 [1.4.2]: https://github.com/get10101/10101/compare/1.4.1...1.4.2
 [1.4.1]: https://github.com/get10101/10101/compare/1.4.0...1.4.1
