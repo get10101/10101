@@ -1,7 +1,13 @@
 use anyhow::Context;
 use anyhow::Result;
 use bitcoin::Amount;
-use payout_curve::build_payout_function;
+use dlc_manager::payout_curve::PayoutFunction;
+use dlc_manager::payout_curve::PayoutFunctionPiece;
+use dlc_manager::payout_curve::PolynomialPayoutCurvePiece;
+use dlc_manager::payout_curve::RoundingInterval;
+use dlc_manager::payout_curve::RoundingIntervals;
+use payout_curve::build_inverse_payout_function;
+use payout_curve::ROUNDING_PERCENT;
 use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
@@ -58,6 +64,87 @@ fn main() -> Result<()> {
         initial_price,
         "./crates/payout_curve/examples/should.csv",
     )?;
+
+    computed_payout_curve(
+        quantity,
+        coordinator_collateral,
+        trader_collateral,
+        initial_price,
+        leverage_trader,
+        leverage_coordinator,
+        fee,
+        Direction::Long,
+        "./crates/payout_curve/examples/computed_payout.csv",
+    )?;
+
+    Ok(())
+}
+#[allow(clippy::too_many_arguments)]
+fn computed_payout_curve(
+    quantity: f32,
+    coordinator_collateral: u64,
+    trader_collateral: u64,
+    initial_price: Decimal,
+    leverage_trader: f32,
+    leverage_coordinator: f32,
+    fee: u64,
+    coordinator_direction: Direction,
+    csv_path: &str,
+) -> Result<()> {
+    let payout_points = build_inverse_payout_function(
+        quantity,
+        coordinator_collateral,
+        trader_collateral,
+        initial_price,
+        leverage_trader,
+        leverage_coordinator,
+        fee,
+        coordinator_direction,
+    )?;
+
+    let mut pieces = vec![];
+    for (lower, upper) in payout_points {
+        let lower_range = PolynomialPayoutCurvePiece::new(vec![
+            dlc_manager::payout_curve::PayoutPoint {
+                event_outcome: lower.event_outcome,
+                outcome_payout: lower.outcome_payout,
+                extra_precision: lower.extra_precision,
+            },
+            dlc_manager::payout_curve::PayoutPoint {
+                event_outcome: upper.event_outcome,
+                outcome_payout: upper.outcome_payout,
+                extra_precision: upper.extra_precision,
+            },
+        ])?;
+        pieces.push(PayoutFunctionPiece::PolynomialPayoutCurvePiece(lower_range));
+    }
+
+    let payout_function =
+        PayoutFunction::new(pieces).context("could not create payout function")?;
+    let total_collateral = coordinator_collateral + trader_collateral;
+    let range_payouts = payout_function.to_range_payouts(
+        total_collateral,
+        &RoundingIntervals {
+            intervals: vec![RoundingInterval {
+                begin_interval: 0,
+                rounding_mod: (total_collateral as f32 * ROUNDING_PERCENT) as u64,
+            }],
+        },
+    )?;
+
+    let file = File::create(csv_path)?;
+    let mut wtr = csv::WriterBuilder::new().delimiter(b';').from_writer(file);
+    wtr.write_record(["price", "payout_offer", "payout_accept"])
+        .context("to be able to write record")?;
+    for payout in &range_payouts {
+        wtr.write_record([
+            payout.start.to_string(),
+            payout.payout.offer.to_string(),
+            payout.payout.accept.to_string(),
+        ])?;
+    }
+    wtr.flush()?;
+
     Ok(())
 }
 
@@ -73,7 +160,7 @@ fn discretized_payouts_as_csv(
     coordinator_direction: Direction,
     csv_path: &str,
 ) -> Result<()> {
-    let payout_points = build_payout_function(
+    let payout_points = build_inverse_payout_function(
         quantity,
         coordinator_collateral,
         trader_collateral,

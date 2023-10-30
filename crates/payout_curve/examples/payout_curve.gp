@@ -6,6 +6,7 @@ set terminal pngcairo enhanced font "Arial,12" size 800,600
 long_file = "coordinator_long.csv"
 short_file = "coordinator_short.csv"
 should_file = "should.csv"
+computed_file = "computed_payout.csv"
 
 # Set the output file name based on the data file
 set output "payout_curve.png"
@@ -42,9 +43,13 @@ set style line 1 linetype 1 linecolor rgb "blue" lw 5
 set style line 2 linetype 1 linecolor rgb "green" lw 5
 set style line 3 linetype 2 linecolor rgb "pink" lw 2
 set style line 4 linetype 2 linecolor rgb "violet" lw 2
+set style line 5 linetype 2 linecolor rgb "red" lw 2
+set style line 6 linetype 2 linecolor rgb "orange" lw 2
 
 # Skip the header row, convert sats to Bitcoin, and create the plot
 plot long_file using 1:($2 * conversion_factor) ls 1 with lines title "Coordinator Short", \
     short_file using 1:($2 * conversion_factor) ls 2 with lines title "Coordinator Long", \
     should_file using 1:($2 * conversion_factor) ls 3 with lines title "Should short", \
-    should_file using 1:($3 * conversion_factor) ls 4 with lines title "Should long",
+    should_file using 1:($3 * conversion_factor) ls 4 with lines title "Should long", \
+    computed_file using 1:($2 * conversion_factor) ls 5 title "Computed short", \
+    computed_file using 1:($3 * conversion_factor) ls 6 title "Computed long",

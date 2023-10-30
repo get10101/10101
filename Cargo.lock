@@ -2551,6 +2551,7 @@ dependencies = [
  "anyhow",
  "bitcoin",
  "csv",
+ "dlc-manager",
  "rust_decimal",
  "rust_decimal_macros",
  "serde",

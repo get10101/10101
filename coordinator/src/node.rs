@@ -3,6 +3,7 @@ use crate::node::storage::NodeStorage;
 use crate::orderbook::db::matches;
 use crate::orderbook::db::orders;
 use crate::payout_curve;
+use crate::payout_curve::create_rounding_interval;
 use crate::position::models::NewPosition;
 use crate::position::models::Position;
 use crate::position::models::PositionState;
@@ -22,8 +23,6 @@ use diesel::PgConnection;
 use dlc_manager::contract::contract_input::ContractInput;
 use dlc_manager::contract::contract_input::ContractInputInfo;
 use dlc_manager::contract::contract_input::OracleInput;
-use dlc_manager::payout_curve::RoundingInterval;
-use dlc_manager::payout_curve::RoundingIntervals;
 use dlc_manager::ChannelId;
 use dlc_manager::ContractId;
 use dlc_messages::ChannelMessage;
@@ -57,13 +56,6 @@ pub mod rollover;
 pub mod routing_fees;
 pub mod storage;
 pub mod unrealized_pnl;
-
-/// We use this variable to indicate the step interval for our payout function. It should be
-/// relative to the overall collateral so that we use the same amount of payouts for all intervals.
-/// This means, the higher the overall collateral, the bigger the steps.
-///
-/// 0.01 means 1%, i.e. we always have ~100 payouts.
-pub const ROUNDING_PERCENT: f32 = 0.01;
 
 #[derive(Debug, Clone)]
 pub struct NodeSettings {
@@ -286,7 +278,7 @@ impl Node {
             leverage_trader,
             coordinator_direction,
             fee,
-            create_rounding_interval((total_collateral as f32 * ROUNDING_PERCENT) as u64),
+            create_rounding_interval(total_collateral),
             trade_params.quantity,
             trade_params.contract_symbol,
         )
@@ -613,13 +605,4 @@ fn liquidation_price(trade_params: &TradeParams) -> f32 {
     }
     .to_f32()
     .expect("to fit into f32")
-}
-
-fn create_rounding_interval(rounding_mod: u64) -> RoundingIntervals {
-    RoundingIntervals {
-        intervals: vec![RoundingInterval {
-            begin_interval: 0,
-            rounding_mod,
-        }],
-    }
 }

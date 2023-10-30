@@ -7,7 +7,9 @@ use dlc_manager::payout_curve::PayoutFunction;
 use dlc_manager::payout_curve::PayoutFunctionPiece;
 use dlc_manager::payout_curve::PayoutPoint;
 use dlc_manager::payout_curve::PolynomialPayoutCurvePiece;
+use dlc_manager::payout_curve::RoundingInterval;
 use dlc_manager::payout_curve::RoundingIntervals;
+use payout_curve::ROUNDING_PERCENT;
 use rust_decimal::Decimal;
 use trade::ContractSymbol;
 use trade::Direction;
@@ -97,4 +99,13 @@ fn build_inverse_payout_function(
         PayoutFunction::new(pieces).context("could not create payout function")?;
 
     Ok(payout_function)
+}
+
+pub fn create_rounding_interval(total_collateral: u64) -> RoundingIntervals {
+    RoundingIntervals {
+        intervals: vec![RoundingInterval {
+            begin_interval: 0,
+            rounding_mod: (total_collateral as f32 * ROUNDING_PERCENT) as u64,
+        }],
+    }
 }
