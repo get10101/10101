@@ -1,5 +1,4 @@
 use crate::channel::UserChannelId;
-use crate::disk;
 use crate::dlc_custom_signer::CustomKeysManager;
 use crate::fee_rate_estimator::FeeRateEstimator;
 use crate::ln::manage_spendable_outputs;
@@ -11,6 +10,7 @@ use crate::node::peer_manager::broadcast_node_announcement;
 use crate::on_chain_wallet::OnChainWallet;
 use crate::seed::Bip39Seed;
 use crate::shadow::Shadow;
+use crate::storage::TenTenOneStorage;
 use crate::ChainMonitor;
 use crate::EventHandlerTrait;
 use crate::NetworkGraph;
@@ -23,7 +23,6 @@ use bitcoin::secp256k1::PublicKey;
 use bitcoin::Network;
 use bitcoin::Txid;
 use dlc_messages::message_handler::MessageHandler as DlcMessageHandler;
-use dlc_sled_storage_provider::SledStorageProvider;
 use futures::future::RemoteHandle;
 use futures::FutureExt;
 use lightning::chain::chainmonitor;
@@ -41,8 +40,8 @@ use lightning::sign::KeysManager;
 use lightning::util::config::UserConfig;
 use lightning_background_processor::process_events_async;
 use lightning_background_processor::GossipSync;
-use lightning_persister::FilesystemPersister;
 use lightning_transaction_sync::EsploraSyncClient;
+use ln_dlc_storage::DlcStorageProvider;
 use p2pd_oracle_client::P2PDOracleClient;
 use serde::Deserialize;
 use serde::Serialize;
@@ -52,6 +51,7 @@ use std::collections::HashMap;
 use std::fmt;
 use std::fmt::Display;
 use std::fmt::Formatter;
+use std::io::BufReader;
 use std::net::SocketAddr;
 use std::path::Path;
 use std::sync::Arc;
@@ -85,6 +85,7 @@ pub use dlc_channel::dlc_message_name;
 pub use dlc_channel::send_dlc_message;
 pub use dlc_channel::sub_channel_message_name;
 pub use invoice::HTLCStatus;
+use lightning::util::ser::ReadableArgs;
 pub use storage::InMemoryStore;
 pub use storage::Storage;
 pub use sub_channel_manager::SubChannelManager;
@@ -121,16 +122,16 @@ pub struct LiquidityRequest {
 }
 
 /// An LN-DLC node.
-pub struct Node<S> {
+pub struct Node<S: TenTenOneStorage, N: Storage> {
     pub settings: Arc<RwLock<LnDlcNodeSettings>>,
     pub network: Network,
 
-    pub(crate) wallet: Arc<LnDlcWallet>,
+    pub(crate) wallet: Arc<LnDlcWallet<S, N>>,
 
-    pub peer_manager: Arc<PeerManager>,
-    pub channel_manager: Arc<ChannelManager>,
-    pub chain_monitor: Arc<ChainMonitor>,
-    pub keys_manager: Arc<CustomKeysManager>,
+    pub peer_manager: Arc<PeerManager<S, N>>,
+    pub channel_manager: Arc<ChannelManager<S, N>>,
+    pub chain_monitor: Arc<ChainMonitor<S, N>>,
+    pub keys_manager: Arc<CustomKeysManager<S, N>>,
     pub network_graph: Arc<NetworkGraph>,
     pub fee_rate_estimator: Arc<FeeRateEstimator>,
 
@@ -139,17 +140,22 @@ pub struct Node<S> {
     pub info: NodeInfo,
     pub(crate) fake_channel_payments: FakeChannelPaymentRequests,
 
-    pub dlc_manager: Arc<DlcManager>,
-    pub sub_channel_manager: Arc<SubChannelManager>,
+    pub dlc_manager: Arc<DlcManager<S, N>>,
+    pub sub_channel_manager: Arc<SubChannelManager<S, N>>,
     oracle: Arc<P2PDOracleClient>,
     pub dlc_message_handler: Arc<DlcMessageHandler>,
-    pub storage: Arc<S>,
     pub ldk_config: Arc<parking_lot::RwLock<UserConfig>>,
+
+    // storage
+    // TODO(holzeis): The node storage should get extracted to the corresponding application
+    // layers.
+    pub node_storage: Arc<N>,
+    pub ln_storage: Arc<S>,
+    pub dlc_storage: Arc<DlcStorageProvider<S>>,
 
     // fields below are needed only to start the node
     listen_address: SocketAddr,
     gossip_sync: Arc<NodeGossipSync>,
-    persister: Arc<FilesystemPersister>,
     alias: String,
     announcement_addresses: Vec<NetAddress>,
     scorer: Arc<Mutex<Scorer>>,
@@ -222,10 +228,7 @@ impl Default for LnDlcNodeSettings {
     }
 }
 
-impl<S> Node<S>
-where
-    S: Storage + Send + Sync + 'static,
-{
+impl<S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 'static> Node<S, N> {
     pub async fn update_settings(&self, new_settings: LnDlcNodeSettings) {
         tracing::info!(?new_settings, "Updating LnDlcNode settings");
         *self.settings.write().await = new_settings;
@@ -239,7 +242,8 @@ where
         alias: &str,
         network: Network,
         data_dir: &Path,
-        node_storage: Arc<S>,
+        storage: S,
+        node_storage: Arc<N>,
         announcement_address: SocketAddr,
         listen_address: SocketAddr,
         announcement_addresses: Vec<NetAddress>,
@@ -260,20 +264,6 @@ where
 
         let ldk_config = Arc::new(parking_lot::RwLock::new(ldk_config));
 
-        if !data_dir.exists() {
-            std::fs::create_dir_all(data_dir)
-                .context(format!("Could not create data dir ({data_dir:?})"))?;
-        }
-
-        let ldk_data_dir = data_dir.to_string_lossy().to_string();
-        let persister = Arc::new(FilesystemPersister::new(ldk_data_dir.clone()));
-
-        let dlc_storage = Arc::new(SledStorageProvider::new(
-            data_dir
-                .to_str()
-                .context("data_dir for sled storage should be specified")?,
-        )?);
-
         let on_chain_dir = data_dir.join("on_chain");
         let on_chain_wallet =
             OnChainWallet::new(on_chain_dir.as_path(), network, seed.wallet_seed())?;
@@ -283,6 +273,9 @@ where
             logger.clone(),
         ));
 
+        let dlc_storage = Arc::new(DlcStorageProvider::new(storage.clone()));
+        let ln_storage = Arc::new(storage);
+
         let fee_rate_estimator = Arc::new(FeeRateEstimator::new(esplora_server_url.clone()));
         let ln_dlc_wallet = {
             Arc::new(LnDlcWallet::new(
@@ -290,20 +283,20 @@ where
                 on_chain_wallet.inner,
                 fee_rate_estimator.clone(),
                 dlc_storage.clone(),
+                node_storage.clone(),
                 settings.bdk_client_stop_gap,
                 settings.bdk_client_concurrency,
-                node_storage.clone(),
             ))
         };
 
         let settings = Arc::new(RwLock::new(settings));
 
-        let chain_monitor: Arc<ChainMonitor> = Arc::new(chainmonitor::ChainMonitor::new(
+        let chain_monitor: Arc<ChainMonitor<S, N>> = Arc::new(chainmonitor::ChainMonitor::new(
             Some(esplora_client.clone()),
             ln_dlc_wallet.clone(),
             logger.clone(),
             fee_rate_estimator.clone(),
-            persister.clone(),
+            ln_storage.clone(),
         ));
 
         let keys_manager = {
@@ -317,12 +310,20 @@ where
             ))
         };
 
-        let network_graph_path = format!("{ldk_data_dir}/network_graph");
-        let network_graph = Arc::new(disk::read_network(
-            Path::new(&network_graph_path),
-            network,
-            logger.clone(),
-        ));
+        let network_graph = match ln_storage.read_network_graph() {
+            Some(network_graph) => {
+                let network_graph = NetworkGraph::read(
+                    &mut BufReader::new(network_graph.as_slice()),
+                    logger.clone(),
+                )
+                .unwrap_or(NetworkGraph::new(network, logger.clone()));
+                Arc::new(network_graph)
+            }
+            None => {
+                tracing::info!("Couldn't find network graph, creating a new one.");
+                Arc::new(NetworkGraph::new(network, logger.clone()))
+            }
+        };
 
         let scorer_path = data_dir.join("scorer");
         let scorer = Arc::new(Mutex::new(read_scorer(
@@ -341,7 +342,6 @@ where
         ));
 
         let channel_manager = channel_manager::build(
-            &ldk_data_dir,
             keys_manager.clone(),
             ln_dlc_wallet.clone(),
             fee_rate_estimator.clone(),
@@ -350,7 +350,7 @@ where
             chain_monitor.clone(),
             *ldk_config.read(),
             network,
-            persister.clone(),
+            ln_storage.clone(),
             router,
         )?;
 
@@ -367,7 +367,7 @@ where
         let dlc_manager = dlc_manager::build(
             data_dir,
             ln_dlc_wallet.clone(),
-            dlc_storage,
+            dlc_storage.clone(),
             oracle_client.clone(),
             fee_rate_estimator.clone(),
         )?;
@@ -389,7 +389,7 @@ where
             custom_message_handler: dlc_message_handler.clone(),
         };
 
-        let peer_manager: Arc<PeerManager> = Arc::new(PeerManager::new(
+        let peer_manager: Arc<PeerManager<S, N>> = Arc::new(PeerManager::new(
             lightning_msg_handler,
             time_since_unix_epoch.as_secs() as u32,
             &ephemeral_randomness,
@@ -419,14 +419,15 @@ where
             oracle: oracle_client,
             dlc_message_handler,
             dlc_manager,
-            storage: node_storage,
+            ln_storage,
+            dlc_storage,
+            node_storage,
             fee_rate_estimator,
             ldk_config,
             network_graph,
             settings,
             listen_address,
             gossip_sync,
-            persister,
             alias: alias.to_string(),
             announcement_addresses,
             scorer,
@@ -451,7 +452,7 @@ where
 
         std::thread::spawn(shadow_sync_periodically(
             self.settings.clone(),
-            self.storage.clone(),
+            self.node_storage.clone(),
             self.wallet.clone(),
             self.channel_manager.clone(),
         ));
@@ -473,7 +474,7 @@ where
             self.channel_manager.clone(),
             self.chain_monitor.clone(),
             self.logger.clone(),
-            self.persister.clone(),
+            self.ln_storage.clone(),
             event_handler,
             self.gossip_sync.clone(),
             self.scorer.clone(),
@@ -501,7 +502,7 @@ where
 
         tokio::spawn(manage_spendable_outputs_task(
             self.esplora_server_url.clone(),
-            self.storage.clone(),
+            self.node_storage.clone(),
             self.wallet.clone(),
             self.fee_rate_estimator.clone(),
             self.keys_manager.clone(),
@@ -606,12 +607,12 @@ async fn update_fee_rate_estimates(
 }
 
 #[allow(clippy::too_many_arguments)]
-fn spawn_background_processor(
-    peer_manager: Arc<PeerManager>,
-    channel_manager: Arc<ChannelManager>,
-    chain_monitor: Arc<ChainMonitor>,
+fn spawn_background_processor<S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 'static>(
+    peer_manager: Arc<PeerManager<S, N>>,
+    channel_manager: Arc<ChannelManager<S, N>>,
+    chain_monitor: Arc<ChainMonitor<S, N>>,
     logger: Arc<TracingLogger>,
-    persister: Arc<FilesystemPersister>,
+    persister: Arc<S>,
     event_handler: impl EventHandlerTrait + 'static,
     gossip_sync: Arc<NodeGossipSync>,
     scorer: Arc<Mutex<Scorer>>,
@@ -646,9 +647,9 @@ fn spawn_background_processor(
     remote_handle
 }
 
-async fn periodic_lightning_wallet_sync(
-    channel_manager: Arc<ChannelManager>,
-    chain_monitor: Arc<ChainMonitor>,
+async fn periodic_lightning_wallet_sync<S: TenTenOneStorage, N: Storage + Sync + Send>(
+    channel_manager: Arc<ChannelManager<S, N>>,
+    chain_monitor: Arc<ChainMonitor<S, N>>,
     settings: Arc<RwLock<LnDlcNodeSettings>>,
     esplora_client: Arc<EsploraSyncClient<Arc<TracingLogger>>>,
 ) {
@@ -665,9 +666,9 @@ async fn periodic_lightning_wallet_sync(
     }
 }
 
-fn lightning_wallet_sync(
-    channel_manager: &ChannelManager,
-    chain_monitor: &ChainMonitor,
+fn lightning_wallet_sync<S: TenTenOneStorage, N: Storage + Sync + Send>(
+    channel_manager: &ChannelManager<S, N>,
+    chain_monitor: &ChainMonitor<S, N>,
     esplora_client: &EsploraSyncClient<Arc<TracingLogger>>,
 ) -> Result<()> {
     let now = Instant::now();
@@ -687,11 +688,11 @@ fn lightning_wallet_sync(
     Ok(())
 }
 
-fn shadow_sync_periodically<S: Storage + Sync + Send + 'static>(
+fn shadow_sync_periodically<S: TenTenOneStorage, N: Storage>(
     settings: Arc<RwLock<LnDlcNodeSettings>>,
-    node_storage: Arc<S>,
-    ln_dlc_wallet: Arc<LnDlcWallet>,
-    channel_manager: Arc<ChannelManager>,
+    node_storage: Arc<N>,
+    ln_dlc_wallet: Arc<LnDlcWallet<S, N>>,
+    channel_manager: Arc<ChannelManager<S, N>>,
 ) -> impl Fn() {
     let handle = tokio::runtime::Handle::current();
     let shadow = Shadow::new(node_storage, ln_dlc_wallet, channel_manager);
@@ -713,8 +714,11 @@ fn shadow_sync_periodically<S: Storage + Sync + Send + 'static>(
     }
 }
 
-fn spawn_connection_management(
-    peer_manager: Arc<PeerManager>,
+fn spawn_connection_management<
+    S: TenTenOneStorage + 'static,
+    N: Storage + Send + Sync + 'static,
+>(
+    peer_manager: Arc<PeerManager<S, N>>,
     listen_address: SocketAddr,
 ) -> RemoteHandle<()> {
     let (fut, remote_handle) = async move {
@@ -758,11 +762,14 @@ fn spawn_connection_management(
     remote_handle
 }
 
-fn spawn_broadcast_node_annoucements(
+fn spawn_broadcast_node_annoucements<
+    S: TenTenOneStorage + 'static,
+    N: Storage + Sync + Send + 'static,
+>(
     alias: &str,
     announcement_addresses: Vec<NetAddress>,
-    peer_manager: Arc<PeerManager>,
-    channel_manager: Arc<ChannelManager>,
+    peer_manager: Arc<PeerManager<S, N>>,
+    channel_manager: Arc<ChannelManager<S, N>>,
 ) -> Result<RemoteHandle<()>> {
     let alias = alias_as_bytes(alias)?;
     let (fut, remote_handle) = async move {
@@ -783,12 +790,15 @@ fn spawn_broadcast_node_annoucements(
     Ok(remote_handle)
 }
 
-async fn manage_spendable_outputs_task<S: Storage + Send + Sync + 'static>(
+async fn manage_spendable_outputs_task<
+    S: TenTenOneStorage + 'static,
+    N: Storage + Sync + Send + 'static,
+>(
     esplora_server_url: String,
-    node_storage: Arc<S>,
-    ln_dlc_wallet: Arc<LnDlcWallet>,
+    node_storage: Arc<N>,
+    ln_dlc_wallet: Arc<LnDlcWallet<S, N>>,
     fee_rate_estimator: Arc<FeeRateEstimator>,
-    keys_manager: Arc<CustomKeysManager>,
+    keys_manager: Arc<CustomKeysManager<S, N>>,
 ) {
     let client = Arc::new(esplora_client::BlockingClient::from_agent(
         esplora_server_url,
@@ -822,10 +832,10 @@ async fn manage_spendable_outputs_task<S: Storage + Send + Sync + 'static>(
 }
 
 /// Spawn a task that manages subchannels
-fn manage_sub_channels(
-    sub_channel_manager: Arc<SubChannelManager>,
+fn manage_sub_channels<S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 'static>(
+    sub_channel_manager: Arc<SubChannelManager<S, N>>,
     dlc_message_handler: Arc<DlcMessageHandler>,
-    peer_manager: Arc<PeerManager>,
+    peer_manager: Arc<PeerManager<S, N>>,
     settings: Arc<RwLock<LnDlcNodeSettings>>,
 ) -> RemoteHandle<()> {
     let (fut, remote_handle) = {
@@ -864,8 +874,8 @@ fn manage_sub_channels(
 }
 
 /// Spawn a task that manages dlc manager
-fn manage_dlc_manager(
-    dlc_manager: Arc<DlcManager>,
+fn manage_dlc_manager<S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 'static>(
+    dlc_manager: Arc<DlcManager<S, N>>,
     settings: Arc<RwLock<LnDlcNodeSettings>>,
 ) -> RemoteHandle<()> {
     let (fut, remote_handle) = {

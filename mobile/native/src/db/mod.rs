@@ -1,3 +1,4 @@
+use crate::config;
 use crate::db::models::base64_engine;
 use crate::db::models::Channel;
 use crate::db::models::Order;
@@ -27,7 +28,12 @@ use diesel::SqliteConnection;
 use diesel_migrations::embed_migrations;
 use diesel_migrations::EmbeddedMigrations;
 use diesel_migrations::MigrationHarness;
+use parking_lot::Mutex;
+use rusqlite::backup::Backup;
+use rusqlite::Connection;
+use rusqlite::OpenFlags;
 use state::Storage;
+use std::path::Path;
 use std::sync::Arc;
 use time::Duration;
 use time::OffsetDateTime;
@@ -45,6 +51,7 @@ pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!();
 const MAX_DB_POOL_SIZE: u32 = 1;
 
 static DB: Storage<Arc<Pool<ConnectionManager<SqliteConnection>>>> = Storage::new();
+static BACKUP_CONNECTION: Storage<Arc<Mutex<Connection>>> = Storage::new();
 
 #[derive(Debug)]
 pub struct ConnectionOptions {
@@ -75,6 +82,10 @@ impl r2d2::CustomizeConnection<SqliteConnection, r2d2::Error> for ConnectionOpti
 }
 
 pub fn init_db(db_dir: &str, network: bitcoin::Network) -> Result<()> {
+    if DB.try_get().is_some() {
+        return Ok(());
+    }
+
     let database_url = format!("sqlite://{db_dir}/trades-{network}.sqlite");
     let manager = ConnectionManager::<SqliteConnection>::new(database_url);
     let pool = r2d2::Pool::builder()
@@ -95,7 +106,33 @@ pub fn init_db(db_dir: &str, network: bitcoin::Network) -> Result<()> {
 
     DB.set(Arc::new(pool));
 
+    tracing::debug!("Opening read-only backup connection");
+    let backup_conn = Connection::open_with_flags(
+        format!("{db_dir}/trades-{network}.sqlite"),
+        // [`OpenFlags::SQLITE_OPEN_READ_ONLY`]: The database is opened in read-only mode. If the database does not already exist, an error is returned
+        // [`OpenFlags::SQLITE_OPEN_NO_MUTEX`]: The new database connection will use the "multi-thread" threading mode. This means that separate threads are allowed to use SQLite at the same time, as long as each thread is using a different database connection.
+        // https://www.sqlite.org/c3ref/open.html
+        OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,
+    )?;
+    BACKUP_CONNECTION.set(Arc::new(Mutex::new(backup_conn)));
+
     Ok(())
+}
+
+/// Creates a backup of the database
+///
+/// Returns the path to the file of the database backup
+pub fn back_up() -> Result<String> {
+    let connection = BACKUP_CONNECTION.get().lock();
+    let backup_dir = config::get_backup_dir();
+    let dst_path = Path::new(&backup_dir).join("trades.sqlite");
+
+    let mut dst = Connection::open(dst_path.clone())?;
+    let backup = Backup::new(&connection, &mut dst)?;
+
+    backup.run_to_completion(100, std::time::Duration::from_millis(250), None)?;
+
+    Ok(dst_path.to_string_lossy().to_string())
 }
 
 pub fn connection() -> Result<PooledConnection<ConnectionManager<SqliteConnection>>> {

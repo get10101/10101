@@ -4,6 +4,7 @@ use crate::node::LnDlcNodeSettings;
 use crate::node::Node;
 use crate::node::NodeInfo;
 use crate::node::OracleInfo;
+use crate::storage::TenTenOneInMemoryStorage;
 use crate::tests::init_tracing;
 use crate::tests::wait_until_dlc_channel_state;
 use crate::tests::SubChannelStateName;
@@ -75,7 +76,10 @@ async fn single_app_many_positions_load() {
     }
 }
 
-async fn open_position(coordinator: &Coordinator, app: &Node<InMemoryStore>) -> Result<()> {
+async fn open_position(
+    coordinator: &Coordinator,
+    app: &Node<TenTenOneInMemoryStorage, InMemoryStore>,
+) -> Result<()> {
     tracing::info!("Opening position");
 
     tokio::time::timeout(Duration::from_secs(30), async {
@@ -120,7 +124,10 @@ async fn open_position(coordinator: &Coordinator, app: &Node<InMemoryStore>) -> 
     Ok(())
 }
 
-async fn close_position(coordinator: &Coordinator, app: &Node<InMemoryStore>) -> Result<()> {
+async fn close_position(
+    coordinator: &Coordinator,
+    app: &Node<TenTenOneInMemoryStorage, InMemoryStore>,
+) -> Result<()> {
     tracing::info!("Closing position");
 
     tokio::time::timeout(Duration::from_secs(30), async {
@@ -166,7 +173,10 @@ async fn close_position(coordinator: &Coordinator, app: &Node<InMemoryStore>) ->
     Ok(())
 }
 
-async fn keep_connected(node: impl Borrow<Node<InMemoryStore>>, peer: NodeInfo) {
+async fn keep_connected(
+    node: impl Borrow<Node<TenTenOneInMemoryStorage, InMemoryStore>>,
+    peer: NodeInfo,
+) {
     let reconnect_interval = Duration::from_secs(1);
     loop {
         let connection_closed_future = match node.borrow().connect(peer).await {

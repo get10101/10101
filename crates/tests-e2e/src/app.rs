@@ -1,6 +1,7 @@
 use crate::test_subscriber::TestSubscriber;
 use crate::test_subscriber::ThreadSafeSenders;
 use crate::wait_until;
+use native::api;
 use tempfile::TempDir;
 
 pub struct AppHandle {
@@ -11,7 +12,13 @@ pub struct AppHandle {
     _tx: ThreadSafeSenders,
 }
 
-pub async fn run_app() -> AppHandle {
+impl AppHandle {
+    pub fn stop(&self) {
+        self._handle.abort()
+    }
+}
+
+pub async fn run_app(seed_phrase: Option<Vec<String>>) -> AppHandle {
     let app_dir = TempDir::new().expect("Failed to create temporary directory");
     let seed_dir = TempDir::new().expect("Failed to create temporary directory");
     let _app_handle = {
@@ -24,10 +31,27 @@ pub async fn run_app() -> AppHandle {
 
         let app_dir = as_string(&app_dir);
         let seed_dir = as_string(&seed_dir);
+
+        native::api::set_config(test_config(), app_dir, seed_dir.clone())
+            .expect("Could not configure app");
+
+        if let Some(seed_phrase) = seed_phrase {
+            tokio::task::spawn_blocking({
+                let seed_dir = seed_dir.clone();
+                move || {
+                    api::restore_from_seed_phrase(
+                        seed_phrase.join(" "),
+                        format!("{seed_dir}/regtest/seed"),
+                    )
+                    .expect("Failed to restore from seed phrase");
+                }
+            })
+            .await
+            .expect("Failed to finish restore from seed phrase");
+        }
+
         tokio::task::spawn_blocking(move || {
             native::api::run(
-                test_config(),
-                app_dir,
                 seed_dir,
                 "".to_string(),
                 native::api::IncludeBacktraceOnPanic::No,

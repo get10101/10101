@@ -2,6 +2,8 @@ use crate::dlc_custom_signer::CustomKeysManager;
 use crate::fee_rate_estimator::FeeRateEstimator;
 use crate::ln::TracingLogger;
 use crate::ln_dlc_wallet::LnDlcWallet;
+use crate::node::Storage;
+use crate::storage::TenTenOneStorage;
 use crate::ChainMonitor;
 use crate::Router;
 use anyhow::Result;
@@ -13,46 +15,40 @@ use lightning::ln::channelmanager::ChainParameters;
 use lightning::ln::channelmanager::ChannelManagerReadArgs;
 use lightning::util::config::UserConfig;
 use lightning::util::ser::ReadableArgs;
-use lightning_persister::FilesystemPersister;
 use lightning_transaction_sync::EsploraSyncClient;
 use std::sync::Arc;
 
-pub type ChannelManager = lightning::ln::channelmanager::ChannelManager<
-    Arc<ChainMonitor>,
-    Arc<LnDlcWallet>,
-    Arc<CustomKeysManager>,
-    Arc<CustomKeysManager>,
-    Arc<CustomKeysManager>,
+pub type ChannelManager<S, N> = lightning::ln::channelmanager::ChannelManager<
+    Arc<ChainMonitor<S, N>>,
+    Arc<LnDlcWallet<S, N>>,
+    Arc<CustomKeysManager<S, N>>,
+    Arc<CustomKeysManager<S, N>>,
+    Arc<CustomKeysManager<S, N>>,
     Arc<FeeRateEstimator>,
     Arc<Router>,
     Arc<TracingLogger>,
 >;
 
 #[allow(clippy::too_many_arguments)]
-pub(crate) fn build(
-    ldk_data_dir: &str,
-    keys_manager: Arc<CustomKeysManager>,
-    ln_dlc_wallet: Arc<LnDlcWallet>,
+pub(crate) fn build<S: TenTenOneStorage, N: Storage>(
+    keys_manager: Arc<CustomKeysManager<S, N>>,
+    ln_dlc_wallet: Arc<LnDlcWallet<S, N>>,
     fee_rate_estimator: Arc<FeeRateEstimator>,
     explora_client: Arc<EsploraSyncClient<Arc<TracingLogger>>>,
     logger: Arc<TracingLogger>,
-    chain_monitor: Arc<ChainMonitor>,
+    chain_monitor: Arc<ChainMonitor<S, N>>,
     ldk_config: UserConfig,
     network: bitcoin::Network,
-    persister: Arc<FilesystemPersister>,
+    persister: Arc<S>,
     router: Arc<Router>,
-) -> Result<ChannelManager> {
-    let file = std::fs::File::open(format!("{ldk_data_dir}/manager")).ok();
-
-    let mut file = match file {
-        Some(file) => {
-            tracing::info!("Found channel manager data on disk. Recovering from stored state");
-            file
+) -> Result<ChannelManager<S, N>> {
+    let file = match persister.read_manager() {
+        Some(manager) => {
+            tracing::info!("Found channel manager data. Recovering from stored state");
+            manager
         }
         None => {
-            tracing::info!(
-                "Did not find channel manager data on disk. Initializing new channel manager"
-            );
+            tracing::info!("Did not find channel manager data. Initializing new channel manager");
 
             let (height, block_hash) = ln_dlc_wallet.tip()?;
             return Ok(ChannelManager::new(
@@ -95,9 +91,11 @@ pub(crate) fn build(
         ldk_config,
         channel_monitor_mut_references,
     );
-    let channel_manager = <(BlockHash, ChannelManager)>::read(&mut file, read_args)
-        .map_err(|e| anyhow::anyhow!(e))?
-        .1;
+
+    let channel_manager =
+        <(BlockHash, ChannelManager<S, N>)>::read(&mut file.as_slice(), read_args)
+            .map_err(|e| anyhow::anyhow!(e))?
+            .1;
 
     // Make sure our filter is initialized with all the txs and outputs
     // that we need to be watching based on our set of channel monitors

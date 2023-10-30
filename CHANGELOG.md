@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 - Add on-boarding wizard
+- Add backup and restore for lightning, dlc and 10101 data
 
 ## [1.5.0] - 2023-11-06
 

@@ -151,12 +151,9 @@ class _Onboarding extends State<Onboarding> {
                               await api
                                   .initNewMnemonic(targetSeedFilePath: seedPath)
                                   .then((value) async {
-                                Preferences.instance.hasEmailAddress().then((value) => {
-                                      if (value)
-                                        {GoRouter.of(context).go(WalletScreen.route)}
-                                      else
-                                        {GoRouter.of(context).go(WelcomeScreen.route)}
-                                    });
+                                Preferences.instance
+                                    .hasEmailAddress()
+                                    .then((value) => GoRouter.of(context).go(WelcomeScreen.route));
                               }).catchError((error) {
                                 logger.e("Could not create seed", error: error);
                                 showSnackBar(ScaffoldMessenger.of(rootNavigatorKey.currentContext!),

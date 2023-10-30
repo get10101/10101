@@ -7,6 +7,7 @@ use crate::payout_curve::create_rounding_interval;
 use crate::position::models::NewPosition;
 use crate::position::models::Position;
 use crate::position::models::PositionState;
+use crate::storage::CoordinatorTenTenOneStorage;
 use crate::trade::models::NewTrade;
 use anyhow::anyhow;
 use anyhow::bail;
@@ -78,7 +79,7 @@ impl NodeSettings {
 
 #[derive(Clone)]
 pub struct Node {
-    pub inner: Arc<node::Node<NodeStorage>>,
+    pub inner: Arc<node::Node<CoordinatorTenTenOneStorage, NodeStorage>>,
     _running: Arc<RunningNode>,
     pub pool: Pool<ConnectionManager<PgConnection>>,
     settings: Arc<RwLock<NodeSettings>>,
@@ -86,7 +87,7 @@ pub struct Node {
 
 impl Node {
     pub fn new(
-        inner: Arc<node::Node<NodeStorage>>,
+        inner: Arc<node::Node<CoordinatorTenTenOneStorage, NodeStorage>>,
         running: RunningNode,
         pool: Pool<ConnectionManager<PgConnection>>,
         settings: NodeSettings,

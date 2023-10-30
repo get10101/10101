@@ -20,14 +20,12 @@ use lightning::routing::utxo::UtxoLookup;
 use lightning_invoice::Bolt11Invoice;
 use lightning_invoice::Bolt11InvoiceDescription;
 use lightning_net_tokio::SocketDescriptor;
-use lightning_persister::FilesystemPersister;
 use ln_dlc_wallet::LnDlcWallet;
 use std::fmt;
 use std::sync::Arc;
 use std::sync::Mutex;
 use time::OffsetDateTime;
 
-mod disk;
 mod dlc_custom_signer;
 mod fee_rate_estimator;
 mod ldk_node_wallet;
@@ -41,6 +39,7 @@ pub mod ln;
 pub mod node;
 pub mod scorer;
 pub mod seed;
+pub mod storage;
 pub mod transaction;
 pub mod util;
 
@@ -60,18 +59,18 @@ pub use node::invoice::HTLCStatus;
 #[cfg(test)]
 mod tests;
 
-type ChainMonitor = chainmonitor::ChainMonitor<
+type ChainMonitor<S, N> = chainmonitor::ChainMonitor<
     CustomSigner,
     Arc<dyn Filter + Send + Sync>,
-    Arc<LnDlcWallet>,
+    Arc<LnDlcWallet<S, N>>,
     Arc<FeeRateEstimator>,
     Arc<TracingLogger>,
-    Arc<FilesystemPersister>,
+    Arc<S>,
 >;
 
-pub type PeerManager = lightning::ln::peer_handler::PeerManager<
+pub type PeerManager<S, N> = lightning::ln::peer_handler::PeerManager<
     SocketDescriptor,
-    Arc<SubChannelManager>,
+    Arc<SubChannelManager<S, N>>,
     Arc<
         P2PGossipSync<
             Arc<gossip::NetworkGraph<Arc<TracingLogger>>>,
@@ -82,7 +81,7 @@ pub type PeerManager = lightning::ln::peer_handler::PeerManager<
     Arc<IgnoringMessageHandler>,
     Arc<TracingLogger>,
     Arc<DlcMessageHandler>,
-    Arc<CustomKeysManager>,
+    Arc<CustomKeysManager<S, N>>,
 >;
 
 pub(crate) type Router = DefaultRouter<

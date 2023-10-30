@@ -1,14 +1,13 @@
 use crate::node::Node;
+use crate::node::Storage;
+use crate::storage::TenTenOneStorage;
 use anyhow::anyhow;
 use anyhow::Context;
 use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
 use lightning::ln::channelmanager::ChannelDetails;
 
-impl<P> Node<P>
-where
-    P: Send + Sync,
-{
+impl<S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 'static> Node<S, N> {
     /// Initiates the open private channel protocol.
     ///
     /// Returns a temporary channel ID as a 32-byte long array.

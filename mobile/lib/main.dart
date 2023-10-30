@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge.dart';
+import 'package:get_10101/backend.dart';
 import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
 import 'package:get_10101/common/color.dart';
 import 'package:get_10101/util/compare_coordinator_version.dart';
@@ -18,6 +19,7 @@ void main() async {
   FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
 
   await initFirebase();
+  await setConfig();
 
   runApp(MultiProvider(providers: createProviders(), child: const TenTenOneApp()));
 }

@@ -1,5 +1,6 @@
 use crate::node::InMemoryStore;
 use crate::node::Node;
+use crate::storage::TenTenOneInMemoryStorage;
 use crate::tests::calculate_routing_fee_msat;
 use crate::tests::init_tracing;
 use crate::tests::wait_for_n_usable_channels;
@@ -105,7 +106,10 @@ async fn multi_hop_payment() {
 ///
 /// This is useful when the channel creator wants to push as many
 /// coins as possible to their peer on channel creation.
-fn min_outbound_liquidity_channel_creator(peer: &Node<InMemoryStore>, peer_balance: u64) -> u64 {
+fn min_outbound_liquidity_channel_creator(
+    peer: &Node<TenTenOneInMemoryStorage, InMemoryStore>,
+    peer_balance: u64,
+) -> u64 {
     let min_reserve_millionths_creator = Decimal::from(
         peer.ldk_config
             .read()

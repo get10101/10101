@@ -1,6 +1,7 @@
 use crate::db;
 use crate::node::storage::NodeStorage;
 use crate::node::Node;
+use crate::storage::CoordinatorTenTenOneStorage;
 use dlc_manager::subchannel::SubChannelState;
 use lazy_static::lazy_static;
 use lightning::ln::channelmanager::ChannelDetails;
@@ -228,7 +229,10 @@ fn channel_metrics(cx: &Context, channels: Vec<ChannelDetails>) {
     }
 }
 
-fn node_metrics(cx: &Context, inner_node: Arc<ln_dlc_node::node::Node<NodeStorage>>) {
+fn node_metrics(
+    cx: &Context,
+    inner_node: Arc<ln_dlc_node::node::Node<CoordinatorTenTenOneStorage, NodeStorage>>,
+) {
     let connected_peers = inner_node.list_peers().len();
     CONNECTED_PEERS.observe(cx, connected_peers as u64, &[]);
     let offchain = inner_node.get_ldk_balance();

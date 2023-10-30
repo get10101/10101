@@ -27,6 +27,33 @@ GoRouter createRoutes() {
       initialLocation: LoadingScreen.route,
       routes: <RouteBase>[
         GoRoute(
+          path: LoadingScreen.route,
+          pageBuilder: (context, state) => NoTransitionPage<void>(
+            child: LoadingScreen(
+              restore: state.extra as Future<void>?,
+            ),
+          ),
+        ),
+        GoRoute(
+            path: WelcomeScreen.route,
+            parentNavigatorKey: rootNavigatorKey,
+            pageBuilder: (context, state) => const NoTransitionPage<void>(
+                  child: WelcomeScreen(),
+                )),
+        GoRoute(
+            path: Onboarding.route,
+            pageBuilder: (context, state) => const NoTransitionPage<void>(
+                  child: Onboarding(),
+                ),
+            routes: <RouteBase>[
+              GoRoute(
+                  path: SeedPhraseImporter.subRouteName,
+                  parentNavigatorKey: rootNavigatorKey,
+                  pageBuilder: (context, state) => const NoTransitionPage<void>(
+                        child: SeedPhraseImporter(),
+                      )),
+            ]),
+        GoRoute(
             path: SettingsScreen.route,
             pageBuilder: (BuildContext context, GoRouterState state) {
               return CustomTransitionPage<void>(
@@ -88,12 +115,6 @@ GoRouter createRoutes() {
             );
           },
           routes: <RouteBase>[
-            GoRoute(
-              path: LoadingScreen.route,
-              builder: (BuildContext context, GoRouterState state) {
-                return const LoadingScreen();
-              },
-            ),
             GoRoute(
               path: WalletScreen.route,
               builder: (BuildContext context, GoRouterState state) {
@@ -159,27 +180,5 @@ GoRouter createRoutes() {
             ),
           ],
         ),
-        GoRoute(
-            path: Onboarding.route,
-            parentNavigatorKey: rootNavigatorKey,
-            builder: (BuildContext context, GoRouterState state) {
-              return const Onboarding();
-            },
-            routes: <RouteBase>[
-              GoRoute(
-                  path: SeedPhraseImporter.subRouteName,
-                  parentNavigatorKey: rootNavigatorKey,
-                  builder: (BuildContext context, GoRouterState state) {
-                    return const SeedPhraseImporter();
-                  },
-                  routes: const []),
-            ]),
-        GoRoute(
-            path: WelcomeScreen.route,
-            parentNavigatorKey: rootNavigatorKey,
-            builder: (BuildContext context, GoRouterState state) {
-              return const WelcomeScreen();
-            },
-            routes: const [])
       ]);
 }

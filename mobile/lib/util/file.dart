@@ -15,7 +15,7 @@ Future<String> getSeedFilePath() async {
 
 Future<bool> isSeedFilePresent() async {
   final seedFilePath = await getSeedFilePath();
-  logger.d("Scanning for seed file in : $seedFilePath");
+  logger.d("Scanning for seed file in: $seedFilePath");
   return File(seedFilePath).existsSync();
 }
 

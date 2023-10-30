@@ -15,6 +15,7 @@ pub mod orderbook_ws;
 pub mod position;
 pub mod routes;
 pub mod schema;
+pub mod storage;
 pub mod trading;
 
 pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!();

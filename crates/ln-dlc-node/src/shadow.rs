@@ -3,25 +3,23 @@ use crate::channel::ChannelState;
 use crate::ln_dlc_wallet::LnDlcWallet;
 use crate::node::ChannelManager;
 use crate::node::Storage;
+use crate::storage::TenTenOneStorage;
 use anyhow::Result;
 use bdk::TransactionDetails;
 use dlc_manager::subchannel::LNChannelManager;
 use std::sync::Arc;
 
-pub struct Shadow<S> {
-    storage: Arc<S>,
-    ln_dlc_wallet: Arc<LnDlcWallet>,
-    channel_manager: Arc<ChannelManager>,
+pub struct Shadow<S: TenTenOneStorage, N: Storage> {
+    storage: Arc<N>,
+    ln_dlc_wallet: Arc<LnDlcWallet<S, N>>,
+    channel_manager: Arc<ChannelManager<S, N>>,
 }
 
-impl<S> Shadow<S>
-where
-    S: Storage + Send + Sync + 'static,
-{
+impl<S: TenTenOneStorage, N: Storage> Shadow<S, N> {
     pub fn new(
-        storage: Arc<S>,
-        ln_dlc_wallet: Arc<LnDlcWallet>,
-        channel_manager: Arc<ChannelManager>,
+        storage: Arc<N>,
+        ln_dlc_wallet: Arc<LnDlcWallet<S, N>>,
+        channel_manager: Arc<ChannelManager<S, N>>,
     ) -> Self {
         Shadow {
             storage,

@@ -7,6 +7,7 @@ use crate::node::LiquidityRequest;
 use crate::node::LnDlcNodeSettings;
 use crate::node::Node;
 use crate::node::Storage;
+use crate::storage::TenTenOneInMemoryStorage;
 use crate::tests::calculate_routing_fee_msat;
 use crate::tests::init_tracing;
 use crate::tests::setup_coordinator_payer_channel;
@@ -241,9 +242,9 @@ async fn open_jit_channel_with_disconnected_payee() {
 /// which is used to indicate if the interceptable payment resulted in opening a JIT channel. We
 /// should probably only use interceptable payments when opening JIT channels, but alas.
 pub(crate) async fn send_interceptable_payment(
-    payer: &Node<InMemoryStore>,
-    payee: &Node<InMemoryStore>,
-    coordinator: &Node<InMemoryStore>,
+    payer: &Node<TenTenOneInMemoryStorage, InMemoryStore>,
+    payee: &Node<TenTenOneInMemoryStorage, InMemoryStore>,
+    coordinator: &Node<TenTenOneInMemoryStorage, InMemoryStore>,
     invoice_amount_sat: u64,
     fee_sats: u64,
     coordinator_just_in_time_channel_creation_outbound_liquidity: Option<u64>,
@@ -272,9 +273,12 @@ pub(crate) async fn send_interceptable_payment(
     // onboarding invoice. But since we do not have the app available here, we need to do this
     // manually.
     let channel = Channel::new_jit_channel(user_channel_id, coordinator.info.pubkey, 1, fee_sats);
-    payee.storage.upsert_channel(channel).with_context(|| {
-        format!("Failed to insert shadow JIT channel with user channel id {user_channel_id}")
-    })?;
+    payee
+        .node_storage
+        .upsert_channel(channel)
+        .with_context(|| {
+            format!("Failed to insert shadow JIT channel with user channel id {user_channel_id}")
+        })?;
 
     let invoice = payee.create_invoice_with_route_hint(
         Some(invoice_amount_sat),
@@ -343,9 +347,9 @@ pub(crate) async fn send_interceptable_payment(
 
 /// Sends a regular payment assuming all channels on the path exist.
 pub(crate) async fn send_payment(
-    payer: &Node<InMemoryStore>,
-    payee: &Node<InMemoryStore>,
-    coordinator: &Node<InMemoryStore>,
+    payer: &Node<TenTenOneInMemoryStorage, InMemoryStore>,
+    payee: &Node<TenTenOneInMemoryStorage, InMemoryStore>,
+    coordinator: &Node<TenTenOneInMemoryStorage, InMemoryStore>,
     invoice_amount_sat: u64,
     coordinator_just_in_time_channel_creation_outbound_liquidity: Option<u64>,
 ) -> Result<()> {
@@ -427,7 +431,7 @@ pub(crate) async fn send_payment(
 /// `max_inbound_htlc_value_in_flight_percent_of_channel` configuration flag of the receiving end of
 /// the channel.
 fn does_inbound_htlc_fit_as_percent_of_channel(
-    receiving_node: &Node<InMemoryStore>,
+    receiving_node: &Node<TenTenOneInMemoryStorage, InMemoryStore>,
     channel_id: &[u8; 32],
     htlc_amount_sat: u64,
 ) -> Result<bool> {

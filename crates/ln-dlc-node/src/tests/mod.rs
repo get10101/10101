@@ -9,6 +9,7 @@ use crate::node::OracleInfo;
 use crate::node::RunningNode;
 use crate::scorer;
 use crate::seed::Bip39Seed;
+use crate::storage::TenTenOneInMemoryStorage;
 use crate::util;
 use crate::AppEventHandler;
 use crate::CoordinatorEventHandler;
@@ -89,7 +90,7 @@ fn init_tracing() {
     })
 }
 
-impl Node<InMemoryStore> {
+impl Node<TenTenOneInMemoryStorage, InMemoryStore> {
     fn start_test_app(name: &str) -> Result<(Arc<Self>, RunningNode)> {
         let app_event_handler = |node, event_sender| {
             Arc::new(AppEventHandler::new(node, event_sender)) as Arc<dyn EventHandlerTrait>
@@ -151,12 +152,15 @@ impl Node<InMemoryStore> {
         ldk_config: UserConfig,
         esplora_origin: String,
         oracle: OracleInfo,
-        storage: Arc<InMemoryStore>,
+        node_storage: Arc<InMemoryStore>,
         settings: LnDlcNodeSettings,
         ldk_event_sender: Option<watch::Sender<Option<Event>>>,
     ) -> Result<(Arc<Self>, RunningNode)>
     where
-        EH: Fn(Arc<Node<InMemoryStore>>, Option<EventSender>) -> Arc<dyn EventHandlerTrait>,
+        EH: Fn(
+            Arc<Node<TenTenOneInMemoryStorage, InMemoryStore>>,
+            Option<EventSender>,
+        ) -> Arc<dyn EventHandlerTrait>,
     {
         let data_dir = random_tmp_dir().join(name);
 
@@ -170,6 +174,8 @@ impl Node<InMemoryStore> {
             listener.local_addr().expect("To get a free local address")
         };
 
+        let storage = TenTenOneInMemoryStorage::new();
+
         let node = Node::new(
             ldk_config,
             scorer::in_memory_scorer,
@@ -177,6 +183,7 @@ impl Node<InMemoryStore> {
             Network::Regtest,
             data_dir.as_path(),
             storage,
+            node_storage,
             address,
             address,
             util::into_net_addresses(address),
@@ -247,7 +254,7 @@ impl Node<InMemoryStore> {
     /// Initiates the opening of a private channel _and_ waits for the channel to be usable.
     async fn open_private_channel(
         &self,
-        peer: &Node<InMemoryStore>,
+        peer: &Node<TenTenOneInMemoryStorage, InMemoryStore>,
         amount_us: u64,
         amount_them: u64,
     ) -> Result<ChannelDetails> {
@@ -257,7 +264,7 @@ impl Node<InMemoryStore> {
     /// Initiates the opening of a public channel _and_ waits for the channel to be usable.
     async fn open_public_channel(
         &self,
-        peer: &Node<InMemoryStore>,
+        peer: &Node<TenTenOneInMemoryStorage, InMemoryStore>,
         amount_us: u64,
         amount_them: u64,
     ) -> Result<ChannelDetails> {
@@ -267,7 +274,7 @@ impl Node<InMemoryStore> {
     /// Initiates the opening of a channel _and_ waits for the channel to be usable.
     async fn open_channel(
         &self,
-        peer: &Node<InMemoryStore>,
+        peer: &Node<TenTenOneInMemoryStorage, InMemoryStore>,
         amount_us: u64,
         amount_them: u64,
         is_public: bool,
@@ -342,8 +349,8 @@ impl Node<InMemoryStore> {
 
 async fn setup_coordinator_payer_channel(
     payer_to_payee_invoice_amount: u64,
-    coordinator: &Node<InMemoryStore>,
-    payer: &Node<InMemoryStore>,
+    coordinator: &Node<TenTenOneInMemoryStorage, InMemoryStore>,
+    payer: &Node<TenTenOneInMemoryStorage, InMemoryStore>,
 ) -> u64 {
     let (
         coordinator_liquidity,
@@ -426,7 +433,7 @@ fn random_tmp_dir() -> PathBuf {
 }
 
 #[allow(dead_code)]
-fn log_channel_id(node: &Node<InMemoryStore>, index: usize, pair: &str) {
+fn log_channel_id(node: &Node<TenTenOneInMemoryStorage, InMemoryStore>, index: usize, pair: &str) {
     let details = match node.channel_manager.list_channels().get(index) {
         Some(details) => details.clone(),
         None => {
@@ -454,7 +461,7 @@ fn log_channel_id(node: &Node<InMemoryStore>, index: usize, pair: &str) {
 
 async fn wait_for_n_usable_channels(
     channel_count: usize,
-    node: &Node<InMemoryStore>,
+    node: &Node<TenTenOneInMemoryStorage, InMemoryStore>,
 ) -> Result<()> {
     wait_until(Duration::from_secs(20), || async {
         let usable_channels_length = node.channel_manager.list_usable_channels().len();
@@ -487,7 +494,7 @@ where
 
 async fn wait_until_dlc_channel_state(
     timeout: Duration,
-    node: &Node<InMemoryStore>,
+    node: &Node<TenTenOneInMemoryStorage, InMemoryStore>,
     counterparty_pk: PublicKey,
     target_state: SubChannelStateName,
 ) -> Result<SubChannel> {

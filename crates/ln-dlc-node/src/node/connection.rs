@@ -1,5 +1,7 @@
 use crate::node::Node;
 use crate::node::NodeInfo;
+use crate::node::Storage;
+use crate::storage::TenTenOneStorage;
 use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
@@ -8,7 +10,7 @@ use futures::Future;
 use std::pin::Pin;
 use std::time::Duration;
 
-impl<P> Node<P> {
+impl<S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 'static> Node<S, N> {
     pub async fn connect(&self, peer: NodeInfo) -> Result<Pin<Box<impl Future<Output = ()>>>> {
         #[allow(clippy::async_yields_async)] // We want to poll this future in a loop elsewhere
         let connection_closed_future = tokio::time::timeout(Duration::from_secs(15), async {

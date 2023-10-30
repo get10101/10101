@@ -3,6 +3,7 @@ use crate::event;
 use crate::event::BackgroundTask;
 use crate::event::EventInternal;
 use crate::event::TaskStatus;
+use crate::storage::TenTenOneNodeStorage;
 use crate::trade::order;
 use crate::trade::position;
 use crate::trade::position::PositionState;
@@ -43,12 +44,15 @@ use time::OffsetDateTime;
 
 #[derive(Clone)]
 pub struct Node {
-    pub inner: Arc<ln_dlc_node::node::Node<NodeStorage>>,
+    pub inner: Arc<node::Node<TenTenOneNodeStorage, NodeStorage>>,
     _running: Arc<RunningNode>,
 }
 
 impl Node {
-    pub fn new(node: Arc<node::Node<NodeStorage>>, running: RunningNode) -> Self {
+    pub fn new(
+        node: Arc<node::Node<TenTenOneNodeStorage, NodeStorage>>,
+        running: RunningNode,
+    ) -> Self {
         Self {
             inner: node,
             _running: Arc::new(running),

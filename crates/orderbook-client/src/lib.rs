@@ -9,6 +9,7 @@ use futures::StreamExt;
 use orderbook_commons::create_sign_message;
 use orderbook_commons::OrderbookRequest;
 use orderbook_commons::Signature;
+use orderbook_commons::AUTH_SIGN_MESSAGE;
 use secp256k1::Message;
 use tokio::net::TcpStream;
 use tokio_tungstenite::tungstenite;
@@ -38,7 +39,7 @@ pub async fn subscribe_with_authentication(
     SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, tungstenite::Message>,
     impl Stream<Item = Result<String, Error>> + Unpin,
 )> {
-    let signature = authenticate(create_sign_message());
+    let signature = authenticate(create_sign_message(AUTH_SIGN_MESSAGE.to_vec()));
 
     subscribe_impl(Some(signature), url, fcm_token).await
 }
@@ -122,7 +123,7 @@ mod test {
     fn test_signature_get() {
         let secret_key = test_secret_key();
 
-        let message = create_sign_message();
+        let message = create_sign_message(b"Hello it's me Mario".to_vec());
         let signature = secret_key.sign_ecdsa(message);
 
         let should_signature = secp256k1::ecdsa::Signature::from_str(
@@ -144,12 +145,12 @@ mod test {
     fn test_verify_signature() {
         let secret_key = test_secret_key();
 
-        let message = create_sign_message();
+        let message = create_sign_message(b"Hello it's me Mario".to_vec());
         let signature = secret_key.sign_ecdsa(message);
 
         let pubkey = secret_key.public_key(SECP256K1);
 
-        let msg = create_sign_message();
+        let msg = create_sign_message(b"Hello it's me Mario".to_vec());
 
         signature.verify(&msg, &pubkey).unwrap();
     }

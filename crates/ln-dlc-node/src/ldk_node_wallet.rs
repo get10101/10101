@@ -27,7 +27,7 @@ use std::sync::Arc;
 use std::time::Instant;
 use tokio::sync::RwLock;
 
-pub struct Wallet<D, B, F>
+pub struct Wallet<D, B, F, N>
 where
     D: BatchDatabase,
     B: Blockchain,
@@ -40,7 +40,7 @@ where
     settings: RwLock<WalletSettings>,
     fee_rate_estimator: Arc<F>,
     locked_outpoints: Mutex<Vec<OutPoint>>,
-    node_storage: Arc<dyn Storage + Send + Sync + 'static>,
+    node_storage: Arc<N>,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -48,17 +48,18 @@ pub struct WalletSettings {
     pub max_allowed_tx_fee_rate_when_opening_channel: Option<u32>,
 }
 
-impl<D, B, F> Wallet<D, B, F>
+impl<D, B, F, N> Wallet<D, B, F, N>
 where
     D: BatchDatabase,
     B: Blockchain,
     F: EstimateFeeRate,
+    N: Storage,
 {
     pub(crate) fn new(
         blockchain: B,
         wallet: bdk::Wallet<D>,
         fee_rate_estimator: Arc<F>,
-        node_storage: Arc<dyn Storage + Send + Sync + 'static>,
+        node_storage: Arc<N>,
     ) -> Self {
         let inner = Mutex::new(wallet);
         let settings = RwLock::new(WalletSettings::default());
@@ -288,11 +289,12 @@ where
     }
 }
 
-impl<D, B, F> BroadcasterInterface for Wallet<D, B, F>
+impl<D, B, F, N> BroadcasterInterface for Wallet<D, B, F, N>
 where
     D: BatchDatabase,
     B: Blockchain,
     F: EstimateFeeRate,
+    N: Storage,
 {
     fn broadcast_transactions(&self, txs: &[&Transaction]) {
         for tx in txs {

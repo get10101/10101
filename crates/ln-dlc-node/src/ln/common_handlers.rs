@@ -5,6 +5,7 @@ use crate::node::invoice::HTLCStatus;
 use crate::node::ChannelManager;
 use crate::node::Node;
 use crate::node::Storage;
+use crate::storage::TenTenOneStorage;
 use crate::util;
 use crate::MillisatAmount;
 use crate::PaymentFlow;
@@ -33,8 +34,8 @@ use time::OffsetDateTime;
 use tokio::task::block_in_place;
 use uuid::Uuid;
 
-pub fn handle_payment_claimable(
-    channel_manager: &Arc<ChannelManager>,
+pub fn handle_payment_claimable<S: TenTenOneStorage, N: Storage>(
+    channel_manager: &Arc<ChannelManager<S, N>>,
     payment_hash: PaymentHash,
     purpose: PaymentPurpose,
     amount_msat: u64,
@@ -82,8 +83,8 @@ pub fn handle_discard_funding(transaction: bitcoin::Transaction, channel_id: [u8
     // generated.
 }
 
-pub fn handle_payment_forwarded<S>(
-    node: &Arc<Node<S>>,
+pub fn handle_payment_forwarded<S: TenTenOneStorage, N: Storage>(
+    node: &Arc<Node<S, N>>,
     prev_channel_id: Option<[u8; 32]>,
     next_channel_id: Option<[u8; 32]>,
     claim_from_onchain_tx: bool,
@@ -143,16 +144,13 @@ pub fn handle_payment_forwarded<S>(
     }
 }
 
-pub fn handle_payment_sent<S>(
-    node: &Arc<Node<S>>,
+pub fn handle_payment_sent<S: TenTenOneStorage, N: Storage>(
+    node: &Arc<Node<S, N>>,
     payment_hash: PaymentHash,
     payment_preimage: lightning::ln::PaymentPreimage,
     fee_paid_msat: Option<u64>,
-) -> Result<()>
-where
-    S: Storage,
-{
-    let storage = &node.storage;
+) -> Result<()> {
+    let storage = &node.node_storage;
     let amount_msat = match storage.get_payment(&payment_hash) {
         Ok(Some((_, PaymentInfo { amt_msat, .. }))) => {
             let amount_msat = MillisatAmount(None);
@@ -217,16 +215,13 @@ where
     Ok(())
 }
 
-pub fn handle_channel_closed<S>(
-    node: &Arc<Node<S>>,
+pub fn handle_channel_closed<S: TenTenOneStorage, N: Storage>(
+    node: &Arc<Node<S, N>>,
     pending_intercepted_htlcs: &PendingInterceptedHtlcs,
     user_channel_id: u128,
     reason: lightning::events::ClosureReason,
     channel_id: [u8; 32],
-) -> Result<(), anyhow::Error>
-where
-    S: Storage,
-{
+) -> Result<(), anyhow::Error> {
     block_in_place(|| {
         let user_channel_id = Uuid::from_u128(user_channel_id).to_string();
         tracing::info!(
@@ -236,11 +231,11 @@ where
             "Channel closed",
         );
 
-        if let Some(channel) = node.storage.get_channel(&user_channel_id)? {
+        if let Some(channel) = node.node_storage.get_channel(&user_channel_id)? {
             let counterparty = channel.counterparty;
 
             let channel = Channel::close_channel(channel, reason.clone());
-            node.storage.upsert_channel(channel)?;
+            node.node_storage.upsert_channel(channel)?;
 
             // Fail intercepted HTLC which was meant to be used to open the JIT channel,
             // in case it was still pending
@@ -265,13 +260,10 @@ where
     Ok(())
 }
 
-pub fn handle_spendable_outputs<S>(
-    node: &Arc<Node<S>>,
+pub fn handle_spendable_outputs<S: TenTenOneStorage, N: Storage>(
+    node: &Arc<Node<S, N>>,
     outputs: Vec<SpendableOutputDescriptor>,
-) -> Result<()>
-where
-    S: Storage,
-{
+) -> Result<()> {
     let ldk_outputs = outputs
         .iter()
         .filter(|output| {
@@ -284,7 +276,7 @@ where
     }
     for spendable_output in ldk_outputs.iter() {
         if let Err(e) = node
-            .storage
+            .node_storage
             .insert_spendable_output((*spendable_output).clone())
         {
             tracing::error!("Failed to persist spendable output: {e:#}")
@@ -305,16 +297,14 @@ where
     Ok(())
 }
 
-pub fn handle_payment_claimed<S>(
-    node: &Arc<Node<S>>,
+pub fn handle_payment_claimed<S: TenTenOneStorage, N: Storage>(
+    node: &Arc<Node<S, N>>,
     amount_msat: u64,
     fee_sats: Option<u64>,
     funding_txid: Option<Txid>,
     payment_hash: PaymentHash,
     purpose: PaymentPurpose,
-) where
-    S: Storage,
-{
+) {
     tracing::info!(
         %amount_msat,
         payment_hash = %payment_hash.0.to_hex(),
@@ -331,7 +321,7 @@ pub fn handle_payment_claimed<S>(
     };
 
     let amount_msat = MillisatAmount(Some(amount_msat));
-    if let Err(e) = node.storage.merge_payment(
+    if let Err(e) = node.node_storage.merge_payment(
         &payment_hash,
         PaymentFlow::Inbound,
         amount_msat,
@@ -348,17 +338,17 @@ pub fn handle_payment_claimed<S>(
     }
 }
 
-pub fn handle_payment_failed<S>(node: &Arc<Node<S>>, payment_hash: PaymentHash)
-where
-    S: Storage,
-{
+pub fn handle_payment_failed<S: TenTenOneStorage, N: Storage>(
+    node: &Arc<Node<S, N>>,
+    payment_hash: PaymentHash,
+) {
     tracing::warn!(
         payment_hash = %payment_hash.0.to_hex(),
         "Failed to send payment to payment hash: exhausted payment retry attempts",
     );
 
     let amount_msat = MillisatAmount(None);
-    if let Err(e) = node.storage.merge_payment(
+    if let Err(e) = node.node_storage.merge_payment(
         &payment_hash,
         PaymentFlow::Outbound,
         amount_msat,
@@ -375,8 +365,8 @@ where
     }
 }
 
-pub async fn handle_funding_generation_ready<S>(
-    node: &Arc<Node<S>>,
+pub async fn handle_funding_generation_ready<S: TenTenOneStorage, N: Storage>(
+    node: &Arc<Node<S, N>>,
     user_channel_id: u128,
     counterparty_node_id: PublicKey,
     output_script: bitcoin::Script,
@@ -434,8 +424,8 @@ pub async fn handle_funding_generation_ready<S>(
 }
 
 /// Fail an intercepted HTLC backwards.
-pub(crate) fn fail_intercepted_htlc(
-    channel_manager: &Arc<ChannelManager>,
+pub(crate) fn fail_intercepted_htlc<S: TenTenOneStorage, N: Storage>(
+    channel_manager: &Arc<ChannelManager<S, N>>,
     intercept_id: &InterceptId,
 ) {
     tracing::error!(
@@ -448,8 +438,11 @@ pub(crate) fn fail_intercepted_htlc(
     let _ = channel_manager.fail_intercepted_htlc(*intercept_id);
 }
 
-pub fn handle_pending_htlcs_forwardable(
-    forwarding_channel_manager: Arc<ChannelManager>,
+pub fn handle_pending_htlcs_forwardable<
+    S: TenTenOneStorage + 'static,
+    N: Storage + Sync + Send + 'static,
+>(
+    forwarding_channel_manager: Arc<ChannelManager<S, N>>,
     time_forwardable: Duration,
 ) {
     tracing::debug!(

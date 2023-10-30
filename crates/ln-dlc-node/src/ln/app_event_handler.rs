@@ -6,6 +6,7 @@ use crate::channel::UserChannelId;
 use crate::node::ChannelManager;
 use crate::node::Node;
 use crate::node::Storage;
+use crate::storage::TenTenOneStorage;
 use crate::util;
 use crate::EventHandlerTrait;
 use anyhow::anyhow;
@@ -26,29 +27,21 @@ use std::sync::Arc;
 
 /// Event handler for the mobile 10101 app.
 // TODO: Move it out of this crate
-pub struct AppEventHandler<S> {
-    pub(crate) node: Arc<Node<S>>,
+pub struct AppEventHandler<S: TenTenOneStorage, N: Storage> {
+    pub(crate) node: Arc<Node<S, N>>,
     pub(crate) event_sender: Option<EventSender>,
 }
 
-impl<S> AppEventHandler<S>
-where
-    S: Storage + Send + Sync + 'static,
-{
-    pub fn new(node: Arc<Node<S>>, event_sender: Option<EventSender>) -> Self {
+impl<S: TenTenOneStorage, N: Storage + Sync + Send> AppEventHandler<S, N> {
+    pub fn new(node: Arc<Node<S, N>>, event_sender: Option<EventSender>) -> Self {
         Self { node, event_sender }
     }
 }
 
 #[async_trait]
-impl<S> EventHandlerTrait for AppEventHandler<S>
-where
-    S: Storage + Send + Sync + 'static,
+impl<S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 'static> EventHandlerTrait
+    for AppEventHandler<S, N>
 {
-    fn event_sender(&self) -> &Option<EventSender> {
-        &self.event_sender
-    }
-
     async fn match_event(&self, event: Event) -> Result<()> {
         match event {
             Event::FundingGenerationReady {
@@ -77,7 +70,7 @@ where
                 let payment_hash_str = util::hex_str(&payment_hash.0);
                 let channel = self
                     .node
-                    .storage
+                    .node_storage
                     .get_channel_by_payment_hash(payment_hash_str)?;
                 let fee_msat = channel
                     .clone()
@@ -124,14 +117,14 @@ where
                 // not provided in the `Event::OpenChannelRequest`.
                 let channel = self
                     .node
-                    .storage
+                    .node_storage
                     .get_announced_channel(counterparty_node_id)?;
 
                 let user_channel_id = match channel {
                     Some(mut channel) => {
                         channel.channel_state = ChannelState::Pending;
 
-                        if let Err(e) = self.node.storage.upsert_channel(channel.clone()) {
+                        if let Err(e) = self.node.node_storage.upsert_channel(channel.clone()) {
                             tracing::error!("Failed to update channel. Error: {e:#}");
                         }
 
@@ -236,9 +229,9 @@ where
                         channel_id.to_hex()
                     ))?;
 
-                let channel = self.node.storage.get_channel(&user_channel_id)?;
+                let channel = self.node.node_storage.get_channel(&user_channel_id)?;
                 let channel = Channel::open_channel(channel, channel_details)?;
-                self.node.storage.upsert_channel(channel)?;
+                self.node.node_storage.upsert_channel(channel)?;
             }
             Event::HTLCHandlingFailed {
                 prev_channel_id,
@@ -262,7 +255,7 @@ where
             } if counterparty_skimmed_fee_msat > 0 => {
                 tracing::info!("Checking if counterparty skimmed fee msat is justified");
                 if let Err(e) = handle_fees_on_claimable_payment(
-                    &self.node.storage,
+                    &self.node.node_storage,
                     &self.node.channel_manager,
                     via_user_channel_id,
                     payment_hash,
@@ -323,11 +316,15 @@ where
 
         Ok(())
     }
+
+    fn event_sender(&self) -> &Option<EventSender> {
+        &self.event_sender
+    }
 }
 
-pub(crate) fn handle_fees_on_claimable_payment<S: Storage>(
-    storage: &Arc<S>,
-    channel_manager: &Arc<ChannelManager>,
+pub(crate) fn handle_fees_on_claimable_payment<S: TenTenOneStorage, N: Storage + Sync + Send>(
+    node_storage: &Arc<N>,
+    channel_manager: &Arc<ChannelManager<S, N>>,
     user_channel_id: Option<u128>,
     payment_hash: PaymentHash,
     counterparty_skimmed_fee_msat: u64,
@@ -336,7 +333,7 @@ pub(crate) fn handle_fees_on_claimable_payment<S: Storage>(
 ) -> Result<()> {
     let user_channel_id = user_channel_id.context("Missing user channel id")?;
     let user_channel_id = UserChannelId::from(user_channel_id);
-    let channel = storage
+    let channel = node_storage
         .get_channel(&user_channel_id.to_string())?
         .with_context(|| format!("Couldn't find channel for user_channel_id {user_channel_id}",))?;
 
@@ -367,13 +364,13 @@ pub(crate) fn handle_fees_on_claimable_payment<S: Storage>(
     let mut channel = channel;
     channel.channel_state = ChannelState::Open;
     channel.open_channel_payment_hash = Some(util::hex_str(&payment_hash.0));
-    storage.upsert_channel(channel)?;
+    node_storage.upsert_channel(channel)?;
 
     Ok(())
 }
 
-pub(crate) fn handle_open_channel_request_0_conf(
-    channel_manager: &Arc<ChannelManager>,
+pub(crate) fn handle_open_channel_request_0_conf<S: TenTenOneStorage, N: Storage + Sync + Send>(
+    channel_manager: &Arc<ChannelManager<S, N>>,
     counterparty_node_id: PublicKey,
     funding_satoshis: u64,
     push_msat: u64,

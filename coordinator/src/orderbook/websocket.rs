@@ -10,6 +10,7 @@ use futures::StreamExt;
 use orderbook_commons::create_sign_message;
 use orderbook_commons::Message;
 use orderbook_commons::OrderbookRequest;
+use orderbook_commons::AUTH_SIGN_MESSAGE;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::mpsc;
@@ -128,7 +129,7 @@ pub async fn websocket_connection(stream: WebSocket, state: Arc<AppState>) {
                     fcm_token,
                     signature,
                 }) => {
-                    let msg = create_sign_message();
+                    let msg = create_sign_message(AUTH_SIGN_MESSAGE.to_vec());
                     let trader_id = signature.pubkey;
                     let signature = signature.signature;
 

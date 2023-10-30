@@ -16,7 +16,6 @@ bitcoin = "0.29.2"
 dlc = { version = "0.4.0" }
 dlc-manager = { version = "0.4.0", features = ["use-serde"] }
 dlc-messages = { version = "0.4.0" }
-dlc-sled-storage-provider = { version = "0.1.0", features = ["wallet"] }
 dlc-trie = { version = "0.4.0" }
 esplora-client = { version = "0.4", default-features = false }
 futures = "0.3"
@@ -28,6 +27,7 @@ lightning-invoice = { version = "0.24" }
 lightning-net-tokio = { version = "0.0.116" }
 lightning-persister = { version = "0.0.116" }
 lightning-transaction-sync = { version = "0.0.116", features = ["esplora-blocking"] }
+ln-dlc-storage = { path = "../../crates/ln-dlc-storage" }
 log = "0.4.17"
 p2pd-oracle-client = { version = "0.1.0" }
 parking_lot = { version = "0.12.1" }
@@ -39,7 +39,6 @@ secp256k1-zkp = { version = "0.7.0", features = ["global-context"] }
 serde = "1.0.147"
 serde_with = "3.1.0"
 sha2 = "0.10"
-simple-wallet = "0.1.0"
 time = "0.3"
 tokio = { version = "1", default-features = false, features = ["io-util", "macros", "rt", "rt-multi-thread", "sync", "net", "time", "tracing"] }
 tracing = "0.1.37"

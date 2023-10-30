@@ -10,6 +10,7 @@ use serde_json::json;
 use settings::Settings;
 
 pub mod admin;
+pub mod backup;
 pub mod cli;
 mod collaborative_revert;
 pub mod db;
@@ -26,6 +27,7 @@ pub mod routing_fee;
 pub mod scheduler;
 pub mod schema;
 pub mod settings;
+pub mod storage;
 pub mod trade;
 
 pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!();
@@ -43,6 +45,7 @@ pub enum AppError {
     NoMatchFound(String),
     InvalidOrder(String),
     ServiceUnavailable(String),
+    Unauthorized,
 }
 
 impl IntoResponse for AppError {
@@ -53,6 +56,7 @@ impl IntoResponse for AppError {
             AppError::NoMatchFound(msg) => (StatusCode::SERVICE_UNAVAILABLE, msg),
             AppError::InvalidOrder(msg) => (StatusCode::BAD_REQUEST, msg),
             AppError::ServiceUnavailable(msg) => (StatusCode::SERVICE_UNAVAILABLE, msg),
+            AppError::Unauthorized => (StatusCode::UNAUTHORIZED, "".to_string()),
         };
 
         let body = Json(json!({

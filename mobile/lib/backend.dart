@@ -13,15 +13,8 @@ import 'package:path_provider/path_provider.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:provider/provider.dart';
 
-/// Run the backend and retry a number of times if it fails for whatever reason
-Future<void> runBackend(BuildContext context) async {
+Future<void> setConfig() async {
   bridge.Config config = Environment.parse();
-
-  context.read<CandlestickChangeNotifier>().initialize();
-  final orderChangeNotifier = context.read<OrderChangeNotifier>();
-  final positionChangeNotifier = context.read<PositionChangeNotifier>();
-
-  final seedDir = (await getApplicationSupportDirectory()).path;
 
   // We use the app documents dir on iOS to easily access logs and DB from
   // the device. On other platforms we use the seed dir.
@@ -29,12 +22,32 @@ Future<void> runBackend(BuildContext context) async {
       ? (await getApplicationDocumentsDirectory()).path
       : (await getApplicationSupportDirectory()).path;
 
+  final seedDir = (await getApplicationSupportDirectory()).path;
+
+  logger.i("App data will be stored in: $appDir");
+  logger.i("Seed data will be stored in: $seedDir");
+
   final actualSeedDir = (await getActualSeedPath(config)).path;
   if (File('$actualSeedDir/db').existsSync()) {
     logger.i(
         "App has already data in the seed dir. For compatibility reasons we will not switch to the new app dir.");
     appDir = seedDir;
   }
+
+  rust.api.setConfig(config: config, appDir: appDir, seedDir: seedDir);
+}
+
+Future<void> fullBackup() async {
+  rust.api.fullBackup();
+}
+
+/// Run the backend and retry a number of times if it fails for whatever reason
+Future<void> runBackend(BuildContext context) async {
+  context.read<CandlestickChangeNotifier>().initialize();
+  final orderChangeNotifier = context.read<OrderChangeNotifier>();
+  final positionChangeNotifier = context.read<PositionChangeNotifier>();
+
+  final seedDir = (await getApplicationSupportDirectory()).path;
 
   String fcmToken;
   try {
@@ -44,20 +57,16 @@ Future<void> runBackend(BuildContext context) async {
     fcmToken = '';
   }
 
-  logger.i("App data will be stored in: $appDir");
-  logger.i("Seed data will be stored in: $seedDir");
-
-  await _startBackend(config: config, appDir: appDir, seedDir: seedDir, fcmToken: fcmToken);
+  await _startBackend(seedDir: seedDir, fcmToken: fcmToken);
 
   // these notifiers depend on the backend running
   orderChangeNotifier.initialize();
   positionChangeNotifier.initialize();
 }
 
-Future<void> _startBackend({config, appDir, seedDir, fcmToken}) async {
+Future<void> _startBackend({seedDir, fcmToken}) async {
   try {
-    await rust.api
-        .runInFlutter(config: config, appDir: appDir, seedDir: seedDir, fcmToken: fcmToken);
+    await rust.api.runInFlutter(seedDir: seedDir, fcmToken: fcmToken);
   } catch (e) {
     logger.e("Launching the app failed $e");
     await Future.delayed(const Duration(seconds: 5));

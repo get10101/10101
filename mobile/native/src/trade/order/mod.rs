@@ -168,7 +168,7 @@ impl Order {
 impl From<Order> for orderbook_commons::NewOrder {
     fn from(order: Order) -> Self {
         let quantity = Decimal::try_from(order.quantity).expect("to parse into decimal");
-        let trader_id = ln_dlc::get_node_info().expect("to have info").pubkey;
+        let trader_id = ln_dlc::get_node_pubkey();
         orderbook_commons::NewOrder {
             id: order.id,
             contract_symbol: order.contract_symbol,
