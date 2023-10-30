@@ -3,8 +3,6 @@ use crate::node::storage::NodeStorage;
 use crate::orderbook::db::matches;
 use crate::orderbook::db::orders;
 use crate::payout_curve;
-use crate::position::models::leverage_long;
-use crate::position::models::leverage_short;
 use crate::position::models::NewPosition;
 use crate::position::models::Position;
 use crate::position::models::PositionState;
@@ -24,8 +22,6 @@ use diesel::PgConnection;
 use dlc_manager::contract::contract_input::ContractInput;
 use dlc_manager::contract::contract_input::ContractInputInfo;
 use dlc_manager::contract::contract_input::OracleInput;
-use dlc_manager::contract::numerical_descriptor::NumericalDescriptor;
-use dlc_manager::contract::ContractDescriptor;
 use dlc_manager::payout_curve::RoundingInterval;
 use dlc_manager::payout_curve::RoundingIntervals;
 use dlc_manager::ChannelId;
@@ -270,18 +266,7 @@ impl Node {
 
         let margin_trader = margin_trader(trade_params);
         let margin_coordinator = margin_coordinator(trade_params, coordinator_leverage);
-
-        let leverage_long = leverage_long(
-            trade_params.direction,
-            trade_params.leverage,
-            coordinator_leverage,
-        );
-        let leverage_short = leverage_short(
-            trade_params.direction,
-            trade_params.leverage,
-            coordinator_leverage,
-        );
-
+        let leverage_trader = trade_params.leverage;
         let total_collateral = margin_coordinator + margin_trader;
 
         let fee = order_matching_fee_taker(
@@ -289,14 +274,21 @@ impl Node {
             trade_params.average_execution_price(),
         )
         .to_sat();
+        let initial_price = trade_params.filled_with.average_execution_price();
 
-        let contract_descriptor = build_contract_descriptor(
-            total_collateral,
-            trade_params.average_execution_price(),
-            leverage_long,
-            leverage_short,
-            create_rounting_interval((total_collateral as f32 * ROUNDING_PERCENT) as u64),
+        let coordinator_direction = trade_params.direction.opposite();
+
+        let contract_descriptor = payout_curve::build_contract_descriptor(
+            initial_price,
+            margin_coordinator,
+            margin_trader,
+            coordinator_leverage,
+            leverage_trader,
+            coordinator_direction,
             fee,
+            create_rounding_interval((total_collateral as f32 * ROUNDING_PERCENT) as u64),
+            trade_params.quantity,
+            trade_params.contract_symbol,
         )
         .context("Could not build contract descriptor")?;
 
@@ -623,37 +615,11 @@ fn liquidation_price(trade_params: &TradeParams) -> f32 {
     .expect("to fit into f32")
 }
 
-fn create_rounting_interval(rounding_mod: u64) -> RoundingIntervals {
+fn create_rounding_interval(rounding_mod: u64) -> RoundingIntervals {
     RoundingIntervals {
         intervals: vec![RoundingInterval {
             begin_interval: 0,
             rounding_mod,
         }],
     }
-}
-
-/// Builds the contract descriptor from the point of view of the trader.
-fn build_contract_descriptor(
-    total_collateral: u64,
-    initial_price: Decimal,
-    leverage_long: f32,
-    leverage_short: f32,
-    rounding_intervals: RoundingIntervals,
-    fee: u64,
-) -> Result<ContractDescriptor> {
-    Ok(ContractDescriptor::Numerical(NumericalDescriptor {
-        payout_function: payout_curve::build_payout_function(
-            total_collateral,
-            initial_price,
-            leverage_long,
-            leverage_short,
-            fee,
-        )?,
-        rounding_intervals,
-        difference_params: None,
-        oracle_numeric_infos: dlc_trie::OracleNumericInfo {
-            base: 2,
-            nb_digits: vec![20],
-        },
-    }))
 }
