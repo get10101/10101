@@ -676,10 +676,10 @@ dependencies = [
  "coordinator-commons",
  "diesel",
  "diesel_migrations",
- "dlc 0.4.0 (git+https://github.com/p2pderivatives/rust-dlc?rev=7a93489)",
- "dlc-manager 0.4.0",
- "dlc-messages 0.4.0 (git+https://github.com/p2pderivatives/rust-dlc?rev=7a93489)",
- "dlc-trie 0.4.0 (git+https://github.com/p2pderivatives/rust-dlc?rev=7a93489)",
+ "dlc",
+ "dlc-manager",
+ "dlc-messages",
+ "dlc-trie",
  "fcm",
  "futures",
  "hex",
@@ -1041,36 +1041,11 @@ dependencies = [
 [[package]]
 name = "dlc"
 version = "0.4.0"
-dependencies = [
- "bitcoin",
- "miniscript 8.0.0",
- "secp256k1-sys",
- "secp256k1-zkp",
- "serde",
-]
-
-[[package]]
-name = "dlc"
-version = "0.4.0"
 source = "git+https://github.com/p2pderivatives/rust-dlc?rev=7a93489#7a934896d6fbbad57abea83bff8649f945e2d243"
 dependencies = [
  "bitcoin",
  "miniscript 8.0.0",
  "secp256k1-sys",
- "secp256k1-zkp",
-]
-
-[[package]]
-name = "dlc-manager"
-version = "0.4.0"
-dependencies = [
- "async-trait",
- "bitcoin",
- "dlc 0.4.0",
- "dlc-messages 0.4.0",
- "dlc-trie 0.4.0",
- "lightning",
- "log",
  "secp256k1-zkp",
  "serde",
 ]
@@ -1082,20 +1057,9 @@ source = "git+https://github.com/p2pderivatives/rust-dlc?rev=7a93489#7a934896d6f
 dependencies = [
  "async-trait",
  "bitcoin",
- "dlc 0.4.0 (git+https://github.com/p2pderivatives/rust-dlc?rev=7a93489)",
- "dlc-messages 0.4.0 (git+https://github.com/p2pderivatives/rust-dlc?rev=7a93489)",
- "dlc-trie 0.4.0 (git+https://github.com/p2pderivatives/rust-dlc?rev=7a93489)",
- "lightning",
- "log",
- "secp256k1-zkp",
-]
-
-[[package]]
-name = "dlc-messages"
-version = "0.4.0"
-dependencies = [
- "bitcoin",
- "dlc 0.4.0",
+ "dlc",
+ "dlc-messages",
+ "dlc-trie",
  "lightning",
  "log",
  "secp256k1-zkp",
@@ -1108,7 +1072,7 @@ version = "0.4.0"
 source = "git+https://github.com/p2pderivatives/rust-dlc?rev=7a93489#7a934896d6fbbad57abea83bff8649f945e2d243"
 dependencies = [
  "bitcoin",
- "dlc 0.4.0 (git+https://github.com/p2pderivatives/rust-dlc?rev=7a93489)",
+ "dlc",
  "lightning",
  "log",
  "secp256k1-zkp",
@@ -1121,7 +1085,7 @@ version = "0.1.0"
 source = "git+https://github.com/p2pderivatives/rust-dlc?rev=7a93489#7a934896d6fbbad57abea83bff8649f945e2d243"
 dependencies = [
  "bitcoin",
- "dlc-manager 0.4.0 (git+https://github.com/p2pderivatives/rust-dlc?rev=7a93489)",
+ "dlc-manager",
  "lightning",
  "log",
  "secp256k1-zkp",
@@ -1132,21 +1096,12 @@ dependencies = [
 [[package]]
 name = "dlc-trie"
 version = "0.4.0"
-dependencies = [
- "bitcoin",
- "dlc 0.4.0",
- "secp256k1-zkp",
- "serde",
-]
-
-[[package]]
-name = "dlc-trie"
-version = "0.4.0"
 source = "git+https://github.com/p2pderivatives/rust-dlc?rev=7a93489#7a934896d6fbbad57abea83bff8649f945e2d243"
 dependencies = [
  "bitcoin",
- "dlc 0.4.0 (git+https://github.com/p2pderivatives/rust-dlc?rev=7a93489)",
+ "dlc",
  "secp256k1-zkp",
+ "serde",
 ]
 
 [[package]]
@@ -1942,11 +1897,11 @@ dependencies = [
  "bdk",
  "bip39",
  "bitcoin",
- "dlc 0.4.0 (git+https://github.com/p2pderivatives/rust-dlc?rev=7a93489)",
- "dlc-manager 0.4.0",
- "dlc-messages 0.4.0 (git+https://github.com/p2pderivatives/rust-dlc?rev=7a93489)",
+ "dlc",
+ "dlc-manager",
+ "dlc-messages",
  "dlc-sled-storage-provider",
- "dlc-trie 0.4.0 (git+https://github.com/p2pderivatives/rust-dlc?rev=7a93489)",
+ "dlc-trie",
  "esplora-client",
  "futures",
  "hex",
@@ -2252,8 +2207,8 @@ dependencies = [
  "coordinator-commons",
  "diesel",
  "diesel_migrations",
- "dlc 0.4.0 (git+https://github.com/p2pderivatives/rust-dlc?rev=7a93489)",
- "dlc-messages 0.4.0 (git+https://github.com/p2pderivatives/rust-dlc?rev=7a93489)",
+ "dlc",
+ "dlc-messages",
  "flutter_rust_bridge",
  "futures",
  "hex",
@@ -2563,8 +2518,8 @@ version = "0.1.0"
 source = "git+https://github.com/p2pderivatives/rust-dlc?rev=7a93489#7a934896d6fbbad57abea83bff8649f945e2d243"
 dependencies = [
  "chrono",
- "dlc-manager 0.4.0 (git+https://github.com/p2pderivatives/rust-dlc?rev=7a93489)",
- "dlc-messages 0.4.0 (git+https://github.com/p2pderivatives/rust-dlc?rev=7a93489)",
+ "dlc-manager",
+ "dlc-messages",
  "reqwest",
  "secp256k1-zkp",
  "serde",
@@ -2625,7 +2580,7 @@ dependencies = [
  "anyhow",
  "bitcoin",
  "csv",
- "dlc-manager 0.4.0",
+ "dlc-manager",
  "proptest",
  "rust_decimal",
  "rust_decimal_macros",
@@ -3499,8 +3454,8 @@ version = "0.1.0"
 source = "git+https://github.com/p2pderivatives/rust-dlc?rev=7a93489#7a934896d6fbbad57abea83bff8649f945e2d243"
 dependencies = [
  "bitcoin",
- "dlc 0.4.0 (git+https://github.com/p2pderivatives/rust-dlc?rev=7a93489)",
- "dlc-manager 0.4.0 (git+https://github.com/p2pderivatives/rust-dlc?rev=7a93489)",
+ "dlc",
+ "dlc-manager",
  "lightning",
  "rust-bitcoin-coin-selection 0.1.0 (git+https://github.com/p2pderivatives/rust-bitcoin-coin-selection?rev=23a6bf85)",
  "secp256k1-zkp",
@@ -4104,6 +4059,7 @@ dependencies = [
  "bdk",
  "reqwest",
  "rust_decimal",
+ "rust_decimal_macros",
  "serde",
  "time 0.3.20",
 ]

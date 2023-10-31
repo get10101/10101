@@ -3,9 +3,10 @@ use anyhow::Context;
 use anyhow::Result;
 use bdk::bitcoin;
 use bdk::bitcoin::Denomination;
-use bdk::bitcoin::SignedAmount;
+use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
+use rust_decimal_macros::dec;
 use std::ops::Neg;
 
 pub const BTCUSD_MAX_PRICE: u64 = 1_048_575;
@@ -84,28 +85,25 @@ pub fn calculate_pnl(
         let quantity = Decimal::try_from(quantity).expect("quantity to fit into decimal");
 
         let uncapped_pnl = match opening_price != Decimal::ZERO && closing_price != Decimal::ZERO {
-            true => {
-                let uncapped_pnl = (quantity / opening_price) - (quantity / closing_price);
-                let uncapped_pnl = uncapped_pnl.round_dp_with_strategy(
-                    8,
-                    rust_decimal::RoundingStrategy::MidpointAwayFromZero,
-                );
-                uncapped_pnl
-                    .to_f64()
-                    .context("Could not convert Decimal to f64")?
-            }
-            false => 0.0,
+            true => (quantity / opening_price) - (quantity / closing_price),
+            false => dec!(0.0),
         };
 
-        SignedAmount::from_btc(uncapped_pnl)?.to_sat()
+        let uncapped_pnl = uncapped_pnl * dec!(100_000_000);
+        // we need to round to zero or else we might lose some sats somewhere
+        uncapped_pnl.round_dp_with_strategy(0, rust_decimal::RoundingStrategy::MidpointTowardZero)
     };
 
     let pnl = match direction {
-        Direction::Long => uncapped_pnl_long.min(short_margin as i64),
-        Direction::Short => uncapped_pnl_long.neg().min(long_margin as i64),
+        Direction::Long => {
+            uncapped_pnl_long.min(Decimal::from_u64(short_margin).context("be able to parse u64")?)
+        }
+        Direction::Short => uncapped_pnl_long
+            .neg()
+            .min(Decimal::from_u64(long_margin).context("be able to parse u64")?),
     };
 
-    Ok(pnl)
+    pnl.to_i64().context("to be able to convert into i64")
 }
 
 #[cfg(test)]
@@ -337,5 +335,51 @@ pub mod tests {
 
         // Value taken from our CFD hedging model sheet
         assert_eq!(pnl_long, 0);
+    }
+
+    #[test]
+    fn given_uneven_price_should_round_down() {
+        let opening_price = Decimal::from(1000);
+        let closing_price = Decimal::from(1234);
+        let quantity = 10.0;
+        let long_leverage = 2.0;
+        let short_leverage = 1.0;
+
+        let pnl_long = calculate_pnl(
+            opening_price,
+            closing_price,
+            quantity,
+            long_leverage,
+            short_leverage,
+            Direction::Long,
+        )
+        .unwrap();
+
+        // --> pnl should be ==> quantity / ((1/opening_price)-(1/closing_price))
+        // should be 189,627.23 Sats , or 189,628 Sats away from zero
+        assert_eq!(pnl_long, 189_627);
+    }
+
+    #[test]
+    fn pnl_example_calculation() {
+        let opening_price = Decimal::from(30_000);
+        let closing_price = Decimal::from(20_002);
+        let quantity = 60_000.0;
+        let long_leverage = 2.0;
+        let short_leverage = 2.0;
+
+        let pnl_long = calculate_pnl(
+            opening_price,
+            closing_price,
+            quantity,
+            long_leverage,
+            short_leverage,
+            Direction::Short,
+        )
+        .unwrap();
+
+        // --> pnl should be ==> quantity / ((1/opening_price)-(1/closing_price))
+        // should be 0.99970003	BTC or 99970003 Sats
+        assert_eq!(pnl_long, 99_970_003);
     }
 }
