@@ -329,6 +329,7 @@ mod tests {
     use crate::PayoutPoint;
     use anyhow::Result;
     use bitcoin::Amount;
+    use proptest::prelude::*;
     use rust_decimal::prelude::FromPrimitive;
     use rust_decimal::prelude::ToPrimitive;
     use rust_decimal::Decimal;
@@ -693,5 +694,91 @@ mod tests {
         pub start: u64,
         pub payout_offer: u64,
         pub payout_accept: u64,
+    }
+
+    //******* Proptests *******//
+
+    proptest! {
+
+        #[test]
+        fn calculating_lower_bound_doesnt_crash_offer_short(total_collateral in 1u64..100_000_000_000, bound in 1u64..100_000) {
+            let total_collateral = total_collateral;
+            let bound = Decimal::from_u64(bound).expect("to be able to parse bound");
+
+            // act:
+            let (lower_payout_lower, lower_payout_upper) =
+                calculate_short_liquidation_interval_payouts(Direction::Short, total_collateral, bound).unwrap();
+
+            // assert
+            prop_assert_eq!(lower_payout_lower.event_outcome, 0);
+            prop_assert_eq!(lower_payout_lower.outcome_payout, total_collateral);
+            prop_assert_eq!(lower_payout_upper.event_outcome, bound.to_u64().unwrap());
+            prop_assert_eq!(lower_payout_upper.outcome_payout, total_collateral);
+        }
+    }
+
+    proptest! {
+
+        #[test]
+        fn calculating_lower_bound_doesnt_crash_offer_long(total_collateral in 1u64..100_000_000_000, bound in 1u64..100_000) {
+            let total_collateral = total_collateral;
+            let bound = Decimal::from_u64(bound).expect("to be able to parse bound");
+
+            // act:
+            let (lower_payout_lower, lower_payout_upper) =
+                calculate_short_liquidation_interval_payouts(Direction::Short, total_collateral, bound).unwrap();
+
+            // assert
+            prop_assert_eq!(lower_payout_lower.event_outcome, 0);
+            prop_assert_eq!(lower_payout_lower.outcome_payout, total_collateral);
+            prop_assert_eq!(lower_payout_upper.event_outcome, bound.to_u64().unwrap());
+            prop_assert_eq!(lower_payout_upper.outcome_payout, total_collateral);
+        }
+    }
+
+    proptest! {
+
+        #[test]
+        fn calculating_upper_bound_doesnt_crash_offer_short(total_collateral in 1u64..100_000_000_000, bound in 1u64..100_000) {
+            let total_collateral = total_collateral;
+            let last_payout = PayoutPoint {
+                event_outcome: bound,
+                outcome_payout: total_collateral,
+                extra_precision: 0,
+            };
+
+            // act
+            let (lower, upper) =
+                calculate_upper_range_payouts(Direction::Short, total_collateral, last_payout.clone()).unwrap();
+
+            // assert
+            prop_assert_eq!(lower.event_outcome, last_payout.event_outcome);
+            prop_assert_eq!(lower.outcome_payout, last_payout.outcome_payout);
+            prop_assert_eq!(upper.event_outcome, BTCUSD_MAX_PRICE);
+            prop_assert_eq!(upper.outcome_payout, 0);
+        }
+
+    }
+
+    proptest! {
+
+        #[test]
+        fn calculating_upper_bound_doesnt_crash_offer_long(total_collateral in 1u64..100_000_000_000, bound in 1u64..100_000) {
+            let total_collateral = total_collateral;
+            let last_payout = PayoutPoint {
+                event_outcome: bound,
+                outcome_payout: total_collateral,
+                extra_precision: 0,
+            };
+            // act
+            let (lower, upper) =
+                calculate_upper_range_payouts(Direction::Long, total_collateral, last_payout.clone()).unwrap();
+
+            // assert
+            assert_eq!(lower.event_outcome, last_payout.event_outcome);
+            assert_eq!(lower.outcome_payout, total_collateral);
+            assert_eq!(upper.event_outcome, BTCUSD_MAX_PRICE);
+            assert_eq!(upper.outcome_payout, total_collateral);
+        }
     }
 }

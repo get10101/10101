@@ -37,3 +37,9 @@ rust-bitcoin-coin-selection = { git = "https://github.com/p2pderivatives/rust-bi
 
 # Waiting for the next release
 xtra = { git = "https://github.com/Restioson/xtra/", rev = "d98393a" }
+
+[profile.test.package.proptest]
+opt-level = 3
+
+[profile.test.package.rand_chacha]
+opt-level = 3
