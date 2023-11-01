@@ -38,7 +38,7 @@ class _SendScreenState extends State<SendScreen> {
   ChannelInfo? channelInfo;
 
   Destination? _destination;
-  Amount? _amount;
+  Amount _amount = Amount.zero();
 
   final TextEditingController _controller = TextEditingController();
 
@@ -64,7 +64,7 @@ class _SendScreenState extends State<SendScreen> {
         if (destination != null) {
           _destination = destination;
           _amount = destination.amount;
-          _controller.text = _amount!.formatted();
+          _controller.text = _amount.formatted();
 
           _invalidDestination = false;
           _valid = _formKey.currentState?.validate() ?? false;
@@ -103,7 +103,7 @@ class _SendScreenState extends State<SendScreen> {
                           setState(() {
                             _destination = destination;
                             _amount = destination.amount;
-                            _controller.text = _amount!.formatted();
+                            _controller.text = _amount.formatted();
 
                             _invalidDestination = false;
                             _valid = _formKey.currentState?.validate() ?? false;
@@ -176,12 +176,13 @@ class _SendScreenState extends State<SendScreen> {
                     ),
                   )),
               const SizedBox(height: 20),
-              const Text("Amount in sats", style: TextStyle(fontWeight: FontWeight.bold)),
+              const Text("Amount in sats (0 to drain the wallet)",
+                  style: TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: 2),
               AmountInputField(
                 controller: _controller,
                 label: "",
-                value: _amount ?? Amount.zero(),
+                value: _amount,
                 enabled: _destination != null && _destination!.amount.sats == 0,
                 onChanged: (value) {
                   setState(() {
@@ -196,8 +197,12 @@ class _SendScreenState extends State<SendScreen> {
 
                   final amount = Amount.parseAmount(value);
 
-                  if (amount.sats <= 0) {
-                    return "Amount is mandatory";
+                  if (amount.sats <= 0 && _destination!.getWalletType() == WalletType.lightning) {
+                    return "Amount cannot be 0";
+                  }
+
+                  if (amount.sats < 0) {
+                    return "Amount cannot be negative";
                   }
 
                   if (_destination == null) {

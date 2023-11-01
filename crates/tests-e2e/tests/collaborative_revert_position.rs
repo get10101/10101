@@ -27,9 +27,9 @@ async fn can_revert_channel() {
     let wallet_info = app.rx.wallet_info().expect("To be able to get wallet info");
     assert_eq!(wallet_info.balances.on_chain, 0);
 
-    let split: Vec<_> = channel.original_funding_txo.split(":").collect();
-    let txid = Txid::from_str(&split[0]).expect("To have a channel id");
-    let vout = u32::from_str(&split[1]).expect("To have valid vout");
+    let split: Vec<_> = channel.original_funding_txo.split(':').collect();
+    let txid = Txid::from_str(split[0]).expect("To have a channel id");
+    let vout = u32::from_str(split[1]).expect("To have valid vout");
 
     coordinator
         .sync_wallet()

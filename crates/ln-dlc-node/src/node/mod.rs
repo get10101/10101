@@ -560,7 +560,7 @@ where
     pub fn send_to_address(&self, address: &bitcoin::Address, amount_sats: u64) -> Result<Txid> {
         self.wallet
             .ldk_wallet()
-            .send_to_address(address, Some(amount_sats))
+            .send_to_address(address, amount_sats)
     }
 }
 
