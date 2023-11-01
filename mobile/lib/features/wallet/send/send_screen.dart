@@ -176,8 +176,18 @@ class _SendScreenState extends State<SendScreen> {
                     ),
                   )),
               const SizedBox(height: 20),
-              const Text("Amount in sats (0 to drain the wallet)",
-                  style: TextStyle(fontWeight: FontWeight.bold)),
+              Visibility(
+                visible:
+                    _destination != null && _destination!.getWalletType() == WalletType.onChain,
+                replacement: const Text(
+                  "Amount in sats",
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                child: const Text(
+                  "Amount in sats (0 to drain the wallet)",
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ),
               const SizedBox(height: 2),
               AmountInputField(
                 controller: _controller,
