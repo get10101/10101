@@ -3,8 +3,8 @@
 # Set the terminal to PNG and specify the output file
 set terminal pngcairo enhanced font "Arial,12" size 800,600
 
-long_file = "coordinator_long.csv"
-short_file = "coordinator_short.csv"
+offerer_long_file = "offerer_long.csv"
+offerer_short_file = "offerer_short.csv"
 should_file = "should.csv"
 computed_file = "computed_payout.csv"
 
@@ -30,14 +30,16 @@ set datafile separator separator
 # Define a conversion factor from sats to Bitcoin (1 Bitcoin = 100,000,000 sats)
 conversion_factor = 1e-8
 
-set xtics auto
+set xtics 10000
 
 # Set the Y-axis tics without labels
-set ytics
+set ytics 0.1
+set grid ytics
+set grid xtics
 
 # Set the range for the x-axis to 100,000 max
 set xrange [-0.1:80000]
-set yrange [-0.1:2.5]
+set yrange [-0.1:1]
 
 set style line 1 linetype 1 linecolor rgb "blue" lw 5
 set style line 2 linetype 1 linecolor rgb "green" lw 5
@@ -46,10 +48,9 @@ set style line 4 linetype 2 linecolor rgb "violet" lw 2
 set style line 5 linetype 2 linecolor rgb "red" lw 2
 set style line 6 linetype 2 linecolor rgb "orange" lw 2
 
-# Skip the header row, convert sats to Bitcoin, and create the plot
-plot long_file using 1:($2 * conversion_factor) ls 1 with lines title "Coordinator Short", \
-    short_file using 1:($2 * conversion_factor) ls 2 with lines title "Coordinator Long", \
-    should_file using 1:($2 * conversion_factor) ls 3 with lines title "Should short", \
-    should_file using 1:($3 * conversion_factor) ls 4 with lines title "Should long", \
+plot should_file using 1:($2 * conversion_factor) ls 3 with lines title "Should Short", \
+    offerer_short_file using 1:($2 * conversion_factor) ls 2 with lines title "Discretized Short", \
+    should_file using 1:($3 * conversion_factor) ls 4 with lines title "Should Long",  \
+    offerer_long_file using 1:($2 * conversion_factor) ls 1 with lines title "Discretized Long", \
     computed_file using 1:($2 * conversion_factor) ls 5 title "Computed short", \
     computed_file using 1:($3 * conversion_factor) ls 6 title "Computed long",
