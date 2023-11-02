@@ -212,6 +212,7 @@ class _SettingsClickableState extends State<SettingsClickable> {
             : setState(() => isMoreInfo = !isMoreInfo);
       },
       child: Container(
+        decoration: BoxDecoration(border: Border.all(color: Colors.white, width: 0.0)),
         padding: const EdgeInsets.all(15),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
