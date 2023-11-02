@@ -19,7 +19,7 @@ pub const ROUNDING_PERCENT: f32 = 0.01;
 
 /// Defines the steps to take in the payout curve for one point. A step of 2 means, that two points
 /// are $1 away from each other.
-const PAYOUT_CURVE_DISCRETIZATION_STEPS: u64 = 2;
+const PAYOUT_CURVE_DISCRETIZATION_STEPS: u64 = 20;
 
 /// A payout point representing a payout for a given outcome.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
