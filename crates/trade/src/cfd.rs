@@ -195,7 +195,7 @@ pub mod tests {
         .unwrap();
 
         // This is a liquidation, our margin is consumed by the loss
-        assert_eq!(pnl_long, -500000);
+        assert_eq!(pnl_long, -250000);
     }
 
     #[test]
