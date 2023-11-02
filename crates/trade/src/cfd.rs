@@ -94,13 +94,27 @@ pub fn calculate_pnl(
         uncapped_pnl.round_dp_with_strategy(0, rust_decimal::RoundingStrategy::MidpointTowardZero)
     };
 
+    let short_margin = Decimal::from_u64(short_margin).context("be able to parse u64")?;
+    let long_margin = Decimal::from_u64(long_margin).context("to be abble to parse u64")?;
+
     let pnl = match direction {
         Direction::Long => {
-            uncapped_pnl_long.min(Decimal::from_u64(short_margin).context("be able to parse u64")?)
+            let max_win = uncapped_pnl_long.min(short_margin);
+            if max_win.is_sign_negative() {
+                max_win.max(long_margin.neg())
+            } else {
+                max_win
+            }
         }
-        Direction::Short => uncapped_pnl_long
-            .neg()
-            .min(Decimal::from_u64(long_margin).context("be able to parse u64")?),
+
+        Direction::Short => {
+            let max_win = uncapped_pnl_long.neg().min(long_margin);
+            if max_win.is_sign_negative() {
+                max_win.max(short_margin.neg())
+            } else {
+                max_win
+            }
+        }
     };
 
     pnl.to_i64().context("to be able to convert into i64")
@@ -381,5 +395,50 @@ pub mod tests {
         // --> pnl should be ==> quantity / ((1/opening_price)-(1/closing_price))
         // should be 0.99970003	BTC or 99970003 Sats
         assert_eq!(pnl_long, 99_970_003);
+    }
+
+    #[test]
+    fn assert_to_not_lose_more_than_margin_when_short() {
+        let opening_price = Decimal::from(30_000);
+        let closing_price = Decimal::from(100_000);
+        let quantity = 60_000.0;
+        let long_leverage = 2.0;
+        let short_leverage = 3.0;
+
+        let margin = calculate_margin(opening_price, quantity, short_leverage);
+
+        let pnl_short = calculate_pnl(
+            opening_price,
+            closing_price,
+            quantity,
+            long_leverage,
+            short_leverage,
+            Direction::Short,
+        )
+        .unwrap();
+
+        assert_eq!(pnl_short, (margin as i64).neg());
+    }
+
+    #[test]
+    fn assert_to_not_lose_more_than_margin_when_long() {
+        let opening_price = Decimal::from(30_000);
+        let closing_price = Decimal::from(1);
+        let quantity = 60_000.0;
+        let long_leverage = 5.0;
+        let short_leverage = 1.0;
+
+        let margin = calculate_margin(opening_price, quantity, long_leverage);
+        let pnl_short = calculate_pnl(
+            opening_price,
+            closing_price,
+            quantity,
+            long_leverage,
+            short_leverage,
+            Direction::Long,
+        )
+        .unwrap();
+
+        assert_eq!(pnl_short, (margin as i64).neg());
     }
 }
