@@ -384,14 +384,24 @@ pub async fn handle_funding_generation_ready<S>(
     temporary_channel_id: [u8; 32],
 ) -> Result<(), anyhow::Error> {
     let user_channel_id = Uuid::from_u128(user_channel_id).to_string();
+
+    // We use remove here so that we don't have to clean-up afterwards. This has the side effect
+    // that if the channel opening fails we will need to provide the fee rate again, which is
+    // acceptable
+    let fee_rate = node
+        .pending_channel_opening_fee_rates
+        .lock()
+        .remove(&counterparty_node_id)
+        .unwrap_or_else(|| node.wallet.ldk_wallet().get_fee_rate(CONFIRMATION_TARGET));
+
     tracing::info!(
         %user_channel_id,
         %counterparty_node_id,
+        fee_rate_sats_per_vb = fee_rate.as_sat_per_vb(),
         "Funding generation ready for channel with counterparty {}",
         counterparty_node_id
     );
 
-    let fee_rate = node.wallet.ldk_wallet().get_fee_rate(CONFIRMATION_TARGET);
     let funding_tx_result = node
         .wallet
         .ldk_wallet()
@@ -419,6 +429,7 @@ pub async fn handle_funding_generation_ready<S>(
     ) {
         tracing::error!(?err, "Channel went away before we could fund it. The peer disconnected or refused the channel");
     };
+
     Ok(())
 }
 
