@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Allow to drain on-chain wallet by sending amount `0`.
 - Load persisted `rust-dlc` `ChainMonitor` on restart.
+- Upgrade `rust-lightning` to version 0.0.116.
+- Charge channel opening fee through the lsp flow
 
 ## [1.4.4] - 2023-10-28
 

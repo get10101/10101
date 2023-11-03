@@ -129,6 +129,7 @@ impl TryFrom<Payment> for (lightning::ln::PaymentHash, ln_dlc_node::PaymentInfo)
                 timestamp: value.payment_timestamp,
                 description: value.description,
                 invoice: value.invoice,
+                funding_txid: None,
             },
         ))
     }

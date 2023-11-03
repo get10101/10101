@@ -91,6 +91,8 @@ where
                 common_handlers::handle_payment_claimed(
                     &self.node,
                     amount_msat,
+                    None,
+                    None,
                     payment_hash,
                     purpose,
                 );
@@ -318,7 +320,7 @@ where
 
     let channel = node.storage.get_channel(&user_channel_id)?;
     let channel = Channel::open_channel(channel, channel_details)?;
-    node.storage.upsert_channel(channel)?;
+    node.storage.upsert_channel(channel.clone())?;
 
     if let Some(interception) = pending_intercepted_htlcs.lock().get(&counterparty_node_id) {
         tracing::info!(
@@ -328,12 +330,13 @@ where
             "Pending intercepted HTLC found, forwarding payment"
         );
 
+        let fee_msat = channel.fee_sats.map(|fee| fee * 1000).unwrap_or(0);
         node.channel_manager
             .forward_intercepted_htlc(
                 interception.id,
                 &channel_id,
                 counterparty_node_id,
-                interception.expected_outbound_amount_msat,
+                interception.expected_outbound_amount_msat - fee_msat,
             )
             .map_err(|e| anyhow!("{e:?}"))
             .context("Failed to forward intercepted HTLC")?;
@@ -529,6 +532,7 @@ where
 
     shadow_channel.outbound_sats = channel_value_sats;
     shadow_channel.channel_state = ChannelState::Pending;
+    shadow_channel.fee_sats = Some(liquidity_request.fee_sats);
 
     node.storage
         .upsert_channel(shadow_channel.clone())
@@ -607,6 +611,7 @@ mod tests {
                 trade_up_to_sats: capacity * i,
                 max_deposit_sats: capacity * i,
                 coordinator_leverage: i as f32,
+                fee_sats: 5_000,
             };
 
             let channel_value_sat = calculate_channel_value(10_000_000, &request);

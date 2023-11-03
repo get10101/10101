@@ -206,10 +206,16 @@ class HistoryDetail extends StatelessWidget {
   final String label;
   final String value;
   final Widget? displayWidget;
+  final bool truncate;
 
   static const TextStyle defaultValueStyle = TextStyle(fontSize: 16);
 
-  const HistoryDetail({super.key, required this.label, required this.value, this.displayWidget});
+  const HistoryDetail(
+      {super.key,
+      required this.label,
+      required this.value,
+      this.displayWidget,
+      this.truncate = true});
 
   @override
   Widget build(BuildContext context) {
@@ -221,7 +227,8 @@ class HistoryDetail extends StatelessWidget {
               child: Align(
                   alignment: Alignment.centerRight,
                   child: displayWidget ??
-                      Text(truncateWithEllipsis(10, value), style: defaultValueStyle))),
+                      Text(truncate ? truncateWithEllipsis(10, value) : value,
+                          style: defaultValueStyle))),
           IconButton(
               padding: EdgeInsets.zero,
               onPressed: () {
@@ -297,8 +304,19 @@ class LightningPaymentHistoryItem extends WalletHistoryItem {
   List<Widget> getDetails() {
     return [
       Visibility(
-        visible: data.feeMsats != null && data.flow == PaymentFlow.outbound,
-        child: HistoryDetail(label: "Fee", value: "${(data.feeMsats ?? 0) / 1000} sats"),
+        visible: data.feeMsats != null,
+        child: HistoryDetail(
+          label: "Fee",
+          value: formatSats(Amount(((data.feeMsats ?? 0) / 1000).ceil())),
+          truncate: false,
+        ),
+      ),
+      Visibility(
+        visible: data.fundingTxid != null,
+        child: HistoryDetail(
+            label: "Funding txid",
+            displayWidget: TransactionIdText(data.fundingTxid ?? ""),
+            value: data.fundingTxid ?? ""),
       ),
       Visibility(
         visible: data.expiry != null,
@@ -351,7 +369,8 @@ class TradeHistoryItem extends WalletHistoryItem {
       HistoryDetail(label: "Fee", value: formatSats(data.fee)),
       Visibility(
           visible: data.pnl != null,
-          child: HistoryDetail(label: "PnL", value: formatSats(data.pnl ?? Amount.zero()))),
+          child: HistoryDetail(
+              label: "PnL", value: formatSats(data.pnl ?? Amount.zero()), truncate: false)),
     ];
   }
 
@@ -368,66 +387,6 @@ class TradeHistoryItem extends WalletHistoryItem {
       case PaymentFlow.outbound:
         return "Opened position";
     }
-  }
-
-  @override
-  bool isOnChain() {
-    return false;
-  }
-}
-
-class OrderMatchingFeeHistoryItem extends WalletHistoryItem {
-  @override
-  final OrderMatchingFeeData data;
-
-  const OrderMatchingFeeHistoryItem({super.key, required this.data});
-
-  @override
-  List<Widget> getDetails() {
-    return [
-      HistoryDetail(label: "Order", value: data.orderId),
-      HistoryDetail(label: "Payment hash", value: data.paymentHash)
-    ];
-  }
-
-  @override
-  IconData getFlowIcon() {
-    return Icons.toll;
-  }
-
-  @override
-  String getTitle() {
-    return "Matching fee";
-  }
-
-  @override
-  bool isOnChain() {
-    return false;
-  }
-}
-
-class JitChannelOpenFeeHistoryItem extends WalletHistoryItem {
-  @override
-  final JitChannelOpenFeeData data;
-
-  const JitChannelOpenFeeHistoryItem({super.key, required this.data});
-
-  @override
-  List<Widget> getDetails() {
-    return [
-      HistoryDetail(
-          label: "Funding tx ID", displayWidget: TransactionIdText(data.txid), value: data.txid)
-    ];
-  }
-
-  @override
-  IconData getFlowIcon() {
-    return Icons.toll;
-  }
-
-  @override
-  String getTitle() {
-    return "Channel opening fee";
   }
 
   @override

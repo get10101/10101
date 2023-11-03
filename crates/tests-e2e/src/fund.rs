@@ -9,7 +9,7 @@ use native::api::WalletHistoryItem;
 use native::api::WalletHistoryItemType;
 use reqwest::Client;
 use serde::Deserialize;
-use std::cmp;
+use std::cmp::max;
 use tokio::task::spawn_blocking;
 
 /// Instruct the LND faucet to pay an invoice generated with the purpose of opening a JIT channel
@@ -23,9 +23,11 @@ pub async fn fund_app_with_faucet(
         api::register_beta("satoshi@vistomail.com".to_string()).expect("to succeed")
     })
     .await?;
-    let invoice =
-        spawn_blocking(move || api::create_onboarding_invoice(fund_amount, 1).expect("to succeed"))
-            .await?;
+    let fee_sats = max(fund_amount / 100, 10_000);
+    let invoice = spawn_blocking(move || {
+        api::create_onboarding_invoice(1, fund_amount, fee_sats).expect("to succeed")
+    })
+    .await?;
     api::decode_destination(invoice.clone()).expect("to decode invoice we created");
 
     pay_with_faucet(client, invoice).await?;
@@ -43,43 +45,22 @@ pub async fn fund_app_with_faucet(
         .any(|item| matches!(
             item,
             WalletHistoryItem {
-                flow: PaymentFlow::Outbound,
+                wallet_type: WalletHistoryItemType::Lightning { .. },
+                flow: PaymentFlow::Inbound,
                 status: Status::Confirmed,
                 ..
             }
         )));
 
-    let channel_opening_fee = app
-        .rx
-        .wallet_info()
-        .expect("to have wallet info")
-        .history
-        .iter()
-        .find_map(|item| match item {
-            WalletHistoryItem {
-                flow: PaymentFlow::Outbound,
-                wallet_type: WalletHistoryItemType::JitChannelFee { .. },
-                amount_sats,
-                ..
-            } => Some(amount_sats),
-            _ => None,
-        })
-        .copied()
-        .expect("to have an jit channel opening fee");
-
-    tracing::info!(%fund_amount, %channel_opening_fee, "Successfully funded app with faucet");
+    tracing::info!(%fund_amount, %fee_sats, "Successfully funded app with faucet");
     assert_eq!(
         app.rx
             .wallet_info()
             .expect("to have wallet info")
             .balances
             .lightning,
-        fund_amount - channel_opening_fee
+        fund_amount - fee_sats
     );
-
-    // the fees is the max of 10_000 sats or 1% of the fund amount.
-    let fee = cmp::max(10_000, fund_amount / 100);
-    assert_eq!(channel_opening_fee, fee);
 
     Ok(())
 }

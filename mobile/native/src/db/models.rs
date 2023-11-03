@@ -654,6 +654,8 @@ pub(crate) struct PaymentInsertable {
     pub description: String,
     #[diesel(sql_type = Nullable<Text>)]
     pub invoice: Option<String>,
+    #[diesel(sql_type = Nullable<Text>)]
+    pub funding_txid: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, FromSqlRow, AsExpression)]
@@ -682,6 +684,7 @@ impl PaymentInsertable {
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn update(
         payment_hash: String,
         htlc_status: HtlcStatus,
@@ -689,6 +692,7 @@ impl PaymentInsertable {
         fee_msat: Option<i64>,
         preimage: Option<String>,
         secret: Option<String>,
+        funding_txid: Option<String>,
         conn: &mut SqliteConnection,
     ) -> Result<i64> {
         let updated_at = OffsetDateTime::now_utc().unix_timestamp();
@@ -747,13 +751,24 @@ impl PaymentInsertable {
                 }
             }
 
+            if let Some(funding_txid) = funding_txid {
+                let affected_rows = diesel::update(payments::table)
+                    .filter(schema::payments::payment_hash.eq(&payment_hash))
+                    .set(schema::payments::funding_txid.eq(funding_txid))
+                    .execute(conn)?;
+
+                if affected_rows == 0 {
+                    bail!("Could not update payment funding_txid")
+                }
+            }
+
             let affected_rows = diesel::update(payments::table)
                 .filter(schema::payments::payment_hash.eq(&payment_hash))
                 .set(schema::payments::updated_at.eq(updated_at))
                 .execute(conn)?;
 
             if affected_rows == 0 {
-                bail!("Could not update payment updated_at xtimestamp")
+                bail!("Could not update payment updated_at timestamp")
             }
 
             Ok(())
@@ -778,6 +793,7 @@ pub(crate) struct PaymentQueryable {
     pub description: String,
     pub invoice: Option<String>,
     pub fee_msat: Option<i64>,
+    pub funding_txid: Option<String>,
 }
 
 impl PaymentQueryable {
@@ -810,6 +826,7 @@ impl From<(lightning::ln::PaymentHash, ln_dlc_node::PaymentInfo)> for PaymentIns
             updated_at: timestamp,
             description: info.description,
             invoice: info.invoice,
+            funding_txid: info.funding_txid.map(|txid| txid.to_string()),
         }
     }
 }
@@ -850,6 +867,10 @@ impl TryFrom<PaymentQueryable> for (lightning::ln::PaymentHash, ln_dlc_node::Pay
             })
             .transpose()?;
 
+        let funding_txid = value
+            .funding_txid
+            .map(|txid| Txid::from_str(&txid).expect("valid txid"));
+
         let status = value.htlc_status.into();
 
         let amt_msat =
@@ -875,6 +896,7 @@ impl TryFrom<PaymentQueryable> for (lightning::ln::PaymentHash, ln_dlc_node::Pay
                 timestamp,
                 description,
                 invoice,
+                funding_txid,
             },
         ))
     }
@@ -1050,6 +1072,8 @@ pub struct Channel {
     pub created_at: i64,
     pub updated_at: i64,
     pub liquidity_option_id: Option<i32>,
+    pub fee_sats: Option<i64>,
+    pub open_channel_payment_hash: Option<String>,
 }
 
 impl Channel {
@@ -1076,6 +1100,16 @@ impl Channel {
     ) -> QueryResult<Option<Channel>> {
         channels::table
             .filter(schema::channels::channel_id.eq(channel_id))
+            .first(conn)
+            .optional()
+    }
+
+    pub fn get_channel_by_payment_hash(
+        conn: &mut SqliteConnection,
+        payment_hash: &str,
+    ) -> QueryResult<Option<Channel>> {
+        channels::table
+            .filter(schema::channels::open_channel_payment_hash.eq(payment_hash))
             .first(conn)
             .optional()
     }
@@ -1183,6 +1217,8 @@ impl From<ln_dlc_node::channel::Channel> for Channel {
             created_at: value.created_at.unix_timestamp(),
             updated_at: value.updated_at.unix_timestamp(),
             liquidity_option_id: value.liquidity_option_id,
+            fee_sats: value.fee_sats.map(|fee| fee as i64),
+            open_channel_payment_hash: value.open_channel_payment_hash,
         }
     }
 }
@@ -1224,6 +1260,8 @@ impl From<Channel> for ln_dlc_node::channel::Channel {
                 .expect("valid timestamp"),
             updated_at: OffsetDateTime::from_unix_timestamp(value.updated_at)
                 .expect("valid timestamp"),
+            fee_sats: value.fee_sats.map(|fee| fee as u64),
+            open_channel_payment_hash: value.open_channel_payment_hash,
         }
     }
 }
@@ -1488,6 +1526,7 @@ pub mod test {
             updated_at,
             description: description.clone(),
             invoice: invoice.clone(),
+            funding_txid: None,
         };
 
         PaymentInsertable::insert(payment, &mut connection).unwrap();
@@ -1506,6 +1545,7 @@ pub mod test {
                 updated_at: 200,
                 description: "payment2".to_string(),
                 invoice: Some("invoice2".to_string()),
+                funding_txid: None
             },
             &mut connection,
         )
@@ -1528,6 +1568,7 @@ pub mod test {
             updated_at,
             description,
             invoice,
+            funding_txid: None,
         };
 
         assert_eq!(expected_payment, loaded_payment);
@@ -1547,6 +1588,7 @@ pub mod test {
             fee_msat,
             preimage.clone(),
             secret.clone(),
+            None,
             &mut connection,
         )
         .unwrap();
@@ -1660,6 +1702,8 @@ pub mod test {
             // we need to set the time manually as the nano seconds are not stored in sql.
             created_at: OffsetDateTime::now_utc().replace_time(Time::from_hms(0, 0, 0).unwrap()),
             updated_at: OffsetDateTime::now_utc().replace_time(Time::from_hms(0, 0, 0).unwrap()),
+            fee_sats: Some(10_000),
+            open_channel_payment_hash: None,
         };
         Channel::upsert(channel.clone().into(), &mut connection).unwrap();
 

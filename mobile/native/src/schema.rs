@@ -12,6 +12,8 @@ diesel::table! {
         created_at -> BigInt,
         updated_at -> BigInt,
         liquidity_option_id -> Nullable<Integer>,
+        fee_sats -> Nullable<BigInt>,
+        open_channel_payment_hash -> Nullable<Text>,
     }
 }
 
@@ -48,6 +50,7 @@ diesel::table! {
         description -> Text,
         invoice -> Nullable<Text>,
         fee_msat -> Nullable<BigInt>,
+        funding_txid -> Nullable<Text>,
     }
 }
 

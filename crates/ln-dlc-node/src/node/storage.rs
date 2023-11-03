@@ -7,6 +7,7 @@ use crate::PaymentFlow;
 use crate::PaymentInfo;
 use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
+use bitcoin::Txid;
 use lightning::chain::transaction::OutPoint;
 use lightning::ln::PaymentHash;
 use lightning::ln::PaymentPreimage;
@@ -38,6 +39,7 @@ pub trait Storage {
         htlc_status: HTLCStatus,
         preimage: Option<PaymentPreimage>,
         secret: Option<PaymentSecret>,
+        funding_txid: Option<Txid>,
     ) -> Result<()>;
     /// Get a payment based on its payment hash.
     ///
@@ -82,6 +84,10 @@ pub trait Storage {
     fn all_non_pending_channels(&self) -> Result<Vec<Channel>>;
     /// Get announced channel with counterparty
     fn get_announced_channel(&self, counterparty_pubkey: PublicKey) -> Result<Option<Channel>>;
+    /// Get channel by payment hash.
+    ///
+    /// The payment from which the open channel fee was deducted.
+    fn get_channel_by_payment_hash(&self, payment_hash: String) -> Result<Option<Channel>>;
 
     // Transaction
 
@@ -119,6 +125,7 @@ impl Storage for InMemoryStore {
         htlc_status: HTLCStatus,
         preimage: Option<PaymentPreimage>,
         secret: Option<PaymentSecret>,
+        funding_txid: Option<Txid>,
     ) -> Result<()> {
         let mut payments = self.payments.lock();
         match payments.get_mut(payment_hash) {
@@ -140,6 +147,10 @@ impl Storage for InMemoryStore {
                 if let Some(secret) = secret {
                     payment.secret = Some(secret);
                 }
+
+                if let Some(funding_txid) = funding_txid {
+                    payment.funding_txid = Some(funding_txid);
+                }
             }
             None => {
                 payments.insert(
@@ -154,6 +165,7 @@ impl Storage for InMemoryStore {
                         timestamp: OffsetDateTime::now_utc(),
                         description: "".to_string(),
                         invoice: None,
+                        funding_txid,
                     },
                 );
             }
@@ -246,6 +258,15 @@ impl Storage for InMemoryStore {
             .find(|c| {
                 c.channel_state == ChannelState::Announced && c.counterparty == counterparty_pubkey
             })
+            .cloned())
+    }
+
+    fn get_channel_by_payment_hash(&self, payment_hash: String) -> Result<Option<Channel>> {
+        Ok(self
+            .channels
+            .lock()
+            .values()
+            .find(|c| c.open_channel_payment_hash == Some(payment_hash.clone()))
             .cloned())
     }
 

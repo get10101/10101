@@ -15,6 +15,7 @@ use anyhow::Result;
 use bitcoin::consensus::encode::serialize_hex;
 use bitcoin::hashes::hex::ToHex;
 use bitcoin::secp256k1::PublicKey;
+use bitcoin::Txid;
 use lightning::chain::chaininterface::BroadcasterInterface;
 use lightning::chain::chaininterface::ConfirmationTarget;
 use lightning::chain::chaininterface::FeeEstimator;
@@ -38,7 +39,6 @@ pub fn handle_payment_claimable(
     purpose: PaymentPurpose,
     amount_msat: u64,
 ) -> Result<()> {
-    let payment_hash = util::hex_str(&payment_hash.0);
     let preimage = match purpose {
         PaymentPurpose::InvoicePayment {
             payment_preimage: Some(preimage),
@@ -47,9 +47,11 @@ pub fn handle_payment_claimable(
         | PaymentPurpose::SpontaneousPayment(preimage) => preimage,
         _ => {
             tracing::debug!("Received PaymentClaimable event without preimage");
+            channel_manager.fail_htlc_backwards(&payment_hash);
             return Ok(());
         }
     };
+    let payment_hash = util::hex_str(&payment_hash.0);
     tracing::info!(%payment_hash, %amount_msat, "Received payment");
     channel_manager.claim_funds(preimage);
     Ok(())
@@ -162,6 +164,7 @@ where
                 HTLCStatus::Succeeded,
                 Some(payment_preimage),
                 None,
+                None,
             ) {
                 anyhow::bail!(
                     "Failed to update sent payment: {e:#}, hash: {payment_hash}",
@@ -186,6 +189,7 @@ where
                     timestamp: OffsetDateTime::now_utc(),
                     description: "".to_string(),
                     invoice: None,
+                    funding_txid: None,
                 },
             ) {
                 tracing::error!(
@@ -304,6 +308,8 @@ where
 pub fn handle_payment_claimed<S>(
     node: &Arc<Node<S>>,
     amount_msat: u64,
+    fee_sats: Option<u64>,
+    funding_txid: Option<Txid>,
     payment_hash: PaymentHash,
     purpose: PaymentPurpose,
 ) where
@@ -329,10 +335,11 @@ pub fn handle_payment_claimed<S>(
         &payment_hash,
         PaymentFlow::Inbound,
         amount_msat,
-        MillisatAmount(None),
+        MillisatAmount(fee_sats),
         HTLCStatus::Succeeded,
         payment_preimage,
         payment_secret,
+        funding_txid,
     ) {
         tracing::error!(
             payment_hash = %payment_hash.0.to_hex(),
@@ -357,6 +364,7 @@ where
         amount_msat,
         MillisatAmount(None),
         HTLCStatus::Failed,
+        None,
         None,
         None,
     ) {

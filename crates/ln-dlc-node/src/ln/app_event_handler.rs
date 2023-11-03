@@ -1,14 +1,15 @@
 use super::common_handlers;
 use super::event_handler::EventSender;
-use super::event_handler::PendingInterceptedHtlcs;
 use crate::channel::Channel;
 use crate::channel::ChannelState;
 use crate::channel::UserChannelId;
 use crate::node::ChannelManager;
 use crate::node::Node;
 use crate::node::Storage;
+use crate::util;
 use crate::EventHandlerTrait;
 use anyhow::anyhow;
+use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
 use async_trait::async_trait;
@@ -16,6 +17,9 @@ use bitcoin::hashes::hex::ToHex;
 use bitcoin::secp256k1::PublicKey;
 use dlc_manager::subchannel::LNChannelManager;
 use lightning::events::Event;
+use lightning::events::PaymentPurpose;
+use lightning::ln::channelmanager::FailureCode;
+use lightning::ln::PaymentHash;
 use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -24,7 +28,6 @@ use std::sync::Arc;
 // TODO: Move it out of this crate
 pub struct AppEventHandler<S> {
     pub(crate) node: Arc<Node<S>>,
-    pub(crate) pending_intercepted_htlcs: PendingInterceptedHtlcs,
     pub(crate) event_sender: Option<EventSender>,
 }
 
@@ -33,11 +36,7 @@ where
     S: Storage + Send + Sync + 'static,
 {
     pub fn new(node: Arc<Node<S>>, event_sender: Option<EventSender>) -> Self {
-        Self {
-            node,
-            event_sender,
-            pending_intercepted_htlcs: Arc::new(Mutex::new(HashMap::new())),
-        }
+        Self { node, event_sender }
     }
 }
 
@@ -75,9 +74,24 @@ where
                 amount_msat,
                 receiver_node_id: _,
             } => {
+                let payment_hash_str = util::hex_str(&payment_hash.0);
+                let channel = self
+                    .node
+                    .storage
+                    .get_channel_by_payment_hash(payment_hash_str)?;
+                let fee_msat = channel
+                    .clone()
+                    .map(|c| c.fee_sats.map(|fee| fee * 1000).unwrap_or(0));
+                let funding_txid = match channel {
+                    Some(channel) => channel.funding_txid,
+                    None => None,
+                };
+
                 common_handlers::handle_payment_claimed(
                     &self.node,
                     amount_msat,
+                    fee_msat,
+                    funding_txid,
                     payment_hash,
                     purpose,
                 );
@@ -180,9 +194,11 @@ where
                 reason,
                 user_channel_id,
             } => {
+                // we won't intercept htlcs in the app, hence we can pass an empty map
+                let pending_intercepted_htlcs = Arc::new(Mutex::new(HashMap::new()));
                 common_handlers::handle_channel_closed(
                     &self.node,
-                    &self.pending_intercepted_htlcs,
+                    &pending_intercepted_htlcs,
                     user_channel_id,
                     reason,
                     channel_id,
@@ -238,6 +254,34 @@ where
                 payment_hash,
                 onion_fields: _,
                 amount_msat,
+                counterparty_skimmed_fee_msat,
+                purpose,
+                via_channel_id: _,
+                via_user_channel_id,
+                claim_deadline: _,
+            } if counterparty_skimmed_fee_msat > 0 => {
+                tracing::info!("Checking if counterparty skimmed fee msat is justified");
+                if let Err(e) = handle_fees_on_claimable_payment(
+                    &self.node.storage,
+                    &self.node.channel_manager,
+                    via_user_channel_id,
+                    payment_hash,
+                    counterparty_skimmed_fee_msat,
+                    purpose,
+                    amount_msat,
+                ) {
+                    tracing::error!("Failed to handle fees on claimable payment. {e:#}");
+                    self.node.channel_manager.fail_htlc_backwards_with_reason(
+                        &payment_hash,
+                        FailureCode::IncorrectOrUnknownPaymentDetails,
+                    );
+                }
+            }
+            Event::PaymentClaimable {
+                receiver_node_id: _,
+                payment_hash,
+                onion_fields: _,
+                amount_msat,
                 counterparty_skimmed_fee_msat: _,
                 purpose,
                 via_channel_id: _,
@@ -279,6 +323,53 @@ where
 
         Ok(())
     }
+}
+
+pub(crate) fn handle_fees_on_claimable_payment<S: Storage>(
+    storage: &Arc<S>,
+    channel_manager: &Arc<ChannelManager>,
+    user_channel_id: Option<u128>,
+    payment_hash: PaymentHash,
+    counterparty_skimmed_fee_msat: u64,
+    purpose: PaymentPurpose,
+    amount_msat: u64,
+) -> Result<()> {
+    let user_channel_id = user_channel_id.context("Missing user channel id")?;
+    let user_channel_id = UserChannelId::from(user_channel_id);
+    let channel = storage
+        .get_channel(&user_channel_id.to_string())?
+        .with_context(|| format!("Couldn't find channel for user_channel_id {user_channel_id}",))?;
+
+    if channel.channel_state == ChannelState::Open {
+        bail!("Channel opening fees have already been paid. Rejecting payment.");
+    }
+
+    let channel_fee_msats = channel.fee_sats.unwrap_or(0) * 1000;
+    tracing::info!(
+        %user_channel_id,
+        channel_fee_msats,
+        counterparty_skimmed_fee_msat,
+        "Handling fees on claimable payment"
+    );
+    if channel_fee_msats < counterparty_skimmed_fee_msat {
+        bail!("Counterparty skimmed too much fee. Rejecting payment!");
+    }
+
+    tracing::info!(
+        %user_channel_id,
+        funding_txid=?channel.funding_txid,
+        "Skimmed channel opening fee from payment of {}",
+        counterparty_skimmed_fee_msat / 1000
+    );
+
+    common_handlers::handle_payment_claimable(channel_manager, payment_hash, purpose, amount_msat)?;
+
+    let mut channel = channel;
+    channel.channel_state = ChannelState::Open;
+    channel.open_channel_payment_hash = Some(util::hex_str(&payment_hash.0));
+    storage.upsert_channel(channel)?;
+
+    Ok(())
 }
 
 pub(crate) fn handle_open_channel_request_0_conf(

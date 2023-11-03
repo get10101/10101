@@ -116,6 +116,7 @@ pub struct LiquidityRequest {
     pub trade_up_to_sats: u64,
     pub max_deposit_sats: u64,
     pub coordinator_leverage: f32,
+    pub fee_sats: u64,
 }
 
 /// An LN-DLC node.

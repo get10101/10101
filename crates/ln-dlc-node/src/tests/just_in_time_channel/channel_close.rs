@@ -19,15 +19,17 @@ async fn ln_collab_close() {
     payer.connect(coordinator.info).await.unwrap();
     payee.connect(coordinator.info).await.unwrap();
 
-    let payer_to_payee_invoice_amount = 10_000;
+    let payer_to_payee_invoice_amount = 60_000;
     let expected_coordinator_payee_channel_value =
         setup_coordinator_payer_channel(payer_to_payee_invoice_amount, &coordinator, &payer).await;
 
+    let fee_sats = 10_000;
     send_interceptable_payment(
         &payer,
         &payee,
         &coordinator,
         payer_to_payee_invoice_amount,
+        fee_sats,
         Some(expected_coordinator_payee_channel_value),
     )
     .await
@@ -36,7 +38,7 @@ async fn ln_collab_close() {
     assert_eq!(payee.get_on_chain_balance().unwrap().confirmed, 0);
     assert_eq!(
         payee.get_ldk_balance().available(),
-        payer_to_payee_invoice_amount
+        payer_to_payee_invoice_amount - fee_sats
     );
     assert_eq!(payee.get_ldk_balance().pending_close(), 0);
 
@@ -76,7 +78,7 @@ async fn ln_collab_close() {
 
     assert_eq!(
         payee.get_on_chain_balance().unwrap().confirmed,
-        payer_to_payee_invoice_amount
+        payer_to_payee_invoice_amount - fee_sats
     );
 }
 
@@ -94,15 +96,17 @@ async fn ln_force_close() {
     payer.connect(coordinator.info).await.unwrap();
     payee.connect(coordinator.info).await.unwrap();
 
-    let payer_to_payee_invoice_amount = 5_000;
+    let payer_to_payee_invoice_amount = 70_000;
     let expected_coordinator_payee_channel_value =
         setup_coordinator_payer_channel(payer_to_payee_invoice_amount, &coordinator, &payer).await;
 
+    let fee_sats = 10_000;
     send_interceptable_payment(
         &payer,
         &payee,
         &coordinator,
         payer_to_payee_invoice_amount,
+        fee_sats,
         Some(expected_coordinator_payee_channel_value),
     )
     .await
@@ -111,7 +115,7 @@ async fn ln_force_close() {
     assert_eq!(payee.get_on_chain_balance().unwrap().confirmed, 0);
     assert_eq!(
         payee.get_ldk_balance().available(),
-        payer_to_payee_invoice_amount
+        payer_to_payee_invoice_amount - fee_sats
     );
     assert_eq!(payee.get_ldk_balance().pending_close(), 0);
 
@@ -134,7 +138,7 @@ async fn ln_force_close() {
     assert_eq!(payee.get_ldk_balance().available(), 0);
     assert_eq!(
         payee.get_ldk_balance().pending_close(),
-        payer_to_payee_invoice_amount
+        payer_to_payee_invoice_amount - fee_sats
     );
 
     // Mine enough blocks so that the payee's revocable output in the commitment transaction

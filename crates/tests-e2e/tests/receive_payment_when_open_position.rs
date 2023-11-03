@@ -13,7 +13,7 @@ async fn can_receive_payment_with_open_position() {
     let invoice_amount = 10_000;
 
     tracing::info!("Creating an invoice");
-    let invoice = spawn_blocking(move || api::create_onboarding_invoice(invoice_amount, 1))
+    let invoice = spawn_blocking(move || api::create_onboarding_invoice(1, invoice_amount, 10_000))
         .await
         .unwrap()
         .unwrap();

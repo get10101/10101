@@ -70,32 +70,6 @@ abstract class WalletHistoryItemData {
           pnl: type.pnl != null ? Amount(type.pnl!) : null);
     }
 
-    if (item.walletType is rust.WalletHistoryItemType_OrderMatchingFee) {
-      rust.WalletHistoryItemType_OrderMatchingFee type =
-          item.walletType as rust.WalletHistoryItemType_OrderMatchingFee;
-
-      return OrderMatchingFeeData(
-          flow: flow,
-          amount: amount,
-          status: status,
-          timestamp: timestamp,
-          orderId: type.orderId,
-          paymentHash: type.paymentHash);
-    }
-
-    if (item.walletType is rust.WalletHistoryItemType_JitChannelFee) {
-      rust.WalletHistoryItemType_JitChannelFee type =
-          item.walletType as rust.WalletHistoryItemType_JitChannelFee;
-
-      return JitChannelOpenFeeData(
-        flow: flow,
-        amount: amount,
-        status: status,
-        timestamp: timestamp,
-        txid: type.fundingTxid,
-      );
-    }
-
     rust.WalletHistoryItemType_Lightning type =
         item.walletType as rust.WalletHistoryItemType_Lightning;
 
@@ -113,7 +87,8 @@ abstract class WalletHistoryItemData {
         paymentHash: type.paymentHash,
         feeMsats: type.feeMsat,
         expiry: expiry,
-        invoice: type.invoice);
+        invoice: type.invoice,
+        fundingTxid: type.fundingTxid);
   }
 }
 
@@ -124,6 +99,7 @@ class LightningPaymentData extends WalletHistoryItemData {
   final String? invoice;
   final DateTime? expiry;
   final int? feeMsats;
+  final String? fundingTxid;
 
   LightningPaymentData(
       {required super.flow,
@@ -135,6 +111,7 @@ class LightningPaymentData extends WalletHistoryItemData {
       required this.invoice,
       required this.expiry,
       required this.feeMsats,
+      required this.fundingTxid,
       required this.paymentHash});
 
   @override
@@ -160,40 +137,6 @@ class OnChainPaymentData extends WalletHistoryItemData {
   @override
   WalletHistoryItem toWidget() {
     return OnChainPaymentHistoryItem(data: this);
-  }
-}
-
-class OrderMatchingFeeData extends WalletHistoryItemData {
-  final String orderId;
-  final String paymentHash;
-
-  OrderMatchingFeeData(
-      {required super.flow,
-      required super.amount,
-      required super.status,
-      required super.timestamp,
-      required this.orderId,
-      required this.paymentHash});
-
-  @override
-  WalletHistoryItem toWidget() {
-    return OrderMatchingFeeHistoryItem(data: this);
-  }
-}
-
-class JitChannelOpenFeeData extends WalletHistoryItemData {
-  final String txid;
-
-  JitChannelOpenFeeData(
-      {required super.flow,
-      required super.amount,
-      required super.status,
-      required super.timestamp,
-      required this.txid});
-
-  @override
-  WalletHistoryItem toWidget() {
-    return JitChannelOpenFeeHistoryItem(data: this);
   }
 }
 

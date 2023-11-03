@@ -1,6 +1,7 @@
 use crate::ln::TracingLogger;
 use crate::node::SubChannelManager;
 use bitcoin::hashes::hex::ToHex;
+use bitcoin::Txid;
 use dlc_custom_signer::CustomKeysManager;
 use dlc_custom_signer::CustomSigner;
 use dlc_messages::message_handler::MessageHandler as DlcMessageHandler;
@@ -106,6 +107,9 @@ pub struct PaymentInfo {
     pub timestamp: OffsetDateTime,
     pub description: String,
     pub invoice: Option<String>,
+    /// If the payment was used to open an inbound channel, this tx id refers the funding
+    /// transaction for opening the channel.
+    pub funding_txid: Option<Txid>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -151,6 +155,7 @@ impl From<Bolt11Invoice> for PaymentInfo {
                 Bolt11InvoiceDescription::Hash(hash) => hash.0.to_hex(),
             },
             invoice: Some(value.to_string()),
+            funding_txid: None,
         }
     }
 }

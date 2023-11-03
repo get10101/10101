@@ -56,8 +56,8 @@ diesel::table! {
         counterparty_pubkey -> Text,
         created_at -> Timestamptz,
         updated_at -> Timestamptz,
-        open_channel_fee_payment_hash -> Nullable<Text>,
         liquidity_option_id -> Nullable<Int4>,
+        fee_sats -> Nullable<Int8>,
     }
 }
 

@@ -492,6 +492,7 @@ pub mod tests {
             _htlc_status: crate::HTLCStatus,
             _preimage: Option<lightning::ln::PaymentPreimage>,
             _secret: Option<lightning::ln::PaymentSecret>,
+            _funding_txid: Option<Txid>,
         ) -> Result<()> {
             unimplemented!();
         }
@@ -548,6 +549,10 @@ pub mod tests {
             &self,
             _counterparty_pubkey: PublicKey,
         ) -> Result<Option<Channel>> {
+            unimplemented!();
+        }
+
+        fn get_channel_by_payment_hash(&self, _payment_hash: String) -> Result<Option<Channel>> {
             unimplemented!();
         }
 

@@ -150,6 +150,7 @@ where
                 description: info.description.clone(),
                 preimage: info.preimage.map(|preimage| preimage.0.to_hex()),
                 invoice: info.invoice.clone(),
+                funding_txid: info.funding_txid.map(|txid| txid.to_string()),
             })
             .collect::<Vec<_>>();
 
@@ -170,6 +171,7 @@ pub struct PaymentDetails {
     pub description: String,
     pub preimage: Option<String>,
     pub invoice: Option<String>,
+    pub funding_txid: Option<String>,
 }
 
 impl fmt::Display for PaymentDetails {
@@ -182,11 +184,12 @@ impl fmt::Display for PaymentDetails {
         let timestamp = self.timestamp.to_string();
         let description = self.description.clone();
         let invoice = self.invoice.clone();
+        let funding_txid = self.funding_txid.clone();
 
         write!(
             f,
-            "payment_hash {}, status {}, flow {}, amount_msat {}, fee_msat {}, timestamp {}, description {}, invoice {:?}",
-            payment_hash, status, flow, amount_msat, fee_msat, timestamp, description, invoice
+            "payment_hash {}, status {}, flow {}, amount_msat {}, fee_msat {}, timestamp {}, description {}, invoice {:?}, funding_txid {:?}",
+            payment_hash, status, flow, amount_msat, fee_msat, timestamp, description, invoice, funding_txid
         )
     }
 }

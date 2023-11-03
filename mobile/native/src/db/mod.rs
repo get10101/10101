@@ -16,6 +16,7 @@ use anyhow::Result;
 use base64::Engine;
 use bdk::bitcoin;
 use bitcoin::secp256k1::PublicKey;
+use bitcoin::Txid;
 use diesel::connection::SimpleConnection;
 use diesel::r2d2;
 use diesel::r2d2::ConnectionManager;
@@ -282,6 +283,7 @@ pub fn update_payment(
     fee_msat: ln_dlc_node::MillisatAmount,
     preimage: Option<lightning::ln::PaymentPreimage>,
     secret: Option<lightning::ln::PaymentSecret>,
+    funding_txid: Option<Txid>,
 ) -> Result<()> {
     tracing::info!(?payment_hash, "Updating payment");
 
@@ -291,6 +293,7 @@ pub fn update_payment(
 
     let preimage = preimage.map(|preimage| base64.encode(preimage.0));
     let secret = secret.map(|secret| base64.encode(secret.0));
+    let funding_txid = funding_txid.map(|txid| txid.to_string());
 
     PaymentInsertable::update(
         base64.encode(payment_hash.0),
@@ -299,6 +302,7 @@ pub fn update_payment(
         fee_msat.to_inner().map(|amt| amt as i64),
         preimage,
         secret,
+        funding_txid,
         &mut db,
     )?;
 
@@ -429,6 +433,20 @@ pub fn get_announced_channel(
     let mut db = connection()?;
 
     let channel = Channel::get_announced_channel(&mut db, &counterparty_pubkey.to_string())
+        .map_err(|e| anyhow!("{e:#}"))?
+        .map(|c| c.into());
+
+    Ok(channel)
+}
+
+pub fn get_channel_by_payment_hash(
+    payment_hash: String,
+) -> Result<Option<ln_dlc_node::channel::Channel>> {
+    tracing::debug!(payment_hash, "Getting channel by payment hash");
+
+    let mut db = connection()?;
+
+    let channel = Channel::get_channel_by_payment_hash(&mut db, &payment_hash)
         .map_err(|e| anyhow!("{e:#}"))?
         .map(|c| c.into());
 
