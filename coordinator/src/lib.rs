@@ -19,6 +19,7 @@ pub mod metrics;
 pub mod node;
 pub mod notifications;
 pub mod orderbook;
+mod payout_curve;
 pub mod position;
 pub mod routes;
 pub mod routing_fee;

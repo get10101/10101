@@ -17,13 +17,13 @@ resolver = "2"
 
 [patch.crates-io]
 # We should usually track the `p2pderivatives/feature/ln-dlc-channels[-10101]` branch
-dlc-manager = { git = "https://github.com/p2pderivatives/rust-dlc", rev = "9815582" }
-dlc-messages = { git = "https://github.com/p2pderivatives/rust-dlc", rev = "9815582" }
-dlc = { git = "https://github.com/p2pderivatives/rust-dlc", rev = "9815582" }
-dlc-sled-storage-provider = { git = "https://github.com/p2pderivatives/rust-dlc", rev = "9815582" }
-p2pd-oracle-client = { git = "https://github.com/p2pderivatives/rust-dlc", rev = "9815582" }
-dlc-trie = { git = "https://github.com/p2pderivatives/rust-dlc", rev = "9815582" }
-simple-wallet = { git = "https://github.com/p2pderivatives/rust-dlc", rev = "9815582" }
+dlc-manager = { git = "https://github.com/p2pderivatives/rust-dlc", rev = "7a93489" }
+dlc-messages = { git = "https://github.com/p2pderivatives/rust-dlc", rev = "7a93489" }
+dlc = { git = "https://github.com/p2pderivatives/rust-dlc", rev = "7a93489" }
+dlc-sled-storage-provider = { git = "https://github.com/p2pderivatives/rust-dlc", rev = "7a93489" }
+p2pd-oracle-client = { git = "https://github.com/p2pderivatives/rust-dlc", rev = "7a93489" }
+dlc-trie = { git = "https://github.com/p2pderivatives/rust-dlc", rev = "7a93489" }
+simple-wallet = { git = "https://github.com/p2pderivatives/rust-dlc", rev = "7a93489" }
 
 # We should usually track the `p2pderivatives/split-tx-experiment[-10101]` branch
 # Temporary fix: this fork allows us to access the channel monitor's channel_key_ids
@@ -37,3 +37,9 @@ rust-bitcoin-coin-selection = { git = "https://github.com/p2pderivatives/rust-bi
 
 # Waiting for the next release
 xtra = { git = "https://github.com/Restioson/xtra/", rev = "d98393a" }
+
+[profile.test.package.proptest]
+opt-level = 3
+
+[profile.test.package.rand_chacha]
+opt-level = 3
