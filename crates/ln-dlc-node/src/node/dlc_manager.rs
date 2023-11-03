@@ -9,6 +9,7 @@ use dlc_manager::channel::signed_channel::SignedChannel;
 use dlc_manager::channel::signed_channel::SignedChannelState;
 use dlc_manager::channel::Channel;
 use dlc_manager::Oracle;
+use dlc_manager::Storage;
 use dlc_manager::SystemTimeProvider;
 use dlc_sled_storage_provider::SledStorageProvider;
 use p2pd_oracle_client::P2PDOracleClient;
@@ -38,6 +39,15 @@ pub fn build(
 
     let oracle_pubkey = p2pdoracle.get_public_key();
     let oracles = HashMap::from([(oracle_pubkey, p2pdoracle)]);
+
+    // FIXME: We need to do this to ensure that we can upgrade `Node`s from LDK 0.0.114 to 0.0.116.
+    // We should remove this workaround as soon as possible.
+    if let Err(e) = storage.get_chain_monitor() {
+        tracing::error!("Failed to load DLC ChainMonitor from storage: {e:#}");
+
+        tracing::info!("Overwriting old DLC ChainMonitor with empty one to be able to proceed");
+        storage.persist_chain_monitor(&dlc_manager::chain_monitor::ChainMonitor::new(0))?;
+    }
 
     DlcManager::new(
         ln_dlc_wallet.clone(),
