@@ -295,12 +295,14 @@ impl dlc_manager::Wallet for LnDlcWallet {
 }
 
 impl BroadcasterInterface for LnDlcWallet {
-    fn broadcast_transaction(&self, tx: &Transaction) {
-        if let Err(e) = self.ln_wallet.broadcast_transaction(tx) {
-            tracing::error!(
-                txid = %tx.txid(),
-                "Error when broadcasting transaction: {e:#}"
-            );
+    fn broadcast_transactions(&self, txs: &[&Transaction]) {
+        for tx in txs {
+            if let Err(e) = self.ln_wallet.broadcast_transaction(tx) {
+                tracing::error!(
+                    txid = %tx.txid(),
+                    "Error when broadcasting transaction: {e:#}"
+                );
+            }
         }
     }
 }

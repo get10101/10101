@@ -343,7 +343,7 @@ pub fn get_payments() -> Result<Vec<(lightning::ln::PaymentHash, ln_dlc_node::Pa
 
 pub fn insert_spendable_output(
     outpoint: lightning::chain::transaction::OutPoint,
-    descriptor: lightning::chain::keysinterface::SpendableOutputDescriptor,
+    descriptor: lightning::sign::SpendableOutputDescriptor,
 ) -> Result<()> {
     tracing::debug!(?descriptor, "Inserting spendable output");
 
@@ -355,7 +355,7 @@ pub fn insert_spendable_output(
 
 pub fn get_spendable_output(
     outpoint: lightning::chain::transaction::OutPoint,
-) -> Result<Option<lightning::chain::keysinterface::SpendableOutputDescriptor>> {
+) -> Result<Option<lightning::sign::SpendableOutputDescriptor>> {
     tracing::debug!(?outpoint, "Getting spendable output");
 
     let mut db = connection()?;
@@ -374,8 +374,7 @@ pub fn delete_spendable_output(outpoint: lightning::chain::transaction::OutPoint
     Ok(())
 }
 
-pub fn get_spendable_outputs(
-) -> Result<Vec<lightning::chain::keysinterface::SpendableOutputDescriptor>> {
+pub fn get_spendable_outputs() -> Result<Vec<lightning::sign::SpendableOutputDescriptor>> {
     let mut db = connection()?;
     let outputs = SpendableOutputQueryable::get_all(&mut db)?;
 

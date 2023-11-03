@@ -1,7 +1,7 @@
 use crate::ln::TracingLogger;
 use crate::NetworkGraph;
 use lightning::routing::scoring::ProbabilisticScorer;
-use lightning::routing::scoring::ProbabilisticScoringParameters;
+use lightning::routing::scoring::ProbabilisticScoringDecayParameters;
 use lightning::util::ser::ReadableArgs;
 use std::fs::File;
 use std::io::BufReader;
@@ -14,9 +14,9 @@ pub fn persistent_scorer(
     graph: Arc<NetworkGraph>,
     logger: Arc<TracingLogger>,
 ) -> ProbabilisticScorer<Arc<NetworkGraph>, Arc<TracingLogger>> {
-    let params = ProbabilisticScoringParameters::default();
+    let params = ProbabilisticScoringDecayParameters::default();
     if let Ok(file) = File::open(path) {
-        let args = (params.clone(), graph.clone(), logger.clone());
+        let args = (params, graph.clone(), logger.clone());
         match ProbabilisticScorer::read(&mut BufReader::new(file), args) {
             Ok(scorer) => return scorer,
             Err(e) => tracing::error!("Failed to read scorer from disk: {e}"),
@@ -31,6 +31,6 @@ pub fn in_memory_scorer(
     graph: Arc<NetworkGraph>,
     logger: Arc<TracingLogger>,
 ) -> ProbabilisticScorer<Arc<NetworkGraph>, Arc<TracingLogger>> {
-    let params = ProbabilisticScoringParameters::default();
+    let params = ProbabilisticScoringDecayParameters::default();
     ProbabilisticScorer::new(params, graph, logger)
 }

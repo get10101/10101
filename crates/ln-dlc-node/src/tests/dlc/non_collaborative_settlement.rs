@@ -63,6 +63,7 @@ async fn force_close_ln_dlc_channel() {
     sub_channel_manager_periodic_check(
         coordinator.sub_channel_manager.clone(),
         &coordinator.dlc_message_handler,
+        &coordinator.peer_manager,
     )
     .await
     .unwrap();
@@ -85,6 +86,7 @@ async fn force_close_ln_dlc_channel() {
     sub_channel_manager_periodic_check(
         coordinator.sub_channel_manager.clone(),
         &coordinator.dlc_message_handler,
+        &coordinator.peer_manager,
     )
     .await
     .unwrap();

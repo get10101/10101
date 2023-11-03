@@ -31,6 +31,7 @@ use lightning::ln::channelmanager::ChannelDetails;
 use lightning::util::config::UserConfig;
 use ln_dlc_node::node;
 use ln_dlc_node::node::dlc_message_name;
+use ln_dlc_node::node::send_dlc_message;
 use ln_dlc_node::node::sub_channel_message_name;
 use ln_dlc_node::node::RunningNode;
 use ln_dlc_node::WalletSettings;
@@ -548,7 +549,12 @@ impl Node {
                 "Sending message"
             );
 
-            self.inner.dlc_message_handler.send_message(node_id, msg);
+            send_dlc_message(
+                &self.inner.dlc_message_handler,
+                &self.inner.peer_manager,
+                node_id,
+                msg,
+            );
         }
 
         Ok(())

@@ -9,9 +9,9 @@ crate-type = ["rlib", "cdylib", "staticlib"]
 [dependencies]
 anyhow = "1"
 base64 = "0.21.0"
-bdk = { version = "0.27.0", default-features = false, features = ["key-value-db", "use-esplora-blocking"] }
+bdk = { version = "0.28.0", default-features = false, features = ["key-value-db", "use-esplora-blocking"] }
 bip21 = "0.2.0"
-bitcoin = "0.29"
+bitcoin = "0.29.2"
 coordinator-commons = { path = "../../crates/coordinator-commons" }
 diesel = { version = "2.0.0", features = ["sqlite", "r2d2", "extras"] }
 diesel_migrations = "2.0.0"
@@ -22,8 +22,8 @@ futures = "0.3"
 hex = "0.4"
 itertools = "0.10"
 libsqlite3-sys = { version = "0.25.2", features = ["bundled"] }
-lightning = { version = "0.0.114" }
-lightning-invoice = { version = "0.22" }
+lightning = { version = "0.0.116" }
+lightning-invoice = { version = "0.24" }
 ln-dlc-node = { path = "../../crates/ln-dlc-node" }
 openssl = { version = "0.10.55", features = ["vendored"] }
 orderbook-client = { path = "../../crates/orderbook-client" }

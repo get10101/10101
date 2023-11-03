@@ -7,15 +7,17 @@ use dlc_messages::message_handler::MessageHandler as DlcMessageHandler;
 use fee_rate_estimator::FeeRateEstimator;
 use lightning::chain::chainmonitor;
 use lightning::chain::Filter;
+use lightning::ln::peer_handler::IgnoringMessageHandler;
 use lightning::ln::PaymentPreimage;
 use lightning::ln::PaymentSecret;
 use lightning::routing::gossip;
 use lightning::routing::gossip::P2PGossipSync;
 use lightning::routing::router::DefaultRouter;
 use lightning::routing::scoring::ProbabilisticScorer;
+use lightning::routing::scoring::ProbabilisticScoringFeeParameters;
 use lightning::routing::utxo::UtxoLookup;
-use lightning_invoice::Invoice;
-use lightning_invoice::InvoiceDescription;
+use lightning_invoice::Bolt11Invoice;
+use lightning_invoice::Bolt11InvoiceDescription;
 use lightning_net_tokio::SocketDescriptor;
 use lightning_persister::FilesystemPersister;
 use ln_dlc_wallet::LnDlcWallet;
@@ -76,7 +78,7 @@ pub type PeerManager = lightning::ln::peer_handler::PeerManager<
             Arc<TracingLogger>,
         >,
     >,
-    Arc<DlcMessageHandler>,
+    Arc<IgnoringMessageHandler>,
     Arc<TracingLogger>,
     Arc<DlcMessageHandler>,
     Arc<CustomKeysManager>,
@@ -85,8 +87,11 @@ pub type PeerManager = lightning::ln::peer_handler::PeerManager<
 pub(crate) type Router = DefaultRouter<
     Arc<NetworkGraph>,
     Arc<TracingLogger>,
-    Arc<Mutex<ProbabilisticScorer<Arc<NetworkGraph>, Arc<TracingLogger>>>>,
+    Arc<Mutex<Scorer>>,
+    ProbabilisticScoringFeeParameters,
+    Scorer,
 >;
+pub(crate) type Scorer = ProbabilisticScorer<Arc<NetworkGraph>, Arc<TracingLogger>>;
 
 type NetworkGraph = gossip::NetworkGraph<Arc<TracingLogger>>;
 
@@ -131,8 +136,8 @@ impl MillisatAmount {
     }
 }
 
-impl From<Invoice> for PaymentInfo {
-    fn from(value: Invoice) -> Self {
+impl From<Bolt11Invoice> for PaymentInfo {
+    fn from(value: Bolt11Invoice) -> Self {
         Self {
             preimage: None,
             secret: Some(*value.payment_secret()),
@@ -142,8 +147,8 @@ impl From<Invoice> for PaymentInfo {
             flow: PaymentFlow::Inbound,
             timestamp: OffsetDateTime::from(value.timestamp()),
             description: match value.description() {
-                InvoiceDescription::Direct(direct) => direct.to_string(),
-                InvoiceDescription::Hash(hash) => hash.0.to_hex(),
+                Bolt11InvoiceDescription::Direct(direct) => direct.to_string(),
+                Bolt11InvoiceDescription::Hash(hash) => hash.0.to_hex(),
             },
             invoice: Some(value.to_string()),
         }

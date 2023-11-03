@@ -5,10 +5,10 @@ use anyhow::Result;
 use bitcoin::hashes::hex::FromHex;
 use bitcoin::hashes::hex::ToHex;
 use diesel::prelude::*;
-use lightning::chain::keysinterface::DelayedPaymentOutputDescriptor;
-use lightning::chain::keysinterface::SpendableOutputDescriptor;
-use lightning::chain::keysinterface::StaticPaymentOutputDescriptor;
 use lightning::chain::transaction::OutPoint;
+use lightning::sign::DelayedPaymentOutputDescriptor;
+use lightning::sign::SpendableOutputDescriptor;
+use lightning::sign::StaticPaymentOutputDescriptor;
 use lightning::util::ser::Readable;
 use lightning::util::ser::Writeable;
 

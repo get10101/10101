@@ -25,10 +25,10 @@ use lightning::routing::router::RouteHintHop;
 use lightning_invoice::payment::pay_invoice;
 use lightning_invoice::payment::pay_zero_value_invoice;
 use lightning_invoice::payment::PaymentError;
+use lightning_invoice::Bolt11Invoice;
+use lightning_invoice::Bolt11InvoiceDescription;
 use lightning_invoice::Currency;
-use lightning_invoice::Invoice;
 use lightning_invoice::InvoiceBuilder;
-use lightning_invoice::InvoiceDescription;
 use std::fmt;
 use std::fmt::Formatter;
 use std::time::Duration;
@@ -44,7 +44,7 @@ where
         amount_in_sats: u64,
         description: String,
         expiry: u32,
-    ) -> Result<Invoice> {
+    ) -> Result<Bolt11Invoice> {
         lightning_invoice::utils::create_invoice_from_channelmanager(
             &self.channel_manager,
             self.keys_manager.clone(),
@@ -69,7 +69,7 @@ where
         invoice_expiry: Option<Duration>,
         description: String,
         final_route_hint_hop: RouteHintHop,
-    ) -> Result<Invoice> {
+    ) -> Result<Bolt11Invoice> {
         let invoice_expiry = invoice_expiry
             .unwrap_or_else(|| Duration::from_secs(lightning_invoice::DEFAULT_EXPIRY_TIME));
         let amount_msat = amount_in_sats.map(|x| x * 1000);
@@ -105,7 +105,7 @@ where
                 Ok(secp_ctx.sign_ecdsa_recoverable(hash, &node_secret))
             })
             .map_err(|_| anyhow!("Failed to sign invoice"))?;
-        let invoice = Invoice::from_signed(signed_invoice)?;
+        let invoice = Bolt11Invoice::from_signed(signed_invoice)?;
 
         Ok(invoice)
     }
@@ -222,7 +222,7 @@ where
         Ok(route_hint_hop)
     }
 
-    pub fn pay_invoice(&self, invoice: &Invoice, amount: Option<u64>) -> Result<()> {
+    pub fn pay_invoice(&self, invoice: &Bolt11Invoice, amount: Option<u64>) -> Result<()> {
         let (result, amt_msat) = match invoice.amount_milli_satoshis() {
             Some(_) => {
                 let result = pay_invoice(invoice, Retry::Attempts(10), &self.channel_manager);
@@ -270,8 +270,8 @@ where
         };
 
         let description = match invoice.description() {
-            InvoiceDescription::Direct(des) => des.clone().into_inner(),
-            InvoiceDescription::Hash(lightning_invoice::Sha256(des)) => des.to_string(),
+            Bolt11InvoiceDescription::Direct(des) => des.clone().into_inner(),
+            Bolt11InvoiceDescription::Hash(lightning_invoice::Sha256(des)) => des.to_string(),
         };
 
         self.storage.insert_payment(

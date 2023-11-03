@@ -1,5 +1,3 @@
-pub use self::dlc_manager::signed_channel_state_name;
-pub use self::dlc_manager::DlcManager;
 use crate::channel::UserChannelId;
 use crate::disk;
 use crate::dlc_custom_signer::CustomKeysManager;
@@ -8,7 +6,6 @@ use crate::ln::manage_spendable_outputs;
 use crate::ln::TracingLogger;
 use crate::ln_dlc_wallet::LnDlcWallet;
 use crate::node::dlc_channel::sub_channel_manager_periodic_check;
-pub use crate::node::oracle::OracleInfo;
 use crate::node::peer_manager::alias_as_bytes;
 use crate::node::peer_manager::broadcast_node_announcement;
 use crate::on_chain_wallet::OnChainWallet;
@@ -18,31 +15,28 @@ use crate::ChainMonitor;
 use crate::EventHandlerTrait;
 use crate::NetworkGraph;
 use crate::PeerManager;
-pub use ::dlc_manager as rust_dlc_manager;
 use anyhow::Context;
 use anyhow::Result;
 use bitcoin::hashes::hex::ToHex;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::Network;
 use bitcoin::Txid;
-pub use channel_manager::ChannelManager;
-pub use dlc_channel::dlc_message_name;
-pub use dlc_channel::sub_channel_message_name;
 use dlc_messages::message_handler::MessageHandler as DlcMessageHandler;
 use dlc_sled_storage_provider::SledStorageProvider;
 use futures::future::RemoteHandle;
 use futures::FutureExt;
-pub use invoice::HTLCStatus;
 use lightning::chain::chainmonitor;
-use lightning::chain::keysinterface::EntropySource;
-use lightning::chain::keysinterface::KeysManager;
 use lightning::chain::Confirm;
 use lightning::ln::msgs::NetAddress;
+use lightning::ln::peer_handler::IgnoringMessageHandler;
 use lightning::ln::peer_handler::MessageHandler;
 use lightning::routing::gossip::P2PGossipSync;
 use lightning::routing::router::DefaultRouter;
 use lightning::routing::scoring::ProbabilisticScorer;
+use lightning::routing::scoring::ProbabilisticScoringFeeParameters;
 use lightning::routing::utxo::UtxoLookup;
+use lightning::sign::EntropySource;
+use lightning::sign::KeysManager;
 use lightning::util::config::UserConfig;
 use lightning_background_processor::process_events_async;
 use lightning_background_processor::GossipSync;
@@ -64,12 +58,8 @@ use std::sync::Mutex;
 use std::time::Duration;
 use std::time::Instant;
 use std::time::SystemTime;
-pub use storage::InMemoryStore;
-pub use storage::Storage;
-pub use sub_channel_manager::SubChannelManager;
 use tokio::sync::RwLock;
 use tokio::task::spawn_blocking;
-pub use wallet::PaymentDetails;
 
 mod channel_manager;
 mod connection;
@@ -84,6 +74,20 @@ pub(crate) mod dlc_channel;
 pub(crate) mod invoice;
 
 pub mod peer_manager;
+
+pub use crate::node::dlc_manager::signed_channel_state_name;
+pub use crate::node::dlc_manager::DlcManager;
+pub use crate::node::oracle::OracleInfo;
+pub use ::dlc_manager as rust_dlc_manager;
+pub use channel_manager::ChannelManager;
+pub use dlc_channel::dlc_message_name;
+pub use dlc_channel::send_dlc_message;
+pub use dlc_channel::sub_channel_message_name;
+pub use invoice::HTLCStatus;
+pub use storage::InMemoryStore;
+pub use storage::Storage;
+pub use sub_channel_manager::SubChannelManager;
+pub use wallet::PaymentDetails;
 
 /// The interval at which the [`lightning::ln::msgs::NodeAnnouncement`] is broadcast.
 ///
@@ -324,11 +328,13 @@ where
             logger.clone(),
         )));
 
+        let scoring_fee_params = ProbabilisticScoringFeeParameters::default();
         let router = Arc::new(DefaultRouter::new(
             network_graph.clone(),
             logger.clone(),
             keys_manager.get_secure_random_bytes(),
             scorer.clone(),
+            scoring_fee_params,
         ));
 
         let channel_manager = channel_manager::build(
@@ -364,17 +370,20 @@ where
         )?;
         let dlc_manager = Arc::new(dlc_manager);
 
-        let sub_channel_manager =
-            sub_channel_manager::build(channel_manager.clone(), dlc_manager.clone())?;
+        let sub_channel_manager = sub_channel_manager::build(
+            channel_manager.clone(),
+            dlc_manager.clone(),
+            chain_monitor.clone(),
+            keys_manager.clone(),
+        )?;
 
         let dlc_message_handler = Arc::new(DlcMessageHandler::new());
 
         let lightning_msg_handler = MessageHandler {
             chan_handler: sub_channel_manager.clone(),
             route_handler: gossip_sync.clone(),
-            // Hooking the dlc_message_handler here to intercept the `peer_disconnected` event and
-            // clear all pending unprocessed message from the disconnected peer.
-            onion_message_handler: dlc_message_handler.clone(),
+            onion_message_handler: Arc::new(IgnoringMessageHandler {}),
+            custom_message_handler: dlc_message_handler.clone(),
         };
 
         let peer_manager: Arc<PeerManager> = Arc::new(PeerManager::new(
@@ -382,7 +391,6 @@ where
             time_since_unix_epoch.as_secs() as u32,
             &ephemeral_randomness,
             logger.clone(),
-            dlc_message_handler.clone(),
             keys_manager.clone(),
         ));
 
@@ -427,7 +435,11 @@ where
     /// Starts the background handles - if the returned handles are dropped, the
     /// background tasks are stopped.
     // TODO: Consider having handles for *all* the tasks & threads for a clean shutdown.
-    pub fn start(&self, event_handler: impl EventHandlerTrait + 'static) -> Result<RunningNode> {
+    pub fn start(
+        &self,
+        event_handler: impl EventHandlerTrait + 'static,
+        mobile_interruptable_platform: bool,
+    ) -> Result<RunningNode> {
         let mut handles = vec![spawn_connection_management(
             self.peer_manager.clone(),
             self.listen_address,
@@ -461,6 +473,7 @@ where
             event_handler,
             self.gossip_sync.clone(),
             self.scorer.clone(),
+            mobile_interruptable_platform,
         ));
 
         handles.push(spawn_broadcast_node_annoucements(
@@ -473,6 +486,12 @@ where
         handles.push(manage_sub_channels(
             self.sub_channel_manager.clone(),
             self.dlc_message_handler.clone(),
+            self.peer_manager.clone(),
+            self.settings.clone(),
+        ));
+
+        handles.push(manage_dlc_manager(
+            self.dlc_manager.clone(),
             self.settings.clone(),
         ));
 
@@ -516,6 +535,7 @@ where
         sub_channel_manager_periodic_check(
             self.sub_channel_manager.clone(),
             &self.dlc_message_handler,
+            &self.peer_manager,
         )
         .await
     }
@@ -591,6 +611,7 @@ fn spawn_background_processor(
     event_handler: impl EventHandlerTrait + 'static,
     gossip_sync: Arc<NodeGossipSync>,
     scorer: Arc<Mutex<Scorer>>,
+    mobile_interruptable_platform: bool,
 ) -> RemoteHandle<()> {
     tracing::info!("Starting background processor");
     let (fut, remote_handle) = async move {
@@ -609,6 +630,7 @@ fn spawn_background_processor(
                     false
                 })
             },
+            mobile_interruptable_platform,
         )
         .await
         {
@@ -799,6 +821,7 @@ async fn manage_spendable_outputs_task<S: Storage + Send + Sync + 'static>(
 fn manage_sub_channels(
     sub_channel_manager: Arc<SubChannelManager>,
     dlc_message_handler: Arc<DlcMessageHandler>,
+    peer_manager: Arc<PeerManager>,
     settings: Arc<RwLock<LnDlcNodeSettings>>,
 ) -> RemoteHandle<()> {
     let (fut, remote_handle) = {
@@ -809,6 +832,7 @@ fn manage_sub_channels(
                 if let Err(e) = sub_channel_manager_periodic_check(
                     sub_channel_manager.clone(),
                     &dlc_message_handler,
+                    &peer_manager,
                 )
                 .await
                 {
@@ -823,6 +847,43 @@ fn manage_sub_channels(
                 let interval = {
                     let guard = settings.read().await;
                     guard.sub_channel_manager_periodic_check_interval
+                };
+                tokio::time::sleep(interval).await;
+            }
+        }
+    }
+    .remote_handle();
+
+    tokio::spawn(fut);
+
+    remote_handle
+}
+
+/// Spawn a task that manages dlc manager
+fn manage_dlc_manager(
+    dlc_manager: Arc<DlcManager>,
+    settings: Arc<RwLock<LnDlcNodeSettings>>,
+) -> RemoteHandle<()> {
+    let (fut, remote_handle) = {
+        async move {
+            loop {
+                tracing::trace!("Started periodic dlc manager check");
+                let now = Instant::now();
+                if let Err(e) = dlc_manager.periodic_chain_monitor() {
+                    tracing::error!("Failed to perform periodic chain monitor check: {e:#}");
+                };
+                if let Err(e) = dlc_manager.periodic_check() {
+                    tracing::error!("Failed to perform periodic check: {e:#}");
+                };
+
+                tracing::trace!(
+                    duration = now.elapsed().as_millis(),
+                    "Finished periodic check"
+                );
+
+                let interval = {
+                    let guard = settings.read().await;
+                    guard.dlc_manager_periodic_check_interval
                 };
                 tokio::time::sleep(interval).await;
             }

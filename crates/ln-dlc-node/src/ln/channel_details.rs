@@ -36,12 +36,32 @@ pub struct ChannelDetails {
     pub scid: Option<u64>,
 }
 
+/// Copy of ['lightning::util::config::MaxDustHTLCExposure']
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize)]
+pub enum MaxDustHTLCExposure {
+    FixedLimitMsat(u64),
+    FeeRateMultiplier(u64),
+}
+
+impl From<lightning::util::config::MaxDustHTLCExposure> for MaxDustHTLCExposure {
+    fn from(value: lightning::util::config::MaxDustHTLCExposure) -> Self {
+        match value {
+            lightning::util::config::MaxDustHTLCExposure::FixedLimitMsat(val) => {
+                MaxDustHTLCExposure::FixedLimitMsat(val)
+            }
+            lightning::util::config::MaxDustHTLCExposure::FeeRateMultiplier(val) => {
+                MaxDustHTLCExposure::FeeRateMultiplier(val)
+            }
+        }
+    }
+}
+
 #[derive(Serialize, Debug)]
 pub struct ChannelConfig {
     pub forwarding_fee_proportional_millionths: u32,
     pub forwarding_fee_base_msat: u32,
     pub cltv_expiry_delta: u16,
-    pub max_dust_htlc_exposure_msat: u64,
+    pub max_dust_htlc_exposure_msat: MaxDustHTLCExposure,
     pub force_close_avoidance_max_fee_satoshis: u64,
 }
 
@@ -72,7 +92,7 @@ impl From<lightning::ln::channelmanager::ChannelDetails> for ChannelDetails {
                 forwarding_fee_proportional_millionths: c.forwarding_fee_proportional_millionths,
                 forwarding_fee_base_msat: c.forwarding_fee_base_msat,
                 cltv_expiry_delta: c.cltv_expiry_delta,
-                max_dust_htlc_exposure_msat: c.max_dust_htlc_exposure_msat,
+                max_dust_htlc_exposure_msat: c.max_dust_htlc_exposure.into(),
                 force_close_avoidance_max_fee_satoshis: c.force_close_avoidance_max_fee_satoshis,
             }),
             scid: cd.short_channel_id,

@@ -40,9 +40,7 @@ async fn multi_hop_payment() {
         .await
         .unwrap();
 
-    // after creating the just-in-time channel. The coordinator should have exactly 2 usable
-    // channels with short channel ids.
-    wait_for_n_usable_channels(1, &payer).await.unwrap();
+    wait_for_n_usable_channels(2, &coordinator).await.unwrap();
 
     let payer_balance_before = payer.get_ldk_balance();
     let coordinator_balance_before = coordinator.get_ldk_balance();
@@ -54,7 +52,7 @@ async fn multi_hop_payment() {
 
     // Act
 
-    let invoice_amount_sat = 1_000;
+    let invoice_amount_sat = 4_000;
     let invoice = payee
         .create_invoice(invoice_amount_sat, "".to_string(), 180)
         .unwrap();

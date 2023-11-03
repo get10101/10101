@@ -412,6 +412,7 @@ mod test {
             own_fund_pk: get_dummy_pubkey(),
             counter_fund_pk: get_dummy_pubkey(),
             counter_party_secrets: CounterpartyCommitmentSecrets::new(),
+            channel_keys_id: Some([0; 32]),
         }
     }
 

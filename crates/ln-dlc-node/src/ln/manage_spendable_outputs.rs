@@ -10,10 +10,10 @@ use esplora_client::TxStatus;
 use lightning::chain::chaininterface::BroadcasterInterface;
 use lightning::chain::chaininterface::ConfirmationTarget;
 use lightning::chain::chaininterface::FeeEstimator;
-use lightning::chain::keysinterface::DelayedPaymentOutputDescriptor;
-use lightning::chain::keysinterface::SpendableOutputDescriptor;
-use lightning::chain::keysinterface::StaticPaymentOutputDescriptor;
 use lightning::chain::transaction::OutPoint;
+use lightning::sign::DelayedPaymentOutputDescriptor;
+use lightning::sign::SpendableOutputDescriptor;
+use lightning::sign::StaticPaymentOutputDescriptor;
 use secp256k1_zkp::Secp256k1;
 use std::borrow::Borrow;
 use std::sync::Arc;
@@ -74,7 +74,7 @@ pub fn manage_spendable_outputs(
         tx_feerate,
         &Secp256k1::new(),
     )?;
-    wallet.borrow().broadcast_transaction(&spending_tx);
+    wallet.borrow().broadcast_transactions(&[&spending_tx]);
 
     Ok(())
 }

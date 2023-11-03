@@ -1,5 +1,6 @@
 use crate::node::Node;
 use crate::DlcMessageHandler;
+use crate::PeerManager;
 use crate::SubChannelManager;
 use crate::ToHex;
 use anyhow::anyhow;
@@ -45,6 +46,7 @@ where
             let sub_channel_manager = self.sub_channel_manager.clone();
             let event_id = contract_input.contract_infos[0].oracles.event_id.clone();
             let dlc_message_handler = self.dlc_message_handler.clone();
+            let peer_manager = self.peer_manager.clone();
             move || {
                 let announcement = oracle.get_announcement(&event_id)?;
 
@@ -54,7 +56,9 @@ where
                     &[vec![announcement]],
                 )?;
 
-                dlc_message_handler.send_message(
+                send_dlc_message(
+                    &dlc_message_handler,
+                    &peer_manager,
                     channel_details.counterparty.node_id,
                     Message::SubChannel(SubChannelMessage::Offer(sub_channel_offer)),
                 );
@@ -77,12 +81,15 @@ where
         spawn_blocking({
             let dlc_manager = self.dlc_manager.clone();
             let dlc_message_handler = self.dlc_message_handler.clone();
+            let peer_manager = self.peer_manager.clone();
             let dlc_channel_id = *dlc_channel_id;
             move || {
                 let (renew_offer, counterparty_pubkey) =
                     dlc_manager.renew_offer(&dlc_channel_id, payout_amount, &contract_input)?;
 
-                dlc_message_handler.send_message(
+                send_dlc_message(
+                    &dlc_message_handler,
+                    &peer_manager,
                     counterparty_pubkey,
                     Message::Channel(ChannelMessage::RenewOffer(renew_offer)),
                 );
@@ -102,7 +109,9 @@ where
         let (node_id, accept_sub_channel) =
             self.sub_channel_manager.accept_sub_channel(channel_id)?;
 
-        self.dlc_message_handler.send_message(
+        send_dlc_message(
+            &self.dlc_message_handler,
+            &self.peer_manager,
             node_id,
             Message::SubChannel(SubChannelMessage::Accept(accept_sub_channel)),
         );
@@ -127,11 +136,14 @@ where
         spawn_blocking({
             let sub_channel_manager = self.sub_channel_manager.clone();
             let dlc_message_handler = self.dlc_message_handler.clone();
+            let peer_manager = self.peer_manager.clone();
             move || {
                 let (sub_channel_close_offer, counterparty_pk) = sub_channel_manager
                     .offer_subchannel_close(&channel_id, accept_settlement_amount)?;
 
-                dlc_message_handler.send_message(
+                send_dlc_message(
+                    &dlc_message_handler,
+                    &peer_manager,
                     counterparty_pk,
                     Message::SubChannel(SubChannelMessage::CloseOffer(sub_channel_close_offer)),
                 );
@@ -152,7 +164,9 @@ where
             .sub_channel_manager
             .accept_subchannel_close_offer(channel_id)?;
 
-        self.dlc_message_handler.send_message(
+        send_dlc_message(
+            &self.dlc_message_handler,
+            &self.peer_manager,
             counterparty_pk,
             Message::SubChannel(SubChannelMessage::CloseAccept(sub_channel_close_accept)),
         );
@@ -409,6 +423,7 @@ where
         let dlc_message_handler = &self.dlc_message_handler;
         let dlc_manager = &self.dlc_manager;
         let sub_channel_manager = &self.sub_channel_manager;
+        let peer_manager = &self.peer_manager;
         let messages = dlc_message_handler.get_and_clear_received_messages();
         tracing::debug!("Received and cleared {} messages", messages.len());
 
@@ -420,7 +435,7 @@ where
 
                     if let Some(msg) = resp {
                         tracing::debug!(to = %node_id, "Sending DLC-manager message");
-                        dlc_message_handler.send_message(node_id, msg);
+                        send_dlc_message(dlc_message_handler, peer_manager, node_id, msg);
                     }
                 }
                 Message::SubChannel(msg) => {
@@ -437,7 +452,12 @@ where
                             msg = %sub_channel_message_name(&msg),
                             "Sending DLC channel message"
                         );
-                        dlc_message_handler.send_message(node_id, Message::SubChannel(msg));
+                        send_dlc_message(
+                            dlc_message_handler,
+                            peer_manager,
+                            node_id,
+                            Message::SubChannel(msg),
+                        );
                     }
                 }
             }
@@ -447,10 +467,31 @@ where
     }
 }
 
+/// Ensure that a [`dlc_messages::Message`] is sent straight away.
+///
+/// Use this instead of [`MessageHandler`]'s `send_message` which only enqueues the message.
+///
+/// [`MessageHandler`]: dlc_messages::message_handler::MessageHandler
+pub fn send_dlc_message(
+    dlc_message_handler: &DlcMessageHandler,
+    peer_manager: &PeerManager,
+    node_id: PublicKey,
+    msg: Message,
+) {
+    // Enqueue the message.
+    dlc_message_handler.send_message(node_id, msg);
+
+    // According to the LDK docs, you don't _have_ to call this function explicitly if you are
+    // using [`lightning-net-tokio`], which we are. But calling it ensures that we send the
+    // enqueued message ASAP.
+    peer_manager.process_events();
+}
+
 #[autometrics]
 pub(crate) async fn sub_channel_manager_periodic_check(
     sub_channel_manager: Arc<SubChannelManager>,
     dlc_message_handler: &DlcMessageHandler,
+    peer_manager: &PeerManager,
 ) -> Result<()> {
     let messages = spawn_blocking(move || sub_channel_manager.periodic_check()).await?;
 
@@ -464,7 +505,7 @@ pub(crate) async fn sub_channel_manager_periodic_check(
             "Queuing up DLC channel message tied to pending action"
         );
 
-        dlc_message_handler.send_message(node_id, msg);
+        send_dlc_message(dlc_message_handler, peer_manager, node_id, msg);
     }
 
     Ok(())

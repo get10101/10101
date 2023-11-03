@@ -7,21 +7,22 @@ use anyhow::Result;
 use bitcoin::Script;
 use bitcoin::Transaction;
 use bitcoin::TxOut;
-use lightning::chain::keysinterface::ChannelSigner;
-use lightning::chain::keysinterface::EcdsaChannelSigner;
-use lightning::chain::keysinterface::EntropySource;
-use lightning::chain::keysinterface::ExtraSign;
-use lightning::chain::keysinterface::InMemorySigner;
-use lightning::chain::keysinterface::KeyMaterial;
-use lightning::chain::keysinterface::KeysManager;
-use lightning::chain::keysinterface::NodeSigner;
-use lightning::chain::keysinterface::Recipient;
-use lightning::chain::keysinterface::SignerProvider;
-use lightning::chain::keysinterface::SpendableOutputDescriptor;
-use lightning::chain::keysinterface::WriteableEcdsaChannelSigner;
+use dlc_manager::subchannel::LnDlcChannelSigner;
+use dlc_manager::subchannel::LnDlcSignerProvider;
 use lightning::ln::chan_utils::ChannelPublicKeys;
 use lightning::ln::msgs::DecodeError;
 use lightning::ln::script::ShutdownScript;
+use lightning::sign::ChannelSigner;
+use lightning::sign::EcdsaChannelSigner;
+use lightning::sign::EntropySource;
+use lightning::sign::InMemorySigner;
+use lightning::sign::KeyMaterial;
+use lightning::sign::KeysManager;
+use lightning::sign::NodeSigner;
+use lightning::sign::Recipient;
+use lightning::sign::SignerProvider;
+use lightning::sign::SpendableOutputDescriptor;
+use lightning::sign::WriteableEcdsaChannelSigner;
 use lightning::util::ser::Writeable;
 use parking_lot::Mutex;
 use parking_lot::MutexGuard;
@@ -135,6 +136,21 @@ impl EcdsaChannelSigner for CustomSigner {
         )
     }
 
+    fn sign_holder_htlc_transaction(
+        &self,
+        htlc_tx: &Transaction,
+        input: usize,
+        htlc_descriptor: &lightning::events::bump_transaction::HTLCDescriptor,
+        secp_ctx: &Secp256k1<bitcoin::secp256k1::All>,
+    ) -> Result<secp256k1_zkp::ecdsa::Signature, ()> {
+        self.in_memory_signer_lock().sign_holder_htlc_transaction(
+            htlc_tx,
+            input,
+            htlc_descriptor,
+            secp_ctx,
+        )
+    }
+
     fn sign_counterparty_htlc_transaction(
         &self,
         htlc_tx: &Transaction,
@@ -222,19 +238,49 @@ impl ChannelSigner for CustomSigner {
         self.in_memory_signer_lock()
             .provide_channel_parameters(channel_parameters);
     }
-}
-
-impl ExtraSign for CustomSigner {
-    fn sign_with_fund_key_callback<F>(&self, cb: &mut F)
-    where
-        F: FnMut(&SecretKey),
-    {
-        self.in_memory_signer_lock().sign_with_fund_key_callback(cb)
-    }
 
     fn set_channel_value_satoshis(&mut self, value: u64) {
         self.in_memory_signer_lock()
             .set_channel_value_satoshis(value)
+    }
+}
+
+impl LnDlcChannelSigner for CustomSigner {
+    fn get_holder_split_tx_signature(
+        &self,
+        secp: &Secp256k1<secp256k1_zkp::All>,
+        split_tx: &Transaction,
+        original_funding_redeemscript: &Script,
+        original_channel_value_satoshis: u64,
+    ) -> std::result::Result<secp256k1_zkp::ecdsa::Signature, dlc_manager::error::Error> {
+        dlc::util::get_raw_sig_for_tx_input(
+            secp,
+            split_tx,
+            0,
+            original_funding_redeemscript,
+            original_channel_value_satoshis,
+            &self.in_memory_signer_lock().funding_key,
+        )
+        .map_err(|e| e.into())
+    }
+
+    fn get_holder_split_tx_adaptor_signature(
+        &self,
+        secp: &Secp256k1<secp256k1_zkp::All>,
+        split_tx: &Transaction,
+        original_channel_value_satoshis: u64,
+        original_funding_redeemscript: &Script,
+        other_publish_key: &secp256k1_zkp::PublicKey,
+    ) -> std::result::Result<secp256k1_zkp::EcdsaAdaptorSignature, dlc_manager::error::Error> {
+        dlc::channel::get_tx_adaptor_signature(
+            secp,
+            split_tx,
+            original_channel_value_satoshis,
+            original_funding_redeemscript,
+            &self.in_memory_signer_lock().funding_key,
+            other_publish_key,
+        )
+        .map_err(|e| e.into())
     }
 }
 
@@ -278,28 +324,42 @@ impl CustomKeysManager {
                 outputs,
                 change_destination_script,
                 feerate_sat_per_1000_weight,
+                None,
                 secp_ctx,
             )
             .map_err(|_| anyhow!("Could not spend spendable outputs"))
     }
 }
 
+impl LnDlcSignerProvider<CustomSigner> for CustomKeysManager {
+    fn derive_ln_dlc_channel_signer(
+        &self,
+        channel_value_satoshis: u64,
+        channel_keys_id: [u8; 32],
+    ) -> CustomSigner {
+        self.derive_channel_signer(channel_value_satoshis, channel_keys_id)
+    }
+}
+
 impl SignerProvider for CustomKeysManager {
     type Signer = CustomSigner;
 
-    fn get_destination_script(&self) -> Script {
+    fn get_destination_script(&self) -> Result<Script, ()> {
         let address = self.wallet.unused_address();
-        address.script_pubkey()
+        Ok(address.script_pubkey())
     }
 
-    fn get_shutdown_scriptpubkey(&self) -> ShutdownScript {
+    fn get_shutdown_scriptpubkey(&self) -> std::result::Result<ShutdownScript, ()> {
         let address = self.wallet.unused_address();
         match address.payload {
             bitcoin::util::address::Payload::WitnessProgram { version, program } => {
                 ShutdownScript::new_witness_program(version, &program)
-                    .expect("Invalid shutdown script.")
+                    .map_err(|_ignored| tracing::error!("Invalid shutdown script"))
             }
-            _ => panic!("Tried to use a non-witness address. This must not ever happen."),
+            _ => {
+                tracing::error!("Tried to use a non-witness address. This must not ever happen.");
+                Err(())
+            }
         }
     }
 

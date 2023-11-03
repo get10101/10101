@@ -34,9 +34,9 @@ use dlc_manager::subchannel::SubChannel;
 use dlc_manager::subchannel::SubChannelState;
 use dlc_manager::Storage;
 use futures::Future;
+use lightning::events::Event;
 use lightning::ln::channelmanager::ChannelDetails;
 use lightning::util::config::UserConfig;
-use lightning::util::events::Event;
 use rand::distributions::Alphanumeric;
 use rand::thread_rng;
 use rand::Rng;
@@ -189,7 +189,7 @@ impl Node<InMemoryStore> {
         let node = Arc::new(node);
 
         let event_handler = event_handler_factory(node.clone(), ldk_event_sender);
-        let running = node.start(event_handler)?;
+        let running = node.start(event_handler, false)?;
 
         tracing::debug!(%name, info = %node.info, "Node started");
 
@@ -320,7 +320,7 @@ impl Node<InMemoryStore> {
                     temp_channel_id = %hex::encode(temp_channel_id),
                     "Waiting for channel to be usable"
                 );
-                tokio::time::sleep(Duration::from_millis(500)).await;
+                tokio::time::sleep(Duration::from_millis(100)).await;
             }
         })
         .await?;
@@ -478,7 +478,7 @@ where
         loop {
             match predicate_fn().await? {
                 Some(value) => return Ok(value),
-                None => tokio::time::sleep(Duration::from_millis(500)).await,
+                None => tokio::time::sleep(Duration::from_millis(100)).await,
             };
         }
     })

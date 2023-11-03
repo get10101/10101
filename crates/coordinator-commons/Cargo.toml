@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1"
-bdk = { version = "0.27.0", default-features = false, features = ["key-value-db", "use-esplora-blocking"] }
+bdk = { version = "0.28.0", default-features = false, features = ["key-value-db", "use-esplora-blocking"] }
 orderbook-commons = { path = "../orderbook-commons" }
 rust_decimal = { version = "1", features = ["serde-with-float"] }
 serde = { version = "1", features = ["derive"] }

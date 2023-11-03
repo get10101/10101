@@ -9,9 +9,9 @@ async-stream = "0.3"
 async-trait = "0.1"
 atty = "0.2.14"
 autometrics = { version = "0.5", features = ["prometheus-exporter"] }
-axum = { version = "0.6.20", features = ["ws"] }
-bdk = { version = "0.27.0", default-features = false, features = ["key-value-db", "use-esplora-blocking"] }
-bitcoin = "0.29"
+axum = { version = "0.6.7", features = ["ws"] }
+bdk = { version = "0.28.0", default-features = false, features = ["key-value-db", "use-esplora-blocking"] }
+bitcoin = "0.29.2"
 bitmex-client = { path = "../crates/bitmex-client" }
 bitmex-stream = { path = "../crates/bitmex-stream" }
 clap = { version = "4", features = ["derive"] }
@@ -20,7 +20,7 @@ diesel_migrations = "2.0.0"
 futures = "0.3"
 hex = "0.4"
 lazy_static = "1.4.0"
-lightning = { version = "0.0.114", features = ["max_level_trace"] }
+lightning = { version = "0.0.116", features = ["max_level_trace"] }
 ln-dlc-node = { path = "../crates/ln-dlc-node" }
 # adding this as explicit dependency as we need the "vendored" flag for cross compilation
 openssl = { version = "0.10.55", features = ["vendored"] }

@@ -55,7 +55,7 @@ async fn fund_everything(faucet: &str, coordinator: &str, maker: &str) -> Result
     bitcoind
         .fund(&coord_addr, Amount::ONE_BTC)
         .await
-        .context("Could not fund the faucet")?;
+        .context("Could not fund the faucet's on-chain wallet")?;
     let maker = Maker::new(init_reqwest(), maker);
     let maker_addr = maker.get_new_address().await?;
     bitcoind.fund(&maker_addr, Amount::ONE_BTC).await?;
@@ -63,7 +63,7 @@ async fn fund_everything(faucet: &str, coordinator: &str, maker: &str) -> Result
     maker
         .sync_on_chain()
         .await
-        .expect("to be able to sync on-chain wallet for maker");
+        .context("Failed to sync maker's on-chain wallet")?;
 
     let coordinator_balance = coordinator.get_balance().await?;
     tracing::info!(
@@ -72,13 +72,8 @@ async fn fund_everything(faucet: &str, coordinator: &str, maker: &str) -> Result
         "Coordinator balance",
     );
 
-    let coordinator_info = coordinator
-        .get_node_info()
-        .await
-        .expect("To get coordinator's node info");
-
-    let node: NodeInfo = coordinator.get_node_info().await?;
-    tracing::info!("lightning node: {}", node);
+    let coordinator_node_info: NodeInfo = coordinator.get_node_info().await?;
+    tracing::info!(?coordinator_node_info);
 
     let lnd_addr: LndAddr = reqwest::get(&format!("{faucet}/lnd/v1/newaddress"))
         .await?
@@ -96,48 +91,65 @@ async fn fund_everything(faucet: &str, coordinator: &str, maker: &str) -> Result
     bitcoind.mine(10).await?;
 
     if let Err(e) = coordinator.sync_wallet().await {
-        tracing::warn!("failed to sync coordinator: {}", e);
+        tracing::warn!("Failed to sync coordinator's on-chain wallet: {e:#}");
     }
 
     let lnd_balance = get_text(&format!("{faucet}/lnd/v1/balance/blockchain")).await?;
-    tracing::info!("faucet lightning balance: {}", lnd_balance);
+    tracing::info!("Faucet balance before opening another channel: {lnd_balance}");
 
-    open_channel(&node, Amount::ONE_BTC * 5, faucet, &bitcoind).await?;
+    tracing::info!("Opening new faucet channel");
 
-    // wait until channel has `peer_alias` set correctly
-    tracing::info!("Waiting until channel is has correct peer_alias set");
-    let mut counter = 0;
-    loop {
-        if counter == 3 {
-            bail!("Could not verify channel is open. Please wipe and try again");
-        }
-        counter += 1;
+    open_channel(
+        &coordinator_node_info,
+        Amount::ONE_BTC * 5,
+        faucet,
+        &bitcoind,
+    )
+    .await?;
 
-        let node_info = get_node_info(faucet).await?;
-        if let Some(node_info) = node_info {
-            if node_info.num_channels > 0 && node_info.node.alias == "10101.finance" {
-                break;
+    let faucet_ready_timeout = Duration::from_secs(60);
+
+    tracing::info!(timeout = ?faucet_ready_timeout, "Waiting until new faucet channel is ready");
+
+    tokio::time::timeout(faucet_ready_timeout, async {
+        loop {
+            if let Some(faucet_node_info) = get_node_info(faucet).await? {
+                if faucet_node_info.num_channels > 0
+                    && faucet_node_info.node.alias == "10101.finance"
+                {
+                    return anyhow::Ok(());
+                }
             }
-        }
 
-        tracing::info!("Manually broadcasting node announcement and waiting for a few seconds...");
-        coordinator.broadcast_node_announcement().await?;
-        tokio::time::sleep(Duration::from_secs(5)).await;
-    }
+            let retry_interval = Duration::from_secs(1);
+            tracing::info!(?retry_interval, "Faucet channel not yet ready. Retrying");
+
+            // Manually broadcasting node announcement to get the channel ready ASAP.
+            coordinator.broadcast_node_announcement().await?;
+
+            tokio::time::sleep(retry_interval).await;
+        }
+    })
+    .await
+    .with_context(|| {
+        format!(
+            "New faucet channel not ready after {faucet_ready_timeout:?}. Please wipe and try again"
+        )
+    })??;
 
     let lnd_channels = get_text(&format!("{faucet}/lnd/v1/channels")).await?;
-    tracing::info!("open LND channels: {}", lnd_channels);
+    tracing::info!("Open faucet channels: {}", lnd_channels);
 
     maker
-        .open_channel(coordinator_info, 10_000_000, None)
+        .open_channel(coordinator_node_info, 10_000_000, None)
         .await
         .expect("To be able to open a channel from maker to coordinator");
-    let maker_info = maker.get_node_info().await.expect("To get node info");
+    let maker_node_info = maker.get_node_info().await.expect("To get node info");
 
     tracing::info!(
-        "Opened channel from maker ({}) to coordinator ({})",
-        maker_info.pubkey,
-        coordinator_info.pubkey
+        ?maker_node_info,
+        ?coordinator_node_info,
+        "Opened channel from maker to coordinator",
     );
 
     bitcoind.mine(10).await?;

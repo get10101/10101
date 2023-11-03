@@ -1,7 +1,7 @@
 use crate::event;
 use crate::event::EventInternal;
 use crate::ln_dlc::node::Node;
-use lightning::util::events::Event;
+use lightning::events::Event;
 use tokio::sync::watch::Receiver;
 
 impl Node {

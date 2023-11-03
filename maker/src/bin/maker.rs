@@ -96,7 +96,7 @@ async fn main() -> Result<()> {
     )?);
 
     let event_handler = EventHandler::new(node.clone());
-    let _running_node = node.start(event_handler)?;
+    let _running_node = node.start(event_handler, false)?;
 
     std::thread::spawn(node.sync_on_chain_wallet_periodically());
 
