@@ -43,10 +43,6 @@ pub struct Settings {
 
     pub ln_dlc: LnDlcNodeSettings,
 
-    /// Amount (in millionths of a satoshi) charged per satoshi for payments forwarded outbound
-    /// over a channel.
-    pub forwarding_fee_proportional_millionths: u32,
-
     // Special parameter, where the settings file is located
     pub path: Option<PathBuf>,
 
@@ -103,7 +99,6 @@ impl Settings {
             fallback_tx_fee_rate_high_priority: 5000,
             max_allowed_tx_fee_rate_when_opening_channel: None,
             ln_dlc: LnDlcNodeSettings::default(),
-            forwarding_fee_proportional_millionths: 50,
             path: None,
             rollover_window_open_scheduler,
             rollover_window_close_scheduler,
@@ -168,7 +163,8 @@ impl Settings {
 
         ldk_config
             .channel_config
-            .forwarding_fee_proportional_millionths = self.forwarding_fee_proportional_millionths;
+            .forwarding_fee_proportional_millionths =
+            self.ln_dlc.forwarding_fee_proportional_millionths;
 
         ldk_config
     }
