@@ -390,12 +390,14 @@ pub async fn handle_funding_generation_ready<S>(
         "Funding generation ready for channel with counterparty {}",
         counterparty_node_id
     );
-    let target_blocks = CONFIRMATION_TARGET;
+
+    let fee_rate = node.wallet.ldk_wallet().get_fee_rate(CONFIRMATION_TARGET);
     let funding_tx_result = node
         .wallet
         .ldk_wallet()
-        .create_funding_transaction(output_script, channel_value_satoshis, target_blocks)
+        .create_funding_transaction(output_script, channel_value_satoshis, fee_rate)
         .await;
+
     let funding_tx = match funding_tx_result {
         Ok(funding_tx) => funding_tx,
         Err(err) => {
