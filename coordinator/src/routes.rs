@@ -41,7 +41,6 @@ use axum::Router;
 use bitcoin::consensus::encode::serialize_hex;
 use bitcoin::hashes::hex::ToHex;
 use bitcoin::secp256k1::PublicKey;
-use bitcoin::Network;
 use coordinator_commons::CollaborativeRevertData;
 use coordinator_commons::LspConfig;
 use coordinator_commons::OnboardingParam;
@@ -67,7 +66,6 @@ use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use serde::Deserialize;
 use serde::Serialize;
-use std::str::FromStr;
 use std::sync::Arc;
 use tokio::sync::broadcast;
 use tokio::sync::mpsc;
@@ -136,7 +134,6 @@ pub fn router(
         .route("/api/register", post(post_register))
         .route("/api/admin/balance", get(get_balance))
         .route("/api/admin/channels", get(list_channels).post(open_channel))
-        .route("/api/channels", post(channel_faucet))
         .route("/api/lsp/config", get(get_lsp_channel_config))
         .route("/api/admin/channels/:channel_id", delete(close_channel))
         .route("/api/admin/peers", get(list_peers))
@@ -415,74 +412,6 @@ pub async fn get_lsp_channel_config(
         contract_tx_fee_rate: settings.contract_tx_fee_rate,
         liquidity_options,
     }))
-}
-
-/// Open a channel directly between the coordinator and the target
-/// specified in [`ChannelParams`].
-///
-/// Can only be used on [`Network::Regtest`].
-pub async fn channel_faucet(
-    State(state): State<Arc<AppState>>,
-    channel_params: Json<ChannelParams>,
-) -> Result<Json<String>, AppError> {
-    let network = state.node.inner.network;
-    if network != Network::Regtest {
-        return Err(AppError::BadRequest(format!(
-            "Cannot open channel on {network}"
-        )));
-    }
-
-    if !state.settings.read().await.jit_channels_enabled {
-        return Err(AppError::BadRequest(
-            "JIT channels are not enabled".to_string(),
-        ));
-    }
-
-    let pubkey = PublicKey::from_str(channel_params.0.target.pubkey.as_str())
-        .map_err(|e| AppError::BadRequest(format!("Invalid target node pubkey provided {e:#}")))?;
-    if let Some(address) = channel_params.target.address.clone() {
-        let target_address = address.parse().map_err(|e| {
-            AppError::BadRequest(format!("Invalid target node address provided {e:#}"))
-        })?;
-        let peer = NodeInfo {
-            pubkey,
-            address: target_address,
-        };
-        state.node.inner.connect(peer).await.map_err(|e| {
-            AppError::InternalServerError(format!("Could not connect to target node {e:#}"))
-        })?;
-    }
-
-    let channel_amount = channel_params.local_balance;
-    let initial_send_amount = channel_params.remote_balance.unwrap_or_default();
-    let is_public = channel_params.is_public;
-
-    let channel_id = state
-        .node
-        .inner
-        .initiate_open_channel(pubkey, channel_amount, initial_send_amount, is_public)
-        .map_err(|e| AppError::InternalServerError(format!("Failed to open channel: {e:#}")))?;
-
-    tracing::debug!(
-        "Successfully opened channel with {pubkey}. Funding tx: {}",
-        hex::encode(channel_id)
-    );
-
-    Ok(Json(hex::encode(channel_id)))
-}
-
-#[derive(Deserialize)]
-pub struct ChannelParams {
-    target: TargetInfo,
-    local_balance: u64,
-    remote_balance: Option<u64>,
-    is_public: bool,
-}
-
-#[derive(Deserialize)]
-pub struct TargetInfo {
-    pubkey: String,
-    address: Option<String>,
 }
 
 async fn get_settings(State(state): State<Arc<AppState>>) -> impl IntoResponse {
