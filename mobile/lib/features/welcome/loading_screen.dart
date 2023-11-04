@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get_10101/backend.dart';
+import 'package:get_10101/features/welcome/onboarding.dart';
 import 'package:get_10101/features/stable/stable_screen.dart';
 import 'package:get_10101/features/trade/trade_screen.dart';
 import 'package:get_10101/features/wallet/wallet_screen.dart';
@@ -41,7 +42,7 @@ class _LoadingScreenState extends State<LoadingScreen> {
       } else {
         // No seed file: let the user choose whether they want to create a new
         // wallet or import their old one
-        GoRouter.of(context).go(NewWalletScreen.route);
+        GoRouter.of(context).go(Onboarding.route);
         return;
       }
 

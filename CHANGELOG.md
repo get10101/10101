@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Add on-boarding wizard
+
 ## [1.5.0] - 2023-11-06
 
 - Allow to drain on-chain wallet by sending amount `0`.

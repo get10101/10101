@@ -26,6 +26,7 @@ dependencies:
   qr_flutter: ^4.0.0
   share_plus: ^7.0.2
   logger: ^2.0.2+1
+  carousel_slider: ^4.2.1
   candlesticks: ^2.1.0
   http: ^0.13.6
   timeago: ^3.3.0
