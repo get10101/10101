@@ -1,16 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:get_10101/common/color.dart';
 import 'package:get_10101/common/global_keys.dart';
-import 'package:get_10101/common/loading_screen.dart';
 import 'package:get_10101/common/snack_bar.dart';
-import 'package:get_10101/features/welcome/new_wallet_screen.dart';
+import 'package:get_10101/features/wallet/wallet_screen.dart';
+import 'package:get_10101/features/welcome/onboarding.dart';
+import 'package:get_10101/features/welcome/welcome_screen.dart';
 import 'package:get_10101/ffi.dart';
 import 'package:get_10101/logger/logger.dart';
 import 'package:get_10101/util/file.dart';
+import 'package:get_10101/util/preferences.dart';
 import 'package:go_router/go_router.dart';
 
 class SeedPhraseImporter extends StatefulWidget {
-  static const route = "${NewWalletScreen.route}/$subRouteName";
+  static const route = "${Onboarding.route}/$subRouteName";
   static const subRouteName = "seed-importer";
 
   const SeedPhraseImporter({Key? key}) : super(key: key);
@@ -143,8 +145,14 @@ class SeedPhraseImporterState extends State<SeedPhraseImporter> {
                                 await api
                                     .restoreFromSeedPhrase(
                                         seedPhrase: seedPhrase, targetSeedFilePath: seedPath)
-                                    .then((value) => GoRouter.of(context).go(LoadingScreen.route))
-                                    .catchError((error) {
+                                    .then((value) async {
+                                  Preferences.instance.hasEmailAddress().then((value) => {
+                                        if (value)
+                                          {GoRouter.of(context).go(WalletScreen.route)}
+                                        else
+                                          {GoRouter.of(context).go(WelcomeScreen.route)}
+                                      });
+                                }).catchError((error) {
                                   showSnackBar(
                                       ScaffoldMessenger.of(rootNavigatorKey.currentContext!),
                                       "Failed to restore seed: $error");
