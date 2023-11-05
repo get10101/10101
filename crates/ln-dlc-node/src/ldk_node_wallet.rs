@@ -114,12 +114,11 @@ where
         &self,
         output_script: Script,
         value_sats: u64,
-        confirmation_target: ConfirmationTarget,
+        fee_rate: FeeRate,
     ) -> Result<Transaction, Error> {
         let locked_wallet = self.bdk_lock();
         let mut tx_builder = locked_wallet.build_tx();
 
-        let fee_rate = self.get_fee_rate(confirmation_target);
         tx_builder
             .add_recipient(output_script, value_sats)
             .fee_rate(fee_rate)
@@ -354,11 +353,12 @@ pub mod tests {
             Arc::new(DummyNodeStorage),
         );
 
+        let fee_rate = FeeRate::from_sat_per_vb(10.0);
         let _ = wallet
             .create_funding_transaction(
                 Script::new(),
                 Amount::from_btc(0.5).unwrap().to_sat(),
-                ConfirmationTarget::Background,
+                fee_rate,
             )
             .await
             .unwrap();
@@ -366,7 +366,7 @@ pub mod tests {
             .create_funding_transaction(
                 Script::new(),
                 Amount::from_btc(0.5).unwrap().to_sat(),
-                ConfirmationTarget::Background,
+                fee_rate,
             )
             .await
             .unwrap();
@@ -374,7 +374,7 @@ pub mod tests {
             .create_funding_transaction(
                 Script::new(),
                 Amount::from_btc(0.5).unwrap().to_sat(),
-                ConfirmationTarget::Background,
+                fee_rate,
             )
             .await
             .is_err());

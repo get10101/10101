@@ -17,6 +17,7 @@ use crate::NetworkGraph;
 use crate::PeerManager;
 use anyhow::Context;
 use anyhow::Result;
+use bdk::FeeRate;
 use bitcoin::hashes::hex::ToHex;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::Network;
@@ -154,6 +155,7 @@ pub struct Node<S> {
     scorer: Arc<Mutex<Scorer>>,
     esplora_server_url: String,
     esplora_client: Arc<NodeEsploraClient>,
+    pub pending_channel_opening_fee_rates: Arc<parking_lot::Mutex<HashMap<PublicKey, FeeRate>>>,
 }
 
 #[derive(Debug, Clone, Copy, Deserialize, Serialize)]
@@ -430,6 +432,7 @@ where
             scorer,
             esplora_server_url,
             esplora_client,
+            pending_channel_opening_fee_rates: Arc::new(parking_lot::Mutex::new(HashMap::new())),
         })
     }
 

@@ -9,6 +9,7 @@ use axum::extract::Path;
 use axum::extract::Query;
 use axum::extract::State;
 use axum::Json;
+use bdk::FeeRate;
 use bdk::TransactionDetails;
 use bitcoin::secp256k1::PublicKey;
 use coordinator_commons::CollaborativeRevert;
@@ -224,6 +225,9 @@ pub struct ChannelParams {
     target: TargetInfo,
     local_balance: u64,
     remote_balance: Option<u64>,
+    /// Defines the fee rate for the channel opening transaction. If not provided, it will default
+    /// to system settings
+    sats_vbyte: Option<f32>,
 }
 
 #[derive(Deserialize)]
@@ -253,6 +257,10 @@ pub async fn open_channel(
 
     let channel_amount = channel_params.local_balance;
     let initial_send_amount = channel_params.remote_balance.unwrap_or_default();
+    let mut pending_channel_opening = state.node.inner.pending_channel_opening_fee_rates.lock();
+    if let Some(fee_rate) = channel_params.sats_vbyte {
+        pending_channel_opening.insert(pubkey, FeeRate::from_sat_per_vb(fee_rate));
+    }
 
     let channel_id = state
         .node
