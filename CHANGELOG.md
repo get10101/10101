@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.0] - 2023-11-06
+
 - Allow to drain on-chain wallet by sending amount `0`.
 - Load persisted `rust-dlc` `ChainMonitor` on restart.
 - Upgrade `rust-lightning` to version 0.0.116.
@@ -155,7 +157,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Self-Custodial CFD Trading based on DLC and lightning
 
-[Unreleased]: https://github.com/get10101/10101/compare/1.4.4...HEAD
+[Unreleased]: https://github.com/get10101/10101/compare/1.5.0...HEAD
+[1.5.0]: https://github.com/get10101/10101/compare/1.4.4...1.5.0
 [1.4.4]: https://github.com/get10101/10101/compare/1.4.3...1.4.4
 [1.4.3]: https://github.com/get10101/10101/compare/1.4.2...1.4.3
 [1.4.2]: https://github.com/get10101/10101/compare/1.4.1...1.4.2
