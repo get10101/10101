@@ -1,7 +1,6 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:get_10101/features/trade/candlestick_change_notifier.dart';
 import 'package:get_10101/features/trade/order_change_notifier.dart';
 import 'package:get_10101/features/trade/position_change_notifier.dart';
 import 'package:get_10101/ffi.dart' as rust;
@@ -47,7 +46,6 @@ Future<void> fullBackup() async {
 
 /// Run the backend and retry a number of times if it fails for whatever reason
 Future<void> runBackend(BuildContext context) async {
-  context.read<CandlestickChangeNotifier>().initialize();
   final orderChangeNotifier = context.read<OrderChangeNotifier>();
   final positionChangeNotifier = context.read<PositionChangeNotifier>();
 

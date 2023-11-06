@@ -54,7 +54,7 @@ List<SingleChildWidget> createProviders() {
     ChangeNotifierProvider(create: (context) => PositionChangeNotifier(PositionService())),
     ChangeNotifierProvider(create: (context) => WalletChangeNotifier(const WalletService())),
     ChangeNotifierProvider(
-        create: (context) => CandlestickChangeNotifier(const CandlestickService())),
+        create: (context) => CandlestickChangeNotifier(const CandlestickService()).initialize()),
     ChangeNotifierProvider(create: (context) => ServiceStatusNotifier()),
     ChangeNotifierProvider(create: (context) => ChannelStatusNotifier()),
     ChangeNotifierProvider(create: (context) => AsyncOrderChangeNotifier(OrderService())),
@@ -75,8 +75,6 @@ List<SingleChildWidget> createProviders() {
 
 /// Forward the events from change notifiers to the Event service
 void subscribeToNotifiers(BuildContext context) {
-  // TODO: Move this code into an "InitService" or similar; we should not have bridge code in the widget
-
   final EventService eventService = EventService.create();
 
   final orderChangeNotifier = context.read<OrderChangeNotifier>();
