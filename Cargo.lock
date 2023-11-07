@@ -4054,7 +4054,7 @@ name = "trade"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "bdk",
+ "bitcoin",
  "reqwest",
  "rust_decimal",
  "rust_decimal_macros",

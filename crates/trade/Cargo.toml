@@ -8,7 +8,7 @@ description = "A common library for the shared model and functions for trading"
 
 [dependencies]
 anyhow = "1"
-bdk = { version = "0.28.0", default-features = false, features = ["key-value-db", "use-esplora-blocking"] }
+bitcoin = { version = "0.29", default-features = false }
 reqwest = { version = "0.11", default-features = false, features = ["json"] }
 rust_decimal = { version = "1", features = ["serde-with-float"] }
 rust_decimal_macros = "1"
