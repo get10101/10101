@@ -174,10 +174,8 @@ fn calculate_mid_range_payouts(
                 short_leverage,
                 direction,
             )?;
-            let mut upper_event_outcome_payout = (offer_collateral as i64 + pnl) as u64;
-            if upper_event_outcome_payout > total_collateral {
-                upper_event_outcome_payout = total_collateral;
-            }
+            let upper_event_outcome_payout =
+                ((offer_collateral as i64 + pnl) as u64).min(total_collateral);
             Ok((
                 PayoutPoint {
                     event_outcome: lower_event_outcome.to_u64().expect("to fit into u64"),
