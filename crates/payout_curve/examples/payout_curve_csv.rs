@@ -12,6 +12,7 @@ use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use rust_decimal_macros::dec;
 use std::fs::File;
+use std::ops::Mul;
 use trade::cfd::calculate_long_liquidation_price;
 use trade::cfd::calculate_margin;
 use trade::cfd::calculate_pnl;
@@ -25,9 +26,17 @@ use trade::Direction;
 fn main() -> Result<()> {
     let initial_price = dec!(30_000);
     let quantity = 30_000.0;
-    let leverage_short = 3.0;
+    let leverage_short = 2.0;
     let leverage_long = 2.0;
-    let fee = 0;
+    // fee is 0.3% * quantity/initial_price = 0.003 BTC = 300_000 sats. We compute it here so that
+    // we can easily adjust the example
+    let fee = dec!(0.003) * Decimal::from_f32(quantity).expect("to be able to parse into dec")
+        / initial_price;
+    let fee = fee
+        .mul(dec!(100_000_000))
+        .to_u64()
+        .expect("to fit into u64");
+
     let margin_short = calculate_margin(initial_price, quantity, leverage_short);
     let margin_long = calculate_margin(initial_price, quantity, leverage_long);
 

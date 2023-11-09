@@ -250,3 +250,28 @@ jobs:
       - name: show disk space after tests
         if: always()
         run: df -h
+
+  payout-curve:
+    runs-on: ubuntu-latest
+    needs: generate-ffi
+    timeout-minutes: 30
+    steps:
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          # this might remove tools that are actually needed,
+          # when set to "true" but frees about 6 GB
+          tool-cache: false
+          large-packages: false
+      - uses: actions/checkout@v3
+      - uses: extractions/setup-just@v1
+      - name: Setup rust toolchain
+        run: rustup show
+      - uses: Swatinem/rust-cache@v2.2.0
+      - name: Download RUST FFI bindings
+        uses: actions/download-artifact@v2
+        with:
+          name: rust_bridge_generated
+          path: mobile/native/src/bridge_generated
+      - name: Run payout curve example tests
+        run: cargo run -p payout_curve --example payout_curve_csv

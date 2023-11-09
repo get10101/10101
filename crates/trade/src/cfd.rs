@@ -1,8 +1,7 @@
 use crate::Direction;
 use anyhow::Context;
 use anyhow::Result;
-use bdk::bitcoin;
-use bdk::bitcoin::Denomination;
+use bitcoin::Denomination;
 use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;

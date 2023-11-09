@@ -2,4 +2,4 @@ examples/payout_curve.png
 examples/*.csv
 src/payout_curve/*.csv
 src/payout_curve/*.png
-!src/payout_curve/should_data_coordinator_short.csv
+!src/payout_curve/should_data_offer_short.csv

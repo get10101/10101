@@ -3,7 +3,7 @@ use crate::Price;
 use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
-use bdk::bitcoin::Network;
+use bitcoin::Network;
 use rust_decimal::Decimal;
 use serde::Deserialize;
 use serde::Serialize;
