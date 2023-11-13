@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:get_10101/common/global_keys.dart';
-import 'package:get_10101/common/loading_screen.dart';
+import 'package:get_10101/features/welcome/loading_screen.dart';
 import 'package:get_10101/common/scaffold_with_nav_bar.dart';
 import 'package:get_10101/common/settings/app_info_screen.dart';
 import 'package:get_10101/common/settings/collab_close_screen.dart';
 import 'package:get_10101/common/settings/force_close_screen.dart';
 import 'package:get_10101/common/settings/settings_screen.dart';
 import 'package:get_10101/common/settings/share_logs_screen.dart';
+import 'package:get_10101/features/welcome/onboarding.dart';
 import 'package:get_10101/features/stable/stable_screen.dart';
 import 'package:get_10101/features/trade/trade_screen.dart';
 import 'package:get_10101/features/wallet/domain/wallet_type.dart';
@@ -19,7 +20,6 @@ import 'package:get_10101/features/wallet/send/send_screen.dart';
 import 'package:get_10101/features/wallet/wallet_screen.dart';
 import 'package:get_10101/features/welcome/welcome_screen.dart';
 import 'package:go_router/go_router.dart';
-import 'package:get_10101/features/welcome/new_wallet_screen.dart';
 
 GoRouter createRoutes() {
   return GoRouter(
@@ -160,9 +160,10 @@ GoRouter createRoutes() {
           ],
         ),
         GoRoute(
-            path: NewWalletScreen.route,
+            path: Onboarding.route,
+            parentNavigatorKey: rootNavigatorKey,
             builder: (BuildContext context, GoRouterState state) {
-              return const NewWalletScreen();
+              return const Onboarding();
             },
             routes: <RouteBase>[
               GoRoute(
@@ -179,6 +180,6 @@ GoRouter createRoutes() {
             builder: (BuildContext context, GoRouterState state) {
               return const WelcomeScreen();
             },
-            routes: const []),
+            routes: const [])
       ]);
 }
