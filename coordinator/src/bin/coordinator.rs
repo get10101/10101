@@ -226,12 +226,14 @@ async fn main() -> Result<()> {
         tx_price_feed.clone(),
         auth_users_notifier.clone(),
         network,
+        node.inner.oracle_pubkey,
     );
     let _handle = async_match::monitor(
         pool.clone(),
         tx_user_feed.clone(),
         auth_users_notifier.clone(),
         network,
+        node.inner.oracle_pubkey,
     );
     let _handle = rollover::monitor(
         pool.clone(),

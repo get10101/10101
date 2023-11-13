@@ -25,7 +25,6 @@ use orderbook_commons::OrderState;
 use orderbook_commons::OrderType;
 use rust_decimal::Decimal;
 use std::cmp::Ordering;
-use std::str::FromStr;
 use thiserror::Error;
 use time::OffsetDateTime;
 use tokio::sync::broadcast;
@@ -88,6 +87,7 @@ pub fn start(
     tx_price_feed: broadcast::Sender<Message>,
     notifier: mpsc::Sender<OrderbookMessage>,
     network: Network,
+    oracle_pk: XOnlyPublicKey,
 ) -> (RemoteHandle<Result<()>>, mpsc::Sender<NewOrderMessage>) {
     let (sender, mut receiver) = mpsc::channel::<NewOrderMessage>(NEW_ORDERS_BUFFER_SIZE);
 
@@ -106,6 +106,7 @@ pub fn start(
                         new_order,
                         new_order_msg.order_reason,
                         network,
+                        oracle_pk,
                     )
                     .await;
                     if let Err(e) = new_order_msg.sender.send(result).await {
@@ -138,6 +139,7 @@ async fn process_new_order(
     new_order: NewOrder,
     order_reason: OrderReason,
     network: Network,
+    oracle_pk: XOnlyPublicKey,
 ) -> Result<Order> {
     tracing::info!(trader_id=%new_order.trader_id, "Received a new {:?} order", new_order.order_type);
 
@@ -183,26 +185,27 @@ async fn process_new_order(
             true,
         )?;
 
-        let matched_orders = match match_order(&order, opposite_direction_orders, network) {
-            Ok(Some(matched_orders)) => matched_orders,
-            Ok(None) => {
-                // TODO(holzeis): Currently we still respond to the user immediately if there
-                // has been a match or not, that's the reason why we also
-                // have to set the order to failed here. But actually we
-                // could keep the order until either expired or a
-                // match has been found and then update the state correspondingly.
+        let matched_orders =
+            match match_order(&order, opposite_direction_orders, network, oracle_pk) {
+                Ok(Some(matched_orders)) => matched_orders,
+                Ok(None) => {
+                    // TODO(holzeis): Currently we still respond to the user immediately if there
+                    // has been a match or not, that's the reason why we also
+                    // have to set the order to failed here. But actually we
+                    // could keep the order until either expired or a
+                    // match has been found and then update the state correspondingly.
 
-                orders::set_order_state(conn, order.id, OrderState::Failed)?;
-                bail!(TradingError::NoMatchFound(format!(
-                    "Could not match order {}",
-                    order.id
-                )));
-            }
-            Err(e) => {
-                orders::set_order_state(conn, order.id, OrderState::Failed)?;
-                bail!("Failed to match order. Error {e:#}")
-            }
-        };
+                    orders::set_order_state(conn, order.id, OrderState::Failed)?;
+                    bail!(TradingError::NoMatchFound(format!(
+                        "Could not match order {}",
+                        order.id
+                    )));
+                }
+                Err(e) => {
+                    orders::set_order_state(conn, order.id, OrderState::Failed)?;
+                    bail!("Failed to match order. Error {e:#}")
+                }
+            };
 
         tracing::info!(trader_id=%order.trader_id, order_id=%order.id, "Found a match with {} makers for new order.", matched_orders.taker_match.filled_with.matches.len());
 
@@ -277,6 +280,7 @@ fn match_order(
     order: &Order,
     opposite_direction_orders: Vec<Order>,
     network: Network,
+    oracle_pk: XOnlyPublicKey,
 ) -> Result<Option<MatchParams>> {
     if order.order_type == OrderType::Limit {
         // we don't match limit and limit at the moment
@@ -314,12 +318,6 @@ fn match_order(
 
     let expiry_timestamp =
         coordinator_commons::calculate_next_expiry(OffsetDateTime::now_utc(), network);
-
-    // For now we hardcode the oracle pubkey here
-    let oracle_pk = XOnlyPublicKey::from_str(
-        "16f88cf7d21e6c0f46bcbc983a4e3b19726c6c98858cc31c83551a88fde171c0",
-    )
-    .expect("To be a valid pubkey");
 
     let matches = matched_orders
         .iter()
@@ -404,6 +402,7 @@ pub mod tests {
     use crate::orderbook::trading::sort_orders;
     use bitcoin::secp256k1::PublicKey;
     use bitcoin::Network;
+    use bitcoin::XOnlyPublicKey;
     use orderbook_commons::Order;
     use orderbook_commons::OrderReason;
     use orderbook_commons::OrderState;
@@ -583,9 +582,14 @@ pub mod tests {
             stable: false,
         };
 
-        let matched_orders = match_order(&order, all_orders, Network::Bitcoin)
-            .unwrap()
-            .unwrap();
+        let matched_orders = match_order(
+            &order,
+            all_orders,
+            Network::Bitcoin,
+            get_oracle_public_key(),
+        )
+        .unwrap()
+        .unwrap();
 
         assert_eq!(matched_orders.makers_matches.len(), 1);
         let maker_matches = matched_orders
@@ -660,7 +664,13 @@ pub mod tests {
             stable: false,
         };
 
-        assert!(match_order(&order, all_orders, Network::Bitcoin).is_err());
+        assert!(match_order(
+            &order,
+            all_orders,
+            Network::Bitcoin,
+            get_oracle_public_key()
+        )
+        .is_err());
     }
 
     #[test]
@@ -711,8 +721,19 @@ pub mod tests {
             stable: false,
         };
 
-        let matched_orders = match_order(&order, all_orders, Network::Bitcoin).unwrap();
+        let matched_orders = match_order(
+            &order,
+            all_orders,
+            Network::Bitcoin,
+            get_oracle_public_key(),
+        )
+        .unwrap();
 
         assert!(matched_orders.is_none());
+    }
+
+    fn get_oracle_public_key() -> XOnlyPublicKey {
+        XOnlyPublicKey::from_str("16f88cf7d21e6c0f46bcbc983a4e3b19726c6c98858cc31c83551a88fde171c0")
+            .unwrap()
     }
 }
