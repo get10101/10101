@@ -2,9 +2,7 @@ import 'package:carousel_slider/carousel_slider.dart';
 import 'package:flutter/material.dart';
 import 'package:get_10101/common/color.dart';
 import 'package:get_10101/common/global_keys.dart';
-import 'package:get_10101/common/scrollable_safe_area.dart';
 import 'package:get_10101/common/snack_bar.dart';
-import 'package:get_10101/features/wallet/wallet_screen.dart';
 import 'package:get_10101/features/welcome/seed_import_screen.dart';
 import 'package:get_10101/features/welcome/welcome_screen.dart';
 import 'package:get_10101/ffi.dart';
@@ -23,7 +21,7 @@ class CarouselItem {
   CarouselItem(this.title, this.description, this.imagePath);
 }
 
-final List<CarouselItem> caruselItems = [
+final List<CarouselItem> carouselItems = [
   CarouselItem("Your keys, your control", "Stay in control of your funds at all time.",
       "assets/carousel_1.png"),
   CarouselItem("Bitcoin only & Lightning fast.",
@@ -34,38 +32,24 @@ final List<CarouselItem> caruselItems = [
       "You can now send, receive and hold USDP natively on Lightning.", "assets/carousel_4.png"),
 ];
 
-List<Widget> carouselItemWidgetLayers = [
-  carouselItemWidget(caruselItems[0]),
-  carouselItemWidget(caruselItems[1]),
-  carouselItemWidget(caruselItems[2]),
-  carouselItemWidget(caruselItems[3])
-];
-
-Widget carouselItemWidget(CarouselItem item) {
+Widget carouselItemWidget(BuildContext context, CarouselItem item) {
+  final baseHeight = MediaQuery.of(context).size.height * 0.45;
+  final baseWidth = MediaQuery.of(context).size.width * 0.10;
   return Stack(children: [
+    Image.asset(item.imagePath),
     Padding(
-      padding: const EdgeInsets.fromLTRB(0, 0, 10, 0),
-      child: ClipRRect(
-          borderRadius: const BorderRadius.all(Radius.circular(5.0)),
-          child: Image.asset(
-            item.imagePath,
-            fit: BoxFit.cover,
-            width: 800.0,
-          )),
-    ),
-    Padding(
-      padding: const EdgeInsets.fromLTRB(15, 250, 15, 0),
+      padding: EdgeInsets.only(left: baseWidth, right: baseWidth, top: baseHeight),
       child: Text(
         item.title,
-        style: const TextStyle(fontSize: 25, fontWeight: FontWeight.bold),
+        style: const TextStyle(fontSize: 30, fontWeight: FontWeight.bold),
         textAlign: TextAlign.center,
       ),
     ),
     Padding(
-      padding: const EdgeInsets.fromLTRB(15, 325, 15, 0),
+      padding: EdgeInsets.only(left: baseWidth, right: baseWidth, top: baseHeight + 100),
       child: Text(
         item.description,
-        style: const TextStyle(fontSize: 20),
+        style: const TextStyle(fontSize: 18, color: Colors.black54),
         textAlign: TextAlign.center,
       ),
     )
@@ -91,52 +75,64 @@ class _Onboarding extends State<Onboarding> {
 
   @override
   Widget build(BuildContext context) {
+    List<Widget> carouselItemWidgetLayers = [
+      carouselItemWidget(context, carouselItems[0]),
+      carouselItemWidget(context, carouselItems[1]),
+      carouselItemWidget(context, carouselItems[2]),
+      carouselItemWidget(context, carouselItems[3])
+    ];
+
     return Scaffold(
         backgroundColor: Colors.white,
-        body: ScrollableSafeArea(
+        body: SafeArea(
             child: Container(
           color: Colors.white,
-          padding: const EdgeInsets.all(20.0),
+          padding: const EdgeInsets.only(bottom: 20),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: <Widget>[
-              const Spacer(),
-              CarouselSlider(
-                items: carouselItemWidgetLayers,
-                carouselController: _controller,
-                options: CarouselOptions(
-                    scrollDirection: Axis.horizontal,
-                    autoPlay: false,
-                    enlargeCenterPage: true,
-                    aspectRatio: 16 / 20,
-                    padEnds: true,
-                    enableInfiniteScroll: false,
-                    onPageChanged: (index, reason) {
-                      setState(() {
-                        _current = index;
-                      });
-                    }),
+              SizedBox(
+                height: MediaQuery.of(context).size.height * 0.70,
+                child: CarouselSlider(
+                  items: carouselItemWidgetLayers,
+                  carouselController: _controller,
+                  options: CarouselOptions(
+                      viewportFraction: 1.0,
+                      scrollDirection: Axis.horizontal,
+                      autoPlay: false,
+                      enlargeCenterPage: true,
+                      aspectRatio: 15 / 22,
+                      padEnds: true,
+                      enableInfiniteScroll: false,
+                      onPageChanged: (index, reason) {
+                        setState(() {
+                          _current = index;
+                        });
+                      }),
+                ),
               ),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: carouselItemWidgetLayers.asMap().entries.map((entry) {
-                  return GestureDetector(
-                    onTap: () => _controller.animateToPage(entry.key),
-                    child: Container(
-                      width: 8.0,
-                      height: 8.0,
-                      margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
-                      decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: (Theme.of(context).brightness == Brightness.dark
-                                  ? Colors.white
-                                  : Colors.black)
-                              .withOpacity(_current == entry.key ? 0.6 : 0.2)),
-                    ),
-                  );
-                }).toList(),
+              Expanded(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: carouselItemWidgetLayers.asMap().entries.map((entry) {
+                    return GestureDetector(
+                      onTap: () => _controller.animateToPage(entry.key),
+                      child: Container(
+                        width: 8.0,
+                        height: 8.0,
+                        margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
+                        decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: (Theme.of(context).brightness == Brightness.dark
+                                    ? Colors.white
+                                    : Colors.black)
+                                .withOpacity(_current == entry.key ? 0.6 : 0.2)),
+                      ),
+                    );
+                  }).toList(),
+                ),
               ),
-              const Spacer(),
+              const SizedBox(height: 10),
               Column(children: [
                 SizedBox(
                   width: 250,
