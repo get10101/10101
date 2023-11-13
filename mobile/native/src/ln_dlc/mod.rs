@@ -198,7 +198,7 @@ pub async fn update_node_settings(settings: LnDlcNodeSettings) {
 }
 
 pub fn get_oracle_pubkey() -> XOnlyPublicKey {
-    crate::state::get_node().inner.oracle_pk()
+    crate::state::get_node().inner.oracle_pubkey
 }
 
 pub fn get_funding_transaction(channel_id: &ChannelId) -> Result<Txid> {
@@ -304,7 +304,8 @@ pub fn run(seed_dir: String, runtime: &Runtime) -> Result<()> {
             seed,
             ephemeral_randomness,
             LnDlcNodeSettings::default(),
-            config::get_oracle_info().into(),
+            vec![config::get_oracle_info().into()],
+            config::get_oracle_info().public_key,
         )?;
         let node = Arc::new(node);
 

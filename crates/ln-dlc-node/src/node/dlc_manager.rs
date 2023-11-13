@@ -10,7 +10,6 @@ use bitcoin::secp256k1::PublicKey;
 use dlc_manager::channel::signed_channel::SignedChannel;
 use dlc_manager::channel::signed_channel::SignedChannelState;
 use dlc_manager::channel::Channel;
-use dlc_manager::Oracle;
 use dlc_manager::Storage as DlcStorage;
 use dlc_manager::SystemTimeProvider;
 use ln_dlc_storage::DlcStorageProvider;
@@ -33,14 +32,16 @@ pub fn build<S: TenTenOneStorage, N: Storage>(
     data_dir: &Path,
     ln_dlc_wallet: Arc<LnDlcWallet<S, N>>,
     dlc_storage: Arc<DlcStorageProvider<S>>,
-    p2pdoracle: Arc<P2PDOracleClient>,
+    p2pdoracles: Vec<Arc<P2PDOracleClient>>,
     fee_rate_estimator: Arc<FeeRateEstimator>,
 ) -> Result<DlcManager<S, N>> {
     let offers_path = data_dir.join("offers");
     fs::create_dir_all(offers_path)?;
 
-    let oracle_pubkey = p2pdoracle.get_public_key();
-    let oracles = HashMap::from([(oracle_pubkey, p2pdoracle)]);
+    let mut oracles = HashMap::new();
+    for oracle in p2pdoracles.into_iter() {
+        oracles.insert(oracle.public_key, oracle);
+    }
 
     // FIXME: We need to do this to ensure that we can upgrade `Node`s from LDK 0.0.114 to 0.0.116.
     // We should remove this workaround as soon as possible.

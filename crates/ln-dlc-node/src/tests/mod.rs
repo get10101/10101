@@ -191,7 +191,8 @@ impl Node<TenTenOneInMemoryStorage, InMemoryStore> {
             seed,
             ephemeral_randomness,
             settings,
-            oracle.into(),
+            vec![oracle.into()],
+            XOnlyPublicKey::from_str(ORACLE_PUBKEY)?,
         )?;
         let node = Arc::new(node);
 

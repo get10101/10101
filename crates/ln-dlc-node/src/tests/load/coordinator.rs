@@ -165,7 +165,7 @@ impl Coordinator {
             filled_with: FilledWith {
                 order_id,
                 expiry_timestamp,
-                oracle_pk: app.oracle_pk(),
+                oracle_pk: *app.oracle_pk().first().unwrap(),
                 matches: vec![Match {
                     order_id: Uuid::new_v4(),
                     quantity: Decimal::from_f32(quantity).unwrap(),

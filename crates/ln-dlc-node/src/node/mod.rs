@@ -22,6 +22,7 @@ use bitcoin::hashes::hex::ToHex;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::Network;
 use bitcoin::Txid;
+use bitcoin::XOnlyPublicKey;
 use dlc_messages::message_handler::MessageHandler as DlcMessageHandler;
 use futures::future::RemoteHandle;
 use futures::FutureExt;
@@ -142,9 +143,14 @@ pub struct Node<S: TenTenOneStorage, N: Storage> {
 
     pub dlc_manager: Arc<DlcManager<S, N>>,
     pub sub_channel_manager: Arc<SubChannelManager<S, N>>,
-    oracle: Arc<P2PDOracleClient>,
+
+    /// All oracles clients the node is aware of.
+    oracles: Vec<Arc<P2PDOracleClient>>,
     pub dlc_message_handler: Arc<DlcMessageHandler>,
     pub ldk_config: Arc<parking_lot::RwLock<UserConfig>>,
+
+    /// The oracle pubkey used for proposing dlc channels
+    pub oracle_pubkey: XOnlyPublicKey,
 
     // storage
     // TODO(holzeis): The node storage should get extracted to the corresponding application
@@ -251,7 +257,8 @@ impl<S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 'static> Node<S, 
         seed: Bip39Seed,
         ephemeral_randomness: [u8; 32],
         settings: LnDlcNodeSettings,
-        oracle_client: P2PDOracleClient,
+        oracle_clients: Vec<P2PDOracleClient>,
+        oracle_pubkey: XOnlyPublicKey,
     ) -> Result<Self>
     where
         SC: Fn(&Path, Arc<NetworkGraph>, Arc<TracingLogger>) -> Scorer,
@@ -362,13 +369,14 @@ impl<S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 'static> Node<S, 
             logger.clone(),
         ));
 
-        let oracle_client = Arc::new(oracle_client);
+        let oracle_clients: Vec<Arc<P2PDOracleClient>> =
+            oracle_clients.into_iter().map(Arc::new).collect();
 
         let dlc_manager = dlc_manager::build(
             data_dir,
             ln_dlc_wallet.clone(),
             dlc_storage.clone(),
-            oracle_client.clone(),
+            oracle_clients.clone(),
             fee_rate_estimator.clone(),
         )?;
         let dlc_manager = Arc::new(dlc_manager);
@@ -416,7 +424,7 @@ impl<S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 'static> Node<S, 
             info: node_info,
             fake_channel_payments,
             sub_channel_manager,
-            oracle: oracle_client,
+            oracles: oracle_clients,
             dlc_message_handler,
             dlc_manager,
             ln_storage,
@@ -434,6 +442,7 @@ impl<S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 'static> Node<S, 
             esplora_server_url,
             esplora_client,
             pending_channel_opening_fee_rates: Arc::new(parking_lot::Mutex::new(HashMap::new())),
+            oracle_pubkey,
         })
     }
 

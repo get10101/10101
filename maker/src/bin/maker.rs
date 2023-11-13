@@ -98,7 +98,8 @@ async fn main() -> Result<()> {
         seed,
         ephemeral_randomness,
         LnDlcNodeSettings::default(),
-        opts.get_oracle_info().into(),
+        vec![opts.get_oracle_info().into()],
+        opts.get_oracle_info().public_key,
     )?);
 
     let event_handler = EventHandler::new(node.clone());
