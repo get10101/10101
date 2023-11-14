@@ -1,14 +1,8 @@
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:flutter/material.dart';
 import 'package:get_10101/common/color.dart';
-import 'package:get_10101/common/global_keys.dart';
-import 'package:get_10101/common/snack_bar.dart';
 import 'package:get_10101/features/welcome/seed_import_screen.dart';
 import 'package:get_10101/features/welcome/welcome_screen.dart';
-import 'package:get_10101/ffi.dart';
-import 'package:get_10101/logger/logger.dart';
-import 'package:get_10101/util/file.dart';
-import 'package:get_10101/util/preferences.dart';
 import 'package:go_router/go_router.dart';
 
 final themeMode = ValueNotifier(2);
@@ -71,7 +65,6 @@ class Onboarding extends StatefulWidget {
 class _Onboarding extends State<Onboarding> {
   int _current = 0;
   final CarouselController _controller = CarouselController();
-  bool buttonsDisabled = false;
 
   @override
   Widget build(BuildContext context) {
@@ -137,29 +130,7 @@ class _Onboarding extends State<Onboarding> {
                 SizedBox(
                   width: 250,
                   child: ElevatedButton(
-                      onPressed: buttonsDisabled
-                          ? null
-                          : () async {
-                              setState(() {
-                                buttonsDisabled = true;
-                              });
-                              final seedPath = await getSeedFilePath();
-                              await api
-                                  .initNewMnemonic(targetSeedFilePath: seedPath)
-                                  .then((value) async {
-                                Preferences.instance
-                                    .hasEmailAddress()
-                                    .then((value) => GoRouter.of(context).go(WelcomeScreen.route));
-                              }).catchError((error) {
-                                logger.e("Could not create seed", error: error);
-                                showSnackBar(ScaffoldMessenger.of(rootNavigatorKey.currentContext!),
-                                    "Failed to create seed: $error");
-                                // In case there was an error and we did not go forward, we want to be able to click the button again.
-                                setState(() {
-                                  buttonsDisabled = false;
-                                });
-                              });
-                            },
+                      onPressed: () => GoRouter.of(context).go(WelcomeScreen.route),
                       style: ButtonStyle(
                         padding: MaterialStateProperty.all<EdgeInsets>(const EdgeInsets.all(15)),
                         backgroundColor: MaterialStateProperty.all<Color>(tenTenOnePurple),
@@ -183,15 +154,7 @@ class _Onboarding extends State<Onboarding> {
                 SizedBox(
                   width: 250,
                   child: TextButton(
-                    onPressed: buttonsDisabled
-                        ? null
-                        : () {
-                            setState(() {
-                              buttonsDisabled = true;
-                              GoRouter.of(context).go(SeedPhraseImporter.route);
-                              buttonsDisabled = false;
-                            });
-                          },
+                    onPressed: () => GoRouter.of(context).go(SeedPhraseImporter.route),
                     style: ButtonStyle(
                       padding: MaterialStateProperty.all<EdgeInsets>(const EdgeInsets.all(15)),
                       backgroundColor: MaterialStateProperty.all<Color>(Colors.white),

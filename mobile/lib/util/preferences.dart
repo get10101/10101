@@ -52,9 +52,9 @@ class Preferences {
     return preferences.getBool(userSeedBackupConfirmed) ?? false;
   }
 
-  setEmailAddress(String value) async {
+  Future<bool> setEmailAddress(String value) async {
     SharedPreferences preferences = await SharedPreferences.getInstance();
-    preferences.setString(emailAddress, value);
+    return preferences.setString(emailAddress, value);
   }
 
   Future<String> getEmailAddress() async {
