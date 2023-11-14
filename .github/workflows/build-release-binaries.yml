@@ -36,8 +36,8 @@ jobs:
       coordinator_port_http: 80
       network: mainnet
       tag: ${{ github.ref_name }}
-      oracle_endpoint: https://oracle.holzeis.me
-      oracle_pubkey: 16f88cf7d21e6c0f46bcbc983a4e3b19726c6c98858cc31c83551a88fde171c0
+      oracle_endpoint: http://oracle.10101.finance
+      oracle_pubkey: 93051f54feefdb4765492a85139c436d4857e2e331a360c89a16d6bc02ba9cd0
       fastlane_developer_app_identifier: finance.get10101.app
       fastlane_provisioning_profile_specifier: match AppStore finance.get10101.app 1692208014
       app_scheme: Runner
@@ -54,5 +54,5 @@ jobs:
       coordinator_p2p_endpoint: 022ae8dbec1caa4dac93f07f2ebf5ad7a5dd08d375b79f11095e81b065c2155156@46.17.98.29:9045
       coordinator_port_http: 80
       network: mainnet
-      oracle_endpoint: https://oracle.holzeis.me
-      oracle_pubkey: 16f88cf7d21e6c0f46bcbc983a4e3b19726c6c98858cc31c83551a88fde171c0
+      oracle_endpoint: http://oracle.10101.finance
+      oracle_pubkey: 93051f54feefdb4765492a85139c436d4857e2e331a360c89a16d6bc02ba9cd0
