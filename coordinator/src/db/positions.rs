@@ -141,6 +141,70 @@ impl Position {
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)]
+    pub fn set_open_position_to_resizing(
+        conn: &mut PgConnection,
+        trader_pubkey: String,
+    ) -> Result<()> {
+        let affected_rows = diesel::update(positions::table)
+            .filter(positions::trader_pubkey.eq(trader_pubkey.clone()))
+            .filter(positions::position_state.eq(PositionState::Open))
+            .set((
+                positions::position_state.eq(PositionState::Resizing),
+                positions::update_timestamp.eq(OffsetDateTime::now_utc()),
+            ))
+            .execute(conn)?;
+
+        if affected_rows == 0 {
+            bail!("Could not update position to Resizing for {trader_pubkey}")
+        }
+
+        Ok(())
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn update_resized_position(
+        conn: &mut PgConnection,
+        trader_pubkey: String,
+        quantity: f32,
+        direction: Direction,
+        coordinator_leverage: f32,
+        trader_leverage: f32,
+        coordinator_margin: i64,
+        trader_margin: i64,
+        average_entry_price: f32,
+        liquidation_price: f32,
+        expiry_timestamp: OffsetDateTime,
+        temporary_contract_id: ContractId,
+        stable: bool,
+    ) -> Result<()> {
+        let affected_rows = diesel::update(positions::table)
+            .filter(positions::trader_pubkey.eq(trader_pubkey.clone()))
+            .filter(positions::position_state.eq(PositionState::Resizing))
+            .set((
+                positions::position_state.eq(PositionState::Open),
+                positions::update_timestamp.eq(OffsetDateTime::now_utc()),
+                positions::quantity.eq(quantity),
+                positions::direction.eq(direction),
+                positions::trader_leverage.eq(trader_leverage),
+                positions::coordinator_leverage.eq(coordinator_leverage),
+                positions::coordinator_margin.eq(coordinator_margin),
+                positions::trader_margin.eq(trader_margin),
+                positions::average_entry_price.eq(average_entry_price),
+                positions::liquidation_price.eq(liquidation_price),
+                positions::expiry_timestamp.eq(expiry_timestamp),
+                positions::temporary_contract_id.eq(temporary_contract_id.to_hex()),
+                positions::stable.eq(stable),
+            ))
+            .execute(conn)?;
+
+        if affected_rows == 0 {
+            bail!("Could not update position to Resizing for {trader_pubkey}")
+        }
+
+        Ok(())
+    }
+
     pub fn set_position_to_closed_with_pnl(
         conn: &mut PgConnection,
         id: i32,
@@ -185,7 +249,11 @@ impl Position {
     ) -> Result<()> {
         let affected_rows = diesel::update(positions::table)
             .filter(positions::trader_pubkey.eq(trader_pubkey))
-            .filter(positions::position_state.eq(PositionState::Rollover))
+            .filter(
+                positions::position_state
+                    .eq(PositionState::Rollover)
+                    .or(positions::position_state.eq(PositionState::Resizing)),
+            )
             .set((
                 positions::position_state.eq(PositionState::Open),
                 positions::temporary_contract_id.eq(temporary_contract_id.to_hex()),
@@ -254,6 +322,7 @@ impl From<crate::position::models::PositionState> for PositionState {
             crate::position::models::PositionState::Closing { .. } => PositionState::Closing,
             crate::position::models::PositionState::Closed { .. } => PositionState::Closed,
             crate::position::models::PositionState::Rollover => PositionState::Rollover,
+            crate::position::models::PositionState::Resizing { .. } => PositionState::Resizing,
         }
     }
 }
@@ -303,6 +372,7 @@ struct NewPosition {
     pub expiry_timestamp: OffsetDateTime,
     pub trader_pubkey: String,
     pub temporary_contract_id: String,
+    pub coordinator_leverage: f32,
     pub trader_margin: i64,
     pub stable: bool,
 }
@@ -321,6 +391,7 @@ impl From<crate::position::models::NewPosition> for NewPosition {
             expiry_timestamp: value.expiry_timestamp,
             trader_pubkey: value.trader.to_string(),
             temporary_contract_id: value.temporary_contract_id.to_hex(),
+            coordinator_leverage: value.coordinator_leverage,
             trader_margin: value.trader_margin,
             stable: value.stable,
         }
@@ -334,6 +405,7 @@ pub enum PositionState {
     Closing,
     Rollover,
     Closed,
+    Resizing,
 }
 
 impl QueryId for PositionStateType {
@@ -362,6 +434,7 @@ impl From<(PositionState, Option<i64>, Option<f32>)> for crate::position::models
                 pnl: realized_pnl.unwrap_or(0),
             },
             PositionState::Rollover => crate::position::models::PositionState::Rollover,
+            PositionState::Resizing => crate::position::models::PositionState::Resizing,
         }
     }
 }

@@ -80,6 +80,21 @@ diesel::table! {
 }
 
 diesel::table! {
+    trades (id) {
+        id -> Integer,
+        order_id -> Text,
+        contract_symbol -> Text,
+        contracts -> Float,
+        direction -> Text,
+        trade_cost_sat -> BigInt,
+        fee_sat -> BigInt,
+        pnl_sat -> Nullable<BigInt>,
+        price -> Float,
+        timestamp -> BigInt,
+    }
+}
+
+diesel::table! {
     transactions (txid) {
         txid -> Text,
         fee -> BigInt,
@@ -95,5 +110,6 @@ diesel::allow_tables_to_appear_in_same_query!(
     payments,
     positions,
     spendable_outputs,
+    trades,
     transactions,
 );

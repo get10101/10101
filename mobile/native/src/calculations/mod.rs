@@ -25,9 +25,12 @@ pub fn calculate_pnl(
     leverage: f32,
     direction: Direction,
 ) -> Result<i64> {
+    // FIXME: We can no longer assume that the coordinator always has the same leverage! It needs to
+    // be passed in as an argument. Unfortunately the coordinator leverage is not passed around at
+    // the moment. Perhaps we should add it to the `TradeParams`.
     let (long_leverage, short_leverage) = match direction {
-        Direction::Long => (leverage, 1.0),
-        Direction::Short => (1.0, leverage),
+        Direction::Long => (leverage, 2.0),
+        Direction::Short => (2.0, leverage),
     };
 
     let opening_price = Decimal::try_from(opening_price).expect("price to fit into decimal");

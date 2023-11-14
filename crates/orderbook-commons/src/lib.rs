@@ -210,7 +210,7 @@ impl Display for Message {
 ///
 /// The match defines the execution price and the quantity to be used of the order with the
 /// corresponding order id.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Match {
     /// The id of the match
     pub id: Uuid,
@@ -254,7 +254,7 @@ impl From<Matches> for Match {
 /// This emitted for one of the trader's order, i.e. the `order_id` matches one of the orders that
 /// the trader submitted to the orderbook. The matches define how this order was filled.
 /// This information is used to request trade execution with the coordinator.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct FilledWith {
     /// The id of the order defined by the orderbook
     ///

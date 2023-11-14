@@ -95,6 +95,8 @@ pub enum WalletHistoryItemType {
         order_id: String,
         fee_sat: u64,
         pnl: Option<i64>,
+        contracts: u64,
+        direction: String,
     },
 }
 

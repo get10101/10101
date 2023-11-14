@@ -249,7 +249,7 @@ impl Node {
 
             let execution_price = filled_order
                 .execution_price()
-                .context("expect execution price")?;
+                .expect("filled order to have a price");
             let open_position_fee = order_matching_fee_taker(
                 filled_order.quantity,
                 Decimal::try_from(execution_price)?,
@@ -295,14 +295,30 @@ impl Node {
             .send_message(node_id, msg.clone());
 
         // After sending the `CloseFinalize` message, we need to do some post-processing based on
-        // the fact that the DLC channel has been closed
+        // the fact that the DLC channel has been closed.
         if let Message::SubChannel(SubChannelMessage::CloseFinalize(SubChannelCloseFinalize {
             ..
         })) = msg
         {
-            let filled_order = order::handler::order_filled()?;
-            position::handler::update_position_after_dlc_closure(Some(filled_order))
-                .context("Failed to update position after DLC closure")?;
+            tracing::debug!(
+                "Checking purpose of sending SubChannelCloseFinalize w.r.t. the position"
+            );
+
+            let positions = position::handler::get_positions()?;
+            let position = positions
+                .first()
+                .context("Cannot find position even though we just received a SubChannelMessage")?;
+
+            if position.position_state == PositionState::Resizing {
+                tracing::debug!("Position is being resized");
+            } else {
+                tracing::debug!("Position is being closed");
+
+                let filled_order = order::handler::order_filled()?;
+
+                position::handler::update_position_after_dlc_closure(Some(filled_order))
+                    .context("Failed to update position after DLC closure")?;
+            }
 
             // Sending always a recover dlc background notification success message here as we do
             // not know if we might have reached this state after a restart. This event is only

@@ -1,3 +1,5 @@
+import 'package:get_10101/features/trade/domain/direction.dart';
+import 'package:get_10101/features/trade/domain/leverage.dart';
 import 'package:get_10101/logger/logger.dart';
 import 'package:flutter/material.dart';
 import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
@@ -38,6 +40,42 @@ class PositionChangeNotifier extends ChangeNotifier implements Subscriber {
   bool hasStableUSD() {
     final positionUsd = positions[ContractSymbol.btcusd];
     return positionUsd != null && positionUsd.stable;
+  }
+
+  Amount marginUsableForTrade(Direction tradeDirection) {
+    final position = positions[ContractSymbol.btcusd];
+
+    if (position == null ||
+        // The margin can only be used in another trade if the trade reduces the position, by going
+        // in a different direction.
+        tradeDirection == position.direction ||
+        position.averageEntryPrice == 0 ||
+        position.leverage.leverage == 0) {
+      return Amount.zero();
+    }
+
+    double marginBtc =
+        position.quantity.asDouble() / (position.averageEntryPrice * position.leverage.leverage);
+
+    return btcToSat(marginBtc);
+  }
+
+  Amount coordinatorMarginUsableForTrade(Leverage coordinatorLeverage, Direction tradeDirection) {
+    final position = positions[ContractSymbol.btcusd];
+
+    if (position == null ||
+        // The coordinator margin can only be used in another trade if the trade reduces the
+        // position, by going in a different direction.
+        tradeDirection == position.direction ||
+        position.averageEntryPrice == 0 ||
+        coordinatorLeverage.leverage == 0) {
+      return Amount.zero();
+    }
+
+    double marginBtc =
+        position.quantity.asDouble() / (position.averageEntryPrice * coordinatorLeverage.leverage);
+
+    return btcToSat(marginBtc);
   }
 
   Future<void> initialize() async {
@@ -94,4 +132,12 @@ class PositionChangeNotifier extends ChangeNotifier implements Subscriber {
       logger.w("Received unexpected event: ${event.toString()}");
     }
   }
+}
+
+Amount btcToSat(double btc) {
+  String btcString = btc.toStringAsFixed(8);
+
+  int sats = (double.parse(btcString) * 100000000).round();
+
+  return Amount(sats);
 }

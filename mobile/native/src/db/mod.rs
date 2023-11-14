@@ -1,6 +1,7 @@
 use crate::config;
 use crate::db::models::base64_engine;
 use crate::db::models::Channel;
+use crate::db::models::NewTrade;
 use crate::db::models::Order;
 use crate::db::models::OrderState;
 use crate::db::models::PaymentInsertable;
@@ -8,6 +9,7 @@ use crate::db::models::PaymentQueryable;
 use crate::db::models::Position;
 use crate::db::models::SpendableOutputInsertable;
 use crate::db::models::SpendableOutputQueryable;
+use crate::db::models::Trade;
 use crate::db::models::Transaction;
 use crate::trade;
 use anyhow::anyhow;
@@ -289,6 +291,14 @@ pub fn update_position_state(
     Ok(())
 }
 
+pub fn update_position(resized_position: trade::position::Position) -> Result<()> {
+    let mut db = connection()?;
+    Position::update_position(&mut db, resized_position.into())
+        .context("Failed to update position state")?;
+
+    Ok(())
+}
+
 pub fn rollover_position(
     contract_symbol: ::trade::ContractSymbol,
     expiry_timestamp: OffsetDateTime,
@@ -518,4 +528,26 @@ pub fn get_all_transactions_without_fees() -> Result<Vec<ln_dlc_node::transactio
     tracing::debug!(?transactions, "Got all transactions");
 
     Ok(transactions)
+}
+
+// Trade
+
+pub fn get_all_trades() -> Result<Vec<crate::trade::Trade>> {
+    let mut db = connection()?;
+
+    let trades = Trade::get_all(&mut db)?;
+    let trades = trades
+        .into_iter()
+        .map(|trade| trade.into())
+        .collect::<Vec<_>>();
+
+    Ok(trades)
+}
+
+pub fn insert_trade(trade: crate::trade::Trade) -> Result<()> {
+    let mut db = connection()?;
+
+    NewTrade::insert(&mut db, trade.into())?;
+
+    Ok(())
 }

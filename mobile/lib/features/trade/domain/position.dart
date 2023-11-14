@@ -14,6 +14,7 @@ enum PositionState {
   static PositionState fromApi(bridge.PositionState positionState) {
     switch (positionState) {
       case bridge.PositionState.Open:
+      case bridge.PositionState.Resizing:
         return PositionState.open;
       case bridge.PositionState.Closing:
         return PositionState.closing;

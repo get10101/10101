@@ -28,6 +28,7 @@ pub struct NewPosition {
     pub coordinator_margin: i64,
     pub expiry_timestamp: OffsetDateTime,
     pub temporary_contract_id: ContractId,
+    pub coordinator_leverage: f32,
     pub trader_margin: i64,
     pub stable: bool,
 }
@@ -35,9 +36,9 @@ pub struct NewPosition {
 #[derive(Clone, PartialEq, Debug)]
 pub enum PositionState {
     Open,
-    /// The position is in the process of being closed
+    /// The position is in the process of being closed.
     ///
-    /// Once the position is being close the closing price is known.
+    /// Once the position is being closed the closing price is known.
     Closing {
         closing_price: f32,
     },
@@ -45,6 +46,7 @@ pub enum PositionState {
         pnl: i64,
     },
     Rollover,
+    Resizing,
 }
 
 /// The position acts as an aggregate of one contract of one user.

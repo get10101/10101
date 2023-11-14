@@ -11,10 +11,12 @@ import 'package:get_10101/common/domain/liquidity_option.dart';
 import 'package:get_10101/common/domain/model.dart';
 import 'package:get_10101/common/modal_bottom_sheet_info.dart';
 import 'package:get_10101/common/value_data_row.dart';
+import 'package:get_10101/features/trade/domain/contract_symbol.dart';
 import 'package:get_10101/features/trade/domain/direction.dart';
 import 'package:get_10101/features/trade/domain/leverage.dart';
 import 'package:get_10101/features/trade/domain/trade_values.dart';
 import 'package:get_10101/features/trade/leverage_slider.dart';
+import 'package:get_10101/features/trade/position_change_notifier.dart';
 import 'package:get_10101/features/trade/submit_order_change_notifier.dart';
 import 'package:get_10101/features/trade/trade_bottom_sheet_confirmation.dart';
 import 'package:get_10101/features/trade/trade_dialog.dart';
@@ -24,6 +26,8 @@ import 'package:get_10101/features/wallet/domain/wallet_info.dart';
 import 'package:get_10101/features/wallet/wallet_change_notifier.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+
+const contractSymbol = ContractSymbol.btcusd;
 
 class TradeBottomSheetTab extends StatefulWidget {
   final Direction direction;
@@ -38,6 +42,7 @@ class TradeBottomSheetTab extends StatefulWidget {
 class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
   late final TradeValuesChangeNotifier provider;
   late final ChannelInfoService channelInfoService;
+  late final PositionChangeNotifier positionChangeNotifier;
 
   TextEditingController marginController = TextEditingController();
   TextEditingController quantityController = TextEditingController();
@@ -51,6 +56,7 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
   void initState() {
     provider = context.read<TradeValuesChangeNotifier>();
     channelInfoService = provider.channelInfoService;
+    positionChangeNotifier = context.read<PositionChangeNotifier>();
     super.initState();
   }
 
@@ -125,9 +131,16 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
                 Amount channelReserve = channelInfo?.reserve ?? initialReserve;
                 int totalReserve = channelReserve.sats + tradeFeeReserve.sats;
 
-                int usableBalance = max(walletInfo.balances.lightning.sats - totalReserve, 0);
-                // the assumed balance of the counterparty based on the channel and our balance
-                // this is needed to make sure that the counterparty can fulfil the trade
+                // If there is an open position then we can use all those funds to resize the
+                // position in the _opposite_ direction.
+                int usableMarginInPosition =
+                    positionChangeNotifier.marginUsableForTrade(direction).sats;
+
+                int usableBalance = max(
+                    walletInfo.balances.lightning.sats + usableMarginInPosition - totalReserve, 0);
+
+                // The assumed balance of the counterparty based on the channel and our balance. This
+                // is needed to make sure that the counterparty can fulfil the trade.
                 int counterpartyUsableBalance = max(
                     channelCapacity.sats - (walletInfo.balances.lightning.sats + totalReserve), 0);
                 int maxMargin = usableBalance;
@@ -239,6 +252,14 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
       ChannelInfoService channelInfoService) {
     final tradeValues = context.read<TradeValuesChangeNotifier>().fromDirection(direction);
 
+    bool hasPosition = positionChangeNotifier.positions.containsKey(contractSymbol);
+
+    double? positionLeverage;
+    if (hasPosition) {
+      final position = context.read<PositionChangeNotifier>().positions[contractSymbol];
+      positionLeverage = position!.leverage.leverage;
+    }
+
     return Wrap(
       runSpacing: 12,
       children: [
@@ -312,8 +333,13 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
                 }
                 int counterpartyMargin = optCounterPartyMargin;
 
+                int usableCounterpartyMarginInPosition = positionChangeNotifier
+                    .coordinatorMarginUsableForTrade(Leverage(coordinatorLeverage), direction)
+                    .sats;
+
                 // This condition has to stay as the first thing to check, so we reset showing the info
-                if (counterpartyMargin > counterpartyUsableBalance) {
+                if (counterpartyMargin >
+                    counterpartyUsableBalance + usableCounterpartyMarginInPosition) {
                   setState(() => showCapacityInfo = true);
 
                   return "Insufficient capacity";
@@ -361,11 +387,13 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
           ],
         ),
         LeverageSlider(
-            initialValue: context
-                .read<TradeValuesChangeNotifier>()
-                .fromDirection(direction)
-                .leverage
-                .leverage,
+            initialValue: positionLeverage ??
+                context
+                    .read<TradeValuesChangeNotifier>()
+                    .fromDirection(direction)
+                    .leverage
+                    .leverage,
+            isActive: !hasPosition,
             onLeverageChanged: (value) {
               context.read<TradeValuesChangeNotifier>().updateLeverage(direction, Leverage(value));
             }),

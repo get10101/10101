@@ -3,7 +3,6 @@ use rust_decimal::Decimal;
 use serde::Deserialize;
 use serde::Serialize;
 use std::fmt;
-use std::fmt::Formatter;
 use std::str::FromStr;
 
 pub mod bitmex_client;
@@ -34,6 +33,17 @@ impl Direction {
             Direction::Long => Direction::Short,
             Direction::Short => Direction::Long,
         }
+    }
+}
+
+impl fmt::Display for Direction {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s = match self {
+            Direction::Long => "Long",
+            Direction::Short => "Short",
+        };
+
+        s.fmt(f)
     }
 }
 
@@ -69,7 +79,7 @@ impl FromStr for ContractSymbol {
 }
 
 impl fmt::Display for ContractSymbol {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let symbol = match self {
             ContractSymbol::BtcUsd => "btcusd",
         };

@@ -19,7 +19,7 @@ use trade::Direction;
 /// Emitted by the orderbook when a match is found.
 /// Both trading parties will receive trade params and then request trade execution with said trade
 /// parameters from the coordinator.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct TradeParams {
     /// The identity of the trader
     pub pubkey: PublicKey,

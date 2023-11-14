@@ -28,6 +28,7 @@ use dlc_manager::ChannelId;
 use dlc_manager::ContractId;
 use dlc_messages::ChannelMessage;
 use dlc_messages::Message;
+use dlc_messages::SubChannelMessage;
 use lightning::ln::channelmanager::ChannelDetails;
 use lightning::util::config::UserConfig;
 use ln_dlc_node::node;
@@ -39,6 +40,7 @@ use ln_dlc_node::WalletSettings;
 use orderbook_commons::order_matching_fee_taker;
 use orderbook_commons::MatchState;
 use orderbook_commons::OrderState;
+use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use std::sync::Arc;
@@ -53,6 +55,7 @@ use uuid::Uuid;
 pub mod closed_positions;
 pub mod connection;
 pub mod expired_positions;
+pub mod resize;
 pub mod rollover;
 pub mod routing_fees;
 pub mod storage;
@@ -192,40 +195,37 @@ impl Node {
         let order_id = trade_params.filled_with.order_id.to_string();
         tracing::info!(trader_id, order_id, "Executing match");
 
-        match self.decide_trade_action(&trade_params.pubkey)? {
+        match self.decide_trade_action(connection, trade_params)? {
             TradeAction::Open => {
                 ensure!(
                     self.settings.read().await.allow_opening_positions,
                     "Opening positions is disabled"
                 );
 
-                let channel_details = self.get_counterparty_channel(trade_params.pubkey)?;
-
-                let user_channel_id = Uuid::from_u128(channel_details.user_channel_id).to_string();
-                let connection = &mut self.pool.get()?;
-                let channel =
-                    db::channels::get(&user_channel_id, connection)?.with_context(|| {
-                        format!(
-                            "Couldnt find shadow channel. trader_id={}, user_channel_id={}",
-                            trade_params.pubkey, channel_details.user_channel_id
-                        )
-                    })?;
-
-                let coordinator_leverage = match channel.liquidity_option_id {
-                    Some(liquidity_option_id) => {
-                        let liquidity_option =
-                            db::liquidity_options::get(connection, liquidity_option_id)?;
-                        liquidity_option.coordinator_leverage
-                    }
-                    None => 1.0,
-                };
+                let coordinator_leverage =
+                    self.coordinator_leverage_for_trade(&trade_params.pubkey)?;
 
                 self.open_position(connection, trade_params, coordinator_leverage, order.stable)
                     .await?;
             }
+            TradeAction::Resize(channel_id) => {
+                ensure!(
+                    self.settings.read().await.allow_opening_positions,
+                    "Resizing positions is disabled"
+                );
+
+                self.resize_position(connection, channel_id, trade_params)
+                    .await?
+            }
             TradeAction::Close(channel_id) => {
                 let peer_id = trade_params.pubkey;
-                tracing::info!(?trade_params, channel_id = %hex::encode(channel_id), %peer_id, "Closing position");
+
+                tracing::info!(
+                    ?trade_params,
+                    channel_id = %hex::encode(channel_id),
+                    %peer_id,
+                    "Closing position"
+                );
 
                 let closing_price = trade_params.average_execution_price();
 
@@ -366,6 +366,7 @@ impl Node {
             coordinator_margin: margin_coordinator as i64,
             expiry_timestamp: trade_params.filled_with.expiry_timestamp,
             temporary_contract_id,
+            coordinator_leverage,
             trader_margin: margin_trader as i64,
             stable,
         };
@@ -384,6 +385,7 @@ impl Node {
                 coordinator_margin: new_position.coordinator_margin,
                 direction: new_position.direction,
                 average_price: average_entry_price,
+                dlc_expiry_timestamp: Some(trade_params.filled_with.expiry_timestamp),
             },
         )?;
 
@@ -423,6 +425,9 @@ impl Node {
                 coordinator_margin: position.coordinator_margin,
                 direction: position.direction.opposite(),
                 average_price: closing_price.to_f32().expect("To fit into f32"),
+                // A closing trade does not require an expiry timestamp for the DLC, because the DLC
+                // is being _removed_.
+                dlc_expiry_timestamp: None,
             },
         )?;
 
@@ -448,21 +453,42 @@ impl Node {
     /// position.
     ///
     /// 3. If a position of differing quantity is found, we direct the
-    /// caller to extend or reduce the position. _This is currently
-    /// not supported_.
-    pub fn decide_trade_action(&self, trader: &PublicKey) -> Result<TradeAction> {
-        let action = match self.inner.get_dlc_channel_signed(trader)? {
-            Some(subchannel) => {
-                // FIXME: Should query the database for more
-                // information
+    /// caller to resize the position.
+    pub fn decide_trade_action(
+        &self,
+        conn: &mut PgConnection,
+        trade_params: &TradeParams,
+    ) -> Result<TradeAction> {
+        let trader_peer_id = trade_params.pubkey;
 
-                // TODO: Detect if the position should be
-                // extended/reduced. Return corresponding error as
-                // this is currently not supported.
+        let subchannel = match self.inner.get_dlc_channel_signed(&trader_peer_id)? {
+            None => return Ok(TradeAction::Open),
+            Some(subchannel) => subchannel,
+        };
 
-                TradeAction::Close(subchannel.channel_id)
-            }
-            None => TradeAction::Open,
+        let position = db::positions::Position::get_position_by_trader(
+            conn,
+            trader_peer_id,
+            vec![PositionState::Open],
+        )?
+        .with_context(|| format!("Failed to find open position with peer {trader_peer_id}"))?;
+
+        let position_contracts = {
+            let contracts = decimal_from_f32(position.quantity);
+
+            compute_relative_contracts(contracts, &position.direction)
+        };
+
+        let trade_contracts = {
+            let contracts = decimal_from_f32(trade_params.quantity);
+
+            compute_relative_contracts(contracts, &trade_params.direction)
+        };
+
+        let action = if position_contracts + trade_contracts == Decimal::ZERO {
+            TradeAction::Close(subchannel.channel_id)
+        } else {
+            TradeAction::Resize(subchannel.channel_id)
         };
 
         Ok(action)
@@ -542,6 +568,10 @@ impl Node {
             self.finalize_rollover(&r.channel_id)?;
         }
 
+        if let Message::SubChannel(SubChannelMessage::CloseFinalize(_msg)) = &msg {
+            self.continue_position_resizing(node_id)?;
+        }
+
         if let Some(msg) = resp {
             tracing::info!(
                 to = %node_id,
@@ -558,6 +588,25 @@ impl Node {
         }
 
         Ok(())
+    }
+
+    fn coordinator_leverage_for_trade(&self, counterparty_peer_id: &PublicKey) -> Result<f32> {
+        let mut conn = self.pool.get()?;
+
+        let channel_details = self.get_counterparty_channel(*counterparty_peer_id)?;
+        let user_channel_id = Uuid::from_u128(channel_details.user_channel_id).to_string();
+        let channel = db::channels::get(&user_channel_id, &mut conn)?.with_context(|| {
+            format!("Couldn't find shadow channel with user channel ID {user_channel_id}",)
+        })?;
+        let leverage_coordinator = match channel.liquidity_option_id {
+            Some(liquidity_option_id) => {
+                let liquidity_option = db::liquidity_options::get(&mut conn, liquidity_option_id)?;
+                liquidity_option.coordinator_leverage
+            }
+            None => 1.0,
+        };
+
+        Ok(leverage_coordinator)
     }
 }
 
@@ -581,8 +630,7 @@ fn update_order_and_match(
 pub enum TradeAction {
     Open,
     Close(ChannelId),
-    // Extend,
-    // Reduce,
+    Resize(ChannelId),
 }
 
 fn margin_trader(trade_params: &TradeParams) -> u64 {
@@ -611,4 +659,21 @@ fn liquidation_price(trade_params: &TradeParams) -> f32 {
     }
     .to_f32()
     .expect("to fit into f32")
+}
+
+fn compute_relative_contracts(contracts: Decimal, direction: &Direction) -> Decimal {
+    match direction {
+        Direction::Long => contracts,
+        Direction::Short => -contracts,
+    }
+}
+
+#[track_caller]
+fn decimal_from_f32(float: f32) -> Decimal {
+    Decimal::from_f32(float).expect("f32 to fit into Decimal")
+}
+
+#[track_caller]
+fn f32_from_decimal(decimal: Decimal) -> f32 {
+    decimal.to_f32().expect("Decimal to fit into f32")
 }

@@ -24,6 +24,7 @@ struct Trade {
     average_price: f32,
     timestamp: OffsetDateTime,
     fee_payment_hash: String,
+    dlc_expiry_timestamp: Option<OffsetDateTime>,
 }
 
 #[derive(Insertable, Debug, Clone)]
@@ -37,6 +38,7 @@ struct NewTrade {
     collateral: i64,
     direction: Direction,
     average_price: f32,
+    dlc_expiry_timestamp: Option<OffsetDateTime>,
 }
 
 pub fn insert(
@@ -48,6 +50,19 @@ pub fn insert(
         .get_result(conn)?;
 
     Ok(trade.into())
+}
+
+pub fn get_latest_for_position(
+    conn: &mut PgConnection,
+    position_id: i32,
+) -> Result<Option<crate::trade::models::Trade>> {
+    let trade = trades::table
+        .filter(trades::position_id.eq(position_id))
+        .order_by(trades::id.desc())
+        .first::<Trade>(conn)
+        .optional()?;
+
+    Ok(trade.map(crate::trade::models::Trade::from))
 }
 
 /// Returns the position by trader pub key
@@ -76,6 +91,7 @@ impl From<crate::trade::models::NewTrade> for NewTrade {
             collateral: value.coordinator_margin,
             direction: value.direction.into(),
             average_price: value.average_price,
+            dlc_expiry_timestamp: value.dlc_expiry_timestamp,
         }
     }
 }
@@ -97,6 +113,7 @@ impl From<Trade> for crate::trade::models::Trade {
             fee_payment_hash: PaymentHash(
                 <[u8; 32]>::from_hex(value.fee_payment_hash).expect("payment hash to decode"),
             ),
+            dlc_expiry_timestamp: value.dlc_expiry_timestamp,
         }
     }
 }

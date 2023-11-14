@@ -45,6 +45,7 @@ impl ToSql<PositionStateType, Pg> for PositionState {
             PositionState::Closing => out.write_all(b"Closing")?,
             PositionState::Closed => out.write_all(b"Closed")?,
             PositionState::Rollover => out.write_all(b"Rollover")?,
+            PositionState::Resizing => out.write_all(b"Resizing")?,
         }
         Ok(IsNull::No)
     }
@@ -57,6 +58,7 @@ impl FromSql<PositionStateType, Pg> for PositionState {
             b"Closing" => Ok(PositionState::Closing),
             b"Closed" => Ok(PositionState::Closed),
             b"Rollover" => Ok(PositionState::Rollover),
+            b"Resizing" => Ok(PositionState::Resizing),
             _ => Err("Unrecognized enum variant".into()),
         }
     }

@@ -67,7 +67,9 @@ abstract class WalletHistoryItemData {
           timestamp: timestamp,
           orderId: type.orderId,
           fee: Amount(type.feeSat),
-          pnl: type.pnl != null ? Amount(type.pnl!) : null);
+          pnl: type.pnl != null ? Amount(type.pnl!) : null,
+          direction: type.direction,
+          contracts: type.contracts);
     }
 
     rust.WalletHistoryItemType_Lightning type =
@@ -144,6 +146,8 @@ class TradeData extends WalletHistoryItemData {
   final String orderId;
   final Amount fee;
   final Amount? pnl;
+  final String direction;
+  final int contracts;
 
   TradeData(
       {required super.flow,
@@ -152,7 +156,9 @@ class TradeData extends WalletHistoryItemData {
       required super.timestamp,
       required this.fee,
       this.pnl,
-      required this.orderId});
+      required this.orderId,
+      required this.direction,
+      required this.contracts});
 
   @override
   WalletHistoryItem toWidget() {
