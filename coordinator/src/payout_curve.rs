@@ -109,3 +109,65 @@ pub fn create_rounding_interval(total_collateral: u64) -> RoundingIntervals {
         }],
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use orderbook_commons::order_matching_fee_taker;
+    use rust_decimal_macros::dec;
+    use trade::cfd::calculate_margin;
+
+    #[test]
+    fn payout_price_range_is_below_max_price() {
+        let initial_price = dec!(36780);
+        let quantity = 19.0;
+        let leverage_coordinator = 2.0;
+        let coordinator_margin = calculate_margin(initial_price, quantity, leverage_coordinator);
+
+        let leverage_trader = 1.0;
+        let trader_margin = calculate_margin(initial_price, quantity, leverage_trader);
+
+        let coordinator_direction = Direction::Long;
+
+        let fee = order_matching_fee_taker(quantity, initial_price).to_sat();
+
+        let total_collateral = coordinator_margin + trader_margin;
+        let rounding_intervals = create_rounding_interval(total_collateral);
+
+        let symbol = ContractSymbol::BtcUsd;
+
+        let descriptor = build_contract_descriptor(
+            initial_price,
+            coordinator_margin,
+            trader_margin,
+            leverage_coordinator,
+            leverage_trader,
+            coordinator_direction,
+            fee,
+            rounding_intervals,
+            quantity,
+            symbol,
+        )
+        .unwrap();
+
+        let range_payouts = match descriptor {
+            ContractDescriptor::Enum(_) => unreachable!(),
+            ContractDescriptor::Numerical(numerical) => {
+                numerical.get_range_payouts(total_collateral).unwrap()
+            }
+        };
+
+        let max_price = 2usize.pow(20);
+
+        for range_payout in &range_payouts {
+            assert!(
+                range_payout.start + range_payout.count <= max_price,
+                "{} + {} = {} > {}",
+                range_payout.start,
+                range_payout.count,
+                range_payout.start + range_payout.count,
+                max_price
+            );
+        }
+    }
+}

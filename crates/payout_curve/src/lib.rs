@@ -170,7 +170,8 @@ fn calculate_mid_range_payouts(
                 lower_event_outcome_payout as u64
             };
 
-            let upper_event_outcome = current_price + PAYOUT_CURVE_DISCRETIZATION_STEPS;
+            let upper_event_outcome =
+                (current_price + PAYOUT_CURVE_DISCRETIZATION_STEPS).min(BTCUSD_MAX_PRICE);
             let pnl = calculate_pnl(
                 initial_price,
                 Decimal::from(upper_event_outcome),
@@ -668,6 +669,65 @@ mod tests {
     }
 
     #[test]
+    pub fn ensure_all_bounds_smaller_or_equal_max_btc_price() {
+        // setup
+        let long_leverage = 2.0;
+        let short_leverage = 1.0;
+        let initial_price = dec!(36780);
+        let quantity = 19.0;
+        let fee = 155;
+        let accept_collateral = calculate_margin(initial_price, quantity, short_leverage);
+        let offer_collateral = calculate_margin(initial_price, quantity, long_leverage);
+
+        let short_liquidation_price = calculate_short_liquidation_price(
+            Decimal::from_f32(short_leverage).expect("to fit into f32"),
+            initial_price,
+        );
+        let long_liquidation_price = calculate_long_liquidation_price(
+            Decimal::from_f32(long_leverage).expect("to fit into f32"),
+            initial_price,
+        );
+
+        let lower_limit = long_liquidation_price.to_u64().expect("to fit into u64");
+        let upper_limit = short_liquidation_price.to_u64().expect("to fit into u64");
+
+        // act: offer long
+        let mid_range_payouts_offer_long = calculate_mid_range_payouts(
+            accept_collateral,
+            offer_collateral,
+            long_leverage,
+            short_leverage,
+            initial_price,
+            lower_limit,
+            upper_limit,
+            &PayoutPoint {
+                event_outcome: lower_limit,
+                outcome_payout: fee,
+                extra_precision: 0,
+            },
+            Direction::Long,
+            quantity,
+            fee,
+        )
+        .expect("To be able to compute mid range");
+
+        for (lower, upper) in &mid_range_payouts_offer_long {
+            assert!(
+                lower.event_outcome <= BTCUSD_MAX_PRICE,
+                "{} > {}",
+                lower.event_outcome,
+                BTCUSD_MAX_PRICE
+            );
+            assert!(
+                upper.event_outcome <= BTCUSD_MAX_PRICE,
+                "{} > {}",
+                upper.event_outcome,
+                BTCUSD_MAX_PRICE
+            );
+        }
+    }
+
+    #[test]
     pub fn calculate_upper_range_payout_points_when_offer_short_then_gets_zero() {
         // setup
         // we take 2 BTC so that all tests have nice numbers
@@ -736,6 +796,31 @@ mod tests {
             wtr.serialize(upper).expect("to be able to write");
             wtr.flush().unwrap();
         }
+    }
+
+    #[test]
+    pub fn upper_range_price_always_below_max_btc_price() {
+        // setup
+        let total_collateral = Amount::ONE_BTC.to_sat() * 2;
+        let last_payout = PayoutPoint {
+            event_outcome: BTCUSD_MAX_PRICE,
+            outcome_payout: total_collateral,
+            extra_precision: 0,
+        };
+        let fee = 300_000;
+
+        // act
+        let (lower, upper) = calculate_upper_range_payouts(
+            Direction::Long,
+            total_collateral,
+            last_payout.clone(),
+            fee,
+        )
+        .unwrap();
+
+        // assert
+        assert_eq!(lower.event_outcome, last_payout.event_outcome);
+        assert_eq!(upper.event_outcome, BTCUSD_MAX_PRICE);
     }
 
     /// Loads the sample data from a csv file
