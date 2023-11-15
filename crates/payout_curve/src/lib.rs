@@ -185,12 +185,16 @@ fn calculate_mid_range_payouts(
             Ok((
                 PayoutPoint {
                     event_outcome: lower_event_outcome.to_u64().expect("to fit into u64"),
-                    outcome_payout: (lower_event_outcome_payout + fee).min(total_collateral),
+                    outcome_payout: (lower_event_outcome_payout + fee)
+                        .min(total_collateral)
+                        .max(0),
                     extra_precision: 0,
                 },
                 PayoutPoint {
                     event_outcome: upper_event_outcome,
-                    outcome_payout: (upper_event_outcome_payout + fee).min(total_collateral),
+                    outcome_payout: (upper_event_outcome_payout + fee)
+                        .min(total_collateral)
+                        .max(0),
                     extra_precision: 0,
                 },
             ))
@@ -343,6 +347,7 @@ mod tests {
     use serde::Deserialize;
     use serde::Serialize;
     use std::fs::File;
+    use std::ops::Mul;
     use trade::cfd::calculate_long_liquidation_price;
     use trade::cfd::calculate_margin;
     use trade::cfd::calculate_short_liquidation_price;
@@ -943,5 +948,64 @@ mod tests {
             assert_eq!(upper.event_outcome, BTCUSD_MAX_PRICE);
             assert_eq!(upper.outcome_payout, total_collateral);
         }
+    }
+
+    proptest! {
+
+        #[test]
+        fn midrange_always_positive(initial_price in 20_000i32..50_000, short_leverage in 1i32..5) {
+            // setup
+            let long_leverage = 2.0;
+            let short_leverage = short_leverage as f32;
+            let initial_price = Decimal::from_i32(initial_price).expect("to be able to parse");
+            let quantity = 1000.0;
+            let fee = dec!(0.003) * Decimal::from_f32(quantity).expect("to be able to parse into dec")
+                / initial_price;
+            let fee = fee
+                .mul(dec!(100_000_000))
+                .to_u64()
+                .expect("to fit into u64");
+
+            let accept_collateral = calculate_margin(initial_price, quantity, short_leverage);
+            let offer_collateral = calculate_margin(initial_price, quantity, long_leverage);
+
+            let short_liquidation_price = calculate_short_liquidation_price(
+                Decimal::from_f32(short_leverage).expect("to fit into f32"),
+                initial_price,
+            );
+            let long_liquidation_price = calculate_long_liquidation_price(
+                Decimal::from_f32(long_leverage).expect("to fit into f32"),
+                initial_price,
+            );
+
+            let lower_limit = long_liquidation_price.to_u64().expect("to fit into u64");
+            let upper_limit = short_liquidation_price.to_u64().expect("to fit into u64");
+
+            // act: offer long
+            let mid_range_payouts_offer_long = calculate_mid_range_payouts(
+                accept_collateral,
+                offer_collateral,
+                long_leverage,
+                short_leverage,
+                initial_price,
+                lower_limit,
+                upper_limit,
+                &PayoutPoint {
+                    event_outcome: lower_limit,
+                    outcome_payout: fee,
+                    extra_precision: 0,
+                },
+                Direction::Long,
+                quantity,
+                fee,
+            )
+            .expect("To be able to compute mid range");
+
+            // assert
+            mid_range_payouts_offer_long
+                .iter()
+                .all(|(lower, upper)| lower.outcome_payout > 0 && upper.outcome_payout > 0);
+        }
+
     }
 }
