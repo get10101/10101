@@ -2,6 +2,7 @@ use crate::dlc_custom_signer::CustomKeysManager;
 use crate::fee_rate_estimator::FeeRateEstimator;
 use crate::ln_dlc_wallet::LnDlcWallet;
 use crate::node::Storage;
+use crate::storage::TenTenOneStorage;
 use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
@@ -24,12 +25,12 @@ use std::sync::Arc;
 const REQUIRED_CONFIRMATIONS: u32 = 6;
 
 /// Determine what to do with a [`SpendableOutputDescriptor`] and do it.
-pub fn manage_spendable_outputs(
-    node_storage: Arc<impl Storage>,
+pub fn manage_spendable_outputs<S: TenTenOneStorage, N: Storage>(
+    node_storage: Arc<N>,
     esplora_client: impl Borrow<esplora_client::BlockingClient>,
-    wallet: impl Borrow<LnDlcWallet>,
+    wallet: impl Borrow<LnDlcWallet<S, N>>,
     fee_rate_estimator: impl Borrow<FeeRateEstimator>,
-    keys_manager: impl Borrow<CustomKeysManager>,
+    keys_manager: impl Borrow<CustomKeysManager<S, N>>,
 ) -> Result<()> {
     let mut outputs_to_spend = Vec::new();
 

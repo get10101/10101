@@ -18,6 +18,7 @@ use maker::orderbook_ws;
 use maker::position;
 use maker::routes::router;
 use maker::run_migration;
+use maker::storage::MakerTenTenOneStorage;
 use maker::trading;
 use rand::thread_rng;
 use rand::RngCore;
@@ -78,13 +79,18 @@ async fn main() -> Result<()> {
 
     let announcement_addresses = ln_dlc_node::util::into_net_addresses(address);
     let node_alias = "maker";
+
+    let storage = MakerTenTenOneStorage::new(data_dir.to_string_lossy().to_string());
+    let node_storage = Arc::new(InMemoryStore::default());
+
     let node = Arc::new(ln_dlc_node::node::Node::new(
         ldk_config(),
         ln_dlc_node::scorer::persistent_scorer,
         node_alias,
         network,
         data_dir.as_path(),
-        Arc::new(InMemoryStore::default()),
+        storage,
+        node_storage,
         address,
         SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), address.port()),
         announcement_addresses.clone(),

@@ -2,9 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:get_10101/common/color.dart';
 import 'package:get_10101/common/global_keys.dart';
 import 'package:get_10101/common/snack_bar.dart';
-import 'package:get_10101/features/wallet/wallet_screen.dart';
+import 'package:get_10101/features/welcome/loading_screen.dart';
 import 'package:get_10101/features/welcome/onboarding.dart';
-import 'package:get_10101/features/welcome/welcome_screen.dart';
 import 'package:get_10101/ffi.dart';
 import 'package:get_10101/logger/logger.dart';
 import 'package:get_10101/util/file.dart';
@@ -139,29 +138,20 @@ class SeedPhraseImporterState extends State<SeedPhraseImporter> {
                           : () async {
                               logger.i("Restoring a previous wallet from a given seed phrase");
                               final seedPhrase = twelveWords.join(" ");
-                              try {
-                                final seedPath = await getSeedFilePath();
+                              getSeedFilePath().then((seedPath) {
                                 logger.i("Restoring seed into $seedPath");
-                                await api
-                                    .restoreFromSeedPhrase(
-                                        seedPhrase: seedPhrase, targetSeedFilePath: seedPath)
-                                    .then((value) async {
-                                  Preferences.instance.hasEmailAddress().then((value) => {
-                                        if (value)
-                                          {GoRouter.of(context).go(WalletScreen.route)}
-                                        else
-                                          {GoRouter.of(context).go(WelcomeScreen.route)}
-                                      });
-                                }).catchError((error) {
-                                  showSnackBar(
-                                      ScaffoldMessenger.of(rootNavigatorKey.currentContext!),
-                                      "Failed to restore seed: $error");
-                                });
-                              } catch (e) {
+
+                                final restore = api.restoreFromSeedPhrase(
+                                    seedPhrase: seedPhrase, targetSeedFilePath: seedPath);
+
+                                // TODO(holzeis): Backup preferences and restore email from there.
+                                Preferences.instance.setEmailAddress("restored");
+                                GoRouter.of(context).go(LoadingScreen.route, extra: restore);
+                              }).catchError((e) {
                                 logger.e("Error restoring from seed phrase: $e");
                                 showSnackBar(ScaffoldMessenger.of(rootNavigatorKey.currentContext!),
                                     "Failed to restore seed: $e");
-                              }
+                              });
                             },
                       child: const Text(
                         "Import",

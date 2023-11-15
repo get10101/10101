@@ -1,5 +1,6 @@
 use anyhow::Context;
 use anyhow::Result;
+use coordinator::backup::SledBackup;
 use coordinator::cli::Opts;
 use coordinator::logger;
 use coordinator::message::spawn_delivering_messages_to_authenticated_users;
@@ -22,6 +23,7 @@ use coordinator::routes::router;
 use coordinator::run_migration;
 use coordinator::scheduler::NotificationScheduler;
 use coordinator::settings::Settings;
+use coordinator::storage::CoordinatorTenTenOneStorage;
 use diesel::r2d2;
 use diesel::r2d2::ConnectionManager;
 use diesel::PgConnection;
@@ -103,13 +105,18 @@ async fn main() -> Result<()> {
 
     let (node_event_sender, mut node_event_receiver) = watch::channel::<Option<Event>>(None);
 
+    let storage = CoordinatorTenTenOneStorage::new(data_dir.to_string_lossy().to_string());
+
+    let node_storage = Arc::new(NodeStorage::new(pool.clone()));
+
     let node = Arc::new(ln_dlc_node::node::Node::new(
         ln_dlc_node::config::coordinator_config(),
         scorer::persistent_scorer,
         NODE_ALIAS,
         network,
         data_dir.as_path(),
-        Arc::new(NodeStorage::new(pool.clone())),
+        storage,
+        node_storage,
         address,
         SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), address.port()),
         opts.p2p_announcement_addresses(),
@@ -264,6 +271,8 @@ async fn main() -> Result<()> {
         connection::keep_public_channel_peers_connected(node.inner, CONNECTION_CHECK_INTERVAL)
     });
 
+    let user_backup = SledBackup::new(data_dir.to_string_lossy().to_string());
+
     let app = router(
         node.clone(),
         pool.clone(),
@@ -275,6 +284,7 @@ async fn main() -> Result<()> {
         tx_price_feed,
         tx_user_feed,
         auth_users_notifier.clone(),
+        user_backup,
     );
 
     let sender = notification_service.get_sender();

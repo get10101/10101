@@ -9,7 +9,7 @@ use coordinator_commons::RegisterParams;
 /// Enroll the user in the beta program
 pub async fn register_beta(email: String) -> Result<()> {
     let register = RegisterParams {
-        pubkey: ln_dlc::get_node_info()?.pubkey,
+        pubkey: ln_dlc::get_node_pubkey(),
         email: Some(email),
         nostr: None,
     };

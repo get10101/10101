@@ -1,4 +1,5 @@
 use crate::node::storage::NodeStorage;
+use crate::storage::CoordinatorTenTenOneStorage;
 use lightning::ln::msgs::NetAddress;
 use ln_dlc_node::node::Node;
 use ln_dlc_node::node::NodeInfo;
@@ -11,7 +12,7 @@ use std::time::Duration;
 use tokio::task::spawn_blocking;
 
 pub async fn keep_public_channel_peers_connected(
-    node: Arc<Node<NodeStorage>>,
+    node: Arc<Node<CoordinatorTenTenOneStorage, NodeStorage>>,
     check_interval: Duration,
 ) {
     loop {
@@ -26,7 +27,9 @@ pub async fn keep_public_channel_peers_connected(
     }
 }
 
-fn reconnect_to_disconnected_public_channel_peers(node: Arc<Node<NodeStorage>>) {
+fn reconnect_to_disconnected_public_channel_peers(
+    node: Arc<Node<CoordinatorTenTenOneStorage, NodeStorage>>,
+) {
     let connected_peers = node
         .peer_manager
         .get_peer_node_ids()

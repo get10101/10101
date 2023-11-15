@@ -26,6 +26,8 @@ pub use crate::price::best_current_price;
 pub use crate::price::Price;
 pub use crate::price::Prices;
 
+pub const AUTH_SIGN_MESSAGE: &[u8; 19] = b"Hello it's me Mario";
+
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub enum OrderState {
     Open,
@@ -67,9 +69,8 @@ pub struct Signature {
     pub signature: secp256k1::ecdsa::Signature,
 }
 
-pub fn create_sign_message() -> SecpMessage {
-    let sign_message = "Hello it's me Mario".to_string();
-    let hashed_message = Sha256::new().chain_update(sign_message).finalize_fixed();
+pub fn create_sign_message(message: Vec<u8>) -> SecpMessage {
+    let hashed_message = Sha256::new().chain_update(message).finalize_fixed();
 
     let msg = SecpMessage::from_slice(hashed_message.as_slice())
         .expect("The message is static, hence this should never happen");

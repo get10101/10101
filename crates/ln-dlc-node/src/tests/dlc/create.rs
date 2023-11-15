@@ -1,5 +1,6 @@
 use crate::node::InMemoryStore;
 use crate::node::Node;
+use crate::storage::TenTenOneInMemoryStorage;
 use crate::tests::dummy_contract_input;
 use crate::tests::init_tracing;
 use crate::tests::wait_for_n_usable_channels;
@@ -53,8 +54,8 @@ async fn given_lightning_channel_then_can_add_dlc_channel() {
 }
 
 pub async fn create_dlc_channel(
-    offer_node: &Node<InMemoryStore>,
-    accept_node: &Node<InMemoryStore>,
+    offer_node: &Node<TenTenOneInMemoryStorage, InMemoryStore>,
+    accept_node: &Node<TenTenOneInMemoryStorage, InMemoryStore>,
     app_dlc_collateral: u64,
     coordinator_dlc_collateral: u64,
 ) -> Result<()> {

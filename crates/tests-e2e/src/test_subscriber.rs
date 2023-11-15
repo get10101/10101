@@ -208,6 +208,9 @@ impl Senders {
             native::event::EventInternal::PaymentFailed => {
                 unreachable!("PaymentFailed event should not be sent to the subscriber");
             }
+            native::event::EventInternal::SpendableOutputs => {
+                unreachable!("SpendableOutputs event should not be sent to the subscriber");
+            }
         }
         Ok(())
     }

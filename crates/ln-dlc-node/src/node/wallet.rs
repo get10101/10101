@@ -3,6 +3,7 @@ use crate::ldk_node_wallet;
 use crate::node::HTLCStatus;
 use crate::node::Node;
 use crate::node::Storage;
+use crate::storage::TenTenOneStorage;
 use crate::PaymentFlow;
 use crate::ToHex;
 use anyhow::Context;
@@ -42,13 +43,10 @@ impl OffChainBalance {
     }
 }
 
-impl<P> Node<P>
-where
-    P: Storage,
-{
+impl<S: TenTenOneStorage, N: Storage> Node<S, N> {
     pub fn wallet(
         &self,
-    ) -> Arc<ldk_node_wallet::Wallet<sled::Tree, EsploraBlockchain, FeeRateEstimator>> {
+    ) -> Arc<ldk_node_wallet::Wallet<sled::Tree, EsploraBlockchain, FeeRateEstimator, N>> {
         self.wallet.ldk_wallet()
     }
 
@@ -137,7 +135,7 @@ where
 
     pub fn get_off_chain_history(&self) -> Result<Vec<PaymentDetails>> {
         let mut payments = self
-            .storage
+            .node_storage
             .all_payments()?
             .iter()
             .map(|(hash, info)| PaymentDetails {

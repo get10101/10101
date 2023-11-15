@@ -14,9 +14,11 @@ class CandlestickChangeNotifier extends ChangeNotifier {
     this._candlestickService,
   );
 
-  Future<void> initialize() async {
-    candles = await _candlestickService.fetchCandles(1000);
-    notifyListeners();
+  CandlestickChangeNotifier initialize() {
+    _candlestickService.fetchCandles(1000).then((candles) {
+      this.candles = candles;
+      notifyListeners();
+    });
 
     timer = Timer.periodic(const Duration(seconds: 30), (Timer t) async {
       final list = await _candlestickService.fetchCandles(1);
@@ -29,6 +31,8 @@ class CandlestickChangeNotifier extends ChangeNotifier {
         }
       }
     });
+
+    return this;
   }
 
   @override

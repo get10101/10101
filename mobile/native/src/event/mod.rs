@@ -43,6 +43,7 @@ pub enum EventInternal {
     ServiceHealthUpdate(ServiceUpdate),
     ChannelStatusUpdate(ChannelStatus),
     BackgroundNotification(BackgroundTask),
+    SpendableOutputs,
 }
 
 #[derive(Clone, Debug)]
@@ -78,6 +79,7 @@ impl fmt::Display for EventInternal {
             EventInternal::ServiceHealthUpdate(_) => "ServiceHealthUpdate",
             EventInternal::ChannelStatusUpdate(_) => "ChannelStatusUpdate",
             EventInternal::BackgroundNotification(_) => "BackgroundNotification",
+            EventInternal::SpendableOutputs => "SpendableOutputs",
         }
         .fmt(f)
     }
@@ -103,6 +105,7 @@ impl From<EventInternal> for EventType {
             EventInternal::ServiceHealthUpdate(_) => EventType::ServiceHealthUpdate,
             EventInternal::ChannelStatusUpdate(_) => EventType::ChannelStatusUpdate,
             EventInternal::BackgroundNotification(_) => EventType::BackgroundNotification,
+            EventInternal::SpendableOutputs => EventType::SpendableOutputs,
         }
     }
 }
@@ -124,4 +127,5 @@ pub enum EventType {
     ServiceHealthUpdate,
     ChannelStatusUpdate,
     BackgroundNotification,
+    SpendableOutputs,
 }

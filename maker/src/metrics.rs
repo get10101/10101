@@ -1,5 +1,6 @@
 use crate::health::Health;
 use crate::health::ServiceStatus;
+use crate::storage::MakerTenTenOneStorage;
 use lazy_static::lazy_static;
 use lightning::ln::channelmanager::ChannelDetails;
 use ln_dlc_node::node::InMemoryStore;
@@ -73,7 +74,7 @@ pub fn init_meter() -> PrometheusExporter {
     opentelemetry_prometheus::exporter(controller).init()
 }
 
-pub fn collect(node: Arc<Node<InMemoryStore>>, health: Health) {
+pub fn collect(node: Arc<Node<MakerTenTenOneStorage, InMemoryStore>>, health: Health) {
     let cx = opentelemetry::Context::current();
 
     let channels = node.channel_manager.list_channels();
@@ -124,7 +125,7 @@ fn channel_metrics(cx: &Context, channels: Vec<ChannelDetails>) {
     }
 }
 
-fn node_metrics(cx: &Context, node: Arc<Node<InMemoryStore>>) {
+fn node_metrics(cx: &Context, node: Arc<Node<MakerTenTenOneStorage, InMemoryStore>>) {
     let connected_peers = node.list_peers().len();
     CONNECTED_PEERS.observe(cx, connected_peers as u64, &[]);
     let offchain = node.get_ldk_balance();

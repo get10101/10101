@@ -23,6 +23,9 @@ impl Node {
                             Event::PaymentFailed { .. } => {
                                 event::publish(&EventInternal::PaymentFailed)
                             }
+                            Event::SpendableOutputs { .. } => {
+                                event::publish(&EventInternal::SpendableOutputs)
+                            }
                             _ => tracing::trace!("Ignoring event on the mobile app"),
                         }
                     }

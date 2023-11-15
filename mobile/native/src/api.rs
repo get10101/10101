@@ -3,6 +3,7 @@ use crate::commons::api::ChannelInfo;
 use crate::commons::api::Price;
 use crate::config;
 use crate::config::api::Config;
+use crate::config::api::Directories;
 use crate::config::get_network;
 use crate::db;
 use crate::destination;
@@ -10,6 +11,7 @@ use crate::event;
 use crate::event::api::FlutterSubscriber;
 use crate::health;
 use crate::ln_dlc;
+use crate::ln_dlc::get_storage;
 use crate::ln_dlc::FUNDING_TX_WEIGHT_ESTIMATE;
 use crate::logger;
 use crate::orderbook;
@@ -220,21 +222,10 @@ pub fn subscribe(stream: StreamSink<event::api::Event>) {
 }
 
 /// Wrapper for Flutter purposes - can throw an exception.
-pub fn run_in_flutter(
-    config: Config,
-    app_dir: String,
-    seed_dir: String,
-    fcm_token: String,
-) -> Result<()> {
+pub fn run_in_flutter(seed_dir: String, fcm_token: String) -> Result<()> {
     let result = if !IS_INITIALISED.try_get().unwrap_or(&false) {
-        run(
-            config,
-            app_dir,
-            seed_dir,
-            fcm_token,
-            IncludeBacktraceOnPanic::Yes,
-        )
-        .context("Failed to start the backend")
+        run(seed_dir, fcm_token, IncludeBacktraceOnPanic::Yes)
+            .context("Failed to start the backend")
     } else {
         Ok(())
     };
@@ -248,9 +239,18 @@ pub enum IncludeBacktraceOnPanic {
     No,
 }
 
+pub fn set_config(config: Config, app_dir: String, seed_dir: String) -> Result<()> {
+    crate::state::set_config((config, Directories { app_dir, seed_dir }).into());
+    Ok(())
+}
+
+#[tokio::main(flavor = "current_thread")]
+pub async fn full_backup() -> Result<()> {
+    db::init_db(&config::get_data_dir(), get_network())?;
+    get_storage().full_backup().await
+}
+
 pub fn run(
-    config: Config,
-    app_dir: String,
     seed_dir: String,
     fcm_token: String,
     backtrace_on_panic: IncludeBacktraceOnPanic,
@@ -269,12 +269,12 @@ pub fn run(
         );
     }
 
-    config::set(config.clone());
-    db::init_db(&app_dir, get_network())?;
-    let runtime = ln_dlc::get_or_create_tokio_runtime()?;
-    ln_dlc::run(app_dir, seed_dir, runtime)?;
+    db::init_db(&config::get_data_dir(), get_network())?;
 
-    let (_health, tx) = health::Health::new(config, runtime);
+    let runtime = ln_dlc::get_or_create_tokio_runtime()?;
+    ln_dlc::run(seed_dir, runtime)?;
+
+    let (_health, tx) = health::Health::new(runtime);
 
     orderbook::subscribe(ln_dlc::get_node_key(), runtime, tx.orderbook, fcm_token)
 }
@@ -413,10 +413,15 @@ pub fn get_seed_phrase() -> SyncReturn<Vec<String>> {
     SyncReturn(ln_dlc::get_seed_phrase())
 }
 
-pub fn restore_from_seed_phrase(seed_phrase: String, target_seed_file_path: String) -> Result<()> {
+#[tokio::main(flavor = "current_thread")]
+pub async fn restore_from_seed_phrase(
+    seed_phrase: String,
+    target_seed_file_path: String,
+) -> Result<()> {
     let file_path = PathBuf::from(target_seed_file_path);
     tracing::info!("Restoring seed from phrase to {:?}", file_path);
-    ln_dlc::restore_from_mnemonic(&seed_phrase, file_path.as_path())
+    ln_dlc::restore_from_mnemonic(&seed_phrase, file_path.as_path()).await?;
+    Ok(())
 }
 
 pub fn init_new_mnemonic(target_seed_file_path: String) -> Result<()> {
@@ -453,8 +458,8 @@ pub fn decode_destination(destination: String) -> Result<Destination> {
     destination::decode_destination(destination)
 }
 
-pub fn get_node_id() -> Result<SyncReturn<String>> {
-    Ok(SyncReturn(ln_dlc::get_node_info()?.pubkey.to_string()))
+pub fn get_node_id() -> SyncReturn<String> {
+    SyncReturn(ln_dlc::get_node_pubkey().to_string())
 }
 
 pub fn get_channel_open_fee_estimate_sat() -> Result<u64> {

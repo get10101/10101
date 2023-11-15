@@ -43,7 +43,7 @@ impl TestSetup {
             .await
             .expect("To be able to sync coordinator wallet");
 
-        let app = run_app().await;
+        let app = run_app(None).await;
 
         assert_eq!(
             app.rx

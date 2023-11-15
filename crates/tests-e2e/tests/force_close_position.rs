@@ -12,7 +12,7 @@ async fn can_force_close_position() {
     let coordinator = &test.coordinator;
     let bitcoin = &test.bitcoind;
 
-    let app_pubkey = api::get_node_id().unwrap().0;
+    let app_pubkey = api::get_node_id().0;
 
     let dlc_channels = coordinator.get_dlc_channels().await.unwrap();
 

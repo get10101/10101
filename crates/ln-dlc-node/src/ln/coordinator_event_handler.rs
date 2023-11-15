@@ -11,6 +11,7 @@ use crate::node::ChannelManager;
 use crate::node::LiquidityRequest;
 use crate::node::Node;
 use crate::node::Storage;
+use crate::storage::TenTenOneStorage;
 use crate::EventHandlerTrait;
 use crate::CONFIRMATION_TARGET;
 use anyhow::anyhow;
@@ -35,17 +36,14 @@ use tokio::task::block_in_place;
 
 /// Event handler for the coordinator node.
 // TODO: Move it out of this crate
-pub struct CoordinatorEventHandler<S> {
-    pub(crate) node: Arc<Node<S>>,
+pub struct CoordinatorEventHandler<S: TenTenOneStorage, N: Storage> {
+    pub(crate) node: Arc<Node<S, N>>,
     pub(crate) pending_intercepted_htlcs: PendingInterceptedHtlcs,
     pub(crate) event_sender: Option<EventSender>,
 }
 
-impl<S> CoordinatorEventHandler<S>
-where
-    S: Storage + Sync + Send + 'static,
-{
-    pub fn new(node: Arc<Node<S>>, event_sender: Option<EventSender>) -> Self {
+impl<S: TenTenOneStorage, N: Storage> CoordinatorEventHandler<S, N> {
+    pub fn new(node: Arc<Node<S, N>>, event_sender: Option<EventSender>) -> Self {
         Self {
             node,
             event_sender,
@@ -55,9 +53,8 @@ where
 }
 
 #[async_trait]
-impl<S> EventHandlerTrait for CoordinatorEventHandler<S>
-where
-    S: Storage + Send + Sync + 'static,
+impl<S: TenTenOneStorage + 'static, N: Storage + Send + Sync + 'static> EventHandlerTrait
+    for CoordinatorEventHandler<S, N>
 {
     fn event_sender(&self) -> &Option<EventSender> {
         &self.event_sender
@@ -291,16 +288,13 @@ where
     }
 }
 
-fn handle_channel_ready_internal<S>(
-    node: &Arc<Node<S>>,
+fn handle_channel_ready_internal<S: TenTenOneStorage, N: Storage>(
+    node: &Arc<Node<S, N>>,
     pending_intercepted_htlcs: &PendingInterceptedHtlcs,
     user_channel_id: u128,
     channel_id: [u8; 32],
     counterparty_node_id: PublicKey,
-) -> Result<()>
-where
-    S: Storage,
-{
+) -> Result<()> {
     let user_channel_id = UserChannelId::from(user_channel_id).to_string();
 
     tracing::info!(
@@ -318,9 +312,9 @@ where
             channel_id.to_hex()
         ))?;
 
-    let channel = node.storage.get_channel(&user_channel_id)?;
+    let channel = node.node_storage.get_channel(&user_channel_id)?;
     let channel = Channel::open_channel(channel, channel_details)?;
-    node.storage.upsert_channel(channel.clone())?;
+    node.node_storage.upsert_channel(channel.clone())?;
 
     if let Some(interception) = pending_intercepted_htlcs.lock().get(&counterparty_node_id) {
         tracing::info!(
@@ -345,8 +339,8 @@ where
     Ok(())
 }
 
-fn handle_open_channel_request(
-    channel_manager: &Arc<ChannelManager>,
+fn handle_open_channel_request<S: TenTenOneStorage, N: Storage>(
+    channel_manager: &Arc<ChannelManager<S, N>>,
     counterparty_node_id: PublicKey,
     funding_satoshis: u64,
     push_msat: u64,
@@ -373,18 +367,15 @@ fn handle_open_channel_request(
 
 #[allow(clippy::too_many_arguments)]
 /// Handle an [`Event::HTLCIntercepted`].
-pub(crate) async fn handle_intercepted_htlc<S>(
-    node: &Arc<Node<S>>,
+pub(crate) async fn handle_intercepted_htlc<S: TenTenOneStorage, N: Storage>(
+    node: &Arc<Node<S, N>>,
     pending_intercepted_htlcs: &PendingInterceptedHtlcs,
     intercept_id: InterceptId,
     payment_hash: PaymentHash,
     requested_next_hop_scid: u64,
     inbound_amount_msat: u64,
     expected_outbound_amount_msat: u64,
-) -> Result<()>
-where
-    S: Storage,
-{
+) -> Result<()> {
     let res = handle_intercepted_htlc_internal(
         node,
         pending_intercepted_htlcs,
@@ -405,18 +396,15 @@ where
 }
 
 #[allow(clippy::too_many_arguments)]
-pub(crate) async fn handle_intercepted_htlc_internal<S>(
-    node: &Arc<Node<S>>,
+pub(crate) async fn handle_intercepted_htlc_internal<S: TenTenOneStorage, N: Storage>(
+    node: &Arc<Node<S, N>>,
     pending_intercepted_htlcs: &PendingInterceptedHtlcs,
     intercept_id: InterceptId,
     payment_hash: PaymentHash,
     requested_next_hop_scid: u64,
     inbound_amount_msat: u64,
     expected_outbound_amount_msat: u64,
-) -> Result<()>
-where
-    S: Storage,
-{
+) -> Result<()> {
     let intercept_id_str = intercept_id.0.to_hex();
     let payment_hash = payment_hash.0.to_hex();
 
@@ -523,7 +511,7 @@ where
 
     let user_channel_id = liquidity_request.user_channel_id;
     let mut shadow_channel = node
-        .storage
+        .node_storage
         .get_channel(&user_channel_id.to_string())
         .with_context(|| format!("Failed to load channel by user_channel_id {user_channel_id}"))?
         .with_context(|| {
@@ -534,7 +522,7 @@ where
     shadow_channel.channel_state = ChannelState::Pending;
     shadow_channel.fee_sats = Some(liquidity_request.fee_sats);
 
-    node.storage
+    node.node_storage
         .upsert_channel(shadow_channel.clone())
         .with_context(|| format!("Failed to upsert shadow channel: {shadow_channel}"))?;
 

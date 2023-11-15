@@ -1,16 +1,13 @@
 pub mod api;
 
-use crate::config::api::Config;
 use bdk::bitcoin;
 use bdk::bitcoin::secp256k1::PublicKey;
 use bdk::bitcoin::XOnlyPublicKey;
 use ln_dlc_node::node::NodeInfo;
 use ln_dlc_node::node::OracleInfo;
-use state::Storage;
 use std::net::SocketAddr;
+use std::path::Path;
 use std::time::Duration;
-
-static CONFIG: Storage<ConfigInternal> = Storage::new();
 
 #[derive(Clone)]
 pub struct ConfigInternal {
@@ -22,24 +19,21 @@ pub struct ConfigInternal {
     oracle_endpoint: String,
     oracle_pubkey: XOnlyPublicKey,
     health_check_interval: Duration,
+    data_dir: String,
+    seed_dir: String,
 }
 
-impl ConfigInternal {
-    pub fn coordinator_health_endpoint(&self) -> String {
-        format!("http://{}/health", self.http_endpoint)
-    }
-
-    pub fn health_check_interval(&self) -> Duration {
-        self.health_check_interval
-    }
+pub fn coordinator_health_endpoint() -> String {
+    let config = crate::state::get_config();
+    format!("http://{}/health", config.http_endpoint)
 }
 
-pub fn set(config: Config) {
-    CONFIG.set(config.into());
+pub fn health_check_interval() -> Duration {
+    crate::state::get_config().health_check_interval
 }
 
 pub fn get_coordinator_info() -> NodeInfo {
-    let config = CONFIG.get();
+    let config = crate::state::get_config();
     NodeInfo {
         pubkey: config.coordinator_pubkey,
         address: config.p2p_endpoint,
@@ -47,11 +41,11 @@ pub fn get_coordinator_info() -> NodeInfo {
 }
 
 pub fn get_esplora_endpoint() -> String {
-    CONFIG.get().esplora_endpoint.clone()
+    crate::state::get_config().esplora_endpoint
 }
 
 pub fn get_oracle_info() -> OracleInfo {
-    let config = CONFIG.get();
+    let config = crate::state::get_config();
     OracleInfo {
         endpoint: config.oracle_endpoint.clone(),
         public_key: config.oracle_pubkey,
@@ -59,9 +53,25 @@ pub fn get_oracle_info() -> OracleInfo {
 }
 
 pub fn get_http_endpoint() -> SocketAddr {
-    CONFIG.get().http_endpoint
+    crate::state::get_config().http_endpoint
 }
 
 pub fn get_network() -> bitcoin::Network {
-    CONFIG.get().network
+    crate::state::get_config().network
+}
+
+pub fn get_data_dir() -> String {
+    crate::state::get_config().data_dir
+}
+
+pub fn get_seed_dir() -> String {
+    crate::state::get_config().seed_dir
+}
+
+pub fn get_backup_dir() -> String {
+    Path::new(&get_data_dir())
+        .join(get_network().to_string())
+        .join("backup")
+        .to_string_lossy()
+        .to_string()
 }

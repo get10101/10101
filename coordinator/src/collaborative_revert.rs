@@ -4,6 +4,7 @@ use crate::message::OrderbookMessage;
 use crate::node::storage::NodeStorage;
 use crate::notifications::NotificationKind;
 use crate::position;
+use crate::storage::CoordinatorTenTenOneStorage;
 use anyhow::anyhow;
 use anyhow::bail;
 use anyhow::Context;
@@ -42,7 +43,7 @@ pub async fn notify_user_to_collaboratively_revert(
     channel_id_string: String,
     channel_id: [u8; 32],
     pool: Pool<ConnectionManager<PgConnection>>,
-    node: Arc<Node<NodeStorage>>,
+    node: Arc<Node<CoordinatorTenTenOneStorage, NodeStorage>>,
     auth_users_notifier: mpsc::Sender<OrderbookMessage>,
 ) -> anyhow::Result<()> {
     let mut conn = pool.get().context("Could not acquire db lock")?;
@@ -230,7 +231,7 @@ pub fn confirm_collaborative_revert(
     revert_params: &Json<CollaborativeRevertData>,
     conn: &mut PooledConnection<ConnectionManager<PgConnection>>,
     channel_id: [u8; 32],
-    inner_node: Arc<Node<NodeStorage>>,
+    inner_node: Arc<Node<CoordinatorTenTenOneStorage, NodeStorage>>,
 ) -> anyhow::Result<Transaction> {
     let channel_id_hex = channel_id.to_hex();
 

@@ -86,6 +86,9 @@ impl From<EventInternal> for Event {
             EventInternal::BackgroundNotification(task) => {
                 Event::BackgroundNotification(task.into())
             }
+            EventInternal::SpendableOutputs => {
+                unreachable!("This internal event is not exposed to the UI")
+            }
         }
     }
 }

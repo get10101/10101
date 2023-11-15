@@ -3,6 +3,7 @@ use crate::health::OverallMakerHealth;
 use crate::position;
 use crate::position::ContractSymbol;
 use crate::position::GetPosition;
+use crate::storage::MakerTenTenOneStorage;
 use axum::extract::Path;
 use axum::extract::State;
 use axum::http::StatusCode;
@@ -35,7 +36,7 @@ use std::sync::Arc;
 use tokio::task::spawn_blocking;
 
 pub struct AppState {
-    node: Arc<Node<InMemoryStore>>,
+    node: Arc<Node<MakerTenTenOneStorage, InMemoryStore>>,
     exporter: PrometheusExporter,
     position_manager: xtra::Address<position::Manager>,
     announcement_addresses: Vec<NetAddress>,
@@ -44,7 +45,7 @@ pub struct AppState {
 }
 
 pub fn router(
-    node: Arc<Node<InMemoryStore>>,
+    node: Arc<Node<MakerTenTenOneStorage, InMemoryStore>>,
     exporter: PrometheusExporter,
     position_manager: xtra::Address<position::Manager>,
     health: Health,

@@ -1,5 +1,4 @@
-use crate::config::api::Config;
-use crate::config::ConfigInternal;
+use crate::config;
 use crate::event;
 use crate::event::EventInternal;
 use anyhow::Context;
@@ -53,10 +52,8 @@ pub struct Health {
 }
 
 impl Health {
-    pub fn new(config: Config, runtime: &Runtime) -> (Self, Tx) {
+    pub fn new(runtime: &Runtime) -> (Self, Tx) {
         let (orderbook_tx, orderbook_rx) = watch::channel(ServiceStatus::Unknown);
-
-        let config: ConfigInternal = config.into();
 
         let mut tasks = Vec::new();
 
@@ -70,9 +67,9 @@ impl Health {
 
         let check_coordinator = runtime
             .spawn(check_health_endpoint(
-                config.coordinator_health_endpoint(),
+                config::coordinator_health_endpoint(),
                 coordinator_tx,
-                config.health_check_interval(),
+                config::health_check_interval(),
             ))
             .remote_handle()
             .1;

@@ -1,4 +1,6 @@
 use crate::node::Node;
+use crate::node::Storage as LnDlcStorage;
+use crate::storage::TenTenOneStorage;
 use crate::DlcMessageHandler;
 use crate::PeerManager;
 use crate::SubChannelManager;
@@ -29,10 +31,7 @@ use std::sync::Arc;
 use time::OffsetDateTime;
 use tokio::task::spawn_blocking;
 
-impl<P> Node<P>
-where
-    P: Send + Sync,
-{
+impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Node<S, N> {
     #[autometrics]
     pub async fn propose_dlc_channel(
         &self,
@@ -472,9 +471,9 @@ where
 /// Use this instead of [`MessageHandler`]'s `send_message` which only enqueues the message.
 ///
 /// [`MessageHandler`]: dlc_messages::message_handler::MessageHandler
-pub fn send_dlc_message(
+pub fn send_dlc_message<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static>(
     dlc_message_handler: &DlcMessageHandler,
-    peer_manager: &PeerManager,
+    peer_manager: &PeerManager<S, N>,
     node_id: PublicKey,
     msg: Message,
 ) {
@@ -488,10 +487,13 @@ pub fn send_dlc_message(
 }
 
 #[autometrics]
-pub(crate) async fn sub_channel_manager_periodic_check(
-    sub_channel_manager: Arc<SubChannelManager>,
+pub(crate) async fn sub_channel_manager_periodic_check<
+    S: TenTenOneStorage + 'static,
+    N: LnDlcStorage + Sync + Send + 'static,
+>(
+    sub_channel_manager: Arc<SubChannelManager<S, N>>,
     dlc_message_handler: &DlcMessageHandler,
-    peer_manager: &PeerManager,
+    peer_manager: &PeerManager<S, N>,
 ) -> Result<()> {
     let messages = spawn_blocking(move || sub_channel_manager.periodic_check()).await?;
 

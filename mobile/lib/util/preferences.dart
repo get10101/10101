@@ -10,6 +10,17 @@ class Preferences {
   static const userSeedBackupConfirmed = "userSeedBackupConfirmed";
   static const emailAddress = "emailAddress";
   static const openPosition = "openPosition";
+  static const fullBackup = "fullBackup";
+
+  Future<bool> setFullBackupRequired(bool required) async {
+    SharedPreferences preferences = await SharedPreferences.getInstance();
+    return preferences.setBool(fullBackup, required);
+  }
+
+  Future<bool> isFullBackupRequired() async {
+    SharedPreferences preferences = await SharedPreferences.getInstance();
+    return preferences.getBool(fullBackup) ?? true;
+  }
 
   getOpenPosition() async {
     SharedPreferences preferences = await SharedPreferences.getInstance();

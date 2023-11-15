@@ -2,6 +2,7 @@ use crate::channel::Channel;
 use crate::node::LiquidityRequest;
 use crate::node::Node;
 use crate::node::Storage;
+use crate::storage::TenTenOneStorage;
 use crate::MillisatAmount;
 use crate::PaymentFlow;
 use crate::PaymentInfo;
@@ -35,10 +36,7 @@ use std::time::Duration;
 use std::time::SystemTime;
 use time::OffsetDateTime;
 
-impl<P> Node<P>
-where
-    P: Storage,
-{
+impl<S: TenTenOneStorage, N: Storage> Node<S, N> {
     pub fn create_invoice(
         &self,
         amount_in_sats: u64,
@@ -166,7 +164,7 @@ where
             liquidity_request.liquidity_option_id,
             liquidity_request.fee_sats,
         );
-        self.storage.upsert_channel(channel).with_context(|| {
+        self.node_storage.upsert_channel(channel).with_context(|| {
             format!(
                 "Failed to insert shadow JIT channel for counterparty {trader_id} \
                              with user channel id {user_channel_id}"
@@ -275,7 +273,7 @@ where
             Bolt11InvoiceDescription::Hash(lightning_invoice::Sha256(des)) => des.to_string(),
         };
 
-        self.storage.insert_payment(
+        self.node_storage.insert_payment(
             PaymentHash(invoice.payment_hash().into_inner()),
             PaymentInfo {
                 preimage: None,
@@ -325,7 +323,7 @@ where
             loop {
                 tokio::time::sleep(Duration::from_secs(1)).await;
 
-                match self.storage.get_payment(&payment_hash) {
+                match self.node_storage.get_payment(&payment_hash) {
                     Ok(Some((_, PaymentInfo { status, .. }))) => {
                         tracing::debug!(
                             payment_hash = %hex::encode(hash),

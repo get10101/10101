@@ -26,7 +26,7 @@ async fn app_can_be_funded_with_lnd_faucet() -> Result<()> {
     bitcoind.mine(1).await.unwrap();
     coordinator.sync_wallet().await.unwrap();
 
-    let app = run_app().await;
+    let app = run_app(None).await;
 
     // Unfunded wallet should be empty
     assert_eq!(app.rx.wallet_info().unwrap().balances.lightning, 0);

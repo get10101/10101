@@ -13,29 +13,26 @@ use ln_dlc_node::node::rust_dlc_manager::subchannel::LNChannelManager;
 use ln_dlc_node::node::ChannelManager;
 use ln_dlc_node::node::Node;
 use ln_dlc_node::node::Storage;
+use ln_dlc_node::storage::TenTenOneStorage;
 use ln_dlc_node::EventHandlerTrait;
 use ln_dlc_node::EventSender;
 use std::sync::Arc;
 use tokio::task::block_in_place;
 use uuid::Uuid;
 
-pub struct EventHandler<S> {
-    pub(crate) node: Arc<Node<S>>,
+pub struct EventHandler<S: TenTenOneStorage, N: Storage> {
+    pub(crate) node: Arc<Node<S, N>>,
 }
 
-impl<S> EventHandler<S>
-where
-    S: Storage + Send + Sync + 'static,
-{
-    pub fn new(node: Arc<Node<S>>) -> Self {
+impl<S: TenTenOneStorage, N: Storage> EventHandler<S, N> {
+    pub fn new(node: Arc<Node<S, N>>) -> Self {
         Self { node }
     }
 }
 
 #[async_trait]
-impl<S> EventHandlerTrait for EventHandler<S>
-where
-    S: Storage + Send + Sync + 'static,
+impl<S: TenTenOneStorage + 'static, N: Storage + Send + Sync + 'static> EventHandlerTrait
+    for EventHandler<S, N>
 {
     fn event_sender(&self) -> &Option<EventSender> {
         &None
@@ -226,19 +223,13 @@ where
     }
 }
 
-impl<S> EventHandler<S>
-where
-    S: Storage,
-{
+impl<S: TenTenOneStorage, N: Storage> EventHandler<S, N> {
     pub fn handle_channel_ready(
         &self,
         user_channel_id: u128,
         channel_id: [u8; 32],
         counterparty_node_id: PublicKey,
-    ) -> Result<()>
-    where
-        S: Storage,
-    {
+    ) -> Result<()> {
         block_in_place(|| {
             let user_channel_id = UserChannelId::from(user_channel_id).to_string();
 
@@ -258,9 +249,9 @@ where
                     channel_id.to_hex()
                 ))?;
 
-            let channel = self.node.storage.get_channel(&user_channel_id)?;
+            let channel = self.node.node_storage.get_channel(&user_channel_id)?;
             let channel = Channel::open_channel(channel, channel_details)?;
-            self.node.storage.upsert_channel(channel)?;
+            self.node.node_storage.upsert_channel(channel)?;
 
             Ok(())
         })
@@ -281,9 +272,9 @@ where
                 "Channel closed",
             );
 
-            if let Some(channel) = self.node.storage.get_channel(&user_channel_id)? {
+            if let Some(channel) = self.node.node_storage.get_channel(&user_channel_id)? {
                 let channel = Channel::close_channel(channel, reason.clone());
-                self.node.storage.upsert_channel(channel)?;
+                self.node.node_storage.upsert_channel(channel)?;
             }
 
             self.node
@@ -296,8 +287,8 @@ where
     }
 }
 
-fn handle_open_channel_request_0_conf(
-    channel_manager: &Arc<ChannelManager>,
+fn handle_open_channel_request_0_conf<S: TenTenOneStorage, N: Storage>(
+    channel_manager: &Arc<ChannelManager<S, N>>,
     counterparty_node_id: PublicKey,
     funding_satoshis: u64,
     push_msat: u64,

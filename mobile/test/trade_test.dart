@@ -120,7 +120,7 @@ void main() {
 
     CandlestickChangeNotifier candlestickChangeNotifier =
         CandlestickChangeNotifier(candlestickService);
-    await candlestickChangeNotifier.initialize();
+    candlestickChangeNotifier.initialize();
 
     SubmitOrderChangeNotifier submitOrderChangeNotifier = SubmitOrderChangeNotifier(orderService);
 

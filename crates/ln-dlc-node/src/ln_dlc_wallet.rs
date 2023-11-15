@@ -1,6 +1,7 @@
 use crate::fee_rate_estimator::FeeRateEstimator;
 use crate::ldk_node_wallet;
 use crate::node::Storage;
+use crate::storage::TenTenOneStorage;
 use crate::TracingLogger;
 use anyhow::Result;
 use bdk::blockchain::EsploraBlockchain;
@@ -24,19 +25,19 @@ use dlc_manager::error::Error;
 use dlc_manager::Blockchain;
 use dlc_manager::Signer;
 use dlc_manager::Utxo;
-use dlc_sled_storage_provider::SledStorageProvider;
 use lightning::chain::chaininterface::BroadcasterInterface;
 use lightning_transaction_sync::EsploraSyncClient;
+use ln_dlc_storage::DlcStorageProvider;
+use ln_dlc_storage::WalletStorage;
 use parking_lot::RwLock;
 use rust_bitcoin_coin_selection::select_coins;
-use simple_wallet::WalletStorage;
 use std::sync::Arc;
 
 /// This is a wrapper type introduced to be able to implement traits from `rust-dlc` on the
 /// `ldk_node::LightningWallet`.
-pub struct LnDlcWallet {
-    ln_wallet: Arc<ldk_node_wallet::Wallet<sled::Tree, EsploraBlockchain, FeeRateEstimator>>,
-    storage: Arc<SledStorageProvider>,
+pub struct LnDlcWallet<S, N> {
+    ln_wallet: Arc<ldk_node_wallet::Wallet<sled::Tree, EsploraBlockchain, FeeRateEstimator, N>>,
+    dlc_storage: Arc<DlcStorageProvider<S>>,
     secp: Secp256k1<All>,
     network: Network,
     /// Cache for the last unused address according to the latest on-chain sync.
@@ -47,16 +48,16 @@ pub struct LnDlcWallet {
     address_cache: RwLock<Address>,
 }
 
-impl LnDlcWallet {
+impl<S: TenTenOneStorage, N: Storage> LnDlcWallet<S, N> {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         esplora_client: Arc<EsploraSyncClient<Arc<TracingLogger>>>,
         on_chain_wallet: bdk::Wallet<bdk::sled::Tree>,
         fee_rate_estimator: Arc<FeeRateEstimator>,
-        storage: Arc<SledStorageProvider>,
+        dlc_storage: Arc<DlcStorageProvider<S>>,
+        node_storage: Arc<N>,
         bdk_client_stop_gap: usize,
         bdk_client_concurrency: u8,
-        node_storage: Arc<dyn Storage + Send + Sync + 'static>,
     ) -> Self {
         let blockchain =
             EsploraBlockchain::from_client(esplora_client.client().clone(), bdk_client_stop_gap)
@@ -77,7 +78,7 @@ impl LnDlcWallet {
 
         Self {
             ln_wallet: wallet,
-            storage,
+            dlc_storage,
             secp: Secp256k1::new(),
             network,
             address_cache: RwLock::new(last_unused_address),
@@ -86,7 +87,7 @@ impl LnDlcWallet {
 
     pub fn ldk_wallet(
         &self,
-    ) -> Arc<ldk_node_wallet::Wallet<sled::Tree, EsploraBlockchain, FeeRateEstimator>> {
+    ) -> Arc<ldk_node_wallet::Wallet<sled::Tree, EsploraBlockchain, FeeRateEstimator, N>> {
         self.ln_wallet.clone()
     }
 
@@ -137,7 +138,7 @@ impl LnDlcWallet {
     }
 }
 
-impl Blockchain for LnDlcWallet {
+impl<S: TenTenOneStorage, N: Storage> Blockchain for LnDlcWallet<S, N> {
     fn send_transaction(&self, transaction: &Transaction) -> Result<(), Error> {
         self.ln_wallet
             .broadcast_transaction(transaction)
@@ -216,7 +217,7 @@ impl Blockchain for LnDlcWallet {
     }
 }
 
-impl Signer for LnDlcWallet {
+impl<S: TenTenOneStorage, N: Storage> Signer for LnDlcWallet<S, N> {
     fn sign_tx_input(
         &self,
         tx: &mut Transaction,
@@ -227,8 +228,9 @@ impl Signer for LnDlcWallet {
         let address = Address::from_script(&tx_out.script_pubkey, self.get_network()?)
             .expect("a valid scriptpubkey");
         let seckey = self
-            .storage
-            .get_priv_key_for_address(&address)?
+            .dlc_storage
+            .get_priv_key_for_address(&address)
+            .map_err(|e| Error::StorageError(format!("Couldn't get priv key for address. {e:#}")))?
             .expect("to have the requested private key");
         dlc::util::sign_p2wpkh_input(
             &self.secp,
@@ -242,13 +244,14 @@ impl Signer for LnDlcWallet {
     }
 
     fn get_secret_key_for_pubkey(&self, pubkey: &PublicKey) -> Result<SecretKey, Error> {
-        self.storage
-            .get_priv_key_for_pubkey(pubkey)?
+        self.dlc_storage
+            .get_priv_key_for_pubkey(pubkey)
+            .map_err(|e| Error::StorageError(format!("Couldn't get priv key for pubkey. {e:#}")))?
             .ok_or_else(|| Error::StorageError("No sk for provided pk".to_string()))
     }
 }
 
-impl dlc_manager::Wallet for LnDlcWallet {
+impl<S: TenTenOneStorage, N: Storage> dlc_manager::Wallet for LnDlcWallet<S, N> {
     fn get_new_address(&self) -> Result<Address, Error> {
         Ok(self.unused_address())
     }
@@ -257,7 +260,9 @@ impl dlc_manager::Wallet for LnDlcWallet {
         let kp = KeyPair::new(&self.secp, &mut rand::thread_rng());
         let sk = kp.secret_key();
 
-        self.storage.upsert_key_pair(&kp.public_key(), &sk)?;
+        self.dlc_storage
+            .upsert_key_pair(&kp.public_key(), &sk)
+            .map_err(|e| Error::StorageError(format!("Failed to update key pair. {e:#}")))?;
 
         Ok(sk)
     }
@@ -269,8 +274,9 @@ impl dlc_manager::Wallet for LnDlcWallet {
         lock_utxos: bool,
     ) -> Result<Vec<Utxo>, Error> {
         let mut utxos = self
-            .storage
-            .get_utxos()?
+            .dlc_storage
+            .get_utxos()
+            .map_err(|e| Error::StorageError(format!("Failed to get utxos. {e:#}")))?
             .into_iter()
             .filter(|x| !x.reserved)
             .map(|x| UtxoWrap { utxo: x })
@@ -283,7 +289,9 @@ impl dlc_manager::Wallet for LnDlcWallet {
                     reserved: true,
                     ..utxo.utxo
                 };
-                self.storage.upsert_utxo(&updated)?;
+                self.dlc_storage
+                    .upsert_utxo(&updated)
+                    .map_err(|e| Error::StorageError(format!("Failed to upsert utxo. {e:#}")))?;
             }
         }
         Ok(selection.into_iter().map(|x| x.utxo).collect::<Vec<_>>())
@@ -294,7 +302,7 @@ impl dlc_manager::Wallet for LnDlcWallet {
     }
 }
 
-impl BroadcasterInterface for LnDlcWallet {
+impl<S: TenTenOneStorage, N: Storage> BroadcasterInterface for LnDlcWallet<S, N> {
     fn broadcast_transactions(&self, txs: &[&Transaction]) {
         for tx in txs {
             if let Err(e) = self.ln_wallet.broadcast_transaction(tx) {

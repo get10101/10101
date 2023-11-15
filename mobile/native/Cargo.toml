@@ -7,6 +7,7 @@ edition = "2021"
 crate-type = ["rlib", "cdylib", "staticlib"]
 
 [dependencies]
+aes-gcm-siv = { version = "0.11.1", features = ["heapless"] }
 anyhow = "1"
 base64 = "0.21.0"
 bdk = { version = "0.28.0", default-features = false, features = ["key-value-db", "use-esplora-blocking"] }
@@ -21,15 +22,17 @@ flutter_rust_bridge = "1.78.0"
 futures = "0.3"
 hex = "0.4"
 itertools = "0.10"
-libsqlite3-sys = { version = "0.25.2", features = ["bundled"] }
 lightning = { version = "0.0.116" }
 lightning-invoice = { version = "0.24" }
+lightning-persister = { version = "0.0.116" }
 ln-dlc-node = { path = "../../crates/ln-dlc-node" }
+ln-dlc-storage = { path = "../../crates/ln-dlc-storage" }
 openssl = { version = "0.10.55", features = ["vendored"] }
 orderbook-client = { path = "../../crates/orderbook-client" }
 orderbook-commons = { path = "../../crates/orderbook-commons" }
 parking_lot = { version = "0.12.1" }
-reqwest = { version = "0.11", default-features = false, features = ["json"] }
+reqwest = { version = "0.11", default-features = false, features = ["json", "stream"] }
+rusqlite = { version = "0.29.0", features = ["backup", "bundled"] }
 rust_decimal = { version = "1", features = ["serde-with-float"] }
 serde = { version = "1.0.152", features = ["serde_derive"] }
 serde_json = "1"
@@ -37,6 +40,7 @@ state = "0.5.3"
 thiserror = "1"
 time = { version = "0.3.20", features = ["formatting"] }
 tokio = { version = "1.25.0", features = ["macros", "rt", "rt-multi-thread", "sync", "time"] }
+tokio-util = { version = "0.7", features = ["io", "codec"] }
 tracing = "0.1.37"
 tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "env-filter", "time", "json"] }
 trade = { path = "../../crates/trade" }

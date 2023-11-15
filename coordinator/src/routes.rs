@@ -10,6 +10,7 @@ use crate::admin::list_peers;
 use crate::admin::open_channel;
 use crate::admin::send_payment;
 use crate::admin::sign_message;
+use crate::backup::SledBackup;
 use crate::collaborative_revert;
 use crate::db;
 use crate::db::liquidity::LiquidityRequestLog;
@@ -40,11 +41,15 @@ use axum::Json;
 use axum::Router;
 use bitcoin::consensus::encode::serialize_hex;
 use bitcoin::hashes::hex::ToHex;
+use bitcoin::secp256k1::ecdsa::Signature;
 use bitcoin::secp256k1::PublicKey;
+use coordinator_commons::Backup;
 use coordinator_commons::CollaborativeRevertData;
+use coordinator_commons::DeleteBackup;
 use coordinator_commons::LspConfig;
 use coordinator_commons::OnboardingParam;
 use coordinator_commons::RegisterParams;
+use coordinator_commons::Restore;
 use coordinator_commons::TradeParams;
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::Pool;
@@ -66,6 +71,7 @@ use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use serde::Deserialize;
 use serde::Serialize;
+use std::str::FromStr;
 use std::sync::Arc;
 use tokio::sync::broadcast;
 use tokio::sync::mpsc;
@@ -85,6 +91,7 @@ pub struct AppState {
     pub announcement_addresses: Vec<NetAddress>,
     pub node_alias: String,
     pub auth_users_notifier: mpsc::Sender<OrderbookMessage>,
+    pub user_backup: SledBackup,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -99,6 +106,7 @@ pub fn router(
     tx_price_feed: broadcast::Sender<Message>,
     tx_user_feed: broadcast::Sender<NewUserMessage>,
     auth_users_notifier: mpsc::Sender<OrderbookMessage>,
+    user_backup: SledBackup,
 ) -> Router {
     let app_state = Arc::new(AppState {
         node,
@@ -111,11 +119,14 @@ pub fn router(
         announcement_addresses,
         node_alias: node_alias.to_string(),
         auth_users_notifier,
+        user_backup,
     });
 
     Router::new()
         .route("/", get(index))
         .route("/api/version", get(version))
+        .route("/api/backup/:node_id", post(back_up).delete(delete_backup))
+        .route("/api/restore/:node_id", get(restore))
         .route(
             "/api/prepare_onboarding_payment",
             post(prepare_onboarding_payment),
@@ -541,4 +552,65 @@ pub async fn collaborative_revert_confirm(
         AppError::InternalServerError("Could not confirm collaborative revert".to_string())
     })?;
     Ok(Json(serialize_hex(&raw_tx)))
+}
+
+// TODO(holzeis): There is no reason the backup and restore api has to run on the coordinator. On
+// the contrary it would be much more reasonable to have the backup and restore api run separately.
+pub async fn back_up(
+    Path(node_id): Path<String>,
+    State(state): State<Arc<AppState>>,
+    backup: Json<Backup>,
+) -> Result<(), AppError> {
+    let node_id = PublicKey::from_str(&node_id)
+        .map_err(|e| AppError::BadRequest(format!("Invalid node id provided. {e:#}")))?;
+
+    backup
+        .verify(&node_id)
+        .map_err(|_| AppError::Unauthorized)?;
+
+    state
+        .user_backup
+        .back_up(node_id, backup.0)
+        .await
+        .map_err(|e| AppError::InternalServerError(e.to_string()))
+}
+
+pub async fn delete_backup(
+    Path(node_id): Path<String>,
+    State(state): State<Arc<AppState>>,
+    backup: Json<DeleteBackup>,
+) -> Result<(), AppError> {
+    let node_id = PublicKey::from_str(&node_id)
+        .map_err(|e| AppError::BadRequest(format!("Invalid node id provided. {e:#}")))?;
+
+    backup
+        .verify(&node_id)
+        .map_err(|_| AppError::Unauthorized)?;
+
+    state
+        .user_backup
+        .delete(node_id, backup.0)
+        .map_err(|e| AppError::InternalServerError(e.to_string()))
+}
+
+async fn restore(
+    Path(node_id): Path<String>,
+    State(state): State<Arc<AppState>>,
+    signature: Json<Signature>,
+) -> Result<Json<Vec<Restore>>, AppError> {
+    let node_id = PublicKey::from_str(&node_id)
+        .map_err(|e| AppError::BadRequest(format!("Invalid node id provided. {e:#}")))?;
+
+    let message = node_id.to_string().as_bytes().to_vec();
+    let message = orderbook_commons::create_sign_message(message);
+    signature
+        .verify(&message, &node_id)
+        .map_err(|_| AppError::Unauthorized)?;
+
+    let backup = state
+        .user_backup
+        .restore(node_id)
+        .map_err(|e| AppError::InternalServerError(format!("Failed to restore backup. {e:#}")))?;
+
+    Ok(Json(backup))
 }

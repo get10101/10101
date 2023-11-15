@@ -2,6 +2,8 @@
 //! We should reimplement some of these traits for production.
 
 use crate::ln_dlc_wallet::LnDlcWallet;
+use crate::node::Storage;
+use crate::storage::TenTenOneStorage;
 use anyhow::anyhow;
 use anyhow::Result;
 use bitcoin::Script;
@@ -290,13 +292,13 @@ impl Writeable for CustomSigner {
     }
 }
 
-pub struct CustomKeysManager {
+pub struct CustomKeysManager<S, N> {
     keys_manager: KeysManager,
-    wallet: Arc<LnDlcWallet>,
+    wallet: Arc<LnDlcWallet<S, N>>,
 }
 
-impl CustomKeysManager {
-    pub fn new(keys_manager: KeysManager, wallet: Arc<LnDlcWallet>) -> Self {
+impl<S, N> CustomKeysManager<S, N> {
+    pub fn new(keys_manager: KeysManager, wallet: Arc<LnDlcWallet<S, N>>) -> Self {
         Self {
             keys_manager,
             wallet,
@@ -308,7 +310,7 @@ impl CustomKeysManager {
     }
 }
 
-impl CustomKeysManager {
+impl<S: TenTenOneStorage, N: Storage> CustomKeysManager<S, N> {
     #[allow(clippy::result_unit_err)]
     pub fn spend_spendable_outputs<C: Signing>(
         &self,
@@ -331,7 +333,9 @@ impl CustomKeysManager {
     }
 }
 
-impl LnDlcSignerProvider<CustomSigner> for CustomKeysManager {
+impl<S: TenTenOneStorage, N: Storage> LnDlcSignerProvider<CustomSigner>
+    for CustomKeysManager<S, N>
+{
     fn derive_ln_dlc_channel_signer(
         &self,
         channel_value_satoshis: u64,
@@ -341,7 +345,7 @@ impl LnDlcSignerProvider<CustomSigner> for CustomKeysManager {
     }
 }
 
-impl SignerProvider for CustomKeysManager {
+impl<S: TenTenOneStorage, N: Storage> SignerProvider for CustomKeysManager<S, N> {
     type Signer = CustomSigner;
 
     fn get_destination_script(&self) -> Result<Script, ()> {
@@ -395,7 +399,7 @@ impl SignerProvider for CustomKeysManager {
     }
 }
 
-impl NodeSigner for CustomKeysManager {
+impl<S: TenTenOneStorage, N: Storage> NodeSigner for CustomKeysManager<S, N> {
     fn get_inbound_payment_key_material(&self) -> KeyMaterial {
         self.keys_manager.get_inbound_payment_key_material()
     }
@@ -431,7 +435,7 @@ impl NodeSigner for CustomKeysManager {
     }
 }
 
-impl EntropySource for CustomKeysManager {
+impl<S: TenTenOneStorage, N: Storage> EntropySource for CustomKeysManager<S, N> {
     fn get_secure_random_bytes(&self) -> [u8; 32] {
         self.keys_manager.get_secure_random_bytes()
     }

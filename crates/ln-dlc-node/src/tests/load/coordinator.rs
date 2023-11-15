@@ -1,6 +1,7 @@
 use crate::node::InMemoryStore;
 use crate::node::Node;
 use crate::node::NodeInfo;
+use crate::storage::TenTenOneInMemoryStorage;
 use anyhow::bail;
 use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
@@ -57,7 +58,7 @@ impl Coordinator {
     /// Assumes that the app node is already connected to the coordinator.
     pub async fn open_channel(
         &self,
-        app: &Node<InMemoryStore>,
+        app: &Node<TenTenOneInMemoryStorage, InMemoryStore>,
         coordinator_balance: u64,
         app_balance: u64,
     ) -> Result<()> {
@@ -120,7 +121,11 @@ impl Coordinator {
         Ok(())
     }
 
-    pub async fn post_trade(&self, app: &Node<InMemoryStore>, direction: Direction) -> Result<()> {
+    pub async fn post_trade(
+        &self,
+        app: &Node<TenTenOneInMemoryStorage, InMemoryStore>,
+        direction: Direction,
+    ) -> Result<()> {
         #[derive(Serialize)]
         pub struct TradeParams {
             pub pubkey: PublicKey,

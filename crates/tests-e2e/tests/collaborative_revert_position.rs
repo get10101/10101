@@ -15,7 +15,7 @@ async fn can_revert_channel() {
     let bitcoin = &test.bitcoind;
     let app = &test.app;
 
-    let app_pubkey = api::get_node_id().unwrap().0;
+    let app_pubkey = api::get_node_id().0;
 
     let channels = coordinator.get_channels().await.expect("To get channels");
 

@@ -1,4 +1,6 @@
 use crate::node::Node;
+use crate::node::Storage;
+use crate::storage::TenTenOneStorage;
 use bitcoin::secp256k1::XOnlyPublicKey;
 use dlc_manager::Oracle;
 use p2pd_oracle_client::P2PDOracleClient;
@@ -20,7 +22,7 @@ impl From<OracleInfo> for P2PDOracleClient {
     }
 }
 
-impl<P> Node<P> {
+impl<S: TenTenOneStorage, N: Storage> Node<S, N> {
     pub fn oracle_pk(&self) -> XOnlyPublicKey {
         self.oracle.get_public_key()
     }
