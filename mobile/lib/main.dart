@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
-import 'package:flutter_rust_bridge/flutter_rust_bridge.dart';
 import 'package:get_10101/backend.dart';
 import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
 import 'package:get_10101/common/color.dart';
@@ -46,8 +45,9 @@ class _TenTenOneAppState extends State<TenTenOneApp> with WidgetsBindingObserver
     final config = context.read<bridge.Config>();
     _router = createRoutes();
 
-    init(config);
+    subscribeToNotifiers(context);
 
+    // TODO(holzeis): check if we can do this without the addPostFrameCallback
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await compareCoordinatorVersion(config);
     });
@@ -85,17 +85,5 @@ class _TenTenOneAppState extends State<TenTenOneApp> with WidgetsBindingObserver
       routerConfig: _router,
       debugShowCheckedModeBanner: false,
     );
-  }
-
-  Future<void> init(bridge.Config config) async {
-    try {
-      prepareBackend(context, config);
-    } on FfiException catch (error) {
-      logger.e("Failed to initialise: Error: ${error.message}", error: error);
-    } catch (error) {
-      logger.e("Failed to initialise: $error", error: error);
-    } finally {
-      FlutterNativeSplash.remove();
-    }
   }
 }
