@@ -7,7 +7,6 @@ use crate::cipher::AesCipher;
 use crate::db;
 use anyhow::Result;
 use backup::DB_BACKUP_NAME;
-use bitcoin::hashes::hex::ToHex;
 use bitcoin::secp256k1::SecretKey;
 use bitcoin::BlockHash;
 use bitcoin::Network;
@@ -186,7 +185,7 @@ impl DlcStoreProvider for TenTenOneNodeStorage {
         self.dlc_storage.delete(kind, key.clone())?;
 
         let key = match key {
-            Some(key) => [DLC_BACKUP_KEY, &kind.to_hex(), &hex::encode(key)].join("/"),
+            Some(key) => [DLC_BACKUP_KEY, &hex::encode([kind]), &hex::encode(key)].join("/"),
             None => [DLC_BACKUP_KEY, &hex::encode([kind])].join("/"),
         };
 
