@@ -16,9 +16,9 @@ import 'package:go_router/go_router.dart';
 class LoadingScreen extends StatefulWidget {
   static const route = "/loading";
 
-  final Future<void>? restore;
+  final Future<void>? future;
 
-  const LoadingScreen({super.key, this.restore});
+  const LoadingScreen({super.key, this.future});
 
   @override
   State<LoadingScreen> createState() => _LoadingScreenState();
@@ -29,18 +29,14 @@ class _LoadingScreenState extends State<LoadingScreen> {
 
   @override
   void initState() {
-    List<Future<dynamic>> futures = [
-      Preferences.instance.getOpenPosition(),
-      isSeedFilePresent(),
-      Preferences.instance.isFullBackupRequired(),
-    ];
-
-    if (widget.restore != null) {
-      // wait for the restore process to finish!
-      futures.add(widget.restore!);
-    }
-
-    Future.wait<dynamic>(futures).then((value) {
+    // Wait for the future to complete sequentially before running other futures concurrently
+    (widget.future ?? Future.value()).then((value) {
+      return Future.wait<dynamic>([
+        Preferences.instance.getOpenPosition(),
+        isSeedFilePresent(),
+        Preferences.instance.isFullBackupRequired(),
+      ]);
+    }).then((value) {
       final position = value[0];
       final isSeedFilePresent = value[1];
       final isFullBackupRequired = value[2];

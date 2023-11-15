@@ -30,7 +30,7 @@ GoRouter createRoutes() {
           path: LoadingScreen.route,
           pageBuilder: (context, state) => NoTransitionPage<void>(
             child: LoadingScreen(
-              restore: state.extra as Future<void>?,
+              future: state.extra as Future<void>?,
             ),
           ),
         ),
