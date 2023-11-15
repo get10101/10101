@@ -163,6 +163,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                                 onPressed: !(_betaDisclaimer && _loseDisclaimer)
                                     ? null
                                     : () {
+                                        _formKey.currentState!.save();
                                         if (_formKey.currentState != null &&
                                             _formKey.currentState!.validate()) {
                                           GoRouter.of(context)
