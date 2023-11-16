@@ -1,4 +1,3 @@
--- Your SQL goes here
 ALTER TABLE channels ADD COLUMN "fee_sats" BIGINT DEFAULT null;
 
 ALTER TABLE

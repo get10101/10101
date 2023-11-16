@@ -180,6 +180,7 @@ impl ToSql<Text, Sqlite> for PositionState {
             PositionState::Open => "Open",
             PositionState::Closing => "Closing",
             PositionState::Rollover => "Rollover",
+            PositionState::Resizing => "Resizing",
         };
         out.set_value(text);
         Ok(IsNull::No)
@@ -194,6 +195,7 @@ impl FromSql<Text, Sqlite> for PositionState {
             "Open" => Ok(PositionState::Open),
             "Closing" => Ok(PositionState::Closing),
             "Rollover" => Ok(PositionState::Rollover),
+            "Resizing" => Ok(PositionState::Resizing),
             _ => Err("Unrecognized enum variant".into()),
         };
     }

@@ -4,6 +4,7 @@ use crate::schema::orders;
 use crate::schema::payments;
 use crate::schema::positions;
 use crate::schema::spendable_outputs;
+use crate::schema::trades;
 use crate::schema::transactions;
 use anyhow::anyhow;
 use anyhow::bail;
@@ -13,6 +14,8 @@ use base64::Engine;
 use bdk::bitcoin::hashes::hex::FromHex;
 use bdk::bitcoin::hashes::hex::ToHex;
 use bitcoin::secp256k1::PublicKey;
+use bitcoin::Amount;
+use bitcoin::SignedAmount;
 use bitcoin::Txid;
 use diesel;
 use diesel::prelude::*;
@@ -24,6 +27,9 @@ use lightning::util::ser::Readable;
 use lightning::util::ser::Writeable;
 use ln_dlc_node::channel::UserChannelId;
 use ln_dlc_node::node::rust_dlc_manager::ChannelId;
+use rust_decimal::prelude::FromPrimitive;
+use rust_decimal::prelude::ToPrimitive;
+use rust_decimal::Decimal;
 use std::str::FromStr;
 use time::OffsetDateTime;
 use trade;
@@ -275,6 +281,7 @@ pub enum PositionState {
     Open,
     Closing,
     Rollover,
+    Resizing,
 }
 
 impl Position {
@@ -333,6 +340,46 @@ impl Position {
         Ok(())
     }
 
+    /// Updates the status of the given order in the DB.
+    pub fn update_position(conn: &mut SqliteConnection, position: Position) -> Result<()> {
+        let Position {
+            contract_symbol,
+            leverage,
+            quantity,
+            direction,
+            average_entry_price,
+            liquidation_price,
+            state,
+            collateral,
+            creation_timestamp: _,
+            expiry_timestamp,
+            updated_timestamp,
+            stable,
+        } = position;
+
+        let affected_rows = diesel::update(positions::table)
+            .filter(schema::positions::contract_symbol.eq(contract_symbol))
+            .set((
+                positions::leverage.eq(leverage),
+                positions::quantity.eq(quantity),
+                positions::direction.eq(direction),
+                positions::average_entry_price.eq(average_entry_price),
+                positions::liquidation_price.eq(liquidation_price),
+                positions::state.eq(state),
+                positions::collateral.eq(collateral),
+                positions::expiry_timestamp.eq(expiry_timestamp),
+                positions::updated_timestamp.eq(updated_timestamp),
+                positions::stable.eq(stable),
+            ))
+            .execute(conn)?;
+
+        if affected_rows == 0 {
+            bail!("Could not update position")
+        }
+
+        Ok(())
+    }
+
     // TODO: This is obviously only for the MVP :)
     /// deletes all positions in the database
     pub fn delete_all(conn: &mut SqliteConnection) -> QueryResult<usize> {
@@ -387,6 +434,7 @@ impl From<crate::trade::position::PositionState> for PositionState {
             crate::trade::position::PositionState::Open => PositionState::Open,
             crate::trade::position::PositionState::Closing => PositionState::Closing,
             crate::trade::position::PositionState::Rollover => PositionState::Rollover,
+            crate::trade::position::PositionState::Resizing => PositionState::Resizing,
         }
     }
 }
@@ -397,6 +445,7 @@ impl From<PositionState> for crate::trade::position::PositionState {
             PositionState::Open => crate::trade::position::PositionState::Open,
             PositionState::Closing => crate::trade::position::PositionState::Closing,
             PositionState::Rollover => crate::trade::position::PositionState::Rollover,
+            PositionState::Resizing => crate::trade::position::PositionState::Resizing,
         }
     }
 }
@@ -1278,6 +1327,86 @@ impl From<ChannelState> for ln_dlc_node::channel::ChannelState {
             ChannelState::ForceClosedRemote => {
                 ln_dlc_node::channel::ChannelState::ForceClosedRemote
             }
+        }
+    }
+}
+
+#[derive(Insertable, Debug, Clone, PartialEq)]
+#[diesel(table_name = trades)]
+pub struct NewTrade {
+    pub order_id: String,
+    pub contract_symbol: ContractSymbol,
+    pub contracts: f32,
+    pub direction: Direction,
+    pub trade_cost_sat: i64,
+    pub fee_sat: i64,
+    pub pnl_sat: Option<i64>,
+    pub price: f32,
+    pub timestamp: i64,
+}
+
+#[derive(Queryable, Debug, Clone, PartialEq)]
+#[diesel(table_name = trades)]
+pub struct Trade {
+    pub id: i32,
+    pub order_id: String,
+    pub contract_symbol: ContractSymbol,
+    pub contracts: f32,
+    pub direction: Direction,
+    pub trade_cost_sat: i64,
+    pub fee_sat: i64,
+    pub pnl_sat: Option<i64>,
+    pub price: f32,
+    pub timestamp: i64,
+}
+
+impl Trade {
+    pub fn get_all(conn: &mut SqliteConnection) -> QueryResult<Vec<Self>> {
+        trades::table.load(conn)
+    }
+}
+
+impl NewTrade {
+    pub fn insert(conn: &mut SqliteConnection, trade: Self) -> Result<()> {
+        let affected_rows = diesel::insert_into(trades::table)
+            .values(trade)
+            .execute(conn)?;
+
+        ensure!(affected_rows > 0, "Could not insert trade");
+
+        Ok(())
+    }
+}
+
+impl From<crate::trade::Trade> for NewTrade {
+    fn from(value: crate::trade::Trade) -> Self {
+        Self {
+            order_id: value.order_id.to_string(),
+            contract_symbol: value.contract_symbol.into(),
+            contracts: value.contracts.to_f32().expect("contracts to fit into f32"),
+            direction: value.direction.into(),
+            trade_cost_sat: value.trade_cost.to_sat(),
+            fee_sat: value.fee.to_sat() as i64,
+            pnl_sat: value.pnl.map(|pnl| pnl.to_sat()),
+            price: value.price.to_f32().expect("price to fit into f32"),
+            timestamp: value.timestamp.unix_timestamp(),
+        }
+    }
+}
+
+impl From<Trade> for crate::trade::Trade {
+    fn from(value: Trade) -> Self {
+        Self {
+            order_id: Uuid::parse_str(value.order_id.as_str()).expect("valid UUID"),
+            contract_symbol: value.contract_symbol.into(),
+            contracts: Decimal::from_f32(value.contracts).expect("contracts to fit into Decimal"),
+            direction: value.direction.into(),
+            trade_cost: SignedAmount::from_sat(value.trade_cost_sat),
+            fee: Amount::from_sat(value.fee_sat as u64),
+            pnl: value.pnl_sat.map(SignedAmount::from_sat),
+            price: Decimal::from_f32(value.price).expect("price to fit into Decimal"),
+            timestamp: OffsetDateTime::from_unix_timestamp(value.timestamp)
+                .expect("valid UNIX timestamp"),
         }
     }
 }

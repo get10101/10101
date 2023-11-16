@@ -12,9 +12,11 @@ const double maxLeverage = 5.0;
 /// It uses linear scale and fractional leverage values are rounded to the nearest integer.
 class LeverageSlider extends StatefulWidget {
   final double initialValue;
+  final bool isActive;
   final Function(double) onLeverageChanged;
 
-  const LeverageSlider({required this.onLeverageChanged, this.initialValue = 2, super.key});
+  const LeverageSlider(
+      {required this.onLeverageChanged, this.initialValue = 2, this.isActive = true, super.key});
 
   @override
   State<LeverageSlider> createState() => _LeverageSliderState();
@@ -22,10 +24,12 @@ class LeverageSlider extends StatefulWidget {
 
 class _LeverageSliderState extends State<LeverageSlider> {
   late double _leverage;
+  late bool isActive;
 
   @override
   void initState() {
     _leverage = widget.initialValue;
+    isActive = widget.isActive;
     super.initState();
   }
 
@@ -33,53 +37,60 @@ class _LeverageSliderState extends State<LeverageSlider> {
   Widget build(BuildContext context) {
     TradeTheme tradeTheme = Theme.of(context).extension<TradeTheme>()!;
 
-    return Row(
-      children: [
-        LeverageButton(
-            label: "-",
-            onPressed: () {
-              if (_leverage > minLeverage) {
-                updateLeverage(--_leverage);
-              }
-            }),
-        Expanded(
-          child: Column(
-            children: [
-              Text(
-                "Leverage: x${_leverage.round()}",
-                style: TextStyle(color: colorFromLeverage()),
-              ),
-              SliderTheme(
-                data: SliderTheme.of(context).copyWith(
-                  thumbColor: colorFromLeverage(),
-                  trackShape: const GradientRectSliderTrackShape(),
-                  overlayShape: SliderComponentShape.noOverlay,
-                  inactiveTrackColor: tradeTheme.leverageInactiveSliderTrackColor.withOpacity(0.2),
-                  inactiveTickMarkColor: tradeTheme.leverageInactiveTicksColor,
+    return AbsorbPointer(
+        // We want to deactivate the leverage slider when creating an order
+        // whilst we have an open position.
+        absorbing: !isActive,
+        child: Opacity(
+            opacity: isActive ? 1.0 : 0.5,
+            child: Row(
+              children: [
+                LeverageButton(
+                    label: "-",
+                    onPressed: () {
+                      if (_leverage > minLeverage) {
+                        updateLeverage(--_leverage);
+                      }
+                    }),
+                Expanded(
+                  child: Column(
+                    children: [
+                      Text(
+                        "Leverage: x${_leverage.round()}",
+                        style: TextStyle(color: colorFromLeverage()),
+                      ),
+                      SliderTheme(
+                        data: SliderTheme.of(context).copyWith(
+                          thumbColor: colorFromLeverage(),
+                          trackShape: const GradientRectSliderTrackShape(),
+                          overlayShape: SliderComponentShape.noOverlay,
+                          inactiveTrackColor:
+                              tradeTheme.leverageInactiveSliderTrackColor.withOpacity(0.2),
+                          inactiveTickMarkColor: tradeTheme.leverageInactiveTicksColor,
+                        ),
+                        child: Slider(
+                          value: _leverage,
+                          min: 1,
+                          max: maxLeverage,
+                          divisions: (maxLeverage - 1).toInt(),
+                          label: "x${_leverage.round().toString()}",
+                          onChanged: (double value) {
+                            updateLeverage(value);
+                          },
+                        ),
+                      )
+                    ],
+                  ),
                 ),
-                child: Slider(
-                  value: _leverage,
-                  min: 1,
-                  max: maxLeverage,
-                  divisions: (maxLeverage - 1).toInt(),
-                  label: "x${_leverage.round().toString()}",
-                  onChanged: (double value) {
-                    updateLeverage(value);
-                  },
-                ),
-              )
-            ],
-          ),
-        ),
-        LeverageButton(
-            label: "+",
-            onPressed: () {
-              if (_leverage < maxLeverage) {
-                updateLeverage(++_leverage);
-              }
-            })
-      ],
-    );
+                LeverageButton(
+                    label: "+",
+                    onPressed: () {
+                      if (_leverage < maxLeverage) {
+                        updateLeverage(++_leverage);
+                      }
+                    })
+              ],
+            )));
   }
 
   updateLeverage(double leverage) {

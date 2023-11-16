@@ -41,7 +41,12 @@ pub fn sync(node: Node) -> Result<()> {
             position.id,
             contract.pnl,
         ) {
-            tracing::error!(position_id=%position.id, temporary_contract_id=%temporary_contract_id.to_hex(), pnl=%contract.pnl, "Failed to set position to closed: {e:#}")
+            tracing::error!(
+                position_id=%position.id,
+                temporary_contract_id=%temporary_contract_id.to_hex(),
+                pnl=%contract.pnl,
+                "Failed to set position to closed: {e:#}"
+            )
         }
     }
 

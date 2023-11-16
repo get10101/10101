@@ -7,7 +7,6 @@ use crate::ln_dlc::node::Node;
 use crate::trade::order;
 use crate::trade::position;
 use crate::trade::position::Position;
-use anyhow::Context;
 use anyhow::Result;
 use ln_dlc_node::node::rust_dlc_manager::subchannel::SubChannel;
 use ln_dlc_node::node::rust_dlc_manager::subchannel::SubChannelState;
@@ -64,8 +63,9 @@ impl Node {
             Some(SyncPositionToDlcAction::CreatePosition(channel_id)) => {
                 match order::handler::order_filled() {
                     Ok(order) => {
-                        let execution_price =
-                            order.execution_price().context("expect execution price")?;
+                        let execution_price = order
+                            .execution_price()
+                            .expect("filled order to have a price");
                         let open_position_fee = order_matching_fee_taker(
                             order.quantity,
                             Decimal::try_from(execution_price)?,
@@ -129,12 +129,9 @@ impl Node {
 }
 
 fn close_position_with_order() -> Result<()> {
-    let filled_order = match order::handler::order_filled() {
-        Ok(filled_order) => Some(filled_order),
-        Err(_) => None,
-    };
-
+    let filled_order = order::handler::order_filled().ok();
     position::handler::update_position_after_dlc_closure(filled_order)?;
+
     Ok(())
 }
 

@@ -381,12 +381,7 @@ class TradeHistoryItem extends WalletHistoryItem {
 
   @override
   String getTitle() {
-    switch (data.flow) {
-      case PaymentFlow.inbound:
-        return "Closed position";
-      case PaymentFlow.outbound:
-        return "Opened position";
-    }
+    return "${data.direction} ${data.contracts} contracts";
   }
 
   @override

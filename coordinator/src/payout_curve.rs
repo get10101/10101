@@ -11,12 +11,14 @@ use dlc_manager::payout_curve::RoundingInterval;
 use dlc_manager::payout_curve::RoundingIntervals;
 use payout_curve::ROUNDING_PERCENT;
 use rust_decimal::Decimal;
+use tracing::instrument;
 use trade::ContractSymbol;
 use trade::Direction;
 
 /// Builds the contract descriptor from the point of view of the coordinator.
 ///
 /// It's the direction of the coordinator because the coordinator is always proposing
+#[instrument]
 #[allow(clippy::too_many_arguments)]
 pub fn build_contract_descriptor(
     initial_price: Decimal,
@@ -33,6 +35,8 @@ pub fn build_contract_descriptor(
     if symbol != ContractSymbol::BtcUsd {
         bail!("We only support BTCUSD at the moment. For other symbols we will need a different payout curve");
     }
+
+    tracing::info!("Building contract descriptor");
 
     Ok(ContractDescriptor::Numerical(NumericalDescriptor {
         payout_function: build_inverse_payout_function(

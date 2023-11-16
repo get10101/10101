@@ -26,7 +26,6 @@ pub enum PositionState {
     /// Transitions:
     /// Open->Closing
     Closing,
-
     /// The position is in rollover
     ///
     /// This is a technical intermediate state indicating that a rollover is currently in progress.
@@ -34,6 +33,11 @@ pub enum PositionState {
     /// Transitions:
     /// Open->Rollover
     Rollover,
+    /// The position is being resized.
+    ///
+    /// Transitions:
+    /// Open->Resizing.
+    Resizing,
 }
 
 #[frb]
@@ -57,6 +61,7 @@ impl From<position::PositionState> for PositionState {
             position::PositionState::Open => PositionState::Open,
             position::PositionState::Closing => PositionState::Closing,
             position::PositionState::Rollover => PositionState::Rollover,
+            position::PositionState::Resizing => PositionState::Resizing,
         }
     }
 }

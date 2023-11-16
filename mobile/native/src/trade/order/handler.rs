@@ -25,11 +25,6 @@ pub async fn submit_order(order: Order) -> Result<Uuid> {
     let url = format!("http://{}", config::get_http_endpoint());
     let orderbook_client = OrderbookClient::new(Url::parse(&url)?);
 
-    if let Err(e) = position::handler::get_position_matching_order(&order) {
-        order_failed(Some(order.id), FailureReason::OrderNotAcceptable, e)?;
-        bail!("Could not submit order because extending/reducing the position is not part of the MVP scope");
-    }
-
     db::insert_order(order)?;
 
     if let Err(err) = orderbook_client.post_new_order(order.into()).await {
@@ -70,15 +65,21 @@ pub(crate) fn order_filling(order_id: Uuid, execution_price: f32) -> Result<()> 
 }
 
 pub(crate) fn order_filled() -> Result<Order> {
-    let order_being_filled = get_order_being_filled()?;
-
-    // Default the execution price in case we don't know
-    let execution_price = order_being_filled.execution_price().unwrap_or(0.0);
+    let (order_being_filled, execution_price) = match get_order_being_filled()? {
+        order @ Order {
+            state: OrderState::Filling { execution_price },
+            ..
+        } => (order, execution_price),
+        order => bail!("Unexpected state: {:?}", order.state),
+    };
 
     let filled_order = update_order_state_in_db_and_ui(
         order_being_filled.id,
         OrderState::Filled { execution_price },
     )?;
+
+    tracing::debug!(order = ?filled_order, "Order filled");
+
     Ok(filled_order)
 }
 
@@ -117,15 +118,9 @@ pub fn get_async_order() -> Result<Option<Order>> {
 }
 
 fn get_order_being_filled() -> Result<Order> {
-    let order_being_filled = match db::maybe_get_order_in_filling() {
-        Ok(Some(order_being_filled)) => order_being_filled,
-        Ok(None) => {
-            bail!("There is no order in state filling in the database");
-        }
-        Err(e) => {
-            bail!("Error when loading order being filled from database: {e:#}");
-        }
-    };
+    let order_being_filled = db::maybe_get_order_in_filling()
+        .context("Failed to load order being filled")?
+        .context("No known orders being filled")?;
 
     Ok(order_being_filled)
 }

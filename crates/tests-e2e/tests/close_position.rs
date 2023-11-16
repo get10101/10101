@@ -22,6 +22,7 @@ async fn can_collab_close_position() {
         .unwrap();
 
     wait_until!(test.app.rx.position().unwrap().position_state == PositionState::Closing);
+    wait_until!(test.app.rx.position_close().is_some());
 
-    // TODO: Assert that the position is closed in the app and the coordinator
+    // TODO: Assert that the position is closed in the coordinator
 }

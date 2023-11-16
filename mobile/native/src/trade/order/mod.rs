@@ -13,7 +13,7 @@ mod orderbook_client;
 // When naming this the same as `api_model::order::OrderType` the generated code somehow uses
 // `trade::OrderType` and contains errors, hence different name is used.
 // This is likely a bug in frb.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum OrderType {
     Market,
     Limit { price: f32 },
@@ -147,6 +147,8 @@ impl Order {
                 Some(execution_price)
             }
             _ => {
+                // TODO: The caller should decide how to handle this. Always logging an error is
+                // weird.
                 tracing::error!("Executed price not known in state {:?}", self.state);
                 None
             }
