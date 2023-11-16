@@ -7,8 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.1] - 2023-11-16
+
 - Add on-boarding wizard
 - Add backup and restore for lightning, dlc and 10101 data
+- Add support for resizing positions
+- Add beta disclaimer
+- Ensure that payout curve cannot be negative
+- Consider fee in payout curve
+- Ensure that inverse payout curve does not go over oracle's maximum BTC price
+- Add multiple oracle support on coordinator
 
 ## [1.5.0] - 2023-11-06
 
@@ -160,7 +168,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Self-Custodial CFD Trading based on DLC and lightning
 
-[Unreleased]: https://github.com/get10101/10101/compare/1.5.0...HEAD
+[Unreleased]: https://github.com/get10101/10101/compare/1.5.1...HEAD
+[1.5.1]: https://github.com/get10101/10101/compare/1.5.0...1.5.1
 [1.5.0]: https://github.com/get10101/10101/compare/1.4.4...1.5.0
 [1.4.4]: https://github.com/get10101/10101/compare/1.4.3...1.4.4
 [1.4.3]: https://github.com/get10101/10101/compare/1.4.2...1.4.3

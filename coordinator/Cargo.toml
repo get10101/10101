@@ -1,6 +1,6 @@
 [package]
 name = "coordinator"
-version = "1.5.0"
+version = "1.5.1"
 edition = "2021"
 
 [dependencies]
@@ -16,7 +16,6 @@ futures = "0.3"
 hex = "0.4"
 lazy_static = "1.4.0"
 lightning-persister = "0.0.116"
-ln-dlc-storage = { path = "../crates/ln-dlc-storage" }
 local-ip-address = "0.5.1"
 opentelemetry = "0.19.0"
 opentelemetry-prometheus = "0.12.0"
@@ -27,10 +26,16 @@ serde_json = "1"
 sled = "0.34"
 thiserror = "1.0"
 tokio-metrics = "0.2.2"
-tokio-util = { version = "0.7", features = ["io"] }
 toml = "0.7.3"
 tracing = "0.1.37"
 url = "2.3.1"
+
+[dependencies.ln-dlc-storage]
+path = "../crates/ln-dlc-storage"
+
+[dependencies.tokio-util]
+version = "0.7"
+features = ["io"]
 
 [dependencies.tokio-cron-scheduler]
 version = "0.9.4"
