@@ -18,7 +18,6 @@ use orderbook_commons::Matches;
 use orderbook_commons::Message;
 use orderbook_commons::OrderReason;
 use orderbook_commons::OrderState;
-use std::str::FromStr;
 use time::OffsetDateTime;
 use tokio::sync::broadcast;
 use tokio::sync::mpsc;
@@ -28,6 +27,7 @@ pub fn monitor(
     tx_user_feed: broadcast::Sender<NewUserMessage>,
     notifier: mpsc::Sender<OrderbookMessage>,
     network: Network,
+    oracle_pk: XOnlyPublicKey,
 ) -> RemoteHandle<Result<()>> {
     let mut user_feed = tx_user_feed.subscribe();
     let (fut, remote_handle) = async move {
@@ -37,7 +37,7 @@ pub fn monitor(
                 let notifier = notifier.clone();
                 async move {
                     tracing::debug!(trader_id=%new_user_msg.new_user, "Checking if the user needs to be notified about pending matches");
-                    if let Err(e) = process_pending_match(&mut conn, notifier, new_user_msg.new_user, network).await {
+                    if let Err(e) = process_pending_match(&mut conn, notifier, new_user_msg.new_user, network, oracle_pk).await {
                         tracing::error!("Failed to process pending match. Error: {e:#}");
                     }
                 }
@@ -57,12 +57,13 @@ async fn process_pending_match(
     notifier: mpsc::Sender<OrderbookMessage>,
     trader_id: PublicKey,
     network: Network,
+    oracle_pk: XOnlyPublicKey,
 ) -> Result<()> {
     if let Some(order) = orders::get_by_trader_id_and_state(conn, trader_id, OrderState::Matched)? {
         tracing::debug!(%trader_id, order_id=%order.id, "Notifying trader about pending match");
 
         let matches = matches::get_matches_by_order_id(conn, order.id)?;
-        let filled_with = get_filled_with_from_matches(matches, network)?;
+        let filled_with = get_filled_with_from_matches(matches, network, oracle_pk)?;
 
         let message = match order.order_reason {
             OrderReason::Manual => Message::Match(filled_with),
@@ -85,7 +86,11 @@ async fn process_pending_match(
     Ok(())
 }
 
-fn get_filled_with_from_matches(matches: Vec<Matches>, network: Network) -> Result<FilledWith> {
+fn get_filled_with_from_matches(
+    matches: Vec<Matches>,
+    network: Network,
+    oracle_pk: XOnlyPublicKey,
+) -> Result<FilledWith> {
     ensure!(
         !matches.is_empty(),
         "Need at least one matches record to construct a FilledWith"
@@ -95,10 +100,6 @@ fn get_filled_with_from_matches(matches: Vec<Matches>, network: Network) -> Resu
         .first()
         .expect("to have at least one match")
         .order_id;
-    let oracle_pk = XOnlyPublicKey::from_str(
-        "16f88cf7d21e6c0f46bcbc983a4e3b19726c6c98858cc31c83551a88fde171c0",
-    )
-    .expect("To be a valid pubkey");
 
     let expiry_timestamp =
         coordinator_commons::calculate_next_expiry(OffsetDateTime::now_utc(), network);

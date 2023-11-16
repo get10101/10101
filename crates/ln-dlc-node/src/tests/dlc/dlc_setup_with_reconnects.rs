@@ -49,7 +49,7 @@ async fn reconnecting_during_dlc_channel_setup() {
 
     // Act
 
-    let oracle_pk = app.oracle_pk();
+    let oracle_pk = *app.oracle_pk().first().unwrap();
     let contract_input = dummy_contract_input(20_000, 20_000, oracle_pk);
 
     app.propose_dlc_channel(channel_details.clone(), contract_input)
@@ -402,7 +402,7 @@ async fn can_lose_connection_before_processing_subchannel_accept() {
         .await
         .unwrap();
 
-    let oracle_pk = app.oracle_pk();
+    let oracle_pk = *app.oracle_pk().first().unwrap();
     let contract_input =
         dummy_contract_input(coordinator_dlc_collateral, app_dlc_collateral, oracle_pk);
 

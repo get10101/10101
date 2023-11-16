@@ -23,7 +23,11 @@ impl From<OracleInfo> for P2PDOracleClient {
 }
 
 impl<S: TenTenOneStorage, N: Storage> Node<S, N> {
-    pub fn oracle_pk(&self) -> XOnlyPublicKey {
-        self.oracle.get_public_key()
+    pub fn oracle_pk(&self) -> Vec<XOnlyPublicKey> {
+        self.oracles
+            .clone()
+            .into_iter()
+            .map(|oracle| oracle.get_public_key())
+            .collect()
     }
 }

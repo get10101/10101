@@ -237,7 +237,7 @@ impl Node {
                     contract_infos: vec![ContractInputInfo {
                         contract_descriptor,
                         oracles: OracleInput {
-                            public_keys: vec![self.inner.oracle_pk()],
+                            public_keys: vec![self.inner.oracle_pubkey],
                             event_id,
                             threshold: 1,
                         },

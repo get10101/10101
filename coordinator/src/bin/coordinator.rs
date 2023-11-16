@@ -1,5 +1,6 @@
 use anyhow::Context;
 use anyhow::Result;
+use bitcoin::XOnlyPublicKey;
 use coordinator::backup::SledBackup;
 use coordinator::cli::Opts;
 use coordinator::logger;
@@ -37,6 +38,7 @@ use std::backtrace::Backtrace;
 use std::net::IpAddr;
 use std::net::Ipv4Addr;
 use std::net::SocketAddr;
+use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::broadcast;
@@ -124,7 +126,11 @@ async fn main() -> Result<()> {
         seed,
         ephemeral_randomness,
         settings.ln_dlc.clone(),
-        opts.get_oracle_info().into(),
+        opts.get_oracle_infos()
+            .into_iter()
+            .map(|o| o.into())
+            .collect(),
+        XOnlyPublicKey::from_str(&opts.oracle_pubkey).expect("valid public key"),
     )?);
 
     let event_handler = CoordinatorEventHandler::new(node.clone(), Some(node_event_sender));
@@ -220,12 +226,14 @@ async fn main() -> Result<()> {
         tx_price_feed.clone(),
         auth_users_notifier.clone(),
         network,
+        node.inner.oracle_pubkey,
     );
     let _handle = async_match::monitor(
         pool.clone(),
         tx_user_feed.clone(),
         auth_users_notifier.clone(),
         network,
+        node.inner.oracle_pubkey,
     );
     let _handle = rollover::monitor(
         pool.clone(),

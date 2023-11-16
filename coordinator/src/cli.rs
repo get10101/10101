@@ -60,15 +60,24 @@ pub struct Opts {
     pub fcm_api_key: String,
 
     /// The endpoint of the p2p-derivatives oracle
-    #[clap(long, default_value = "http://localhost:8081")]
-    oracle_endpoint: String,
+    #[arg(num_args(0..))]
+    #[clap(
+        long,
+        default_value = "16f88cf7d21e6c0f46bcbc983a4e3b19726c6c98858cc31c83551a88fde171c0@http://localhost:8081"
+    )]
+    oracle: Vec<String>,
 
-    /// The public key of the oracle
+    /// Defines the default oracle to be used for propose a dlc channel. Note this pubkey has to be
+    /// included in the oracle arguments.
+    ///
+    /// FIXME(holzeis): Remove this argument once we have migrated successfully from the old oracle
+    /// to the new one. This is needed to instruct the coordinator to use only the new oracle for
+    /// proposing dlc channels.
     #[clap(
         long,
         default_value = "16f88cf7d21e6c0f46bcbc983a4e3b19726c6c98858cc31c83551a88fde171c0"
     )]
-    oracle_pubkey: String,
+    pub oracle_pubkey: String,
 }
 
 #[derive(Debug, Clone, Copy, clap::ValueEnum)]
@@ -100,12 +109,20 @@ impl Opts {
         self.network.into()
     }
 
-    pub fn get_oracle_info(&self) -> OracleInfo {
-        OracleInfo {
-            endpoint: self.oracle_endpoint.clone(),
-            public_key: XOnlyPublicKey::from_str(self.oracle_pubkey.as_str())
-                .expect("Valid oracle public key"),
-        }
+    pub fn get_oracle_infos(&self) -> Vec<OracleInfo> {
+        self.oracle
+            .iter()
+            .map(|oracle| {
+                let oracle: Vec<&str> = oracle.split('@').collect();
+                OracleInfo {
+                    public_key: XOnlyPublicKey::from_str(
+                        oracle.first().expect("public key to be set"),
+                    )
+                    .expect("Valid oracle public key"),
+                    endpoint: oracle.get(1).expect("endpoint to be set").to_string(),
+                }
+            })
+            .collect()
     }
 
     pub fn data_dir(&self) -> Result<PathBuf> {

@@ -7,6 +7,7 @@ use crate::SubChannelManager;
 use crate::ToHex;
 use anyhow::anyhow;
 use anyhow::bail;
+use anyhow::ensure;
 use anyhow::Context;
 use anyhow::Result;
 use autometrics::autometrics;
@@ -38,21 +39,31 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
         channel_details: ChannelDetails,
         contract_input: ContractInput,
     ) -> Result<()> {
-        tracing::info!(channel_id = %hex::encode(channel_details.channel_id), "Sending DLC channel offer");
+        tracing::info!(channel_id = %hex::encode(channel_details.channel_id), oracles=?contract_input.contract_infos[0].oracles, "Sending DLC channel offer");
 
         spawn_blocking({
-            let oracle = self.oracle.clone();
+            let p2pd_oracles = self.oracles.clone();
             let sub_channel_manager = self.sub_channel_manager.clone();
-            let event_id = contract_input.contract_infos[0].oracles.event_id.clone();
+            let oracles = contract_input.contract_infos[0].oracles.clone();
+            let event_id = oracles.event_id;
             let dlc_message_handler = self.dlc_message_handler.clone();
             let peer_manager = self.peer_manager.clone();
             move || {
-                let announcement = oracle.get_announcement(&event_id)?;
+                let announcements: Vec<_> = p2pd_oracles
+                    .into_iter()
+                    .filter(|o| oracles.public_keys.contains(&o.public_key))
+                    .filter_map(|oracle| oracle.get_announcement(&event_id).ok())
+                    .collect();
+
+                ensure!(
+                    !announcements.is_empty(),
+                    format!("Can't propose dlc channel without oracles")
+                );
 
                 let sub_channel_offer = sub_channel_manager.offer_sub_channel(
                     &channel_details.channel_id,
                     &contract_input,
-                    &[vec![announcement]],
+                    &[announcements],
                 )?;
 
                 send_dlc_message(
