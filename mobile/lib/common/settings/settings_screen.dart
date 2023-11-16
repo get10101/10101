@@ -40,32 +40,36 @@ class _SettingsScreenState extends State<SettingsScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Row(
-                    children: [
-                      GestureDetector(
-                        child: const Icon(
-                          Icons.arrow_back_ios_new_rounded,
-                          size: 22,
-                        ),
-                        onTap: () {
-                          GoRouter.of(context).go(WalletScreen.route);
-                        },
-                      ),
-                    ],
-                  ),
-                  const Expanded(
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                  Expanded(
+                    child: Stack(
                       children: [
-                        Text(
-                          "Settings",
-                          style: TextStyle(fontWeight: FontWeight.w500, fontSize: 20),
+                        GestureDetector(
+                          child: Container(
+                              alignment: AlignmentDirectional.topStart,
+                              decoration: BoxDecoration(
+                                  color: Colors.transparent,
+                                  borderRadius: BorderRadius.circular(10)),
+                              width: 70,
+                              child: const Icon(
+                                Icons.arrow_back_ios_new_rounded,
+                                size: 22,
+                              )),
+                          onTap: () {
+                            GoRouter.of(context).go(WalletScreen.route);
+                          },
                         ),
-                        // shift the row the size of the icon into the middle so that it is properly centered.
-                        SizedBox(width: 34)
+                        const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              "Settings",
+                              style: TextStyle(fontWeight: FontWeight.w500, fontSize: 20),
+                            ),
+                          ],
+                        ),
                       ],
                     ),
-                  )
+                  ),
                 ],
               ),
               const SizedBox(

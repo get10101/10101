@@ -38,31 +38,36 @@ class _CollabCloseScreenState extends State<CollabCloseScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Row(
-                      children: [
-                        GestureDetector(
-                          child: const Icon(
-                            Icons.arrow_back_ios_new_rounded,
-                            size: 22,
-                          ),
-                          onTap: () {
-                            context.pop();
-                          },
-                        ),
-                      ],
-                    ),
-                    const Expanded(
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
+                    Expanded(
+                      child: Stack(
                         children: [
-                          Text(
-                            "Close Channel",
-                            style: TextStyle(fontWeight: FontWeight.w500, fontSize: 20),
+                          GestureDetector(
+                            child: Container(
+                                alignment: AlignmentDirectional.topStart,
+                                decoration: BoxDecoration(
+                                    color: Colors.transparent,
+                                    borderRadius: BorderRadius.circular(10)),
+                                width: 70,
+                                child: const Icon(
+                                  Icons.arrow_back_ios_new_rounded,
+                                  size: 22,
+                                )),
+                            onTap: () {
+                              GoRouter.of(context).pop();
+                            },
                           ),
-                          SizedBox(width: 24)
+                          const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                "Close Channel",
+                                style: TextStyle(fontWeight: FontWeight.w500, fontSize: 20),
+                              ),
+                            ],
+                          ),
                         ],
                       ),
-                    )
+                    ),
                   ],
                 ),
                 const SizedBox(
