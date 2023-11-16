@@ -51,7 +51,13 @@ Future<void> runBackend(BuildContext context) async {
 
   final seedDir = (await getApplicationSupportDirectory()).path;
 
-  String fcmToken = await FirebaseMessaging.instance.getToken().then((value) => value ?? '');
+  String fcmToken = '';
+  try {
+    fcmToken = await FirebaseMessaging.instance.getToken() ?? '';
+  } catch (e) {
+    logger.e("Failed to get FCM token $e");
+  }
+
   await _startBackend(seedDir: seedDir, fcmToken: fcmToken);
 
   // these notifiers depend on the backend running
