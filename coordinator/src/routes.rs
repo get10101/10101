@@ -184,6 +184,7 @@ pub async fn index() -> impl IntoResponse {
     })
 }
 
+#[instrument(skip_all, err(Debug))]
 pub async fn prepare_onboarding_payment(
     State(app_state): State<Arc<AppState>>,
     params: Json<OnboardingParam>,
@@ -271,6 +272,7 @@ pub async fn get_unused_address(State(app_state): State<Arc<AppState>>) -> impl 
     app_state.node.inner.get_unused_address().to_string()
 }
 
+#[instrument(skip_all, err(Debug))]
 pub async fn get_node_info(
     State(app_state): State<Arc<AppState>>,
 ) -> Result<Json<NodeInfo>, AppError> {
@@ -292,6 +294,7 @@ pub struct OpenChannelFeeInvoiceParams {
     pub expiry: Option<u32>,
 }
 
+#[instrument(skip_all, err(Debug))]
 pub async fn get_invoice(
     Query(params): Query<InvoiceParams>,
     State(state): State<Arc<AppState>>,
@@ -348,6 +351,7 @@ pub async fn rollover(
     Ok(())
 }
 
+#[instrument(skip_all, err(Debug))]
 pub async fn post_broadcast_announcement(
     State(state): State<Arc<AppState>>,
 ) -> Result<(), AppError> {
@@ -406,6 +410,7 @@ pub async fn post_register(
     Ok(())
 }
 
+#[instrument(skip_all, err(Debug))]
 pub async fn get_lsp_channel_config(
     State(state): State<Arc<AppState>>,
 ) -> Result<Json<LspConfig>, AppError> {
@@ -430,6 +435,7 @@ async fn get_settings(State(state): State<Arc<AppState>>) -> impl IntoResponse {
     serde_json::to_string(&*settings).expect("to be able to serialise settings")
 }
 
+#[instrument(skip_all, err(Debug))]
 async fn update_settings(
     State(state): State<Arc<AppState>>,
     Json(updated_settings): Json<Settings>,
@@ -515,6 +521,7 @@ pub async fn version() -> Result<Json<Version>, AppError> {
     }))
 }
 
+#[instrument(skip_all, err(Debug))]
 pub async fn collaborative_revert_confirm(
     State(state): State<Arc<AppState>>,
     revert_params: Json<CollaborativeRevertData>,
@@ -556,6 +563,7 @@ pub async fn collaborative_revert_confirm(
 
 // TODO(holzeis): There is no reason the backup and restore api has to run on the coordinator. On
 // the contrary it would be much more reasonable to have the backup and restore api run separately.
+#[instrument(skip_all, err(Debug))]
 pub async fn back_up(
     Path(node_id): Path<String>,
     State(state): State<Arc<AppState>>,
@@ -575,6 +583,7 @@ pub async fn back_up(
         .map_err(|e| AppError::InternalServerError(e.to_string()))
 }
 
+#[instrument(skip_all, err(Debug))]
 pub async fn delete_backup(
     Path(node_id): Path<String>,
     State(state): State<Arc<AppState>>,
@@ -593,6 +602,7 @@ pub async fn delete_backup(
         .map_err(|e| AppError::InternalServerError(e.to_string()))
 }
 
+#[instrument(skip_all, err(Debug))]
 async fn restore(
     Path(node_id): Path<String>,
     State(state): State<Arc<AppState>>,

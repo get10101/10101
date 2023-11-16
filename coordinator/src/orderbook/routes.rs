@@ -53,6 +53,7 @@ where
     }
 }
 
+#[instrument(skip_all, err(Debug))]
 pub async fn get_orders(
     State(state): State<Arc<AppState>>,
     Query(params): Query<AllOrdersParams>,
@@ -66,6 +67,7 @@ pub async fn get_orders(
     Ok(Json(order))
 }
 
+#[instrument(skip_all, err(Debug))]
 fn get_db_connection(
     state: &Arc<AppState>,
 ) -> Result<PooledConnection<ConnectionManager<PgConnection>>, AppError> {
@@ -76,6 +78,7 @@ fn get_db_connection(
         .map_err(|e| AppError::InternalServerError(format!("Failed to get db access: {e:#}")))
 }
 
+#[instrument(skip_all, err(Debug))]
 pub async fn get_order(
     Path(order_id): Path<Uuid>,
     State(state): State<Arc<AppState>>,
@@ -136,6 +139,7 @@ pub struct UpdateOrder {
     pub taken: bool,
 }
 
+#[instrument(skip_all, err(Debug))]
 pub async fn put_order(
     Path(order_id): Path<Uuid>,
     State(state): State<Arc<AppState>>,

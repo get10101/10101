@@ -121,6 +121,7 @@ impl From<(SubChannel, String, Option<OffsetDateTime>)> for DlcChannelDetails {
 }
 
 #[autometrics]
+#[instrument(skip_all, err(Debug))]
 pub async fn list_dlc_channels(
     State(state): State<Arc<AppState>>,
 ) -> Result<Json<Vec<DlcChannelDetails>>, AppError> {
@@ -148,6 +149,7 @@ pub async fn list_dlc_channels(
     Ok(Json(dlc_channels))
 }
 
+#[instrument(skip_all, err(Debug))]
 pub async fn collaborative_revert(
     State(state): State<Arc<AppState>>,
     revert_params: Json<CollaborativeRevert>,
@@ -183,6 +185,7 @@ pub async fn collaborative_revert(
     ))
 }
 
+#[instrument(skip_all, err(Debug))]
 pub async fn list_on_chain_transactions(
     State(state): State<Arc<AppState>>,
 ) -> Result<Json<Vec<TransactionDetails>>, AppError> {
@@ -276,6 +279,7 @@ pub async fn open_channel(
     Ok(Json(hex::encode(channel_id)))
 }
 
+#[instrument(skip_all, err(Debug))]
 pub async fn send_payment(
     Path(invoice): Path<String>,
     State(state): State<Arc<AppState>>,
@@ -316,6 +320,7 @@ pub async fn close_channel(
     Ok(())
 }
 
+#[instrument(skip_all, err(Debug))]
 pub async fn sign_message(
     Path(msg): Path<String>,
     State(state): State<Arc<AppState>>,
@@ -328,6 +333,7 @@ pub async fn sign_message(
     Ok(Json(signature))
 }
 
+#[instrument(skip_all, err(Debug))]
 pub async fn connect_to_peer(
     State(state): State<Arc<AppState>>,
     target: Json<NodeInfo>,
@@ -339,6 +345,7 @@ pub async fn connect_to_peer(
     Ok(())
 }
 
+#[instrument(skip_all, err(Debug))]
 pub async fn is_connected(
     State(state): State<Arc<AppState>>,
     Path(target_pubkey): Path<String>,
