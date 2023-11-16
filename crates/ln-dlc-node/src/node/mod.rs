@@ -883,11 +883,9 @@ fn manage_dlc_manager<S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 
             loop {
                 tracing::trace!("Started periodic dlc manager check");
                 let now = Instant::now();
+
                 if let Err(e) = dlc_manager.periodic_chain_monitor() {
                     tracing::error!("Failed to perform periodic chain monitor check: {e:#}");
-                };
-                if let Err(e) = dlc_manager.periodic_check() {
-                    tracing::error!("Failed to perform periodic check: {e:#}");
                 };
 
                 tracing::trace!(
