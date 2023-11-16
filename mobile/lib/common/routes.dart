@@ -17,7 +17,7 @@ import 'package:get_10101/features/wallet/onboarding/onboarding_screen.dart';
 import 'package:get_10101/features/wallet/receive_screen.dart';
 import 'package:get_10101/features/wallet/scanner_screen.dart';
 import 'package:get_10101/features/welcome/seed_import_screen.dart';
-import 'package:get_10101/features/wallet/seed_screen.dart';
+import 'package:get_10101/common/settings/seed_screen.dart';
 import 'package:get_10101/features/wallet/send/send_screen.dart';
 import 'package:get_10101/features/wallet/wallet_screen.dart';
 import 'package:get_10101/features/welcome/welcome_screen.dart';
@@ -93,6 +93,14 @@ GoRouter createRoutes() {
                 },
               ),
               GoRoute(
+                path: SeedScreen.subRouteName,
+                // Use root navigator so the screen overlays the application shell
+                parentNavigatorKey: rootNavigatorKey,
+                builder: (BuildContext context, GoRouterState state) {
+                  return const SeedScreen();
+                },
+              ),
+              GoRoute(
                 path: ChannelScreen.subRouteName,
                 // Use root navigator so the screen overlays the application shell
                 parentNavigatorKey: rootNavigatorKey,
@@ -148,14 +156,6 @@ GoRouter createRoutes() {
                       return SendScreen(encodedDestination: state.extra as String?);
                     }
                     return const SendScreen();
-                  },
-                ),
-                GoRoute(
-                  path: SeedScreen.subRouteName,
-                  // Use root navigator so the screen overlays the application shell
-                  parentNavigatorKey: rootNavigatorKey,
-                  builder: (BuildContext context, GoRouterState state) {
-                    return const SeedScreen();
                   },
                 ),
                 GoRoute(

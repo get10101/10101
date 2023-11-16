@@ -13,6 +13,7 @@ import 'package:get_10101/common/settings/force_close_screen.dart';
 import 'package:get_10101/common/settings/share_logs_screen.dart';
 import 'package:get_10101/common/snack_bar.dart';
 import 'package:get_10101/common/status_screen.dart';
+import 'package:get_10101/common/settings/seed_screen.dart';
 
 import 'package:get_10101/util/custom_icon_icons.dart';
 import 'package:go_router/go_router.dart';
@@ -116,6 +117,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               title: "Channel",
                               isAlarm: channelStatusNotifier.isClosing(),
                               callBackFunc: () => GoRouter.of(context).push(ChannelScreen.route)),
+                          SettingsClickable(
+                              icon: Icons.backup_outlined,
+                              title: "Backup",
+                              callBackFunc: () => GoRouter.of(context).push(SeedScreen.route))
                         ],
                       ),
                     )
