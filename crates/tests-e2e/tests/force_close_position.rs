@@ -8,6 +8,10 @@ use tests_e2e::wait_until;
 #[tokio::test]
 #[ignore = "need to be run with 'just e2e' command"]
 async fn can_force_close_position() {
+    // TODO(holzeis): Adapt the test to be able to force close the DLC channel as well. At the
+    // moment this test is only able to force close the ln channel, as the maturity time will never
+    // be reached to get the oracles attestation to complete the dlc channel closure.
+
     let test = setup::TestSetup::new_with_open_position().await;
     let coordinator = &test.coordinator;
     let bitcoin = &test.bitcoind;
