@@ -15,6 +15,7 @@ use crate::storage::TenTenOneStorage;
 use crate::EventHandlerTrait;
 use crate::CONFIRMATION_TARGET;
 use anyhow::anyhow;
+use anyhow::bail;
 use anyhow::ensure;
 use anyhow::Context;
 use anyhow::Result;
@@ -25,6 +26,7 @@ use dlc_manager::subchannel::LNChannelManager;
 use lightning::chain::chaininterface::FeeEstimator;
 use lightning::events::Event;
 use lightning::ln::channelmanager::InterceptId;
+use lightning::ln::features::ChannelTypeFeatures;
 use lightning::ln::ChannelId;
 use lightning::ln::PaymentHash;
 use parking_lot::Mutex;
@@ -34,6 +36,13 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::task::block_in_place;
+
+/// Specifies the minimum reserve required by the counterparty if we are accepting an anchored
+/// channel
+///
+/// TODO(holzeis): This value is chosen arbitrarily, but should cover the on-chain costs for going
+/// on-chain.
+const MIN_COUNTERPARTY_RESERVE_SATS: u64 = 10_000;
 
 /// Event handler for the coordinator node.
 // TODO: Move it out of this crate
@@ -115,7 +124,7 @@ impl<S: TenTenOneStorage + 'static, N: Storage + Send + Sync + 'static> EventHan
                 counterparty_node_id,
                 funding_satoshis,
                 push_msat,
-                ..
+                channel_type,
             } => {
                 handle_open_channel_request(
                     &self.node.channel_manager,
@@ -123,6 +132,7 @@ impl<S: TenTenOneStorage + 'static, N: Storage + Send + Sync + 'static> EventHan
                     funding_satoshis,
                     push_msat,
                     temporary_channel_id,
+                    channel_type,
                 )?;
             }
             Event::PaymentPathSuccessful {
@@ -360,14 +370,36 @@ fn handle_open_channel_request<S: TenTenOneStorage, N: Storage>(
     funding_satoshis: u64,
     push_msat: u64,
     temporary_channel_id: ChannelId,
+    channel_type: ChannelTypeFeatures,
 ) -> Result<()> {
     let counterparty = counterparty_node_id.to_string();
     tracing::info!(
         counterparty,
         funding_satoshis,
         push_msat,
-        "Accepting open channel request"
+        "Handling open channel request"
     );
+
+    if channel_type.requires_zero_conf() {
+        let reason = "We do not accept zero-conf inbound channels";
+        bail!("Rejecting open channel request. Reason: {reason}");
+    }
+
+    if channel_type.requires_anchors_zero_fee_htlc_tx() {
+        let counterparty_reserve = channel_manager
+            .get_channel_details(&temporary_channel_id)
+            .context("Couldn't find channel by temporary channel id")?
+            .counterparty
+            .unspendable_punishment_reserve;
+        if counterparty_reserve < MIN_COUNTERPARTY_RESERVE_SATS {
+            let reason = format!(
+                "The unspendable counterparty punishment reserve is too small. \
+                Min {MIN_COUNTERPARTY_RESERVE_SATS} sats, got {counterparty_reserve} sats"
+            );
+            bail!("Rejecting open channel request. Reason: {reason}")
+        }
+    }
+
     let user_channel_id = 0;
     channel_manager
         .accept_inbound_channel(
@@ -376,7 +408,7 @@ fn handle_open_channel_request<S: TenTenOneStorage, N: Storage>(
             user_channel_id,
         )
         .map_err(|e| anyhow!("{e:?}"))
-        .context("To be able to accept a 0-conf channel")?;
+        .context("Failed to accept inbound channel")?;
     Ok(())
 }
 

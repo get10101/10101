@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Enable anchor outputs on ln channels
+
 ## [1.7.1] - 2023-12-08
 
 - Feat: Pay lightning invoice with USD-P balance.

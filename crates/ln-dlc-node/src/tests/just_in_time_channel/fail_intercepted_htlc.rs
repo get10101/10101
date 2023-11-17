@@ -155,7 +155,7 @@ async fn fail_intercepted_htlc_if_coordinator_cannot_pay_to_open_jit_channel() {
     payer.connect(coordinator.info).await.unwrap();
     payee.connect(coordinator.info).await.unwrap();
 
-    let payer_outbound_liquidity = 200_000;
+    let payer_outbound_liquidity = 2_000_000;
 
     payer.fund(Amount::ONE_BTC).await.unwrap();
     payer

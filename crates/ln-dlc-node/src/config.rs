@@ -74,6 +74,9 @@ pub fn coordinator_config() -> UserConfig {
             // Our channel peers are allowed to get back their funds ~24 hours after a
             // force-closure.
             our_to_self_delay: 144,
+            // enable anchor output support on the coordinator with public channels. Not used with
+            // the app.
+            negotiate_anchors_zero_fee_htlc_tx: true,
             ..Default::default()
         },
         channel_handshake_limits: ChannelHandshakeLimits {
@@ -104,9 +107,9 @@ pub fn coordinator_config() -> UserConfig {
         // This config is needed to forward payments to the 10101 app, which only have private
         // channels with the coordinator.
         accept_forwards_to_priv_channels: true,
-        // The coordinator automatically accepts any inbound channels if they adhere to its channel
-        // preferences.
-        manually_accept_inbound_channels: false,
+        // By enabling anchor outputs, we have to manually check if the provided reserve is
+        // sufficient.
+        manually_accept_inbound_channels: true,
         ..Default::default()
     }
 }
