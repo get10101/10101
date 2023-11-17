@@ -1,5 +1,6 @@
 use crate::fee_rate_estimator::EstimateFeeRate;
 use crate::node::Storage;
+use anyhow::anyhow;
 use anyhow::bail;
 use anyhow::Context;
 use anyhow::Error;
@@ -283,7 +284,7 @@ where
 
         self.blockchain
             .broadcast(tx)
-            .with_context(|| format!("Failed to broadcast transaction {txid}"))?;
+            .map_err(|e| anyhow!("Failed to broadcast transaction {txid}. {e:#}"))?;
 
         Ok(txid)
     }
