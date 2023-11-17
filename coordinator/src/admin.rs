@@ -315,6 +315,7 @@ pub async fn close_channel(
         .node
         .inner
         .close_channel(channel_id, params.force.unwrap_or_default())
+        .await
         .map_err(|e| AppError::InternalServerError(format!("{e:#}")))?;
 
     Ok(())

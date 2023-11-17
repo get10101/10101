@@ -6,6 +6,7 @@ use anyhow::Context;
 use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
 use lightning::ln::channelmanager::ChannelDetails;
+use tokio::task::spawn_blocking;
 
 impl<S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 'static> Node<S, N> {
     /// Initiates the open private channel protocol.
@@ -58,7 +59,7 @@ impl<S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 'static> Node<S, 
             .collect()
     }
 
-    pub fn close_channel(&self, channel_id: [u8; 32], force_close: bool) -> Result<()> {
+    pub async fn close_channel(&self, channel_id: [u8; 32], force_close: bool) -> Result<()> {
         let channel_id_str = hex::encode(channel_id);
 
         let channels = self.channel_manager.list_channels();
@@ -68,15 +69,15 @@ impl<S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 'static> Node<S, 
             .with_context(|| format!("Cannot close non-existent channel {channel_id_str}"))?;
 
         if force_close {
-            self.force_close_channel(channel)?;
+            self.force_close_channel(channel).await?;
         } else {
-            self.collab_close_channel(channel)?;
+            self.collab_close_channel(channel).await?;
         }
 
         Ok(())
     }
 
-    fn collab_close_channel(&self, channel: &ChannelDetails) -> Result<()> {
+    async fn collab_close_channel(&self, channel: &ChannelDetails) -> Result<()> {
         let channel_id = channel.channel_id;
         let channel_id_str = hex::encode(channel_id);
         let peer = channel.counterparty.node_id;
@@ -88,16 +89,17 @@ impl<S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 'static> Node<S, 
                 format!("Could not collaboratively close LN channel {channel_id_str}: must close DLC channel first")
             })?;
 
-        self.channel_manager
-            .close_channel(&channel_id, &peer)
-            .map_err(|e| {
-                anyhow!("Could not collaboratively close channel {channel_id_str}: {e:?}")
-            })?;
+        spawn_blocking({
+            let channel_manager = self.channel_manager.clone();
+            move || channel_manager.close_channel(&channel_id, &peer)
+        })
+        .await?
+        .map_err(|e| anyhow!("Could not collaboratively close channel {channel_id_str}: {e:?}"))?;
 
         Ok(())
     }
 
-    pub(crate) fn force_close_channel(&self, channel: &ChannelDetails) -> Result<()> {
+    pub(crate) async fn force_close_channel(&self, channel: &ChannelDetails) -> Result<()> {
         let channel_id = channel.channel_id;
         let channel_id_str = hex::encode(channel_id);
         let peer = channel.counterparty.node_id;
@@ -114,15 +116,21 @@ impl<S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 'static> Node<S, 
                 "Initiating force-closure of LN-DLC channel"
             );
 
-            self.sub_channel_manager
-                .force_close_sub_channel(&channel_id)
-                .map_err(|e| anyhow!("Failed to initiate force-close: {e:#}"))?;
+            spawn_blocking({
+                let sub_channel_manager = self.sub_channel_manager.clone();
+                move || sub_channel_manager.force_close_sub_channel(&channel_id)
+            })
+            .await?
+            .map_err(|e| anyhow!("Failed to initiate force-close: {e:#}"))?
         } else {
             tracing::info!(channel_id = %hex::encode(channel_id), %peer, "Force-closing LN channel");
 
-            self.channel_manager
-                .force_close_broadcasting_latest_txn(&channel_id, &peer)
-                .map_err(|e| anyhow!("Could not force-close channel {channel_id_str}: {e:?}"))?;
+            spawn_blocking({
+                let channel_manager = self.channel_manager.clone();
+                move || channel_manager.force_close_broadcasting_latest_txn(&channel_id, &peer)
+            })
+            .await?
+            .map_err(|e| anyhow!("Could not force-close channel {channel_id_str}: {e:?}"))?;
         };
 
         Ok(())

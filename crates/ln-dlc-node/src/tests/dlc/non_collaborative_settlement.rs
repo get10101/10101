@@ -49,7 +49,10 @@ async fn force_close_ln_dlc_channel() {
 
     // Act
 
-    coordinator.force_close_channel(&channel_details).unwrap();
+    coordinator
+        .force_close_channel(&channel_details)
+        .await
+        .unwrap();
 
     // Need 288 confirmations on the split transaction to be able to publish the glue and buffer
     // transactions
