@@ -202,7 +202,7 @@ impl Node {
         let contract = self.inner.get_contract_by_dlc_channel_id(dlc_channel_id)?;
         let rollover = Rollover::new(contract, network)?;
 
-        tracing::debug!(?rollover, "Rollover dlc channel");
+        tracing::debug!(node_id=%rollover.counterparty_pubkey, "Rollover dlc channel");
 
         let contract_input: ContractInput = rollover.clone().into();
 
