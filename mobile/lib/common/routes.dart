@@ -70,7 +70,7 @@ GoRouter createRoutes() {
                     child: child,
                   );
                 },
-                child: const SettingsScreen(),
+                child: SettingsScreen(location: state.extra! as String),
               );
             },
             routes: <RouteBase>[

@@ -8,7 +8,6 @@ import 'package:get_10101/common/settings/collab_close_screen.dart';
 import 'package:get_10101/common/settings/force_close_screen.dart';
 import 'package:get_10101/common/settings/share_logs_screen.dart';
 import 'package:get_10101/common/snack_bar.dart';
-import 'package:get_10101/features/wallet/wallet_screen.dart';
 
 import 'package:get_10101/util/custom_icon_icons.dart';
 import 'package:go_router/go_router.dart';
@@ -18,7 +17,9 @@ import 'package:provider/provider.dart';
 class SettingsScreen extends StatefulWidget {
   static const route = "/settings";
 
-  const SettingsScreen({super.key});
+  final String location;
+
+  const SettingsScreen({super.key, required this.location});
 
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
@@ -55,7 +56,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 size: 22,
                               )),
                           onTap: () {
-                            GoRouter.of(context).go(WalletScreen.route);
+                            GoRouter.of(context).go(widget.location);
                           },
                         ),
                         const Row(

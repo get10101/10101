@@ -18,7 +18,8 @@ class AppBarWrapper extends StatelessWidget {
         icon: const Icon(Icons.settings),
         tooltip: 'Settings',
         onPressed: () {
-          GoRouter.of(context).go(SettingsScreen.route);
+          final String location = GoRouterState.of(context).location;
+          GoRouter.of(context).go(SettingsScreen.route, extra: location);
         },
       )
     ]);
