@@ -265,7 +265,7 @@ async fn open_channel(
     post_query(
         "lnd/v1/channels",
         format!(
-            r#"{{"node_pubkey_string":"{}","local_funding_amount":"{}", "min_confs":1 }}"#,
+            r#"{{"node_pubkey_string":"{}","local_funding_amount":"{}", "min_confs":1, "commitment_type": "ANCHORS"}}"#,
             node_info.pubkey,
             amount.to_sat()
         ),
