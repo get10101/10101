@@ -174,4 +174,42 @@ mod tests {
             );
         }
     }
+
+    #[test]
+    fn build_contract_descriptor_dont_panic() {
+        let initial_price = dec!(36404.5);
+        let quantity = 20.0;
+        let leverage_coordinator = 2.0;
+        let coordinator_margin = 18_313;
+
+        let leverage_trader = 3.0;
+        let trader_margin = 27_469;
+
+        let coordinator_direction = Direction::Short;
+
+        let fee = 0;
+
+        let rounding_intervals = RoundingIntervals {
+            intervals: vec![RoundingInterval {
+                begin_interval: 0,
+                rounding_mod: 457,
+            }],
+        };
+
+        let symbol = ContractSymbol::BtcUsd;
+
+        let _descriptor = build_contract_descriptor(
+            initial_price,
+            coordinator_margin,
+            trader_margin,
+            leverage_coordinator,
+            leverage_trader,
+            coordinator_direction,
+            fee,
+            rounding_intervals,
+            quantity,
+            symbol,
+        )
+        .unwrap();
+    }
 }
