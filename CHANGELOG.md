@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 - Move backup button to settings
+- Refresh lightning wallet on received payment event
 
 ## [1.5.1] - 2023-11-16
 

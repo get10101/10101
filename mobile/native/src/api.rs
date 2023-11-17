@@ -58,12 +58,16 @@ pub struct Balances {
     pub lightning: u64,
 }
 
-/// Assembles the wallet info and publishes wallet info update event
+/// Assembles the wallet info and publishes wallet info update event.
 #[tokio::main(flavor = "current_thread")]
 pub async fn refresh_wallet_info() -> Result<()> {
     ln_dlc::refresh_wallet_info().await?;
 
     Ok(())
+}
+
+pub fn refresh_lightning_wallet() -> Result<()> {
+    ln_dlc::refresh_lightning_wallet()
 }
 
 #[derive(Clone, Debug)]

@@ -9,6 +9,14 @@ import 'package:get_10101/logger/logger.dart';
 class WalletService {
   const WalletService();
 
+  Future<void> refreshLightningWallet() async {
+    try {
+      await rust.api.refreshLightningWallet();
+    } catch (error) {
+      logger.e("Failed to refresh lightning wallet: $error");
+    }
+  }
+
   Future<void> refreshWalletInfo() async {
     try {
       await rust.api.refreshWalletInfo();

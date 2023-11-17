@@ -72,7 +72,10 @@ class _ReceiveScreenState extends State<ReceiveScreen> {
     if (isPaymentClaimed) {
       // routing is not allowed during building a widget, hence we need to register the route navigation after the widget has been build.
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        GoRouter.of(context).pop();
+        context
+            .read<WalletChangeNotifier>()
+            .refreshLightningWallet()
+            .then((value) => GoRouter.of(context).pop());
       });
     }
 
