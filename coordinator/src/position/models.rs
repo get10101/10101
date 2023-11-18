@@ -1,4 +1,3 @@
-use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
@@ -125,7 +124,7 @@ impl Position {
         Ok(pnl)
     }
 
-    pub fn calculate_settlement_amount(&self, closing_price: Decimal) -> Result<u64> {
+    pub fn calculate_accept_settlement_amount(&self, closing_price: Decimal) -> Result<u64> {
         let opening_price = Decimal::try_from(self.average_entry_price)?;
 
         let leverage_long = leverage_long(
@@ -550,14 +549,4 @@ pub struct CollaborativeRevert {
     pub timestamp: OffsetDateTime,
     pub txid: Txid,
     pub vout: u32,
-}
-
-pub fn parse_channel_id(channel_id: &str) -> Result<[u8; 32]> {
-    let channel_id = hex::decode(channel_id)?;
-    match channel_id.try_into() {
-        Ok(channel_id) => Ok(channel_id),
-        Err(_) => {
-            bail!("Could not parse channel id")
-        }
-    }
 }

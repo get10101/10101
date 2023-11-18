@@ -1,5 +1,5 @@
+use crate::parse_channel_id;
 use crate::position;
-use crate::position::models::parse_channel_id;
 use crate::schema::collaborative_reverts;
 use anyhow::ensure;
 use anyhow::Context;
