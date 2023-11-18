@@ -23,7 +23,7 @@ const PRINT_CSV: bool = false;
 /// taken from a past crash
 #[test]
 fn calculating_payout_curve_doesnt_crash_1() {
-    let initial_price = Decimal::from_u64(26986).expect("to be able to parse price");
+    let initial_price = Decimal::from_u64(26986).unwrap();
     let leverage_trader = 3.0;
     let leverage_coordinator = 3.0;
     let fee = 0;

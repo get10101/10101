@@ -14,13 +14,7 @@ async fn app_can_be_restored_from_a_backup() -> Result<()> {
 
     let seed_phrase = api::get_seed_phrase();
 
-    let ln_balance = test
-        .app
-        .rx
-        .wallet_info()
-        .expect("to have wallet info")
-        .balances
-        .lightning;
+    let ln_balance = test.app.rx.wallet_info().unwrap().balances.lightning;
 
     // kill the app
     test.app.stop();
@@ -28,22 +22,15 @@ async fn app_can_be_restored_from_a_backup() -> Result<()> {
 
     let app = run_app(Some(seed_phrase.0)).await;
 
-    assert_eq!(
-        app.rx
-            .wallet_info()
-            .expect("to have wallet info")
-            .balances
-            .lightning,
-        ln_balance
-    );
+    assert_eq!(app.rx.wallet_info().unwrap().balances.lightning, ln_balance);
 
-    let positions = spawn_blocking(|| api::get_positions().expect("Failed to get positions"))
+    let positions = spawn_blocking(|| api::get_positions().unwrap())
         .await
         .unwrap();
     assert_eq!(1, positions.len());
 
     // Test if full backup is running without errors
-    spawn_blocking(|| api::full_backup().expect("Failed to run full backup"))
+    spawn_blocking(|| api::full_backup().unwrap())
         .await
         .unwrap();
 

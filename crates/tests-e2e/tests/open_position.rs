@@ -56,11 +56,5 @@ async fn can_open_position() {
         order.contract_symbol
     );
     assert_eq!(app.rx.position().unwrap().leverage, order.leverage);
-    wait_until!(
-        app.rx
-            .position()
-            .expect("to be receive a position")
-            .position_state
-            == PositionState::Open
-    );
+    wait_until!(app.rx.position().unwrap().position_state == PositionState::Open);
 }
