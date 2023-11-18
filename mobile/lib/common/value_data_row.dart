@@ -51,7 +51,7 @@ class ValueDataRow extends StatelessWidget {
           break;
         case ValueType.text:
           widget = SizedBox(
-              width: 100,
+              width: 150,
               child: Text(value,
                   textAlign: TextAlign.end,
                   style: valueTextStyle,

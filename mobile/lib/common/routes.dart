@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get_10101/common/global_keys.dart';
+import 'package:get_10101/common/settings/channel_screen.dart';
+import 'package:get_10101/common/status_screen.dart';
 import 'package:get_10101/features/welcome/loading_screen.dart';
 import 'package:get_10101/common/scaffold_with_nav_bar.dart';
 import 'package:get_10101/common/settings/app_info_screen.dart';
@@ -88,6 +90,22 @@ GoRouter createRoutes() {
                 parentNavigatorKey: rootNavigatorKey,
                 builder: (BuildContext context, GoRouterState state) {
                   return const ShareLogsScreen();
+                },
+              ),
+              GoRoute(
+                path: ChannelScreen.subRouteName,
+                // Use root navigator so the screen overlays the application shell
+                parentNavigatorKey: rootNavigatorKey,
+                builder: (BuildContext context, GoRouterState state) {
+                  return const ChannelScreen();
+                },
+              ),
+              GoRoute(
+                path: StatusScreen.subRouteName,
+                // Use root navigator so the screen overlays the application shell
+                parentNavigatorKey: rootNavigatorKey,
+                builder: (BuildContext context, GoRouterState state) {
+                  return const StatusScreen();
                 },
               ),
               GoRoute(
