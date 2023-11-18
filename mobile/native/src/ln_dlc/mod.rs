@@ -1007,13 +1007,14 @@ pub fn create_invoice(amount_sats: Option<u64>) -> Result<Bolt11Invoice> {
     )
 }
 
-pub fn send_payment(payment: SendPayment) -> Result<()> {
+pub async fn send_payment(payment: SendPayment) -> Result<()> {
     match payment {
         SendPayment::Lightning { invoice, amount } => {
             let invoice = Bolt11Invoice::from_str(&invoice)?;
             crate::state::get_node()
                 .inner
-                .pay_invoice(&invoice, amount)?;
+                .pay_invoice(&invoice, amount)
+                .await?;
         }
         SendPayment::OnChain { address, amount } => {
             let address = Address::from_str(&address)?;

@@ -291,6 +291,7 @@ pub async fn send_payment(
         .node
         .inner
         .pay_invoice(&invoice, None)
+        .await
         .map_err(|e| AppError::InternalServerError(format!("{e:#}")))?;
 
     Ok(())

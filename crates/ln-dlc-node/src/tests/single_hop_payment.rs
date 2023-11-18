@@ -36,7 +36,7 @@ async fn single_hop_payment() {
         .create_invoice(invoice_amount, "".to_string(), 180)
         .unwrap();
 
-    payer.pay_invoice(&invoice, None).unwrap();
+    payer.pay_invoice(&invoice, None).await.unwrap();
 
     payee
         .wait_for_payment_claimed(invoice.payment_hash())

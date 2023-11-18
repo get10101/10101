@@ -405,7 +405,8 @@ pub enum SendPayment {
 }
 
 pub fn send_payment(payment: SendPayment) -> Result<()> {
-    ln_dlc::send_payment(payment)
+    let runtime = ln_dlc::get_or_create_tokio_runtime()?;
+    runtime.block_on(async { ln_dlc::send_payment(payment).await })
 }
 
 pub struct LastLogin {
