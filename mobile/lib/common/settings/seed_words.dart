@@ -21,7 +21,7 @@ Row buildSeedWordsWidget(List<String> phrase, bool visible) {
     crossAxisAlignment: CrossAxisAlignment.center,
     children: [
       Column(crossAxisAlignment: CrossAxisAlignment.start, children: firstColumn),
-      const SizedBox(width: 10),
+      const SizedBox(width: 30),
       Column(crossAxisAlignment: CrossAxisAlignment.start, children: secondColumn)
     ],
   );
@@ -37,7 +37,7 @@ class SeedWord extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-        padding: const EdgeInsets.fromLTRB(0, 10, 0, 0),
+        padding: const EdgeInsets.fromLTRB(0, 5, 0, 5),
         child: Row(
             crossAxisAlignment: visibility ? CrossAxisAlignment.baseline : CrossAxisAlignment.end,
             textBaseline: TextBaseline.alphabetic,
@@ -46,17 +46,19 @@ class SeedWord extends StatelessWidget {
                 width: 25.0,
                 child: Text(
                   '#$index',
-                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                  style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                 ),
               ),
               const SizedBox(width: 5),
               visibility
-                  ? Text(
-                      word!,
-                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  ? SizedBox(
+                      width: 100,
+                      child: Text(
+                        word!,
+                        style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                      ),
                     )
-                  : Container(
-                      color: Colors.grey[300], child: const SizedBox(width: 100, height: 24))
+                  : Container(width: 100, height: 24, color: Colors.grey[300]),
             ]));
   }
 }

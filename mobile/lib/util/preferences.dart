@@ -7,7 +7,6 @@ class Preferences {
 
   static final Preferences instance = Preferences._privateConstructor();
 
-  static const userSeedBackupConfirmed = "userSeedBackupConfirmed";
   static const emailAddress = "emailAddress";
   static const openPosition = "openPosition";
   static const fullBackup = "fullBackup";
@@ -40,16 +39,6 @@ class Preferences {
   unsetOpenPosition() async {
     SharedPreferences preferences = await SharedPreferences.getInstance();
     preferences.remove(openPosition);
-  }
-
-  setUserSeedBackupConfirmed() async {
-    SharedPreferences preferences = await SharedPreferences.getInstance();
-    preferences.setBool(userSeedBackupConfirmed, true);
-  }
-
-  Future<bool> isUserSeedBackupConfirmed() async {
-    SharedPreferences preferences = await SharedPreferences.getInstance();
-    return preferences.getBool(userSeedBackupConfirmed) ?? false;
   }
 
   Future<bool> setEmailAddress(String value) async {
