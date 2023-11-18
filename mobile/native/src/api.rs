@@ -286,11 +286,13 @@ pub fn get_unused_address() -> SyncReturn<String> {
 }
 
 pub fn close_channel() -> Result<()> {
-    ln_dlc::close_channel(false)
+    let runtime = ln_dlc::get_or_create_tokio_runtime()?;
+    runtime.block_on(async { ln_dlc::close_channel(false).await })
 }
 
 pub fn force_close_channel() -> Result<()> {
-    ln_dlc::close_channel(true)
+    let runtime = ln_dlc::get_or_create_tokio_runtime()?;
+    runtime.block_on(async { ln_dlc::close_channel(true).await })
 }
 
 /// Returns channel info if we have a channel available already

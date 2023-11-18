@@ -615,14 +615,15 @@ pub fn get_unused_address() -> String {
         .to_string()
 }
 
-pub fn close_channel(is_force_close: bool) -> Result<()> {
+pub async fn close_channel(is_force_close: bool) -> Result<()> {
     let node = crate::state::try_get_node().context("failed to get ln dlc node")?;
 
     let channels = node.inner.list_channels();
     let channel_details = channels.first().context("No channel to close")?;
 
     node.inner
-        .close_channel(channel_details.channel_id, is_force_close)?;
+        .close_channel(channel_details.channel_id, is_force_close)
+        .await?;
 
     Ok(())
 }
