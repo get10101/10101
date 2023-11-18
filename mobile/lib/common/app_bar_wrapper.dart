@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get_10101/common/color.dart';
 import 'package:get_10101/common/settings/settings_screen.dart';
-import 'package:get_10101/common/status_icon_button.dart';
 import 'package:go_router/go_router.dart';
 
 class AppBarWrapper extends StatelessWidget {
@@ -33,9 +32,6 @@ class AppBarWrapper extends StatelessWidget {
                 color: tenTenOnePurple,
                 // Without adjustment, the icon appears off-center from the title (logo)
                 size: appBarHeight - 8.0),
-            leading: leadingButton,
-            actions: const [
-              StatusIconButton(),
-            ]));
+            leading: leadingButton));
   }
 }

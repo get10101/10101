@@ -1,13 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:get_10101/bridge_generated/bridge_definitions.dart';
+import 'package:get_10101/common/channel_status_notifier.dart';
 import 'package:get_10101/common/color.dart';
 
 import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
+import 'package:get_10101/common/service_status_notifier.dart';
 import 'package:get_10101/common/settings/app_info_screen.dart';
+import 'package:get_10101/common/settings/channel_screen.dart';
 import 'package:get_10101/common/settings/collab_close_screen.dart';
 import 'package:get_10101/common/settings/force_close_screen.dart';
 import 'package:get_10101/common/settings/share_logs_screen.dart';
 import 'package:get_10101/common/snack_bar.dart';
+import 'package:get_10101/common/status_screen.dart';
 
 import 'package:get_10101/util/custom_icon_icons.dart';
 import 'package:go_router/go_router.dart';
@@ -29,6 +34,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final bridge.Config config = context.read<bridge.Config>();
+
+    ChannelStatusNotifier channelStatusNotifier = context.watch<ChannelStatusNotifier>();
+    ServiceStatusNotifier serviceStatusNotifier = context.watch<ServiceStatusNotifier>();
+
+    final overallStatus = serviceStatusNotifier.overall();
 
     EdgeInsets margin = const EdgeInsets.all(10);
     return Scaffold(
@@ -101,6 +111,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               icon: Icons.feed_outlined,
                               title: "Share Logs",
                               callBackFunc: () => GoRouter.of(context).push(ShareLogsScreen.route)),
+                          SettingsClickable(
+                              icon: Icons.balance_outlined,
+                              title: "Channel",
+                              isAlarm: channelStatusNotifier.isClosing(),
+                              callBackFunc: () => GoRouter.of(context).push(ChannelScreen.route)),
                         ],
                       ),
                     )
@@ -134,6 +149,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             title: "Coordinator",
                             info: "${config.coordinatorPubkey}@${config.host}:${config.p2PPort}",
                           ),
+                          SettingsClickable(
+                            icon: Icons.thermostat,
+                            title: "Status",
+                            isAlarm: overallStatus == ServiceStatus.Offline,
+                            callBackFunc: () => GoRouter.of(context).push(StatusScreen.route),
+                          ),
                         ],
                       ),
                     )
@@ -166,7 +187,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             visible: config.network == "regtest",
                             child: SettingsClickable(
                                 icon: Icons.dangerous,
-                                isForce: true,
+                                isAlarm: true,
                                 title: "Force-Close Channel",
                                 callBackFunc: () =>
                                     GoRouter.of(context).push(ForceCloseScreen.route)),
@@ -191,14 +212,14 @@ class SettingsClickable extends StatefulWidget {
     required this.icon,
     required this.title,
     this.callBackFunc,
-    this.isForce = false,
+    this.isAlarm = false,
     this.info,
   });
 
   final IconData icon;
   final String title;
   final void Function()? callBackFunc;
-  final bool isForce;
+  final bool isAlarm;
   final String? info;
 
   @override
@@ -226,7 +247,7 @@ class _SettingsClickableState extends State<SettingsClickable> {
             Icon(
               widget.icon,
               size: 20,
-              color: widget.isForce ? Colors.red.shade400 : tenTenOnePurple.shade800,
+              color: widget.isAlarm ? Colors.red.shade400 : tenTenOnePurple.shade800,
             ),
             const SizedBox(
               width: 20,
@@ -244,7 +265,7 @@ class _SettingsClickableState extends State<SettingsClickable> {
                         style: TextStyle(
                             fontSize: 17,
                             fontWeight: FontWeight.w400,
-                            color: widget.isForce ? Colors.red : Colors.black),
+                            color: widget.isAlarm ? Colors.red : Colors.black),
                       ),
                       isMoreInfo
                           ? Column(
