@@ -277,7 +277,7 @@ pub fn run(
 
     db::init_db(&config::get_data_dir(), get_network())?;
 
-    let runtime = ln_dlc::get_or_create_tokio_runtime()?;
+    let runtime = crate::state::get_or_create_tokio_runtime()?;
     ln_dlc::run(seed_dir, runtime)?;
 
     let (_health, tx) = health::Health::new(runtime);
@@ -290,12 +290,12 @@ pub fn get_unused_address() -> SyncReturn<String> {
 }
 
 pub fn close_channel() -> Result<()> {
-    let runtime = ln_dlc::get_or_create_tokio_runtime()?;
+    let runtime = crate::state::get_or_create_tokio_runtime()?;
     runtime.block_on(async { ln_dlc::close_channel(false).await })
 }
 
 pub fn force_close_channel() -> Result<()> {
-    let runtime = ln_dlc::get_or_create_tokio_runtime()?;
+    let runtime = crate::state::get_or_create_tokio_runtime()?;
     runtime.block_on(async { ln_dlc::close_channel(true).await })
 }
 
@@ -409,7 +409,7 @@ pub enum SendPayment {
 }
 
 pub fn send_payment(payment: SendPayment) -> Result<()> {
-    let runtime = ln_dlc::get_or_create_tokio_runtime()?;
+    let runtime = crate::state::get_or_create_tokio_runtime()?;
     runtime.block_on(async { ln_dlc::send_payment(payment).await })
 }
 
