@@ -256,7 +256,6 @@ pub async fn pay_invoice(
     state
         .node
         .pay_invoice(&invoice, None)
-        .await
         .map_err(|e| AppError::InternalServerError(format!("Could not pay invoice {e:#}")))?;
     Ok(())
 }

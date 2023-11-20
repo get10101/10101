@@ -77,7 +77,6 @@ use ln_dlc_node::CONFIRMATION_TARGET;
 use orderbook_commons::RouteHintHop;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
-use state::Storage;
 use std::net::IpAddr;
 use std::net::Ipv4Addr;
 use std::net::SocketAddr;
@@ -141,7 +140,7 @@ pub async fn refresh_wallet_info() -> Result<()> {
 
     // Spawn into the blocking thread pool of the dedicated backend runtime to avoid blocking the UI
     // thread.
-    let runtime = get_or_create_tokio_runtime()?;
+    let runtime = crate::state::get_or_create_tokio_runtime()?;
     runtime.spawn_blocking(move || {
         if let Err(e) = wallet.sync() {
             tracing::error!("Manually triggered on-chain sync failed: {e:#}");
@@ -234,19 +233,6 @@ pub fn get_funding_transaction(channel_id: &ChannelId) -> Result<Txid> {
     };
 
     Ok(funding_transaction)
-}
-
-/// Lazily creates a multi threaded runtime with the the number of worker threads corresponding to
-/// the number of available cores.
-pub fn get_or_create_tokio_runtime() -> Result<&'static Runtime> {
-    static RUNTIME: Storage<Runtime> = Storage::new();
-
-    if RUNTIME.try_get().is_none() {
-        let runtime = Runtime::new()?;
-        RUNTIME.set(runtime);
-    }
-
-    Ok(RUNTIME.get())
 }
 
 /// Gets the 10101 node storage, initializes the storage if not found yet.
@@ -629,15 +615,14 @@ pub fn get_unused_address() -> String {
         .to_string()
 }
 
-pub async fn close_channel(is_force_close: bool) -> Result<()> {
+pub fn close_channel(is_force_close: bool) -> Result<()> {
     let node = crate::state::try_get_node().context("failed to get ln dlc node")?;
 
     let channels = node.inner.list_channels();
     let channel_details = channels.first().context("No channel to close")?;
 
     node.inner
-        .close_channel(channel_details.channel_id, is_force_close)
-        .await?;
+        .close_channel(channel_details.channel_id, is_force_close)?;
 
     Ok(())
 }
@@ -736,7 +721,7 @@ pub fn collaborative_revert_channel(
     };
 
     let client = reqwest_client();
-    let runtime = get_or_create_tokio_runtime()?;
+    let runtime = crate::state::get_or_create_tokio_runtime()?;
     runtime.spawn({
         let subchannel = subchannel.clone();
         async move {
@@ -884,7 +869,7 @@ pub fn max_channel_value() -> Result<Amount> {
 // TODO(holzeis): We might want to consider caching the lsp config, as this shouldn't change too
 // often and even if, I guess we can live with the user having to restart to get the newest configs?
 fn fetch_lsp_config() -> Result<LspConfig, Error> {
-    let runtime = get_or_create_tokio_runtime()?;
+    let runtime = crate::state::get_or_create_tokio_runtime()?;
     runtime.block_on(async {
         let client = reqwest_client();
         let response = client
@@ -938,7 +923,7 @@ pub fn create_onboarding_invoice(
     amount_sats: u64,
     fee_sats: u64,
 ) -> Result<Bolt11Invoice> {
-    let runtime = get_or_create_tokio_runtime()?;
+    let runtime = crate::state::get_or_create_tokio_runtime()?;
 
     runtime.block_on(async {
         let node = crate::state::get_node();
@@ -1027,8 +1012,7 @@ pub async fn send_payment(payment: SendPayment) -> Result<()> {
             let invoice = Bolt11Invoice::from_str(&invoice)?;
             crate::state::get_node()
                 .inner
-                .pay_invoice(&invoice, amount)
-                .await?;
+                .pay_invoice(&invoice, amount)?;
         }
         SendPayment::OnChain { address, amount } => {
             let address = Address::from_str(&address)?;

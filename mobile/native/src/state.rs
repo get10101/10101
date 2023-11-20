@@ -1,10 +1,12 @@
 use crate::config::ConfigInternal;
 use crate::ln_dlc::node::Node;
 use crate::storage::TenTenOneNodeStorage;
+use anyhow::Result;
 use ln_dlc_node::seed::Bip39Seed;
 use parking_lot::RwLock;
 use state::Storage;
 use std::sync::Arc;
+use tokio::runtime::Runtime;
 
 /// For testing we need the state to be mutable as otherwise we can't start another app after
 /// stopping the first one. Note, running two apps at the same time will not work as the states
@@ -78,4 +80,17 @@ pub fn get_storage() -> TenTenOneNodeStorage {
 
 pub fn try_get_storage() -> Option<TenTenOneNodeStorage> {
     STORAGE.try_get().map(|s| s.read().clone())
+}
+
+/// Lazily creates a multi threaded runtime with the the number of worker threads corresponding to
+/// the number of available cores.
+pub fn get_or_create_tokio_runtime() -> Result<&'static Runtime> {
+    static RUNTIME: Storage<Runtime> = Storage::new();
+
+    if RUNTIME.try_get().is_none() {
+        let runtime = Runtime::new()?;
+        RUNTIME.set(runtime);
+    }
+
+    Ok(RUNTIME.get())
 }

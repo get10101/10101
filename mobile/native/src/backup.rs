@@ -130,7 +130,9 @@ impl RemoteBackupClient {
         }
         .remote_handle();
 
-        tokio::spawn(fut);
+        let runtime =
+            crate::state::get_or_create_tokio_runtime().expect("To be able to get a tokio runtime");
+        runtime.spawn(fut);
 
         remote_handle
     }
@@ -189,93 +191,97 @@ impl RemoteBackupClient {
         }
         .remote_handle();
 
-        tokio::spawn(fut);
+        let runtime =
+            crate::state::get_or_create_tokio_runtime().expect("To be able to get a tokio runtime");
+        runtime.spawn(fut);
 
         remote_handle
     }
 
     pub async fn restore(&self, dlc_storage: Arc<SledStorageProvider>) -> Result<()> {
-        tokio::spawn({
-            let client = self.inner.clone();
-            let cipher = self.cipher.clone();
-            let node_id = cipher.public_key();
-            let endpoint = format!("{}/restore/{}", self.endpoint.clone(), node_id);
-            let data_dir = config::get_data_dir();
-            let network = config::get_network();
-            let message = node_id.to_string().as_bytes().to_vec();
-            async move {
-                let signature = cipher.sign(message)?;
+        let runtime = crate::state::get_or_create_tokio_runtime()?;
+        runtime
+            .spawn({
+                let client = self.inner.clone();
+                let cipher = self.cipher.clone();
+                let node_id = cipher.public_key();
+                let endpoint = format!("{}/restore/{}", self.endpoint.clone(), node_id);
+                let data_dir = config::get_data_dir();
+                let network = config::get_network();
+                let message = node_id.to_string().as_bytes().to_vec();
+                async move {
+                    let signature = cipher.sign(message)?;
 
-                match client.get(endpoint).json(&signature).send().await {
-                    Ok(response) => {
-                        tracing::debug!("Response status code {}", response.status());
-                        if response.status() != StatusCode::OK {
-                            let response = response.text().await?;
-                            bail!("Failed to download backup. {response}");
-                        }
+                    match client.get(endpoint).json(&signature).send().await {
+                        Ok(response) => {
+                            tracing::debug!("Response status code {}", response.status());
+                            if response.status() != StatusCode::OK {
+                                let response = response.text().await?;
+                                bail!("Failed to download backup. {response}");
+                            }
 
-                        let backup: Vec<Restore> = response.json().await?;
-                        tracing::debug!("Successfully downloaded backup.");
+                            let backup: Vec<Restore> = response.json().await?;
+                            tracing::debug!("Successfully downloaded backup.");
 
-                        for restore in backup.into_iter() {
-                            let decrypted_value = cipher.decrypt(restore.value)?;
+                            for restore in backup.into_iter() {
+                                let decrypted_value = cipher.decrypt(restore.value)?;
 
-                            let keys = restore
-                                .key
-                                .split('/')
-                                .map(|key| key.to_string())
-                                .collect::<Vec<String>>();
-                            let (backup_key, key) =
-                                keys.split_first().expect("keys to be long enough");
-                            let key = key.join("/");
+                                let keys = restore
+                                    .key
+                                    .split('/')
+                                    .map(|key| key.to_string())
+                                    .collect::<Vec<String>>();
+                                let (backup_key, key) =
+                                    keys.split_first().expect("keys to be long enough");
+                                let key = key.join("/");
 
-                            let backup_key = backup_key.as_str();
+                                let backup_key = backup_key.as_str();
 
-                            match backup_key {
-                                x if x == LN_BACKUP_KEY => {
-                                    tracing::debug!("Restoring {}", key);
-                                    let dest_file = Path::new(&data_dir)
-                                        .join(network.to_string())
-                                        .join(key.clone());
+                                match backup_key {
+                                    x if x == LN_BACKUP_KEY => {
+                                        tracing::debug!("Restoring {}", key);
+                                        let dest_file = Path::new(&data_dir)
+                                            .join(network.to_string())
+                                            .join(key.clone());
 
-                                    fs::create_dir_all(dest_file.parent().expect("parent"))?;
-                                    fs::write(dest_file.as_path(), decrypted_value)?;
-                                }
-                                x if x == DLC_BACKUP_KEY => {
-                                    tracing::debug!("Restoring {}", key);
-                                    let keys = key.split('/').collect::<Vec<&str>>();
-                                    ensure!(keys.len() == 2, "dlc key is too short");
+                                        fs::create_dir_all(dest_file.parent().expect("parent"))?;
+                                        fs::write(dest_file.as_path(), decrypted_value)?;
+                                    }
+                                    x if x == DLC_BACKUP_KEY => {
+                                        tracing::debug!("Restoring {}", key);
+                                        let keys = key.split('/').collect::<Vec<&str>>();
+                                        ensure!(keys.len() == 2, "dlc key is too short");
 
-                                    let kind = *hex::decode(keys.first().expect("to exist"))?
-                                        .first()
-                                        .expect("to exist");
+                                        let kind = *hex::decode(keys.first().expect("to exist"))?
+                                            .first()
+                                            .expect("to exist");
 
-                                    let key = hex::decode(keys.get(1).expect("to exist"))?;
+                                        let key = hex::decode(keys.get(1).expect("to exist"))?;
 
-                                    dlc_storage.write(kind, key, decrypted_value)?;
-                                }
-                                x if x == DB_BACKUP_KEY => {
-                                    let data_dir = Path::new(&data_dir);
-                                    let db_file =
-                                        data_dir.join(format!("trades-{}.sqlite", network));
-                                    tracing::debug!(
-                                        "Restoring 10101 database backup into {}",
-                                        db_file.to_string_lossy().to_string()
-                                    );
-                                    fs::write(db_file.as_path(), decrypted_value)?;
-                                }
-                                _ => {
-                                    tracing::warn!(backup_key, "Received unknown backup key")
+                                        dlc_storage.write(kind, key, decrypted_value)?;
+                                    }
+                                    x if x == DB_BACKUP_KEY => {
+                                        let data_dir = Path::new(&data_dir);
+                                        let db_file =
+                                            data_dir.join(format!("trades-{}.sqlite", network));
+                                        tracing::debug!(
+                                            "Restoring 10101 database backup into {}",
+                                            db_file.to_string_lossy().to_string()
+                                        );
+                                        fs::write(db_file.as_path(), decrypted_value)?;
+                                    }
+                                    _ => {
+                                        tracing::warn!(backup_key, "Received unknown backup key")
+                                    }
                                 }
                             }
+                            tracing::info!("Successfully restored 10101 from backup!");
                         }
-                        tracing::info!("Successfully restored 10101 from backup!");
+                        Err(e) => bail!("Failed to download backup. {e:#}"),
                     }
-                    Err(e) => bail!("Failed to download backup. {e:#}"),
+                    Ok(())
                 }
-                Ok(())
-            }
-        })
-        .await?
+            })
+            .await?
     }
 }
