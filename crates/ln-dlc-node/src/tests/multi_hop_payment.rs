@@ -64,7 +64,7 @@ async fn multi_hop_payment() {
         invoice_amount_sat,
     );
 
-    payer.pay_invoice(&invoice, None).await.unwrap();
+    payer.pay_invoice(&invoice, None).unwrap();
 
     payee
         .wait_for_payment_claimed(invoice.payment_hash())

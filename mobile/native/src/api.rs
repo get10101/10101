@@ -290,13 +290,11 @@ pub fn get_unused_address() -> SyncReturn<String> {
 }
 
 pub fn close_channel() -> Result<()> {
-    let runtime = crate::state::get_or_create_tokio_runtime()?;
-    runtime.block_on(async { ln_dlc::close_channel(false).await })
+    ln_dlc::close_channel(false)
 }
 
 pub fn force_close_channel() -> Result<()> {
-    let runtime = crate::state::get_or_create_tokio_runtime()?;
-    runtime.block_on(async { ln_dlc::close_channel(true).await })
+    ln_dlc::close_channel(true)
 }
 
 /// Returns channel info if we have a channel available already

@@ -615,15 +615,14 @@ pub fn get_unused_address() -> String {
         .to_string()
 }
 
-pub async fn close_channel(is_force_close: bool) -> Result<()> {
+pub fn close_channel(is_force_close: bool) -> Result<()> {
     let node = crate::state::try_get_node().context("failed to get ln dlc node")?;
 
     let channels = node.inner.list_channels();
     let channel_details = channels.first().context("No channel to close")?;
 
     node.inner
-        .close_channel(channel_details.channel_id, is_force_close)
-        .await?;
+        .close_channel(channel_details.channel_id, is_force_close)?;
 
     Ok(())
 }
@@ -1013,8 +1012,7 @@ pub async fn send_payment(payment: SendPayment) -> Result<()> {
             let invoice = Bolt11Invoice::from_str(&invoice)?;
             crate::state::get_node()
                 .inner
-                .pay_invoice(&invoice, amount)
-                .await?;
+                .pay_invoice(&invoice, amount)?;
         }
         SendPayment::OnChain { address, amount } => {
             let address = Address::from_str(&address)?;

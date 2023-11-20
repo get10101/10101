@@ -153,7 +153,7 @@ async fn fail_to_open_jit_channel_with_fee_rate_over_max() {
         )
         .unwrap();
 
-    payer.pay_invoice(&invoice, None).await.unwrap();
+    payer.pay_invoice(&invoice, None).unwrap();
 
     // Assert
 
@@ -208,7 +208,7 @@ async fn open_jit_channel_with_disconnected_payee() {
         )
         .unwrap();
 
-    payer.pay_invoice(&invoice, None).await.unwrap();
+    payer.pay_invoice(&invoice, None).unwrap();
 
     // We wait a little bit until reconnecting to simulate a pending JIT channel on the coordinator
     tokio::time::sleep(Duration::from_secs(5)).await;
@@ -308,11 +308,12 @@ pub(crate) async fn send_interceptable_payment(
         "Invoice amount larger than maximum inbound HTLC in payer-coordinator channel"
     );
 
-    payer.pay_invoice(&invoice, None).await?;
+    payer.pay_invoice(&invoice, None).unwrap();
 
     payee
         .wait_for_payment_claimed(invoice.payment_hash())
-        .await?;
+        .await
+        .unwrap();
 
     // Assert
 
@@ -391,11 +392,12 @@ pub(crate) async fn send_payment(
         "Invoice amount larger than maximum inbound HTLC in payer-coordinator channel"
     );
 
-    payer.pay_invoice(&invoice, None).await?;
+    payer.pay_invoice(&invoice, None).unwrap();
 
     payee
         .wait_for_payment_claimed(invoice.payment_hash())
-        .await?;
+        .await
+        .unwrap();
 
     // Assert
 

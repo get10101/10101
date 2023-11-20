@@ -35,7 +35,6 @@ use std::fmt::Formatter;
 use std::time::Duration;
 use std::time::SystemTime;
 use time::OffsetDateTime;
-use tokio::task::spawn_blocking;
 
 impl<S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 'static> Node<S, N> {
     pub fn create_invoice(
@@ -222,33 +221,22 @@ impl<S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 'static> Node<S, 
         Ok(route_hint_hop)
     }
 
-    pub async fn pay_invoice(&self, invoice: &Bolt11Invoice, amount: Option<u64>) -> Result<()> {
+    pub fn pay_invoice(&self, invoice: &Bolt11Invoice, amount: Option<u64>) -> Result<()> {
         let (result, amt_msat) = match invoice.amount_milli_satoshis() {
             Some(_) => {
-                let result = spawn_blocking({
-                    let invoice = invoice.clone();
-                    let channel_manager = self.channel_manager.clone();
-                    move || pay_invoice(&invoice, Retry::Attempts(10), &channel_manager)
-                })
-                .await?;
+                let invoice = invoice.clone();
+                let result = pay_invoice(&invoice, Retry::Attempts(10), &self.channel_manager);
                 (result, invoice.amount_milli_satoshis().expect("to be set"))
             }
             None => {
                 let amount_msats =
                     amount.context("Can't pay zero amount invoice without amount")? * 1000;
-                let result = spawn_blocking({
-                    let invoice = invoice.clone();
-                    let channel_manager = self.channel_manager.clone();
-                    move || {
-                        pay_zero_value_invoice(
-                            &invoice,
-                            amount_msats,
-                            Retry::Attempts(10),
-                            &channel_manager,
-                        )
-                    }
-                })
-                .await?;
+                let result = pay_zero_value_invoice(
+                    invoice,
+                    amount_msats,
+                    Retry::Attempts(10),
+                    &self.channel_manager,
+                );
                 (result, amount_msats)
             }
         };
