@@ -7,8 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.0] - 2023-11-20
+
 - Move backup button to settings
 - Refresh lightning wallet on received payment event
+- Move thermostat status to settings
+- Spawn blocking on force-close and close channel
+- Spawn backup tasks from static tokio runtime
+- Spawn blocking on send payment
+- Return to the correct screen after returning from settings
+- Increase back arrow clickable space on settings
+- Do not call periodic check twice
 
 ## [1.5.1] - 2023-11-16
 
@@ -171,7 +180,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Self-Custodial CFD Trading based on DLC and lightning
 
-[Unreleased]: https://github.com/get10101/10101/compare/1.5.1...HEAD
+[Unreleased]: https://github.com/get10101/10101/compare/1.6.0...HEAD
+[1.6.0]: https://github.com/get10101/10101/compare/1.5.1...1.6.0
 [1.5.1]: https://github.com/get10101/10101/compare/1.5.0...1.5.1
 [1.5.0]: https://github.com/get10101/10101/compare/1.4.4...1.5.0
 [1.4.4]: https://github.com/get10101/10101/compare/1.4.3...1.4.4
