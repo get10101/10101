@@ -24,12 +24,12 @@ async fn crud_test() {
 
     let mut conn = setup_db(conn_spec);
 
-    let orders = orders::all(&mut conn, true, true).unwrap();
-    assert!(orders.is_empty());
-
     let order = orders::insert(
         &mut conn,
-        dummy_order(OffsetDateTime::now_utc() + Duration::minutes(1)),
+        dummy_order(
+            OffsetDateTime::now_utc() + Duration::minutes(1),
+            OrderType::Market,
+        ),
         OrderReason::Manual,
     )
     .unwrap();
@@ -39,7 +39,7 @@ async fn crud_test() {
 }
 
 #[tokio::test]
-async fn test_filter_expired_orders() {
+async fn test_all_limit_orders() {
     init_tracing_for_test();
 
     let docker = Cli::default();
@@ -47,65 +47,45 @@ async fn test_filter_expired_orders() {
 
     let mut conn = setup_db(conn_spec);
 
-    let orders = orders::all(&mut conn, true, true).unwrap();
+    let orders = orders::all_limit_orders(&mut conn).unwrap();
     assert!(orders.is_empty());
 
-    let order = orders::insert(
+    orders::insert(
         &mut conn,
-        dummy_order(OffsetDateTime::now_utc() + Duration::minutes(1)),
+        dummy_order(
+            OffsetDateTime::now_utc() + Duration::minutes(1),
+            OrderType::Market,
+        ),
         OrderReason::Manual,
     )
     .unwrap();
-    let _ = orders::insert(
-        &mut conn,
-        dummy_order(OffsetDateTime::now_utc() - Duration::minutes(1)),
-        OrderReason::Manual,
-    )
-    .unwrap();
 
-    let orders = orders::all(&mut conn, false, true).unwrap();
-    assert_eq!(orders.len(), 1);
-    assert_eq!(orders.get(0).unwrap().id, order.id);
-
-    let orders = orders::all(&mut conn, true, true).unwrap();
-    assert_eq!(orders.len(), 2);
-}
-
-#[tokio::test]
-async fn test_filter_failed_orders() {
-    init_tracing_for_test();
-
-    let docker = Cli::default();
-    let (_container, conn_spec) = start_postgres(&docker).unwrap();
-
-    let mut conn = setup_db(conn_spec);
-
-    let orders = orders::all(&mut conn, true, true).unwrap();
-    assert!(orders.is_empty());
-
-    let first_order = orders::insert(
-        &mut conn,
-        dummy_order(OffsetDateTime::now_utc() + Duration::minutes(1)),
-        OrderReason::Manual,
-    )
-    .unwrap();
     let second_order = orders::insert(
         &mut conn,
-        dummy_order(OffsetDateTime::now_utc() + Duration::minutes(1)),
+        dummy_order(
+            OffsetDateTime::now_utc() + Duration::minutes(1),
+            OrderType::Limit,
+        ),
         OrderReason::Manual,
     )
     .unwrap();
     orders::set_order_state(&mut conn, second_order.id, OrderState::Failed).unwrap();
 
-    let orders = orders::all(&mut conn, false, false).unwrap();
-    assert_eq!(orders.len(), 1);
-    assert_eq!(orders.get(0).unwrap().id, first_order.id);
+    orders::insert(
+        &mut conn,
+        dummy_order(
+            OffsetDateTime::now_utc() + Duration::minutes(1),
+            OrderType::Limit,
+        ),
+        OrderReason::Manual,
+    )
+    .unwrap();
 
-    let orders = orders::all(&mut conn, false, true).unwrap();
-    assert_eq!(orders.len(), 2);
+    let orders = orders::all_limit_orders(&mut conn).unwrap();
+    assert_eq!(orders.len(), 1);
 }
 
-fn dummy_order(expiry: OffsetDateTime) -> NewOrder {
+fn dummy_order(expiry: OffsetDateTime, order_type: OrderType) -> NewOrder {
     NewOrder {
         id: Uuid::new_v4(),
         price: dec!(20000.00),
@@ -115,7 +95,7 @@ fn dummy_order(expiry: OffsetDateTime) -> NewOrder {
         .unwrap(),
         direction: Direction::Long,
         quantity: dec!(100.0),
-        order_type: OrderType::Market,
+        order_type,
         expiry,
         contract_symbol: trade::ContractSymbol::BtcUsd,
         leverage: 1.0,
