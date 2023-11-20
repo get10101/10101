@@ -53,6 +53,8 @@ Future<void> runBackend(BuildContext context) async {
 
   String fcmToken = '';
   try {
+    // TODO(holzeis): Fetching the fcm token takes up to 2 seconds. Given that we this is not changing
+    // frequently, we should not block everytime when starting the app to wait on this.
     fcmToken = await FirebaseMessaging.instance.getToken() ?? '';
   } catch (e) {
     logger.e("Failed to get FCM token $e");
