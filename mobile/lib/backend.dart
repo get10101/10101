@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:get_10101/features/trade/order_change_notifier.dart';
 import 'package:get_10101/features/trade/position_change_notifier.dart';
+import 'package:get_10101/features/wallet/wallet_change_notifier.dart';
 import 'package:get_10101/ffi.dart' as rust;
 import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
 import 'package:get_10101/util/environment.dart';
@@ -48,6 +49,7 @@ Future<void> fullBackup() async {
 Future<void> runBackend(BuildContext context) async {
   final orderChangeNotifier = context.read<OrderChangeNotifier>();
   final positionChangeNotifier = context.read<PositionChangeNotifier>();
+  final walletChangeNotifier = context.read<WalletChangeNotifier>();
 
   final seedDir = (await getApplicationSupportDirectory()).path;
 
@@ -61,8 +63,9 @@ Future<void> runBackend(BuildContext context) async {
   await _startBackend(seedDir: seedDir, fcmToken: fcmToken);
 
   // these notifiers depend on the backend running
-  orderChangeNotifier.initialize();
-  positionChangeNotifier.initialize();
+  await orderChangeNotifier.initialize();
+  await positionChangeNotifier.initialize();
+  await walletChangeNotifier.refreshLightningWallet();
 }
 
 Future<void> _startBackend({seedDir, fcmToken}) async {

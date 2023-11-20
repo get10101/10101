@@ -117,6 +117,20 @@ const ON_CHAIN_SYNC_INTERVAL: Duration = Duration::from_secs(300);
 /// exact fee will be know.
 pub const FUNDING_TX_WEIGHT_ESTIMATE: u64 = 220;
 
+/// Triggers an update to the wallet balance and history, without an on-chain sync.
+pub fn refresh_lightning_wallet() -> Result<()> {
+    let node = crate::state::get_node();
+    if let Err(e) = node.inner.sync_lightning_wallet() {
+        tracing::error!("Manually triggered Lightning wallet sync failed: {e:#}");
+    }
+
+    if let Err(e) = keep_wallet_balance_and_history_up_to_date(&node) {
+        tracing::error!("Failed to keep wallet history up to date: {e:#}");
+    }
+
+    Ok(())
+}
+
 /// Trigger an on-chain sync followed by an update to the wallet balance and history.
 ///
 /// We do not wait for the triggered task to finish, because the effect will be reflected

@@ -6,6 +6,7 @@ import 'package:get_10101/common/snack_bar.dart';
 import 'package:get_10101/common/value_data_row.dart';
 import 'package:get_10101/features/wallet/application/faucet_service.dart';
 import 'package:get_10101/features/wallet/payment_claimed_change_notifier.dart';
+import 'package:get_10101/features/wallet/wallet_change_notifier.dart';
 import 'package:get_10101/features/wallet/wallet_screen.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -67,7 +68,10 @@ class _FundWalletModalState extends State<FundWalletModal> {
     if (context.watch<PaymentClaimedChangeNotifier>().isClaimed()) {
       // We must not navigate during widget build, hence we are registering the navigation post frame.
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        GoRouter.of(context).go(WalletScreen.route);
+        context
+            .read<WalletChangeNotifier>()
+            .refreshLightningWallet()
+            .then((value) => GoRouter.of(context).go(WalletScreen.route));
       });
     }
 
