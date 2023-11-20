@@ -47,6 +47,7 @@ pub enum SubChannelState {
     Signed,
     Closing,
     OnChainClosed,
+    CounterOnChainClosed,
     // We don't care about other states for now
     #[serde(other)]
     Other,

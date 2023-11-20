@@ -49,6 +49,8 @@ async fn check_for_channel_closed(
         .expect("to be able to retrieve dlc channels from coordinator")
         .iter()
         .any(|chan| {
-            chan.counter_party == app_pubkey && chan.state == SubChannelState::OnChainClosed
+            chan.counter_party == app_pubkey
+                && (chan.state == SubChannelState::OnChainClosed
+                    || chan.state == SubChannelState::CounterOnChainClosed)
         })
 }
