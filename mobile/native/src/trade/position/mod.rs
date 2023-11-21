@@ -133,12 +133,16 @@ impl Position {
         let average_entry_price = decimal_from_f32(average_entry_price);
         let fee = order_matching_fee_taker(order.quantity, average_entry_price);
 
+        let margin_diff = SignedAmount::from_sat(actual_collateral_sat as i64);
+
+        let trade_cost = trade_cost(margin_diff, SignedAmount::ZERO, fee);
+
         let trade = Trade {
             order_id: order.id,
             contract_symbol: order.contract_symbol,
             contracts,
             direction: order.direction,
-            trade_cost: SignedAmount::from_sat(actual_collateral_sat as i64),
+            trade_cost,
             fee,
             pnl: None,
             price: average_entry_price,
@@ -248,7 +252,9 @@ impl Position {
             if contract_diff == 0.0 {
                 let fee = order_matching_fee_taker(order.quantity, order_execution_price);
 
-                let trade_cost = {
+                // The margin difference corresponds to the entire margin for the position being
+                // closed, as a negative number.
+                let margin_diff = {
                     let margin_before_btc =
                         starting_contracts / (starting_leverage * starting_average_execution_price);
 
@@ -261,7 +267,7 @@ impl Position {
                     // that reducing the position results in a negative `trade_cost` i.e. money into
                     // the Lightning wallet.
                     SignedAmount::from_btc(-margin_before_btc)
-                        .expect("margin to fit into SignedAmount")
+                        .expect("margin diff to fit into SignedAmount")
                 };
 
                 let pnl = {
@@ -277,6 +283,8 @@ impl Position {
                     )?;
                     SignedAmount::from_sat(pnl)
                 };
+
+                let trade_cost = trade_cost(margin_diff, pnl, fee);
 
                 let trade = Trade {
                     order_id,
@@ -355,10 +363,7 @@ impl Position {
 
                 let fee = order_matching_fee_taker(order.quantity, order_execution_price);
 
-                // The difference between the margin before the trade and the margin after the
-                // trade determines how much money we move between the DLC channel and the
-                // Lightning channel.
-                let trade_cost = {
+                let margin_diff = {
                     let margin_before_btc = starting_contracts_relative.abs()
                         / (starting_leverage * starting_average_execution_price);
 
@@ -392,6 +397,8 @@ impl Position {
                     SignedAmount::from_sat(pnl)
                 };
 
+                let trade_cost = trade_cost(margin_diff, pnl, fee);
+
                 let trade = Trade {
                     order_id,
                     contract_symbol: self.contract_symbol,
@@ -419,7 +426,9 @@ impl Position {
                 // thus far.
                 let fee = order_matching_fee_taker(self.quantity, order_execution_price);
 
-                let trade_cost = {
+                // The margin difference corresponds to the entire margin for the position being
+                // closed, as a negative number.
+                let margin_diff = {
                     let margin_before_btc =
                         starting_contracts / (starting_leverage * starting_average_execution_price);
 
@@ -449,6 +458,8 @@ impl Position {
                     )?;
                     SignedAmount::from_sat(pnl)
                 };
+
+                let trade_cost = trade_cost(margin_diff, pnl, fee);
 
                 let trade = Trade {
                     order_id,
@@ -529,10 +540,7 @@ impl Position {
 
             let fee = order_matching_fee_taker(order.quantity, order_execution_price);
 
-            // The difference between the margin before the trade and the margin after the
-            // trade determines how much money we move between the DLC channel and the
-            // Lightning channel.
-            let trade_cost = {
+            let margin_diff = {
                 let margin_before_btc = starting_contracts_relative.abs()
                     / (starting_leverage * starting_average_execution_price);
 
@@ -546,6 +554,8 @@ impl Position {
 
                 SignedAmount::from_btc(margin_diff_btc).expect("margin to fit into SignedAmount")
             };
+
+            let trade_cost = trade_cost(margin_diff, SignedAmount::ZERO, fee);
 
             let trade = Trade {
                 order_id,
@@ -571,6 +581,17 @@ impl Position {
 
         position.apply_order_recursive(order, expiry, trades)
     }
+}
+
+/// The _cost_ of a trade is computed as the change in margin (positive if the margin _increases_),
+/// plus the PNL (positive if the PNL is a loss), plus the fee (always positive because fees are
+/// always a cost).
+fn trade_cost(margin_diff: SignedAmount, pnl: SignedAmount, fee: Amount) -> SignedAmount {
+    let fee = fee.to_signed().expect("fee to fit into SignedAmount");
+
+    // We have to flip the sign of the PNL because it inherently uses _negative numbers for losses_,
+    // but here we want _costs to be positive_.
+    margin_diff - pnl + fee
 }
 
 #[track_caller]
@@ -641,7 +662,7 @@ mod tests {
         assert_eq!(opening_trade.contract_symbol, order.contract_symbol);
         assert_eq!(opening_trade.contracts, dec!(25));
         assert_eq!(opening_trade.direction, order.direction);
-        assert_eq!(opening_trade.trade_cost, SignedAmount::from_sat(78_125));
+        assert_eq!(opening_trade.trade_cost, SignedAmount::from_sat(78_359));
         assert_eq!(opening_trade.fee, Amount::from_sat(234));
         assert_eq!(opening_trade.pnl, None);
         assert_eq!(
@@ -702,7 +723,7 @@ mod tests {
         assert_eq!(closing_trade.contract_symbol, order.contract_symbol);
         assert_eq!(closing_trade.contracts, Decimal::TEN);
         assert_eq!(closing_trade.direction, order.direction);
-        assert_eq!(closing_trade.trade_cost, SignedAmount::from_sat(-13_710));
+        assert_eq!(closing_trade.trade_cost, SignedAmount::from_sat(-13_577));
         assert_eq!(closing_trade.fee, Amount::from_sat(82));
         assert_eq!(closing_trade.pnl, Some(SignedAmount::from_sat(-51)));
         assert_eq!(
@@ -772,7 +793,7 @@ mod tests {
         assert_eq!(trade.contract_symbol, order.contract_symbol);
         assert_eq!(trade.contracts, dec!(5));
         assert_eq!(trade.direction, order.direction);
-        assert_eq!(trade.trade_cost, SignedAmount::from_sat(6_868));
+        assert_eq!(trade.trade_cost, SignedAmount::from_sat(6_909));
         assert_eq!(trade.fee, Amount::from_sat(41));
         assert_eq!(trade.pnl, None);
         assert_eq!(
@@ -842,7 +863,7 @@ mod tests {
         assert_eq!(trade.contract_symbol, order.contract_symbol);
         assert_eq!(trade.contracts, dec!(5));
         assert_eq!(trade.direction, order.direction);
-        assert_eq!(trade.trade_cost, SignedAmount::from_sat(-6_868));
+        assert_eq!(trade.trade_cost, SignedAmount::from_sat(-6_801));
         assert_eq!(trade.fee, Amount::from_sat(41));
         assert_eq!(trade.pnl, Some(SignedAmount::from_sat(-26)));
         assert_eq!(
@@ -912,7 +933,7 @@ mod tests {
         assert_eq!(closing_trade.contract_symbol, order.contract_symbol);
         assert_eq!(closing_trade.contracts, Decimal::TEN);
         assert_eq!(closing_trade.direction, order.direction);
-        assert_eq!(closing_trade.trade_cost, SignedAmount::from_sat(-13_710));
+        assert_eq!(closing_trade.trade_cost, SignedAmount::from_sat(-13_577));
         assert_eq!(closing_trade.fee, Amount::from_sat(82));
         assert_eq!(closing_trade.pnl, Some(SignedAmount::from_sat(-51)));
         assert_eq!(
@@ -924,7 +945,7 @@ mod tests {
         assert_eq!(opening_trade.contract_symbol, order.contract_symbol);
         assert_eq!(opening_trade.contracts, Decimal::TEN);
         assert_eq!(opening_trade.direction, order.direction);
-        assert_eq!(opening_trade.trade_cost, SignedAmount::from_sat(13_736));
+        assert_eq!(opening_trade.trade_cost, SignedAmount::from_sat(13_818));
         assert_eq!(opening_trade.fee, Amount::from_sat(82));
         assert_eq!(opening_trade.pnl, None);
         assert_eq!(
