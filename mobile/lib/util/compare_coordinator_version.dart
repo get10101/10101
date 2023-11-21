@@ -27,7 +27,7 @@ Future<void> compareCoordinatorVersion(bridge.Config config) async {
     if (coordinatorVersion.version > clientVersion) {
       logger.w("Client out of date. Current version: ${clientVersion.toString()}");
       showDialog(
-          context: shellNavigatorKey.currentContext!,
+          context: rootNavigatorKey.currentContext!,
           builder: (context) => AlertDialog(
                   title: const Text("Update available"),
                   content: Text("A new version of 10101 is available: "
@@ -48,7 +48,7 @@ Future<void> compareCoordinatorVersion(bridge.Config config) async {
   } catch (e) {
     logger.e("Error getting coordinator version: ${e.toString()}");
     showDialog(
-        context: shellNavigatorKey.currentContext!,
+        context: rootNavigatorKey.currentContext!,
         builder: (context) => AlertDialog(
                 title: const Text("Cannot reach LSP"),
                 content: const Text("Please check your Internet connection.\n"
