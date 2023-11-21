@@ -44,13 +44,20 @@ pub struct Channel {
 
 #[derive(Deserialize, Debug, PartialEq, Eq)]
 pub enum SubChannelState {
+    Offered,
+    Accepted,
+    Finalized,
     Signed,
     Closing,
     OnChainClosed,
     CounterOnChainClosed,
-    // We don't care about other states for now
-    #[serde(other)]
-    Other,
+    CloseOffered,
+    CloseAccepted,
+    CloseConfirmed,
+    OffChainClosed,
+    ClosedPunished,
+    Confirmed,
+    Rejected,
 }
 
 impl Coordinator {

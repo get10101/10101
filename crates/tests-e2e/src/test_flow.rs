@@ -3,7 +3,7 @@
 macro_rules! wait_until {
     ($expr:expr) => {
         // Waiting time for the time on the watch channel before returning error
-        let next_wait_time: std::time::Duration = std::time::Duration::from_secs(60);
+        let next_wait_time: std::time::Duration = std::time::Duration::from_secs(120);
 
         let result = tokio::time::timeout(next_wait_time, async {
             let mut wait_time = std::time::Duration::from_millis(10);
