@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Fix missing context when opening alert dialog
+
 ## [1.6.0] - 2023-11-20
 
 - Move backup button to settings
