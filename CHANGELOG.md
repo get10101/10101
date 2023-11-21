@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 - Fix missing context when opening alert dialog
+- Fix jagged border on carousel images
 
 ## [1.6.0] - 2023-11-20
 

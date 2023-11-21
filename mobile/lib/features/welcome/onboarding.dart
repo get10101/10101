@@ -11,26 +11,41 @@ class CarouselItem {
   final String title;
   final String description;
   final String imagePath;
+  final double aspectRatio;
 
-  CarouselItem(this.title, this.description, this.imagePath);
+  CarouselItem(this.title, this.description, this.imagePath, this.aspectRatio);
 }
 
 final List<CarouselItem> carouselItems = [
   CarouselItem("Your keys, your control", "Stay in control of your funds at all time.",
-      "assets/carousel_1.png"),
+      "assets/carousel_1.jpg", 30 / 35),
   CarouselItem("Bitcoin only & Lightning fast.",
-      "The highest level of security, at lightning speed.", "assets/carousel_2.png"),
-  CarouselItem("Perpetual futures trading.",
-      "Experience P2P leveraged trading with no counterparty risk.", "assets/carousel_3.png"),
-  CarouselItem("Hedging and synthetics",
-      "You can now send, receive and hold USDP natively on Lightning.", "assets/carousel_4.png"),
+      "The highest level of security, at lightning speed.", "assets/carousel_2.jpg", 30 / 38),
+  CarouselItem(
+      "Perpetual futures trading.",
+      "Experience P2P leveraged trading with no counterparty risk.",
+      "assets/carousel_3.jpg",
+      30 / 35),
+  CarouselItem(
+      "Hedging and synthetics",
+      "You can now send, receive and hold USDP natively on Lightning.",
+      "assets/carousel_4.jpg",
+      30 / 28),
 ];
 
 Widget carouselItemWidget(BuildContext context, CarouselItem item) {
   final baseHeight = MediaQuery.of(context).size.height * 0.45;
   final baseWidth = MediaQuery.of(context).size.width * 0.10;
   return Stack(children: [
-    Image.asset(item.imagePath),
+    AspectRatio(
+        aspectRatio: item.aspectRatio,
+        child: Container(
+            decoration: BoxDecoration(
+                image: DecorationImage(
+          fit: BoxFit.fitWidth,
+          alignment: FractionalOffset.center,
+          image: AssetImage(item.imagePath),
+        )))),
     Padding(
       padding: EdgeInsets.only(left: baseWidth, right: baseWidth, top: baseHeight),
       child: Text(
