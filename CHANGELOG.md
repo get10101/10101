@@ -7,8 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.1] - 2023-11-21
+
 - Fix missing context when opening alert dialog
 - Fix jagged border on carousel images
+- Compute trade cost correctly in app wallet history
 
 ## [1.6.0] - 2023-11-20
 
@@ -183,7 +186,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Self-Custodial CFD Trading based on DLC and lightning
 
-[Unreleased]: https://github.com/get10101/10101/compare/1.6.0...HEAD
+[Unreleased]: https://github.com/get10101/10101/compare/1.6.1...HEAD
+[1.6.1]: https://github.com/get10101/10101/compare/1.6.0...1.6.1
 [1.6.0]: https://github.com/get10101/10101/compare/1.5.1...1.6.0
 [1.5.1]: https://github.com/get10101/10101/compare/1.5.0...1.5.1
 [1.5.0]: https://github.com/get10101/10101/compare/1.4.4...1.5.0
