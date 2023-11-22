@@ -400,7 +400,8 @@ impl Node {
         closing_price: Decimal,
         channel_id: ChannelId,
     ) -> Result<()> {
-        let accept_settlement_amount = position.calculate_settlement_amount(closing_price)?;
+        let accept_settlement_amount =
+            position.calculate_accept_settlement_amount(closing_price)?;
 
         tracing::debug!(
             ?position,

@@ -17,7 +17,7 @@ use tokio::task::block_in_place;
 // Use `flavor = "multi_thread"` to be able to call `block_in_place`.
 #[tokio::test(flavor = "multi_thread")]
 #[ignore = "need to be run with 'just e2e' command"]
-async fn can_revert_channel() {
+async fn can_revert_channel_without_coordinator_channel_details() {
     let test = setup::TestSetup::new_with_open_position().await;
     let coordinator = &test.coordinator;
     let bitcoin = &test.bitcoind;
@@ -50,8 +50,21 @@ async fn can_revert_channel() {
 
     let app_balance_before = app.rx.wallet_info().unwrap().balances.on_chain;
 
+    // The price is only informational for the app. The app will display things based on the price,
+    // but we are not asserting on that in this test. Hence, we can use an arbitrary value.
+    let price = dec!(30_000);
+
+    // We settle at an arbitrary price. We at least choose a value that we know will be valid.
+    let coordinator_amount_sat = channel.outbound_capacity_msat / 1_000;
+
     coordinator
-        .collaborative_revert_channel(&channel.channel_id, txid, vout)
+        .expert_collaborative_revert_channel(
+            &channel.channel_id,
+            coordinator_amount_sat,
+            price,
+            txid,
+            vout,
+        )
         .await
         .unwrap();
 

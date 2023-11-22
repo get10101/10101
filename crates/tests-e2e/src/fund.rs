@@ -19,27 +19,24 @@ pub async fn fund_app_with_faucet(
     client: &Client,
     fund_amount: u64,
 ) -> Result<()> {
-    spawn_blocking(move || {
-        api::register_beta("satoshi@vistomail.com".to_string()).expect("to succeed")
-    })
-    .await?;
+    spawn_blocking(move || api::register_beta("satoshi@vistomail.com".to_string()).unwrap())
+        .await?;
     let fee_sats = max(fund_amount / 100, 10_000);
-    let invoice = spawn_blocking(move || {
-        api::create_onboarding_invoice(1, fund_amount, fee_sats).expect("to succeed")
-    })
-    .await?;
-    api::decode_destination(invoice.clone()).expect("to decode invoice we created");
+    let invoice =
+        spawn_blocking(move || api::create_onboarding_invoice(1, fund_amount, fee_sats).unwrap())
+            .await?;
+    api::decode_destination(invoice.clone()).unwrap();
 
     pay_with_faucet(client, invoice).await?;
 
     // Ensure we sync the wallet info after funding
-    spawn_blocking(move || api::refresh_wallet_info().expect("to succeed")).await?;
+    spawn_blocking(move || api::refresh_wallet_info().unwrap()).await?;
 
     // Wait until the app has an outbound payment which should correspond to the channel-opening fee
     wait_until!(app
         .rx
         .wallet_info()
-        .expect("to have wallet info")
+        .unwrap()
         .history
         .iter()
         .any(|item| matches!(
@@ -54,11 +51,7 @@ pub async fn fund_app_with_faucet(
 
     tracing::info!(%fund_amount, %fee_sats, "Successfully funded app with faucet");
     assert_eq!(
-        app.rx
-            .wallet_info()
-            .expect("to have wallet info")
-            .balances
-            .lightning,
+        app.rx.wallet_info().unwrap().balances.lightning,
         fund_amount - fee_sats
     );
 

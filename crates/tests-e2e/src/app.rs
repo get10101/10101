@@ -19,21 +19,15 @@ impl AppHandle {
 }
 
 pub async fn run_app(seed_phrase: Option<Vec<String>>) -> AppHandle {
-    let app_dir = TempDir::new().expect("Failed to create temporary directory");
-    let seed_dir = TempDir::new().expect("Failed to create temporary directory");
+    let app_dir = TempDir::new().unwrap();
+    let seed_dir = TempDir::new().unwrap();
     let _app_handle = {
-        let as_string = |dir: &TempDir| {
-            dir.path()
-                .to_str()
-                .expect("Could not convert path to string")
-                .to_string()
-        };
+        let as_string = |dir: &TempDir| dir.path().to_str().unwrap().to_string();
 
         let app_dir = as_string(&app_dir);
         let seed_dir = as_string(&seed_dir);
 
-        native::api::set_config(test_config(), app_dir, seed_dir.clone())
-            .expect("Could not configure app");
+        native::api::set_config(test_config(), app_dir, seed_dir.clone()).unwrap();
 
         if let Some(seed_phrase) = seed_phrase {
             tokio::task::spawn_blocking({
@@ -43,11 +37,11 @@ pub async fn run_app(seed_phrase: Option<Vec<String>>) -> AppHandle {
                         seed_phrase.join(" "),
                         format!("{seed_dir}/regtest/seed"),
                     )
-                    .expect("Failed to restore from seed phrase");
+                    .unwrap();
                 }
             })
             .await
-            .expect("Failed to finish restore from seed phrase");
+            .unwrap();
         }
 
         tokio::task::spawn_blocking(move || {
@@ -56,7 +50,7 @@ pub async fn run_app(seed_phrase: Option<Vec<String>>) -> AppHandle {
                 "".to_string(),
                 native::api::IncludeBacktraceOnPanic::No,
             )
-            .expect("Could not run app")
+            .unwrap()
         })
     };
 

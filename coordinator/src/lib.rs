@@ -1,3 +1,4 @@
+use anyhow::Result;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::response::Response;
@@ -74,4 +75,12 @@ pub fn is_liquidity_sufficient(
     amount_sats: u64,
 ) -> bool {
     balance.get_spendable() >= amount_sats + settings.min_liquidity_threshold_sats
+}
+
+pub fn parse_channel_id(channel_id: &str) -> Result<[u8; 32]> {
+    let channel_id = hex::decode(channel_id)?
+        .try_into()
+        .map_err(|_| anyhow::anyhow!("Could not parse channel ID"))?;
+
+    Ok(channel_id)
 }

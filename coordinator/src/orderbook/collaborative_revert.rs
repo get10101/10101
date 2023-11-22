@@ -3,7 +3,9 @@ use crate::message::NewUserMessage;
 use crate::message::OrderbookMessage;
 use anyhow::bail;
 use anyhow::Result;
+use bitcoin::hashes::hex::ToHex;
 use bitcoin::secp256k1::PublicKey;
+use bitcoin::OutPoint;
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::Pool;
 use diesel::PgConnection;
@@ -26,15 +28,29 @@ pub fn monitor(
                 let mut conn = pool.get()?;
                 let notifier = notifier.clone();
                 async move {
-                    tracing::debug!(trader_id=%new_user_msg.new_user, "Checking if the user needs to be notified about collaboratively reverting a channel");
-                    if let Err(e) = process_pending_collaborative_revert(&mut conn, notifier, new_user_msg.new_user).await {
-                        tracing::error!("Failed to process pending collaborative revert. Error: {e:#}");
+                    tracing::debug!(
+                        trader_id=%new_user_msg.new_user,
+                        "Checking if the user needs to be notified about \
+                         collaboratively reverting a channel"
+                    );
+
+                    if let Err(e) = process_pending_collaborative_revert(
+                        &mut conn,
+                        notifier,
+                        new_user_msg.new_user,
+                    )
+                    .await
+                    {
+                        tracing::error!(
+                            "Failed to process pending collaborative revert. Error: {e:#}"
+                        );
                     }
                 }
             });
         }
         Ok(())
-    }.remote_handle();
+    }
+    .remote_handle();
 
     tokio::spawn(fut);
 
@@ -52,7 +68,11 @@ async fn process_pending_collaborative_revert(
             // nothing to revert
         }
         Some(revert) => {
-            tracing::debug!(%trader_id, channel_id = hex::encode(revert.channel_id), "Notifying trader about pending collaborative revert");
+            tracing::debug!(
+                %trader_id,
+                channel_id = revert.channel_id.to_hex(),
+                "Notifying trader about pending collaborative revert"
+            );
 
             // Sending no optional push notification as this is only executed if the user just
             // registered on the websocket. So we can assume that the user is still online.
@@ -64,6 +84,10 @@ async fn process_pending_collaborative_revert(
                     coordinator_amount: revert.coordinator_amount_sats,
                     trader_amount: revert.trader_amount_sats,
                     execution_price: Decimal::try_from(revert.price).expect("to fit into decimal"),
+                    funding_txo: OutPoint {
+                        txid: revert.txid,
+                        vout: revert.vout,
+                    },
                 },
                 notification: None,
             };

@@ -1,3 +1,5 @@
+#![allow(clippy::unwrap_used)]
+
 use bitcoin::Network;
 use native::api;
 use native::trade::position;
@@ -40,7 +42,7 @@ async fn can_rollover_position() {
 }
 
 fn check_rollover_position(app: &AppHandle, new_expiry: OffsetDateTime) -> bool {
-    let position = app.rx.position().expect("position to exist");
+    let position = app.rx.position().unwrap();
     tracing::debug!(
         "expect {:?} to be {:?}",
         position.position_state,

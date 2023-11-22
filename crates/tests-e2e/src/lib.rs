@@ -1,3 +1,5 @@
+#![allow(clippy::unwrap_used)]
+
 pub mod app;
 pub mod bitcoind;
 pub mod coordinator;

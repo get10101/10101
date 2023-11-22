@@ -1,3 +1,5 @@
+#![allow(clippy::unwrap_used)]
+
 use native::api;
 use tests_e2e::bitcoind::Bitcoind;
 use tests_e2e::coordinator::Coordinator;
@@ -40,13 +42,13 @@ async fn check_for_channel_closed(
     bitcoin: &Bitcoind,
     app_pubkey: &str,
 ) -> bool {
-    bitcoin.mine(100).await.expect("To be able to mine blocks");
+    bitcoin.mine(100).await.unwrap();
     // Let the coordinator catch-up with the blocks
     tokio::time::sleep(std::time::Duration::from_secs(2)).await;
     coordinator
         .get_dlc_channels()
         .await
-        .expect("to be able to retrieve dlc channels from coordinator")
+        .unwrap()
         .iter()
         .any(|chan| {
             chan.counter_party == app_pubkey

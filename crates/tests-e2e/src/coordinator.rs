@@ -4,13 +4,14 @@ use bitcoin::Address;
 use bitcoin::Txid;
 use coordinator::admin::Balance;
 use coordinator::routes::InvoiceParams;
-use coordinator_commons::CollaborativeRevert;
+use coordinator_commons::CollaborativeRevertCoordinatorExpertRequest;
+use coordinator_commons::CollaborativeRevertCoordinatorRequest;
 use ln_dlc_node::lightning_invoice;
 use ln_dlc_node::node::NodeInfo;
 use reqwest::Client;
+use rust_decimal::Decimal;
 use rust_decimal_macros::dec;
 use serde::Deserialize;
-use serde::Deserializer;
 use serde::Serialize;
 
 /// A wrapper over the coordinator HTTP API.
@@ -38,8 +39,9 @@ pub struct DlcChannel {
 pub struct Channel {
     pub channel_id: String,
     pub counterparty: String,
-    #[serde(deserialize_with = "null_to_default")]
-    pub original_funding_txo: String,
+    pub funding_txo: Option<String>,
+    pub original_funding_txo: Option<String>,
+    pub outbound_capacity_msat: u64,
 }
 
 #[derive(Deserialize, Debug, PartialEq, Eq)]
@@ -48,6 +50,7 @@ pub enum SubChannelState {
     Closing,
     OnChainClosed,
     CounterOnChainClosed,
+    CloseConfirmed,
     // We don't care about other states for now
     #[serde(other)]
     Other,
@@ -157,12 +160,34 @@ impl Coordinator {
     ) -> Result<reqwest::Response> {
         self.post_with_body(
             "/api/admin/channels/revert",
-            &CollaborativeRevert {
+            &CollaborativeRevertCoordinatorRequest {
                 channel_id: channel_id.to_string(),
                 price: dec!(30_000.0),
                 fee_rate_sats_vb: 4,
                 txid,
                 vout,
+            },
+        )
+        .await
+    }
+
+    pub async fn expert_collaborative_revert_channel(
+        &self,
+        channel_id: &str,
+        coordinator_amount: u64,
+        price: Decimal,
+        txid: Txid,
+        vout: u32,
+    ) -> Result<reqwest::Response> {
+        self.post_with_body(
+            "/api/admin/channels/revert-expert",
+            &CollaborativeRevertCoordinatorExpertRequest {
+                channel_id: channel_id.to_string(),
+                coordinator_amount,
+                txid,
+                vout,
+                fee_rate_sats_vb: 4,
+                price,
             },
         )
         .await
@@ -217,13 +242,4 @@ impl Coordinator {
             .error_for_status()
             .context("Coordinator did not return 200 OK")
     }
-}
-
-fn null_to_default<'de, D, T>(de: D) -> Result<T, D::Error>
-where
-    D: Deserializer<'de>,
-    T: Default + Deserialize<'de>,
-{
-    let key = Option::<T>::deserialize(de)?;
-    Ok(key.unwrap_or_default())
 }

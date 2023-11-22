@@ -1,6 +1,7 @@
 use crate::admin::close_channel;
 use crate::admin::collaborative_revert;
 use crate::admin::connect_to_peer;
+use crate::admin::expert_collaborative_revert;
 use crate::admin::get_balance;
 use crate::admin::is_connected;
 use crate::admin::list_channels;
@@ -11,7 +12,7 @@ use crate::admin::open_channel;
 use crate::admin::send_payment;
 use crate::admin::sign_message;
 use crate::backup::SledBackup;
-use crate::collaborative_revert;
+use crate::collaborative_revert::confirm_collaborative_revert;
 use crate::db;
 use crate::db::liquidity::LiquidityRequestLog;
 use crate::db::user;
@@ -24,7 +25,7 @@ use crate::orderbook::routes::post_order;
 use crate::orderbook::routes::put_order;
 use crate::orderbook::routes::websocket_handler;
 use crate::orderbook::trading::NewOrderMessage;
-use crate::position::models::parse_channel_id;
+use crate::parse_channel_id;
 use crate::settings::Settings;
 use crate::AppError;
 use autometrics::autometrics;
@@ -43,7 +44,7 @@ use bitcoin::hashes::hex::ToHex;
 use bitcoin::secp256k1::ecdsa::Signature;
 use bitcoin::secp256k1::PublicKey;
 use coordinator_commons::Backup;
-use coordinator_commons::CollaborativeRevertData;
+use coordinator_commons::CollaborativeRevertTraderResponse;
 use coordinator_commons::DeleteBackup;
 use coordinator_commons::LspConfig;
 use coordinator_commons::OnboardingParam;
@@ -153,6 +154,10 @@ pub fn router(
         .route("/api/admin/sign/:msg", get(sign_message))
         .route("/api/admin/connect", post(connect_to_peer))
         .route("/api/admin/channels/revert", post(collaborative_revert))
+        .route(
+            "/api/admin/channels/revert-expert",
+            post(expert_collaborative_revert),
+        )
         .route(
             "/api/channels/revertconfirm",
             post(collaborative_revert_confirm),
@@ -523,7 +528,7 @@ pub async fn version() -> Result<Json<Version>, AppError> {
 #[instrument(skip_all, err(Debug))]
 pub async fn collaborative_revert_confirm(
     State(state): State<Arc<AppState>>,
-    revert_params: Json<CollaborativeRevertData>,
+    revert_params: Json<CollaborativeRevertTraderResponse>,
 ) -> Result<Json<String>, AppError> {
     let mut conn = state.pool.clone().get().map_err(|error| {
         AppError::InternalServerError(format!("Could not acquire db lock {error:#}"))
@@ -544,11 +549,12 @@ pub async fn collaborative_revert_confirm(
     );
     let inner_node = state.node.inner.clone();
 
-    let raw_tx = collaborative_revert::confirm_collaborative_revert(
-        &revert_params,
+    let raw_tx = confirm_collaborative_revert(
+        inner_node,
         &mut conn,
         channel_id,
-        inner_node,
+        revert_params.transaction.clone(),
+        revert_params.signature,
     )
     .map_err(|error| {
         tracing::error!(

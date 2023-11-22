@@ -1,6 +1,6 @@
 use crate::collaborative_revert;
 use crate::db;
-use crate::position::models::parse_channel_id;
+use crate::parse_channel_id;
 use crate::routes::AppState;
 use crate::AppError;
 use anyhow::Context;
@@ -12,7 +12,9 @@ use axum::Json;
 use bdk::FeeRate;
 use bdk::TransactionDetails;
 use bitcoin::secp256k1::PublicKey;
-use coordinator_commons::CollaborativeRevert;
+use bitcoin::OutPoint;
+use coordinator_commons::CollaborativeRevertCoordinatorExpertRequest;
+use coordinator_commons::CollaborativeRevertCoordinatorRequest;
 use dlc_manager::subchannel::SubChannel;
 use lightning_invoice::Bolt11Invoice;
 use ln_dlc_node::node::NodeInfo;
@@ -152,37 +154,68 @@ pub async fn list_dlc_channels(
 #[instrument(skip_all, err(Debug))]
 pub async fn collaborative_revert(
     State(state): State<Arc<AppState>>,
-    revert_params: Json<CollaborativeRevert>,
-) -> Result<Json<String>, AppError> {
-    let channel_id_string = revert_params.channel_id.clone();
-    let channel_id = parse_channel_id(channel_id_string.as_str()).map_err(|error| {
-        tracing::error!(
-            channel_id = channel_id_string,
-            "Invalid channel id provided. {error:#}"
-        );
-        AppError::BadRequest("Invalid channel id provided".to_string())
-    })?;
+    revert_params: Json<CollaborativeRevertCoordinatorRequest>,
+) -> Result<(), AppError> {
+    let channel_id_hex = revert_params.channel_id.clone();
+    let channel_id = parse_channel_id(channel_id_hex.as_str())
+        .map_err(|e| AppError::BadRequest(format!("Invalid channel ID provided: {e:#}")))?;
 
-    collaborative_revert::notify_user_to_collaboratively_revert(
-        revert_params,
-        channel_id_string.clone(),
-        channel_id,
-        state.pool.clone(),
+    let funding_txo = OutPoint {
+        txid: revert_params.txid,
+        vout: revert_params.vout,
+    };
+
+    collaborative_revert::propose_collaborative_revert(
         state.node.inner.clone(),
+        state.pool.clone(),
         state.auth_users_notifier.clone(),
+        channel_id,
+        revert_params.price,
+        revert_params.fee_rate_sats_vb,
+        funding_txo,
     )
     .await
-    .map_err(move |error| {
-        tracing::error!(
-            channel_id = channel_id_string,
-            "Could not collaboratively revert channel: {error:#}"
-        );
-        AppError::InternalServerError("Could not collaboratively revert channel".to_string())
+    .map_err(|e| {
+        AppError::InternalServerError(format!("Could not collaboratively revert channel: {e:#}"))
     })?;
 
-    Ok(Json(
-        "Successfully notified trader, waiting for him to ping us again".to_string(),
-    ))
+    tracing::info!(channel_id = channel_id_hex, "Proposed collaborative revert");
+
+    Ok(())
+}
+
+#[instrument(skip_all, err(Debug))]
+pub async fn expert_collaborative_revert(
+    State(state): State<Arc<AppState>>,
+    revert_params: Json<CollaborativeRevertCoordinatorExpertRequest>,
+) -> Result<(), AppError> {
+    let channel_id_hex = revert_params.channel_id.clone();
+    let channel_id = parse_channel_id(channel_id_hex.as_str())
+        .map_err(|e| AppError::BadRequest(format!("Invalid channel ID provided: {e:#}")))?;
+
+    let funding_txo = OutPoint {
+        txid: revert_params.txid,
+        vout: revert_params.vout,
+    };
+
+    collaborative_revert::propose_collaborative_revert_without_channel_details(
+        state.node.inner.clone(),
+        state.pool.clone(),
+        state.auth_users_notifier.clone(),
+        channel_id,
+        funding_txo,
+        revert_params.coordinator_amount,
+        revert_params.fee_rate_sats_vb,
+        revert_params.price,
+    )
+    .await
+    .map_err(|e| {
+        AppError::InternalServerError(format!("Could not collaboratively revert channel: {e:#}"))
+    })?;
+
+    tracing::info!(channel_id = channel_id_hex, "Proposed collaborative revert");
+
+    Ok(())
 }
 
 #[instrument(skip_all, err(Debug))]

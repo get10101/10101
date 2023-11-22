@@ -44,7 +44,7 @@ use bitcoin::PackedLockTime;
 use bitcoin::Transaction;
 use bitcoin::TxIn;
 use bitcoin::TxOut;
-use coordinator_commons::CollaborativeRevertData;
+use coordinator_commons::CollaborativeRevertTraderResponse;
 use coordinator_commons::LiquidityOption;
 use coordinator_commons::LspConfig;
 use coordinator_commons::OnboardingParam;
@@ -633,6 +633,7 @@ pub fn collaborative_revert_channel(
     coordinator_amount: Amount,
     trader_amount: Amount,
     execution_price: Decimal,
+    funding_txo: OutPoint,
 ) -> Result<()> {
     let node = crate::state::try_get_node().context("Failed to get Node")?;
     let node = node.inner.clone();
@@ -655,48 +656,56 @@ pub fn collaborative_revert_channel(
             format!("Could not get channel keys ID for subchannel {channel_id_hex}")
         })?;
 
-    // TODO: Should get the funding TXO from the coordinator, since we pass it in as an argument to
-    // the API to collaboratively revert anyway. This way we can avoid depending on the channel
-    // still being tracked by the `ChannelManager`.
-
-    let funding_outpoint = {
-        let details = node
-            .channel_manager
-            .get_channel_details(&subchannel.channel_id)
-            .with_context(|| {
-                format!("Could not get channel details for subchannel {channel_id_hex}")
-            })?;
-
-        details
-            .original_funding_outpoint
-            .or(details.funding_txo)
-            .context("Could not find original funding TXO for subchannel {channel_id_hex}")?
-    };
-
-    let trader_address = node.get_unused_address();
-
-    let collab_revert_tx = Transaction {
+    let mut collab_revert_tx = Transaction {
         version: 2,
         lock_time: PackedLockTime::ZERO,
         input: vec![TxIn {
-            previous_output: OutPoint {
-                txid: funding_outpoint.txid,
-                vout: funding_outpoint.index as u32,
-            },
+            previous_output: funding_txo,
             script_sig: Default::default(),
             sequence: Default::default(),
             witness: Default::default(),
         }],
-        output: vec![
-            TxOut {
+        output: Vec::new(),
+    };
+
+    {
+        let coordinator_script_pubkey = coordinator_address.script_pubkey();
+        let dust_limit = coordinator_script_pubkey.dust_value();
+
+        if coordinator_amount >= dust_limit {
+            let txo = TxOut {
                 value: coordinator_amount.to_sat(),
-                script_pubkey: coordinator_address.script_pubkey(),
-            },
-            TxOut {
+                script_pubkey: coordinator_script_pubkey,
+            };
+
+            collab_revert_tx.output.push(txo);
+        } else {
+            tracing::info!(
+                %dust_limit,
+                "Skipping coordinator output for collaborative revert transaction because \
+                 it would be below the dust limit"
+            )
+        }
+    };
+
+    {
+        let trader_script_pubkey = node.get_unused_address().script_pubkey();
+        let dust_limit = trader_script_pubkey.dust_value();
+
+        if trader_amount >= dust_limit {
+            let txo = TxOut {
                 value: trader_amount.to_sat(),
-                script_pubkey: trader_address.script_pubkey(),
-            },
-        ],
+                script_pubkey: trader_script_pubkey,
+            };
+
+            collab_revert_tx.output.push(txo);
+        } else {
+            tracing::info!(
+                %dust_limit,
+                "Skipping trader output for collaborative revert transaction because \
+                 it would be below the dust limit"
+            )
+        }
     };
 
     let own_sig = {
@@ -714,7 +723,7 @@ pub fn collaborative_revert_channel(
             .context("Could not get own signature for collaborative revert transaction")?
     };
 
-    let data = CollaborativeRevertData {
+    let data = CollaborativeRevertTraderResponse {
         channel_id: channel_id_hex,
         transaction: collab_revert_tx,
         signature: own_sig,
