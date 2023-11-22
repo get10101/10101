@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Prevent reducing quantity more than the current position
+
 ## [1.6.1] - 2023-11-21
 
 - Fix missing context when opening alert dialog

@@ -255,9 +255,13 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
     bool hasPosition = positionChangeNotifier.positions.containsKey(contractSymbol);
 
     double? positionLeverage;
+    int? positionQuantity;
+    Direction? positionDirection;
     if (hasPosition) {
       final position = context.read<PositionChangeNotifier>().positions[contractSymbol];
-      positionLeverage = position!.leverage.leverage;
+      positionLeverage = position?.leverage.leverage;
+      positionQuantity = position?.quantity.toInt;
+      positionDirection = position?.direction;
     }
 
     return Wrap(
@@ -357,6 +361,12 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
                 }
                 if (margin.sats < minTradeMargin.sats) {
                   return "Min margin is ${minTradeMargin.sats}";
+                }
+
+                if (hasPosition &&
+                    quantity.toInt > positionQuantity! &&
+                    direction != positionDirection!) {
+                  return "Can't resize more than $positionQuantity";
                 }
 
                 showCapacityInfo = false;
