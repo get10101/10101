@@ -7,13 +7,18 @@ use diesel::PgConnection;
 use diesel_migrations::embed_migrations;
 use diesel_migrations::EmbeddedMigrations;
 use diesel_migrations::MigrationHarness;
+use rust_decimal::prelude::FromPrimitive;
+use rust_decimal::prelude::ToPrimitive;
+use rust_decimal::Decimal;
 use serde_json::json;
 use settings::Settings;
+
+mod collaborative_revert;
+mod payout_curve;
 
 pub mod admin;
 pub mod backup;
 pub mod cli;
-mod collaborative_revert;
 pub mod db;
 pub mod logger;
 pub mod message;
@@ -21,7 +26,6 @@ pub mod metrics;
 pub mod node;
 pub mod notifications;
 pub mod orderbook;
-mod payout_curve;
 pub mod position;
 pub mod routes;
 pub mod routing_fee;
@@ -83,4 +87,21 @@ pub fn parse_channel_id(channel_id: &str) -> Result<[u8; 32]> {
         .map_err(|_| anyhow::anyhow!("Could not parse channel ID"))?;
 
     Ok(channel_id)
+}
+
+pub fn compute_relative_contracts(contracts: Decimal, direction: &::trade::Direction) -> Decimal {
+    match direction {
+        ::trade::Direction::Long => contracts,
+        ::trade::Direction::Short => -contracts,
+    }
+}
+
+#[track_caller]
+pub fn decimal_from_f32(float: f32) -> Decimal {
+    Decimal::from_f32(float).expect("f32 to fit into Decimal")
+}
+
+#[track_caller]
+pub fn f32_from_decimal(decimal: Decimal) -> f32 {
+    decimal.to_f32().expect("Decimal to fit into f32")
 }
