@@ -54,21 +54,16 @@ impl Node {
             "Resizing position",
         );
 
-        // We start the position resizing by proposing a collaborative settlement of the existing
-        // DLC channel _as if nothing had happened_. That is, the `accept_settlement_amount` is
-        // equal to the amount the accept party originally put into the contract.
-        //
         // TODO: Use subchannel resize protocol to ensure atomicity, simplify the implementation and
         // improve UX.
         {
-            // The position.trader_margin has already been subtracted the previous order-matching
-            // fee, so we don't have to touch this.
-            let unchanged_accept_settlement_amount = position.trader_margin as u64;
+            let accept_settlement_amount =
+                position.calculate_accept_settlement_amount_partial_close(trade_params)?;
 
             self.inner
                 .propose_dlc_channel_collaborative_settlement(
                     channel_id,
-                    unchanged_accept_settlement_amount,
+                    accept_settlement_amount.to_sat(),
                 )
                 .await?;
 

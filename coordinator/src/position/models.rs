@@ -1,11 +1,16 @@
+use crate::compute_relative_contracts;
+use crate::decimal_from_f32;
+use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::Address;
 use bitcoin::Amount;
 use bitcoin::Txid;
+use coordinator_commons::TradeParams;
 use dlc_manager::ContractId;
 use orderbook_commons::order_matching_fee_taker;
+use rust_decimal::prelude::Signed;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use time::OffsetDateTime;
@@ -124,6 +129,8 @@ impl Position {
         Ok(pnl)
     }
 
+    /// Calculate the settlement amount for the accept party (i.e. the trader) when closing the
+    /// _entire_ position.
     pub fn calculate_accept_settlement_amount(&self, closing_price: Decimal) -> Result<u64> {
         let opening_price = Decimal::try_from(self.average_entry_price)?;
 
@@ -147,9 +154,27 @@ impl Position {
             self.direction,
         )
     }
+
+    /// Calculate the settlement amount for the accept party (i.e. the trader) when closing the DLC
+    /// channel for the two-step position resizing protocol.
+    pub fn calculate_accept_settlement_amount_partial_close(
+        &self,
+        trade_params: &TradeParams,
+    ) -> Result<Amount> {
+        calculate_accept_settlement_amount_partial_close(
+            self.quantity,
+            self.direction,
+            self.average_entry_price,
+            self.trader_leverage,
+            self.coordinator_leverage,
+            trade_params.quantity,
+            trade_params.direction,
+            trade_params.average_execution_price(),
+        )
+    }
 }
 
-/// Calculates the accept settlement amount based on the pnl.
+/// Calculate the accept settlement amount based on the PNL.
 fn calculate_accept_settlement_amount(
     opening_price: Decimal,
     closing_price: Decimal,
@@ -188,6 +213,115 @@ fn calculate_accept_settlement_amount(
     Ok(accept_settlement_amount)
 }
 
+/// Calculate the settlement amount for the accept party (i.e. the trader) when closing the DLC
+/// channel for the two-step position resizing protocol.
+///
+/// There are 3 distinct cases:
+///
+/// 1. The position is reduced: settle current DLC channel at `original_margin + PNL` based on
+/// the number of contracts removed and the order's execution price.
+///
+/// 2. The position flips direction: settle the current DLC channel at `original_margin + PNL`
+/// based on the number of contracts removed (the whole position) and the order's execution
+/// price.
+///
+/// 3. The position is extended: settle the current DLC channel at `original_margin`. Nothing
+/// has been actually settled in terms of the position, so we just want to remake the channel
+/// with more contracts.
+///
+/// NOTE: The `position.trader_margin` has already been subtracted the previous order-matching
+/// fee, so we don't have to do anything about that.
+#[allow(clippy::too_many_arguments)]
+fn calculate_accept_settlement_amount_partial_close(
+    position_quantity: f32,
+    position_direction: Direction,
+    position_average_execution_price: f32,
+    position_trader_leverage: f32,
+    position_coordinator_leverage: f32,
+    trade_quantity: f32,
+    trade_direction: Direction,
+    trade_average_execution_price: Decimal,
+) -> Result<Amount> {
+    let contracts_before_relative =
+        compute_relative_contracts(decimal_from_f32(position_quantity), &position_direction);
+    let contracts_trade_relative =
+        compute_relative_contracts(decimal_from_f32(trade_quantity), &trade_direction);
+
+    let contracts_after_relative = contracts_before_relative + contracts_trade_relative;
+
+    let leverage_long = leverage_long(
+        position_direction,
+        position_trader_leverage,
+        position_coordinator_leverage,
+    );
+    let leverage_short = leverage_short(
+        position_direction,
+        position_trader_leverage,
+        position_coordinator_leverage,
+    );
+
+    let position_trader_margin = calculate_margin(
+        decimal_from_f32(position_average_execution_price),
+        position_quantity,
+        position_trader_leverage,
+    );
+
+    // Position reduced.
+    let settlement_amount = if contracts_before_relative.signum()
+        == contracts_after_relative.signum()
+        && contracts_before_relative.abs() > contracts_after_relative.abs()
+        && !contracts_after_relative.is_zero()
+    {
+        // Settled as many contracts as there are in the executed order.
+        let settled_contracts = trade_quantity;
+
+        let pnl = calculate_pnl(
+            decimal_from_f32(position_average_execution_price),
+            trade_average_execution_price,
+            settled_contracts,
+            leverage_long,
+            leverage_short,
+            position_direction,
+        )?;
+
+        ((position_trader_margin as i64) + pnl).max(0) as u64
+    }
+    // Position changed direction.
+    else if contracts_before_relative.signum() != contracts_after_relative.signum()
+        && !contracts_after_relative.is_zero()
+    {
+        // Settled as many contracts as there are in the entire position.
+        let settled_contracts = position_quantity;
+
+        let pnl = calculate_pnl(
+            decimal_from_f32(position_average_execution_price),
+            trade_average_execution_price,
+            settled_contracts,
+            leverage_long,
+            leverage_short,
+            position_direction,
+        )?;
+
+        ((position_trader_margin as i64) + pnl).max(0) as u64
+    }
+    // Position extended.
+    else if contracts_before_relative.signum() == contracts_after_relative.signum()
+        && contracts_before_relative.abs() < contracts_after_relative.abs()
+    {
+        position_trader_margin
+    }
+    // Position either fully settled or unchanged. This is a bug.
+    else {
+        debug_assert!(false);
+
+        bail!("Invalid parameters for position resizing");
+    };
+
+    let settlement_amount = Amount::from_sat(settlement_amount);
+
+    Ok(settlement_amount)
+}
+
 pub fn leverage_long(direction: Direction, trader_leverage: f32, coordinator_leverage: f32) -> f32 {
     match direction {
         Direction::Long => trader_leverage,
@@ -209,11 +343,8 @@ pub fn leverage_short(
 #[cfg(test)]
 pub mod tests {
     use super::*;
-    use crate::position::models::calculate_accept_settlement_amount;
-    use rust_decimal::Decimal;
+    use rust_decimal_macros::dec;
     use std::str::FromStr;
-    use trade::cfd::calculate_margin;
-    use trade::Direction;
 
     // some basic sanity tests, that in case the position goes the right or wrong way the settlement
     // amount is moving correspondingly up or down.
@@ -477,6 +608,101 @@ pub mod tests {
         assert_eq!(coordinator_pnl, -11_111_111);
     }
 
+    #[test]
+    fn accept_settlement_amount_partial_close_position_reduced() {
+        let amount = calculate_accept_settlement_amount_partial_close(
+            10_000.0,
+            Direction::Long,
+            30_000.0,
+            2.0,
+            2.0,
+            5_000.0,
+            Direction::Short,
+            dec!(20_000),
+        )
+        .unwrap();
+
+        assert_eq!(amount.to_sat(), 8_333_334);
+    }
+
+    #[test]
+    fn accept_settlement_amount_partial_close_position_direction_changed() {
+        let amount = calculate_accept_settlement_amount_partial_close(
+            10_000.0,
+            Direction::Long,
+            5_000.0,
+            2.0,
+            2.0,
+            15_000.0,
+            Direction::Short,
+            dec!(6_000),
+        )
+        .unwrap();
+
+        assert_eq!(amount.to_sat(), 133_333_333);
+
+        let amount = calculate_accept_settlement_amount_partial_close(
+            10_000.0,
+            Direction::Long,
+            5_000.0,
+            2.0,
+            2.0,
+            20_000.0,
+            Direction::Short,
+            dec!(6_000),
+        )
+        .unwrap();
+
+        assert_eq!(amount.to_sat(), 133_333_333);
+    }
+
+    #[test]
+    fn accept_settlement_amount_partial_close_position_increased() {
+        let amount = calculate_accept_settlement_amount_partial_close(
+            10_000.0,
+            Direction::Long,
+            5_000.0,
+            2.0,
+            2.0,
+            2_000.0,
+            Direction::Long,
+            dec!(2_000),
+        )
+        .unwrap();
+
+        assert_eq!(amount.to_btc(), 1.0);
+    }
+
+    #[test]
+    #[should_panic]
+    fn accept_settlement_amount_partial_close_position_goes_to_zero_panics() {
+        let _ = calculate_accept_settlement_amount_partial_close(
+            10_000.0,
+            Direction::Long,
+            5_000.0,
+            2.0,
+            2.0,
+            10_000.0,
+            Direction::Short,
+            dec!(2_000),
+        );
+    }
+
+    #[test]
+    #[should_panic]
+    fn accept_settlement_amount_partial_close_position_unchanged_panics() {
+        let _ = calculate_accept_settlement_amount_partial_close(
+            10_000.0,
+            Direction::Long,
+            5_000.0,
+            2.0,
+            2.0,
+            0.0,
+            Direction::Short,
+            dec!(2_000),
+        );
+    }
+
     fn dummy_quote(bid: u64, ask: u64) -> Quote {
         Quote {
             bid_size: 0,
@@ -488,7 +714,6 @@ pub mod tests {
         }
     }
 
-    #[cfg(test)]
     impl Position {
         pub(crate) fn dummy() -> Self {
             Position {
