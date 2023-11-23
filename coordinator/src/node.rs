@@ -1,4 +1,6 @@
+use crate::compute_relative_contracts;
 use crate::db;
+use crate::decimal_from_f32;
 use crate::node::storage::NodeStorage;
 use crate::orderbook::db::matches;
 use crate::orderbook::db::orders;
@@ -40,7 +42,6 @@ use ln_dlc_node::WalletSettings;
 use orderbook_commons::order_matching_fee_taker;
 use orderbook_commons::MatchState;
 use orderbook_commons::OrderState;
-use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use std::sync::Arc;
@@ -660,21 +661,4 @@ fn liquidation_price(trade_params: &TradeParams) -> f32 {
     }
     .to_f32()
     .expect("to fit into f32")
-}
-
-fn compute_relative_contracts(contracts: Decimal, direction: &Direction) -> Decimal {
-    match direction {
-        Direction::Long => contracts,
-        Direction::Short => -contracts,
-    }
-}
-
-#[track_caller]
-fn decimal_from_f32(float: f32) -> Decimal {
-    Decimal::from_f32(float).expect("f32 to fit into Decimal")
-}
-
-#[track_caller]
-fn f32_from_decimal(decimal: Decimal) -> f32 {
-    decimal.to_f32().expect("Decimal to fit into f32")
 }

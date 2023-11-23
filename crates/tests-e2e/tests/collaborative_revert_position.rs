@@ -3,7 +3,6 @@
 use bitcoin::Txid;
 use coordinator::admin::Balance;
 use native::api;
-use rust_decimal_macros::dec;
 use std::str::FromStr;
 use tests_e2e::bitcoind::Bitcoind;
 use tests_e2e::coordinator::Coordinator;

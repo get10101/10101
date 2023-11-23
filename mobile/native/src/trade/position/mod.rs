@@ -319,13 +319,12 @@ impl Position {
                 let total_contracts_relative =
                     starting_contracts_relative + order_contracts_relative;
 
-                let updated_average_execution_price = total_contracts_relative
-                    / (starting_contracts_relative / starting_average_execution_price
-                        + order_contracts_relative / order_execution_price);
+                // We keep using the starting average execution price because we have only reduced
+                // the number of contracts in the position.
 
                 let updated_collateral = {
                     let updated_collateral_btc = total_contracts_relative
-                        / (starting_leverage * updated_average_execution_price);
+                        / (starting_leverage * starting_average_execution_price);
 
                     let updated_collateral_btc = updated_collateral_btc
                         .abs()
@@ -338,12 +337,6 @@ impl Position {
                         .to_sat()
                 };
 
-                let updated_liquidation_price = calculate_liquidation_price(
-                    f32_from_decimal(updated_average_execution_price),
-                    f32_from_decimal(starting_leverage),
-                    self.direction,
-                );
-
                 let stable = self.stable && order.stable && self.direction == Direction::Short;
 
                 let position = Position {
@@ -351,8 +344,8 @@ impl Position {
                     quantity: contract_diff,
                     contract_symbol: self.contract_symbol,
                     direction: self.direction,
-                    average_entry_price: f32_from_decimal(updated_average_execution_price),
-                    liquidation_price: updated_liquidation_price,
+                    average_entry_price: self.average_entry_price,
+                    liquidation_price: self.liquidation_price,
                     position_state: PositionState::Open,
                     collateral: updated_collateral,
                     expiry,
@@ -368,7 +361,7 @@ impl Position {
                         / (starting_leverage * starting_average_execution_price);
 
                     let margin_after_btc = total_contracts_relative.abs()
-                        / (starting_leverage * updated_average_execution_price);
+                        / (starting_leverage * starting_average_execution_price);
 
                     let margin_diff_btc = (margin_after_btc.abs() - margin_before_btc.abs())
                         .abs()
@@ -475,7 +468,6 @@ impl Position {
 
                 let position = Position {
                     quantity: 0.0,
-
                     ..self
                 };
 
@@ -837,7 +829,7 @@ mod tests {
             stable: false,
         };
 
-        let dlc_collateral_after_resize = 6_842;
+        let dlc_collateral_after_resize = 6_855;
         let (updated_position, trades) = position
             .clone()
             .apply_order(order, now, dlc_collateral_after_resize)
@@ -848,10 +840,16 @@ mod tests {
         assert_eq!(updated_position.quantity, 5.0);
         assert_eq!(updated_position.contract_symbol, position.contract_symbol);
         assert_eq!(updated_position.direction, position.direction);
-        assert_eq!(updated_position.average_entry_price, 36_537.754);
-        assert_eq!(updated_position.liquidation_price, 24_358.5);
+        assert_eq!(
+            updated_position.average_entry_price,
+            position.average_entry_price
+        );
+        assert_eq!(
+            updated_position.liquidation_price,
+            position.liquidation_price
+        );
         assert_eq!(updated_position.position_state, PositionState::Open);
-        assert_eq!(updated_position.collateral, 6_842);
+        assert_eq!(updated_position.collateral, 6_855);
         assert!(!updated_position.stable);
 
         let trade = match trades.as_slice() {
@@ -863,7 +861,7 @@ mod tests {
         assert_eq!(trade.contract_symbol, order.contract_symbol);
         assert_eq!(trade.contracts, dec!(5));
         assert_eq!(trade.direction, order.direction);
-        assert_eq!(trade.trade_cost, SignedAmount::from_sat(-6_801));
+        assert_eq!(trade.trade_cost, SignedAmount::from_sat(-6_788));
         assert_eq!(trade.fee, Amount::from_sat(41));
         assert_eq!(trade.pnl, Some(SignedAmount::from_sat(-26)));
         assert_eq!(

@@ -1,7 +1,7 @@
+use crate::compute_relative_contracts;
 use crate::db;
-use crate::node::compute_relative_contracts;
-use crate::node::decimal_from_f32;
-use crate::node::f32_from_decimal;
+use crate::decimal_from_f32;
+use crate::f32_from_decimal;
 use crate::node::Node;
 use crate::payout_curve;
 use crate::payout_curve::create_rounding_interval;
@@ -54,21 +54,16 @@ impl Node {
             "Resizing position",
         );
 
-        // We start the position resizing by proposing a collaborative settlement of the existing
-        // DLC channel _as if nothing had happened_. That is, the `accept_settlement_amount` is
-        // equal to the amount the accept party originally put into the contract.
-        //
         // TODO: Use subchannel resize protocol to ensure atomicity, simplify the implementation and
         // improve UX.
         {
-            // The position.trader_margin has already been subtracted the previous order-matching
-            // fee, so we don't have to touch this.
-            let unchanged_accept_settlement_amount = position.trader_margin as u64;
+            let accept_settlement_amount =
+                position.calculate_accept_settlement_amount_partial_close(trade_params)?;
 
             self.inner
                 .propose_dlc_channel_collaborative_settlement(
                     channel_id,
-                    unchanged_accept_settlement_amount,
+                    accept_settlement_amount.to_sat(),
                 )
                 .await?;
 
@@ -198,10 +193,9 @@ impl Node {
 
                 let coordinator_direction = direction.opposite();
 
-                // Apply the order-matching fee. The fee from the previous iteration of the
-                // position should have already been cashed into the
-                // coordinator's side of the Lightning channel when first
-                // closing the DLC channel.
+                // Apply the order-matching fee. The fee from the previous iteration of the position
+                // should have already been cashed into the coordinator's side of the Lightning
+                // channel when first closing the DLC channel.
                 //
                 // Here we only need to charge for executing the order.
                 let fee =
@@ -351,14 +345,86 @@ fn compute_average_execution_price(
 
     let total_contracts_relative = starting_contracts_relative + trade_contracts_relative;
 
-    total_contracts_relative
-        / (starting_contracts_relative / starting_average_execution_price
-            + trade_contracts_relative / trade_execution_price)
+    // If the position size has reduced, the average execution price does not change.
+    if starting_contracts_relative.signum() == total_contracts_relative.signum()
+        && starting_contracts > total_contracts_relative.abs()
+    {
+        starting_average_execution_price
+    }
+    // If the position size has increased, the average execution price is updated.
+    else if starting_contracts_relative.signum() == total_contracts_relative.signum()
+        && starting_contracts < total_contracts_relative.abs()
+    {
+        let price = total_contracts_relative
+            / (starting_contracts_relative / starting_average_execution_price
+                + trade_contracts_relative / trade_execution_price);
+
+        price.round_dp_with_strategy(2, RoundingStrategy::MidpointAwayFromZero)
+    }
+    // If the position has changed direction, the average execution price is the new trade execution
+    // price.
+    else if starting_contracts_relative.signum() != total_contracts_relative.signum() {
+        trade_execution_price
+    }
+    // If the position hasn't changed (same direction, same number of contracts), the average
+    // execution price does not change. But why are we even here?
+    else {
+        debug_assert!(false);
+        starting_average_execution_price
+    }
 }
 
 fn compute_liquidation_price(leverage: Decimal, price: Decimal, direction: &Direction) -> Decimal {
     match direction {
         Direction::Long => calculate_long_liquidation_price(leverage, price),
         Direction::Short => calculate_short_liquidation_price(leverage, price),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rust_decimal_macros::dec;
+
+    #[test]
+    fn average_execution_price_extend_position() {
+        let price = compute_average_execution_price(
+            10_000.0,
+            30_000.0,
+            10.0,
+            10.0,
+            Direction::Long,
+            Direction::Long,
+        );
+
+        assert_eq!(price, dec!(15_000));
+    }
+
+    #[test]
+    fn average_execution_price_reduce_position() {
+        let price = compute_average_execution_price(
+            10_000.0,
+            20_000.0,
+            10.0,
+            5.0,
+            Direction::Long,
+            Direction::Short,
+        );
+
+        assert_eq!(price, dec!(10_000));
+    }
+
+    #[test]
+    fn average_execution_price_change_position_direction() {
+        let price = compute_average_execution_price(
+            10_000.0,
+            20_000.0,
+            10.0,
+            15.0,
+            Direction::Long,
+            Direction::Short,
+        );
+
+        assert_eq!(price, dec!(20_000));
     }
 }
