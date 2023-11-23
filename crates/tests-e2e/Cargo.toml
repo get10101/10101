@@ -12,6 +12,7 @@ coordinator = { path = "../../coordinator" }
 coordinator-commons = { path = "../coordinator-commons" }
 flutter_rust_bridge = "1.78.0"
 ln-dlc-node = { path = "../ln-dlc-node" }
+local-ip-address = "0.5.1"
 maker = { path = "../../maker" }
 native = { path = "../../mobile/native" }
 orderbook-commons = { path = "../orderbook-commons" }
@@ -33,4 +34,3 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 assertables = "7.0.1"
 bitcoin = "0.29.2"
 clap = { version = "4", features = ["derive"] }
-local-ip-address = "0.5.1"
