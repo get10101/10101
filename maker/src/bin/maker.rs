@@ -97,7 +97,7 @@ async fn main() -> Result<()> {
         opts.esplora.clone(),
         seed,
         ephemeral_randomness,
-        ln_dlc_node_settings(),
+        ln_dlc_node_settings(opts.rgs_server_url.clone()),
         vec![opts.get_oracle_info().into()],
         opts.get_oracle_info().public_key,
     )?);

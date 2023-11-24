@@ -18,3 +18,4 @@ shadow_sync_interval = 600
 forwarding_fee_proportional_millionths = 50
 bdk_client_stop_gap = 20
 bdk_client_concurrency = 4
+gossip_source_config = "P2pNetwork"

@@ -26,6 +26,7 @@ lightning-background-processor = { version = "0.0.116", features = ["futures"] }
 lightning-invoice = { version = "0.24" }
 lightning-net-tokio = { version = "0.0.116" }
 lightning-persister = { version = "0.0.116" }
+lightning-rapid-gossip-sync = { version = "0.0.116" }
 lightning-transaction-sync = { version = "0.0.116", features = ["esplora-blocking"] }
 ln-dlc-storage = { path = "../../crates/ln-dlc-storage" }
 log = "0.4.17"

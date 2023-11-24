@@ -27,6 +27,10 @@ on:
         required: true
         description: "The public key of the oracle. Must match with the public key returned at http://${oracle_endpoint}/oracle/publickey"
         type: string
+      rgs_server_url:
+        required: false
+        description: "An optional Rapid Gossip Sync server URL"
+        type: string
   workflow_dispatch:
     inputs:
       coordinator_port_http:
@@ -56,6 +60,10 @@ on:
       oracle_pubkey:
         required: true
         description: "The public key of the oracle. Must match with the public key returned at http://${oracle_endpoint}/oracle/publickey"
+        type: string
+      rgs_server_url:
+        required: false
+        description: "An optional Rapid Gossip Sync server URL"
         type: string
 
 env:
@@ -155,12 +163,12 @@ jobs:
         run: |
           echo "$FASTLANE_ANDROID_SERVICE_ACCOUNT_KEY_BASE64" | base64 --decode > ${{ runner.temp }}/fastlane_service_account.json
           echo "$FASTLANE_ANDROID_UPLOAD_KEY_BASE64" | base64 --decode > ${{ runner.temp }}/upload-keystore.jks
-          
+
           upload_keystore_content="storePassword=$FASTLANE_ANDROID_STORE_PASSWORD
           keyPassword=$FASTLANE_ANDROID_STORE_PASSWORD
           keyAlias=upload
           storeFile=${{ runner.temp }}/upload-keystore.jks"
-          
+
           echo "$upload_keystore_content" > "./mobile/android/key.properties"
 
       - name: Build Android Archive
@@ -174,6 +182,7 @@ jobs:
           COORDINATOR_PORT_HTTP: ${{ inputs.coordinator_port_http }}
           ORACLE_ENDPOINT: ${{ inputs.oracle_endpoint }}
           ORACLE_PUBKEY: ${{ inputs.oracle_pubkey }}
+          RGS_SERVER_URL: ${{ inputs.rgs_server_url }}
 
       - name: Release to Google Play Store
         env:

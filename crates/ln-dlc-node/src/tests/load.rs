@@ -1,4 +1,5 @@
 use crate::config::app_config;
+use crate::node::GossipSourceConfig;
 use crate::node::InMemoryStore;
 use crate::node::LnDlcNodeSettings;
 use crate::node::Node;
@@ -215,5 +216,6 @@ fn ln_dlc_node_settings() -> LnDlcNodeSettings {
         forwarding_fee_proportional_millionths: 50,
         bdk_client_stop_gap: 20,
         bdk_client_concurrency: 4,
+        gossip_source_config: GossipSourceConfig::P2pNetwork,
     }
 }

@@ -41,8 +41,9 @@ jobs:
       fastlane_developer_app_identifier: finance.get10101.app
       fastlane_provisioning_profile_specifier: match AppStore finance.get10101.app 1692208014
       app_scheme: Runner
+      rgs_server_url: https://rapidsync.lightningdevkit.org/snapshot/
 
-  build_and_release_regtest_android_app_for_latest_main:
+  build_and_release_mainnet_android_app_for_latest_main:
     permissions:
       packages: write
       contents: read
@@ -56,3 +57,4 @@ jobs:
       network: mainnet
       oracle_endpoint: http://oracle.10101.finance
       oracle_pubkey: 93051f54feefdb4765492a85139c436d4857e2e331a360c89a16d6bc02ba9cd0
+      rgs_server_url: https://rapidsync.lightningdevkit.org/snapshot/

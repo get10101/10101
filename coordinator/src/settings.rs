@@ -137,7 +137,7 @@ impl Settings {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 pub struct SettingsFile {
     jit_channels_enabled: bool,
     new_positions_enabled: bool,
@@ -174,5 +174,47 @@ impl From<Settings> for SettingsFile {
             close_expired_position_scheduler: value.close_expired_position_scheduler,
             min_liquidity_threshold_sats: value.min_liquidity_threshold_sats,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use ln_dlc_node::node::GossipSourceConfig;
+
+    #[test]
+    fn toml_serde_roundtrip() {
+        let original = SettingsFile {
+            jit_channels_enabled: true,
+            new_positions_enabled: true,
+            contract_tx_fee_rate: 1,
+            fallback_tx_fee_rate_normal: 2,
+            fallback_tx_fee_rate_high_priority: 3,
+            max_allowed_tx_fee_rate_when_opening_channel: Some(1),
+            ln_dlc: LnDlcNodeSettings {
+                off_chain_sync_interval: std::time::Duration::from_secs(1),
+                on_chain_sync_interval: std::time::Duration::from_secs(1),
+                fee_rate_sync_interval: std::time::Duration::from_secs(1),
+                dlc_manager_periodic_check_interval: std::time::Duration::from_secs(1),
+                sub_channel_manager_periodic_check_interval: std::time::Duration::from_secs(1),
+                shadow_sync_interval: std::time::Duration::from_secs(1),
+                forwarding_fee_proportional_millionths: 10,
+                bdk_client_stop_gap: 1,
+                bdk_client_concurrency: 2,
+                gossip_source_config: GossipSourceConfig::RapidGossipSync {
+                    server_url: "foo".to_string(),
+                },
+            },
+            rollover_window_open_scheduler: "foo".to_string(),
+            rollover_window_close_scheduler: "bar".to_string(),
+            close_expired_position_scheduler: "baz".to_string(),
+            min_liquidity_threshold_sats: 2,
+        };
+
+        let serialized = toml::to_string_pretty(&original).unwrap();
+
+        let deserialized = toml::from_str(&serialized).unwrap();
+
+        assert_eq!(original, deserialized);
     }
 }

@@ -8,11 +8,11 @@ use dlc_messages::message_handler::MessageHandler as DlcMessageHandler;
 use fee_rate_estimator::FeeRateEstimator;
 use lightning::chain::chainmonitor;
 use lightning::chain::Filter;
+use lightning::ln::msgs::RoutingMessageHandler;
 use lightning::ln::peer_handler::IgnoringMessageHandler;
 use lightning::ln::PaymentPreimage;
 use lightning::ln::PaymentSecret;
 use lightning::routing::gossip;
-use lightning::routing::gossip::P2PGossipSync;
 use lightning::routing::router::DefaultRouter;
 use lightning::routing::scoring::ProbabilisticScorer;
 use lightning::routing::scoring::ProbabilisticScoringFeeParameters;
@@ -71,13 +71,7 @@ type ChainMonitor<S, N> = chainmonitor::ChainMonitor<
 pub type PeerManager<S, N> = lightning::ln::peer_handler::PeerManager<
     SocketDescriptor,
     Arc<SubChannelManager<S, N>>,
-    Arc<
-        P2PGossipSync<
-            Arc<gossip::NetworkGraph<Arc<TracingLogger>>>,
-            Arc<dyn UtxoLookup + Send + Sync>,
-            Arc<TracingLogger>,
-        >,
-    >,
+    Arc<dyn RoutingMessageHandler + Send + Sync>,
     Arc<IgnoringMessageHandler>,
     Arc<TracingLogger>,
     Arc<DlcMessageHandler>,
@@ -94,6 +88,23 @@ pub(crate) type Router = DefaultRouter<
 pub(crate) type Scorer = ProbabilisticScorer<Arc<NetworkGraph>, Arc<TracingLogger>>;
 
 type NetworkGraph = gossip::NetworkGraph<Arc<TracingLogger>>;
+
+type P2pGossipSync = lightning::routing::gossip::P2PGossipSync<
+    Arc<NetworkGraph>,
+    Arc<dyn UtxoLookup + Send + Sync>,
+    Arc<TracingLogger>,
+>;
+
+type RapidGossipSync =
+    lightning_rapid_gossip_sync::RapidGossipSync<Arc<NetworkGraph>, Arc<TracingLogger>>;
+
+pub(crate) type GossipSync = lightning_background_processor::GossipSync<
+    Arc<P2pGossipSync>,
+    Arc<RapidGossipSync>,
+    Arc<NetworkGraph>,
+    Arc<dyn UtxoLookup + Send + Sync>,
+    Arc<TracingLogger>,
+>;
 
 #[derive(Debug, Clone)]
 pub struct PaymentInfo {

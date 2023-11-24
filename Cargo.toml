@@ -35,6 +35,7 @@ lightning-background-processor = { git = "https://github.com/p2pderivatives/rust
 lightning-transaction-sync = { git = "https://github.com/p2pderivatives/rust-lightning/", rev = "a57281b" }
 lightning-net-tokio = { git = "https://github.com/p2pderivatives/rust-lightning/", rev = "a57281b" }
 lightning-persister = { git = "https://github.com/p2pderivatives/rust-lightning/", rev = "a57281b" }
+lightning-rapid-gossip-sync = { git = "https://github.com/p2pderivatives/rust-lightning/", rev = "a57281b" }
 
 rust-bitcoin-coin-selection = { git = "https://github.com/p2pderivatives/rust-bitcoin-coin-selection" }
 
