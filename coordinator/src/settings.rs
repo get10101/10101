@@ -1,4 +1,3 @@
-use crate::cli::Network;
 use crate::node::NodeSettings;
 use anyhow::Context;
 use anyhow::Result;
@@ -13,21 +12,8 @@ use tokio::io::AsyncWriteExt;
 
 const SETTINGS_FILE_NAME: &str = "coordinator-settings.toml";
 
-/// Reminding about the rollover window being open runs on Friday, 15:05 UTC and Saturday, 15:05 UTC
-const ROLLOVER_SCHEDULE_MAINNET: &str = "0 5 15 * * 5,6";
-/// Reminding about the rollover window being open runs daily at 16:05 UTC
-const ROLLOVER_SCHEDULE_REGTEST: &str = "0 5 16 * * *";
-
-/// Reminding about the rollover window being closed runs on Sunday, 13:05 UTC
-const ROLLOVER_CLOSE_SCHEDULE_MAINNET: &str = "0 5 13 * * 5,6";
-/// Reminding about the rollover window being closed runs daily at 22:05 UTC
-const ROLLOVER_CLOSE_SCHEDULE_REGTEST: &str = "0 5 22 * * *";
-
-/// Reminding to close an expired position every day at 12:00 UTC
-const CLOSE_EXPIRED_POSITION_SCHEDULE: &str = "0 0 12 * * *";
-
 /// Top-level settings.
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct Settings {
     pub jit_channels_enabled: bool,
     pub new_positions_enabled: bool,
@@ -42,9 +28,6 @@ pub struct Settings {
     pub max_allowed_tx_fee_rate_when_opening_channel: Option<u32>,
 
     pub ln_dlc: LnDlcNodeSettings,
-
-    // Special parameter, where the settings file is located
-    pub path: Option<PathBuf>,
 
     /// We don't want the below doc block be formatted
     #[rustfmt::skip]
@@ -75,71 +58,33 @@ pub struct Settings {
 
     /// Min balance to keep in on-chain wallet at all times
     pub min_liquidity_threshold_sats: u64,
+
+    // Location of the settings file in the file system.
+    path: PathBuf,
 }
 
 impl Settings {
-    fn default(network: Network) -> Self {
-        let rollover_window_open_scheduler = match network {
-            Network::Regtest | Network::Signet | Network::Testnet => ROLLOVER_SCHEDULE_REGTEST,
-            Network::Mainnet => ROLLOVER_SCHEDULE_MAINNET,
-        }
-        .to_string();
-        let rollover_window_close_scheduler = match network {
-            Network::Regtest | Network::Signet | Network::Testnet => {
-                ROLLOVER_CLOSE_SCHEDULE_REGTEST
-            }
-            Network::Mainnet => ROLLOVER_CLOSE_SCHEDULE_MAINNET,
-        }
-        .to_string();
-        Self {
-            jit_channels_enabled: true,
-            new_positions_enabled: true,
-            contract_tx_fee_rate: 9,
-            fallback_tx_fee_rate_normal: 2000,
-            fallback_tx_fee_rate_high_priority: 5000,
-            max_allowed_tx_fee_rate_when_opening_channel: None,
-            ln_dlc: LnDlcNodeSettings::default(),
-            path: None,
-            rollover_window_open_scheduler,
-            rollover_window_close_scheduler,
-            close_expired_position_scheduler: CLOSE_EXPIRED_POSITION_SCHEDULE.to_string(),
-            min_liquidity_threshold_sats: 10_000_000, // 0.1 BTC
-        }
-    }
-}
+    pub async fn new(data_dir: &Path) -> Result<Self> {
+        let settings_path = data_dir.join(SETTINGS_FILE_NAME);
 
-async fn read_settings(data_dir: &Path) -> Result<Settings> {
-    let settings_path = data_dir.join(SETTINGS_FILE_NAME);
-    let data = fs::read_to_string(settings_path).await?;
-    toml::from_str(&data).context("Unable to parse settings file")
-}
+        let data = fs::read_to_string(&settings_path)
+            .await
+            .with_context(|| format!("Failed to read settings at {settings_path:?}"))?;
 
-impl Settings {
-    pub async fn new(data_dir: &Path, network: Network) -> Self {
-        match read_settings(data_dir).await {
-            Ok(settings) => settings,
-            Err(e) => {
-                tracing::warn!("Unable to read {SETTINGS_FILE_NAME} file, using defaults: {e}");
-                let new = Settings {
-                    path: Some(data_dir.join(SETTINGS_FILE_NAME)),
-                    ..Settings::default(network)
-                };
-                if let Err(e) = new.write_to_file().await {
-                    tracing::error!("Unable to write default settings to file: {e}");
-                } else {
-                    tracing::info!("Default settings written to file");
-                }
-                new
-            }
-        }
+        let settings =
+            toml::from_str::<SettingsFile>(&data).context("Unable to parse settings file")?;
+        let settings = Self::from_file(settings, settings_path);
+
+        tracing::info!(?settings, "Read settings from file system");
+
+        Ok(settings)
     }
 
     pub async fn write_to_file(&self) -> Result<()> {
-        let data =
-            toml::to_string_pretty(&self).context("Unable to serialize settings to TOML format")?;
+        let data = toml::to_string_pretty(&SettingsFile::from(self.clone()))
+            .context("Unable to serialize settings to TOML format")?;
 
-        let settings_path = self.path.as_ref().context("Settings path not set")?.clone();
-        let mut file = fs::File::create(settings_path).await?;
+        let mut file = fs::File::create(&self.path).await?;
         file.write_all(data.as_bytes()).await?;
         file.flush().await?;
         Ok(())
@@ -167,5 +112,109 @@ impl Settings {
             self.ln_dlc.forwarding_fee_proportional_millionths;
 
         ldk_config
+    }
+
+    pub fn update(&mut self, file: SettingsFile) {
+        *self = Self::from_file(file, self.path.clone());
+    }
+
+    fn from_file(file: SettingsFile, path: PathBuf) -> Self {
+        Self {
+            jit_channels_enabled: file.jit_channels_enabled,
+            new_positions_enabled: file.new_positions_enabled,
+            contract_tx_fee_rate: file.contract_tx_fee_rate,
+            fallback_tx_fee_rate_normal: file.fallback_tx_fee_rate_normal,
+            fallback_tx_fee_rate_high_priority: file.fallback_tx_fee_rate_high_priority,
+            max_allowed_tx_fee_rate_when_opening_channel: file
+                .max_allowed_tx_fee_rate_when_opening_channel,
+            ln_dlc: file.ln_dlc,
+            rollover_window_open_scheduler: file.rollover_window_open_scheduler,
+            rollover_window_close_scheduler: file.rollover_window_close_scheduler,
+            close_expired_position_scheduler: file.close_expired_position_scheduler,
+            min_liquidity_threshold_sats: file.min_liquidity_threshold_sats,
+            path,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
+pub struct SettingsFile {
+    jit_channels_enabled: bool,
+    new_positions_enabled: bool,
+
+    contract_tx_fee_rate: u64,
+    fallback_tx_fee_rate_normal: u32,
+    fallback_tx_fee_rate_high_priority: u32,
+
+    max_allowed_tx_fee_rate_when_opening_channel: Option<u32>,
+
+    ln_dlc: LnDlcNodeSettings,
+
+    rollover_window_open_scheduler: String,
+    rollover_window_close_scheduler: String,
+
+    close_expired_position_scheduler: String,
+
+    min_liquidity_threshold_sats: u64,
+}
+
+impl From<Settings> for SettingsFile {
+    fn from(value: Settings) -> Self {
+        Self {
+            jit_channels_enabled: value.jit_channels_enabled,
+            new_positions_enabled: value.new_positions_enabled,
+            contract_tx_fee_rate: value.contract_tx_fee_rate,
+            fallback_tx_fee_rate_normal: value.fallback_tx_fee_rate_normal,
+            fallback_tx_fee_rate_high_priority: value.fallback_tx_fee_rate_high_priority,
+            max_allowed_tx_fee_rate_when_opening_channel: value
+                .max_allowed_tx_fee_rate_when_opening_channel,
+            ln_dlc: value.ln_dlc,
+            rollover_window_open_scheduler: value.rollover_window_open_scheduler,
+            rollover_window_close_scheduler: value.rollover_window_close_scheduler,
+            close_expired_position_scheduler: value.close_expired_position_scheduler,
+            min_liquidity_threshold_sats: value.min_liquidity_threshold_sats,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use ln_dlc_node::node::GossipSourceConfig;
+
+    #[test]
+    fn toml_serde_roundtrip() {
+        let original = SettingsFile {
+            jit_channels_enabled: true,
+            new_positions_enabled: true,
+            contract_tx_fee_rate: 1,
+            fallback_tx_fee_rate_normal: 2,
+            fallback_tx_fee_rate_high_priority: 3,
+            max_allowed_tx_fee_rate_when_opening_channel: Some(1),
+            ln_dlc: LnDlcNodeSettings {
+                off_chain_sync_interval: std::time::Duration::from_secs(1),
+                on_chain_sync_interval: std::time::Duration::from_secs(1),
+                fee_rate_sync_interval: std::time::Duration::from_secs(1),
+                dlc_manager_periodic_check_interval: std::time::Duration::from_secs(1),
+                sub_channel_manager_periodic_check_interval: std::time::Duration::from_secs(1),
+                shadow_sync_interval: std::time::Duration::from_secs(1),
+                forwarding_fee_proportional_millionths: 10,
+                bdk_client_stop_gap: 1,
+                bdk_client_concurrency: 2,
+                gossip_source_config: GossipSourceConfig::RapidGossipSync {
+                    server_url: "foo".to_string(),
+                },
+            },
+            rollover_window_open_scheduler: "foo".to_string(),
+            rollover_window_close_scheduler: "bar".to_string(),
+            close_expired_position_scheduler: "baz".to_string(),
+            min_liquidity_threshold_sats: 2,
+        };
+
+        let serialized = toml::to_string_pretty(&original).unwrap();
+
+        let deserialized = toml::from_str(&serialized).unwrap();
+
+        assert_eq!(original, deserialized);
     }
 }

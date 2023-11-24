@@ -31,6 +31,10 @@ on:
         required: true
         description: "For regtest enter 'test' or mainnet enter 'Runner'"
         type: string
+      rgs_server_url:
+        required: false
+        description: "An optional Rapid Gossip Sync server URL"
+        type: string
       fastlane_provisioning_profile_specifier:
         required: true
         description: "For regtest enter 'match AppStore finance.get10101.app.test' or mainnet enter 'match AppStore finance.get10101.app 1691412333'"
@@ -72,6 +76,10 @@ on:
       app_scheme:
         required: true
         description: "For regtest enter 'test' or mainnet enter 'Runner'"
+        type: string
+      rgs_server_url:
+        required: false
+        description: "An optional Rapid Gossip Sync server URL"
         type: string
 
 env:
@@ -156,6 +164,7 @@ jobs:
           COORDINATOR_PORT_HTTP: ${{ inputs.coordinator_port_http }}
           ORACLE_ENDPOINT: ${{ inputs.oracle_endpoint }}
           ORACLE_PUBKEY: ${{ inputs.oracle_pubkey }}
+          RGS_SERVER_URL: ${{ inputs.rgs_server_url }}
 
       - name: Check for COCOAPODS bug
         run: cat  mobile/ios/Pods/Target\ Support\ Files/Pods-Runner/Pods-Runner-frameworks.sh

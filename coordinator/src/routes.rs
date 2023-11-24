@@ -27,6 +27,7 @@ use crate::orderbook::routes::websocket_handler;
 use crate::orderbook::trading::NewOrderMessage;
 use crate::parse_channel_id;
 use crate::settings::Settings;
+use crate::settings::SettingsFile;
 use crate::AppError;
 use autometrics::autometrics;
 use axum::extract::Path;
@@ -442,32 +443,32 @@ async fn get_settings(State(state): State<Arc<AppState>>) -> impl IntoResponse {
 #[instrument(skip_all, err(Debug))]
 async fn update_settings(
     State(state): State<Arc<AppState>>,
-    Json(updated_settings): Json<Settings>,
+    Json(updated_settings): Json<SettingsFile>,
 ) -> Result<(), AppError> {
-    // Update settings in memory
-    *state.settings.write().await = updated_settings.clone();
+    let mut settings = state.settings.write().await;
 
-    updated_settings
+    settings.update(updated_settings.clone());
+
+    settings
         .write_to_file()
         .await
         .map_err(|e| AppError::InternalServerError(format!("Could not write settings: {e:#}")))?;
 
-    // Forward relevant settings down to the node
+    // Forward relevant settings down to the coordinator node.
     state
         .node
-        .update_settings(updated_settings.to_node_settings())
+        .update_settings(settings.to_node_settings())
         .await;
 
-    // Forward relevant settings down to the wallet
+    // Forward relevant settings down to the LN-DLC node.
     state
         .node
         .inner
-        .update_settings(updated_settings.ln_dlc.clone())
+        .update_settings(settings.ln_dlc.clone())
         .await;
 
-    state
-        .node
-        .update_ldk_settings(updated_settings.to_ldk_settings());
+    // Forward relevant settings down to the LDK node.
+    state.node.update_ldk_settings(settings.to_ldk_settings());
 
     Ok(())
 }

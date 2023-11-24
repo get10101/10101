@@ -7,6 +7,7 @@ use crate::api::WalletHistoryItemType;
 use crate::backup::DBBackupSubscriber;
 use crate::commons::reqwest_client;
 use crate::config;
+use crate::config::get_rgs_server_url;
 use crate::db;
 use crate::event;
 use crate::event::EventInternal;
@@ -66,6 +67,7 @@ use ln_dlc_node::node::rust_dlc_manager::subchannel::SubChannel;
 use ln_dlc_node::node::rust_dlc_manager::subchannel::SubChannelState;
 use ln_dlc_node::node::rust_dlc_manager::ChannelId;
 use ln_dlc_node::node::rust_dlc_manager::Storage as DlcStorage;
+use ln_dlc_node::node::GossipSourceConfig;
 use ln_dlc_node::node::LnDlcNodeSettings;
 use ln_dlc_node::node::Storage as LnDlcNodeStorage;
 use ln_dlc_node::scorer;
@@ -303,7 +305,7 @@ pub fn run(seed_dir: String, runtime: &Runtime) -> Result<()> {
             config::get_esplora_endpoint(),
             seed,
             ephemeral_randomness,
-            LnDlcNodeSettings::default(),
+            ln_dlc_node_settings(),
             vec![config::get_oracle_info().into()],
             config::get_oracle_info().public_key,
         )?;
@@ -1136,4 +1138,24 @@ pub async fn rollover(contract_id: Option<String>) -> Result<()> {
     tracing::info!("Sent rollover request to coordinator successfully");
 
     Ok(())
+}
+
+fn ln_dlc_node_settings() -> LnDlcNodeSettings {
+    let gossip_source_config = match get_rgs_server_url() {
+        Some(server_url) => GossipSourceConfig::RapidGossipSync { server_url },
+        None => GossipSourceConfig::P2pNetwork,
+    };
+
+    LnDlcNodeSettings {
+        off_chain_sync_interval: Duration::from_secs(5),
+        on_chain_sync_interval: Duration::from_secs(300),
+        fee_rate_sync_interval: Duration::from_secs(20),
+        dlc_manager_periodic_check_interval: Duration::from_secs(30),
+        sub_channel_manager_periodic_check_interval: Duration::from_secs(30),
+        shadow_sync_interval: Duration::from_secs(600),
+        forwarding_fee_proportional_millionths: 50,
+        bdk_client_stop_gap: 20,
+        bdk_client_concurrency: 4,
+        gossip_source_config,
+    }
 }

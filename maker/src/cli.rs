@@ -68,6 +68,10 @@ pub struct Opts {
     /// BitMEX API secret.
     #[clap(long)]
     pub bitmex_api_secret: Option<String>,
+
+    /// RGS server URL.
+    #[clap(long)]
+    pub rgs_server_url: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, clap::ValueEnum)]

@@ -10,6 +10,7 @@ use crate::node::Storage;
 use crate::storage::TenTenOneInMemoryStorage;
 use crate::tests::calculate_routing_fee_msat;
 use crate::tests::init_tracing;
+use crate::tests::ln_dlc_node_settings_coordinator;
 use crate::tests::setup_coordinator_payer_channel;
 use crate::HTLCStatus;
 use crate::WalletSettings;
@@ -34,7 +35,7 @@ async fn open_jit_channel() {
     let settings = LnDlcNodeSettings {
         on_chain_sync_interval: Duration::from_secs(3),
         shadow_sync_interval: Duration::from_secs(3),
-        ..LnDlcNodeSettings::default()
+        ..ln_dlc_node_settings_coordinator()
     };
     let (coordinator, _running_coordinator) = {
         // setting the on chain sync interval to 5 seconds so that we don't have to wait for so long

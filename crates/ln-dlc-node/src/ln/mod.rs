@@ -13,6 +13,9 @@ mod manage_spendable_outputs;
 /// don't require custom behaviour.
 pub mod common_handlers;
 
+use crate::GossipSync;
+use crate::P2pGossipSync;
+use crate::RapidGossipSync;
 pub use app_event_handler::AppEventHandler;
 pub use channel_details::ChannelDetails;
 pub use coordinator_event_handler::CoordinatorEventHandler;
@@ -21,3 +24,24 @@ pub use event_handler::EventHandlerTrait;
 pub use event_handler::EventSender;
 pub(crate) use logger::TracingLogger;
 pub(crate) use manage_spendable_outputs::manage_spendable_outputs;
+use std::sync::Arc;
+
+#[derive(Clone)]
+pub enum GossipSource {
+    P2pNetwork {
+        gossip_sync: Arc<P2pGossipSync>,
+    },
+    RapidGossipSync {
+        gossip_sync: Arc<RapidGossipSync>,
+        server_url: String,
+    },
+}
+
+impl GossipSource {
+    pub fn as_gossip_sync(&self) -> GossipSync {
+        match self {
+            Self::RapidGossipSync { gossip_sync, .. } => GossipSync::Rapid(gossip_sync.clone()),
+            Self::P2pNetwork { gossip_sync } => GossipSync::P2P(gossip_sync.clone()),
+        }
+    }
+}
