@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.4] - 2023-11-24
+
+- Fix build arguments to include rapid gossip sync server url
+
 ## [1.6.3] - 2023-11-24
 
 - Add support for rapid gossip sync
@@ -195,7 +199,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Self-Custodial CFD Trading based on DLC and lightning
 
-[Unreleased]: https://github.com/get10101/10101/compare/1.6.3...HEAD
+[Unreleased]: https://github.com/get10101/10101/compare/1.6.4...HEAD
+[1.6.4]: https://github.com/get10101/10101/compare/1.6.3...1.6.4
 [1.6.3]: https://github.com/get10101/10101/compare/1.6.2...1.6.3
 [1.6.2]: https://github.com/get10101/10101/compare/1.6.1...1.6.2
 [1.6.1]: https://github.com/get10101/10101/compare/1.6.0...1.6.1
