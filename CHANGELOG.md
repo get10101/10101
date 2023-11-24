@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Add support for Android 9
+
 ## [1.6.4] - 2023-11-24
 
 - Fix build arguments to include rapid gossip sync server url
