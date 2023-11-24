@@ -468,6 +468,7 @@ build-ipa args="":
            --dart-define="COORDINATOR_PORT_HTTP=${COORDINATOR_PORT_HTTP}" \
            --dart-define="ORACLE_ENDPOINT=${ORACLE_ENDPOINT}" \
            --dart-define="ORACLE_PUBKEY=${ORACLE_PUBKEY}" \
+           --dart-define="RGS_SERVER_URL=${RGS_SERVER_URL}" \
            --build-number=${BUILD_NUMBER} \
            {{args}}
 
@@ -555,6 +556,7 @@ build-android-app-bundle:
       --dart-define="COORDINATOR_PORT_HTTP=${COORDINATOR_PORT_HTTP}" \
       --dart-define="ORACLE_ENDPOINT=${ORACLE_ENDPOINT}" \
       --dart-define="ORACLE_PUBKEY=${ORACLE_PUBKEY}" \
+      --dart-define="RGS_SERVER_URL=${RGS_SERVER_URL}" \
        "${flavor_arg[@]}"
 
 upload-app-bundle:
