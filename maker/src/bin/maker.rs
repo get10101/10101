@@ -5,12 +5,12 @@ use diesel::r2d2;
 use diesel::r2d2::ConnectionManager;
 use diesel::PgConnection;
 use ln_dlc_node::node::InMemoryStore;
-use ln_dlc_node::node::LnDlcNodeSettings;
 use ln_dlc_node::seed::Bip39Seed;
 use maker::cli::Opts;
 use maker::health;
 use maker::ln::ldk_config;
 use maker::ln::EventHandler;
+use maker::ln_dlc_node_settings;
 use maker::logger;
 use maker::metrics;
 use maker::metrics::init_meter;
@@ -97,7 +97,7 @@ async fn main() -> Result<()> {
         opts.esplora.clone(),
         seed,
         ephemeral_randomness,
-        LnDlcNodeSettings::default(),
+        ln_dlc_node_settings(),
         vec![opts.get_oracle_info().into()],
         opts.get_oracle_info().public_key,
     )?);

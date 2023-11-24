@@ -218,22 +218,6 @@ pub struct LnDlcNodeSettings {
     pub bdk_client_concurrency: u8,
 }
 
-impl Default for LnDlcNodeSettings {
-    fn default() -> Self {
-        Self {
-            off_chain_sync_interval: Duration::from_secs(5),
-            on_chain_sync_interval: Duration::from_secs(300),
-            fee_rate_sync_interval: Duration::from_secs(20),
-            dlc_manager_periodic_check_interval: Duration::from_secs(30),
-            sub_channel_manager_periodic_check_interval: Duration::from_secs(30),
-            forwarding_fee_proportional_millionths: 50,
-            shadow_sync_interval: Duration::from_secs(600),
-            bdk_client_stop_gap: 20,
-            bdk_client_concurrency: 4,
-        }
-    }
-}
-
 impl<S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 'static> Node<S, N> {
     pub async fn update_settings(&self, new_settings: LnDlcNodeSettings) {
         tracing::info!(?new_settings, "Updating LnDlcNode settings");

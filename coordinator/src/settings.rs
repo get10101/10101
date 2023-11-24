@@ -8,6 +8,7 @@ use serde::Deserialize;
 use serde::Serialize;
 use std::path::Path;
 use std::path::PathBuf;
+use std::time::Duration;
 use tokio::fs;
 use tokio::io::AsyncWriteExt;
 
@@ -98,13 +99,27 @@ impl Settings {
             fallback_tx_fee_rate_normal: 2000,
             fallback_tx_fee_rate_high_priority: 5000,
             max_allowed_tx_fee_rate_when_opening_channel: None,
-            ln_dlc: LnDlcNodeSettings::default(),
+            ln_dlc: ln_dlc_node_settings(),
             path: None,
             rollover_window_open_scheduler,
             rollover_window_close_scheduler,
             close_expired_position_scheduler: CLOSE_EXPIRED_POSITION_SCHEDULE.to_string(),
             min_liquidity_threshold_sats: 10_000_000, // 0.1 BTC
         }
+    }
+}
+
+fn ln_dlc_node_settings() -> LnDlcNodeSettings {
+    LnDlcNodeSettings {
+        off_chain_sync_interval: Duration::from_secs(5),
+        on_chain_sync_interval: Duration::from_secs(300),
+        fee_rate_sync_interval: Duration::from_secs(20),
+        dlc_manager_periodic_check_interval: Duration::from_secs(30),
+        sub_channel_manager_periodic_check_interval: Duration::from_secs(30),
+        forwarding_fee_proportional_millionths: 50,
+        shadow_sync_interval: Duration::from_secs(600),
+        bdk_client_stop_gap: 20,
+        bdk_client_concurrency: 4,
     }
 }
 

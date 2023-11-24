@@ -2,9 +2,9 @@ use crate::channel::UserChannelId;
 use crate::config::HTLC_INTERCEPTED_CONNECTION_TIMEOUT;
 use crate::node::InMemoryStore;
 use crate::node::LiquidityRequest;
-use crate::node::LnDlcNodeSettings;
 use crate::node::Node;
 use crate::tests::init_tracing;
+use crate::tests::ln_dlc_node_settings_coordinator;
 use crate::tests::setup_coordinator_payer_channel;
 use crate::HTLCStatus;
 use bitcoin::Amount;
@@ -88,7 +88,7 @@ async fn fail_intercepted_htlc_if_connection_lost_after_funding_tx_generated() {
         let (coordinator, _running_coord) = Node::start_test_coordinator_internal(
             "coordinator",
             Arc::new(InMemoryStore::default()),
-            LnDlcNodeSettings::default(),
+            ln_dlc_node_settings_coordinator(),
             Some(sender),
         )
         .unwrap();
