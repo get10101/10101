@@ -94,7 +94,7 @@ async fn main() -> Result<()> {
     let seed_path = data_dir.join("seed");
     let seed = Bip39Seed::initialize(&seed_path)?;
 
-    let settings = Settings::new(&data_dir, opts.network).await;
+    let settings = Settings::new(&data_dir).await?;
 
     // set up database connection pool
     let manager = ConnectionManager::<PgConnection>::new(opts.database.clone());

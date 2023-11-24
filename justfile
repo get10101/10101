@@ -110,7 +110,7 @@ run-regtest args="":
         --dart-define="COORDINATOR_P2P_ENDPOINT={{public_regtest_coordinator}}" \
         --dart-define="COORDINATOR_PORT_HTTP={{public_coordinator_http_port}}" \
         --dart-define="ORACLE_ENDPOINT={{public_regtest_oracle_endpoint}}" \
-        --dart-define="ORACLE_PUBKEY={{public_regtest_oracle_pk}}" 
+        --dart-define="ORACLE_PUBKEY={{public_regtest_oracle_pk}}"
 
 
 # Specify correct Android flavor to run against our public regtest server
@@ -199,7 +199,7 @@ wipe-app:
 
     # If no path was found, use a dummy path to avoid errors
     if [[ -z ${MACOS_PATH+x} || ! $MACOS_PATH || ! ${MACOS_PATH//[[:space:]]/} ]]; then
-        echo "no macos path found, setting dummy value" 
+        echo "no macos path found, setting dummy value"
         MACOS_PATH="/path/to/dummy/directory"
     fi
 
@@ -252,6 +252,18 @@ flutter-format:
 
 alias c := coordinator
 coordinator args="":
+    #!/usr/bin/env bash
+    set -euxo pipefail
+
+    settings_target_path="data/coordinator/regtest/coordinator-settings.toml"
+
+    if [ ! -f "$settings_target_path" ]; then
+        cp coordinator/example-settings/test-coordinator-settings.toml "$settings_target_path"
+        echo "Copied test settings to $(pwd)/$settings_target_path"
+    else
+        echo "Using preexisting settings file at $(pwd)/$settings_target_path"
+    fi
+
     cargo run --bin coordinator -- {{args}}
 
 maker args="":
@@ -289,7 +301,7 @@ run-coordinator-detached:
     just wait-for-electrs-to-be-ready
 
     echo "Starting (and building) coordinator"
-    cargo run --bin coordinator &> {{coordinator_log_file}} &
+    just coordinator &> {{coordinator_log_file}} &
     just wait-for-coordinator-to-be-ready
     echo "Coordinator successfully started. You can inspect the logs at {{coordinator_log_file}}"
 

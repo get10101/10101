@@ -46,7 +46,7 @@ async fn single_app_many_positions_load() {
             public_key: XOnlyPublicKey::from_str(ORACLE_PUBKEY_PUBLIC_REGTEST).unwrap(),
         },
         Arc::new(InMemoryStore::default()),
-        LnDlcNodeSettings::default(),
+        ln_dlc_node_settings(),
         None,
     )
     .unwrap();
@@ -201,5 +201,19 @@ async fn keep_connected(
         );
 
         tokio::time::sleep(reconnect_interval).await;
+    }
+}
+
+fn ln_dlc_node_settings() -> LnDlcNodeSettings {
+    LnDlcNodeSettings {
+        off_chain_sync_interval: Duration::from_secs(5),
+        on_chain_sync_interval: Duration::from_secs(300),
+        fee_rate_sync_interval: Duration::from_secs(20),
+        dlc_manager_periodic_check_interval: Duration::from_secs(30),
+        sub_channel_manager_periodic_check_interval: Duration::from_secs(30),
+        shadow_sync_interval: Duration::from_secs(600),
+        forwarding_fee_proportional_millionths: 50,
+        bdk_client_stop_gap: 20,
+        bdk_client_concurrency: 4,
     }
 }
