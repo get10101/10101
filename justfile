@@ -112,6 +112,20 @@ run-regtest args="":
         --dart-define="ORACLE_ENDPOINT={{public_regtest_oracle_endpoint}}" \
         --dart-define="ORACLE_PUBKEY={{public_regtest_oracle_pk}}"
 
+# Run against our public mainnet server
+run-mainnet args="":
+    #!/usr/bin/env bash
+    cd mobile && \
+      flutter run {{args}} \
+        --dart-define="COMMIT=$(git rev-parse HEAD)" \
+        --dart-define="BRANCH=$(git rev-parse --abbrev-ref HEAD)" \
+        --dart-define="ESPLORA_ENDPOINT=http://api.10101.finance:3000" \
+        --dart-define="COORDINATOR_P2P_ENDPOINT=022ae8dbec1caa4dac93f07f2ebf5ad7a5dd08d375b79f11095e81b065c2155156@46.17.98.29:9045" \
+        --dart-define="COORDINATOR_PORT_HTTP=80" \
+        --dart-define="ORACLE_ENDPOINT=http://oracle.10101.finance" \
+        --dart-define="NETWORK=mainnet" \
+        --dart-define="ORACLE_PUBKEY=93051f54feefdb4765492a85139c436d4857e2e331a360c89a16d6bc02ba9cd0" \
+        --dart-define="RGS_SERVER_URL=https://rapidsync.lightningdevkit.org/snapshot"
 
 # Specify correct Android flavor to run against our public regtest server
 run-regtest-android args="":
