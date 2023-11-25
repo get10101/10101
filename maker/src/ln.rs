@@ -23,9 +23,8 @@ pub fn ldk_config() -> UserConfig {
         },
         channel_handshake_limits: ChannelHandshakeLimits {
             max_minimum_depth: 1,
-            // We want makers to only have to wait ~24 hours in case of a force-close. We choose 144
-            // because we can't go any lower according to LDK.
-            their_to_self_delay: 144,
+            // LND's max to_self_delay is 2016, so we want to be compatible.
+            their_to_self_delay: 2016,
             max_funding_satoshis: 100_000_000,
             ..Default::default()
         },
