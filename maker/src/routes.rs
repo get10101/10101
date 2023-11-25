@@ -5,6 +5,7 @@ use crate::position::ContractSymbol;
 use crate::position::GetPosition;
 use crate::storage::MakerTenTenOneStorage;
 use axum::extract::Path;
+use axum::extract::Query;
 use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
@@ -162,13 +163,27 @@ pub async fn get_balance(State(state): State<Arc<AppState>>) -> Result<Json<Bala
     }))
 }
 
-pub async fn get_invoice(State(state): State<Arc<AppState>>) -> Result<Json<String>, AppError> {
+#[derive(Debug, Deserialize, Serialize)]
+pub struct InvoiceParams {
+    pub amount: Option<u64>,
+    pub description: Option<String>,
+    pub expiry: Option<u32>,
+}
+
+pub async fn get_invoice(
+    Query(params): Query<InvoiceParams>,
+    State(state): State<Arc<AppState>>,
+) -> Result<String, AppError> {
     let invoice = state
         .node
-        .create_invoice(2000, "".to_string(), 180)
+        .create_invoice(
+            params.amount.unwrap_or_default(),
+            params.description.unwrap_or_default(),
+            params.expiry.unwrap_or(180),
+        )
         .map_err(|e| AppError::InternalServerError(format!("Failed to create invoice: {e:#}")))?;
 
-    Ok(Json(invoice.to_string()))
+    Ok(invoice.to_string())
 }
 
 /// Our app's top level error type.
