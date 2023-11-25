@@ -256,20 +256,20 @@ where
     }
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize)]
 pub struct ChannelParams {
-    target: TargetInfo,
-    local_balance: u64,
-    remote_balance: Option<u64>,
+    pub target: TargetInfo,
+    pub local_balance: u64,
+    pub remote_balance: Option<u64>,
     /// Defines the fee rate for the channel opening transaction. If not provided, it will default
     /// to system settings
-    sats_vbyte: Option<f32>,
+    pub sats_vbyte: Option<f32>,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize)]
 pub struct TargetInfo {
-    pubkey: String,
-    address: Option<String>,
+    pub pubkey: String,
+    pub address: Option<String>,
 }
 
 pub async fn open_channel(

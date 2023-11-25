@@ -3,7 +3,10 @@ use anyhow::Result;
 use bitcoin::Address;
 use bitcoin::Txid;
 use coordinator::admin::Balance;
+use coordinator::admin::ChannelParams;
+use coordinator::admin::TargetInfo;
 use coordinator::routes::InvoiceParams;
+use coordinator::routes::RebalanceParams;
 use coordinator_commons::CollaborativeRevertCoordinatorExpertRequest;
 use coordinator_commons::CollaborativeRevertCoordinatorRequest;
 use ln_dlc_node::lightning_invoice;
@@ -42,6 +45,9 @@ pub struct Channel {
     pub funding_txo: Option<String>,
     pub original_funding_txo: Option<String>,
     pub outbound_capacity_msat: u64,
+    pub is_outbound: bool,
+    pub is_usable: bool,
+    pub inbound_capacity_msat: u64,
 }
 
 #[derive(Deserialize, Debug, PartialEq, Eq)]
@@ -166,6 +172,44 @@ impl Coordinator {
                 fee_rate_sats_vb: 4,
                 txid,
                 vout,
+            },
+        )
+        .await
+    }
+
+    pub async fn open_channel(
+        &self,
+        target: NodeInfo,
+        local_balance: u64,
+        remote_balance: Option<u64>,
+    ) -> Result<reqwest::Response> {
+        self.post_with_body(
+            "/api/admin/channels",
+            &ChannelParams {
+                target: TargetInfo {
+                    pubkey: target.pubkey.to_string(),
+                    address: Some(target.address.to_string()),
+                },
+                local_balance,
+                remote_balance,
+                sats_vbyte: None,
+            },
+        )
+        .await
+    }
+
+    pub async fn rebalance(
+        &self,
+        amount: u64,
+        outbound_cid: &String,
+        inbound_cid: &String,
+    ) -> Result<reqwest::Response> {
+        self.post_with_body(
+            "/api/admin/rebalance",
+            &RebalanceParams {
+                outbound: outbound_cid.to_string(),
+                inbound: inbound_cid.to_string(),
+                amount,
             },
         )
         .await
