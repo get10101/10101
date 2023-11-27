@@ -108,6 +108,53 @@ impl<S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 'static> Node<S, 
         Ok(invoice)
     }
 
+    /// Creates an invoice which is meant to be used for rebalancing.
+    pub fn create_invoice_with_route_hints(
+        &self,
+        amount_in_sats: u64,
+        invoice_expiry: Option<Duration>,
+        description: String,
+        first_route_hint_hop: RouteHintHop,
+        final_route_hint_hop: RouteHintHop,
+    ) -> Result<Bolt11Invoice> {
+        let invoice_expiry = invoice_expiry
+            .unwrap_or_else(|| Duration::from_secs(lightning_invoice::DEFAULT_EXPIRY_TIME));
+        let amount_msat = amount_in_sats * 1000;
+        let (payment_hash, payment_secret) = self
+            .channel_manager
+            .create_inbound_payment(Some(amount_msat), invoice_expiry.as_secs() as u32, None)
+            .map_err(|_| anyhow!("Failed to create inbound payment"))?;
+        let invoice_builder = InvoiceBuilder::new(self.get_currency())
+            .payee_pub_key(self.info.pubkey)
+            .description(description)
+            .expiry_time(invoice_expiry)
+            .payment_hash(sha256::Hash::from_slice(&payment_hash.0)?)
+            .payment_secret(payment_secret)
+            .timestamp(SystemTime::now())
+            // lnd defaults the min final cltv to 9 (according to BOLT 11 - the recommendation has
+            // changed to 18) 9 is not safe to use for ldk, because ldk mandates that
+            // the `cltv_expiry_delta` has to be greater than `HTLC_FAIL_BACK_BUFFER`
+            // (23).
+            .min_final_cltv_expiry_delta(MIN_CLTV_EXPIRY_DELTA.into())
+            .private_route(RouteHint(vec![first_route_hint_hop]))
+            .private_route(RouteHint(vec![final_route_hint_hop]));
+
+        let invoice_builder = invoice_builder.amount_milli_satoshis(amount_msat);
+
+        let node_secret = self.keys_manager.get_node_secret_key();
+
+        let signed_invoice = invoice_builder
+            .build_raw()?
+            .sign::<_, ()>(|hash| {
+                let secp_ctx = Secp256k1::new();
+                Ok(secp_ctx.sign_ecdsa_recoverable(hash, &node_secret))
+            })
+            .map_err(|_| anyhow!("Failed to sign invoice"))?;
+        let invoice = Bolt11Invoice::from_signed(signed_invoice)?;
+
+        Ok(invoice)
+    }
+
     fn get_currency(&self) -> Currency {
         match self.network {
             Network::Bitcoin => Currency::Bitcoin,

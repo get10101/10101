@@ -17,6 +17,8 @@ use anyhow::ensure;
 use anyhow::Context;
 use anyhow::Result;
 use autometrics::autometrics;
+use bitcoin::hashes::hex::ToHex;
+use bitcoin::hashes::Hash;
 use bitcoin::secp256k1::PublicKey;
 use coordinator_commons::TradeParams;
 use diesel::r2d2::ConnectionManager;
@@ -31,7 +33,11 @@ use dlc_manager::ContractId;
 use dlc_messages::ChannelMessage;
 use dlc_messages::Message;
 use dlc_messages::SubChannelMessage;
-use lightning::ln::channelmanager::ChannelDetails;
+use lightning::ln::channelmanager::{ChannelDetails, PaymentId, RecipientOnionFields};
+use lightning::ln::PaymentHash;
+use lightning::routing::gossip::RoutingFees;
+use lightning::routing::router;
+use lightning::routing::router::{Payee, PaymentParameters, RouteHintHop, RouteParameters};
 use lightning::util::config::UserConfig;
 use ln_dlc_node::node;
 use ln_dlc_node::node::dlc_message_name;
@@ -609,6 +615,117 @@ impl Node {
         };
 
         Ok(leverage_coordinator)
+    }
+
+    pub(crate) fn rebalance(
+        &self,
+        amount: u64,
+        outbound_cid: [u8; 32],
+        inbound_cid: [u8; 32],
+    ) -> Result<()> {
+        let all_channels = self.inner.list_channels();
+        let outgoing_channel = all_channels
+            .iter()
+            .find(|channel| channel.channel_id == outbound_cid)
+            .context("Outgoing channel not found")?;
+        let incoming_channel = all_channels
+            .iter()
+            .find(|channel| channel.channel_id == inbound_cid)
+            .context("Outgoing channel not found")?;
+
+        let outgoing_forwarding_info = outgoing_channel
+            .clone()
+            .counterparty
+            .forwarding_info
+            .unwrap();
+        let incoming_forwarding_info = incoming_channel
+            .clone()
+            .counterparty
+            .forwarding_info
+            .unwrap();
+        let invoice = self.inner.create_invoice_with_route_hints(
+            amount,
+            None,
+            format!(
+                "rebalance payment from {} to {}",
+                outbound_cid.to_hex(),
+                inbound_cid.to_hex()
+            ),
+            RouteHintHop {
+                src_node_id: self.inner.info.pubkey,
+                short_channel_id: outgoing_channel
+                    .short_channel_id
+                    .context("Short channel id needs to be set to rebalance")?,
+                fees: RoutingFees {
+                    base_msat: outgoing_forwarding_info.fee_base_msat,
+                    proportional_millionths: outgoing_forwarding_info.fee_proportional_millionths,
+                },
+                cltv_expiry_delta: outgoing_forwarding_info.cltv_expiry_delta,
+                htlc_minimum_msat: None,
+                htlc_maximum_msat: None,
+            },
+            RouteHintHop {
+                src_node_id: incoming_channel.counterparty.node_id,
+                short_channel_id: incoming_channel
+                    .short_channel_id
+                    .context("Short channel id needs to be set to rebalance")?,
+                fees: RoutingFees {
+                    base_msat: incoming_forwarding_info.fee_base_msat,
+                    proportional_millionths: incoming_forwarding_info.fee_proportional_millionths,
+                },
+                cltv_expiry_delta: incoming_forwarding_info.cltv_expiry_delta,
+                htlc_minimum_msat: None,
+                htlc_maximum_msat: None,
+            },
+        )?;
+
+        tracing::debug!(
+            invoice = invoice.to_string(),
+            "Created invoice for rebalancing"
+        );
+
+        let hops = [outgoing_channel.counterparty.node_id];
+        let route = router::build_route_from_hops(
+            &self.inner.info.pubkey,
+            &hops,
+            &RouteParameters {
+                payment_params: PaymentParameters {
+                    payee: Payee::Clear {
+                        node_id: self.inner.info.pubkey.clone(),
+                        route_hints: vec![],
+                        features: None,
+                        final_cltv_expiry_delta: 0,
+                    },
+                    expiry_time: None,
+                    max_total_cltv_expiry_delta: 0,
+                    max_path_count: 0,
+                    max_channel_saturation_power_of_half: 0,
+                    previously_failed_channels: vec![],
+                },
+                final_value_msat: 0,
+            },
+            &self.inner.network_graph,
+            &*self.inner.logger,
+            &[1u8; 32],
+        )
+        .unwrap();
+        self.inner
+            .channel_manager
+            .send_payment_with_route(
+                &route,
+                PaymentHash(invoice.payment_hash().into_inner()),
+                RecipientOnionFields {
+                    payment_secret: None,
+                    payment_metadata: None,
+                },
+                PaymentId([1u8; 32]),
+            )
+            .unwrap();
+
+        // self.inner.pay_invoice(&invoice, None)?;
+        tracing::info!("Paid invoice for rebalancing");
+
+        Ok(())
     }
 }
 

@@ -1,6 +1,7 @@
 use anyhow::Context;
 use anyhow::Result;
 use bitcoin::Address;
+use coordinator::routes::InvoiceParams;
 use ln_dlc_node::lightning_invoice::Bolt11Invoice;
 use ln_dlc_node::node::NodeInfo;
 use maker::routes::Balance;
@@ -116,5 +117,33 @@ impl Maker {
             .context("Could not send POST request to maker")?
             .error_for_status()
             .context("Maker did not return 200 OK")
+    }
+
+    pub async fn create_invoice(&self, amount: Option<u64>) -> Result<Bolt11Invoice> {
+        let invoice_params = InvoiceParams {
+            amount,
+            description: Some("Fee for tests".to_string()),
+            expiry: None,
+        };
+
+        let encoded_params = serde_urlencoded::to_string(&invoice_params)?;
+
+        let invoice = self
+            .get(&format!("/api/invoice?{encoded_params}"))
+            .await?
+            .text()
+            .await?
+            .parse()?;
+
+        Ok(invoice)
+    }
+
+    pub async fn broadcast_node_announcement(&self) -> Result<reqwest::Response> {
+        let no_json: Option<()> = None;
+        let status = self
+            .post("/api/broadcast_announcement", no_json)
+            .await?
+            .error_for_status()?;
+        Ok(status)
     }
 }

@@ -173,6 +173,7 @@ pub fn router(
             "/api/admin/broadcast_announcement",
             post(post_broadcast_announcement),
         )
+        .route("/api/admin/rebalance", post(post_rebalance_channel_request))
         .route("/metrics", get(get_metrics))
         .route("/health", get(get_health))
         .with_state(app_state)
@@ -371,6 +372,50 @@ pub async fn post_broadcast_announcement(
         node_alias,
         state.announcement_addresses.clone(),
     );
+
+    Ok(())
+}
+
+#[derive(Deserialize, Serialize)]
+pub struct RebalanceParams {
+    /// the outgoing channel id to send money out
+    pub outbound: String,
+    /// the channel id to receive money in
+    pub inbound: String,
+    /// amount in sats to rebalance
+    pub amount: u64,
+}
+
+#[instrument(skip_all, err(Debug))]
+pub async fn post_rebalance_channel_request(
+    State(state): State<Arc<AppState>>,
+    params: Json<RebalanceParams>,
+) -> Result<(), AppError> {
+    tracing::debug!(
+        inbound_cid = params.inbound,
+        outbound_cid = params.outbound,
+        amount = params.amount,
+        "Received request to rebalance"
+    );
+
+    let inbound_channel_id =
+        hex::decode(params.inbound.clone()).map_err(|err| AppError::BadRequest(err.to_string()))?;
+    let inbound_channel_id: [u8; 32] = inbound_channel_id
+        .try_into()
+        .map_err(|_| AppError::BadRequest("Provided channel ID was invalid".to_string()))?;
+
+    let outbound_channel_id = hex::decode(params.outbound.clone())
+        .map_err(|err| AppError::BadRequest(err.to_string()))?;
+    let outbound_channel_id: [u8; 32] = outbound_channel_id
+        .try_into()
+        .map_err(|_| AppError::BadRequest("Provided channel ID was invalid".to_string()))?;
+
+    state
+        .node
+        .rebalance(params.amount, outbound_channel_id, inbound_channel_id)
+        .map_err(|err| {
+            AppError::InternalServerError(format!("Could not rebalance channel {err:#}"))
+        })?;
 
     Ok(())
 }

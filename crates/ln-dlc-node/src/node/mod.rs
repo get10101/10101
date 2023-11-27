@@ -141,7 +141,7 @@ pub struct Node<S: TenTenOneStorage, N: Storage> {
     pub network_graph: Arc<NetworkGraph>,
     pub fee_rate_estimator: Arc<FeeRateEstimator>,
 
-    logger: Arc<TracingLogger>,
+    pub logger: Arc<TracingLogger>,
 
     pub info: NodeInfo,
     pub(crate) fake_channel_payments: FakeChannelPaymentRequests,
