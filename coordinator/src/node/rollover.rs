@@ -29,6 +29,7 @@ use orderbook_commons::Message;
 use std::str::FromStr;
 use time::OffsetDateTime;
 use tokio::sync::broadcast;
+use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::mpsc;
 use trade::ContractSymbol;
 
@@ -53,25 +54,38 @@ pub fn monitor(
 ) -> RemoteHandle<Result<()>> {
     let mut user_feed = tx_user_feed.subscribe();
     let (fut, remote_handle) = async move {
-        while let Ok(new_user_msg) = user_feed.recv().await {
-            tokio::spawn({
-                let mut conn = pool.get()?;
-                let notifier = notifier.clone();
-                let node = node.clone();
-                async move {
-                    if let Err(e) = node
-                        .check_if_eligible_for_rollover(
-                            &mut conn,
-                            notifier,
-                            new_user_msg.new_user,
-                            network,
-                        )
-                        .await
-                    {
-                        tracing::error!("Failed to check if eligible for rollover. Error: {e:#}");
-                    }
+        loop {
+            match user_feed.recv().await {
+                Ok(new_user_msg) => {
+                    tokio::spawn({
+                        let mut conn = pool.get()?;
+                        let notifier = notifier.clone();
+                        let node = node.clone();
+                        async move {
+                            if let Err(e) = node
+                                .check_if_eligible_for_rollover(
+                                    &mut conn,
+                                    notifier,
+                                    new_user_msg.new_user,
+                                    network,
+                                )
+                                .await
+                            {
+                                tracing::error!(
+                                    "Failed to check if eligible for rollover. Error: {e:#}"
+                                );
+                            }
+                        }
+                    });
                 }
-            });
+                Err(RecvError::Closed) => {
+                    tracing::error!("New user message sender died! Channel closed.");
+                    break;
+                }
+                Err(RecvError::Lagged(skip)) => tracing::warn!(%skip,
+                    "Lagging behind on new user message."
+                ),
+            }
         }
         Ok(())
     }

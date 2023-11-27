@@ -14,6 +14,7 @@ use parking_lot::RwLock;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::broadcast;
+use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::mpsc;
 
 /// This value is arbitrarily set to 100 and defines the message accepted in the message
@@ -48,10 +49,21 @@ pub fn spawn_delivering_messages_to_authenticated_users(
         let traders = authenticated_users.clone();
         async move {
             let mut user_feed = tx_user_feed.subscribe();
-            while let Ok(new_user_msg) = user_feed.recv().await {
-                traders
-                    .write()
-                    .insert(new_user_msg.new_user, new_user_msg.sender);
+            loop {
+                match user_feed.recv().await {
+                    Ok(new_user_msg) => {
+                        traders
+                            .write()
+                            .insert(new_user_msg.new_user, new_user_msg.sender);
+                    }
+                    Err(RecvError::Closed) => {
+                        tracing::error!("New user message sender died! Channel closed.");
+                        break;
+                    }
+                    Err(RecvError::Lagged(skip)) => tracing::warn!(%skip,
+                        "Lagging behind on new user message."
+                    ),
+                }
             }
         }
     });
