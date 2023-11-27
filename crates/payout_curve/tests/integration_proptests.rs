@@ -14,7 +14,9 @@ use rust_decimal_macros::dec;
 use std::fs::File;
 use std::time::SystemTime;
 use std::time::UNIX_EPOCH;
+use trade::cfd::calculate_long_liquidation_price;
 use trade::cfd::calculate_margin;
+use trade::cfd::calculate_short_liquidation_price;
 use trade::Direction;
 
 /// set this to true to export test data to csv files
@@ -33,16 +35,25 @@ fn calculating_payout_curve_doesnt_crash_1() {
     let coordinator_collateral = calculate_margin(initial_price, quantity, leverage_coordinator);
     let trader_collateral = calculate_margin(initial_price, quantity, leverage_trader);
 
+    let offer_liquidation_price = calculate_short_liquidation_price(
+        Decimal::from_f32(leverage_coordinator).expect("to be able to parse f32"),
+        initial_price,
+    );
+    let accept_liquidation_price = calculate_long_liquidation_price(
+        Decimal::from_f32(leverage_trader).expect("to be able to parse f32"),
+        initial_price,
+    );
+
     // act: we only test that this does not panic
     computed_payout_curve(
         quantity,
         coordinator_collateral,
         trader_collateral,
         initial_price,
-        leverage_trader,
-        leverage_coordinator,
         fee,
         coordinator_direction,
+        offer_liquidation_price,
+        accept_liquidation_price,
     )
     .unwrap();
 }
@@ -60,16 +71,25 @@ fn calculating_payout_curve_doesnt_crash_2() {
     let coordinator_collateral = calculate_margin(initial_price, quantity, leverage_coordinator);
     let trader_collateral = calculate_margin(initial_price, quantity, leverage_trader);
 
+    let offer_liquidation_price = calculate_short_liquidation_price(
+        Decimal::from_f32(leverage_coordinator).expect("to be able to parse f32"),
+        initial_price,
+    );
+    let accept_liquidation_price = calculate_long_liquidation_price(
+        Decimal::from_f32(leverage_trader).expect("to be able to parse f32"),
+        initial_price,
+    );
+
     // act: we only test that this does not panic
     computed_payout_curve(
         quantity,
         coordinator_collateral,
         trader_collateral,
         initial_price,
-        leverage_trader,
-        leverage_coordinator,
         fee,
         coordinator_direction,
+        offer_liquidation_price,
+        accept_liquidation_price,
     )
     .unwrap();
 }
@@ -86,16 +106,25 @@ fn calculating_payout_curve_doesnt_crash_3() {
     let coordinator_collateral = calculate_margin(initial_price, quantity, leverage_coordinator);
     let trader_collateral = calculate_margin(initial_price, quantity, leverage_trader);
 
+    let offer_liquidation_price = calculate_short_liquidation_price(
+        Decimal::from_f32(leverage_coordinator).expect("to be able to parse f32"),
+        initial_price,
+    );
+    let accept_liquidation_price = calculate_long_liquidation_price(
+        Decimal::from_f32(leverage_trader).expect("to be able to parse f32"),
+        initial_price,
+    );
+
     // act: we only test that this does not panic
     computed_payout_curve(
         quantity,
         coordinator_collateral,
         trader_collateral,
         initial_price,
-        leverage_trader,
-        leverage_coordinator,
         fee,
         coordinator_direction,
+        offer_liquidation_price,
+        accept_liquidation_price,
     )
     .unwrap();
 }
@@ -123,6 +152,33 @@ proptest! {
         let coordinator_collateral= calculate_margin(initial_price, quantity, leverage_coordinator);
         let trader_collateral= calculate_margin(initial_price, quantity, leverage_trader);
 
+        let (offer_liquidation_price, accept_liquidation_price) = match coordinator_direction {
+            Direction::Long => {
+                (
+                    calculate_long_liquidation_price(
+                        Decimal::from_f32(leverage_coordinator).expect("to be able to parse f32"),
+                        initial_price,
+                    ),
+                    calculate_short_liquidation_price(
+                        Decimal::from_f32(leverage_trader).expect("to be able to parse f32"),
+                        initial_price,
+                    )
+                )
+            }
+            Direction::Short => {
+                (
+                    calculate_short_liquidation_price(
+                        Decimal::from_f32(leverage_coordinator).expect("to be able to parse f32"),
+                        initial_price,
+                    ),
+                    calculate_long_liquidation_price(
+                        Decimal::from_f32(leverage_trader).expect("to be able to parse f32"),
+                        initial_price,
+                    )
+                )
+            }
+        };
+
         let now = std::time::Instant::now();
         let direction_string = format!("{:?}", coordinator_direction);
         tracing::info!(
@@ -134,6 +190,8 @@ proptest! {
             fee,
             coordinator_collateral,
             trader_collateral,
+            ?offer_liquidation_price,
+            ?accept_liquidation_price,
             "Started computing payout curve");
 
 
@@ -143,10 +201,10 @@ proptest! {
             coordinator_collateral,
             trader_collateral,
             initial_price,
-            leverage_trader,
-            leverage_coordinator,
             fee,
             coordinator_direction,
+            offer_liquidation_price,
+            accept_liquidation_price,
         ).unwrap();
         let elapsed_ms = now.elapsed().as_millis();
         tracing::info!(
@@ -161,18 +219,18 @@ fn computed_payout_curve(
     coordinator_collateral: u64,
     trader_collateral: u64,
     initial_price: Decimal,
-    leverage_trader: f32,
-    leverage_coordinator: f32,
     fee: u64,
     coordinator_direction: Direction,
+    offer_liquidation_price: Decimal,
+    accept_liquidation_price: Decimal,
 ) -> Result<()> {
     let payout_points = build_inverse_payout_function(
         quantity,
         coordinator_collateral,
         trader_collateral,
         initial_price,
-        leverage_trader,
-        leverage_coordinator,
+        offer_liquidation_price,
+        accept_liquidation_price,
         fee,
         coordinator_direction,
     )?;
