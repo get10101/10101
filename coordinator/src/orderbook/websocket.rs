@@ -12,6 +12,7 @@ use orderbook_commons::OrderbookRequest;
 use orderbook_commons::AUTH_SIGN_MESSAGE;
 use std::sync::Arc;
 use std::time::Duration;
+use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::mpsc;
 
 const WEBSOCKET_SEND_TIMEOUT: Duration = Duration::from_secs(5);
@@ -76,10 +77,21 @@ pub async fn websocket_connection(stream: WebSocket, state: Arc<AppState>) {
     let mut send_task = {
         let local_sender = local_sender.clone();
         tokio::spawn(async move {
-            while let Ok(st) = price_feed.recv().await {
-                if let Err(error) = local_sender.send(st).await {
-                    tracing::error!("Could not send message {error:#}");
-                    return;
+            loop {
+                match price_feed.recv().await {
+                    Ok(st) => {
+                        if let Err(error) = local_sender.send(st).await {
+                            tracing::error!("Could not send message {error:#}");
+                            return;
+                        }
+                    }
+                    Err(RecvError::Closed) => {
+                        tracing::error!("price feed sender died! Channel closed.");
+                        break;
+                    }
+                    Err(RecvError::Lagged(skip)) => tracing::warn!(%skip,
+                        "Lagging behind on price feed."
+                    ),
                 }
             }
         })
