@@ -73,13 +73,10 @@ pub fn calculate_pnl(
     opening_price: Decimal,
     closing_price: Decimal,
     quantity: f32,
-    long_leverage: f32,
-    short_leverage: f32,
     direction: Direction,
+    initial_margin_long: u64,
+    initial_margin_short: u64,
 ) -> Result<i64> {
-    let long_margin = calculate_margin(opening_price, quantity, long_leverage);
-    let short_margin = calculate_margin(opening_price, quantity, short_leverage);
-
     let uncapped_pnl_long = {
         let quantity = Decimal::try_from(quantity).expect("quantity to fit into decimal");
 
@@ -93,8 +90,8 @@ pub fn calculate_pnl(
         uncapped_pnl.round_dp_with_strategy(0, rust_decimal::RoundingStrategy::MidpointTowardZero)
     };
 
-    let short_margin = Decimal::from_u64(short_margin).context("be able to parse u64")?;
-    let long_margin = Decimal::from_u64(long_margin).context("to be abble to parse u64")?;
+    let short_margin = Decimal::from_u64(initial_margin_short).context("be able to parse u64")?;
+    let long_margin = Decimal::from_u64(initial_margin_long).context("to be abble to parse u64")?;
 
     let pnl = match direction {
         Direction::Long => {
@@ -130,23 +127,25 @@ pub mod tests {
         let quantity = 1.0;
         let long_leverage = 2.0;
         let short_leverage = 1.0;
+        let long_margin = calculate_margin(opening_price, quantity, long_leverage);
+        let short_margin = calculate_margin(opening_price, quantity, short_leverage);
 
         let pnl_long = calculate_pnl(
             opening_price,
             closing_price,
             quantity,
-            long_leverage,
-            short_leverage,
             Direction::Long,
+            long_margin,
+            short_margin,
         )
         .unwrap();
         let pnl_short = calculate_pnl(
             opening_price,
             closing_price,
             quantity,
-            long_leverage,
-            short_leverage,
             Direction::Short,
+            long_margin,
+            short_margin,
         )
         .unwrap();
 
@@ -161,14 +160,16 @@ pub mod tests {
         let quantity = 100.0;
         let long_leverage = 2.0;
         let short_leverage = 1.0;
+        let long_margin = calculate_margin(opening_price, quantity, long_leverage);
+        let short_margin = calculate_margin(opening_price, quantity, short_leverage);
 
         let pnl_long = calculate_pnl(
             opening_price,
             closing_price,
             quantity,
-            long_leverage,
-            short_leverage,
             Direction::Long,
+            long_margin,
+            short_margin,
         )
         .unwrap();
 
@@ -182,14 +183,16 @@ pub mod tests {
         let quantity = 100.0;
         let long_leverage = 2.0;
         let short_leverage = 1.0;
+        let long_margin = calculate_margin(opening_price, quantity, long_leverage);
+        let short_margin = calculate_margin(opening_price, quantity, short_leverage);
 
         let pnl_long = calculate_pnl(
             opening_price,
             closing_price,
             quantity,
-            long_leverage,
-            short_leverage,
             Direction::Long,
+            long_margin,
+            short_margin,
         )
         .unwrap();
 
@@ -204,14 +207,16 @@ pub mod tests {
         let quantity = 100.0;
         let long_leverage = 1.0;
         let short_leverage = 2.0;
+        let long_margin = calculate_margin(opening_price, quantity, long_leverage);
+        let short_margin = calculate_margin(opening_price, quantity, short_leverage);
 
         let pnl_long = calculate_pnl(
             opening_price,
             closing_price,
             quantity,
-            long_leverage,
-            short_leverage,
             Direction::Short,
+            long_margin,
+            short_margin,
         )
         .unwrap();
 
@@ -225,14 +230,16 @@ pub mod tests {
         let quantity = 100.0;
         let long_leverage = 1.0;
         let short_leverage = 2.0;
+        let long_margin = calculate_margin(opening_price, quantity, long_leverage);
+        let short_margin = calculate_margin(opening_price, quantity, short_leverage);
 
         let pnl_long = calculate_pnl(
             opening_price,
             closing_price,
             quantity,
-            long_leverage,
-            short_leverage,
             Direction::Short,
+            long_margin,
+            short_margin,
         )
         .unwrap();
 
@@ -247,14 +254,16 @@ pub mod tests {
         let quantity = 20000.0;
         let long_leverage = 2.0;
         let short_leverage = 1.0;
+        let long_margin = calculate_margin(opening_price, quantity, long_leverage);
+        let short_margin = calculate_margin(opening_price, quantity, short_leverage);
 
         let pnl_long = calculate_pnl(
             opening_price,
             closing_price,
             quantity,
-            long_leverage,
-            short_leverage,
             Direction::Long,
+            long_margin,
+            short_margin,
         )
         .unwrap();
 
@@ -269,14 +278,16 @@ pub mod tests {
         let quantity = 20000.0;
         let long_leverage = 2.0;
         let short_leverage = 1.0;
+        let long_margin = calculate_margin(opening_price, quantity, long_leverage);
+        let short_margin = calculate_margin(opening_price, quantity, short_leverage);
 
         let pnl_long = calculate_pnl(
             opening_price,
             closing_price,
             quantity,
-            long_leverage,
-            short_leverage,
             Direction::Short,
+            long_margin,
+            short_margin,
         )
         .unwrap();
 
@@ -291,14 +302,16 @@ pub mod tests {
         let quantity = 20000.0;
         let long_leverage = 2.0;
         let short_leverage = 1.0;
+        let long_margin = calculate_margin(opening_price, quantity, long_leverage);
+        let short_margin = calculate_margin(opening_price, quantity, short_leverage);
 
         let pnl_long = calculate_pnl(
             opening_price,
             closing_price,
             quantity,
-            long_leverage,
-            short_leverage,
             Direction::Long,
+            long_margin,
+            short_margin,
         )
         .unwrap();
 
@@ -313,14 +326,16 @@ pub mod tests {
         let quantity = 20000.0;
         let long_leverage = 2.0;
         let short_leverage = 1.0;
+        let long_margin = calculate_margin(opening_price, quantity, long_leverage);
+        let short_margin = calculate_margin(opening_price, quantity, short_leverage);
 
         let pnl_long = calculate_pnl(
             opening_price,
             closing_price,
             quantity,
-            long_leverage,
-            short_leverage,
             Direction::Short,
+            long_margin,
+            short_margin,
         )
         .unwrap();
 
@@ -335,14 +350,16 @@ pub mod tests {
         let quantity = 20000.0;
         let long_leverage = 2.0;
         let short_leverage = 1.0;
+        let long_margin = calculate_margin(opening_price, quantity, long_leverage);
+        let short_margin = calculate_margin(opening_price, quantity, short_leverage);
 
         let pnl_long = calculate_pnl(
             opening_price,
             closing_price,
             quantity,
-            long_leverage,
-            short_leverage,
             Direction::Short,
+            long_margin,
+            short_margin,
         )
         .unwrap();
 
@@ -357,14 +374,16 @@ pub mod tests {
         let quantity = 10.0;
         let long_leverage = 2.0;
         let short_leverage = 1.0;
+        let long_margin = calculate_margin(opening_price, quantity, long_leverage);
+        let short_margin = calculate_margin(opening_price, quantity, short_leverage);
 
         let pnl_long = calculate_pnl(
             opening_price,
             closing_price,
             quantity,
-            long_leverage,
-            short_leverage,
             Direction::Long,
+            long_margin,
+            short_margin,
         )
         .unwrap();
 
@@ -380,14 +399,16 @@ pub mod tests {
         let quantity = 60_000.0;
         let long_leverage = 2.0;
         let short_leverage = 2.0;
+        let long_margin = calculate_margin(opening_price, quantity, long_leverage);
+        let short_margin = calculate_margin(opening_price, quantity, short_leverage);
 
         let pnl_long = calculate_pnl(
             opening_price,
             closing_price,
             quantity,
-            long_leverage,
-            short_leverage,
             Direction::Short,
+            long_margin,
+            short_margin,
         )
         .unwrap();
 
@@ -403,6 +424,8 @@ pub mod tests {
         let quantity = 60_000.0;
         let long_leverage = 2.0;
         let short_leverage = 3.0;
+        let long_margin = calculate_margin(opening_price, quantity, long_leverage);
+        let short_margin = calculate_margin(opening_price, quantity, short_leverage);
 
         let margin = calculate_margin(opening_price, quantity, short_leverage);
 
@@ -410,9 +433,9 @@ pub mod tests {
             opening_price,
             closing_price,
             quantity,
-            long_leverage,
-            short_leverage,
             Direction::Short,
+            long_margin,
+            short_margin,
         )
         .unwrap();
 
@@ -426,15 +449,17 @@ pub mod tests {
         let quantity = 60_000.0;
         let long_leverage = 5.0;
         let short_leverage = 1.0;
+        let long_margin = calculate_margin(opening_price, quantity, long_leverage);
+        let short_margin = calculate_margin(opening_price, quantity, short_leverage);
 
         let margin = calculate_margin(opening_price, quantity, long_leverage);
         let pnl_short = calculate_pnl(
             opening_price,
             closing_price,
             quantity,
-            long_leverage,
-            short_leverage,
             Direction::Long,
+            long_margin,
+            short_margin,
         )
         .unwrap();
 

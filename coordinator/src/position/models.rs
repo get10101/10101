@@ -116,13 +116,16 @@ impl Position {
         // the position in the database is the trader's position, our direction is opposite
         let direction = self.direction.opposite();
 
+        let long_margin = calculate_margin(average_entry_price, self.quantity, long_leverage);
+        let short_margin = calculate_margin(average_entry_price, self.quantity, short_leverage);
+
         let pnl = calculate_pnl(
             average_entry_price,
             closing_price,
             self.quantity,
-            long_leverage,
-            short_leverage,
             direction,
+            long_margin,
+            short_margin,
         )
         .context("Failed to calculate pnl for position")?;
 
@@ -185,13 +188,16 @@ fn calculate_accept_settlement_amount(
 ) -> Result<u64> {
     let close_position_fee = order_matching_fee_taker(quantity, closing_price).to_sat() as i64;
 
+    let long_margin = calculate_margin(opening_price, quantity, long_leverage);
+    let short_margin = calculate_margin(opening_price, quantity, short_leverage);
+
     let pnl = calculate_pnl(
         opening_price,
         closing_price,
         quantity,
-        long_leverage,
-        short_leverage,
         direction,
+        long_margin,
+        short_margin,
     )?;
 
     let leverage = match direction {
@@ -275,13 +281,18 @@ fn calculate_accept_settlement_amount_partial_close(
         // Settled as many contracts as there are in the executed order.
         let settled_contracts = trade_quantity;
 
+        let opening_price = decimal_from_f32(position_average_execution_price);
+
+        let long_margin = calculate_margin(opening_price, settled_contracts, leverage_long);
+        let short_margin = calculate_margin(opening_price, settled_contracts, leverage_short);
+
         let pnl = calculate_pnl(
-            decimal_from_f32(position_average_execution_price),
+            opening_price,
             trade_average_execution_price,
             settled_contracts,
-            leverage_long,
-            leverage_short,
             position_direction,
+            long_margin,
+            short_margin,
         )?;
 
         ((position_trader_margin as i64) + pnl).max(0) as u64
@@ -293,13 +304,18 @@ fn calculate_accept_settlement_amount_partial_close(
         // Settled as many contracts as there are in the entire position.
         let settled_contracts = position_quantity;
 
+        let opening_price = decimal_from_f32(position_average_execution_price);
+
+        let long_margin = calculate_margin(opening_price, settled_contracts, leverage_long);
+        let short_margin = calculate_margin(opening_price, settled_contracts, leverage_short);
+
         let pnl = calculate_pnl(
-            decimal_from_f32(position_average_execution_price),
+            opening_price,
             trade_average_execution_price,
             settled_contracts,
-            leverage_long,
-            leverage_short,
             position_direction,
+            long_margin,
+            short_margin,
         )?;
 
         ((position_trader_margin as i64) + pnl).max(0) as u64

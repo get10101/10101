@@ -5,6 +5,7 @@ use rust_decimal::Decimal;
 use serde::Deserialize;
 use serde::Serialize;
 use trade::cfd::calculate_long_liquidation_price;
+use trade::cfd::calculate_margin;
 use trade::cfd::calculate_pnl;
 use trade::cfd::calculate_short_liquidation_price;
 use trade::cfd::BTCUSD_MAX_PRICE;
@@ -140,6 +141,10 @@ fn calculate_mid_range_payouts(
     let long_leverage = long_leverage.to_f32().expect("to fit into f32");
     let short_leverage = short_leverage.to_f32().expect("to fit into f32");
 
+    // TODO: refactor me away
+    let long_margin = calculate_margin(initial_price, quantity, long_leverage);
+    let short_margin = calculate_margin(initial_price, quantity, short_leverage);
+
     let pieces = (lower_limit..upper_limit)
         .step_by(PAYOUT_CURVE_DISCRETIZATION_STEPS as usize)
         .map(|current_price| {
@@ -154,9 +159,9 @@ fn calculate_mid_range_payouts(
                         initial_price,
                         Decimal::from(current_price),
                         quantity,
-                        long_leverage,
-                        short_leverage,
                         direction,
+                        long_margin,
+                        short_margin,
                     )?
             };
             let lower_event_outcome_payout = if lower_event_outcome_payout <= 0 {
@@ -176,9 +181,9 @@ fn calculate_mid_range_payouts(
                 initial_price,
                 Decimal::from(upper_event_outcome),
                 quantity,
-                long_leverage,
-                short_leverage,
                 direction,
+                long_margin,
+                short_margin,
             )?;
             let upper_event_outcome_payout =
                 ((offer_collateral as i64 + pnl) as u64).min(total_collateral);

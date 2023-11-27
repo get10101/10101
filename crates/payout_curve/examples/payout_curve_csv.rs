@@ -242,6 +242,9 @@ pub fn should_payouts_as_csv(
     let leverage_long = leverage_long.to_f32().expect("to be able to convert");
     let leverage_short = leverage_short.to_f32().expect("to be able to convert");
 
+    let long_margin = calculate_margin(initial_price, quantity, leverage_long);
+    let short_margin = calculate_margin(initial_price, quantity, leverage_short);
+
     for price in long_liquidation_price_i32..short_liquidation_price_i32 {
         wtr.write_record(&[
             price.to_string(),
@@ -250,9 +253,9 @@ pub fn should_payouts_as_csv(
                     initial_price,
                     Decimal::from(price),
                     quantity,
-                    leverage_long,
-                    leverage_short,
                     coordinator_direction,
+                    long_margin,
+                    short_margin,
                 )?)
             .to_string(),
             ((trader_collateral as i64)
@@ -260,9 +263,9 @@ pub fn should_payouts_as_csv(
                     initial_price,
                     Decimal::from(price),
                     quantity,
-                    leverage_long,
-                    leverage_short,
                     coordinator_direction.opposite(),
+                    long_margin,
+                    short_margin,
                 )?)
             .to_string(),
         ])?;
@@ -274,9 +277,9 @@ pub fn should_payouts_as_csv(
                 initial_price,
                 short_liquidation_price,
                 quantity,
-                leverage_long,
-                leverage_short,
                 coordinator_direction,
+                long_margin,
+                short_margin,
             )?)
         .to_string(),
         ((trader_collateral as i64)
@@ -284,9 +287,9 @@ pub fn should_payouts_as_csv(
                 initial_price,
                 short_liquidation_price,
                 quantity,
-                leverage_long,
-                leverage_short,
                 coordinator_direction.opposite(),
+                long_margin,
+                short_margin,
             )?)
         .to_string(),
     ])?;
@@ -297,9 +300,9 @@ pub fn should_payouts_as_csv(
                 initial_price,
                 Decimal::from(100_000),
                 quantity,
-                leverage_long,
-                leverage_short,
                 coordinator_direction,
+                long_margin,
+                short_margin,
             )?)
         .to_string(),
         ((trader_collateral as i64)
@@ -307,9 +310,9 @@ pub fn should_payouts_as_csv(
                 initial_price,
                 Decimal::from(100_000),
                 quantity,
-                leverage_long,
-                leverage_short,
                 coordinator_direction.opposite(),
+                long_margin,
+                short_margin,
             )?)
         .to_string(),
     ])?;
