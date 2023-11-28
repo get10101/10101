@@ -27,7 +27,7 @@ lightning-invoice = { version = "0.24" }
 lightning-persister = { version = "0.0.116" }
 ln-dlc-node = { path = "../../crates/ln-dlc-node" }
 ln-dlc-storage = { path = "../../crates/ln-dlc-storage" }
-openssl = { version = "0.10.55", features = ["vendored"] }
+openssl = { version = "0.10.60", features = ["vendored"] }
 orderbook-client = { path = "../../crates/orderbook-client" }
 orderbook-commons = { path = "../../crates/orderbook-commons" }
 parking_lot = { version = "0.12.1" }
