@@ -44,167 +44,209 @@ class _SettingsScreenState extends State<SettingsScreen> {
     EdgeInsets margin = const EdgeInsets.all(10);
     return Scaffold(
       body: SafeArea(
-          child: SingleChildScrollView(
-        child: Container(
-          padding: const EdgeInsets.only(top: 20, left: 10, right: 0),
-          child: Column(
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
+          child: Container(
+        padding: const EdgeInsets.only(top: 20, left: 10, right: 0),
+        child: Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Expanded(
+                  child: Stack(
+                    children: [
+                      GestureDetector(
+                        child: Container(
+                            alignment: AlignmentDirectional.topStart,
+                            decoration: BoxDecoration(
+                                color: Colors.transparent, borderRadius: BorderRadius.circular(10)),
+                            width: 70,
+                            child: const Icon(
+                              Icons.arrow_back_ios_new_rounded,
+                              size: 22,
+                            )),
+                        onTap: () {
+                          GoRouter.of(context).go(widget.location);
+                        },
+                      ),
+                      const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            "Settings",
+                            style: TextStyle(fontWeight: FontWeight.w500, fontSize: 20),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(
+              height: 20,
+            ),
+            Expanded(
+              child: SingleChildScrollView(
+                  child: Column(
                 children: [
-                  Expanded(
-                    child: Stack(
+                  Container(
+                    margin: margin.copyWith(bottom: 20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        GestureDetector(
-                          child: Container(
-                              alignment: AlignmentDirectional.topStart,
-                              decoration: BoxDecoration(
-                                  color: Colors.transparent,
-                                  borderRadius: BorderRadius.circular(10)),
-                              width: 70,
-                              child: const Icon(
-                                Icons.arrow_back_ios_new_rounded,
-                                size: 22,
-                              )),
-                          onTap: () {
-                            GoRouter.of(context).go(widget.location);
-                          },
+                        const Text(
+                          "GENERAL",
+                          style: TextStyle(color: Colors.grey, fontSize: 17),
                         ),
-                        const Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              "Settings",
-                              style: TextStyle(fontWeight: FontWeight.w500, fontSize: 20),
-                            ),
-                          ],
+                        const SizedBox(
+                          height: 10,
+                        ),
+                        Container(
+                          decoration: BoxDecoration(
+                              color: Colors.white, borderRadius: BorderRadius.circular(10)),
+                          child: Column(
+                            children: [
+                              SettingsClickable(
+                                  icon: Icons.info_outline,
+                                  title: "App Info",
+                                  callBackFunc: () =>
+                                      GoRouter.of(context).push(AppInfoScreen.route)),
+                              const Divider(
+                                height: 0.5,
+                                thickness: 0.8,
+                                indent: 55,
+                              ),
+                              SettingsClickable(
+                                  icon: Icons.feed_outlined,
+                                  title: "Share Logs",
+                                  callBackFunc: () =>
+                                      GoRouter.of(context).push(ShareLogsScreen.route)),
+                              const Divider(
+                                height: 0.5,
+                                thickness: 0.8,
+                                indent: 55,
+                              ),
+                              SettingsClickable(
+                                  icon: Icons.balance_outlined,
+                                  title: "Channel",
+                                  isAlarm: channelStatusNotifier.isClosing(),
+                                  callBackFunc: () =>
+                                      GoRouter.of(context).push(ChannelScreen.route)),
+                              const Divider(
+                                height: 0.5,
+                                thickness: 0.8,
+                                indent: 55,
+                              ),
+                              SettingsClickable(
+                                  icon: Icons.backup_outlined,
+                                  title: "Backup",
+                                  callBackFunc: () => GoRouter.of(context).push(SeedScreen.route))
+                            ],
+                          ),
+                        )
+                      ],
+                    ),
+                  ),
+                  Container(
+                    margin: margin.copyWith(bottom: 20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          "ENDPOINT",
+                          style: TextStyle(color: Colors.grey, fontSize: 17),
+                        ),
+                        const SizedBox(
+                          height: 10,
+                        ),
+                        Container(
+                          decoration: BoxDecoration(
+                              color: Colors.white, borderRadius: BorderRadius.circular(10)),
+                          child: Column(
+                            children: [
+                              SettingsClickable(
+                                icon: CustomIcon.linkSolid,
+                                title: "Esplora/Electrum",
+                                info: config.esploraEndpoint,
+                              ),
+                              const Divider(
+                                height: 0.5,
+                                thickness: 0.8,
+                                indent: 55,
+                              ),
+                              SettingsClickable(
+                                icon: CustomIcon.tv,
+                                title: "Coordinator",
+                                info:
+                                    "${config.coordinatorPubkey}@${config.host}:${config.p2PPort}",
+                              ),
+                              const Divider(
+                                height: 0.5,
+                                thickness: 0.8,
+                                indent: 55,
+                              ),
+                              SettingsClickable(
+                                icon: Icons.thermostat,
+                                title: "Status",
+                                isAlarm: overallStatus == ServiceStatus.Offline,
+                                callBackFunc: () => GoRouter.of(context).push(StatusScreen.route),
+                              ),
+                            ],
+                          ),
+                        )
+                      ],
+                    ),
+                  ),
+                  Container(
+                    margin: margin.copyWith(bottom: 20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          "DANGER ZONE",
+                          style: TextStyle(color: Colors.grey, fontSize: 17),
+                        ),
+                        const SizedBox(
+                          height: 10,
+                        ),
+                        Container(
+                          decoration: BoxDecoration(
+                              color: Colors.white, borderRadius: BorderRadius.circular(10)),
+                          child: Column(
+                            children: [
+                              SettingsClickable(
+                                  icon: Icons.close,
+                                  title: "Close Channel",
+                                  callBackFunc: () =>
+                                      GoRouter.of(context).push(CollabCloseScreen.route)),
+                              Visibility(
+                                visible: config.network == "regtest",
+                                child: Column(
+                                  children: [
+                                    const Divider(
+                                      height: 0.5,
+                                      thickness: 0.8,
+                                      indent: 55,
+                                    ),
+                                    SettingsClickable(
+                                        icon: Icons.dangerous,
+                                        isAlarm: true,
+                                        title: "Force-Close Channel",
+                                        callBackFunc: () =>
+                                            GoRouter.of(context).push(ForceCloseScreen.route)),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ),
                   ),
                 ],
-              ),
-              const SizedBox(
-                height: 20,
-              ),
-              Container(
-                margin: margin.copyWith(bottom: 20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      "GENERAL",
-                      style: TextStyle(color: Colors.grey, fontSize: 17),
-                    ),
-                    const SizedBox(
-                      height: 10,
-                    ),
-                    Container(
-                      decoration: BoxDecoration(
-                          color: Colors.white, borderRadius: BorderRadius.circular(10)),
-                      child: Column(
-                        children: [
-                          SettingsClickable(
-                              icon: Icons.info_outline,
-                              title: "App Info",
-                              callBackFunc: () => GoRouter.of(context).push(AppInfoScreen.route)),
-                          SettingsClickable(
-                              icon: Icons.feed_outlined,
-                              title: "Share Logs",
-                              callBackFunc: () => GoRouter.of(context).push(ShareLogsScreen.route)),
-                          SettingsClickable(
-                              icon: Icons.balance_outlined,
-                              title: "Channel",
-                              isAlarm: channelStatusNotifier.isClosing(),
-                              callBackFunc: () => GoRouter.of(context).push(ChannelScreen.route)),
-                          SettingsClickable(
-                              icon: Icons.backup_outlined,
-                              title: "Backup",
-                              callBackFunc: () => GoRouter.of(context).push(SeedScreen.route))
-                        ],
-                      ),
-                    )
-                  ],
-                ),
-              ),
-              Container(
-                margin: margin.copyWith(bottom: 20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      "ENDPOINT",
-                      style: TextStyle(color: Colors.grey, fontSize: 17),
-                    ),
-                    const SizedBox(
-                      height: 10,
-                    ),
-                    Container(
-                      decoration: BoxDecoration(
-                          color: Colors.white, borderRadius: BorderRadius.circular(10)),
-                      child: Column(
-                        children: [
-                          SettingsClickable(
-                            icon: CustomIcon.linkSolid,
-                            title: "Esplora/Electrum",
-                            info: config.esploraEndpoint,
-                          ),
-                          SettingsClickable(
-                            icon: CustomIcon.tv,
-                            title: "Coordinator",
-                            info: "${config.coordinatorPubkey}@${config.host}:${config.p2PPort}",
-                          ),
-                          SettingsClickable(
-                            icon: Icons.thermostat,
-                            title: "Status",
-                            isAlarm: overallStatus == ServiceStatus.Offline,
-                            callBackFunc: () => GoRouter.of(context).push(StatusScreen.route),
-                          ),
-                        ],
-                      ),
-                    )
-                  ],
-                ),
-              ),
-              Container(
-                margin: margin.copyWith(bottom: 20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      "DANGER ZONE",
-                      style: TextStyle(color: Colors.grey, fontSize: 17),
-                    ),
-                    const SizedBox(
-                      height: 10,
-                    ),
-                    Container(
-                      decoration: BoxDecoration(
-                          color: Colors.white, borderRadius: BorderRadius.circular(10)),
-                      child: Column(
-                        children: [
-                          SettingsClickable(
-                              icon: Icons.close,
-                              title: "Close Channel",
-                              callBackFunc: () =>
-                                  GoRouter.of(context).push(CollabCloseScreen.route)),
-                          Visibility(
-                            visible: config.network == "regtest",
-                            child: SettingsClickable(
-                                icon: Icons.dangerous,
-                                isAlarm: true,
-                                title: "Force-Close Channel",
-                                callBackFunc: () =>
-                                    GoRouter.of(context).push(ForceCloseScreen.route)),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
+              )),
+            ),
+          ],
         ),
       )),
     );

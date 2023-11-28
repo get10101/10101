@@ -1,5 +1,7 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:get_10101/common/color.dart';
 import 'package:get_10101/common/settings/settings_screen.dart';
 import 'package:get_10101/common/snack_bar.dart';
@@ -9,6 +11,7 @@ import 'package:go_router/go_router.dart';
 
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:get_10101/ffi.dart' as rust;
+import 'package:url_launcher/url_launcher.dart';
 
 class AppInfoScreen extends StatefulWidget {
   static const route = "${SettingsScreen.route}/$subRouteName";
@@ -59,100 +62,161 @@ class _AppInfoScreenState extends State<AppInfoScreen> {
       body: Container(
           padding: const EdgeInsets.only(top: 20, left: 10, right: 10),
           child: SafeArea(
-            child: SingleChildScrollView(
-              child: Column(
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Expanded(
-                        child: Stack(
-                          children: [
-                            GestureDetector(
-                              child: Container(
-                                  alignment: AlignmentDirectional.topStart,
-                                  decoration: BoxDecoration(
-                                      color: Colors.transparent,
-                                      borderRadius: BorderRadius.circular(10)),
-                                  width: 70,
-                                  child: const Icon(
-                                    Icons.arrow_back_ios_new_rounded,
-                                    size: 22,
-                                  )),
-                              onTap: () {
-                                GoRouter.of(context).pop();
-                              },
-                            ),
-                            const Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(
-                                  "App Info",
-                                  style: TextStyle(fontWeight: FontWeight.w500, fontSize: 20),
-                                ),
-                              ],
-                            ),
-                          ],
+            child: Column(
+              children: [
+                SingleChildScrollView(
+                    child: Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Expanded(
+                          child: Stack(
+                            children: [
+                              GestureDetector(
+                                child: Container(
+                                    alignment: AlignmentDirectional.topStart,
+                                    decoration: BoxDecoration(
+                                        color: Colors.transparent,
+                                        borderRadius: BorderRadius.circular(10)),
+                                    width: 70,
+                                    child: const Icon(
+                                      Icons.arrow_back_ios_new_rounded,
+                                      size: 22,
+                                    )),
+                                onTap: () {
+                                  GoRouter.of(context).pop();
+                                },
+                              ),
+                              const Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    "App Info",
+                                    style: TextStyle(fontWeight: FontWeight.w500, fontSize: 20),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
                         ),
+                      ],
+                    ),
+                    Container(
+                      margin: const EdgeInsets.only(top: 20, left: 10, right: 10, bottom: 10),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            "NODE INFO",
+                            style: TextStyle(color: Colors.grey, fontSize: 17),
+                          ),
+                          const SizedBox(
+                            height: 10,
+                          ),
+                          Container(
+                              decoration: BoxDecoration(
+                                  color: Colors.white, borderRadius: BorderRadius.circular(15)),
+                              child: Column(
+                                children: [
+                                  moreInfo(context,
+                                      title: "Node Id", info: _nodeId, showCopyButton: true)
+                                ],
+                              ))
+                        ],
                       ),
+                    ),
+                    Container(
+                      margin: const EdgeInsets.all(10),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            "BUILD INFO",
+                            style: TextStyle(color: Colors.grey, fontSize: 18),
+                          ),
+                          const SizedBox(
+                            height: 10,
+                          ),
+                          Container(
+                              decoration: BoxDecoration(
+                                  color: Colors.white, borderRadius: BorderRadius.circular(15)),
+                              child: Column(
+                                children: [
+                                  moreInfo(context, title: "Number", info: _buildNumber),
+                                  moreInfo(context, title: "Version", info: _version),
+                                  moreInfo(context,
+                                      title: "Commit Hash", info: commit, showCopyButton: true),
+                                  moreInfo(context,
+                                      title: "Branch", info: branch, showCopyButton: kDebugMode)
+                                ],
+                              ))
+                        ],
+                      ),
+                    ),
+                  ],
+                )),
+                Expanded(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      IconButton(
+                        icon: const Icon(FontAwesomeIcons.twitter),
+                        iconSize: 22,
+                        onPressed: () async {
+                          final messenger = ScaffoldMessenger.of(context);
+                          final httpsUri = Uri(scheme: "https", host: "x.com", path: "get10101");
+                          if (await canLaunchUrl(httpsUri)) {
+                            await launchUrl(httpsUri, mode: LaunchMode.externalApplication);
+                          } else {
+                            showSnackBar(messenger, "Failed to open link");
+                          }
+                        },
+                      ),
+                      IconButton(
+                        icon: const Icon(FontAwesomeIcons.github, size: 22),
+                        onPressed: () async {
+                          final messenger = ScaffoldMessenger.of(context);
+                          final httpsUri =
+                              Uri(scheme: "https", host: "github.com", path: "get10101/10101");
+                          if (await canLaunchUrl(httpsUri)) {
+                            await launchUrl(httpsUri, mode: LaunchMode.externalApplication);
+                          } else {
+                            showSnackBar(messenger, "Failed to open link");
+                          }
+                        },
+                      ),
+                      IconButton(
+                        icon: const Icon(FontAwesomeIcons.telegram, size: 22),
+                        onPressed: () async {
+                          final messenger = ScaffoldMessenger.of(context);
+                          final httpsUri = Uri(scheme: "https", host: "t.me", path: "get10101");
+                          if (await canLaunchUrl(httpsUri)) {
+                            await launchUrl(httpsUri, mode: LaunchMode.externalApplication);
+                          } else {
+                            showSnackBar(messenger, "Failed to open link");
+                          }
+                        },
+                      ),
+                      IconButton(
+                        icon: const Icon(FontAwesomeIcons.earthEurope, size: 22),
+                        onPressed: () async {
+                          final messenger = ScaffoldMessenger.of(context);
+                          final httpsUri =
+                              Uri(scheme: "https", host: "10101.finance", path: "blog");
+                          if (await canLaunchUrl(httpsUri)) {
+                            await launchUrl(httpsUri, mode: LaunchMode.externalApplication);
+                          } else {
+                            showSnackBar(messenger, "Failed to open link");
+                          }
+                        },
+                      )
                     ],
                   ),
-                  const SizedBox(
-                    height: 20,
-                  ),
-                  Container(
-                    margin: const EdgeInsets.all(10),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          "NODE INFO",
-                          style: TextStyle(color: Colors.grey, fontSize: 17),
-                        ),
-                        const SizedBox(
-                          height: 10,
-                        ),
-                        Container(
-                            decoration: BoxDecoration(
-                                color: Colors.white, borderRadius: BorderRadius.circular(15)),
-                            child: Column(
-                              children: [moreInfo(context, title: "Node Id", info: _nodeId)],
-                            ))
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  Container(
-                    margin: const EdgeInsets.all(10),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          "BUILD INFO",
-                          style: TextStyle(color: Colors.grey, fontSize: 18),
-                        ),
-                        const SizedBox(
-                          height: 10,
-                        ),
-                        Container(
-                            decoration: BoxDecoration(
-                                color: Colors.white, borderRadius: BorderRadius.circular(15)),
-                            child: Column(
-                              children: [
-                                moreInfo(context,
-                                    title: "Number", info: _buildNumber, showCopyButton: true),
-                                moreInfo(context,
-                                    title: "Version", info: _version, showCopyButton: true),
-                                moreInfo(context, title: "Commit Hash", info: commit),
-                                moreInfo(context,
-                                    title: "Branch", info: branch, showCopyButton: true)
-                              ],
-                            ))
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+                ),
+                const SizedBox(height: 10)
+              ],
             ),
           )),
     );
@@ -178,7 +242,7 @@ Widget moreInfo(BuildContext context,
             const SizedBox(
               height: 7,
             ),
-            !showCopyButton
+            showCopyButton
                 ? SizedBox(
                     width: MediaQuery.of(context).size.width - 100,
                     child: Text(
@@ -189,7 +253,7 @@ Widget moreInfo(BuildContext context,
                 : const SizedBox()
           ],
         ),
-        !showCopyButton
+        showCopyButton
             ? GestureDetector(
                 onTap: () async {
                   showSnackBar(ScaffoldMessenger.of(context), "Copied $info");
