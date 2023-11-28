@@ -52,7 +52,7 @@ async fn check_for_channel_closed(
         .iter()
         .any(|chan| {
             chan.counter_party == app_pubkey
-                && (chan.state == SubChannelState::OnChainClosed
-                    || chan.state == SubChannelState::CounterOnChainClosed)
+                && (chan.subchannel_state == SubChannelState::OnChainClosed
+                    || chan.subchannel_state == SubChannelState::CounterOnChainClosed)
         })
 }

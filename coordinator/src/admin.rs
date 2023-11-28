@@ -15,6 +15,7 @@ use bitcoin::secp256k1::PublicKey;
 use bitcoin::OutPoint;
 use coordinator_commons::CollaborativeRevertCoordinatorExpertRequest;
 use coordinator_commons::CollaborativeRevertCoordinatorRequest;
+use dlc_manager::contract::Contract;
 use dlc_manager::subchannel::SubChannel;
 use lightning_invoice::Bolt11Invoice;
 use ln_dlc_node::node::NodeInfo;
@@ -101,21 +102,25 @@ pub async fn list_channels(
 pub struct DlcChannelDetails {
     #[serde(flatten)]
     pub channel_details: ln_dlc_node::DlcChannelDetails,
+    #[serde(flatten)]
+    pub contract_details: Option<ln_dlc_node::ContractDetails>,
     pub user_email: String,
     #[serde(with = "time::serde::rfc3339::option")]
     pub user_registration_timestamp: Option<OffsetDateTime>,
 }
 
-impl From<(SubChannel, String, Option<OffsetDateTime>)> for DlcChannelDetails {
+impl From<(SubChannel, Option<Contract>, String, Option<OffsetDateTime>)> for DlcChannelDetails {
     fn from(
-        (channel_details, user_email, user_registration_timestamp): (
+        (channel_details, contract, user_email, user_registration_timestamp): (
             SubChannel,
+            Option<Contract>,
             String,
             Option<OffsetDateTime>,
         ),
     ) -> Self {
         DlcChannelDetails {
             channel_details: ln_dlc_node::DlcChannelDetails::from(channel_details),
+            contract_details: contract.map(ln_dlc_node::ContractDetails::from),
             user_email,
             user_registration_timestamp,
         }
@@ -144,7 +149,24 @@ pub async fn list_dlc_channels(
                     Ok(Some(user)) => (user.email, Some(user.timestamp)),
                     _ => ("unknown".to_string(), None),
                 };
-            DlcChannelDetails::from((subchannel, email, registration_timestamp))
+
+            let dlc_channel_id = subchannel.get_dlc_channel_id(0);
+
+            let contract = match dlc_channel_id {
+                Some(dlc_channel_id) => {
+                    match state
+                        .node
+                        .inner
+                        .get_contract_by_dlc_channel_id(&dlc_channel_id)
+                    {
+                        Ok(contract) => Some(contract),
+                        Err(_) => None,
+                    }
+                }
+                None => None,
+            };
+
+            DlcChannelDetails::from((subchannel, contract, email, registration_timestamp))
         })
         .collect::<Vec<_>>();
 

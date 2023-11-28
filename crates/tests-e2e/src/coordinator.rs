@@ -33,7 +33,7 @@ pub struct DlcChannel {
     pub channel_id: String,
     pub dlc_channel_id: Option<String>,
     pub counter_party: String,
-    pub state: SubChannelState,
+    pub subchannel_state: SubChannelState,
 }
 #[derive(Deserialize, Debug)]
 pub struct Channel {

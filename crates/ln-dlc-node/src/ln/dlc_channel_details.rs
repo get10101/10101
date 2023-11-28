@@ -14,7 +14,7 @@ pub struct DlcChannelDetails {
     #[serde(serialize_with = "pk_as_hex")]
     pub counter_party: PublicKey,
     pub update_idx: u64,
-    pub state: SubChannelState,
+    pub subchannel_state: SubChannelState,
     pub fee_rate_per_vb: u64,
     pub fund_value_satoshis: u64,
     /// Whether the local party is the one who offered the sub channel.
@@ -46,7 +46,7 @@ impl From<SubChannel> for DlcChannelDetails {
             dlc_channel_id: sc.get_dlc_channel_id(0),
             counter_party: sc.counter_party,
             update_idx: sc.update_idx,
-            state: SubChannelState::from(sc.state),
+            subchannel_state: SubChannelState::from(sc.state),
             fee_rate_per_vb: sc.fee_rate_per_vb,
             fund_value_satoshis: sc.fund_value_satoshis,
             is_offer: sc.is_offer,

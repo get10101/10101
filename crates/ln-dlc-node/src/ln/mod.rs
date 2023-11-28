@@ -1,5 +1,6 @@
 mod app_event_handler;
 mod channel_details;
+mod contract_details;
 mod coordinator_event_handler;
 mod dlc_channel_details;
 mod event_handler;
@@ -18,6 +19,7 @@ use crate::P2pGossipSync;
 use crate::RapidGossipSync;
 pub use app_event_handler::AppEventHandler;
 pub use channel_details::ChannelDetails;
+pub use contract_details::ContractDetails;
 pub use coordinator_event_handler::CoordinatorEventHandler;
 pub use dlc_channel_details::DlcChannelDetails;
 pub use event_handler::EventHandlerTrait;
