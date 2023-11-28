@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add support for Android 9
 - Add settings option to enable trace logs
 - Add contract details to dlc channels api
+- Add support for parsing invoices from Zeus
 
 ## [1.6.4] - 2023-11-24
 

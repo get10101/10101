@@ -45,6 +45,10 @@ fn decode_address(request: String) -> Result<Destination> {
 }
 
 fn decode_invoice(request: &str) -> Result<Destination> {
+    // The Zeus wallet adds a lightning prefix to the invoice. If we get such an invoice we simply
+    // remove the prefix and parse the remainder as lightning invoice.
+    let request = request.trim_start_matches("lightning:").trim_start();
+
     let invoice =
         &Bolt11Invoice::from_str(request).context("request is not valid BOLT11 invoice")?;
     let description = match invoice.description() {
