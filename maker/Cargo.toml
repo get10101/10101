@@ -25,7 +25,7 @@ lightning-persister = "0.0.116"
 ln-dlc-node = { path = "../crates/ln-dlc-node" }
 ln-dlc-storage = { path = "../crates/ln-dlc-storage" }
 # adding this as explicit dependency as we need the "vendored" flag for cross compilation
-openssl = { version = "0.10.55", features = ["vendored"] }
+openssl = { version = "0.10.60", features = ["vendored"] }
 opentelemetry = "0.19.0"
 opentelemetry-prometheus = "0.12.0"
 orderbook-client = { path = "../crates/orderbook-client" }

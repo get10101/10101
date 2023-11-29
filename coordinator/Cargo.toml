@@ -83,7 +83,7 @@ version = "0.24"
 path = "../crates/ln-dlc-node"
 
 [dependencies.openssl]
-version = "0.10.55"
+version = "0.10.60"
 features = ["vendored"]
 
 [dependencies.orderbook-commons]
