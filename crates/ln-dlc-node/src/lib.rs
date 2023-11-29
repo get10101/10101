@@ -50,6 +50,7 @@ pub use lightning;
 pub use lightning_invoice;
 pub use ln::AppEventHandler;
 pub use ln::ChannelDetails;
+pub use ln::ContractDetails;
 pub use ln::CoordinatorEventHandler;
 pub use ln::DlcChannelDetails;
 pub use ln::EventHandlerTrait;
