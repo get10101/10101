@@ -7,16 +7,23 @@ import 'package:get_10101/ffi.dart' as rust;
 import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
 import 'package:get_10101/util/environment.dart';
 import 'package:get_10101/util/file.dart';
+import 'package:get_10101/util/preferences.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:get_10101/logger/logger.dart';
 import 'package:provider/provider.dart';
 
+Future<void> initLogging() async {
+  final isLogLevelTrace = await Preferences.instance.isLogLevelTrace();
+  buildLogger(isLogLevelTrace);
+
+  _setupRustLogging();
+}
+
 Future<void> setConfig() async {
   bridge.Config config = Environment.parse();
 
-  _setupRustLogging();
   _logAppSettings(config);
 
   // We use the app documents dir on iOS to easily access logs and DB from

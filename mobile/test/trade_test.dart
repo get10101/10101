@@ -26,6 +26,7 @@ import 'package:get_10101/features/wallet/application/wallet_service.dart';
 import 'package:get_10101/features/wallet/domain/wallet_balances.dart';
 import 'package:get_10101/features/wallet/domain/wallet_info.dart';
 import 'package:get_10101/features/wallet/wallet_change_notifier.dart';
+import 'package:get_10101/logger/logger.dart';
 import 'package:get_10101/util/constants.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mockito/annotations.dart';
@@ -76,6 +77,7 @@ void main() {
     MockChannelInfoService channelConstraintsService = MockChannelInfoService();
     MockWalletService walletService = MockWalletService();
     MockCandlestickService candlestickService = MockCandlestickService();
+    buildLogger(true);
 
     // TODO: we could make this more resilient in the underlying components...
     // return dummies otherwise the fields won't be initialized correctly
