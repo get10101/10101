@@ -7,7 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.5] - 2023-11-29
+
 - Add support for Android 9
+- Fix handle error on channel receive
 - Add settings option to enable trace logs
 - Add contract details to dlc channels api
 - Add support for parsing invoices from Zeus
@@ -205,7 +208,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Self-Custodial CFD Trading based on DLC and lightning
 
-[Unreleased]: https://github.com/get10101/10101/compare/1.6.4...HEAD
+[Unreleased]: https://github.com/get10101/10101/compare/1.6.5...HEAD
+[1.6.5]: https://github.com/get10101/10101/compare/1.6.4...1.6.5
 [1.6.4]: https://github.com/get10101/10101/compare/1.6.3...1.6.4
 [1.6.3]: https://github.com/get10101/10101/compare/1.6.2...1.6.3
 [1.6.2]: https://github.com/get10101/10101/compare/1.6.1...1.6.2
