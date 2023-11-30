@@ -103,20 +103,20 @@ pub enum OrderReason {
     Expired,
 }
 
-impl From<OrderReason> for orderbook_commons::OrderReason {
+impl From<OrderReason> for commons::OrderReason {
     fn from(value: OrderReason) -> Self {
         match value {
-            OrderReason::Manual => orderbook_commons::OrderReason::Manual,
-            OrderReason::Expired => orderbook_commons::OrderReason::Expired,
+            OrderReason::Manual => commons::OrderReason::Manual,
+            OrderReason::Expired => commons::OrderReason::Expired,
         }
     }
 }
 
-impl From<orderbook_commons::OrderReason> for OrderReason {
-    fn from(value: orderbook_commons::OrderReason) -> Self {
+impl From<commons::OrderReason> for OrderReason {
+    fn from(value: commons::OrderReason) -> Self {
         match value {
-            orderbook_commons::OrderReason::Manual => OrderReason::Manual,
-            orderbook_commons::OrderReason::Expired => OrderReason::Expired,
+            commons::OrderReason::Manual => OrderReason::Manual,
+            commons::OrderReason::Expired => OrderReason::Expired,
         }
     }
 }
@@ -167,11 +167,11 @@ impl Order {
     }
 }
 
-impl From<Order> for orderbook_commons::NewOrder {
+impl From<Order> for commons::NewOrder {
     fn from(order: Order) -> Self {
         let quantity = Decimal::try_from(order.quantity).expect("to parse into decimal");
         let trader_id = ln_dlc::get_node_pubkey();
-        orderbook_commons::NewOrder {
+        commons::NewOrder {
             id: order.id,
             contract_symbol: order.contract_symbol,
             // todo: this is left out intentionally as market orders do not set a price. this field
@@ -188,11 +188,11 @@ impl From<Order> for orderbook_commons::NewOrder {
     }
 }
 
-impl From<OrderType> for orderbook_commons::OrderType {
+impl From<OrderType> for commons::OrderType {
     fn from(order_type: OrderType) -> Self {
         match order_type {
-            OrderType::Market => orderbook_commons::OrderType::Market,
-            OrderType::Limit { .. } => orderbook_commons::OrderType::Limit,
+            OrderType::Market => commons::OrderType::Market,
+            OrderType::Limit { .. } => commons::OrderType::Limit,
         }
     }
 }

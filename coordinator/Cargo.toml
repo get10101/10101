@@ -61,8 +61,8 @@ features = ["key-value-db", "use-esplora-blocking"]
 version = "4"
 features = ["derive"]
 
-[dependencies.coordinator-commons]
-path = "../crates/coordinator-commons"
+[dependencies.commons]
+path = "../crates/commons"
 
 [dependencies.diesel]
 version = "2.0.0"
@@ -85,9 +85,6 @@ path = "../crates/ln-dlc-node"
 [dependencies.openssl]
 version = "0.10.60"
 features = ["vendored"]
-
-[dependencies.orderbook-commons]
-path = "../crates/orderbook-commons"
 
 [dependencies.parking_lot]
 version = "0.12.1"

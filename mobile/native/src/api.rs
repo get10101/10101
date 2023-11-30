@@ -24,11 +24,11 @@ use crate::trade::users;
 use anyhow::Context;
 use anyhow::Result;
 use bitcoin::Amount;
+use commons::order_matching_fee_taker;
 use flutter_rust_bridge::frb;
 use flutter_rust_bridge::StreamSink;
 use flutter_rust_bridge::SyncReturn;
 use ln_dlc_node::channel::UserChannelId;
-use orderbook_commons::order_matching_fee_taker;
 use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::Decimal;
 use state::Storage;
@@ -345,8 +345,8 @@ pub struct LiquidityOption {
     pub active: bool,
 }
 
-impl From<coordinator_commons::LiquidityOption> for LiquidityOption {
-    fn from(value: coordinator_commons::LiquidityOption) -> Self {
+impl From<commons::LiquidityOption> for LiquidityOption {
+    fn from(value: commons::LiquidityOption) -> Self {
         LiquidityOption {
             id: value.id,
             rank: value.rank,
@@ -478,8 +478,5 @@ pub fn get_channel_open_fee_estimate_sat() -> Result<u64> {
 
 pub fn get_expiry_timestamp(network: String) -> SyncReturn<i64> {
     let network = config::api::parse_network(&network);
-    SyncReturn(
-        coordinator_commons::calculate_next_expiry(OffsetDateTime::now_utc(), network)
-            .unix_timestamp(),
-    )
+    SyncReturn(commons::calculate_next_expiry(OffsetDateTime::now_utc(), network).unix_timestamp())
 }

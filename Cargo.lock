@@ -679,6 +679,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "commons"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "bdk",
+ "bitcoin",
+ "lightning",
+ "rust_decimal",
+ "rust_decimal_macros",
+ "secp256k1",
+ "serde",
+ "serde_json",
+ "sha2",
+ "time 0.3.20",
+ "tokio-tungstenite",
+ "trade",
+ "uuid",
+]
+
+[[package]]
 name = "console-api"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -735,8 +755,8 @@ dependencies = [
  "bdk",
  "bitcoin",
  "clap",
+ "commons",
  "console-subscriber",
- "coordinator-commons",
  "diesel",
  "diesel_migrations",
  "dlc",
@@ -756,7 +776,6 @@ dependencies = [
  "openssl",
  "opentelemetry",
  "opentelemetry-prometheus",
- "orderbook-commons",
  "parking_lot 0.12.1",
  "payout_curve",
  "prometheus",
@@ -779,20 +798,6 @@ dependencies = [
  "tracing-subscriber",
  "trade",
  "url",
- "uuid",
-]
-
-[[package]]
-name = "coordinator-commons"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "bdk",
- "orderbook-commons",
- "rust_decimal",
- "serde",
- "time 0.3.20",
- "trade",
  "uuid",
 ]
 
@@ -2136,6 +2141,7 @@ dependencies = [
  "bitmex-client",
  "bitmex-stream",
  "clap",
+ "commons",
  "diesel",
  "diesel_migrations",
  "futures",
@@ -2149,7 +2155,6 @@ dependencies = [
  "opentelemetry",
  "opentelemetry-prometheus",
  "orderbook-client",
- "orderbook-commons",
  "prometheus",
  "rand",
  "reqwest",
@@ -2366,7 +2371,7 @@ dependencies = [
  "bdk",
  "bip21",
  "bitcoin",
- "coordinator-commons",
+ "commons",
  "diesel",
  "diesel_migrations",
  "dlc",
@@ -2382,7 +2387,6 @@ dependencies = [
  "ln-dlc-storage",
  "openssl",
  "orderbook-client",
- "orderbook-commons",
  "parking_lot 0.12.1",
  "reqwest",
  "rusqlite",
@@ -2640,8 +2644,8 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-stream",
+ "commons",
  "futures",
- "orderbook-commons",
  "secp256k1",
  "serde",
  "serde_json",
@@ -2651,25 +2655,6 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "url",
-]
-
-[[package]]
-name = "orderbook-commons"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "bitcoin",
- "lightning",
- "rust_decimal",
- "rust_decimal_macros",
- "secp256k1",
- "serde",
- "serde_json",
- "sha2",
- "time 0.3.20",
- "tokio-tungstenite",
- "trade",
- "uuid",
 ]
 
 [[package]]
@@ -3842,14 +3827,13 @@ dependencies = [
  "assertables",
  "bitcoin",
  "clap",
+ "commons",
  "coordinator",
- "coordinator-commons",
  "flutter_rust_bridge",
  "ln-dlc-node",
  "local-ip-address",
  "maker",
  "native",
- "orderbook-commons",
  "parking_lot 0.12.1",
  "quote",
  "reqwest",

@@ -9,10 +9,10 @@ use crate::settings::Settings;
 use anyhow::anyhow;
 use anyhow::Result;
 use bitcoin::Network;
+use commons::Message;
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::Pool;
 use diesel::PgConnection;
-use orderbook_commons::Message;
 use time::OffsetDateTime;
 use tokio::sync::mpsc;
 use tokio_cron_scheduler::Job;
@@ -145,7 +145,7 @@ fn build_rollover_notification_job(
         let notifier = notifier.clone();
         let mut conn = pool.get().expect("To be able to get a db connection");
 
-        if !coordinator_commons::is_eligible_for_rollover(OffsetDateTime::now_utc(), network) {
+        if !commons::is_eligible_for_rollover(OffsetDateTime::now_utc(), network) {
             return Box::pin(async move {
                 tracing::warn!("Rollover window hasn't started yet. Job schedule seems to be miss-aligned with the rollover window. Skipping user notifications.");
             });
@@ -153,7 +153,7 @@ fn build_rollover_notification_job(
 
         // calculates the expiry of the next rollover window. positions which have an
         // expiry before that haven't rolled over yet, and need to be reminded.
-        let expiry = coordinator_commons::calculate_next_expiry(OffsetDateTime::now_utc(), network);
+        let expiry = commons::calculate_next_expiry(OffsetDateTime::now_utc(), network);
         match db::positions::Position::get_all_open_positions_with_expiry_before(&mut conn, expiry)
         {
             Ok(positions) => Box::pin({

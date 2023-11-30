@@ -1,119 +1,8 @@
-use bdk::bitcoin::secp256k1::ecdsa::Signature;
-use bdk::bitcoin::secp256k1::PublicKey;
-use bdk::bitcoin::Network;
-use bdk::bitcoin::Transaction;
-use bdk::bitcoin::Txid;
-use orderbook_commons::FilledWith;
-use rust_decimal::Decimal;
-use serde::Deserialize;
-use serde::Serialize;
+use bitcoin::Network;
 use time::macros::time;
 use time::Duration;
 use time::OffsetDateTime;
 use time::Weekday;
-use trade::ContractSymbol;
-use trade::Direction;
-
-/// The trade parameters defining the trade execution
-///
-/// Emitted by the orderbook when a match is found.
-/// Both trading parties will receive trade params and then request trade execution with said trade
-/// parameters from the coordinator.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct TradeParams {
-    /// The identity of the trader
-    pub pubkey: PublicKey,
-
-    /// The contract symbol for the trade to be set up
-    pub contract_symbol: ContractSymbol,
-
-    /// The leverage of the trader
-    ///
-    /// This has to correspond to our order's leverage.
-    pub leverage: f32,
-
-    /// The quantity of the trader
-    ///
-    /// For the trade set up with the coordinator it is the quantity of the contract.
-    /// This quantity may be the complete quantity of an order or a fraction.
-    pub quantity: f32,
-
-    /// The direction of the trader
-    ///
-    /// The direction from the point of view of the trader.
-    /// The coordinator takes the counter-position when setting up the trade.
-    pub direction: Direction,
-
-    /// The filling information from the orderbook
-    ///
-    /// This is used by the coordinator to be able to make sure both trading parties are acting.
-    /// The `quantity` has to match the cummed up quantities of the matches in `filled_with`.
-    pub filled_with: FilledWith,
-}
-
-impl TradeParams {
-    pub fn average_execution_price(&self) -> Decimal {
-        self.filled_with.average_execution_price()
-    }
-}
-
-/// Registration details for enrolling into the beta program
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RegisterParams {
-    pub pubkey: PublicKey,
-    pub email: Option<String>,
-    pub nostr: Option<String>,
-}
-
-impl RegisterParams {
-    pub fn is_valid(&self) -> bool {
-        self.email.is_some() || self.nostr.is_some()
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct LiquidityOption {
-    pub id: i32,
-    pub rank: usize,
-    pub title: String,
-    /// amount the trader can trade up to in sats
-    pub trade_up_to_sats: u64,
-    /// min deposit in sats
-    pub min_deposit_sats: u64,
-    /// max deposit in sats
-    pub max_deposit_sats: u64,
-    /// min fee in sats
-    pub min_fee_sats: u64,
-    pub fee_percentage: f64,
-    pub coordinator_leverage: f32,
-    #[serde(with = "time::serde::rfc3339")]
-    pub created_at: OffsetDateTime,
-    #[serde(with = "time::serde::rfc3339")]
-    pub updated_at: OffsetDateTime,
-    pub active: bool,
-}
-
-impl LiquidityOption {
-    /// Get fees for the liquidity option on an amount in sats
-    pub fn get_fee(&self, amount_sats: Decimal) -> Decimal {
-        let fee = (amount_sats / Decimal::from(100))
-            * Decimal::try_from(self.fee_percentage).expect("to fit into decimal");
-        if fee < Decimal::from(self.min_fee_sats) {
-            return Decimal::from(self.min_fee_sats);
-        }
-        fee
-    }
-}
-
-/// LSP channel details
-#[derive(Serialize, Deserialize)]
-pub struct LspConfig {
-    /// The fee rate to be used for the DLC contracts in sats/vbyte
-    pub contract_tx_fee_rate: u64,
-
-    // The liquidity options for onboarding
-    pub liquidity_options: Vec<LiquidityOption>,
-}
 
 /// Calculates the next expiry timestamp based on the given timestamp and the network.
 pub fn calculate_next_expiry(timestamp: OffsetDateTime, network: Network) -> OffsetDateTime {
@@ -172,88 +61,13 @@ pub fn is_eligible_for_rollover(timestamp: OffsetDateTime, network: Network) -> 
     }
 }
 
-/// A message to restore a key with its value.
-#[derive(Serialize, Deserialize)]
-pub struct Restore {
-    pub key: String,
-    pub value: Vec<u8>,
-}
-
-/// A message to backup a key with its value.
-#[derive(Serialize, Deserialize)]
-pub struct Backup {
-    pub key: String,
-    pub value: Vec<u8>,
-    /// A signature of the value using the nodes private key
-    pub signature: Signature,
-}
-
-impl Backup {
-    /// Verifies if the backup was from the given node id
-    pub fn verify(&self, node_id: &PublicKey) -> anyhow::Result<()> {
-        let message = orderbook_commons::create_sign_message(self.value.clone());
-        self.signature.verify(&message, node_id)?;
-        Ok(())
-    }
-}
-
-/// A message to delete a backup of a key
-#[derive(Serialize, Deserialize)]
-pub struct DeleteBackup {
-    pub key: String,
-    /// A signature of the requesting node id using the nodes private key
-    pub signature: Signature,
-}
-
-impl DeleteBackup {
-    pub fn verify(&self, node_id: &PublicKey) -> anyhow::Result<()> {
-        let message = node_id.to_string().as_bytes().to_vec();
-        let message = orderbook_commons::create_sign_message(message);
-        self.signature.verify(&message, node_id)?;
-        Ok(())
-    }
-}
-
 #[cfg(test)]
 mod test {
-    use crate::calculate_next_expiry;
-    use crate::is_eligible_for_rollover;
-    use crate::LiquidityOption;
-    use bdk::bitcoin::Network;
-    use rust_decimal::Decimal;
+    use crate::rollover::calculate_next_expiry;
+    use crate::rollover::is_eligible_for_rollover;
+    use bitcoin::Network;
     use time::Duration;
     use time::OffsetDateTime;
-
-    fn get_liquidity_option() -> LiquidityOption {
-        LiquidityOption {
-            id: 1,
-            rank: 1,
-            title: "test".to_string(),
-            trade_up_to_sats: 500_000,
-            min_deposit_sats: 50_000,
-            max_deposit_sats: 500_000,
-            min_fee_sats: 10_000,
-            fee_percentage: 1.0,
-            coordinator_leverage: 2.0,
-            created_at: OffsetDateTime::now_utc(),
-            updated_at: OffsetDateTime::now_utc(),
-            active: true,
-        }
-    }
-
-    #[test]
-    fn test_min_fee() {
-        let option = get_liquidity_option();
-        let fee = option.get_fee(Decimal::from(60_000));
-        assert_eq!(Decimal::from(10_000), fee)
-    }
-
-    #[test]
-    fn test_percentage_fee() {
-        let option = get_liquidity_option();
-        let fee = option.get_fee(Decimal::from(1_100_000));
-        assert_eq!(Decimal::from(11_000), fee)
-    }
 
     #[test]
     fn test_is_not_eligible_for_rollover() {
@@ -401,59 +215,4 @@ mod test {
             Network::Regtest
         ))
     }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct OnboardingParam {
-    pub target_node: String,
-    pub user_channel_id: String,
-    pub amount_sats: u64,
-    pub liquidity_option_id: i32,
-}
-
-/// The information needed for the coordinator to kickstart the collaborative revert protocol.
-#[derive(Deserialize, Serialize)]
-pub struct CollaborativeRevertCoordinatorRequest {
-    /// Channel to collaboratively revert.
-    pub channel_id: String,
-    /// Price at which to settle the DLC channel.
-    pub price: Decimal,
-    /// Fee rate for the collaborative revert transaction.
-    pub fee_rate_sats_vb: u64,
-    /// The TXID of the LN funding transaction.
-    pub txid: Txid,
-    /// The vout corresponding to the funding TXO.
-    pub vout: u32,
-}
-
-/// The information needed for the coordinator to kickstart the collaborative revert protocol.
-#[derive(Deserialize, Serialize)]
-pub struct CollaborativeRevertCoordinatorExpertRequest {
-    /// Channel to collaboratively revert.
-    pub channel_id: String,
-    /// The TXID of the LN funding transaction.
-    pub txid: Txid,
-    /// The vout corresponding to the funding TXO.
-    pub vout: u32,
-    /// How much the coordinator should get out of the collaborative revert transaction, without
-    /// considering transaction fees.
-    pub coordinator_amount: u64,
-    /// Fee rate for the collaborative revert transaction.
-    pub fee_rate_sats_vb: u64,
-    /// Price at which to settle the DLC channel.
-    ///
-    /// This price is purely informational for the trader, as the caller provides the
-    /// `coordinator_amount` already.
-    pub price: Decimal,
-}
-
-/// The information provided by the trader in response to a collaborative revert proposal.
-#[derive(Deserialize, Serialize)]
-pub struct CollaborativeRevertTraderResponse {
-    /// Channel to collaboratively revert.
-    pub channel_id: String,
-    /// The unsigned collaborative revert transaction.
-    pub transaction: Transaction,
-    /// The trader's signature on the collaborative revert transaction.
-    pub signature: Signature,
 }

@@ -8,11 +8,11 @@ use crate::trade::order;
 use crate::trade::position;
 use crate::trade::position::Position;
 use anyhow::Result;
+use commons::order_matching_fee_taker;
 use ln_dlc_node::node::rust_dlc_manager::subchannel::SubChannel;
 use ln_dlc_node::node::rust_dlc_manager::subchannel::SubChannelState;
 use ln_dlc_node::node::rust_dlc_manager::ChannelId;
 use ln_dlc_node::node::rust_dlc_manager::Storage;
-use orderbook_commons::order_matching_fee_taker;
 use rust_decimal::Decimal;
 use std::time::Duration;
 

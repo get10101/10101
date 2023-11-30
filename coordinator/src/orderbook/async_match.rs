@@ -7,17 +7,17 @@ use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::Network;
 use bitcoin::XOnlyPublicKey;
+use commons::FilledWith;
+use commons::Match;
+use commons::Matches;
+use commons::Message;
+use commons::OrderReason;
+use commons::OrderState;
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::Pool;
 use diesel::PgConnection;
 use futures::future::RemoteHandle;
 use futures::FutureExt;
-use orderbook_commons::FilledWith;
-use orderbook_commons::Match;
-use orderbook_commons::Matches;
-use orderbook_commons::Message;
-use orderbook_commons::OrderReason;
-use orderbook_commons::OrderState;
 use time::OffsetDateTime;
 use tokio::sync::broadcast;
 use tokio::sync::broadcast::error::RecvError;
@@ -113,8 +113,7 @@ fn get_filled_with_from_matches(
         .expect("to have at least one match")
         .order_id;
 
-    let expiry_timestamp =
-        coordinator_commons::calculate_next_expiry(OffsetDateTime::now_utc(), network);
+    let expiry_timestamp = commons::calculate_next_expiry(OffsetDateTime::now_utc(), network);
 
     Ok(FilledWith {
         order_id,

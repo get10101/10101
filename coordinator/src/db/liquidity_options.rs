@@ -28,13 +28,11 @@ pub(crate) struct LiquidityOption {
     pub updated_at: OffsetDateTime,
 }
 
-pub(crate) fn get_all(
-    conn: &mut PgConnection,
-) -> QueryResult<Vec<coordinator_commons::LiquidityOption>> {
+pub(crate) fn get_all(conn: &mut PgConnection) -> QueryResult<Vec<commons::LiquidityOption>> {
     let options = liquidity_options::table.load::<LiquidityOption>(conn)?;
     let options = options
         .into_iter()
-        .map(coordinator_commons::LiquidityOption::from)
+        .map(commons::LiquidityOption::from)
         .collect();
     Ok(options)
 }
@@ -42,16 +40,16 @@ pub(crate) fn get_all(
 pub(crate) fn get(
     conn: &mut PgConnection,
     liquidity_option_id: i32,
-) -> QueryResult<coordinator_commons::LiquidityOption> {
+) -> QueryResult<commons::LiquidityOption> {
     let option: LiquidityOption = liquidity_options::table
         .filter(liquidity_options::id.eq(liquidity_option_id))
         .get_result(conn)?;
     Ok(option.into())
 }
 
-impl From<LiquidityOption> for coordinator_commons::LiquidityOption {
+impl From<LiquidityOption> for commons::LiquidityOption {
     fn from(value: LiquidityOption) -> Self {
-        coordinator_commons::LiquidityOption {
+        commons::LiquidityOption {
             id: value.id,
             rank: value.rank as usize,
             title: value.title,

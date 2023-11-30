@@ -15,6 +15,7 @@ bitcoin = "0.29.2"
 bitmex-client = { path = "../crates/bitmex-client" }
 bitmex-stream = { path = "../crates/bitmex-stream" }
 clap = { version = "4", features = ["derive"] }
+commons = { path = "../crates/commons" }
 diesel = { version = "2.0.0", features = ["r2d2", "postgres"] }
 diesel_migrations = "2.0.0"
 futures = "0.3"
@@ -29,7 +30,6 @@ openssl = { version = "0.10.60", features = ["vendored"] }
 opentelemetry = "0.19.0"
 opentelemetry-prometheus = "0.12.0"
 orderbook-client = { path = "../crates/orderbook-client" }
-orderbook-commons = { path = "../crates/orderbook-commons" }
 prometheus = "0.13.3"
 rand = "0.8.5"
 reqwest = "0.11.14"

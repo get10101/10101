@@ -12,9 +12,9 @@ use crate::trade::position::PositionState;
 use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
-use coordinator_commons::TradeParams;
-use orderbook_commons::FilledWith;
-use orderbook_commons::Prices;
+use commons::FilledWith;
+use commons::Prices;
+use commons::TradeParams;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use time::OffsetDateTime;
@@ -78,10 +78,10 @@ pub async fn trade(filled: FilledWith) -> Result<()> {
 
 /// Executes an async trade from the orderbook / coordinator. e.g. this will happen if the position
 /// expires.
-pub async fn async_trade(order: orderbook_commons::Order, filled_with: FilledWith) -> Result<()> {
+pub async fn async_trade(order: commons::Order, filled_with: FilledWith) -> Result<()> {
     let order_type = match order.order_type {
-        orderbook_commons::OrderType::Market => OrderType::Market,
-        orderbook_commons::OrderType::Limit => OrderType::Limit {
+        commons::OrderType::Market => OrderType::Market,
+        commons::OrderType::Limit => OrderType::Limit {
             price: order.price.to_f32().expect("to fit into f32"),
         },
     };

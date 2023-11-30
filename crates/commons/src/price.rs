@@ -1,5 +1,5 @@
-use crate::Order;
-use crate::OrderState;
+use crate::order::Order;
+use crate::order::OrderState;
 use crate::ToPrimitive;
 use rust_decimal::Decimal;
 use serde::Deserialize;
@@ -69,12 +69,12 @@ fn best_price_for(
 
 #[cfg(test)]
 mod test {
+    use crate::order::Order;
+    use crate::order::OrderReason;
+    use crate::order::OrderState;
+    use crate::order::OrderType;
     use crate::price::best_ask_price;
     use crate::price::best_bid_price;
-    use crate::Order;
-    use crate::OrderReason;
-    use crate::OrderState;
-    use crate::OrderType;
     use rust_decimal::Decimal;
     use rust_decimal_macros::dec;
     use secp256k1::PublicKey;

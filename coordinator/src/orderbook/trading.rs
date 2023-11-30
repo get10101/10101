@@ -9,20 +9,20 @@ use autometrics::autometrics;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::Network;
 use bitcoin::XOnlyPublicKey;
-use coordinator_commons::TradeParams;
+use commons::FilledWith;
+use commons::Match;
+use commons::Message;
+use commons::NewOrder;
+use commons::Order;
+use commons::OrderReason;
+use commons::OrderState;
+use commons::OrderType;
+use commons::TradeParams;
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::Pool;
 use diesel::PgConnection;
 use futures::future::RemoteHandle;
 use futures::FutureExt;
-use orderbook_commons::FilledWith;
-use orderbook_commons::Match;
-use orderbook_commons::Message;
-use orderbook_commons::NewOrder;
-use orderbook_commons::Order;
-use orderbook_commons::OrderReason;
-use orderbook_commons::OrderState;
-use orderbook_commons::OrderType;
 use rust_decimal::Decimal;
 use std::cmp::Ordering;
 use thiserror::Error;
@@ -316,8 +316,7 @@ fn match_order(
         return Ok(None);
     }
 
-    let expiry_timestamp =
-        coordinator_commons::calculate_next_expiry(OffsetDateTime::now_utc(), network);
+    let expiry_timestamp = commons::calculate_next_expiry(OffsetDateTime::now_utc(), network);
 
     let matches = matched_orders
         .iter()
@@ -403,10 +402,10 @@ pub mod tests {
     use bitcoin::secp256k1::PublicKey;
     use bitcoin::Network;
     use bitcoin::XOnlyPublicKey;
-    use orderbook_commons::Order;
-    use orderbook_commons::OrderReason;
-    use orderbook_commons::OrderState;
-    use orderbook_commons::OrderType;
+    use commons::Order;
+    use commons::OrderReason;
+    use commons::OrderState;
+    use commons::OrderType;
     use rust_decimal::Decimal;
     use rust_decimal_macros::dec;
     use std::str::FromStr;

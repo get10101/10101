@@ -151,7 +151,7 @@ pub fn create_rounding_interval(total_collateral: u64) -> RoundingIntervals {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use orderbook_commons::order_matching_fee_taker;
+    use commons::order_matching_fee_taker;
     use rust_decimal_macros::dec;
     use trade::cfd::calculate_margin;
 

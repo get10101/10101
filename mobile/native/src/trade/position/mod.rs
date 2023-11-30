@@ -9,7 +9,7 @@ use anyhow::ensure;
 use anyhow::Result;
 use bitcoin::Amount;
 use bitcoin::SignedAmount;
-use orderbook_commons::order_matching_fee_taker;
+use commons::order_matching_fee_taker;
 use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;

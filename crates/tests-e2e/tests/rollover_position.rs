@@ -24,8 +24,7 @@ async fn can_rollover_position() {
         .find(|chan| chan.counter_party == app_pubkey)
         .unwrap();
 
-    let new_expiry =
-        coordinator_commons::calculate_next_expiry(OffsetDateTime::now_utc(), Network::Regtest);
+    let new_expiry = commons::calculate_next_expiry(OffsetDateTime::now_utc(), Network::Regtest);
 
     coordinator
         .rollover(&dlc_channel.dlc_channel_id.unwrap())

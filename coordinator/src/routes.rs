@@ -44,14 +44,16 @@ use bitcoin::consensus::encode::serialize_hex;
 use bitcoin::hashes::hex::ToHex;
 use bitcoin::secp256k1::ecdsa::Signature;
 use bitcoin::secp256k1::PublicKey;
-use coordinator_commons::Backup;
-use coordinator_commons::CollaborativeRevertTraderResponse;
-use coordinator_commons::DeleteBackup;
-use coordinator_commons::LspConfig;
-use coordinator_commons::OnboardingParam;
-use coordinator_commons::RegisterParams;
-use coordinator_commons::Restore;
-use coordinator_commons::TradeParams;
+use commons::Backup;
+use commons::CollaborativeRevertTraderResponse;
+use commons::DeleteBackup;
+use commons::LspConfig;
+use commons::Message;
+use commons::OnboardingParam;
+use commons::RegisterParams;
+use commons::Restore;
+use commons::RouteHintHop;
+use commons::TradeParams;
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::Pool;
 use diesel::PgConnection;
@@ -64,8 +66,6 @@ use ln_dlc_node::node::peer_manager::broadcast_node_announcement;
 use ln_dlc_node::node::LiquidityRequest;
 use ln_dlc_node::node::NodeInfo;
 use opentelemetry_prometheus::PrometheusExporter;
-use orderbook_commons::Message;
-use orderbook_commons::RouteHintHop;
 use prometheus::Encoder;
 use prometheus::TextEncoder;
 use rust_decimal::prelude::ToPrimitive;
@@ -618,7 +618,7 @@ async fn restore(
         .map_err(|e| AppError::BadRequest(format!("Invalid node id provided. {e:#}")))?;
 
     let message = node_id.to_string().as_bytes().to_vec();
-    let message = orderbook_commons::create_sign_message(message);
+    let message = commons::create_sign_message(message);
     signature
         .verify(&message, &node_id)
         .map_err(|_| AppError::Unauthorized)?;

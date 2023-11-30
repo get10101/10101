@@ -59,7 +59,7 @@ impl AesCipher {
     }
 
     pub fn sign(&self, value: Vec<u8>) -> Result<Signature> {
-        let message = orderbook_commons::create_sign_message(value);
+        let message = commons::create_sign_message(value);
         Ok(self.secret_key.sign_ecdsa(message))
     }
 
@@ -104,7 +104,7 @@ mod tests {
 
         let signature = cipher.sign(message.to_vec()).unwrap();
 
-        let message = orderbook_commons::create_sign_message(message.to_vec());
+        let message = commons::create_sign_message(message.to_vec());
         signature
             .verify(&message, &secret_key.public_key(SECP256K1))
             .unwrap()

@@ -4,7 +4,7 @@ use crate::ln_dlc;
 use anyhow::anyhow;
 use anyhow::Context;
 use anyhow::Result;
-use coordinator_commons::RegisterParams;
+use commons::RegisterParams;
 
 /// Enroll the user in the beta program
 pub async fn register_beta(email: String) -> Result<()> {

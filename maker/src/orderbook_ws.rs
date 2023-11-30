@@ -8,12 +8,12 @@ use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::secp256k1::SecretKey;
 use bitcoin::secp256k1::SECP256K1;
+use commons::FilledWith;
+use commons::Message;
+use commons::OrderbookRequest;
 use futures::FutureExt;
 use futures::SinkExt;
 use futures::TryStreamExt;
-use orderbook_commons::FilledWith;
-use orderbook_commons::Message;
-use orderbook_commons::OrderbookRequest;
 use reqwest::Url;
 use std::time::Duration;
 use tokio::sync::watch;
@@ -76,7 +76,7 @@ impl Client {
             let auth_pk = auth_sk.public_key(SECP256K1);
             let auth_fn = move |msg| {
                 let signature = auth_sk.sign_ecdsa(msg);
-                orderbook_commons::Signature {
+                commons::Signature {
                     pubkey: auth_pk,
                     signature,
                 }

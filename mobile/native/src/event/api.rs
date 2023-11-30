@@ -182,8 +182,8 @@ pub struct BestPrice {
     pub ask: Option<f64>,
 }
 
-impl From<orderbook_commons::Price> for BestPrice {
-    fn from(value: orderbook_commons::Price) -> Self {
+impl From<commons::Price> for BestPrice {
+    fn from(value: commons::Price) -> Self {
         BestPrice {
             bid: value
                 .bid
