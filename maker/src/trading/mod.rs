@@ -60,7 +60,7 @@ pub async fn run(
             price,
             direction,
             maker_id,
-            dec!(1000),
+            dec!(5000),
             OffsetDateTime::now_utc() + order_expiry_after,
         )
     };
