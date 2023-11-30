@@ -393,11 +393,6 @@ pub async fn post_register(
     params: Json<RegisterParams>,
 ) -> Result<(), AppError> {
     let register_params = params.0;
-    if !register_params.is_valid() {
-        return Err(AppError::BadRequest(format!(
-            "Invalid registration parameters: {register_params:?}"
-        )));
-    }
     tracing::info!(?register_params, "Registered new user");
 
     let mut conn = state

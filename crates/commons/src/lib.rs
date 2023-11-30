@@ -39,12 +39,6 @@ pub struct RegisterParams {
     pub nostr: Option<String>,
 }
 
-impl RegisterParams {
-    pub fn is_valid(&self) -> bool {
-        self.email.is_some() || self.nostr.is_some()
-    }
-}
-
 /// LSP channel details
 #[derive(Serialize, Deserialize)]
 pub struct LspConfig {
