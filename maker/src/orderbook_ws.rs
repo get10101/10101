@@ -183,7 +183,7 @@ async fn process_message(
 
             tracing::info!(%order_id, "Order matched");
         }
-        Message::Authenticated => {
+        Message::Authenticated(_) => {
             tracing::info!("Orderbook authentication succeeded");
             let _ = orderbook_status.send(ServiceStatus::Online);
         }

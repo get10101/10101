@@ -46,8 +46,6 @@ use bitcoin::Transaction;
 use bitcoin::TxIn;
 use bitcoin::TxOut;
 use commons::CollaborativeRevertTraderResponse;
-use commons::LiquidityOption;
-use commons::LspConfig;
 use commons::OnboardingParam;
 use commons::RouteHintHop;
 use commons::TradeParams;
@@ -877,56 +875,15 @@ pub fn max_channel_value() -> Result<Amount> {
     }
 }
 
-// TODO(holzeis): We might want to consider caching the lsp config, as this shouldn't change too
-// often and even if, I guess we can live with the user having to restart to get the newest configs?
-fn fetch_lsp_config() -> Result<LspConfig, Error> {
-    let runtime = crate::state::get_or_create_tokio_runtime()?;
-    runtime.block_on(async {
-        let client = reqwest_client();
-        let response = client
-            .get(format!(
-                "http://{}/api/lsp/config",
-                config::get_http_endpoint(),
-            ))
-            // timeout arbitrarily chosen
-            .timeout(Duration::from_secs(3))
-            .send()
-            .await?;
-
-        if !response.status().is_success() {
-            let text = response.text().await?;
-            bail!("Failed to fetch channel config from LSP: {text}")
-        }
-
-        let channel_config: LspConfig = response.json().await?;
-
-        Ok(channel_config)
-    })
-}
-
-pub fn contract_tx_fee_rate() -> Result<u64> {
+pub fn contract_tx_fee_rate() -> Result<Option<u64>> {
     let node = crate::state::try_get_node().context("failed to get ln dlc node")?;
-    if let Some(fee_rate_per_vb) = node
+    let fee_rate_per_vb = node
         .inner
         .list_dlc_channels()?
         .first()
-        .map(|c| c.fee_rate_per_vb)
-    {
-        Ok(fee_rate_per_vb)
-    } else {
-        let lsp_config = fetch_lsp_config()?;
-        tracing::info!(
-            contract_tx_fee_rate = lsp_config.contract_tx_fee_rate,
-            "Received channel config from LSP"
-        );
-        Ok(lsp_config.contract_tx_fee_rate)
-    }
-}
+        .map(|c| c.fee_rate_per_vb);
 
-pub fn liquidity_options() -> Result<Vec<LiquidityOption>> {
-    let lsp_config = fetch_lsp_config()?;
-    tracing::trace!(liquidity_options=?lsp_config.liquidity_options, "Received liquidity options");
-    Ok(lsp_config.liquidity_options)
+    Ok(fee_rate_per_vb)
 }
 
 pub fn create_onboarding_invoice(

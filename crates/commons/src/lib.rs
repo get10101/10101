@@ -38,13 +38,3 @@ pub struct RegisterParams {
     pub email: Option<String>,
     pub nostr: Option<String>,
 }
-
-/// LSP channel details
-#[derive(Serialize, Deserialize)]
-pub struct LspConfig {
-    /// The fee rate to be used for the DLC contracts in sats/vbyte
-    pub contract_tx_fee_rate: u64,
-
-    // The liquidity options for onboarding
-    pub liquidity_options: Vec<LiquidityOption>,
-}

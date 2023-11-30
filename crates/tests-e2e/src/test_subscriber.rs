@@ -211,6 +211,9 @@ impl Senders {
             native::event::EventInternal::SpendableOutputs => {
                 unreachable!("SpendableOutputs event should not be sent to the subscriber");
             }
+            native::event::EventInternal::Authenticated(_) => {
+                // ignored
+            }
         }
         Ok(())
     }

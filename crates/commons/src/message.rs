@@ -1,6 +1,7 @@
 use crate::order::Order;
 use crate::signature::Signature;
 use crate::trade::FilledWith;
+use crate::LiquidityOption;
 use anyhow::Result;
 use bitcoin::Address;
 use bitcoin::Amount;
@@ -26,7 +27,7 @@ pub enum Message {
     DeleteOrder(Uuid),
     Update(Order),
     InvalidAuthentication(String),
-    Authenticated,
+    Authenticated(LspConfig),
     Match(FilledWith),
     AsyncMatch {
         order: Order,
@@ -44,6 +45,14 @@ pub enum Message {
         execution_price: Decimal,
         funding_txo: OutPoint,
     },
+}
+
+#[derive(Serialize, Clone, Deserialize, Debug)]
+pub struct LspConfig {
+    /// The fee rate to be used for the DLC contracts in sats/vbyte
+    pub contract_tx_fee_rate: u64,
+    // The liquidity options for onboarding
+    pub liquidity_options: Vec<LiquidityOption>,
 }
 
 #[derive(Serialize, Clone, Deserialize, Debug)]
@@ -87,7 +96,7 @@ impl Display for Message {
             Message::InvalidAuthentication(_) => {
                 write!(f, "InvalidAuthentication")
             }
-            Message::Authenticated => {
+            Message::Authenticated(_) => {
                 write!(f, "Authenticated")
             }
             Message::Match(_) => {

@@ -47,6 +47,25 @@ pub fn init_logging(sink: StreamSink<logger::LogEntry>) {
 }
 
 #[derive(Clone, Debug, Default)]
+pub struct LspConfig {
+    pub contract_tx_fee_rate: u64,
+    pub liquidity_options: Vec<LiquidityOption>,
+}
+
+impl From<commons::LspConfig> for LspConfig {
+    fn from(value: commons::LspConfig) -> Self {
+        Self {
+            contract_tx_fee_rate: value.contract_tx_fee_rate,
+            liquidity_options: value
+                .liquidity_options
+                .into_iter()
+                .map(|lo| lo.into())
+                .collect(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Default)]
 pub struct WalletInfo {
     pub balances: Balances,
     pub history: Vec<WalletHistoryItem>,
@@ -323,7 +342,7 @@ pub fn max_channel_value() -> Result<u64> {
     ln_dlc::max_channel_value().map(|amount| amount.to_sat())
 }
 
-pub fn contract_tx_fee_rate() -> Result<u64> {
+pub fn contract_tx_fee_rate() -> Result<Option<u64>> {
     ln_dlc::contract_tx_fee_rate()
 }
 
@@ -360,14 +379,6 @@ impl From<commons::LiquidityOption> for LiquidityOption {
             active: value.active,
         }
     }
-}
-
-pub fn liquidity_options() -> Result<Vec<LiquidityOption>> {
-    let options = ln_dlc::liquidity_options()?;
-    let mut options: Vec<LiquidityOption> =
-        options.into_iter().map(LiquidityOption::from).collect();
-    options.sort_by(|a, b| a.rank.cmp(&b.rank));
-    Ok(options)
 }
 
 pub fn create_onboarding_invoice(

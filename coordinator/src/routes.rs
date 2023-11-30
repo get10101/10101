@@ -47,7 +47,6 @@ use bitcoin::secp256k1::PublicKey;
 use commons::Backup;
 use commons::CollaborativeRevertTraderResponse;
 use commons::DeleteBackup;
-use commons::LspConfig;
 use commons::Message;
 use commons::OnboardingParam;
 use commons::RegisterParams;
@@ -146,7 +145,6 @@ pub fn router(
         .route("/api/register", post(post_register))
         .route("/api/admin/balance", get(get_balance))
         .route("/api/admin/channels", get(list_channels).post(open_channel))
-        .route("/api/lsp/config", get(get_lsp_channel_config))
         .route("/api/admin/channels/:channel_id", delete(close_channel))
         .route("/api/admin/peers", get(list_peers))
         .route("/api/admin/send_payment/:invoice", post(send_payment))
@@ -408,26 +406,6 @@ pub async fn post_register(
     }
 
     Ok(())
-}
-
-#[instrument(skip_all, err(Debug))]
-pub async fn get_lsp_channel_config(
-    State(state): State<Arc<AppState>>,
-) -> Result<Json<LspConfig>, AppError> {
-    let mut conn = state
-        .pool
-        .get()
-        .map_err(|e| AppError::InternalServerError(format!("Could not get connection: {e:#}")))?;
-
-    let liquidity_options = db::liquidity_options::get_all(&mut conn).map_err(|e| {
-        AppError::InternalServerError(format!("Failed to get all liquidity options: {e:#}"))
-    })?;
-
-    let settings = state.settings.read().await;
-    Ok(Json(LspConfig {
-        contract_tx_fee_rate: settings.contract_tx_fee_rate,
-        liquidity_options,
-    }))
 }
 
 async fn get_settings(State(state): State<Arc<AppState>>) -> impl IntoResponse {

@@ -3,7 +3,7 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:get_10101/common/amount_text_input_form_field.dart';
-import 'package:get_10101/common/application/channel_info_service.dart';
+import 'package:get_10101/common/application/lsp_change_notifier.dart';
 import 'package:get_10101/common/domain/channel.dart';
 import 'package:get_10101/common/domain/model.dart';
 import 'package:get_10101/common/value_data_row.dart';
@@ -68,14 +68,15 @@ class _StableBottomSheet extends State<StableBottomSheet> {
   final _formKey = GlobalKey<FormState>();
 
   Future<(ChannelInfo?, Amount, Amount)> _getChannelInfo(
-      ChannelInfoService channelInfoService) async {
+      LspChangeNotifier lspChangeNotifier) async {
+    final channelInfoService = lspChangeNotifier.channelInfoService;
     var channelInfo = await channelInfoService.getChannelInfo();
 
     /// The max channel capacity as received by the LSP or if there is an existing channel
     var lspMaxChannelCapacity = await channelInfoService.getMaxCapacity();
 
     /// The max channel capacity as received by the LSP or if there is an existing channel
-    Amount tradeFeeReserve = await channelInfoService.getTradeFeeReserve();
+    Amount tradeFeeReserve = await lspChangeNotifier.getTradeFeeReserve();
 
     var completer = Completer<(ChannelInfo?, Amount, Amount)>();
     completer.complete((channelInfo, lspMaxChannelCapacity, tradeFeeReserve));
@@ -89,7 +90,7 @@ class _StableBottomSheet extends State<StableBottomSheet> {
     final tradeValues = stableValuesChangeNotifier.stableValues();
     tradeValues.direction = Direction.short;
 
-    final ChannelInfoService channelInfoService = context.read<ChannelInfoService>();
+    final LspChangeNotifier lspChangeNotifier = context.read<LspChangeNotifier>();
 
     WalletInfo walletInfo = context.watch<WalletChangeNotifier>().walletInfo;
 
@@ -101,7 +102,7 @@ class _StableBottomSheet extends State<StableBottomSheet> {
             mainAxisSize: MainAxisSize.min,
             children: [
               FutureBuilder<(ChannelInfo?, Amount, Amount)>(
-                  future: _getChannelInfo(channelInfoService),
+                  future: _getChannelInfo(lspChangeNotifier),
                   // a previously-obtained Future<String> or null
                   builder: (BuildContext context,
                       AsyncSnapshot<(ChannelInfo?, Amount, Amount)> snapshot) {
@@ -113,7 +114,8 @@ class _StableBottomSheet extends State<StableBottomSheet> {
 
                     Amount channelCapacity = lspMaxChannelCapacity;
 
-                    Amount initialReserve = channelInfoService.getInitialReserve();
+                    Amount initialReserve =
+                        lspChangeNotifier.channelInfoService.getInitialReserve();
 
                     Amount channelReserve = channelInfo?.reserve ?? initialReserve;
                     int totalReserve = channelReserve.sats + tradeFeeReserve.sats;

@@ -1,10 +1,8 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
 import 'package:get_10101/common/amount_text.dart';
 import 'package:get_10101/common/amount_text_input_form_field.dart';
-import 'package:get_10101/common/application/channel_info_service.dart';
+import 'package:get_10101/common/application/lsp_change_notifier.dart';
 import 'package:get_10101/common/domain/liquidity_option.dart';
 import 'package:get_10101/common/domain/model.dart';
 import 'package:get_10101/common/scrollable_safe_area.dart';
@@ -48,7 +46,26 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final channelInfoService = context.read<ChannelInfoService>();
+    final lspChangeNotifier = context.watch<LspChangeNotifier>();
+
+    final liquidityCards = lspChangeNotifier.liquidityOptions
+        .map((l) => LiquidityCard(
+            liquidityOptionId: l.liquidityOptionId,
+            title: l.title,
+            tradeUpTo: l.tradeUpTo,
+            fee: l.fee,
+            minDeposit: l.minDeposit,
+            maxDeposit: l.maxDeposit,
+            amount: amount,
+            enabled: valid,
+            onTap: (min, max) {
+              setState(() {
+                minDeposit = min;
+                maxDeposit = max;
+              });
+              _formKey.currentState?.validate();
+            }))
+        .toList();
 
     return Scaffold(
       appBar: AppBar(title: const Text("Fund 10101 Wallet")),
@@ -60,106 +77,67 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           },
           behavior: HitTestBehavior.opaque,
           child: ScrollableSafeArea(
-            child: FutureBuilder<List<LiquidityOption>>(
-                future: _getLiquidityOptions(channelInfoService),
-                builder: (BuildContext context, AsyncSnapshot<List<LiquidityOption>> config) {
-                  if (!config.hasData) {
-                    return const Center(
-                        child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator()));
-                  }
+              child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 32, 20, 0),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: AmountInputField(
+                        value: amount ?? Amount(0),
+                        hint: "e.g. ${Amount(100000)}",
+                        label: "Amount",
+                        isLoading: false,
+                        onChanged: (value) {
+                          if (value.isEmpty) {
+                            return;
+                          }
 
-                  final liquidityCards = config.data!
-                      .map((l) => LiquidityCard(
-                          liquidityOptionId: l.liquidityOptionId,
-                          title: l.title,
-                          tradeUpTo: l.tradeUpTo,
-                          fee: l.fee,
-                          minDeposit: l.minDeposit,
-                          maxDeposit: l.maxDeposit,
-                          amount: amount,
-                          enabled: valid,
-                          onTap: (min, max) {
-                            setState(() {
-                              minDeposit = min;
-                              maxDeposit = max;
-                            });
-                            _formKey.currentState?.validate();
-                          }))
-                      .toList();
+                          setState(() {
+                            amount = Amount.parseAmount(value);
+                            minDeposit = Amount.zero();
+                            maxDeposit = null;
+                          });
+                          valid = _formKey.currentState?.validate() ?? false;
+                        },
+                        validator: (value) {
+                          if (value == null) {
+                            return "Enter receive amount";
+                          }
 
-                  return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 32, 20, 0),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: AmountInputField(
-                                value: amount ?? Amount(0),
-                                hint: "e.g. ${Amount(100000)}",
-                                label: "Amount",
-                                isLoading: false,
-                                onChanged: (value) {
-                                  if (value.isEmpty) {
-                                    return;
-                                  }
+                          final amt = Amount.parseAmount(value);
+                          if (amt.sats < minDeposit.sats) {
+                            return "Min amount to receive is ${formatSats(minDeposit)}";
+                          }
 
-                                  setState(() {
-                                    amount = Amount.parseAmount(value);
-                                    minDeposit = Amount.zero();
-                                    maxDeposit = null;
-                                  });
-                                  valid = _formKey.currentState?.validate() ?? false;
-                                },
-                                validator: (value) {
-                                  if (value == null) {
-                                    return "Enter receive amount";
-                                  }
+                          if (maxDeposit != null && amt.sats > maxDeposit!.sats) {
+                            return "Max amount to receive is ${formatSats(maxDeposit!)}";
+                          }
 
-                                  final amt = Amount.parseAmount(value);
-                                  if (amt.sats < minDeposit.sats) {
-                                    return "Min amount to receive is ${formatSats(minDeposit)}";
-                                  }
-
-                                  if (maxDeposit != null && amt.sats > maxDeposit!.sats) {
-                                    return "Max amount to receive is ${formatSats(maxDeposit!)}";
-                                  }
-
-                                  return null;
-                                }),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-                      child: const Text("Choose your liquidity requirement from the options below!",
-                          style: TextStyle(fontSize: 16)),
-                    ),
-                    Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          mainAxisAlignment: MainAxisAlignment.start,
-                          children: liquidityCards,
-                        ),
-                      ),
-                    )
-                  ]);
-                }),
-          ),
+                          return null;
+                        }),
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+              child: const Text("Choose your liquidity requirement from the options below!",
+                  style: TextStyle(fontSize: 16)),
+            ),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  children: liquidityCards,
+                ),
+              ),
+            )
+          ])),
         ),
       ),
     );
-  }
-
-  Future<List<LiquidityOption>> _getLiquidityOptions(ChannelInfoService channelInfoService) async {
-    // fetch only active liquidity options
-    List<LiquidityOption> liquidityOptions = await channelInfoService.getLiquidityOptions(true);
-
-    var completer = Completer<List<LiquidityOption>>();
-    completer.complete(liquidityOptions);
-
-    return completer.future;
   }
 }

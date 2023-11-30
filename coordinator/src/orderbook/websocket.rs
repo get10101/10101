@@ -1,3 +1,4 @@
+use crate::db;
 use crate::db::user;
 use crate::message::NewUserMessage;
 use crate::orderbook::db::orders;
@@ -5,6 +6,7 @@ use crate::routes::AppState;
 use axum::extract::ws::Message as WebsocketMessage;
 use axum::extract::ws::WebSocket;
 use commons::create_sign_message;
+use commons::LspConfig;
 use commons::Message;
 use commons::OrderbookRequest;
 use commons::AUTH_SIGN_MESSAGE;
@@ -146,7 +148,30 @@ pub async fn websocket_connection(stream: WebSocket, state: Arc<AppState>) {
 
                     match signature.verify(&msg, &trader_id) {
                         Ok(_) => {
-                            if let Err(e) = local_sender.send(Message::Authenticated).await {
+                            let liquidity_options = {
+                                match &mut state.pool.get() {
+                                    Ok(conn) => {
+                                        db::liquidity_options::get_all(conn).unwrap_or(vec![])
+                                    }
+                                    Err(e) => {
+                                        tracing::error!("Failed to get connection. {e:#}");
+                                        vec![]
+                                    }
+                                }
+                            };
+
+                            let contract_tx_fee_rate = {
+                                let settings = state.settings.read().await;
+                                settings.contract_tx_fee_rate
+                            };
+
+                            if let Err(e) = local_sender
+                                .send(Message::Authenticated(LspConfig {
+                                    contract_tx_fee_rate,
+                                    liquidity_options,
+                                }))
+                                .await
+                            {
                                 tracing::error!("Could not respond to user {e:#}");
                                 return;
                             }

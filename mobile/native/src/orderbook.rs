@@ -163,6 +163,10 @@ async fn handle_orderbook_mesage(
     tracing::debug!(%msg, "New orderbook message");
 
     match msg {
+        Message::Authenticated(lsp_config) => {
+            tracing::info!("Successfully logged in to 10101 websocket api!");
+            event::publish(&EventInternal::Authenticated(lsp_config));
+        }
         Message::Rollover(contract_id) => {
             tracing::info!("Received a rollover request from orderbook.");
             event::publish(&EventInternal::BackgroundNotification(
@@ -283,9 +287,7 @@ async fn handle_orderbook_mesage(
                 ));
             }
         }
-        msg @ Message::LimitOrderFilledMatches { .. }
-        | msg @ Message::InvalidAuthentication(_)
-        | msg @ Message::Authenticated => {
+        msg @ Message::LimitOrderFilledMatches { .. } | msg @ Message::InvalidAuthentication(_) => {
             tracing::debug!(?msg, "Skipping message from orderbook");
         }
     };
