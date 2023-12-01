@@ -1127,7 +1127,7 @@ mod tests {
 
         storage
             .persist_chain_monitor(&chain_monitor)
-            .expect("to be able to persist the chain monistor.");
+            .expect("to be able to persist the chain monitor.");
 
         let retrieved = storage
             .get_chain_monitor()
@@ -1135,6 +1135,19 @@ mod tests {
             .expect("to have a persisted chain monitor.");
 
         assert_eq!(chain_monitor, retrieved);
+
+        let chain_monitor2 = ChainMonitor::new(456);
+
+        storage
+            .persist_chain_monitor(&chain_monitor2)
+            .expect("to be able to persist the chain monitor.");
+
+        let retrieved2 = storage
+            .get_chain_monitor()
+            .expect("to be able to retrieve the chain monitor.")
+            .expect("to have a persisted chain monitor.");
+
+        assert_eq!(chain_monitor2, retrieved2);
     }
 
     #[test]
