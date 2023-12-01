@@ -1,4 +1,4 @@
-use lightning::ln::msgs::NetAddress;
+use lightning::ln::msgs::SocketAddress;
 use std::net::IpAddr;
 use std::net::SocketAddr;
 
@@ -13,19 +13,19 @@ pub fn hex_str(value: &[u8]) -> String {
     s
 }
 
-pub fn build_net_address(ip: IpAddr, port: u16) -> NetAddress {
+pub fn build_socket_address(ip: IpAddr, port: u16) -> SocketAddress {
     match ip {
-        IpAddr::V4(ip) => NetAddress::IPv4 {
+        IpAddr::V4(ip) => SocketAddress::TcpIpV4 {
             addr: ip.octets(),
             port,
         },
-        IpAddr::V6(ip) => NetAddress::IPv6 {
+        IpAddr::V6(ip) => SocketAddress::TcpIpV6 {
             addr: ip.octets(),
             port,
         },
     }
 }
 
-pub fn into_net_addresses(address: SocketAddr) -> Vec<NetAddress> {
-    vec![build_net_address(address.ip(), address.port())]
+pub fn into_socket_addresses(address: SocketAddr) -> Vec<SocketAddress> {
+    vec![build_socket_address(address.ip(), address.port())]
 }

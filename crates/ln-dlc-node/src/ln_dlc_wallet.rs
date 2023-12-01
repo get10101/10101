@@ -3,6 +3,7 @@ use crate::ldk_node_wallet;
 use crate::node::Storage;
 use crate::storage::TenTenOneStorage;
 use crate::TracingLogger;
+use anyhow::anyhow;
 use anyhow::Result;
 use bdk::blockchain::EsploraBlockchain;
 use bdk::esplora_client::TxStatus;
@@ -130,6 +131,14 @@ impl<S: TenTenOneStorage, N: Storage> LnDlcWallet<S, N> {
         Ok(())
     }
 
+    pub fn get_transaction(&self, txid: &Txid) -> Result<Transaction> {
+        self.ln_wallet
+            .blockchain
+            .get_tx(txid)
+            .map_err(|e| anyhow!("Could not get trasaction {txid}: {e:#}"))?
+            .ok_or_else(|| anyhow!("Transaction {txid} not found on-chain"))
+    }
+
     fn update_address_cache(&self) -> Result<()> {
         let address = self.ldk_wallet().get_last_unused_address()?;
         *self.address_cache.write() = address;
@@ -183,13 +192,9 @@ impl<S: TenTenOneStorage, N: Storage> Blockchain for LnDlcWallet<S, N> {
     }
 
     fn get_transaction(&self, txid: &Txid) -> Result<Transaction, Error> {
-        self.ln_wallet
-            .blockchain
-            .get_tx(txid)
-            .map_err(|e| {
-                Error::BlockchainError(format!("Could not find transaction {txid}: {e:#}"))
-            })?
-            .ok_or_else(|| Error::BlockchainError(format!("Could not get transaction body {txid}")))
+        self.get_transaction(txid).map_err(|e| {
+            Error::BlockchainError(format!("Could not find transaction {txid}: {e:#}"))
+        })
     }
 
     fn get_transaction_confirmations(&self, txid: &Txid) -> Result<u32, Error> {

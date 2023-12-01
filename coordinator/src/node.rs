@@ -29,12 +29,12 @@ use diesel::PgConnection;
 use dlc_manager::contract::contract_input::ContractInput;
 use dlc_manager::contract::contract_input::ContractInputInfo;
 use dlc_manager::contract::contract_input::OracleInput;
-use dlc_manager::ChannelId;
 use dlc_manager::ContractId;
 use dlc_messages::ChannelMessage;
 use dlc_messages::Message;
 use dlc_messages::SubChannelMessage;
 use lightning::ln::channelmanager::ChannelDetails;
+use lightning::ln::ChannelId;
 use lightning::util::config::UserConfig;
 use ln_dlc_node::node;
 use ln_dlc_node::node::dlc_message_name;
@@ -110,7 +110,10 @@ impl Node {
 
         // Forward relevant settings down to the wallet
         let wallet_settings = settings.to_wallet_settings();
-        self.inner.wallet().update_settings(wallet_settings).await;
+        self.inner
+            .ldk_wallet()
+            .update_settings(wallet_settings)
+            .await;
     }
 
     pub fn update_ldk_settings(&self, ldk_config: UserConfig) {
@@ -223,7 +226,7 @@ impl Node {
 
                 tracing::info!(
                     ?trade_params,
-                    channel_id = %hex::encode(channel_id),
+                    channel_id = %hex::encode(channel_id.0),
                     %peer_id,
                     "Closing position"
                 );
@@ -406,7 +409,7 @@ impl Node {
 
         tracing::debug!(
             ?position,
-            channel_id = %hex::encode(channel_id),
+            channel_id = %hex::encode(channel_id.0),
             %accept_settlement_amount,
             "Closing position of {accept_settlement_amount} with {}",
             position.trader.to_string()

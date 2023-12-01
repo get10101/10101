@@ -25,6 +25,7 @@ use dlc_manager::subchannel::LNChannelManager;
 use lightning::chain::chaininterface::FeeEstimator;
 use lightning::events::Event;
 use lightning::ln::channelmanager::InterceptId;
+use lightning::ln::ChannelId;
 use lightning::ln::PaymentHash;
 use parking_lot::Mutex;
 use rust_decimal::prelude::ToPrimitive;
@@ -84,6 +85,8 @@ impl<S: TenTenOneStorage + 'static, N: Storage + Send + Sync + 'static> EventHan
                 purpose,
                 amount_msat,
                 receiver_node_id: _,
+                htlcs: _,
+                sender_intended_total_msat: _,
             } => {
                 common_handlers::handle_payment_claimed(
                     &self.node,
@@ -159,13 +162,20 @@ impl<S: TenTenOneStorage + 'static, N: Storage + Send + Sync + 'static> EventHan
                     time_forwardable,
                 );
             }
-            Event::SpendableOutputs { outputs } => {
+            Event::SpendableOutputs {
+                outputs,
+                channel_id: _,
+            } => {
+                // TODO(holzeis): Update shadow channel to store the commitment transaction closing
+                // the channel.
                 common_handlers::handle_spendable_outputs(&self.node, outputs)?;
             }
             Event::ChannelClosed {
                 channel_id,
                 reason,
                 user_channel_id,
+                counterparty_node_id: _,
+                channel_capacity_sats: _,
             } => {
                 common_handlers::handle_channel_closed(
                     &self.node,
@@ -268,8 +278,9 @@ impl<S: TenTenOneStorage + 'static, N: Storage + Send + Sync + 'static> EventHan
                 counterparty_node_id,
                 funding_txo,
             } => {
-                let former_temporary_channel_id =
-                    former_temporary_channel_id.unwrap_or([0; 32]).to_hex();
+                let former_temporary_channel_id = former_temporary_channel_id
+                    .unwrap_or(ChannelId([0; 32]))
+                    .to_hex();
                 tracing::debug!(
                     channel_id = channel_id.to_hex(),
                     former_temporary_channel_id,
@@ -292,7 +303,7 @@ fn handle_channel_ready_internal<S: TenTenOneStorage, N: Storage>(
     node: &Arc<Node<S, N>>,
     pending_intercepted_htlcs: &PendingInterceptedHtlcs,
     user_channel_id: u128,
-    channel_id: [u8; 32],
+    channel_id: ChannelId,
     counterparty_node_id: PublicKey,
 ) -> Result<()> {
     let user_channel_id = UserChannelId::from(user_channel_id).to_string();
@@ -344,7 +355,7 @@ fn handle_open_channel_request<S: TenTenOneStorage, N: Storage>(
     counterparty_node_id: PublicKey,
     funding_satoshis: u64,
     push_msat: u64,
-    temporary_channel_id: [u8; 32],
+    temporary_channel_id: ChannelId,
 ) -> Result<()> {
     let counterparty = counterparty_node_id.to_string();
     tracing::info!(
@@ -408,15 +419,6 @@ pub(crate) async fn handle_intercepted_htlc_internal<S: TenTenOneStorage, N: Sto
     let intercept_id_str = intercept_id.0.to_hex();
     let payment_hash = payment_hash.0.to_hex();
 
-    tracing::info!(
-        intercept_id = %intercept_id_str,
-        requested_next_hop_scid,
-        payment_hash,
-        inbound_amount_msat,
-        expected_outbound_amount_msat,
-        "Intercepted HTLC"
-    );
-
     let liquidity_request = {
         node.fake_channel_payments
             .lock()
@@ -426,9 +428,19 @@ pub(crate) async fn handle_intercepted_htlc_internal<S: TenTenOneStorage, N: Sto
     .with_context(|| {
         format!(
             "Could not forward the intercepted HTLC because we didn't have a node registered \
-                 with fake scid {requested_next_hop_scid}"
+             with fake scid {requested_next_hop_scid}"
         )
     })?;
+
+    tracing::info!(
+        intercept_id = %intercept_id_str,
+        requested_next_hop_scid,
+        payment_hash,
+        inbound_amount_msat,
+        expected_outbound_amount_msat,
+        ?liquidity_request,
+        "Intercepted HTLC"
+    );
 
     let peer_id = liquidity_request.trader_id;
 
@@ -483,10 +495,12 @@ pub(crate) async fn handle_intercepted_htlc_internal<S: TenTenOneStorage, N: Sto
         return Ok(());
     }
 
-    let max_app_fund_amount_msat = liquidity_request.max_deposit_sats * 1000;
+    let max_counterparty_fund_amount_msat = liquidity_request.max_deposit_sats * 1000;
     ensure!(
-        expected_outbound_amount_msat <= max_app_fund_amount_msat,
-        "Failed to open channel because maximum fund amount exceeded, expected_outbound_amount_msat: {expected_outbound_amount_msat} > max_app_fund_amount_msat: {max_app_fund_amount_msat}"
+        expected_outbound_amount_msat <= max_counterparty_fund_amount_msat,
+        "Failed to open channel because maximum fund amount exceeded, \
+         expected_outbound_amount_msat: {expected_outbound_amount_msat} > \
+         max_counterparty_fund_amount_msat: {max_counterparty_fund_amount_msat}"
     );
 
     let opt_max_allowed_fee = node
@@ -561,7 +575,7 @@ pub(crate) async fn handle_intercepted_htlc_internal<S: TenTenOneStorage, N: Sto
 
 /// Calculates the channel value in sats based on the inital amount received by the user and the
 /// liquidity request.
-fn calculate_channel_value(
+pub fn calculate_channel_value(
     expected_outbound_amount_msat: u64,
     liquidity_request: &LiquidityRequest,
 ) -> u64 {

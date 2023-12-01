@@ -22,9 +22,9 @@ flutter_rust_bridge = "1.78.0"
 futures = "0.3"
 hex = "0.4"
 itertools = "0.10"
-lightning = { version = "0.0.116" }
-lightning-invoice = { version = "0.24" }
-lightning-persister = { version = "0.0.116" }
+lightning = { version = "0.0.117" }
+lightning-invoice = { version = "0.25" }
+lightning-persister = { version = "0.0.117" }
 ln-dlc-node = { path = "../../crates/ln-dlc-node" }
 ln-dlc-storage = { path = "../../crates/ln-dlc-storage" }
 openssl = { version = "0.10.60", features = ["vendored"] }

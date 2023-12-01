@@ -7,6 +7,7 @@ use crate::position;
 use crate::storage::CoordinatorTenTenOneStorage;
 use anyhow::anyhow;
 use anyhow::bail;
+use anyhow::ensure;
 use anyhow::Context;
 use anyhow::Result;
 use bitcoin::hashes::hex::ToHex;
@@ -27,6 +28,7 @@ use dlc_manager::subchannel::LnDlcSignerProvider;
 use dlc_manager::subchannel::SubChannelState;
 use dlc_manager::Storage;
 use lightning::ln::channelmanager::ChannelDetails;
+use lightning::ln::ChannelId;
 use ln_dlc_node::node::Node;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
@@ -54,7 +56,7 @@ pub async fn propose_collaborative_revert(
     node: Arc<Node<CoordinatorTenTenOneStorage, NodeStorage>>,
     pool: Pool<ConnectionManager<PgConnection>>,
     sender: mpsc::Sender<OrderbookMessage>,
-    channel_id: [u8; 32],
+    channel_id: ChannelId,
     settlement_price: Decimal,
     fee_rate_sats_vb: u64,
     funding_txo: OutPoint,
@@ -194,7 +196,7 @@ pub async fn propose_collaborative_revert(
         .send(OrderbookMessage::TraderMessage {
             trader_id: peer_id,
             message: Message::CollaborativeRevert {
-                channel_id,
+                channel_id: channel_id.0,
                 coordinator_address,
                 coordinator_amount,
                 trader_amount,
@@ -219,7 +221,7 @@ pub async fn propose_collaborative_revert_without_channel_details(
     node: Arc<Node<CoordinatorTenTenOneStorage, NodeStorage>>,
     pool: Pool<ConnectionManager<PgConnection>>,
     sender: mpsc::Sender<OrderbookMessage>,
-    channel_id: [u8; 32],
+    channel_id: ChannelId,
     funding_txo: OutPoint,
     coordinator_amount: u64,
     fee_rate_sats_vb: u64,
@@ -279,7 +281,7 @@ pub async fn propose_collaborative_revert_without_channel_details(
         .send(OrderbookMessage::TraderMessage {
             trader_id: peer_id,
             message: Message::CollaborativeRevert {
-                channel_id,
+                channel_id: channel_id.0,
                 coordinator_address,
                 coordinator_amount,
                 trader_amount,
@@ -302,77 +304,130 @@ pub async fn propose_collaborative_revert_without_channel_details(
 pub fn confirm_collaborative_revert(
     node: Arc<Node<CoordinatorTenTenOneStorage, NodeStorage>>,
     conn: &mut PooledConnection<ConnectionManager<PgConnection>>,
-    channel_id: [u8; 32],
+    channel_id: ChannelId,
     mut revert_transaction: Transaction,
     counterparty_signature: Signature,
 ) -> Result<Transaction> {
     let channel_id_hex = channel_id.to_hex();
 
+    let record =
+        db::collaborative_reverts::get_by_channel_id(conn, &channel_id)?.with_context(|| {
+            format!(
+                "No matching record to confirm collaborative revert for channel {channel_id_hex}"
+            )
+        })?;
+
+    let funding_txid = &revert_transaction.input[0].previous_output.txid;
+    let funding_tx = node
+        .wallet()
+        .get_transaction(funding_txid)
+        .with_context(|| format!("Could not find funding transaction {funding_txid} on-chain"))?;
+
     tracing::info!(
-        channel_id = channel_id_hex,
-        txid = revert_transaction.txid().to_string(),
+        collaborative_revert_record = ?record,
         "Confirming collaborative revert"
     );
 
     // TODO: Check if provided amounts are as expected.
-    if !revert_transaction.output.iter().any(|output| {
-        match node.wallet().is_mine(&output.script_pubkey) {
-            Ok(is_mine) => is_mine,
-            Err(e) => {
+
+    let does_revert_pay_to_coordinator = revert_transaction.output.iter().any(|output| {
+        node.wallet()
+            .is_mine(&output.script_pubkey)
+            .unwrap_or_else(|e| {
                 tracing::error!(
                     "Failed to confirm if proposed collaborative revert \
                      transaction pays to the coordinator: {e:#}"
                 );
                 false
-            }
-        }
-    }) {
-        bail!("Proposed collaborative revert transaction doesn't pay the coordinator");
-    }
+            })
+    });
+
+    ensure!(
+        does_revert_pay_to_coordinator,
+        "Proposed collaborative revert transaction doesn't pay the coordinator"
+    );
+
+    let funding_txo = &funding_tx.output[record.vout as usize];
 
     let subchannels = node
         .list_dlc_channels()
         .context("Failed to list subchannels")?;
-    let subchannel = subchannels
-        .iter()
-        .find(|c| c.channel_id == channel_id)
-        .with_context(|| format!("Could not find subchannel {channel_id_hex}"))?;
+    let optional_subchannel = subchannels.iter().find(|c| c.channel_id == channel_id);
 
-    let own_sig = {
-        let channel_keys_id = subchannel
-            .channel_keys_id
-            .or(node
-                .channel_manager
-                .get_channel_details(&subchannel.channel_id)
-                .map(|details| details.channel_keys_id))
+    // TODO: We would like to be able to collaboratively revert even if we don't have a subchannel
+    // (the counterparty never traded with us) or channel details for the channel (the channel was
+    // closed via LDK, but it actually failed or the transaction is not getting confirmed).
+    //
+    // We will probably need to store some extra information in the DB for that. In particular, the
+    // things returned below.
+    let (own_fund_pk, counter_fund_pk, funding_redeemscript) = {
+        match optional_subchannel {
+            Some(subchannel) => (
+                subchannel.own_fund_pk,
+                subchannel.counter_fund_pk,
+                subchannel.original_funding_redeemscript.clone(),
+            ),
+            None => {
+                let details = node
+                    .channel_manager
+                    .get_channel_details(&channel_id)
+                    .with_context(|| {
+                        format!("Could not get channel details for subchannel {channel_id_hex}")
+                    })?;
+
+                let counterparty_funding_pubkey = details.counter_funding_pubkey.context(
+                    "Cannot confirm collaborative revert without counterparty funding pubkey",
+                )?;
+                let funding_redeemscript = details
+                    .funding_redeemscript
+                    .context("Cannot confirm collaborative revert without funding redeemscript")?;
+                (
+                    details.holder_funding_pubkey,
+                    counterparty_funding_pubkey,
+                    funding_redeemscript,
+                )
+            }
+        }
+    };
+
+    let channel_keys_id = match optional_subchannel.and_then(|sc| sc.channel_keys_id) {
+        Some(channel_keys_id) => channel_keys_id,
+        None => node
+            .channel_manager
+            .get_channel_details(&channel_id)
+            .map(|c| c.channel_keys_id)
             .with_context(|| {
                 format!("Could not get channel keys ID for subchannel {channel_id_hex}")
-            })?;
+            })?,
+    };
+
+    let own_sig = {
+        let fund_value_satoshis = funding_txo.value;
 
         let signer = node
             .keys_manager
-            .derive_ln_dlc_channel_signer(subchannel.fund_value_satoshis, channel_keys_id);
+            .derive_ln_dlc_channel_signer(fund_value_satoshis, channel_keys_id);
 
         signer
             .get_holder_split_tx_signature(
                 &Secp256k1::new(),
                 &revert_transaction,
-                &subchannel.original_funding_redeemscript,
-                subchannel.fund_value_satoshis,
+                &funding_redeemscript,
+                fund_value_satoshis,
             )
             .context("Could not get own signature for collaborative revert transaction")?
     };
 
-    let position = Position::get_position_by_trader(conn, subchannel.counter_party, vec![])?
+    let position = Position::get_position_by_trader(conn, record.trader_pubkey, vec![])?
         .with_context(|| format!("Could not load position for subchannel {channel_id_hex}"))?;
 
     dlc::util::finalize_multi_sig_input_transaction(
         &mut revert_transaction,
         vec![
-            (subchannel.own_fund_pk, own_sig),
-            (subchannel.counter_fund_pk, counterparty_signature),
+            (own_fund_pk, own_sig),
+            (counter_fund_pk, counterparty_signature),
         ],
-        &subchannel.original_funding_redeemscript,
+        &funding_redeemscript,
         0,
     );
 
@@ -380,7 +435,7 @@ pub fn confirm_collaborative_revert(
         txid = revert_transaction.txid().to_string(),
         "Broadcasting collaborative revert transaction"
     );
-    node.wallet()
+    node.ldk_wallet()
         .broadcast_transaction(&revert_transaction)
         .context("Could not broadcast transaction")?;
 
@@ -389,13 +444,13 @@ pub fn confirm_collaborative_revert(
     Position::set_position_to_closed(conn, position.id)
         .context("Could not set position to closed")?;
 
-    let mut subchannel = subchannel.clone();
-
-    subchannel.state = SubChannelState::OnChainClosed;
-    node.sub_channel_manager
-        .get_dlc_manager()
-        .get_store()
-        .upsert_sub_channel(&subchannel)?;
+    if let Some(mut subchannel) = optional_subchannel.cloned() {
+        subchannel.state = SubChannelState::OnChainClosed;
+        node.sub_channel_manager
+            .get_dlc_manager()
+            .get_store()
+            .upsert_sub_channel(&subchannel)?;
+    }
 
     db::collaborative_reverts::delete(conn, channel_id)?;
 

@@ -1,7 +1,8 @@
 use bitcoin::hashes::hex::ToHex;
 use bitcoin::secp256k1::PublicKey;
 use dlc_manager::subchannel::SubChannel;
-use dlc_manager::ChannelId;
+use dlc_manager::DlcChannelId;
+use lightning::ln::ChannelId;
 use serde::Serialize;
 use serde::Serializer;
 
@@ -10,7 +11,7 @@ pub struct DlcChannelDetails {
     #[serde(serialize_with = "channel_id_as_hex")]
     pub channel_id: ChannelId,
     #[serde(serialize_with = "optional_channel_id_as_hex")]
-    pub dlc_channel_id: Option<ChannelId>,
+    pub dlc_channel_id: Option<DlcChannelId>,
     #[serde(serialize_with = "pk_as_hex")]
     pub counter_party: PublicKey,
     pub update_idx: u64,
@@ -76,7 +77,7 @@ impl From<dlc_manager::subchannel::SubChannelState> for SubChannelState {
     }
 }
 
-fn optional_channel_id_as_hex<S>(channel_id: &Option<ChannelId>, s: S) -> Result<S::Ok, S::Error>
+fn optional_channel_id_as_hex<S>(channel_id: &Option<DlcChannelId>, s: S) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
 {
@@ -90,7 +91,7 @@ fn channel_id_as_hex<S>(channel_id: &ChannelId, s: S) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
 {
-    s.serialize_str(&hex::encode(channel_id))
+    s.serialize_str(&hex::encode(channel_id.0))
 }
 
 fn pk_as_hex<S>(pk: &PublicKey, s: S) -> Result<S::Ok, S::Error>

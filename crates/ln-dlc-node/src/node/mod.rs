@@ -32,7 +32,6 @@ use futures::future::RemoteHandle;
 use futures::FutureExt;
 use lightning::chain::chainmonitor;
 use lightning::chain::Confirm;
-use lightning::ln::msgs::NetAddress;
 use lightning::ln::msgs::RoutingMessageHandler;
 use lightning::ln::peer_handler::IgnoringMessageHandler;
 use lightning::ln::peer_handler::MessageHandler;
@@ -89,6 +88,11 @@ pub use dlc_channel::dlc_message_name;
 pub use dlc_channel::send_dlc_message;
 pub use dlc_channel::sub_channel_message_name;
 pub use invoice::HTLCStatus;
+use lightning::ln::msgs::SocketAddress;
+use lightning::util::persist::KVStore;
+use lightning::util::persist::NETWORK_GRAPH_PERSISTENCE_KEY;
+use lightning::util::persist::NETWORK_GRAPH_PERSISTENCE_PRIMARY_NAMESPACE;
+use lightning::util::persist::NETWORK_GRAPH_PERSISTENCE_SECONDARY_NAMESPACE;
 use lightning::util::ser::ReadableArgs;
 pub use storage::InMemoryStore;
 pub use storage::Storage;
@@ -168,7 +172,7 @@ pub struct Node<S: TenTenOneStorage, N: Storage> {
     listen_address: SocketAddr,
     gossip_source: Arc<GossipSource>,
     alias: String,
-    announcement_addresses: Vec<NetAddress>,
+    announcement_addresses: Vec<SocketAddress>,
     scorer: Arc<Mutex<Scorer>>,
     esplora_server_url: String,
     esplora_client: Arc<NodeEsploraClient>,
@@ -250,7 +254,7 @@ impl<S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 'static> Node<S, 
         node_storage: Arc<N>,
         announcement_address: SocketAddr,
         listen_address: SocketAddr,
-        announcement_addresses: Vec<NetAddress>,
+        announcement_addresses: Vec<SocketAddress>,
         esplora_server_url: String,
         seed: Bip39Seed,
         ephemeral_randomness: [u8; 32],
@@ -313,17 +317,28 @@ impl<S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 'static> Node<S, 
             ))
         };
 
-        let network_graph = match ln_storage.read_network_graph() {
-            Some(network_graph) => {
-                let network_graph = NetworkGraph::read(
+        let network_graph = match KVStore::read(
+            ln_storage.as_ref(),
+            NETWORK_GRAPH_PERSISTENCE_PRIMARY_NAMESPACE,
+            NETWORK_GRAPH_PERSISTENCE_SECONDARY_NAMESPACE,
+            NETWORK_GRAPH_PERSISTENCE_KEY,
+        ) {
+            Ok(network_graph) => {
+                let network_graph = match NetworkGraph::read(
                     &mut BufReader::new(network_graph.as_slice()),
                     logger.clone(),
-                )
-                .unwrap_or(NetworkGraph::new(network, logger.clone()));
+                ) {
+                    Ok(network_graph) => network_graph,
+                    Err(e) => {
+                        tracing::warn!("Failed to read network graph. {e:#}");
+                        NetworkGraph::new(network, logger.clone())
+                    }
+                };
                 Arc::new(network_graph)
             }
-            None => {
-                tracing::info!("Couldn't find network graph, creating a new one.");
+            Err(e) => {
+                tracing::info!("Couldn't find network graph. {e:#}");
+                tracing::info!("Creating new network graph");
                 Arc::new(NetworkGraph::new(network, logger.clone()))
             }
         };
@@ -804,7 +819,7 @@ fn spawn_broadcast_node_annoucements<
     N: Storage + Sync + Send + 'static,
 >(
     alias: &str,
-    announcement_addresses: Vec<NetAddress>,
+    announcement_addresses: Vec<SocketAddress>,
     peer_manager: Arc<PeerManager<S, N>>,
     channel_manager: Arc<ChannelManager<S, N>>,
 ) -> Result<RemoteHandle<()>> {

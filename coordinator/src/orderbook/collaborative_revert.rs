@@ -91,7 +91,7 @@ async fn process_pending_collaborative_revert(
             let msg = OrderbookMessage::TraderMessage {
                 trader_id,
                 message: Message::CollaborativeRevert {
-                    channel_id: revert.channel_id,
+                    channel_id: revert.channel_id.0,
                     coordinator_address: revert.coordinator_address,
                     coordinator_amount: revert.coordinator_amount_sats,
                     trader_amount: revert.trader_amount_sats,

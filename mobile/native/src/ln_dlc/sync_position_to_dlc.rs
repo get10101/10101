@@ -9,9 +9,9 @@ use crate::trade::position;
 use crate::trade::position::Position;
 use anyhow::Result;
 use commons::order_matching_fee_taker;
+use lightning::ln::ChannelId;
 use ln_dlc_node::node::rust_dlc_manager::subchannel::SubChannel;
 use ln_dlc_node::node::rust_dlc_manager::subchannel::SubChannelState;
-use ln_dlc_node::node::rust_dlc_manager::ChannelId;
 use ln_dlc_node::node::rust_dlc_manager::Storage;
 use rust_decimal::Decimal;
 use std::time::Duration;
@@ -216,6 +216,7 @@ mod test {
     use dlc::channel::sub_channel::SplitTx;
     use lightning::chain::transaction::OutPoint;
     use lightning::ln::chan_utils::CounterpartyCommitmentSecrets;
+    use lightning::ln::ChannelId;
     use ln_dlc_node::node::rust_dlc_manager::channel::party_points::PartyBasePoints;
     use ln_dlc_node::node::rust_dlc_manager::subchannel::AcceptedSubChannel;
     use ln_dlc_node::node::rust_dlc_manager::subchannel::CloseAcceptedSubChannel;
@@ -225,7 +226,6 @@ mod test {
     use ln_dlc_node::node::rust_dlc_manager::subchannel::SignedSubChannel;
     use ln_dlc_node::node::rust_dlc_manager::subchannel::SubChannel;
     use ln_dlc_node::node::rust_dlc_manager::subchannel::SubChannelState;
-    use ln_dlc_node::node::rust_dlc_manager::ChannelId;
     use secp256k1_zkp::EcdsaAdaptorSignature;
     use std::str::FromStr;
     use time::OffsetDateTime;
@@ -391,7 +391,7 @@ mod test {
 
     fn get_dummy_dlc_channel(state: SubChannelState) -> SubChannel {
         SubChannel {
-            channel_id: ChannelId::default(),
+            channel_id: ChannelId([0; 32]),
             counter_party: get_dummy_pubkey(),
             update_idx: 0,
             state,
@@ -409,7 +409,7 @@ mod test {
             own_fund_pk: get_dummy_pubkey(),
             counter_fund_pk: get_dummy_pubkey(),
             counter_party_secrets: CounterpartyCommitmentSecrets::new(),
-            channel_keys_id: Some([0; 32]),
+            channel_keys_id: None,
         }
     }
 

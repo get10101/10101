@@ -19,8 +19,8 @@ use dlc_manager::contract::ClosedContract;
 use dlc_manager::contract::Contract;
 use dlc_manager::subchannel::SubChannel;
 use dlc_manager::subchannel::SubChannelState;
-use dlc_manager::ChannelId;
 use dlc_manager::ContractId;
+use dlc_manager::DlcChannelId;
 use dlc_manager::Oracle;
 use dlc_manager::Storage;
 use dlc_messages::ChannelMessage;
@@ -28,6 +28,7 @@ use dlc_messages::Message;
 use dlc_messages::OnChainMessage;
 use dlc_messages::SubChannelMessage;
 use lightning::ln::channelmanager::ChannelDetails;
+use lightning::ln::ChannelId;
 use std::sync::Arc;
 use time::OffsetDateTime;
 use tokio::task::spawn_blocking;
@@ -39,7 +40,7 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
         channel_details: ChannelDetails,
         contract_input: ContractInput,
     ) -> Result<()> {
-        tracing::info!(channel_id = %hex::encode(channel_details.channel_id), oracles=?contract_input.contract_infos[0].oracles, "Sending DLC channel offer");
+        tracing::info!(channel_id = %hex::encode(channel_details.channel_id.0), oracles=?contract_input.contract_infos[0].oracles, "Sending DLC channel offer");
 
         spawn_blocking({
             let p2pd_oracles = self.oracles.clone();
@@ -61,7 +62,7 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
                 );
 
                 let sub_channel_offer = sub_channel_manager.offer_sub_channel(
-                    &channel_details.channel_id,
+                    channel_details.channel_id,
                     &contract_input,
                     &[announcements],
                 )?;
@@ -83,7 +84,7 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
     /// [`RenewOffer`] is sent to the counterparty, kickstarting the renew protocol.
     pub async fn propose_dlc_channel_update(
         &self,
-        dlc_channel_id: &[u8; 32],
+        dlc_channel_id: &DlcChannelId,
         payout_amount: u64,
         contract_input: ContractInput,
     ) -> Result<()> {
@@ -111,8 +112,8 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
     }
 
     #[autometrics]
-    pub fn accept_dlc_channel_offer(&self, channel_id: &[u8; 32]) -> Result<()> {
-        let channel_id_hex = hex::encode(channel_id);
+    pub fn accept_dlc_channel_offer(&self, channel_id: &ChannelId) -> Result<()> {
+        let channel_id_hex = hex::encode(channel_id.0);
 
         tracing::info!(channel_id = %channel_id_hex, "Accepting DLC channel offer");
 
@@ -132,10 +133,10 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
     #[autometrics]
     pub async fn propose_dlc_channel_collaborative_settlement(
         &self,
-        channel_id: [u8; 32],
+        channel_id: ChannelId,
         accept_settlement_amount: u64,
     ) -> Result<()> {
-        let channel_id_hex = hex::encode(channel_id);
+        let channel_id_hex = hex::encode(channel_id.0);
 
         tracing::info!(
             channel_id = %channel_id_hex,
@@ -165,8 +166,11 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
     }
 
     #[autometrics]
-    pub fn accept_dlc_channel_collaborative_settlement(&self, channel_id: &[u8; 32]) -> Result<()> {
-        let channel_id_hex = hex::encode(channel_id);
+    pub fn accept_dlc_channel_collaborative_settlement(
+        &self,
+        channel_id: &ChannelId,
+    ) -> Result<()> {
+        let channel_id_hex = hex::encode(channel_id.0);
 
         tracing::info!(channel_id = %channel_id_hex, "Accepting DLC channel collaborative settlement");
 
@@ -283,7 +287,10 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
     ///
     /// In general, it is NOT safe to close an LN channel if there still is a DLC channel attached
     /// to it. This is because this can lead to loss of funds.
-    pub fn is_safe_to_close_ln_channel_collaboratively(&self, channel_id: &[u8; 32]) -> Result<()> {
+    pub fn is_safe_to_close_ln_channel_collaboratively(
+        &self,
+        channel_id: &ChannelId,
+    ) -> Result<()> {
         let dlc_channels = self
             .dlc_manager
             .get_store()
@@ -300,7 +307,7 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
         };
 
         tracing::debug!(
-            channel_id = %hex::encode(channel_id),
+            channel_id = %hex::encode(channel_id.0),
             dlc_channel_state = ?state,
             "Checking if it's safe to close LN channel"
         );
@@ -361,7 +368,7 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
             }
             _ => bail!(
                 "Confirmed contract not found for channel ID: {}",
-                hex::encode(channel_id)
+                hex::encode(channel_id.0)
             ),
         }
     }
@@ -396,7 +403,7 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
     }
 
     /// Gets the dlc channel by the dlc channel id
-    pub fn get_dlc_channel_by_id(&self, dlc_channel_id: &ChannelId) -> Result<Channel> {
+    pub fn get_dlc_channel_by_id(&self, dlc_channel_id: &DlcChannelId) -> Result<Channel> {
         self.dlc_manager
             .get_store()
             .get_channel(dlc_channel_id)
@@ -410,7 +417,10 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
     }
 
     /// Fetches the contract for a given dlc channel id
-    pub fn get_contract_by_dlc_channel_id(&self, dlc_channel_id: &ChannelId) -> Result<Contract> {
+    pub fn get_contract_by_dlc_channel_id(
+        &self,
+        dlc_channel_id: &DlcChannelId,
+    ) -> Result<Contract> {
         let channel = self.get_dlc_channel_by_id(dlc_channel_id)?;
         let contract_id = channel
             .get_contract_id()

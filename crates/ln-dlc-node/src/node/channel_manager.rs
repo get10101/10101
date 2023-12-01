@@ -6,6 +6,7 @@ use crate::node::Storage;
 use crate::storage::TenTenOneStorage;
 use crate::ChainMonitor;
 use crate::Router;
+use anyhow::anyhow;
 use anyhow::Result;
 use bitcoin::BlockHash;
 use lightning::chain::BestBlock;
@@ -14,6 +15,11 @@ use lightning::chain::Watch;
 use lightning::ln::channelmanager::ChainParameters;
 use lightning::ln::channelmanager::ChannelManagerReadArgs;
 use lightning::util::config::UserConfig;
+use lightning::util::persist::read_channel_monitors;
+use lightning::util::persist::KVStore;
+use lightning::util::persist::CHANNEL_MANAGER_PERSISTENCE_KEY;
+use lightning::util::persist::CHANNEL_MANAGER_PERSISTENCE_PRIMARY_NAMESPACE;
+use lightning::util::persist::CHANNEL_MANAGER_PERSISTENCE_SECONDARY_NAMESPACE;
 use lightning::util::ser::ReadableArgs;
 use lightning_transaction_sync::EsploraSyncClient;
 use std::sync::Arc;
@@ -42,13 +48,19 @@ pub(crate) fn build<S: TenTenOneStorage, N: Storage>(
     persister: Arc<S>,
     router: Arc<Router>,
 ) -> Result<ChannelManager<S, N>> {
-    let file = match persister.read_manager() {
-        Some(manager) => {
+    let file = match KVStore::read(
+        persister.as_ref(),
+        CHANNEL_MANAGER_PERSISTENCE_PRIMARY_NAMESPACE,
+        CHANNEL_MANAGER_PERSISTENCE_SECONDARY_NAMESPACE,
+        CHANNEL_MANAGER_PERSISTENCE_KEY,
+    ) {
+        Ok(manager) => {
             tracing::info!("Found channel manager data. Recovering from stored state");
             manager
         }
-        None => {
-            tracing::info!("Did not find channel manager data. Initializing new channel manager");
+        Err(e) => {
+            tracing::info!("Did not find channel manager data. {e:#}");
+            tracing::info!("Initializing new channel manager");
 
             let (height, block_hash) = ln_dlc_wallet.tip()?;
             return Ok(ChannelManager::new(
@@ -73,7 +85,7 @@ pub(crate) fn build<S: TenTenOneStorage, N: Storage>(
     };
 
     let mut channelmonitors =
-        persister.read_channelmonitors(keys_manager.clone(), keys_manager.clone())?;
+        read_channel_monitors(persister, keys_manager.clone(), keys_manager.clone())?;
 
     let mut channel_monitor_mut_references = Vec::new();
     for (_, channel_monitor) in channelmonitors.iter_mut() {
@@ -111,8 +123,11 @@ pub(crate) fn build<S: TenTenOneStorage, N: Storage>(
         // For other purposes, LDK must still refer back to the original `funding_transaction`. This
         // is one such case.
         let funding_txo = monitor.get_original_funding_txo().0;
+        let channel_monitor_update_status = chain_monitor
+            .watch_channel(funding_txo, monitor)
+            .map_err(|_| anyhow!("Failed to watch channel. funding_txo={funding_txo:?}"))?;
         assert_eq!(
-            chain_monitor.watch_channel(funding_txo, monitor),
+            channel_monitor_update_status,
             ChannelMonitorUpdateStatus::Completed
         );
     }

@@ -6,13 +6,6 @@ use lightning::util::config::ChannelHandshakeLimits;
 use lightning::util::config::UserConfig;
 use std::time::Duration;
 
-/// The multiplier to be used by the coordinator to define the just in time channel liquidity
-///
-/// The liquidity provided by the trader will be multiplied with this value to defined the channel
-/// value.
-/// See `JUST_IN_TIME_CHANNEL_OUTBOUND_LIQUIDITY_SAT_MAX` for the maximum channel value.
-pub const LIQUIDITY_MULTIPLIER: u64 = 2;
-
 /// The speed at which we want a transaction to confirm used for feerate estimation.
 ///
 /// We set it to high priority because the channel funding transaction should be included fast.

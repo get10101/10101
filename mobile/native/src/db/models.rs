@@ -23,10 +23,10 @@ use diesel::sql_types::Text;
 use diesel::AsExpression;
 use diesel::FromSqlRow;
 use diesel::Queryable;
+use lightning::ln::ChannelId;
 use lightning::util::ser::Readable;
 use lightning::util::ser::Writeable;
 use ln_dlc_node::channel::UserChannelId;
-use ln_dlc_node::node::rust_dlc_manager::ChannelId;
 use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
@@ -1290,12 +1290,19 @@ impl From<ln_dlc_node::channel::ChannelState> for ChannelState {
 
 impl From<Channel> for ln_dlc_node::channel::Channel {
     fn from(value: Channel) -> Self {
+        let channel_id = match value.channel_id {
+            Some(channel_id) => {
+                let channel_id = hex::decode(channel_id).expect("to get decoded");
+                let channel_id: [u8; 32] = channel_id.try_into().expect("to fit into 32 bytes");
+                Some(ChannelId(channel_id))
+            }
+            None => None,
+        };
+
         ln_dlc_node::channel::Channel {
             user_channel_id: UserChannelId::try_from(value.user_channel_id)
                 .expect("valid user channel id"),
-            channel_id: value
-                .channel_id
-                .map(|cid| ChannelId::from_hex(&cid).expect("valid channel id")),
+            channel_id,
             liquidity_option_id: value.liquidity_option_id,
             inbound_sats: value.inbound as u64,
             outbound_sats: value.outbound as u64,

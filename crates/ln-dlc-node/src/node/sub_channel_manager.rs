@@ -27,6 +27,7 @@ pub type SubChannelManager<S, N> = sub_channel_manager::SubChannelManager<
     CustomSigner,
     Arc<CustomKeysManager<S, N>>,
     CustomSigner,
+    Arc<CustomKeysManager<S, N>>,
 >;
 
 pub(crate) fn build<S: TenTenOneStorage, N: Storage>(

@@ -53,6 +53,7 @@ use itertools::chain;
 use itertools::Itertools;
 use lightning::events::Event;
 use lightning::ln::channelmanager::ChannelDetails;
+use lightning::ln::ChannelId;
 use lightning::sign::KeysManager;
 use ln_dlc_node::channel::Channel;
 use ln_dlc_node::channel::UserChannelId;
@@ -64,7 +65,6 @@ use ln_dlc_node::node::rust_dlc_manager::subchannel::LnDlcChannelSigner;
 use ln_dlc_node::node::rust_dlc_manager::subchannel::LnDlcSignerProvider;
 use ln_dlc_node::node::rust_dlc_manager::subchannel::SubChannel;
 use ln_dlc_node::node::rust_dlc_manager::subchannel::SubChannelState;
-use ln_dlc_node::node::rust_dlc_manager::ChannelId;
 use ln_dlc_node::node::rust_dlc_manager::Storage as DlcStorage;
 use ln_dlc_node::node::GossipSourceConfig;
 use ln_dlc_node::node::LnDlcNodeSettings;
@@ -136,7 +136,7 @@ pub fn refresh_lightning_wallet() -> Result<()> {
 /// asynchronously on the UI.
 pub async fn refresh_wallet_info() -> Result<()> {
     let node = crate::state::get_node();
-    let wallet = node.inner.wallet();
+    let wallet = node.inner.ldk_wallet();
 
     // Spawn into the blocking thread pool of the dedicated backend runtime to avoid blocking the UI
     // thread.
@@ -223,12 +223,12 @@ pub fn get_funding_transaction(channel_id: &ChannelId) -> Result<Txid> {
             Some(funding_txo) => funding_txo.txid,
             None => bail!(
                 "Could not find funding transaction for channel {}",
-                hex::encode(channel_id)
+                hex::encode(channel_id.0)
             ),
         },
         None => bail!(
             "Could not find channel details for {}",
-            hex::encode(channel_id)
+            hex::encode(channel_id.0)
         ),
     };
 
@@ -299,7 +299,7 @@ pub fn run(seed_dir: String, runtime: &Runtime) -> Result<()> {
             node_storage,
             address,
             SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), address.port()),
-            util::into_net_addresses(address),
+            util::into_socket_addresses(address),
             config::get_esplora_endpoint(),
             seed,
             ephemeral_randomness,
@@ -638,7 +638,7 @@ pub fn collaborative_revert_channel(
     let node = crate::state::try_get_node().context("Failed to get Node")?;
     let node = node.inner.clone();
 
-    let channel_id_hex = hex::encode(channel_id);
+    let channel_id_hex = hex::encode(channel_id.0);
 
     let subchannels = node.list_dlc_channels()?;
     let subchannel = subchannels
@@ -855,7 +855,7 @@ pub fn get_usable_channel_details() -> Result<Vec<ChannelDetails>> {
 
 pub fn get_fee_rate() -> Result<FeeRate> {
     let node = crate::state::try_get_node().context("failed to get ln dlc node")?;
-    Ok(node.inner.wallet().get_fee_rate(CONFIRMATION_TARGET))
+    Ok(node.inner.ldk_wallet().get_fee_rate(CONFIRMATION_TARGET))
 }
 
 /// Returns channel value or zero if there is no channel yet.

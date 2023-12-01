@@ -17,35 +17,37 @@ use diesel::OptionalExtension;
 use diesel::PgConnection;
 use diesel::Queryable;
 use diesel::RunQueryDsl;
-use dlc_manager::ChannelId;
+use lightning::ln::ChannelId;
 use std::str::FromStr;
 use time::OffsetDateTime;
 
 #[derive(Queryable, AsChangeset, Debug, Clone, PartialEq)]
 #[diesel(table_name = collaborative_reverts)]
 pub(crate) struct CollaborativeRevert {
-    pub id: i32,
-    pub channel_id: String,
-    pub trader_pubkey: String,
-    pub price: f32,
-    pub coordinator_address: String,
-    pub coordinator_amount_sats: i64,
-    pub trader_amount_sats: i64,
-    pub timestamp: OffsetDateTime,
-    pub funding_txid: String,
-    pub funding_vout: i32,
+    id: i32,
+    channel_id: String,
+    trader_pubkey: String,
+    price: f32,
+    coordinator_address: String,
+    coordinator_amount_sats: i64,
+    trader_amount_sats: i64,
+    timestamp: OffsetDateTime,
+    funding_txid: String,
+    funding_vout: i32,
 }
 
 #[derive(Insertable, Queryable, AsChangeset, Debug, Clone, PartialEq)]
 #[diesel(table_name = collaborative_reverts)]
 pub(crate) struct NewCollaborativeRevert {
-    pub channel_id: String,
-    pub trader_pubkey: String,
-    pub price: f32,
-    pub coordinator_address: String,
-    pub coordinator_amount_sats: i64,
-    pub trader_amount_sats: i64,
-    pub timestamp: OffsetDateTime,
+    channel_id: String,
+    trader_pubkey: String,
+    price: f32,
+    coordinator_address: String,
+    coordinator_amount_sats: i64,
+    trader_amount_sats: i64,
+    timestamp: OffsetDateTime,
+    funding_txid: String,
+    funding_vout: i32,
 }
 
 pub(crate) fn by_trader_pubkey(
@@ -62,6 +64,20 @@ pub(crate) fn by_trader_pubkey(
     } else {
         Ok(None)
     }
+}
+
+pub(crate) fn get_by_channel_id(
+    conn: &mut PgConnection,
+    channel_id: &ChannelId,
+) -> Result<Option<position::models::CollaborativeRevert>> {
+    let channel_id = channel_id.0.to_hex();
+
+    collaborative_reverts::table
+        .filter(collaborative_reverts::channel_id.eq(channel_id))
+        .first(conn)
+        .optional()?
+        .map(|rev: CollaborativeRevert| anyhow::Ok(rev.try_into()?))
+        .transpose()
 }
 
 pub(crate) fn insert(
@@ -89,13 +105,15 @@ pub(crate) fn delete(conn: &mut PgConnection, channel_id: ChannelId) -> Result<(
 impl From<position::models::CollaborativeRevert> for NewCollaborativeRevert {
     fn from(value: position::models::CollaborativeRevert) -> Self {
         NewCollaborativeRevert {
-            channel_id: hex::encode(value.channel_id),
+            channel_id: value.channel_id.0.to_hex(),
             trader_pubkey: value.trader_pubkey.to_string(),
             price: value.price,
             coordinator_address: value.coordinator_address.to_string(),
             coordinator_amount_sats: value.coordinator_amount_sats.to_sat() as i64,
             trader_amount_sats: value.trader_amount_sats.to_sat() as i64,
             timestamp: value.timestamp,
+            funding_txid: value.txid.to_string(),
+            funding_vout: value.vout as i32,
         }
     }
 }

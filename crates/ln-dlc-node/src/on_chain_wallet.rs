@@ -1,5 +1,6 @@
 use crate::seed::WalletSeed;
 use anyhow::Context;
+use anyhow::Result;
 use bdk::bitcoin::secp256k1::Secp256k1;
 use bdk::sled;
 use bdk::wallet::wallet_name_from_descriptor;
@@ -15,7 +16,7 @@ impl OnChainWallet {
         data_dir: &Path,
         network: bitcoin::Network,
         seed: WalletSeed,
-    ) -> Result<OnChainWallet, anyhow::Error> {
+    ) -> Result<OnChainWallet> {
         tracing::info!(?network, "Creating the wallet");
 
         let data_dir = data_dir.join(network.to_string());

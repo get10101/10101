@@ -17,6 +17,7 @@ use crate::WalletSettings;
 use anyhow::Context;
 use anyhow::Result;
 use lightning::chain::chaininterface::ConfirmationTarget;
+use lightning::ln::ChannelId;
 use rust_decimal::Decimal;
 use std::sync::Arc;
 use std::time::Duration;
@@ -54,20 +55,25 @@ async fn open_jit_channel() {
     payer.connect(coordinator.info).await.unwrap();
     payee.connect(coordinator.info).await.unwrap();
 
-    // testing with a large invoice amount
-    let payer_to_payee_invoice_amount = 3_000_000;
-
-    let expected_coordinator_payee_channel_value =
-        setup_coordinator_payer_channel(payer_to_payee_invoice_amount, &coordinator, &payer).await;
+    // Testing with a large invoice amount.
+    let payer_to_payee_invoice_amount_sat = 3_000_000;
+    let (expected_coordinator_payee_channel_value, liquidity_request) =
+        setup_coordinator_payer_channel(
+            &coordinator,
+            &payer,
+            payee.info.pubkey,
+            payer_to_payee_invoice_amount_sat,
+        )
+        .await;
 
     // Act and assert
     send_interceptable_payment(
         &payer,
         &payee,
         &coordinator,
-        payer_to_payee_invoice_amount,
-        10_000,
-        Some(expected_coordinator_payee_channel_value),
+        payer_to_payee_invoice_amount_sat,
+        liquidity_request,
+        expected_coordinator_payee_channel_value,
     )
     .await
     .unwrap();
@@ -115,8 +121,13 @@ async fn fail_to_open_jit_channel_with_fee_rate_over_max() {
     payee.connect(coordinator.info).await.unwrap();
 
     let payer_to_payee_invoice_amount = 5_000;
-    let _ =
-        setup_coordinator_payer_channel(payer_to_payee_invoice_amount, &coordinator, &payer).await;
+    let _ = setup_coordinator_payer_channel(
+        &coordinator,
+        &payer,
+        payee.info.pubkey,
+        payer_to_payee_invoice_amount,
+    )
+    .await;
 
     // Act
 
@@ -131,7 +142,7 @@ async fn fail_to_open_jit_channel_with_fee_rate_over_max() {
         max_allowed_tx_fee_rate_when_opening_channel: Some(background_fee_rate - 1),
     };
 
-    coordinator.wallet().update_settings(settings).await;
+    coordinator.ldk_wallet().update_settings(settings).await;
 
     let liquidity_request = LiquidityRequest {
         user_channel_id: UserChannelId::new(),
@@ -182,8 +193,13 @@ async fn open_jit_channel_with_disconnected_payee() {
     payer.connect(coordinator.info).await.unwrap();
 
     let payer_to_payee_invoice_amount = 5_000;
-    let _ =
-        setup_coordinator_payer_channel(payer_to_payee_invoice_amount, &coordinator, &payer).await;
+    let _ = setup_coordinator_payer_channel(
+        &coordinator,
+        &payer,
+        payee.info.pubkey,
+        payer_to_payee_invoice_amount,
+    )
+    .await;
 
     // Act
 
@@ -223,57 +239,32 @@ async fn open_jit_channel_with_disconnected_payee() {
         .unwrap();
 }
 
-/// The caller should ensure that the `invoice_amount` is:
-///
-/// - Smaller than or equal to the outbound liquidity of the payer in the payer-coordinator channel.
-///
-/// - Smaller than or equal to the outbound liquidity of the coordinator in the coordinator-payee
-/// JIT channel.
-///
-/// - Smaller than or equal proportion of the payee's
-/// `max_inbound_htlc_value_in_flight_percent_of_channel` configuration value for for the
-/// coordinator-payee JIT channel.
-///
-/// Additionally, the `invoice_amount` (plus routing fees) should be a proportion of the value of
-/// the payer-coordinator channel no larger than the coordinator's
-/// `max_inbound_htlc_value_in_flight_percent_of_channel` configuration value for said channel. This
-/// is verified within this function.
-///
-/// There is an optional `coordinator_just_in_time_channel_creation_outbound_liquidity` argument
-/// which is used to indicate if the interceptable payment resulted in opening a JIT channel. We
-/// should probably only use interceptable payments when opening JIT channels, but alas.
 pub(crate) async fn send_interceptable_payment(
     payer: &Node<TenTenOneInMemoryStorage, InMemoryStore>,
     payee: &Node<TenTenOneInMemoryStorage, InMemoryStore>,
     coordinator: &Node<TenTenOneInMemoryStorage, InMemoryStore>,
     invoice_amount_sat: u64,
-    fee_sats: u64,
-    coordinator_just_in_time_channel_creation_outbound_liquidity: Option<u64>,
+    liquidity_request: LiquidityRequest,
+    expected_coordinator_payee_channel_value_sat: u64,
 ) -> Result<()> {
-    payer.wallet().sync()?;
-    coordinator.wallet().sync()?;
-    payee.wallet().sync()?;
+    let user_channel_id = liquidity_request.user_channel_id;
+    let jit_channel_fee = liquidity_request.fee_sats;
+
+    payer.ldk_wallet().sync()?;
+    coordinator.ldk_wallet().sync()?;
+    payee.ldk_wallet().sync()?;
 
     let payer_balance_before = payer.get_ldk_balance();
     let coordinator_balance_before = coordinator.get_ldk_balance();
     let payee_balance_before = payee.get_ldk_balance();
 
-    let user_channel_id = UserChannelId::new();
-    let liquidity_request = LiquidityRequest {
-        user_channel_id,
-        liquidity_option_id: 1,
-        trader_id: payee.info.pubkey,
-        trade_up_to_sats: invoice_amount_sat,
-        max_deposit_sats: invoice_amount_sat,
-        coordinator_leverage: 1.0,
-        fee_sats,
-    };
     let interceptable_route_hint_hop = coordinator.prepare_onboarding_payment(liquidity_request)?;
 
     // Announce the jit channel on the app side. This is done by the app when preparing the
     // onboarding invoice. But since we do not have the app available here, we need to do this
     // manually.
-    let channel = Channel::new_jit_channel(user_channel_id, coordinator.info.pubkey, 1, fee_sats);
+    let channel =
+        Channel::new_jit_channel(user_channel_id, coordinator.info.pubkey, 1, jit_channel_fee);
     payee
         .node_storage
         .upsert_channel(channel)
@@ -319,9 +310,9 @@ pub(crate) async fn send_interceptable_payment(
     // Assert
 
     // Sync LN wallet after payment is claimed to update the balances
-    payer.wallet().sync()?;
-    coordinator.wallet().sync()?;
-    payee.wallet().sync()?;
+    payer.ldk_wallet().sync()?;
+    coordinator.ldk_wallet().sync()?;
+    payee.ldk_wallet().sync()?;
 
     let payer_balance_after = payer.get_ldk_balance();
     let coordinator_balance_after = coordinator.get_ldk_balance();
@@ -334,14 +325,14 @@ pub(crate) async fn send_interceptable_payment(
 
     assert_eq!(
         coordinator_balance_after.available_msat() - coordinator_balance_before.available_msat(),
-        coordinator_just_in_time_channel_creation_outbound_liquidity.unwrap_or_default() * 1000
+        expected_coordinator_payee_channel_value_sat * 1000
             + routing_fee_msat
-            + fee_sats * 1000
+            + jit_channel_fee * 1000
     );
 
     assert_eq!(
         payee_balance_after.available() - payee_balance_before.available(),
-        invoice_amount_sat - fee_sats
+        invoice_amount_sat - jit_channel_fee
     );
 
     Ok(())
@@ -355,9 +346,9 @@ pub(crate) async fn send_payment(
     invoice_amount_sat: u64,
     coordinator_just_in_time_channel_creation_outbound_liquidity: Option<u64>,
 ) -> Result<()> {
-    payer.wallet().sync()?;
-    coordinator.wallet().sync()?;
-    payee.wallet().sync()?;
+    payer.ldk_wallet().sync()?;
+    coordinator.ldk_wallet().sync()?;
+    payee.ldk_wallet().sync()?;
 
     let payer_balance_before = payer.get_ldk_balance();
     let coordinator_balance_before = coordinator.get_ldk_balance();
@@ -403,9 +394,9 @@ pub(crate) async fn send_payment(
     // Assert
 
     // Sync LN wallet after payment is claimed to update the balances
-    payer.wallet().sync()?;
-    coordinator.wallet().sync()?;
-    payee.wallet().sync()?;
+    payer.ldk_wallet().sync()?;
+    coordinator.ldk_wallet().sync()?;
+    payee.ldk_wallet().sync()?;
 
     let payer_balance_after = payer.get_ldk_balance();
     let coordinator_balance_after = coordinator.get_ldk_balance();
@@ -435,7 +426,7 @@ pub(crate) async fn send_payment(
 /// the channel.
 fn does_inbound_htlc_fit_as_percent_of_channel(
     receiving_node: &Node<TenTenOneInMemoryStorage, InMemoryStore>,
-    channel_id: &[u8; 32],
+    channel_id: &ChannelId,
     htlc_amount_sat: u64,
 ) -> Result<bool> {
     let htlc_amount_sat = Decimal::from(htlc_amount_sat);

@@ -20,6 +20,7 @@ use dlc_manager::subchannel::LNChannelManager;
 use lightning::events::Event;
 use lightning::events::PaymentPurpose;
 use lightning::ln::channelmanager::FailureCode;
+use lightning::ln::ChannelId;
 use lightning::ln::PaymentHash;
 use parking_lot::Mutex;
 use std::collections::HashMap;
@@ -66,6 +67,8 @@ impl<S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 'static> EventHan
                 purpose,
                 amount_msat,
                 receiver_node_id: _,
+                htlcs: _,
+                sender_intended_total_msat: _,
             } => {
                 let payment_hash_str = util::hex_str(&payment_hash.0);
                 let channel = self
@@ -179,13 +182,20 @@ impl<S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 'static> EventHan
                     time_forwardable,
                 );
             }
-            Event::SpendableOutputs { outputs } => {
+            Event::SpendableOutputs {
+                outputs,
+                channel_id: _,
+            } => {
+                // TODO(holzeis): Update shadow channel to store the commitment transaction closing
+                // the channel.
                 common_handlers::handle_spendable_outputs(&self.node, outputs)?;
             }
             Event::ChannelClosed {
                 channel_id,
                 reason,
                 user_channel_id,
+                counterparty_node_id: _,
+                channel_capacity_sats: _,
             } => {
                 // we won't intercept htlcs in the app, hence we can pass an empty map
                 let pending_intercepted_htlcs = Arc::new(Mutex::new(HashMap::new()));
@@ -298,8 +308,9 @@ impl<S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 'static> EventHan
                 counterparty_node_id,
                 funding_txo,
             } => {
-                let former_temporary_channel_id =
-                    former_temporary_channel_id.unwrap_or([0; 32]).to_hex();
+                let former_temporary_channel_id = former_temporary_channel_id
+                    .unwrap_or(ChannelId([0; 32]))
+                    .to_hex();
                 tracing::debug!(
                     channel_id = channel_id.to_hex(),
                     former_temporary_channel_id,
@@ -374,7 +385,7 @@ pub(crate) fn handle_open_channel_request_0_conf<S: TenTenOneStorage, N: Storage
     counterparty_node_id: PublicKey,
     funding_satoshis: u64,
     push_msat: u64,
-    temporary_channel_id: [u8; 32],
+    temporary_channel_id: ChannelId,
     user_channel_id: UserChannelId,
 ) -> Result<()> {
     let counterparty = counterparty_node_id.to_string();

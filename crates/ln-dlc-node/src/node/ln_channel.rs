@@ -6,6 +6,7 @@ use anyhow::Context;
 use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
 use lightning::ln::channelmanager::ChannelDetails;
+use lightning::ln::ChannelId;
 
 impl<S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 'static> Node<S, N> {
     /// Initiates the open private channel protocol.
@@ -17,7 +18,7 @@ impl<S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 'static> Node<S, 
         channel_amount_sat: u64,
         initial_send_amount_sats: u64,
         public_channel: bool,
-    ) -> Result<[u8; 32]> {
+    ) -> Result<ChannelId> {
         let mut ldk_config = *self.ldk_config.read();
         ldk_config.channel_handshake_config.announced_channel = public_channel;
 
@@ -35,7 +36,7 @@ impl<S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 'static> Node<S, 
 
         tracing::info!(
             %counterparty_node_id,
-            temp_channel_id = %hex::encode(temp_channel_id),
+            temp_channel_id = %hex::encode(temp_channel_id.0),
             "Started channel creation"
         );
 
@@ -58,8 +59,8 @@ impl<S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 'static> Node<S, 
             .collect()
     }
 
-    pub fn close_channel(&self, channel_id: [u8; 32], force_close: bool) -> Result<()> {
-        let channel_id_str = hex::encode(channel_id);
+    pub fn close_channel(&self, channel_id: ChannelId, force_close: bool) -> Result<()> {
+        let channel_id_str = hex::encode(channel_id.0);
 
         let channels = self.channel_manager.list_channels();
         let channel = channels
@@ -78,10 +79,10 @@ impl<S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 'static> Node<S, 
 
     fn collab_close_channel(&self, channel: &ChannelDetails) -> Result<()> {
         let channel_id = channel.channel_id;
-        let channel_id_str = hex::encode(channel_id);
+        let channel_id_str = hex::encode(channel_id.0);
         let peer = channel.counterparty.node_id;
 
-        tracing::info!(channel_id = %hex::encode(channel_id), %peer, "Collaboratively closing channel");
+        tracing::info!(channel_id = %hex::encode(channel_id.0), %peer, "Collaboratively closing channel");
 
         self.is_safe_to_close_ln_channel_collaboratively(&channel_id)
             .with_context(|| {
@@ -99,7 +100,7 @@ impl<S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 'static> Node<S, 
 
     pub(crate) fn force_close_channel(&self, channel: &ChannelDetails) -> Result<()> {
         let channel_id = channel.channel_id;
-        let channel_id_str = hex::encode(channel_id);
+        let channel_id_str = hex::encode(channel_id.0);
         let peer = channel.counterparty.node_id;
 
         let has_dlc_channel = self
@@ -109,7 +110,7 @@ impl<S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 'static> Node<S, 
 
         if has_dlc_channel {
             tracing::info!(
-                channel_id = %hex::encode(channel_id),
+                channel_id = %hex::encode(channel_id.0),
                 %peer,
                 "Initiating force-closure of LN-DLC channel"
             );
@@ -117,7 +118,7 @@ impl<S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 'static> Node<S, 
                 .force_close_sub_channel(&channel_id)
                 .map_err(|e| anyhow!("Failed to initiate force-close: {e:#}"))?
         } else {
-            tracing::info!(channel_id = %hex::encode(channel_id), %peer, "Force-closing LN channel");
+            tracing::info!(channel_id = %hex::encode(channel_id.0), %peer, "Force-closing LN channel");
             self.channel_manager
                 .force_close_broadcasting_latest_txn(&channel_id, &peer)
                 .map_err(|e| anyhow!("Could not force-close channel {channel_id_str}: {e:?}"))?;

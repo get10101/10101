@@ -9,7 +9,7 @@ use crate::trade::position::Position;
 use commons::LspConfig;
 use commons::Prices;
 use commons::TradeParams;
-use ln_dlc_node::node::rust_dlc_manager::ChannelId;
+use lightning::ln::ChannelId;
 use std::fmt;
 use std::hash::Hash;
 use trade::ContractSymbol;

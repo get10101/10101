@@ -14,7 +14,7 @@ use axum::routing::post;
 use axum::Json;
 use axum::Router;
 use bitcoin::secp256k1::PublicKey;
-use lightning::ln::msgs::NetAddress;
+use lightning::ln::msgs::SocketAddress;
 use ln_dlc_node::node::peer_manager::alias_as_bytes;
 use ln_dlc_node::node::peer_manager::broadcast_node_announcement;
 use ln_dlc_node::node::InMemoryStore;
@@ -39,7 +39,7 @@ pub struct AppState {
     node: Arc<Node<MakerTenTenOneStorage, InMemoryStore>>,
     exporter: PrometheusExporter,
     position_manager: xtra::Address<position::Manager>,
-    announcement_addresses: Vec<NetAddress>,
+    announcement_addresses: Vec<SocketAddress>,
     node_alias: String,
     health: Health,
 }
@@ -49,7 +49,7 @@ pub fn router(
     exporter: PrometheusExporter,
     position_manager: xtra::Address<position::Manager>,
     health: Health,
-    announcement_addresses: Vec<NetAddress>,
+    announcement_addresses: Vec<SocketAddress>,
     node_alias: &str,
 ) -> Router {
     let app_state = Arc::new(AppState {
@@ -232,7 +232,7 @@ pub async fn create_channel(
         .initiate_open_channel(peer.pubkey, channel_amount, initial_send_amount, true)
         .map_err(|e| AppError::InternalServerError(format!("Failed to open channel: {e:#}")))?;
 
-    Ok(Json(hex::encode(channel_id)))
+    Ok(Json(hex::encode(channel_id.0)))
 }
 
 pub async fn list_channels(State(state): State<Arc<AppState>>) -> Json<Vec<ChannelDetails>> {
@@ -261,7 +261,7 @@ pub async fn pay_invoice(
 }
 
 pub async fn sync_on_chain(State(state): State<Arc<AppState>>) -> Result<(), AppError> {
-    spawn_blocking(move || state.node.wallet().sync())
+    spawn_blocking(move || state.node.ldk_wallet().sync())
         .await
         .expect("task to complete")
         .map_err(|e| AppError::InternalServerError(format!("Could not sync wallet: {e:#}")))?;

@@ -44,7 +44,6 @@ pub mod transaction;
 pub mod util;
 
 pub use config::CONFIRMATION_TARGET;
-pub use config::LIQUIDITY_MULTIPLIER;
 pub use ldk_node_wallet::WalletSettings;
 pub use lightning;
 pub use lightning_invoice;
