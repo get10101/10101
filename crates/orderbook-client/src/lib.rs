@@ -39,9 +39,12 @@ pub async fn subscribe_with_authentication(
     SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, tungstenite::Message>,
     impl Stream<Item = Result<String, Error>> + Unpin,
 )> {
-    let signature = authenticate(create_sign_message(AUTH_SIGN_MESSAGE.to_vec()));
-
+    let signature = create_auth_message_signature(authenticate);
     subscribe_impl(Some(signature), url, fcm_token).await
+}
+
+pub fn create_auth_message_signature(authenticate: impl Fn(Message) -> Signature) -> Signature {
+    authenticate(create_sign_message(AUTH_SIGN_MESSAGE.to_vec()))
 }
 
 /// Connects to the orderbook WebSocket API and yields all messages.

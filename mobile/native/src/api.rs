@@ -260,9 +260,25 @@ pub fn run_in_flutter(seed_dir: String, fcm_token: String) -> Result<()> {
 
             crate::state::set_websocket(tx_websocket);
         }
-        Some(_websocket) => {
-            // In case of a hot restart the websocket is already set.
-            // TODO(holzeis): handle a fresh authentication request on a hot restart
+        Some(tx_websocket) => {
+            // In case of a hot-restart we do not start the node again as it is already running.
+            // However, we need to re-send the authentication message to get the initial data from
+            // the coordinator and trigger a new user login event.
+            tracing::info!("Re-sending authentication message");
+
+            let signature =
+                orderbook_client::create_auth_message_signature(move |msg| commons::Signature {
+                    pubkey: ln_dlc::get_node_pubkey(),
+                    signature: ln_dlc::get_node_key().sign_ecdsa(msg),
+                });
+
+            let runtime = crate::state::get_or_create_tokio_runtime()?;
+            runtime.block_on(async {
+                tx_websocket.send(OrderbookRequest::Authenticate {
+                    fcm_token: Some(fcm_token),
+                    signature,
+                })
+            })?;
         }
     };
 
