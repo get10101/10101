@@ -452,7 +452,10 @@ impl<K: DlcStoreProvider> dlc_manager::Storage for DlcStorageProvider<K> {
     fn get_chain_monitor(&self) -> Result<Option<ChainMonitor>, Error> {
         let chain_monitors = self
             .store
-            .read(CHAIN_MONITOR, None)
+            .read(
+                CHAIN_MONITOR,
+                Some(CHAIN_MONITOR_KEY.to_string().into_bytes()),
+            )
             .map_err(|e| Error::StorageError(format!("Error reading chain monitor: {e}")))?;
 
         let serialized = chain_monitors.first();
