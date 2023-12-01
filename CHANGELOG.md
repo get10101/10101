@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Fix backwards-compatibility of `ChainMonitor`s created before version 1.5.0.
+
 ## [1.6.5] - 2023-11-29
 
 - Add support for Android 9

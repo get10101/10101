@@ -39,6 +39,8 @@ use std::string::ToString;
 
 pub mod sled;
 
+// Kinds.
+
 const CONTRACT: u8 = 1;
 const CHANNEL: u8 = 2;
 const CHAIN_MONITOR: u8 = 3;
@@ -47,6 +49,8 @@ const KEY_PAIR: u8 = 6;
 const SUB_CHANNEL: u8 = 7;
 const ADDRESS: u8 = 8;
 const ACTION: u8 = 9;
+
+const CHAIN_MONITOR_KEY: &str = "chain_monitor";
 
 pub trait WalletStorage {
     fn upsert_address(&self, address: &Address, privkey: &SecretKey) -> Result<()>;
@@ -439,7 +443,7 @@ impl<K: DlcStoreProvider> dlc_manager::Storage for DlcStorageProvider<K> {
         self.store
             .write(
                 CHAIN_MONITOR,
-                "chain_monitor".to_string().into_bytes(),
+                CHAIN_MONITOR_KEY.to_string().into_bytes(),
                 monitor.serialize()?,
             )
             .map_err(|e| Error::StorageError(format!("Error writing chain monitor: {e}")))
@@ -448,7 +452,10 @@ impl<K: DlcStoreProvider> dlc_manager::Storage for DlcStorageProvider<K> {
     fn get_chain_monitor(&self) -> Result<Option<ChainMonitor>, Error> {
         let chain_monitors = self
             .store
-            .read(CHAIN_MONITOR, None)
+            .read(
+                CHAIN_MONITOR,
+                Some(CHAIN_MONITOR_KEY.to_string().into_bytes()),
+            )
             .map_err(|e| Error::StorageError(format!("Error reading chain monitor: {e}")))?;
 
         let serialized = chain_monitors.first();
@@ -1127,7 +1134,7 @@ mod tests {
 
         storage
             .persist_chain_monitor(&chain_monitor)
-            .expect("to be able to persist the chain monistor.");
+            .expect("to be able to persist the chain monitor.");
 
         let retrieved = storage
             .get_chain_monitor()
@@ -1135,6 +1142,19 @@ mod tests {
             .expect("to have a persisted chain monitor.");
 
         assert_eq!(chain_monitor, retrieved);
+
+        let chain_monitor2 = ChainMonitor::new(456);
+
+        storage
+            .persist_chain_monitor(&chain_monitor2)
+            .expect("to be able to persist the chain monitor.");
+
+        let retrieved2 = storage
+            .get_chain_monitor()
+            .expect("to be able to retrieve the chain monitor.")
+            .expect("to have a persisted chain monitor.");
+
+        assert_eq!(chain_monitor2, retrieved2);
     }
 
     #[test]
