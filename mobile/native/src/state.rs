@@ -17,6 +17,7 @@ static CONFIG: Storage<RwLock<ConfigInternal>> = Storage::new();
 static NODE: Storage<RwLock<Arc<Node>>> = Storage::new();
 static SEED: Storage<RwLock<Bip39Seed>> = Storage::new();
 static STORAGE: Storage<RwLock<TenTenOneNodeStorage>> = Storage::new();
+static RUNTIME: Storage<Runtime> = Storage::new();
 
 pub fn set_config(config: ConfigInternal) {
     match CONFIG.try_get() {
@@ -85,8 +86,6 @@ pub fn try_get_storage() -> Option<TenTenOneNodeStorage> {
 /// Lazily creates a multi threaded runtime with the the number of worker threads corresponding to
 /// the number of available cores.
 pub fn get_or_create_tokio_runtime() -> Result<&'static Runtime> {
-    static RUNTIME: Storage<Runtime> = Storage::new();
-
     if RUNTIME.try_get().is_none() {
         let runtime = Runtime::new()?;
         RUNTIME.set(runtime);
