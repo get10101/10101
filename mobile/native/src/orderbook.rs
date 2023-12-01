@@ -110,7 +110,6 @@ pub fn subscribe(
         let mut round = 1;
         loop {
             let url = url.clone();
-            let authenticate = authenticate;
             let fcm_token = fcm_token.clone();
             match orderbook_client::subscribe_with_authentication(url, authenticate, fcm_token)
                 .await

@@ -725,7 +725,6 @@ mod tests {
 
         #[test]
         fn calculating_lower_bound_doesnt_crash_offer_short(total_collateral in 1u64..100_000_000_000, bound in 1u64..100_000) {
-            let total_collateral = total_collateral;
             let bound = Decimal::from_u64(bound).expect("to be able to parse bound");
             let fee = 300_000;
 
@@ -745,7 +744,6 @@ mod tests {
 
         #[test]
         fn calculating_lower_bound_doesnt_crash_offer_long(total_collateral in 1u64..100_000_000_000, bound in 1u64..100_000) {
-            let total_collateral = total_collateral;
             let bound = Decimal::from_u64(bound).expect("to be able to parse bound");
             let fee = 300_000;
 
@@ -765,7 +763,6 @@ mod tests {
 
         #[test]
         fn calculating_upper_bound_doesnt_crash_offer_short(total_collateral in 1u64..100_000_000_000, bound in 1u64..100_000) {
-            let total_collateral = total_collateral;
             let last_payout = PayoutPoint {
                 event_outcome: bound,
                 outcome_payout: total_collateral,
@@ -790,7 +787,6 @@ mod tests {
 
         #[test]
         fn calculating_upper_bound_doesnt_crash_offer_long(total_collateral in 1u64..100_000_000_000, bound in 1u64..100_000) {
-            let total_collateral = total_collateral;
             let last_payout = PayoutPoint {
                 event_outcome: bound,
                 outcome_payout: total_collateral,

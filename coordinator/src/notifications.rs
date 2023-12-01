@@ -59,7 +59,6 @@ impl NotificationService {
 
         // TODO: use RAII here
         tokio::spawn({
-            let fcm_api_key = fcm_api_key;
             let client = fcm::Client::new();
             async move {
                 while let Some(Notification {
