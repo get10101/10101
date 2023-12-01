@@ -15,6 +15,8 @@ class ProportionalFee {
 }
 
 class LiquidityOption {
+  final bool active;
+  final int rank;
   final int liquidityOptionId;
   final String title;
   final Amount tradeUpTo;
@@ -24,7 +26,9 @@ class LiquidityOption {
   final double coordinatorLeverage;
 
   LiquidityOption(
-      {required this.liquidityOptionId,
+      {required this.active,
+      required this.rank,
+      required this.liquidityOptionId,
       required this.title,
       required this.tradeUpTo,
       required this.minDeposit,
@@ -34,6 +38,8 @@ class LiquidityOption {
 
   static LiquidityOption from(bridge.LiquidityOption option) {
     return LiquidityOption(
+      active: option.active,
+      rank: option.rank,
       liquidityOptionId: option.id,
       title: option.title,
       tradeUpTo: Amount(option.tradeUpToSats),

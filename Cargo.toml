@@ -6,10 +6,9 @@ default-members = [
   "mobile/native",
   "crates/bitmex-client",
   "crates/bitmex-stream",
-  "crates/coordinator-commons",
+  "crates/commons",
   "crates/ln-dlc-node",
   "crates/orderbook-client",
-  "crates/orderbook-commons",
   "crates/trade",
   "crates/payout_curve",
 ]

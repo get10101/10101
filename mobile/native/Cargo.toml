@@ -13,7 +13,7 @@ base64 = "0.21.0"
 bdk = { version = "0.28.0", default-features = false, features = ["key-value-db", "use-esplora-blocking"] }
 bip21 = "0.2.0"
 bitcoin = "0.29.2"
-coordinator-commons = { path = "../../crates/coordinator-commons" }
+commons = { path = "../../crates/commons" }
 diesel = { version = "2.0.0", features = ["sqlite", "r2d2", "extras"] }
 diesel_migrations = "2.0.0"
 dlc = "0.4.0"
@@ -29,7 +29,6 @@ ln-dlc-node = { path = "../../crates/ln-dlc-node" }
 ln-dlc-storage = { path = "../../crates/ln-dlc-storage" }
 openssl = { version = "0.10.60", features = ["vendored"] }
 orderbook-client = { path = "../../crates/orderbook-client" }
-orderbook-commons = { path = "../../crates/orderbook-commons" }
 parking_lot = { version = "0.12.1" }
 reqwest = { version = "0.11", default-features = false, features = ["json", "stream"] }
 rusqlite = { version = "0.29.0", features = ["backup", "bundled"] }
@@ -41,6 +40,7 @@ state = "0.5.3"
 thiserror = "1"
 time = { version = "0.3.20", features = ["formatting"] }
 tokio = { version = "1.25.0", features = ["macros", "rt", "rt-multi-thread", "sync", "time"] }
+tokio-tungstenite = { version = "0.20", features = ["native-tls"] }
 tokio-util = { version = "0.7", features = ["io", "codec"] }
 tracing = "0.1.37"
 tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "env-filter", "time", "json"] }

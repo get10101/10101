@@ -12,6 +12,7 @@ use bitcoin::hashes::hex::ToHex;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::Network;
 use bitcoin::XOnlyPublicKey;
+use commons::Message;
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::Pool;
 use diesel::PgConnection;
@@ -25,7 +26,6 @@ use dlc_manager::ChannelId;
 use dlc_manager::ContractId;
 use futures::future::RemoteHandle;
 use futures::FutureExt;
-use orderbook_commons::Message;
 use std::str::FromStr;
 use time::OffsetDateTime;
 use tokio::sync::broadcast;
@@ -149,7 +149,7 @@ impl Rollover {
 
     /// Calculates the maturity time based on the current expiry timestamp.
     pub fn maturity_time(&self) -> OffsetDateTime {
-        coordinator_commons::calculate_next_expiry(OffsetDateTime::now_utc(), self.network)
+        commons::calculate_next_expiry(OffsetDateTime::now_utc(), self.network)
     }
 }
 
@@ -177,11 +177,11 @@ impl Node {
                 _ => bail!("Unexpected position state {:?}", position.position_state),
             };
 
-            if coordinator_commons::is_eligible_for_rollover(OffsetDateTime::now_utc(), network)
+            if commons::is_eligible_for_rollover(OffsetDateTime::now_utc(), network)
                 && !position.is_expired()
             {
                 let next_expiry =
-                    coordinator_commons::calculate_next_expiry(OffsetDateTime::now_utc(), network);
+                    commons::calculate_next_expiry(OffsetDateTime::now_utc(), network);
                 if position.expiry_timestamp == next_expiry && !retry_rollover {
                     tracing::trace!(%trader_id, position_id=position.id, "Position has already been rolled over");
                     return Ok(());

@@ -12,19 +12,24 @@ use anyhow::Result;
 use bdk::bitcoin::secp256k1::SecretKey;
 use bdk::bitcoin::secp256k1::SECP256K1;
 use bitcoin::hashes::hex::ToHex;
+use commons::best_current_price;
+use commons::Message;
+use commons::Order;
+use commons::OrderbookRequest;
+use commons::Prices;
+use commons::Signature;
+use futures::SinkExt;
 use futures::TryStreamExt;
-use orderbook_commons::best_current_price;
-use orderbook_commons::Message;
-use orderbook_commons::Order;
-use orderbook_commons::Prices;
-use orderbook_commons::Signature;
 use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 use time::OffsetDateTime;
 use tokio::runtime::Runtime;
+use tokio::sync::broadcast;
+use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::watch;
+use tokio_tungstenite::tungstenite;
 use uuid::Uuid;
 
 /// The reconnect timeout should be high enough for the coordinator to get ready after a restart. If
@@ -38,6 +43,7 @@ pub fn subscribe(
     runtime: &Runtime,
     orderbook_status: watch::Sender<ServiceStatus>,
     fcm_token: String,
+    tx_websocket: broadcast::Sender<OrderbookRequest>,
 ) -> Result<()> {
     runtime.spawn(async move {
         let url = format!(
@@ -105,10 +111,36 @@ pub fn subscribe(
             match orderbook_client::subscribe_with_authentication(url, authenticate, fcm_token)
                 .await
             {
-                Ok((_, mut stream)) => {
+                Ok((mut sink, mut stream)) => {
                     if let Err(e) = orderbook_status.send(ServiceStatus::Online) {
                         tracing::warn!("Cannot update orderbook status: {e:#}");
                     };
+
+                    let handle = tokio::spawn({
+                        let tx_websocket = tx_websocket.clone();
+                        async move {
+                            let mut receiver = tx_websocket.subscribe();
+                            loop {
+                                match receiver.recv().await {
+                                    Ok(message) => {
+                                        let message = tungstenite::Message::try_from(message).expect("to fit into message");
+                                        if let Err(e) = sink.send(message).await {
+                                            tracing::error!("Failed to send message on websocket. {e:#}");
+                                        }
+                                    }
+                                    Err(RecvError::Lagged(skip)) => {
+                                        tracing::warn!(%skip, "Lagging behind on orderbook requests.");
+                                    }
+                                    Err(RecvError::Closed) => {
+                                        tracing::error!(
+                                        "Orderbook requests sender died! Channel closed."
+                                    );
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    });
 
                     let mut cached_best_price: Prices = HashMap::new();
                     loop {
@@ -131,6 +163,9 @@ pub fn subscribe(
                             tracing::error!("Failed to handle event: {e:#}");
                         }
                     }
+
+                    // abort handler on sending messages over a lost websocket connection.
+                    handle.abort();
                 }
                 Err(e) => {
                     tracing::error!("Could not start up orderbook client: {e:#}");
@@ -163,6 +198,10 @@ async fn handle_orderbook_mesage(
     tracing::debug!(%msg, "New orderbook message");
 
     match msg {
+        Message::Authenticated(lsp_config) => {
+            tracing::info!("Successfully logged in to 10101 websocket api!");
+            event::publish(&EventInternal::Authenticated(lsp_config));
+        }
         Message::Rollover(contract_id) => {
             tracing::info!("Received a rollover request from orderbook.");
             event::publish(&EventInternal::BackgroundNotification(
@@ -283,9 +322,7 @@ async fn handle_orderbook_mesage(
                 ));
             }
         }
-        msg @ Message::LimitOrderFilledMatches { .. }
-        | msg @ Message::InvalidAuthentication(_)
-        | msg @ Message::Authenticated => {
+        msg @ Message::LimitOrderFilledMatches { .. } | msg @ Message::InvalidAuthentication(_) => {
             tracing::debug!(?msg, "Skipping message from orderbook");
         }
     };

@@ -6,9 +6,10 @@ use crate::ln_dlc::ChannelStatus;
 use crate::trade::order::Order;
 use crate::trade::order::OrderReason;
 use crate::trade::position::Position;
-use coordinator_commons::TradeParams;
+use commons::LspConfig;
+use commons::Prices;
+use commons::TradeParams;
 use ln_dlc_node::node::rust_dlc_manager::ChannelId;
-use orderbook_commons::Prices;
 use std::fmt;
 use std::hash::Hash;
 use trade::ContractSymbol;
@@ -42,6 +43,7 @@ pub enum EventInternal {
     PaymentFailed,
     ServiceHealthUpdate(ServiceUpdate),
     ChannelStatusUpdate(ChannelStatus),
+    Authenticated(LspConfig),
     BackgroundNotification(BackgroundTask),
     SpendableOutputs,
 }
@@ -80,6 +82,7 @@ impl fmt::Display for EventInternal {
             EventInternal::ChannelStatusUpdate(_) => "ChannelStatusUpdate",
             EventInternal::BackgroundNotification(_) => "BackgroundNotification",
             EventInternal::SpendableOutputs => "SpendableOutputs",
+            EventInternal::Authenticated(_) => "Authenticated",
         }
         .fmt(f)
     }
@@ -106,6 +109,7 @@ impl From<EventInternal> for EventType {
             EventInternal::ChannelStatusUpdate(_) => EventType::ChannelStatusUpdate,
             EventInternal::BackgroundNotification(_) => EventType::BackgroundNotification,
             EventInternal::SpendableOutputs => EventType::SpendableOutputs,
+            EventInternal::Authenticated(_) => EventType::Authenticated,
         }
     }
 }
@@ -128,4 +132,5 @@ pub enum EventType {
     ChannelStatusUpdate,
     BackgroundNotification,
     SpendableOutputs,
+    Authenticated,
 }

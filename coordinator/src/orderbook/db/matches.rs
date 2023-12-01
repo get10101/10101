@@ -49,7 +49,7 @@ pub fn insert(conn: &mut PgConnection, match_params: &TraderMatchParams) -> Resu
 pub fn set_match_state(
     conn: &mut PgConnection,
     order_id: Uuid,
-    match_state: orderbook_commons::MatchState,
+    match_state: commons::MatchState,
 ) -> QueryResult<()> {
     diesel::update(matches::table)
         .filter(matches::order_id.eq(order_id))
@@ -62,15 +62,12 @@ pub fn set_match_state(
 pub fn get_matches_by_order_id(
     conn: &mut PgConnection,
     order_id: Uuid,
-) -> QueryResult<Vec<orderbook_commons::Matches>> {
+) -> QueryResult<Vec<commons::Matches>> {
     let matches: Vec<Matches> = matches::table
         .filter(matches::order_id.eq(order_id))
         .load(conn)?;
 
-    let matches = matches
-        .into_iter()
-        .map(orderbook_commons::Matches::from)
-        .collect();
+    let matches = matches.into_iter().map(commons::Matches::from).collect();
 
     Ok(matches)
 }
@@ -78,7 +75,7 @@ pub fn get_matches_by_order_id(
 pub fn set_match_state_by_order_id(
     conn: &mut PgConnection,
     order_id: Uuid,
-    match_state: orderbook_commons::MatchState,
+    match_state: commons::MatchState,
 ) -> Result<()> {
     let affected_rows = diesel::update(matches::table)
         .filter(matches::order_id.eq(order_id))
@@ -115,8 +112,8 @@ impl Matches {
     }
 }
 
-impl From<orderbook_commons::Matches> for Matches {
-    fn from(value: orderbook_commons::Matches) -> Self {
+impl From<commons::Matches> for Matches {
+    fn from(value: commons::Matches) -> Self {
         Matches {
             id: value.id,
             match_state: value.match_state.into(),
@@ -132,19 +129,19 @@ impl From<orderbook_commons::Matches> for Matches {
     }
 }
 
-impl From<orderbook_commons::MatchState> for MatchState {
-    fn from(value: orderbook_commons::MatchState) -> Self {
+impl From<commons::MatchState> for MatchState {
+    fn from(value: commons::MatchState) -> Self {
         match value {
-            orderbook_commons::MatchState::Pending => MatchState::Pending,
-            orderbook_commons::MatchState::Filled => MatchState::Filled,
-            orderbook_commons::MatchState::Failed => MatchState::Failed,
+            commons::MatchState::Pending => MatchState::Pending,
+            commons::MatchState::Filled => MatchState::Filled,
+            commons::MatchState::Failed => MatchState::Failed,
         }
     }
 }
 
-impl From<Matches> for orderbook_commons::Matches {
+impl From<Matches> for commons::Matches {
     fn from(value: Matches) -> Self {
-        orderbook_commons::Matches {
+        commons::Matches {
             id: value.id,
             match_state: value.match_state.into(),
             order_id: value.order_id,
@@ -160,12 +157,12 @@ impl From<Matches> for orderbook_commons::Matches {
     }
 }
 
-impl From<MatchState> for orderbook_commons::MatchState {
+impl From<MatchState> for commons::MatchState {
     fn from(value: MatchState) -> Self {
         match value {
-            MatchState::Pending => orderbook_commons::MatchState::Pending,
-            MatchState::Filled => orderbook_commons::MatchState::Filled,
-            MatchState::Failed => orderbook_commons::MatchState::Failed,
+            MatchState::Pending => commons::MatchState::Pending,
+            MatchState::Filled => commons::MatchState::Filled,
+            MatchState::Failed => commons::MatchState::Failed,
         }
     }
 }

@@ -44,14 +44,7 @@ pub async fn run_app(seed_phrase: Option<Vec<String>>) -> AppHandle {
             .unwrap();
         }
 
-        tokio::task::spawn_blocking(move || {
-            native::api::run(
-                seed_dir,
-                "".to_string(),
-                native::api::IncludeBacktraceOnPanic::No,
-            )
-            .unwrap()
-        })
+        tokio::task::spawn_blocking(move || native::api::run_in_test(seed_dir).unwrap())
     };
 
     let (rx, tx) = TestSubscriber::new().await;

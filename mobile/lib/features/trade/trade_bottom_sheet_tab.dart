@@ -6,6 +6,7 @@ import 'package:get_10101/common/amount_text.dart';
 import 'package:get_10101/common/amount_text_field.dart';
 import 'package:get_10101/common/amount_text_input_form_field.dart';
 import 'package:get_10101/common/application/channel_info_service.dart';
+import 'package:get_10101/common/application/lsp_change_notifier.dart';
 import 'package:get_10101/common/domain/channel.dart';
 import 'package:get_10101/common/domain/liquidity_option.dart';
 import 'package:get_10101/common/domain/model.dart';
@@ -41,7 +42,7 @@ class TradeBottomSheetTab extends StatefulWidget {
 
 class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
   late final TradeValuesChangeNotifier provider;
-  late final ChannelInfoService channelInfoService;
+  late final LspChangeNotifier lspChangeNotifier;
   late final PositionChangeNotifier positionChangeNotifier;
 
   TextEditingController marginController = TextEditingController();
@@ -55,21 +56,22 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
   @override
   void initState() {
     provider = context.read<TradeValuesChangeNotifier>();
-    channelInfoService = provider.channelInfoService;
+    lspChangeNotifier = context.read<LspChangeNotifier>();
     positionChangeNotifier = context.read<PositionChangeNotifier>();
     super.initState();
   }
 
   Future<(ChannelInfo?, Amount, Amount, double)> _getChannelInfo(
-      ChannelInfoService channelInfoService) async {
+      LspChangeNotifier lspChangeNotifier) async {
+    final channelInfoService = lspChangeNotifier.channelInfoService;
     var channelInfo = await channelInfoService.getChannelInfo();
 
     // fetching also inactive liquidity options as the user might use a liquidity option that isn't active anymore.
-    final options = await channelInfoService.getLiquidityOptions(false);
+    final options = lspChangeNotifier.getLiquidityOptions(false);
 
     /// The max channel capacity of the existing channel. 0 if no channel exists.
     var lspMaxChannelCapacity = await channelInfoService.getMaxCapacity();
-    var tradeReserve = await channelInfoService.getTradeFeeReserve();
+    var tradeReserve = await lspChangeNotifier.getTradeFeeReserve();
 
     var completer = Completer<(ChannelInfo?, Amount, Amount, double)>();
 
@@ -114,10 +116,12 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
         children: [
           FutureBuilder<(ChannelInfo?, Amount, Amount, double)>(
             future:
-                _getChannelInfo(channelInfoService), // a previously-obtained Future<String> or null
+                _getChannelInfo(lspChangeNotifier), // a previously-obtained Future<String> or null
             builder: (BuildContext context,
                 AsyncSnapshot<(ChannelInfo?, Amount, Amount, double)> snapshot) {
               List<Widget> children;
+
+              final channelInfoService = lspChangeNotifier.channelInfoService;
 
               if (snapshot.hasData) {
                 var (channelInfo, lspMaxChannelCapacity, tradeFeeReserve, coordinatorLeverage) =

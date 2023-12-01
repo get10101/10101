@@ -1,4 +1,5 @@
-use coordinator_commons::TradeParams;
+use commons::Prices;
+use commons::TradeParams;
 use native::api::ContractSymbol;
 use native::api::WalletInfo;
 use native::event::subscriber::Subscriber;
@@ -9,7 +10,6 @@ use native::health::ServiceUpdate;
 use native::ln_dlc::ChannelStatus;
 use native::trade::order::Order;
 use native::trade::position::Position;
-use orderbook_commons::Prices;
 use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -210,6 +210,9 @@ impl Senders {
             }
             native::event::EventInternal::SpendableOutputs => {
                 unreachable!("SpendableOutputs event should not be sent to the subscriber");
+            }
+            native::event::EventInternal::Authenticated(_) => {
+                // ignored
             }
         }
         Ok(())

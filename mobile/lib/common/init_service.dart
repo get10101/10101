@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:get_10101/common/application/lsp_change_notifier.dart';
+import 'package:get_10101/common/domain/lsp_config.dart';
 import 'package:get_10101/features/trade/candlestick_change_notifier.dart';
 import 'package:get_10101/features/trade/order_change_notifier.dart';
 import 'package:get_10101/features/trade/position_change_notifier.dart';
@@ -63,6 +65,7 @@ List<SingleChildWidget> createProviders() {
     ChangeNotifierProvider(create: (context) => PaymentClaimedChangeNotifier()),
     ChangeNotifierProvider(create: (context) => PaymentChangeNotifier()),
     ChangeNotifierProvider(create: (context) => CollabRevertChangeNotifier()),
+    ChangeNotifierProvider(create: (context) => LspChangeNotifier(channelInfoService)),
     Provider(create: (context) => config),
     Provider(create: (context) => channelInfoService)
   ];
@@ -91,6 +94,7 @@ void subscribeToNotifiers(BuildContext context) {
   final paymentClaimedChangeNotifier = context.read<PaymentClaimedChangeNotifier>();
   final paymentChangeNotifier = context.read<PaymentChangeNotifier>();
   final collabRevertChangeNotifier = context.read<CollabRevertChangeNotifier>();
+  final lspConfigChangeNotifier = context.read<LspChangeNotifier>();
 
   eventService.subscribe(
       orderChangeNotifier, bridge.Event.orderUpdateNotification(Order.apiDummy()));
@@ -139,6 +143,8 @@ void subscribeToNotifiers(BuildContext context) {
 
   eventService.subscribe(
       collabRevertChangeNotifier, bridge.Event.backgroundNotification(CollabRevert.apiDummy()));
+
+  eventService.subscribe(lspConfigChangeNotifier, bridge.Event.authenticated(LspConfig.apiDummy()));
 
   channelStatusNotifier.subscribe(eventService);
 

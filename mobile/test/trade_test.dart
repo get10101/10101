@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:get_10101/common/amount_denomination_change_notifier.dart';
 @GenerateNiceMocks([MockSpec<ChannelInfoService>()])
 import 'package:get_10101/common/application/channel_info_service.dart';
+import 'package:get_10101/common/application/lsp_change_notifier.dart';
 import 'package:get_10101/common/domain/model.dart';
 @GenerateNiceMocks([MockSpec<CandlestickService>()])
 import 'package:get_10101/features/trade/application/candlestick_service.dart';
@@ -109,8 +110,8 @@ void main() {
 
     when(channelConstraintsService.getInitialReserve()).thenReturn(Amount(1000));
 
-    when(channelConstraintsService.getTradeFeeReserve()).thenAnswer((_) async {
-      return Amount(1666);
+    when(channelConstraintsService.getContractTxFeeRate()).thenAnswer((_) async {
+      return 1;
     });
 
     when(candlestickService.fetchCandles(1000)).thenAnswer((_) async {
@@ -130,6 +131,8 @@ void main() {
 
     PositionChangeNotifier positionChangeNotifier = PositionChangeNotifier(positionService);
 
+    LspChangeNotifier lspChangeNotifier = LspChangeNotifier(channelConstraintsService);
+
     // We have to have current price, otherwise we can't take order
     positionChangeNotifier.price = Price(bid: 30000.0, ask: 30000.0);
 
@@ -142,7 +145,8 @@ void main() {
       ChangeNotifierProvider(create: (context) => positionChangeNotifier),
       ChangeNotifierProvider(create: (context) => AmountDenominationChangeNotifier()),
       ChangeNotifierProvider(create: (context) => walletChangeNotifier),
-      ChangeNotifierProvider(create: (context) => candlestickChangeNotifier)
+      ChangeNotifierProvider(create: (context) => candlestickChangeNotifier),
+      ChangeNotifierProvider(create: (context) => lspChangeNotifier)
     ], child: const TestWrapperWithTradeTheme(child: TradeScreen())));
 
     // We have to pretend that we have a balance, because otherwise the trade bottom sheet validation will not allow us to go to the confirmation screen

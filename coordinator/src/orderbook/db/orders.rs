@@ -7,14 +7,14 @@ use crate::orderbook::db::custom_types::OrderType;
 use crate::schema::matches;
 use crate::schema::orders;
 use bitcoin::secp256k1::PublicKey;
+use commons::NewOrder as OrderbookNewOrder;
+use commons::Order as OrderbookOrder;
+use commons::OrderReason as OrderBookOrderReason;
+use commons::OrderState as OrderBookOrderState;
+use commons::OrderType as OrderBookOrderType;
 use diesel::prelude::*;
 use diesel::result::QueryResult;
 use diesel::PgConnection;
-use orderbook_commons::NewOrder as OrderbookNewOrder;
-use orderbook_commons::Order as OrderbookOrder;
-use orderbook_commons::OrderReason as OrderBookOrderReason;
-use orderbook_commons::OrderState as OrderBookOrderState;
-use orderbook_commons::OrderType as OrderBookOrderType;
 use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
@@ -258,9 +258,9 @@ pub fn set_is_taken(
     is_taken: bool,
 ) -> QueryResult<OrderbookOrder> {
     if is_taken {
-        set_order_state(conn, id, orderbook_commons::OrderState::Taken)
+        set_order_state(conn, id, commons::OrderState::Taken)
     } else {
-        set_order_state(conn, id, orderbook_commons::OrderState::Open)
+        set_order_state(conn, id, commons::OrderState::Open)
     }
 }
 
@@ -268,7 +268,7 @@ pub fn set_is_taken(
 pub fn set_order_state(
     conn: &mut PgConnection,
     id: Uuid,
-    order_state: orderbook_commons::OrderState,
+    order_state: commons::OrderState,
 ) -> QueryResult<OrderbookOrder> {
     let order: Order = diesel::update(orders::table)
         .filter(orders::trader_order_id.eq(id))
@@ -307,7 +307,7 @@ pub fn get_with_id(conn: &mut PgConnection, uid: Uuid) -> QueryResult<Option<Ord
 pub fn get_by_trader_id_and_state(
     conn: &mut PgConnection,
     trader_id: PublicKey,
-    order_state: orderbook_commons::OrderState,
+    order_state: commons::OrderState,
 ) -> QueryResult<Option<OrderbookOrder>> {
     orders::table
         .filter(orders::trader_id.eq(trader_id.to_string()))

@@ -24,26 +24,44 @@ use crate::trade::users;
 use anyhow::Context;
 use anyhow::Result;
 use bitcoin::Amount;
+use commons::order_matching_fee_taker;
+use commons::OrderbookRequest;
 use flutter_rust_bridge::frb;
 use flutter_rust_bridge::StreamSink;
 use flutter_rust_bridge::SyncReturn;
 use ln_dlc_node::channel::UserChannelId;
-use orderbook_commons::order_matching_fee_taker;
 use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::Decimal;
-use state::Storage;
 use std::backtrace::Backtrace;
 use std::path::PathBuf;
 use time::OffsetDateTime;
+use tokio::sync::broadcast;
+use tokio::sync::broadcast::channel;
 pub use trade::ContractSymbol;
 pub use trade::Direction;
-
-/// Allows the hot restart to work
-static IS_INITIALISED: Storage<bool> = Storage::new();
 
 /// Initialise logging infrastructure for Rust
 pub fn init_logging(sink: StreamSink<logger::LogEntry>) {
     logger::create_log_stream(sink)
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct LspConfig {
+    pub contract_tx_fee_rate: u64,
+    pub liquidity_options: Vec<LiquidityOption>,
+}
+
+impl From<commons::LspConfig> for LspConfig {
+    fn from(value: commons::LspConfig) -> Self {
+        Self {
+            contract_tx_fee_rate: value.contract_tx_fee_rate,
+            liquidity_options: value
+                .liquidity_options
+                .into_iter()
+                .map(|lo| lo.into())
+                .collect(),
+        }
+    }
 }
 
 #[derive(Clone, Debug, Default)]
@@ -229,14 +247,56 @@ pub fn subscribe(stream: StreamSink<event::api::Event>) {
 
 /// Wrapper for Flutter purposes - can throw an exception.
 pub fn run_in_flutter(seed_dir: String, fcm_token: String) -> Result<()> {
-    let result = if !IS_INITIALISED.try_get().unwrap_or(&false) {
-        run(seed_dir, fcm_token, IncludeBacktraceOnPanic::Yes)
-            .context("Failed to start the backend")
-    } else {
-        Ok(())
+    match crate::state::try_get_websocket() {
+        None => {
+            let (tx_websocket, _rx) = channel::<OrderbookRequest>(10);
+            run_internal(
+                seed_dir,
+                fcm_token,
+                tx_websocket.clone(),
+                IncludeBacktraceOnPanic::Yes,
+            )
+            .context("Failed to start the backend")?;
+
+            crate::state::set_websocket(tx_websocket);
+        }
+        Some(tx_websocket) => {
+            // In case of a hot-restart we do not start the node again as it is already running.
+            // However, we need to re-send the authentication message to get the initial data from
+            // the coordinator and trigger a new user login event.
+            tracing::info!("Re-sending authentication message");
+
+            let signature =
+                orderbook_client::create_auth_message_signature(move |msg| commons::Signature {
+                    pubkey: ln_dlc::get_node_pubkey(),
+                    signature: ln_dlc::get_node_key().sign_ecdsa(msg),
+                });
+
+            let runtime = crate::state::get_or_create_tokio_runtime()?;
+            runtime.block_on(async {
+                tx_websocket.send(OrderbookRequest::Authenticate {
+                    fcm_token: Some(fcm_token),
+                    signature,
+                })
+            })?;
+        }
     };
-    IS_INITIALISED.set(true);
-    result
+
+    Ok(())
+}
+
+/// Wrapper for the tests.
+///
+/// Needed as we do not want to have a hot restart handling in the tests and also can't expose a
+/// channel::Sender through frb.
+pub fn run_in_test(seed_dir: String) -> Result<()> {
+    let (tx_websocket, _rx) = channel::<OrderbookRequest>(10);
+    run_internal(
+        seed_dir,
+        "".to_string(),
+        tx_websocket,
+        IncludeBacktraceOnPanic::No,
+    )
 }
 
 #[derive(PartialEq)]
@@ -256,9 +316,10 @@ pub async fn full_backup() -> Result<()> {
     get_storage().full_backup().await
 }
 
-pub fn run(
+fn run_internal(
     seed_dir: String,
     fcm_token: String,
+    tx_websocket: broadcast::Sender<OrderbookRequest>,
     backtrace_on_panic: IncludeBacktraceOnPanic,
 ) -> Result<()> {
     if backtrace_on_panic == IncludeBacktraceOnPanic::Yes {
@@ -282,7 +343,13 @@ pub fn run(
 
     let (_health, tx) = health::Health::new(runtime);
 
-    orderbook::subscribe(ln_dlc::get_node_key(), runtime, tx.orderbook, fcm_token)
+    orderbook::subscribe(
+        ln_dlc::get_node_key(),
+        runtime,
+        tx.orderbook,
+        fcm_token,
+        tx_websocket,
+    )
 }
 
 pub fn get_unused_address() -> SyncReturn<String> {
@@ -323,7 +390,7 @@ pub fn max_channel_value() -> Result<u64> {
     ln_dlc::max_channel_value().map(|amount| amount.to_sat())
 }
 
-pub fn contract_tx_fee_rate() -> Result<u64> {
+pub fn contract_tx_fee_rate() -> Result<Option<u64>> {
     ln_dlc::contract_tx_fee_rate()
 }
 
@@ -345,8 +412,8 @@ pub struct LiquidityOption {
     pub active: bool,
 }
 
-impl From<coordinator_commons::LiquidityOption> for LiquidityOption {
-    fn from(value: coordinator_commons::LiquidityOption) -> Self {
+impl From<commons::LiquidityOption> for LiquidityOption {
+    fn from(value: commons::LiquidityOption) -> Self {
         LiquidityOption {
             id: value.id,
             rank: value.rank,
@@ -360,14 +427,6 @@ impl From<coordinator_commons::LiquidityOption> for LiquidityOption {
             active: value.active,
         }
     }
-}
-
-pub fn liquidity_options() -> Result<Vec<LiquidityOption>> {
-    let options = ln_dlc::liquidity_options()?;
-    let mut options: Vec<LiquidityOption> =
-        options.into_iter().map(LiquidityOption::from).collect();
-    options.sort_by(|a, b| a.rank.cmp(&b.rank));
-    Ok(options)
 }
 
 pub fn create_onboarding_invoice(
@@ -478,8 +537,5 @@ pub fn get_channel_open_fee_estimate_sat() -> Result<u64> {
 
 pub fn get_expiry_timestamp(network: String) -> SyncReturn<i64> {
     let network = config::api::parse_network(&network);
-    SyncReturn(
-        coordinator_commons::calculate_next_expiry(OffsetDateTime::now_utc(), network)
-            .unix_timestamp(),
-    )
+    SyncReturn(commons::calculate_next_expiry(OffsetDateTime::now_utc(), network).unix_timestamp())
 }

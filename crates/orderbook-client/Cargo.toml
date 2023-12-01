@@ -7,8 +7,8 @@ description = "A simple websocket client for the 10101 orderbook. "
 [dependencies]
 anyhow = "1"
 async-stream = "0.3"
+commons = { path = "../commons" }
 futures = "0.3"
-orderbook-commons = { path = "../orderbook-commons" }
 secp256k1 = { version = "0.24.3", features = ["global-context", "serde"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

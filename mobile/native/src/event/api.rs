@@ -1,3 +1,4 @@
+use crate::api::LspConfig;
 use crate::api::WalletInfo;
 use crate::event;
 use crate::event::subscriber::Subscriber;
@@ -30,6 +31,7 @@ pub enum Event {
     PaymentClaimed,
     PaymentSent,
     PaymentFailed,
+    Authenticated(LspConfig),
 }
 
 #[frb]
@@ -89,6 +91,7 @@ impl From<EventInternal> for Event {
             EventInternal::SpendableOutputs => {
                 unreachable!("This internal event is not exposed to the UI")
             }
+            EventInternal::Authenticated(lsp_config) => Event::Authenticated(lsp_config.into()),
         }
     }
 }
@@ -128,6 +131,7 @@ impl Subscriber for FlutterSubscriber {
             EventType::PaymentClaimed,
             EventType::PaymentSent,
             EventType::PaymentFailed,
+            EventType::Authenticated,
         ]
     }
 }
@@ -182,8 +186,8 @@ pub struct BestPrice {
     pub ask: Option<f64>,
 }
 
-impl From<orderbook_commons::Price> for BestPrice {
-    fn from(value: orderbook_commons::Price) -> Self {
+impl From<commons::Price> for BestPrice {
+    fn from(value: commons::Price) -> Self {
         BestPrice {
             bid: value
                 .bid

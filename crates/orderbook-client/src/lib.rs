@@ -2,14 +2,14 @@ use anyhow::Context;
 use anyhow::Error;
 use anyhow::Result;
 use async_stream::stream;
+use commons::create_sign_message;
+use commons::OrderbookRequest;
+use commons::Signature;
+use commons::AUTH_SIGN_MESSAGE;
 use futures::stream::SplitSink;
 use futures::SinkExt;
 use futures::Stream;
 use futures::StreamExt;
-use orderbook_commons::create_sign_message;
-use orderbook_commons::OrderbookRequest;
-use orderbook_commons::Signature;
-use orderbook_commons::AUTH_SIGN_MESSAGE;
 use secp256k1::Message;
 use tokio::net::TcpStream;
 use tokio_tungstenite::tungstenite;
@@ -39,9 +39,12 @@ pub async fn subscribe_with_authentication(
     SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, tungstenite::Message>,
     impl Stream<Item = Result<String, Error>> + Unpin,
 )> {
-    let signature = authenticate(create_sign_message(AUTH_SIGN_MESSAGE.to_vec()));
-
+    let signature = create_auth_message_signature(authenticate);
     subscribe_impl(Some(signature), url, fcm_token).await
+}
+
+pub fn create_auth_message_signature(authenticate: impl Fn(Message) -> Signature) -> Signature {
+    authenticate(create_sign_message(AUTH_SIGN_MESSAGE.to_vec()))
 }
 
 /// Connects to the orderbook WebSocket API and yields all messages.
