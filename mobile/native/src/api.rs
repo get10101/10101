@@ -25,21 +25,20 @@ use anyhow::Context;
 use anyhow::Result;
 use bitcoin::Amount;
 use commons::order_matching_fee_taker;
+use commons::OrderbookRequest;
 use flutter_rust_bridge::frb;
 use flutter_rust_bridge::StreamSink;
 use flutter_rust_bridge::SyncReturn;
 use ln_dlc_node::channel::UserChannelId;
 use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::Decimal;
-use state::Storage;
 use std::backtrace::Backtrace;
 use std::path::PathBuf;
 use time::OffsetDateTime;
+use tokio::sync::broadcast;
+use tokio::sync::broadcast::channel;
 pub use trade::ContractSymbol;
 pub use trade::Direction;
-
-/// Allows the hot restart to work
-static IS_INITIALISED: Storage<bool> = Storage::new();
 
 /// Initialise logging infrastructure for Rust
 pub fn init_logging(sink: StreamSink<logger::LogEntry>) {
@@ -248,14 +247,40 @@ pub fn subscribe(stream: StreamSink<event::api::Event>) {
 
 /// Wrapper for Flutter purposes - can throw an exception.
 pub fn run_in_flutter(seed_dir: String, fcm_token: String) -> Result<()> {
-    let result = if !IS_INITIALISED.try_get().unwrap_or(&false) {
-        run(seed_dir, fcm_token, IncludeBacktraceOnPanic::Yes)
-            .context("Failed to start the backend")
-    } else {
-        Ok(())
+    match crate::state::try_get_websocket() {
+        None => {
+            let (tx_websocket, _rx) = channel::<OrderbookRequest>(10);
+            run_internal(
+                seed_dir,
+                fcm_token,
+                tx_websocket.clone(),
+                IncludeBacktraceOnPanic::Yes,
+            )
+            .context("Failed to start the backend")?;
+
+            crate::state::set_websocket(tx_websocket);
+        }
+        Some(_websocket) => {
+            // In case of a hot restart the websocket is already set.
+            // TODO(holzeis): handle a fresh authentication request on a hot restart
+        }
     };
-    IS_INITIALISED.set(true);
-    result
+
+    Ok(())
+}
+
+/// Wrapper for the tests.
+///
+/// Needed as we do not want to have a hot restart handling in the tests and also can't expose a
+/// channel::Sender through frb.
+pub fn run_in_test(seed_dir: String) -> Result<()> {
+    let (tx_websocket, _rx) = channel::<OrderbookRequest>(10);
+    run_internal(
+        seed_dir,
+        "".to_string(),
+        tx_websocket,
+        IncludeBacktraceOnPanic::No,
+    )
 }
 
 #[derive(PartialEq)]
@@ -275,9 +300,10 @@ pub async fn full_backup() -> Result<()> {
     get_storage().full_backup().await
 }
 
-pub fn run(
+fn run_internal(
     seed_dir: String,
     fcm_token: String,
+    tx_websocket: broadcast::Sender<OrderbookRequest>,
     backtrace_on_panic: IncludeBacktraceOnPanic,
 ) -> Result<()> {
     if backtrace_on_panic == IncludeBacktraceOnPanic::Yes {
@@ -301,7 +327,13 @@ pub fn run(
 
     let (_health, tx) = health::Health::new(runtime);
 
-    orderbook::subscribe(ln_dlc::get_node_key(), runtime, tx.orderbook, fcm_token)
+    orderbook::subscribe(
+        ln_dlc::get_node_key(),
+        runtime,
+        tx.orderbook,
+        fcm_token,
+        tx_websocket,
+    )
 }
 
 pub fn get_unused_address() -> SyncReturn<String> {

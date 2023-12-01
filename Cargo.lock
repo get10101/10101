@@ -2399,6 +2399,7 @@ dependencies = [
  "thiserror",
  "time 0.3.20",
  "tokio",
+ "tokio-tungstenite",
  "tokio-util",
  "tracing",
  "tracing-subscriber",
