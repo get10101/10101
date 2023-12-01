@@ -39,6 +39,8 @@ use std::string::ToString;
 
 pub mod sled;
 
+// Kinds.
+
 const CONTRACT: u8 = 1;
 const CHANNEL: u8 = 2;
 const CHAIN_MONITOR: u8 = 3;
@@ -47,6 +49,8 @@ const KEY_PAIR: u8 = 6;
 const SUB_CHANNEL: u8 = 7;
 const ADDRESS: u8 = 8;
 const ACTION: u8 = 9;
+
+const CHAIN_MONITOR_KEY: &str = "chain_monitor";
 
 pub trait WalletStorage {
     fn upsert_address(&self, address: &Address, privkey: &SecretKey) -> Result<()>;
@@ -439,7 +443,7 @@ impl<K: DlcStoreProvider> dlc_manager::Storage for DlcStorageProvider<K> {
         self.store
             .write(
                 CHAIN_MONITOR,
-                "chain_monitor".to_string().into_bytes(),
+                CHAIN_MONITOR_KEY.to_string().into_bytes(),
                 monitor.serialize()?,
             )
             .map_err(|e| Error::StorageError(format!("Error writing chain monitor: {e}")))
