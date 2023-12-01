@@ -1,14 +1,12 @@
-#![allow(clippy::unwrap_used)]
-
+use crate::bitcoind::Bitcoind;
+use crate::coordinator::Coordinator;
+use crate::setup;
+use crate::wait_until;
 use bitcoin::Txid;
 use coordinator::admin::Balance;
 use native::api;
 use rust_decimal_macros::dec;
 use std::str::FromStr;
-use tests_e2e::bitcoind::Bitcoind;
-use tests_e2e::coordinator::Coordinator;
-use tests_e2e::setup;
-use tests_e2e::wait_until;
 use tokio::task::block_in_place;
 
 // TODO: We should check that the on-chain balances have increased by the _expected amount_ for

@@ -1,8 +1,8 @@
+use crate::setup;
+use crate::setup::dummy_order;
+use crate::wait_until;
 use native::api;
 use native::trade::position::PositionState;
-use tests_e2e::setup;
-use tests_e2e::setup::dummy_order;
-use tests_e2e::wait_until;
 use tokio::task::spawn_blocking;
 
 #[tokio::test]

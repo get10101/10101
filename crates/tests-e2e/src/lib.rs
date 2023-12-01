@@ -1,5 +1,8 @@
 #![allow(clippy::unwrap_used)]
 
+#[cfg(test)]
+mod tests;
+
 pub mod app;
 pub mod bitcoind;
 pub mod coordinator;

@@ -1,11 +1,11 @@
+use crate::app::run_app;
+use crate::bitcoind::Bitcoind;
+use crate::coordinator::Coordinator;
+use crate::fund::fund_app_with_faucet;
+use crate::http::init_reqwest;
+use crate::logger::init_tracing;
 use anyhow::Result;
 use bitcoin::Amount;
-use tests_e2e::app::run_app;
-use tests_e2e::bitcoind::Bitcoind;
-use tests_e2e::coordinator::Coordinator;
-use tests_e2e::fund::fund_app_with_faucet;
-use tests_e2e::http::init_reqwest;
-use tests_e2e::logger::init_tracing;
 
 #[tokio::test]
 #[ignore = "need to be run with 'just e2e' command"]

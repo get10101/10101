@@ -1,11 +1,9 @@
-#![allow(clippy::unwrap_used)]
-
+use crate::bitcoind::Bitcoind;
+use crate::coordinator::Coordinator;
+use crate::coordinator::SubChannelState;
+use crate::setup;
+use crate::wait_until;
 use native::api;
-use tests_e2e::bitcoind::Bitcoind;
-use tests_e2e::coordinator::Coordinator;
-use tests_e2e::coordinator::SubChannelState;
-use tests_e2e::setup;
-use tests_e2e::wait_until;
 
 #[tokio::test]
 #[ignore = "need to be run with 'just e2e' command"]

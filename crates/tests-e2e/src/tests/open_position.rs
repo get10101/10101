@@ -1,3 +1,5 @@
+use crate::setup::TestSetup;
+use crate::wait_until;
 use native::api;
 use native::api::ContractSymbol;
 use native::health::Service;
@@ -5,8 +7,6 @@ use native::health::ServiceStatus;
 use native::trade::order::api::NewOrder;
 use native::trade::order::api::OrderType;
 use native::trade::position::PositionState;
-use tests_e2e::setup::TestSetup;
-use tests_e2e::wait_until;
 use tokio::task::spawn_blocking;
 
 fn dummy_order() -> NewOrder {

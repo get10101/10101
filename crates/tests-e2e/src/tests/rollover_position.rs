@@ -1,12 +1,10 @@
-#![allow(clippy::unwrap_used)]
-
+use crate::app::AppHandle;
+use crate::setup;
+use crate::wait_until;
 use bitcoin::Network;
 use native::api;
 use native::trade::position;
 use position::PositionState;
-use tests_e2e::app::AppHandle;
-use tests_e2e::setup;
-use tests_e2e::wait_until;
 use time::OffsetDateTime;
 
 #[tokio::test]

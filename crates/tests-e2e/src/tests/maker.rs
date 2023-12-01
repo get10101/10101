@@ -1,12 +1,12 @@
+use crate::bitcoind::Bitcoind;
+use crate::coordinator::Coordinator;
+use crate::http::init_reqwest;
+use crate::logger::init_tracing;
+use crate::maker::Maker;
+use crate::wait_until;
 use anyhow::Result;
 use bitcoin::Amount;
 use std::time::Duration;
-use tests_e2e::bitcoind::Bitcoind;
-use tests_e2e::coordinator::Coordinator;
-use tests_e2e::http::init_reqwest;
-use tests_e2e::logger::init_tracing;
-use tests_e2e::maker::Maker;
-use tests_e2e::wait_until;
 
 #[tokio::test]
 #[ignore = "need to be run with 'just e2e' command"]

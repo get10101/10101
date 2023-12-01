@@ -1,0 +1,12 @@
+mod basic;
+mod close_position;
+mod collaborative_revert_position;
+mod collaborative_revert_position_without_channel_details;
+mod force_close_position;
+mod maker;
+mod open_position;
+mod receive_payment_when_open_position;
+mod resize_position;
+mod restore_from_backup;
+mod rollover_position;
+mod send_payment_when_open_position;

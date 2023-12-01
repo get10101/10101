@@ -1,7 +1,7 @@
+use crate::setup;
+use crate::wait_until;
 use native::api;
 use native::api::SendPayment;
-use tests_e2e::setup;
-use tests_e2e::wait_until;
 use tokio::task::spawn_blocking;
 
 #[tokio::test]
