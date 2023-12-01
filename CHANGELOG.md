@@ -7,8 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-- Fix backwards-compatibility of `ChainMonitor`s created before version 1.5.0.
+## [1.6.6] - 2023-12-01
+
+- Fix: Add backwards-compatibility of `ChainMonitor`s created before version 1.5.0
 - Fix: Return lsp config data in authenticated response
+- Fix: Make function pieces continuous
 
 ## [1.6.5] - 2023-11-29
 
@@ -211,7 +214,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Self-Custodial CFD Trading based on DLC and lightning
 
-[Unreleased]: https://github.com/get10101/10101/compare/1.6.5...HEAD
+[Unreleased]: https://github.com/get10101/10101/compare/1.6.6...HEAD
+[1.6.6]: https://github.com/get10101/10101/compare/1.6.5...1.6.6
 [1.6.5]: https://github.com/get10101/10101/compare/1.6.4...1.6.5
 [1.6.4]: https://github.com/get10101/10101/compare/1.6.3...1.6.4
 [1.6.3]: https://github.com/get10101/10101/compare/1.6.2...1.6.3
