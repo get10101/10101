@@ -1,13 +1,15 @@
-use anyhow::Result;
 use native::api;
+use native::trade::position::PositionState;
 use tests_e2e::app::run_app;
 use tests_e2e::logger::init_tracing;
 use tests_e2e::setup;
+use tests_e2e::setup::dummy_order;
+use tests_e2e::wait_until;
 use tokio::task::spawn_blocking;
 
 #[tokio::test]
 #[ignore = "need to be run with 'just e2e' command"]
-async fn app_can_be_restored_from_a_backup() -> Result<()> {
+async fn app_can_be_restored_from_a_backup() {
     init_tracing();
 
     let test = setup::TestSetup::new_with_open_position().await;
@@ -34,5 +36,17 @@ async fn app_can_be_restored_from_a_backup() -> Result<()> {
         .await
         .unwrap();
 
-    Ok(())
+    let closing_order = {
+        let mut order = dummy_order();
+        order.direction = api::Direction::Short;
+        order
+    };
+
+    tracing::info!("Closing a position");
+    spawn_blocking(move || api::submit_order(closing_order).unwrap())
+        .await
+        .unwrap();
+
+    wait_until!(test.app.rx.position().unwrap().position_state == PositionState::Closing);
+    wait_until!(test.app.rx.position_close().is_some());
 }
