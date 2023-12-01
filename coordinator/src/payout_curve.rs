@@ -10,8 +10,11 @@ use dlc_manager::payout_curve::PolynomialPayoutCurvePiece;
 use dlc_manager::payout_curve::RoundingInterval;
 use dlc_manager::payout_curve::RoundingIntervals;
 use payout_curve::ROUNDING_PERCENT;
+use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::Decimal;
 use tracing::instrument;
+use trade::cfd::calculate_long_liquidation_price;
+use trade::cfd::calculate_short_liquidation_price;
 use trade::ContractSymbol;
 use trade::Direction;
 
@@ -71,13 +74,24 @@ fn build_inverse_payout_function(
     coordinator_direction: Direction,
     quantity: f32,
 ) -> Result<PayoutFunction> {
+    let leverage_coordinator =
+        Decimal::from_f32(leverage_coordinator).expect("to fit into decimal");
+    let leverage_trader = Decimal::from_f32(leverage_trader).expect("to fit into decimal");
+
+    let (coordinator_liquidation_price, trader_liquidation_price) = get_liquidation_prices(
+        initial_price,
+        coordinator_direction,
+        leverage_coordinator,
+        leverage_trader,
+    );
+
     let payout_points = payout_curve::build_inverse_payout_function(
         quantity,
         coordinator_collateral,
         trader_collateral,
         initial_price,
-        leverage_trader,
-        leverage_coordinator,
+        coordinator_liquidation_price,
+        trader_liquidation_price,
         fee,
         coordinator_direction,
     )?;
@@ -103,6 +117,26 @@ fn build_inverse_payout_function(
         PayoutFunction::new(pieces).context("could not create payout function")?;
 
     Ok(payout_function)
+}
+
+/// Returns the liquidation price for `(coordinator, maker)`
+fn get_liquidation_prices(
+    initial_price: Decimal,
+    coordinator_direction: Direction,
+    leverage_coordinator: Decimal,
+    leverage_trader: Decimal,
+) -> (Decimal, Decimal) {
+    let (coordinator_liquidation_price, trader_liquidation_price) = match coordinator_direction {
+        Direction::Long => (
+            calculate_long_liquidation_price(leverage_coordinator, initial_price),
+            calculate_short_liquidation_price(leverage_trader, initial_price),
+        ),
+        Direction::Short => (
+            calculate_short_liquidation_price(leverage_coordinator, initial_price),
+            calculate_long_liquidation_price(leverage_trader, initial_price),
+        ),
+    };
+    (coordinator_liquidation_price, trader_liquidation_price)
 }
 
 pub fn create_rounding_interval(total_collateral: u64) -> RoundingIntervals {
@@ -173,5 +207,79 @@ mod tests {
                 max_price
             );
         }
+    }
+
+    #[test]
+    fn calculate_liquidation_price_coordinator_long() {
+        let initial_price = dec!(30_000);
+        let coordinator_direction = Direction::Long;
+        let leverage_coordinator = dec!(2.0);
+        let leverage_trader = dec!(3.0);
+
+        let (coordinator, maker) = get_liquidation_prices(
+            initial_price,
+            coordinator_direction,
+            leverage_coordinator,
+            leverage_trader,
+        );
+
+        assert_eq!(coordinator, dec!(20_000));
+        assert_eq!(maker, dec!(45_000));
+    }
+
+    #[test]
+    fn calculate_liquidation_price_coordinator_short() {
+        let initial_price = dec!(30_000);
+        let coordinator_direction = Direction::Short;
+        let leverage_coordinator = dec!(2.0);
+        let leverage_trader = dec!(3.0);
+
+        let (coordinator, maker) = get_liquidation_prices(
+            initial_price,
+            coordinator_direction,
+            leverage_coordinator,
+            leverage_trader,
+        );
+
+        assert_eq!(coordinator, dec!(60_000));
+        assert_eq!(maker, dec!(22_500));
+    }
+
+    #[test]
+    fn build_contract_descriptor_dont_panic() {
+        let initial_price = dec!(36404.5);
+        let quantity = 20.0;
+        let leverage_coordinator = 2.0;
+        let coordinator_margin = 18_313;
+
+        let leverage_trader = 3.0;
+        let trader_margin = 27_469;
+
+        let coordinator_direction = Direction::Short;
+
+        let fee = 0;
+
+        let rounding_intervals = RoundingIntervals {
+            intervals: vec![RoundingInterval {
+                begin_interval: 0,
+                rounding_mod: 457,
+            }],
+        };
+
+        let symbol = ContractSymbol::BtcUsd;
+
+        let _descriptor = build_contract_descriptor(
+            initial_price,
+            coordinator_margin,
+            trader_margin,
+            leverage_coordinator,
+            leverage_trader,
+            coordinator_direction,
+            fee,
+            rounding_intervals,
+            quantity,
+            symbol,
+        )
+        .unwrap();
     }
 }

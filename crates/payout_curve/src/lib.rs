@@ -4,9 +4,7 @@ use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use serde::Deserialize;
 use serde::Serialize;
-use trade::cfd::calculate_long_liquidation_price;
 use trade::cfd::calculate_pnl;
-use trade::cfd::calculate_short_liquidation_price;
 use trade::cfd::BTCUSD_MAX_PRICE;
 use trade::Direction;
 
@@ -44,30 +42,19 @@ pub fn build_inverse_payout_function(
     offer_collateral: u64,
     accept_collateral: u64,
     initial_price: Decimal,
-    accept_leverage: f32,
-    offer_leverage: f32,
+    offer_liquidation_price: Decimal,
+    accept_liquidation_price: Decimal,
     fee: u64,
     offer_direction: Direction,
 ) -> Result<Vec<(PayoutPoint, PayoutPoint)>> {
     let mut pieces = vec![];
     let total_collateral = offer_collateral + accept_collateral;
 
-    // 1. we need to calculate the lower and upper bounds. This depends on the direction of the
-    //    offerer
-    let (long_liquidation_price, short_liquidation_price) = calculate_payout_curve_bounds(
-        initial_price,
-        accept_leverage,
-        offer_leverage,
-        offer_direction,
-    )?;
-
-    let (short_leverage, long_leverage) = {
-        if offer_direction == Direction::Long {
-            (accept_leverage, offer_leverage)
-        } else {
-            (offer_leverage, accept_leverage)
-        }
+    let (long_liquidation_price, short_liquidation_price) = match offer_direction {
+        Direction::Long => (offer_liquidation_price, accept_liquidation_price),
+        Direction::Short => (accept_liquidation_price, offer_liquidation_price),
     };
+    let short_liquidation_price = short_liquidation_price.min(Decimal::from(BTCUSD_MAX_PRICE));
 
     let (long_liquidation_range_lower, long_liquidation_range_upper) =
         calculate_short_liquidation_interval_payouts(
@@ -84,8 +71,6 @@ pub fn build_inverse_payout_function(
     let mid_range = calculate_mid_range_payouts(
         accept_collateral,
         offer_collateral,
-        long_leverage,
-        short_leverage,
         initial_price,
         long_liquidation_price
             .to_u64()
@@ -101,7 +86,7 @@ pub fn build_inverse_payout_function(
 
     let (_, last_mid_range) = mid_range
         .last()
-        .context("didn't have at least a signel element in the mid range")?
+        .context("didn't have at least a single element in the mid range")?
         .clone();
 
     for (lower, upper) in mid_range {
@@ -126,19 +111,20 @@ pub fn build_inverse_payout_function(
 fn calculate_mid_range_payouts(
     accept_collateral: u64,
     offer_collateral: u64,
-    long_leverage: f32,
-    short_leverage: f32,
     initial_price: Decimal,
     lower_limit: u64,
     upper_limit: u64,
     last_payout: &PayoutPoint,
-    direction: Direction,
+    offer_direction: Direction,
     quantity: f32,
     fee: u64,
 ) -> Result<Vec<(PayoutPoint, PayoutPoint)>> {
     let total_collateral = accept_collateral + offer_collateral;
-    let long_leverage = long_leverage.to_f32().expect("to fit into f32");
-    let short_leverage = short_leverage.to_f32().expect("to fit into f32");
+
+    let (long_margin, short_margin) = match offer_direction {
+        Direction::Long => (offer_collateral, accept_collateral),
+        Direction::Short => (accept_collateral, offer_collateral),
+    };
 
     let pieces = (lower_limit..upper_limit)
         .step_by(PAYOUT_CURVE_DISCRETIZATION_STEPS as usize)
@@ -154,9 +140,9 @@ fn calculate_mid_range_payouts(
                         initial_price,
                         Decimal::from(current_price),
                         quantity,
-                        long_leverage,
-                        short_leverage,
-                        direction,
+                        offer_direction,
+                        long_margin,
+                        short_margin,
                     )?
             };
             let lower_event_outcome_payout = if lower_event_outcome_payout <= 0 {
@@ -176,9 +162,9 @@ fn calculate_mid_range_payouts(
                 initial_price,
                 Decimal::from(upper_event_outcome),
                 quantity,
-                long_leverage,
-                short_leverage,
-                direction,
+                offer_direction,
+                long_margin,
+                short_margin,
             )?;
             let upper_event_outcome_payout =
                 ((offer_collateral as i64 + pnl) as u64).min(total_collateral);
@@ -289,51 +275,9 @@ fn calculate_upper_range_payouts(
     Ok((lower_range_lower, lower_range_upper))
 }
 
-/// Calculates lower and upper bounds for our payout curve, aka the liquidation prices
-///
-/// Note: the upper bound is bound by [`BTCUSD_MAX_PRICE`]
-fn calculate_payout_curve_bounds(
-    initial_price: Decimal,
-    accept_leverage: f32,
-    offer_leverage: f32,
-    offer_direction: Direction,
-) -> Result<(Decimal, Decimal)> {
-    let (liquidation_price_lower_bound, liquidation_price_upper_bound) = match offer_direction {
-        Direction::Long => {
-            let leverage_short = Decimal::try_from(accept_leverage)?;
-            let liquidation_price_short =
-                calculate_short_liquidation_price(leverage_short, initial_price);
-
-            let leverage_long = Decimal::try_from(offer_leverage)?;
-            let liquidation_price_long =
-                calculate_long_liquidation_price(leverage_long, initial_price);
-            // if the offerer is long, his lower bound is when he gets liquidated and the upper
-            // bound is when the acceptor gets liquidated
-            (liquidation_price_long, liquidation_price_short)
-        }
-        Direction::Short => {
-            let leverage_short = Decimal::try_from(offer_leverage)?;
-            let liquidation_price_short =
-                calculate_short_liquidation_price(leverage_short, initial_price);
-
-            let leverage_long = Decimal::try_from(accept_leverage)?;
-            let liquidation_price_long =
-                calculate_long_liquidation_price(leverage_long, initial_price);
-            // if the offerer is short, his lower bound is when the acceptor gets liquidated and
-            // the upper bound is when the offerer gets liquidated
-            (liquidation_price_long, liquidation_price_short)
-        }
-    };
-    Ok((
-        liquidation_price_lower_bound,
-        liquidation_price_upper_bound.min(Decimal::from(BTCUSD_MAX_PRICE)),
-    ))
-}
-
 #[cfg(test)]
 mod tests {
     use crate::calculate_mid_range_payouts;
-    use crate::calculate_payout_curve_bounds;
     use crate::calculate_short_liquidation_interval_payouts;
     use crate::calculate_upper_range_payouts;
     use crate::PayoutPoint;
@@ -357,85 +301,6 @@ mod tests {
     /// set this to true to export test data to csv files
     /// An example gnuplot file has been provided in [`payout_curve.gp`]
     const PRINT_CSV: bool = false;
-
-    #[test]
-    pub fn calculate_bounds_when_offerer_long_with_different_leverages() {
-        let initial_price = dec!(30_000);
-        let accept_leverage = 4.0;
-        let offer_leverage = 2.0;
-
-        let (lower_bound, upper_bound) = calculate_payout_curve_bounds(
-            initial_price,
-            accept_leverage,
-            offer_leverage,
-            Direction::Long,
-        )
-        .unwrap();
-
-        // offerer with leverage 2 gets liquidated
-        assert_eq!(lower_bound, dec!(20_000));
-        // acceptor with leverage 4 gets liquidated
-        assert_eq!(upper_bound, dec!(40_000));
-    }
-
-    #[test]
-    pub fn calculate_bounds_when_offerer_short_with_different_leverages() {
-        let initial_price = dec!(30_000);
-        let accept_leverage = 4.0;
-        let offer_leverage = 2.0;
-
-        let (lower_bound, upper_bound) = calculate_payout_curve_bounds(
-            initial_price,
-            accept_leverage,
-            offer_leverage,
-            Direction::Short,
-        )
-        .unwrap();
-
-        // acceptor with leverage 4 gets liquidated
-        assert_eq!(lower_bound, dec!(24_000));
-        // offerer with leverage 2 gets liquidated
-        assert_eq!(upper_bound, dec!(60_000));
-    }
-
-    #[test]
-    pub fn calculate_bounds_when_offerer_long_with_same_leverages() {
-        let initial_price = dec!(30_000);
-        let accept_leverage = 2.0;
-        let offer_leverage = 2.0;
-
-        let (lower_bound, upper_bound) = calculate_payout_curve_bounds(
-            initial_price,
-            accept_leverage,
-            offer_leverage,
-            Direction::Long,
-        )
-        .unwrap();
-
-        // offerer with leverage 2 gets liquidated
-        assert_eq!(lower_bound, dec!(20_000));
-        // acceptor with leverage 2 gets liquidated
-        assert_eq!(upper_bound, dec!(60_000));
-    }
-    #[test]
-    pub fn calculate_bounds_when_offerer_short_with_same_leverages() {
-        let initial_price = dec!(30_000);
-        let accept_leverage = 2.0;
-        let offer_leverage = 2.0;
-
-        let (lower_bound, upper_bound) = calculate_payout_curve_bounds(
-            initial_price,
-            accept_leverage,
-            offer_leverage,
-            Direction::Short,
-        )
-        .unwrap();
-
-        // acceptor with leverage 2 gets liquidated
-        assert_eq!(lower_bound, dec!(20_000));
-        // offerer with leverage 2 gets liquidated
-        assert_eq!(upper_bound, dec!(60_000));
-    }
 
     #[test]
     pub fn calculate_lower_range_payout_points_when_offerer_long_then_gets_zero() {
@@ -573,8 +438,6 @@ mod tests {
         let mid_range_payouts_offer_long = calculate_mid_range_payouts(
             accept_collateral,
             offer_collateral,
-            long_leverage,
-            short_leverage,
             initial_price,
             lower_limit,
             upper_limit,
@@ -593,8 +456,6 @@ mod tests {
         let mid_range_payouts_offer_short = calculate_mid_range_payouts(
             accept_collateral,
             offer_collateral,
-            long_leverage,
-            short_leverage,
             initial_price,
             lower_limit,
             upper_limit,
@@ -700,8 +561,6 @@ mod tests {
         let mid_range_payouts_offer_long = calculate_mid_range_payouts(
             accept_collateral,
             offer_collateral,
-            long_leverage,
-            short_leverage,
             initial_price,
             lower_limit,
             upper_limit,
@@ -985,8 +844,6 @@ mod tests {
             let mid_range_payouts_offer_long = calculate_mid_range_payouts(
                 accept_collateral,
                 offer_collateral,
-                long_leverage,
-                short_leverage,
                 initial_price,
                 lower_limit,
                 upper_limit,

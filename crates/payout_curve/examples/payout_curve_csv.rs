@@ -46,11 +46,17 @@ fn main() -> Result<()> {
         margin_long,
         margin_short,
         initial_price,
-        leverage_short,
-        leverage_long,
         fee,
         Direction::Long,
         "./crates/payout_curve/examples/offerer_long.csv",
+        calculate_long_liquidation_price(
+            Decimal::from_f32(leverage_long).expect("to be able to parse f32"),
+            initial_price,
+        ),
+        calculate_short_liquidation_price(
+            Decimal::from_f32(leverage_short).expect("to be able to parse f32"),
+            initial_price,
+        ),
     )?;
 
     // offerer is short
@@ -59,11 +65,17 @@ fn main() -> Result<()> {
         margin_short,
         margin_long,
         initial_price,
-        leverage_long,
-        leverage_short,
         fee,
         Direction::Short,
         "./crates/payout_curve/examples/offerer_short.csv",
+        calculate_short_liquidation_price(
+            Decimal::from_f32(leverage_short).expect("to be able to parse f32"),
+            initial_price,
+        ),
+        calculate_long_liquidation_price(
+            Decimal::from_f32(leverage_long).expect("to be able to parse f32"),
+            initial_price,
+        ),
     )?;
 
     computed_payout_curve(
@@ -71,11 +83,17 @@ fn main() -> Result<()> {
         margin_long,
         margin_short,
         initial_price,
-        leverage_short,
-        leverage_long,
         fee,
         Direction::Long,
         "./crates/payout_curve/examples/computed_payout.csv",
+        calculate_long_liquidation_price(
+            Decimal::from_f32(leverage_long).expect("to be able to parse f32"),
+            initial_price,
+        ),
+        calculate_short_liquidation_price(
+            Decimal::from_f32(leverage_short).expect("to be able to parse f32"),
+            initial_price,
+        ),
     )?;
 
     let leverage_long = Decimal::from_f32(leverage_long).context("to be able to parse f32")?;
@@ -100,19 +118,19 @@ fn computed_payout_curve(
     coordinator_collateral: u64,
     trader_collateral: u64,
     initial_price: Decimal,
-    leverage_trader: f32,
-    leverage_coordinator: f32,
     fee: u64,
     coordinator_direction: Direction,
     csv_path: &str,
+    long_liquidation_price: Decimal,
+    short_liquidation_price: Decimal,
 ) -> Result<()> {
     let payout_points = build_inverse_payout_function(
         quantity,
         coordinator_collateral,
         trader_collateral,
         initial_price,
-        leverage_trader,
-        leverage_coordinator,
+        long_liquidation_price,
+        short_liquidation_price,
         fee,
         coordinator_direction,
     )?;
@@ -169,19 +187,19 @@ fn discretized_payouts_as_csv(
     offer_collateral: u64,
     accept_collateral: u64,
     initial_price: Decimal,
-    leverage_accept: f32,
-    leverage_offer: f32,
     fee: u64,
     offer_direction: Direction,
     csv_path: &str,
+    offer_liquidation_price: Decimal,
+    accept_liquidation_price: Decimal,
 ) -> Result<()> {
     let payout_points = build_inverse_payout_function(
         quantity,
         offer_collateral,
         accept_collateral,
         initial_price,
-        leverage_accept,
-        leverage_offer,
+        offer_liquidation_price,
+        accept_liquidation_price,
         fee,
         offer_direction,
     )?;
@@ -242,6 +260,9 @@ pub fn should_payouts_as_csv(
     let leverage_long = leverage_long.to_f32().expect("to be able to convert");
     let leverage_short = leverage_short.to_f32().expect("to be able to convert");
 
+    let long_margin = calculate_margin(initial_price, quantity, leverage_long);
+    let short_margin = calculate_margin(initial_price, quantity, leverage_short);
+
     for price in long_liquidation_price_i32..short_liquidation_price_i32 {
         wtr.write_record(&[
             price.to_string(),
@@ -250,9 +271,9 @@ pub fn should_payouts_as_csv(
                     initial_price,
                     Decimal::from(price),
                     quantity,
-                    leverage_long,
-                    leverage_short,
                     coordinator_direction,
+                    long_margin,
+                    short_margin,
                 )?)
             .to_string(),
             ((trader_collateral as i64)
@@ -260,9 +281,9 @@ pub fn should_payouts_as_csv(
                     initial_price,
                     Decimal::from(price),
                     quantity,
-                    leverage_long,
-                    leverage_short,
                     coordinator_direction.opposite(),
+                    long_margin,
+                    short_margin,
                 )?)
             .to_string(),
         ])?;
@@ -274,9 +295,9 @@ pub fn should_payouts_as_csv(
                 initial_price,
                 short_liquidation_price,
                 quantity,
-                leverage_long,
-                leverage_short,
                 coordinator_direction,
+                long_margin,
+                short_margin,
             )?)
         .to_string(),
         ((trader_collateral as i64)
@@ -284,9 +305,9 @@ pub fn should_payouts_as_csv(
                 initial_price,
                 short_liquidation_price,
                 quantity,
-                leverage_long,
-                leverage_short,
                 coordinator_direction.opposite(),
+                long_margin,
+                short_margin,
             )?)
         .to_string(),
     ])?;
@@ -297,9 +318,9 @@ pub fn should_payouts_as_csv(
                 initial_price,
                 Decimal::from(100_000),
                 quantity,
-                leverage_long,
-                leverage_short,
                 coordinator_direction,
+                long_margin,
+                short_margin,
             )?)
         .to_string(),
         ((trader_collateral as i64)
@@ -307,9 +328,9 @@ pub fn should_payouts_as_csv(
                 initial_price,
                 Decimal::from(100_000),
                 quantity,
-                leverage_long,
-                leverage_short,
                 coordinator_direction.opposite(),
+                long_margin,
+                short_margin,
             )?)
         .to_string(),
     ])?;

@@ -33,6 +33,9 @@ pub fn calculate_pnl(
         Direction::Short => (2.0, leverage),
     };
 
+    let long_margin = calculate_margin(opening_price, quantity, long_leverage);
+    let short_margin = calculate_margin(opening_price, quantity, short_leverage);
+
     let opening_price = Decimal::try_from(opening_price).expect("price to fit into decimal");
     let closing_price = closing_price.get_price_for_direction(direction.opposite());
 
@@ -40,9 +43,9 @@ pub fn calculate_pnl(
         opening_price,
         closing_price,
         quantity,
-        long_leverage,
-        short_leverage,
         direction,
+        long_margin,
+        short_margin,
     )
 }
 
