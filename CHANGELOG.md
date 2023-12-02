@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Fix: Reduce websocket reconnect timeout to 200ms
+
 ## [1.6.6] - 2023-12-01
 
 - Fix: Add backwards-compatibility of `ChainMonitor`s created before version 1.5.0

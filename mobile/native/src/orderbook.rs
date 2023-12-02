@@ -32,9 +32,12 @@ use tokio::sync::watch;
 use tokio_tungstenite::tungstenite;
 use uuid::Uuid;
 
-/// The reconnect timeout should be high enough for the coordinator to get ready after a restart. If
-/// we reconnect too early we may not be ready process messages which require DLC actions.
-const WS_RECONNECT_TIMEOUT: Duration = Duration::from_secs(5);
+/// FIXME(holzeis): There is an edge case where the app is still open while we move into the
+/// rollover window. If the coordinator restarts while the app remains open in that scenario, the
+/// rollover will fail. However the rollover will succeed on the next restart.
+/// This could be fixed by only sending the rollover message once the channel is usable with the
+/// trader.
+const WS_RECONNECT_TIMEOUT: Duration = Duration::from_millis(200);
 
 const EXPIRED_ORDER_PRUNING_INTERVAL: Duration = Duration::from_secs(30);
 
@@ -104,6 +107,7 @@ pub fn subscribe(
             Some(fcm_token)
         };
 
+        let mut round = 1;
         loop {
             let url = url.clone();
             let authenticate = authenticate;
@@ -148,6 +152,7 @@ pub fn subscribe(
                             Ok(Some(msg)) => msg,
                             Ok(None) => {
                                 tracing::warn!("Orderbook WS stream closed");
+
                                 break;
                             }
                             Err(error) => {
@@ -164,6 +169,8 @@ pub fn subscribe(
                         }
                     }
 
+                    round = 1;
+
                     // abort handler on sending messages over a lost websocket connection.
                     handle.abort();
                 }
@@ -176,11 +183,13 @@ pub fn subscribe(
                 tracing::warn!("Cannot update orderbook status: {e:#}");
             };
 
-            tokio::time::sleep(WS_RECONNECT_TIMEOUT).await;
+            let retry_interval = WS_RECONNECT_TIMEOUT.mul_f32(round as f32);
             tracing::debug!(
-                ?WS_RECONNECT_TIMEOUT,
+                ?retry_interval,
                 "Reconnecting to orderbook WS after timeout"
             );
+            tokio::time::sleep(retry_interval).await;
+            round *= 2;
         }
     });
 
