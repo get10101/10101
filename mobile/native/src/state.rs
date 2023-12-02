@@ -1,8 +1,10 @@
 use crate::config::ConfigInternal;
 use crate::ln_dlc::node::Node;
+use crate::logger::LogEntry;
 use crate::storage::TenTenOneNodeStorage;
 use anyhow::Result;
 use commons::OrderbookRequest;
+use flutter_rust_bridge::StreamSink;
 use ln_dlc_node::seed::Bip39Seed;
 use parking_lot::RwLock;
 use state::Storage;
@@ -21,6 +23,7 @@ static SEED: Storage<RwLock<Bip39Seed>> = Storage::new();
 static STORAGE: Storage<RwLock<TenTenOneNodeStorage>> = Storage::new();
 static RUNTIME: Storage<Runtime> = Storage::new();
 static WEBSOCKET: Storage<RwLock<Sender<OrderbookRequest>>> = Storage::new();
+static LOG_STREAM_SINK: Storage<RwLock<Arc<StreamSink<LogEntry>>>> = Storage::new();
 
 pub fn set_config(config: ConfigInternal) {
     match CONFIG.try_get() {
@@ -112,4 +115,17 @@ pub fn get_websocket() -> Sender<OrderbookRequest> {
 
 pub fn try_get_websocket() -> Option<Sender<OrderbookRequest>> {
     WEBSOCKET.try_get().map(|w| w.read().clone())
+}
+
+pub fn set_log_stream_sink(sink: Arc<StreamSink<LogEntry>>) {
+    match LOG_STREAM_SINK.try_get() {
+        Some(l) => *l.write() = sink,
+        None => {
+            LOG_STREAM_SINK.set(RwLock::new(sink));
+        }
+    }
+}
+
+pub fn try_get_log_stream_sink() -> Option<Arc<StreamSink<LogEntry>>> {
+    LOG_STREAM_SINK.try_get().map(|l| l.read().clone())
 }
