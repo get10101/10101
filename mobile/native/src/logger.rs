@@ -1,8 +1,8 @@
 use anyhow::Context;
 use anyhow::Result;
 use flutter_rust_bridge::StreamSink;
-use state::Storage;
 use std::collections::BTreeMap;
+use std::sync::Arc;
 use std::sync::Once;
 use tracing_subscriber::filter::Directive;
 use tracing_subscriber::filter::LevelFilter;
@@ -15,7 +15,6 @@ use tracing_subscriber::Layer;
 
 const RUST_LOG_ENV: &str = "RUST_LOG";
 static INIT_LOGGER_ONCE: Once = Once::new();
-static LOG_STREAM_SINK: Storage<StreamSink<LogEntry>> = Storage::new();
 
 // Tracing log directives config
 pub fn log_base_directives(env: EnvFilter, level: LevelFilter) -> Result<EnvFilter> {
@@ -46,7 +45,7 @@ pub struct LogEntry {
 }
 
 pub fn create_log_stream(sink: StreamSink<LogEntry>) {
-    LOG_STREAM_SINK.set(sink);
+    crate::state::set_log_stream_sink(Arc::new(sink));
     INIT_LOGGER_ONCE.call_once(|| {
         init_tracing(LevelFilter::DEBUG, false).expect("Logger to initialise");
     });
@@ -80,8 +79,7 @@ where
             .collect::<Vec<String>>()
             .join(",");
 
-        LOG_STREAM_SINK
-            .try_get()
+        crate::state::try_get_log_stream_sink()
             .expect("StreamSink from Flutter to be initialised")
             .add(LogEntry {
                 msg,
