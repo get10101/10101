@@ -30,27 +30,6 @@ pub async fn websocket_connection(stream: WebSocket, state: Arc<AppState>) {
     // display it to our client.
     let mut price_feed = state.tx_price_feed.subscribe();
 
-    let mut conn = match state.pool.clone().get() {
-        Ok(conn) => conn,
-        Err(err) => {
-            tracing::error!("Could not get connection to db pool {err:#}");
-            return;
-        }
-    };
-
-    let orders = match orders::all_limit_orders(&mut conn) {
-        Ok(orders) => orders,
-        Err(error) => {
-            tracing::error!("Could not load all orders from db {error:#}");
-            return;
-        }
-    };
-
-    // Now send the "all orders" to the new client.
-    if let Ok(msg) = serde_json::to_string(&Message::AllOrders(orders)) {
-        let _ = sender.send(WebsocketMessage::Text(msg)).await;
-    }
-
     let (local_sender, mut local_receiver) = mpsc::channel::<Message>(100);
 
     let mut local_recv_task = tokio::spawn(async move {
@@ -146,19 +125,18 @@ pub async fn websocket_connection(stream: WebSocket, state: Arc<AppState>) {
                     let trader_id = signature.pubkey;
                     let signature = signature.signature;
 
+                    let mut conn = match state.pool.clone().get() {
+                        Ok(conn) => conn,
+                        Err(err) => {
+                            tracing::error!("Could not get connection to db pool {err:#}");
+                            return;
+                        }
+                    };
+
                     match signature.verify(&msg, &trader_id) {
                         Ok(_) => {
-                            let liquidity_options = {
-                                match &mut state.pool.get() {
-                                    Ok(conn) => {
-                                        db::liquidity_options::get_all(conn).unwrap_or(vec![])
-                                    }
-                                    Err(e) => {
-                                        tracing::error!("Failed to get connection. {e:#}");
-                                        vec![]
-                                    }
-                                }
-                            };
+                            let liquidity_options =
+                                db::liquidity_options::get_all(&mut conn).unwrap_or(vec![]);
 
                             let contract_tx_fee_rate = {
                                 let settings = state.settings.read().await;
@@ -172,8 +150,13 @@ pub async fn websocket_connection(stream: WebSocket, state: Arc<AppState>) {
                                 }))
                                 .await
                             {
-                                tracing::error!("Could not respond to user {e:#}");
+                                tracing::error!(%trader_id, "Could not respond to user {e:#}");
                                 return;
+                            }
+
+                            let orders = orders::all_limit_orders(&mut conn).unwrap_or(vec![]);
+                            if let Err(e) = local_sender.send(Message::AllOrders(orders)).await {
+                                tracing::error!(%trader_id, "Failed to send all orders to user {e:#}");
                             }
 
                             let token = fcm_token.unwrap_or("unavailable".to_string());

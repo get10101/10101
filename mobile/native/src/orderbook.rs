@@ -257,6 +257,9 @@ async fn handle_orderbook_mesage(
 
             *orders = initial_orders;
 
+            // if we receive a full set of new orders, we can clear the cached best price as it is
+            // outdated information.
+            cached_best_price.clear();
             update_prices_if_needed(cached_best_price, &orders);
         }
         Message::NewOrder(order) => {

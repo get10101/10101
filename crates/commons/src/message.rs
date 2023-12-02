@@ -79,7 +79,7 @@ impl Display for Message {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Message::AllOrders(_) => {
-                write!(f, "AllOrdere")
+                write!(f, "AllOrders")
             }
             Message::LimitOrderFilledMatches { .. } => {
                 write!(f, "LimitOrderFilledMatches")
