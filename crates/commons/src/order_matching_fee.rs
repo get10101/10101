@@ -12,7 +12,6 @@ pub fn order_matching_fee_taker(quantity: f32, price: Decimal) -> bitcoin::Amoun
 
 fn order_matching_fee(quantity: f32, price: Decimal, fee_per_cent: Decimal) -> bitcoin::Amount {
     let quantity = Decimal::from_f32(quantity).expect("quantity to fit in Decimal");
-    let price = price;
 
     let fee: f64 = match price != Decimal::ZERO {
         true => {

@@ -2,14 +2,14 @@ use crate::node::Storage;
 use crate::storage::TenTenOneStorage;
 use crate::PeerManager;
 use anyhow::ensure;
-use lightning::ln::msgs::NetAddress;
+use lightning::ln::msgs::SocketAddress;
 
 const NODE_COLOR: [u8; 3] = [0; 3];
 
 pub fn broadcast_node_announcement<S: TenTenOneStorage, N: Storage>(
     peer_manager: &PeerManager<S, N>,
     alias: [u8; 32],
-    inc_connection_addresses: Vec<NetAddress>,
+    inc_connection_addresses: Vec<SocketAddress>,
 ) {
     let known_peers = peer_manager
         .get_peer_node_ids()

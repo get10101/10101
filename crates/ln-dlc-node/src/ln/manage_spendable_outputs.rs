@@ -92,8 +92,6 @@ fn choose_spendable_output_action(
     esplora_client: &esplora_client::BlockingClient,
     output: &SpendableOutputDescriptor,
 ) -> Result<Action> {
-    let esplora_client = esplora_client.borrow();
-
     use SpendableOutputDescriptor::*;
     let outpoint = match output {
         StaticPaymentOutput(StaticPaymentOutputDescriptor { outpoint, .. })

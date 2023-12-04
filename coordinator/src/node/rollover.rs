@@ -22,8 +22,8 @@ use dlc_manager::contract::contract_input::ContractInputInfo;
 use dlc_manager::contract::contract_input::OracleInput;
 use dlc_manager::contract::Contract;
 use dlc_manager::contract::ContractDescriptor;
-use dlc_manager::ChannelId;
 use dlc_manager::ContractId;
+use dlc_manager::DlcChannelId;
 use futures::future::RemoteHandle;
 use futures::FutureExt;
 use std::str::FromStr;
@@ -210,7 +210,7 @@ impl Node {
     /// Initiates the rollover protocol with the app.
     pub async fn propose_rollover(
         &self,
-        dlc_channel_id: &ChannelId,
+        dlc_channel_id: &DlcChannelId,
         network: Network,
     ) -> Result<()> {
         let contract = self.inner.get_contract_by_dlc_channel_id(dlc_channel_id)?;
@@ -236,7 +236,7 @@ impl Node {
     }
 
     /// Finalizes the rollover protocol with the app setting the position to open.
-    pub fn finalize_rollover(&self, dlc_channel_id: &ChannelId) -> Result<()> {
+    pub fn finalize_rollover(&self, dlc_channel_id: &DlcChannelId) -> Result<()> {
         let contract = self.inner.get_contract_by_dlc_channel_id(dlc_channel_id)?;
         let trader_id = contract.get_counter_party_id();
         tracing::debug!(%trader_id,

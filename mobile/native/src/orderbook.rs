@@ -20,6 +20,7 @@ use commons::Prices;
 use commons::Signature;
 use futures::SinkExt;
 use futures::TryStreamExt;
+use lightning::ln::ChannelId;
 use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -110,7 +111,6 @@ pub fn subscribe(
         let mut round = 1;
         loop {
             let url = url.clone();
-            let authenticate = authenticate;
             let fcm_token = fcm_token.clone();
             match orderbook_client::subscribe_with_authentication(url, authenticate, fcm_token)
                 .await
@@ -317,7 +317,7 @@ async fn handle_orderbook_mesage(
             ));
 
             if let Err(err) = ln_dlc::collaborative_revert_channel(
-                channel_id,
+                ChannelId(channel_id),
                 coordinator_address,
                 coordinator_amount,
                 trader_amount,

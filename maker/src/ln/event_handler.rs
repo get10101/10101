@@ -4,6 +4,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use bitcoin::hashes::hex::ToHex;
 use bitcoin::secp256k1::PublicKey;
+use lightning::ln::ChannelId;
 use ln_dlc_node::channel::Channel;
 use ln_dlc_node::channel::UserChannelId;
 use ln_dlc_node::lightning;
@@ -62,6 +63,8 @@ impl<S: TenTenOneStorage + 'static, N: Storage + Send + Sync + 'static> EventHan
                 purpose,
                 amount_msat,
                 receiver_node_id: _,
+                htlcs: _,
+                sender_intended_total_msat: _,
             } => {
                 common_handlers::handle_payment_claimed(
                     &self.node,
@@ -137,13 +140,18 @@ impl<S: TenTenOneStorage + 'static, N: Storage + Send + Sync + 'static> EventHan
                     time_forwardable,
                 );
             }
-            Event::SpendableOutputs { outputs } => {
+            Event::SpendableOutputs {
+                outputs,
+                channel_id: _,
+            } => {
                 common_handlers::handle_spendable_outputs(&self.node, outputs)?;
             }
             Event::ChannelClosed {
                 channel_id,
                 reason,
                 user_channel_id,
+                counterparty_node_id: _,
+                channel_capacity_sats: _,
             } => {
                 self.handle_channel_closed(user_channel_id, reason, channel_id)?;
             }
@@ -203,8 +211,9 @@ impl<S: TenTenOneStorage + 'static, N: Storage + Send + Sync + 'static> EventHan
                 counterparty_node_id,
                 funding_txo,
             } => {
-                let former_temporary_channel_id =
-                    former_temporary_channel_id.unwrap_or([0; 32]).to_hex();
+                let former_temporary_channel_id = former_temporary_channel_id
+                    .unwrap_or(ChannelId([0; 32]))
+                    .to_hex();
                 tracing::debug!(
                     channel_id = channel_id.to_hex(),
                     former_temporary_channel_id,
@@ -227,7 +236,7 @@ impl<S: TenTenOneStorage, N: Storage> EventHandler<S, N> {
     pub fn handle_channel_ready(
         &self,
         user_channel_id: u128,
-        channel_id: [u8; 32],
+        channel_id: ChannelId,
         counterparty_node_id: PublicKey,
     ) -> Result<()> {
         block_in_place(|| {
@@ -235,7 +244,7 @@ impl<S: TenTenOneStorage, N: Storage> EventHandler<S, N> {
 
             tracing::info!(
                 user_channel_id,
-                channel_id = %channel_id.to_hex(),
+                channel_id = %channel_id.0.to_hex(),
                 counterparty = %counterparty_node_id.to_string(),
                 "Channel ready"
             );
@@ -261,8 +270,8 @@ impl<S: TenTenOneStorage, N: Storage> EventHandler<S, N> {
         &self,
         user_channel_id: u128,
         reason: lightning::events::ClosureReason,
-        channel_id: [u8; 32],
-    ) -> Result<(), anyhow::Error> {
+        channel_id: ChannelId,
+    ) -> Result<()> {
         block_in_place(|| {
             let user_channel_id = Uuid::from_u128(user_channel_id).to_string();
             tracing::info!(
@@ -292,7 +301,7 @@ fn handle_open_channel_request_0_conf<S: TenTenOneStorage, N: Storage>(
     counterparty_node_id: PublicKey,
     funding_satoshis: u64,
     push_msat: u64,
-    temporary_channel_id: [u8; 32],
+    temporary_channel_id: ChannelId,
 ) -> Result<()> {
     let counterparty = counterparty_node_id.to_string();
     tracing::info!(

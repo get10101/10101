@@ -1,4 +1,4 @@
-use dlc_manager::ChannelId;
+use lightning::ln::ChannelId;
 use time::OffsetDateTime;
 
 #[derive(Debug)]

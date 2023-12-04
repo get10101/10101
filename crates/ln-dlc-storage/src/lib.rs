@@ -25,7 +25,9 @@ use dlc_manager::error::Error;
 use dlc_manager::subchannel::SubChannel;
 use dlc_manager::subchannel::SubChannelState;
 use dlc_manager::ContractId;
+use dlc_manager::DlcChannelId;
 use dlc_manager::Utxo;
+use lightning::ln::ChannelId;
 use lightning::util::ser::Readable;
 use lightning::util::ser::Writeable;
 use secp256k1_zkp::PublicKey;
@@ -380,13 +382,13 @@ impl<K: DlcStoreProvider> dlc_manager::Storage for DlcStorageProvider<K> {
         Ok(())
     }
 
-    fn delete_channel(&self, channel_id: &dlc_manager::ChannelId) -> Result<(), Error> {
+    fn delete_channel(&self, channel_id: &DlcChannelId) -> Result<(), Error> {
         self.store
             .delete(CHANNEL, Some(channel_id.to_vec()))
             .map_err(to_storage_error)
     }
 
-    fn get_channel(&self, channel_id: &dlc_manager::ChannelId) -> Result<Option<Channel>, Error> {
+    fn get_channel(&self, channel_id: &DlcChannelId) -> Result<Option<Channel>, Error> {
         match self
             .store
             .read(CHANNEL, Some(channel_id.to_vec()))
@@ -473,17 +475,14 @@ impl<K: DlcStoreProvider> dlc_manager::Storage for DlcStorageProvider<K> {
         let serialized = serialize_sub_channel(subchannel)?;
 
         self.store
-            .write(SUB_CHANNEL, subchannel.channel_id.to_vec(), serialized)
+            .write(SUB_CHANNEL, subchannel.channel_id.0.to_vec(), serialized)
             .map_err(to_storage_error)
     }
 
-    fn get_sub_channel(
-        &self,
-        channel_id: dlc_manager::ChannelId,
-    ) -> Result<Option<SubChannel>, Error> {
+    fn get_sub_channel(&self, channel_id: ChannelId) -> Result<Option<SubChannel>, Error> {
         match self
             .store
-            .read(SUB_CHANNEL, Some(channel_id.to_vec()))
+            .read(SUB_CHANNEL, Some(channel_id.0.to_vec()))
             .map_err(to_storage_error)?
             .first()
         {

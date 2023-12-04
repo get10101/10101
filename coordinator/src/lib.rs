@@ -7,6 +7,7 @@ use diesel::PgConnection;
 use diesel_migrations::embed_migrations;
 use diesel_migrations::EmbeddedMigrations;
 use diesel_migrations::MigrationHarness;
+use lightning::ln::ChannelId;
 use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
@@ -81,12 +82,12 @@ pub fn is_liquidity_sufficient(
     balance.get_spendable() >= amount_sats + settings.min_liquidity_threshold_sats
 }
 
-pub fn parse_channel_id(channel_id: &str) -> Result<[u8; 32]> {
+pub fn parse_channel_id(channel_id: &str) -> Result<ChannelId> {
     let channel_id = hex::decode(channel_id)?
         .try_into()
         .map_err(|_| anyhow::anyhow!("Could not parse channel ID"))?;
 
-    Ok(channel_id)
+    Ok(ChannelId(channel_id))
 }
 
 pub fn compute_relative_contracts(contracts: Decimal, direction: &::trade::Direction) -> Decimal {

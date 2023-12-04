@@ -77,7 +77,7 @@ async fn main() -> Result<()> {
     let seed_path = data_dir.join("seed");
     let seed = Bip39Seed::initialize(&seed_path)?;
 
-    let announcement_addresses = ln_dlc_node::util::into_net_addresses(address);
+    let announcement_addresses = ln_dlc_node::util::into_socket_addresses(address);
     let node_alias = "maker";
 
     let storage = MakerTenTenOneStorage::new(data_dir.to_string_lossy().to_string());

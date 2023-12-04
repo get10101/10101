@@ -4,8 +4,7 @@ use anyhow::Result;
 use bitcoin::hashes::hex::ToHex;
 use diesel;
 use diesel::prelude::*;
-use dlc_manager::ChannelId;
-use hex::FromHex;
+use lightning::ln::ChannelId;
 use time::OffsetDateTime;
 
 #[derive(Insertable, Debug, PartialEq)]
@@ -58,10 +57,14 @@ impl From<RoutingFee> for routing_fee::models::RoutingFee {
             id: value.id,
             amount_msats: value.amount_msats as u64,
             prev_channel_id: value.prev_channel_id.map(|prev_channel_id| {
-                ChannelId::from_hex(prev_channel_id.as_str()).expect("prev channel id to decode")
+                let channel_id = hex::decode(prev_channel_id).expect("prev channel id to decode");
+                let channel_id: [u8; 32] = channel_id.try_into().expect("to fit into 32 bytes");
+                ChannelId(channel_id)
             }),
             next_channel_id: value.next_channel_id.map(|next_channel_id| {
-                ChannelId::from_hex(next_channel_id.as_str()).expect("next channel id to decode")
+                let channel_id = hex::decode(next_channel_id).expect("next channel id to decode");
+                let channel_id: [u8; 32] = channel_id.try_into().expect("to fit into 32 bytes");
+                ChannelId(channel_id)
             }),
             created_at: value.created_at,
         }

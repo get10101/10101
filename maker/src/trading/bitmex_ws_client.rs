@@ -17,52 +17,46 @@ pub async fn stream(
     credentials: Option<Credentials>,
 ) -> impl Stream<Item = Result<Event, Error>> + Unpin {
     let stream = stream! {
+        let mut stream = match credentials {
+            Some(credentials) => {
+                bitmex_stream::subscribe_with_credentials(
+                    ["quoteBin1m:XBTUSD".to_owned(), "position:XBTUSD".to_owned()],
+                    network,
+                    credentials
+                ).boxed()
+            }
+            None => {
+                bitmex_stream::subscribe(
+                    ["quoteBin1m:XBTUSD".to_owned()],
+                    network,
+                ).boxed()
+            }
+        };
+
         loop {
-            let mut stream = match credentials {
-                Some(credentials) => {
-                    bitmex_stream::subscribe_with_credentials(
-                        ["quoteBin1m:XBTUSD".to_owned(), "position:XBTUSD".to_owned()],
-                        network,
-                        credentials
-                    ).boxed()
+            match stream.try_next().await {
+                Ok(Some(text)) => {
+                    match serde_json::from_str::<wire::TableUpdate>(&text) {
+                        Ok(update) => {
+                            let event = Event::from(update);
+
+                            tracing::debug!(?event, "Received new event");
+
+                            yield Ok(event);
+
+                        }
+                        Err(_) => {
+                            tracing::debug!("Unexpected table update: {text}");
+                        }
+                    }
+                },
+                Err(error) => {
+                    yield Err(error);
                 }
-                None => {
-                    bitmex_stream::subscribe(
-                        ["quoteBin1m:XBTUSD".to_owned()],
-                        network,
-                    ).boxed()
+                Ok(None) => {
+                    yield Err(anyhow!("Stream ended"));
                 }
             };
-
-            loop {
-                match stream.try_next().await {
-                    Ok(Some(text)) => {
-                        match serde_json::from_str::<wire::TableUpdate>(&text) {
-                            Ok(update) => {
-                                let event = Event::from(update);
-
-                                tracing::debug!(?event, "Received new event");
-
-                                yield Ok(event);
-
-                            }
-                            Err(_) => {
-                                tracing::debug!("Unexpected table update: {text}");
-                            }
-                        }
-                    },
-                    Err(error) => {
-                        yield Err(error);
-                    }
-                    Ok(None) => {
-                        yield Err(anyhow!("Stream ended"));
-                    }
-                };
-
-
-            }
-
-
         }
     };
 

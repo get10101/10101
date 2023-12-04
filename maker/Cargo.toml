@@ -21,8 +21,8 @@ diesel_migrations = "2.0.0"
 futures = "0.3"
 hex = "0.4"
 lazy_static = "1.4.0"
-lightning = { version = "0.0.116", features = ["max_level_trace"] }
-lightning-persister = "0.0.116"
+lightning = { version = "0.0.117", features = ["max_level_trace"] }
+lightning-persister = "0.0.117"
 ln-dlc-node = { path = "../crates/ln-dlc-node" }
 ln-dlc-storage = { path = "../crates/ln-dlc-storage" }
 # adding this as explicit dependency as we need the "vendored" flag for cross compilation

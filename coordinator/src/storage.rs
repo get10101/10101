@@ -1,23 +1,16 @@
-use bitcoin::BlockHash;
-use lightning::chain::channelmonitor::ChannelMonitor;
-use lightning::sign::EntropySource;
-use lightning::sign::SignerProvider;
-use lightning::util::persist::KVStorePersister;
-use lightning::util::ser::Writeable;
-use lightning_persister::FilesystemPersister;
-use ln_dlc_node::storage::LDKStoreReader;
+use lightning::util::persist::KVStore;
+use lightning_persister::fs_store::FilesystemStore;
 use ln_dlc_storage::sled::SledStorageProvider;
 use ln_dlc_storage::DlcStoreProvider;
 use ln_dlc_storage::KeyValue;
 use std::fs;
-use std::ops::Deref;
-use std::path::Path;
+use std::io::Error;
 use std::path::PathBuf;
 use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct CoordinatorTenTenOneStorage {
-    pub ln_storage: Arc<FilesystemPersister>,
+    pub ln_storage: Arc<FilesystemStore>,
     pub dlc_storage: Arc<SledStorageProvider>,
     pub data_dir: String,
 }
@@ -30,9 +23,9 @@ impl CoordinatorTenTenOneStorage {
             fs::create_dir_all(data_dir.as_path()).expect("Failed to create data dir");
         }
 
-        let data_dir = data_dir.to_string_lossy().to_string();
+        let ln_storage = Arc::new(FilesystemStore::new(data_dir.clone()));
 
-        let ln_storage = Arc::new(FilesystemPersister::new(data_dir.clone()));
+        let data_dir = data_dir.to_string_lossy().to_string();
         let dlc_storage = Arc::new(SledStorageProvider::new(&data_dir));
 
         CoordinatorTenTenOneStorage {
@@ -40,46 +33,6 @@ impl CoordinatorTenTenOneStorage {
             dlc_storage,
             data_dir,
         }
-    }
-}
-
-impl LDKStoreReader for CoordinatorTenTenOneStorage {
-    fn read_network_graph(&self) -> Option<Vec<u8>> {
-        let path = &format!("{}/network_graph", self.data_dir);
-        let network_graph_path = Path::new(path);
-        network_graph_path
-            .exists()
-            .then(|| fs::read(network_graph_path).expect("network graph to be readable"))
-    }
-
-    fn read_manager(&self) -> Option<Vec<u8>> {
-        let path = &format!("{}/manager", self.data_dir);
-        let manager_path = Path::new(path);
-        manager_path
-            .exists()
-            .then(|| fs::read(manager_path).expect("manager to be readable"))
-    }
-
-    fn read_channelmonitors<ES: Deref, SP: Deref>(
-        &self,
-        entropy_source: ES,
-        signer_provider: SP,
-    ) -> std::io::Result<
-        Vec<(
-            BlockHash,
-            ChannelMonitor<<SP::Target as SignerProvider>::Signer>,
-        )>,
-    >
-    where
-        ES::Target: EntropySource + Sized,
-        SP::Target: SignerProvider + Sized,
-    {
-        self.ln_storage
-            .read_channelmonitors(entropy_source, signer_provider)
-    }
-
-    fn export(&self) -> anyhow::Result<Vec<(String, Vec<u8>)>> {
-        unimplemented!("Exporting the coordinators lightning data is not supported")
     }
 }
 
@@ -97,9 +50,44 @@ impl DlcStoreProvider for CoordinatorTenTenOneStorage {
     }
 }
 
-impl KVStorePersister for CoordinatorTenTenOneStorage {
-    fn persist<W: Writeable>(&self, key: &str, value: &W) -> std::io::Result<()> {
-        self.ln_storage.persist(key, value)?;
-        Ok(())
+impl KVStore for CoordinatorTenTenOneStorage {
+    fn read(
+        &self,
+        primary_namespace: &str,
+        secondary_namespace: &str,
+        key: &str,
+    ) -> Result<Vec<u8>, Error> {
+        self.ln_storage
+            .read(primary_namespace, secondary_namespace, key)
+    }
+
+    fn write(
+        &self,
+        primary_namespace: &str,
+        secondary_namespace: &str,
+        key: &str,
+        value: &[u8],
+    ) -> Result<(), Error> {
+        self.ln_storage
+            .write(primary_namespace, secondary_namespace, key, value)
+    }
+
+    fn remove(
+        &self,
+        primary_namespace: &str,
+        secondary_namespace: &str,
+        key: &str,
+        lazy: bool,
+    ) -> Result<(), Error> {
+        self.ln_storage
+            .remove(primary_namespace, secondary_namespace, key, lazy)
+    }
+
+    fn list(
+        &self,
+        primary_namespace: &str,
+        secondary_namespace: &str,
+    ) -> Result<Vec<String>, Error> {
+        self.ln_storage.list(primary_namespace, secondary_namespace)
     }
 }

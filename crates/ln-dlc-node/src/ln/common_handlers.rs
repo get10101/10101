@@ -22,6 +22,7 @@ use lightning::chain::chaininterface::ConfirmationTarget;
 use lightning::chain::chaininterface::FeeEstimator;
 use lightning::events::PaymentPurpose;
 use lightning::ln::channelmanager::InterceptId;
+use lightning::ln::ChannelId;
 use lightning::ln::PaymentHash;
 use lightning::routing::gossip::NodeId;
 use lightning::sign::SpendableOutputDescriptor;
@@ -59,7 +60,7 @@ pub fn handle_payment_claimable<S: TenTenOneStorage, N: Storage>(
 }
 
 pub fn handle_htlc_handling_failed(
-    prev_channel_id: [u8; 32],
+    prev_channel_id: ChannelId,
     failed_next_destination: lightning::events::HTLCDestination,
 ) {
     tracing::info!(
@@ -69,7 +70,7 @@ pub fn handle_htlc_handling_failed(
     );
 }
 
-pub fn handle_discard_funding(transaction: bitcoin::Transaction, channel_id: [u8; 32]) {
+pub fn handle_discard_funding(transaction: bitcoin::Transaction, channel_id: ChannelId) {
     let tx_hex = serialize_hex(&transaction);
     tracing::info!(
         channel_id = %channel_id.to_hex(),
@@ -85,8 +86,8 @@ pub fn handle_discard_funding(transaction: bitcoin::Transaction, channel_id: [u8
 
 pub fn handle_payment_forwarded<S: TenTenOneStorage, N: Storage>(
     node: &Arc<Node<S, N>>,
-    prev_channel_id: Option<[u8; 32]>,
-    next_channel_id: Option<[u8; 32]>,
+    prev_channel_id: Option<ChannelId>,
+    next_channel_id: Option<ChannelId>,
     claim_from_onchain_tx: bool,
     fee_earned_msat: Option<u64>,
     outbound_amount_forwarded_msat: Option<u64>,
@@ -95,7 +96,7 @@ pub fn handle_payment_forwarded<S: TenTenOneStorage, N: Storage>(
     let nodes = read_only_network_graph.nodes();
     let channels = node.channel_manager.list_channels();
 
-    let node_str = |channel_id: &Option<[u8; 32]>| {
+    let node_str = |channel_id: &Option<ChannelId>| {
         channel_id
             .and_then(|channel_id| channels.iter().find(|c| c.channel_id == channel_id))
             .and_then(|channel| nodes.get(&NodeId::from_pubkey(&channel.counterparty.node_id)))
@@ -107,7 +108,7 @@ pub fn handle_payment_forwarded<S: TenTenOneStorage, N: Storage>(
                     })
             })
     };
-    let channel_str = |channel_id: &Option<[u8; 32]>| {
+    let channel_str = |channel_id: &Option<ChannelId>| {
         channel_id
             .map(|channel_id| format!(" with channel {}", channel_id.to_hex()))
             .unwrap_or_default()
@@ -220,8 +221,8 @@ pub fn handle_channel_closed<S: TenTenOneStorage, N: Storage>(
     pending_intercepted_htlcs: &PendingInterceptedHtlcs,
     user_channel_id: u128,
     reason: lightning::events::ClosureReason,
-    channel_id: [u8; 32],
-) -> Result<(), anyhow::Error> {
+    channel_id: ChannelId,
+) -> Result<()> {
     block_in_place(|| {
         let user_channel_id = Uuid::from_u128(user_channel_id).to_string();
         tracing::info!(
@@ -371,8 +372,8 @@ pub async fn handle_funding_generation_ready<S: TenTenOneStorage, N: Storage>(
     counterparty_node_id: PublicKey,
     output_script: bitcoin::Script,
     channel_value_satoshis: u64,
-    temporary_channel_id: [u8; 32],
-) -> Result<(), anyhow::Error> {
+    temporary_channel_id: ChannelId,
+) -> Result<()> {
     let user_channel_id = Uuid::from_u128(user_channel_id).to_string();
 
     // We use remove here so that we don't have to clean-up afterwards. This has the side effect
@@ -403,8 +404,9 @@ pub async fn handle_funding_generation_ready<S: TenTenOneStorage, N: Storage>(
         Err(err) => {
             tracing::error!(
                 %err,
-                "Cannot open channel due to not being able to create funding tx"
+                "Cannot open channel due to not being able to create funding TX"
             );
+
             node.channel_manager
                 .close_channel(&temporary_channel_id, &counterparty_node_id)
                 .map_err(|e| anyhow!("{e:?}"))?;
@@ -412,12 +414,17 @@ pub async fn handle_funding_generation_ready<S: TenTenOneStorage, N: Storage>(
             return Ok(());
         }
     };
+
     if let Err(err) = node.channel_manager.funding_transaction_generated(
         &temporary_channel_id,
         &counterparty_node_id,
         funding_tx,
     ) {
-        tracing::error!(?err, "Channel went away before we could fund it. The peer disconnected or refused the channel");
+        tracing::error!(
+            ?err,
+            "Channel went away before we could fund it. \
+             The peer disconnected or refused the channel"
+        );
     };
 
     Ok(())

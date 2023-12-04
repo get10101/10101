@@ -68,7 +68,7 @@ pub struct ChannelConfig {
 impl From<lightning::ln::channelmanager::ChannelDetails> for ChannelDetails {
     fn from(cd: lightning::ln::channelmanager::ChannelDetails) -> Self {
         ChannelDetails {
-            channel_id: cd.channel_id,
+            channel_id: cd.channel_id.0,
             counterparty: cd.counterparty.node_id,
             funding_txo: cd.funding_txo,
             original_funding_txo: cd.original_funding_outpoint,

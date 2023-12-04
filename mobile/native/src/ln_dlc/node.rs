@@ -174,7 +174,7 @@ impl Node {
                             .with_context(|| {
                                 format!(
                                     "Failed to accept DLC channel offer for channel {}",
-                                    hex::encode(channel_id)
+                                    hex::encode(channel_id.0)
                                 )
                             })?
                     }
@@ -188,7 +188,7 @@ impl Node {
                             .with_context(|| {
                                 format!(
                                     "Failed to accept DLC channel close offer for channel {}",
-                                    hex::encode(channel_id)
+                                    hex::encode(channel_id.0)
                                 )
                             })?;
                     }

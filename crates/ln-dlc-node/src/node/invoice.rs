@@ -225,7 +225,9 @@ impl<S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 'static> Node<S, 
         let (result, amt_msat) = match invoice.amount_milli_satoshis() {
             Some(_) => {
                 let invoice = invoice.clone();
-                let result = pay_invoice(&invoice, Retry::Attempts(10), &self.channel_manager);
+
+                let result =
+                    pay_invoice(&invoice, Retry::Attempts(10), self.channel_manager.as_ref());
                 (result, invoice.amount_milli_satoshis().expect("to be set"))
             }
             None => {
@@ -235,7 +237,7 @@ impl<S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 'static> Node<S, 
                     invoice,
                     amount_msats,
                     Retry::Attempts(10),
-                    &self.channel_manager,
+                    self.channel_manager.as_ref(),
                 );
                 (result, amount_msats)
             }

@@ -23,8 +23,14 @@ async fn just_in_time_channel_with_multiple_payments() {
     payee.connect(coordinator.info).await.unwrap();
 
     let payer_to_payee_invoice_amount = 25_000;
-    let expected_coordinator_payee_channel_value =
-        setup_coordinator_payer_channel(payer_to_payee_invoice_amount, &coordinator, &payer).await;
+    let (expected_coordinator_payee_channel_value, liquidity_request) =
+        setup_coordinator_payer_channel(
+            &coordinator,
+            &payer,
+            payee.info.pubkey,
+            payer_to_payee_invoice_amount,
+        )
+        .await;
 
     // this creates the just in time channel between the coordinator and payee
     send_interceptable_payment(
@@ -32,8 +38,8 @@ async fn just_in_time_channel_with_multiple_payments() {
         &payee,
         &coordinator,
         payer_to_payee_invoice_amount,
-        10_000,
-        Some(expected_coordinator_payee_channel_value),
+        liquidity_request,
+        expected_coordinator_payee_channel_value,
     )
     .await
     .unwrap();
@@ -78,16 +84,22 @@ async fn new_config_affects_routing_fees() {
     payee.connect(coordinator.info).await.unwrap();
 
     let opening_invoice_amount = 60_000;
-    let expected_coordinator_payee_channel_value =
-        setup_coordinator_payer_channel(opening_invoice_amount, &coordinator, &payer).await;
+    let (expected_coordinator_payee_channel_value, liquidity_request) =
+        setup_coordinator_payer_channel(
+            &coordinator,
+            &payer,
+            payee.info.pubkey,
+            opening_invoice_amount,
+        )
+        .await;
 
     send_interceptable_payment(
         &payer,
         &payee,
         &coordinator,
         opening_invoice_amount,
-        10_000,
-        Some(expected_coordinator_payee_channel_value),
+        liquidity_request,
+        expected_coordinator_payee_channel_value,
     )
     .await
     .unwrap();

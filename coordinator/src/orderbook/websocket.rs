@@ -136,7 +136,7 @@ pub async fn websocket_connection(stream: WebSocket, state: Arc<AppState>) {
                     match signature.verify(&msg, &trader_id) {
                         Ok(_) => {
                             let liquidity_options =
-                                db::liquidity_options::get_all(&mut conn).unwrap_or(vec![]);
+                                db::liquidity_options::get_all(&mut conn).unwrap_or_default();
 
                             let contract_tx_fee_rate = {
                                 let settings = state.settings.read().await;
@@ -154,7 +154,7 @@ pub async fn websocket_connection(stream: WebSocket, state: Arc<AppState>) {
                                 return;
                             }
 
-                            let orders = orders::all_limit_orders(&mut conn).unwrap_or(vec![]);
+                            let orders = orders::all_limit_orders(&mut conn).unwrap_or_default();
                             if let Err(e) = local_sender.send(Message::AllOrders(orders)).await {
                                 tracing::error!(%trader_id, "Failed to send all orders to user {e:#}");
                             }

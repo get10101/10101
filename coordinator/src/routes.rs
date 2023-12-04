@@ -56,9 +56,9 @@ use commons::TradeParams;
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::Pool;
 use diesel::PgConnection;
-use dlc_manager::ChannelId;
+use dlc_manager::DlcChannelId;
 use hex::FromHex;
-use lightning::ln::msgs::NetAddress;
+use lightning::ln::msgs::SocketAddress;
 use ln_dlc_node::channel::UserChannelId;
 use ln_dlc_node::node::peer_manager::alias_as_bytes;
 use ln_dlc_node::node::peer_manager::broadcast_node_announcement;
@@ -88,7 +88,7 @@ pub struct AppState {
     pub pool: Pool<ConnectionManager<PgConnection>>,
     pub settings: RwLock<Settings>,
     pub exporter: PrometheusExporter,
-    pub announcement_addresses: Vec<NetAddress>,
+    pub announcement_addresses: Vec<SocketAddress>,
     pub node_alias: String,
     pub auth_users_notifier: mpsc::Sender<OrderbookMessage>,
     pub user_backup: SledBackup,
@@ -100,7 +100,7 @@ pub fn router(
     pool: Pool<ConnectionManager<PgConnection>>,
     settings: Settings,
     exporter: PrometheusExporter,
-    announcement_addresses: Vec<NetAddress>,
+    announcement_addresses: Vec<SocketAddress>,
     node_alias: &str,
     trading_sender: mpsc::Sender<NewOrderMessage>,
     tx_price_feed: broadcast::Sender<Message>,
@@ -334,7 +334,7 @@ pub async fn rollover(
     State(state): State<Arc<AppState>>,
     Path(dlc_channel_id): Path<String>,
 ) -> Result<(), AppError> {
-    let dlc_channel_id = ChannelId::from_hex(dlc_channel_id.clone()).map_err(|e| {
+    let dlc_channel_id = DlcChannelId::from_hex(dlc_channel_id.clone()).map_err(|e| {
         AppError::InternalServerError(format!(
             "Could not decode dlc channel id from {dlc_channel_id}: {e:#}"
         ))
@@ -377,7 +377,7 @@ pub async fn post_broadcast_announcement(
 #[instrument(skip_all, err(Debug))]
 #[autometrics]
 pub async fn post_sync(State(state): State<Arc<AppState>>) -> Result<(), AppError> {
-    spawn_blocking(move || state.node.inner.wallet().sync())
+    spawn_blocking(move || state.node.inner.ldk_wallet().sync())
         .await
         .map_err(|_| AppError::InternalServerError("Could not sync wallet".to_string()))?
         .map_err(|e| AppError::InternalServerError(format!("Could not sync wallet: {e:#}")))?;

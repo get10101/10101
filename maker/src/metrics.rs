@@ -106,7 +106,7 @@ fn update_health_metric(cx: &Context, service_status: ServiceStatus, gauge: &Obs
 fn channel_metrics(cx: &Context, channels: Vec<ChannelDetails>) {
     for channel_detail in channels {
         let key_values = [
-            KeyValue::new("channel_id", hex::encode(channel_detail.channel_id)),
+            KeyValue::new("channel_id", hex::encode(channel_detail.channel_id.0)),
             KeyValue::new("is_outbound", channel_detail.is_outbound),
             KeyValue::new("is_public", channel_detail.is_public),
         ];

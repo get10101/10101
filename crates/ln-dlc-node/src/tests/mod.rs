@@ -1,8 +1,10 @@
+use crate::channel::UserChannelId;
 use crate::config::app_config;
 use crate::config::coordinator_config;
-use crate::config::LIQUIDITY_MULTIPLIER;
+use crate::ln::calculate_channel_value;
 use crate::node::GossipSourceConfig;
 use crate::node::InMemoryStore;
+use crate::node::LiquidityRequest;
 use crate::node::LnDlcNodeSettings;
 use crate::node::Node;
 use crate::node::NodeInfo;
@@ -187,7 +189,7 @@ impl Node<TenTenOneInMemoryStorage, InMemoryStore> {
             node_storage,
             address,
             address,
-            util::into_net_addresses(address),
+            util::into_socket_addresses(address),
             esplora_origin,
             seed,
             ephemeral_randomness,
@@ -213,7 +215,7 @@ impl Node<TenTenOneInMemoryStorage, InMemoryStore> {
     /// Because we use `block_in_place`, we must configure the `tokio::test`s with `flavor =
     /// "multi_thread"`.
     async fn sync_on_chain(&self) -> Result<()> {
-        block_in_place(|| self.wallet().sync())
+        block_in_place(|| self.ldk_wallet().sync())
     }
 
     async fn fund(&self, amount: Amount) -> Result<()> {
@@ -326,7 +328,7 @@ impl Node<TenTenOneInMemoryStorage, InMemoryStore> {
 
                 tracing::debug!(
                     peer = %peer.info,
-                    temp_channel_id = %hex::encode(temp_channel_id),
+                    temp_channel_id = %hex::encode(temp_channel_id.0),
                     "Waiting for channel to be usable"
                 );
                 tokio::time::sleep(Duration::from_millis(100)).await;
@@ -350,64 +352,66 @@ impl Node<TenTenOneInMemoryStorage, InMemoryStore> {
 }
 
 async fn setup_coordinator_payer_channel(
-    payer_to_payee_invoice_amount: u64,
     coordinator: &Node<TenTenOneInMemoryStorage, InMemoryStore>,
     payer: &Node<TenTenOneInMemoryStorage, InMemoryStore>,
-) -> u64 {
-    let (
-        coordinator_liquidity,
-        coordinator_payer_inbound_liquidity,
-        coordinator_payer_outbound_liquidity,
-        expected_coordinator_payee_channel_value,
-    ) = calculate_intercept_payment_values(payer_to_payee_invoice_amount);
+    payee_pk: PublicKey,
+    // How much the _payee_ should have in the coordinator-payee channel. This value corresponds to
+    // the value in the JIT channel-opening invoice, minus the channel-opening fee.
+    coordinator_payee_inbound_liquity_sat: u64,
+) -> (u64, LiquidityRequest) {
+    // The `LiquidityRequest` associated with the JIT channel being opened.
+    let liquidity_request = LiquidityRequest {
+        user_channel_id: UserChannelId::new(),
+        liquidity_option_id: 1,
+        trader_id: payee_pk,
+        // Trade up to the full payee balance in the JIT channel.
+        trade_up_to_sats: coordinator_payee_inbound_liquity_sat,
+        max_deposit_sats: coordinator_payee_inbound_liquity_sat * 2,
+        coordinator_leverage: 1.0,
+        fee_sats: 10_000,
+    };
+
+    let expected_coordinator_payee_channel_value = calculate_channel_value(
+        coordinator_payee_inbound_liquity_sat * 1_000,
+        &liquidity_request,
+    );
+
+    // How much the _payer_ should have in the payer-coordinator channel. Since this channel is only
+    // used to fund the payee, we just need to fund it with enough coins for that. WE double this
+    // amount to be on the safe side.
+    let payer_coordinator_outbound_liquidity_sat =
+        (coordinator_payee_inbound_liquity_sat + liquidity_request.fee_sats) * 2;
+    // How much the _coordinator_ should have in the payer-coordinator channel. This value does not
+    // matter too much as the coordinator is just receiving in this channel. To avoid complications
+    // we just set it to the payer's outbound liquidity, so that the channel is balanced.
+    let payer_coordinator_inbound_liquidity_sat = payer_coordinator_outbound_liquidity_sat;
+
+    // The coordinator will have to (1) open a channel with the payer, (2) push some sats to the
+    // payer in that channel, (3) open a JIT channel with the payee with a certain amount of
+    // coordinator outbound liquidity based on the `LiquidityRequest`. The coordinator will need
+    // sufficient in the on-chain wallet to be able to open these two channels.
+    let coordinator_fund_amount = payer_coordinator_inbound_liquidity_sat
+        + payer_coordinator_outbound_liquidity_sat
+        + expected_coordinator_payee_channel_value;
+
+    // We double this computed amount to be on the safe side.
+    let coordinator_fund_amount = coordinator_fund_amount * 2;
 
     coordinator
-        .fund(Amount::from_sat(coordinator_liquidity))
+        .fund(Amount::from_sat(coordinator_fund_amount))
         .await
         .unwrap();
 
     coordinator
         .open_private_channel(
             payer,
-            coordinator_payer_inbound_liquidity,
-            coordinator_payer_outbound_liquidity,
+            payer_coordinator_inbound_liquidity_sat,
+            payer_coordinator_outbound_liquidity_sat,
         )
         .await
         .unwrap();
 
-    expected_coordinator_payee_channel_value
-}
-
-fn calculate_intercept_payment_values(payer_to_payee_invoice_amount: u64) -> (u64, u64, u64, u64) {
-    (
-        // TODO: If we set the coordinator's liquidity precisely the test may fail reporting
-        //  insufficient funds. This is likely because we don't pick up the change
-        //  output correctly; further investigation needed why.
-
-        // coordinator_liquidity
-        // The invoice defines the channel value (invoice * liquidity_multiplier = channel value)
-        // The coordinator has to provide liquidity with the payer and the payee.
-        // For simplicity we give the coordinator a lot of liquidity to ensure the channels can be
-        // opened.
-        payer_to_payee_invoice_amount * LIQUIDITY_MULTIPLIER * 5,
-        // coordinator_payer_inbound_liquidity
-        // The liquidity of the coordinator in the coordinator<>payer channel
-        // This has to be at least as much as the channel that will be opened from coordinator to
-        // payee to allow payments between payer and payee. For simplicity we set this to
-        // the amount that is equal to the channel that will be created between coordinator and
-        // payee.
-        payer_to_payee_invoice_amount * LIQUIDITY_MULTIPLIER,
-        // coordinator_payer_outbound_liquidity
-        // The liquidity of the payer in the coordinator<>payer channel
-        // This has to be at least as much as the channel that will be opened from coordinator to
-        // payee to allow payments between payer and payee. For simplicity we set this to
-        // the amount that is equal to the channel that will be created between coordinator and
-        // payee.
-        payer_to_payee_invoice_amount * LIQUIDITY_MULTIPLIER,
-        // expected_coordinator_payee_channel_value
-        // The expected channel value of the channel between coordinator and payee.
-        payer_to_payee_invoice_amount * LIQUIDITY_MULTIPLIER,
-    )
+    (expected_coordinator_payee_channel_value, liquidity_request)
 }
 
 fn random_tmp_dir() -> PathBuf {
@@ -444,7 +448,7 @@ fn log_channel_id(node: &Node<TenTenOneInMemoryStorage, InMemoryStore>, index: u
         }
     };
 
-    let channel_id = hex::encode(details.channel_id);
+    let channel_id = hex::encode(details.channel_id.0);
     let short_channel_id = details.short_channel_id;
     let is_ready = details.is_channel_ready;
     let is_usable = details.is_usable;

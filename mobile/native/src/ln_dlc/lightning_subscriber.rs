@@ -30,8 +30,9 @@ impl Node {
                         }
                     }
                 }
-                Err(e) => {
-                    tracing::error!("Failed to receive event: {e:#}");
+                Err(_) => {
+                    tracing::error!("Sender died, channel closed.");
+                    break;
                 }
             }
         }

@@ -1,5 +1,6 @@
 use crate::fee_rate_estimator::FeeRateEstimator;
 use crate::ldk_node_wallet;
+use crate::ln_dlc_wallet::LnDlcWallet;
 use crate::node::HTLCStatus;
 use crate::node::Node;
 use crate::node::Storage;
@@ -44,7 +45,11 @@ impl OffChainBalance {
 }
 
 impl<S: TenTenOneStorage, N: Storage> Node<S, N> {
-    pub fn wallet(
+    pub fn wallet(&self) -> Arc<LnDlcWallet<S, N>> {
+        self.wallet.clone()
+    }
+
+    pub fn ldk_wallet(
         &self,
     ) -> Arc<ldk_node_wallet::Wallet<sled::Tree, EsploraBlockchain, FeeRateEstimator, N>> {
         self.wallet.ldk_wallet()
@@ -87,24 +92,17 @@ impl<S: TenTenOneStorage, N: Storage> Node<S, N> {
         let pending_close = claimable_channel_balances.iter().fold(0, |acc, balance| {
             use ::lightning::chain::channelmonitor::Balance::*;
             match balance {
-                ClaimableOnChannelClose {
-                    claimable_amount_satoshis,
-                }
+                ClaimableOnChannelClose { amount_satoshis }
                 | ContentiousClaimable {
-                    claimable_amount_satoshis,
-                    ..
+                    amount_satoshis, ..
                 }
                 | MaybeTimeoutClaimableHTLC {
-                    claimable_amount_satoshis,
-                    ..
+                    amount_satoshis, ..
                 }
                 | MaybePreimageClaimableHTLC {
-                    claimable_amount_satoshis,
-                    ..
+                    amount_satoshis, ..
                 }
-                | CounterpartyRevokedOutputClaimable {
-                    claimable_amount_satoshis,
-                } => acc + claimable_amount_satoshis,
+                | CounterpartyRevokedOutputClaimable { amount_satoshis } => acc + amount_satoshis,
                 ClaimableAwaitingConfirmations { .. } => {
                     // we can safely ignore this type of balance because we override the
                     // `destination_script` for the channel closure so that it's owned by our

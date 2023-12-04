@@ -328,10 +328,10 @@ pub async fn open_channel(
 
     tracing::debug!(
         "Successfully opened channel with {pubkey}. Funding tx: {}",
-        hex::encode(channel_id)
+        hex::encode(channel_id.0)
     );
 
-    Ok(Json(hex::encode(channel_id)))
+    Ok(Json(hex::encode(channel_id.0)))
 }
 
 #[instrument(skip_all, err(Debug))]
@@ -357,11 +357,7 @@ pub async fn close_channel(
     Query(params): Query<CloseChannelParams>,
     State(state): State<Arc<AppState>>,
 ) -> Result<(), AppError> {
-    let channel_id = hex::decode(channel_id_string.clone())
-        .map_err(|err| AppError::BadRequest(err.to_string()))?;
-
-    let channel_id: [u8; 32] = channel_id
-        .try_into()
+    let channel_id = parse_channel_id(&channel_id_string)
         .map_err(|_| AppError::BadRequest("Provided channel ID was invalid".to_string()))?;
 
     tracing::info!(channel_id = %channel_id_string, "Attempting to close channel");

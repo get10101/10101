@@ -6,6 +6,7 @@ use crate::node::Storage;
 use crate::storage::TenTenOneStorage;
 use anyhow::anyhow;
 use anyhow::Result;
+use bitcoin::secp256k1::schnorr::Signature;
 use bitcoin::Script;
 use bitcoin::Transaction;
 use bitcoin::TxOut;
@@ -14,6 +15,8 @@ use dlc_manager::subchannel::LnDlcSignerProvider;
 use lightning::ln::chan_utils::ChannelPublicKeys;
 use lightning::ln::msgs::DecodeError;
 use lightning::ln::script::ShutdownScript;
+use lightning::offers::invoice::UnsignedBolt12Invoice;
+use lightning::offers::invoice_request::UnsignedInvoiceRequest;
 use lightning::sign::ChannelSigner;
 use lightning::sign::EcdsaChannelSigner;
 use lightning::sign::EntropySource;
@@ -425,6 +428,21 @@ impl<S: TenTenOneStorage, N: Storage> NodeSigner for CustomKeysManager<S, N> {
     ) -> Result<RecoverableSignature, ()> {
         self.keys_manager
             .sign_invoice(hrp_bytes, invoice_data, recipient)
+    }
+
+    fn sign_bolt12_invoice_request(
+        &self,
+        invoice_request: &UnsignedInvoiceRequest,
+    ) -> std::result::Result<Signature, ()> {
+        self.keys_manager
+            .sign_bolt12_invoice_request(invoice_request)
+    }
+
+    fn sign_bolt12_invoice(
+        &self,
+        invoice: &UnsignedBolt12Invoice,
+    ) -> std::result::Result<Signature, ()> {
+        self.keys_manager.sign_bolt12_invoice(invoice)
     }
 
     fn sign_gossip_message(

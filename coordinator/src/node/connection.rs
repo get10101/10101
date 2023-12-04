@@ -1,6 +1,6 @@
 use crate::node::storage::NodeStorage;
 use crate::storage::CoordinatorTenTenOneStorage;
-use lightning::ln::msgs::NetAddress;
+use lightning::ln::msgs::SocketAddress;
 use ln_dlc_node::node::Node;
 use ln_dlc_node::node::NodeInfo;
 use rand::seq::SliceRandom;
@@ -102,14 +102,14 @@ fn reconnect_to_disconnected_public_channel_peers(
     }
 }
 
-fn net_address_to_socket_addr(net_address: NetAddress) -> Option<SocketAddr> {
+fn net_address_to_socket_addr(net_address: SocketAddress) -> Option<SocketAddr> {
     match net_address {
-        NetAddress::IPv4 { addr, port } => Some(SocketAddr::new(IpAddr::from(addr), port)),
-        NetAddress::IPv6 { addr, port } => Some(SocketAddr::new(IpAddr::from(addr), port)),
+        SocketAddress::TcpIpV4 { addr, port } => Some(SocketAddr::new(IpAddr::from(addr), port)),
+        SocketAddress::TcpIpV6 { addr, port } => Some(SocketAddr::new(IpAddr::from(addr), port)),
         // TODO: If we want to be able to connect to peers using Tor, we will have to use a Tor
         // proxy
-        NetAddress::OnionV2(_) => None,
-        NetAddress::OnionV3 { .. } => None,
-        NetAddress::Hostname { .. } => None,
+        SocketAddress::OnionV2(_) => None,
+        SocketAddress::OnionV3 { .. } => None,
+        SocketAddress::Hostname { .. } => None,
     }
 }

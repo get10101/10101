@@ -1129,7 +1129,7 @@ dependencies = [
 [[package]]
 name = "dlc"
 version = "0.4.0"
-source = "git+https://github.com/p2pderivatives/rust-dlc?rev=4e104b4#4e104b4db197ae9014065c4ee0b03021fc29f848"
+source = "git+https://github.com/p2pderivatives/rust-dlc?rev=145cf6e#145cf6ef153035ac0d93d22f22051e49d678eee5"
 dependencies = [
  "bitcoin",
  "miniscript 8.0.0",
@@ -1141,7 +1141,7 @@ dependencies = [
 [[package]]
 name = "dlc-manager"
 version = "0.4.0"
-source = "git+https://github.com/p2pderivatives/rust-dlc?rev=4e104b4#4e104b4db197ae9014065c4ee0b03021fc29f848"
+source = "git+https://github.com/p2pderivatives/rust-dlc?rev=145cf6e#145cf6ef153035ac0d93d22f22051e49d678eee5"
 dependencies = [
  "async-trait",
  "bitcoin",
@@ -1157,7 +1157,7 @@ dependencies = [
 [[package]]
 name = "dlc-messages"
 version = "0.4.0"
-source = "git+https://github.com/p2pderivatives/rust-dlc?rev=4e104b4#4e104b4db197ae9014065c4ee0b03021fc29f848"
+source = "git+https://github.com/p2pderivatives/rust-dlc?rev=145cf6e#145cf6ef153035ac0d93d22f22051e49d678eee5"
 dependencies = [
  "bitcoin",
  "dlc",
@@ -1170,7 +1170,7 @@ dependencies = [
 [[package]]
 name = "dlc-trie"
 version = "0.4.0"
-source = "git+https://github.com/p2pderivatives/rust-dlc?rev=4e104b4#4e104b4db197ae9014065c4ee0b03021fc29f848"
+source = "git+https://github.com/p2pderivatives/rust-dlc?rev=145cf6e#145cf6ef153035ac0d93d22f22051e49d678eee5"
 dependencies = [
  "bitcoin",
  "dlc",
@@ -1914,8 +1914,8 @@ dependencies = [
 
 [[package]]
 name = "lightning"
-version = "0.0.116"
-source = "git+https://github.com/p2pderivatives/rust-lightning/?rev=a57281b#a57281b2d915c7a752ed12ed380a9989b03faa66"
+version = "0.0.117"
+source = "git+https://github.com/p2pderivatives/rust-lightning/?rev=08c0c5fd#08c0c5fd00721af410d4e56b172175afa3f6a4fa"
 dependencies = [
  "bitcoin",
  "musig2",
@@ -1923,8 +1923,8 @@ dependencies = [
 
 [[package]]
 name = "lightning-background-processor"
-version = "0.0.116"
-source = "git+https://github.com/p2pderivatives/rust-lightning/?rev=a57281b#a57281b2d915c7a752ed12ed380a9989b03faa66"
+version = "0.0.117"
+source = "git+https://github.com/p2pderivatives/rust-lightning/?rev=08c0c5fd#08c0c5fd00721af410d4e56b172175afa3f6a4fa"
 dependencies = [
  "bitcoin",
  "lightning",
@@ -1933,9 +1933,9 @@ dependencies = [
 
 [[package]]
 name = "lightning-invoice"
-version = "0.24.0"
+version = "0.25.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1788c0158526ec27a502043c2911ea6ea58fdc656bdf8749484942c07b790d23"
+checksum = "6d2380d053673c467c5f0be992cd4685e40d141d075647d74b64aba1b9c0b1ae"
 dependencies = [
  "bech32",
  "bitcoin",
@@ -1947,8 +1947,8 @@ dependencies = [
 
 [[package]]
 name = "lightning-net-tokio"
-version = "0.0.116"
-source = "git+https://github.com/p2pderivatives/rust-lightning/?rev=a57281b#a57281b2d915c7a752ed12ed380a9989b03faa66"
+version = "0.0.117"
+source = "git+https://github.com/p2pderivatives/rust-lightning/?rev=08c0c5fd#08c0c5fd00721af410d4e56b172175afa3f6a4fa"
 dependencies = [
  "bitcoin",
  "lightning",
@@ -1957,19 +1957,18 @@ dependencies = [
 
 [[package]]
 name = "lightning-persister"
-version = "0.0.116"
-source = "git+https://github.com/p2pderivatives/rust-lightning/?rev=a57281b#a57281b2d915c7a752ed12ed380a9989b03faa66"
+version = "0.0.117"
+source = "git+https://github.com/p2pderivatives/rust-lightning/?rev=08c0c5fd#08c0c5fd00721af410d4e56b172175afa3f6a4fa"
 dependencies = [
  "bitcoin",
- "libc",
  "lightning",
- "winapi",
+ "windows-sys 0.48.0",
 ]
 
 [[package]]
 name = "lightning-rapid-gossip-sync"
-version = "0.0.116"
-source = "git+https://github.com/p2pderivatives/rust-lightning/?rev=a57281b#a57281b2d915c7a752ed12ed380a9989b03faa66"
+version = "0.0.117"
+source = "git+https://github.com/p2pderivatives/rust-lightning/?rev=08c0c5fd#08c0c5fd00721af410d4e56b172175afa3f6a4fa"
 dependencies = [
  "bitcoin",
  "lightning",
@@ -1977,8 +1976,8 @@ dependencies = [
 
 [[package]]
 name = "lightning-transaction-sync"
-version = "0.0.116"
-source = "git+https://github.com/p2pderivatives/rust-lightning/?rev=a57281b#a57281b2d915c7a752ed12ed380a9989b03faa66"
+version = "0.0.117"
+source = "git+https://github.com/p2pderivatives/rust-lightning/?rev=08c0c5fd#08c0c5fd00721af410d4e56b172175afa3f6a4fa"
 dependencies = [
  "bdk-macros",
  "bitcoin",
@@ -2673,7 +2672,7 @@ checksum = "b15813163c1d831bf4a13c3610c05c0d03b39feb07f7e09fa234dac9b15aaf39"
 [[package]]
 name = "p2pd-oracle-client"
 version = "0.1.0"
-source = "git+https://github.com/p2pderivatives/rust-dlc?rev=4e104b4#4e104b4db197ae9014065c4ee0b03021fc29f848"
+source = "git+https://github.com/p2pderivatives/rust-dlc?rev=145cf6e#145cf6ef153035ac0d93d22f22051e49d678eee5"
 dependencies = [
  "chrono",
  "dlc-manager",
