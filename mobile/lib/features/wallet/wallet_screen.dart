@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_speed_dial/flutter_speed_dial.dart';
 import 'package:get_10101/common/channel_status_notifier.dart';
@@ -53,12 +54,18 @@ class WalletScreen extends StatelessWidget {
                 height: 5,
               ),
               Expanded(
-                child: SingleChildScrollView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  child: Card(
-                    child: Column(
-                      children:
-                          walletChangeNotifier.walletInfo.history.map((e) => e.toWidget()).toList(),
+                child: ScrollConfiguration(
+                  behavior: ScrollConfiguration.of(context).copyWith(
+                    dragDevices: PointerDeviceKind.values.toSet(),
+                  ),
+                  child: SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    child: Card(
+                      child: Column(
+                        children: walletChangeNotifier.walletInfo.history
+                            .map((e) => e.toWidget())
+                            .toList(),
+                      ),
                     ),
                   ),
                 ),
