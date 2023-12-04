@@ -345,6 +345,7 @@ impl From<crate::position::models::PositionState> for PositionState {
             crate::position::models::PositionState::Rollover => PositionState::Rollover,
             crate::position::models::PositionState::Resizing { .. } => PositionState::Resizing,
             crate::position::models::PositionState::Proposed => PositionState::Proposed,
+            crate::position::models::PositionState::Failed => PositionState::Failed,
         }
     }
 }
@@ -428,6 +429,7 @@ pub enum PositionState {
     Closing,
     Rollover,
     Closed,
+    Failed,
     Resizing,
 }
 
@@ -459,6 +461,7 @@ impl From<(PositionState, Option<i64>, Option<f32>)> for crate::position::models
             PositionState::Rollover => crate::position::models::PositionState::Rollover,
             PositionState::Resizing => crate::position::models::PositionState::Resizing,
             PositionState::Proposed => crate::position::models::PositionState::Proposed,
+            PositionState::Failed => crate::position::models::PositionState::Failed,
         }
     }
 }

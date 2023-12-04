@@ -593,6 +593,39 @@ impl Node {
             self.continue_position_resizing(node_id)?;
         }
 
+        if let Message::SubChannel(SubChannelMessage::Reject(reject)) = &msg {
+            let channel_id_hex = reject.channel_id.to_hex();
+            tracing::warn!(channel_id = channel_id_hex, "Subchannel offer was rejected");
+            let mut connection = self.pool.get()?;
+            match db::positions::Position::get_position_by_trader(
+                &mut connection,
+                node_id,
+                vec![
+                    PositionState::Proposed,
+                    PositionState::ResizeOpeningSubchannelProposed,
+                ],
+            )? {
+                None => {
+                    tracing::warn!("No position found to be updated")
+                }
+                Some(position) => {
+                    let updated_state = match position.position_state {
+                        PositionState::Proposed => PositionState::Failed,
+                        PositionState::ResizeOpeningSubchannelProposed => PositionState::Open,
+                        state => {
+                            // This should not happen because we only load these two states above
+                            bail!("Position was in unexpected state {state:?}.");
+                        }
+                    };
+                    db::positions::Position::update_proposed_position(
+                        &mut connection,
+                        node_id.to_string(),
+                        updated_state,
+                    )?;
+                }
+            }
+        }
+
         if let Some(msg) = resp {
             tracing::info!(
                 to = %node_id,

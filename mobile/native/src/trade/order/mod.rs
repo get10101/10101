@@ -31,6 +31,13 @@ pub enum FailureReason {
     /// MVP scope: Can only close the order, not reduce or extend
     OrderNotAcceptable,
     TimedOut,
+    InvalidDlcOffer(InvalidDlcOffer),
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum InvalidDlcOffer {
+    /// Received offer was outdated
+    Outdated,
 }
 
 #[derive(Debug, Clone, Copy)]

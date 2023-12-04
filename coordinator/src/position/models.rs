@@ -54,6 +54,8 @@ pub enum PositionState {
     Closed {
         pnl: i64,
     },
+    /// The position was not opened successfully.
+    Failed,
     Rollover,
     Resizing,
 }

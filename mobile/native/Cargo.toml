@@ -49,4 +49,5 @@ uuid = { version = "1.3.0", features = ["v4", "fast-rng", "macro-diagnostics"] }
 
 [dev-dependencies]
 dlc = { version = "0.4.0" }
+dlc-trie = "0.4.0"
 secp256k1-zkp = { version = "0.7.0", features = ["bitcoin_hashes", "rand", "rand-std"] }

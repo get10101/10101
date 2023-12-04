@@ -150,6 +150,7 @@ impl ToSql<Text, Sqlite> for FailureReason {
             FailureReason::FailedToSetToFilling => "FailedToSetToFilling",
             FailureReason::OrderNotAcceptable => "OrderNotAcceptable",
             FailureReason::TimedOut => "TimedOut",
+            FailureReason::SubchannelOfferOutdated => "SubchannelOfferOutdated",
         };
         out.set_value(text);
         Ok(IsNull::No)
@@ -169,6 +170,7 @@ impl FromSql<Text, Sqlite> for FailureReason {
             "FailedToSetToFilling" => Ok(FailureReason::FailedToSetToFilling),
             "OrderNotAcceptable" => Ok(FailureReason::OrderNotAcceptable),
             "TimedOut" => Ok(FailureReason::TimedOut),
+            "SubchannelOfferOutdated" => Ok(FailureReason::SubchannelOfferOutdated),
             _ => Err("Unrecognized enum variant".into()),
         };
     }

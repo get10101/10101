@@ -6,6 +6,7 @@ use crate::schema::positions;
 use crate::schema::spendable_outputs;
 use crate::schema::trades;
 use crate::schema::transactions;
+use crate::trade::order::InvalidDlcOffer;
 use anyhow::anyhow;
 use anyhow::bail;
 use anyhow::ensure;
@@ -637,6 +638,7 @@ pub enum FailureReason {
     ProposeDlcChannel,
     OrderNotAcceptable,
     TimedOut,
+    SubchannelOfferOutdated,
 }
 
 impl From<FailureReason> for crate::trade::order::FailureReason {
@@ -656,6 +658,9 @@ impl From<FailureReason> for crate::trade::order::FailureReason {
                 crate::trade::order::FailureReason::OrderNotAcceptable
             }
             FailureReason::TimedOut => crate::trade::order::FailureReason::TimedOut,
+            FailureReason::SubchannelOfferOutdated => {
+                crate::trade::order::FailureReason::InvalidDlcOffer(InvalidDlcOffer::Outdated)
+            }
         }
     }
 }
@@ -677,6 +682,9 @@ impl From<crate::trade::order::FailureReason> for FailureReason {
                 FailureReason::OrderNotAcceptable
             }
             crate::trade::order::FailureReason::TimedOut => FailureReason::TimedOut,
+            crate::trade::order::FailureReason::InvalidDlcOffer(reason) => match reason {
+                InvalidDlcOffer::Outdated => FailureReason::SubchannelOfferOutdated,
+            },
         }
     }
 }

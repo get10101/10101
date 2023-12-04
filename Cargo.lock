@@ -1129,7 +1129,7 @@ dependencies = [
 [[package]]
 name = "dlc"
 version = "0.4.0"
-source = "git+https://github.com/p2pderivatives/rust-dlc?rev=145cf6e#145cf6ef153035ac0d93d22f22051e49d678eee5"
+source = "git+https://github.com/p2pderivatives/rust-dlc?rev=f235bd2#f235bd2ca2be6b51b61a342deffb36b766d595ba"
 dependencies = [
  "bitcoin",
  "miniscript 8.0.2",
@@ -1141,7 +1141,7 @@ dependencies = [
 [[package]]
 name = "dlc-manager"
 version = "0.4.0"
-source = "git+https://github.com/p2pderivatives/rust-dlc?rev=145cf6e#145cf6ef153035ac0d93d22f22051e49d678eee5"
+source = "git+https://github.com/p2pderivatives/rust-dlc?rev=f235bd2#f235bd2ca2be6b51b61a342deffb36b766d595ba"
 dependencies = [
  "async-trait",
  "bitcoin",
@@ -1157,7 +1157,7 @@ dependencies = [
 [[package]]
 name = "dlc-messages"
 version = "0.4.0"
-source = "git+https://github.com/p2pderivatives/rust-dlc?rev=145cf6e#145cf6ef153035ac0d93d22f22051e49d678eee5"
+source = "git+https://github.com/p2pderivatives/rust-dlc?rev=f235bd2#f235bd2ca2be6b51b61a342deffb36b766d595ba"
 dependencies = [
  "bitcoin",
  "dlc",
@@ -1170,7 +1170,7 @@ dependencies = [
 [[package]]
 name = "dlc-trie"
 version = "0.4.0"
-source = "git+https://github.com/p2pderivatives/rust-dlc?rev=145cf6e#145cf6ef153035ac0d93d22f22051e49d678eee5"
+source = "git+https://github.com/p2pderivatives/rust-dlc?rev=f235bd2#f235bd2ca2be6b51b61a342deffb36b766d595ba"
 dependencies = [
  "bitcoin",
  "dlc",
@@ -2375,6 +2375,7 @@ dependencies = [
  "diesel_migrations",
  "dlc",
  "dlc-messages",
+ "dlc-trie",
  "flutter_rust_bridge",
  "futures",
  "hex",
@@ -2672,7 +2673,7 @@ checksum = "b15813163c1d831bf4a13c3610c05c0d03b39feb07f7e09fa234dac9b15aaf39"
 [[package]]
 name = "p2pd-oracle-client"
 version = "0.1.0"
-source = "git+https://github.com/p2pderivatives/rust-dlc?rev=145cf6e#145cf6ef153035ac0d93d22f22051e49d678eee5"
+source = "git+https://github.com/p2pderivatives/rust-dlc?rev=f235bd2#f235bd2ca2be6b51b61a342deffb36b766d595ba"
 dependencies = [
  "chrono",
  "dlc-manager",
