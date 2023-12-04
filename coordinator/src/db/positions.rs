@@ -117,6 +117,29 @@ impl Position {
         Ok(positions)
     }
 
+    /// sets the status of the position in state `Proposed` to a new state
+    pub fn update_proposed_position(
+        conn: &mut PgConnection,
+        trader_pubkey: String,
+        state: crate::position::models::PositionState,
+    ) -> Result<()> {
+        let state = PositionState::from(state);
+        let affected_rows = diesel::update(positions::table)
+            .filter(positions::trader_pubkey.eq(trader_pubkey.clone()))
+            .filter(positions::position_state.eq(PositionState::Proposed))
+            .set((
+                positions::position_state.eq(state),
+                positions::update_timestamp.eq(OffsetDateTime::now_utc()),
+            ))
+            .execute(conn)?;
+
+        if affected_rows == 0 {
+            bail!("Could not update position to {state:?} for {trader_pubkey}")
+        }
+
+        Ok(())
+    }
+
     /// sets the status of all open position to closing (note, we expect that number to be always
     /// exactly 1)
     pub fn set_open_position_to_closing(
@@ -321,6 +344,7 @@ impl From<crate::position::models::PositionState> for PositionState {
             crate::position::models::PositionState::Closed { .. } => PositionState::Closed,
             crate::position::models::PositionState::Rollover => PositionState::Rollover,
             crate::position::models::PositionState::Resizing { .. } => PositionState::Resizing,
+            crate::position::models::PositionState::Proposed => PositionState::Proposed,
         }
     }
 }
@@ -384,7 +408,7 @@ impl From<crate::position::models::NewPosition> for NewPosition {
             direction: Direction::from(value.direction),
             average_entry_price: value.average_entry_price,
             liquidation_price: value.liquidation_price,
-            position_state: PositionState::Open,
+            position_state: PositionState::Proposed,
             coordinator_margin: value.coordinator_margin,
             expiry_timestamp: value.expiry_timestamp,
             trader_pubkey: value.trader.to_string(),
@@ -399,6 +423,7 @@ impl From<crate::position::models::NewPosition> for NewPosition {
 #[derive(Debug, Clone, Copy, PartialEq, FromSqlRow, AsExpression)]
 #[diesel(sql_type = PositionStateType)]
 pub enum PositionState {
+    Proposed,
     Open,
     Closing,
     Rollover,
@@ -433,6 +458,7 @@ impl From<(PositionState, Option<i64>, Option<f32>)> for crate::position::models
             },
             PositionState::Rollover => crate::position::models::PositionState::Rollover,
             PositionState::Resizing => crate::position::models::PositionState::Resizing,
+            PositionState::Proposed => crate::position::models::PositionState::Proposed,
         }
     }
 }

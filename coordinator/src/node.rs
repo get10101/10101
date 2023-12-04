@@ -17,6 +17,7 @@ use anyhow::ensure;
 use anyhow::Context;
 use anyhow::Result;
 use autometrics::autometrics;
+use bitcoin::hashes::hex::ToHex;
 use bitcoin::secp256k1::PublicKey;
 use commons::order_matching_fee_taker;
 use commons::MatchState;
@@ -571,6 +572,21 @@ impl Node {
         // here.
         if let Message::Channel(ChannelMessage::RenewFinalize(r)) = &msg {
             self.finalize_rollover(&r.channel_id)?;
+        }
+
+        if let Message::SubChannel(SubChannelMessage::Finalize(finalize)) = &msg {
+            let channel_id_hex_string = finalize.channel_id.to_hex();
+            tracing::info!(
+                channel_id = channel_id_hex_string,
+                node_id = node_id.to_string(),
+                "Subchannel open protocol was finalized"
+            );
+            let mut connection = self.pool.get()?;
+            db::positions::Position::update_proposed_position(
+                &mut connection,
+                node_id.to_string(),
+                PositionState::Open,
+            )?;
         }
 
         if let Message::SubChannel(SubChannelMessage::CloseFinalize(_msg)) = &msg {

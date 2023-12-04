@@ -40,6 +40,10 @@ pub struct NewPosition {
 
 #[derive(Clone, PartialEq, Debug)]
 pub enum PositionState {
+    /// The position is in the process of being opened.
+    ///
+    /// Once the position is fully opened it will end in the state `Open`
+    Proposed,
     Open,
     /// The position is in the process of being closed.
     ///
