@@ -8,6 +8,7 @@ dependencies:
   flutter:
     sdk: flutter
   cupertino_icons: ^1.0.5
+  google_fonts: ^6.1.0
   ffi: ^2.0.2
   flutter_rust_bridge: ^1.78.0
   meta: ^1.8.0
@@ -27,7 +28,7 @@ dependencies:
   logger: ^2.0.2+1
   carousel_slider: ^4.2.1
   candlesticks: ^2.1.0
-  http: ^0.13.6
+  http: ^1.0.0
   timeago: ^3.3.0
   shared_preferences: ^2.1.2
   package_info_plus: ^4.0.2

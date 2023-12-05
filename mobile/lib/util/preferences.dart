@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
-import 'package:get_10101/features/stable/stable_screen.dart';
 import 'package:get_10101/features/trade/trade_screen.dart';
+import 'package:get_10101/features/wallet/wallet_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class Preferences {
@@ -40,7 +40,7 @@ class Preferences {
 
   setOpenStablePosition() async {
     SharedPreferences preferences = await SharedPreferences.getInstance();
-    preferences.setString(openPosition, StableScreen.label);
+    preferences.setString(openPosition, WalletScreen.label);
   }
 
   setOpenTradePosition() async {

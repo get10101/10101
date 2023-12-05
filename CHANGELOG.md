@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 - Feat: Open scanner on send button
+- Feat: Add bidirectional swap drawer
 
 ## [1.7.0] - 2023-12-07
 

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get_10101/common/app_bar_wrapper.dart';
-import 'package:get_10101/features/stable/stable_screen.dart';
 import 'package:get_10101/features/trade/trade_screen.dart';
 import 'package:get_10101/features/wallet/wallet_screen.dart';
 import 'package:get_10101/util/constants.dart';
@@ -27,10 +26,6 @@ class ScaffoldWithNavBar extends StatelessWidget {
         bottomNavigationBar: BottomNavigationBar(
           items: <BottomNavigationBarItem>[
             BottomNavigationBarItem(
-              icon: Container(key: tabStable, child: const Icon(Icons.currency_exchange)),
-              label: StableScreen.label,
-            ),
-            BottomNavigationBarItem(
               icon: Container(key: tabWallet, child: const Icon(Icons.wallet)),
               label: WalletScreen.label,
             ),
@@ -48,14 +43,11 @@ class ScaffoldWithNavBar extends StatelessWidget {
 
   static int _calculateSelectedIndex(BuildContext context) {
     final String location = GoRouterState.of(context).location;
-    if (location.startsWith(StableScreen.route)) {
+    if (location.startsWith(WalletScreen.route)) {
       return 0;
     }
-    if (location.startsWith(WalletScreen.route)) {
-      return 1;
-    }
     if (location.startsWith(TradeScreen.route)) {
-      return 2;
+      return 1;
     }
     return 1;
   }
@@ -63,12 +55,9 @@ class ScaffoldWithNavBar extends StatelessWidget {
   void _onItemTapped(int index, BuildContext context) {
     switch (index) {
       case 0:
-        GoRouter.of(context).go(StableScreen.route);
-        break;
-      case 1:
         GoRouter.of(context).go(WalletScreen.route);
         break;
-      case 2:
+      case 1:
         GoRouter.of(context).go(TradeScreen.route);
         break;
     }

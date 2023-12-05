@@ -3,7 +3,7 @@ import 'package:get_10101/common/amount_text.dart';
 import 'package:get_10101/common/fiat_text.dart';
 import 'package:intl/intl.dart';
 
-enum ValueType { date, amount, fiat, percentage, contracts, loading, text }
+enum ValueType { date, amount, fiat, percentage, contracts, loading, text, widget }
 
 class ValueDataRow extends StatelessWidget {
   final ValueType type;
@@ -56,6 +56,9 @@ class ValueDataRow extends StatelessWidget {
                   textAlign: TextAlign.end,
                   style: valueTextStyle,
                   overflow: TextOverflow.ellipsis));
+          break;
+        case ValueType.widget:
+          widget = value;
           break;
       }
     } else {

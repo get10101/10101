@@ -5,7 +5,6 @@ import 'package:get_10101/common/snack_bar.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:get_10101/backend.dart';
 import 'package:get_10101/features/welcome/onboarding.dart';
-import 'package:get_10101/features/stable/stable_screen.dart';
 import 'package:get_10101/features/trade/trade_screen.dart';
 import 'package:get_10101/features/wallet/wallet_screen.dart';
 import 'package:get_10101/logger/logger.dart';
@@ -73,8 +72,6 @@ class _LoadingScreenState extends State<LoadingScreen> {
       logger.i("Backend started");
 
       switch (position) {
-        case StableScreen.label:
-          GoRouter.of(context).go(StableScreen.route);
         case TradeScreen.label:
           GoRouter.of(context).go(TradeScreen.route);
         default:

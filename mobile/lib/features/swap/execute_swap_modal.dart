@@ -3,18 +3,12 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:get_10101/common/color.dart';
-import 'package:get_10101/common/domain/model.dart';
 import 'package:get_10101/features/trade/submit_order_change_notifier.dart';
-import 'package:get_10101/features/wallet/domain/destination.dart';
-import 'package:get_10101/features/wallet/send/payment_sent_change_notifier.dart';
 import 'package:get_10101/features/wallet/wallet_change_notifier.dart';
-import 'package:get_10101/features/wallet/wallet_screen.dart';
-import 'package:get_10101/logger/logger.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
-void showExecuteUsdpPaymentModal(
-    BuildContext context, Destination destination, Amount amount, bool payWithUsdp) {
+void showExecuteSwapModal(BuildContext context) {
   showModalBottomSheet<void>(
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(
@@ -27,28 +21,19 @@ void showExecuteUsdpPaymentModal(
       isDismissible: false,
       context: context,
       builder: (BuildContext context) {
-        return SingleChildScrollView(
-            child: SizedBox(
-                height: 300,
-                child: Scaffold(
-                    body: ExecuteUsdpPayment(
-                        amount: amount, destination: destination, payWithUsdp: payWithUsdp))));
+        return const SingleChildScrollView(
+            child: SizedBox(height: 300, child: Scaffold(body: ExecuteSwap())));
       });
 }
 
-class ExecuteUsdpPayment extends StatefulWidget {
-  final Destination destination;
-  final Amount amount;
-  final bool payWithUsdp;
-
-  const ExecuteUsdpPayment(
-      {super.key, required this.amount, required this.payWithUsdp, required this.destination});
+class ExecuteSwap extends StatefulWidget {
+  const ExecuteSwap({super.key});
 
   @override
-  State<ExecuteUsdpPayment> createState() => _ExecuteUsdpPaymentState();
+  State<ExecuteSwap> createState() => _ExecuteSwapState();
 }
 
-class _ExecuteUsdpPaymentState extends State<ExecuteUsdpPayment> {
+class _ExecuteSwapState extends State<ExecuteSwap> {
   Timer? _timeout;
   bool timeout = false;
   bool sent = false;
@@ -61,47 +46,40 @@ class _ExecuteUsdpPaymentState extends State<ExecuteUsdpPayment> {
 
   @override
   Widget build(BuildContext context) {
-    final walletService = context.read<WalletChangeNotifier>().service;
-    final paymentChangeNotifier = context.watch<PaymentChangeNotifier>();
     final pendingOrder = context.watch<SubmitOrderChangeNotifier>().pendingOrder;
 
     _timeout ??= Timer(const Duration(seconds: 30), () {
       setState(() => timeout = true);
     });
 
-    Widget icon = const SizedBox(
-      width: 60,
-      height: 60,
-      child: CircularProgressIndicator(color: tenTenOnePurple),
-    );
+    Widget icon = Container();
     String text = "";
 
-    if ((pendingOrder?.state == PendingOrderState.orderFilled || !widget.payWithUsdp) && !sent) {
-      logger.d("Order has been filled, attempting to send payment");
-      walletService.sendPayment(widget.destination, widget.amount).catchError((error) {
-        logger.e("Failed to send payment: $error");
-        context.read<PaymentChangeNotifier>().failPayment();
-      }).whenComplete(() => setState(() => sent = true));
-    }
-
-    switch (paymentChangeNotifier.getPaymentStatus()) {
-      case PaymentStatus.pending:
-        {
-          if (pendingOrder?.state != PendingOrderState.orderFilled && widget.payWithUsdp) {
-            text = "Swapping to sats";
-          } else {
-            text = "Sending payment";
-          }
-        }
-      case PaymentStatus.success:
-        {
-          icon = const Icon(FontAwesomeIcons.solidCircleCheck, color: Colors.green, size: 60);
-          text = "Sent";
-        }
-      case PaymentStatus.failed:
+    switch (pendingOrder?.state) {
+      case PendingOrderState.submissionFailed:
         {
           icon = Icon(FontAwesomeIcons.circleExclamation, color: Colors.red[600], size: 60);
           text = "Something went wrong";
+        }
+      case PendingOrderState.orderFailed:
+        {
+          icon = Icon(FontAwesomeIcons.circleExclamation, color: Colors.red[600], size: 60);
+          text = "Something went wrong";
+        }
+      case PendingOrderState.orderFilled:
+        {
+          icon = const Icon(FontAwesomeIcons.solidCircleCheck, color: Colors.green, size: 60);
+          text = "Your swap is complete";
+          context.read<WalletChangeNotifier>().service.refreshLightningWallet();
+        }
+      default:
+        {
+          icon = const SizedBox(
+            width: 60,
+            height: 60,
+            child: CircularProgressIndicator(color: tenTenOnePurple),
+          );
+          text = "Swapping";
         }
     }
 
@@ -118,13 +96,11 @@ class _ExecuteUsdpPaymentState extends State<ExecuteUsdpPayment> {
             Text(text, style: const TextStyle(fontSize: 22)),
             const Spacer(),
             Visibility(
-                visible: timeout ||
-                    [PaymentStatus.success, PaymentStatus.failed]
-                        .contains(paymentChangeNotifier.getPaymentStatus()),
+                visible: timeout || PendingOrderState.orderFilled == pendingOrder?.state,
                 child: SizedBox(
                   width: MediaQuery.of(context).size.width * 0.9,
                   child: ElevatedButton(
-                      onPressed: () => GoRouter.of(context).go(WalletScreen.route),
+                      onPressed: () => GoRouter.of(context).pop(),
                       style: ButtonStyle(
                           padding: MaterialStateProperty.all<EdgeInsets>(const EdgeInsets.all(15)),
                           backgroundColor: MaterialStateProperty.resolveWith((states) {
@@ -136,7 +112,7 @@ class _ExecuteUsdpPaymentState extends State<ExecuteUsdpPayment> {
                                 side: const BorderSide(color: tenTenOnePurple));
                           })),
                       child: const Text(
-                        "Done",
+                        "Check balance",
                         style: TextStyle(fontSize: 18, color: Colors.white),
                       )),
                 ))

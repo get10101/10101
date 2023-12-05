@@ -13,7 +13,6 @@ import 'package:get_10101/common/settings/force_close_screen.dart';
 import 'package:get_10101/common/settings/settings_screen.dart';
 import 'package:get_10101/common/settings/share_logs_screen.dart';
 import 'package:get_10101/features/welcome/onboarding.dart';
-import 'package:get_10101/features/stable/stable_screen.dart';
 import 'package:get_10101/features/trade/trade_screen.dart';
 import 'package:get_10101/features/wallet/domain/wallet_type.dart';
 import 'package:get_10101/features/wallet/onboarding/onboarding_screen.dart';
@@ -191,11 +190,6 @@ GoRouter createRoutes() {
                 ),
               ],
             ),
-            GoRoute(
-                path: StableScreen.route,
-                builder: (BuildContext context, GoRouterState state) {
-                  return const StableScreen();
-                }),
             GoRoute(
               path: TradeScreen.route,
               builder: (BuildContext context, GoRouterState state) {

@@ -2,8 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:get_10101/common/amount_text.dart';
-import 'package:get_10101/common/amount_text_input_form_field.dart';
+import 'package:get_10101/common/amount_input_modalised.dart';
 import 'package:get_10101/common/color.dart';
 import 'package:get_10101/common/domain/model.dart';
 import 'package:get_10101/common/scrollable_safe_area.dart';
@@ -242,30 +241,19 @@ class _ReceiveScreenState extends State<ReceiveScreen> {
                     ))
               ]),
               const SizedBox(height: 15),
-              OutlinedButton(
-                  onPressed: () => showEnterAmountModal(context, amount, (amt) {
-                        _createPaymentRequest(amt).then((paymentRequest) {
-                          setState(() {
-                            _paymentRequest = paymentRequest;
-                            amount = amt;
-                          });
-                        });
-                      }),
-                  style: OutlinedButton.styleFrom(
-                    minimumSize: const Size(20, 50),
-                    backgroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        amount != null ? formatSats(amount!) : "Set amount",
-                        style: const TextStyle(color: Colors.black87, fontSize: 16),
-                      ),
-                      const Icon(Icons.edit, size: 20)
-                    ],
-                  )),
+              AmountInputModalisedField(
+                onChange: (sats) {
+                  Amount? amt = sats != null ? Amount(sats) : null;
+                  _createPaymentRequest(amt).then((paymentRequest) {
+                    setState(() {
+                      _paymentRequest = paymentRequest;
+                      amount = amt;
+                    });
+                  });
+                },
+                amount: amount?.sats,
+                type: BtcOrFiat.btc,
+              ),
               Expanded(child: Container()),
               ElevatedButton(
                 onPressed: _isPayInvoiceButtonDisabled
@@ -294,91 +282,5 @@ class _ReceiveScreenState extends State<ReceiveScreen> {
     completer.complete(paymentRequest);
 
     return completer.future;
-  }
-}
-
-void showEnterAmountModal(BuildContext context, Amount? amount, Function onSetAmount) {
-  showModalBottomSheet<void>(
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(20),
-        ),
-      ),
-      clipBehavior: Clip.antiAlias,
-      isScrollControlled: true,
-      useRootNavigator: true,
-      context: context,
-      builder: (BuildContext context) {
-        return SafeArea(
-            child: Padding(
-                padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
-                // the GestureDetector ensures that we can close the keyboard by tapping into the modal
-                child: GestureDetector(
-                  onTap: () {
-                    FocusScopeNode currentFocus = FocusScope.of(context);
-
-                    if (!currentFocus.hasPrimaryFocus) {
-                      currentFocus.unfocus();
-                    }
-                  },
-                  child: SingleChildScrollView(
-                    child: SizedBox(
-                      // TODO: Find a way to make height dynamic depending on the children size
-                      // This is needed because otherwise the keyboard does not push the sheet up correctly
-                      height: 200,
-                      child: EnterAmountModal(amount: amount, onSetAmount: onSetAmount),
-                    ),
-                  ),
-                )));
-      });
-}
-
-class EnterAmountModal extends StatefulWidget {
-  final Amount? amount;
-  final Function onSetAmount;
-
-  const EnterAmountModal({super.key, this.amount, required this.onSetAmount});
-
-  @override
-  State<EnterAmountModal> createState() => _EnterAmountModalState();
-}
-
-class _EnterAmountModalState extends State<EnterAmountModal> {
-  Amount? amount;
-
-  @override
-  void initState() {
-    super.initState();
-    amount = widget.amount;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 20.0, top: 30.0, right: 20.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          AmountInputField(
-            value: widget.amount ?? Amount.zero(),
-            hint: "e.g. ${formatSats(Amount(50000))}",
-            label: "Amount",
-            onChanged: (value) {
-              if (value.isEmpty) {
-                amount = null;
-              }
-              amount = Amount.parseAmount(value);
-            },
-          ),
-          const SizedBox(height: 20),
-          ElevatedButton(
-              onPressed: () {
-                widget.onSetAmount(amount);
-                GoRouter.of(context).pop();
-              },
-              child: const Text("Set Amount", style: TextStyle(fontSize: 16)))
-        ],
-      ),
-    );
   }
 }
