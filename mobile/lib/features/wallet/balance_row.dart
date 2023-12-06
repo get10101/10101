@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:get_10101/common/amount_text.dart';
-import 'package:get_10101/common/color.dart';
-import 'package:get_10101/common/fiat_text.dart';
 import 'package:get_10101/features/trade/position_change_notifier.dart';
 import 'package:get_10101/features/wallet/domain/wallet_type.dart';
 import 'package:get_10101/features/wallet/wallet_change_notifier.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 class BalanceRow extends StatefulWidget {
@@ -21,47 +19,46 @@ class _BalanceRowState extends State<BalanceRow> with SingleTickerProviderStateM
   @override
   Widget build(BuildContext context) {
     WalletChangeNotifier walletChangeNotifier = context.watch<WalletChangeNotifier>();
-    const normal = TextStyle(fontSize: 16.0);
-    const bold = TextStyle(fontWeight: FontWeight.bold, fontSize: 16.0);
 
     PositionChangeNotifier positionChangeNotifier = context.watch<PositionChangeNotifier>();
+    final formatter = NumberFormat("#,###,##0.00", "en");
 
-    final (name, icon, amountText) = switch (widget.walletType) {
-      WalletType.lightning => (
-          "Lightning",
-          Icons.bolt,
-          AmountText(amount: walletChangeNotifier.lightning(), textStyle: bold),
-        ),
-      WalletType.onChain => (
-          "On-chain",
-          Icons.currency_bitcoin,
-          AmountText(amount: walletChangeNotifier.onChain(), textStyle: bold),
-        ),
-      WalletType.stable => (
-          "USDP",
-          Icons.attach_money,
-          FiatText(
-            amount: positionChangeNotifier.getStableUSDAmountInFiat(),
-            textStyle: bold,
-          )
-        ),
+    final amountText = switch (widget.walletType) {
+      WalletType.lightning => Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Text(walletChangeNotifier.lightning().formatted(),
+                  style: const TextStyle(
+                      fontSize: 30, color: Colors.white, fontWeight: FontWeight.bold)),
+              const Text(" sats",
+                  style:
+                      TextStyle(fontSize: 14, color: Colors.white, fontWeight: FontWeight.normal))
+            ]),
+      WalletType.onChain => Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Text(walletChangeNotifier.onChain().formatted(),
+                  style: const TextStyle(
+                      fontSize: 30, color: Colors.white, fontWeight: FontWeight.bold)),
+              const Text(" sats",
+                  style:
+                      TextStyle(fontSize: 14, color: Colors.white, fontWeight: FontWeight.normal))
+            ]),
+      WalletType.stable => Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Text(formatter.format(positionChangeNotifier.getStableUSDAmountInFiat()),
+                  style: const TextStyle(
+                      fontSize: 30, color: Colors.white, fontWeight: FontWeight.bold)),
+              const Text(" \$",
+                  style:
+                      TextStyle(fontSize: 14, color: Colors.white, fontWeight: FontWeight.normal))
+            ]),
     };
 
-    double balanceRowHeight = 50;
-
-    return SizedBox(
-      height: balanceRowHeight,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 4.0),
-        child: Row(children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4.0),
-            child: Icon(icon, color: tenTenOnePurple),
-          ),
-          Expanded(child: Text(name, style: normal)),
-          amountText,
-        ]),
-      ),
-    );
+    return Center(child: amountText);
   }
 }

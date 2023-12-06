@@ -26,48 +26,110 @@ class Balance extends StatelessWidget {
 
     return Theme(
       data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-      child: ExpansionTile(
-        maintainState: true,
-        title: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(leading,
-                style: const TextStyle(
-                  color: Colors.grey,
-                  fontSize: 28.0,
-                  fontWeight: FontWeight.bold,
-                )),
-            Text(balance,
-                style: const TextStyle(
-                  color: Colors.black87,
-                  fontSize: 28.0,
-                  fontWeight: FontWeight.bold,
-                )),
-            const Icon(Icons.currency_bitcoin, size: 28, color: tenTenOnePurple),
-            const SizedBox(width: 16)
-          ],
-        ),
-        controlAffinity: ListTileControlAffinity.leading,
-        children: const [
-          Card(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.vertical(
-                  top: Radius.circular(5),
-                  bottom: Radius.circular(5),
-                ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(leading,
+                  style: const TextStyle(
+                    color: Colors.grey,
+                    fontSize: 28.0,
+                    fontWeight: FontWeight.bold,
+                  )),
+              Text(balance,
+                  style: const TextStyle(
+                    color: Colors.black87,
+                    fontSize: 28.0,
+                    fontWeight: FontWeight.bold,
+                  )),
+              const Icon(Icons.currency_bitcoin, size: 28, color: tenTenOnePurple),
+              const SizedBox(width: 16)
+            ],
+          ),
+          const SizedBox(
+            height: 20,
+          ),
+          _BalanceBox(),
+        ],
+      ),
+    );
+  }
+}
+
+class _BalanceBox extends StatefulWidget {
+  @override
+  _BalanceBoxState createState({Key? key}) => _BalanceBoxState();
+}
+
+class _BalanceBoxState extends State<_BalanceBox> {
+  int selectedTitleIndex = 1;
+
+  List<String> titles = [
+    'On-chain',
+    'Lightning',
+    'USD-P',
+  ];
+
+  List<BalanceRow> balances = [
+    const BalanceRow(walletType: WalletType.onChain),
+    const BalanceRow(walletType: WalletType.lightning),
+    const BalanceRow(walletType: WalletType.stable),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: tenTenOnePurple.shade500,
+        borderRadius: BorderRadius.circular(15),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(8.0),
+                color: tenTenOnePurple.shade200.withOpacity(0.5),
               ),
-              child: Padding(
-                padding: EdgeInsets.only(top: 4.0, bottom: 4.0, right: 8.0),
-                child: Column(children: [
-                  BalanceRow(walletType: WalletType.lightning),
-                  Divider(
-                      height: 2, thickness: 1, indent: 10, endIndent: 10, color: Colors.black12),
-                  BalanceRow(walletType: WalletType.onChain),
-                  Divider(
-                      height: 2, thickness: 1, indent: 10, endIndent: 10, color: Colors.black12),
-                  BalanceRow(walletType: WalletType.stable),
-                ]),
-              ))
+              padding: const EdgeInsets.all(4),
+              child: Row(
+                children: titles
+                    .map((title) => Expanded(
+                          child: GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                selectedTitleIndex = titles.indexOf(title);
+                              });
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(8.0),
+                                color: titles.indexOf(title) == selectedTitleIndex
+                                    ? tenTenOnePurple.shade900
+                                    : null,
+                              ),
+                              child: Text(
+                                title,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w300,
+                                  fontSize: 12,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ))
+                    .toList(),
+              )),
+          const SizedBox(height: 16),
+          Container(
+              padding: const EdgeInsets.symmetric(vertical: 20),
+              child: balances[selectedTitleIndex]),
+          const SizedBox(height: 16)
         ],
       ),
     );
