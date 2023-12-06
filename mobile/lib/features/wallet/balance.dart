@@ -44,7 +44,6 @@ class Balance extends StatelessWidget {
                     fontWeight: FontWeight.bold,
                   )),
               const Icon(Icons.currency_bitcoin, size: 28, color: tenTenOnePurple),
-              const SizedBox(width: 16)
             ],
           ),
           const SizedBox(
