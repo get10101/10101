@@ -1,5 +1,6 @@
 use crate::api::Destination;
 use anyhow::anyhow;
+use anyhow::ensure;
 use anyhow::Context;
 use anyhow::Result;
 use bitcoin::Address;
@@ -37,7 +38,7 @@ fn decode_bip21(request: &str) -> Result<Destination> {
 }
 
 fn decode_address(request: String) -> Result<Destination> {
-    anyhow::ensure!(
+    ensure!(
         Address::from_str(&request).is_ok(),
         "request is not valid on-chain address"
     );

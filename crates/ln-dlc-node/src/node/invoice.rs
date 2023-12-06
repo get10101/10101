@@ -7,6 +7,7 @@ use crate::MillisatAmount;
 use crate::PaymentFlow;
 use crate::PaymentInfo;
 use anyhow::anyhow;
+use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
 use autometrics::autometrics;
@@ -264,7 +265,7 @@ impl<S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 'static> Node<S, 
             }
             Err(PaymentError::Invoice(err)) => {
                 tracing::error!(%err, "Invalid invoice");
-                anyhow::bail!(err);
+                bail!(err);
             }
             Err(PaymentError::Sending(err)) => {
                 tracing::error!(?err, "Failed to send payment");
@@ -296,7 +297,7 @@ impl<S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 'static> Node<S, 
         )?;
 
         if let Some(failure_reason) = err {
-            anyhow::bail!("Failed to send payment: {}, {}", failure_reason, invoice);
+            bail!("Failed to send payment: {}, {}", failure_reason, invoice);
         }
 
         Ok(())

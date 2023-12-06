@@ -1,3 +1,4 @@
+use anyhow::ensure;
 use anyhow::Context;
 use anyhow::Result;
 use std::fmt::Display;
@@ -121,7 +122,7 @@ pub struct FcmToken(String);
 
 impl FcmToken {
     pub fn new(token: String) -> Result<Self> {
-        anyhow::ensure!(!token.is_empty(), "FCM token cannot be empty");
+        ensure!(!token.is_empty(), "FCM token cannot be empty");
         Ok(Self(token))
     }
 
@@ -142,7 +143,7 @@ async fn send_notification<'a>(
     fcm_token: &FcmToken,
     notification: fcm::Notification<'a>,
 ) -> Result<()> {
-    anyhow::ensure!(!api_key.is_empty(), "FCM API key is empty");
+    ensure!(!api_key.is_empty(), "FCM API key is empty");
 
     let mut message_builder = fcm::MessageBuilder::new(api_key, fcm_token.get());
     message_builder.notification(notification);

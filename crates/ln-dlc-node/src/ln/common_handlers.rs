@@ -11,6 +11,7 @@ use crate::MillisatAmount;
 use crate::PaymentFlow;
 use crate::PaymentInfo;
 use anyhow::anyhow;
+use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
 use bitcoin::consensus::encode::serialize_hex;
@@ -165,7 +166,7 @@ pub fn handle_payment_sent<S: TenTenOneStorage, N: Storage>(
                 None,
                 None,
             ) {
-                anyhow::bail!(
+                bail!(
                     "Failed to update sent payment: {e:#}, hash: {payment_hash}",
                     payment_hash = payment_hash.0.to_hex(),
                 );
@@ -200,7 +201,7 @@ pub fn handle_payment_sent<S: TenTenOneStorage, N: Storage>(
             amt_msat
         }
         Err(e) => {
-            anyhow::bail!(
+            bail!(
                         "Failed to verify payment state before handling sent payment: {e:#}, hash: {payment_hash}",
                             payment_hash = payment_hash.0.to_hex(),
                     );
