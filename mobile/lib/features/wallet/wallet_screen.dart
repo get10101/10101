@@ -39,7 +39,7 @@ class WalletScreen extends StatelessWidget {
               const Balance(),
               const SizedBox(height: 10.0),
               Container(
-                  margin: const EdgeInsets.only(left: 4, right: 4),
+                  margin: const EdgeInsets.only(left: 0, right: 0),
                   child: Row(children: [
                     Expanded(
                       child: ElevatedButton(
@@ -58,7 +58,7 @@ class WalletScreen extends StatelessWidget {
                               FontAwesomeIcons.arrowDown,
                               size: 14,
                             ),
-                            SizedBox(width: 10),
+                            SizedBox(width: 10, height: 40),
                             Text(
                               'Receive',
                               style: TextStyle(fontSize: 14, fontWeight: FontWeight.normal),
@@ -81,7 +81,10 @@ class WalletScreen extends StatelessWidget {
                               FontAwesomeIcons.rotate,
                               size: 14,
                             ),
-                            SizedBox(width: 10),
+                            SizedBox(
+                              width: 10,
+                              height: 40,
+                            ),
                             Text(
                               'Swap',
                               style: TextStyle(fontSize: 14, fontWeight: FontWeight.normal),
@@ -102,7 +105,10 @@ class WalletScreen extends StatelessWidget {
                               FontAwesomeIcons.arrowUp,
                               size: 14,
                             ),
-                            SizedBox(width: 10),
+                            SizedBox(
+                              width: 10,
+                              height: 40,
+                            ),
                             Text(
                               'Send',
                               style: TextStyle(fontSize: 14, fontWeight: FontWeight.normal),
@@ -113,7 +119,7 @@ class WalletScreen extends StatelessWidget {
                     )
                   ])),
               const SizedBox(
-                height: 5,
+                height: 10,
               ),
               Expanded(
                 child: ScrollConfiguration(
@@ -123,6 +129,8 @@ class WalletScreen extends StatelessWidget {
                   child: SingleChildScrollView(
                     physics: const AlwaysScrollableScrollPhysics(),
                     child: Card(
+                      margin: const EdgeInsets.all(0.0),
+                      elevation: 1,
                       child: Column(
                         children: walletChangeNotifier.walletInfo.history
                             .map((e) => e.toWidget())
@@ -147,7 +155,7 @@ class WalletScreen extends StatelessWidget {
       backgroundColor: Colors.grey.shade200,
       disabledBackgroundColor: greyScheme.onSurface.withOpacity(0.12),
       elevation: 0,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.0)),
       hoverColor: greyScheme.onPrimary.withOpacity(0.08),
       focusColor: greyScheme.onPrimary.withOpacity(0.12),
       highlightColor: greyScheme.onPrimary.withOpacity(0.12),
