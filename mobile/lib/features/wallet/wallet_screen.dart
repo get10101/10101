@@ -2,6 +2,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:get_10101/common/channel_status_notifier.dart';
+import 'package:get_10101/features/stable/stable_screen.dart';
 import 'package:get_10101/features/wallet/balance.dart';
 import 'package:get_10101/features/wallet/receive_screen.dart';
 import 'package:get_10101/features/wallet/onboarding/onboarding_screen.dart';
@@ -71,9 +72,7 @@ class WalletScreen extends StatelessWidget {
                     Expanded(
                       child: ElevatedButton(
                         style: balanceButtonStyle,
-                        onPressed: () {
-                          // TODO: Take me to the Lightning-USDp swap screen.
-                        },
+                        onPressed: () => GoRouter.of(context).go(StableScreen.route),
                         child: const Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
