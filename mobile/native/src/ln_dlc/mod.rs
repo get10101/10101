@@ -978,9 +978,64 @@ pub async fn send_payment(payment: SendPayment) -> Result<()> {
     match payment {
         SendPayment::Lightning { invoice, amount } => {
             let invoice = Bolt11Invoice::from_str(&invoice)?;
-            crate::state::get_node()
-                .inner
-                .pay_invoice(&invoice, amount)?;
+            let node = crate::state::get_node().inner.clone();
+            match node.pay_invoice(&invoice, amount) {
+                Ok(()) => tracing::info!("Successfully triggered payment"),
+                Err(e) => {
+                    // TODO(holzeis): This has been added to debug a users channel details in case
+                    // of a failed payment. Remove the logs if not needed anymore.
+                    for channel in node.channel_manager.list_channels().iter() {
+                        tracing::debug!(
+                            channel_id = channel.channel_id.to_hex(),
+                            short_channel_id = channel.short_channel_id,
+                            unspendable_punishment_reserve = channel.unspendable_punishment_reserve,
+                            balance_msat = channel.balance_msat,
+                            feerate_sat_per_1000_weight = channel.feerate_sat_per_1000_weight,
+                            inbound_capacity_msat = channel.inbound_capacity_msat,
+                            inbound_htlc_maximum_msat = channel.inbound_htlc_maximum_msat,
+                            inbound_htlc_minimum_msat = channel.inbound_htlc_minimum_msat,
+                            is_usable = channel.is_usable,
+                            outbound_capacity_msat = channel.outbound_capacity_msat,
+                            next_outbound_htlc_limit_msat = channel.next_outbound_htlc_limit_msat,
+                            next_outbound_htlc_minimum_msat =
+                                channel.next_outbound_htlc_minimum_msat,
+                            is_channel_ready = channel.is_channel_ready,
+                            "Channel Details"
+                        );
+
+                        let counterparty = channel.counterparty.clone();
+                        tracing::debug!(
+                            counterparty = %counterparty.node_id,
+                            counterparty_unspendable_punishement_reserve =
+                                counterparty.unspendable_punishment_reserve,
+                            counterparty.outbound_htlc_maximum_msat,
+                            counterparty.outbound_htlc_minimum_msat,
+                            "Counterparty");
+
+                        if let Some(forwarding_info) = counterparty.forwarding_info {
+                            tracing::debug!(
+                                forwarding_info.cltv_expiry_delta,
+                                forwarding_info.fee_base_msat,
+                                forwarding_info.fee_proportional_millionths,
+                                "Forwarding info"
+                            );
+                        }
+
+                        if let Some(config) = channel.config {
+                            tracing::debug!(
+                                config.cltv_expiry_delta,
+                                config.forwarding_fee_base_msat,
+                                config.forwarding_fee_proportional_millionths,
+                                config.force_close_avoidance_max_fee_satoshis,
+                                max_dust_htlc_exposure=?config.max_dust_htlc_exposure,
+                                "Channel config"
+                            )
+                        }
+                    }
+                    tracing::error!("{e:#}");
+                    bail!(e)
+                }
+            }
         }
         SendPayment::OnChain { address, amount } => {
             let address = Address::from_str(&address)?;
