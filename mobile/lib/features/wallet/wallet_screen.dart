@@ -1,14 +1,12 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_speed_dial/flutter_speed_dial.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:get_10101/common/channel_status_notifier.dart';
 import 'package:get_10101/features/wallet/balance.dart';
 import 'package:get_10101/features/wallet/receive_screen.dart';
 import 'package:get_10101/features/wallet/onboarding/onboarding_screen.dart';
 import 'package:get_10101/features/wallet/send/send_screen.dart';
 import 'package:get_10101/features/wallet/wallet_change_notifier.dart';
-import 'package:get_10101/features/wallet/wallet_theme.dart';
-import 'package:get_10101/util/send_receive_icons.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
@@ -24,7 +22,7 @@ class WalletScreen extends StatelessWidget {
 
     final hasChannel = context.watch<ChannelStatusNotifier>().hasChannel();
 
-    WalletTheme theme = Theme.of(context).extension<WalletTheme>()!;
+    ButtonStyle balanceButtonStyle = balanceActionButtonStyle();
 
     return Scaffold(
       body: RefreshIndicator(
@@ -40,16 +38,80 @@ class WalletScreen extends StatelessWidget {
             children: [
               const Balance(),
               const SizedBox(height: 10.0),
-              if (walletChangeNotifier.lightning().sats == 0)
-                Container(
+              Container(
                   margin: const EdgeInsets.only(left: 4, right: 4),
-                  child: ElevatedButton(
-                    onPressed: () {
-                      context.go(OnboardingScreen.route);
-                    },
-                    child: const Text("Fund Wallet"),
-                  ),
-                ),
+                  child: Row(children: [
+                    Expanded(
+                      child: ElevatedButton(
+                        style: balanceButtonStyle,
+                        // Additionally checking the Lightning balance here, as when
+                        // hot reloading the app the channel info appears to be
+                        // unknown.
+                        onPressed: () => context.go(
+                            (hasChannel || walletChangeNotifier.lightning().sats > 0)
+                                ? ReceiveScreen.route
+                                : OnboardingScreen.route),
+                        child: const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              FontAwesomeIcons.arrowDown,
+                              size: 14,
+                            ),
+                            SizedBox(width: 10),
+                            Text(
+                              'Receive',
+                              style: TextStyle(fontSize: 14, fontWeight: FontWeight.normal),
+                            )
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10.0),
+                    Expanded(
+                      child: ElevatedButton(
+                        style: balanceButtonStyle,
+                        onPressed: () {
+                          // TODO: Take me to the Lightning-USDp swap screen.
+                        },
+                        child: const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              FontAwesomeIcons.rotate,
+                              size: 14,
+                            ),
+                            SizedBox(width: 10),
+                            Text(
+                              'Swap',
+                              style: TextStyle(fontSize: 14, fontWeight: FontWeight.normal),
+                            )
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10.0),
+                    Expanded(
+                      child: ElevatedButton(
+                        style: balanceButtonStyle,
+                        onPressed: () => GoRouter.of(context).go(SendScreen.route),
+                        child: const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              FontAwesomeIcons.arrowUp,
+                              size: 14,
+                            ),
+                            SizedBox(width: 10),
+                            Text(
+                              'Send',
+                              style: TextStyle(fontSize: 14, fontWeight: FontWeight.normal),
+                            )
+                          ],
+                        ),
+                      ),
+                    )
+                  ])),
               const SizedBox(
                 height: 5,
               ),
@@ -74,36 +136,22 @@ class WalletScreen extends StatelessWidget {
           ),
         ),
       ),
-      floatingActionButton: SpeedDial(
-        icon: SendReceiveIcons.sendReceive,
-        iconTheme: const IconThemeData(size: 20),
-        activeIcon: Icons.close,
-        buttonSize: const Size(56.0, 56.0),
-        visible: true,
-        closeManually: false,
-        curve: Curves.bounceIn,
-        overlayColor: theme.dividerColor,
-        overlayOpacity: 0.5,
-        elevation: 8.0,
-        shape: const CircleBorder(),
-        children: [
-          SpeedDialChild(
-            child: const Icon(SendReceiveIcons.receive, size: 20.0),
-            label: 'Receive',
-            labelStyle: const TextStyle(fontSize: 18.0),
-            // additionally checking the lightning balance here, as when hot reloading the app the channel info appears to be unknown.
-            onTap: () => context.go((hasChannel || walletChangeNotifier.lightning().sats > 0)
-                ? ReceiveScreen.route
-                : OnboardingScreen.route),
-          ),
-          SpeedDialChild(
-            child: const Icon(SendReceiveIcons.sendWithQr, size: 24.0),
-            label: 'Send',
-            labelStyle: const TextStyle(fontSize: 18.0),
-            onTap: () => GoRouter.of(context).go(SendScreen.route),
-          ),
-        ],
-      ),
+    );
+  }
+
+  ButtonStyle balanceActionButtonStyle() {
+    ColorScheme greyScheme = ColorScheme.fromSwatch(primarySwatch: Colors.grey);
+
+    return IconButton.styleFrom(
+      foregroundColor: Colors.black,
+      backgroundColor: Colors.grey.shade200,
+      disabledBackgroundColor: greyScheme.onSurface.withOpacity(0.12),
+      elevation: 0,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
+      hoverColor: greyScheme.onPrimary.withOpacity(0.08),
+      focusColor: greyScheme.onPrimary.withOpacity(0.12),
+      highlightColor: greyScheme.onPrimary.withOpacity(0.12),
+      visualDensity: const VisualDensity(horizontal: 0.0, vertical: 1.0),
     );
   }
 }
