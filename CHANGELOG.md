@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Feat: Open scanner on send button
+
 ## [1.7.0] - 2023-12-07
 
 - Fix: Reduce WebSocket reconnect timeout to 200ms.
