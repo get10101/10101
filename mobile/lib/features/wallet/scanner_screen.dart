@@ -34,7 +34,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
 
   final textEditingController = TextEditingController();
 
-  bool cameraPermission = kDebugMode;
+  bool cameraPermission = !kDebugMode;
 
   @override
   void reassemble() {
