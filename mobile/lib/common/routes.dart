@@ -3,6 +3,8 @@ import 'package:get_10101/common/global_keys.dart';
 import 'package:get_10101/common/settings/channel_screen.dart';
 import 'package:get_10101/common/status_screen.dart';
 import 'package:get_10101/features/wallet/domain/destination.dart';
+import 'package:get_10101/features/wallet/send/send_lightning_screen.dart';
+import 'package:get_10101/features/wallet/send/send_onchain_screen.dart';
 import 'package:get_10101/features/welcome/loading_screen.dart';
 import 'package:get_10101/common/scaffold_with_nav_bar.dart';
 import 'package:get_10101/common/settings/app_info_screen.dart';
@@ -19,7 +21,6 @@ import 'package:get_10101/features/wallet/receive_screen.dart';
 import 'package:get_10101/features/wallet/scanner_screen.dart';
 import 'package:get_10101/features/welcome/seed_import_screen.dart';
 import 'package:get_10101/common/settings/seed_screen.dart';
-import 'package:get_10101/features/wallet/send/send_screen.dart';
 import 'package:get_10101/features/wallet/wallet_screen.dart';
 import 'package:get_10101/features/welcome/welcome_screen.dart';
 import 'package:go_router/go_router.dart';
@@ -149,11 +150,19 @@ GoRouter createRoutes() {
               },
               routes: <RouteBase>[
                 GoRoute(
-                  path: SendScreen.subRouteName,
+                  path: SendOnChainScreen.subRouteName,
                   // Use root navigator so the screen overlays the application shell
                   parentNavigatorKey: rootNavigatorKey,
                   builder: (BuildContext context, GoRouterState state) {
-                    return SendScreen(destination: state.extra as Destination);
+                    return SendOnChainScreen(destination: state.extra as OnChainAddress);
+                  },
+                ),
+                GoRoute(
+                  path: SendLightningScreen.subRouteName,
+                  // Use root navigator so the screen overlays the application shell
+                  parentNavigatorKey: rootNavigatorKey,
+                  builder: (BuildContext context, GoRouterState state) {
+                    return SendLightningScreen(destination: state.extra as LightningInvoice);
                   },
                 ),
                 GoRoute(
