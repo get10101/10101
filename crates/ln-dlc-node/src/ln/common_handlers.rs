@@ -1,6 +1,7 @@
 use super::event_handler::PendingInterceptedHtlcs;
 use crate::channel::Channel;
 use crate::config::CONFIRMATION_TARGET;
+use crate::ln::ProbeStatus;
 use crate::node::invoice::HTLCStatus;
 use crate::node::ChannelManager;
 use crate::node::Node;
@@ -23,9 +24,11 @@ use lightning::chain::chaininterface::ConfirmationTarget;
 use lightning::chain::chaininterface::FeeEstimator;
 use lightning::events::PaymentPurpose;
 use lightning::ln::channelmanager::InterceptId;
+use lightning::ln::channelmanager::PaymentId;
 use lightning::ln::ChannelId;
 use lightning::ln::PaymentHash;
 use lightning::routing::gossip::NodeId;
+use lightning::routing::router::Path;
 use lightning::sign::SpendableOutputDescriptor;
 use rand::thread_rng;
 use rand::Rng;
@@ -463,4 +466,23 @@ pub fn handle_pending_htlcs_forwardable<
         tokio::time::sleep(Duration::from_millis(millis_to_sleep)).await;
         forwarding_channel_manager.process_pending_htlc_forwards();
     });
+}
+
+pub async fn handle_probe_successful<S: TenTenOneStorage, N: Storage>(
+    node: &Arc<Node<S, N>>,
+    payment_id: PaymentId,
+    path: Path,
+) {
+    node.probes
+        .update_status(payment_id, ProbeStatus::succeeded(path))
+        .await
+}
+
+pub async fn handle_probe_failed<S: TenTenOneStorage, N: Storage>(
+    node: &Arc<Node<S, N>>,
+    payment_id: PaymentId,
+) {
+    node.probes
+        .update_status(payment_id, ProbeStatus::Failed)
+        .await
 }

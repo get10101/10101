@@ -471,6 +471,11 @@ pub fn send_payment(payment: SendPayment) -> Result<()> {
     runtime.block_on(async { ln_dlc::send_payment(payment).await })
 }
 
+pub fn send_preflight_probe(payment: SendPayment) -> Result<u64> {
+    let runtime = crate::state::get_or_create_tokio_runtime()?;
+    runtime.block_on(async { ln_dlc::estimate_payment_fee_msat(payment).await })
+}
+
 pub struct LastLogin {
     pub id: i32,
     pub date: String,

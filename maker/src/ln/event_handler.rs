@@ -161,8 +161,12 @@ impl<S: TenTenOneStorage + 'static, N: Storage + Send + Sync + 'static> EventHan
             } => {
                 common_handlers::handle_discard_funding(transaction, channel_id);
             }
-            Event::ProbeSuccessful { .. } => {}
-            Event::ProbeFailed { .. } => {}
+            Event::ProbeSuccessful {
+                payment_id, path, ..
+            } => common_handlers::handle_probe_successful(&self.node, payment_id, path).await,
+            Event::ProbeFailed { payment_id, .. } => {
+                common_handlers::handle_probe_failed(&self.node, payment_id).await
+            }
             Event::ChannelReady {
                 channel_id,
                 counterparty_node_id,

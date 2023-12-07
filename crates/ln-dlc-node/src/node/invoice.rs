@@ -1,4 +1,5 @@
 use crate::channel::Channel;
+use crate::ln::ProbeStatus;
 use crate::node::LiquidityRequest;
 use crate::node::Node;
 use crate::node::Storage;
@@ -18,6 +19,9 @@ use bitcoin::secp256k1::PublicKey;
 use bitcoin::secp256k1::Secp256k1;
 use bitcoin::Amount;
 use bitcoin::Network;
+use futures::stream::FuturesUnordered;
+use futures::StreamExt;
+use lightning::ln::channelmanager::PaymentId;
 use lightning::ln::channelmanager::Retry;
 use lightning::ln::channelmanager::RetryableSendFailure;
 use lightning::ln::channelmanager::MIN_CLTV_EXPIRY_DELTA;
@@ -27,6 +31,8 @@ use lightning::routing::router::RouteHint;
 use lightning::routing::router::RouteHintHop;
 use lightning_invoice::payment::pay_invoice;
 use lightning_invoice::payment::pay_zero_value_invoice;
+use lightning_invoice::payment::preflight_probe_invoice;
+use lightning_invoice::payment::preflight_probe_zero_value_invoice;
 use lightning_invoice::payment::PaymentError;
 use lightning_invoice::Bolt11Invoice;
 use lightning_invoice::Bolt11InvoiceDescription;
@@ -37,6 +43,9 @@ use std::fmt::Formatter;
 use std::time::Duration;
 use std::time::SystemTime;
 use time::OffsetDateTime;
+use tokio::task::spawn_blocking;
+
+const DEFAULT_PROBING_LIQUIDITY_LIMIT_MULTIPLIER: u64 = 3;
 
 impl<S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 'static> Node<S, N> {
     pub fn create_invoice(
@@ -301,6 +310,96 @@ impl<S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 'static> Node<S, 
         }
 
         Ok(())
+    }
+
+    /// Send probes based on a [`Bolt11Invoice`]. If an extra [`Amount`] is supplied we assume that
+    /// it is a zero-value invoice.
+    ///
+    /// Returns the list of probes sent, identified by their [`PaymentId`]s.
+    pub async fn probe_invoice_payment(
+        &self,
+        invoice: Bolt11Invoice,
+        amount: Option<Amount>,
+    ) -> Result<Vec<PaymentId>> {
+        let payment_hash = *invoice.payment_hash();
+
+        let probes = spawn_blocking({
+            let channel_manager = self.channel_manager.clone();
+            move || match amount {
+                Some(amount) => {
+                    let amount_msat = amount.to_sat() * 1_000;
+
+                    preflight_probe_zero_value_invoice(
+                        &invoice,
+                        amount_msat,
+                        channel_manager.as_ref(),
+                        Some(DEFAULT_PROBING_LIQUIDITY_LIMIT_MULTIPLIER),
+                    )
+                }
+                None => preflight_probe_invoice(
+                    &invoice,
+                    channel_manager.as_ref(),
+                    Some(DEFAULT_PROBING_LIQUIDITY_LIMIT_MULTIPLIER),
+                ),
+            }
+        })
+        .await
+        .expect("task to complete")
+        .map_err(|e| {
+            anyhow!("Failed to send pre-flight probe for invoice {payment_hash}: {e:?}",)
+        })?;
+
+        if probes.is_empty() {
+            bail!("No probes sent for payment hash: {payment_hash}");
+        }
+
+        let probes = probes
+            .iter()
+            .map(|(_, payment_ids)| payment_ids)
+            .copied()
+            .collect::<Vec<PaymentId>>();
+
+        for probe_id in probes.iter() {
+            self.probes.register(*probe_id).await
+        }
+
+        Ok(probes)
+    }
+
+    /// Estimate the fee for the [`Bolt11Invoice`] provided. If an extra [`Amount`] is supplied we
+    /// assume that it is a zero-value invoice.
+    ///
+    /// An extra `timeout` argument needs to be provided because the fee is estimated by sending
+    /// pre-flight probes, which could take arbitrarily long to resolve. As such, this API can also
+    /// be used
+    pub async fn estimate_payment_fee_msat(
+        &self,
+        invoice: Bolt11Invoice,
+        amount: Option<Amount>,
+        timeout: Duration,
+    ) -> Result<u64> {
+        let probes = self.probe_invoice_payment(invoice, amount).await?;
+
+        let probe_results = probes
+            .into_iter()
+            .map(
+                |probe_id| async move { self.probes.wait_until_finished(&probe_id, timeout).await },
+            )
+            .collect::<FuturesUnordered<_>>()
+            .collect::<Vec<_>>()
+            .await;
+
+        let fee = probe_results
+            .iter()
+            .filter_map(|status| match status {
+                Ok(ProbeStatus::Succeeded { path }) => Some(path.fee_msat()),
+                _ => None,
+            })
+            // We are pessimistic about the fee.
+            .max_by(|a, b| a.cmp(b))
+            .context("All pre-flight probes failed")?;
+
+        Ok(fee)
     }
 
     #[cfg(test)]

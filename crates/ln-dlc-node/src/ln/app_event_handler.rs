@@ -1,8 +1,8 @@
-use super::common_handlers;
-use super::event_handler::EventSender;
 use crate::channel::Channel;
 use crate::channel::ChannelState;
 use crate::channel::UserChannelId;
+use crate::ln::common_handlers;
+use crate::ln::event_handler::EventSender;
 use crate::node::ChannelManager;
 use crate::node::Node;
 use crate::node::Storage;
@@ -213,8 +213,6 @@ impl<S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 'static> EventHan
             } => {
                 common_handlers::handle_discard_funding(transaction, channel_id);
             }
-            Event::ProbeSuccessful { .. } => {}
-            Event::ProbeFailed { .. } => {}
             Event::ChannelReady {
                 channel_id,
                 counterparty_node_id,
@@ -319,6 +317,12 @@ impl<S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 'static> EventHan
                     funding_txo_tx_vout = funding_txo.vout,
                     "Channel pending"
                 )
+            }
+            Event::ProbeSuccessful {
+                payment_id, path, ..
+            } => common_handlers::handle_probe_successful(&self.node, payment_id, path).await,
+            Event::ProbeFailed { payment_id, .. } => {
+                common_handlers::handle_probe_failed(&self.node, payment_id).await
             }
             Event::BumpTransaction(_) => {
                 tracing::error!("We do not support anchor outputs yet");

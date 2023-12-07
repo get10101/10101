@@ -15,6 +15,7 @@ use crate::ln_dlc::channel_status::track_channel_status;
 use crate::ln_dlc::node::Node;
 use crate::ln_dlc::node::NodeStorage;
 use crate::ln_dlc::node::WalletHistories;
+use crate::state;
 use crate::trade::order;
 use crate::trade::order::FailureReason;
 use crate::trade::order::Order;
@@ -118,7 +119,7 @@ pub const FUNDING_TX_WEIGHT_ESTIMATE: u64 = 220;
 
 /// Triggers an update to the wallet balance and history, without an on-chain sync.
 pub fn refresh_lightning_wallet() -> Result<()> {
-    let node = crate::state::get_node();
+    let node = state::get_node();
     if let Err(e) = node.inner.sync_lightning_wallet() {
         tracing::error!("Manually triggered Lightning wallet sync failed: {e:#}");
     }
@@ -135,12 +136,12 @@ pub fn refresh_lightning_wallet() -> Result<()> {
 /// We do not wait for the triggered task to finish, because the effect will be reflected
 /// asynchronously on the UI.
 pub async fn refresh_wallet_info() -> Result<()> {
-    let node = crate::state::get_node();
+    let node = state::get_node();
     let wallet = node.inner.ldk_wallet();
 
     // Spawn into the blocking thread pool of the dedicated backend runtime to avoid blocking the UI
     // thread.
-    let runtime = crate::state::get_or_create_tokio_runtime()?;
+    let runtime = state::get_or_create_tokio_runtime()?;
     runtime.spawn_blocking(move || {
         if let Err(e) = wallet.sync() {
             tracing::error!("Manually triggered on-chain sync failed: {e:#}");
@@ -161,13 +162,13 @@ pub async fn refresh_wallet_info() -> Result<()> {
 }
 
 pub fn get_seed_phrase() -> Vec<String> {
-    crate::state::get_seed().get_seed_phrase()
+    state::get_seed().get_seed_phrase()
 }
 
 /// Gets the seed from the storage or from disk. However it will panic if the seed can not be found.
 /// No new seed will be created.
 fn get_seed() -> Bip39Seed {
-    match crate::state::try_get_seed() {
+    match state::try_get_seed() {
         Some(seed) => seed,
         None => {
             let seed_dir = config::get_seed_dir();
@@ -177,14 +178,14 @@ fn get_seed() -> Bip39Seed {
             assert!(seed_path.exists());
 
             let seed = Bip39Seed::initialize(&seed_path).expect("to read seed file");
-            crate::state::set_seed(seed.clone());
+            state::set_seed(seed.clone());
             seed
         }
     }
 }
 
 pub fn get_node_key() -> SecretKey {
-    match crate::state::try_get_node() {
+    match state::try_get_node() {
         Some(node) => node.inner.node_key(),
         None => {
             let seed = get_seed();
@@ -206,16 +207,16 @@ pub fn get_node_pubkey() -> PublicKey {
 }
 
 pub async fn update_node_settings(settings: LnDlcNodeSettings) {
-    let node = crate::state::get_node();
+    let node = state::get_node();
     node.inner.update_settings(settings).await;
 }
 
 pub fn get_oracle_pubkey() -> XOnlyPublicKey {
-    crate::state::get_node().inner.oracle_pubkey
+    state::get_node().inner.oracle_pubkey
 }
 
 pub fn get_funding_transaction(channel_id: &ChannelId) -> Result<Txid> {
-    let node = crate::state::get_node();
+    let node = state::get_node();
     let channel_details = node.inner.channel_manager.get_channel_details(channel_id);
 
     let funding_transaction = match channel_details {
@@ -237,7 +238,7 @@ pub fn get_funding_transaction(channel_id: &ChannelId) -> Result<Txid> {
 
 /// Gets the 10101 node storage, initializes the storage if not found yet.
 pub fn get_storage() -> TenTenOneNodeStorage {
-    match crate::state::try_get_storage() {
+    match state::try_get_storage() {
         Some(storage) => storage,
         None => {
             // storage is only initialized before the node is started if a new wallet is created
@@ -248,7 +249,7 @@ pub fn get_storage() -> TenTenOneNodeStorage {
                 get_node_key(),
             );
             tracing::info!("Initialized 10101 storage!");
-            crate::state::set_storage(storage.clone());
+            state::set_storage(storage.clone());
             storage
         }
     }
@@ -279,7 +280,7 @@ pub fn run(seed_dir: String, runtime: &Runtime) -> Result<()> {
         let seed_dir = Path::new(&seed_dir).join(network.to_string());
         let seed_path = seed_dir.join("seed");
         let seed = Bip39Seed::initialize(&seed_path)?;
-        crate::state::set_seed(seed.clone());
+        state::set_seed(seed.clone());
 
         let (event_sender, event_receiver) = watch::channel::<Option<Event>>(None);
 
@@ -402,7 +403,7 @@ pub fn run(seed_dir: String, runtime: &Runtime) -> Result<()> {
             );
         }
 
-        crate::state::set_node(node);
+        state::set_node(node);
 
         event::publish(&EventInternal::Init("10101 is ready.".to_string()));
 
@@ -412,13 +413,13 @@ pub fn run(seed_dir: String, runtime: &Runtime) -> Result<()> {
 
 pub fn init_new_mnemonic(target_seed_file: &Path) -> Result<()> {
     let seed = Bip39Seed::initialize(target_seed_file)?;
-    crate::state::set_seed(seed);
+    state::set_seed(seed);
     Ok(())
 }
 
 pub async fn restore_from_mnemonic(seed_words: &str, target_seed_file: &Path) -> Result<()> {
     let seed = Bip39Seed::restore_from_mnemonic(seed_words, target_seed_file)?;
-    crate::state::set_seed(seed);
+    state::set_seed(seed);
 
     let storage = TenTenOneNodeStorage::new(
         config::get_data_dir(),
@@ -426,7 +427,7 @@ pub async fn restore_from_mnemonic(seed_words: &str, target_seed_file: &Path) ->
         get_node_key(),
     );
     tracing::info!("Initialized 10101 storage!");
-    crate::state::set_storage(storage.clone());
+    state::set_storage(storage.clone());
     storage.client.restore(storage.dlc_storage).await
 }
 
@@ -609,14 +610,11 @@ fn keep_wallet_balance_and_history_up_to_date(node: &Node) -> Result<()> {
 }
 
 pub fn get_unused_address() -> String {
-    crate::state::get_node()
-        .inner
-        .get_unused_address()
-        .to_string()
+    state::get_node().inner.get_unused_address().to_string()
 }
 
 pub fn close_channel(is_force_close: bool) -> Result<()> {
-    let node = crate::state::try_get_node().context("failed to get ln dlc node")?;
+    let node = state::try_get_node().context("failed to get ln dlc node")?;
 
     let channels = node.inner.list_channels();
     let channel_details = channels.first().context("No channel to close")?;
@@ -635,7 +633,7 @@ pub fn collaborative_revert_channel(
     execution_price: Decimal,
     funding_txo: OutPoint,
 ) -> Result<()> {
-    let node = crate::state::try_get_node().context("Failed to get Node")?;
+    let node = state::try_get_node().context("Failed to get Node")?;
     let node = node.inner.clone();
 
     let channel_id_hex = hex::encode(channel_id.0);
@@ -730,7 +728,7 @@ pub fn collaborative_revert_channel(
     };
 
     let client = reqwest_client();
-    let runtime = crate::state::get_or_create_tokio_runtime()?;
+    let runtime = state::get_or_create_tokio_runtime()?;
     runtime.spawn({
         let subchannel = subchannel.clone();
         async move {
@@ -777,7 +775,7 @@ fn update_state_after_collab_revert(
     sub_channel: SubChannel,
     execution_price: Decimal,
 ) -> Result<()> {
-    let node = crate::state::try_get_node().context("failed to get ln dlc node")?;
+    let node = state::try_get_node().context("failed to get ln dlc node")?;
     let positions = db::get_positions()?;
 
     let position = match positions.first() {
@@ -847,14 +845,14 @@ fn update_state_after_collab_revert(
 }
 
 pub fn get_usable_channel_details() -> Result<Vec<ChannelDetails>> {
-    let node = crate::state::try_get_node().context("failed to get ln dlc node")?;
+    let node = state::try_get_node().context("failed to get ln dlc node")?;
     let channels = node.inner.list_usable_channels();
 
     Ok(channels)
 }
 
 pub fn get_fee_rate() -> Result<FeeRate> {
-    let node = crate::state::try_get_node().context("failed to get ln dlc node")?;
+    let node = state::try_get_node().context("failed to get ln dlc node")?;
     Ok(node.inner.ldk_wallet().get_fee_rate(CONFIRMATION_TARGET))
 }
 
@@ -862,7 +860,7 @@ pub fn get_fee_rate() -> Result<FeeRate> {
 ///
 /// This is used when checking max tradeable amount
 pub fn max_channel_value() -> Result<Amount> {
-    let node = crate::state::try_get_node().context("failed to get ln dlc node")?;
+    let node = state::try_get_node().context("failed to get ln dlc node")?;
     if let Some(existing_channel) = node
         .inner
         .list_channels()
@@ -876,7 +874,7 @@ pub fn max_channel_value() -> Result<Amount> {
 }
 
 pub fn contract_tx_fee_rate() -> Result<Option<u64>> {
-    let node = crate::state::try_get_node().context("failed to get ln dlc node")?;
+    let node = state::try_get_node().context("failed to get ln dlc node")?;
     let fee_rate_per_vb = node
         .inner
         .list_dlc_channels()?
@@ -891,10 +889,10 @@ pub fn create_onboarding_invoice(
     amount_sats: u64,
     fee_sats: u64,
 ) -> Result<Bolt11Invoice> {
-    let runtime = crate::state::get_or_create_tokio_runtime()?;
+    let runtime = state::get_or_create_tokio_runtime()?;
 
     runtime.block_on(async {
-        let node = crate::state::get_node();
+        let node = state::get_node();
         let client = reqwest_client();
 
         // check if we have already announced a channel before. If so we can reuse the `user_channel_id`
@@ -960,7 +958,7 @@ pub fn create_onboarding_invoice(
 }
 
 pub fn create_invoice(amount_sats: Option<u64>) -> Result<Bolt11Invoice> {
-    let node = crate::state::get_node();
+    let node = state::get_node();
 
     let final_route_hint_hop = node
         .inner
@@ -979,7 +977,7 @@ pub async fn send_payment(payment: SendPayment) -> Result<()> {
         SendPayment::Lightning { invoice, amount } => {
             let invoice = Bolt11Invoice::from_str(&invoice)?;
             let amount = amount.map(Amount::from_sat);
-            let node = crate::state::get_node().inner.clone();
+            let node = state::get_node().inner.clone();
 
             match node.pay_invoice(&invoice, amount) {
                 Ok(()) => tracing::info!("Successfully triggered payment"),
@@ -1041,12 +1039,30 @@ pub async fn send_payment(payment: SendPayment) -> Result<()> {
         }
         SendPayment::OnChain { address, amount } => {
             let address = Address::from_str(&address)?;
-            crate::state::get_node()
-                .inner
-                .send_to_address(&address, amount)?;
+            state::get_node().inner.send_to_address(&address, amount)?;
         }
     }
     Ok(())
+}
+
+pub async fn estimate_payment_fee_msat(payment: SendPayment) -> Result<u64> {
+    let (invoice, amount) = match payment {
+        SendPayment::Lightning { invoice, amount } => (invoice, amount),
+        SendPayment::OnChain { .. } => {
+            // TODO: Let the type system handle this.
+            unreachable!("Cannot estimate payment fee for on-chain payment");
+        }
+    };
+
+    let invoice = Bolt11Invoice::from_str(&invoice)?;
+    let amount = amount.map(Amount::from_sat);
+
+    let fee = state::get_node()
+        .inner
+        .estimate_payment_fee_msat(invoice, amount, Duration::from_secs(10))
+        .await?;
+
+    Ok(fee)
 }
 
 pub async fn trade(trade_params: TradeParams) -> Result<(), (FailureReason, Error)> {
@@ -1079,7 +1095,7 @@ pub async fn trade(trade_params: TradeParams) -> Result<(), (FailureReason, Erro
 
 /// initiates the rollover protocol with the coordinator
 pub async fn rollover(contract_id: Option<String>) -> Result<()> {
-    let node = crate::state::get_node();
+    let node = state::get_node();
 
     let dlc_channels = node
         .inner
