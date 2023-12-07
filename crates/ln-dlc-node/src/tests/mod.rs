@@ -85,6 +85,7 @@ fn init_tracing() {
                 bdk=info,\
                 lightning::ln::peer_handler=debug,\
                 lightning=trace,\
+                lightning_transaction_sync=warn,\
                 sled=info,\
                 ureq=info",
             )

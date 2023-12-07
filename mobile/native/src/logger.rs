@@ -27,6 +27,7 @@ pub fn log_base_directives(env: EnvFilter, level: LevelFilter) -> Result<EnvFilt
         // set to debug to show ldk logs (they're also in logs.txt)
         .add_directive("sled=warn".parse()?)
         .add_directive("bdk=warn".parse()?) // bdk is quite spamy on debug
+        .add_directive("lightning_transaction_sync=warn".parse()?)
         .add_directive("lightning::ln::peer_handler=debug".parse()?)
         .add_directive("lightning=trace".parse()?)
         .add_directive("ureq=info".parse()?);

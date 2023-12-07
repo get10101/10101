@@ -292,7 +292,8 @@ fn init_tracing(level: LevelFilter) -> Result<()> {
         .add_directive(Directive::from(level))
         .add_directive("hyper=warn".parse()?)
         .add_directive("rustls=warn".parse()?)
-        .add_directive("reqwest=warn".parse()?);
+        .add_directive("reqwest=warn".parse()?)
+        .add_directive("lightning_transaction_sync=warn".parse()?);
 
     // Parse additional log directives from env variable
     let filter = match std::env::var_os(RUST_LOG_ENV).map(|s| s.into_string()) {
