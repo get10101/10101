@@ -6,7 +6,7 @@ import 'package:get_10101/features/stable/stable_screen.dart';
 import 'package:get_10101/features/wallet/balance.dart';
 import 'package:get_10101/features/wallet/receive_screen.dart';
 import 'package:get_10101/features/wallet/onboarding/onboarding_screen.dart';
-import 'package:get_10101/features/wallet/send/send_screen.dart';
+import 'package:get_10101/features/wallet/scanner_screen.dart';
 import 'package:get_10101/features/wallet/wallet_change_notifier.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -96,7 +96,7 @@ class WalletScreen extends StatelessWidget {
                     Expanded(
                       child: ElevatedButton(
                         style: balanceButtonStyle,
-                        onPressed: () => GoRouter.of(context).go(SendScreen.route),
+                        onPressed: () => GoRouter.of(context).go(ScannerScreen.route),
                         child: const Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [

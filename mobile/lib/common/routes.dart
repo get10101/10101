@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get_10101/common/global_keys.dart';
 import 'package:get_10101/common/settings/channel_screen.dart';
 import 'package:get_10101/common/status_screen.dart';
+import 'package:get_10101/features/wallet/domain/destination.dart';
 import 'package:get_10101/features/welcome/loading_screen.dart';
 import 'package:get_10101/common/scaffold_with_nav_bar.dart';
 import 'package:get_10101/common/settings/app_info_screen.dart';
@@ -152,10 +153,7 @@ GoRouter createRoutes() {
                   // Use root navigator so the screen overlays the application shell
                   parentNavigatorKey: rootNavigatorKey,
                   builder: (BuildContext context, GoRouterState state) {
-                    if (state.extra != null) {
-                      return SendScreen(encodedDestination: state.extra as String?);
-                    }
-                    return const SendScreen();
+                    return SendScreen(destination: state.extra as Destination);
                   },
                 ),
                 GoRoute(
