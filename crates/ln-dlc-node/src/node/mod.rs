@@ -732,7 +732,7 @@ fn lightning_wallet_sync<S: TenTenOneStorage, N: Storage + Sync + Send>(
         .sync(confirmables)
         .context("Lightning wallet sync failed")?;
 
-    tracing::info!(
+    tracing::trace!(
         "Lightning wallet sync finished in {}ms.",
         now.elapsed().as_millis()
     );

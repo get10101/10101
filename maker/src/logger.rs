@@ -25,6 +25,7 @@ pub fn init_tracing(level: LevelFilter, json_format: bool) -> Result<()> {
         .add_directive("rustls=warn".parse()?)
         .add_directive("sled=warn".parse()?)
         .add_directive("bdk=warn".parse()?) // bdk is quite spamy on debug
+        .add_directive("lightning_transaction_sync=warn".parse()?)
         .add_directive("lightning::chain=info".parse()?)
         .add_directive("ureq=info".parse()?);
 
