@@ -7,7 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-- Fix: Reduce websocket reconnect timeout to 200ms
+## [1.7.0] - 2023-12-07
+
+- Fix: Reduce WebSocket reconnect timeout to 200ms.
+- Feat: Replace speed dial button with send, receive and swap buttons.
+- Chore: Log channel details on a failed payment attempt.
+- Feat: Redesign of the wallet balance.
 
 ## [1.6.6] - 2023-12-01
 
@@ -216,7 +221,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Self-Custodial CFD Trading based on DLC and lightning
 
-[Unreleased]: https://github.com/get10101/10101/compare/1.6.6...HEAD
+[Unreleased]: https://github.com/get10101/10101/compare/1.7.0...HEAD
+[1.7.0]: https://github.com/get10101/10101/compare/1.6.6...1.7.0
 [1.6.6]: https://github.com/get10101/10101/compare/1.6.5...1.6.6
 [1.6.5]: https://github.com/get10101/10101/compare/1.6.4...1.6.5
 [1.6.4]: https://github.com/get10101/10101/compare/1.6.3...1.6.4
