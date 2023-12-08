@@ -1,3 +1,4 @@
+use anyhow::anyhow;
 use anyhow::Context;
 use anyhow::Error;
 use anyhow::Result;
@@ -89,7 +90,7 @@ async fn subscribe_impl(
                             return;
                         }
                         Some(Err(e)) => {
-                            yield Err(anyhow::anyhow!(e));
+                            yield Err(anyhow!(e));
                             return;
                         }
                     };

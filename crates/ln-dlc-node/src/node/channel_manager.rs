@@ -106,7 +106,7 @@ pub(crate) fn build<S: TenTenOneStorage, N: Storage>(
 
     let channel_manager =
         <(BlockHash, ChannelManager<S, N>)>::read(&mut file.as_slice(), read_args)
-            .map_err(|e| anyhow::anyhow!(e))?
+            .map_err(|e| anyhow!(e))?
             .1;
 
     // Make sure our filter is initialized with all the txs and outputs

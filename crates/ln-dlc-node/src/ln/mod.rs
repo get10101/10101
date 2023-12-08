@@ -11,6 +11,7 @@ mod dlc_channel_details;
 mod event_handler;
 mod logger;
 mod manage_spendable_outputs;
+mod probes;
 
 /// A collection of handlers for events emitted by the Lightning node.
 ///
@@ -29,6 +30,8 @@ pub use event_handler::EventHandlerTrait;
 pub use event_handler::EventSender;
 pub(crate) use logger::TracingLogger;
 pub(crate) use manage_spendable_outputs::manage_spendable_outputs;
+pub(crate) use probes::ProbeStatus;
+pub(crate) use probes::Probes;
 
 #[derive(Clone)]
 pub enum GossipSource {

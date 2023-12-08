@@ -2,6 +2,7 @@ use crate::channel::UserChannelId;
 use crate::config::app_config;
 use crate::config::coordinator_config;
 use crate::ln::calculate_channel_value;
+use crate::node::peer_manager::alias_as_bytes;
 use crate::node::GossipSourceConfig;
 use crate::node::InMemoryStore;
 use crate::node::LiquidityRequest;
@@ -62,6 +63,7 @@ mod bitcoind;
 mod dlc;
 mod just_in_time_channel;
 mod multi_hop_payment;
+mod probe;
 mod single_hop_payment;
 
 #[cfg(feature = "load_tests")]
@@ -349,6 +351,16 @@ impl Node<TenTenOneInMemoryStorage, InMemoryStore> {
         tokio::time::sleep(Duration::from_secs(1)).await;
         self.connect(peer).await?;
         Ok(())
+    }
+
+    pub fn broadcast_node_announcement(&self) {
+        let alias = alias_as_bytes(&self.alias).expect("alias to be the right length");
+
+        crate::node::peer_manager::broadcast_node_announcement(
+            &self.peer_manager,
+            alias,
+            self.announcement_addresses.clone(),
+        );
     }
 }
 

@@ -1,3 +1,4 @@
+use anyhow::anyhow;
 use anyhow::Result;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
@@ -85,7 +86,7 @@ pub fn is_liquidity_sufficient(
 pub fn parse_channel_id(channel_id: &str) -> Result<ChannelId> {
     let channel_id = hex::decode(channel_id)?
         .try_into()
-        .map_err(|_| anyhow::anyhow!("Could not parse channel ID"))?;
+        .map_err(|_| anyhow!("Could not parse channel ID"))?;
 
     Ok(ChannelId(channel_id))
 }

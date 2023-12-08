@@ -1,4 +1,5 @@
 use crate::tungstenite::http::Method;
+use anyhow::anyhow;
 use anyhow::Context;
 use anyhow::Error;
 use async_stream::stream;
@@ -86,7 +87,7 @@ fn subscribe_impl<const N: usize>(
             tokio::select! {
                 _ = tokio::time::sleep(Duration::from_secs(5)) => {
                     if last_bitmex_message.elapsed() > Duration::from_secs(20) {
-                        yield Err(anyhow::anyhow!("BitMex websocket timed out"));
+                        yield Err(anyhow!("BitMex websocket timed out"));
                         return;
                     }
 
@@ -99,7 +100,7 @@ fn subscribe_impl<const N: usize>(
                         .await;
 
                     if let Err(e) = res {
-                        yield Err(anyhow::anyhow!(e));
+                        yield Err(anyhow!(e));
                         return;
                     }
                 },
@@ -114,7 +115,7 @@ fn subscribe_impl<const N: usize>(
                             return;
                         }
                         Some(Err(e)) => {
-                            yield Err(anyhow::anyhow!(e));
+                            yield Err(anyhow!(e));
                             return;
                         }
                     };

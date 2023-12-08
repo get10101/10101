@@ -1,4 +1,5 @@
 use crate::channel::Channel;
+use crate::ln::ProbeStatus;
 use crate::node::LiquidityRequest;
 use crate::node::Node;
 use crate::node::Storage;
@@ -7,6 +8,7 @@ use crate::MillisatAmount;
 use crate::PaymentFlow;
 use crate::PaymentInfo;
 use anyhow::anyhow;
+use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
 use autometrics::autometrics;
@@ -15,17 +17,23 @@ use bitcoin::hashes::sha256;
 use bitcoin::hashes::Hash;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::secp256k1::Secp256k1;
+use bitcoin::Amount;
 use bitcoin::Network;
+use futures::stream::FuturesUnordered;
+use futures::StreamExt;
+use lightning::ln::channelmanager::PaymentId;
+use lightning::ln::channelmanager::RecipientOnionFields;
 use lightning::ln::channelmanager::Retry;
 use lightning::ln::channelmanager::RetryableSendFailure;
 use lightning::ln::channelmanager::MIN_CLTV_EXPIRY_DELTA;
 use lightning::ln::PaymentHash;
 use lightning::routing::gossip::RoutingFees;
+use lightning::routing::router::PaymentParameters;
 use lightning::routing::router::RouteHint;
 use lightning::routing::router::RouteHintHop;
-use lightning_invoice::payment::pay_invoice;
-use lightning_invoice::payment::pay_zero_value_invoice;
-use lightning_invoice::payment::PaymentError;
+use lightning::routing::router::RouteParameters;
+use lightning_invoice::payment::preflight_probe_invoice;
+use lightning_invoice::payment::preflight_probe_zero_value_invoice;
 use lightning_invoice::Bolt11Invoice;
 use lightning_invoice::Bolt11InvoiceDescription;
 use lightning_invoice::Currency;
@@ -35,6 +43,9 @@ use std::fmt::Formatter;
 use std::time::Duration;
 use std::time::SystemTime;
 use time::OffsetDateTime;
+use tokio::task::spawn_blocking;
+
+const DEFAULT_PROBING_LIQUIDITY_LIMIT_MULTIPLIER: u64 = 3;
 
 impl<S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 'static> Node<S, N> {
     pub fn create_invoice(
@@ -221,30 +232,27 @@ impl<S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 'static> Node<S, 
         Ok(route_hint_hop)
     }
 
-    pub fn pay_invoice(&self, invoice: &Bolt11Invoice, amount: Option<u64>) -> Result<()> {
-        let (result, amt_msat) = match invoice.amount_milli_satoshis() {
-            Some(_) => {
-                let invoice = invoice.clone();
-
-                let result =
-                    pay_invoice(&invoice, Retry::Attempts(10), self.channel_manager.as_ref());
-                (result, invoice.amount_milli_satoshis().expect("to be set"))
-            }
-            None => {
-                let amount_msats =
-                    amount.context("Can't pay zero amount invoice without amount")? * 1000;
-                let result = pay_zero_value_invoice(
-                    invoice,
-                    amount_msats,
-                    Retry::Attempts(10),
-                    self.channel_manager.as_ref(),
-                );
-                (result, amount_msats)
-            }
+    /// Pay a [`Bolt11Invoice`]. If an [`Amount`] is supplied, we assume that it is a zero-value
+    /// invoice.
+    pub fn pay_invoice(&self, invoice: &Bolt11Invoice, amount: Option<Amount>) -> Result<()> {
+        let amount_msat = match amount {
+            Some(amount) => amount.to_sat() * 1_000,
+            None => invoice
+                .amount_milli_satoshis()
+                .context("Invoice amount not set")?,
         };
 
-        let (status, err) = match result {
-            Ok(payment_id) => {
+        let (payment_id, payment_hash, recipient_onion, route_params) =
+            invoice_parameters(invoice, amount_msat);
+
+        let (status, err) = match self.channel_manager.send_payment(
+            payment_hash,
+            recipient_onion,
+            payment_id,
+            route_params,
+            Retry::Attempts(10),
+        ) {
+            Ok(()) => {
                 let payee_pubkey = match invoice.payee_pub_key() {
                     Some(pubkey) => *pubkey,
                     None => invoice.recover_payee_pub_key(),
@@ -252,18 +260,15 @@ impl<S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 'static> Node<S, 
 
                 tracing::info!(
                     peer_id = %payee_pubkey,
-                    amount_msat = %amt_msat,
+                    %amount_msat,
                     payment_id = %hex::encode(payment_id.0),
                     "Initiated payment"
                 );
 
                 (HTLCStatus::Pending, None)
             }
-            Err(PaymentError::Invoice(err)) => {
-                tracing::error!(%err, "Invalid invoice");
-                anyhow::bail!(err);
-            }
-            Err(PaymentError::Sending(err)) => {
+
+            Err(err) => {
                 tracing::error!(?err, "Failed to send payment");
                 let failure_reason = retryable_send_failure_to_string(err);
 
@@ -282,7 +287,7 @@ impl<S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 'static> Node<S, 
                 preimage: None,
                 secret: None,
                 status,
-                amt_msat: MillisatAmount(Some(amt_msat)),
+                amt_msat: MillisatAmount(Some(amount_msat)),
                 fee_msat: MillisatAmount(None),
                 flow: PaymentFlow::Outbound,
                 timestamp: OffsetDateTime::now_utc(),
@@ -293,10 +298,100 @@ impl<S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 'static> Node<S, 
         )?;
 
         if let Some(failure_reason) = err {
-            anyhow::bail!("Failed to send payment: {}, {}", failure_reason, invoice);
+            bail!("Failed to send payment: {}, {}", failure_reason, invoice);
         }
 
         Ok(())
+    }
+
+    /// Send probes based on a [`Bolt11Invoice`]. If an extra [`Amount`] is supplied we assume that
+    /// it is a zero-value invoice.
+    ///
+    /// Returns the list of probes sent, identified by their [`PaymentId`]s.
+    pub async fn probe_invoice_payment(
+        &self,
+        invoice: Bolt11Invoice,
+        amount: Option<Amount>,
+    ) -> Result<Vec<PaymentId>> {
+        let payment_hash = *invoice.payment_hash();
+
+        let probes = spawn_blocking({
+            let channel_manager = self.channel_manager.clone();
+            move || match amount {
+                Some(amount) => {
+                    let amount_msat = amount.to_sat() * 1_000;
+
+                    preflight_probe_zero_value_invoice(
+                        &invoice,
+                        amount_msat,
+                        channel_manager.as_ref(),
+                        Some(DEFAULT_PROBING_LIQUIDITY_LIMIT_MULTIPLIER),
+                    )
+                }
+                None => preflight_probe_invoice(
+                    &invoice,
+                    channel_manager.as_ref(),
+                    Some(DEFAULT_PROBING_LIQUIDITY_LIMIT_MULTIPLIER),
+                ),
+            }
+        })
+        .await
+        .expect("task to complete")
+        .map_err(|e| {
+            anyhow!("Failed to send pre-flight probe for invoice {payment_hash}: {e:?}",)
+        })?;
+
+        if probes.is_empty() {
+            bail!("No probes sent for payment hash: {payment_hash}");
+        }
+
+        let probes = probes
+            .iter()
+            .map(|(_, payment_ids)| payment_ids)
+            .copied()
+            .collect::<Vec<PaymentId>>();
+
+        for probe_id in probes.iter() {
+            self.probes.register(*probe_id).await
+        }
+
+        Ok(probes)
+    }
+
+    /// Estimate the fee for the [`Bolt11Invoice`] provided. If an extra [`Amount`] is supplied we
+    /// assume that it is a zero-value invoice.
+    ///
+    /// An extra `timeout` argument needs to be provided because the fee is estimated by sending
+    /// pre-flight probes, which could take arbitrarily long to resolve. As such, this API can also
+    /// be used
+    pub async fn estimate_payment_fee_msat(
+        &self,
+        invoice: Bolt11Invoice,
+        amount: Option<Amount>,
+        timeout: Duration,
+    ) -> Result<u64> {
+        let probes = self.probe_invoice_payment(invoice, amount).await?;
+
+        let probe_results = probes
+            .into_iter()
+            .map(
+                |probe_id| async move { self.probes.wait_until_finished(&probe_id, timeout).await },
+            )
+            .collect::<FuturesUnordered<_>>()
+            .collect::<Vec<_>>()
+            .await;
+
+        let fee = probe_results
+            .iter()
+            .filter_map(|status| match status {
+                Ok(ProbeStatus::Succeeded { path }) => Some(path.fee_msat()),
+                _ => None,
+            })
+            // We are pessimistic about the fee.
+            .max_by(|a, b| a.cmp(b))
+            .context("All pre-flight probes failed")?;
+
+        Ok(fee)
     }
 
     #[cfg(test)]
@@ -356,6 +451,47 @@ impl<S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 'static> Node<S, 
         })
         .await
     }
+}
+
+// Inspired by https://github.com/MutinyWallet/mutiny-node/commit/3278b18. We've copied the code
+// because we share the same goal: we want the payment to succeed.
+fn invoice_parameters(
+    invoice: &Bolt11Invoice,
+    amt_msat: u64,
+) -> (
+    PaymentId,
+    PaymentHash,
+    RecipientOnionFields,
+    RouteParameters,
+) {
+    let payment_id = PaymentId(invoice.payment_hash().into_inner());
+    let payment_hash = PaymentHash((*invoice.payment_hash()).into_inner());
+
+    let mut recipient_onion = RecipientOnionFields::secret_only(*invoice.payment_secret());
+    recipient_onion.payment_metadata = invoice.payment_metadata().cloned();
+
+    let mut payment_params = PaymentParameters::from_node_id(
+        invoice.recover_payee_pub_key(),
+        invoice.min_final_cltv_expiry_delta() as u32,
+    )
+    .with_expiry_time(invoice.expires_at().expect("expiry to be set").as_secs())
+    .with_route_hints(invoice.route_hints())
+    .expect("BOLT 11 parameters");
+
+    if let Some(features) = invoice.features() {
+        payment_params = payment_params
+            .with_bolt11_features(features.clone())
+            .expect("BOLT 11 featuers");
+    }
+
+    let route_params = RouteParameters {
+        payment_params,
+        final_value_msat: amt_msat,
+        // So that the payment is more likely to succeed.
+        max_total_routing_fee_msat: None,
+    };
+
+    (payment_id, payment_hash, recipient_onion, route_params)
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

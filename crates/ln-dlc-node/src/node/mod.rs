@@ -3,6 +3,7 @@ use crate::dlc_custom_signer::CustomKeysManager;
 use crate::fee_rate_estimator::FeeRateEstimator;
 use crate::ln::manage_spendable_outputs;
 use crate::ln::GossipSource;
+use crate::ln::Probes;
 use crate::ln::TracingLogger;
 use crate::ln_dlc_wallet::LnDlcWallet;
 use crate::node::dlc_channel::sub_channel_manager_periodic_check;
@@ -171,12 +172,13 @@ pub struct Node<S: TenTenOneStorage, N: Storage> {
     // fields below are needed only to start the node
     listen_address: SocketAddr,
     gossip_source: Arc<GossipSource>,
-    alias: String,
-    announcement_addresses: Vec<SocketAddress>,
+    pub(crate) alias: String,
+    pub(crate) announcement_addresses: Vec<SocketAddress>,
     scorer: Arc<Mutex<Scorer>>,
     esplora_server_url: String,
     esplora_client: Arc<NodeEsploraClient>,
     pub pending_channel_opening_fee_rates: Arc<parking_lot::Mutex<HashMap<PublicKey, FeeRate>>>,
+    pub probes: Probes,
 }
 
 #[derive(Debug, Clone, Copy, Deserialize, Serialize)]
@@ -482,6 +484,7 @@ impl<S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 'static> Node<S, 
             esplora_client,
             pending_channel_opening_fee_rates: Arc::new(parking_lot::Mutex::new(HashMap::new())),
             oracle_pubkey,
+            probes: Probes::default(),
         })
     }
 

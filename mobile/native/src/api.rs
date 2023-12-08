@@ -21,6 +21,7 @@ use crate::trade::order::api::Order;
 use crate::trade::position;
 use crate::trade::position::api::Position;
 use crate::trade::users;
+use anyhow::ensure;
 use anyhow::Context;
 use anyhow::Result;
 use bitcoin::Amount;
@@ -470,6 +471,11 @@ pub fn send_payment(payment: SendPayment) -> Result<()> {
     runtime.block_on(async { ln_dlc::send_payment(payment).await })
 }
 
+pub fn send_preflight_probe(payment: SendPayment) -> Result<u64> {
+    let runtime = crate::state::get_or_create_tokio_runtime()?;
+    runtime.block_on(async { ln_dlc::estimate_payment_fee_msat(payment).await })
+}
+
 pub struct LastLogin {
     pub id: i32,
     pub date: String,
@@ -520,7 +526,7 @@ pub enum Destination {
 }
 
 pub fn decode_destination(destination: String) -> Result<Destination> {
-    anyhow::ensure!(!destination.is_empty(), "Destination must be set");
+    ensure!(!destination.is_empty(), "Destination must be set");
     destination::decode_destination(destination)
 }
 
