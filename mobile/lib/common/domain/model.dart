@@ -11,6 +11,11 @@ class Amount {
     _sats = Decimal.fromInt(sats);
   }
 
+  // TODO: this is bad for precision
+  Amount.fromBtc(double btc) {
+    _sats = Decimal.fromInt((btc * (100000000.0)).round());
+  }
+
   int get sats => _sats.toBigInt().toInt();
 
   int get toInt => _sats.toBigInt().toInt();

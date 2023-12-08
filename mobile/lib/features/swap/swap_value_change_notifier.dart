@@ -4,24 +4,24 @@ import 'package:get_10101/common/application/channel_info_service.dart';
 import 'package:get_10101/common/application/event_service.dart';
 import 'package:get_10101/common/domain/model.dart';
 import 'package:get_10101/common/dummy_values.dart';
-import 'package:get_10101/features/trade/application/trade_values_service.dart';
+import 'package:get_10101/features/swap/swap_trade_values.dart';
+import 'package:get_10101/features/swap/swap_trade_values_service.dart';
 import 'package:get_10101/features/trade/domain/direction.dart';
 import 'package:get_10101/features/trade/domain/leverage.dart';
 import 'package:get_10101/features/trade/domain/price.dart';
-import 'package:get_10101/features/trade/domain/trade_values.dart';
 
-class StableValuesChangeNotifier extends ChangeNotifier implements Subscriber {
-  final TradeValuesService tradeValuesService;
+class SwapValuesChangeNotifier extends ChangeNotifier implements Subscriber {
+  final SwapTradeValuesService tradeValuesService;
   final ChannelInfoService channelInfoService;
 
-  late final TradeValues _sellTradeValues;
+  late final SwapTradeValues _sellTradeValues;
 
-  StableValuesChangeNotifier(this.tradeValuesService, this.channelInfoService) {
+  SwapValuesChangeNotifier(this.tradeValuesService, this.channelInfoService) {
     _sellTradeValues = _initOrder();
   }
 
-  TradeValues _initOrder() {
-    return TradeValues.fromQuantity(
+  SwapTradeValues _initOrder() {
+    return SwapTradeValues.fromQuantity(
         quantity: Amount(10),
         leverage: Leverage(1),
         price: null,
@@ -73,7 +73,7 @@ class StableValuesChangeNotifier extends ChangeNotifier implements Subscriber {
     }
   }
 
-  TradeValues stableValues() => _sellTradeValues;
+  SwapTradeValues stableValues() => _sellTradeValues;
 
   @override
   void notify(bridge.Event event) {
