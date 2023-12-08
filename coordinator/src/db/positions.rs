@@ -176,7 +176,6 @@ impl Position {
         liquidation_price: f32,
         expiry_timestamp: OffsetDateTime,
         temporary_contract_id: ContractId,
-        stable: bool,
     ) -> Result<()> {
         let affected_rows = diesel::update(positions::table)
             .filter(positions::trader_pubkey.eq(trader_pubkey.clone()))
@@ -194,7 +193,6 @@ impl Position {
                 positions::liquidation_price.eq(liquidation_price),
                 positions::expiry_timestamp.eq(expiry_timestamp),
                 positions::temporary_contract_id.eq(temporary_contract_id.to_hex()),
-                positions::stable.eq(stable),
             ))
             .execute(conn)?;
 

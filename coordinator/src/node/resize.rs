@@ -174,10 +174,6 @@ impl Node {
                 .dlc_expiry_timestamp
                 .context("No expiry timestamp for resizing trade")?;
 
-            let stable = old_position.stable
-                && leverage_trader == Decimal::ONE
-                && direction == Direction::Short;
-
             let total_contracts = f32_from_decimal(total_contracts);
             let leverage_coordinator = f32_from_decimal(leverage_coordinator);
             let leverage_trader = f32_from_decimal(leverage_trader);
@@ -283,7 +279,6 @@ impl Node {
                         f32_from_decimal(liquidation_price_trader),
                         expiry_timestamp,
                         temporary_contract_id,
-                        stable,
                     ) {
                         tracing::error!(
                             channel_id = %channel_details.channel_id.to_hex(),

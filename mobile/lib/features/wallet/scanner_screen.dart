@@ -6,7 +6,9 @@ import 'package:flutter/services.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:get_10101/common/color.dart';
 import 'package:get_10101/features/wallet/domain/destination.dart';
-import 'package:get_10101/features/wallet/send/send_screen.dart';
+import 'package:get_10101/features/wallet/domain/wallet_type.dart';
+import 'package:get_10101/features/wallet/send/send_lightning_screen.dart';
+import 'package:get_10101/features/wallet/send/send_onchain_screen.dart';
 import 'package:get_10101/features/wallet/wallet_change_notifier.dart';
 import 'package:get_10101/features/wallet/wallet_screen.dart';
 import 'package:get_10101/logger/logger.dart';
@@ -89,7 +91,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
                           mainAxisAlignment: MainAxisAlignment.center,
                           crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
-                            Icon(FontAwesomeIcons.ban, size: 55),
+                            Icon(FontAwesomeIcons.eyeSlash, size: 55),
                             SizedBox(height: 20),
                             Text(
                                 "To scan a QR code you must give 10101 permission to access the camera.",
@@ -113,7 +115,17 @@ class _ScannerScreenState extends State<ScannerScreen> {
                                 .then((destination) {
                               _destination = destination;
                               if (_formKey.currentState!.validate()) {
-                                GoRouter.of(context).go(SendScreen.route, extra: destination);
+                                switch (destination!.getWalletType()) {
+                                  case WalletType.lightning:
+                                    GoRouter.of(context)
+                                        .go(SendLightningScreen.route, extra: destination);
+                                  case WalletType.onChain:
+                                    GoRouter.of(context)
+                                        .go(SendOnChainScreen.route, extra: destination);
+                                  case WalletType.stable:
+                                    GoRouter.of(context)
+                                        .go(SendLightningScreen.route, extra: destination);
+                                }
                               }
                             });
                           }
@@ -181,7 +193,17 @@ class _ScannerScreenState extends State<ScannerScreen> {
                           _destination = destination;
 
                           if (_formKey.currentState!.validate()) {
-                            GoRouter.of(context).go(SendScreen.route, extra: destination);
+                            switch (destination!.getWalletType()) {
+                              case WalletType.lightning:
+                                GoRouter.of(context)
+                                    .go(SendLightningScreen.route, extra: destination);
+                              case WalletType.onChain:
+                                GoRouter.of(context)
+                                    .go(SendOnChainScreen.route, extra: destination);
+                              case WalletType.stable:
+                                GoRouter.of(context)
+                                    .go(SendLightningScreen.route, extra: destination);
+                            }
                           }
                         });
                       },

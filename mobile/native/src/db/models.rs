@@ -354,7 +354,7 @@ impl Position {
             creation_timestamp: _,
             expiry_timestamp,
             updated_timestamp,
-            stable,
+            ..
         } = position;
 
         let affected_rows = diesel::update(positions::table)
@@ -369,7 +369,6 @@ impl Position {
                 positions::collateral.eq(collateral),
                 positions::expiry_timestamp.eq(expiry_timestamp),
                 positions::updated_timestamp.eq(updated_timestamp),
-                positions::stable.eq(stable),
             ))
             .execute(conn)?;
 

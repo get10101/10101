@@ -337,8 +337,6 @@ impl Position {
                         .to_sat()
                 };
 
-                let stable = self.stable && order.stable && self.direction == Direction::Short;
-
                 let position = Position {
                     leverage: f32_from_decimal(starting_leverage),
                     quantity: contract_diff,
@@ -351,7 +349,7 @@ impl Position {
                     expiry,
                     updated: now_timestamp,
                     created: self.created,
-                    stable,
+                    stable: self.stable,
                 };
 
                 let fee = order_matching_fee_taker(order.quantity, order_execution_price);
