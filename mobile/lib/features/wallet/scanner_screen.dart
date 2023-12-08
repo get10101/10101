@@ -91,7 +91,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
                           mainAxisAlignment: MainAxisAlignment.center,
                           crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
-                            Icon(FontAwesomeIcons.ban, size: 55),
+                            Icon(FontAwesomeIcons.eyeSlash, size: 55),
                             SizedBox(height: 20),
                             Text(
                                 "To scan a QR code you must give 10101 permission to access the camera.",
