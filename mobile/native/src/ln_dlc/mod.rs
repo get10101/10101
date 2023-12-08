@@ -978,7 +978,9 @@ pub async fn send_payment(payment: SendPayment) -> Result<()> {
     match payment {
         SendPayment::Lightning { invoice, amount } => {
             let invoice = Bolt11Invoice::from_str(&invoice)?;
+            let amount = amount.map(Amount::from_sat);
             let node = crate::state::get_node().inner.clone();
+
             match node.pay_invoice(&invoice, amount) {
                 Ok(()) => tracing::info!("Successfully triggered payment"),
                 Err(e) => {

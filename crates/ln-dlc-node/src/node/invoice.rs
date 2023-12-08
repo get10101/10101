@@ -15,6 +15,7 @@ use bitcoin::hashes::sha256;
 use bitcoin::hashes::Hash;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::secp256k1::Secp256k1;
+use bitcoin::Amount;
 use bitcoin::Network;
 use lightning::ln::channelmanager::Retry;
 use lightning::ln::channelmanager::RetryableSendFailure;
@@ -221,29 +222,31 @@ impl<S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 'static> Node<S, 
         Ok(route_hint_hop)
     }
 
-    pub fn pay_invoice(&self, invoice: &Bolt11Invoice, amount: Option<u64>) -> Result<()> {
-        let (result, amt_msat) = match invoice.amount_milli_satoshis() {
-            Some(_) => {
-                let invoice = invoice.clone();
+    /// Pay a [`Bolt11Invoice`]. If an [`Amount`] is supplied, we assume that it is a zero-value
+    /// invoice.
+    pub fn pay_invoice(&self, invoice: &Bolt11Invoice, amount: Option<Amount>) -> Result<()> {
+        let retry_attempts = Retry::Attempts(10);
+        let channel_manager = self.channel_manager.as_ref();
 
-                let result =
-                    pay_invoice(&invoice, Retry::Attempts(10), self.channel_manager.as_ref());
-                (result, invoice.amount_milli_satoshis().expect("to be set"))
+        let (res, amount_msat) = match amount {
+            Some(amount) => {
+                let amount_msat = amount.to_sat() * 1_000;
+                let res =
+                    pay_zero_value_invoice(invoice, amount_msat, retry_attempts, channel_manager);
+
+                (res, amount_msat)
             }
             None => {
-                let amount_msats =
-                    amount.context("Can't pay zero amount invoice without amount")? * 1000;
-                let result = pay_zero_value_invoice(
-                    invoice,
-                    amount_msats,
-                    Retry::Attempts(10),
-                    self.channel_manager.as_ref(),
-                );
-                (result, amount_msats)
+                let res = pay_invoice(invoice, Retry::Attempts(10), self.channel_manager.as_ref());
+
+                (
+                    res,
+                    invoice.amount_milli_satoshis().expect("amount to be set"),
+                )
             }
         };
 
-        let (status, err) = match result {
+        let (status, err) = match res {
             Ok(payment_id) => {
                 let payee_pubkey = match invoice.payee_pub_key() {
                     Some(pubkey) => *pubkey,
@@ -252,7 +255,7 @@ impl<S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 'static> Node<S, 
 
                 tracing::info!(
                     peer_id = %payee_pubkey,
-                    amount_msat = %amt_msat,
+                    %amount_msat,
                     payment_id = %hex::encode(payment_id.0),
                     "Initiated payment"
                 );
@@ -282,7 +285,7 @@ impl<S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 'static> Node<S, 
                 preimage: None,
                 secret: None,
                 status,
-                amt_msat: MillisatAmount(Some(amt_msat)),
+                amt_msat: MillisatAmount(Some(amount_msat)),
                 fee_msat: MillisatAmount(None),
                 flow: PaymentFlow::Outbound,
                 timestamp: OffsetDateTime::now_utc(),
