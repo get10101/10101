@@ -7,8 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-- Feat: Open scanner on send button
-- Feat: Add bidirectional swap drawer
+## [1.7.1] - 2023-12-08
+
+- Feat: Pay lightning invoice with USD-P balance.
+- Feat: Open scanner on send button.
+- Feat: Add bidirectional swap drawer.
+- Fix: Add route prober api.
+- Feat: Do not arbitrarily cap routing fee, to increase likelihood of payment success.
+- Fix: Only display active liquidity options.
+- Chore: Reduce log output related to syncing the Lighting wallet.
+- Fix: Revert dropping io-util in ldk 117 fork.
 
 ## [1.7.0] - 2023-12-07
 
@@ -224,7 +232,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Self-Custodial CFD Trading based on DLC and lightning
 
-[Unreleased]: https://github.com/get10101/10101/compare/1.7.0...HEAD
+[Unreleased]: https://github.com/get10101/10101/compare/1.7.1...HEAD
+[1.7.1]: https://github.com/get10101/10101/compare/1.7.0...1.7.1
 [1.7.0]: https://github.com/get10101/10101/compare/1.6.6...1.7.0
 [1.6.6]: https://github.com/get10101/10101/compare/1.6.5...1.6.6
 [1.6.5]: https://github.com/get10101/10101/compare/1.6.4...1.6.5
