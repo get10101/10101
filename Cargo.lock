@@ -1915,7 +1915,7 @@ dependencies = [
 [[package]]
 name = "lightning"
 version = "0.0.117"
-source = "git+https://github.com/p2pderivatives/rust-lightning/?rev=08c0c5fd#08c0c5fd00721af410d4e56b172175afa3f6a4fa"
+source = "git+https://github.com/p2pderivatives/rust-lightning/?rev=121bc324#121bc324fec54cfb8b0335ec013f596ffc9d6f9f"
 dependencies = [
  "bitcoin",
  "musig2",
@@ -1924,7 +1924,7 @@ dependencies = [
 [[package]]
 name = "lightning-background-processor"
 version = "0.0.117"
-source = "git+https://github.com/p2pderivatives/rust-lightning/?rev=08c0c5fd#08c0c5fd00721af410d4e56b172175afa3f6a4fa"
+source = "git+https://github.com/p2pderivatives/rust-lightning/?rev=121bc324#121bc324fec54cfb8b0335ec013f596ffc9d6f9f"
 dependencies = [
  "bitcoin",
  "lightning",
@@ -1948,7 +1948,7 @@ dependencies = [
 [[package]]
 name = "lightning-net-tokio"
 version = "0.0.117"
-source = "git+https://github.com/p2pderivatives/rust-lightning/?rev=08c0c5fd#08c0c5fd00721af410d4e56b172175afa3f6a4fa"
+source = "git+https://github.com/p2pderivatives/rust-lightning/?rev=121bc324#121bc324fec54cfb8b0335ec013f596ffc9d6f9f"
 dependencies = [
  "bitcoin",
  "lightning",
@@ -1958,7 +1958,7 @@ dependencies = [
 [[package]]
 name = "lightning-persister"
 version = "0.0.117"
-source = "git+https://github.com/p2pderivatives/rust-lightning/?rev=08c0c5fd#08c0c5fd00721af410d4e56b172175afa3f6a4fa"
+source = "git+https://github.com/p2pderivatives/rust-lightning/?rev=121bc324#121bc324fec54cfb8b0335ec013f596ffc9d6f9f"
 dependencies = [
  "bitcoin",
  "lightning",
@@ -1968,7 +1968,7 @@ dependencies = [
 [[package]]
 name = "lightning-rapid-gossip-sync"
 version = "0.0.117"
-source = "git+https://github.com/p2pderivatives/rust-lightning/?rev=08c0c5fd#08c0c5fd00721af410d4e56b172175afa3f6a4fa"
+source = "git+https://github.com/p2pderivatives/rust-lightning/?rev=121bc324#121bc324fec54cfb8b0335ec013f596ffc9d6f9f"
 dependencies = [
  "bitcoin",
  "lightning",
@@ -1977,7 +1977,7 @@ dependencies = [
 [[package]]
 name = "lightning-transaction-sync"
 version = "0.0.117"
-source = "git+https://github.com/p2pderivatives/rust-lightning/?rev=08c0c5fd#08c0c5fd00721af410d4e56b172175afa3f6a4fa"
+source = "git+https://github.com/p2pderivatives/rust-lightning/?rev=121bc324#121bc324fec54cfb8b0335ec013f596ffc9d6f9f"
 dependencies = [
  "bdk-macros",
  "bitcoin",

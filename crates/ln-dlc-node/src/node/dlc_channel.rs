@@ -127,6 +127,8 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
             Message::SubChannel(SubChannelMessage::Accept(accept_sub_channel)),
         );
 
+        tracing::info!(channel_id = %channel_id_hex, "Sent DLC channel accept message");
+
         Ok(())
     }
 
