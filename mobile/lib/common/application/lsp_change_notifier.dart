@@ -8,13 +8,13 @@ import 'package:get_10101/common/domain/model.dart';
 class LspChangeNotifier extends ChangeNotifier implements Subscriber {
   ChannelInfoService channelInfoService;
 
-  List<LiquidityOption> liquidityOptions = [];
+  List<LiquidityOption> _liquidityOptions = [];
   int contractTxFeeRate = 0;
 
   LspChangeNotifier(this.channelInfoService);
 
   List<LiquidityOption> getLiquidityOptions(bool activeOnly) {
-    return liquidityOptions.where((option) => option.active || !activeOnly).toList();
+    return _liquidityOptions.where((option) => option.active || !activeOnly).toList();
   }
 
   Future<Amount> getTradeFeeReserve() async {
@@ -28,10 +28,10 @@ class LspChangeNotifier extends ChangeNotifier implements Subscriber {
   @override
   void notify(bridge.Event event) {
     if (event is bridge.Event_Authenticated) {
-      liquidityOptions =
+      _liquidityOptions =
           event.field0.liquidityOptions.map((lo) => LiquidityOption.from(lo)).toList();
 
-      liquidityOptions.sort((a, b) => a.rank.compareTo(b.rank));
+      _liquidityOptions.sort((a, b) => a.rank.compareTo(b.rank));
       contractTxFeeRate = event.field0.contractTxFeeRate;
       super.notifyListeners();
     }

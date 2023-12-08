@@ -48,7 +48,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   Widget build(BuildContext context) {
     final lspChangeNotifier = context.watch<LspChangeNotifier>();
 
-    final liquidityCards = lspChangeNotifier.liquidityOptions
+    final liquidityCards = lspChangeNotifier
+        .getLiquidityOptions(true)
         .map((l) => LiquidityCard(
             liquidityOptionId: l.liquidityOptionId,
             title: l.title,
