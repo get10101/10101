@@ -28,8 +28,12 @@ pub(crate) struct LiquidityOption {
     pub updated_at: OffsetDateTime,
 }
 
-pub(crate) fn get_all(conn: &mut PgConnection) -> QueryResult<Vec<commons::LiquidityOption>> {
-    let options = liquidity_options::table.load::<LiquidityOption>(conn)?;
+/// returns all active liquidity options
+pub(crate) fn get_active(conn: &mut PgConnection) -> QueryResult<Vec<commons::LiquidityOption>> {
+    let options = liquidity_options::table
+        .filter(liquidity_options::active.eq(true))
+        .load::<LiquidityOption>(conn)?;
+
     let options = options
         .into_iter()
         .map(commons::LiquidityOption::from)

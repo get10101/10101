@@ -136,7 +136,7 @@ pub async fn websocket_connection(stream: WebSocket, state: Arc<AppState>) {
                     match signature.verify(&msg, &trader_id) {
                         Ok(_) => {
                             let liquidity_options =
-                                db::liquidity_options::get_all(&mut conn).unwrap_or_default();
+                                db::liquidity_options::get_active(&mut conn).unwrap_or_default();
 
                             let contract_tx_fee_rate = {
                                 let settings = state.settings.read().await;
