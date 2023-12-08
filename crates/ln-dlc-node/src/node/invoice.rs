@@ -22,18 +22,18 @@ use bitcoin::Network;
 use futures::stream::FuturesUnordered;
 use futures::StreamExt;
 use lightning::ln::channelmanager::PaymentId;
+use lightning::ln::channelmanager::RecipientOnionFields;
 use lightning::ln::channelmanager::Retry;
 use lightning::ln::channelmanager::RetryableSendFailure;
 use lightning::ln::channelmanager::MIN_CLTV_EXPIRY_DELTA;
 use lightning::ln::PaymentHash;
 use lightning::routing::gossip::RoutingFees;
+use lightning::routing::router::PaymentParameters;
 use lightning::routing::router::RouteHint;
 use lightning::routing::router::RouteHintHop;
-use lightning_invoice::payment::pay_invoice;
-use lightning_invoice::payment::pay_zero_value_invoice;
+use lightning::routing::router::RouteParameters;
 use lightning_invoice::payment::preflight_probe_invoice;
 use lightning_invoice::payment::preflight_probe_zero_value_invoice;
-use lightning_invoice::payment::PaymentError;
 use lightning_invoice::Bolt11Invoice;
 use lightning_invoice::Bolt11InvoiceDescription;
 use lightning_invoice::Currency;
@@ -235,29 +235,24 @@ impl<S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 'static> Node<S, 
     /// Pay a [`Bolt11Invoice`]. If an [`Amount`] is supplied, we assume that it is a zero-value
     /// invoice.
     pub fn pay_invoice(&self, invoice: &Bolt11Invoice, amount: Option<Amount>) -> Result<()> {
-        let retry_attempts = Retry::Attempts(10);
-        let channel_manager = self.channel_manager.as_ref();
-
-        let (res, amount_msat) = match amount {
-            Some(amount) => {
-                let amount_msat = amount.to_sat() * 1_000;
-                let res =
-                    pay_zero_value_invoice(invoice, amount_msat, retry_attempts, channel_manager);
-
-                (res, amount_msat)
-            }
-            None => {
-                let res = pay_invoice(invoice, Retry::Attempts(10), self.channel_manager.as_ref());
-
-                (
-                    res,
-                    invoice.amount_milli_satoshis().expect("amount to be set"),
-                )
-            }
+        let amount_msat = match amount {
+            Some(amount) => amount.to_sat() * 1_000,
+            None => invoice
+                .amount_milli_satoshis()
+                .context("Invoice amount not set")?,
         };
 
-        let (status, err) = match res {
-            Ok(payment_id) => {
+        let (payment_id, payment_hash, recipient_onion, route_params) =
+            invoice_parameters(invoice, amount_msat);
+
+        let (status, err) = match self.channel_manager.send_payment(
+            payment_hash,
+            recipient_onion,
+            payment_id,
+            route_params,
+            Retry::Attempts(10),
+        ) {
+            Ok(()) => {
                 let payee_pubkey = match invoice.payee_pub_key() {
                     Some(pubkey) => *pubkey,
                     None => invoice.recover_payee_pub_key(),
@@ -272,11 +267,8 @@ impl<S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 'static> Node<S, 
 
                 (HTLCStatus::Pending, None)
             }
-            Err(PaymentError::Invoice(err)) => {
-                tracing::error!(%err, "Invalid invoice");
-                bail!(err);
-            }
-            Err(PaymentError::Sending(err)) => {
+
+            Err(err) => {
                 tracing::error!(?err, "Failed to send payment");
                 let failure_reason = retryable_send_failure_to_string(err);
 
@@ -459,6 +451,47 @@ impl<S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 'static> Node<S, 
         })
         .await
     }
+}
+
+// Inspired by https://github.com/MutinyWallet/mutiny-node/commit/3278b18. We've copied the code
+// because we share the same goal: we want the payment to succeed.
+fn invoice_parameters(
+    invoice: &Bolt11Invoice,
+    amt_msat: u64,
+) -> (
+    PaymentId,
+    PaymentHash,
+    RecipientOnionFields,
+    RouteParameters,
+) {
+    let payment_id = PaymentId(invoice.payment_hash().into_inner());
+    let payment_hash = PaymentHash((*invoice.payment_hash()).into_inner());
+
+    let mut recipient_onion = RecipientOnionFields::secret_only(*invoice.payment_secret());
+    recipient_onion.payment_metadata = invoice.payment_metadata().cloned();
+
+    let mut payment_params = PaymentParameters::from_node_id(
+        invoice.recover_payee_pub_key(),
+        invoice.min_final_cltv_expiry_delta() as u32,
+    )
+    .with_expiry_time(invoice.expires_at().expect("expiry to be set").as_secs())
+    .with_route_hints(invoice.route_hints())
+    .expect("BOLT 11 parameters");
+
+    if let Some(features) = invoice.features() {
+        payment_params = payment_params
+            .with_bolt11_features(features.clone())
+            .expect("BOLT 11 featuers");
+    }
+
+    let route_params = RouteParameters {
+        payment_params,
+        final_value_msat: amt_msat,
+        // So that the payment is more likely to succeed.
+        max_total_routing_fee_msat: None,
+    };
+
+    (payment_id, payment_hash, recipient_onion, route_params)
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
