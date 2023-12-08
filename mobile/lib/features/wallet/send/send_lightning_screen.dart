@@ -7,6 +7,7 @@ import 'package:get_10101/common/application/switch.dart';
 import 'package:get_10101/common/color.dart';
 import 'package:get_10101/common/domain/channel.dart';
 import 'package:get_10101/common/domain/model.dart';
+import 'package:get_10101/common/scrollable_safe_area.dart';
 import 'package:get_10101/features/trade/domain/direction.dart';
 import 'package:get_10101/features/trade/domain/leverage.dart';
 import 'package:get_10101/features/trade/position_change_notifier.dart';
@@ -90,223 +91,231 @@ class _SendLightningScreenState extends State<SendLightningScreen> {
     final usdpBalance = positionChangeNotifier.getStableUSDAmountInFiat();
     final lightningBalance = getLightningBalance();
 
-    return Scaffold(
-      body: SafeArea(
-        child: Container(
-          margin: const EdgeInsets.all(20.0),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Expanded(
-                  child: Stack(
-                    children: [
-                      GestureDetector(
-                        child: Container(
-                            alignment: AlignmentDirectional.topStart,
-                            decoration: BoxDecoration(
-                                color: Colors.transparent, borderRadius: BorderRadius.circular(10)),
-                            width: 70,
-                            child: const Icon(
-                              Icons.arrow_back_ios_new_rounded,
-                              size: 22,
-                            )),
-                        onTap: () => GoRouter.of(context).pop(),
-                      ),
-                      const Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            "Send",
-                            style: TextStyle(fontWeight: FontWeight.w500, fontSize: 20),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(
-              height: 20,
-            ),
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey.shade200),
-                  borderRadius: BorderRadius.circular(10),
-                  color: tenTenOnePurple.shade200.withOpacity(0.1)),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                const Text(
-                  "Pay to:",
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  textAlign: TextAlign.start,
-                ),
-                const SizedBox(height: 2),
-                Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                  Text(truncateWithEllipsis(18, widget.destination.raw),
-                      overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 16)),
-                  Container(
-                    padding: const EdgeInsets.only(left: 10, right: 10, top: 5, bottom: 5),
-                    decoration: BoxDecoration(
-                      color: tenTenOnePurple,
-                      border: Border.all(color: Colors.grey.shade200),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: const Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Icon(Icons.bolt, size: 14, color: Colors.white),
-                        Text("Lightning", style: TextStyle(fontSize: 14, color: Colors.white))
-                      ],
-                    ),
-                  )
-                ])
-              ]),
-            ),
-            const SizedBox(height: 25),
-            const Text(
-              "Enter amount",
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 14, color: Colors.grey),
-            ),
-            const SizedBox(height: 10),
-            Container(
-                margin: const EdgeInsets.only(left: 40, right: 40),
-                child: Visibility(
-                    maintainState: true,
-                    visible: !_payWithUsdp,
-                    child: buildSatsForm(
-                        tradeValuesChangeNotifier, lightningBalance.$1, lightningBalance.$2))),
-            Container(
-              margin: const EdgeInsets.only(left: 40, right: 40),
-              child: Visibility(
-                maintainState: true,
-                visible: _payWithUsdp,
-                child: buildUsdpForm(tradeValuesChangeNotifier, usdpBalance),
-              ),
-            ),
-            const SizedBox(height: 25),
-            Visibility(
-                visible: widget.destination.description != "",
-                child: Column(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.only(top: 20, left: 20, right: 20, bottom: 20),
-                      decoration: BoxDecoration(
-                          border: Border.all(color: Colors.grey.shade200),
-                          borderRadius: BorderRadius.circular(10),
-                          color: tenTenOnePurple.shade200.withOpacity(0.1)),
-                      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                        const Text(
-                          "Memo:",
-                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                          textAlign: TextAlign.start,
-                        ),
-                        const SizedBox(height: 5),
-                        Text(widget.destination.description,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            softWrap: true,
-                            style: const TextStyle(fontSize: 16))
-                      ]),
-                    ),
-                    const SizedBox(height: 15),
-                  ],
-                )),
-            const Text(
-              "Pay from:",
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              textAlign: TextAlign.start,
-            ),
-            const SizedBox(height: 5),
-            Container(
-              decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey.shade200),
-                  borderRadius: BorderRadius.circular(10),
-                  color: tenTenOnePurple.shade200.withOpacity(0.1)),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return GestureDetector(
+      onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+      child: Scaffold(
+        resizeToAvoidBottomInset: true,
+        body: ScrollableSafeArea(
+          child: Container(
+            margin: const EdgeInsets.all(20.0),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  GestureDetector(
-                    onTap: () => setState(() => _payWithUsdp = false),
-                    child: Container(
-                      padding: const EdgeInsets.all(20),
-                      child: Opacity(
-                          opacity: _payWithUsdp ? 0.5 : 1.0,
-                          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                            const Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                              Icon(Icons.bolt, size: 18),
-                              Text("Lightning", style: TextStyle(fontSize: 18))
-                            ]),
-                            const SizedBox(height: 5),
-                            Text(lightningBalance.$2.toString(), textAlign: TextAlign.start),
-                          ])),
-                    ),
-                  ),
-                  TenTenOneSwitch(
-                      value: _payWithUsdp,
-                      showDisabled: false,
-                      onChanged: (value) => setState(() => _payWithUsdp = value)),
-                  GestureDetector(
-                    onTap: () => setState(() => _payWithUsdp = true),
-                    child: Container(
-                      padding: const EdgeInsets.all(20),
-                      child: Opacity(
-                        opacity: _payWithUsdp ? 1.0 : 0.5,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
+                  Expanded(
+                    child: Stack(
+                      children: [
+                        GestureDetector(
+                          child: Container(
+                              alignment: AlignmentDirectional.topStart,
+                              decoration: BoxDecoration(
+                                  color: Colors.transparent,
+                                  borderRadius: BorderRadius.circular(10)),
+                              width: 70,
+                              child: const Icon(
+                                Icons.arrow_back_ios_new_rounded,
+                                size: 22,
+                              )),
+                          onTap: () => GoRouter.of(context).pop(),
+                        ),
+                        const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Text("USD-P", style: TextStyle(fontSize: 18)),
-                            const SizedBox(height: 5),
-                            Text(formatter.format(usdpBalance), textAlign: TextAlign.end),
+                            Text(
+                              "Send",
+                              style: TextStyle(fontWeight: FontWeight.w500, fontSize: 20),
+                            ),
                           ],
                         ),
-                      ),
+                      ],
                     ),
-                  )
+                  ),
                 ],
               ),
-            ),
-            const SizedBox(height: 2),
-            const Spacer(),
-            SizedBox(
-              width: MediaQuery.of(context).size.width * 0.9,
-              child: ElevatedButton(
-                  onPressed: (_payWithUsdp
-                          ? (_usdpFormKey.currentState?.validate() ?? false)
-                          : (_satsFormKey.currentState?.validate() ?? false))
-                      ? () => showConfirmPaymentModal(
-                          context, widget.destination, _payWithUsdp, _satsAmount, _usdpAmount)
-                      : null,
-                  style: ButtonStyle(
-                      padding: MaterialStateProperty.all<EdgeInsets>(const EdgeInsets.all(15)),
-                      backgroundColor: MaterialStateProperty.resolveWith((states) {
-                        if (states.contains(MaterialState.disabled)) {
-                          return tenTenOnePurple.shade100;
-                        } else {
-                          return tenTenOnePurple;
-                        }
-                      }),
-                      shape: MaterialStateProperty.resolveWith((states) {
-                        if (states.contains(MaterialState.disabled)) {
-                          return RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(30.0),
-                            side: BorderSide(color: tenTenOnePurple.shade100),
-                          );
-                        } else {
-                          return RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(30.0),
-                            side: const BorderSide(color: tenTenOnePurple),
-                          );
-                        }
-                      })),
-                  child: const Text(
-                    "Pay",
-                    style: TextStyle(fontSize: 18, color: Colors.white),
+              const SizedBox(
+                height: 20,
+              ),
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                    border: Border.all(color: Colors.grey.shade200),
+                    borderRadius: BorderRadius.circular(10),
+                    color: tenTenOnePurple.shade200.withOpacity(0.1)),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  const Text(
+                    "Pay to:",
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    textAlign: TextAlign.start,
+                  ),
+                  const SizedBox(height: 2),
+                  Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                    Text(truncateWithEllipsis(18, widget.destination.raw),
+                        overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 16)),
+                    Container(
+                      padding: const EdgeInsets.only(left: 10, right: 10, top: 5, bottom: 5),
+                      decoration: BoxDecoration(
+                        color: tenTenOnePurple,
+                        border: Border.all(color: Colors.grey.shade200),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: const Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Icon(Icons.bolt, size: 14, color: Colors.white),
+                          Text("Lightning", style: TextStyle(fontSize: 14, color: Colors.white))
+                        ],
+                      ),
+                    )
+                  ])
+                ]),
+              ),
+              const SizedBox(height: 25),
+              const Text(
+                "Enter amount",
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 14, color: Colors.grey),
+              ),
+              const SizedBox(height: 10),
+              Container(
+                  margin: const EdgeInsets.only(left: 40, right: 40),
+                  child: Visibility(
+                      maintainState: true,
+                      visible: !_payWithUsdp,
+                      child: buildSatsForm(
+                          tradeValuesChangeNotifier, lightningBalance.$1, lightningBalance.$2))),
+              Container(
+                margin: const EdgeInsets.only(left: 40, right: 40),
+                child: Visibility(
+                  maintainState: true,
+                  visible: _payWithUsdp,
+                  child: buildUsdpForm(tradeValuesChangeNotifier, usdpBalance),
+                ),
+              ),
+              const SizedBox(height: 25),
+              Visibility(
+                  visible: widget.destination.description != "",
+                  child: Column(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.only(top: 20, left: 20, right: 20, bottom: 20),
+                        decoration: BoxDecoration(
+                            border: Border.all(color: Colors.grey.shade200),
+                            borderRadius: BorderRadius.circular(10),
+                            color: tenTenOnePurple.shade200.withOpacity(0.1)),
+                        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                          const Text(
+                            "Memo:",
+                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                            textAlign: TextAlign.start,
+                          ),
+                          const SizedBox(height: 5),
+                          Text(widget.destination.description,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              softWrap: true,
+                              style: const TextStyle(fontSize: 16))
+                        ]),
+                      ),
+                      const SizedBox(height: 15),
+                    ],
                   )),
-            )
-          ]),
+              const Text(
+                "Pay from:",
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                textAlign: TextAlign.start,
+              ),
+              const SizedBox(height: 5),
+              Container(
+                decoration: BoxDecoration(
+                    border: Border.all(color: Colors.grey.shade200),
+                    borderRadius: BorderRadius.circular(10),
+                    color: tenTenOnePurple.shade200.withOpacity(0.1)),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    GestureDetector(
+                      onTap: () => setState(() => _payWithUsdp = false),
+                      child: Container(
+                        padding: const EdgeInsets.all(20),
+                        child: Opacity(
+                            opacity: _payWithUsdp ? 0.5 : 1.0,
+                            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                              const Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Icon(Icons.bolt, size: 18),
+                                    Text("Lightning", style: TextStyle(fontSize: 18))
+                                  ]),
+                              const SizedBox(height: 5),
+                              Text(lightningBalance.$2.toString(), textAlign: TextAlign.start),
+                            ])),
+                      ),
+                    ),
+                    TenTenOneSwitch(
+                        value: _payWithUsdp,
+                        showDisabled: false,
+                        onChanged: (value) => setState(() => _payWithUsdp = value)),
+                    GestureDetector(
+                      onTap: () => setState(() => _payWithUsdp = true),
+                      child: Container(
+                        padding: const EdgeInsets.all(20),
+                        child: Opacity(
+                          opacity: _payWithUsdp ? 1.0 : 0.5,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              const Text("USD-P", style: TextStyle(fontSize: 18)),
+                              const SizedBox(height: 5),
+                              Text(formatter.format(usdpBalance), textAlign: TextAlign.end),
+                            ],
+                          ),
+                        ),
+                      ),
+                    )
+                  ],
+                ),
+              ),
+              const SizedBox(height: 2),
+              const Spacer(),
+              const SizedBox(height: 10),
+              SizedBox(
+                width: MediaQuery.of(context).size.width * 0.9,
+                child: ElevatedButton(
+                    onPressed: (_payWithUsdp
+                            ? (_usdpFormKey.currentState?.validate() ?? false)
+                            : (_satsFormKey.currentState?.validate() ?? false))
+                        ? () => showConfirmPaymentModal(
+                            context, widget.destination, _payWithUsdp, _satsAmount, _usdpAmount)
+                        : null,
+                    style: ButtonStyle(
+                        padding: MaterialStateProperty.all<EdgeInsets>(const EdgeInsets.all(15)),
+                        backgroundColor: MaterialStateProperty.resolveWith((states) {
+                          if (states.contains(MaterialState.disabled)) {
+                            return tenTenOnePurple.shade100;
+                          } else {
+                            return tenTenOnePurple;
+                          }
+                        }),
+                        shape: MaterialStateProperty.resolveWith((states) {
+                          if (states.contains(MaterialState.disabled)) {
+                            return RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(30.0),
+                              side: BorderSide(color: tenTenOnePurple.shade100),
+                            );
+                          } else {
+                            return RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(30.0),
+                              side: const BorderSide(color: tenTenOnePurple),
+                            );
+                          }
+                        })),
+                    child: const Text(
+                      "Pay",
+                      style: TextStyle(fontSize: 18, color: Colors.white),
+                    )),
+              ),
+            ]),
+          ),
         ),
       ),
     );
@@ -338,6 +347,7 @@ class _SendLightningScreenState extends State<SendLightningScreen> {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               TextField(
+                keyboardType: TextInputType.number,
                 textAlign: TextAlign.center,
                 controller: _usdpController,
                 decoration: const InputDecoration(
@@ -427,6 +437,7 @@ class _SendLightningScreenState extends State<SendLightningScreen> {
           return Column(
             children: [
               TextField(
+                keyboardType: TextInputType.number,
                 textAlign: TextAlign.center,
                 decoration: const InputDecoration(
                     hintText: "0.00",
