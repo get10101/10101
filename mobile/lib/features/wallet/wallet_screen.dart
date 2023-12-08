@@ -59,7 +59,7 @@ class WalletScreen extends StatelessWidget {
                               FontAwesomeIcons.arrowDown,
                               size: 14,
                             ),
-                            SizedBox(width: 10, height: 40),
+                            SizedBox(width: 7, height: 40),
                             Text(
                               'Receive',
                               style: TextStyle(fontSize: 14, fontWeight: FontWeight.normal),
@@ -81,7 +81,7 @@ class WalletScreen extends StatelessWidget {
                               size: 14,
                             ),
                             SizedBox(
-                              width: 10,
+                              width: 7,
                               height: 40,
                             ),
                             Text(
@@ -105,7 +105,7 @@ class WalletScreen extends StatelessWidget {
                               size: 14,
                             ),
                             SizedBox(
-                              width: 10,
+                              width: 7,
                               height: 40,
                             ),
                             Text(
