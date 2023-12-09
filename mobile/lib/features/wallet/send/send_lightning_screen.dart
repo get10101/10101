@@ -1,5 +1,6 @@
 import 'dart:math';
 
+import 'package:bitcoin_icons/bitcoin_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:get_10101/common/amount_text.dart';
 import 'package:get_10101/common/application/channel_info_service.dart';
@@ -161,7 +162,7 @@ class _SendLightningScreenState extends State<SendLightningScreen> {
                       child: const Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Icon(Icons.bolt, size: 14, color: Colors.white),
+                          Icon(BitcoinIcons.lightning, size: 14, color: Colors.white),
                           Text("Lightning", style: TextStyle(fontSize: 14, color: Colors.white))
                         ],
                       ),
@@ -243,7 +244,7 @@ class _SendLightningScreenState extends State<SendLightningScreen> {
                               const Row(
                                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
-                                    Icon(Icons.bolt, size: 18),
+                                    Icon(BitcoinIcons.lightning, size: 18),
                                     Text("Lightning", style: TextStyle(fontSize: 18))
                                   ]),
                               const SizedBox(height: 5),
