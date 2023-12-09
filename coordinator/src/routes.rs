@@ -373,14 +373,19 @@ pub async fn post_broadcast_announcement(
     Ok(())
 }
 
-/// Internal API for syncing the wallet
+/// Internal API for syncing the on-chain and Lightning wallets.
 #[instrument(skip_all, err(Debug))]
 #[autometrics]
 pub async fn post_sync(State(state): State<Arc<AppState>>) -> Result<(), AppError> {
-    spawn_blocking(move || state.node.inner.ldk_wallet().sync())
-        .await
-        .map_err(|_| AppError::InternalServerError("Could not sync wallet".to_string()))?
-        .map_err(|e| AppError::InternalServerError(format!("Could not sync wallet: {e:#}")))?;
+    spawn_blocking(move || {
+        state.node.inner.sync_on_chain_wallet()?;
+        state.node.inner.sync_lightning_wallet()?;
+
+        anyhow::Ok(())
+    })
+    .await
+    .expect("task to complete")
+    .map_err(|e| AppError::InternalServerError(format!("Could not sync wallets: {e:#}")))?;
 
     Ok(())
 }
