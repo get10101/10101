@@ -13,7 +13,6 @@ import 'package:get_10101/features/wallet/domain/destination.dart';
 import 'package:get_10101/features/wallet/send/confirm_payment_modal.dart';
 import 'package:get_10101/features/wallet/wallet_change_notifier.dart';
 import 'package:get_10101/features/wallet/wallet_screen.dart';
-import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 class SendOnChainScreen extends StatefulWidget {
