@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:get_10101/common/custom_app_bar.dart.dart';
+import 'package:get_10101/common/custom_app_bar.dart';
 import 'package:get_10101/common/application/channel_info_service.dart';
 import 'package:get_10101/common/color.dart';
 import 'package:get_10101/common/domain/channel.dart';

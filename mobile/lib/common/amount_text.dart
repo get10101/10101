@@ -37,3 +37,8 @@ String formatSats(Amount amount) {
   final formatter = NumberFormat("#,###,###,###,###", "en");
   return "${formatter.format(amount.sats)} sats";
 }
+
+String formatUsd(Usd usd) {
+  final formatter = NumberFormat("\$ #,###,###,###,###", "en");
+  return formatter.format(usd.usd);
+}

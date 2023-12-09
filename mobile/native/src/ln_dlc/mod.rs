@@ -269,7 +269,6 @@ pub fn run(seed_dir: String, runtime: &Runtime) -> Result<()> {
         let mut ephemeral_randomness = [0; 32];
         thread_rng().fill_bytes(&mut ephemeral_randomness);
 
-        event::subscribe(position::subscriber::Subscriber {});
         // TODO: Subscribe to events from the orderbook and publish OrderFilledWith event
 
         let address = {
@@ -957,19 +956,34 @@ pub fn create_onboarding_invoice(
     })
 }
 
-pub fn create_invoice(amount_sats: Option<u64>) -> Result<Bolt11Invoice> {
+pub fn create_invoice(amount_sats: Option<u64>, description: String) -> Result<Bolt11Invoice> {
     let node = state::get_node();
 
     let final_route_hint_hop = node
         .inner
         .prepare_payment_with_route_hint(config::get_coordinator_info().pubkey)?;
 
-    node.inner.create_invoice_with_route_hint(
-        amount_sats,
-        None,
-        "".to_string(),
-        final_route_hint_hop,
-    )
+    node.inner
+        .create_invoice_with_route_hint(amount_sats, None, description, final_route_hint_hop)
+}
+
+pub fn create_usdp_invoice(amount_sats: Option<u64>, description: String) -> Result<Bolt11Invoice> {
+    let invoice = create_invoice(amount_sats, description)?;
+
+    let node = state::get_node();
+    let mut write_guard = node.pending_usdp_invoices.lock();
+    write_guard.insert(*invoice.payment_hash());
+
+    Ok(invoice)
+}
+
+pub fn is_usdp_payment(payment_hash: String) -> bool {
+    let node = state::get_node();
+    let registered_usdp_invoice = node.pending_usdp_invoices.lock();
+
+    registered_usdp_invoice
+        .iter()
+        .any(|hash| hash.to_string() == payment_hash)
 }
 
 pub async fn send_payment(payment: SendPayment) -> Result<()> {

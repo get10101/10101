@@ -196,7 +196,7 @@ impl Senders {
             native::event::EventInternal::ChannelReady(_channel_id) => {
                 unreachable!("ChannelReady event should not be sent to the subscriber");
             }
-            native::event::EventInternal::PaymentClaimed(_amount_msats) => {
+            native::event::EventInternal::PaymentClaimed(_amount_msats, _hash) => {
                 unreachable!("PaymentClaimed event should not be sent to the subscriber");
             }
             native::event::EventInternal::BackgroundNotification(_task) => {

@@ -64,3 +64,49 @@ class Amount {
     return formatSats(this);
   }
 }
+
+class Usd {
+  Decimal _usd = Decimal.zero;
+
+  Usd(int usd) {
+    _usd = Decimal.fromInt(usd);
+  }
+
+  int get usd => _usd.toBigInt().toInt();
+
+  int get toInt => _usd.toBigInt().toInt();
+
+  Usd.zero() : _usd = Decimal.zero;
+
+  double asDouble() => _usd.toDouble();
+
+  Usd.parse(dynamic value) : _usd = Decimal.parse(value);
+
+  Usd.parseString(String? value) {
+    if (value == null || value.isEmpty) {
+      _usd = Decimal.zero;
+      return;
+    }
+
+    try {
+      final f = NumberFormat("#,###");
+      int amount =
+          // remove any comma and dot from text formatting the users input.
+          int.parse(value.replaceAll(f.symbols.GROUP_SEP, ''));
+
+      _usd = Decimal.fromInt(amount);
+    } on Exception {
+      _usd = Decimal.zero;
+    }
+  }
+
+  String formatted() {
+    final formatter = NumberFormat("#,###,###,###,###", "en");
+    return formatter.format(_usd);
+  }
+
+  @override
+  String toString() {
+    return formatUsd(this);
+  }
+}
