@@ -254,7 +254,8 @@ class _SendLightningScreenState extends State<SendLightningScreen> {
                     ),
                     TenTenOneSwitch(
                         value: _payWithUsdp,
-                        showDisabled: false,
+                        isDisabled: usdpBalance <= 0,
+                        showDisabled: !_payWithUsdp,
                         onChanged: (value) => setState(() => _payWithUsdp = value)),
                     GestureDetector(
                       onTap: () => setState(() => _payWithUsdp = true),

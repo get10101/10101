@@ -5,9 +5,14 @@ class TenTenOneSwitch extends StatefulWidget {
   final bool value;
   final ValueChanged<bool> onChanged;
   final bool showDisabled;
+  final bool isDisabled;
 
   const TenTenOneSwitch(
-      {Key? key, required this.value, required this.onChanged, this.showDisabled = true})
+      {Key? key,
+      required this.value,
+      required this.onChanged,
+      this.showDisabled = true,
+      this.isDisabled = false})
       : super(key: key);
 
   @override
@@ -35,14 +40,16 @@ class _TenTenOneSwitchState extends State<TenTenOneSwitch> with SingleTickerProv
       animation: _animationController!,
       builder: (context, child) {
         return GestureDetector(
-          onTap: () {
-            if (_animationController!.isCompleted) {
-              _animationController!.reverse();
-            } else {
-              _animationController!.forward();
-            }
-            widget.value == false ? widget.onChanged(true) : widget.onChanged(false);
-          },
+          onTap: widget.isDisabled
+              ? () => {}
+              : () {
+                  if (_animationController!.isCompleted) {
+                    _animationController!.reverse();
+                  } else {
+                    _animationController!.forward();
+                  }
+                  widget.value == false ? widget.onChanged(true) : widget.onChanged(false);
+                },
           child: Container(
             width: 50.0,
             height: 30.0,
