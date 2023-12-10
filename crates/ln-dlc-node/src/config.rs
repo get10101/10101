@@ -3,6 +3,7 @@ use lightning::ln::channelmanager::MIN_CLTV_EXPIRY_DELTA;
 use lightning::util::config::ChannelConfig;
 use lightning::util::config::ChannelHandshakeConfig;
 use lightning::util::config::ChannelHandshakeLimits;
+use lightning::util::config::MaxDustHTLCExposure;
 use lightning::util::config::UserConfig;
 use std::time::Duration;
 
@@ -31,6 +32,9 @@ pub fn app_config() -> UserConfig {
             // We want the coordinator to recover force-close funds as soon as possible. We choose
             // 144 because we can't go any lower according to LDK.
             our_to_self_delay: 144,
+            // Setting this to 0 will default to 1000 sats. Meaning, that the coordinator only have
+            // to keep 1000 sats on reserve of the ln channel.
+            their_channel_reserve_proportional_millionths: 0,
             ..Default::default()
         },
         channel_handshake_limits: ChannelHandshakeLimits {
