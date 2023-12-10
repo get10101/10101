@@ -100,7 +100,7 @@ class _SendLightningScreenState extends State<SendLightningScreen> {
           child: Container(
             margin: const EdgeInsets.all(20.0),
             child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-              const CustomAppBar(title: "Send"),
+              const TenTenOneAppBar(title: "Send"),
               const SizedBox(
                 height: 20,
               ),

@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-class CustomAppBar extends StatelessWidget {
+class TenTenOneAppBar extends StatelessWidget {
   final String title;
 
-  const CustomAppBar({
+  const TenTenOneAppBar({
     super.key,
     required this.title,
   });

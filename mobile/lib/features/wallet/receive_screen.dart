@@ -104,7 +104,7 @@ class _ReceiveScreenState extends State<ReceiveScreen> {
             child: Container(
       margin: const EdgeInsets.fromLTRB(20, 20.0, 20, 20),
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        const CustomAppBar(title: "Receive"),
+        const TenTenOneAppBar(title: "Receive"),
         Container(
           margin: const EdgeInsets.fromLTRB(0, 10, 0, 0),
           child: GestureDetector(
