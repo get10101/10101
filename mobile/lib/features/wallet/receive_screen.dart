@@ -10,7 +10,7 @@ import 'package:get_10101/common/application/switch.dart';
 import 'package:get_10101/common/color.dart';
 import 'package:get_10101/common/domain/model.dart';
 import 'package:get_10101/common/scrollable_safe_area.dart';
-import 'package:get_10101/common/secondary_action_button_style.dart';
+import 'package:get_10101/common/secondary_action_button.dart';
 import 'package:get_10101/common/snack_bar.dart';
 import 'package:get_10101/features/swap/swap_trade_values.dart';
 import 'package:get_10101/features/swap/swap_value_change_notifier.dart';
