@@ -53,6 +53,11 @@ pub fn app_config() -> UserConfig {
             // Allows the coordinator to charge us a channel-opening fee after intercepting the
             // app's funding HTLC.
             accept_underpaying_htlcs: true,
+            // Setting this to the maximum value to ensure that a payment will not fail because of
+            // dust exposure due to high on-chain fees.
+            max_dust_htlc_exposure: MaxDustHTLCExposure::FixedLimitMsat(
+                21_000_000 * 100_000_000 * 1_000,
+            ),
             ..Default::default()
         },
         // we want to accept 0-conf channels from the coordinator
