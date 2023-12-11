@@ -17,7 +17,7 @@ use rust_decimal::Decimal;
 use std::time::Duration;
 
 #[derive(PartialEq, Clone, Debug)]
-enum SyncPositionToDlcAction {
+enum Action {
     ContinueSubchannelProtocol,
     CreatePosition(ChannelId),
     RemovePosition,
@@ -59,36 +59,34 @@ impl Node {
             .find(|dlc_channel| dlc_channel.channel_id == channel_details.channel_id);
 
         match determine_sync_position_to_dlc_action(&first_position, &dlc_channel) {
-            Some(SyncPositionToDlcAction::ContinueSubchannelProtocol) => self.recover_dlc().await?,
-            Some(SyncPositionToDlcAction::CreatePosition(channel_id)) => {
-                match order::handler::order_filled() {
-                    Ok(order) => {
-                        let execution_price = order
-                            .execution_price()
-                            .expect("filled order to have a price");
-                        let open_position_fee = order_matching_fee_taker(
-                            order.quantity,
-                            Decimal::try_from(execution_price)?,
-                        );
+            Some(Action::ContinueSubchannelProtocol) => self.recover_dlc().await?,
+            Some(Action::CreatePosition(channel_id)) => match order::handler::order_filled() {
+                Ok(order) => {
+                    let execution_price = order
+                        .execution_price()
+                        .expect("filled order to have a price");
+                    let open_position_fee = order_matching_fee_taker(
+                        order.quantity,
+                        Decimal::try_from(execution_price)?,
+                    );
 
-                        let (accept_collateral, expiry_timestamp) = self
-                            .inner
-                            .get_collateral_and_expiry_for_confirmed_contract(channel_id)?;
+                    let (accept_collateral, expiry_timestamp) = self
+                        .inner
+                        .get_collateral_and_expiry_for_confirmed_contract(channel_id)?;
 
-                        position::handler::update_position_after_dlc_creation(
-                            order,
-                            accept_collateral - open_position_fee.to_sat(),
-                            expiry_timestamp,
-                        )?;
+                    position::handler::update_position_after_dlc_creation(
+                        order,
+                        accept_collateral - open_position_fee.to_sat(),
+                        expiry_timestamp,
+                    )?;
 
-                        tracing::info!("Successfully recovered position from order.");
-                    }
-                    Err(e) => {
-                        tracing::error!("Could not recover position from order as no filling order was found! Error: {e:#}");
-                    }
+                    tracing::info!("Successfully recovered position from order.");
                 }
-            }
-            Some(SyncPositionToDlcAction::RemovePosition) => {
+                Err(e) => {
+                    tracing::error!("Could not recover position from order as no filling order was found! Error: {e:#}");
+                }
+            },
+            Some(Action::RemovePosition) => {
                 close_position_with_order()?;
             }
             None => (),
@@ -146,7 +144,7 @@ fn close_position_with_order() -> Result<()> {
 fn determine_sync_position_to_dlc_action(
     position: &Option<&Position>,
     dlc_channel: &Option<&SubChannel>,
-) -> Option<SyncPositionToDlcAction> {
+) -> Option<Action> {
     match (position, dlc_channel) {
         (Some(_), Some(dlc_channel)) => {
             if matches!(dlc_channel.state, SubChannelState::Signed(_)) {
@@ -156,18 +154,18 @@ fn determine_sync_position_to_dlc_action(
                 tracing::warn!(dlc_channel_state=?dlc_channel.state, "Found unexpected sub channel state");
                 if matches!(dlc_channel.state, SubChannelState::OffChainClosed) {
                     tracing::warn!("Deleting position as dlc channel is already closed!");
-                    Some(SyncPositionToDlcAction::RemovePosition)
+                    Some(Action::RemovePosition)
                 } else if matches!(
                     dlc_channel.state,
                     SubChannelState::CloseOffered(_) | SubChannelState::CloseAccepted(_)
                 ) {
-                    Some(SyncPositionToDlcAction::ContinueSubchannelProtocol)
+                    Some(Action::ContinueSubchannelProtocol)
                 } else {
                     tracing::warn!(
                         "The DLC is in a state that can not be recovered. Removing position."
                     );
                     // maybe a left over after a force-closure
-                    Some(SyncPositionToDlcAction::RemovePosition)
+                    Some(Action::RemovePosition)
                 }
             }
         }
@@ -179,16 +177,14 @@ fn determine_sync_position_to_dlc_action(
                 tracing::warn!(dlc_channel_state=?dlc_channel.state, "Found unexpected sub channel state");
                 if matches!(dlc_channel.state, SubChannelState::Signed(_)) {
                     tracing::warn!("Trying to recover position from order");
-                    Some(SyncPositionToDlcAction::CreatePosition(
-                        dlc_channel.channel_id,
-                    ))
+                    Some(Action::CreatePosition(dlc_channel.channel_id))
                 } else if matches!(
                     dlc_channel.state,
                     SubChannelState::Offered(_)
                         | SubChannelState::Accepted(_)
                         | SubChannelState::Finalized(_)
                 ) {
-                    Some(SyncPositionToDlcAction::ContinueSubchannelProtocol)
+                    Some(Action::ContinueSubchannelProtocol)
                 } else {
                     tracing::warn!("The DLC is in a state that can not be recovered.");
                     None
@@ -197,7 +193,7 @@ fn determine_sync_position_to_dlc_action(
         }
         (Some(_), None) => {
             tracing::warn!("Found position but without dlc channel. Removing position");
-            Some(SyncPositionToDlcAction::RemovePosition)
+            Some(Action::RemovePosition)
         }
         _ => None,
     }
@@ -206,7 +202,7 @@ fn determine_sync_position_to_dlc_action(
 #[cfg(test)]
 mod test {
     use crate::ln_dlc::sync_position_to_dlc::determine_sync_position_to_dlc_action;
-    use crate::ln_dlc::sync_position_to_dlc::SyncPositionToDlcAction;
+    use crate::ln_dlc::sync_position_to_dlc::Action;
     use crate::trade::position::Position;
     use crate::trade::position::PositionState;
     use bitcoin::secp256k1::ecdsa::Signature;
@@ -241,13 +237,13 @@ mod test {
     #[test]
     fn test_some_position_and_none_dlc_channel() {
         let action = determine_sync_position_to_dlc_action(&Some(&get_dummy_position()), &None);
-        assert_eq!(Some(SyncPositionToDlcAction::RemovePosition), action);
+        assert_eq!(Some(Action::RemovePosition), action);
     }
 
     #[test]
     fn test_some_position_and_offchainclosed_dlc_channel() {
         let action = determine_sync_position_to_dlc_action(&Some(&get_dummy_position()), &None);
-        assert_eq!(Some(SyncPositionToDlcAction::RemovePosition), action);
+        assert_eq!(Some(Action::RemovePosition), action);
     }
 
     #[test]
@@ -269,10 +265,7 @@ mod test {
                 get_dummy_close_offered_sub_channel(),
             ))),
         );
-        assert_eq!(
-            Some(SyncPositionToDlcAction::ContinueSubchannelProtocol),
-            action
-        );
+        assert_eq!(Some(Action::ContinueSubchannelProtocol), action);
     }
 
     #[test]
@@ -283,10 +276,7 @@ mod test {
                 get_dummy_close_accepted_sub_channel(),
             ))),
         );
-        assert_eq!(
-            Some(SyncPositionToDlcAction::ContinueSubchannelProtocol),
-            action
-        );
+        assert_eq!(Some(Action::ContinueSubchannelProtocol), action);
     }
 
     #[test]
@@ -306,10 +296,7 @@ mod test {
                 get_dummy_signed_sub_channel(),
             ))),
         );
-        assert!(matches!(
-            action,
-            Some(SyncPositionToDlcAction::CreatePosition(_))
-        ));
+        assert!(matches!(action, Some(Action::CreatePosition(_))));
     }
 
     #[test]
@@ -320,10 +307,7 @@ mod test {
                 get_dummy_offered_sub_channel(),
             ))),
         );
-        assert_eq!(
-            Some(SyncPositionToDlcAction::ContinueSubchannelProtocol),
-            action
-        );
+        assert_eq!(Some(Action::ContinueSubchannelProtocol), action);
     }
 
     #[test]
@@ -334,10 +318,7 @@ mod test {
                 get_dummy_accepted_sub_channel(),
             ))),
         );
-        assert_eq!(
-            Some(SyncPositionToDlcAction::ContinueSubchannelProtocol),
-            action
-        );
+        assert_eq!(Some(Action::ContinueSubchannelProtocol), action);
     }
 
     #[test]
@@ -348,10 +329,7 @@ mod test {
                 get_dummy_signed_sub_channel(),
             ))),
         );
-        assert_eq!(
-            Some(SyncPositionToDlcAction::ContinueSubchannelProtocol),
-            action
-        );
+        assert_eq!(Some(Action::ContinueSubchannelProtocol), action);
     }
 
     #[test]
@@ -369,7 +347,7 @@ mod test {
             &Some(&get_dummy_position()),
             &Some(&get_dummy_dlc_channel(SubChannelState::OnChainClosed)),
         );
-        assert_eq!(Some(SyncPositionToDlcAction::RemovePosition), action);
+        assert_eq!(Some(Action::RemovePosition), action);
     }
 
     fn get_dummy_position() -> Position {
