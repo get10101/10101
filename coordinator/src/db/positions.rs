@@ -126,7 +126,11 @@ impl Position {
         let state = PositionState::from(state);
         let affected_rows = diesel::update(positions::table)
             .filter(positions::trader_pubkey.eq(trader_pubkey.clone()))
-            .filter(positions::position_state.eq(PositionState::Proposed))
+            .filter(
+                positions::position_state
+                    .eq(PositionState::Proposed)
+                    .or(positions::position_state.eq(PositionState::ResizeProposed)),
+            )
             .set((
                 positions::position_state.eq(state),
                 positions::update_timestamp.eq(OffsetDateTime::now_utc()),
@@ -204,7 +208,7 @@ impl Position {
             .filter(positions::trader_pubkey.eq(trader_pubkey.clone()))
             .filter(positions::position_state.eq(PositionState::Resizing))
             .set((
-                positions::position_state.eq(PositionState::Open),
+                positions::position_state.eq(PositionState::ResizeProposed),
                 positions::update_timestamp.eq(OffsetDateTime::now_utc()),
                 positions::quantity.eq(quantity),
                 positions::direction.eq(direction),
@@ -344,6 +348,9 @@ impl From<crate::position::models::PositionState> for PositionState {
             crate::position::models::PositionState::Closed { .. } => PositionState::Closed,
             crate::position::models::PositionState::Rollover => PositionState::Rollover,
             crate::position::models::PositionState::Resizing { .. } => PositionState::Resizing,
+            crate::position::models::PositionState::ResizeOpeningSubchannelProposed => {
+                PositionState::ResizeProposed
+            }
             crate::position::models::PositionState::Proposed => PositionState::Proposed,
             crate::position::models::PositionState::Failed => PositionState::Failed,
         }
@@ -431,6 +438,7 @@ pub enum PositionState {
     Closed,
     Failed,
     Resizing,
+    ResizeProposed,
 }
 
 impl QueryId for PositionStateType {
@@ -462,6 +470,9 @@ impl From<(PositionState, Option<i64>, Option<f32>)> for crate::position::models
             PositionState::Resizing => crate::position::models::PositionState::Resizing,
             PositionState::Proposed => crate::position::models::PositionState::Proposed,
             PositionState::Failed => crate::position::models::PositionState::Failed,
+            PositionState::ResizeProposed => {
+                crate::position::models::PositionState::ResizeOpeningSubchannelProposed
+            }
         }
     }
 }
