@@ -2,6 +2,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:get_10101/common/channel_status_notifier.dart';
+import 'package:get_10101/common/secondary_action_button.dart';
 import 'package:get_10101/features/swap/swap_screen.dart';
 import 'package:get_10101/features/wallet/balance.dart';
 import 'package:get_10101/features/wallet/receive_screen.dart';
@@ -23,8 +24,6 @@ class WalletScreen extends StatelessWidget {
 
     final hasChannel = context.watch<ChannelStatusNotifier>().hasChannel();
 
-    ButtonStyle balanceButtonStyle = balanceActionButtonStyle();
-
     return Scaffold(
       body: RefreshIndicator(
         onRefresh: () async {
@@ -43,79 +42,30 @@ class WalletScreen extends StatelessWidget {
                   margin: const EdgeInsets.only(left: 0, right: 0),
                   child: Row(children: [
                     Expanded(
-                      child: ElevatedButton(
-                        style: balanceButtonStyle,
-                        // Additionally checking the Lightning balance here, as when
-                        // hot reloading the app the channel info appears to be
-                        // unknown.
-                        onPressed: () => context.go(
-                            (hasChannel || walletChangeNotifier.lightning().sats > 0)
-                                ? ReceiveScreen.route
-                                : OnboardingScreen.route),
-                        child: const Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              FontAwesomeIcons.arrowDown,
-                              size: 14,
-                            ),
-                            SizedBox(width: 7, height: 40),
-                            Text(
-                              'Receive',
-                              style: TextStyle(fontSize: 14, fontWeight: FontWeight.normal),
-                            )
-                          ],
-                        ),
+                      child: SecondaryActionButton(
+                        onPressed: () {
+                          context.go((hasChannel || walletChangeNotifier.lightning().sats > 0)
+                              ? ReceiveScreen.route
+                              : OnboardingScreen.route);
+                        },
+                        icon: FontAwesomeIcons.arrowDown,
+                        title: 'Receive',
                       ),
                     ),
                     const SizedBox(width: 10.0),
                     Expanded(
-                      child: ElevatedButton(
-                        style: balanceButtonStyle,
-                        onPressed: () => showSwapDrawer(context),
-                        child: const Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              FontAwesomeIcons.rotate,
-                              size: 14,
-                            ),
-                            SizedBox(
-                              width: 7,
-                              height: 40,
-                            ),
-                            Text(
-                              'Swap',
-                              style: TextStyle(fontSize: 14, fontWeight: FontWeight.normal),
-                            )
-                          ],
-                        ),
-                      ),
-                    ),
+                        child: SecondaryActionButton(
+                      onPressed: () => showSwapDrawer(context),
+                      icon: FontAwesomeIcons.rotate,
+                      title: 'Swap',
+                    )),
                     const SizedBox(width: 10.0),
                     Expanded(
-                      child: ElevatedButton(
-                        style: balanceButtonStyle,
-                        onPressed: () => GoRouter.of(context).go(ScannerScreen.route),
-                        child: const Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              FontAwesomeIcons.arrowUp,
-                              size: 14,
-                            ),
-                            SizedBox(
-                              width: 7,
-                              height: 40,
-                            ),
-                            Text(
-                              'Send',
-                              style: TextStyle(fontSize: 14, fontWeight: FontWeight.normal),
-                            )
-                          ],
-                        ),
-                      ),
-                    )
+                        child: SecondaryActionButton(
+                      onPressed: () => GoRouter.of(context).go(ScannerScreen.route),
+                      icon: FontAwesomeIcons.arrowUp,
+                      title: 'Send',
+                    ))
                   ])),
               const SizedBox(
                 height: 10,
@@ -143,22 +93,6 @@ class WalletScreen extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
-
-  ButtonStyle balanceActionButtonStyle() {
-    ColorScheme greyScheme = ColorScheme.fromSwatch(primarySwatch: Colors.grey);
-
-    return IconButton.styleFrom(
-      foregroundColor: Colors.black,
-      backgroundColor: Colors.grey.shade200,
-      disabledBackgroundColor: greyScheme.onSurface.withOpacity(0.12),
-      elevation: 0,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.0)),
-      hoverColor: greyScheme.onPrimary.withOpacity(0.08),
-      focusColor: greyScheme.onPrimary.withOpacity(0.12),
-      highlightColor: greyScheme.onPrimary.withOpacity(0.12),
-      visualDensity: const VisualDensity(horizontal: 0.0, vertical: 1.0),
     );
   }
 }

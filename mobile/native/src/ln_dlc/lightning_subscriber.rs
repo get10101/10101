@@ -14,9 +14,14 @@ impl Node {
                             Event::ChannelReady { channel_id, .. } => {
                                 event::publish(&EventInternal::ChannelReady(channel_id))
                             }
-                            Event::PaymentClaimed { amount_msat, .. } => {
-                                event::publish(&EventInternal::PaymentClaimed(amount_msat))
-                            }
+                            Event::PaymentClaimed {
+                                amount_msat,
+                                payment_hash,
+                                ..
+                            } => event::publish(&EventInternal::PaymentClaimed(
+                                amount_msat,
+                                payment_hash,
+                            )),
                             Event::PaymentSent { .. } => {
                                 event::publish(&EventInternal::PaymentSent)
                             }

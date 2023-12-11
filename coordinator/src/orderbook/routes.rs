@@ -15,6 +15,8 @@ use commons::Message;
 use commons::NewOrder;
 use commons::Order;
 use commons::OrderReason;
+use commons::OrderState;
+use commons::OrderType;
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::PooledConnection;
 use diesel::PgConnection;
@@ -49,6 +51,16 @@ pub async fn get_order(
         .map_err(|e| AppError::BadRequest(format!("{e:#}")))?;
 
     Ok(Json(order))
+}
+
+#[instrument(skip_all, err(Debug))]
+pub async fn get_orders(State(state): State<Arc<AppState>>) -> Result<Json<Vec<Order>>, AppError> {
+    let mut conn = get_db_connection(&state)?;
+    let orders =
+        orderbook::db::orders::get_all_orders(&mut conn, OrderType::Limit, OrderState::Open, true)
+            .map_err(|e| AppError::InternalServerError(format!("Failed to load order: {e:#}")))?;
+
+    Ok(Json(orders))
 }
 
 #[instrument(skip_all, err(Debug))]

@@ -64,7 +64,8 @@ List<SingleChildWidget> createProviders() {
     ChangeNotifierProvider(create: (context) => AsyncOrderChangeNotifier(OrderService())),
     ChangeNotifierProvider(create: (context) => RolloverChangeNotifier()),
     ChangeNotifierProvider(create: (context) => RecoverDlcChangeNotifier()),
-    ChangeNotifierProvider(create: (context) => PaymentClaimedChangeNotifier()),
+    ChangeNotifierProvider(
+        create: (context) => PaymentClaimedChangeNotifier(swapTradeValuesService)),
     ChangeNotifierProvider(create: (context) => PaymentChangeNotifier()),
     ChangeNotifierProvider(create: (context) => CollabRevertChangeNotifier()),
     ChangeNotifierProvider(create: (context) => LspChangeNotifier(channelInfoService)),
@@ -138,7 +139,10 @@ void subscribeToNotifiers(BuildContext context) {
   eventService.subscribe(
       recoverDlcChangeNotifier, bridge.Event.backgroundNotification(RecoverDlc.apiDummy()));
 
-  eventService.subscribe(paymentClaimedChangeNotifier, const bridge.Event.paymentClaimed());
+  eventService.subscribe(
+      paymentClaimedChangeNotifier, const bridge.Event.paymentClaimed(0, "dummy_invoice"));
+  eventService.subscribe(
+      paymentClaimedChangeNotifier, bridge.Event.priceUpdateNotification(Price.apiDummy()));
 
   eventService.subscribe(paymentChangeNotifier, const bridge.Event.paymentSent());
   eventService.subscribe(paymentChangeNotifier, const bridge.Event.paymentFailed());

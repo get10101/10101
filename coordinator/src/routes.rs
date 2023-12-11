@@ -21,6 +21,7 @@ use crate::message::NewUserMessage;
 use crate::message::OrderbookMessage;
 use crate::node::Node;
 use crate::orderbook::routes::get_order;
+use crate::orderbook::routes::get_orders;
 use crate::orderbook::routes::post_order;
 use crate::orderbook::routes::put_order;
 use crate::orderbook::routes::websocket_handler;
@@ -134,7 +135,7 @@ pub fn router(
         .route("/api/newaddress", get(get_unused_address))
         .route("/api/node", get(get_node_info))
         .route("/api/invoice", get(get_invoice))
-        .route("/api/orderbook/orders", post(post_order))
+        .route("/api/orderbook/orders", get(get_orders).post(post_order))
         .route(
             "/api/orderbook/orders/:order_id",
             get(get_order).put(put_order),

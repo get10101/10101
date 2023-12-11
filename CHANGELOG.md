@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Feat: Receive USD-P via Lightning
+
 ## [1.7.1] - 2023-12-08
 
 - Feat: Pay lightning invoice with USD-P balance.

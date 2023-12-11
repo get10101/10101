@@ -49,6 +49,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.11.0"
+  bitcoin_icons:
+    dependency: "direct main"
+    description:
+      name: bitcoin_icons
+      sha256: "6ee9e69d78683035c089ebc91c3c9de95f7694d7bdcfa7edbbd51d832876f9b3"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.0.4"
   boolean_selector:
     dependency: transitive
     description:

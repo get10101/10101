@@ -443,16 +443,30 @@ pub struct PaymentRequest {
     pub lightning: String,
 }
 
-pub fn create_payment_request(amount_sats: Option<u64>) -> Result<PaymentRequest> {
+pub fn create_payment_request(
+    amount_sats: Option<u64>,
+    is_usdp: bool,
+    description: String,
+) -> Result<PaymentRequest> {
     let amount_query = amount_sats
         .map(|amt| format!("?amount={}", Amount::from_sat(amt).to_btc()))
         .unwrap_or_default();
     let addr = ln_dlc::get_unused_address();
 
+    let ln_invoice = if is_usdp {
+        ln_dlc::create_usdp_invoice(amount_sats, description)?
+    } else {
+        ln_dlc::create_invoice(amount_sats, description)?
+    };
+
     Ok(PaymentRequest {
         bip21: format!("bitcoin:{addr}{amount_query}"),
-        lightning: ln_dlc::create_invoice(amount_sats)?.to_string(),
+        lightning: ln_invoice.to_string(),
     })
+}
+
+pub fn is_usdp_payment(payment_hash: String) -> SyncReturn<bool> {
+    SyncReturn(ln_dlc::is_usdp_payment(payment_hash))
 }
 
 pub enum SendPayment {

@@ -38,6 +38,7 @@ use ln_dlc_node::MillisatAmount;
 use ln_dlc_node::PaymentFlow;
 use ln_dlc_node::PaymentInfo;
 use rust_decimal::Decimal;
+use std::collections::HashSet;
 use std::sync::Arc;
 use std::time::Duration;
 use time::OffsetDateTime;
@@ -46,6 +47,9 @@ use time::OffsetDateTime;
 pub struct Node {
     pub inner: Arc<node::Node<TenTenOneNodeStorage, NodeStorage>>,
     _running: Arc<RunningNode>,
+    // TODO: we should make this persistent as invoices might get paid later - but for now this is
+    // good enough
+    pub pending_usdp_invoices: Arc<parking_lot::Mutex<HashSet<bitcoin::hashes::sha256::Hash>>>,
 }
 
 impl Node {
@@ -56,6 +60,7 @@ impl Node {
         Self {
             inner: node,
             _running: Arc::new(running),
+            pending_usdp_invoices: Arc::new(Default::default()),
         }
     }
 }

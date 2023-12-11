@@ -28,7 +28,7 @@ pub enum Event {
     ServiceHealthUpdate(ServiceUpdate),
     ChannelStatusUpdate(ChannelStatus),
     BackgroundNotification(BackgroundTask),
-    PaymentClaimed,
+    PaymentClaimed(u64, String),
     PaymentSent,
     PaymentFailed,
     Authenticated(LspConfig),
@@ -82,7 +82,9 @@ impl From<EventInternal> for Event {
             EventInternal::ChannelReady(_) => {
                 unreachable!("This internal event is not exposed to the UI")
             }
-            EventInternal::PaymentClaimed(_) => Event::PaymentClaimed,
+            EventInternal::PaymentClaimed(amount, hash) => {
+                Event::PaymentClaimed(amount, hash.to_string())
+            }
             EventInternal::PaymentSent => Event::PaymentSent,
             EventInternal::PaymentFailed => Event::PaymentFailed,
             EventInternal::BackgroundNotification(task) => {

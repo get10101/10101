@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math';
 
+import 'package:bitcoin_icons/bitcoin_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:get_10101/common/amount_text.dart';
 import 'package:get_10101/features/swap/swap_amount_text_input_form_field.dart';
@@ -225,7 +226,7 @@ class _StableBottomSheet extends State<SwapBottomSheet> {
 
                       const lnLabel = Row(
                         children: [
-                          Icon(Icons.bolt),
+                          Icon(BitcoinIcons.lightning),
                           Text("Lightning", style: labelStyle),
                         ],
                       );

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:get_10101/common/custom_app_bar.dart';
 import 'package:get_10101/common/application/channel_info_service.dart';
 import 'package:get_10101/common/color.dart';
 import 'package:get_10101/common/domain/channel.dart';
@@ -12,7 +13,6 @@ import 'package:get_10101/features/wallet/domain/destination.dart';
 import 'package:get_10101/features/wallet/send/confirm_payment_modal.dart';
 import 'package:get_10101/features/wallet/wallet_change_notifier.dart';
 import 'package:get_10101/features/wallet/wallet_screen.dart';
-import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 class SendOnChainScreen extends StatefulWidget {
@@ -78,39 +78,7 @@ class _SendOnChainScreenState extends State<SendOnChainScreen> {
                 child: Container(
                   margin: const EdgeInsets.all(20.0),
                   child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Expanded(
-                          child: Stack(
-                            children: [
-                              GestureDetector(
-                                child: Container(
-                                    alignment: AlignmentDirectional.topStart,
-                                    decoration: BoxDecoration(
-                                        color: Colors.transparent,
-                                        borderRadius: BorderRadius.circular(10)),
-                                    width: 70,
-                                    child: const Icon(
-                                      Icons.arrow_back_ios_new_rounded,
-                                      size: 22,
-                                    )),
-                                onTap: () => GoRouter.of(context).pop(),
-                              ),
-                              const Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Text(
-                                    "Send",
-                                    style: TextStyle(fontWeight: FontWeight.w500, fontSize: 20),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
+                    const TenTenOneAppBar(title: "Send"),
                     const SizedBox(
                       height: 20,
                     ),
