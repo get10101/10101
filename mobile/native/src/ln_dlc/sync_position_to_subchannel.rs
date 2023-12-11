@@ -156,13 +156,54 @@ fn determine_sync_position_to_subchannel_action(
     position: Option<Position>,
     subchannel: Option<SubChannel>,
 ) -> Option<Action> {
+    use SubChannel::*;
+
     tracing::debug!(
         ?position,
         ?subchannel,
         "Checking if position and subchannel state are out of sync"
     );
 
-    use SubChannel::*;
+    if let Some(Position::Resizing) = position {
+        let action = match subchannel {
+            // Ongoing resize protocol.
+            Some(Offered) | Some(Accepted) | Some(Confirmed) | Some(Finalized)
+            | Some(CloseOffered) | Some(CloseAccepted) | Some(CloseConfirmed)
+            | Some(OffChainClosed) => {
+                tracing::debug!("Letting subchannel resize protocol continue");
+                Some(Action::ContinueSubchannelProtocol)
+            }
+            // Closed on-chain.
+            Some(Closing)
+            | Some(OnChainClosed)
+            | Some(CounterOnChainClosed)
+            | Some(ClosedPunished) => {
+                tracing::warn!("Deleting resizing position as subchannel is closed on-chain");
+                Some(Action::RemovePosition)
+            }
+            // This is _not_ the same as having an `OffChainClosed` subchannel.
+            None => {
+                tracing::warn!("Deleting resizing position as subchannel does not exist");
+                Some(Action::RemovePosition)
+            }
+            // The offer to reopen the subchannel was rejected. It's probably best to remove the
+            // position.
+            Some(Rejected) => {
+                tracing::warn!("Deleting resizing position as subchannel reopen was rejected");
+                Some(Action::RemovePosition)
+            }
+            // This is weird.
+            //
+            // TODO: Consider setting the `Position` back to `Open`.
+            Some(Signed { .. }) => {
+                tracing::warn!("Subchannel is signed but position is resizing");
+                None
+            }
+        };
+
+        return action;
+    }
+
     match (position, subchannel) {
         (Some(_), Some(subchannel)) => {
             match subchannel {
@@ -384,6 +425,64 @@ mod test {
             Some(SubChannel::OnChainClosed),
         );
         assert_eq!(Some(Action::RemovePosition), action);
+    }
+
+    #[test]
+    fn test_resizing_position() {
+        use SubChannel::*;
+
+        let position = Some(Position::Resizing);
+
+        let action = determine_sync_position_to_subchannel_action(position, Some(Offered));
+        assert_eq!(Some(Action::ContinueSubchannelProtocol), action);
+
+        let action = determine_sync_position_to_subchannel_action(position, Some(Accepted));
+        assert_eq!(Some(Action::ContinueSubchannelProtocol), action);
+
+        let action = determine_sync_position_to_subchannel_action(position, Some(Confirmed));
+        assert_eq!(Some(Action::ContinueSubchannelProtocol), action);
+
+        let action = determine_sync_position_to_subchannel_action(position, Some(Finalized));
+        assert_eq!(Some(Action::ContinueSubchannelProtocol), action);
+
+        let action = determine_sync_position_to_subchannel_action(position, Some(CloseOffered));
+        assert_eq!(Some(Action::ContinueSubchannelProtocol), action);
+
+        let action = determine_sync_position_to_subchannel_action(position, Some(CloseAccepted));
+        assert_eq!(Some(Action::ContinueSubchannelProtocol), action);
+
+        let action = determine_sync_position_to_subchannel_action(position, Some(CloseConfirmed));
+        assert_eq!(Some(Action::ContinueSubchannelProtocol), action);
+
+        let action = determine_sync_position_to_subchannel_action(position, Some(OffChainClosed));
+        assert_eq!(Some(Action::ContinueSubchannelProtocol), action);
+
+        let action = determine_sync_position_to_subchannel_action(position, Some(Closing));
+        assert_eq!(Some(Action::RemovePosition), action);
+
+        let action = determine_sync_position_to_subchannel_action(position, Some(OnChainClosed));
+        assert_eq!(Some(Action::RemovePosition), action);
+
+        let action =
+            determine_sync_position_to_subchannel_action(position, Some(CounterOnChainClosed));
+        assert_eq!(Some(Action::RemovePosition), action);
+
+        let action = determine_sync_position_to_subchannel_action(position, Some(ClosedPunished));
+        assert_eq!(Some(Action::RemovePosition), action);
+
+        let action = determine_sync_position_to_subchannel_action(position, None);
+        assert_eq!(Some(Action::RemovePosition), action);
+
+        let action = determine_sync_position_to_subchannel_action(position, Some(Rejected));
+        assert_eq!(Some(Action::RemovePosition), action);
+
+        let action = determine_sync_position_to_subchannel_action(
+            position,
+            Some(Signed {
+                channel_id: dummy_channel_id(),
+            }),
+        );
+        assert!(action.is_none());
     }
 
     fn dummy_channel_id() -> ChannelId {
