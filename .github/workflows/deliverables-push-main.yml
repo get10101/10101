@@ -11,6 +11,7 @@ jobs:
       packages: write
       contents: read
     uses: ./.github/workflows/docker.yml
+    secrets: inherit
     with:
       tag: main
 
