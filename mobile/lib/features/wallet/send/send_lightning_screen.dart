@@ -170,10 +170,10 @@ class _SendLightningScreenState extends State<SendLightningScreen> {
                 ]),
               ),
               const SizedBox(height: 25),
-              const Text(
-                "Enter amount",
+              Text(
+                isZeroValueInvoice ? "Enter amount" : "Amount",
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 14, color: Colors.grey),
+                style: const TextStyle(fontSize: 14, color: Colors.grey),
               ),
               const SizedBox(height: 10),
               Container(
@@ -362,7 +362,7 @@ class _SendLightningScreenState extends State<SendLightningScreen> {
                     )),
                 style: const TextStyle(fontSize: 40),
                 textAlignVertical: TextAlignVertical.center,
-                enabled: widget.destination.amount.sats == 0,
+                enabled: isZeroValueInvoice,
                 onChanged: (value) {
                   setState(() {
                     _usdpAmount = Amount.parseAmount(value);
@@ -506,4 +506,6 @@ class _SendLightningScreenState extends State<SendLightningScreen> {
 
     return (Amount(balance), Amount(max(balance - channelReserve, 0)));
   }
+
+  bool get isZeroValueInvoice => widget.destination.amount.sats == 0;
 }
