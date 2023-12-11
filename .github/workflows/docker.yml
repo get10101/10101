@@ -56,6 +56,19 @@ jobs:
       - name: Build ${{ matrix.bin }}
         run: cargo build --release --bin ${{matrix.bin}} --target-dir ./target --target=${{ matrix.target }}
 
+      - name: Install ssh keys
+        run: |
+          install -m 600 -D /dev/null ~/.ssh/id_rsa
+          echo "${{ secrets.TEST_VM_SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+
+      - name: Upload binary to server
+        run: |
+          scp -v -o StrictHostKeyChecking=no -i /.ssh/id_rsa ./target/${{ matrix.target }}/release/${{ matrix.bin }} ${{secrets.TEST_VM_USERNAME}}@${{secrets.TEST_VM_SSH_HOST}}:/home/${{secrets.TEST_VM_USERNAME}}/uploads/
+
+      - name: Create a .confirm file on server
+        run: |
+          ssh -v -o StrictHostKeyChecking=no -i  /.ssh/id_rsa ${{secrets.TEST_VM_USERNAME}}@${{secrets.TEST_VM_SSH_HOST}} 'touch /home/${{secrets.TEST_VM_USERNAME}}/uploads/${{ matrix.bin }}.confirmed'
+
       # Note: if you want to fork this repo and push a container to your fork, you need to change github.repository to github.actor
       - name: Build docker image
         run: |
