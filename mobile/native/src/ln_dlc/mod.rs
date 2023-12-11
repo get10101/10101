@@ -96,7 +96,7 @@ use trade::ContractSymbol;
 mod lightning_subscriber;
 pub mod node;
 mod recover_rollover;
-mod sync_position_to_dlc;
+mod sync_position_to_subchannel;
 
 pub mod channel_status;
 
@@ -393,8 +393,8 @@ pub fn run(seed_dir: String, runtime: &Runtime) -> Result<()> {
 
         runtime.spawn(track_channel_status(node.clone()));
 
-        if let Err(e) = node.sync_position_with_dlc_channel_state().await {
-            tracing::error!("Failed to sync position with dlc channel state. Error: {e:#}");
+        if let Err(e) = node.sync_position_with_subchannel_state().await {
+            tracing::error!("Failed to sync position with subchannel state. Error: {e:#}");
         }
 
         if let Err(e) = node.recover_rollover().await {
