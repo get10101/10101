@@ -96,7 +96,7 @@ use trade::ContractSymbol;
 mod lightning_subscriber;
 pub mod node;
 mod recover_rollover;
-mod sync_position_to_dlc;
+mod sync_position_to_subchannel;
 
 pub mod channel_status;
 
