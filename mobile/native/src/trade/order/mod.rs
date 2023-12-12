@@ -31,11 +31,11 @@ pub enum FailureReason {
     /// MVP scope: Can only close the order, not reduce or extend
     OrderNotAcceptable,
     TimedOut,
-    InvalidDlcOffer(InvalidDlcOffer),
+    InvalidDlcOffer(InvalidSubchannelOffer),
 }
 
 #[derive(Debug, Clone, Copy)]
-pub enum InvalidDlcOffer {
+pub enum InvalidSubchannelOffer {
     /// Received offer was outdated
     Outdated,
     UndeterminedMaturityDate,

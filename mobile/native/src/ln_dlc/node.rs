@@ -6,7 +6,7 @@ use crate::event::TaskStatus;
 use crate::storage::TenTenOneNodeStorage;
 use crate::trade::order;
 use crate::trade::order::FailureReason;
-use crate::trade::order::InvalidDlcOffer;
+use crate::trade::order::InvalidSubchannelOffer;
 use crate::trade::position;
 use crate::trade::position::PositionState;
 use anyhow::anyhow;
@@ -196,7 +196,9 @@ impl Node {
                                     })?;
                                 order::handler::order_failed(
                                     None,
-                                    FailureReason::InvalidDlcOffer(InvalidDlcOffer::Outdated),
+                                    FailureReason::InvalidDlcOffer(
+                                        InvalidSubchannelOffer::Outdated,
+                                    ),
                                     anyhow!("Outdated DLC Offer received"),
                                 )
                                 .context("Could not set order to failed")?;
@@ -227,7 +229,7 @@ impl Node {
                                 order::handler::order_failed(
                                     None,
                                     FailureReason::InvalidDlcOffer(
-                                        InvalidDlcOffer::UndeterminedMaturityDate,
+                                        InvalidSubchannelOffer::UndeterminedMaturityDate,
                                     ),
                                     anyhow!("Undetermined subchannel offer received {error}"),
                                 )

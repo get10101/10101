@@ -6,7 +6,7 @@ use crate::schema::positions;
 use crate::schema::spendable_outputs;
 use crate::schema::trades;
 use crate::schema::transactions;
-use crate::trade::order::InvalidDlcOffer;
+use crate::trade::order::InvalidSubchannelOffer;
 use anyhow::anyhow;
 use anyhow::bail;
 use anyhow::ensure;
@@ -660,11 +660,13 @@ impl From<FailureReason> for crate::trade::order::FailureReason {
             }
             FailureReason::TimedOut => crate::trade::order::FailureReason::TimedOut,
             FailureReason::SubchannelOfferOutdated => {
-                crate::trade::order::FailureReason::InvalidDlcOffer(InvalidDlcOffer::Outdated)
+                crate::trade::order::FailureReason::InvalidDlcOffer(
+                    InvalidSubchannelOffer::Outdated,
+                )
             }
             FailureReason::SubchannelOfferDateUndetermined => {
                 crate::trade::order::FailureReason::InvalidDlcOffer(
-                    InvalidDlcOffer::UndeterminedMaturityDate,
+                    InvalidSubchannelOffer::UndeterminedMaturityDate,
                 )
             }
         }
@@ -689,8 +691,8 @@ impl From<crate::trade::order::FailureReason> for FailureReason {
             }
             crate::trade::order::FailureReason::TimedOut => FailureReason::TimedOut,
             crate::trade::order::FailureReason::InvalidDlcOffer(reason) => match reason {
-                InvalidDlcOffer::Outdated => FailureReason::SubchannelOfferOutdated,
-                InvalidDlcOffer::UndeterminedMaturityDate => {
+                InvalidSubchannelOffer::Outdated => FailureReason::SubchannelOfferOutdated,
+                InvalidSubchannelOffer::UndeterminedMaturityDate => {
                     FailureReason::SubchannelOfferDateUndetermined
                 }
             },
