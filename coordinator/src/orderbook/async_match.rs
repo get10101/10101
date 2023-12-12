@@ -22,6 +22,7 @@ use time::OffsetDateTime;
 use tokio::sync::broadcast;
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::mpsc;
+use tokio::task::spawn_blocking;
 
 pub fn monitor(
     pool: Pool<ConnectionManager<PgConnection>>,
@@ -29,18 +30,29 @@ pub fn monitor(
     notifier: mpsc::Sender<OrderbookMessage>,
     network: Network,
     oracle_pk: XOnlyPublicKey,
-) -> RemoteHandle<Result<()>> {
+) -> RemoteHandle<()> {
     let mut user_feed = tx_user_feed.subscribe();
     let (fut, remote_handle) = async move {
         loop {
             match user_feed.recv().await {
                 Ok(new_user_msg) => {
                     tokio::spawn({
-                        let mut conn = pool.get()?;
                         let notifier = notifier.clone();
+                        let pool = pool.clone();
                         async move {
-                            tracing::debug!(trader_id=%new_user_msg.new_user, "Checking if the user needs to be notified about pending matches");
-                            if let Err(e) = process_pending_match(&mut conn, notifier, new_user_msg.new_user, network, oracle_pk).await {
+                            tracing::debug!(
+                                trader_id=%new_user_msg.new_user,
+                                "Checking if the user needs to be notified about pending matches"
+                            );
+                            if let Err(e) = process_pending_match(
+                                pool,
+                                notifier,
+                                new_user_msg.new_user,
+                                network,
+                                oracle_pk,
+                            )
+                            .await
+                            {
                                 tracing::error!("Failed to process pending match. Error: {e:#}");
                             }
                         }
@@ -50,13 +62,16 @@ pub fn monitor(
                     tracing::error!("New user message sender died! Channel closed.");
                     break;
                 }
-                Err(RecvError::Lagged(skip)) => tracing::warn!(%skip,
+                Err(RecvError::Lagged(skip)) => {
+                    tracing::warn!(
+                        %skip,
                         "Lagging behind on new user message."
-                    ),
+                    )
+                }
             }
         }
-        Ok(())
-    }.remote_handle();
+    }
+    .remote_handle();
 
     tokio::spawn(fut);
 
@@ -65,16 +80,22 @@ pub fn monitor(
 
 /// Checks if there are any pending matches
 async fn process_pending_match(
-    conn: &mut PgConnection,
+    pool: Pool<ConnectionManager<PgConnection>>,
     notifier: mpsc::Sender<OrderbookMessage>,
     trader_id: PublicKey,
     network: Network,
     oracle_pk: XOnlyPublicKey,
 ) -> Result<()> {
-    if let Some(order) = orders::get_by_trader_id_and_state(conn, trader_id, OrderState::Matched)? {
+    let mut conn = spawn_blocking(move || pool.get())
+        .await
+        .expect("task to complete")?;
+
+    if let Some(order) =
+        orders::get_by_trader_id_and_state(&mut conn, trader_id, OrderState::Matched)?
+    {
         tracing::debug!(%trader_id, order_id=%order.id, "Notifying trader about pending match");
 
-        let matches = matches::get_matches_by_order_id(conn, order.id)?;
+        let matches = matches::get_matches_by_order_id(&mut conn, order.id)?;
         let filled_with = get_filled_with_from_matches(matches, network, oracle_pk)?;
 
         let message = match order.order_reason {
