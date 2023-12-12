@@ -3,6 +3,7 @@ import 'dart:math';
 
 import 'package:bitcoin_icons/bitcoin_icons.dart';
 import 'package:flutter/material.dart';
+import 'package:get_10101/common/amount_and_fiat_text.dart';
 import 'package:get_10101/common/amount_text.dart';
 import 'package:get_10101/features/swap/swap_amount_text_input_form_field.dart';
 import 'package:get_10101/common/application/lsp_change_notifier.dart';
@@ -391,26 +392,6 @@ class _SwapTile extends StatelessWidget {
   }
 }
 
-class _AmountAndFiatText extends StatelessWidget {
-  final Amount amount;
-
-  const _AmountAndFiatText({required this.amount});
-
-  @override
-  Widget build(BuildContext context) {
-    return Selector<SwapValuesChangeNotifier, double>(
-      selector: (_, provider) => provider.stableValues().price ?? 1.0,
-      builder: (BuildContext context, double price, Widget? child) => Column(children: [
-        AmountText(amount: amount, textStyle: const TextStyle(fontSize: 17)),
-        Wrap(children: [
-          const Text("~", style: TextStyle(color: Colors.grey)),
-          FiatText(amount: amount.btc / price, textStyle: TextStyle(color: Colors.grey.shade700))
-        ])
-      ]),
-    );
-  }
-}
-
 class _SwapBalanceText extends StatelessWidget {
   final Widget balance;
 
@@ -497,7 +478,7 @@ void _showConfirmSheet(BuildContext context, SwapTradeValues tradeValues,
                           ...divider,
                           ValueDataRow(
                               type: ValueType.widget,
-                              value: _AmountAndFiatText(amount: tradeValues.fee ?? Amount(0)),
+                              value: AmountAndFiatText(amount: tradeValues.fee ?? Amount(0)),
                               label: "Swap fees:",
                               labelTextStyle: labelStyle),
                         ]),
