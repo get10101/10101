@@ -31,6 +31,7 @@ use time::OffsetDateTime;
 use tokio::sync::broadcast;
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::mpsc;
+use tokio::task::spawn_blocking;
 use trade::ContractSymbol;
 
 #[derive(Debug, Clone)]
@@ -51,20 +52,20 @@ pub fn monitor(
     notifier: mpsc::Sender<OrderbookMessage>,
     network: Network,
     node: Node,
-) -> RemoteHandle<Result<()>> {
+) -> RemoteHandle<()> {
     let mut user_feed = tx_user_feed.subscribe();
     let (fut, remote_handle) = async move {
         loop {
             match user_feed.recv().await {
                 Ok(new_user_msg) => {
                     tokio::spawn({
-                        let mut conn = pool.get()?;
                         let notifier = notifier.clone();
                         let node = node.clone();
+                        let pool = pool.clone();
                         async move {
                             if let Err(e) = node
                                 .check_if_eligible_for_rollover(
-                                    &mut conn,
+                                    pool,
                                     notifier,
                                     new_user_msg.new_user,
                                     network,
@@ -87,7 +88,6 @@ pub fn monitor(
                 ),
             }
         }
-        Ok(())
     }
     .remote_handle();
 
@@ -156,14 +156,18 @@ impl Rollover {
 impl Node {
     async fn check_if_eligible_for_rollover(
         &self,
-        conn: &mut PgConnection,
+        pool: Pool<ConnectionManager<PgConnection>>,
         notifier: mpsc::Sender<OrderbookMessage>,
         trader_id: PublicKey,
         network: Network,
     ) -> Result<()> {
+        let mut conn = spawn_blocking(move || pool.get())
+            .await
+            .expect("task to complete")?;
+
         tracing::debug!(%trader_id, "Checking if the users positions is eligible for rollover");
         if let Some(position) = positions::Position::get_position_by_trader(
-            conn,
+            &mut conn,
             trader_id,
             vec![PositionState::Open, PositionState::Rollover],
         )? {
@@ -172,7 +176,9 @@ impl Node {
                 .get_signed_channel_by_trader_id(position.trader)?;
 
             let (retry_rollover, contract_id) = match position.position_state {
-                PositionState::Rollover => self.rollback_channel_if_needed(conn, signed_channel)?,
+                PositionState::Rollover => {
+                    self.rollback_channel_if_needed(&mut conn, signed_channel)?
+                }
                 PositionState::Open => (false, signed_channel.get_contract_id()),
                 _ => bail!("Unexpected position state {:?}", position.position_state),
             };
