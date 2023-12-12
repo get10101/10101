@@ -40,6 +40,10 @@ pub struct NewPosition {
 
 #[derive(Clone, PartialEq, Debug)]
 pub enum PositionState {
+    /// The position is in the process of being opened.
+    ///
+    /// Once the position is fully opened it will end in the state `Open`
+    Proposed,
     Open,
     /// The position is in the process of being closed.
     ///
@@ -50,8 +54,13 @@ pub enum PositionState {
     Closed {
         pnl: i64,
     },
+    /// The position was not opened successfully.
+    Failed,
     Rollover,
     Resizing,
+    /// We proposed a new protocol round for resizing, at the moment, we close the existing channel
+    /// and open a new one, in the future this will be the resize protocol by rust-dlc
+    ResizeOpeningSubchannelProposed,
 }
 
 /// The position acts as an aggregate of one contract of one user.

@@ -17,6 +17,7 @@ use anyhow::ensure;
 use anyhow::Context;
 use anyhow::Result;
 use autometrics::autometrics;
+use bitcoin::hashes::hex::ToHex;
 use bitcoin::secp256k1::PublicKey;
 use commons::order_matching_fee_taker;
 use commons::MatchState;
@@ -573,8 +574,56 @@ impl Node {
             self.finalize_rollover(&r.channel_id)?;
         }
 
+        if let Message::SubChannel(SubChannelMessage::Finalize(finalize)) = &msg {
+            let channel_id_hex_string = finalize.channel_id.to_hex();
+            tracing::info!(
+                channel_id = channel_id_hex_string,
+                node_id = node_id.to_string(),
+                "Subchannel open protocol was finalized"
+            );
+            let mut connection = self.pool.get()?;
+            db::positions::Position::update_proposed_position(
+                &mut connection,
+                node_id.to_string(),
+                PositionState::Open,
+            )?;
+        }
+
         if let Message::SubChannel(SubChannelMessage::CloseFinalize(_msg)) = &msg {
             self.continue_position_resizing(node_id)?;
+        }
+
+        if let Message::SubChannel(SubChannelMessage::Reject(reject)) = &msg {
+            let channel_id_hex = reject.channel_id.to_hex();
+            tracing::warn!(channel_id = channel_id_hex, "Subchannel offer was rejected");
+            let mut connection = self.pool.get()?;
+            match db::positions::Position::get_position_by_trader(
+                &mut connection,
+                node_id,
+                vec![
+                    PositionState::Proposed,
+                    PositionState::ResizeOpeningSubchannelProposed,
+                ],
+            )? {
+                None => {
+                    tracing::warn!("No position found to be updated")
+                }
+                Some(position) => {
+                    let updated_state = match position.position_state {
+                        PositionState::Proposed => PositionState::Failed,
+                        PositionState::ResizeOpeningSubchannelProposed => PositionState::Open,
+                        state => {
+                            // This should not happen because we only load these two states above
+                            bail!("Position was in unexpected state {state:?}.");
+                        }
+                    };
+                    db::positions::Position::update_proposed_position(
+                        &mut connection,
+                        node_id.to_string(),
+                        updated_state,
+                    )?;
+                }
+            }
         }
 
         if let Some(msg) = resp {

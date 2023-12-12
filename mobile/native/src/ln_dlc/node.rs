@@ -5,15 +5,20 @@ use crate::event::EventInternal;
 use crate::event::TaskStatus;
 use crate::storage::TenTenOneNodeStorage;
 use crate::trade::order;
+use crate::trade::order::FailureReason;
+use crate::trade::order::InvalidSubchannelOffer;
 use crate::trade::position;
 use crate::trade::position::PositionState;
+use anyhow::anyhow;
 use anyhow::Context;
 use anyhow::Result;
 use bdk::bitcoin::secp256k1::PublicKey;
 use bdk::TransactionDetails;
+use bitcoin::hashes::hex::ToHex;
 use bitcoin::Txid;
 use commons::order_matching_fee_taker;
 use dlc_messages::sub_channel::SubChannelCloseFinalize;
+use dlc_messages::sub_channel::SubChannelOffer;
 use dlc_messages::sub_channel::SubChannelRevoke;
 use dlc_messages::ChannelMessage;
 use dlc_messages::Message;
@@ -174,14 +179,63 @@ impl Node {
 
                         // TODO: We should probably verify that: (1) the counterparty is the
                         // coordinator and (2) the DLC channel offer is expected and correct.
-                        self.inner
-                            .accept_dlc_channel_offer(&channel_id)
-                            .with_context(|| {
-                                format!(
-                                    "Failed to accept DLC channel offer for channel {}",
-                                    hex::encode(channel_id.0)
+                        match is_expired(offer) {
+                            Ok(true) => {
+                                let channel_id_hex = offer.channel_id.to_hex();
+                                tracing::warn!(
+                                    channel_id = channel_id_hex,
+                                    "Offer outdated, rejecting subchannel offer"
+                                );
+                                self.inner
+                                    .reject_dlc_channel_offer(&channel_id)
+                                    .with_context(|| {
+                                        format!(
+                                            "Failed to reject DLC channel offer for channel {}",
+                                            hex::encode(channel_id.0)
+                                        )
+                                    })?;
+                                order::handler::order_failed(
+                                    None,
+                                    FailureReason::InvalidDlcOffer(
+                                        InvalidSubchannelOffer::Outdated,
+                                    ),
+                                    anyhow!("Outdated DLC Offer received"),
                                 )
-                            })?
+                                .context("Could not set order to failed")?;
+                            }
+                            Ok(false) => self
+                                .inner
+                                .accept_dlc_channel_offer(&channel_id)
+                                .with_context(|| {
+                                    format!(
+                                        "Failed to accept DLC channel offer for channel {}",
+                                        hex::encode(channel_id.0)
+                                    )
+                                })?,
+                            Err(error) => {
+                                let channel_id_hex = offer.channel_id.to_hex();
+                                tracing::warn!(
+                                    channel_id = channel_id_hex,
+                                    "Undetermined subchannel offer received, rejecting subchannel offer"
+                                );
+                                self.inner
+                                    .reject_dlc_channel_offer(&channel_id)
+                                    .with_context(|| {
+                                        format!(
+                                            "Failed to reject DLC channel offer for channel {}",
+                                            hex::encode(channel_id.0)
+                                        )
+                                    })?;
+                                order::handler::order_failed(
+                                    None,
+                                    FailureReason::InvalidDlcOffer(
+                                        InvalidSubchannelOffer::UndeterminedMaturityDate,
+                                    ),
+                                    anyhow!("Undetermined subchannel offer received {error}"),
+                                )
+                                .context("Could not set order to failed")?;
+                            }
+                        }
                     }
                     SubChannelMessage::CloseOffer(offer) => {
                         let channel_id = offer.channel_id;
@@ -371,6 +425,16 @@ impl Node {
     }
 }
 
+/// Returns true if the contract is already expired. Errors if the contract is not a valid unix
+/// timestamp
+fn is_expired(offer: &SubChannelOffer) -> Result<bool> {
+    let now = OffsetDateTime::now_utc();
+    let offer_expiry =
+        OffsetDateTime::from_unix_timestamp(offer.contract_info.get_closest_maturity_date() as i64)
+            .context("Could not convert maturity date into offset date time")?;
+    Ok(offer_expiry.lt(&now))
+}
+
 #[derive(Clone)]
 pub struct NodeStorage;
 
@@ -498,5 +562,161 @@ impl node::Storage for NodeStorage {
 
     fn all_transactions_without_fees(&self) -> Result<Vec<Transaction>> {
         db::get_all_transactions_without_fees()
+    }
+}
+
+#[cfg(test)]
+pub mod tests {
+    use crate::ln_dlc::node::is_expired;
+    use bitcoin::secp256k1::schnorr::Signature;
+    use bitcoin::secp256k1::PublicKey;
+    use bitcoin::Script;
+    use dlc_messages::contract_msgs::ContractInfo;
+    use dlc_messages::contract_msgs::ContractInfoInner;
+    use dlc_messages::contract_msgs::SingleContractInfo;
+    use dlc_messages::oracle_msgs::DigitDecompositionEventDescriptor;
+    use dlc_messages::oracle_msgs::EventDescriptor;
+    use dlc_messages::oracle_msgs::OracleAnnouncement;
+    use dlc_messages::oracle_msgs::OracleEvent;
+    use dlc_messages::oracle_msgs::OracleInfo;
+    use dlc_messages::oracle_msgs::SingleOracleInfo;
+    use dlc_messages::sub_channel::SubChannelOffer;
+    use lightning::ln::ChannelId;
+    use ln_dlc_node::node::rust_dlc_manager::contract::numerical_descriptor::NumericalDescriptor;
+    use ln_dlc_node::node::rust_dlc_manager::contract::ContractDescriptor;
+    use ln_dlc_node::node::rust_dlc_manager::payout_curve::PayoutFunction;
+    use ln_dlc_node::node::rust_dlc_manager::payout_curve::PayoutFunctionPiece;
+    use ln_dlc_node::node::rust_dlc_manager::payout_curve::PayoutPoint;
+    use ln_dlc_node::node::rust_dlc_manager::payout_curve::PolynomialPayoutCurvePiece;
+    use ln_dlc_node::node::rust_dlc_manager::payout_curve::RoundingInterval;
+    use ln_dlc_node::node::rust_dlc_manager::payout_curve::RoundingIntervals;
+    use secp256k1_zkp::XOnlyPublicKey;
+    use std::str::FromStr;
+    use time::Duration;
+    use time::OffsetDateTime;
+
+    #[test]
+    pub fn contract_with_maturity_in_past_is_expired() {
+        // setup
+        let expired_timestamp =
+            (OffsetDateTime::now_utc() - Duration::seconds(10)).unix_timestamp() as u32;
+
+        let contract = create_dummy_contract();
+        let offer = create_dummy_offer(contract, expired_timestamp);
+
+        // act
+        let is_expired = is_expired(&offer).unwrap();
+
+        // assert
+        assert!(is_expired)
+    }
+    #[test]
+    pub fn contract_with_maturity_in_future_is_valid() {
+        // setup
+        let expired_timestamp =
+            (OffsetDateTime::now_utc() + Duration::minutes(1)).unix_timestamp() as u32;
+
+        let contract = create_dummy_contract();
+        let offer = create_dummy_offer(contract, expired_timestamp);
+
+        // act
+        let is_expired = is_expired(&offer).unwrap();
+
+        // assert
+        assert!(!is_expired)
+    }
+
+    fn create_dummy_contract() -> ContractDescriptor {
+        ContractDescriptor::Numerical(NumericalDescriptor {
+            payout_function: PayoutFunction::new(vec![
+                PayoutFunctionPiece::PolynomialPayoutCurvePiece(
+                    PolynomialPayoutCurvePiece::new(vec![
+                        PayoutPoint {
+                            event_outcome: 0,
+                            outcome_payout: 0,
+                            extra_precision: 0,
+                        },
+                        PayoutPoint {
+                            event_outcome: 50_000,
+                            outcome_payout: 0,
+                            extra_precision: 0,
+                        },
+                    ])
+                    .unwrap(),
+                ),
+            ])
+            .unwrap(),
+            rounding_intervals: RoundingIntervals {
+                intervals: vec![RoundingInterval {
+                    begin_interval: 0,
+                    rounding_mod: 10,
+                }],
+            },
+            difference_params: None,
+            oracle_numeric_infos: dlc_trie::OracleNumericInfo {
+                base: 2,
+                nb_digits: vec![20],
+            },
+        })
+    }
+
+    fn create_dummy_offer(descriptor: ContractDescriptor, maturity_epoch: u32) -> SubChannelOffer {
+        let random_pk = PublicKey::from_str(
+            "0218845781f631c48f1c9709e23092067d06837f30aa0cd0544ac887fe91ddd166",
+        )
+        .unwrap();
+        SubChannelOffer {
+            channel_id: ChannelId([0u8; 32]),
+            next_per_split_point: random_pk,
+            revocation_basepoint: random_pk,
+            publish_basepoint: random_pk,
+            own_basepoint: random_pk,
+            channel_own_basepoint: random_pk,
+            channel_publish_basepoint: random_pk,
+            channel_revocation_basepoint: random_pk,
+            contract_info: ContractInfo::SingleContractInfo(SingleContractInfo {
+                total_collateral: 0,
+                contract_info: ContractInfoInner {
+                    contract_descriptor: (&descriptor).into(),
+                    oracle_info: OracleInfo::Single(SingleOracleInfo {
+                        oracle_announcement: OracleAnnouncement {
+                            announcement_signature: dummy_signature(),
+                            oracle_public_key: dummy_oraclye_x_only_pk(),
+                            oracle_event: OracleEvent {
+                                oracle_nonces: vec![],
+                                event_maturity_epoch: maturity_epoch,
+                                event_descriptor: EventDescriptor::DigitDecompositionEvent(
+                                    DigitDecompositionEventDescriptor {
+                                        base: 2,
+                                        is_signed: false,
+                                        unit: "kg/sats".to_string(),
+                                        precision: 1,
+                                        nb_digits: 10,
+                                    },
+                                ),
+                                event_id: "dummy".to_string(),
+                            },
+                        },
+                    }),
+                },
+            }),
+            channel_first_per_update_point: random_pk,
+            payout_spk: Script::default(),
+            payout_serial_id: 123,
+            offer_collateral: 123,
+            cet_locktime: 140,
+            refund_locktime: 1337,
+            cet_nsequence: 100,
+            fee_rate_per_vbyte: 1,
+        }
+    }
+
+    fn dummy_signature() -> Signature {
+        Signature::from_str("6470FD1303DDA4FDA717B9837153C24A6EAB377183FC438F939E0ED2B620E9EE5077C4A8B8DCA28963D772A94F5F0DDF598E1C47C137F91933274C7C3EDADCE8").unwrap()
+    }
+
+    fn dummy_oraclye_x_only_pk() -> XOnlyPublicKey {
+        XOnlyPublicKey::from_str("16f88cf7d21e6c0f46bcbc983a4e3b19726c6c98858cc31c83551a88fde171c0")
+            .unwrap()
     }
 }

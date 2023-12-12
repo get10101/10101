@@ -112,6 +112,26 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
     }
 
     #[autometrics]
+    pub fn reject_dlc_channel_offer(&self, channel_id: &ChannelId) -> Result<()> {
+        let channel_id_hex = hex::encode(channel_id.0);
+
+        tracing::info!(channel_id = %channel_id_hex, "Rejecting DLC channel offer");
+
+        let (node_id, reject) = self
+            .sub_channel_manager
+            .reject_sub_channel_offer(*channel_id)?;
+
+        send_dlc_message(
+            &self.dlc_message_handler,
+            &self.peer_manager,
+            node_id,
+            Message::SubChannel(SubChannelMessage::Reject(reject)),
+        );
+
+        Ok(())
+    }
+
+    #[autometrics]
     pub fn accept_dlc_channel_offer(&self, channel_id: &ChannelId) -> Result<()> {
         let channel_id_hex = hex::encode(channel_id.0);
 
