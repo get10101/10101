@@ -202,6 +202,8 @@ impl Node {
 
         match self.decide_trade_action(connection, trade_params)? {
             TradeAction::Open => {
+                tracing::debug!(trader_id, order_id, "Opening a new position");
+
                 ensure!(
                     self.settings.read().await.allow_opening_positions,
                     "Opening positions is disabled"
@@ -211,16 +213,19 @@ impl Node {
                     self.coordinator_leverage_for_trade(&trade_params.pubkey)?;
 
                 self.open_position(connection, trade_params, coordinator_leverage, order.stable)
-                    .await?;
+                    .await
+                    .context("Failed at opening a new position")?;
             }
             TradeAction::Resize(channel_id) => {
+                tracing::debug!(trader_id, order_id, "Resizing existing position");
                 ensure!(
                     self.settings.read().await.allow_opening_positions,
                     "Resizing positions is disabled"
                 );
 
                 self.resize_position(connection, channel_id, trade_params)
-                    .await?
+                    .await
+                    .context("Failed at resizing position")?
             }
             TradeAction::Close(channel_id) => {
                 let peer_id = trade_params.pubkey;
@@ -244,7 +249,11 @@ impl Node {
                 };
 
                 self.close_position(connection, &position, closing_price, channel_id)
-                    .await?;
+                    .await
+                    .context(format!(
+                        "Failed at closing the position with id: {}",
+                        position.id
+                    ))?;
             }
         };
 
