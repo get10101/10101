@@ -30,6 +30,7 @@ use thiserror::Error;
 use time::OffsetDateTime;
 use tokio::sync::broadcast;
 use tokio::sync::mpsc;
+use tokio::task::spawn_blocking;
 use trade::Direction;
 use uuid::Uuid;
 
@@ -73,18 +74,18 @@ pub fn start(
     notifier: mpsc::Sender<OrderbookMessage>,
     network: Network,
     oracle_pk: XOnlyPublicKey,
-) -> (RemoteHandle<Result<()>>, mpsc::Sender<NewOrderMessage>) {
+) -> (RemoteHandle<()>, mpsc::Sender<NewOrderMessage>) {
     let (sender, mut receiver) = mpsc::channel::<NewOrderMessage>(NEW_ORDERS_BUFFER_SIZE);
 
     let (fut, remote_handle) = async move {
         while let Some(new_order_msg) = receiver.recv().await {
             tokio::spawn({
-                let mut conn = pool.get()?;
                 let tx_price_feed = tx_price_feed.clone();
                 let notifier = notifier.clone();
+                let pool = pool.clone();
                 async move {
                     let result = process_new_order(
-                        &mut conn,
+                        pool,
                         notifier,
                         tx_price_feed,
                         new_order_msg.new_order,
@@ -93,14 +94,15 @@ pub fn start(
                         oracle_pk,
                     )
                     .await;
+
                     if let Err(e) = new_order_msg.sender.send(result).await {
-                        tracing::error!("Failed to send new order message. Error: {e:#}");
+                        tracing::error!("Failed to respond to NewOrderMessage: {e:#}");
                     }
                 }
             });
         }
 
-        Ok(())
+        tracing::error!("Channel closed");
     }
     .remote_handle();
 
@@ -117,8 +119,8 @@ pub fn start(
 ///
 /// TODO(holzeis): The limit and market order models should be separated so we can process the
 /// models independently.
-async fn process_new_order(
-    conn: &mut PgConnection,
+pub async fn process_new_order(
+    pool: Pool<ConnectionManager<PgConnection>>,
     notifier: mpsc::Sender<OrderbookMessage>,
     tx_price_feed: broadcast::Sender<Message>,
     new_order: NewOrder,
@@ -132,6 +134,10 @@ async fn process_new_order(
         "Processing new order",
     );
 
+    let mut conn = spawn_blocking(move || pool.get())
+        .await
+        .expect("task to complete")?;
+
     if new_order.order_type == OrderType::Limit && new_order.price == Decimal::ZERO {
         return Err(TradingError::InvalidOrder(
             "Limit orders with zero price are not allowed".to_string(),
@@ -143,7 +149,7 @@ async fn process_new_order(
     //
     // TODO(holzeis): Orders should probably not have an expiry, but should either be replaced or
     // deleted if not wanted anymore.
-    let expired_limit_orders = orders::set_expired_limit_orders_to_failed(conn)?;
+    let expired_limit_orders = orders::set_expired_limit_orders_to_failed(&mut conn)?;
     for expired_limit_order in expired_limit_orders {
         tx_price_feed
             .send(Message::DeleteOrder(expired_limit_order.id))
@@ -151,7 +157,7 @@ async fn process_new_order(
             .context("Could not update price feed")?;
     }
 
-    let order = orders::insert(conn, new_order.clone(), order_reason)
+    let order = orders::insert(&mut conn, new_order.clone(), order_reason)
         .map_err(|e| anyhow!(e))
         .context("Failed to insert new order into DB")?;
 
@@ -163,7 +169,7 @@ async fn process_new_order(
     } else {
         // Reject new order if there is already a matched order waiting for execution.
         if let Some(order) =
-            orders::get_by_trader_id_and_state(conn, new_order.trader_id, OrderState::Matched)?
+            orders::get_by_trader_id_and_state(&mut conn, new_order.trader_id, OrderState::Matched)?
         {
             bail!(TradingError::InvalidOrder(format!(
                 "trader_id={}, order_id={}. Order is currently in execution. \
@@ -173,7 +179,7 @@ async fn process_new_order(
         }
 
         let opposite_direction_limit_orders = orders::all_by_direction_and_type(
-            conn,
+            &mut conn,
             order.direction.opposite(),
             OrderType::Limit,
             true,
@@ -188,14 +194,14 @@ async fn process_new_order(
                     // to failed here. But actually we could keep the order until either expired or
                     // a match has been found and then update the state accordingly.
 
-                    orders::set_order_state(conn, order.id, OrderState::Failed)?;
+                    orders::set_order_state(&mut conn, order.id, OrderState::Failed)?;
                     bail!(TradingError::NoMatchFound(format!(
                         "Could not match order {}",
                         order.id
                     )));
                 }
                 Err(e) => {
-                    orders::set_order_state(conn, order.id, OrderState::Failed)?;
+                    orders::set_order_state(&mut conn, order.id, OrderState::Failed)?;
                     bail!("Failed to match order: {e:#}")
                 }
             };
@@ -208,7 +214,7 @@ async fn process_new_order(
         );
 
         for match_param in matched_orders.matches() {
-            matches::insert(conn, match_param)?;
+            matches::insert(&mut conn, match_param)?;
 
             let trader_id = match_param.trader_id;
             let order_id = match_param.filled_with.order_id.to_string();
@@ -258,7 +264,7 @@ async fn process_new_order(
 
             tracing::debug!(%trader_id, order_id, "Updating the order state to {order_state:?}");
 
-            orders::set_order_state(conn, match_param.filled_with.order_id, order_state)?;
+            orders::set_order_state(&mut conn, match_param.filled_with.order_id, order_state)?;
         }
     }
 
