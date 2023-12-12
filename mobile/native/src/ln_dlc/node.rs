@@ -9,9 +9,9 @@ use crate::trade::order::FailureReason;
 use crate::trade::order::InvalidDlcOffer;
 use crate::trade::position;
 use crate::trade::position::PositionState;
+use anyhow::anyhow;
 use anyhow::Context;
 use anyhow::Result;
-use anyhow::{anyhow, bail};
 use bdk::bitcoin::secp256k1::PublicKey;
 use bdk::TransactionDetails;
 use bitcoin::hashes::hex::ToHex;
@@ -211,7 +211,27 @@ impl Node {
                                     )
                                 })?,
                             Err(error) => {
-                                bail!(error);
+                                let channel_id_hex = offer.channel_id.to_hex();
+                                tracing::warn!(
+                                    channel_id = channel_id_hex,
+                                    "Undetermined subchannel offer received, rejecting subchannel offer"
+                                );
+                                self.inner
+                                    .reject_dlc_channel_offer(&channel_id)
+                                    .with_context(|| {
+                                        format!(
+                                            "Failed to reject DLC channel offer for channel {}",
+                                            hex::encode(channel_id.0)
+                                        )
+                                    })?;
+                                order::handler::order_failed(
+                                    None,
+                                    FailureReason::InvalidDlcOffer(
+                                        InvalidDlcOffer::UndeterminedMaturityDate,
+                                    ),
+                                    anyhow!("Undetermined subchannel offer received {error}"),
+                                )
+                                .context("Could not set order to failed")?;
                             }
                         }
                     }

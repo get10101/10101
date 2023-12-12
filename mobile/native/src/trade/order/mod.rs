@@ -38,6 +38,7 @@ pub enum FailureReason {
 pub enum InvalidDlcOffer {
     /// Received offer was outdated
     Outdated,
+    UndeterminedMaturityDate,
 }
 
 #[derive(Debug, Clone, Copy)]
