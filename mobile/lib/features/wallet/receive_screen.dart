@@ -558,10 +558,7 @@ class SelectableButton extends StatelessWidget {
             ? MaterialStateProperty.all<Color>(selectedColor.withOpacity(0.05))
             : MaterialStateProperty.all<Color>(Colors.grey.shade200),
       ),
-      icon: Visibility(
-        visible: isSelected,
-        child: Icon(icon, color: isSelected ? selectedColor.withOpacity(1) : Colors.grey),
-      ),
+      icon: Icon(icon, color: isSelected ? selectedColor.withOpacity(1) : Colors.grey),
       label: Text(buttonText,
           style: TextStyle(color: isSelected ? selectedColor.withOpacity(1) : Colors.grey)),
     );
