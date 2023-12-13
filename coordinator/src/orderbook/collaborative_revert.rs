@@ -16,20 +16,21 @@ use rust_decimal::Decimal;
 use tokio::sync::broadcast;
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::mpsc;
+use tokio::task::spawn_blocking;
 
 pub fn monitor(
     pool: Pool<ConnectionManager<PgConnection>>,
     tx_user_feed: broadcast::Sender<NewUserMessage>,
     notifier: mpsc::Sender<OrderbookMessage>,
-) -> RemoteHandle<Result<()>> {
+) -> RemoteHandle<()> {
     let mut user_feed = tx_user_feed.subscribe();
     let (fut, remote_handle) = async move {
         loop {
             match user_feed.recv().await {
                 Ok(new_user_msg) => {
                     tokio::spawn({
-                        let mut conn = pool.get()?;
                         let notifier = notifier.clone();
+                        let pool = pool.clone();
                         async move {
                             tracing::debug!(
                                 trader_id=%new_user_msg.new_user,
@@ -38,7 +39,7 @@ pub fn monitor(
                             );
 
                             if let Err(e) = process_pending_collaborative_revert(
-                                &mut conn,
+                                pool,
                                 notifier,
                                 new_user_msg.new_user,
                             )
@@ -60,7 +61,6 @@ pub fn monitor(
                 ),
             }
         }
-        Ok(())
     }
     .remote_handle();
 
@@ -71,11 +71,15 @@ pub fn monitor(
 
 /// Checks if there are any pending collaborative reverts
 async fn process_pending_collaborative_revert(
-    conn: &mut PgConnection,
+    pool: Pool<ConnectionManager<PgConnection>>,
     notifier: mpsc::Sender<OrderbookMessage>,
     trader_id: PublicKey,
 ) -> Result<()> {
-    match collaborative_reverts::by_trader_pubkey(trader_id.to_string().as_str(), conn)? {
+    let mut conn = spawn_blocking(move || pool.get())
+        .await
+        .expect("task to complete")?;
+
+    match collaborative_reverts::by_trader_pubkey(trader_id.to_string().as_str(), &mut conn)? {
         None => {
             // nothing to revert
         }
