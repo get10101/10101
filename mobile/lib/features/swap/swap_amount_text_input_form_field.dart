@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get_10101/common/application/numeric_text_formatter.dart';
-import 'package:get_10101/common/domain/model.dart';
 import 'package:get_10101/common/modal_bottom_sheet_info.dart';
 
 class SwapAmountInputField extends StatefulWidget {
@@ -11,10 +10,9 @@ class SwapAmountInputField extends StatefulWidget {
       this.label,
       this.hint = '',
       this.onChanged,
-      required this.value,
       this.isLoading = false,
       this.infoText,
-      this.controller,
+      required this.controller,
       this.validator,
       this.border,
       this.style,
@@ -23,8 +21,7 @@ class SwapAmountInputField extends StatefulWidget {
       this.hoverColor,
       this.autovalidateMode});
 
-  final TextEditingController? controller;
-  final Amount value;
+  final TextEditingController controller;
   final bool enabled;
   final String? label;
   final TextStyle? style;
@@ -52,7 +49,6 @@ class _SwapAmountInputFieldState extends State<SwapAmountInputField> {
       autovalidateMode: widget.autovalidateMode,
       enabled: widget.enabled,
       controller: widget.controller,
-      initialValue: widget.controller != null ? null : widget.value.formatted(),
       keyboardType: TextInputType.number,
       decoration: InputDecoration(
         border: widget.border,
