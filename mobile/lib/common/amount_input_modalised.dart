@@ -69,7 +69,6 @@ void _showModal(BuildContext context, BtcOrFiat type, int? amount, void Function
     String? Function(String?)? validator) {
   showEditModal<void>(
     context: context,
-    height: 200,
     builder: (BuildContext context, _) => EnterAmountModal(
         amount: amount, onSetAmount: onSetAmount, validator: validator, type: type),
   );
