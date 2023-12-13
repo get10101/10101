@@ -9,6 +9,7 @@ import 'package:get_10101/common/service_status_notifier.dart';
 import 'package:get_10101/common/settings/app_info_screen.dart';
 import 'package:get_10101/common/settings/channel_screen.dart';
 import 'package:get_10101/common/settings/collab_close_screen.dart';
+import 'package:get_10101/common/settings/delete_network_graph.dart';
 import 'package:get_10101/common/settings/force_close_screen.dart';
 import 'package:get_10101/common/settings/share_logs_screen.dart';
 import 'package:get_10101/common/snack_bar.dart';
@@ -214,6 +215,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               color: Colors.white, borderRadius: BorderRadius.circular(10)),
                           child: Column(
                             children: [
+                              SettingsClickable(
+                                  icon: Icons.delete,
+                                  title: "Delete Network Graph",
+                                  callBackFunc: () =>
+                                      GoRouter.of(context).push(DeleteNetworkGraphScreen.route)),
                               SettingsClickable(
                                   icon: Icons.close,
                                   title: "Close Channel",
