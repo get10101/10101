@@ -9,7 +9,6 @@ use coordinator::message::NewUserMessage;
 use coordinator::metrics;
 use coordinator::metrics::init_meter;
 use coordinator::node;
-use coordinator::node::closed_positions;
 use coordinator::node::connection;
 use coordinator::node::expired_positions;
 use coordinator::node::rollover;
@@ -49,7 +48,6 @@ use tracing::metadata::LevelFilter;
 const PROCESS_PROMETHEUS_METRICS: Duration = Duration::from_secs(10);
 const PROCESS_INCOMING_DLC_MESSAGES_INTERVAL: Duration = Duration::from_millis(200);
 const EXPIRED_POSITION_SYNC_INTERVAL: Duration = Duration::from_secs(5 * 60);
-const CLOSED_POSITION_SYNC_INTERVAL: Duration = Duration::from_secs(30);
 const UNREALIZED_PNL_SYNC_INTERVAL: Duration = Duration::from_secs(10 * 60);
 const CONNECTION_CHECK_INTERVAL: Duration = Duration::from_secs(30);
 
@@ -257,18 +255,6 @@ async fn main() -> Result<()> {
                 if let Err(e) = expired_positions::close(node.clone(), trading_sender.clone()).await
                 {
                     tracing::error!("Failed to close expired positions! Error: {e:#}");
-                }
-            }
-        }
-    });
-
-    tokio::spawn({
-        let node = node.clone();
-        async move {
-            loop {
-                tokio::time::sleep(CLOSED_POSITION_SYNC_INTERVAL).await;
-                if let Err(e) = closed_positions::sync(node.clone()) {
-                    tracing::error!("Failed to sync closed DLCs with positions in database: {e:#}");
                 }
             }
         }

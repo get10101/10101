@@ -7,12 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Fix: a bug which may lead to a stuck position due to some async tasks. Instead of having an async task closing positions we are explicitly closing positions now according to the protocol.
 - Feat: Add delete network graph in settings
 
 ## [1.7.2] - 2023-12-13
 
 - Feat: Receive USD-P via Lightning
-- Fix: a situation where the app gets into a stuck state because a subchannel offer has not been rejected.
 
 ## [1.7.1] - 2023-12-08
 

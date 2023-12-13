@@ -48,13 +48,13 @@ use rust_decimal::Decimal;
 use std::sync::Arc;
 use time::OffsetDateTime;
 use tokio::sync::RwLock;
+use tracing::instrument;
 use trade::cfd::calculate_long_liquidation_price;
 use trade::cfd::calculate_margin;
 use trade::cfd::calculate_short_liquidation_price;
 use trade::Direction;
 use uuid::Uuid;
 
-pub mod closed_positions;
 pub mod connection;
 pub mod expired_positions;
 pub mod resize;
@@ -248,7 +248,7 @@ impl Node {
                     None => bail!("Failed to find open position : {}", trade_params.pubkey),
                 };
 
-                self.close_position(connection, &position, closing_price, channel_id)
+                self.start_closing_position(connection, &position, closing_price, channel_id)
                     .await
                     .context(format!(
                         "Failed at closing the position with id: {}",
@@ -407,7 +407,7 @@ impl Node {
     }
 
     #[autometrics]
-    pub async fn close_position(
+    pub async fn start_closing_position(
         &self,
         conn: &mut PgConnection,
         position: &Position,
@@ -453,6 +453,55 @@ impl Node {
                 .to_f32()
                 .expect("Closing price to fit into f32"),
         )
+    }
+
+    #[instrument(fields(position_id = position.id, trader_id = position.trader.to_string()),skip(self, conn, position))]
+    pub fn finalize_closing_position(
+        &self,
+        conn: &mut PgConnection,
+        position: Position,
+    ) -> Result<()> {
+        let trader_id = position.trader.to_string();
+        tracing::debug!(?position, trader_id, "Finalize closing position",);
+
+        let position_id = position.id;
+        let temporary_contract_id = match position.temporary_contract_id {
+            None => {
+                tracing::error!("Position does not have temporary contract id");
+                bail!("Position with id {position_id} with trader {trader_id} does not have temporary contract id");
+            }
+            Some(temporary_contract_id) => temporary_contract_id,
+        };
+
+        let contract = match self.inner.get_closed_contract(temporary_contract_id) {
+            Ok(Some(closed_contract)) => closed_contract,
+            Ok(None) => {
+                tracing::error!("Subchannel not closed yet, skipping");
+                bail!("Subchannel not closed for position {position_id} and trader {trader_id}");
+            }
+            Err(e) => {
+                tracing::error!("Failed to get closed contract from DLC manager storage: {e:#}");
+                bail!(e);
+            }
+        };
+
+        tracing::debug!(
+            ?position,
+            "Setting position to closed to match the contract state."
+        );
+
+        if let Err(e) = db::positions::Position::set_position_to_closed_with_pnl(
+            conn,
+            position.id,
+            contract.pnl,
+        ) {
+            tracing::error!(
+                temporary_contract_id=%temporary_contract_id.to_hex(),
+                pnl=contract.pnl,
+                "Failed to set position to closed: {e:#}"
+            )
+        }
+        Ok(())
     }
 
     /// Decides what trade action should be performed according to the
@@ -598,8 +647,41 @@ impl Node {
             )?;
         }
 
-        if let Message::SubChannel(SubChannelMessage::CloseFinalize(_msg)) = &msg {
-            self.continue_position_resizing(node_id)?;
+        if let Message::SubChannel(SubChannelMessage::CloseFinalize(msg)) = &msg {
+            let mut connection = self.pool.get()?;
+            match db::positions::Position::get_position_by_trader(
+                &mut connection,
+                node_id,
+                vec![
+                    // the price doesn't matter here
+                    PositionState::Closing { closing_price: 0.0 },
+                    PositionState::Resizing,
+                ],
+            )? {
+                None => {
+                    tracing::warn!(
+                        channel_id = msg.channel_id.to_hex(),
+                        "No position found to finalize"
+                    );
+                }
+                Some(position) => match position.position_state {
+                    PositionState::Closing { .. } => {
+                        self.finalize_closing_position(&mut connection, position)?;
+                    }
+                    PositionState::Resizing => {
+                        self.continue_position_resizing(node_id, position)?;
+                    }
+                    state => {
+                        // this should never happen because we are only loading specific states
+                        tracing::error!(
+                            channel_id = msg.channel_id.to_hex(),
+                            position_id = position.id,
+                            position_state = ?state,
+                            "Position was in unexpected state when trying to finalize the subchannel"
+                        );
+                    }
+                },
+            }
         }
 
         if let Message::SubChannel(SubChannelMessage::Reject(reject)) = &msg {
