@@ -66,6 +66,20 @@ class _StableBottomSheet extends State<SwapBottomSheet> {
   }
 
   @override
+  void initState() {
+    super.initState();
+
+    final stableValuesChangeNotifier = context.read<SwapValuesChangeNotifier>();
+    final tradeValues = stableValuesChangeNotifier.stableValues();
+    updateAmountFields(tradeValues);
+  }
+
+  void updateAmountFields(SwapTradeValues tradeValues) {
+    _usdpController.text = tradeValues.quantity!.formatted();
+    _lnController.text = tradeValues.margin!.formatted();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final stableValuesChangeNotifier = context.watch<SwapValuesChangeNotifier>();
     final tradeValues = stableValuesChangeNotifier.stableValues();
@@ -165,62 +179,50 @@ class _StableBottomSheet extends State<SwapBottomSheet> {
                       final usdpBal = FiatText(amount: usdpBalQuantity);
                       final lnBal = AmountText(amount: Amount(usableBalance));
 
-                      final lnField = Selector<SwapValuesChangeNotifier, Amount>(
-                          selector: (_, provider) =>
-                              provider.stableValues().margin ?? Amount.zero(),
-                          builder: (context, margin, child) {
-                            _lnController.text = tradeValues.margin!.formatted();
+                      final lnField = SwapAmountInputField(
+                        controller: _lnController,
+                        denseNoPad: true,
+                        enabledColor: SwapBottomSheet._offPurple,
+                        hoverColor: SwapBottomSheet._offPurple,
+                        autovalidateMode: AutovalidateMode.always,
+                        style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        border: InputBorder.none,
+                        validator: validateLn,
+                        onChanged: (value) {
+                          try {
+                            final margin = Amount.parseAmount(value);
+                            stableValuesChangeNotifier.updateMargin(margin);
+                          } catch (exception) {
+                            stableValuesChangeNotifier.updateMargin(Amount.zero());
+                          }
 
-                            return SwapAmountInputField(
-                              controller: _lnController,
-                              denseNoPad: true,
-                              enabledColor: SwapBottomSheet._offPurple,
-                              hoverColor: SwapBottomSheet._offPurple,
-                              autovalidateMode: AutovalidateMode.always,
-                              style: const TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.w500,
-                              ),
-                              border: InputBorder.none,
-                              value: margin,
-                              validator: validateLn,
-                              onChanged: (value) {
-                                try {
-                                  final margin = Amount.parseAmount(value);
-                                  stableValuesChangeNotifier.updateMargin(margin);
-                                } catch (exception) {
-                                  stableValuesChangeNotifier.updateMargin(Amount.zero());
-                                }
-                              },
-                            );
-                          });
+                          updateAmountFields(tradeValues);
+                        },
+                      );
 
-                      final usdpField = Selector<SwapValuesChangeNotifier, Amount>(
-                          selector: (_, provider) =>
-                              provider.stableValues().quantity ?? Amount.zero(),
-                          builder: (context, quantity, child) {
-                            _usdpController.text = quantity.formatted();
+                      final usdpField = SwapAmountInputField(
+                        controller: _usdpController,
+                        denseNoPad: true,
+                        enabledColor: SwapBottomSheet._offPurple,
+                        hoverColor: SwapBottomSheet._offPurple,
+                        autovalidateMode: AutovalidateMode.always,
+                        style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w500),
+                        border: InputBorder.none,
+                        onChanged: (value) {
+                          try {
+                            final margin = Amount.parseAmount(value);
+                            stableValuesChangeNotifier.updateQuantity(margin);
+                          } catch (exception) {
+                            stableValuesChangeNotifier.updateQuantity(Amount.zero());
+                          }
 
-                            return SwapAmountInputField(
-                              controller: _usdpController,
-                              denseNoPad: true,
-                              enabledColor: SwapBottomSheet._offPurple,
-                              hoverColor: SwapBottomSheet._offPurple,
-                              autovalidateMode: AutovalidateMode.always,
-                              value: tradeValues.quantity!,
-                              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w500),
-                              border: InputBorder.none,
-                              onChanged: (value) {
-                                try {
-                                  final margin = Amount.parseAmount(value);
-                                  stableValuesChangeNotifier.updateQuantity(margin);
-                                } catch (exception) {
-                                  stableValuesChangeNotifier.updateQuantity(Amount.zero());
-                                }
-                              },
-                              validator: validateUsdp,
-                            );
-                          });
+                          updateAmountFields(tradeValues);
+                        },
+                        validator: validateUsdp,
+                      );
 
                       const labelStyle = TextStyle(fontSize: 20);
 
