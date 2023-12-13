@@ -49,7 +49,7 @@ use tracing::metadata::LevelFilter;
 const PROCESS_PROMETHEUS_METRICS: Duration = Duration::from_secs(10);
 const PROCESS_INCOMING_DLC_MESSAGES_INTERVAL: Duration = Duration::from_millis(200);
 const EXPIRED_POSITION_SYNC_INTERVAL: Duration = Duration::from_secs(5 * 60);
-const CLOSED_POSITION_SYNC_INTERVAL: Duration = Duration::from_secs(30);
+const CLOSED_POSITION_SYNC_INTERVAL: Duration = Duration::from_secs(1);
 const UNREALIZED_PNL_SYNC_INTERVAL: Duration = Duration::from_secs(10 * 60);
 const CONNECTION_CHECK_INTERVAL: Duration = Duration::from_secs(30);
 

@@ -98,7 +98,17 @@ impl Node {
             },
         )?;
 
-        db::positions::Position::set_open_position_to_resizing(conn, position.trader.to_string())?;
+        let pool = self.pool.clone();
+        tokio::spawn({
+            let string = position.trader.to_string();
+            let pool = pool.clone();
+            async move {
+                let mut conn = pool.get()?;
+                tokio::time::sleep(core::time::Duration::from_secs(10)).await;
+                db::positions::Position::set_open_position_to_resizing(&mut conn, string)?;
+                anyhow::Ok(())
+            }
+        });
 
         Ok(())
     }

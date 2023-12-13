@@ -11,6 +11,7 @@ pub fn sync(node: Node) -> Result<()> {
             .context("Failed to load open and closing positions")?;
 
     for position in open_and_closing_positions {
+        tracing::debug!(position = position.id, "Checking position");
         let temporary_contract_id = match position.temporary_contract_id {
             None => {
                 tracing::trace!(position_id=%position.id, "Position does not have temporary contract id, skipping");
@@ -20,9 +21,13 @@ pub fn sync(node: Node) -> Result<()> {
         };
 
         let contract = match node.inner.get_closed_contract(temporary_contract_id) {
-            Ok(Some(closed_contract)) => closed_contract,
+            Ok(Some(closed_contract)) => {
+                tracing::debug!(position = position.id, "Position closed");
+
+                closed_contract
+            }
             Ok(None) => {
-                tracing::trace!(position_id=%position.id, "Position not closed yet, skipping");
+                tracing::debug!(position_id=%position.id, "Position not closed yet, skipping");
                 continue;
             }
             Err(e) => {
