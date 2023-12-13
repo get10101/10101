@@ -7,7 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.2] - 2023-12-13
+
 - Feat: Receive USD-P via Lightning
+- Fix: a situation where the app gets into a stuck state because a subchannel offer has not been rejected.
 
 ## [1.7.1] - 2023-12-08
 
@@ -234,7 +237,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Self-Custodial CFD Trading based on DLC and lightning
 
-[Unreleased]: https://github.com/get10101/10101/compare/1.7.1...HEAD
+[Unreleased]: https://github.com/get10101/10101/compare/1.7.2...HEAD
+[1.7.2]: https://github.com/get10101/10101/compare/1.7.1...1.7.2
 [1.7.1]: https://github.com/get10101/10101/compare/1.7.0...1.7.1
 [1.7.0]: https://github.com/get10101/10101/compare/1.6.6...1.7.0
 [1.6.6]: https://github.com/get10101/10101/compare/1.6.5...1.6.6
