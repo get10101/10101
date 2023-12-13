@@ -328,12 +328,19 @@ async fn main() -> Result<()> {
     // Start the metrics exporter
     autometrics::prometheus_exporter::init();
 
-    tracing::debug!("listening on http://{}", http_address);
-    axum::Server::bind(&http_address)
-        .serve(app.into_make_service())
-        .await?;
+    tracing::debug!("Listening on http://{}", http_address);
 
-    tracing::trace!("Server has had been launched");
+    match axum::Server::bind(&http_address)
+        .serve(app.into_make_service())
+        .await
+    {
+        Ok(_) => {
+            tracing::info!("HTTP server stopped running");
+        }
+        Err(e) => {
+            tracing::error!("HTTP server stopped running: {e:#}");
+        }
+    }
 
     Ok(())
 }

@@ -4,6 +4,7 @@ use crate::orderbook::db::matches;
 use crate::orderbook::db::orders;
 use anyhow::anyhow;
 use anyhow::bail;
+use anyhow::Context;
 use anyhow::Result;
 use autometrics::autometrics;
 use bitcoin::secp256k1::PublicKey;
@@ -29,12 +30,14 @@ use thiserror::Error;
 use time::OffsetDateTime;
 use tokio::sync::broadcast;
 use tokio::sync::mpsc;
+use tokio::task::spawn_blocking;
 use trade::Direction;
 use uuid::Uuid;
 
-/// This value is arbitrarily set to 100 and defines the number of new order messages buffered
-/// in the channel.
+/// This value is arbitrarily set to 100 and defines the number of new order messages buffered in
+/// the channel.
 const NEW_ORDERS_BUFFER_SIZE: usize = 100;
+
 pub struct NewOrderMessage {
     pub new_order: NewOrder,
     pub order_reason: OrderReason,
@@ -55,68 +58,51 @@ pub struct MatchParams {
     pub makers_matches: Vec<TraderMatchParams>,
 }
 
-impl MatchParams {
-    pub fn matches(&self) -> Vec<&TraderMatchParams> {
-        let mut matches = vec![&self.taker_match];
-        for makers_match in self.makers_matches.iter() {
-            matches.push(makers_match);
-        }
-        matches
-    }
-}
-
 #[derive(Clone)]
 pub struct TraderMatchParams {
     pub trader_id: PublicKey,
     pub filled_with: FilledWith,
 }
 
-impl From<&TradeParams> for TraderMatchParams {
-    fn from(value: &TradeParams) -> Self {
-        TraderMatchParams {
-            trader_id: value.pubkey,
-            filled_with: value.filled_with.clone(),
-        }
-    }
-}
-
-/// starts the trading task and returns a sender that can be used to send `TradingMessages` to
-/// the trading task by spawning a new tokio task that is handling messages
+/// Spawn a task that processes [`NewOrderMessage`]s.
+///
+/// To feed messages to this task, the caller can use the corresponding
+/// [`mpsc::Sender<NewOrderMessage>`] returned.
 pub fn start(
     pool: Pool<ConnectionManager<PgConnection>>,
     tx_price_feed: broadcast::Sender<Message>,
     notifier: mpsc::Sender<OrderbookMessage>,
     network: Network,
     oracle_pk: XOnlyPublicKey,
-) -> (RemoteHandle<Result<()>>, mpsc::Sender<NewOrderMessage>) {
+) -> (RemoteHandle<()>, mpsc::Sender<NewOrderMessage>) {
     let (sender, mut receiver) = mpsc::channel::<NewOrderMessage>(NEW_ORDERS_BUFFER_SIZE);
 
     let (fut, remote_handle) = async move {
         while let Some(new_order_msg) = receiver.recv().await {
             tokio::spawn({
-                let mut conn = pool.get()?;
                 let tx_price_feed = tx_price_feed.clone();
                 let notifier = notifier.clone();
+                let pool = pool.clone();
                 async move {
-                    let new_order = new_order_msg.new_order;
                     let result = process_new_order(
-                        &mut conn,
+                        pool,
                         notifier,
                         tx_price_feed,
-                        new_order,
+                        new_order_msg.new_order,
                         new_order_msg.order_reason,
                         network,
                         oracle_pk,
                     )
                     .await;
+
                     if let Err(e) = new_order_msg.sender.send(result).await {
-                        tracing::error!("Failed to send new order message! Error: {e:#}");
+                        tracing::error!("Failed to respond to NewOrderMessage: {e:#}");
                     }
                 }
             });
         }
 
-        Ok(())
+        tracing::error!("Channel closed");
     }
     .remote_handle();
 
@@ -125,15 +111,16 @@ pub fn start(
     (remote_handle, sender)
 }
 
-/// Processes a new limit and market order
+/// Process a [`NewOrder`].
+///
+/// If the [`NewOrder`] is of [`OrderType::Limit`]: update the price feed.
+///
+/// If the [`NewOrder`] is of [`OrderType::Market`]: find match and notify traders.
+///
 /// TODO(holzeis): The limit and market order models should be separated so we can process the
 /// models independently.
-///
-///
-/// Limit order: update price feed
-/// Market order: find match and notify traders
-async fn process_new_order(
-    conn: &mut PgConnection,
+pub async fn process_new_order(
+    pool: Pool<ConnectionManager<PgConnection>>,
     notifier: mpsc::Sender<OrderbookMessage>,
     tx_price_feed: broadcast::Sender<Message>,
     new_order: NewOrder,
@@ -141,7 +128,15 @@ async fn process_new_order(
     network: Network,
     oracle_pk: XOnlyPublicKey,
 ) -> Result<Order> {
-    tracing::info!(trader_id=%new_order.trader_id, "Received a new {:?} order", new_order.order_type);
+    tracing::info!(
+        trader_id = %new_order.trader_id,
+        order_type = ?new_order.order_type,
+        "Processing new order",
+    );
+
+    let mut conn = spawn_blocking(move || pool.get())
+        .await
+        .expect("task to complete")?;
 
     if new_order.order_type == OrderType::Limit && new_order.price == Decimal::ZERO {
         return Err(TradingError::InvalidOrder(
@@ -149,72 +144,81 @@ async fn process_new_order(
         ))?;
     }
 
-    // Before processing any match we set all expired limit orders to failed, to ensure the do
-    // not get matched.
-    // TODO(holzeis): orders should probably do not have an expiry, but should either be
-    // replaced or deleted if not wanted anymore.
-    let expired_limit_orders = orders::set_expired_limit_orders_to_failed(conn)?;
+    // Before processing any match we set all expired limit orders to failed, to ensure they do not
+    // get matched.
+    //
+    // TODO(holzeis): Orders should probably not have an expiry, but should either be replaced or
+    // deleted if not wanted anymore.
+    let expired_limit_orders = orders::set_expired_limit_orders_to_failed(&mut conn)?;
     for expired_limit_order in expired_limit_orders {
         tx_price_feed
             .send(Message::DeleteOrder(expired_limit_order.id))
-            .map_err(|error| anyhow!("Could not update price feed due to '{error}'"))?;
+            .map_err(|e| anyhow!(e))
+            .context("Could not update price feed")?;
     }
 
-    let order = orders::insert(conn, new_order.clone(), order_reason)
-        .map_err(|e| anyhow!("Failed to insert new order into db: {e:#}"))?;
+    let order = orders::insert(&mut conn, new_order.clone(), order_reason)
+        .map_err(|e| anyhow!(e))
+        .context("Failed to insert new order into DB")?;
 
     if new_order.order_type == OrderType::Limit {
-        // we only tell everyone about new limit orders
         tx_price_feed
             .send(Message::NewOrder(order.clone()))
-            .map_err(|error| anyhow!("Could not update price feed due to '{error}'"))?;
+            .map_err(|e| anyhow!(e))
+            .context("Could not update price feed")?;
     } else {
         // Reject new order if there is already a matched order waiting for execution.
         if let Some(order) =
-            orders::get_by_trader_id_and_state(conn, new_order.trader_id, OrderState::Matched)?
+            orders::get_by_trader_id_and_state(&mut conn, new_order.trader_id, OrderState::Matched)?
         {
             bail!(TradingError::InvalidOrder(format!(
-                    "trader_id={}, order_id={}, Order is currently in execution. Can't accept new orders until the order execution is finished"
-                , new_order.trader_id, order.id)));
+                "trader_id={}, order_id={}. Order is currently in execution. \
+                 Can't accept new orders until the order execution is finished",
+                new_order.trader_id, order.id
+            )));
         }
 
-        let opposite_direction_orders = orders::all_by_direction_and_type(
-            conn,
+        let opposite_direction_limit_orders = orders::all_by_direction_and_type(
+            &mut conn,
             order.direction.opposite(),
             OrderType::Limit,
             true,
         )?;
 
         let matched_orders =
-            match match_order(&order, opposite_direction_orders, network, oracle_pk) {
+            match match_order(&order, opposite_direction_limit_orders, network, oracle_pk) {
                 Ok(Some(matched_orders)) => matched_orders,
                 Ok(None) => {
                     // TODO(holzeis): Currently we still respond to the user immediately if there
-                    // has been a match or not, that's the reason why we also
-                    // have to set the order to failed here. But actually we
-                    // could keep the order until either expired or a
-                    // match has been found and then update the state correspondingly.
+                    // has been a match or not, that's the reason why we also have to set the order
+                    // to failed here. But actually we could keep the order until either expired or
+                    // a match has been found and then update the state accordingly.
 
-                    orders::set_order_state(conn, order.id, OrderState::Failed)?;
+                    orders::set_order_state(&mut conn, order.id, OrderState::Failed)?;
                     bail!(TradingError::NoMatchFound(format!(
                         "Could not match order {}",
                         order.id
                     )));
                 }
                 Err(e) => {
-                    orders::set_order_state(conn, order.id, OrderState::Failed)?;
-                    bail!("Failed to match order. Error {e:#}")
+                    orders::set_order_state(&mut conn, order.id, OrderState::Failed)?;
+                    bail!("Failed to match order: {e:#}")
                 }
             };
 
-        tracing::info!(trader_id=%order.trader_id, order_id=%order.id, "Found a match with {} makers for new order.", matched_orders.taker_match.filled_with.matches.len());
+        tracing::info!(
+            trader_id=%order.trader_id,
+            order_id=%order.id,
+            "Found a match with {} makers for new order",
+            matched_orders.taker_match.filled_with.matches.len()
+        );
 
-        let match_params = matched_orders.matches();
-        for match_param in match_params {
-            matches::insert(conn, match_param)?;
+        for match_param in matched_orders.matches() {
+            matches::insert(&mut conn, match_param)?;
 
             let trader_id = match_param.trader_id;
             let order_id = match_param.filled_with.order_id.to_string();
+
             tracing::info!(%trader_id, order_id, "Notifying trader about match");
 
             let message = match &order.order_reason {
@@ -229,25 +233,27 @@ async fn process_new_order(
                 OrderReason::Expired => Some(NotificationKind::PositionExpired),
                 OrderReason::Manual => None,
             };
+
             let msg = OrderbookMessage::TraderMessage {
                 trader_id,
                 message,
                 notification,
             };
+
             let order_state = match notifier.send(msg).await {
                 Ok(()) => {
                     tracing::debug!(%trader_id, order_id, "Successfully notified trader");
                     OrderState::Matched
                 }
                 Err(e) => {
-                    tracing::warn!(%trader_id, order_id, "Failed to send trader message. Error: {e:#}");
+                    tracing::warn!(%trader_id, order_id, "Failed to send trader message: {e:#}");
 
                     if order.order_type == OrderType::Limit {
-                        // FIXME: The maker is currently not connected to the web socket so we
-                        // can't notify him about a trade. However, trades are always accepted
-                        // by the maker at the moment so in order to not have all limit orders
-                        // in order state `Match` we are setting the order to `Taken` even if we
-                        // couldn't notify the maker.
+                        // FIXME: The maker is currently not connected to the WebSocket so we can't
+                        // notify him about a trade. However, trades are always accepted by the
+                        // maker at the moment so in order to not have all limit orders in order
+                        // state `Match` we are setting the order to `Taken` even if we couldn't
+                        // notify the maker.
 
                         OrderState::Taken
                     } else {
@@ -256,46 +262,40 @@ async fn process_new_order(
                 }
             };
 
-            tracing::debug!(
-                %trader_id,
-                order_id,
-                "Updating the order state to {order_state:?}"
-            );
-            orders::set_order_state(conn, match_param.filled_with.order_id, order_state)?;
+            tracing::debug!(%trader_id, order_id, "Updating the order state to {order_state:?}");
+
+            orders::set_order_state(&mut conn, match_param.filled_with.order_id, order_state)?;
         }
     }
 
     Ok(order)
 }
 
-/// Matches a provided market order with limit orders from the DB
+/// Matches an [`Order`] of [`OrderType::Market`] with a list of [`Order`]s of [`OrderType::Limit`].
 ///
-/// If the order is a long order, we return the short orders sorted by price (highest first)
-/// If the order is a short order, we return the long orders sorted by price (lowest first)
-///
-/// Note: `opposite_direction_orders` should contain only relevant orders. For safety this function
-/// will filter it again though
+/// The caller is expected to provide a list of `opposite_direction_orders` of [`OrderType::Limit`]
+/// and opposite [`Direction`] to the `market_order`. We nevertheless ensure that this is the case
+/// to be on the safe side.
 #[autometrics]
 fn match_order(
-    order: &Order,
+    market_order: &Order,
     opposite_direction_orders: Vec<Order>,
     network: Network,
     oracle_pk: XOnlyPublicKey,
 ) -> Result<Option<MatchParams>> {
-    if order.order_type == OrderType::Limit {
-        // we don't match limit and limit at the moment
+    if market_order.order_type == OrderType::Limit {
+        // We don't match limit orders with other limit orders at the moment.
         return Ok(None);
     }
 
     let opposite_direction_orders = opposite_direction_orders
         .into_iter()
-        .filter(|o| !o.direction.eq(&order.direction))
+        .filter(|o| !o.direction.eq(&market_order.direction))
         .collect();
 
-    let is_long = order.direction == Direction::Long;
-    let mut orders = sort_orders(opposite_direction_orders, is_long);
+    let mut orders = sort_orders(opposite_direction_orders, market_order.direction);
 
-    let mut remaining_quantity = order.quantity;
+    let mut remaining_quantity = market_order.quantity;
     let mut matched_orders = vec![];
     while !orders.is_empty() {
         let matched_order = orders.remove(0);
@@ -307,7 +307,7 @@ fn match_order(
         }
     }
 
-    // For the time being we do not want to support multi match
+    // For the time being we do not want to support multi-matches.
     if matched_orders.len() > 1 {
         bail!("More than one matched order, please reduce order quantity");
     }
@@ -330,9 +330,9 @@ fn match_order(
                         oracle_pk,
                         matches: vec![Match {
                             id: Uuid::new_v4(),
-                            order_id: order.id,
-                            quantity: order.quantity,
-                            pubkey: order.trader_id,
+                            order_id: market_order.id,
+                            quantity: market_order.quantity,
+                            pubkey: market_order.trader_id,
                             execution_price: maker_order.price,
                         }],
                     },
@@ -340,7 +340,7 @@ fn match_order(
                 Match {
                     id: Uuid::new_v4(),
                     order_id: maker_order.id,
-                    quantity: order.quantity,
+                    quantity: market_order.quantity,
                     pubkey: maker_order.trader_id,
                     execution_price: maker_order.price,
                 },
@@ -358,9 +358,9 @@ fn match_order(
 
     Ok(Some(MatchParams {
         taker_match: TraderMatchParams {
-            trader_id: order.trader_id,
+            trader_id: market_order.trader_id,
             filled_with: FilledWith {
-                order_id: order.id,
+                order_id: market_order.id,
                 expiry_timestamp,
                 oracle_pk,
                 matches: taker_matches,
@@ -370,76 +370,65 @@ fn match_order(
     }))
 }
 
-/// sorts the provided list of orders
+/// Sort the provided list of limit [`Order`]s based on the [`Direction`] of the market order to be
+/// matched.
 ///
-/// For matching market order and limit order we have to
-/// - take the highest rate if the market order is short
-/// - take the lowest rate if the market order is long
-/// hence, we sort the orders here accordingly
-/// - if long is needed: the resulting vec is ordered ascending.
-/// - if short is needed: the resulting vec is ordered descending.
+/// For matching a market order and limit orders we have to
 ///
-/// Note: if two orders have the same rate, we give the earlier order
-/// a higher ordering.
-fn sort_orders(mut orders: Vec<Order>, is_long: bool) -> Vec<Order> {
-    orders.sort_by(|a, b| {
+/// - take the highest rate if the market order is short; and
+///
+/// - take the lowest rate if the market order is long.
+///
+/// Hence, the orders are sorted accordingly:
+///
+/// - If the market order is short, the limit orders are sorted in descending order of
+/// price.
+///
+/// - If the market order is long, the limit orders are sorted in ascending order of price.
+///
+/// Additionally, if two orders have the same price, the one with the earlier `timestamp` takes
+/// precedence.
+fn sort_orders(mut limit_orders: Vec<Order>, market_order_direction: Direction) -> Vec<Order> {
+    limit_orders.sort_by(|a, b| {
         if a.price.cmp(&b.price) == Ordering::Equal {
             return a.timestamp.cmp(&b.timestamp);
         }
-        if is_long {
-            a.price.cmp(&b.price)
-        } else {
-            b.price.cmp(&a.price)
+
+        match market_order_direction {
+            // Ascending order.
+            Direction::Long => a.price.cmp(&b.price),
+            // Descending order.
+            Direction::Short => b.price.cmp(&a.price),
         }
     });
-    orders
+
+    limit_orders
+}
+
+impl MatchParams {
+    fn matches(&self) -> Vec<&TraderMatchParams> {
+        std::iter::once(&self.taker_match)
+            .chain(self.makers_matches.iter())
+            .collect()
+    }
+}
+
+impl From<&TradeParams> for TraderMatchParams {
+    fn from(value: &TradeParams) -> Self {
+        TraderMatchParams {
+            trader_id: value.pubkey,
+            filled_with: value.filled_with.clone(),
+        }
+    }
 }
 
 #[cfg(test)]
 pub mod tests {
-    use crate::orderbook::trading::match_order;
-    use crate::orderbook::trading::sort_orders;
-    use bitcoin::secp256k1::PublicKey;
-    use bitcoin::Network;
-    use bitcoin::XOnlyPublicKey;
-    use commons::Order;
-    use commons::OrderReason;
-    use commons::OrderState;
-    use commons::OrderType;
-    use rust_decimal::Decimal;
+    use super::*;
     use rust_decimal_macros::dec;
     use std::str::FromStr;
     use time::Duration;
-    use time::OffsetDateTime;
     use trade::ContractSymbol;
-    use trade::Direction;
-    use uuid::Uuid;
-
-    fn dummy_long_order(
-        price: Decimal,
-        id: Uuid,
-        quantity: Decimal,
-        timestamp_delay: Duration,
-    ) -> Order {
-        Order {
-            id,
-            price,
-            trader_id: PublicKey::from_str(
-                "027f31ebc5462c1fdce1b737ecff52d37d75dea43ce11c74d25aa297165faa2007",
-            )
-            .unwrap(),
-            direction: Direction::Long,
-            leverage: 1.0,
-            contract_symbol: ContractSymbol::BtcUsd,
-            quantity,
-            order_type: OrderType::Limit,
-            timestamp: OffsetDateTime::now_utc() + timestamp_delay,
-            expiry: OffsetDateTime::now_utc() + Duration::minutes(1),
-            order_state: OrderState::Open,
-            order_reason: OrderReason::Manual,
-            stable: false,
-        }
-    }
 
     #[test]
     pub fn when_short_then_sort_desc() {
@@ -464,7 +453,7 @@ pub mod tests {
 
         let orders = vec![order3.clone(), order1.clone(), order2.clone()];
 
-        let orders = sort_orders(orders, false);
+        let orders = sort_orders(orders, Direction::Short);
         assert_eq!(orders[0], order2);
         assert_eq!(orders[1], order3);
         assert_eq!(orders[2], order1);
@@ -493,7 +482,7 @@ pub mod tests {
 
         let orders = vec![order3.clone(), order1.clone(), order2.clone()];
 
-        let orders = sort_orders(orders, true);
+        let orders = sort_orders(orders, Direction::Long);
         assert_eq!(orders[0], order1);
         assert_eq!(orders[1], order3);
         assert_eq!(orders[2], order2);
@@ -522,12 +511,12 @@ pub mod tests {
 
         let orders = vec![order3.clone(), order1.clone(), order2.clone()];
 
-        let orders = sort_orders(orders, true);
+        let orders = sort_orders(orders, Direction::Long);
         assert_eq!(orders[0], order1);
         assert_eq!(orders[1], order2);
         assert_eq!(orders[2], order3);
 
-        let orders = sort_orders(orders, false);
+        let orders = sort_orders(orders, Direction::Short);
         assert_eq!(orders[0], order1);
         assert_eq!(orders[1], order2);
         assert_eq!(orders[2], order3);
@@ -729,6 +718,32 @@ pub mod tests {
         .unwrap();
 
         assert!(matched_orders.is_none());
+    }
+
+    fn dummy_long_order(
+        price: Decimal,
+        id: Uuid,
+        quantity: Decimal,
+        timestamp_delay: Duration,
+    ) -> Order {
+        Order {
+            id,
+            price,
+            trader_id: PublicKey::from_str(
+                "027f31ebc5462c1fdce1b737ecff52d37d75dea43ce11c74d25aa297165faa2007",
+            )
+            .unwrap(),
+            direction: Direction::Long,
+            leverage: 1.0,
+            contract_symbol: ContractSymbol::BtcUsd,
+            quantity,
+            order_type: OrderType::Limit,
+            timestamp: OffsetDateTime::now_utc() + timestamp_delay,
+            expiry: OffsetDateTime::now_utc() + Duration::minutes(1),
+            order_state: OrderState::Open,
+            order_reason: OrderReason::Manual,
+            stable: false,
+        }
     }
 
     fn get_oracle_public_key() -> XOnlyPublicKey {
