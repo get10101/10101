@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.3] - 2023-12-13
+
 - Fix: a bug which may lead to a stuck position due to some async tasks. Instead of having an async task closing positions we are explicitly closing positions now according to the protocol.
 - Feat: Add delete network graph in settings
 - Fix: Make switch buttons in receive screen not jumpy
@@ -240,7 +242,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Self-Custodial CFD Trading based on DLC and lightning
 
-[Unreleased]: https://github.com/get10101/10101/compare/1.7.2...HEAD
+[Unreleased]: https://github.com/get10101/10101/compare/1.7.3...HEAD
+[1.7.3]: https://github.com/get10101/10101/compare/1.7.2...1.7.3
 [1.7.2]: https://github.com/get10101/10101/compare/1.7.1...1.7.2
 [1.7.1]: https://github.com/get10101/10101/compare/1.7.0...1.7.1
 [1.7.0]: https://github.com/get10101/10101/compare/1.6.6...1.7.0

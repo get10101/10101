@@ -1,6 +1,6 @@
 [package]
 name = "coordinator"
-version = "1.7.2"
+version = "1.7.3"
 edition = "2021"
 
 [dependencies]
