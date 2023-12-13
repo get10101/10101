@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Feat: Add delete network graph in settings
+
 ## [1.7.2] - 2023-12-13
 
 - Feat: Receive USD-P via Lightning
