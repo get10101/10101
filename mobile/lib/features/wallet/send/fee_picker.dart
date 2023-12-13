@@ -32,7 +32,6 @@ class _FeePickerState extends State<FeePicker> {
 
   Future<Fee?> _showModal(BuildContext context) => showEditModal<Fee?>(
       context: context,
-      height: 700,
       builder: (BuildContext context, setVal) => Theme(
             data: Theme.of(context).copyWith(
                 textTheme:

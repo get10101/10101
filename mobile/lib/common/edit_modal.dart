@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 /// It is dismissible.
 Future<T?> showEditModal<T>(
     {required BuildContext context,
-    required double height,
     required Widget Function(BuildContext context, Function(T?) setVal) builder}) {
   T? val;
 
@@ -34,10 +33,7 @@ Future<T?> showEditModal<T>(
                         }
                       },
                       child: SingleChildScrollView(
-                        child: SizedBox(
-                          // TODO: Find a way to make height dynamic depending on the children size
-                          // This is needed because otherwise the keyboard does not push the sheet up correctly
-                          height: height,
+                        child: IntrinsicHeight(
                           child: builder(context, (newVal) => val = newVal),
                         ),
                       ),
