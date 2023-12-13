@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Fix: a bug which may lead to a stuck position due to some async tasks. Instead of having an async task closing positions we are explicitly closing positions now according to the protocol.
 - Feat: Add delete network graph in settings
+- Fix: Make switch buttons in receive screen not jumpy
 
 ## [1.7.2] - 2023-12-13
 
