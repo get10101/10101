@@ -44,12 +44,12 @@ async fn estimate_payment_fee() {
     tracing::info!("Waiting for channels to be discovered");
 
     for _ in 0..5 {
-        payer.sync_on_chain().await.unwrap();
-        a.sync_on_chain().await.unwrap();
-        b.sync_on_chain().await.unwrap();
-        c.sync_on_chain().await.unwrap();
-        d.sync_on_chain().await.unwrap();
-        payee.sync_on_chain().await.unwrap();
+        payer.sync_wallets().await.unwrap();
+        a.sync_wallets().await.unwrap();
+        b.sync_wallets().await.unwrap();
+        c.sync_wallets().await.unwrap();
+        d.sync_wallets().await.unwrap();
+        payee.sync_wallets().await.unwrap();
 
         payer.broadcast_node_announcement();
         a.broadcast_node_announcement();

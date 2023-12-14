@@ -47,9 +47,9 @@ async fn multi_hop_payment() {
     let coordinator_balance_before = coordinator.get_ldk_balance();
     let payee_balance_before = payee.get_ldk_balance();
 
-    payer.sync_on_chain().await.unwrap();
-    coordinator.sync_on_chain().await.unwrap();
-    payee.sync_on_chain().await.unwrap();
+    payer.sync_wallets().await.unwrap();
+    coordinator.sync_wallets().await.unwrap();
+    payee.sync_wallets().await.unwrap();
 
     // Act
 
@@ -74,9 +74,9 @@ async fn multi_hop_payment() {
     // Assert
 
     // Sync LN wallet after payment is claimed to update the balances
-    payer.sync_on_chain().await.unwrap();
-    coordinator.sync_on_chain().await.unwrap();
-    payee.sync_on_chain().await.unwrap();
+    payer.sync_wallets().await.unwrap();
+    coordinator.sync_wallets().await.unwrap();
+    payee.sync_wallets().await.unwrap();
 
     let payer_balance_after = payer.get_ldk_balance();
     let coordinator_balance_after = coordinator.get_ldk_balance();
