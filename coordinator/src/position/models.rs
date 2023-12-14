@@ -21,7 +21,7 @@ use trade::cfd::calculate_pnl;
 use trade::ContractSymbol;
 use trade::Direction;
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct NewPosition {
     pub contract_symbol: ContractSymbol,
     pub trader_leverage: f32,
@@ -66,7 +66,7 @@ pub enum PositionState {
 /// The position acts as an aggregate of one contract of one user.
 /// The position represents the values of the trader; i.e. the leverage, collateral and direction
 /// and the coordinator leverage
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct Position {
     pub id: i32,
     pub contract_symbol: ContractSymbol,
@@ -363,6 +363,53 @@ pub fn leverage_short(
     match direction {
         Direction::Long => coordinator_leverage,
         Direction::Short => trader_leverage,
+    }
+}
+
+impl std::fmt::Debug for NewPosition {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("NewPosition")
+            .field("contract_symbol", &self.contract_symbol)
+            .field("trader_leverage", &self.trader_leverage)
+            .field("quantity", &self.quantity)
+            .field("direction", &self.direction)
+            // Otherwise we end up printing the hex of the internal representation.
+            .field("trader", &self.trader.to_string())
+            .field("average_entry_price", &self.average_entry_price)
+            .field("liquidation_price", &self.liquidation_price)
+            .field("coordinator_margin", &self.coordinator_margin)
+            .field("expiry_timestamp", &self.expiry_timestamp)
+            .field("temporary_contract_id", &self.temporary_contract_id)
+            .field("coordinator_leverage", &self.coordinator_leverage)
+            .field("trader_margin", &self.trader_margin)
+            .field("stable", &self.stable)
+            .finish()
+    }
+}
+
+impl std::fmt::Debug for Position {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Position")
+            .field("id", &self.id)
+            .field("contract_symbol", &self.contract_symbol)
+            .field("trader_leverage", &self.trader_leverage)
+            .field("quantity", &self.quantity)
+            .field("direction", &self.direction)
+            .field("average_entry_price", &self.average_entry_price)
+            .field("liquidation_price", &self.liquidation_price)
+            .field("position_state", &self.position_state)
+            .field("coordinator_margin", &self.coordinator_margin)
+            .field("creation_timestamp", &self.creation_timestamp)
+            .field("expiry_timestamp", &self.expiry_timestamp)
+            .field("update_timestamp", &self.update_timestamp)
+            // Otherwise we end up printing the hex of the internal representation.
+            .field("trader", &self.trader.to_string())
+            .field("coordinator_leverage", &self.coordinator_leverage)
+            .field("temporary_contract_id", &self.temporary_contract_id)
+            .field("closing_price", &self.closing_price)
+            .field("trader_margin", &self.trader_margin)
+            .field("stable", &self.stable)
+            .finish()
     }
 }
 
