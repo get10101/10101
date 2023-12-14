@@ -32,7 +32,7 @@ async fn maker_can_open_channel_to_coordinator_and_send_payment() -> Result<()> 
         .await
         .unwrap();
     bitcoind.mine(1).await.unwrap();
-    maker.sync_on_chain().await.unwrap();
+    maker.sync().await.unwrap();
 
     let balance_maker_before_channel = maker.get_balance().await?.offchain;
 
@@ -47,7 +47,7 @@ async fn maker_can_open_channel_to_coordinator_and_send_payment() -> Result<()> 
     // Mine one block to render the public channel is usable.
     bitcoind.mine(1).await.unwrap();
     coordinator.sync_wallet().await.unwrap();
-    maker.sync_on_chain().await.unwrap();
+    maker.sync().await.unwrap();
 
     let balance_maker_after_channel = maker.get_balance().await?.offchain;
 

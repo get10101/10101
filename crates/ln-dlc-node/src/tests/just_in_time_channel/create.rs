@@ -250,9 +250,9 @@ pub(crate) async fn send_interceptable_payment(
     let user_channel_id = liquidity_request.user_channel_id;
     let jit_channel_fee = liquidity_request.fee_sats;
 
-    payer.ldk_wallet().sync()?;
-    coordinator.ldk_wallet().sync()?;
-    payee.ldk_wallet().sync()?;
+    payer.sync_wallets().await?;
+    coordinator.sync_wallets().await?;
+    payee.sync_wallets().await?;
 
     let payer_balance_before = payer.get_ldk_balance();
     let coordinator_balance_before = coordinator.get_ldk_balance();
@@ -310,9 +310,9 @@ pub(crate) async fn send_interceptable_payment(
     // Assert
 
     // Sync LN wallet after payment is claimed to update the balances
-    payer.ldk_wallet().sync()?;
-    coordinator.ldk_wallet().sync()?;
-    payee.ldk_wallet().sync()?;
+    payer.sync_wallets().await?;
+    coordinator.sync_wallets().await?;
+    payee.sync_wallets().await?;
 
     let payer_balance_after = payer.get_ldk_balance();
     let coordinator_balance_after = coordinator.get_ldk_balance();
@@ -346,9 +346,9 @@ pub(crate) async fn send_payment(
     invoice_amount_sat: u64,
     coordinator_just_in_time_channel_creation_outbound_liquidity: Option<u64>,
 ) -> Result<()> {
-    payer.ldk_wallet().sync()?;
-    coordinator.ldk_wallet().sync()?;
-    payee.ldk_wallet().sync()?;
+    payer.sync_wallets().await?;
+    coordinator.sync_wallets().await?;
+    payee.sync_wallets().await?;
 
     let payer_balance_before = payer.get_ldk_balance();
     let coordinator_balance_before = coordinator.get_ldk_balance();
@@ -394,9 +394,9 @@ pub(crate) async fn send_payment(
     // Assert
 
     // Sync LN wallet after payment is claimed to update the balances
-    payer.ldk_wallet().sync()?;
-    coordinator.ldk_wallet().sync()?;
-    payee.ldk_wallet().sync()?;
+    payer.sync_wallets().await?;
+    coordinator.sync_wallets().await?;
+    payee.sync_wallets().await?;
 
     let payer_balance_after = payer.get_ldk_balance();
     let coordinator_balance_after = coordinator.get_ldk_balance();

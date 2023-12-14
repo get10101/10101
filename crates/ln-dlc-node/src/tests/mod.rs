@@ -210,15 +210,20 @@ impl Node<TenTenOneInMemoryStorage, InMemoryStore> {
         Ok((node, running))
     }
 
-    /// Trigger on-chain wallet sync.
+    /// Trigger on-chain and off-chain wallet syncs.
     ///
     /// We wrap the wallet sync with a `block_in_place` to avoid blocking the async task in
     /// `tokio::test`s.
     ///
     /// Because we use `block_in_place`, we must configure the `tokio::test`s with `flavor =
     /// "multi_thread"`.
-    async fn sync_on_chain(&self) -> Result<()> {
-        block_in_place(|| self.ldk_wallet().sync())
+    async fn sync_wallets(&self) -> Result<()> {
+        block_in_place(|| {
+            self.sync_on_chain_wallet()?;
+            self.sync_lightning_wallet()?;
+
+            Ok(())
+        })
     }
 
     async fn fund(&self, amount: Amount) -> Result<()> {
@@ -238,7 +243,7 @@ impl Node<TenTenOneInMemoryStorage, InMemoryStore> {
             while self.get_confirmed_balance().await.unwrap() < expected_balance {
                 let interval = Duration::from_millis(200);
 
-                self.sync_on_chain().await.unwrap();
+                self.sync_wallets().await.unwrap();
 
                 tokio::time::sleep(interval).await;
                 tracing::debug!(
@@ -325,8 +330,8 @@ impl Node<TenTenOneInMemoryStorage, InMemoryStore> {
                     // We need to sync both parties, even if
                     // `trust_own_funding_0conf` is true for the creator
                     // of the channel (`self`)
-                    self.sync_on_chain().await.unwrap();
-                    peer.sync_on_chain().await.unwrap();
+                    self.sync_wallets().await.unwrap();
+                    peer.sync_wallets().await.unwrap();
                 }
 
                 tracing::debug!(

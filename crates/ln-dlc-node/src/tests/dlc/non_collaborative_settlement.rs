@@ -44,8 +44,8 @@ async fn force_close_ln_dlc_channel() {
     .await
     .unwrap();
 
-    coordinator.sync_on_chain().await.unwrap();
-    app.sync_on_chain().await.unwrap();
+    coordinator.sync_wallets().await.unwrap();
+    app.sync_wallets().await.unwrap();
 
     // Act
 
@@ -55,8 +55,8 @@ async fn force_close_ln_dlc_channel() {
     // transactions
     mine(288).await.unwrap();
 
-    coordinator.sync_on_chain().await.unwrap();
-    app.sync_on_chain().await.unwrap();
+    coordinator.sync_wallets().await.unwrap();
+    app.sync_wallets().await.unwrap();
 
     // Ensure publication of the glue and buffer transactions (otherwise we need to wait for the
     // periodic task)
@@ -70,8 +70,8 @@ async fn force_close_ln_dlc_channel() {
 
     // Assert
 
-    coordinator.sync_on_chain().await.unwrap();
-    app.sync_on_chain().await.unwrap();
+    coordinator.sync_wallets().await.unwrap();
+    app.sync_wallets().await.unwrap();
 
     // Mining 288 blocks ensures that we get:
     // - 144 required confirmations for the delayed output on the LN commitment transaction to be
@@ -79,8 +79,8 @@ async fn force_close_ln_dlc_channel() {
     // - 288 required confirmations for the CET to be published.
     mine(288).await.unwrap();
 
-    coordinator.sync_on_chain().await.unwrap();
-    app.sync_on_chain().await.unwrap();
+    coordinator.sync_wallets().await.unwrap();
+    app.sync_wallets().await.unwrap();
 
     // Ensure publication of CET (otherwise we need to wait for the periodic task)
     sub_channel_manager_periodic_check(
@@ -95,9 +95,9 @@ async fn force_close_ln_dlc_channel() {
     mine(1).await.unwrap();
     tracing::info!("Mined 1 block");
 
-    coordinator.sync_on_chain().await.unwrap();
+    coordinator.sync_wallets().await.unwrap();
     tracing::info!("Coordinator synced on-chain");
-    app.sync_on_chain().await.unwrap();
+    app.sync_wallets().await.unwrap();
     tracing::info!("App synced on-chain");
 
     let coordinator_on_chain_balance_after_force_close =
