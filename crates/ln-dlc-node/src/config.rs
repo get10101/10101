@@ -3,6 +3,7 @@ use lightning::ln::channelmanager::MIN_CLTV_EXPIRY_DELTA;
 use lightning::util::config::ChannelConfig;
 use lightning::util::config::ChannelHandshakeConfig;
 use lightning::util::config::ChannelHandshakeLimits;
+use lightning::util::config::MaxDustHTLCExposure;
 use lightning::util::config::UserConfig;
 use std::time::Duration;
 
@@ -17,6 +18,21 @@ pub const CONFIRMATION_TARGET: ConfirmationTarget = ConfirmationTarget::HighPrio
 ///
 /// This constant specifies the amount of time we are willing to delay a payment.
 pub(crate) const HTLC_INTERCEPTED_CONNECTION_TIMEOUT: Duration = Duration::from_secs(30);
+
+/// Fee rate multiplier used to dynamically calculate how many msats we allow to have in incoming,
+/// dust HTLCs for a channel.
+///
+/// The larger this value the less likely we are to reject a payment that would produce a dust HTLC.
+///
+/// ### Example
+///
+/// - High priority fee: 200 sat/vByte (50_000 sat/KW).
+///
+/// - Fee rate multiplier: 100_000.
+///
+/// Total dust HTLC sats: (50_000 * 100_000) / 1_000 = 5_000_000.
+const MAX_DUST_HTLC_EXPOSURE_FEE_RATE_MULTIPLIER: MaxDustHTLCExposure =
+    MaxDustHTLCExposure::FeeRateMultiplier(100_000);
 
 pub fn app_config() -> UserConfig {
     UserConfig {
@@ -49,6 +65,8 @@ pub fn app_config() -> UserConfig {
             // Allows the coordinator to charge us a channel-opening fee after intercepting the
             // app's funding HTLC.
             accept_underpaying_htlcs: true,
+            // TODO: We could let the user configure this.
+            max_dust_htlc_exposure: MAX_DUST_HTLC_EXPOSURE_FEE_RATE_MULTIPLIER,
             ..Default::default()
         },
         // we want to accept 0-conf channels from the coordinator
@@ -96,6 +114,7 @@ pub fn coordinator_config() -> UserConfig {
             forwarding_fee_proportional_millionths: 50,
             // A base fee of 0 is chosen to simplify path-finding.
             forwarding_fee_base_msat: 0,
+            max_dust_htlc_exposure: MAX_DUST_HTLC_EXPOSURE_FEE_RATE_MULTIPLIER,
             ..Default::default()
         },
         // This is needed to intercept payments to open just-in-time channels. This will produce the
