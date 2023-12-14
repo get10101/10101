@@ -5,8 +5,6 @@ import 'package:get_10101/common/color.dart';
 import 'package:get_10101/common/domain/channel.dart';
 import 'package:get_10101/common/domain/model.dart';
 import 'package:get_10101/common/scrollable_safe_area.dart';
-import 'package:get_10101/features/trade/domain/direction.dart';
-import 'package:get_10101/features/trade/trade_value_change_notifier.dart';
 import 'package:get_10101/features/wallet/application/util.dart';
 import 'package:get_10101/features/wallet/application/wallet_service.dart';
 import 'package:get_10101/features/wallet/domain/destination.dart';
@@ -62,8 +60,6 @@ class _SendOnChainScreenState extends State<SendOnChainScreen> {
   Widget build(BuildContext context) {
     final walletInfo = context.read<WalletChangeNotifier>().walletInfo;
     final balance = walletInfo.balances.onChain;
-
-    final tradeValueChangeNotifier = context.read<TradeValuesChangeNotifier>();
 
     return GestureDetector(
       onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
@@ -165,9 +161,6 @@ class _SendOnChainScreenState extends State<SendOnChainScreen> {
                                   onChanged: (value) {
                                     setState(() {
                                       _amount = Amount.parseAmount(value);
-                                      final tradeValues =
-                                          tradeValueChangeNotifier.fromDirection(Direction.short);
-                                      tradeValues.updateMargin(_amount);
                                       _controller.text = _amount.formatted();
                                     });
                                   },
