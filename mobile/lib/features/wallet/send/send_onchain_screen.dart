@@ -73,246 +73,248 @@ class _SendOnChainScreenState extends State<SendOnChainScreen> {
     final walletInfo = context.read<WalletChangeNotifier>().walletInfo;
     final balance = walletInfo.balances.onChain;
 
+    final base = Theme.of(context);
     return GestureDetector(
-      onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
-      child: Scaffold(
-        resizeToAvoidBottomInset: true,
-        body: ScrollableSafeArea(
-          child: Form(
-            key: _formKey,
-            autovalidateMode: AutovalidateMode.always,
-            child: SafeArea(
-              child: GestureDetector(
-                onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
-                child: Container(
-                  margin: const EdgeInsets.all(20.0),
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                    const TenTenOneAppBar(title: "Send"),
-                    const SizedBox(
-                      height: 20,
-                    ),
-                    Container(
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                          border: Border.all(color: Colors.grey.shade200),
-                          borderRadius: BorderRadius.circular(10),
-                          color: Colors.orange.shade300.withOpacity(0.1)),
-                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        const Text(
-                          "Send to:",
-                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                          textAlign: TextAlign.start,
-                        ),
-                        const SizedBox(height: 2),
-                        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                          Text(truncateWithEllipsis(18, widget.destination.raw),
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(fontSize: 16)),
-                          Container(
-                            padding: const EdgeInsets.only(left: 10, right: 10, top: 5, bottom: 5),
-                            decoration: BoxDecoration(
-                              color: Colors.orange,
-                              border: Border.all(color: Colors.grey.shade200),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: const Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Icon(Icons.currency_bitcoin, size: 14, color: Colors.white),
-                                SizedBox(width: 5),
-                                Text("On-Chain",
-                                    style: TextStyle(fontSize: 14, color: Colors.white))
-                              ],
-                            ),
-                          )
-                        ])
-                      ]),
-                    ),
-                    const SizedBox(height: 25),
-                    const Text(
-                      "Enter amount (0 to send the maximum)",
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 14, color: Colors.grey),
-                    ),
-                    const SizedBox(height: 10),
-                    Container(
-                        margin: const EdgeInsets.only(left: 40, right: 40),
-                        child: FormField(
-                          validator: (val) {
-                            final amount = _amount;
-
-                            if (amount.sats < 0) {
-                              return "Amount cannot be negative";
-                            }
-
-                            final fee = switch (_fee) {
-                              PriorityFee() => _feeAmounts?[(_fee as PriorityFee).priority] ?? 0,
-                              CustomFee() => (_fee as CustomFee).amount.sats,
-                            };
-
-                            if (amount.sats + fee > balance.sats) {
-                              return "Not enough funds.";
-                            }
-
-                            return null;
-                          },
-                          builder: (FormFieldState<Object> formFieldState) {
-                            return Column(
-                              children: [
-                                TextField(
-                                  keyboardType: TextInputType.number,
-                                  textAlign: TextAlign.center,
-                                  decoration: const InputDecoration(
-                                      hintText: "0.00",
-                                      hintStyle: TextStyle(fontSize: 40),
-                                      enabledBorder: InputBorder.none,
-                                      border: InputBorder.none,
-                                      errorBorder: InputBorder.none,
-                                      suffix: Text(
-                                        "sats",
-                                        style: TextStyle(fontSize: 16),
-                                      )),
-                                  style: const TextStyle(fontSize: 40),
-                                  textAlignVertical: TextAlignVertical.center,
-                                  enabled: widget.destination.amount.sats == 0,
-                                  controller: _controller,
-                                  onChanged: (value) async {
-                                    setState(() {
-                                      _amount = Amount.parseAmount(value);
-                                      _controller.text = _amount.formatted();
-                                    });
-
-                                    _feeAmounts = await _walletService.calculateFeesForOnChain(
-                                        widget.destination.address, _amount);
-                                  },
-                                ),
-                                Visibility(
-                                  visible: formFieldState.hasError,
-                                  replacement:
-                                      Container(margin: const EdgeInsets.only(top: 30, bottom: 10)),
-                                  child: Container(
-                                    decoration: BoxDecoration(
-                                        color: Colors.redAccent.shade100.withOpacity(0.1),
-                                        border: Border.all(color: Colors.red),
-                                        borderRadius: BorderRadius.circular(10)),
-                                    padding: const EdgeInsets.all(10),
-                                    child: Wrap(
-                                      crossAxisAlignment: WrapCrossAlignment.center,
-                                      children: [
-                                        const Icon(Icons.info_outline,
-                                            color: Colors.black87, size: 18),
-                                        const SizedBox(width: 5),
-                                        Text(
-                                          formFieldState.errorText ?? "",
-                                          textAlign: TextAlign.center,
-                                          style:
-                                              const TextStyle(color: Colors.black87, fontSize: 14),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                )
-                              ],
-                            );
-                          },
-                        )),
-                    Visibility(
-                        visible: widget.destination.description != "",
-                        child: Column(
-                          children: [
+        onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+        child: Scaffold(
+          resizeToAvoidBottomInset: true,
+          body: ScrollableSafeArea(
+            child: Form(
+              key: _formKey,
+              autovalidateMode: AutovalidateMode.always,
+              child: Theme(
+                data: base.copyWith(textTheme: base.textTheme.apply(fontFamily: 'Inter')),
+                child: GestureDetector(
+                  onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+                  child: Container(
+                    margin: const EdgeInsets.all(20.0),
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                      const TenTenOneAppBar(title: "Send"),
+                      const SizedBox(
+                        height: 20,
+                      ),
+                      Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                            border: Border.all(color: Colors.grey.shade200),
+                            borderRadius: BorderRadius.circular(10),
+                            color: Colors.orange.shade300.withOpacity(0.1)),
+                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          const Text(
+                            "Send to:",
+                            style: TextStyle(fontSize: 16, fontFamily: 'Inter'),
+                            textAlign: TextAlign.start,
+                          ),
+                          const SizedBox(height: 2),
+                          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                            Text(truncateWithEllipsis(18, widget.destination.raw),
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(fontSize: 16)),
                             Container(
-                              padding:
-                                  const EdgeInsets.only(top: 20, left: 20, right: 20, bottom: 20),
+                              padding: const EdgeInsets.only(left: 10, right: 10, top: 5, bottom: 5),
                               decoration: BoxDecoration(
-                                  border: Border.all(color: Colors.grey.shade200),
-                                  borderRadius: BorderRadius.circular(10),
-                                  color: Colors.orange.shade200.withOpacity(0.1)),
-                              child:
-                                  Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                                const Text(
-                                  "Memo:",
-                                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                                  textAlign: TextAlign.start,
-                                ),
-                                const SizedBox(height: 5),
-                                Text(widget.destination.description,
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                    softWrap: true,
-                                    style: const TextStyle(fontSize: 16))
-                              ]),
-                            ),
-                            const SizedBox(height: 15),
-                          ],
-                        )),
-                    const SizedBox(height: 35),
-                    Container(
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                          border: Border.all(color: Colors.grey.shade200),
-                          borderRadius: BorderRadius.circular(10),
-                          color: Colors.orange.shade300.withOpacity(0.1)),
-                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                          const Text("Available Balance",
-                              overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 14)),
-                          Text(balance.toString(),
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(fontSize: 14)),
-                        ])
-                      ]),
-                    ),
-                    const SizedBox(height: 20),
-                    const Text("Select Network Fee", style: TextStyle(fontSize: 16)),
-                    const SizedBox(height: 10),
-                    FeePicker(
-                      initialSelection: _fee,
-                      feeAmounts: _feeAmounts,
-                      onChange: (target) => setState(() => _fee = target),
-                    ),
-                    const Spacer(),
-                    SizedBox(
-                      width: MediaQuery.of(context).size.width * 0.9,
-                      child: ElevatedButton(
-                          onPressed: (_formKey.currentState?.validate() ?? false)
-                              ? () => showConfirmPaymentModal(
-                                  context, widget.destination, false, _amount, _amount, fee: _fee)
-                              : null,
-                          style: ButtonStyle(
-                              padding:
-                                  MaterialStateProperty.all<EdgeInsets>(const EdgeInsets.all(15)),
-                              backgroundColor: MaterialStateProperty.resolveWith((states) {
-                                if (states.contains(MaterialState.disabled)) {
-                                  return tenTenOnePurple.shade100;
-                                } else {
-                                  return tenTenOnePurple;
-                                }
-                              }),
-                              shape: MaterialStateProperty.resolveWith((states) {
-                                if (states.contains(MaterialState.disabled)) {
-                                  return RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(30.0),
-                                    side: BorderSide(color: tenTenOnePurple.shade100),
-                                  );
-                                } else {
-                                  return RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(30.0),
-                                    side: const BorderSide(color: tenTenOnePurple),
-                                  );
-                                }
-                              })),
-                          child: const Text(
-                            "Send",
-                            style: TextStyle(fontSize: 18, color: Colors.white),
+                                color: Colors.orange,
+                                border: Border.all(color: Colors.grey.shade200),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: const Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Icon(Icons.currency_bitcoin, size: 14, color: Colors.white),
+                                  SizedBox(width: 5),
+                                  Text("On-Chain",
+                                      style: TextStyle(fontSize: 14, color: Colors.white))
+                                ],
+                              ),
+                            )
+                          ])
+                        ]),
+                      ),
+                      const SizedBox(height: 25),
+                      const Text(
+                        "Enter amount (0 to send the maximum)",
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 14, color: Colors.grey),
+                      ),
+                      const SizedBox(height: 10),
+                      Container(
+                          margin: const EdgeInsets.only(left: 40, right: 40),
+                          child: FormField(
+                            validator: (val) {
+                              final amount = _amount;
+
+                              if (amount.sats < 0) {
+                                return "Amount cannot be negative";
+                              }
+
+                              final fee = switch (_fee) {
+                                PriorityFee() => _feeAmounts?[(_fee as PriorityFee).priority] ?? 0,
+                                CustomFee() => (_fee as CustomFee).amount.sats,
+                              };
+
+                              if (amount.sats + fee > balance.sats) {
+                                return "Not enough funds.";
+                              }
+
+                              return null;
+                            },
+                            builder: (FormFieldState<Object> formFieldState) {
+                              return Column(
+                                children: [
+                                  TextField(
+                                    keyboardType: TextInputType.number,
+                                    textAlign: TextAlign.center,
+                                    decoration: const InputDecoration(
+                                        hintText: "0.00",
+                                        hintStyle: TextStyle(fontSize: 40),
+                                        enabledBorder: InputBorder.none,
+                                        border: InputBorder.none,
+                                        errorBorder: InputBorder.none,
+                                        suffix: Text(
+                                          "sats",
+                                          style: TextStyle(fontSize: 16),
+                                        )),
+                                    style: const TextStyle(fontSize: 40),
+                                    textAlignVertical: TextAlignVertical.center,
+                                    enabled: widget.destination.amount.sats == 0,
+                                    controller: _controller,
+                                    onChanged: (value) async {
+                                      setState(() {
+                                        _amount = Amount.parseAmount(value);
+                                        _controller.text = _amount.formatted();
+                                      });
+
+                                      _feeAmounts = await _walletService.calculateFeesForOnChain(
+                                          widget.destination.address, _amount);
+                                    },
+                                  ),
+                                  Visibility(
+                                    visible: formFieldState.hasError,
+                                    replacement:
+                                        Container(margin: const EdgeInsets.only(top: 30, bottom: 10)),
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                          color: Colors.redAccent.shade100.withOpacity(0.1),
+                                          border: Border.all(color: Colors.red),
+                                          borderRadius: BorderRadius.circular(10)),
+                                      padding: const EdgeInsets.all(10),
+                                      child: Wrap(
+                                        crossAxisAlignment: WrapCrossAlignment.center,
+                                        children: [
+                                          const Icon(Icons.info_outline,
+                                              color: Colors.black87, size: 18),
+                                          const SizedBox(width: 5),
+                                          Text(
+                                            formFieldState.errorText ?? "",
+                                            textAlign: TextAlign.center,
+                                            style:
+                                                const TextStyle(color: Colors.black87, fontSize: 14),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  )
+                                ],
+                              );
+                            },
                           )),
-                    )
-                  ]),
+                      Visibility(
+                          visible: widget.destination.description != "",
+                          child: Column(
+                            children: [
+                              Container(
+                                padding:
+                                    const EdgeInsets.only(top: 20, left: 20, right: 20, bottom: 20),
+                                decoration: BoxDecoration(
+                                    border: Border.all(color: Colors.grey.shade200),
+                                    borderRadius: BorderRadius.circular(10),
+                                    color: Colors.orange.shade200.withOpacity(0.1)),
+                                child:
+                                    Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                                  const Text(
+                                    "Memo:",
+                                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                                    textAlign: TextAlign.start,
+                                  ),
+                                  const SizedBox(height: 5),
+                                  Text(widget.destination.description,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      softWrap: true,
+                                      style: const TextStyle(fontSize: 16))
+                                ]),
+                              ),
+                              const SizedBox(height: 15),
+                            ],
+                          )),
+                      const SizedBox(height: 35),
+                      Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                            border: Border.all(color: Colors.grey.shade200),
+                            borderRadius: BorderRadius.circular(10),
+                            color: Colors.orange.shade300.withOpacity(0.1)),
+                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                            const Text("Available Balance",
+                                overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 14)),
+                            Text(balance.toString(),
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(fontSize: 14)),
+                          ])
+                        ]),
+                      ),
+                      const SizedBox(height: 20),
+                      const Text("Select Network Fee", style: TextStyle(fontSize: 16)),
+                      const SizedBox(height: 10),
+                      FeePicker(
+                        initialSelection: _fee,
+                        feeAmounts: _feeAmounts,
+                        onChange: (target) => setState(() => _fee = target),
+                      ),
+                      const Spacer(),
+                      SizedBox(
+                        width: MediaQuery.of(context).size.width * 0.9,
+                        child: ElevatedButton(
+                            onPressed: (_formKey.currentState?.validate() ?? false)
+                                ? () => showConfirmPaymentModal(
+                                    context, widget.destination, false, _amount, _amount, fee: _fee)
+                                : null,
+                            style: ButtonStyle(
+                                padding:
+                                    MaterialStateProperty.all<EdgeInsets>(const EdgeInsets.all(15)),
+                                backgroundColor: MaterialStateProperty.resolveWith((states) {
+                                  if (states.contains(MaterialState.disabled)) {
+                                    return tenTenOnePurple.shade100;
+                                  } else {
+                                    return tenTenOnePurple;
+                                  }
+                                }),
+                                shape: MaterialStateProperty.resolveWith((states) {
+                                  if (states.contains(MaterialState.disabled)) {
+                                    return RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(30.0),
+                                      side: BorderSide(color: tenTenOnePurple.shade100),
+                                    );
+                                  } else {
+                                    return RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(30.0),
+                                      side: const BorderSide(color: tenTenOnePurple),
+                                    );
+                                  }
+                                })),
+                            child: const Text(
+                              "Send",
+                              style: TextStyle(fontSize: 18, color: Colors.white),
+                            )),
+                      )
+                    ]),
+                  ),
                 ),
               ),
             ),
           ),
         ),
-      ),
     );
   }
 }

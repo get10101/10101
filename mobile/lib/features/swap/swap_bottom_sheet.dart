@@ -22,7 +22,6 @@ import 'package:get_10101/features/wallet/domain/wallet_info.dart';
 import 'package:get_10101/features/wallet/wallet_change_notifier.dart';
 import 'package:get_10101/logger/logger.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:slide_to_confirm/slide_to_confirm.dart';
 
@@ -90,8 +89,9 @@ class _StableBottomSheet extends State<SwapBottomSheet> {
 
     WalletInfo walletInfo = context.watch<WalletChangeNotifier>().walletInfo;
 
+    final base = Theme.of(context);
     return Theme(
-      data: Theme.of(context).copyWith(textTheme: GoogleFonts.interTextTheme()),
+      data: base.copyWith(textTheme: base.textTheme.apply(fontFamily: 'Inter')),
       child: Form(
           key: _formKey,
           child: Column(

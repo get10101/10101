@@ -8,7 +8,6 @@ dependencies:
   flutter:
     sdk: flutter
   cupertino_icons: ^1.0.5
-  google_fonts: ^6.1.0
   ffi: ^2.0.2
   flutter_rust_bridge: ^1.78.0
   bitcoin_icons: ^0.0.4
@@ -59,6 +58,7 @@ flutter:
   uses-material-design: true
   assets:
     - assets/
+    - google_fonts/
   fonts:
     - family: SendReceiveIcons
       fonts:
@@ -66,6 +66,27 @@ flutter:
     - family: CustomIcon
       fonts:
         - asset: assets/fonts/CustomIcon.ttf
+    - family: Inter
+      fonts:
+        - asset: google_fonts/Inter-Thin.ttf
+          weight: 100
+        - asset: google_fonts/Inter-ExtraLight.ttf
+          weight: 200
+        - asset: google_fonts/Inter-Light.ttf
+          weight: 300
+        - asset: google_fonts/Inter-Regular.ttf
+          weight: 400
+        - asset: google_fonts/Inter-Medium.ttf
+          weight: 500
+        - asset: google_fonts/Inter-SemiBold.ttf
+          weight: 600
+        - asset: google_fonts/Inter-Bold.ttf
+          weight: 700
+        - asset: google_fonts/Inter-ExtraBold.ttf
+          weight: 800
+        - asset: google_fonts/Inter-Black.ttf
+          weight: 900
+
 flutter_native_splash:
   color: '#FFFFFF'
   image: assets/LaunchImage.png
