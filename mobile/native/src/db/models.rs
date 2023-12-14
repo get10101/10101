@@ -1451,7 +1451,7 @@ pub mod test {
     use time::Time;
 
     #[test]
-    pub fn order_round_trip() {
+    fn order_round_trip() {
         let mut connection = SqliteConnection::establish(":memory:").unwrap();
         connection.run_pending_migrations(MIGRATIONS).unwrap();
 
@@ -1560,7 +1560,7 @@ pub mod test {
     }
 
     #[test]
-    pub fn given_several_orders_when_fetching_orders_for_ui_only_relevant_orders_are_loaded() {
+    fn given_several_orders_when_fetching_orders_for_ui_only_relevant_orders_are_loaded() {
         let mut connection = SqliteConnection::establish(":memory:").unwrap();
         connection.run_pending_migrations(MIGRATIONS).unwrap();
 
@@ -1652,7 +1652,7 @@ pub mod test {
     }
 
     #[test]
-    pub fn payment_round_trip() {
+    fn payment_round_trip() {
         let mut connection = SqliteConnection::establish(":memory:").unwrap();
         connection.run_pending_migrations(MIGRATIONS).unwrap();
 
@@ -1764,7 +1764,7 @@ pub mod test {
     }
 
     #[test]
-    pub fn spendable_output_round_trip() {
+    fn spendable_output_round_trip() {
         let mut connection = SqliteConnection::establish(":memory:").unwrap();
         connection.run_pending_migrations(MIGRATIONS).unwrap();
 
@@ -1837,7 +1837,7 @@ pub mod test {
     }
 
     #[test]
-    pub fn channel_round_trip() {
+    fn channel_round_trip() {
         let mut connection = SqliteConnection::establish(":memory:").unwrap();
         connection.run_pending_migrations(MIGRATIONS).unwrap();
 
@@ -1899,7 +1899,7 @@ pub mod test {
     }
 
     #[test]
-    pub fn transaction_round_trip() {
+    fn transaction_round_trip() {
         let mut connection = SqliteConnection::establish(":memory:").unwrap();
         connection.run_pending_migrations(MIGRATIONS).unwrap();
 

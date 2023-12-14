@@ -602,7 +602,7 @@ mod tests {
     use std::str::FromStr;
 
     #[test]
-    pub fn test_calculate_channel_value() {
+    fn test_calculate_channel_value() {
         let dummy_pub_key = PublicKey::from_str(
             "02bd998ebd176715fe92b7467cf6b1df8023950a4dd911db4c94dfc89cc9f5a655",
         )

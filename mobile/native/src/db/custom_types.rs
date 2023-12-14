@@ -287,7 +287,7 @@ impl FromSql<Text, Sqlite> for ChannelState {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use crate::db::custom_types::tests::customstruct::id;
     use crate::db::models::ContractSymbol;
     use crate::db::models::Direction;
@@ -302,12 +302,12 @@ pub mod tests {
 
     #[derive(Insertable, Queryable, Identifiable, Debug, PartialEq, Clone)]
     #[diesel(table_name = customstruct)]
-    pub struct SampleStruct {
-        pub id: String,
-        pub order_type: OrderType,
-        pub order_state: OrderState,
-        pub contract_symbol: ContractSymbol,
-        pub direction: Direction,
+    struct SampleStruct {
+        id: String,
+        order_type: OrderType,
+        order_state: OrderState,
+        contract_symbol: ContractSymbol,
+        direction: Direction,
     }
 
     diesel::table! {

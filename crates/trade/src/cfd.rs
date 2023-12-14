@@ -117,7 +117,7 @@ pub fn calculate_pnl(
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     #[test]

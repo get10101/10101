@@ -427,7 +427,7 @@ impl std::fmt::Debug for Position {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
     use rust_decimal_macros::dec;
     use std::str::FromStr;
@@ -801,7 +801,7 @@ pub mod tests {
     }
 
     impl Position {
-        pub(crate) fn dummy() -> Self {
+        fn dummy() -> Self {
             Position {
                 id: 0,
                 contract_symbol: ContractSymbol::BtcUsd,
@@ -827,37 +827,24 @@ pub mod tests {
             }
         }
 
-        pub(crate) fn with_quantity(mut self, quantity: f32) -> Self {
+        fn with_quantity(mut self, quantity: f32) -> Self {
             self.quantity = quantity;
             self
         }
 
-        pub(crate) fn with_average_entry_price(mut self, average_entry_price: f32) -> Self {
+        fn with_average_entry_price(mut self, average_entry_price: f32) -> Self {
             self.average_entry_price = average_entry_price;
             self
         }
 
-        pub(crate) fn with_leverage(mut self, leverage: f32) -> Self {
+        fn with_leverage(mut self, leverage: f32) -> Self {
             self.trader_leverage = leverage;
             self
         }
 
-        pub(crate) fn with_direction(mut self, direction: Direction) -> Self {
+        fn with_direction(mut self, direction: Direction) -> Self {
             self.direction = direction;
             self
         }
     }
-}
-
-#[derive(Clone, Debug)]
-pub struct CollaborativeRevert {
-    pub channel_id: ChannelId,
-    pub trader_pubkey: PublicKey,
-    pub price: f32,
-    pub coordinator_address: Address,
-    pub coordinator_amount_sats: Amount,
-    pub trader_amount_sats: Amount,
-    pub timestamp: OffsetDateTime,
-    pub txid: Txid,
-    pub vout: u32,
 }

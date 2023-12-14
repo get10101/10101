@@ -310,7 +310,7 @@ where
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
     use crate::channel::Channel;
     use crate::fee_rate_estimator::EstimateFeeRate;
