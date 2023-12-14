@@ -59,7 +59,6 @@ use std::io::BufReader;
 use std::net::SocketAddr;
 use std::path::Path;
 use std::sync::Arc;
-use std::sync::Mutex;
 use std::time::Duration;
 use std::time::Instant;
 use std::time::SystemTime;
@@ -174,7 +173,7 @@ pub struct Node<S: TenTenOneStorage, N: Storage> {
     gossip_source: Arc<GossipSource>,
     pub(crate) alias: String,
     pub(crate) announcement_addresses: Vec<SocketAddress>,
-    scorer: Arc<Mutex<Scorer>>,
+    scorer: Arc<std::sync::RwLock<Scorer>>,
     esplora_server_url: String,
     esplora_client: Arc<NodeEsploraClient>,
     pub pending_channel_opening_fee_rates: Arc<parking_lot::Mutex<HashMap<PublicKey, FeeRate>>>,
@@ -346,7 +345,7 @@ impl<S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 'static> Node<S, 
         };
 
         let scorer_path = data_dir.join("scorer");
-        let scorer = Arc::new(Mutex::new(read_scorer(
+        let scorer = Arc::new(std::sync::RwLock::new(read_scorer(
             scorer_path.as_path(),
             network_graph.clone(),
             logger.clone(),
@@ -670,7 +669,7 @@ fn spawn_background_processor<S: TenTenOneStorage + 'static, N: Storage + Sync +
     persister: Arc<S>,
     event_handler: impl EventHandlerTrait + 'static,
     gossip_source: Arc<GossipSource>,
-    scorer: Arc<Mutex<Scorer>>,
+    scorer: Arc<std::sync::RwLock<Scorer>>,
     mobile_interruptable_platform: bool,
 ) -> RemoteHandle<()> {
     tracing::info!("Starting background processor");

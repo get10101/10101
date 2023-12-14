@@ -23,7 +23,6 @@ use lightning_net_tokio::SocketDescriptor;
 use ln_dlc_wallet::LnDlcWallet;
 use std::fmt;
 use std::sync::Arc;
-use std::sync::Mutex;
 use time::OffsetDateTime;
 
 mod dlc_custom_signer;
@@ -81,7 +80,7 @@ pub type PeerManager<S, N> = lightning::ln::peer_handler::PeerManager<
 pub(crate) type Router = DefaultRouter<
     Arc<NetworkGraph>,
     Arc<TracingLogger>,
-    Arc<Mutex<Scorer>>,
+    Arc<std::sync::RwLock<Scorer>>,
     ProbabilisticScoringFeeParameters,
     Scorer,
 >;
