@@ -37,9 +37,10 @@ impl Maker {
             .is_ok_and(|r| r.status().is_success())
     }
 
-    pub async fn sync_on_chain(&self) -> Result<()> {
+    /// Sync the on-chain and Lightning wallets.
+    pub async fn sync(&self) -> Result<()> {
         let no_json: Option<()> = None;
-        self.post("/api/sync-on-chain", no_json).await?;
+        self.post("/api/sync", no_json).await?;
         Ok(())
     }
 

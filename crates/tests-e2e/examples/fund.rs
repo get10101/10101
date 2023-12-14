@@ -61,7 +61,7 @@ async fn fund_everything(faucet: &str, coordinator: &str, maker: &str) -> Result
     bitcoind.fund(&maker_addr, Amount::ONE_BTC).await?;
     bitcoind.mine(10).await?;
     maker
-        .sync_on_chain()
+        .sync()
         .await
         .context("Failed to sync maker's on-chain wallet")?;
 
@@ -155,7 +155,7 @@ async fn fund_everything(faucet: &str, coordinator: &str, maker: &str) -> Result
     bitcoind.mine(10).await?;
 
     maker
-        .sync_on_chain()
+        .sync()
         .await
         .expect("to be able to sync on-chain wallet for maker");
     let maker_balance = maker.get_balance().await?;

@@ -69,7 +69,7 @@ pub fn router(
         .route("/api/channels", get(list_channels).post(create_channel))
         .route("/api/connect", post(connect_to_peer))
         .route("/api/pay-invoice/:invoice", post(pay_invoice))
-        .route("/api/sync-on-chain", post(sync_on_chain))
+        .route("/api/sync", post(sync))
         .route("/api/position", get(get_position))
         .route("/api/node", get(get_node_info))
         .route("/metrics", get(get_metrics))
@@ -260,11 +260,17 @@ pub async fn pay_invoice(
     Ok(())
 }
 
-pub async fn sync_on_chain(State(state): State<Arc<AppState>>) -> Result<(), AppError> {
-    spawn_blocking(move || state.node.ldk_wallet().sync())
-        .await
-        .expect("task to complete")
-        .map_err(|e| AppError::InternalServerError(format!("Could not sync wallet: {e:#}")))?;
+/// Internal API for syncing the on-chain and Lightning wallets.
+pub async fn sync(State(state): State<Arc<AppState>>) -> Result<(), AppError> {
+    spawn_blocking(move || {
+        state.node.sync_on_chain_wallet()?;
+        state.node.sync_lightning_wallet()?;
+
+        anyhow::Ok(())
+    })
+    .await
+    .expect("task to complete")
+    .map_err(|e| AppError::InternalServerError(format!("Could not sync wallet: {e:#}")))?;
 
     Ok(())
 }
