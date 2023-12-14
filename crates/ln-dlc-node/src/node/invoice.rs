@@ -11,7 +11,6 @@ use anyhow::anyhow;
 use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
-use autometrics::autometrics;
 use bitcoin::hashes::hex::ToHex;
 use bitcoin::hashes::sha256;
 use bitcoin::hashes::Hash;
@@ -403,7 +402,6 @@ impl<S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 'static> Node<S, 
             .await
     }
 
-    #[autometrics]
     pub async fn wait_for_payment(
         &self,
         expected_status: HTLCStatus,

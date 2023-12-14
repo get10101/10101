@@ -202,9 +202,6 @@ async fn main() -> Result<()> {
         node_alias,
     );
 
-    // Start the metrics exporter
-    autometrics::prometheus_exporter::init();
-
     let addr = SocketAddr::from((http_address.ip(), http_address.port()));
     tracing::debug!("Listening on http://{}", addr);
 

@@ -16,7 +16,6 @@ use anyhow::bail;
 use anyhow::ensure;
 use anyhow::Context;
 use anyhow::Result;
-use autometrics::autometrics;
 use bitcoin::hashes::hex::ToHex;
 use bitcoin::secp256k1::PublicKey;
 use commons::order_matching_fee_taker;
@@ -260,7 +259,6 @@ impl Node {
         Ok(())
     }
 
-    #[autometrics]
     async fn open_position(
         &self,
         conn: &mut PgConnection,
@@ -406,7 +404,6 @@ impl Node {
         Ok(())
     }
 
-    #[autometrics]
     pub async fn start_closing_position(
         &self,
         conn: &mut PgConnection,
@@ -567,7 +564,6 @@ impl Node {
         Ok(channel_details)
     }
 
-    #[autometrics]
     pub fn process_incoming_dlc_messages(&self) {
         if !self
             .inner
