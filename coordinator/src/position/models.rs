@@ -366,6 +366,19 @@ pub fn leverage_short(
     }
 }
 
+#[derive(Clone, Debug)]
+pub struct CollaborativeRevert {
+    pub channel_id: ChannelId,
+    pub trader_pubkey: PublicKey,
+    pub price: f32,
+    pub coordinator_address: Address,
+    pub coordinator_amount_sats: Amount,
+    pub trader_amount_sats: Amount,
+    pub timestamp: OffsetDateTime,
+    pub txid: Txid,
+    pub vout: u32,
+}
+
 impl std::fmt::Debug for NewPosition {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("NewPosition")
