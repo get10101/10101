@@ -317,7 +317,7 @@ impl From<Rollover> for ContractInput {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
     use bitcoin::secp256k1;
     use bitcoin::secp256k1::ecdsa::Signature;

@@ -422,7 +422,7 @@ impl From<&TradeParams> for TraderMatchParams {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
     use rust_decimal_macros::dec;
     use std::str::FromStr;
@@ -430,7 +430,7 @@ pub mod tests {
     use trade::ContractSymbol;
 
     #[test]
-    pub fn when_short_then_sort_desc() {
+    fn when_short_then_sort_desc() {
         let order1 = dummy_long_order(
             dec!(20_000),
             Uuid::new_v4(),
@@ -459,7 +459,7 @@ pub mod tests {
     }
 
     #[test]
-    pub fn when_long_then_sort_asc() {
+    fn when_long_then_sort_asc() {
         let order1 = dummy_long_order(
             dec!(20_000),
             Uuid::new_v4(),
@@ -488,7 +488,7 @@ pub mod tests {
     }
 
     #[test]
-    pub fn when_all_same_price_sort_by_id() {
+    fn when_all_same_price_sort_by_id() {
         let order1 = dummy_long_order(
             dec!(20_000),
             Uuid::new_v4(),

@@ -38,7 +38,11 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
         channel_details: ChannelDetails,
         contract_input: ContractInput,
     ) -> Result<()> {
-        tracing::info!(channel_id = %hex::encode(channel_details.channel_id.0), oracles=?contract_input.contract_infos[0].oracles, "Sending DLC channel offer");
+        tracing::info!(
+            channel_id = %hex::encode(channel_details.channel_id.0),
+            oracles = ?contract_input.contract_infos[0].oracles,
+            "Sending DLC channel offer"
+        );
 
         spawn_blocking({
             let p2pd_oracles = self.oracles.clone();

@@ -88,12 +88,12 @@ impl fmt::Display for ContractSymbol {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use crate::ContractSymbol;
     use std::str::FromStr;
 
     #[test]
-    pub fn contract_symbol_from_str() {
+    fn contract_symbol_from_str() {
         assert_eq!(
             ContractSymbol::from_str("btcusd").unwrap(),
             ContractSymbol::BtcUsd

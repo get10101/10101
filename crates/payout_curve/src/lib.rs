@@ -303,7 +303,7 @@ mod tests {
     const PRINT_CSV: bool = false;
 
     #[test]
-    pub fn calculate_lower_range_payout_points_when_offerer_long_then_gets_zero() {
+    fn calculate_lower_range_payout_points_when_offerer_long_then_gets_zero() {
         // setup
         // we take 2 BTC so that all tests have nice numbers
         let total_collateral = Amount::ONE_BTC.to_sat() * 2;
@@ -336,8 +336,9 @@ mod tests {
             wtr.flush().unwrap();
         }
     }
+
     #[test]
-    pub fn calculate_lower_range_payout_points_when_offerer_long_then_gets_zero_plus_fee() {
+    fn calculate_lower_range_payout_points_when_offerer_long_then_gets_zero_plus_fee() {
         // setup
         // we take 2 BTC so that all tests have nice numbers
         let total_collateral = Amount::ONE_BTC.to_sat() * 2;
@@ -373,7 +374,7 @@ mod tests {
     }
 
     #[test]
-    pub fn calculate_lower_range_payout_points_when_offer_short_then_gets_all() {
+    fn calculate_lower_range_payout_points_when_offer_short_then_gets_all() {
         // setup
         // we take 2 BTC so that all tests have nice numbers
         let total_collateral = Amount::ONE_BTC.to_sat() * 2;
@@ -409,7 +410,7 @@ mod tests {
     }
 
     #[test]
-    pub fn snapshot_test_mid_range_offerer() {
+    fn snapshot_test_mid_range_offerer() {
         // setup
         let long_leverage = 2.0;
         let short_leverage = 2.0;
@@ -535,7 +536,7 @@ mod tests {
     }
 
     #[test]
-    pub fn ensure_all_bounds_smaller_or_equal_max_btc_price() {
+    fn ensure_all_bounds_smaller_or_equal_max_btc_price() {
         // setup
         let long_leverage = 2.0;
         let short_leverage = 1.0;
@@ -592,7 +593,7 @@ mod tests {
     }
 
     #[test]
-    pub fn calculate_upper_range_payout_points_when_offer_short_then_gets_zero() {
+    fn calculate_upper_range_payout_points_when_offer_short_then_gets_zero() {
         // setup
         // we take 2 BTC so that all tests have nice numbers
         let total_collateral = Amount::ONE_BTC.to_sat() * 2;
@@ -627,7 +628,7 @@ mod tests {
     }
 
     #[test]
-    pub fn calculate_upper_range_payout_points_when_offer_long_then_gets_everything() {
+    fn calculate_upper_range_payout_points_when_offer_long_then_gets_everything() {
         // setup
         // we take 2 BTC so that all tests have nice numbers
         let total_collateral = Amount::ONE_BTC.to_sat() * 2;
@@ -663,7 +664,7 @@ mod tests {
     }
 
     #[test]
-    pub fn upper_range_price_always_below_max_btc_price() {
+    fn upper_range_price_always_below_max_btc_price() {
         // setup
         let total_collateral = Amount::ONE_BTC.to_sat() * 2;
         let last_payout = PayoutPoint {
@@ -703,20 +704,20 @@ mod tests {
 
     #[derive(Serialize, Deserialize)]
     struct PayoutCouple {
-        pub lower_event_outcome: u64,
-        pub lower_outcome_payout: u64,
-        pub lower_extra_precision: u16,
-        pub upper_event_outcome: u64,
-        pub upper_outcome_payout: u64,
-        pub upper_extra_precision: u16,
+        lower_event_outcome: u64,
+        lower_outcome_payout: u64,
+        lower_extra_precision: u16,
+        upper_event_outcome: u64,
+        upper_outcome_payout: u64,
+        upper_extra_precision: u16,
     }
 
     #[derive(Serialize, Deserialize, Debug)]
     struct ShouldPayout {
-        pub start: u64,
-        pub payout_offer: u64,
-        pub payout_accept: u64,
-        pub fee: u64,
+        start: u64,
+        payout_offer: u64,
+        payout_accept: u64,
+        fee: u64,
     }
 
     //******* Proptests *******//

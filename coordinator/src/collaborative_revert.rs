@@ -485,11 +485,11 @@ fn estimate_subchannel_reserved_tx_fees(
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     #[test]
-    pub fn estimate_subchannel_reserved_tx_fees_test() {
+    fn estimate_subchannel_reserved_tx_fees_test() {
         let total_fee =
             estimate_subchannel_reserved_tx_fees(200_000, 65_450, 85_673, 1_000, 18_690, 18_690)
                 .unwrap();
@@ -497,7 +497,7 @@ pub mod tests {
     }
 
     #[test]
-    pub fn estimate_subchannel_reserved_tx_fees_cannot_overflow() {
+    fn estimate_subchannel_reserved_tx_fees_cannot_overflow() {
         assert!(estimate_subchannel_reserved_tx_fees(
             200_000, 84_140, 104_363, 1_000, 18_690, 18_690,
         )

@@ -566,7 +566,7 @@ impl node::Storage for NodeStorage {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use crate::ln_dlc::node::is_expired;
     use bitcoin::secp256k1::schnorr::Signature;
     use bitcoin::secp256k1::PublicKey;
@@ -596,7 +596,7 @@ pub mod tests {
     use time::OffsetDateTime;
 
     #[test]
-    pub fn contract_with_maturity_in_past_is_expired() {
+    fn contract_with_maturity_in_past_is_expired() {
         // setup
         let expired_timestamp =
             (OffsetDateTime::now_utc() - Duration::seconds(10)).unix_timestamp() as u32;
@@ -611,7 +611,7 @@ pub mod tests {
         assert!(is_expired)
     }
     #[test]
-    pub fn contract_with_maturity_in_future_is_valid() {
+    fn contract_with_maturity_in_future_is_valid() {
         // setup
         let expired_timestamp =
             (OffsetDateTime::now_utc() + Duration::minutes(1)).unix_timestamp() as u32;
