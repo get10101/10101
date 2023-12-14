@@ -16,6 +16,7 @@ pub mod logger;
 pub mod metrics;
 pub mod orderbook_ws;
 pub mod position;
+pub mod probing;
 pub mod routes;
 pub mod schema;
 pub mod storage;

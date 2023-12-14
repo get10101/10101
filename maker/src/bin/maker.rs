@@ -16,6 +16,7 @@ use maker::metrics;
 use maker::metrics::init_meter;
 use maker::orderbook_ws;
 use maker::position;
+use maker::probing::send_payment_probes_regularly;
 use maker::routes::router;
 use maker::run_migration;
 use maker::storage::MakerTenTenOneStorage;
@@ -193,6 +194,8 @@ async fn main() -> Result<()> {
     )
     .spawn_supervised_connection();
 
+    tokio::spawn(send_payment_probes_regularly(node.clone()));
+
     let app = router(
         node,
         exporter,
@@ -222,6 +225,7 @@ async fn main() -> Result<()> {
 
     Ok(())
 }
+
 fn reqwest_client() -> reqwest::Client {
     reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(30))

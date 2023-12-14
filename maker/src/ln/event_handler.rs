@@ -5,6 +5,7 @@ use async_trait::async_trait;
 use bitcoin::hashes::hex::ToHex;
 use bitcoin::secp256k1::PublicKey;
 use lightning::ln::ChannelId;
+use lightning::routing::scoring::ScoreUpdate;
 use ln_dlc_node::channel::Channel;
 use ln_dlc_node::channel::UserChannelId;
 use ln_dlc_node::lightning;
@@ -108,12 +109,40 @@ impl<S: TenTenOneStorage + 'static, N: Storage + Send + Sync + 'static> EventHan
                 payment_hash,
                 path,
             } => {
+                self.node
+                    .scorer
+                    .write()
+                    .expect("to be able to acquire write lock")
+                    .payment_path_successful(&path);
+
                 tracing::info!(?payment_id, ?payment_hash, ?path, "Payment path successful");
             }
-            Event::PaymentPathFailed { payment_hash, .. } => {
+            Event::PaymentPathFailed {
+                payment_hash,
+                path,
+                payment_failed_permanently,
+                short_channel_id,
+                ..
+            } => {
+                let mut scorer = self
+                    .node
+                    .scorer
+                    .write()
+                    .expect("to be able to acquire write lock");
+
+                if payment_failed_permanently {
+                    // Reached if the destination explicitly failed it back. We treat this as a
+                    // successful probe because the payment made it all the way to the destination
+                    // with sufficient liquidity.
+                    scorer.probe_successful(&path);
+                } else if let Some(scid) = short_channel_id {
+                    scorer.payment_path_failed(&path, scid)
+                }
+
                 tracing::warn!(
                     payment_hash = %payment_hash.0.to_hex(),
-                "Payment path failed");
+                    "Payment path failed"
+                );
             }
             Event::PaymentFailed { payment_hash, .. } => {
                 common_handlers::handle_payment_failed(&self.node, payment_hash);
@@ -163,8 +192,29 @@ impl<S: TenTenOneStorage + 'static, N: Storage + Send + Sync + 'static> EventHan
             }
             Event::ProbeSuccessful {
                 payment_id, path, ..
-            } => common_handlers::handle_probe_successful(&self.node, payment_id, path).await,
-            Event::ProbeFailed { payment_id, .. } => {
+            } => {
+                self.node
+                    .scorer
+                    .write()
+                    .expect("to be able to acquire write lock")
+                    .probe_successful(&path);
+
+                common_handlers::handle_probe_successful(&self.node, payment_id, path).await;
+            }
+            Event::ProbeFailed {
+                payment_id,
+                path,
+                short_channel_id,
+                ..
+            } => {
+                if let Some(scid) = short_channel_id {
+                    self.node
+                        .scorer
+                        .write()
+                        .expect("to be able to acquire write lock")
+                        .probe_failed(&path, scid);
+                }
+
                 common_handlers::handle_probe_failed(&self.node, payment_id).await
             }
             Event::ChannelReady {

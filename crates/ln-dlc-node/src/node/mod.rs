@@ -145,7 +145,7 @@ pub struct Node<S: TenTenOneStorage, N: Storage> {
     pub network_graph: Arc<NetworkGraph>,
     pub fee_rate_estimator: Arc<FeeRateEstimator>,
 
-    logger: Arc<TracingLogger>,
+    pub logger: Arc<TracingLogger>,
 
     pub info: NodeInfo,
     pub(crate) fake_channel_payments: FakeChannelPaymentRequests,
@@ -173,7 +173,7 @@ pub struct Node<S: TenTenOneStorage, N: Storage> {
     gossip_source: Arc<GossipSource>,
     pub(crate) alias: String,
     pub(crate) announcement_addresses: Vec<SocketAddress>,
-    scorer: Arc<std::sync::RwLock<Scorer>>,
+    pub scorer: Arc<std::sync::RwLock<Scorer>>,
     esplora_server_url: String,
     esplora_client: Arc<NodeEsploraClient>,
     pub pending_channel_opening_fee_rates: Arc<parking_lot::Mutex<HashMap<PublicKey, FeeRate>>>,
