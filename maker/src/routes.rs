@@ -312,14 +312,6 @@ pub async fn get_position(State(state): State<Arc<AppState>>) -> Result<Json<Pos
 }
 
 pub async fn get_metrics(State(state): State<Arc<AppState>>) -> impl IntoResponse {
-    let autometrics = match autometrics::prometheus_exporter::encode_to_string() {
-        Ok(metrics) => metrics,
-        Err(err) => {
-            tracing::error!("Could not collect autometrics {err:#}");
-            return (StatusCode::INTERNAL_SERVER_ERROR, format!("{:?}", err));
-        }
-    };
-
     let exporter = state.exporter.clone();
     let encoder = TextEncoder::new();
     let metric_families = exporter.registry().gather();
@@ -340,7 +332,7 @@ pub async fn get_metrics(State(state): State<Arc<AppState>>) -> impl IntoRespons
         }
     };
 
-    (StatusCode::OK, open_telemetry_metrics + &autometrics)
+    (StatusCode::OK, open_telemetry_metrics)
 }
 
 /// Returns 500 if any of the vital services are offline

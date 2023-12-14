@@ -311,9 +311,6 @@ async fn main() -> Result<()> {
         }
     });
 
-    // Start the metrics exporter
-    autometrics::prometheus_exporter::init();
-
     tracing::debug!("Listening on http://{}", http_address);
 
     match axum::Server::bind(&http_address)

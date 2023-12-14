@@ -10,7 +10,6 @@ use anyhow::bail;
 use anyhow::ensure;
 use anyhow::Context;
 use anyhow::Result;
-use autometrics::autometrics;
 use bitcoin::secp256k1::PublicKey;
 use dlc_manager::channel::signed_channel::SignedChannel;
 use dlc_manager::channel::Channel;
@@ -34,7 +33,6 @@ use time::OffsetDateTime;
 use tokio::task::spawn_blocking;
 
 impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Node<S, N> {
-    #[autometrics]
     pub async fn propose_dlc_channel(
         &self,
         channel_details: ChannelDetails,
@@ -111,7 +109,6 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
         .map_err(|e| anyhow!("{e:#}"))?
     }
 
-    #[autometrics]
     pub fn reject_dlc_channel_offer(&self, channel_id: &ChannelId) -> Result<()> {
         let channel_id_hex = hex::encode(channel_id.0);
 
@@ -131,7 +128,6 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
         Ok(())
     }
 
-    #[autometrics]
     pub fn accept_dlc_channel_offer(&self, channel_id: &ChannelId) -> Result<()> {
         let channel_id_hex = hex::encode(channel_id.0);
 
@@ -150,7 +146,6 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
         Ok(())
     }
 
-    #[autometrics]
     pub async fn propose_dlc_channel_collaborative_settlement(
         &self,
         channel_id: ChannelId,
@@ -185,7 +180,6 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
         .await?
     }
 
-    #[autometrics]
     pub fn accept_dlc_channel_collaborative_settlement(
         &self,
         channel_id: &ChannelId,
@@ -275,7 +269,6 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
         Ok(contract)
     }
 
-    #[autometrics]
     pub fn get_dlc_channel_signed(&self, pubkey: &PublicKey) -> Result<Option<SubChannel>> {
         let matcher = |dlc_channel: &&SubChannel| {
             dlc_channel.counter_party == *pubkey
@@ -285,7 +278,6 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
         Ok(dlc_channel)
     }
 
-    #[autometrics]
     pub fn get_dlc_channel_close_offer(&self, pubkey: &PublicKey) -> Result<Option<SubChannel>> {
         let matcher = |dlc_channel: &&SubChannel| {
             dlc_channel.counter_party == *pubkey
@@ -296,7 +288,6 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
         Ok(dlc_channel)
     }
 
-    #[autometrics]
     pub fn list_dlc_channels(&self) -> Result<Vec<SubChannel>> {
         let dlc_channels = self.dlc_manager.get_store().get_sub_channels()?;
 
@@ -458,7 +449,7 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
     }
 
     #[cfg(test)]
-    #[autometrics]
+
     pub fn process_incoming_messages(&self) -> Result<()> {
         let dlc_message_handler = &self.dlc_message_handler;
         let dlc_manager = &self.dlc_manager;
@@ -527,7 +518,6 @@ pub fn send_dlc_message<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + 
     peer_manager.process_events();
 }
 
-#[autometrics]
 pub(crate) async fn sub_channel_manager_periodic_check<
     S: TenTenOneStorage + 'static,
     N: LnDlcStorage + Sync + Send + 'static,

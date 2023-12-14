@@ -44,10 +44,6 @@ version = "0.9.4"
 version = "1"
 features = ["backtrace"]
 
-[dependencies.autometrics]
-version = "0.5"
-features = ["prometheus-exporter"]
-
 [dependencies.axum]
 version = "0.6.20"
 features = ["ws", "query", "multipart"]

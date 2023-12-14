@@ -4,7 +4,6 @@ use crate::parse_channel_id;
 use crate::routes::AppState;
 use crate::AppError;
 use anyhow::Context;
-use autometrics::autometrics;
 use axum::extract::Path;
 use axum::extract::Query;
 use axum::extract::State;
@@ -36,7 +35,6 @@ pub struct Balance {
     pub onchain: u64,
 }
 
-#[autometrics]
 pub async fn get_balance(State(state): State<Arc<AppState>>) -> Result<Json<Balance>, AppError> {
     spawn_blocking(move || {
         let offchain = state.node.inner.get_ldk_balance();
@@ -127,7 +125,6 @@ impl From<(SubChannel, Option<Contract>, String, Option<OffsetDateTime>)> for Dl
     }
 }
 
-#[autometrics]
 #[instrument(skip_all, err(Debug))]
 pub async fn list_dlc_channels(
     State(state): State<Arc<AppState>>,

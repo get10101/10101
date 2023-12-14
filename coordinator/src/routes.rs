@@ -30,7 +30,6 @@ use crate::parse_channel_id;
 use crate::settings::Settings;
 use crate::settings::SettingsFile;
 use crate::AppError;
-use autometrics::autometrics;
 use axum::extract::Path;
 use axum::extract::Query;
 use axum::extract::State;
@@ -319,7 +318,7 @@ pub async fn get_invoice(
 // TODO: We might want to have our own ContractInput type here so we can potentially map fields if
 // the library changes?
 #[instrument(skip_all, err(Debug))]
-#[autometrics]
+
 pub async fn post_trade(
     State(state): State<Arc<AppState>>,
     trade_params: Json<TradeParams>,
@@ -330,7 +329,7 @@ pub async fn post_trade(
 }
 
 #[instrument(skip_all, err(Debug))]
-#[autometrics]
+
 pub async fn rollover(
     State(state): State<Arc<AppState>>,
     Path(dlc_channel_id): Path<String>,
@@ -376,7 +375,7 @@ pub async fn post_broadcast_announcement(
 
 /// Internal API for syncing the on-chain and Lightning wallets.
 #[instrument(skip_all, err(Debug))]
-#[autometrics]
+
 pub async fn post_sync(State(state): State<Arc<AppState>>) -> Result<(), AppError> {
     spawn_blocking(move || {
         state.node.inner.sync_on_chain_wallet()?;
@@ -453,14 +452,6 @@ async fn update_settings(
 }
 
 pub async fn get_metrics(State(state): State<Arc<AppState>>) -> impl IntoResponse {
-    let autometrics = match autometrics::prometheus_exporter::encode_to_string() {
-        Ok(metrics) => metrics,
-        Err(err) => {
-            tracing::error!("Could not collect autometrics {err:#}");
-            return (StatusCode::INTERNAL_SERVER_ERROR, format!("{:?}", err));
-        }
-    };
-
     let exporter = state.exporter.clone();
     let encoder = TextEncoder::new();
     let metric_families = exporter.registry().gather();
@@ -481,7 +472,7 @@ pub async fn get_metrics(State(state): State<Arc<AppState>>) -> impl IntoRespons
         }
     };
 
-    (StatusCode::OK, open_telemetry_metrics + &autometrics)
+    (StatusCode::OK, open_telemetry_metrics)
 }
 
 pub async fn get_health() -> Result<Json<String>, AppError> {

@@ -6,7 +6,6 @@ use anyhow::anyhow;
 use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
-use autometrics::autometrics;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::Network;
 use bitcoin::XOnlyPublicKey;
@@ -276,7 +275,7 @@ pub async fn process_new_order(
 /// The caller is expected to provide a list of `opposite_direction_orders` of [`OrderType::Limit`]
 /// and opposite [`Direction`] to the `market_order`. We nevertheless ensure that this is the case
 /// to be on the safe side.
-#[autometrics]
+
 fn match_order(
     market_order: &Order,
     opposite_direction_orders: Vec<Order>,
