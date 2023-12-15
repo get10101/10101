@@ -107,6 +107,7 @@ const PROCESS_INCOMING_DLC_MESSAGES_INTERVAL: Duration = Duration::from_millis(2
 const UPDATE_WALLET_HISTORY_INTERVAL: Duration = Duration::from_secs(5);
 const CHECK_OPEN_ORDERS_INTERVAL: Duration = Duration::from_secs(60);
 const ON_CHAIN_SYNC_INTERVAL: Duration = Duration::from_secs(300);
+const WAIT_FOR_CONNECTING_TO_COORDINATOR: Duration = Duration::from_secs(2);
 
 /// The weight estimate of the funding transaction
 ///
@@ -358,10 +359,12 @@ pub fn run(seed_dir: String, runtime: &Runtime) -> Result<()> {
             let node = node.clone();
             async move { node.listen_for_lightning_events(event_receiver).await }
         });
+        let coordinator_info = config::get_coordinator_info();
+        let coordinator_pk = coordinator_info.pubkey;
 
         runtime.spawn({
             let node = node.clone();
-            async move { node.keep_connected(config::get_coordinator_info()).await }
+            async move { node.keep_connected(coordinator_info).await }
         });
 
         runtime.spawn({
@@ -392,15 +395,46 @@ pub fn run(seed_dir: String, runtime: &Runtime) -> Result<()> {
 
         runtime.spawn(track_channel_status(node.clone()));
 
-        if let Err(e) = node.sync_position_with_subchannel_state().await {
-            tracing::error!("Failed to sync position with subchannel state. Error: {e:#}");
-        }
+        let inner_node = node.clone();
 
-        if let Err(e) = node.recover_rollover().await {
-            tracing::error!(
-                "Failed to check and recover from a stuck rollover state. Error: {e:#}"
-            );
-        }
+        runtime.spawn_blocking(move || {
+            let node = inner_node.clone();
+            async move {
+                let mut iteration_count = 0;
+
+                while !node
+                    .inner
+                    .peer_manager
+                    .get_peer_node_ids()
+                    .iter()
+                    .any(|(a, _)| a == &coordinator_pk)
+                {
+                    tracing::trace!(
+                        "Not yet connecting to coordinator. Waiting with recovery for a connection"
+                    );
+
+                    tokio::time::sleep(WAIT_FOR_CONNECTING_TO_COORDINATOR).await;
+
+                    iteration_count += 1;
+
+                    if iteration_count >= 30 {
+                        // After 30 retries (randonly chosen) we give up and continue with the
+                        // function nevertheless. Which means, we might see
+                        // an error.
+                        break;
+                    }
+                }
+                if let Err(e) = node.sync_position_with_subchannel_state().await {
+                    tracing::error!("Failed to sync position with subchannel state. Error: {e:#}");
+                }
+
+                if let Err(e) = node.recover_rollover().await {
+                    tracing::error!(
+                        "Failed to check and recover from a stuck rollover state. Error: {e:#}"
+                    );
+                }
+            }
+        });
 
         state::set_node(node);
 
