@@ -132,8 +132,9 @@ fn get_order_being_filled() -> Result<Order> {
     Ok(order_being_filled)
 }
 
+/// Checks open orders and sets them as failed in case they timed out.
 pub fn check_open_orders() -> Result<()> {
-    let orders_being_filled = match maybe_get_open_orders() {
+    let open_orders = match maybe_get_open_orders() {
         Ok(orders_being_filled) => orders_being_filled,
         Err(e) => {
             bail!("Error when loading open orders from database: {e:#}");
@@ -142,10 +143,11 @@ pub fn check_open_orders() -> Result<()> {
 
     let now = OffsetDateTime::now_utc();
 
-    for order_being_filled in orders_being_filled {
-        if order_being_filled.creation_timestamp + ORDER_OUTDATED_AFTER < now {
+    for open_order in open_orders {
+        tracing::debug!(?open_order, "Checking order if it is still up to date");
+        if open_order.creation_timestamp + ORDER_OUTDATED_AFTER < now {
             order_failed(
-                Some(order_being_filled.id),
+                Some(open_order.id),
                 FailureReason::TimedOut,
                 anyhow!("Order was not matched within {ORDER_OUTDATED_AFTER:?}"),
             )?;

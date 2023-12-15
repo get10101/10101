@@ -211,7 +211,7 @@ pub fn get_filled_orders() -> Result<Vec<trade::order::Order>> {
     Ok(orders)
 }
 
-/// Returns an order of there is currently an order that is open
+/// Returns all open orders
 pub fn maybe_get_open_orders() -> Result<Vec<trade::order::Order>> {
     let mut db = connection()?;
     let orders = Order::get_by_state(OrderState::Open, &mut db)?;
