@@ -640,6 +640,7 @@ pub enum FailureReason {
     TimedOut,
     SubchannelOfferOutdated,
     SubchannelOfferDateUndetermined,
+    SubchannelOfferUnacceptable,
 }
 
 impl From<FailureReason> for crate::trade::order::FailureReason {
@@ -669,6 +670,11 @@ impl From<FailureReason> for crate::trade::order::FailureReason {
                     InvalidSubchannelOffer::UndeterminedMaturityDate,
                 )
             }
+            FailureReason::SubchannelOfferUnacceptable => {
+                crate::trade::order::FailureReason::InvalidDlcOffer(
+                    InvalidSubchannelOffer::Unacceptable,
+                )
+            }
         }
     }
 }
@@ -695,6 +701,7 @@ impl From<crate::trade::order::FailureReason> for FailureReason {
                 InvalidSubchannelOffer::UndeterminedMaturityDate => {
                     FailureReason::SubchannelOfferDateUndetermined
                 }
+                InvalidSubchannelOffer::Unacceptable => FailureReason::SubchannelOfferUnacceptable,
             },
         }
     }

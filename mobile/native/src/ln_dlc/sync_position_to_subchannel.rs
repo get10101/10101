@@ -3,21 +3,27 @@ use crate::event;
 use crate::event::BackgroundTask;
 use crate::event::EventInternal;
 use crate::event::TaskStatus;
+use crate::ln_dlc::node::decide_subchannel_offer_action;
 use crate::ln_dlc::node::Node;
 use crate::trade::order;
 use crate::trade::position;
+use anyhow::Context;
 use anyhow::Result;
 use commons::order_matching_fee_taker;
 use lightning::ln::ChannelId;
+use ln_dlc_node::node::rust_dlc_manager::contract::Contract;
+use ln_dlc_node::node::rust_dlc_manager::subchannel;
 use ln_dlc_node::node::rust_dlc_manager::Storage;
 use rust_decimal::Decimal;
 use std::time::Duration;
+use time::OffsetDateTime;
 
 #[derive(PartialEq, Clone, Debug)]
 enum Action {
     ContinueSubchannelProtocol,
     CreatePosition(ChannelId),
     RemovePosition,
+    ProcessPendingOffer,
 }
 
 impl Node {
@@ -39,6 +45,8 @@ impl Node {
     /// - Subchannel in any other state, with position: delete position because the channel might
     /// have been force-closed.
     pub async fn sync_position_with_subchannel_state(&self) -> Result<()> {
+        tracing::info!("Syncing position with subchannel state");
+
         let channels = self.inner.channel_manager.list_channels();
 
         let positions = db::get_positions()?;
@@ -49,6 +57,7 @@ impl Node {
             None => {
                 // If we don't have a channel but we do have a position, we can safely close said
                 // position.
+                tracing::warn!("We found a position but no channel... closing position");
                 if first_position.is_some() {
                     close_position_with_order()?;
                 }
@@ -57,12 +66,12 @@ impl Node {
         };
 
         let subchannels = self.inner.dlc_manager.get_store().get_sub_channels()?;
-        let subchannel = subchannels
+        let orig_subchannel = subchannels
             .iter()
             .find(|subchannel| subchannel.channel_id == channel_details.channel_id);
 
         let position = first_position.map(Position::from);
-        let subchannel = subchannel.map(SubChannel::from);
+        let subchannel = orig_subchannel.map(SubChannel::from);
 
         match determine_sync_position_to_subchannel_action(position, subchannel) {
             Some(Action::ContinueSubchannelProtocol) => self.recover_subchannel().await?,
@@ -98,7 +107,47 @@ impl Node {
             Some(Action::RemovePosition) => {
                 close_position_with_order()?;
             }
-            None => (),
+            None => {
+                tracing::debug!("No action needed");
+            }
+            Some(Action::ProcessPendingOffer) => {
+                let channel =
+                    orig_subchannel.context("No subchannel found, can't process pending offer")?;
+                if let subchannel::SubChannelState::Offered(_) = &channel.state {
+                    let contract = self.inner.get_contract_by_dlc_channel_id(
+                        &channel
+                            .get_dlc_channel_id(0)
+                            .expect("Expect to get dlc_channel id"),
+                    )?;
+                    if let Contract::Offered(offer) = contract {
+                        tracing::debug!(?offer, "We are having a pending subchannel offer.");
+                        let contract_info = offer
+                            .contract_info
+                            .first()
+                            .context("Subchannel offer nit not have contract info")?;
+
+                        let oracle_announcement = contract_info
+                            .oracle_announcements
+                            .first()
+                            .context("oracle announcement to exist on an offered contract")?;
+
+                        let expiry_timestamp = OffsetDateTime::from_unix_timestamp(
+                            oracle_announcement.oracle_event.event_maturity_epoch as i64,
+                        )?;
+
+                        let action = decide_subchannel_offer_action(expiry_timestamp);
+
+                        match self.process_subchannel_offer(channel.channel_id, action) {
+                            Ok(_) => {
+                                tracing::info!("Successfully processed subchannel offer");
+                            }
+                            Err(error) => {
+                                tracing::error!("Could not process subchannel offer {error:#}");
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         Ok(())
@@ -238,7 +287,11 @@ fn determine_sync_position_to_subchannel_action(
                 tracing::warn!("Trying to recover position from order");
                 Some(Action::CreatePosition(channel_id))
             }
-            Offered | Accepted | Finalized => {
+            Offered => {
+                tracing::warn!("We are in an offered state, we need to either accept or reject");
+                Some(Action::ProcessPendingOffer)
+            }
+            Accepted | Finalized => {
                 tracing::debug!("Letting subchannel open protocol continue");
                 Some(Action::ContinueSubchannelProtocol)
             }
@@ -395,7 +448,7 @@ mod test {
     #[test]
     fn test_none_position_and_offered_subchannel() {
         let action = determine_sync_position_to_subchannel_action(None, Some(SubChannel::Offered));
-        assert_eq!(Some(Action::ContinueSubchannelProtocol), action);
+        assert_eq!(Some(Action::ProcessPendingOffer), action);
     }
 
     #[test]
