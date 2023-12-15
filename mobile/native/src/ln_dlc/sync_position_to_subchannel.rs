@@ -296,8 +296,12 @@ fn determine_sync_position_to_subchannel_action(
                 Some(Action::ContinueSubchannelProtocol)
             }
             Confirmed | Closing | OnChainClosed | CounterOnChainClosed | CloseOffered
-            | CloseAccepted | CloseConfirmed | ClosedPunished | Rejected => {
+            | CloseAccepted | CloseConfirmed | ClosedPunished => {
                 tracing::warn!("The subchannel is in a state that cannot be recovered");
+                None
+            }
+            Rejected => {
+                tracing::debug!("The subchannel is in rejected state.");
                 None
             }
         },
