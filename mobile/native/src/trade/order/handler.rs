@@ -102,6 +102,13 @@ pub(crate) fn order_failed(
 
     update_order_state_in_db_and_ui(order_id, OrderState::Failed { reason })?;
 
+    // TODO: fixme. this so ugly, even a Sphynx cat is beautiful against this.
+    // In this function we set the order to failed but here we try to set the position to open.
+    // This is basically a roll back of a former action. It only works because we do not have a
+    // concept of a closed position on the client side. However, this function is being called
+    // in various places where (most of the time) we only want to set the order to failed. If we
+    // were to introduce a `PostionState::Closed` the below code would be wrong and would
+    // accidentally set a closed position to open again. This should be cleaned up.
     if let Err(e) = position::handler::set_position_state(PositionState::Open) {
         bail!("Could not reset position to open because of {e:#}");
     }
