@@ -30,10 +30,12 @@ impl Probes {
 
                 tracing::debug!(%payment_id, ?old_status, ?new_status, "Updated probe");
             }
-            Entry::Vacant(entry) => {
-                entry.insert(Some(new_status.clone()));
-
-                tracing::debug!(%payment_id, ?new_status, "Updating unregistered probe");
+            Entry::Vacant(_) => {
+                tracing::trace!(
+                    %payment_id,
+                    ?new_status,
+                    "Ignoring update about unregistered probe"
+                );
             }
         }
     }
