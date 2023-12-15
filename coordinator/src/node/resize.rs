@@ -14,6 +14,7 @@ use bitcoin::hashes::hex::ToHex;
 use bitcoin::secp256k1::PublicKey;
 use commons::order_matching_fee_taker;
 use commons::TradeParams;
+use diesel::Connection;
 use diesel::PgConnection;
 use dlc_manager::contract::contract_input::ContractInput;
 use dlc_manager::contract::contract_input::ContractInputInfo;
@@ -23,6 +24,7 @@ use rust_decimal::prelude::Signed;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use rust_decimal::RoundingStrategy;
+use tokio::task::block_in_place;
 use trade::cfd::calculate_long_liquidation_price;
 use trade::cfd::calculate_margin;
 use trade::cfd::calculate_short_liquidation_price;
@@ -55,22 +57,72 @@ impl Node {
             "Resizing position",
         );
 
-        // TODO: Use subchannel resize protocol to ensure atomicity, simplify the implementation and
-        // improve UX.
-        {
-            let accept_settlement_amount =
-                position.calculate_accept_settlement_amount_partial_close(trade_params)?;
+        let runtime_handle = tokio::runtime::Handle::current();
+        block_in_place(|| {
+            self.start_position_resizing(
+                conn,
+                runtime_handle,
+                channel_id,
+                trade_params,
+                peer_id,
+                position,
+            )
+        })?;
 
-            self.inner
-                .propose_dlc_channel_collaborative_settlement(
-                    channel_id,
-                    accept_settlement_amount.to_sat(),
-                )
-                .await?;
+        Ok(())
+    }
 
-            // The protocol will continue once we have processed the `CloseFinalize` message. Then
-            // we will have to propose the creation of a _new_ DLC channel.
-        };
+    /// Start the position resizing protocol by first closing the corresponding subchannel.
+    fn start_position_resizing(
+        &self,
+        conn: &mut PgConnection,
+        runtime: tokio::runtime::Handle,
+        channel_id: ChannelId,
+        trade_params: &TradeParams,
+        peer_id: PublicKey,
+        position: Position,
+    ) -> Result<(), anyhow::Error> {
+        conn.transaction::<(), _, _>(|tx| {
+            self.start_position_resizing_aux(
+                tx,
+                runtime,
+                channel_id,
+                trade_params,
+                peer_id,
+                position,
+            )
+            .map_err(|e| {
+                tracing::error!("Failed to start position resizing: {e:#}");
+
+                // We map all errors to `RollbackTransaction` because we want to ensure that our
+                // database transaction is only committed if the resize protocol has started
+                // correctly.
+                diesel::result::Error::RollbackTransaction
+            })
+        })?;
+
+        Ok(())
+    }
+
+    /// Auxiliary method to start the position resizing protocol.
+    ///
+    /// This allows us to return `anyhow::Result`.
+    fn start_position_resizing_aux(
+        &self,
+        tx: &mut PgConnection,
+        runtime: tokio::runtime::Handle,
+        channel_id: ChannelId,
+        trade_params: &TradeParams,
+        peer_id: PublicKey,
+        position: Position,
+    ) -> Result<()> {
+        db::positions::Position::set_open_position_to_resizing(tx, position.trader.to_string())
+            .context("Could not update database and set position to resize")?;
+
+        let execution_price = trade_params
+            .average_execution_price()
+            .to_f32()
+            .expect("To fit into f32");
 
         // This is pretty meaningless as documented in `NewTrade`.
         let margin_coordinator = {
@@ -79,13 +131,8 @@ impl Node {
             margin_coordinator(trade_params, leverage_coordinator) as i64
         };
 
-        let execution_price = trade_params
-            .average_execution_price()
-            .to_f32()
-            .expect("To fit into f32");
-
         db::trades::insert(
-            conn,
+            tx,
             NewTrade {
                 position_id: position.id,
                 contract_symbol: position.contract_symbol,
@@ -99,7 +146,19 @@ impl Node {
             },
         )?;
 
-        db::positions::Position::set_open_position_to_resizing(conn, position.trader.to_string())?;
+        runtime.block_on(async {
+            let accept_settlement_amount =
+                position.calculate_accept_settlement_amount_partial_close(trade_params)?;
+
+            self.inner
+                .propose_dlc_channel_collaborative_settlement(
+                    channel_id,
+                    accept_settlement_amount.to_sat(),
+                )
+                .await?;
+
+            anyhow::Ok(())
+        })?;
 
         Ok(())
     }
