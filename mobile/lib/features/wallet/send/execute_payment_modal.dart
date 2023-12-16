@@ -77,7 +77,9 @@ class _ExecuteUsdpPaymentState extends State<ExecuteUsdpPayment> {
     String text = "";
 
     if ((pendingOrder?.state == PendingOrderState.orderFilled || !widget.payWithUsdp) && !sent) {
-      logger.d("Order has been filled, attempting to send payment");
+      if (widget.payWithUsdp) {
+        logger.d("Order has been filled, attempting to send payment");
+      }
       walletService.sendPayment(widget.destination, widget.amount).catchError((error) {
         logger.e("Failed to send payment: $error");
         context.read<PaymentChangeNotifier>().failPayment();
