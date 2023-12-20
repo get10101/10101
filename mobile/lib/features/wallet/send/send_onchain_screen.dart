@@ -10,6 +10,7 @@ import 'package:get_10101/features/wallet/application/wallet_service.dart';
 import 'package:get_10101/features/wallet/domain/confirmation_target.dart';
 import 'package:get_10101/features/wallet/domain/destination.dart';
 import 'package:get_10101/features/wallet/domain/fee.dart';
+import 'package:get_10101/features/wallet/domain/fee_estimate.dart';
 import 'package:get_10101/features/wallet/send/confirm_payment_modal.dart';
 import 'package:get_10101/features/wallet/send/fee_picker.dart';
 import 'package:get_10101/features/wallet/wallet_change_notifier.dart';
@@ -35,7 +36,7 @@ class _SendOnChainScreenState extends State<SendOnChainScreen> {
 
   Amount _amount = Amount.zero();
   Fee _fee = PriorityFee(ConfirmationTarget.normal);
-  Map<ConfirmationTarget, int>? _feeAmounts;
+  Map<ConfirmationTarget, FeeEstimation>? _feeEstimates;
   late WalletService _walletService;
 
   final TextEditingController _controller = TextEditingController();
@@ -60,7 +61,7 @@ class _SendOnChainScreenState extends State<SendOnChainScreen> {
         widget.destination.address, widget.destination.amount);
 
     setState(() {
-      _feeAmounts = fees;
+      _feeEstimates = fees;
       _amount = widget.destination.amount;
       _controller.text = _amount.formatted();
     });
@@ -144,7 +145,8 @@ class _SendOnChainScreenState extends State<SendOnChainScreen> {
                             }
 
                             final fee = switch (_fee) {
-                              PriorityFee() => _feeAmounts?[(_fee as PriorityFee).priority] ?? 0,
+                              PriorityFee() =>
+                                _feeEstimates?[(_fee as PriorityFee).priority]?.total.sats ?? 0,
                               CustomFee() => (_fee as CustomFee).amount.sats,
                             };
 
@@ -183,7 +185,7 @@ class _SendOnChainScreenState extends State<SendOnChainScreen> {
                                     _walletService
                                         .calculateFeesForOnChain(
                                             widget.destination.address, _amount)
-                                        .then((fees) => setState(() => _feeAmounts = fees));
+                                        .then((fees) => setState(() => _feeEstimates = fees));
                                   },
                                 ),
                                 Visibility(
@@ -267,7 +269,7 @@ class _SendOnChainScreenState extends State<SendOnChainScreen> {
                     const SizedBox(height: 10),
                     FeePicker(
                       initialSelection: _fee,
-                      feeAmounts: _feeAmounts,
+                      feeEstimates: _feeEstimates,
                       onChange: (target) => setState(() => _fee = target),
                     ),
                     const Spacer(),

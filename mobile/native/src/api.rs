@@ -517,6 +517,7 @@ impl From<Fee> for ln_dlc_node::node::Fee {
 }
 
 /// Analogous to [`lightning::chain::chaininterface::ConfirmationTarget`] but for the Flutter API
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum ConfirmationTarget {
     Minimum,
     Background,
@@ -535,9 +536,15 @@ impl From<ConfirmationTarget> for LnConfirmationTarget {
     }
 }
 
+pub struct FeeEstimation {
+    pub sats_per_vbyte: u64,
+    pub total_sats: u64,
+}
+
 /// Calculate the fees for an on-chain transaction, using the 3 default fee rates (background,
-/// normal, and high priority). This both estimates the fee rate and calculates the TX rate.
-pub fn calculate_all_fees_for_on_chain(address: String, amount: u64) -> Result<Vec<u64>> {
+/// normal, and high priority). This both estimates the fee rate and calculates the TX size to get
+/// the overall fee for a given TX.
+pub fn calculate_all_fees_for_on_chain(address: String, amount: u64) -> Result<Vec<FeeEstimation>> {
     const TARGETS: [ConfirmationTarget; 4] = [
         ConfirmationTarget::Minimum,
         ConfirmationTarget::Background,
@@ -556,7 +563,10 @@ pub fn calculate_all_fees_for_on_chain(address: String, amount: u64) -> Result<V
                 fee: Fee::Priority(confirmation_target),
             };
 
-            fees.push(ln_dlc::estimate_payment_fee_msat(payment).await? / 1000);
+            fees.push(FeeEstimation {
+                sats_per_vbyte: (fee_rate(confirmation_target)?.ceil()) as u64,
+                total_sats: ln_dlc::estimate_payment_fee_msat(payment).await? / 1000,
+            })
         }
 
         Ok(fees)

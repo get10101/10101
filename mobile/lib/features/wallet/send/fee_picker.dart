@@ -8,14 +8,16 @@ import 'package:get_10101/common/edit_modal.dart';
 import 'package:get_10101/common/intersperse.dart';
 import 'package:get_10101/features/wallet/domain/confirmation_target.dart';
 import 'package:get_10101/features/wallet/domain/fee.dart';
+import 'package:get_10101/features/wallet/domain/fee_estimate.dart';
+import 'package:get_10101/features/wallet/send/fee_text.dart';
 
 class FeePicker extends StatefulWidget {
   final void Function(Fee) onChange;
   final Fee initialSelection;
 
   const FeePicker(
-      {super.key, this.feeAmounts, required this.onChange, required this.initialSelection});
-  final Map<ConfirmationTarget, int>? feeAmounts;
+      {super.key, this.feeEstimates, required this.onChange, required this.initialSelection});
+  final Map<ConfirmationTarget, FeeEstimation>? feeEstimates;
 
   @override
   State<StatefulWidget> createState() => _FeePickerState();
@@ -38,21 +40,11 @@ class _FeePickerState extends State<FeePicker> {
                     const TextTheme(labelMedium: TextStyle(fontSize: 16, color: Colors.black)),
                 colorScheme: Theme.of(context).colorScheme.copyWith(background: Colors.white)),
             child: _FeePickerModal(
-                feeAmounts: widget.feeAmounts, initialSelection: _fee, setVal: setVal),
+                feeEstimates: widget.feeEstimates, initialSelection: _fee, setVal: setVal),
           ));
 
   @override
   Widget build(BuildContext context) {
-    int feeSats = switch (_fee) {
-      PriorityFee() => widget.feeAmounts?[(_fee as PriorityFee).priority] ?? -1,
-      CustomFee() => (_fee as CustomFee).amount.sats,
-    };
-
-    final fees = switch (feeSats) {
-      -1 => const SizedBox.square(dimension: 24, child: CircularProgressIndicator()),
-      int() => AmountAndFiatText(amount: Amount(feeSats))
-    };
-
     return ElevatedButton(
         onPressed: () {
           _showModal(context).then((val) {
@@ -75,7 +67,7 @@ class _FeePickerState extends State<FeePicker> {
           children: [
             Text(_fee.name, style: const TextStyle(fontSize: 16)),
             const Spacer(),
-            fees,
+            feeWidget(widget.feeEstimates, _fee),
             const SizedBox(width: 5),
             const Icon(Icons.arrow_drop_down_outlined, size: 36),
           ],
@@ -85,10 +77,10 @@ class _FeePickerState extends State<FeePicker> {
 
 class _FeePickerModal extends StatefulWidget {
   final Fee initialSelection;
-  final Map<ConfirmationTarget, int>? feeAmounts;
+  final Map<ConfirmationTarget, FeeEstimation>? feeEstimates;
   final void Function(Fee?) setVal;
 
-  const _FeePickerModal({this.feeAmounts, required this.initialSelection, required this.setVal});
+  const _FeePickerModal({this.feeEstimates, required this.initialSelection, required this.setVal});
 
   @override
   State<StatefulWidget> createState() => _FeePickerModalState();
@@ -110,11 +102,6 @@ class _FeePickerModalState extends State<_FeePickerModal> {
   }
 
   Widget buildTile(ConfirmationTarget target) {
-    Widget fee = switch (widget.feeAmounts) {
-      Map() => AmountAndFiatText(amount: Amount(widget.feeAmounts![target]!)),
-      null => const SizedBox.square(dimension: 24, child: CircularProgressIndicator()),
-    };
-
     bool isSelected = selected is PriorityFee && (selected as PriorityFee).priority == target;
 
     return TextButton(
@@ -137,7 +124,7 @@ class _FeePickerModalState extends State<_FeePickerModal> {
                 Text(target.toTimeEstimate(), style: const TextStyle(color: Color(0xff878787))),
               ]),
               const Spacer(),
-              fee,
+              feeWidget(widget.feeEstimates, PriorityFee(target)),
             ],
           ),
         ),
@@ -157,7 +144,7 @@ class _FeePickerModalState extends State<_FeePickerModal> {
     }
   }
 
-  int get minFee => widget.feeAmounts?[ConfirmationTarget.minimum] ?? 0;
+  int get minFee => widget.feeEstimates?[ConfirmationTarget.minimum]?.total.sats ?? 0;
 
   String? validateCustomValue(String? val) {
     if (val == null) {
@@ -232,4 +219,14 @@ class _FeePickerModalState extends State<_FeePickerModal> {
       ],
     );
   }
+}
+
+Widget feeWidget(Map<ConfirmationTarget, FeeEstimation>? feeEstimates, Fee fee) {
+  return switch (fee) {
+    PriorityFee() => switch (feeEstimates?[(fee).priority]) {
+        null => const SizedBox.square(dimension: 24, child: CircularProgressIndicator()),
+        var fee => FeeText(fee: fee),
+      },
+    CustomFee() => AmountAndFiatText(amount: (fee).amount),
+  };
 }

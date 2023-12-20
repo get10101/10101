@@ -3,6 +3,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge.dart';
 import 'package:get_10101/features/wallet/domain/confirmation_target.dart';
 import 'package:get_10101/features/wallet/domain/destination.dart';
 import 'package:get_10101/features/wallet/domain/fee.dart';
+import 'package:get_10101/features/wallet/domain/fee_estimate.dart';
 import 'package:get_10101/features/wallet/domain/share_payment_request.dart';
 import 'package:get_10101/features/wallet/domain/wallet_type.dart';
 import 'package:get_10101/ffi.dart' as rust;
@@ -78,13 +79,13 @@ class WalletService {
     }
   }
 
-  Future<Map<ConfirmationTarget, int>> calculateFeesForOnChain(
+  Future<Map<ConfirmationTarget, FeeEstimation>> calculateFeesForOnChain(
       String address, Amount amount) async {
-    final Map<ConfirmationTarget, int> map = {};
+    final Map<ConfirmationTarget, FeeEstimation> map = {};
 
     final fees = await rust.api.calculateAllFeesForOnChain(address: address, amount: amount.sats);
     for (int i = 0; i < ConfirmationTarget.values.length; i++) {
-      map[ConfirmationTarget.values[i]] = fees[i].toInt();
+      map[ConfirmationTarget.values[i]] = FeeEstimation.fromAPI(fees[i]);
     }
 
     return map;
