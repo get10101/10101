@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:get_10101/common/color.dart';
+import 'package:get_10101/common/settings/open_telegram.dart';
 import 'package:get_10101/common/settings/settings_screen.dart';
 import 'package:get_10101/common/snack_bar.dart';
 import 'package:get_10101/logger/logger.dart';
@@ -177,14 +178,7 @@ class _AppInfoScreenState extends State<AppInfoScreen> {
                       IconButton(
                         icon: const Icon(FontAwesomeIcons.github, size: 22),
                         onPressed: () async {
-                          final messenger = ScaffoldMessenger.of(context);
-                          final httpsUri =
-                              Uri(scheme: "https", host: "github.com", path: "get10101/10101");
-                          if (await canLaunchUrl(httpsUri)) {
-                            await launchUrl(httpsUri, mode: LaunchMode.externalApplication);
-                          } else {
-                            showSnackBar(messenger, "Failed to open link");
-                          }
+                          await openTelegram(context);
                         },
                       ),
                       IconButton(

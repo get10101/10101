@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:get_10101/bridge_generated/bridge_definitions.dart';
 import 'package:get_10101/common/channel_status_notifier.dart';
 import 'package:get_10101/common/color.dart';
-
 import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
 import 'package:get_10101/common/service_status_notifier.dart';
 import 'package:get_10101/common/settings/app_info_screen.dart';
@@ -11,14 +11,13 @@ import 'package:get_10101/common/settings/channel_screen.dart';
 import 'package:get_10101/common/settings/collab_close_screen.dart';
 import 'package:get_10101/common/settings/delete_network_graph.dart';
 import 'package:get_10101/common/settings/force_close_screen.dart';
+import 'package:get_10101/common/settings/open_telegram.dart';
 import 'package:get_10101/common/settings/share_logs_screen.dart';
 import 'package:get_10101/common/snack_bar.dart';
 import 'package:get_10101/common/status_screen.dart';
 import 'package:get_10101/common/settings/seed_screen.dart';
-
 import 'package:get_10101/util/custom_icon_icons.dart';
 import 'package:go_router/go_router.dart';
-
 import 'package:provider/provider.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -90,6 +89,32 @@ class _SettingsScreenState extends State<SettingsScreen> {
               child: SingleChildScrollView(
                   child: Column(
                 children: [
+                  Container(
+                    padding: const EdgeInsets.only(bottom: 10, left: 10, right: 10),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: InkWell(
+                              onTap: () => {openTelegram(context)},
+                              child: const Row(
+                                children: [
+                                  Text(
+                                    "Need help? Join our telegram group",
+                                    style: TextStyle(fontSize: 18),
+                                  ),
+                                  SizedBox(
+                                    width: 10,
+                                  ),
+                                  Icon(FontAwesomeIcons.telegram, size: 22),
+                                ],
+                              ),
+                            )),
+                      ],
+                    ),
+                  ),
                   Container(
                     margin: margin.copyWith(bottom: 20),
                     child: Column(
@@ -248,7 +273,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ),
                       ],
                     ),
-                  ),
+                  )
                 ],
               )),
             ),

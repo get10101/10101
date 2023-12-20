@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Chore: move telegram link into toplevel of settings so that it can be found easier
+
 ## [1.7.4] - 2023-12-20
 
 - Fix: allow recovering from a stuck position by rejecting or accepting pending offers
