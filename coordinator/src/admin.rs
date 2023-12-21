@@ -57,15 +57,130 @@ pub struct ChannelDetails {
     #[serde(flatten)]
     pub channel_details: ln_dlc_node::ChannelDetails,
     pub user_email: String,
+    pub channel_balances: Vec<ChannelBalance>,
 }
 
-impl From<(lightning::ln::channelmanager::ChannelDetails, String)> for ChannelDetails {
+#[derive(Serialize)]
+pub enum ChannelBalance {
+    /// The channel is not yet closed (or the commitment or closing transaction has not yet
+    /// appeared in a block). The given balance is claimable (less on-chain fees) if the channel is
+    /// force-closed now.
+    NotYetClosedClaimableOnChannelClose { amount_satoshis: u64 },
+    /// The channel has been closed, and the given balance is ours but awaiting confirmations until
+    /// we consider it spendable.
+    ClaimableAwaitingConfirmations {
+        amount_satoshis: u64,
+        confirmation_height: u32,
+    },
+    /// The channel has been closed, and the given balance should be ours but awaiting spending
+    /// transaction confirmation. If the spending transaction does not confirm in time, it is
+    /// possible our counterparty can take the funds by broadcasting an HTLC timeout on-chain.
+    ///
+    /// Once the spending transaction confirms, before it has reached enough confirmations to be
+    /// considered safe from chain reorganizations, the balance will instead be provided via
+    /// [`Balance::ClaimableAwaitingConfirmations`].
+    ContentiousClaimable {
+        amount_satoshis: u64,
+        timeout_height: u32,
+        payment_hash: String,
+        payment_preimage: String,
+    },
+    /// HTLCs which we sent to our counterparty which are claimable after a timeout (less on-chain
+    /// fees) if the counterparty does not know the preimage for the HTLCs. These are somewhat
+    /// likely to be claimed by our counterparty before we do.
+    MaybeTimeoutClaimableHTLC {
+        amount_satoshis: u64,
+        claimable_height: u32,
+        payment_hash: String,
+    },
+    /// HTLCs which we received from our counterparty which are claimable with a preimage which we
+    /// do not currently have. This will only be claimable if we receive the preimage from the node
+    /// to which we forwarded this HTLC before the timeout.
+    MaybePreimageClaimableHTLC {
+        amount_satoshis: u64,
+        expiry_height: u32,
+        payment_hash: String,
+    },
+    /// The channel has been closed, and our counterparty broadcasted a revoked commitment
+    /// transaction.
+    ///
+    /// Thus, we're able to claim all outputs in the commitment transaction, one of which has the
+    /// following amount.
+    CounterpartyRevokedOutputClaimable { amount_satoshis: u64 },
+}
+
+impl From<lightning::chain::channelmonitor::Balance> for ChannelBalance {
+    fn from(value: lightning::chain::channelmonitor::Balance) -> Self {
+        match value {
+            lightning::chain::channelmonitor::Balance::ClaimableOnChannelClose {
+                amount_satoshis,
+            } => ChannelBalance::NotYetClosedClaimableOnChannelClose { amount_satoshis },
+            lightning::chain::channelmonitor::Balance::ClaimableAwaitingConfirmations {
+                amount_satoshis,
+                confirmation_height,
+            } => ChannelBalance::ClaimableAwaitingConfirmations {
+                amount_satoshis,
+                confirmation_height,
+            },
+            lightning::chain::channelmonitor::Balance::ContentiousClaimable {
+                amount_satoshis,
+                timeout_height,
+                payment_hash,
+                payment_preimage,
+            } => ChannelBalance::ContentiousClaimable {
+                payment_hash: payment_hash.to_string(),
+                payment_preimage: payment_preimage.to_string(),
+                amount_satoshis,
+                timeout_height,
+            },
+            lightning::chain::channelmonitor::Balance::MaybeTimeoutClaimableHTLC {
+                amount_satoshis,
+                claimable_height,
+                payment_hash,
+            } => ChannelBalance::MaybeTimeoutClaimableHTLC {
+                amount_satoshis,
+                claimable_height,
+                payment_hash: payment_hash.to_string(),
+            },
+            lightning::chain::channelmonitor::Balance::MaybePreimageClaimableHTLC {
+                amount_satoshis,
+                expiry_height,
+                payment_hash,
+            } => ChannelBalance::MaybePreimageClaimableHTLC {
+                amount_satoshis,
+                expiry_height,
+                payment_hash: payment_hash.to_string(),
+            },
+            lightning::chain::channelmonitor::Balance::CounterpartyRevokedOutputClaimable {
+                amount_satoshis,
+            } => ChannelBalance::CounterpartyRevokedOutputClaimable { amount_satoshis },
+        }
+    }
+}
+
+impl
+    From<(
+        lightning::ln::channelmanager::ChannelDetails,
+        String,
+        Vec<lightning::chain::channelmonitor::Balance>,
+    )> for ChannelDetails
+{
     fn from(
-        (channel_details, user_email): (lightning::ln::channelmanager::ChannelDetails, String),
+        (channel_details, user_email, balances): (
+            lightning::ln::channelmanager::ChannelDetails,
+            String,
+            Vec<lightning::chain::channelmonitor::Balance>,
+        ),
     ) -> Self {
+        let balances = balances
+            .into_iter()
+            .map(|balance| balance.into())
+            .collect::<Vec<_>>();
+
         ChannelDetails {
             channel_details: ln_dlc_node::ChannelDetails::from(channel_details),
             user_email,
+            channel_balances: balances,
         }
     }
 }
@@ -89,7 +204,19 @@ pub async fn list_channels(
                     Ok(Some(user)) => user.email,
                     _ => "unknown".to_string(),
                 };
-            ChannelDetails::from((channel, user_email))
+            let balances = if let Some(funding_txo) = channel.funding_txo {
+                match state.node.inner.get_channel_balances(funding_txo.txid) {
+                    Ok(balances) => balances,
+                    Err(error) => {
+                        tracing::warn!("Could not load balance for error {error:#}");
+                        None
+                    }
+                }
+            } else {
+                None
+            };
+
+            ChannelDetails::from((channel, user_email, balances.unwrap_or_default()))
         })
         .collect::<Vec<_>>();
 
