@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 - Chore: move telegram link into toplevel of settings so that it can be found easier
+- Feat: update coordinator API to show more details on pending channel balance
 
 ## [1.7.4] - 2023-12-20
 

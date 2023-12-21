@@ -5,8 +5,11 @@ use anyhow::anyhow;
 use anyhow::Context;
 use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
+use bitcoin::Txid;
+use lightning::chain::channelmonitor::Balance;
 use lightning::ln::channelmanager::ChannelDetails;
 use lightning::ln::ChannelId;
+use lightning::util::persist::read_channel_monitors;
 
 impl<S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 'static> Node<S, N> {
     /// Initiates the open private channel protocol.
@@ -49,6 +52,22 @@ impl<S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 'static> Node<S, 
 
     pub fn list_channels(&self) -> Vec<ChannelDetails> {
         self.channel_manager.list_channels()
+    }
+
+    pub fn get_channel_balances(&self, txid: Txid) -> Result<Option<Vec<Balance>>> {
+        let vec = read_channel_monitors(
+            self.ln_storage.clone(),
+            self.keys_manager.clone(),
+            self.keys_manager.clone(),
+        )?;
+        let channel_monitor = vec.iter().find_map(|(_, monitor)| {
+            if monitor.get_original_funding_txo().0.txid == txid {
+                Some(monitor.get_claimable_balances())
+            } else {
+                None
+            }
+        });
+        Ok(channel_monitor)
     }
 
     pub fn list_peers(&self) -> Vec<PublicKey> {
