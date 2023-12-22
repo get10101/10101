@@ -71,11 +71,13 @@ class SubmitOrderChangeNotifier extends ChangeNotifier implements Subscriber {
       if (_pendingOrder?.id == order.id) {
         switch (order.state) {
           case OrderState.open:
+          case OrderState.filling:
             return;
           case OrderState.filled:
             _pendingOrder!.state = PendingOrderState.orderFilled;
             break;
           case OrderState.failed:
+          case OrderState.rejected:
             _pendingOrder!.state = PendingOrderState.orderFailed;
             break;
         }

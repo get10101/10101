@@ -14,13 +14,15 @@ pub enum OrderType {
 
 /// State of an order
 ///
-/// Please refer to [`crate::trade::order::OrderStateTrade`]
+/// Please refer to [`crate::trade::order::OrderState`]
 #[frb]
 #[derive(Debug, Clone, Copy)]
 pub enum OrderState {
     Open,
-    Failed,
+    Filling,
     Filled,
+    Failed,
+    Rejected,
 }
 
 #[frb]
@@ -130,14 +132,11 @@ impl From<order::OrderState> for OrderState {
             order::OrderState::Open => OrderState::Open,
             order::OrderState::Filled { .. } => OrderState::Filled,
             order::OrderState::Failed { .. } => OrderState::Failed,
+            order::OrderState::Rejected => OrderState::Rejected,
+            order::OrderState::Filling { .. } => OrderState::Filling,
             order::OrderState::Initial => unimplemented!(
                 "don't expose orders that were not submitted into the orderbook to the frontend!"
             ),
-            // TODO: At the moment the UI does not depict Rejected, we map it to Failed; for better
-            // feedback we should change that eventually
-            order::OrderState::Rejected => OrderState::Failed,
-            // We don't expose this state, but treat it as Open in the UI
-            order::OrderState::Filling { .. } => OrderState::Open,
         }
     }
 }

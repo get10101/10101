@@ -42,8 +42,10 @@ class AsyncOrderChangeNotifier extends ChangeNotifier implements Subscriber {
           TaskStatus status = TaskStatus.pending;
           switch (asyncOrder?.state) {
             case OrderState.open:
+            case OrderState.filling:
               status = TaskStatus.pending;
             case OrderState.failed:
+            case OrderState.rejected:
               status = TaskStatus.failed;
             case OrderState.filled:
               status = TaskStatus.success;
