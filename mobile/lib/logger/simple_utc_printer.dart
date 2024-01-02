@@ -8,11 +8,11 @@ import 'package:logger/logger.dart';
 /// ```
 class SimpleUTCPrinter extends LogPrinter {
   static final levelPrefixes = {
-    Level.trace: '[T]',
-    Level.debug: '[D]',
-    Level.info: '[I]',
-    Level.warning: '[W]',
-    Level.error: '[E]',
+    Level.trace: '[TRACE]',
+    Level.debug: '[DEBUG]',
+    Level.info: '[INFO]',
+    Level.warning: '[WARN]',
+    Level.error: '[ERROR]',
     Level.fatal: '[FATAL]',
   };
 
