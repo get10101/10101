@@ -6,9 +6,6 @@ use ln_dlc_node::node::GossipSourceConfig;
 use ln_dlc_node::node::LnDlcNodeSettings;
 use std::time::Duration;
 
-#[cfg(test)]
-mod tests;
-
 pub mod cli;
 pub mod health;
 pub mod ln;
