@@ -1,6 +1,7 @@
 use crate::config;
 use crate::db;
 use crate::db::maybe_get_open_orders;
+use crate::db::maybe_get_order_in_filling;
 use crate::event;
 use crate::event::EventInternal;
 use crate::trade::order::orderbook_client::OrderbookClient;
@@ -22,6 +23,17 @@ use uuid::Uuid;
 const ORDER_OUTDATED_AFTER: Duration = Duration::minutes(5);
 
 pub async fn submit_order(order: Order) -> Result<Uuid> {
+    // Having an order in `Filling` should mean that the subchannel is in the midst of an update.
+    // Since we currently only support one subchannel per app, it does not make sense to start
+    // another update (by submitting a new order to the orderbook) until the current one is
+    // finished.
+    if let Some(filling_order) = maybe_get_order_in_filling()? {
+        bail!(
+            "Cannot submit new order when another one is in filling: {}",
+            filling_order.id
+        );
+    }
+
     let url = format!("http://{}", config::get_http_endpoint());
     let orderbook_client = OrderbookClient::new(Url::parse(&url)?);
 
