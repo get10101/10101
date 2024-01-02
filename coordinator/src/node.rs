@@ -327,7 +327,7 @@ impl Node {
 
         let channel_details = self.get_counterparty_channel(trade_params.pubkey)?;
         self.inner
-            .propose_dlc_channel(channel_details.clone(), contract_input)
+            .propose_sub_channel(channel_details.clone(), contract_input)
             .await
             .context("Could not propose dlc channel")?;
 

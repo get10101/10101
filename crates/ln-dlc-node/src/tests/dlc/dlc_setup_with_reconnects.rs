@@ -1,4 +1,4 @@
-use crate::node::dlc_channel::sub_channel_manager_periodic_check;
+use crate::node::sub_channel::sub_channel_manager_periodic_check;
 use crate::node::Node;
 use crate::tests::dlc::create::create_dlc_channel;
 use crate::tests::dummy_contract_input;
@@ -52,7 +52,7 @@ async fn reconnecting_during_dlc_channel_setup() {
     let oracle_pk = *app.oracle_pk().first().unwrap();
     let contract_input = dummy_contract_input(20_000, 20_000, oracle_pk);
 
-    app.propose_dlc_channel(channel_details.clone(), contract_input)
+    app.propose_sub_channel(channel_details.clone(), contract_input)
         .await
         .unwrap();
 
@@ -417,7 +417,7 @@ async fn can_lose_connection_before_processing_subchannel_accept() {
         .clone();
 
     coordinator
-        .propose_dlc_channel(channel_details.clone(), contract_input)
+        .propose_sub_channel(channel_details.clone(), contract_input)
         .await
         .unwrap();
 

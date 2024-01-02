@@ -1,4 +1,4 @@
-use crate::node::dlc_channel::sub_channel_manager_periodic_check;
+use crate::node::sub_channel::sub_channel_manager_periodic_check;
 use crate::node::Node;
 use crate::tests::bitcoind::mine;
 use crate::tests::dlc::create::create_dlc_channel;

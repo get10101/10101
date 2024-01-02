@@ -298,7 +298,7 @@ impl Node {
             let node = self.inner.clone();
             async move {
                 if let Err(e) = node
-                    .propose_dlc_channel(channel_details.clone(), contract_input)
+                    .propose_sub_channel(channel_details.clone(), contract_input)
                     .await
                 {
                     tracing::error!(

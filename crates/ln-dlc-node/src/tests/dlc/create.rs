@@ -75,7 +75,7 @@ pub async fn create_dlc_channel(
         .clone();
 
     offer_node
-        .propose_dlc_channel(channel_details.clone(), contract_input)
+        .propose_sub_channel(channel_details.clone(), contract_input)
         .await?;
 
     // Process the app's `Offer`

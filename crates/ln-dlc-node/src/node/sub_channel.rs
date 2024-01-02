@@ -33,7 +33,7 @@ use time::OffsetDateTime;
 use tokio::task::spawn_blocking;
 
 impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Node<S, N> {
-    pub async fn propose_dlc_channel(
+    pub async fn propose_sub_channel(
         &self,
         channel_details: ChannelDetails,
         contract_input: ContractInput,
