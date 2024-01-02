@@ -39,6 +39,7 @@ pub enum InvalidSubchannelOffer {
     /// Received offer was outdated
     Outdated,
     UndeterminedMaturityDate,
+    Unacceptable,
 }
 
 #[derive(Debug, Clone, Copy)]

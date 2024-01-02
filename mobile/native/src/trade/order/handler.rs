@@ -102,6 +102,13 @@ pub(crate) fn order_failed(
 
     update_order_state_in_db_and_ui(order_id, OrderState::Failed { reason })?;
 
+    // TODO: fixme. this so ugly, even a Sphynx cat is beautiful against this.
+    // In this function we set the order to failed but here we try to set the position to open.
+    // This is basically a roll back of a former action. It only works because we do not have a
+    // concept of a closed position on the client side. However, this function is being called
+    // in various places where (most of the time) we only want to set the order to failed. If we
+    // were to introduce a `PostionState::Closed` the below code would be wrong and would
+    // accidentally set a closed position to open again. This should be cleaned up.
     if let Err(e) = position::handler::set_position_state(PositionState::Open) {
         bail!("Could not reset position to open because of {e:#}");
     }
@@ -125,8 +132,9 @@ fn get_order_being_filled() -> Result<Order> {
     Ok(order_being_filled)
 }
 
+/// Checks open orders and sets them as failed in case they timed out.
 pub fn check_open_orders() -> Result<()> {
-    let orders_being_filled = match maybe_get_open_orders() {
+    let open_orders = match maybe_get_open_orders() {
         Ok(orders_being_filled) => orders_being_filled,
         Err(e) => {
             bail!("Error when loading open orders from database: {e:#}");
@@ -135,10 +143,11 @@ pub fn check_open_orders() -> Result<()> {
 
     let now = OffsetDateTime::now_utc();
 
-    for order_being_filled in orders_being_filled {
-        if order_being_filled.creation_timestamp + ORDER_OUTDATED_AFTER < now {
+    for open_order in open_orders {
+        tracing::debug!(?open_order, "Checking order if it is still up to date");
+        if open_order.creation_timestamp + ORDER_OUTDATED_AFTER < now {
             order_failed(
-                Some(order_being_filled.id),
+                Some(open_order.id),
                 FailureReason::TimedOut,
                 anyhow!("Order was not matched within {ORDER_OUTDATED_AFTER:?}"),
             )?;
