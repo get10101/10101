@@ -229,7 +229,7 @@ pub fn maybe_get_open_orders() -> Result<Vec<trade::order::Order>> {
 }
 
 /// Return an [`Order`] that is currently in [`OrderState::Filling`].
-pub fn maybe_get_order_in_filling() -> Result<Option<trade::order::Order>> {
+pub fn get_order_in_filling() -> Result<Option<trade::order::Order>> {
     let mut db = connection()?;
 
     let mut orders = Order::get_by_state(OrderState::Filling, &mut db)?;

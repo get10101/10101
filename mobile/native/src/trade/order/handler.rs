@@ -1,7 +1,7 @@
 use crate::config;
 use crate::db;
+use crate::db::get_order_in_filling;
 use crate::db::maybe_get_open_orders;
-use crate::db::maybe_get_order_in_filling;
 use crate::event;
 use crate::event::EventInternal;
 use crate::trade::order::orderbook_client::OrderbookClient;
@@ -27,7 +27,7 @@ pub async fn submit_order(order: Order) -> Result<Uuid> {
     // Since we currently only support one subchannel per app, it does not make sense to start
     // another update (by submitting a new order to the orderbook) until the current one is
     // finished.
-    if let Some(filling_order) = maybe_get_order_in_filling()? {
+    if let Some(filling_order) = get_order_in_filling()? {
         bail!(
             "Cannot submit new order when another one is in filling: {}",
             filling_order.id
@@ -77,12 +77,15 @@ pub(crate) fn order_filling(order_id: Uuid, execution_price: f32) -> Result<()> 
 }
 
 pub(crate) fn order_filled() -> Result<Order> {
-    let (order_being_filled, execution_price) = match get_order_being_filled()? {
-        order @ Order {
-            state: OrderState::Filling { execution_price },
-            ..
-        } => (order, execution_price),
-        order => bail!("Unexpected state: {:?}", order.state),
+    let (order_being_filled, execution_price) = match get_order_in_filling()? {
+        Some(
+            order @ Order {
+                state: OrderState::Filling { execution_price },
+                ..
+            },
+        ) => (order, execution_price),
+        Some(order) => bail!("Unexpected state: {:?}", order.state),
+        None => bail!("No order to mark as Filled"),
     };
 
     let filled_order = update_order_state_in_db_and_ui(
@@ -95,24 +98,22 @@ pub(crate) fn order_filled() -> Result<Order> {
     Ok(filled_order)
 }
 
-/// Update order state to failed
-///
-/// If the order_id is know we load the order by id and set it to failed.
-/// If the order_id is not known we load the order that is currently in `Filling` state and set it
-/// to failed.
+/// Update the [`Order`]'s state to [`OrderState::Failed`].
 pub(crate) fn order_failed(
     order_id: Option<Uuid>,
     reason: FailureReason,
     error: anyhow::Error,
 ) -> Result<()> {
-    tracing::error!("Failed to execute trade for order {order_id:?}: {reason:?}: {error:#}");
+    tracing::error!(?order_id, ?reason, "Failed to execute trade: {error:#}");
 
     let order_id = match order_id {
-        None => get_order_being_filled()?.id,
-        Some(order_id) => order_id,
+        None => get_order_in_filling()?.map(|order| order.id),
+        Some(order_id) => Some(order_id),
     };
 
-    update_order_state_in_db_and_ui(order_id, OrderState::Failed { reason })?;
+    if let Some(order_id) = order_id {
+        update_order_state_in_db_and_ui(order_id, OrderState::Failed { reason })?;
+    }
 
     // TODO: fixme. this so ugly, even a Sphynx cat is beautiful against this.
     // In this function we set the order to failed but here we try to set the position to open.
@@ -136,15 +137,6 @@ pub fn get_async_order() -> Result<Option<Order>> {
     db::get_async_order()
 }
 
-fn get_order_being_filled() -> Result<Order> {
-    let order_being_filled = maybe_get_order_in_filling()
-        .context("Failed to load order being filled")?
-        .context("No known orders being filled")?;
-
-    Ok(order_being_filled)
-}
-
-/// Checks open orders and sets them as failed in case they timed out.
 pub fn check_open_orders() -> Result<()> {
     let open_orders = match maybe_get_open_orders() {
         Ok(orders_being_filled) => orders_being_filled,
