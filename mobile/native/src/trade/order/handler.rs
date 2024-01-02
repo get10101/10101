@@ -63,10 +63,16 @@ pub(crate) fn order_filling(order_id: Uuid, execution_price: f32) -> Result<()> 
         let e_string = format!("{e:#}");
         match order_failed(Some(order_id), FailureReason::FailedToSetToFilling, e) {
             Ok(()) => {
-                tracing::debug!(%order_id, "Set order to failed, after failing to set it to filling");
+                tracing::debug!(
+                    %order_id,
+                    "Set order to failed, after failing to set it to filling"
+                );
             }
             Err(e) => {
-                tracing::error!(%order_id, "Failed to set order to failed, after failing to set it to filling: {e:#}");
+                tracing::error!(
+                    %order_id,
+                    "Failed to set order to failed, after failing to set it to filling: {e:#}"
+                );
             }
         };
 
