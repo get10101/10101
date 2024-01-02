@@ -65,14 +65,15 @@ class _BalanceBoxState extends State<_BalanceBox> {
   int selectedTitleIndex = 1;
 
   List<String> titles = [
+    'DLC-channel',
     'On-chain',
-    'Lightning',
     'USD-P',
   ];
 
   List<BalanceRow> balances = [
-    const BalanceRow(walletType: WalletType.onChain),
+    // TODO(bonomat): this should show the balance from the dlc channel now
     const BalanceRow(walletType: WalletType.lightning),
+    const BalanceRow(walletType: WalletType.onChain),
     const BalanceRow(walletType: WalletType.stable),
   ];
 
