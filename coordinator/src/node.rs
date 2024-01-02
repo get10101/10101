@@ -325,16 +325,11 @@ impl Node {
             }],
         };
 
-        let channel_details = self.get_counterparty_channel(trade_params.pubkey)?;
-        self.inner
-            .propose_sub_channel(channel_details.clone(), contract_input)
-            .await
-            .context("Could not propose dlc channel")?;
-
         let temporary_contract_id = self
             .inner
-            .get_temporary_contract_id_by_sub_channel_id(channel_details.channel_id)
-            .context("unable to extract temporary contract id")?;
+            .propose_dlc_channel(contract_input, trade_params.pubkey)
+            .await
+            .context("Could not propose dlc channel")?;
 
         // After the dlc channel has been proposed the position can be created. Note, this
         // fixes https://github.com/get10101/10101/issues/537, where the position was created
@@ -607,7 +602,7 @@ impl Node {
                 .on_dlc_message(&msg, node_id)
                 .with_context(|| {
                     format!(
-                        "Failed to handle {} message from {node_id}",
+                        "Failed to handle {} dlc message from {node_id}",
                         dlc_message_name(&msg)
                     )
                 })?,
@@ -734,21 +729,22 @@ impl Node {
         Ok(())
     }
 
-    fn coordinator_leverage_for_trade(&self, counterparty_peer_id: &PublicKey) -> Result<f32> {
-        let mut conn = self.pool.get()?;
+    fn coordinator_leverage_for_trade(&self, _counterparty_peer_id: &PublicKey) -> Result<f32> {
+        // TODO(bonomat): we will need to configure the leverage on the coordinator differently now
+        // let channel_details = self.get_counterparty_channel(*counterparty_peer_id)?;
+        // let user_channel_id = Uuid::from_u128(channel_details.user_channel_id).to_string();
+        // let channel = db::channels::get(&user_channel_id, &mut conn)?.with_context(|| {
+        //     format!("Couldn't find shadow channel with user channel ID {user_channel_id}",)
+        // })?;
+        // let leverage_coordinator = match channel.liquidity_option_id {
+        //     Some(liquidity_option_id) => {
+        //         let liquidity_option = db::liquidity_options::get(&mut conn,
+        // liquidity_option_id)?;         liquidity_option.coordinator_leverage
+        //     }
+        //     None => 1.0,
+        // };
 
-        let channel_details = self.get_counterparty_channel(*counterparty_peer_id)?;
-        let user_channel_id = Uuid::from_u128(channel_details.user_channel_id).to_string();
-        let channel = db::channels::get(&user_channel_id, &mut conn)?.with_context(|| {
-            format!("Couldn't find shadow channel with user channel ID {user_channel_id}",)
-        })?;
-        let leverage_coordinator = match channel.liquidity_option_id {
-            Some(liquidity_option_id) => {
-                let liquidity_option = db::liquidity_options::get(&mut conn, liquidity_option_id)?;
-                liquidity_option.coordinator_leverage
-            }
-            None => 1.0,
-        };
+        let leverage_coordinator = 2.0;
 
         Ok(leverage_coordinator)
     }

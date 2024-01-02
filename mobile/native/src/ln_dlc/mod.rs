@@ -1170,12 +1170,7 @@ pub async fn trade(trade_params: TradeParams) -> Result<(), (FailureReason, Erro
 pub async fn rollover(contract_id: Option<String>) -> Result<()> {
     let node = state::get_node();
 
-    let dlc_channels = node
-        .inner
-        .sub_channel_manager
-        .get_dlc_manager()
-        .get_store()
-        .get_sub_channels()?;
+    let dlc_channels = node.inner.dlc_manager.get_store().get_sub_channels()?;
 
     let dlc_channel = dlc_channels
         .into_iter()

@@ -297,9 +297,11 @@ impl Node {
         tokio::spawn({
             let node = self.inner.clone();
             async move {
-                if let Err(e) = node
-                    .propose_sub_channel(channel_details.clone(), contract_input)
-                    .await
+                if let Err(e) =
+                    // TODO(bonomat): we will need to use the new dlc channel protocol here
+                    node
+                        .propose_sub_channel(channel_details.clone(), contract_input)
+                        .await
                 {
                     tracing::error!(
                         channel_id = %channel_details.channel_id.to_hex(),

@@ -7,7 +7,7 @@ use crate::node::NodeInfo;
 use crate::node::OracleInfo;
 use crate::storage::TenTenOneInMemoryStorage;
 use crate::tests::init_tracing;
-use crate::tests::wait_until_dlc_channel_state;
+use crate::tests::wait_until_sub_channel_state;
 use crate::tests::SubChannelStateName;
 use crate::AppEventHandler;
 use crate::EventHandlerTrait;
@@ -102,7 +102,7 @@ async fn open_position(
 
     tracing::info!("Open pre-proposal delivered");
 
-    let dlc_channel = wait_until_dlc_channel_state(
+    let dlc_channel = wait_until_sub_channel_state(
         Duration::from_secs(60),
         app,
         coordinator.info().pubkey,
@@ -112,7 +112,7 @@ async fn open_position(
 
     app.accept_sub_channel_offer(&dlc_channel.channel_id)?;
 
-    wait_until_dlc_channel_state(
+    wait_until_sub_channel_state(
         Duration::from_secs(60),
         app,
         coordinator.info().pubkey,
@@ -150,7 +150,7 @@ async fn close_position(
 
     tracing::info!("Close pre-proposal delivered");
 
-    let dlc_channel = wait_until_dlc_channel_state(
+    let dlc_channel = wait_until_sub_channel_state(
         Duration::from_secs(60),
         app,
         coordinator.info().pubkey,
@@ -161,7 +161,7 @@ async fn close_position(
     app.accept_sub_channel_collaborative_settlement(&dlc_channel.channel_id)
         .unwrap();
 
-    wait_until_dlc_channel_state(
+    wait_until_sub_channel_state(
         Duration::from_secs(60),
         app,
         coordinator.info().pubkey,

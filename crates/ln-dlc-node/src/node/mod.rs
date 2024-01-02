@@ -80,6 +80,7 @@ mod wallet;
 pub(crate) mod invoice;
 pub(crate) mod sub_channel;
 
+pub mod dlc_channel;
 pub mod peer_manager;
 
 pub use crate::node::dlc_manager::signed_channel_state_name;

@@ -62,6 +62,7 @@ use tokio::task::block_in_place;
 
 mod bitcoind;
 mod dlc;
+mod dlc_channel;
 mod just_in_time_channel;
 mod multi_hop_payment;
 mod probe;
@@ -85,7 +86,7 @@ fn init_tracing() {
                 hyper=warn,\
                 reqwest=warn,\
                 rustls=warn,\
-                bdk=info,\
+                bdk=debug,\
                 lightning::ln::peer_handler=debug,\
                 lightning=trace,\
                 lightning_transaction_sync=warn,\
@@ -518,7 +519,7 @@ where
     .await?
 }
 
-async fn wait_until_dlc_channel_state(
+async fn wait_until_sub_channel_state(
     timeout: Duration,
     node: &Node<TenTenOneInMemoryStorage, InMemoryStore>,
     counterparty_pk: PublicKey,
@@ -715,7 +716,7 @@ fn dummy_contract_input(
             }),
             oracles: OracleInput {
                 public_keys: vec![oracle_pk],
-                event_id: "btcusd1610611200".to_string(),
+                event_id: "btcusd1706899460".to_string(),
                 threshold: 1,
             },
         }],

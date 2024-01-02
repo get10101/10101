@@ -3,7 +3,7 @@ use crate::node::Node;
 use crate::storage::TenTenOneInMemoryStorage;
 use crate::tests::dlc::create::create_dlc_channel;
 use crate::tests::init_tracing;
-use crate::tests::wait_until_dlc_channel_state;
+use crate::tests::wait_until_sub_channel_state;
 use crate::tests::SubChannelStateName;
 use anyhow::Context;
 use anyhow::Result;
@@ -157,7 +157,7 @@ async fn dlc_collaborative_settlement(
     .await?;
 
     // Process the app's `CloseOffer`
-    let sub_channel = wait_until_dlc_channel_state(
+    let sub_channel = wait_until_sub_channel_state(
         Duration::from_secs(30),
         coordinator,
         app.info.pubkey,
@@ -168,7 +168,7 @@ async fn dlc_collaborative_settlement(
     coordinator.accept_sub_channel_collaborative_settlement(&sub_channel.channel_id)?;
 
     // Process the coordinator's `CloseAccept` and send `CloseConfirm`
-    wait_until_dlc_channel_state(
+    wait_until_sub_channel_state(
         Duration::from_secs(30),
         app,
         coordinator.info.pubkey,
@@ -179,7 +179,7 @@ async fn dlc_collaborative_settlement(
     // Assert
 
     // Process the app's `CloseConfirm` and send `CloseFinalize`
-    wait_until_dlc_channel_state(
+    wait_until_sub_channel_state(
         Duration::from_secs(30),
         coordinator,
         app.info.pubkey,
@@ -188,7 +188,7 @@ async fn dlc_collaborative_settlement(
     .await?;
 
     // Process the coordinator's `CloseFinalize`
-    wait_until_dlc_channel_state(
+    wait_until_sub_channel_state(
         Duration::from_secs(30),
         app,
         coordinator.info.pubkey,

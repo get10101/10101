@@ -446,8 +446,7 @@ pub fn confirm_collaborative_revert(
 
     if let Some(mut subchannel) = optional_subchannel.cloned() {
         subchannel.state = SubChannelState::OnChainClosed;
-        node.sub_channel_manager
-            .get_dlc_manager()
+        node.dlc_manager
             .get_store()
             .upsert_sub_channel(&subchannel)?;
     }

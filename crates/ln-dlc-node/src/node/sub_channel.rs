@@ -431,29 +431,7 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
             })
     }
 
-    /// Fetches the contract for a given dlc channel id
-    pub fn get_contract_by_dlc_channel_id(
-        &self,
-        dlc_channel_id: &DlcChannelId,
-    ) -> Result<Contract> {
-        let channel = self.get_sub_channel_by_id(dlc_channel_id)?;
-        let contract_id = channel
-            .get_contract_id()
-            .context("Could not find contract id")?;
-
-        self.dlc_manager
-            .get_store()
-            .get_contract(&contract_id)?
-            .with_context(|| {
-                format!(
-                    "Couldn't find dlc channel with id: {}",
-                    dlc_channel_id.to_hex()
-                )
-            })
-    }
-
     #[cfg(test)]
-
     pub fn process_incoming_messages(&self) -> Result<()> {
         let dlc_message_handler = &self.dlc_message_handler;
         let dlc_manager = &self.dlc_manager;
@@ -463,9 +441,14 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
         tracing::debug!("Received and cleared {} messages", messages.len());
 
         for (node_id, msg) in messages {
+            tracing::info!(
+                from = %node_id,
+                msg = %dlc_message_name(&msg),
+                "Processing rust-dlc message"
+            );
+
             match msg {
                 Message::OnChain(_) | Message::Channel(_) => {
-                    tracing::debug!(from = %node_id, "Processing DLC-manager message");
                     let resp = dlc_manager.on_dlc_message(&msg, node_id)?;
 
                     if let Some(msg) = resp {
@@ -474,11 +457,6 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
                     }
                 }
                 Message::SubChannel(msg) => {
-                    tracing::debug!(
-                        from = %node_id,
-                        msg = %sub_channel_message_name(&msg),
-                        "Processing DLC channel message"
-                    );
                     let resp = sub_channel_manager.on_sub_channel_message(&msg, &node_id)?;
 
                     if let Some(msg) = resp {
