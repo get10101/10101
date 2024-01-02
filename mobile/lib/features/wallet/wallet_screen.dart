@@ -6,7 +6,6 @@ import 'package:get_10101/common/secondary_action_button.dart';
 import 'package:get_10101/features/swap/swap_screen.dart';
 import 'package:get_10101/features/wallet/balance.dart';
 import 'package:get_10101/features/wallet/receive_screen.dart';
-import 'package:get_10101/features/wallet/onboarding/onboarding_screen.dart';
 import 'package:get_10101/features/wallet/scanner_screen.dart';
 import 'package:get_10101/features/wallet/wallet_change_notifier.dart';
 import 'package:go_router/go_router.dart';
@@ -46,7 +45,9 @@ class WalletScreen extends StatelessWidget {
                         onPressed: () {
                           context.go((hasChannel || walletChangeNotifier.lightning().sats > 0)
                               ? ReceiveScreen.route
-                              : OnboardingScreen.route);
+                              :
+                              // TODO: we should have a dedicated on-boarding screen for on-boarding with on-chain funds
+                              ReceiveScreen.route);
                         },
                         icon: FontAwesomeIcons.arrowDown,
                         title: 'Receive',
