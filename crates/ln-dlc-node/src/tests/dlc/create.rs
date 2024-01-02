@@ -87,7 +87,7 @@ pub async fn create_dlc_channel(
     )
     .await?;
 
-    accept_node.accept_dlc_channel_offer(&sub_channel.channel_id)?;
+    accept_node.accept_sub_channel_offer(&sub_channel.channel_id)?;
 
     // Process the coordinator's `Accept` and send `Confirm`
     wait_until_dlc_channel_state(

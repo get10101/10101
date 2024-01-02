@@ -150,7 +150,7 @@ async fn dlc_collaborative_settlement(
         .context("Could not find usable channel with peer")?
         .clone();
 
-    app.propose_dlc_channel_collaborative_settlement(
+    app.propose_sub_channel_collaborative_settlement(
         channel_details.channel_id,
         coordinator_settlement_amount,
     )
@@ -165,7 +165,7 @@ async fn dlc_collaborative_settlement(
     )
     .await?;
 
-    coordinator.accept_dlc_channel_collaborative_settlement(&sub_channel.channel_id)?;
+    coordinator.accept_sub_channel_collaborative_settlement(&sub_channel.channel_id)?;
 
     // Process the coordinator's `CloseAccept` and send `CloseConfirm`
     wait_until_dlc_channel_state(

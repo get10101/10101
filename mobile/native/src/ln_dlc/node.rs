@@ -192,7 +192,7 @@ impl Node {
                         // TODO: We should probably verify that: (1) the counterparty is the
                         // coordinator and (2) the DLC channel close offer is expected and correct.
                         self.inner
-                            .accept_dlc_channel_collaborative_settlement(&channel_id)
+                            .accept_sub_channel_collaborative_settlement(&channel_id)
                             .with_context(|| {
                                 format!(
                                     "Failed to accept DLC channel close offer for channel {}",
@@ -303,7 +303,7 @@ impl Node {
             SubchannelOfferAction::Accept => {
                 if let Err(error) = self
                     .inner
-                    .accept_dlc_channel_offer(&channel_id)
+                    .accept_sub_channel_offer(&channel_id)
                     .with_context(|| {
                         format!(
                             "Failed to accept DLC channel offer for channel {}",
@@ -329,7 +329,7 @@ impl Node {
                         (InvalidSubchannelOffer::Unacceptable, invalid_offer_msg)
                     };
                 self.inner
-                    .reject_dlc_channel_offer(&channel_id)
+                    .reject_sub_channel_offer(&channel_id)
                     .with_context(|| {
                         format!(
                             "Failed to reject DLC channel offer for channel {}",

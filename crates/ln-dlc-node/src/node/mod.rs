@@ -97,7 +97,7 @@ use lightning::util::ser::ReadableArgs;
 pub use storage::InMemoryStore;
 pub use storage::Storage;
 pub use sub_channel::dlc_message_name;
-pub use sub_channel::send_dlc_message;
+pub use sub_channel::send_sub_channel_message;
 pub use sub_channel::sub_channel_message_name;
 pub use sub_channel_manager::SubChannelManager;
 pub use wallet::PaymentDetails;

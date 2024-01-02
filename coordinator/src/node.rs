@@ -38,7 +38,7 @@ use lightning::ln::ChannelId;
 use lightning::util::config::UserConfig;
 use ln_dlc_node::node;
 use ln_dlc_node::node::dlc_message_name;
-use ln_dlc_node::node::send_dlc_message;
+use ln_dlc_node::node::send_sub_channel_message;
 use ln_dlc_node::node::sub_channel_message_name;
 use ln_dlc_node::node::RunningNode;
 use ln_dlc_node::WalletSettings;
@@ -426,7 +426,7 @@ impl Node {
         );
 
         self.inner
-            .propose_dlc_channel_collaborative_settlement(channel_id, accept_settlement_amount)
+            .propose_sub_channel_collaborative_settlement(channel_id, accept_settlement_amount)
             .await?;
 
         db::trades::insert(
@@ -525,7 +525,7 @@ impl Node {
     ) -> Result<TradeAction> {
         let trader_peer_id = trade_params.pubkey;
 
-        let subchannel = match self.inner.get_dlc_channel_signed(&trader_peer_id)? {
+        let subchannel = match self.inner.get_sub_channel_signed(&trader_peer_id)? {
             None => return Ok(TradeAction::Open),
             Some(subchannel) => subchannel,
         };
@@ -723,7 +723,7 @@ impl Node {
                 "Sending message"
             );
 
-            send_dlc_message(
+            send_sub_channel_message(
                 &self.inner.dlc_message_handler,
                 &self.inner.peer_manager,
                 node_id,

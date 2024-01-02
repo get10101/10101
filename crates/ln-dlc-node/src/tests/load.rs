@@ -110,7 +110,7 @@ async fn open_position(
     )
     .await?;
 
-    app.accept_dlc_channel_offer(&dlc_channel.channel_id)?;
+    app.accept_sub_channel_offer(&dlc_channel.channel_id)?;
 
     wait_until_dlc_channel_state(
         Duration::from_secs(60),
@@ -158,7 +158,7 @@ async fn close_position(
     )
     .await?;
 
-    app.accept_dlc_channel_collaborative_settlement(&dlc_channel.channel_id)
+    app.accept_sub_channel_collaborative_settlement(&dlc_channel.channel_id)
         .unwrap();
 
     wait_until_dlc_channel_state(

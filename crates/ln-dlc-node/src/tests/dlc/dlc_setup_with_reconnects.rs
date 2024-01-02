@@ -78,13 +78,13 @@ async fn reconnecting_during_dlc_channel_setup() {
     // Assert that `accept_dlc_channel_offer` fails if the peer is disconnected (do not panic as in
     // https://github.com/get10101/10101/issues/760).
     assert!(coordinator
-        .accept_dlc_channel_offer(&sub_channel.channel_id)
+        .accept_sub_channel_offer(&sub_channel.channel_id)
         .is_err());
 
     app.connect(coordinator.info).await.unwrap();
 
     coordinator
-        .accept_dlc_channel_offer(&sub_channel.channel_id)
+        .accept_sub_channel_offer(&sub_channel.channel_id)
         .unwrap();
 
     // Process the coordinator's `Accept` and send `Confirm`
@@ -165,7 +165,7 @@ async fn reconnecting_during_dlc_channel_setup() {
     .unwrap();
 
     let coordinator_settlement_amount = 12_500;
-    app.propose_dlc_channel_collaborative_settlement(
+    app.propose_sub_channel_collaborative_settlement(
         channel_details.channel_id,
         coordinator_settlement_amount,
     )
@@ -183,7 +183,7 @@ async fn reconnecting_during_dlc_channel_setup() {
     .unwrap();
 
     coordinator
-        .accept_dlc_channel_collaborative_settlement(&sub_channel.channel_id)
+        .accept_sub_channel_collaborative_settlement(&sub_channel.channel_id)
         .unwrap();
 
     // Process the coordinator's `CloseAccept` and send `CloseConfirm`.
@@ -302,7 +302,7 @@ async fn can_lose_connection_before_processing_subchannel_close_finalize() {
         .clone();
 
     coordinator
-        .propose_dlc_channel_collaborative_settlement(
+        .propose_sub_channel_collaborative_settlement(
             channel_details.channel_id,
             app_dlc_collateral / 2,
         )
@@ -319,7 +319,7 @@ async fn can_lose_connection_before_processing_subchannel_close_finalize() {
     .await
     .unwrap();
 
-    app.accept_dlc_channel_collaborative_settlement(&sub_channel.channel_id)
+    app.accept_sub_channel_collaborative_settlement(&sub_channel.channel_id)
         .unwrap();
 
     // Process `CloseAccept` and send `CloseConfirm`
@@ -431,7 +431,7 @@ async fn can_lose_connection_before_processing_subchannel_accept() {
     .await
     .unwrap();
 
-    app.accept_dlc_channel_offer(&sub_channel.channel_id)
+    app.accept_sub_channel_offer(&sub_channel.channel_id)
         .unwrap();
 
     // Give time to deliver the `Accept` message to the coordinator.
@@ -550,7 +550,7 @@ async fn can_lose_connection_before_processing_subchannel_close_accept() {
         .clone();
 
     coordinator
-        .propose_dlc_channel_collaborative_settlement(
+        .propose_sub_channel_collaborative_settlement(
             channel_details.channel_id,
             app_dlc_collateral / 2,
         )
@@ -567,7 +567,7 @@ async fn can_lose_connection_before_processing_subchannel_close_accept() {
     .await
     .unwrap();
 
-    app.accept_dlc_channel_collaborative_settlement(&sub_channel.channel_id)
+    app.accept_sub_channel_collaborative_settlement(&sub_channel.channel_id)
         .unwrap();
 
     // Give time to deliver the `CloseAccept` message to the coordinator.

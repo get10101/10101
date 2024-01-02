@@ -229,7 +229,7 @@ impl Node {
         // As the average entry price does not change with a rollover, we can simply use the traders
         // margin as payout here. The funding rate should be considered here once https://github.com/get10101/10101/issues/1069 gets implemented.
         self.inner
-            .propose_dlc_channel_update(dlc_channel_id, rollover.margin_trader, contract_input)
+            .propose_sub_channel_update(dlc_channel_id, rollover.margin_trader, contract_input)
             .await?;
 
         // Sets the position state to rollover indicating that a rollover is in progress.

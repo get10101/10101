@@ -69,7 +69,7 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
                     &[announcements],
                 )?;
 
-                send_dlc_message(
+                send_sub_channel_message(
                     &dlc_message_handler,
                     &peer_manager,
                     channel_details.counterparty.node_id,
@@ -84,7 +84,7 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
 
     /// Proposes and update to the DLC channel based on the provided [`ContractInput`]. A
     /// [`RenewOffer`] is sent to the counterparty, kickstarting the renew protocol.
-    pub async fn propose_dlc_channel_update(
+    pub async fn propose_sub_channel_update(
         &self,
         dlc_channel_id: &DlcChannelId,
         payout_amount: u64,
@@ -100,7 +100,7 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
                 let (renew_offer, counterparty_pubkey) =
                     dlc_manager.renew_offer(&dlc_channel_id, payout_amount, &contract_input)?;
 
-                send_dlc_message(
+                send_sub_channel_message(
                     &dlc_message_handler,
                     &peer_manager,
                     counterparty_pubkey,
@@ -113,7 +113,7 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
         .map_err(|e| anyhow!("{e:#}"))?
     }
 
-    pub fn reject_dlc_channel_offer(&self, channel_id: &ChannelId) -> Result<()> {
+    pub fn reject_sub_channel_offer(&self, channel_id: &ChannelId) -> Result<()> {
         let channel_id_hex = hex::encode(channel_id.0);
 
         tracing::info!(channel_id = %channel_id_hex, "Rejecting DLC channel offer");
@@ -122,7 +122,7 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
             .sub_channel_manager
             .reject_sub_channel_offer(*channel_id)?;
 
-        send_dlc_message(
+        send_sub_channel_message(
             &self.dlc_message_handler,
             &self.peer_manager,
             node_id,
@@ -132,7 +132,7 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
         Ok(())
     }
 
-    pub fn accept_dlc_channel_offer(&self, channel_id: &ChannelId) -> Result<()> {
+    pub fn accept_sub_channel_offer(&self, channel_id: &ChannelId) -> Result<()> {
         let channel_id_hex = hex::encode(channel_id.0);
 
         tracing::info!(channel_id = %channel_id_hex, "Accepting DLC channel offer");
@@ -140,7 +140,7 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
         let (node_id, accept_sub_channel) =
             self.sub_channel_manager.accept_sub_channel(channel_id)?;
 
-        send_dlc_message(
+        send_sub_channel_message(
             &self.dlc_message_handler,
             &self.peer_manager,
             node_id,
@@ -150,7 +150,7 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
         Ok(())
     }
 
-    pub async fn propose_dlc_channel_collaborative_settlement(
+    pub async fn propose_sub_channel_collaborative_settlement(
         &self,
         channel_id: ChannelId,
         accept_settlement_amount: u64,
@@ -171,7 +171,7 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
                 let (sub_channel_close_offer, counterparty_pk) = sub_channel_manager
                     .offer_subchannel_close(&channel_id, accept_settlement_amount)?;
 
-                send_dlc_message(
+                send_sub_channel_message(
                     &dlc_message_handler,
                     &peer_manager,
                     counterparty_pk,
@@ -184,7 +184,7 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
         .await?
     }
 
-    pub fn accept_dlc_channel_collaborative_settlement(
+    pub fn accept_sub_channel_collaborative_settlement(
         &self,
         channel_id: &ChannelId,
     ) -> Result<()> {
@@ -196,7 +196,7 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
             .sub_channel_manager
             .accept_subchannel_close_offer(channel_id)?;
 
-        send_dlc_message(
+        send_sub_channel_message(
             &self.dlc_message_handler,
             &self.peer_manager,
             counterparty_pk,
@@ -206,7 +206,7 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
         Ok(())
     }
 
-    pub fn get_dlc_channel_offer(&self, pubkey: &PublicKey) -> Result<Option<SubChannel>> {
+    pub fn get_sub_channel_offer(&self, pubkey: &PublicKey) -> Result<Option<SubChannel>> {
         let dlc_channel = self
             .dlc_manager
             .get_store()
@@ -273,21 +273,21 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
         Ok(contract)
     }
 
-    pub fn get_dlc_channel_signed(&self, pubkey: &PublicKey) -> Result<Option<SubChannel>> {
+    pub fn get_sub_channel_signed(&self, pubkey: &PublicKey) -> Result<Option<SubChannel>> {
         let matcher = |dlc_channel: &&SubChannel| {
             dlc_channel.counter_party == *pubkey
                 && matches!(&dlc_channel.state, SubChannelState::Signed(_))
         };
-        let dlc_channel = self.get_dlc_channel(&matcher)?;
+        let dlc_channel = self.get_sub_channel(&matcher)?;
         Ok(dlc_channel)
     }
 
-    pub fn get_dlc_channel_close_offer(&self, pubkey: &PublicKey) -> Result<Option<SubChannel>> {
+    pub fn get_sub_channel_close_offer(&self, pubkey: &PublicKey) -> Result<Option<SubChannel>> {
         let matcher = |dlc_channel: &&SubChannel| {
             dlc_channel.counter_party == *pubkey
                 && matches!(&dlc_channel.state, SubChannelState::CloseOffered(_))
         };
-        let dlc_channel = self.get_dlc_channel(&matcher)?;
+        let dlc_channel = self.get_sub_channel(&matcher)?;
 
         Ok(dlc_channel)
     }
@@ -388,7 +388,7 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
         }
     }
 
-    fn get_dlc_channel(
+    fn get_sub_channel(
         &self,
         matcher: impl FnMut(&&SubChannel) -> bool,
     ) -> Result<Option<SubChannel>> {
@@ -418,7 +418,7 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
     }
 
     /// Gets the dlc channel by the dlc channel id
-    pub fn get_dlc_channel_by_id(&self, dlc_channel_id: &DlcChannelId) -> Result<Channel> {
+    pub fn get_sub_channel_by_id(&self, dlc_channel_id: &DlcChannelId) -> Result<Channel> {
         self.dlc_manager
             .get_store()
             .get_channel(dlc_channel_id)
@@ -436,7 +436,7 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
         &self,
         dlc_channel_id: &DlcChannelId,
     ) -> Result<Contract> {
-        let channel = self.get_dlc_channel_by_id(dlc_channel_id)?;
+        let channel = self.get_sub_channel_by_id(dlc_channel_id)?;
         let contract_id = channel
             .get_contract_id()
             .context("Could not find contract id")?;
@@ -470,7 +470,7 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
 
                     if let Some(msg) = resp {
                         tracing::debug!(to = %node_id, "Sending DLC-manager message");
-                        send_dlc_message(dlc_message_handler, peer_manager, node_id, msg);
+                        send_sub_channel_message(dlc_message_handler, peer_manager, node_id, msg);
                     }
                 }
                 Message::SubChannel(msg) => {
@@ -487,7 +487,7 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
                             msg = %sub_channel_message_name(&msg),
                             "Sending DLC channel message"
                         );
-                        send_dlc_message(
+                        send_sub_channel_message(
                             dlc_message_handler,
                             peer_manager,
                             node_id,
@@ -507,7 +507,10 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
 /// Use this instead of [`MessageHandler`]'s `send_message` which only enqueues the message.
 ///
 /// [`MessageHandler`]: dlc_messages::message_handler::MessageHandler
-pub fn send_dlc_message<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static>(
+pub fn send_sub_channel_message<
+    S: TenTenOneStorage + 'static,
+    N: LnDlcStorage + Sync + Send + 'static,
+>(
     dlc_message_handler: &DlcMessageHandler,
     peer_manager: &PeerManager<S, N>,
     node_id: PublicKey,
@@ -542,7 +545,7 @@ pub(crate) async fn sub_channel_manager_periodic_check<
             "Queuing up DLC channel message tied to pending action"
         );
 
-        send_dlc_message(dlc_message_handler, peer_manager, node_id, msg);
+        send_sub_channel_message(dlc_message_handler, peer_manager, node_id, msg);
     }
 
     Ok(())
