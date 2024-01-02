@@ -137,7 +137,7 @@ pub fn get_async_order() -> Result<Option<Order>> {
 }
 
 fn get_order_being_filled() -> Result<Order> {
-    let order_being_filled = db::maybe_get_order_in_filling()
+    let order_being_filled = maybe_get_order_in_filling()
         .context("Failed to load order being filled")?
         .context("No known orders being filled")?;
 
