@@ -190,7 +190,7 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
     ) -> Result<()> {
         let channel_id_hex = hex::encode(channel_id.0);
 
-        tracing::info!(channel_id = %channel_id_hex, "Accepting DLC channel collaborative settlement");
+        tracing::info!(channel_id = %channel_id_hex, "Accepting sub channel collaborative settlement");
 
         let (sub_channel_close_accept, counterparty_pk) = self
             .sub_channel_manager
@@ -452,7 +452,7 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
                     let resp = dlc_manager.on_dlc_message(&msg, node_id)?;
 
                     if let Some(msg) = resp {
-                        tracing::debug!(to = %node_id, "Sending DLC-manager message");
+                        tracing::debug!(to = %node_id, msg = dlc_message_name(&msg), "Sending DLC-manager message");
                         send_sub_channel_message(dlc_message_handler, peer_manager, node_id, msg);
                     }
                 }

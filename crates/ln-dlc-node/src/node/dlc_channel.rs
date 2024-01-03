@@ -11,6 +11,8 @@ use anyhow::Context;
 use anyhow::Error;
 use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
+use dlc_manager::channel::signed_channel::SignedChannel;
+use dlc_manager::channel::signed_channel::SignedChannelState;
 use dlc_manager::channel::Channel;
 use dlc_manager::contract::contract_input::ContractInput;
 use dlc_manager::contract::Contract;
@@ -20,8 +22,6 @@ use dlc_manager::Oracle;
 use dlc_manager::Storage;
 use dlc_messages::ChannelMessage;
 use dlc_messages::Message;
-use dlc_messages::SubChannelMessage;
-use lightning::ln::ChannelId;
 use time::OffsetDateTime;
 use tokio::task::spawn_blocking;
 
@@ -146,10 +146,10 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
 
     pub async fn propose_dlc_channel_collaborative_settlement(
         &self,
-        channel_id: ChannelId,
+        channel_id: DlcChannelId,
         accept_settlement_amount: u64,
     ) -> Result<()> {
-        let channel_id_hex = hex::encode(channel_id.0);
+        let channel_id_hex = hex::encode(channel_id);
 
         tracing::info!(
             channel_id = %channel_id_hex,
@@ -158,18 +158,18 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
         );
 
         spawn_blocking({
-            let sub_channel_manager = self.sub_channel_manager.clone();
+            let dlc_manager = self.dlc_manager.clone();
             let dlc_message_handler = self.dlc_message_handler.clone();
             let peer_manager = self.peer_manager.clone();
             move || {
-                let (sub_channel_close_offer, counterparty_pk) = sub_channel_manager
-                    .offer_subchannel_close(&channel_id, accept_settlement_amount)?;
+                let (settle_offer, counterparty) =
+                    dlc_manager.settle_offer(&channel_id, accept_settlement_amount)?;
 
                 send_dlc_message(
                     &dlc_message_handler,
                     &peer_manager,
-                    counterparty_pk,
-                    Message::SubChannel(SubChannelMessage::CloseOffer(sub_channel_close_offer)),
+                    counterparty,
+                    Message::Channel(ChannelMessage::SettleOffer(settle_offer)),
                 );
 
                 Ok(())
@@ -180,21 +180,22 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
 
     pub fn accept_dlc_channel_collaborative_settlement(
         &self,
-        channel_id: &ChannelId,
+        channel_id: DlcChannelId,
     ) -> Result<()> {
-        let channel_id_hex = hex::encode(channel_id.0);
+        let channel_id_hex = hex::encode(channel_id);
 
         tracing::info!(channel_id = %channel_id_hex, "Accepting DLC channel collaborative settlement");
 
-        let (sub_channel_close_accept, counterparty_pk) = self
-            .sub_channel_manager
-            .accept_subchannel_close_offer(channel_id)?;
+        let dlc_manager = self.dlc_manager.clone();
+        let dlc_message_handler = self.dlc_message_handler.clone();
+        let peer_manager = self.peer_manager.clone();
+        let (settle_offer, counterparty_pk) = dlc_manager.accept_settle_offer(&channel_id)?;
 
         send_dlc_message(
-            &self.dlc_message_handler,
-            &self.peer_manager,
+            &dlc_message_handler,
+            &peer_manager,
             counterparty_pk,
-            Message::SubChannel(SubChannelMessage::CloseAccept(sub_channel_close_accept)),
+            Message::Channel(ChannelMessage::SettleAccept(settle_offer)),
         );
 
         Ok(())
@@ -278,6 +279,31 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
                     dlc_channel_id.to_hex()
                 )
             })
+    }
+
+    pub fn get_established_dlc_channel(&self, pubkey: &PublicKey) -> Result<Option<SignedChannel>> {
+        let matcher = |dlc_channel: &&SignedChannel| {
+            dlc_channel.counter_party == *pubkey
+                && matches!(&dlc_channel.state, SignedChannelState::Established { .. })
+        };
+        let dlc_channel = self.get_dlc_channel(&matcher)?;
+        Ok(dlc_channel)
+    }
+
+    fn get_dlc_channel(
+        &self,
+        matcher: impl FnMut(&&SignedChannel) -> bool,
+    ) -> Result<Option<SignedChannel>> {
+        let dlc_channels = self.list_dlc_channels()?;
+        let dlc_channel = dlc_channels.iter().find(matcher);
+
+        Ok(dlc_channel.cloned())
+    }
+
+    pub fn list_dlc_channels(&self) -> Result<Vec<SignedChannel>> {
+        let dlc_channels = self.dlc_manager.get_store().get_signed_channels(None)?;
+
+        Ok(dlc_channels)
     }
 }
 

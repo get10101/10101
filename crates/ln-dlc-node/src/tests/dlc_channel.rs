@@ -1,8 +1,11 @@
 use crate::node::Node;
+use crate::tests::bitcoind::mine;
 use crate::tests::dummy_contract_input;
 use crate::tests::init_tracing;
 use crate::tests::wait_until;
 use bitcoin::Amount;
+use dlc_manager::channel::signed_channel::SignedChannelStateType;
+use dlc_manager::contract::Contract;
 use dlc_manager::Storage;
 use std::time::Duration;
 
@@ -31,6 +34,9 @@ async fn vanilla_dlc_channel() {
         .await
         .unwrap();
 
+    let app_balance_before = app.get_on_chain_balance().unwrap().confirmed;
+    let coordinator_balance_before = coordinator.get_on_chain_balance().unwrap().confirmed;
+
     // Act
 
     let oracle_pk = *coordinator.oracle_pk().first().unwrap();
@@ -58,7 +64,7 @@ async fn vanilla_dlc_channel() {
     app.accept_dlc_channel_offer(&offered_channel.temporary_channel_id)
         .unwrap();
 
-    let _coordinator_signed_channel = wait_until(Duration::from_secs(30), || async {
+    let coordinator_signed_channel = wait_until(Duration::from_secs(30), || async {
         coordinator.process_incoming_messages()?;
 
         let dlc_channels = coordinator
@@ -74,7 +80,7 @@ async fn vanilla_dlc_channel() {
     .await
     .unwrap();
 
-    let _app_signed_channel = wait_until(Duration::from_secs(30), || async {
+    let app_signed_channel = wait_until(Duration::from_secs(30), || async {
         app.process_incoming_messages()?;
 
         let dlc_channels = app.dlc_manager.get_store().get_signed_channels(None)?;
@@ -82,6 +88,159 @@ async fn vanilla_dlc_channel() {
         Ok(dlc_channels
             .iter()
             .find(|dlc_channel| dlc_channel.counter_party == coordinator.info.pubkey)
+            .cloned())
+    })
+    .await
+    .unwrap();
+
+    mine(dlc_manager::manager::NB_CONFIRMATIONS as u16)
+        .await
+        .unwrap();
+
+    wait_until(Duration::from_secs(30), || async {
+        app.sync_wallets().await.unwrap();
+
+        let app_balance_after_open = app.get_on_chain_balance().unwrap().confirmed;
+
+        // We don't aim to account for transaction fees exactly.
+        Ok((app_balance_after_open <= app_balance_before - app_dlc_collateral).then_some(()))
+    })
+    .await
+    .unwrap();
+
+    wait_until(Duration::from_secs(30), || async {
+        coordinator.sync_wallets().await.unwrap();
+
+        let coordinator_balance_after_open = coordinator.get_on_chain_balance().unwrap().confirmed;
+
+        // We don't aim to account for transaction fees exactly.
+        Ok((coordinator_balance_after_open
+            <= coordinator_balance_before - coordinator_dlc_collateral)
+            .then_some(()))
+    })
+    .await
+    .unwrap();
+
+    wait_until(Duration::from_secs(30), || async {
+        app.dlc_manager.periodic_chain_monitor().unwrap();
+        app.dlc_manager.periodic_check().unwrap();
+
+        let contract = app
+            .dlc_manager
+            .get_store()
+            .get_contract(&app_signed_channel.get_contract_id().unwrap())
+            .unwrap();
+
+        Ok(matches!(contract, Some(Contract::Confirmed(_))).then_some(()))
+    })
+    .await
+    .unwrap();
+
+    wait_until(Duration::from_secs(30), || async {
+        coordinator.dlc_manager.periodic_chain_monitor().unwrap();
+        coordinator.dlc_manager.periodic_check().unwrap();
+
+        let contract = coordinator
+            .dlc_manager
+            .get_store()
+            .get_contract(&coordinator_signed_channel.get_contract_id().unwrap())
+            .unwrap();
+
+        Ok(matches!(contract, Some(Contract::Confirmed(_))).then_some(()))
+    })
+    .await
+    .unwrap();
+
+    tracing::info!("DLC channel is on-chain");
+
+    coordinator
+        .propose_dlc_channel_collaborative_settlement(
+            coordinator_signed_channel.channel_id,
+            coordinator_dlc_collateral / 2,
+        )
+        .await
+        .unwrap();
+
+    tracing::debug!("Waiting for settle offer...");
+    let app_signed_channel = wait_until(Duration::from_secs(30), || async {
+        app.process_incoming_messages()?;
+
+        let dlc_channels = app
+            .dlc_manager
+            .get_store()
+            .get_signed_channels(Some(SignedChannelStateType::SettledReceived))?;
+
+        Ok(dlc_channels
+            .iter()
+            .find(|dlc_channel| dlc_channel.counter_party == coordinator.info.pubkey)
+            .cloned())
+    })
+    .await
+    .unwrap();
+
+    tracing::debug!("Accepting settle offer and waiting for being settled...");
+    app.accept_dlc_channel_collaborative_settlement(app_signed_channel.channel_id)
+        .unwrap();
+
+    wait_until(Duration::from_secs(10), || async {
+        app.process_incoming_messages()?;
+
+        let dlc_channels = app
+            .dlc_manager
+            .get_store()
+            .get_signed_channels(Some(SignedChannelStateType::SettledAccepted))?;
+
+        Ok(dlc_channels
+            .iter()
+            .find(|dlc_channel| dlc_channel.counter_party == coordinator.info.pubkey)
+            .cloned())
+    })
+    .await
+    .unwrap();
+
+    wait_until(Duration::from_secs(10), || async {
+        coordinator.process_incoming_messages()?;
+
+        let dlc_channels = coordinator
+            .dlc_manager
+            .get_store()
+            .get_signed_channels(Some(SignedChannelStateType::SettledConfirmed))?;
+
+        Ok(dlc_channels
+            .iter()
+            .find(|dlc_channel| dlc_channel.counter_party == app.info.pubkey)
+            .cloned())
+    })
+    .await
+    .unwrap();
+
+    wait_until(Duration::from_secs(10), || async {
+        app.process_incoming_messages()?;
+
+        let dlc_channels = app
+            .dlc_manager
+            .get_store()
+            .get_signed_channels(Some(SignedChannelStateType::Settled))?;
+
+        Ok(dlc_channels
+            .iter()
+            .find(|dlc_channel| dlc_channel.counter_party == coordinator.info.pubkey)
+            .cloned())
+    })
+    .await
+    .unwrap();
+
+    wait_until(Duration::from_secs(10), || async {
+        coordinator.process_incoming_messages()?;
+
+        let dlc_channels = coordinator
+            .dlc_manager
+            .get_store()
+            .get_signed_channels(Some(SignedChannelStateType::Settled))?;
+
+        Ok(dlc_channels
+            .iter()
+            .find(|dlc_channel| dlc_channel.counter_party == app.info.pubkey)
             .cloned())
     })
     .await

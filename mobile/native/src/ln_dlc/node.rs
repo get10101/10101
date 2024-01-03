@@ -196,7 +196,7 @@ impl Node {
                             .accept_sub_channel_collaborative_settlement(&channel_id)
                             .with_context(|| {
                                 format!(
-                                    "Failed to accept DLC channel close offer for channel {}",
+                                    "Failed to accept sub channel close offer for channel {}",
                                     hex::encode(channel_id.0)
                                 )
                             })?;
@@ -228,10 +228,17 @@ impl Node {
                         );
                         self.process_dlc_channel_offer(offer.temporary_channel_id, action)?;
                     }
-
-                    msg => {
-                        tracing::warn!("Received {msg:?} - ignoring here");
+                    ChannelMessage::SettleOffer(offer) => {
+                        self.inner
+                            .accept_dlc_channel_collaborative_settlement(offer.channel_id)
+                            .with_context(|| {
+                                format!(
+                                    "Failed to accept DLC channel close offer for channel {}",
+                                    hex::encode(offer.channel_id)
+                                )
+                            })?;
                     }
+                    _ => (),
                 }
                 resp
             }
@@ -485,6 +492,20 @@ impl Node {
         self.inner
             .dlc_message_handler
             .send_message(node_id, msg.clone());
+
+        if let Message::Channel(ChannelMessage::SettleFinalize(_)) = msg {
+            tracing::debug!("Position based on DLC channel is being closed");
+
+            let filled_order = order::handler::order_filled()?;
+
+            position::handler::update_position_after_dlc_closure(Some(filled_order))
+                .context("Failed to update position after DLC closure")?;
+
+            // In case of a restart.
+            event::publish(&EventInternal::BackgroundNotification(
+                BackgroundTask::RecoverDlc(TaskStatus::Success),
+            ));
+        }
 
         // After sending the `CloseFinalize` message, we need to do some post-processing based on
         // the fact that the DLC channel has been closed.
