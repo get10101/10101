@@ -140,6 +140,7 @@ async fn fail_to_open_jit_channel_with_fee_rate_over_max() {
     // rate to ensure that opening the JIT channel fails
     let settings = WalletSettings {
         max_allowed_tx_fee_rate_when_opening_channel: Some(background_fee_rate - 1),
+        jit_channels_enabled: true,
     };
 
     coordinator.ldk_wallet().update_settings(settings).await;

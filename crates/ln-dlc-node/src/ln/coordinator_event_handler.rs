@@ -15,6 +15,7 @@ use crate::storage::TenTenOneStorage;
 use crate::EventHandlerTrait;
 use crate::CONFIRMATION_TARGET;
 use anyhow::anyhow;
+use anyhow::bail;
 use anyhow::ensure;
 use anyhow::Context;
 use anyhow::Result;
@@ -506,6 +507,16 @@ pub(crate) async fn handle_intercepted_htlc_internal<S: TenTenOneStorage, N: Sto
          expected_outbound_amount_msat: {expected_outbound_amount_msat} > \
          max_counterparty_fund_amount_msat: {max_counterparty_fund_amount_msat}"
     );
+
+    if !node
+        .wallet
+        .ldk_wallet()
+        .settings()
+        .await
+        .jit_channels_enabled
+    {
+        bail!("Opening jit channels is disabled. Rejecting attempt to open a JIT channel.");
+    }
 
     let opt_max_allowed_fee = node
         .wallet

@@ -128,6 +128,7 @@ async fn main() -> Result<()> {
         WalletSettings {
             max_allowed_tx_fee_rate_when_opening_channel: settings
                 .max_allowed_tx_fee_rate_when_opening_channel,
+            jit_channels_enabled: settings.jit_channels_enabled,
         },
         opts.get_oracle_infos()
             .into_iter()
