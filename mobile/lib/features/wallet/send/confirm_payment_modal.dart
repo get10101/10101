@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:get_10101/common/amount_text.dart';
 import 'package:get_10101/common/color.dart';
 import 'package:get_10101/common/domain/model.dart';
 import 'package:get_10101/common/snack_bar.dart';
@@ -8,6 +9,7 @@ import 'package:get_10101/features/trade/submit_order_change_notifier.dart';
 import 'package:get_10101/features/trade/trade_value_change_notifier.dart';
 import 'package:get_10101/features/wallet/application/util.dart';
 import 'package:get_10101/features/wallet/domain/destination.dart';
+import 'package:get_10101/features/wallet/domain/fee.dart';
 import 'package:get_10101/features/wallet/domain/wallet_type.dart';
 import 'package:get_10101/features/wallet/send/execute_payment_modal.dart';
 import 'package:get_10101/features/wallet/send/payment_sent_change_notifier.dart';
@@ -19,7 +21,9 @@ import 'package:provider/provider.dart';
 import 'package:slide_to_confirm/slide_to_confirm.dart';
 
 void showConfirmPaymentModal(
-    BuildContext context, Destination destination, bool payWithUsdp, Amount sats, Amount usdp) {
+    BuildContext context, Destination destination, bool payWithUsdp, Amount sats, Amount usdp,
+    {Fee? fee}) {
+  logger.i(fee);
   showModalBottomSheet<void>(
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(
@@ -31,16 +35,13 @@ void showConfirmPaymentModal(
       useRootNavigator: false,
       context: context,
       builder: (BuildContext context) {
-        return SingleChildScrollView(
-            child: SizedBox(
-                height: 420,
-                child: Scaffold(
-                    body: ConfirmPayment(
-                  payWithUsdp: payWithUsdp,
-                  destination: destination,
-                  sats: sats,
-                  usdp: usdp,
-                ))));
+        return ConfirmPayment(
+          payWithUsdp: payWithUsdp,
+          destination: destination,
+          sats: sats,
+          usdp: usdp,
+          fee: fee,
+        );
       });
 }
 
@@ -49,13 +50,15 @@ class ConfirmPayment extends StatelessWidget {
   final bool payWithUsdp;
   final Amount sats;
   final Amount usdp;
+  final Fee? fee;
 
   const ConfirmPayment(
       {super.key,
       required this.destination,
       required this.payWithUsdp,
       required this.sats,
-      required this.usdp});
+      required this.usdp,
+      this.fee});
 
   @override
   Widget build(BuildContext context) {
@@ -91,12 +94,13 @@ class ConfirmPayment extends StatelessWidget {
         padding: const EdgeInsets.only(left: 20.0, top: 35.0, right: 20.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
           children: [
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text("Summary", style: TextStyle(fontSize: 20)),
-                const SizedBox(height: 10),
+                const SizedBox(height: 32),
                 Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
@@ -130,13 +134,51 @@ class ConfirmPayment extends StatelessWidget {
                       const SizedBox(height: 5),
                       Text(truncateWithEllipsis(26, destination.payee),
                           style: const TextStyle(fontSize: 16)),
+                      const Divider(height: 40, indent: 0, endIndent: 0),
+                      Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.start,
+                          children: [
+                            const Text("Fee", style: TextStyle(fontSize: 16)),
+                            if (fee != null && fee is PriorityFee)
+                              Text("(${(fee as PriorityFee).priority})",
+                                  style: const TextStyle(fontSize: 16))
+                            else if (fee != null && fee is CustomFee)
+                              const Text("(Custom)", style: TextStyle(fontSize: 16))
+                          ],
+                        ),
+                        FutureBuilder(
+                            future: walletService.estimateFeeMsat(destination, amt, fee),
+                            builder: (BuildContext context, AsyncSnapshot<int> feeMsat) {
+                              final msat = feeMsat.data ?? 0;
+
+                              final Widget feeWidget;
+                              if (msat < 1000 && msat > 0) {
+                                feeWidget =
+                                    Text("$msat msat", style: const TextStyle(fontSize: 16));
+                              } else {
+                                feeWidget = AmountText(
+                                    amount: Amount((msat / 1000).round()),
+                                    textStyle: const TextStyle(fontSize: 16));
+                              }
+
+                              return Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                                feeWidget,
+                                if (fee != null && fee is PriorityFee)
+                                  // TODO: estimate time for fixed fee
+                                  Text((fee as PriorityFee).priority.toTimeEstimate(),
+                                      style: const TextStyle(fontSize: 16, color: Colors.grey)),
+                              ]);
+                            })
+                      ]),
                       const SizedBox(height: 10),
                     ],
                   ),
                 )
               ],
             ),
-            const SizedBox(height: 15),
+            const SizedBox(height: 32),
             ConfirmationSlider(
                 text: "Swipe to confirm",
                 textStyle: const TextStyle(color: Colors.black87),
@@ -157,14 +199,15 @@ class ConfirmPayment extends StatelessWidget {
                     }
                     showExecuteUsdpPaymentModal(context, destination, amt, payWithUsdp);
                   } else {
-                    walletService.sendPayment(destination, amt).then((value) {
+                    walletService.sendPayment(destination, amt, fee: fee).then((value) {
                       GoRouter.of(context).pop();
                     }).catchError((error) {
                       logger.e("Failed to send payment: $error");
                       showSnackBar(messenger, error.toString());
                     });
                   }
-                })
+                }),
+            const SizedBox(height: 24),
           ],
         ),
       ),

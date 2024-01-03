@@ -1,4 +1,5 @@
 use crate::api;
+use crate::api::Fee;
 use crate::api::PaymentFlow;
 use crate::api::SendPayment;
 use crate::api::Status;
@@ -52,6 +53,7 @@ use commons::RouteHintHop;
 use commons::TradeParams;
 use itertools::chain;
 use itertools::Itertools;
+use lightning::chain::chaininterface::ConfirmationTarget;
 use lightning::events::Event;
 use lightning::ln::channelmanager::ChannelDetails;
 use lightning::ln::ChannelId;
@@ -885,8 +887,12 @@ pub fn get_usable_channel_details() -> Result<Vec<ChannelDetails>> {
 }
 
 pub fn get_fee_rate() -> Result<FeeRate> {
+    get_fee_rate_for_target(CONFIRMATION_TARGET)
+}
+
+pub fn get_fee_rate_for_target(target: ConfirmationTarget) -> Result<FeeRate> {
     let node = state::try_get_node().context("failed to get ln dlc node")?;
-    Ok(node.inner.ldk_wallet().get_fee_rate(CONFIRMATION_TARGET))
+    Ok(node.inner.ldk_wallet().get_fee_rate(target))
 }
 
 /// Returns channel value or zero if there is no channel yet.
@@ -1085,32 +1091,49 @@ pub async fn send_payment(payment: SendPayment) -> Result<()> {
                 }
             }
         }
-        SendPayment::OnChain { address, amount } => {
+        SendPayment::OnChain {
+            address,
+            amount,
+            fee,
+        } => {
             let address = Address::from_str(&address)?;
-            state::get_node().inner.send_to_address(&address, amount)?;
+            state::get_node()
+                .inner
+                .send_to_address(&address, amount, fee.into())?;
         }
     }
     Ok(())
 }
 
 pub async fn estimate_payment_fee_msat(payment: SendPayment) -> Result<u64> {
-    let (invoice, amount) = match payment {
-        SendPayment::Lightning { invoice, amount } => (invoice, amount),
-        SendPayment::OnChain { .. } => {
-            // TODO: Let the type system handle this.
-            unreachable!("Cannot estimate payment fee for on-chain payment");
+    match payment {
+        SendPayment::Lightning { invoice, amount } => {
+            let invoice = Bolt11Invoice::from_str(&invoice)?;
+            let amount = amount.map(Amount::from_sat);
+
+            state::get_node()
+                .inner
+                .estimate_payment_fee_msat(invoice, amount, Duration::from_secs(10))
+                .await
         }
-    };
+        SendPayment::OnChain {
+            address,
+            amount,
+            fee,
+        } => {
+            let address = address.parse()?;
 
-    let invoice = Bolt11Invoice::from_str(&invoice)?;
-    let amount = amount.map(Amount::from_sat);
+            let fee = match fee {
+                Fee::Priority(target) => state::get_node()
+                    .inner
+                    .calculate_fee(&address, amount, target.into())?
+                    .to_sat(),
+                Fee::Custom { sats } => sats,
+            };
 
-    let fee = state::get_node()
-        .inner
-        .estimate_payment_fee_msat(invoice, amount, Duration::from_secs(10))
-        .await?;
-
-    Ok(fee)
+            Ok(fee * 1000)
+        }
+    }
 }
 
 pub async fn trade(trade_params: TradeParams) -> Result<(), (FailureReason, Error)> {

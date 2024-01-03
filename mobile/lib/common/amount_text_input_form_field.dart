@@ -4,20 +4,26 @@ import 'package:get_10101/common/application/numeric_text_formatter.dart';
 import 'package:get_10101/common/domain/model.dart';
 import 'package:get_10101/common/modal_bottom_sheet_info.dart';
 
-class AmountInputField extends StatefulWidget {
+class AmountInputField extends StatelessWidget {
+  /// If `decoration` is passed, then `isLoading`, `hint`, `label`, `infoText`,
+  /// and `isLoading` are overriden.
   const AmountInputField(
       {super.key,
       this.enabled = true,
-      required this.label,
+      this.label = '',
       this.hint = '',
       this.onChanged,
       required this.value,
       this.isLoading = false,
       this.infoText,
       this.controller,
-      this.validator});
+      this.validator,
+      this.decoration,
+      this.style,
+      this.onTap});
 
   final TextEditingController? controller;
+  final TextStyle? style;
   final Amount value;
   final bool enabled;
   final String label;
@@ -25,46 +31,45 @@ class AmountInputField extends StatefulWidget {
   final String? infoText;
   final bool isLoading;
   final Function(String)? onChanged;
+  final Function()? onTap;
+  final InputDecoration? decoration;
 
   final String? Function(String?)? validator;
 
   @override
-  State<AmountInputField> createState() => _AmountInputFieldState();
-}
-
-class _AmountInputFieldState extends State<AmountInputField> {
-  @override
   Widget build(BuildContext context) {
     return TextFormField(
-      style: const TextStyle(color: Colors.black87),
-      enabled: widget.enabled,
-      controller: widget.controller,
-      initialValue: widget.controller != null ? null : widget.value.formatted(),
+      style: style ?? const TextStyle(color: Colors.black87),
+      enabled: enabled,
+      controller: controller,
+      initialValue: controller != null ? null : value.formatted(),
       keyboardType: TextInputType.number,
-      decoration: InputDecoration(
-        border: const OutlineInputBorder(),
-        hintText: widget.hint,
-        labelText: widget.label,
-        labelStyle: const TextStyle(color: Colors.black87),
-        filled: true,
-        fillColor: widget.enabled ? Colors.white : Colors.grey[50],
-        errorStyle: TextStyle(
-          color: Colors.red[900],
-        ),
-        suffixIcon: widget.isLoading
-            ? const CircularProgressIndicator()
-            : widget.infoText != null
-                ? ModalBottomSheetInfo(closeButtonText: "Back", child: Text(widget.infoText!))
-                : null,
-      ),
+      decoration: decoration ??
+          InputDecoration(
+            border: const OutlineInputBorder(),
+            hintText: hint,
+            labelText: label,
+            labelStyle: const TextStyle(color: Colors.black87),
+            filled: true,
+            fillColor: enabled ? Colors.white : Colors.grey[50],
+            errorStyle: TextStyle(
+              color: Colors.red[900],
+            ),
+            suffixIcon: isLoading
+                ? const CircularProgressIndicator()
+                : infoText != null
+                    ? ModalBottomSheetInfo(closeButtonText: "Back", child: Text(infoText!))
+                    : null,
+          ),
       inputFormatters: <TextInputFormatter>[
         FilteringTextInputFormatter.digitsOnly,
         NumericTextFormatter()
       ],
-      onChanged: (value) => {if (widget.onChanged != null) widget.onChanged!(value)},
+      onChanged: (value) => {if (onChanged != null) onChanged!(value)},
+      onTap: onTap,
       validator: (value) {
-        if (widget.validator != null) {
-          return widget.validator!(value);
+        if (validator != null) {
+          return validator!(value);
         }
 
         return null;

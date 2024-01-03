@@ -25,12 +25,14 @@ use anyhow::Result;
 use bdk::FeeRate;
 use bitcoin::hashes::hex::ToHex;
 use bitcoin::secp256k1::PublicKey;
+use bitcoin::Amount;
 use bitcoin::Network;
 use bitcoin::Txid;
 use bitcoin::XOnlyPublicKey;
 use dlc_messages::message_handler::MessageHandler as DlcMessageHandler;
 use futures::future::RemoteHandle;
 use futures::FutureExt;
+use lightning::chain::chaininterface::ConfirmationTarget;
 use lightning::chain::chainmonitor;
 use lightning::chain::Confirm;
 use lightning::ln::msgs::RoutingMessageHandler;
@@ -178,6 +180,14 @@ pub struct Node<S: TenTenOneStorage, N: Storage> {
     esplora_client: Arc<NodeEsploraClient>,
     pub pending_channel_opening_fee_rates: Arc<parking_lot::Mutex<HashMap<PublicKey, FeeRate>>>,
     pub probes: Probes,
+}
+
+/// An on-chain network fee for a transaction
+pub enum Fee {
+    /// A fee given by the transaction's priority
+    Priority(ConfirmationTarget),
+    /// A fee given by an absolute amount
+    Custom(Amount),
 }
 
 #[derive(Debug, Clone, Copy, Deserialize, Serialize)]
@@ -635,11 +645,29 @@ impl<S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 'static> Node<S, 
         )
     }
 
-    /// Send the given `amount_sats` sats to the given `address` on-chain.
-    pub fn send_to_address(&self, address: &bitcoin::Address, amount_sats: u64) -> Result<Txid> {
+    /// Calculate the fee for sending the given `amount_sats` to the given `address` on-chain with
+    /// the given `fee`.
+    pub fn calculate_fee(
+        &self,
+        address: &bitcoin::Address,
+        amount_sats: u64,
+        fee: ConfirmationTarget,
+    ) -> Result<Amount> {
         self.wallet
             .ldk_wallet()
-            .send_to_address(address, amount_sats)
+            .calculate_fee(address, amount_sats, fee)
+    }
+
+    /// Send the given `amount_sats` sats to the given `address` on-chain.
+    pub fn send_to_address(
+        &self,
+        address: &bitcoin::Address,
+        amount_sats: u64,
+        fee: Fee,
+    ) -> Result<Txid> {
+        self.wallet
+            .ldk_wallet()
+            .send_to_address(address, amount_sats, fee)
     }
 }
 
