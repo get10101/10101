@@ -68,6 +68,8 @@ pub struct NodeSettings {
     // scheduled upgrade)
     pub allow_opening_positions: bool,
     pub max_allowed_tx_fee_rate_when_opening_channel: Option<u32>,
+    // Defines if we want to open jit channels
+    pub jit_channels_enabled: bool,
     /// Defines the sats/vbyte to be used for all transactions within the sub-channel
     pub contract_tx_fee_rate: u64,
 }
@@ -77,6 +79,7 @@ impl NodeSettings {
         WalletSettings {
             max_allowed_tx_fee_rate_when_opening_channel: self
                 .max_allowed_tx_fee_rate_when_opening_channel,
+            jit_channels_enabled: self.jit_channels_enabled,
         }
     }
 }
