@@ -652,6 +652,7 @@ dependencies = [
  "rust_decimal",
  "rust_decimal_macros",
  "secp256k1",
+ "secp256k1-zkp",
  "serde",
  "serde_json",
  "sha2",
@@ -1323,6 +1324,22 @@ checksum = "9564fc758e15025b46aa6643b1b77d047d1a56a1aea6e01002ac0c7026876213"
 dependencies = [
  "libc",
  "winapi",
+]
+
+[[package]]
+name = "fund"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "bitcoin",
+ "clap",
+ "commons",
+ "reqwest",
+ "serde",
+ "time 0.3.20",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]

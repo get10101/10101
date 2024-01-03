@@ -2,10 +2,9 @@ use anyhow::Context;
 use anyhow::Result;
 use bitcoin::Amount;
 use clap::Parser;
-use ln_dlc_node::node::NodeInfo;
-use tests_e2e::bitcoind;
-use tests_e2e::coordinator::Coordinator;
-use tests_e2e::http::init_reqwest;
+use fund::bitcoind;
+use fund::coordinator::Coordinator;
+use fund::http::init_reqwest;
 use tracing::metadata::LevelFilter;
 use tracing_subscriber::filter::Directive;
 use tracing_subscriber::layer::SubscriberExt;
@@ -49,6 +48,8 @@ async fn fund_everything(faucet: &str, coordinator: &str) -> Result<()> {
         .context("Could not fund the faucet's on-chain wallet")?;
     bitcoind.mine(10).await?;
 
+    coordinator.sync_wallet().await?;
+
     let coordinator_balance = coordinator.get_balance().await?;
     tracing::info!(
         onchain = %Amount::from_sat(coordinator_balance.onchain),
@@ -56,7 +57,7 @@ async fn fund_everything(faucet: &str, coordinator: &str) -> Result<()> {
         "Coordinator balance",
     );
 
-    let coordinator_node_info: NodeInfo = coordinator.get_node_info().await?;
+    let coordinator_node_info = coordinator.get_node_info().await?;
     tracing::info!(?coordinator_node_info);
     Ok(())
 }
