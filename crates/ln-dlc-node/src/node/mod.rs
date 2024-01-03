@@ -19,6 +19,7 @@ use crate::NetworkGraph;
 use crate::P2pGossipSync;
 use crate::PeerManager;
 use crate::RapidGossipSync;
+use crate::WalletSettings;
 use anyhow::anyhow;
 use anyhow::Context;
 use anyhow::Result;
@@ -260,6 +261,7 @@ impl<S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 'static> Node<S, 
         seed: Bip39Seed,
         ephemeral_randomness: [u8; 32],
         settings: LnDlcNodeSettings,
+        wallet_settings: WalletSettings,
         oracle_clients: Vec<P2PDOracleClient>,
         oracle_pubkey: XOnlyPublicKey,
     ) -> Result<Self>
@@ -296,6 +298,7 @@ impl<S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 'static> Node<S, 
                 node_storage.clone(),
                 settings.bdk_client_stop_gap,
                 settings.bdk_client_concurrency,
+                wallet_settings,
             ))
         };
 

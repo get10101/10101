@@ -75,6 +75,7 @@ use ln_dlc_node::seed::Bip39Seed;
 use ln_dlc_node::util;
 use ln_dlc_node::AppEventHandler;
 use ln_dlc_node::HTLCStatus;
+use ln_dlc_node::WalletSettings;
 use ln_dlc_node::CONFIRMATION_TARGET;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
@@ -304,6 +305,7 @@ pub fn run(seed_dir: String, runtime: &Runtime) -> Result<()> {
             seed,
             ephemeral_randomness,
             ln_dlc_node_settings(),
+            WalletSettings::default(),
             vec![config::get_oracle_info().into()],
             config::get_oracle_info().public_key,
         )?;

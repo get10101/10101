@@ -31,6 +31,7 @@ use lightning::events::Event;
 use ln_dlc_node::scorer;
 use ln_dlc_node::seed::Bip39Seed;
 use ln_dlc_node::CoordinatorEventHandler;
+use ln_dlc_node::WalletSettings;
 use rand::thread_rng;
 use rand::RngCore;
 use std::backtrace::Backtrace;
@@ -124,6 +125,10 @@ async fn main() -> Result<()> {
         seed,
         ephemeral_randomness,
         settings.ln_dlc.clone(),
+        WalletSettings {
+            max_allowed_tx_fee_rate_when_opening_channel: settings
+                .max_allowed_tx_fee_rate_when_opening_channel,
+        },
         opts.get_oracle_infos()
             .into_iter()
             .map(|o| o.into())
