@@ -24,17 +24,23 @@ enum OrderReason {
 
 enum OrderState {
   open,
+  filling,
   filled,
-  failed;
+  failed,
+  rejected;
 
   static OrderState fromApi(bridge.OrderState orderState) {
     switch (orderState) {
       case bridge.OrderState.Open:
         return OrderState.open;
+      case bridge.OrderState.Filling:
+        return OrderState.filling;
       case bridge.OrderState.Filled:
         return OrderState.filled;
       case bridge.OrderState.Failed:
         return OrderState.failed;
+      case bridge.OrderState.Rejected:
+        return OrderState.rejected;
     }
   }
 }

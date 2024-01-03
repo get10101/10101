@@ -24,8 +24,13 @@ class OrderListItem extends StatelessWidget {
           Icons.pending,
           size: iconSize,
         ),
+      OrderState.filling => const Icon(
+          Icons.pending,
+          size: iconSize,
+        ),
       OrderState.filled => const Icon(Icons.check_circle, color: Colors.green, size: iconSize),
       OrderState.failed => const Icon(Icons.error, color: Colors.red, size: iconSize),
+      OrderState.rejected => const Icon(Icons.error, color: Colors.red, size: iconSize),
     };
 
     return Column(

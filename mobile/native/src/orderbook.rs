@@ -162,7 +162,7 @@ pub fn subscribe(
                         };
 
                         if let Err(e) =
-                            handle_orderbook_mesage(orders.clone(), &mut cached_best_price, msg)
+                            handle_orderbook_message(orders.clone(), &mut cached_best_price, msg)
                                 .await
                         {
                             tracing::error!("Failed to handle event: {e:#}");
@@ -196,7 +196,7 @@ pub fn subscribe(
     Ok(())
 }
 
-async fn handle_orderbook_mesage(
+async fn handle_orderbook_message(
     orders: Arc<Mutex<Vec<Order>>>,
     cached_best_price: &mut Prices,
     msg: String,

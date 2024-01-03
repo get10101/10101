@@ -1,6 +1,7 @@
 use crate::config;
 use crate::db::models::base64_engine;
 use crate::db::models::Channel;
+use crate::db::models::FailureReason;
 use crate::db::models::NewTrade;
 use crate::db::models::Order;
 use crate::db::models::OrderState;
@@ -13,7 +14,6 @@ use crate::db::models::Trade;
 use crate::db::models::Transaction;
 use crate::trade;
 use anyhow::anyhow;
-use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
 use base64::Engine;
@@ -228,24 +228,50 @@ pub fn maybe_get_open_orders() -> Result<Vec<trade::order::Order>> {
     Ok(orders)
 }
 
-/// Returns an order if there is currently an order that is being filled
-pub fn maybe_get_order_in_filling() -> Result<Option<trade::order::Order>> {
+/// Return an [`Order`] that is currently in [`OrderState::Filling`].
+pub fn get_order_in_filling() -> Result<Option<trade::order::Order>> {
     let mut db = connection()?;
-    let orders = Order::get_by_state(OrderState::Filling, &mut db)?;
 
-    if orders.is_empty() {
-        return Ok(None);
-    }
+    let mut orders = Order::get_by_state(OrderState::Filling, &mut db)?;
 
-    if orders.len() > 1 {
-        bail!("More than one order is being filled at the same time, this should not happen. {orders:?}")
-    }
+    orders.sort_by(|a, b| b.creation_timestamp.cmp(&a.creation_timestamp));
 
-    let first = orders
-        .get(0)
-        .expect("at this point we know there is exactly one order");
+    let order = match orders.as_slice() {
+        [] => return Ok(None),
+        [order] => order,
+        // We strive to only have one order at a time in `OrderState::Filling`. But, if we do not
+        // manage, we take the most oldest one.
+        [oldest_order, rest @ ..] => {
+            tracing::warn!(
+                id = %oldest_order.id,
+                "Found more than one order in filling. Using oldest one",
+            );
 
-    Ok(Some(first.clone().try_into()?))
+            // Clean up other orders in `OrderState::Filling`.
+            for order in rest {
+                tracing::debug!(
+                    id = %order.id,
+                    "Setting unexpected Filling order to Failed"
+                );
+
+                if let Err(e) = Order::update_state(
+                    order.id.clone(),
+                    (
+                        OrderState::Failed,
+                        Some(order.execution_price.expect("in Filling state")),
+                        Some(FailureReason::TimedOut),
+                    ),
+                    &mut db,
+                ) {
+                    tracing::error!("Failed to set old Filling order to Failed: {e:#}");
+                };
+            }
+
+            oldest_order
+        }
+    };
+
+    Ok(Some(order.clone().try_into()?))
 }
 
 pub fn delete_order(order_id: Uuid) -> Result<()> {

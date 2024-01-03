@@ -820,7 +820,7 @@ fn update_state_after_collab_revert(
         }
         None => {
             tracing::info!("Channel is reverted before the position got opened successfully.");
-            if let Some(order) = db::maybe_get_order_in_filling()? {
+            if let Some(order) = db::get_order_in_filling()? {
                 order::handler::order_failed(
                     Some(order.id),
                     FailureReason::ProposeDlcChannel,
