@@ -3,6 +3,7 @@ use crate::ldk_node_wallet;
 use crate::node::Storage;
 use crate::storage::TenTenOneStorage;
 use crate::TracingLogger;
+use crate::WalletSettings;
 use anyhow::anyhow;
 use anyhow::Result;
 use bdk::blockchain::EsploraBlockchain;
@@ -59,6 +60,7 @@ impl<S: TenTenOneStorage, N: Storage> LnDlcWallet<S, N> {
         node_storage: Arc<N>,
         bdk_client_stop_gap: usize,
         bdk_client_concurrency: u8,
+        settings: WalletSettings,
     ) -> Self {
         let blockchain =
             EsploraBlockchain::from_client(esplora_client.client().clone(), bdk_client_stop_gap)
@@ -71,6 +73,7 @@ impl<S: TenTenOneStorage, N: Storage> LnDlcWallet<S, N> {
             on_chain_wallet,
             fee_rate_estimator,
             node_storage,
+            settings,
         ));
 
         let last_unused_address = wallet

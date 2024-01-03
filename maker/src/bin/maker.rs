@@ -6,6 +6,7 @@ use diesel::r2d2::ConnectionManager;
 use diesel::PgConnection;
 use ln_dlc_node::node::InMemoryStore;
 use ln_dlc_node::seed::Bip39Seed;
+use ln_dlc_node::WalletSettings;
 use maker::cli::Opts;
 use maker::health;
 use maker::ln::ldk_config;
@@ -99,6 +100,7 @@ async fn main() -> Result<()> {
         seed,
         ephemeral_randomness,
         ln_dlc_node_settings(opts.rgs_server_url.clone()),
+        WalletSettings::default(),
         vec![opts.get_oracle_info().into()],
         opts.get_oracle_info().public_key,
     )?);

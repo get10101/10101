@@ -68,9 +68,10 @@ where
         wallet: bdk::Wallet<D>,
         fee_rate_estimator: Arc<F>,
         node_storage: Arc<N>,
+        settings: WalletSettings,
     ) -> Self {
         let inner = Mutex::new(wallet);
-        let settings = RwLock::new(WalletSettings::default());
+        let settings = RwLock::new(settings);
 
         Self {
             blockchain: Arc::new(blockchain),

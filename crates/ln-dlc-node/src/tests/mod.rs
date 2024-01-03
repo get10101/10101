@@ -19,6 +19,7 @@ use crate::AppEventHandler;
 use crate::CoordinatorEventHandler;
 use crate::EventHandlerTrait;
 use crate::EventSender;
+use crate::WalletSettings;
 use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::Amount;
@@ -197,6 +198,7 @@ impl Node<TenTenOneInMemoryStorage, InMemoryStore> {
             seed,
             ephemeral_randomness,
             settings,
+            WalletSettings::default(),
             vec![oracle.into()],
             XOnlyPublicKey::from_str(ORACLE_PUBKEY)?,
         )?;
