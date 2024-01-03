@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:get_10101/common/edit_modal.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:get_10101/common/amount_text.dart';
@@ -66,43 +67,11 @@ class AmountInputModalisedField extends StatelessWidget {
 
 void _showModal(BuildContext context, BtcOrFiat type, int? amount, void Function(int?) onSetAmount,
     String? Function(String?)? validator) {
-  showModalBottomSheet<void>(
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(20),
-        ),
-      ),
-      clipBehavior: Clip.antiAlias,
-      isScrollControlled: true,
-      useRootNavigator: true,
-      context: context,
-      builder: (BuildContext context) {
-        return SafeArea(
-            child: Padding(
-                padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
-                // the GestureDetector ensures that we can close the keyboard by tapping into the modal
-                child: GestureDetector(
-                  onTap: () {
-                    FocusScopeNode currentFocus = FocusScope.of(context);
-
-                    if (!currentFocus.hasPrimaryFocus) {
-                      currentFocus.unfocus();
-                    }
-                  },
-                  child: SingleChildScrollView(
-                    child: SizedBox(
-                      // TODO: Find a way to make height dynamic depending on the children size
-                      // This is needed because otherwise the keyboard does not push the sheet up correctly
-                      height: 200,
-                      child: EnterAmountModal(
-                          amount: amount,
-                          onSetAmount: onSetAmount,
-                          validator: validator,
-                          type: type),
-                    ),
-                  ),
-                )));
-      });
+  showEditModal<void>(
+    context: context,
+    builder: (BuildContext context, _) => EnterAmountModal(
+        amount: amount, onSetAmount: onSetAmount, validator: validator, type: type),
+  );
 }
 
 class EnterAmountModal extends StatefulWidget {

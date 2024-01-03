@@ -1,6 +1,9 @@
 import 'package:get_10101/common/domain/model.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge.dart';
+import 'package:get_10101/features/wallet/domain/confirmation_target.dart';
 import 'package:get_10101/features/wallet/domain/destination.dart';
+import 'package:get_10101/features/wallet/domain/fee.dart';
+import 'package:get_10101/features/wallet/domain/fee_estimate.dart';
 import 'package:get_10101/features/wallet/domain/share_payment_request.dart';
 import 'package:get_10101/features/wallet/domain/wallet_type.dart';
 import 'package:get_10101/ffi.dart' as rust;
@@ -76,22 +79,45 @@ class WalletService {
     }
   }
 
-  Future<void> sendPayment(Destination destination, Amount? amount) async {
-    logger.i("Sending payment of $amount");
+  Future<Map<ConfirmationTarget, FeeEstimation>> calculateFeesForOnChain(
+      String address, Amount amount) async {
+    final Map<ConfirmationTarget, FeeEstimation> map = {};
 
-    rust.SendPayment payment;
-    switch (destination.getWalletType()) {
-      case WalletType.lightning:
-        payment = rust.SendPayment_Lightning(invoice: destination.raw, amount: amount?.sats);
-      case WalletType.onChain:
-        payment = rust.SendPayment_OnChain(address: destination.raw, amount: amount!.sats);
-      default:
-        throw Exception("unsupported wallet type: ${destination.getWalletType().name}");
+    final fees = await rust.api.calculateAllFeesForOnChain(address: address, amount: amount.sats);
+    for (int i = 0; i < ConfirmationTarget.values.length; i++) {
+      map[ConfirmationTarget.values[i]] = FeeEstimation.fromAPI(fees[i]);
     }
-    await rust.api.sendPayment(payment: payment);
+
+    return map;
+  }
+
+  Future<int> estimateFeeMsat(Destination destination, Amount? amount, Fee? fee) async {
+    return switch (fee) {
+      null ||
+      PriorityFee() =>
+        await rust.api.sendPreflightProbe(payment: _createPayment(destination, amount, fee: fee)),
+      CustomFee() => fee.amount.sats * 1000,
+    };
+  }
+
+  Future<void> sendPayment(Destination destination, Amount? amount, {Fee? fee}) async {
+    logger.i("Sending payment of $amount");
+    await rust.api.sendPayment(payment: _createPayment(destination, amount, fee: fee));
   }
 
   String getUnusedAddress() {
     return rust.api.getUnusedAddress();
+  }
+}
+
+rust.SendPayment _createPayment(Destination destination, Amount? amount, {Fee? fee}) {
+  switch (destination.getWalletType()) {
+    case WalletType.lightning:
+      return rust.SendPayment_Lightning(invoice: destination.raw, amount: amount?.sats);
+    case WalletType.onChain:
+      return rust.SendPayment_OnChain(
+          address: destination.raw, amount: amount!.sats, fee: fee!.toAPI());
+    default:
+      throw Exception("unsupported wallet type: ${destination.getWalletType().name}");
   }
 }
