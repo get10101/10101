@@ -123,7 +123,7 @@ impl<S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 'static> Node<S, 
         let peer = channel.counterparty.node_id;
 
         let has_dlc_channel = self
-            .list_dlc_channels()?
+            .list_sub_channels()?
             .iter()
             .any(|channel| channel.channel_id == channel_id);
 

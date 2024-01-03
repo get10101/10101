@@ -292,7 +292,7 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
         Ok(dlc_channel)
     }
 
-    pub fn list_dlc_channels(&self) -> Result<Vec<SubChannel>> {
+    pub fn list_sub_channels(&self) -> Result<Vec<SubChannel>> {
         let dlc_channels = self.dlc_manager.get_store().get_sub_channels()?;
 
         Ok(dlc_channels)
@@ -392,7 +392,7 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
         &self,
         matcher: impl FnMut(&&SubChannel) -> bool,
     ) -> Result<Option<SubChannel>> {
-        let dlc_channels = self.list_dlc_channels()?;
+        let dlc_channels = self.list_sub_channels()?;
         let dlc_channel = dlc_channels.iter().find(matcher);
 
         Ok(dlc_channel.cloned())

@@ -90,7 +90,7 @@ async fn channel_status(node: impl Borrow<Node>) -> Result<ConcreteChannelStatus
         None => return Ok(ConcreteChannelStatus::NotOpen),
     };
 
-    let subchannels = node.list_dlc_channels()?;
+    let subchannels = node.list_sub_channels()?;
 
     let status = derive_ln_dlc_channel_status(ln_channel, subchannels);
 

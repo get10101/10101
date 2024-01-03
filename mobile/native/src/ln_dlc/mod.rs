@@ -675,7 +675,7 @@ pub fn collaborative_revert_channel(
 
     let channel_id_hex = hex::encode(channel_id.0);
 
-    let subchannels = node.list_dlc_channels()?;
+    let subchannels = node.list_sub_channels()?;
     let subchannel = subchannels
         .iter()
         .find(|c| c.channel_id == channel_id)
@@ -918,7 +918,7 @@ pub fn contract_tx_fee_rate() -> Result<Option<u64>> {
     let node = state::try_get_node().context("failed to get ln dlc node")?;
     let fee_rate_per_vb = node
         .inner
-        .list_dlc_channels()?
+        .list_sub_channels()?
         .first()
         .map(|c| c.fee_rate_per_vb);
 

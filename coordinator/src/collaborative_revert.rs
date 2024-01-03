@@ -73,7 +73,7 @@ pub async fn propose_collaborative_revert(
     let channel_id_hex = channel_id.to_hex();
 
     let subchannels = node
-        .list_dlc_channels()
+        .list_sub_channels()
         .context("Could not get list of subchannels")?;
 
     let subchannel = subchannels
@@ -233,7 +233,7 @@ pub async fn propose_collaborative_revert_without_channel_details(
     let channel_id_hex = channel_id.to_hex();
 
     let subchannels = node
-        .list_dlc_channels()
+        .list_sub_channels()
         .context("Could not get list of subchannels")?;
 
     let subchannel = subchannels
@@ -350,7 +350,7 @@ pub fn confirm_collaborative_revert(
     let funding_txo = &funding_tx.output[record.vout as usize];
 
     let subchannels = node
-        .list_dlc_channels()
+        .list_sub_channels()
         .context("Failed to list subchannels")?;
     let optional_subchannel = subchannels.iter().find(|c| c.channel_id == channel_id);
 
