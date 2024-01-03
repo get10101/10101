@@ -1,20 +1,11 @@
-use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
-use bitcoin::Address;
 use bitcoin::Amount;
 use clap::Parser;
 use ln_dlc_node::node::NodeInfo;
-use local_ip_address::local_ip;
-use reqwest::Response;
-use reqwest::StatusCode;
-use serde::Deserialize;
-use std::time::Duration;
 use tests_e2e::bitcoind;
-use tests_e2e::bitcoind::Bitcoind;
 use tests_e2e::coordinator::Coordinator;
 use tests_e2e::http::init_reqwest;
-use tests_e2e::maker::Maker;
 use tracing::metadata::LevelFilter;
 use tracing_subscriber::filter::Directive;
 use tracing_subscriber::layer::SubscriberExt;
@@ -42,10 +33,10 @@ pub struct Opts {
 async fn main() -> Result<()> {
     init_tracing(LevelFilter::DEBUG).expect("tracing to initialise");
     let opts = Opts::parse();
-    fund_everything(&opts.faucet, &opts.coordinator, &opts.maker).await
+    fund_everything(&opts.faucet, &opts.coordinator).await
 }
 
-async fn fund_everything(faucet: &str, coordinator: &str, maker: &str) -> Result<()> {
+async fn fund_everything(faucet: &str, coordinator: &str) -> Result<()> {
     let client = init_reqwest();
     let coordinator = Coordinator::new(client.clone(), coordinator);
     let coord_addr = coordinator.get_new_address().await?;
@@ -56,229 +47,17 @@ async fn fund_everything(faucet: &str, coordinator: &str, maker: &str) -> Result
         .fund(&coord_addr, Amount::ONE_BTC)
         .await
         .context("Could not fund the faucet's on-chain wallet")?;
-    let maker = Maker::new(init_reqwest(), maker);
-    let maker_addr = maker.get_new_address().await?;
-    bitcoind.fund(&maker_addr, Amount::ONE_BTC).await?;
     bitcoind.mine(10).await?;
-    maker
-        .sync()
-        .await
-        .context("Failed to sync maker's on-chain wallet")?;
 
     let coordinator_balance = coordinator.get_balance().await?;
     tracing::info!(
-        onchain = %coordinator_balance.onchain,
-        offchain = %coordinator_balance.offchain,
+        onchain = %Amount::from_sat(coordinator_balance.onchain),
+        offchain = %Amount::from_sat(coordinator_balance.offchain),
         "Coordinator balance",
     );
 
     let coordinator_node_info: NodeInfo = coordinator.get_node_info().await?;
     tracing::info!(?coordinator_node_info);
-
-    let lnd_addr: LndAddr = reqwest::get(&format!("{faucet}/lnd/v1/newaddress"))
-        .await?
-        .json()
-        .await?;
-
-    bitcoind
-        .fund(
-            &lnd_addr.address,
-            Amount::ONE_BTC
-                .checked_mul(10)
-                .expect("small integers to multiply"),
-        )
-        .await?;
-    bitcoind.mine(10).await?;
-
-    if let Err(e) = coordinator.sync_wallet().await {
-        tracing::warn!("Failed to sync coordinator's on-chain wallet: {e:#}");
-    }
-
-    let lnd_balance = get_text(&format!("{faucet}/lnd/v1/balance/blockchain")).await?;
-    tracing::info!("Faucet balance before opening another channel: {lnd_balance}");
-
-    tracing::info!("Opening new faucet channel");
-
-    open_channel(
-        &coordinator_node_info,
-        Amount::ONE_BTC * 5,
-        faucet,
-        &bitcoind,
-    )
-    .await?;
-
-    let faucet_ready_timeout = Duration::from_secs(60);
-
-    tracing::info!(timeout = ?faucet_ready_timeout, "Waiting until new faucet channel is ready");
-
-    tokio::time::timeout(faucet_ready_timeout, async {
-        loop {
-            if let Some(faucet_node_info) = get_node_info(faucet).await? {
-                if faucet_node_info.num_channels > 0
-                    && faucet_node_info.node.alias == "10101.finance"
-                {
-                    return anyhow::Ok(());
-                }
-            }
-
-            let retry_interval = Duration::from_secs(1);
-            tracing::info!(?retry_interval, "Faucet channel not yet ready. Retrying");
-
-            // Manually broadcasting node announcement to get the channel ready ASAP.
-            coordinator.broadcast_node_announcement().await?;
-
-            tokio::time::sleep(retry_interval).await;
-        }
-    })
-    .await
-    .with_context(|| {
-        format!(
-            "New faucet channel not ready after {faucet_ready_timeout:?}. Please wipe and try again"
-        )
-    })??;
-
-    let lnd_channels = get_text(&format!("{faucet}/lnd/v1/channels")).await?;
-    tracing::info!("Open faucet channels: {}", lnd_channels);
-
-    maker
-        .open_channel(coordinator_node_info, 10_000_000, None)
-        .await
-        .expect("To be able to open a channel from maker to coordinator");
-    let maker_node_info = maker.get_node_info().await.expect("To get node info");
-
-    tracing::info!(
-        ?maker_node_info,
-        ?coordinator_node_info,
-        "Opened channel from maker to coordinator",
-    );
-
-    bitcoind.mine(10).await?;
-
-    maker
-        .sync()
-        .await
-        .expect("to be able to sync on-chain wallet for maker");
-    let maker_balance = maker.get_balance().await?;
-    tracing::info!(
-        onchain = %maker_balance.onchain,
-        offchain = %maker_balance.offchain,
-        "Maker balance",
-    );
-
-    Ok(())
-}
-
-#[derive(Deserialize)]
-struct LndAddr {
-    address: Address,
-}
-
-async fn get_text(url: &str) -> Result<String> {
-    Ok(reqwest::get(url).await?.text().await?)
-}
-
-async fn post_query(path: &str, body: String, faucet: &str) -> Result<Response> {
-    let faucet = faucet.to_string();
-    let client = init_reqwest();
-    let response = client
-        .post(format!("{faucet}/{path}"))
-        .body(body)
-        .send()
-        .await?;
-
-    if !response.status().is_success() {
-        bail!(response.text().await?)
-    }
-    Ok(response)
-}
-
-async fn get_query(path: &str, faucet: &str) -> Result<Response> {
-    let faucet = faucet.to_string();
-    let client = init_reqwest();
-    let response = client.get(format!("{faucet}/{path}")).send().await?;
-
-    Ok(response)
-}
-
-#[derive(Deserialize, Debug, Clone)]
-pub struct LndNodeInfo {
-    node: Node,
-    num_channels: u32,
-}
-
-#[derive(Deserialize, Debug, Clone)]
-pub struct Node {
-    alias: String,
-}
-
-async fn get_node_info(faucet: &str) -> Result<Option<LndNodeInfo>> {
-    let response = get_query(
-        "lnd/v1/graph/node/02dd6abec97f9a748bf76ad502b004ce05d1b2d1f43a9e76bd7d85e767ffb022c9",
-        faucet,
-    )
-    .await?;
-    if response.status() == StatusCode::NOT_FOUND {
-        tracing::warn!("Node info not yet found.");
-        return Ok(None);
-    }
-
-    let node_info = response.json().await?;
-    Ok(Some(node_info))
-}
-
-/// Instructs lnd to open a public channel with the target node.
-/// 1. Connect to the target node.
-/// 2. Open channel to the target node.
-async fn open_channel(
-    node_info: &NodeInfo,
-    amount: Amount,
-    faucet: &str,
-    bitcoind: &Bitcoind,
-) -> Result<()> {
-    // Hacky way of checking whether we need to patch the coordinator
-    // address when running locally
-    let host = if faucet.to_string().contains("localhost") {
-        let port = node_info.address.port();
-        let ip_address = local_ip()?;
-        let host = format!("{ip_address}:{port}");
-        tracing::info!("Running locally, patching host to {host}");
-        host
-    } else {
-        node_info.address.to_string()
-    };
-    tracing::info!("Connecting lnd to {host}");
-    let res = post_query(
-        "lnd/v1/peers",
-        format!(
-            r#"{{"addr": {{ "pubkey": "{}", "host": "{host}" }}, "perm":false }}"]"#,
-            node_info.pubkey
-        ),
-        faucet,
-    )
-    .await;
-
-    tracing::debug!(?res, "Response after attempting to connect lnd to {host}");
-
-    tokio::time::sleep(Duration::from_secs(5)).await;
-
-    tracing::info!("Opening channel to {} with {amount}", node_info);
-    post_query(
-        "lnd/v1/channels",
-        format!(
-            r#"{{"node_pubkey_string":"{}","local_funding_amount":"{}", "min_confs":1 }}"#,
-            node_info.pubkey,
-            amount.to_sat()
-        ),
-        faucet,
-    )
-    .await?;
-
-    bitcoind.mine(10).await?;
-
-    tracing::info!("connected to channel");
-
-    tracing::info!("You can now use the lightning faucet {faucet}/faucet/");
-
     Ok(())
 }
 
