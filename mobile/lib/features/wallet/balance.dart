@@ -65,7 +65,7 @@ class _BalanceBoxState extends State<_BalanceBox> {
   int selectedTitleIndex = 1;
 
   List<String> titles = [
-    'DLC-channel',
+    'Off-chain',
     'On-chain',
     'USD-P',
   ];
