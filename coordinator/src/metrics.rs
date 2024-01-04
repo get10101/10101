@@ -86,7 +86,7 @@ pub fn collect(node: Node) {
     position_metrics(&cx, &node);
 
     let inner_node = node.inner;
-    if let Ok(dlc_channels) = inner_node.list_dlc_channels() {
+    if let Ok(dlc_channels) = inner_node.list_sub_channels() {
         let (healthy, unhealthy, close_punished) =
             dlc_channels
                 .iter()

@@ -151,7 +151,7 @@ impl Node {
                 position.calculate_accept_settlement_amount_partial_close(trade_params)?;
 
             self.inner
-                .propose_dlc_channel_collaborative_settlement(
+                .propose_sub_channel_collaborative_settlement(
                     channel_id,
                     accept_settlement_amount.to_sat(),
                 )
@@ -297,9 +297,11 @@ impl Node {
         tokio::spawn({
             let node = self.inner.clone();
             async move {
-                if let Err(e) = node
-                    .propose_dlc_channel(channel_details.clone(), contract_input)
-                    .await
+                if let Err(e) =
+                    // TODO(bonomat): we will need to use the new dlc channel protocol here
+                    node
+                        .propose_sub_channel(channel_details.clone(), contract_input)
+                        .await
                 {
                     tracing::error!(
                         channel_id = %channel_details.channel_id.to_hex(),

@@ -85,14 +85,14 @@ pub fn signed_channel_state_name(signed_channel: &SignedChannel) -> String {
 impl<S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 'static> Node<S, N> {
     pub fn get_signed_channel_by_trader_id(&self, trader_id: PublicKey) -> Result<SignedChannel> {
         let channel = self
-            .get_dlc_channel_signed(&trader_id)?
+            .get_sub_channel_signed(&trader_id)?
             .with_context(|| format!("Could not find signed DLC channel. trader_id={trader_id}"))?;
 
         let dlc_channel_id = channel
             .get_dlc_channel_id(0)
             .expect("Expect to get dlc_channel id");
 
-        let channel = self.get_dlc_channel_by_id(&dlc_channel_id)?;
+        let channel = self.get_sub_channel_by_id(&dlc_channel_id)?;
         let signed_channel = match channel {
             Channel::Signed(signed_channel) => signed_channel,
             _ => bail!("Couldn't find signed channel for trader_id={trader_id}"),

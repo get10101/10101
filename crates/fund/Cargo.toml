@@ -1,0 +1,18 @@
+[package]
+name = "fund"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+
+[dependencies]
+anyhow = "1"
+bitcoin = "0.29.2"
+clap = { version = "4", features = ["derive"] }
+commons = { path = "../commons" }
+reqwest = { version = "0.11", default-features = false, features = ["json"] }
+serde = { version = "1.0.152", features = ["serde_derive"] }
+time = { version = "0.3", features = ["serde", "serde-well-known"] }
+tokio = { version = "1", default-features = false, features = ["io-util", "macros", "rt", "rt-multi-thread", "sync", "net", "time", "tracing"] }
+tracing = "0.1.37"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }

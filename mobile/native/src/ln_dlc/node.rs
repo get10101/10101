@@ -33,6 +33,7 @@ use lightning::sign::StaticPaymentOutputDescriptor;
 use ln_dlc_node::channel::Channel;
 use ln_dlc_node::node;
 use ln_dlc_node::node::dlc_message_name;
+use ln_dlc_node::node::rust_dlc_manager::DlcChannelId;
 use ln_dlc_node::node::sub_channel_message_name;
 use ln_dlc_node::node::NodeInfo;
 use ln_dlc_node::node::PaymentDetails;
@@ -135,7 +136,7 @@ impl Node {
                 tracing::error!(
                     from = %node_id,
                     kind = %msg_name,
-                    "Failed to process DLC message: {e:#}"
+                    "Failed to process incoming DLC message: {e:#}"
                 );
             }
         }
@@ -149,7 +150,7 @@ impl Node {
         );
 
         let resp = match &msg {
-            Message::OnChain(_) | Message::Channel(_) => self
+            Message::OnChain(_) => self
                 .inner
                 .dlc_manager
                 .on_dlc_message(&msg, node_id)
@@ -192,10 +193,10 @@ impl Node {
                         // TODO: We should probably verify that: (1) the counterparty is the
                         // coordinator and (2) the DLC channel close offer is expected and correct.
                         self.inner
-                            .accept_dlc_channel_collaborative_settlement(&channel_id)
+                            .accept_sub_channel_collaborative_settlement(&channel_id)
                             .with_context(|| {
                                 format!(
-                                    "Failed to accept DLC channel close offer for channel {}",
+                                    "Failed to accept sub channel close offer for channel {}",
                                     hex::encode(channel_id.0)
                                 )
                             })?;
@@ -203,6 +204,42 @@ impl Node {
                     _ => (),
                 };
 
+                resp
+            }
+            Message::Channel(channel_msg) => {
+                let resp = self
+                    .inner
+                    .dlc_manager
+                    .on_dlc_message(&msg, node_id)
+                    .with_context(|| {
+                        format!(
+                            "Failed to handle {} message from {node_id}",
+                            dlc_message_name(&msg)
+                        )
+                    })?;
+
+                match channel_msg {
+                    ChannelMessage::Offer(offer) => {
+                        let action = decide_subchannel_offer_action(
+                            OffsetDateTime::from_unix_timestamp(
+                                offer.contract_info.get_closest_maturity_date() as i64,
+                            )
+                            .expect("A contract should always have a valid maturity timestamp."),
+                        );
+                        self.process_dlc_channel_offer(offer.temporary_channel_id, action)?;
+                    }
+                    ChannelMessage::SettleOffer(offer) => {
+                        self.inner
+                            .accept_dlc_channel_collaborative_settlement(offer.channel_id)
+                            .with_context(|| {
+                                format!(
+                                    "Failed to accept DLC channel close offer for channel {}",
+                                    hex::encode(offer.channel_id)
+                                )
+                            })?;
+                    }
+                    _ => (),
+                }
                 resp
             }
         };
@@ -238,7 +275,45 @@ impl Node {
                     ));
                 }
                 // ignoring all other channel events.
-                _ => (),
+                ChannelMessage::Sign(signed) => {
+                    let (accept_collateral, expiry_timestamp) = self
+                        .inner
+                        .get_collateral_and_expiry_for_confirmed_dlc_channel(signed.channel_id)?;
+
+                    let filled_order = order::handler::order_filled()
+                        .context("Cannot mark order as filled for confirmed DLC")?;
+
+                    let execution_price = filled_order
+                        .execution_price()
+                        .expect("filled order to have a price");
+                    let open_position_fee = order_matching_fee_taker(
+                        filled_order.quantity,
+                        Decimal::try_from(execution_price)?,
+                    );
+
+                    position::handler::update_position_after_dlc_creation(
+                        filled_order,
+                        accept_collateral - open_position_fee.to_sat(),
+                        expiry_timestamp,
+                    )
+                    .context("Failed to update position after DLC creation")?;
+
+                    // Sending always a recover dlc background notification success message here as
+                    // we do not know if we might have reached this state after
+                    // a restart. This event is only received by the UI at the
+                    // moment indicating that the dialog can be closed.
+                    // If the dialog is not open, this event would be simply ignored by the UI.
+                    //
+                    // FIXME(holzeis): We should not require that event and align the UI handling
+                    // with waiting for an order execution in the happy case
+                    // with waiting for an order execution after an in between
+                    // restart. For now it was the easiest to go parallel to
+                    // that implementation so that we don't have to touch it.
+                    event::publish(&EventInternal::BackgroundNotification(
+                        BackgroundTask::RecoverDlc(TaskStatus::Success),
+                    ));
+                }
+                _ => {}
             }
         }
 
@@ -292,6 +367,64 @@ impl Node {
     }
 
     #[instrument(fields(channel_id = channel_id.to_hex()),skip_all, err(Debug))]
+    fn process_dlc_channel_offer(
+        &self,
+        channel_id: DlcChannelId,
+        action: SubchannelOfferAction,
+    ) -> Result<()> {
+        OffsetDateTime::now_utc();
+
+        match &action {
+            SubchannelOfferAction::Accept => {
+                if let Err(error) = self
+                    .inner
+                    .accept_dlc_channel_offer(&channel_id)
+                    .with_context(|| {
+                        format!(
+                            "Failed to accept DLC channel offer for channel {}",
+                            hex::encode(channel_id)
+                        )
+                    })
+                {
+                    tracing::error!(
+                        "Could not accept dlc channel offer {error:#}. Continuing with rejecting it"
+                    );
+                    self.process_dlc_channel_offer(channel_id, SubchannelOfferAction::RejectError)?
+                }
+            }
+            SubchannelOfferAction::RejectOutdated | SubchannelOfferAction::RejectError => {
+                let (invalid_offer_reason, invalid_offer_msg) =
+                    if let SubchannelOfferAction::RejectOutdated = action {
+                        let invalid_offer_msg = "Offer outdated, rejecting subchannel offer";
+                        tracing::warn!(invalid_offer_msg);
+                        (InvalidSubchannelOffer::Outdated, invalid_offer_msg)
+                    } else {
+                        let invalid_offer_msg = "Offer is unacceptable, rejecting subchannel offer";
+                        tracing::warn!(invalid_offer_msg);
+                        (InvalidSubchannelOffer::Unacceptable, invalid_offer_msg)
+                    };
+                self.inner
+                    .reject_dlc_channel_offer(&channel_id)
+                    .with_context(|| {
+                        format!(
+                            "Failed to reject DLC channel offer for channel {}",
+                            hex::encode(channel_id)
+                        )
+                    })?;
+
+                order::handler::order_failed(
+                    None,
+                    FailureReason::InvalidDlcOffer(invalid_offer_reason),
+                    anyhow!(invalid_offer_msg),
+                )
+                .context("Could not set order to failed")?;
+            }
+        }
+
+        Ok(())
+    }
+
+    #[instrument(fields(channel_id = channel_id.to_hex()),skip_all, err(Debug))]
     pub fn process_subchannel_offer(
         &self,
         channel_id: ChannelId,
@@ -303,7 +436,7 @@ impl Node {
             SubchannelOfferAction::Accept => {
                 if let Err(error) = self
                     .inner
-                    .accept_dlc_channel_offer(&channel_id)
+                    .accept_sub_channel_offer(&channel_id)
                     .with_context(|| {
                         format!(
                             "Failed to accept DLC channel offer for channel {}",
@@ -329,7 +462,7 @@ impl Node {
                         (InvalidSubchannelOffer::Unacceptable, invalid_offer_msg)
                     };
                 self.inner
-                    .reject_dlc_channel_offer(&channel_id)
+                    .reject_sub_channel_offer(&channel_id)
                     .with_context(|| {
                         format!(
                             "Failed to reject DLC channel offer for channel {}",
@@ -359,6 +492,20 @@ impl Node {
         self.inner
             .dlc_message_handler
             .send_message(node_id, msg.clone());
+
+        if let Message::Channel(ChannelMessage::SettleFinalize(_)) = msg {
+            tracing::debug!("Position based on DLC channel is being closed");
+
+            let filled_order = order::handler::order_filled()?;
+
+            position::handler::update_position_after_dlc_closure(Some(filled_order))
+                .context("Failed to update position after DLC closure")?;
+
+            // In case of a restart.
+            event::publish(&EventInternal::BackgroundNotification(
+                BackgroundTask::RecoverDlc(TaskStatus::Success),
+            ));
+        }
 
         // After sending the `CloseFinalize` message, we need to do some post-processing based on
         // the fact that the DLC channel has been closed.
@@ -442,7 +589,7 @@ pub(crate) fn decide_subchannel_offer_action(
     action
 }
 
-pub(crate) enum SubchannelOfferAction {
+pub enum SubchannelOfferAction {
     Accept,
     /// The offer was outdated, hence we need to reject the offer
     RejectOutdated,

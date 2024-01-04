@@ -7,11 +7,13 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1"
-bdk = { version = "0.28.0", default-features = false, features = ["key-value-db", "use-esplora-blocking"] }
+bdk = { version = "0.28.0", default-features = false, features = ["key-value-db", "use-esplora-blocking", "std"] }
 bitcoin = { version = "0.29.2", features = ["serde"] }
 lightning = "0.0.117"
 rust_decimal = { version = "1", features = ["serde-with-float"] }
+rust_decimal_macros = "1"
 secp256k1 = { version = "0.24.3", features = ["serde"] }
+secp256k1-zkp = { version = "0.7.0", features = ["global-context"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = { version = "0.10", default-features = false }
@@ -19,6 +21,3 @@ time = { version = "0.3", features = ["serde", "std"] }
 tokio-tungstenite = { version = "0.20" }
 trade = { path = "../trade" }
 uuid = { version = "1.3.0", features = ["v4", "serde"] }
-
-[dev-dependencies]
-rust_decimal_macros = "1"

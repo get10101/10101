@@ -261,7 +261,7 @@ pub async fn list_dlc_channels(
             AppError::InternalServerError(format!("Failed to acquire db lock: {e:#}"))
         })?;
 
-    let dlc_channels = state.node.inner.list_dlc_channels().map_err(|e| {
+    let dlc_channels = state.node.inner.list_sub_channels().map_err(|e| {
         AppError::InternalServerError(format!("Failed to list DLC channels: {e:#}"))
     })?;
 

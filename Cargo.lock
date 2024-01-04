@@ -652,6 +652,7 @@ dependencies = [
  "rust_decimal",
  "rust_decimal_macros",
  "secp256k1",
+ "secp256k1-zkp",
  "serde",
  "serde_json",
  "sha2",
@@ -1091,7 +1092,7 @@ dependencies = [
 [[package]]
 name = "dlc"
 version = "0.4.0"
-source = "git+https://github.com/p2pderivatives/rust-dlc?rev=f235bd2#f235bd2ca2be6b51b61a342deffb36b766d595ba"
+source = "git+https://github.com/p2pderivatives/rust-dlc?rev=5373146#53731464629c6dfc3e162d3c48d5434589eaf2c3"
 dependencies = [
  "bitcoin",
  "miniscript 8.0.2",
@@ -1103,7 +1104,7 @@ dependencies = [
 [[package]]
 name = "dlc-manager"
 version = "0.4.0"
-source = "git+https://github.com/p2pderivatives/rust-dlc?rev=f235bd2#f235bd2ca2be6b51b61a342deffb36b766d595ba"
+source = "git+https://github.com/p2pderivatives/rust-dlc?rev=5373146#53731464629c6dfc3e162d3c48d5434589eaf2c3"
 dependencies = [
  "async-trait",
  "bitcoin",
@@ -1119,7 +1120,7 @@ dependencies = [
 [[package]]
 name = "dlc-messages"
 version = "0.4.0"
-source = "git+https://github.com/p2pderivatives/rust-dlc?rev=f235bd2#f235bd2ca2be6b51b61a342deffb36b766d595ba"
+source = "git+https://github.com/p2pderivatives/rust-dlc?rev=5373146#53731464629c6dfc3e162d3c48d5434589eaf2c3"
 dependencies = [
  "bitcoin",
  "dlc",
@@ -1132,7 +1133,7 @@ dependencies = [
 [[package]]
 name = "dlc-trie"
 version = "0.4.0"
-source = "git+https://github.com/p2pderivatives/rust-dlc?rev=f235bd2#f235bd2ca2be6b51b61a342deffb36b766d595ba"
+source = "git+https://github.com/p2pderivatives/rust-dlc?rev=5373146#53731464629c6dfc3e162d3c48d5434589eaf2c3"
 dependencies = [
  "bitcoin",
  "dlc",
@@ -1323,6 +1324,22 @@ checksum = "9564fc758e15025b46aa6643b1b77d047d1a56a1aea6e01002ac0c7026876213"
 dependencies = [
  "libc",
  "winapi",
+]
+
+[[package]]
+name = "fund"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "bitcoin",
+ "clap",
+ "commons",
+ "reqwest",
+ "serde",
+ "time 0.3.20",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]
@@ -2567,7 +2584,7 @@ checksum = "b15813163c1d831bf4a13c3610c05c0d03b39feb07f7e09fa234dac9b15aaf39"
 [[package]]
 name = "p2pd-oracle-client"
 version = "0.1.0"
-source = "git+https://github.com/p2pderivatives/rust-dlc?rev=f235bd2#f235bd2ca2be6b51b61a342deffb36b766d595ba"
+source = "git+https://github.com/p2pderivatives/rust-dlc?rev=5373146#53731464629c6dfc3e162d3c48d5434589eaf2c3"
 dependencies = [
  "chrono",
  "dlc-manager",

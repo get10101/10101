@@ -6,9 +6,9 @@ use crate::ln::GossipSource;
 use crate::ln::Probes;
 use crate::ln::TracingLogger;
 use crate::ln_dlc_wallet::LnDlcWallet;
-use crate::node::dlc_channel::sub_channel_manager_periodic_check;
 use crate::node::peer_manager::alias_as_bytes;
 use crate::node::peer_manager::broadcast_node_announcement;
+use crate::node::sub_channel::sub_channel_manager_periodic_check;
 use crate::on_chain_wallet::OnChainWallet;
 use crate::seed::Bip39Seed;
 use crate::shadow::Shadow;
@@ -77,9 +77,10 @@ mod storage;
 mod sub_channel_manager;
 mod wallet;
 
-pub(crate) mod dlc_channel;
 pub(crate) mod invoice;
+pub(crate) mod sub_channel;
 
+pub mod dlc_channel;
 pub mod peer_manager;
 
 pub use crate::node::dlc_manager::signed_channel_state_name;
@@ -87,9 +88,6 @@ pub use crate::node::dlc_manager::DlcManager;
 pub use crate::node::oracle::OracleInfo;
 pub use ::dlc_manager as rust_dlc_manager;
 pub use channel_manager::ChannelManager;
-pub use dlc_channel::dlc_message_name;
-pub use dlc_channel::send_dlc_message;
-pub use dlc_channel::sub_channel_message_name;
 pub use invoice::HTLCStatus;
 use lightning::ln::msgs::SocketAddress;
 use lightning::util::persist::KVStore;
@@ -99,6 +97,9 @@ use lightning::util::persist::NETWORK_GRAPH_PERSISTENCE_SECONDARY_NAMESPACE;
 use lightning::util::ser::ReadableArgs;
 pub use storage::InMemoryStore;
 pub use storage::Storage;
+pub use sub_channel::dlc_message_name;
+pub use sub_channel::send_sub_channel_message;
+pub use sub_channel::sub_channel_message_name;
 pub use sub_channel_manager::SubChannelManager;
 pub use wallet::PaymentDetails;
 

@@ -160,7 +160,7 @@ run-local-android args="":
         --flavor local
 
 fund args="":
-      cargo run -p tests-e2e --example fund
+      cargo run -p fund --example fund
 
 # Fund remote regtest instance
 fund-regtest:

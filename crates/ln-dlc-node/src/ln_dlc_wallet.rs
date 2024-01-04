@@ -9,7 +9,9 @@ use anyhow::Result;
 use bdk::blockchain::EsploraBlockchain;
 use bdk::esplora_client::TxStatus;
 use bdk::sled;
+use bdk::SignOptions;
 use bdk::TransactionDetails;
+use bitcoin::psbt::PartiallySignedTransaction;
 use bitcoin::secp256k1::All;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::secp256k1::Secp256k1;
@@ -21,7 +23,6 @@ use bitcoin::KeyPair;
 use bitcoin::Network;
 use bitcoin::Script;
 use bitcoin::Transaction;
-use bitcoin::TxOut;
 use bitcoin::Txid;
 use dlc_manager::error::Error;
 use dlc_manager::Blockchain;
@@ -226,36 +227,31 @@ impl<S: TenTenOneStorage, N: Storage> Blockchain for LnDlcWallet<S, N> {
 }
 
 impl<S: TenTenOneStorage, N: Storage> Signer for LnDlcWallet<S, N> {
-    fn sign_tx_input(
-        &self,
-        tx: &mut Transaction,
-        input_index: usize,
-        tx_out: &TxOut,
-        _: Option<Script>,
-    ) -> Result<(), Error> {
-        let address = Address::from_script(&tx_out.script_pubkey, self.get_network()?)
-            .expect("a valid scriptpubkey");
-        let seckey = self
-            .dlc_storage
-            .get_priv_key_for_address(&address)
-            .map_err(|e| Error::StorageError(format!("Couldn't get priv key for address. {e:#}")))?
-            .expect("to have the requested private key");
-        dlc::util::sign_p2wpkh_input(
-            &self.secp,
-            &seckey,
-            tx,
-            input_index,
-            bitcoin::EcdsaSighashType::All,
-            tx_out.value,
-        )?;
-        Ok(())
-    }
-
     fn get_secret_key_for_pubkey(&self, pubkey: &PublicKey) -> Result<SecretKey, Error> {
         self.dlc_storage
             .get_priv_key_for_pubkey(pubkey)
             .map_err(|e| Error::StorageError(format!("Couldn't get priv key for pubkey. {e:#}")))?
             .ok_or_else(|| Error::StorageError("No sk for provided pk".to_string()))
+    }
+
+    fn sign_psbt_input(
+        &self,
+        psbt: &mut PartiallySignedTransaction,
+        _: usize,
+    ) -> std::result::Result<(), Error> {
+        let ldk_wallet = &self.ldk_wallet();
+        let bdk = ldk_wallet.bdk_lock();
+
+        bdk.sign(
+            psbt,
+            SignOptions {
+                trust_witness_utxo: true,
+                ..Default::default()
+            },
+        )
+        .map_err(|e| Error::WalletError(e.into()))?;
+
+        Ok(())
     }
 }
 
@@ -281,6 +277,29 @@ impl<S: TenTenOneStorage, N: Storage> dlc_manager::Wallet for LnDlcWallet<S, N> 
         _: Option<u64>,
         lock_utxos: bool,
     ) -> Result<Vec<Utxo>, Error> {
+        // TODO(bonomat): this should not be necessary to store it in the db and then load again
+        let utxos = self
+            .ln_wallet
+            .get_utxos()
+            .expect("To be able to receive utxo");
+        utxos
+            .iter()
+            .filter(|utxo| !utxo.is_spent)
+            .map(|utxo| Utxo {
+                tx_out: utxo.txout.clone(),
+                outpoint: utxo.outpoint,
+                address: Address::from_script(&utxo.txout.script_pubkey, self.network)
+                    .expect("to be valid address"),
+                redeem_script: Default::default(),
+                reserved: false,
+            })
+            .for_each(|utxo| {
+                self.dlc_storage
+                    .upsert_utxo(&utxo)
+                    .map_err(|e| Error::StorageError(format!("Failed to upsert utxo. {e:#}")))
+                    .expect("To work")
+            });
+
         let mut utxos = self
             .dlc_storage
             .get_utxos()
@@ -302,6 +321,8 @@ impl<S: TenTenOneStorage, N: Storage> dlc_manager::Wallet for LnDlcWallet<S, N> 
                     .map_err(|e| Error::StorageError(format!("Failed to upsert utxo. {e:#}")))?;
             }
         }
+
+        tracing::debug!("Selected utxos: {:?}", selection);
         Ok(selection.into_iter().map(|x| x.utxo).collect::<Vec<_>>())
     }
 
@@ -323,7 +344,7 @@ impl<S: TenTenOneStorage, N: Storage> BroadcasterInterface for LnDlcWallet<S, N>
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 struct UtxoWrap {
     utxo: Utxo,
 }

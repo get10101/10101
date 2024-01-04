@@ -30,6 +30,7 @@ use dlc_manager::contract::contract_input::ContractInput;
 use dlc_manager::contract::contract_input::ContractInputInfo;
 use dlc_manager::contract::contract_input::OracleInput;
 use dlc_manager::ContractId;
+use dlc_manager::DlcChannelId;
 use dlc_messages::ChannelMessage;
 use dlc_messages::Message;
 use dlc_messages::SubChannelMessage;
@@ -38,7 +39,7 @@ use lightning::ln::ChannelId;
 use lightning::util::config::UserConfig;
 use ln_dlc_node::node;
 use ln_dlc_node::node::dlc_message_name;
-use ln_dlc_node::node::send_dlc_message;
+use ln_dlc_node::node::send_sub_channel_message;
 use ln_dlc_node::node::sub_channel_message_name;
 use ln_dlc_node::node::RunningNode;
 use ln_dlc_node::WalletSettings;
@@ -234,7 +235,7 @@ impl Node {
 
                 tracing::info!(
                     ?trade_params,
-                    channel_id = %hex::encode(channel_id.0),
+                    channel_id = %hex::encode(channel_id),
                     %peer_id,
                     "Closing position"
                 );
@@ -325,16 +326,11 @@ impl Node {
             }],
         };
 
-        let channel_details = self.get_counterparty_channel(trade_params.pubkey)?;
-        self.inner
-            .propose_dlc_channel(channel_details.clone(), contract_input)
-            .await
-            .context("Could not propose dlc channel")?;
-
         let temporary_contract_id = self
             .inner
-            .get_temporary_contract_id_by_sub_channel_id(channel_details.channel_id)
-            .context("unable to extract temporary contract id")?;
+            .propose_dlc_channel(contract_input, trade_params.pubkey)
+            .await
+            .context("Could not propose dlc channel")?;
 
         // After the dlc channel has been proposed the position can be created. Note, this
         // fixes https://github.com/get10101/10101/issues/537, where the position was created
@@ -412,14 +408,14 @@ impl Node {
         conn: &mut PgConnection,
         position: &Position,
         closing_price: Decimal,
-        channel_id: ChannelId,
+        channel_id: DlcChannelId,
     ) -> Result<()> {
         let accept_settlement_amount =
             position.calculate_accept_settlement_amount(closing_price)?;
 
         tracing::debug!(
             ?position,
-            channel_id = %hex::encode(channel_id.0),
+            channel_id = %hex::encode(channel_id),
             %accept_settlement_amount,
             "Closing position of {accept_settlement_amount} with {}",
             position.trader.to_string()
@@ -525,7 +521,7 @@ impl Node {
     ) -> Result<TradeAction> {
         let trader_peer_id = trade_params.pubkey;
 
-        let subchannel = match self.inner.get_dlc_channel_signed(&trader_peer_id)? {
+        let subchannel = match self.inner.get_established_dlc_channel(&trader_peer_id)? {
             None => return Ok(TradeAction::Open),
             Some(subchannel) => subchannel,
         };
@@ -552,7 +548,9 @@ impl Node {
         let action = if position_contracts + trade_contracts == Decimal::ZERO {
             TradeAction::Close(subchannel.channel_id)
         } else {
-            TradeAction::Resize(subchannel.channel_id)
+            // TODO(bonomat) implement channel resize on dlc-channels
+            // TradeAction::Resize(subchannel.channel_id)
+            unimplemented!()
         };
 
         Ok(action)
@@ -607,7 +605,7 @@ impl Node {
                 .on_dlc_message(&msg, node_id)
                 .with_context(|| {
                     format!(
-                        "Failed to handle {} message from {node_id}",
+                        "Failed to handle {} dlc message from {node_id}",
                         dlc_message_name(&msg)
                     )
                 })?,
@@ -644,6 +642,50 @@ impl Node {
                 node_id.to_string(),
                 PositionState::Open,
             )?;
+        }
+
+        if let Some(Message::Channel(ChannelMessage::Sign(sign_channel))) = &resp {
+            let channel_id_hex_string = sign_channel.channel_id.to_hex();
+            tracing::info!(
+                channel_id = channel_id_hex_string,
+                node_id = node_id.to_string(),
+                "DLC channel open protocol was finalized"
+            );
+            let mut connection = self.pool.get()?;
+            db::positions::Position::update_proposed_position(
+                &mut connection,
+                node_id.to_string(),
+                PositionState::Open,
+            )?;
+        }
+
+        if let Message::Channel(ChannelMessage::SettleFinalize(settle_finalize)) = &msg {
+            let channel_id_hex_string = settle_finalize.channel_id.to_hex();
+            tracing::info!(
+                channel_id = channel_id_hex_string,
+                node_id = node_id.to_string(),
+                "DLC channel settle protocol was finalized"
+            );
+            let mut connection = self.pool.get()?;
+
+            match db::positions::Position::get_position_by_trader(
+                &mut connection,
+                node_id,
+                vec![
+                    // The price doesn't matter here.
+                    PositionState::Closing { closing_price: 0.0 },
+                ],
+            )? {
+                None => {
+                    tracing::error!(
+                        channel_id = channel_id_hex_string,
+                        "No position in Closing state found"
+                    );
+                }
+                Some(position) => {
+                    self.finalize_closing_position(&mut connection, position)?;
+                }
+            }
         }
 
         if let Message::SubChannel(SubChannelMessage::CloseFinalize(msg)) = &msg {
@@ -723,7 +765,7 @@ impl Node {
                 "Sending message"
             );
 
-            send_dlc_message(
+            send_sub_channel_message(
                 &self.inner.dlc_message_handler,
                 &self.inner.peer_manager,
                 node_id,
@@ -734,21 +776,22 @@ impl Node {
         Ok(())
     }
 
-    fn coordinator_leverage_for_trade(&self, counterparty_peer_id: &PublicKey) -> Result<f32> {
-        let mut conn = self.pool.get()?;
+    fn coordinator_leverage_for_trade(&self, _counterparty_peer_id: &PublicKey) -> Result<f32> {
+        // TODO(bonomat): we will need to configure the leverage on the coordinator differently now
+        // let channel_details = self.get_counterparty_channel(*counterparty_peer_id)?;
+        // let user_channel_id = Uuid::from_u128(channel_details.user_channel_id).to_string();
+        // let channel = db::channels::get(&user_channel_id, &mut conn)?.with_context(|| {
+        //     format!("Couldn't find shadow channel with user channel ID {user_channel_id}",)
+        // })?;
+        // let leverage_coordinator = match channel.liquidity_option_id {
+        //     Some(liquidity_option_id) => {
+        //         let liquidity_option = db::liquidity_options::get(&mut conn,
+        // liquidity_option_id)?;         liquidity_option.coordinator_leverage
+        //     }
+        //     None => 1.0,
+        // };
 
-        let channel_details = self.get_counterparty_channel(*counterparty_peer_id)?;
-        let user_channel_id = Uuid::from_u128(channel_details.user_channel_id).to_string();
-        let channel = db::channels::get(&user_channel_id, &mut conn)?.with_context(|| {
-            format!("Couldn't find shadow channel with user channel ID {user_channel_id}",)
-        })?;
-        let leverage_coordinator = match channel.liquidity_option_id {
-            Some(liquidity_option_id) => {
-                let liquidity_option = db::liquidity_options::get(&mut conn, liquidity_option_id)?;
-                liquidity_option.coordinator_leverage
-            }
-            None => 1.0,
-        };
+        let leverage_coordinator = 2.0;
 
         Ok(leverage_coordinator)
     }
@@ -773,7 +816,7 @@ fn update_order_and_match(
 
 pub enum TradeAction {
     Open,
-    Close(ChannelId),
+    Close(DlcChannelId),
     Resize(ChannelId),
 }
 

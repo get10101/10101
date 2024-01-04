@@ -321,47 +321,48 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
                 _formKey.currentState?.validate();
               },
               validator: (value) {
-                Amount quantity = Amount.parseAmount(value);
-
-                // TODO(holzeis): fetch min amount to trade from coordinator
-                if (quantity.toInt < 1) {
-                  return "Min quantity to trade is 1";
-                }
-
-                Amount margin = tradeValues.margin!;
-
-                int? optCounterPartyMargin =
-                    provider.counterpartyMargin(direction, coordinatorLeverage);
-                if (optCounterPartyMargin == null) {
-                  return "Counterparty margin not available";
-                }
-                int counterpartyMargin = optCounterPartyMargin;
-
-                int usableCounterpartyMarginInPosition = positionChangeNotifier
-                    .coordinatorMarginUsableForTrade(Leverage(coordinatorLeverage), direction)
-                    .sats;
-
-                // This condition has to stay as the first thing to check, so we reset showing the info
-                if (counterpartyMargin >
-                    counterpartyUsableBalance + usableCounterpartyMarginInPosition) {
-                  setState(() => showCapacityInfo = true);
-
-                  return "Insufficient capacity";
-                } else if (showCapacityInfo) {
-                  setState(() => showCapacityInfo = true);
-                }
-
-                Amount fee = provider.orderMatchingFee(direction) ?? Amount.zero();
-                if (usableBalance < margin.sats + fee.sats) {
-                  return "Insufficient balance";
-                }
-
-                if (margin.sats > maxMargin) {
-                  return "Max margin is $maxMargin";
-                }
-                if (margin.sats < minTradeMargin.sats) {
-                  return "Min margin is ${minTradeMargin.sats}";
-                }
+                // TODO(bonomat): we need new checks here. For now, YOLO
+                // Amount quantity = Amount.parseAmount(value);
+                //
+                // // TODO(holzeis): fetch min amount to trade from coordinator
+                // if (quantity.toInt < 1) {
+                //   return "Min quantity to trade is 1";
+                // }
+                //
+                // Amount margin = tradeValues.margin!;
+                //
+                // int? optCounterPartyMargin =
+                //     provider.counterpartyMargin(direction, coordinatorLeverage);
+                // if (optCounterPartyMargin == null) {
+                //   return "Counterparty margin not available";
+                // }
+                // int counterpartyMargin = optCounterPartyMargin;
+                //
+                // int usableCounterpartyMarginInPosition = positionChangeNotifier
+                //     .coordinatorMarginUsableForTrade(Leverage(coordinatorLeverage), direction)
+                //     .sats;
+                //
+                // // This condition has to stay as the first thing to check, so we reset showing the info
+                // if (counterpartyMargin >
+                //     counterpartyUsableBalance + usableCounterpartyMarginInPosition) {
+                //   setState(() => showCapacityInfo = true);
+                //
+                //   return "Insufficient capacity";
+                // } else if (showCapacityInfo) {
+                //   setState(() => showCapacityInfo = true);
+                // }
+                //
+                // Amount fee = provider.orderMatchingFee(direction) ?? Amount.zero();
+                // if (usableBalance < margin.sats + fee.sats) {
+                //   return "Insufficient balance";
+                // }
+                //
+                // if (margin.sats > maxMargin) {
+                //   return "Max margin is $maxMargin";
+                // }
+                // if (margin.sats < minTradeMargin.sats) {
+                //   return "Min margin is ${minTradeMargin.sats}";
+                // }
 
                 showCapacityInfo = false;
                 return null;

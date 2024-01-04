@@ -93,7 +93,7 @@ where
         }
     }
 
-    fn bdk_lock(&self) -> MutexGuard<bdk::Wallet<D>> {
+    pub fn bdk_lock(&self) -> MutexGuard<bdk::Wallet<D>> {
         self.inner.lock()
     }
 
@@ -198,6 +198,11 @@ where
 
     pub(crate) fn get_balance(&self) -> Result<bdk::Balance, Error> {
         Ok(self.bdk_lock().get_balance()?)
+    }
+
+    pub fn get_utxos(&self) -> Result<Vec<bdk::LocalUtxo>, Error> {
+        let utxos = self.bdk_lock().list_unspent()?;
+        Ok(utxos)
     }
 
     /// Build the PSBT for sending funds to a given address.
