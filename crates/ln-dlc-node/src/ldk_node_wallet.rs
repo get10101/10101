@@ -51,9 +51,19 @@ where
     node_storage: Arc<N>,
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 pub struct WalletSettings {
     pub max_allowed_tx_fee_rate_when_opening_channel: Option<u32>,
+    pub jit_channels_enabled: bool,
+}
+
+impl Default for WalletSettings {
+    fn default() -> Self {
+        Self {
+            max_allowed_tx_fee_rate_when_opening_channel: None,
+            jit_channels_enabled: true,
+        }
+    }
 }
 
 impl<D, B, F, N> Wallet<D, B, F, N>
@@ -68,9 +78,10 @@ where
         wallet: bdk::Wallet<D>,
         fee_rate_estimator: Arc<F>,
         node_storage: Arc<N>,
+        settings: WalletSettings,
     ) -> Self {
         let inner = Mutex::new(wallet);
-        let settings = RwLock::new(WalletSettings::default());
+        let settings = RwLock::new(settings);
 
         Self {
             blockchain: Arc::new(blockchain),
@@ -399,6 +410,7 @@ mod tests {
             test_wallet,
             Arc::new(DummyFeeRateEstimator),
             Arc::new(DummyNodeStorage),
+            WalletSettings::default(),
         );
 
         let fee_rate = FeeRate::from_sat_per_vb(10.0);
