@@ -31,7 +31,7 @@ use tracing::instrument;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Balance {
-    pub offchain: u64,
+    pub lightning: u64,
     pub onchain: u64,
 }
 
@@ -44,7 +44,7 @@ pub async fn get_balance(State(state): State<Arc<AppState>>) -> Result<Json<Bala
             })?;
 
         Ok(Json(Balance {
-            offchain: offchain.available(),
+            lightning: offchain.available(),
             onchain: onchain.confirmed,
         }))
     })
