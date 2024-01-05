@@ -266,7 +266,7 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
         Ok(())
     }
 
-    /// Proposes and update to the DLC channel based on the provided [`ContractInput`]. A
+    /// Propose an update to the DLC channel based on the provided [`ContractInput`]. A
     /// [`RenewOffer`] is sent to the counterparty, kickstarting the renew protocol.
     pub async fn propose_dlc_channel_update(
         &self,
@@ -297,6 +297,25 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
         })
         .await
         .map_err(|e| anyhow!("{e:#}"))?
+    }
+
+    /// Accept an update to the DLC channel. This can only succeed if we previously received a DLC
+    /// channel update offer from the the counterparty.
+    pub fn accept_dlc_channel_update(&self, channel_id: &DlcChannelId) -> Result<()> {
+        let channel_id_hex = hex::encode(channel_id);
+
+        tracing::info!(channel_id = %channel_id_hex, "Accepting DLC channel update offer");
+
+        let (msg, counter_party) = self.dlc_manager.accept_renew_offer(channel_id)?;
+
+        send_dlc_message(
+            &self.dlc_message_handler,
+            &self.peer_manager,
+            counter_party,
+            Message::Channel(ChannelMessage::RenewAccept(msg)),
+        );
+
+        Ok(())
     }
 
     /// Gets the collateral and expiry for a signed contract of that given channel_id. Will return
