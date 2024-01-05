@@ -18,7 +18,6 @@ use dlc_manager::channel::signed_channel::SignedChannelState;
 use dlc_manager::channel::Channel;
 use dlc_manager::contract::contract_input::ContractInput;
 use dlc_manager::contract::Contract;
-use dlc_manager::subchannel::SubChannel;
 use dlc_manager::DlcChannelId;
 use dlc_manager::Oracle;
 use dlc_manager::Storage;
@@ -89,35 +88,6 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
             }
         })
         .await?
-    }
-
-    /// Proposes and update to the DLC channel based on the provided [`ContractInput`]. A
-    /// [`RenewOffer`] is sent to the counterparty, kickstarting the renew protocol.
-    pub async fn propose_dlc_channel_update(
-        &self,
-        dlc_channel_id: &DlcChannelId,
-        payout_amount: u64,
-        contract_input: ContractInput,
-    ) -> Result<()> {
-        tracing::info!(channel_id = %hex::encode(dlc_channel_id), "Proposing a DLC channel update");
-        spawn_blocking({
-            let dlc_manager = self.dlc_manager.clone();
-            let dlc_channel_id = *dlc_channel_id;
-            let event_handler = self.event_handler.clone();
-            move || {
-                let (renew_offer, counterparty_pubkey) =
-                    dlc_manager.renew_offer(&dlc_channel_id, payout_amount, &contract_input)?;
-
-                event_handler.publish(NodeEvent::SendDlcMessage {
-                    peer: counterparty_pubkey,
-                    msg: Message::Channel(ChannelMessage::RenewOffer(renew_offer)),
-                })?;
-
-                Ok(())
-            }
-        })
-        .await
-        .map_err(|e| anyhow!("{e:#}"))?
     }
 
     pub fn reject_dlc_channel_offer(&self, channel_id: &DlcChannelId) -> Result<()> {
@@ -296,15 +266,37 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
         Ok(())
     }
 
-    pub fn get_dlc_channel_offer(&self, pubkey: &PublicKey) -> Result<Option<SubChannel>> {
-        let dlc_channel = self
-            .dlc_manager
-            .get_store()
-            .get_offered_sub_channels()?
-            .into_iter()
-            .find(|dlc_channel| dlc_channel.counter_party == *pubkey);
+    /// Proposes and update to the DLC channel based on the provided [`ContractInput`]. A
+    /// [`RenewOffer`] is sent to the counterparty, kickstarting the renew protocol.
+    pub async fn propose_dlc_channel_update(
+        &self,
+        dlc_channel_id: &DlcChannelId,
+        contract_input: ContractInput,
+    ) -> Result<()> {
+        tracing::info!(channel_id = %hex::encode(dlc_channel_id), "Proposing a DLC channel update");
+        spawn_blocking({
+            let dlc_manager = self.dlc_manager.clone();
+            let dlc_message_handler = self.dlc_message_handler.clone();
+            let peer_manager = self.peer_manager.clone();
+            let dlc_channel_id = *dlc_channel_id;
+            move || {
+                // Not actually needed. See https://github.com/p2pderivatives/rust-dlc/issues/149.
+                let counter_payout = 0;
 
-        Ok(dlc_channel)
+                let (renew_offer, counterparty_pubkey) =
+                    dlc_manager.renew_offer(&dlc_channel_id, counter_payout, &contract_input)?;
+
+                send_dlc_message(
+                    &dlc_message_handler,
+                    &peer_manager,
+                    counterparty_pubkey,
+                    Message::Channel(ChannelMessage::RenewOffer(renew_offer)),
+                );
+                Ok(())
+            }
+        })
+        .await
+        .map_err(|e| anyhow!("{e:#}"))?
     }
 
     /// Gets the collateral and expiry for a signed contract of that given channel_id. Will return
@@ -341,12 +333,11 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
         }
     }
 
-    /// Gets the dlc channel by the dlc channel id
+    /// Get the DLC [`Channel`] by its [`DlcChannelId`].
     pub fn get_dlc_channel_by_id(&self, dlc_channel_id: &DlcChannelId) -> Result<Channel> {
         self.dlc_manager
             .get_store()
-            .get_channel(dlc_channel_id)
-            .map_err(|e| anyhow!("{e:#}"))?
+            .get_channel(dlc_channel_id)?
             .with_context(|| {
                 format!(
                     "Couldn't find channel by id {}",
@@ -355,7 +346,7 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
             })
     }
 
-    /// Fetches the contract for a given dlc channel id
+    /// Fetch the [`Contract`] corresponding to the given [`DlcChannelId`].
     pub fn get_contract_by_dlc_channel_id(
         &self,
         dlc_channel_id: &DlcChannelId,
