@@ -72,6 +72,22 @@ abstract class WalletHistoryItemData {
           contracts: type.contracts);
     }
 
+    if (item.walletType is rust.WalletHistoryItemType_DlcChannelFunding) {
+      rust.WalletHistoryItemType_DlcChannelFunding type =
+          item.walletType as rust.WalletHistoryItemType_DlcChannelFunding;
+
+      return DlcChannelFundingData(
+        flow: flow,
+        amount: amount,
+        status: status,
+        timestamp: timestamp,
+        reservedFeeSats: Amount(type.reservedFeeSats ?? 0),
+        fundingTxid: type.fundingTxid,
+        confirmations: type.confirmations,
+        ourChannelInputAmountSats: Amount(type.ourChannelInputAmountSats),
+      );
+    }
+
     rust.WalletHistoryItemType_Lightning type =
         item.walletType as rust.WalletHistoryItemType_Lightning;
 
@@ -163,5 +179,27 @@ class TradeData extends WalletHistoryItemData {
   @override
   WalletHistoryItem toWidget() {
     return TradeHistoryItem(data: this);
+  }
+}
+
+class DlcChannelFundingData extends WalletHistoryItemData {
+  final Amount reservedFeeSats;
+  final String fundingTxid;
+  final int confirmations;
+  final Amount ourChannelInputAmountSats;
+
+  DlcChannelFundingData(
+      {required super.flow,
+      required super.amount,
+      required super.status,
+      required super.timestamp,
+      required this.reservedFeeSats,
+      required this.confirmations,
+      required this.ourChannelInputAmountSats,
+      required this.fundingTxid});
+
+  @override
+  WalletHistoryItem toWidget() {
+    return DlcChannelFundingHistoryItem(data: this);
   }
 }

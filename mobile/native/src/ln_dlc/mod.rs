@@ -36,6 +36,7 @@ use bdk::bitcoin::Txid;
 use bdk::bitcoin::XOnlyPublicKey;
 use bdk::BlockTime;
 use bdk::FeeRate;
+use bdk::TransactionDetails;
 use bitcoin::hashes::hex::ToHex;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::secp256k1::Secp256k1;
@@ -481,7 +482,53 @@ fn keep_wallet_balance_and_history_up_to_date(node: &Node) -> Result<()> {
         .context("Failed to get wallet histories")?;
 
     let blockchain_height = node.get_blockchain_height()?;
-    let on_chain = on_chain.iter().map(|details| {
+
+    // Get all channel related transactions (channel opening/closing). If we have seen a transaction
+    // in the wallet it means the transaction has been published. If so, we remove it from
+    // [`on_chain`] and add it as it's own WalletHistoryItem so that it can be displayed nicely.
+    let dlc_channels = node.inner.list_dlc_channels()?;
+
+    let dlc_channel_funding_tx_details = on_chain.iter().filter_map(|details| {
+        match dlc_channels
+            .iter()
+            .find(|item| item.fund_tx.txid() == details.txid)
+        {
+            None => None,
+            Some(channel) => {
+                let (timestamp, n_confirmations) =
+                    extract_timestamp_and_blockheight(blockchain_height, details);
+
+                let status = if n_confirmations >= 1 {
+                    Status::Confirmed
+                } else {
+                    Status::Pending
+                };
+
+                Some(WalletHistoryItem {
+                    flow: PaymentFlow::Outbound,
+                    amount_sats: details.sent - details.received,
+                    timestamp,
+                    status,
+                    wallet_type: WalletHistoryItemType::DlcChannelFunding {
+                        funding_txid: details.txid.to_string(),
+                        // this is not 100% correct as fees are not exactly divided by 2. The fee a
+                        // user has to pay depends on his final address.
+                        reserved_fee_sats: details.fee.map(|fee| fee / 2),
+                        confirmations: n_confirmations,
+                        our_channel_input_amount_sats: channel.own_params.collateral,
+                    },
+                })
+            }
+        }
+    });
+
+    let on_chain = on_chain.iter().filter(|tx| {
+        !dlc_channels
+            .iter()
+            .any(|channel| channel.fund_tx.txid() == tx.txid)
+    });
+
+    let on_chain = on_chain.map(|details| {
         let net_sats = details.received as i64 - details.sent as i64;
 
         let (flow, amount_sats) = if net_sats >= 0 {
@@ -490,25 +537,8 @@ fn keep_wallet_balance_and_history_up_to_date(node: &Node) -> Result<()> {
             (PaymentFlow::Outbound, net_sats.unsigned_abs())
         };
 
-        let (timestamp, n_confirmations) = match details.confirmation_time {
-            Some(BlockTime { timestamp, height }) => (
-                timestamp,
-                // This is calculated manually to avoid wasteful requests to esplora,
-                // since we can just cache the blockchain height as opposed to fetching it for each
-                // block as with `LnDlcWallet::get_transaction_confirmations`
-                blockchain_height
-                    .checked_sub(height as u64)
-                    .unwrap_or_default(),
-            ),
-
-            None => {
-                (
-                    // Unconfirmed transactions should appear towards the top of the history
-                    OffsetDateTime::now_utc().unix_timestamp() as u64,
-                    0,
-                )
-            }
-        };
+        let (timestamp, n_confirmations) =
+            extract_timestamp_and_blockheight(blockchain_height, details);
 
         let status = if n_confirmations >= 3 {
             Status::Confirmed
@@ -632,7 +662,7 @@ fn keep_wallet_balance_and_history_up_to_date(node: &Node) -> Result<()> {
         }
     });
 
-    let history = chain![on_chain, off_chain, trades]
+    let history = chain![on_chain, off_chain, trades, dlc_channel_funding_tx_details]
         .sorted_by(|a, b| b.timestamp.cmp(&a.timestamp))
         .collect();
 
@@ -644,6 +674,33 @@ fn keep_wallet_balance_and_history_up_to_date(node: &Node) -> Result<()> {
     event::publish(&EventInternal::WalletInfoUpdateNotification(wallet_info));
 
     Ok(())
+}
+
+fn extract_timestamp_and_blockheight(
+    blockchain_height: u64,
+    details: &TransactionDetails,
+) -> (u64, u64) {
+    match details.confirmation_time {
+        Some(BlockTime { timestamp, height }) => (
+            timestamp,
+            // This is calculated manually to avoid wasteful requests to esplora,
+            // since we can just cache the blockchain height as opposed to fetching it
+            // for each block as with
+            // `LnDlcWallet::get_transaction_confirmations`
+            blockchain_height
+                .checked_sub(height as u64)
+                .unwrap_or_default(),
+        ),
+
+        None => {
+            (
+                // Unconfirmed transactions should appear towards the top of the
+                // history
+                OffsetDateTime::now_utc().unix_timestamp() as u64,
+                0,
+            )
+        }
+    }
 }
 
 pub fn get_unused_address() -> String {
