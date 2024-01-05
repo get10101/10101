@@ -113,6 +113,9 @@ const CHECK_OPEN_ORDERS_INTERVAL: Duration = Duration::from_secs(60);
 const ON_CHAIN_SYNC_INTERVAL: Duration = Duration::from_secs(300);
 const WAIT_FOR_CONNECTING_TO_COORDINATOR: Duration = Duration::from_secs(2);
 
+/// Defines a constant from which we treat a transaction as confirmed
+const NUMBER_OF_CONFIRMATION_FOR_BEING_CONFIRMED: u64 = 1;
+
 /// The weight estimate of the funding transaction
 ///
 /// This weight estimate assumes two inputs.
@@ -498,7 +501,7 @@ fn keep_wallet_balance_and_history_up_to_date(node: &Node) -> Result<()> {
                 let (timestamp, n_confirmations) =
                     extract_timestamp_and_blockheight(blockchain_height, details);
 
-                let status = if n_confirmations >= 1 {
+                let status = if n_confirmations >= NUMBER_OF_CONFIRMATION_FOR_BEING_CONFIRMED {
                     Status::Confirmed
                 } else {
                     Status::Pending
@@ -540,7 +543,7 @@ fn keep_wallet_balance_and_history_up_to_date(node: &Node) -> Result<()> {
         let (timestamp, n_confirmations) =
             extract_timestamp_and_blockheight(blockchain_height, details);
 
-        let status = if n_confirmations >= 3 {
+        let status = if n_confirmations >= NUMBER_OF_CONFIRMATION_FOR_BEING_CONFIRMED {
             Status::Confirmed
         } else {
             Status::Pending
