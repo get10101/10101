@@ -11,14 +11,14 @@ class WalletInfo {
   WalletInfo.fromApi(rust.WalletInfo walletInfo)
       : balances = WalletBalances(
             onChain: Amount(walletInfo.balances.onChain),
-            lightning: Amount(walletInfo.balances.lightning)),
+            offChain: Amount(walletInfo.balances.offChain)),
         history = walletInfo.history.map((item) {
           return WalletHistoryItemData.fromApi(item);
         }).toList();
 
   static rust.WalletInfo apiDummy() {
     return rust.WalletInfo(
-      balances: const rust.Balances(onChain: -1, lightning: -1),
+      balances: const rust.Balances(onChain: -1, offChain: -1),
       history: List.empty(growable: false),
     );
   }

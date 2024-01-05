@@ -22,7 +22,7 @@ pub struct InvoiceParams {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Balance {
-    pub offchain: u64,
+    pub dlc_channel: u64,
     pub onchain: u64,
 }
 

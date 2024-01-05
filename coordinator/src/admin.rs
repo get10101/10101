@@ -33,19 +33,30 @@ use tracing::instrument;
 pub struct Balance {
     pub lightning: u64,
     pub onchain: u64,
+    pub dlc_channel: u64,
 }
 
 pub async fn get_balance(State(state): State<Arc<AppState>>) -> Result<Json<Balance>, AppError> {
     spawn_blocking(move || {
-        let offchain = state.node.inner.get_ldk_balance();
+        let lightning_balance = state.node.inner.get_ldk_balance();
+        let dlc_channel = state
+            .node
+            .inner
+            .get_usable_dlc_channel_balance()
+            .map_err(|error| {
+                AppError::InternalServerError(format!(
+                    "Failed getting dlc channel balance {error:#}"
+                ))
+            })?;
         let onchain =
             state.node.inner.get_on_chain_balance().map_err(|e| {
                 AppError::InternalServerError(format!("Failed to get balance: {e:#}"))
             })?;
 
         Ok(Json(Balance {
-            lightning: offchain.available(),
+            lightning: lightning_balance.available(),
             onchain: onchain.confirmed,
+            dlc_channel: dlc_channel.to_sat(),
         }))
     })
     .await

@@ -28,7 +28,7 @@ class _BalanceRowState extends State<BalanceRow> with SingleTickerProviderStateM
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Text(walletChangeNotifier.lightning().formatted(),
+              Text(walletChangeNotifier.offChain().formatted(),
                   style: const TextStyle(
                       fontSize: 30, color: Colors.white, fontWeight: FontWeight.bold)),
               const Text(" sats",

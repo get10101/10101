@@ -90,7 +90,7 @@ class _SendLightningScreenState extends State<SendLightningScreen> {
     final formatter = NumberFormat("#,###,##0.00", "en");
 
     final usdpBalance = positionChangeNotifier.getStableUSDAmountInFiat();
-    final lightningBalance = getLightningBalance();
+    final offChainBalance = getOffChainBalance();
 
     return GestureDetector(
       onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
@@ -151,7 +151,7 @@ class _SendLightningScreenState extends State<SendLightningScreen> {
                       maintainState: true,
                       visible: !_payWithUsdp,
                       child: buildSatsForm(
-                          tradeValuesChangeNotifier, lightningBalance.$1, lightningBalance.$2))),
+                          tradeValuesChangeNotifier, offChainBalance.$1, offChainBalance.$2))),
               Container(
                 margin: const EdgeInsets.only(left: 40, right: 40),
                 child: Visibility(
@@ -216,7 +216,7 @@ class _SendLightningScreenState extends State<SendLightningScreen> {
                                     Text("Lightning", style: TextStyle(fontSize: 18))
                                   ]),
                               const SizedBox(height: 5),
-                              Text(lightningBalance.$2.toString(), textAlign: TextAlign.start),
+                              Text(offChainBalance.$2.toString(), textAlign: TextAlign.start),
                             ])),
                       ),
                     ),
@@ -467,12 +467,12 @@ class _SendLightningScreenState extends State<SendLightningScreen> {
     );
   }
 
-  (Amount, Amount) getLightningBalance() {
+  (Amount, Amount) getOffChainBalance() {
     final walletInfo = context.read<WalletChangeNotifier>().walletInfo;
     final ChannelInfoService channelInfoService = context.read<ChannelInfoService>();
     Amount initialReserve = channelInfoService.getInitialReserve();
     int channelReserve = channelInfo?.reserve.sats ?? initialReserve.sats;
-    int balance = walletInfo.balances.lightning.sats;
+    int balance = walletInfo.balances.offChain.sats;
 
     return (Amount(balance), Amount(max(balance - channelReserve, 0)));
   }
