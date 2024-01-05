@@ -11,6 +11,7 @@ use anyhow::Context;
 use anyhow::Error;
 use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
+use bitcoin::Amount;
 use dlc_manager::channel::signed_channel::SignedChannel;
 use dlc_manager::channel::signed_channel::SignedChannelState;
 use dlc_manager::channel::Channel;
@@ -304,6 +305,58 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
         let dlc_channels = self.dlc_manager.get_store().get_signed_channels(None)?;
 
         Ok(dlc_channels)
+    }
+
+    /// Returns the usable balance in all DLC channels. Usable means, the amount currently locked up
+    /// in a position does not count to the balance
+    pub fn get_usable_dlc_channel_balance(&self) -> Result<Amount> {
+        let dlc_channels = self.list_dlc_channels()?;
+        Ok(Amount::from_sat(
+            dlc_channels
+                .iter()
+                .map(|channel| match &channel.state {
+                    SignedChannelState::Settled { own_payout, .. } => {
+                        // we settled the position inside the dlc-channel
+                        *own_payout
+                    }
+
+                    SignedChannelState::SettledOffered { .. }
+                    | SignedChannelState::SettledReceived { .. }
+                    | SignedChannelState::SettledAccepted { .. }
+                    | SignedChannelState::SettledConfirmed { .. }
+                    | SignedChannelState::Established { .. } => {
+                        // if we are not yet settled or just established the channel, we have an
+                        // open position with the full amount being locked,
+                        // hence, the current balance is 0
+                        0
+                    }
+                    SignedChannelState::RenewOffered { counter_payout, .. } => {
+                        // we don't have a new position yet, but we are optimistic that it will go
+                        // through. Hence, the balance is the `total money locked` minus `what the
+                        // counterparty gets`
+                        channel.own_params.input_amount - counter_payout
+                    }
+                    SignedChannelState::RenewAccepted { own_payout, .. }
+                    | SignedChannelState::RenewConfirmed { own_payout, .. } => {
+                        // we are currently in the phase of settling off-chain, we assume this
+                        // works and take the new balance
+                        *own_payout
+                    }
+                    SignedChannelState::RenewFinalized { own_payout, .. } => {
+                        // we settled off-chain successfully
+                        *own_payout
+                    }
+                    SignedChannelState::Closing { .. } => {
+                        // the channel is almost gone, so no money left
+                        0
+                    }
+                    SignedChannelState::CollaborativeCloseOffered { counter_payout, .. } => {
+                        // the channel is not yet closed, hence, we keep showing the channel balance
+                        channel.own_params.input_amount - counter_payout
+                    }
+                })
+                .sum(),
+        ))
     }
 }
 

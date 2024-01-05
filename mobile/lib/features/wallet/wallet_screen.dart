@@ -43,7 +43,7 @@ class WalletScreen extends StatelessWidget {
                     Expanded(
                       child: SecondaryActionButton(
                         onPressed: () {
-                          context.go((hasChannel || walletChangeNotifier.lightning().sats > 0)
+                          context.go((hasChannel || walletChangeNotifier.offChain().sats > 0)
                               ? ReceiveScreen.route
                               :
                               // TODO: we should have a dedicated on-boarding screen for on-boarding with on-chain funds

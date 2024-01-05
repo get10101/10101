@@ -81,7 +81,7 @@ impl From<Balances> for crate::api::Balances {
     fn from(value: Balances) -> Self {
         Self {
             on_chain: value.on_chain,
-            lightning: value.off_chain,
+            off_chain: value.off_chain,
         }
     }
 }
@@ -98,11 +98,11 @@ impl Node {
 
     pub fn get_wallet_balances(&self) -> Result<Balances> {
         let on_chain = self.inner.get_on_chain_balance()?.confirmed;
-        let off_chain = self.inner.get_ldk_balance().available();
+        let off_chain = self.inner.get_usable_dlc_channel_balance()?;
 
         Ok(Balances {
             on_chain,
-            off_chain,
+            off_chain: off_chain.to_sat(),
         })
     }
 

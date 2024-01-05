@@ -80,7 +80,7 @@ pub struct WalletInfo {
 #[derive(Clone, Debug, Default)]
 pub struct Balances {
     pub on_chain: u64,
-    pub lightning: u64,
+    pub off_chain: u64,
 }
 
 /// Assembles the wallet info and publishes wallet info update event.

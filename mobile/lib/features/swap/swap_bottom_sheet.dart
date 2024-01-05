@@ -118,12 +118,11 @@ class _StableBottomSheet extends State<SwapBottomSheet> {
                       Amount channelReserve = channelInfo?.reserve ?? initialReserve;
                       int totalReserve = channelReserve.sats + tradeFeeReserve.sats;
 
-                      int usableBalance = max(walletInfo.balances.lightning.sats - totalReserve, 0);
+                      int usableBalance = max(walletInfo.balances.offChain.sats - totalReserve, 0);
                       // the assumed balance of the counterparty based on the channel and our balance
                       // this is needed to make sure that the counterparty can fulfil the trade
                       int counterpartyUsableBalance = max(
-                          channelCapacity.sats -
-                              (walletInfo.balances.lightning.sats + totalReserve),
+                          channelCapacity.sats - (walletInfo.balances.offChain.sats + totalReserve),
                           0);
 
                       final usdpBalQuantity = widget.position?.quantity.asDouble() ?? 0.0;

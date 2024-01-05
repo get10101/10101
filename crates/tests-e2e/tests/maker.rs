@@ -56,7 +56,7 @@ async fn maker_can_open_channel_to_coordinator_and_send_payment() -> Result<()> 
         balance_maker_after_channel
     );
 
-    let balance_coordinator_after_channel = coordinator.get_balance().await?.offchain;
+    let balance_coordinator_after_channel = coordinator.get_balance().await?.lightning;
 
     let payment_amount = 100_000;
     let invoice = coordinator.create_invoice(Some(payment_amount)).await?;
@@ -64,11 +64,11 @@ async fn maker_can_open_channel_to_coordinator_and_send_payment() -> Result<()> 
     maker.pay_invoice(invoice).await?;
 
     wait_until!(
-        coordinator.get_balance().await.unwrap().offchain > balance_coordinator_after_channel
+        coordinator.get_balance().await.unwrap().lightning > balance_coordinator_after_channel
     );
 
     let balance_maker_after_payment = maker.get_balance().await?.offchain;
-    let balance_coordinator_after_payment = coordinator.get_balance().await?.offchain;
+    let balance_coordinator_after_payment = coordinator.get_balance().await?.lightning;
 
     assert_eq!(
         balance_maker_after_channel - payment_amount,

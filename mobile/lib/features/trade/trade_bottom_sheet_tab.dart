@@ -141,12 +141,12 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
                     positionChangeNotifier.marginUsableForTrade(direction).sats;
 
                 int usableBalance = max(
-                    walletInfo.balances.lightning.sats + usableMarginInPosition - totalReserve, 0);
+                    walletInfo.balances.offChain.sats + usableMarginInPosition - totalReserve, 0);
 
                 // The assumed balance of the counterparty based on the channel and our balance. This
                 // is needed to make sure that the counterparty can fulfil the trade.
                 int counterpartyUsableBalance = max(
-                    channelCapacity.sats - (walletInfo.balances.lightning.sats + totalReserve), 0);
+                    channelCapacity.sats - (walletInfo.balances.offChain.sats + totalReserve), 0);
                 int maxMargin = usableBalance;
 
                 children = <Widget>[

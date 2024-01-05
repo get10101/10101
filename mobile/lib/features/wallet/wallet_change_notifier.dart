@@ -12,7 +12,7 @@ import 'package:get_10101/features/wallet/domain/wallet_info.dart';
 class WalletChangeNotifier extends ChangeNotifier implements Subscriber {
   final WalletService service;
   WalletInfo walletInfo = WalletInfo(
-    balances: WalletBalances(onChain: Amount(0), lightning: Amount(0)),
+    balances: WalletBalances(onChain: Amount(0), offChain: Amount(0)),
     history: List.empty(),
   );
   bool syncing = true;
@@ -40,11 +40,11 @@ class WalletChangeNotifier extends ChangeNotifier implements Subscriber {
     await service.refreshWalletInfo();
   }
 
-  Amount total() => Amount(onChain().sats + lightning().sats);
+  Amount total() => Amount(onChain().sats + offChain().sats);
 
   Amount onChain() => walletInfo.balances.onChain;
 
-  Amount lightning() => walletInfo.balances.lightning;
+  Amount offChain() => walletInfo.balances.offChain;
 
   @override
   void notify(bridge.Event event) {

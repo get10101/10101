@@ -151,7 +151,7 @@ void main() {
 
     // We have to pretend that we have a balance, because otherwise the trade bottom sheet validation will not allow us to go to the confirmation screen
     walletChangeNotifier.update(WalletInfo(
-        balances: WalletBalances(onChain: Amount(0), lightning: Amount(10000)), history: []));
+        balances: WalletBalances(onChain: Amount(0), offChain: Amount(10000)), history: []));
 
     await tester.pumpAndSettle();
 
