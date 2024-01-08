@@ -1,6 +1,5 @@
 use anyhow::anyhow;
 use anyhow::Context;
-use anyhow::Error;
 use anyhow::Result;
 use async_stream::stream;
 use commons::create_sign_message;
@@ -24,7 +23,7 @@ pub async fn subscribe(
     url: String,
 ) -> Result<(
     SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, tungstenite::Message>,
-    impl Stream<Item = Result<String, Error>> + Unpin,
+    impl Stream<Item = Result<String, anyhow::Error>> + Unpin,
 )> {
     subscribe_impl(None, url, None).await
 }
@@ -38,7 +37,7 @@ pub async fn subscribe_with_authentication(
     fcm_token: Option<String>,
 ) -> Result<(
     SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, tungstenite::Message>,
-    impl Stream<Item = Result<String, Error>> + Unpin,
+    impl Stream<Item = Result<String, anyhow::Error>> + Unpin,
 )> {
     let signature = create_auth_message_signature(authenticate);
     subscribe_impl(Some(signature), url, fcm_token).await
@@ -55,7 +54,7 @@ async fn subscribe_impl(
     fcm_token: Option<String>,
 ) -> Result<(
     SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, tungstenite::Message>,
-    impl Stream<Item = Result<String, Error>> + Unpin,
+    impl Stream<Item = Result<String>> + Unpin,
 )> {
     tracing::debug!("Connecting to orderbook API");
 

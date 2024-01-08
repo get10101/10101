@@ -30,7 +30,6 @@ use crate::trade::position;
 use anyhow::anyhow;
 use anyhow::bail;
 use anyhow::Context;
-use anyhow::Error;
 use anyhow::Result;
 use bdk::bitcoin::secp256k1::rand::thread_rng;
 use bdk::bitcoin::secp256k1::rand::RngCore;
@@ -1142,7 +1141,7 @@ pub async fn estimate_payment_fee_msat(payment: SendPayment) -> Result<u64> {
     }
 }
 
-pub async fn trade(trade_params: TradeParams) -> Result<(), (FailureReason, Error)> {
+pub async fn trade(trade_params: TradeParams) -> Result<(), (FailureReason, anyhow::Error)> {
     let client = reqwest_client();
     let response = client
         .post(format!("http://{}/api/trade", config::get_http_endpoint()))

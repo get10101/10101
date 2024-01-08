@@ -9,7 +9,6 @@ use anyhow::anyhow;
 use anyhow::bail;
 use anyhow::ensure;
 use anyhow::Context;
-use anyhow::Error;
 use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::Amount;
@@ -32,7 +31,7 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
         &self,
         contract_input: ContractInput,
         counterparty: PublicKey,
-    ) -> std::result::Result<[u8; 32], Error> {
+    ) -> Result<[u8; 32]> {
         tracing::info!(
             trader_id = counterparty.to_hex(),
             oracles = ?contract_input.contract_infos[0].oracles,

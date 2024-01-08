@@ -1,7 +1,7 @@
 use crate::tungstenite::http::Method;
 use anyhow::anyhow;
 use anyhow::Context;
-use anyhow::Error;
+use anyhow::Result;
 use async_stream::stream;
 use futures::SinkExt;
 use futures::Stream;
@@ -25,7 +25,7 @@ use url::Url;
 pub fn subscribe<const N: usize>(
     topics: [String; N],
     network: Network,
-) -> impl Stream<Item = Result<String, Error>> + Unpin {
+) -> impl Stream<Item = Result<String>> + Unpin {
     subscribe_impl(topics, network, None)
 }
 
@@ -38,7 +38,7 @@ pub fn subscribe_with_credentials<const N: usize>(
     topics: [String; N],
     network: Network,
     credentials: Credentials,
-) -> impl Stream<Item = Result<String, Error>> + Unpin {
+) -> impl Stream<Item = Result<String>> + Unpin {
     subscribe_impl(topics, network, Some(credentials))
 }
 
@@ -51,7 +51,7 @@ fn subscribe_impl<const N: usize>(
     topics: [String; N],
     network: Network,
     credentials: Option<Credentials>,
-) -> impl Stream<Item = Result<String, Error>> + Unpin {
+) -> impl Stream<Item = Result<String>> + Unpin {
     let url = network.to_url();
     let url = format!("wss://{url}/realtime");
 
@@ -166,9 +166,9 @@ pub enum Command {
 }
 
 impl TryFrom<Command> for tungstenite::Message {
-    type Error = Error;
+    type Error = anyhow::Error;
 
-    fn try_from(command: Command) -> Result<Self, Self::Error> {
+    fn try_from(command: Command) -> Result<Self> {
         let msg = to_string(&command)?;
         Ok(tungstenite::Message::Text(msg))
     }
@@ -239,12 +239,7 @@ impl Serialize for Signature {
 
 #[cfg(test)]
 mod test {
-    use super::Credentials;
-    use crate::tungstenite::http::Method;
-    use crate::Signature;
-    use anyhow::Result;
-    use serde_json::to_string;
-    use url::Url;
+    use super::*;
 
     #[test]
     fn test_signature_get() -> Result<()> {
