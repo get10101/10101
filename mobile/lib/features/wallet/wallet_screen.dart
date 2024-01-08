@@ -21,7 +21,7 @@ class WalletScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final walletChangeNotifier = context.watch<WalletChangeNotifier>();
 
-    final hasChannel = context.watch<ChannelStatusNotifier>().hasChannel();
+    final hasChannel = context.watch<ChannelStatusNotifier>().hasDlcChannel();
 
     return Scaffold(
       body: RefreshIndicator(

@@ -17,23 +17,20 @@ class ChannelStatusNotifier extends ChangeNotifier implements Subscriber {
     return latest;
   }
 
-  bool hasChannel() {
-    return hasLnChannel() || hasDlcChannel();
-  }
-
-  bool hasLnChannel() {
-    return getChannelStatus() == ChannelStatus.LnOpen;
-  }
-
   bool hasDlcChannel() {
-    return getChannelStatus() == ChannelStatus.LnDlcOpen;
+    return getChannelStatus() == ChannelStatus.Open;
+  }
+
+  bool canForceClose() {
+    return getChannelStatus() != ChannelStatus.Unknown ||
+        getChannelStatus() != ChannelStatus.NotOpen;
   }
 
   /// Whether the current LN-DLC channel is closed or not.
   bool isClosing() {
     final status = getChannelStatus();
 
-    return status == ChannelStatus.LnDlcForceClosing;
+    return status == ChannelStatus.Closing;
   }
 
   void subscribe(EventService eventService) {
@@ -54,5 +51,9 @@ class ChannelStatusNotifier extends ChangeNotifier implements Subscriber {
 
       notifyListeners();
     }
+  }
+
+  bool hasOpenPosition() {
+    return getChannelStatus() == ChannelStatus.WithPosition;
   }
 }

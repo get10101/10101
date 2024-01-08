@@ -245,4 +245,78 @@ async fn vanilla_dlc_channel() {
     })
     .await
     .unwrap();
+
+    let app_on_chain_balance_before_close = app.get_on_chain_balance().unwrap();
+    let coordinator_on_chain_balance_before_close = coordinator.get_on_chain_balance().unwrap();
+
+    tracing::debug!("Proposing to close dlc channel collaboratively");
+
+    coordinator
+        .close_dlc_channel(app_signed_channel.channel_id, false)
+        .await
+        .unwrap();
+
+    wait_until(Duration::from_secs(10), || async {
+        app.process_incoming_messages()?;
+
+        let dlc_channels = app
+            .dlc_manager
+            .get_store()
+            .get_signed_channels(Some(SignedChannelStateType::CollaborativeCloseOffered))?;
+
+        Ok(dlc_channels
+            .iter()
+            .find(|dlc_channel| dlc_channel.counter_party == coordinator.info.pubkey)
+            .cloned())
+    })
+    .await
+    .unwrap();
+
+    tracing::debug!("Accepting collaborative close offer");
+
+    app.accept_dlc_channel_collaborative_close(coordinator_signed_channel.channel_id)
+        .unwrap();
+
+    wait_until(Duration::from_secs(10), || async {
+        mine(1).await.unwrap();
+        coordinator.sync_wallets().await?;
+
+        let coordinator_on_chain_balances_after_close = coordinator.get_on_chain_balance()?;
+
+        let coordinator_balance_changed = coordinator_on_chain_balances_after_close.confirmed
+            > coordinator_on_chain_balance_before_close.confirmed;
+
+        if coordinator_balance_changed {
+            tracing::debug!(
+                old_balance = coordinator_on_chain_balance_before_close.confirmed,
+                new_balance = coordinator_on_chain_balances_after_close.confirmed,
+                "Balance updated"
+            )
+        }
+
+        Ok(coordinator_balance_changed.then_some(true))
+    })
+    .await
+    .unwrap();
+
+    wait_until(Duration::from_secs(10), || async {
+        mine(1).await.unwrap();
+        app.sync_wallets().await?;
+
+        let app_on_chain_balances_after_close = app.get_on_chain_balance()?;
+
+        let app_balance_changed = app_on_chain_balances_after_close.confirmed
+            > app_on_chain_balance_before_close.confirmed;
+        if app_balance_changed {
+            tracing::debug!(
+                old_balance = app_on_chain_balance_before_close.confirmed,
+                new_balance = app_on_chain_balances_after_close.confirmed,
+                "Balance updated"
+            )
+        }
+
+        Ok(app_balance_changed.then_some(()))
+    })
+    .await
+    .unwrap();
 }

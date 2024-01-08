@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Chore: move telegram link into toplevel of settings so that it can be found easier
 - Feat: update coordinator API to show more details on pending channel balance
 - Feat: show dlc-channel balance instead of ln-balance in app and in coordinator's API
+- Feat: allow collaboratively close a channel from coordinator and the app
 - Chore: don't allow multiple dlc-channels per user
 - Feat: show dlc-channel opening transaction in transaction history
 

@@ -76,7 +76,7 @@ class _ForceCloseScreenState extends State<ForceCloseScreen> {
                     child: getForceCloseChannelText(channelStatusNotifier)),
                 Expanded(child: Container()),
                 Visibility(
-                  visible: channelStatusNotifier.hasChannel(),
+                  visible: channelStatusNotifier.hasDlcChannel(),
                   child: Container(
                     margin: const EdgeInsets.all(10),
                     child: ConfirmationSlider(
@@ -112,7 +112,7 @@ class _ForceCloseScreenState extends State<ForceCloseScreen> {
 }
 
 RichText getForceCloseChannelText(ChannelStatusNotifier channelStatusNotifier) {
-  if (!channelStatusNotifier.hasChannel()) {
+  if (!channelStatusNotifier.hasDlcChannel()) {
     return RichText(
         text: const TextSpan(
       text:
