@@ -266,7 +266,7 @@ fn calculate_upper_range_payouts(
             },
             PayoutPoint {
                 event_outcome: BTCUSD_MAX_PRICE,
-                outcome_payout: 0,
+                outcome_payout: fee,
                 extra_precision: 0,
             },
         ),
@@ -597,12 +597,14 @@ mod tests {
         // setup
         // we take 2 BTC so that all tests have nice numbers
         let total_collateral = Amount::ONE_BTC.to_sat() * 2;
+        let fee = 300_000;
+
         let last_payout = PayoutPoint {
             event_outcome: 60_000,
-            outcome_payout: 0,
+            outcome_payout: fee,
             extra_precision: 0,
         };
-        let fee = 300_000;
+
         // act
         let (lower, upper) = calculate_upper_range_payouts(
             Direction::Short,
@@ -614,9 +616,9 @@ mod tests {
 
         // assert
         assert_eq!(lower.event_outcome, last_payout.event_outcome);
-        assert_eq!(lower.outcome_payout, 0);
+        assert_eq!(lower.outcome_payout, fee);
         assert_eq!(upper.event_outcome, BTCUSD_MAX_PRICE);
-        assert_eq!(upper.outcome_payout, 0);
+        assert_eq!(upper.outcome_payout, fee);
 
         if PRINT_CSV {
             let file = File::create("src/payout_curve/upper_range_short.csv").unwrap();
@@ -764,12 +766,12 @@ mod tests {
 
         #[test]
         fn calculating_upper_bound_doesnt_crash_offer_short(total_collateral in 1u64..100_000_000_000, bound in 1u64..100_000) {
+            let fee = 300_000;
             let last_payout = PayoutPoint {
                 event_outcome: bound,
-                outcome_payout: total_collateral,
+                outcome_payout: fee,
                 extra_precision: 0,
             };
-            let fee = 300_000;
 
             // act
             let (lower, upper) =
@@ -779,7 +781,7 @@ mod tests {
             prop_assert_eq!(lower.event_outcome, last_payout.event_outcome);
             prop_assert_eq!(lower.outcome_payout, last_payout.outcome_payout);
             prop_assert_eq!(upper.event_outcome, BTCUSD_MAX_PRICE);
-            prop_assert_eq!(upper.outcome_payout, 0);
+            prop_assert_eq!(upper.outcome_payout, fee);
         }
 
     }
