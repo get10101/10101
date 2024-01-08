@@ -167,12 +167,24 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
             .context("DLC channel to close not found")?;
 
         if force {
-            // TODO(bonomat): implement force closure
+            self.force_close_dlc_channel(&channel_id)?;
         } else {
             self.propose_dlc_channel_collaborative_close(channel)
                 .await?
         }
 
+        Ok(())
+    }
+
+    fn force_close_dlc_channel(&self, channel_id: &DlcChannelId) -> Result<()> {
+        let channel_id_hex = hex::encode(channel_id);
+
+        tracing::info!(
+            channel_id = %channel_id_hex,
+            "Force closing DLC channel"
+        );
+
+        self.dlc_manager.force_close_channel(channel_id)?;
         Ok(())
     }
 

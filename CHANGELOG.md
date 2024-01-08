@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Feat: allow collaboratively close a channel from coordinator and the app
 - Chore: don't allow multiple dlc-channels per user
 - Feat: show dlc-channel opening transaction in transaction history
+- Feat: allow force-close a DLC channel
 
 ## [1.7.4] - 2023-12-20
 
