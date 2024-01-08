@@ -127,6 +127,15 @@ pub enum WalletHistoryItemType {
         contracts: u64,
         direction: String,
     },
+    DlcChannelFunding {
+        funding_txid: String,
+        // This fee represents the total fee reserved for all off-chain transactions, i.e. for the
+        // fund/buffer/cet/refund. Only the part for the fund tx has been paid for now
+        reserved_fee_sats: Option<u64>,
+        confirmations: u64,
+        // The amount we hold in the channel
+        our_channel_input_amount_sats: u64,
+    },
 }
 
 #[derive(Clone, Debug, Default)]

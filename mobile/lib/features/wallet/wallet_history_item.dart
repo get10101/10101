@@ -426,3 +426,40 @@ class OnChainPaymentHistoryItem extends WalletHistoryItem {
     return true;
   }
 }
+
+class DlcChannelFundingHistoryItem extends WalletHistoryItem {
+  @override
+  final DlcChannelFundingData data;
+
+  const DlcChannelFundingHistoryItem({super.key, required this.data});
+
+  @override
+  List<Widget> getDetails() {
+    final details = [
+      HistoryDetail(
+          label: "Transaction ID",
+          value: data.fundingTxid,
+          displayWidget: TransactionIdText(data.fundingTxid)),
+      HistoryDetail(label: "Confirmations", value: data.confirmations.toString()),
+      HistoryDetail(label: "Channel input", value: formatSats(data.ourChannelInputAmountSats)),
+      HistoryDetail(label: "Reserved fee", value: formatSats(data.reservedFeeSats)),
+    ];
+
+    return details;
+  }
+
+  @override
+  IconData getFlowIcon() {
+    return iconForFlow(data.flow);
+  }
+
+  @override
+  String getTitle() {
+    return "Channel opening";
+  }
+
+  @override
+  bool isOnChain() {
+    return true;
+  }
+}
