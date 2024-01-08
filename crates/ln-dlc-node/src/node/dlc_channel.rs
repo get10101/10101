@@ -38,6 +38,19 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
             "Sending DLC channel offer"
         );
 
+        if let Some(channel) = self
+            .list_dlc_channels()?
+            .iter()
+            .find(|channel| channel.counter_party == counterparty)
+        {
+            tracing::error!(
+                trader_id = %counterparty,
+                existing_channel_id = channel.channel_id.to_hex(),
+                existing_channel_state = %channel.state,
+                "We can't open a new channel because we still have an open dlc-channel");
+            bail!("Cant have more than one dlc channel.");
+        }
+
         spawn_blocking({
             let p2pd_oracles = self.oracles.clone();
 
