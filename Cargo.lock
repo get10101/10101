@@ -124,12 +124,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8da52d66c7071e2e3fa2a1e5c6d088fec47b593032b254f5e980de8ea54454d6"
 
 [[package]]
-name = "assertables"
-version = "7.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0c24e9d990669fbd16806bff449e4ac644fd9b1fca014760087732fe4102f131"
-
-[[package]]
 name = "async-stream"
 version = "0.3.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3873,36 +3867,6 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
-]
-
-[[package]]
-name = "tests-e2e"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "assertables",
- "bitcoin",
- "clap",
- "commons",
- "coordinator",
- "flutter_rust_bridge",
- "ln-dlc-node",
- "local-ip-address",
- "maker",
- "native",
- "parking_lot 0.12.1",
- "quote",
- "reqwest",
- "rust_decimal",
- "rust_decimal_macros",
- "serde",
- "serde_json",
- "serde_urlencoded",
- "tempfile",
- "time 0.3.20",
- "tokio",
- "tracing",
- "tracing-subscriber",
 ]
 
 [[package]]

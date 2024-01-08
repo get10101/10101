@@ -14,6 +14,7 @@ default-members = [
   "crates/fund",
   "webapp",
 ]
+exclude = ["crates/tests-e2e"]
 
 resolver = "2"
 
