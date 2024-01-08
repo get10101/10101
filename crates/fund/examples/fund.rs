@@ -53,7 +53,7 @@ async fn fund_everything(faucet: &str, coordinator: &str) -> Result<()> {
     let coordinator_balance = coordinator.get_balance().await?;
     tracing::info!(
         onchain = %Amount::from_sat(coordinator_balance.onchain),
-        offchain = %Amount::from_sat(coordinator_balance.offchain),
+        offchain = %Amount::from_sat(coordinator_balance.dlc_channel),
         "Coordinator balance",
     );
 
