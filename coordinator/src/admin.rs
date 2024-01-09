@@ -15,7 +15,7 @@ use bitcoin::secp256k1::PublicKey;
 use bitcoin::OutPoint;
 use commons::CollaborativeRevertCoordinatorExpertRequest;
 use commons::CollaborativeRevertCoordinatorRequest;
-use dlc_manager::channel::signed_channel::SignedChannel;
+use dlc_manager::channel::Channel;
 use dlc_manager::contract::Contract;
 use lightning_invoice::Bolt11Invoice;
 use ln_dlc_node::node::NodeInfo;
@@ -246,17 +246,10 @@ pub struct DlcChannelDetails {
     pub user_registration_timestamp: Option<OffsetDateTime>,
 }
 
-impl
-    From<(
-        SignedChannel,
-        Option<Contract>,
-        String,
-        Option<OffsetDateTime>,
-    )> for DlcChannelDetails
-{
+impl From<(Channel, Option<Contract>, String, Option<OffsetDateTime>)> for DlcChannelDetails {
     fn from(
         (channel_details, contract, user_email, user_registration_timestamp): (
-            SignedChannel,
+            Channel,
             Option<Contract>,
             String,
             Option<OffsetDateTime>,
@@ -288,12 +281,12 @@ pub async fn list_dlc_channels(
         .into_iter()
         .map(|dlc_channel| {
             let (email, registration_timestamp) =
-                match db::user::by_id(&mut conn, dlc_channel.counter_party.to_string()) {
+                match db::user::by_id(&mut conn, dlc_channel.get_counter_party_id().to_string()) {
                     Ok(Some(user)) => (user.email, Some(user.timestamp)),
                     _ => ("unknown".to_string(), None),
                 };
 
-            let dlc_channel_id = dlc_channel.channel_id;
+            let dlc_channel_id = dlc_channel.get_id();
 
             let contract = match state
                 .node

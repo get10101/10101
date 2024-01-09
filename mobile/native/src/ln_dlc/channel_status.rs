@@ -59,7 +59,7 @@ async fn channel_status(node: impl Borrow<Node>) -> Result<ChannelStatus> {
     let node: &Node = node.borrow();
     let node = &node.inner;
 
-    let dlc_channels = node.list_dlc_channels()?;
+    let dlc_channels = node.list_signed_dlc_channels()?;
     if dlc_channels.len() > 1 {
         tracing::warn!(
             channels = dlc_channels.len(),

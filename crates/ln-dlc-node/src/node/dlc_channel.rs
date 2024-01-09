@@ -39,7 +39,7 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
         );
 
         if let Some(channel) = self
-            .list_dlc_channels()?
+            .list_signed_dlc_channels()?
             .iter()
             .find(|channel| channel.counter_party == counterparty)
         {
@@ -163,7 +163,7 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
         tracing::info!(channel_id = channel_id_hex, "Closing DLC channel");
 
         let channel = self
-            .get_dlc_channel(|channel| channel.channel_id == channel_id)?
+            .get_signed_dlc_channel(|channel| channel.channel_id == channel_id)?
             .context("DLC channel to close not found")?;
 
         if force {
@@ -390,22 +390,28 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
             dlc_channel.counter_party == *pubkey
                 && matches!(&dlc_channel.state, SignedChannelState::Established { .. })
         };
-        let dlc_channel = self.get_dlc_channel(&matcher)?;
+        let dlc_channel = self.get_signed_dlc_channel(&matcher)?;
         Ok(dlc_channel)
     }
 
-    fn get_dlc_channel(
+    fn get_signed_dlc_channel(
         &self,
         matcher: impl FnMut(&&SignedChannel) -> bool,
     ) -> Result<Option<SignedChannel>> {
-        let dlc_channels = self.list_dlc_channels()?;
+        let dlc_channels = self.list_signed_dlc_channels()?;
         let dlc_channel = dlc_channels.iter().find(matcher);
 
         Ok(dlc_channel.cloned())
     }
 
-    pub fn list_dlc_channels(&self) -> Result<Vec<SignedChannel>> {
+    pub fn list_signed_dlc_channels(&self) -> Result<Vec<SignedChannel>> {
         let dlc_channels = self.dlc_manager.get_store().get_signed_channels(None)?;
+
+        Ok(dlc_channels)
+    }
+
+    pub fn list_dlc_channels(&self) -> Result<Vec<Channel>> {
+        let dlc_channels = self.dlc_manager.get_store().get_channels()?;
 
         Ok(dlc_channels)
     }
@@ -413,7 +419,7 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
     /// Returns the usable balance in all DLC channels. Usable means, the amount currently locked up
     /// in a position does not count to the balance
     pub fn get_usable_dlc_channel_balance(&self) -> Result<Amount> {
-        let dlc_channels = self.list_dlc_channels()?;
+        let dlc_channels = self.list_signed_dlc_channels()?;
         Ok(Amount::from_sat(
             dlc_channels
                 .iter()

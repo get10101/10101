@@ -490,7 +490,7 @@ fn keep_wallet_balance_and_history_up_to_date(node: &Node) -> Result<()> {
     // Get all channel related transactions (channel opening/closing). If we have seen a transaction
     // in the wallet it means the transaction has been published. If so, we remove it from
     // [`on_chain`] and add it as it's own WalletHistoryItem so that it can be displayed nicely.
-    let dlc_channels = node.inner.list_dlc_channels()?;
+    let dlc_channels = node.inner.list_signed_dlc_channels()?;
 
     let dlc_channel_funding_tx_details = on_chain.iter().filter_map(|details| {
         match dlc_channels
@@ -715,7 +715,7 @@ pub async fn close_channel(is_force_close: bool) -> Result<()> {
     tracing::info!(force = is_force_close, "Offering to close a channel");
     let node = state::try_get_node().context("failed to get ln dlc node")?;
 
-    let channels = node.inner.list_dlc_channels()?;
+    let channels = node.inner.list_signed_dlc_channels()?;
     let channel_details = channels.first().context("No channel to close")?;
 
     node.inner
@@ -723,9 +723,9 @@ pub async fn close_channel(is_force_close: bool) -> Result<()> {
         .await
 }
 
-pub fn get_dlc_channels() -> Result<Vec<SignedChannel>> {
+pub fn get_signed_dlc_channels() -> Result<Vec<SignedChannel>> {
     let node = state::try_get_node().context("failed to get ln dlc node")?;
-    node.inner.list_dlc_channels()
+    node.inner.list_signed_dlc_channels()
 }
 
 pub fn get_onchain_balance() -> Result<Balance> {

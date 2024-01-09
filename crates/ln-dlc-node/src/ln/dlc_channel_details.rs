@@ -1,8 +1,7 @@
 use bitcoin::hashes::hex::ToHex;
 use bitcoin::secp256k1::PublicKey;
-use dlc_manager::channel::signed_channel::SignedChannel;
+use dlc_manager::channel::Channel;
 use dlc_manager::DlcChannelId;
-use lightning::ln::ChannelId;
 use serde::Serialize;
 use serde::Serializer;
 
@@ -12,9 +11,10 @@ pub struct DlcChannelDetails {
     pub dlc_channel_id: Option<DlcChannelId>,
     #[serde(serialize_with = "pk_as_hex")]
     pub counter_party: PublicKey,
-    pub update_idx: u64,
-    pub subchannel_state: SignedChannelState,
-    pub fee_rate_per_vb: u64,
+    pub channel_state: ChannelState,
+    pub signed_channel_state: Option<SignedChannelState>,
+    pub update_idx: Option<u64>,
+    pub fee_rate_per_vb: Option<u64>,
 }
 
 #[derive(Serialize, Debug)]
@@ -33,14 +33,55 @@ pub enum SignedChannelState {
     CollaborativeCloseOffered,
 }
 
-impl From<SignedChannel> for DlcChannelDetails {
-    fn from(sc: SignedChannel) -> Self {
+#[derive(Serialize, Debug)]
+pub enum ChannelState {
+    Offered,
+    Accepted,
+    Signed,
+    Closing,
+    Closed,
+    CounterClosed,
+    ClosedPunished,
+    CollaborativelyClosed,
+    FailedAccept,
+    FailedSign,
+}
+
+impl From<Channel> for DlcChannelDetails {
+    fn from(channel: Channel) -> Self {
+        let (update_idx, state, fee_rate_per_vb) = match channel.clone() {
+            Channel::Signed(signed_channel) => (
+                Some(signed_channel.update_idx),
+                Some(SignedChannelState::from(signed_channel.state)),
+                Some(signed_channel.fee_rate_per_vb),
+            ),
+            _ => (None, None, None),
+        };
+
         DlcChannelDetails {
-            dlc_channel_id: Some(sc.channel_id),
-            counter_party: sc.counter_party,
-            update_idx: sc.update_idx,
-            subchannel_state: SignedChannelState::from(sc.state),
-            fee_rate_per_vb: sc.fee_rate_per_vb,
+            dlc_channel_id: Some(channel.get_id()),
+            counter_party: channel.get_counter_party_id(),
+            channel_state: ChannelState::from(channel),
+            signed_channel_state: state.map(SignedChannelState::from),
+            update_idx,
+            fee_rate_per_vb,
+        }
+    }
+}
+
+impl From<Channel> for ChannelState {
+    fn from(value: Channel) -> Self {
+        match value {
+            Channel::Offered(_) => ChannelState::Offered,
+            Channel::Accepted(_) => ChannelState::Accepted,
+            Channel::Signed(_) => ChannelState::Signed,
+            Channel::Closing(_) => ChannelState::Closing,
+            Channel::Closed(_) => ChannelState::Closed,
+            Channel::CounterClosed(_) => ChannelState::CounterClosed,
+            Channel::ClosedPunished(_) => ChannelState::ClosedPunished,
+            Channel::CollaborativelyClosed(_) => ChannelState::CollaborativelyClosed,
+            Channel::FailedAccept(_) => ChannelState::FailedAccept,
+            Channel::FailedSign(_) => ChannelState::FailedSign,
         }
     }
 }
