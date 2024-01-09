@@ -30,12 +30,14 @@ pub struct PayoutPoint {
     pub extra_precision: u16,
 }
 
-/// Build a [`PayoutFunction`] for an inverse perpetual future e.g. BTCUSD. Perspective is always
-/// from the person who offers, i.e. in our case from the offerer.
+/// Build a discretized payout function for an inverse perpetual future (e.g. BTCUSD) from the
+/// perspective of the offer party.
 ///
-/// Returns a Vec<(PayoutPoint, PayoutPoint)>>. Each tuple is meant to be put into one
-/// [`dlc_manager::payout_curve::PolynomialPayoutCurvePiece`]
-/// Note: `fee` is always paid towards the offerer
+/// Returns a `Vec<(PayoutPoint, PayoutPoint)>`, with the first element of the tuple being the start
+/// of the interval and the second element of the tuple being the end of the interval.
+///
+/// Each tuple is meant to map to one [`dlc_manager::payout_curve::PolynomialPayoutCurvePiece`] when
+/// building the corresponding [`dlc_manager::payout_curve::PayoutFunction`].
 #[allow(clippy::too_many_arguments)]
 pub fn build_inverse_payout_function(
     quantity: f32,
