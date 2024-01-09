@@ -15,8 +15,8 @@ use bitcoin::secp256k1::PublicKey;
 use bitcoin::OutPoint;
 use commons::CollaborativeRevertCoordinatorExpertRequest;
 use commons::CollaborativeRevertCoordinatorRequest;
+use dlc_manager::channel::signed_channel::SignedChannel;
 use dlc_manager::contract::Contract;
-use dlc_manager::subchannel::SubChannel;
 use lightning_invoice::Bolt11Invoice;
 use ln_dlc_node::node::NodeInfo;
 use serde::de;
@@ -246,10 +246,17 @@ pub struct DlcChannelDetails {
     pub user_registration_timestamp: Option<OffsetDateTime>,
 }
 
-impl From<(SubChannel, Option<Contract>, String, Option<OffsetDateTime>)> for DlcChannelDetails {
+impl
+    From<(
+        SignedChannel,
+        Option<Contract>,
+        String,
+        Option<OffsetDateTime>,
+    )> for DlcChannelDetails
+{
     fn from(
         (channel_details, contract, user_email, user_registration_timestamp): (
-            SubChannel,
+            SignedChannel,
             Option<Contract>,
             String,
             Option<OffsetDateTime>,
@@ -273,36 +280,31 @@ pub async fn list_dlc_channels(
             AppError::InternalServerError(format!("Failed to acquire db lock: {e:#}"))
         })?;
 
-    let dlc_channels = state.node.inner.list_sub_channels().map_err(|e| {
+    let dlc_channels = state.node.inner.list_dlc_channels().map_err(|e| {
         AppError::InternalServerError(format!("Failed to list DLC channels: {e:#}"))
     })?;
 
     let dlc_channels = dlc_channels
         .into_iter()
-        .map(|subchannel| {
+        .map(|dlc_channel| {
             let (email, registration_timestamp) =
-                match db::user::by_id(&mut conn, subchannel.counter_party.to_string()) {
+                match db::user::by_id(&mut conn, dlc_channel.counter_party.to_string()) {
                     Ok(Some(user)) => (user.email, Some(user.timestamp)),
                     _ => ("unknown".to_string(), None),
                 };
 
-            let dlc_channel_id = subchannel.get_dlc_channel_id(0);
+            let dlc_channel_id = dlc_channel.channel_id;
 
-            let contract = match dlc_channel_id {
-                Some(dlc_channel_id) => {
-                    match state
-                        .node
-                        .inner
-                        .get_contract_by_dlc_channel_id(&dlc_channel_id)
-                    {
-                        Ok(contract) => Some(contract),
-                        Err(_) => None,
-                    }
-                }
-                None => None,
+            let contract = match state
+                .node
+                .inner
+                .get_contract_by_dlc_channel_id(&dlc_channel_id)
+            {
+                Ok(contract) => Some(contract),
+                Err(_) => None,
             };
 
-            DlcChannelDetails::from((subchannel, contract, email, registration_timestamp))
+            DlcChannelDetails::from((dlc_channel, contract, email, registration_timestamp))
         })
         .collect::<Vec<_>>();
 
