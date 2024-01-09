@@ -29,7 +29,7 @@ async fn app_can_be_funded_with_lnd_faucet() -> Result<()> {
     let app = run_app(None).await;
 
     // Unfunded wallet should be empty
-    assert_eq!(app.rx.wallet_info().unwrap().balances.lightning, 0);
+    assert_eq!(app.rx.wallet_info().unwrap().balances.off_chain, 0);
 
     // open channel fees should be 11_000 sats (1%)
     let fund_amount = 1_100_000;

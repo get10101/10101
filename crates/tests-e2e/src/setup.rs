@@ -40,7 +40,7 @@ impl TestSetup {
         let app = run_app(None).await;
 
         assert_eq!(
-            app.rx.wallet_info().unwrap().balances.lightning,
+            app.rx.wallet_info().unwrap().balances.off_chain,
             0,
             "App should start with empty wallet"
         );
@@ -50,7 +50,7 @@ impl TestSetup {
             .await
             .unwrap();
 
-        let ln_balance = app.rx.wallet_info().unwrap().balances.lightning;
+        let ln_balance = app.rx.wallet_info().unwrap().balances.off_chain;
         tracing::info!(%fund_amount, %ln_balance, "Successfully funded app with faucet");
 
         assert!(ln_balance > 0, "App wallet should be funded");
