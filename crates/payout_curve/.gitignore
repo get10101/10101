@@ -1,5 +1,6 @@
 examples/payout_curve.png
 examples/*.csv
-src/payout_curve/*.csv
-src/payout_curve/*.png
+*.csv
+*.png
+*.svg
 !src/payout_curve/should_data_offer_short.csv
