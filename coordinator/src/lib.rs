@@ -8,6 +8,8 @@ use diesel::PgConnection;
 use diesel_migrations::embed_migrations;
 use diesel_migrations::EmbeddedMigrations;
 use diesel_migrations::MigrationHarness;
+use dlc_manager::DlcChannelId;
+use hex::FromHex;
 use lightning::ln::ChannelId;
 use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::prelude::ToPrimitive;
@@ -89,6 +91,10 @@ pub fn parse_channel_id(channel_id: &str) -> Result<ChannelId> {
         .map_err(|_| anyhow!("Could not parse channel ID"))?;
 
     Ok(ChannelId(channel_id))
+}
+
+pub fn parse_dlc_channel_id(channel_id: &str) -> Result<DlcChannelId> {
+    Ok(DlcChannelId::from_hex(channel_id)?)
 }
 
 pub fn compute_relative_contracts(contracts: Decimal, direction: &::trade::Direction) -> Decimal {

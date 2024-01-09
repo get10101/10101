@@ -158,6 +158,85 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
         Ok(())
     }
 
+    pub async fn close_dlc_channel(&self, channel_id: DlcChannelId, force: bool) -> Result<()> {
+        let channel_id_hex = hex::encode(channel_id);
+        tracing::info!(channel_id = channel_id_hex, "Closing DLC channel");
+
+        let channel = self
+            .get_dlc_channel(|channel| channel.channel_id == channel_id)?
+            .context("DLC channel to close not found")?;
+
+        if force {
+            self.force_close_dlc_channel(&channel_id)?;
+        } else {
+            self.propose_dlc_channel_collaborative_close(channel)
+                .await?
+        }
+
+        Ok(())
+    }
+
+    fn force_close_dlc_channel(&self, channel_id: &DlcChannelId) -> Result<()> {
+        let channel_id_hex = hex::encode(channel_id);
+
+        tracing::info!(
+            channel_id = %channel_id_hex,
+            "Force closing DLC channel"
+        );
+
+        self.dlc_manager.force_close_channel(channel_id)?;
+        Ok(())
+    }
+
+    /// Collaboratively close a DLC channel on-chain if there is no open position
+    async fn propose_dlc_channel_collaborative_close(&self, channel: SignedChannel) -> Result<()> {
+        let channel_id_hex = hex::encode(channel.channel_id);
+
+        tracing::info!(
+            channel_id = %channel_id_hex,
+            "Closing DLC channel collaboratively"
+        );
+
+        let counterparty = channel.counter_party;
+
+        match channel.state {
+            SignedChannelState::Settled { .. } | SignedChannelState::RenewFinalized { .. } => {
+                spawn_blocking({
+                    let dlc_manager = self.dlc_manager.clone();
+                    let dlc_message_handler = self.dlc_message_handler.clone();
+                    let peer_manager = self.peer_manager.clone();
+                    move || {
+                        let settle_offer = dlc_manager
+                            .offer_collaborative_close(
+                                &channel.channel_id,
+                                channel.counter_params.collateral,
+                            )
+                            .context(
+                                "Could not propose to collaboratively close the dlc channel.",
+                            )?;
+
+                        send_dlc_message(
+                            &dlc_message_handler,
+                            &peer_manager,
+                            counterparty,
+                            Message::Channel(ChannelMessage::CollaborativeCloseOffer(settle_offer)),
+                        );
+
+                        anyhow::Ok(())
+                    }
+                })
+                .await??;
+            }
+            _ => {
+                tracing::error!( state = %channel.state, "Can't collaboratively close a channel with an open position.");
+                bail!("Can't collaboratively close a channel with an open position");
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Collaboratively close a position within a DLC Channel
     pub async fn propose_dlc_channel_collaborative_settlement(
         &self,
         channel_id: DlcChannelId,
@@ -168,7 +247,7 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
         tracing::info!(
             channel_id = %channel_id_hex,
             %accept_settlement_amount,
-            "Settling DLC channel collaboratively"
+            "Settling DLC in channel collaboratively"
         );
 
         spawn_blocking({
@@ -190,6 +269,17 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
             }
         })
         .await?
+    }
+
+    pub fn accept_dlc_channel_collaborative_close(&self, channel_id: DlcChannelId) -> Result<()> {
+        let channel_id_hex = hex::encode(channel_id);
+
+        tracing::info!(channel_id = %channel_id_hex, "Accepting DLC channel collaborative close offer");
+
+        let dlc_manager = self.dlc_manager.clone();
+        dlc_manager.accept_collaborative_close(&channel_id)?;
+
+        Ok(())
     }
 
     pub fn accept_dlc_channel_collaborative_settlement(

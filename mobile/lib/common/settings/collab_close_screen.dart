@@ -78,7 +78,7 @@ class _CollabCloseScreenState extends State<CollabCloseScreen> {
                     child: getCloseChannelText(channelStatusNotifier)),
                 Expanded(child: Container()),
                 Visibility(
-                    visible: channelStatusNotifier.hasDlcChannel(),
+                    visible: channelStatusNotifier.hasOpenPosition(),
                     child: Container(
                       margin: const EdgeInsets.all(10),
                       child: Column(
@@ -91,7 +91,7 @@ class _CollabCloseScreenState extends State<CollabCloseScreen> {
                       ),
                     )),
                 Visibility(
-                  visible: channelStatusNotifier.hasLnChannel(),
+                  visible: channelStatusNotifier.hasDlcChannel(),
                   child: Container(
                       margin: const EdgeInsets.all(10),
                       child: ConfirmationSlider(
@@ -125,28 +125,28 @@ class _CollabCloseScreenState extends State<CollabCloseScreen> {
 }
 
 RichText getCloseChannelText(ChannelStatusNotifier channelStatusNotifier) {
-  if (channelStatusNotifier.hasDlcChannel()) {
+  if (channelStatusNotifier.hasOpenPosition()) {
     return RichText(
         text: const TextSpan(
       style: TextStyle(fontSize: 18, color: Colors.black, letterSpacing: 0.4),
       children: [
-        TextSpan(text: "Please"),
+        TextSpan(text: "Please,"),
         TextSpan(
             text: " close your open position",
             style: TextStyle(color: tenTenOnePurple, fontWeight: FontWeight.w600)),
-        TextSpan(text: ", before collaboratively closing your channel"),
+        TextSpan(text: " before collaboratively closing your channel"),
       ],
     ));
   }
 
-  if (channelStatusNotifier.hasLnChannel()) {
+  if (channelStatusNotifier.hasDlcChannel()) {
     return RichText(
         text: const TextSpan(
       style: TextStyle(fontSize: 18, color: Colors.black, letterSpacing: 0.4),
       children: [
         TextSpan(
           text:
-              "By closing your channel you will receive your lightning funds on-chain in the 10101 app.\n\n",
+              "By closing your channel you will receive your channel funds on-chain in the 10101 app.\n\n",
         ),
         TextSpan(text: "Use this feature if you want to "),
         TextSpan(

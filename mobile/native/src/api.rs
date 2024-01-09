@@ -384,12 +384,14 @@ pub fn get_unused_address() -> SyncReturn<String> {
     SyncReturn(ln_dlc::get_unused_address())
 }
 
-pub fn close_channel() -> Result<()> {
-    ln_dlc::close_channel(false)
+#[tokio::main(flavor = "current_thread")]
+pub async fn close_channel() -> Result<()> {
+    ln_dlc::close_channel(false).await
 }
 
-pub fn force_close_channel() -> Result<()> {
-    ln_dlc::close_channel(true)
+#[tokio::main(flavor = "current_thread")]
+pub async fn force_close_channel() -> Result<()> {
+    ln_dlc::close_channel(true).await
 }
 
 /// Returns channel info if we have a channel available already

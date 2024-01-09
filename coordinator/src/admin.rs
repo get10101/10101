@@ -1,6 +1,7 @@
 use crate::collaborative_revert;
 use crate::db;
 use crate::parse_channel_id;
+use crate::parse_dlc_channel_id;
 use crate::routes::AppState;
 use crate::AppError;
 use anyhow::Context;
@@ -492,7 +493,7 @@ pub async fn close_channel(
     Query(params): Query<CloseChannelParams>,
     State(state): State<Arc<AppState>>,
 ) -> Result<(), AppError> {
-    let channel_id = parse_channel_id(&channel_id_string)
+    let channel_id = parse_dlc_channel_id(&channel_id_string)
         .map_err(|_| AppError::BadRequest("Provided channel ID was invalid".to_string()))?;
 
     tracing::info!(channel_id = %channel_id_string, "Attempting to close channel");
@@ -500,7 +501,8 @@ pub async fn close_channel(
     state
         .node
         .inner
-        .close_channel(channel_id, params.force.unwrap_or_default())
+        .close_dlc_channel(channel_id, params.force.unwrap_or_default())
+        .await
         .map_err(|e| AppError::InternalServerError(format!("{e:#}")))?;
 
     Ok(())

@@ -112,7 +112,7 @@ class _ChannelScreenState extends State<ChannelScreen> {
 }
 
 RichText getForceCloseChannelText(ChannelStatusNotifier channelStatusNotifier) {
-  if (!channelStatusNotifier.hasChannel()) {
+  if (!channelStatusNotifier.hasDlcChannel()) {
     return RichText(
         text: const TextSpan(
       text:
@@ -150,15 +150,16 @@ String channelStatusToString(ChannelStatus status) {
   switch (status) {
     case ChannelStatus.NotOpen:
       return "Not open";
-    case ChannelStatus.LnOpen:
-      return "Lightning open";
-    case ChannelStatus.LnDlcOpen:
-      return "LN-DLC open";
-    case ChannelStatus.LnDlcForceClosing:
-      return "Force-closing";
-    case ChannelStatus.Inconsistent:
-      return "Inconsistent";
+    case ChannelStatus.WithPosition:
+      return "With Position";
+    case ChannelStatus.Renewing:
+    case ChannelStatus.Settling:
+      return "Pending";
+    case ChannelStatus.Closing:
+      return "Closing";
     case ChannelStatus.Unknown:
       return "Unknown";
+    case ChannelStatus.Open:
+      return "Open";
   }
 }

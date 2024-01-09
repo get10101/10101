@@ -688,6 +688,19 @@ impl Node {
             }
         }
 
+        if let Message::Channel(ChannelMessage::CollaborativeCloseOffer(close_offer)) = &msg {
+            let channel_id_hex_string = close_offer.channel_id.to_hex();
+            tracing::info!(
+                channel_id = channel_id_hex_string,
+                node_id = node_id.to_string(),
+                "Received an offer to collaboratively close a channel"
+            );
+
+            // TODO(bonomat): we should verify that the proposed amount is acceptable
+            self.inner
+                .accept_dlc_channel_collaborative_close(close_offer.channel_id)?;
+        }
+
         if let Message::SubChannel(SubChannelMessage::CloseFinalize(msg)) = &msg {
             let mut connection = self.pool.get()?;
             match db::positions::Position::get_position_by_trader(
