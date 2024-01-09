@@ -1,4 +1,5 @@
 use anyhow::bail;
+use anyhow::ensure;
 use anyhow::Context;
 use anyhow::Result;
 use dlc_manager::contract::numerical_descriptor::NumericalDescriptor;
@@ -35,9 +36,11 @@ pub fn build_contract_descriptor(
     quantity: f32,
     symbol: ContractSymbol,
 ) -> Result<ContractDescriptor> {
-    if symbol != ContractSymbol::BtcUsd {
-        bail!("We only support BTCUSD at the moment. For other symbols we will need a different payout curve");
-    }
+    ensure!(
+        symbol == ContractSymbol::BtcUsd,
+        "We only support BTCUSD at the moment. \
+         For other symbols we will need a different payout curve"
+    );
 
     tracing::info!("Building contract descriptor");
 
