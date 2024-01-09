@@ -150,15 +150,16 @@ String channelStatusToString(ChannelStatus status) {
   switch (status) {
     case ChannelStatus.NotOpen:
       return "Not open";
-    case ChannelStatus.Open:
-      return "Open";
-    case ChannelStatus.Pending:
+    case ChannelStatus.WithPosition:
+      return "With Position";
+    case ChannelStatus.Renewing:
+    case ChannelStatus.Settling:
       return "Pending";
     case ChannelStatus.Closing:
       return "Closing";
     case ChannelStatus.Unknown:
       return "Unknown";
-    case ChannelStatus.WithPosition:
-      return "With position";
+    case ChannelStatus.Open:
+      return "Open";
   }
 }

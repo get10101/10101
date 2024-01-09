@@ -18,13 +18,15 @@ pub enum ChannelStatus {
     /// there was a previous channel nor does it imply that a previous channel was completely
     /// closed i.e. there might be pending transactions.
     NotOpen,
-    /// DLC Channel is open
+    /// The DLC channel is open but without an active DLC DLC attached to it.  
     Open,
-    /// DLC Channel is open and has an open position
+    /// The DLC channel has an open DLC attached to it.  
     WithPosition,
-    /// DLC Channel is currently in progress of being renewed
-    Pending,
-    /// DLC Channel is currently in progress of being closed
+    /// The DLC in the channel is currently being settled into the channel
+    Settling,
+    /// The DLC in the channel is currently being renewed
+    Renewing,
+    /// The channel is being closed
     Closing,
     /// The status of the channel is not known.
     Unknown,
@@ -39,9 +41,8 @@ pub async fn track_channel_status(node: impl Borrow<Node>) {
             .await
             .map_err(|e| {
                 tracing::error!("Could not compute LN-DLC channel status: {e:#}");
-                e
             })
-            .into();
+            .unwrap_or(ChannelStatus::Unknown);
 
         if status != cached_status {
             tracing::info!(?status, "Channel status update");
@@ -53,21 +54,8 @@ pub async fn track_channel_status(node: impl Borrow<Node>) {
     }
 }
 
-impl From<Result<ConcreteChannelStatus>> for ChannelStatus {
-    fn from(value: Result<ConcreteChannelStatus>) -> Self {
-        match value {
-            Ok(ConcreteChannelStatus::NotOpen) => Self::NotOpen,
-            Ok(ConcreteChannelStatus::Open) => Self::Open,
-            Ok(ConcreteChannelStatus::Pending) => Self::Pending,
-            Ok(ConcreteChannelStatus::WithPosition) => Self::WithPosition,
-            Ok(ConcreteChannelStatus::Closing) => Self::Closing,
-            Err(_) => Self::Unknown,
-        }
-    }
-}
-
 /// Figure out the status of the current channel.
-async fn channel_status(node: impl Borrow<Node>) -> Result<ConcreteChannelStatus> {
+async fn channel_status(node: impl Borrow<Node>) -> Result<ChannelStatus> {
     let node: &Node = node.borrow();
     let node = &node.inner;
 
@@ -81,75 +69,31 @@ async fn channel_status(node: impl Borrow<Node>) -> Result<ConcreteChannelStatus
 
     let maybe_dlc_channel = dlc_channels.first();
 
-    let status = derive_dlc_channel_status(maybe_dlc_channel);
+    let status = maybe_dlc_channel.into();
 
     Ok(status)
 }
 
-/// The concrete status of the app's channel.
-///
-/// By concrete we mean that the channel status can be determined because we have all the data
-/// needed to derive it.
-#[derive(Debug, Clone, Copy)]
-enum ConcreteChannelStatus {
-    NotOpen,
-    Pending,
-    Open,
-    WithPosition,
-    Closing,
-}
-
-fn derive_dlc_channel_status(dlc_channel: Option<&SignedChannel>) -> ConcreteChannelStatus {
-    match dlc_channel {
-        Some(SignedChannel {
-            state: SignedChannelState::SettledConfirmed { .. },
-            ..
-        })
-        | Some(SignedChannel {
-            state: SignedChannelState::SettledOffered { .. },
-            ..
-        })
-        | Some(SignedChannel {
-            state: SignedChannelState::SettledReceived { .. },
-            ..
-        })
-        | Some(SignedChannel {
-            state: SignedChannelState::SettledAccepted { .. },
-            ..
-        })
-        | Some(SignedChannel {
-            state: SignedChannelState::RenewOffered { .. },
-            ..
-        })
-        | Some(SignedChannel {
-            state: SignedChannelState::RenewAccepted { .. },
-            ..
-        })
-        | Some(SignedChannel {
-            state: SignedChannelState::RenewConfirmed { .. },
-            ..
-        }) => ConcreteChannelStatus::Pending,
-        Some(SignedChannel {
-            state: SignedChannelState::Closing { .. },
-            ..
-        })
-        | Some(SignedChannel {
-            state: SignedChannelState::CollaborativeCloseOffered { .. },
-            ..
-        }) => ConcreteChannelStatus::Closing,
-        Some(SignedChannel {
-            state: SignedChannelState::Established { .. },
-            ..
-        })
-        | Some(SignedChannel {
-            state: SignedChannelState::RenewFinalized { .. },
-            ..
-        }) => ConcreteChannelStatus::WithPosition,
-        Some(SignedChannel {
-            state: SignedChannelState::Settled { .. },
-            ..
-        }) => ConcreteChannelStatus::Open,
-        None => ConcreteChannelStatus::NotOpen,
+impl From<Option<&SignedChannel>> for ChannelStatus {
+    fn from(value: Option<&SignedChannel>) -> Self {
+        match value {
+            None => Self::NotOpen,
+            Some(channel) => match channel.state {
+                SignedChannelState::Established { .. } => Self::WithPosition,
+                SignedChannelState::Settled { .. } | SignedChannelState::RenewFinalized { .. } => {
+                    Self::Open
+                }
+                SignedChannelState::SettledOffered { .. }
+                | SignedChannelState::SettledReceived { .. }
+                | SignedChannelState::SettledAccepted { .. }
+                | SignedChannelState::SettledConfirmed { .. } => Self::Settling,
+                SignedChannelState::RenewOffered { .. }
+                | SignedChannelState::RenewAccepted { .. }
+                | SignedChannelState::RenewConfirmed { .. } => Self::Renewing,
+                SignedChannelState::Closing { .. }
+                | SignedChannelState::CollaborativeCloseOffered { .. } => Self::Closing,
+            },
+        }
     }
 }
 
