@@ -1,7 +1,7 @@
-use anyhow::bail;
 use anyhow::ensure;
 use anyhow::Context;
 use anyhow::Result;
+use bitcoin::Amount;
 use dlc_manager::contract::numerical_descriptor::NumericalDescriptor;
 use dlc_manager::contract::ContractDescriptor;
 use dlc_manager::payout_curve::PayoutFunction;
@@ -21,7 +21,7 @@ use trade::Direction;
 
 /// Builds the contract descriptor from the point of view of the coordinator.
 ///
-/// It's the direction of the coordinator because the coordinator is always proposing
+/// It's the direction of the coordinator because the coordinator is always proposing.
 #[instrument]
 #[allow(clippy::too_many_arguments)]
 pub fn build_contract_descriptor(
@@ -31,7 +31,8 @@ pub fn build_contract_descriptor(
     leverage_coordinator: f32,
     leverage_trader: f32,
     coordinator_direction: Direction,
-    fee: u64,
+    coordinator_collateral_reserve: u64,
+    trader_collateral_reserve: u64,
     rounding_intervals: RoundingIntervals,
     quantity: f32,
     symbol: ContractSymbol,
@@ -51,7 +52,8 @@ pub fn build_contract_descriptor(
             initial_price,
             leverage_trader,
             leverage_coordinator,
-            fee,
+            coordinator_collateral_reserve,
+            trader_collateral_reserve,
             coordinator_direction,
             quantity,
         )?,
@@ -68,12 +70,13 @@ pub fn build_contract_descriptor(
 /// from the person who offers, i.e. in our case from the coordinator.
 #[allow(clippy::too_many_arguments)]
 fn build_inverse_payout_function(
-    coordinator_collateral: u64,
-    trader_collateral: u64,
+    coordinator_margin: u64,
+    trader_margin: u64,
     initial_price: Decimal,
     leverage_trader: f32,
     leverage_coordinator: f32,
-    fee: u64,
+    coordinator_collateral_reserve: u64,
+    trader_collateral_reserve: u64,
     coordinator_direction: Direction,
     quantity: f32,
 ) -> Result<PayoutFunction> {
@@ -88,14 +91,31 @@ fn build_inverse_payout_function(
         leverage_trader,
     );
 
+    let (long_liquidation_price, short_liquidation_price) = match coordinator_direction {
+        Direction::Long => (coordinator_liquidation_price, trader_liquidation_price),
+        Direction::Short => (trader_liquidation_price, coordinator_liquidation_price),
+    };
+
+    let price_params = payout_curve::PriceParams::new_btc_usd(
+        initial_price,
+        long_liquidation_price,
+        short_liquidation_price,
+    )?;
+
+    let party_params_coordinator = payout_curve::PartyParams::new(
+        Amount::from_sat(coordinator_margin),
+        Amount::from_sat(coordinator_collateral_reserve),
+    );
+    let party_params_trader = payout_curve::PartyParams::new(
+        Amount::from_sat(trader_margin),
+        Amount::from_sat(trader_collateral_reserve),
+    );
+
     let payout_points = payout_curve::build_inverse_payout_function(
         quantity,
-        coordinator_collateral,
-        trader_collateral,
-        initial_price,
-        coordinator_liquidation_price,
-        trader_liquidation_price,
-        fee,
+        party_params_coordinator,
+        party_params_trader,
+        price_params,
         coordinator_direction,
     )?;
 
@@ -170,7 +190,9 @@ mod tests {
 
         let coordinator_direction = Direction::Long;
 
-        let fee = order_matching_fee_taker(quantity, initial_price).to_sat();
+        let coordinator_collateral_reserve =
+            order_matching_fee_taker(quantity, initial_price).to_sat();
+        let trader_collateral_reserve = order_matching_fee_taker(quantity, initial_price).to_sat();
 
         let total_collateral = coordinator_margin + trader_margin;
         let rounding_intervals = create_rounding_interval(total_collateral);
@@ -184,7 +206,8 @@ mod tests {
             leverage_coordinator,
             leverage_trader,
             coordinator_direction,
-            fee,
+            coordinator_collateral_reserve,
+            trader_collateral_reserve,
             rounding_intervals,
             quantity,
             symbol,
@@ -260,7 +283,8 @@ mod tests {
 
         let coordinator_direction = Direction::Short;
 
-        let fee = 0;
+        let coordinator_collateral_reserve = 0;
+        let trader_collateral_reserve = 0;
 
         let rounding_intervals = RoundingIntervals {
             intervals: vec![RoundingInterval {
@@ -278,7 +302,8 @@ mod tests {
             leverage_coordinator,
             leverage_trader,
             coordinator_direction,
-            fee,
+            coordinator_collateral_reserve,
+            trader_collateral_reserve,
             rounding_intervals,
             quantity,
             symbol,

@@ -1,11 +1,14 @@
 use anyhow::Context;
 use anyhow::Result;
+use bitcoin::Amount;
 use dlc_manager::payout_curve::PayoutFunction;
 use dlc_manager::payout_curve::PayoutFunctionPiece;
 use dlc_manager::payout_curve::PolynomialPayoutCurvePiece;
 use dlc_manager::payout_curve::RoundingInterval;
 use dlc_manager::payout_curve::RoundingIntervals;
 use payout_curve::build_inverse_payout_function;
+use payout_curve::PartyParams;
+use payout_curve::PriceParams;
 use payout_curve::ROUNDING_PERCENT;
 use proptest::prelude::*;
 use rust_decimal::prelude::FromPrimitive;
@@ -22,61 +25,73 @@ use trade::Direction;
 /// set this to true to export test data to csv files
 const PRINT_CSV: bool = false;
 
-/// taken from a past crash
+/// Taken from a past crash.
 #[test]
 fn calculating_payout_curve_doesnt_crash_1() {
+    let coordinator_direction = Direction::Short;
+
     let initial_price = Decimal::from_u64(26986).unwrap();
     let leverage_trader = 3.0;
     let leverage_coordinator = 3.0;
-    let fee = 0;
-    let coordinator_direction = Direction::Short;
+    let collateral_reserve_offer = 0;
     let quantity = 1.0;
 
-    let coordinator_collateral = calculate_margin(initial_price, quantity, leverage_coordinator);
-    let trader_collateral = calculate_margin(initial_price, quantity, leverage_trader);
+    let coordinator_margin = calculate_margin(initial_price, quantity, leverage_coordinator);
+    let trader_margin = calculate_margin(initial_price, quantity, leverage_trader);
 
-    let offer_liquidation_price = calculate_short_liquidation_price(
-        Decimal::from_f32(leverage_coordinator).expect("to be able to parse f32"),
+    let (leverage_long, leverage_short) = match coordinator_direction {
+        Direction::Long => (leverage_coordinator, leverage_trader),
+        Direction::Short => (leverage_trader, leverage_coordinator),
+    };
+
+    let long_liquidation_price = calculate_long_liquidation_price(
+        Decimal::from_f32(leverage_long).expect("to be able to parse f32"),
         initial_price,
     );
-    let accept_liquidation_price = calculate_long_liquidation_price(
-        Decimal::from_f32(leverage_trader).expect("to be able to parse f32"),
+    let short_liquidation_price = calculate_short_liquidation_price(
+        Decimal::from_f32(leverage_short).expect("to be able to parse f32"),
         initial_price,
     );
 
     // act: we only test that this does not panic
     computed_payout_curve(
         quantity,
-        coordinator_collateral,
-        trader_collateral,
+        coordinator_margin,
+        trader_margin,
         initial_price,
-        fee,
+        collateral_reserve_offer,
         coordinator_direction,
-        offer_liquidation_price,
-        accept_liquidation_price,
+        long_liquidation_price,
+        short_liquidation_price,
     )
     .unwrap();
 }
 
-/// taken from a past crash
+/// Taken from a past crash.
 #[test]
 fn calculating_payout_curve_doesnt_crash_2() {
+    let coordinator_direction = Direction::Short;
+
     let initial_price = dec!(30_000.0);
     let leverage_trader = 1.0;
     let leverage_coordinator = 1.0;
-    let fee = 0;
-    let coordinator_direction = Direction::Short;
+    let collateral_reserve_offer = 0;
     let quantity = 10.0;
 
     let coordinator_collateral = calculate_margin(initial_price, quantity, leverage_coordinator);
     let trader_collateral = calculate_margin(initial_price, quantity, leverage_trader);
 
-    let offer_liquidation_price = calculate_short_liquidation_price(
-        Decimal::from_f32(leverage_coordinator).expect("to be able to parse f32"),
+    let (leverage_long, leverage_short) = match coordinator_direction {
+        Direction::Long => (leverage_coordinator, leverage_trader),
+        Direction::Short => (leverage_trader, leverage_coordinator),
+    };
+
+    let long_liquidation_price = calculate_long_liquidation_price(
+        Decimal::from_f32(leverage_long).expect("to be able to parse f32"),
         initial_price,
     );
-    let accept_liquidation_price = calculate_long_liquidation_price(
-        Decimal::from_f32(leverage_trader).expect("to be able to parse f32"),
+    let short_liquidation_price = calculate_short_liquidation_price(
+        Decimal::from_f32(leverage_short).expect("to be able to parse f32"),
         initial_price,
     );
 
@@ -86,32 +101,39 @@ fn calculating_payout_curve_doesnt_crash_2() {
         coordinator_collateral,
         trader_collateral,
         initial_price,
-        fee,
+        collateral_reserve_offer,
         coordinator_direction,
-        offer_liquidation_price,
-        accept_liquidation_price,
+        long_liquidation_price,
+        short_liquidation_price,
     )
     .unwrap();
 }
-/// taken from a past crash
+
+/// Taken from a past crash.
 #[test]
 fn calculating_payout_curve_doesnt_crash_3() {
+    let coordinator_direction = Direction::Short;
+
     let initial_price = dec!(34586);
     let leverage_trader = 2.0;
     let leverage_coordinator = 2.0;
-    let fee = 0;
-    let coordinator_direction = Direction::Short;
+    let collateral_reserve_offer = 0;
     let quantity = 1.0;
 
     let coordinator_collateral = calculate_margin(initial_price, quantity, leverage_coordinator);
     let trader_collateral = calculate_margin(initial_price, quantity, leverage_trader);
 
-    let offer_liquidation_price = calculate_short_liquidation_price(
-        Decimal::from_f32(leverage_coordinator).expect("to be able to parse f32"),
+    let (leverage_long, leverage_short) = match coordinator_direction {
+        Direction::Long => (leverage_coordinator, leverage_trader),
+        Direction::Short => (leverage_trader, leverage_coordinator),
+    };
+
+    let long_liquidation_price = calculate_long_liquidation_price(
+        Decimal::from_f32(leverage_long).expect("to be able to parse f32"),
         initial_price,
     );
-    let accept_liquidation_price = calculate_long_liquidation_price(
-        Decimal::from_f32(leverage_trader).expect("to be able to parse f32"),
+    let short_liquidation_price = calculate_short_liquidation_price(
+        Decimal::from_f32(leverage_short).expect("to be able to parse f32"),
         initial_price,
     );
 
@@ -121,10 +143,10 @@ fn calculating_payout_curve_doesnt_crash_3() {
         coordinator_collateral,
         trader_collateral,
         initial_price,
-        fee,
+        collateral_reserve_offer,
         coordinator_direction,
-        offer_liquidation_price,
-        accept_liquidation_price,
+        long_liquidation_price,
+        short_liquidation_price,
     )
     .unwrap();
 }
@@ -132,11 +154,11 @@ fn calculating_payout_curve_doesnt_crash_3() {
 proptest! {
     #[test]
     fn calculating_lower_bound_doesnt_crash(
-         trader_leverage in 1u8..5,
+         leverage_trader in 1u8..5,
          direction in 0..2,
     ) {
         init_tracing_for_test();
-        let leverage_trader= trader_leverage as f32;
+        let leverage_trader = leverage_trader as f32;
         let coordinator_direction = if direction == 0 {
             Direction::Short
         }
@@ -145,93 +167,90 @@ proptest! {
         };
 
         let initial_price = dec!(30_000.0);
-        let leverage_coordinator= 2.0;
+        let leverage_coordinator = 2.0;
         let quantity = 10.0;
-        let fee= 0;
+        let fee = 0;
 
-        let coordinator_collateral= calculate_margin(initial_price, quantity, leverage_coordinator);
-        let trader_collateral= calculate_margin(initial_price, quantity, leverage_trader);
+        let coordinator_margin = calculate_margin(initial_price, quantity, leverage_coordinator);
+        let trader_margin = calculate_margin(initial_price, quantity, leverage_trader);
 
-        let (offer_liquidation_price, accept_liquidation_price) = match coordinator_direction {
-            Direction::Long => {
-                (
-                    calculate_long_liquidation_price(
-                        Decimal::from_f32(leverage_coordinator).expect("to be able to parse f32"),
-                        initial_price,
-                    ),
-                    calculate_short_liquidation_price(
-                        Decimal::from_f32(leverage_trader).expect("to be able to parse f32"),
-                        initial_price,
-                    )
-                )
-            }
-            Direction::Short => {
-                (
-                    calculate_short_liquidation_price(
-                        Decimal::from_f32(leverage_coordinator).expect("to be able to parse f32"),
-                        initial_price,
-                    ),
-                    calculate_long_liquidation_price(
-                        Decimal::from_f32(leverage_trader).expect("to be able to parse f32"),
-                        initial_price,
-                    )
-                )
-            }
+        let (leverage_long, leverage_short) = match coordinator_direction {
+            Direction::Long => (leverage_coordinator, leverage_trader),
+            Direction::Short => (leverage_trader, leverage_coordinator),
         };
 
-        let now = std::time::Instant::now();
-        let direction_string = format!("{:?}", coordinator_direction);
+        let long_liquidation_price = calculate_long_liquidation_price(
+            Decimal::from_f32(leverage_long).expect("to be able to parse f32"),
+            initial_price,
+        );
+        let short_liquidation_price = calculate_short_liquidation_price(
+            Decimal::from_f32(leverage_short).expect("to be able to parse f32"),
+            initial_price,
+        );
+
         tracing::info!(
             leverage_trader,
-            coordinator_direction = direction_string,
+            ?coordinator_direction,
             initial_price = initial_price.to_string(),
             leverage_coordinator,
             quantity,
             fee,
-            coordinator_collateral,
-            trader_collateral,
-            ?offer_liquidation_price,
-            ?accept_liquidation_price,
-            "Started computing payout curve");
-
+            coordinator_margin,
+            trader_margin,
+            ?long_liquidation_price,
+            ?short_liquidation_price,
+            "Started computing payout curve"
+        );
 
         // act: we only test that this does not panic
+        let now = std::time::Instant::now();
+
         computed_payout_curve(
             quantity,
-            coordinator_collateral,
-            trader_collateral,
+            coordinator_margin,
+            trader_margin,
             initial_price,
             fee,
             coordinator_direction,
-            offer_liquidation_price,
-            accept_liquidation_price,
+            long_liquidation_price,
+            short_liquidation_price,
         ).unwrap();
-        let elapsed_ms = now.elapsed().as_millis();
+
         tracing::info!(
-            elapsed_ms,
-            "Took total");
+            elapsed_ms = %now.elapsed().as_millis(),
+            "Computed payout curve"
+        );
     }
 }
 
 #[allow(clippy::too_many_arguments)]
 fn computed_payout_curve(
     quantity: f32,
-    coordinator_collateral: u64,
-    trader_collateral: u64,
+    coordinator_margin: u64,
+    trader_margin: u64,
     initial_price: Decimal,
-    fee: u64,
+    coordinator_collateral_reserve: u64,
     coordinator_direction: Direction,
-    offer_liquidation_price: Decimal,
-    accept_liquidation_price: Decimal,
+    long_liquidation_price: Decimal,
+    short_liquidation_price: Decimal,
 ) -> Result<()> {
+    let price_params = PriceParams::new_btc_usd(
+        initial_price,
+        long_liquidation_price,
+        short_liquidation_price,
+    )?;
+
+    let party_params_coordinator = PartyParams::new(
+        Amount::from_sat(coordinator_margin),
+        Amount::from_sat(coordinator_collateral_reserve),
+    );
+    let party_params_trader = PartyParams::new(Amount::from_sat(trader_margin), Amount::ZERO);
+
     let payout_points = build_inverse_payout_function(
         quantity,
-        coordinator_collateral,
-        trader_collateral,
-        initial_price,
-        offer_liquidation_price,
-        accept_liquidation_price,
-        fee,
+        party_params_coordinator,
+        party_params_trader,
+        price_params,
         coordinator_direction,
     )?;
 
@@ -276,7 +295,8 @@ fn computed_payout_curve(
     let payout_function =
         PayoutFunction::new(pieces).context("could not create payout function")?;
 
-    let total_collateral = coordinator_collateral + trader_collateral;
+    let total_collateral =
+        party_params_coordinator.total_collateral() + party_params_trader.total_collateral();
     let _ = payout_function.to_range_payouts(
         total_collateral,
         &RoundingIntervals {

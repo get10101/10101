@@ -57,7 +57,6 @@ use uuid::Uuid;
 
 pub mod connection;
 pub mod expired_positions;
-pub mod resize;
 pub mod rollover;
 pub mod routing_fees;
 pub mod storage;
@@ -221,14 +220,13 @@ impl Node {
             }
             TradeAction::Resize(channel_id) => {
                 tracing::debug!(trader_id, order_id, "Resizing existing position");
+
                 ensure!(
                     self.settings.read().await.allow_opening_positions,
                     "Resizing positions is disabled"
                 );
 
-                self.resize_position(connection, channel_id, trade_params)
-                    .await
-                    .context("Failed at resizing position")?
+                unimplemented!("It's simpler than before");
             }
             TradeAction::Close(channel_id) => {
                 let peer_id = trade_params.pubkey;
@@ -294,7 +292,8 @@ impl Node {
             coordinator_leverage,
             leverage_trader,
             coordinator_direction,
-            fee,
+            todo!(),
+            todo!(),
             create_rounding_interval(total_collateral),
             trade_params.quantity,
             trade_params.contract_symbol,
@@ -591,21 +590,20 @@ impl Node {
         }
     }
 
-    /// [`process_dlc_message`] processes incoming dlc channel messages and updates the 10101
-    /// position accordingly.
-    /// - Any other message will be ignored.
-    /// - Any dlc channel message that has already been processed will be skipped.
+    /// Process an incoming [`Message::Channel`] and update the 10101 position accordingly.
     ///
-    /// If an offer is received [`ChannelMessage::Offer`], [`ChannelMessage::SettleOffer`],
-    /// [`ChannelMessage::CollaborativeCloseOffer`] [`ChannelMessage::RenewOffer`] will get
+    /// - Any other kind of message will be ignored.
+    /// - Any message that has already been processed will be skipped.
+    ///
+    /// Offers such as [`ChannelMessage::Offer`], [`ChannelMessage::SettleOffer`],
+    /// [`ChannelMessage::CollaborativeCloseOffer`] and [`ChannelMessage::RenewOffer`] are
     /// automatically accepted. Unless the maturity date of the offer is already outdated.
     ///
-    /// FIXME(holzeis): This function manipulates different data objects in different data sources
-    /// and should use a transaction to make all changes atomic. Not doing so risks of ending up in
-    /// an inconsistent state. One way of fixing that could be to
-    /// (1) use a single data source for the 10101 data and the rust-dlc data.
-    /// (2) wrap the function into a db transaction which can be atomically rolled back on error or
-    /// committed on success.
+    /// FIXME(holzeis): This function manipulates different data objects from different data sources
+    /// and should use a transaction to make all changes atomic. Not doing so risks ending up in an
+    /// inconsistent state. One way of fixing that could be to: (1) use a single data source for the
+    /// 10101 data and the `rust-dlc` data; (2) wrap the function into a DB transaction which can be
+    /// atomically rolled back on error or committed on success.
     fn process_dlc_message(&self, node_id: PublicKey, msg: Message) -> Result<()> {
         tracing::info!(
             from = %node_id,
