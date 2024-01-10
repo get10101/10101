@@ -416,6 +416,66 @@ pub fn channel_info() -> Result<Option<ChannelInfo>> {
     Ok(channel_info)
 }
 
+pub struct TradeConstraints {
+    /// Max margin the local party can use
+    ///
+    /// This depends on whether the user has a channel or not. If he has a channel, then his
+    /// channel balance is the max amount, otherwise his on-chain balance dictates the max amount
+    pub max_local_margin_sats: u64,
+    /// Max amount the counterparty is willing to put.
+    ///
+    /// This depends whether the user has a channel or not, i.e. if he has a channel then the max
+    /// amount is what the counterparty has in the channel, otherwise, it's a fixed amount what
+    /// the counterparty is willing to provide.
+    pub max_counterparty_margin_sats: u64,
+    /// The leverage the coordinator will take
+    pub coordinator_leverage: f64,
+    /// Smallest allowed amount of contracts
+    pub min_quantity: u64,
+    /// If true it means that the user has a channel and hence the max amount is limited by what he
+    /// has in the channel. In the future we can consider splice in and allow the user to use more
+    /// than just his channel balance.
+    pub is_channel_balance: bool,
+}
+
+pub fn channel_trade_constraints() -> Result<TradeConstraints> {
+    // TODO(bonomat): retrieve these values from the coordinator. This can come from the liquidity
+    // options.
+    let coordinator_leverage = 2.0;
+    let min_quantity = 1;
+
+    let dlc_channels = ln_dlc::get_dlc_channel()?;
+
+    let maybe_channel = dlc_channels.first();
+
+    let trade_constraints = match maybe_channel {
+        None => {
+            let balance = ln_dlc::get_onchain_balance()?;
+            // TODO: get this value from the coordinator, for now we just take what the user has
+            let counterparty_margin_sats =
+                balance.confirmed + balance.trusted_pending + balance.untrusted_pending;
+            TradeConstraints {
+                max_local_margin_sats: balance.confirmed
+                    + balance.trusted_pending
+                    + balance.untrusted_pending,
+
+                max_counterparty_margin_sats: counterparty_margin_sats,
+                coordinator_leverage,
+                min_quantity,
+                is_channel_balance: false,
+            }
+        }
+        Some(channel) => TradeConstraints {
+            max_local_margin_sats: channel.own_params.collateral,
+            max_counterparty_margin_sats: channel.counter_params.collateral,
+            coordinator_leverage,
+            min_quantity,
+            is_channel_balance: true,
+        },
+    };
+    Ok(trade_constraints)
+}
+
 pub fn max_channel_value() -> Result<u64> {
     ln_dlc::max_channel_value().map(|amount| amount.to_sat())
 }
