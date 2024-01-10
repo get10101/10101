@@ -20,7 +20,6 @@ use trade::Direction;
 
 pub mod api;
 pub mod handler;
-pub mod subscriber;
 
 #[derive(Debug, Clone, PartialEq, Copy)]
 pub enum PositionState {
