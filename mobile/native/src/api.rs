@@ -429,7 +429,7 @@ pub struct TradeConstraints {
     /// the counterparty is willing to provide.
     pub max_counterparty_margin_sats: u64,
     /// The leverage the coordinator will take
-    pub coordinator_leverage: f64,
+    pub coordinator_leverage: f32,
     /// Smallest allowed amount of contracts
     pub min_quantity: u64,
     /// If true it means that the user has a channel and hence the max amount is limited by what he
@@ -439,10 +439,22 @@ pub struct TradeConstraints {
 }
 
 pub fn channel_trade_constraints() -> Result<TradeConstraints> {
+    let lsp_config =
+        crate::state::try_get_lsp_config().context("We can't trade without LSP config")?;
+
     // TODO(bonomat): retrieve these values from the coordinator. This can come from the liquidity
     // options.
-    let coordinator_leverage = 2.0;
     let min_quantity = 1;
+
+    // TODO(bonomat): this logic should be removed once we have our liquidity options again and the
+    // on-boarding logic. For now we take the highest liquidity option
+    let option = lsp_config
+        .liquidity_options
+        .iter()
+        .filter(|option| option.active)
+        .max_by_key(|option| &option.trade_up_to_sats)
+        .context("we need at least one liquidity option")?;
+    let coordinator_leverage = option.coordinator_leverage;
 
     let dlc_channels = ln_dlc::get_dlc_channel()?;
 
@@ -451,9 +463,7 @@ pub fn channel_trade_constraints() -> Result<TradeConstraints> {
     let trade_constraints = match maybe_channel {
         None => {
             let balance = ln_dlc::get_onchain_balance()?;
-            // TODO: get this value from the coordinator, for now we just take what the user has
-            let counterparty_margin_sats =
-                balance.confirmed + balance.trusted_pending + balance.untrusted_pending;
+            let counterparty_margin_sats = option.trade_up_to_sats;
             TradeConstraints {
                 max_local_margin_sats: balance.confirmed
                     + balance.trusted_pending
