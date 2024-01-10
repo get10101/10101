@@ -239,6 +239,17 @@ impl Node {
         )
     }
 
+    pub fn is_in_rollover(&self, trader_id: PublicKey) -> Result<bool> {
+        let mut conn = self.pool.get()?;
+        let position = db::positions::Position::get_position_by_trader(
+            &mut conn,
+            trader_id,
+            vec![PositionState::Rollover],
+        )?;
+
+        Ok(position.is_some())
+    }
+
     /// Finalizes the rollover protocol with the app setting the position to open.
     pub fn finalize_rollover(&self, dlc_channel_id: &DlcChannelId) -> Result<()> {
         let contract = self.inner.get_contract_by_dlc_channel_id(dlc_channel_id)?;

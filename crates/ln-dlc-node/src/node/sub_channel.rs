@@ -348,7 +348,7 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
     pub fn get_collateral_and_expiry_for_confirmed_contract(
         &self,
         channel_id: ChannelId,
-    ) -> Result<(u64, OffsetDateTime)> {
+    ) -> Result<OffsetDateTime> {
         let storage = self.dlc_manager.get_store();
         let sub_channel = storage.get_sub_channel(channel_id)?.with_context(|| {
             format!(
@@ -376,10 +376,7 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
                     oracle_announcement.oracle_event.event_maturity_epoch as i64,
                 )?;
 
-                Ok((
-                    contract.accepted_contract.accept_params.collateral,
-                    expiry_timestamp,
-                ))
+                Ok(expiry_timestamp)
             }
             _ => bail!(
                 "Confirmed contract not found for channel ID: {}",

@@ -47,14 +47,15 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
                 trader_id = %counterparty,
                 existing_channel_id = channel.channel_id.to_hex(),
                 existing_channel_state = %channel.state,
-                "We can't open a new channel because we still have an open dlc-channel");
+                "We can't open a new channel because we still have an open dlc-channel"
+            );
             bail!("Cant have more than one dlc channel.");
         }
 
         spawn_blocking({
             let p2pd_oracles = self.oracles.clone();
 
-            let sub_channel_manager = self.sub_channel_manager.clone();
+            let dlc_manager = self.dlc_manager.clone();
             let oracles = contract_input.contract_infos[0].oracles.clone();
             let event_id = oracles.event_id;
             let event_handler = self.event_handler.clone();
@@ -70,18 +71,14 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
                     format!("Can't propose dlc channel without oracles")
                 );
 
-                let sub_channel_offer = sub_channel_manager
-                    .get_dlc_manager()
-                    .offer_channel(&contract_input, counterparty)?;
+                let offer_channel = dlc_manager.offer_channel(&contract_input, counterparty)?;
 
-                let temporary_contract_id = sub_channel_offer.temporary_contract_id;
+                let temporary_contract_id = offer_channel.temporary_contract_id;
 
-                if let Err(e) = event_handler.publish(NodeEvent::SendDlcMessage {
+                event_handler.publish(NodeEvent::SendDlcMessage {
                     peer: counterparty,
-                    msg: Message::Channel(ChannelMessage::Offer(sub_channel_offer)),
-                }) {
-                    tracing::error!("Failed to publish send dlc message node event! {e:#}");
-                }
+                    msg: Message::Channel(ChannelMessage::Offer(offer_channel)),
+                })?;
 
                 Ok(temporary_contract_id)
             }
@@ -271,7 +268,7 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
         &self,
         dlc_channel_id: &DlcChannelId,
         contract_input: ContractInput,
-    ) -> Result<()> {
+    ) -> Result<[u8; 32]> {
         tracing::info!(channel_id = %hex::encode(dlc_channel_id), "Proposing a DLC channel update");
         spawn_blocking({
             let dlc_manager = self.dlc_manager.clone();
@@ -291,15 +288,31 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
                     counterparty_pubkey,
                     Message::Channel(ChannelMessage::RenewOffer(renew_offer)),
                 );
-                Ok(())
+
+                let offered_contracts = dlc_manager.get_store().get_contract_offers()?;
+
+                // We assume that the first `OfferedContract` we find here is the one we just
+                // proposed when renewing the DLC channel.
+                //
+                // TODO: Change `renew_offer` API to return the `temporary_contract_id`, like
+                // `offer_channel` does.
+                let offered_contract = offered_contracts
+                    .iter()
+                    .find(|contract| contract.counter_party == counterparty_pubkey)
+                    .context("Cold not find offered contract after proposing DLC channel update")?;
+
+                Ok(offered_contract.id)
             }
         })
         .await
         .map_err(|e| anyhow!("{e:#}"))?
     }
 
+    #[cfg(test)]
     /// Accept an update to the DLC channel. This can only succeed if we previously received a DLC
     /// channel update offer from the the counterparty.
+    // The accept code has diverged on the app side (hence the #[cfg(test)]). Another hint that we
+    // should delete most of this crate soon.
     pub fn accept_dlc_channel_update(&self, channel_id: &DlcChannelId) -> Result<()> {
         let channel_id_hex = hex::encode(channel_id);
 
@@ -317,12 +330,13 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
         Ok(())
     }
 
-    /// Gets the collateral and expiry for a signed contract of that given channel_id. Will return
-    /// an error if the contract is not yet signed nor confirmed.
-    pub fn get_collateral_and_expiry_for_confirmed_dlc_channel(
+    /// Get the expiry for the [`SignedContract`] corresponding to the given [`DlcChannelId`].
+    ///
+    /// Will return an error if the contract is not yet signed or confirmed on-chain.
+    pub fn get_expiry_for_confirmed_dlc_channel(
         &self,
         dlc_channel_id: DlcChannelId,
-    ) -> Result<(u64, OffsetDateTime)> {
+    ) -> Result<OffsetDateTime> {
         match self.get_contract_by_dlc_channel_id(&dlc_channel_id)? {
             Contract::Signed(contract) | Contract::Confirmed(contract) => {
                 let offered_contract = contract.accepted_contract.offered_contract;
@@ -339,10 +353,7 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
                     oracle_announcement.oracle_event.event_maturity_epoch as i64,
                 )?;
 
-                Ok((
-                    contract.accepted_contract.accept_params.collateral,
-                    expiry_timestamp,
-                ))
+                Ok(expiry_timestamp)
             }
             state => bail!(
                 "Confirmed contract not found for channel ID: {} which was in state {state:?}",
@@ -362,6 +373,15 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
                     hex::encode(dlc_channel_id)
                 )
             })
+    }
+
+    pub fn get_dlc_channel_by_counterparty(
+        &self,
+        counterparty_pk: &PublicKey,
+    ) -> Result<Option<SignedChannel>> {
+        self.get_signed_dlc_channel(|signed_channel| {
+            signed_channel.counter_party == *counterparty_pk
+        })
     }
 
     /// Fetch the [`Contract`] corresponding to the given [`DlcChannelId`].

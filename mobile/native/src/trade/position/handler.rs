@@ -1,3 +1,4 @@
+use crate::calculations::calculate_margin;
 use crate::db;
 use crate::event;
 use crate::event::EventInternal;
@@ -189,21 +190,32 @@ pub fn rollover_position(expiry_timestamp: OffsetDateTime) -> Result<()> {
     Ok(())
 }
 
-/// Create a position after the creation of a DLC channel.
-pub fn update_position_after_dlc_creation(
+/// Create a position after creating or updating a DLC channel.
+pub fn update_position_after_dlc_channel_creation_or_update(
     filled_order: Order,
-    collateral: u64,
     expiry: OffsetDateTime,
 ) -> Result<()> {
+    let execution_price = filled_order
+        .execution_price()
+        .expect("filled order to have a price");
+
+    // This used to be determined by the DLC collateral, but we now allow part of
+    // the DLC collateral to be excluded from the trade (the collateral reserve).
+    let margin = calculate_margin(
+        execution_price,
+        filled_order.quantity,
+        filled_order.leverage,
+    );
+
     let (position, trades) = match db::get_positions()?.first() {
         None => {
             tracing::debug!(
                 order = ?filled_order,
-                %collateral,
+                %margin,
                 "Creating position after DLC channel creation"
             );
 
-            let (position, trade) = Position::new_open(filled_order, collateral, expiry);
+            let (position, trade) = Position::new_open(filled_order, margin, expiry);
 
             tracing::info!(?trade, ?position, "Position created");
 
@@ -219,10 +231,7 @@ pub fn update_position_after_dlc_creation(
         ) => {
             tracing::info!("Calculating new position after DLC channel has been resized");
 
-            let (position, trades) =
-                position
-                    .clone()
-                    .apply_order(filled_order, expiry, collateral)?;
+            let (position, trades) = position.clone().apply_order(filled_order, expiry, margin)?;
 
             let position = position.context("Resized position has vanished")?;
 

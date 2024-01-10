@@ -8,7 +8,6 @@ use crate::trade::order;
 use crate::trade::order::FailureReason;
 use crate::trade::order::InvalidSubchannelOffer;
 use crate::trade::position;
-use crate::trade::position::PositionState;
 use anyhow::anyhow;
 use anyhow::Context;
 use anyhow::Result;
@@ -16,7 +15,6 @@ use bdk::bitcoin::secp256k1::PublicKey;
 use bdk::TransactionDetails;
 use bitcoin::hashes::hex::ToHex;
 use bitcoin::Txid;
-use commons::order_matching_fee_taker;
 use dlc_messages::ChannelMessage;
 use dlc_messages::Message;
 use lightning::chain::transaction::OutPoint;
@@ -42,7 +40,6 @@ use ln_dlc_node::HTLCStatus;
 use ln_dlc_node::MillisatAmount;
 use ln_dlc_node::PaymentFlow;
 use ln_dlc_node::PaymentInfo;
-use rust_decimal::Decimal;
 use std::collections::HashSet;
 use std::sync::Arc;
 use std::time::Duration;
@@ -219,7 +216,13 @@ impl Node {
                             })?;
                     }
                     ChannelMessage::RenewOffer(r) => {
-                        tracing::info!("Automatically accepting a rollover position");
+                        let channel_id_hex = r.channel_id.to_hex();
+
+                        tracing::info!(
+                            channel_id = %channel_id_hex,
+                            "Automatically accepting renew offer"
+                        );
+
                         let (accept_renew_offer, counterparty_pubkey) =
                             self.inner.dlc_manager.accept_renew_offer(&r.channel_id)?;
 
@@ -233,39 +236,41 @@ impl Node {
                         )?;
                         position::handler::rollover_position(expiry_timestamp)?;
                     }
-                    ChannelMessage::RenewRevoke(_) => {
-                        tracing::info!("Finished rollover position");
-                        // After handling the `RenewRevoke` message, we need to do some
-                        // post-processing based on the fact that the DLC
-                        // channel has been updated.
-                        position::handler::set_position_state(PositionState::Open)?;
+                    ChannelMessage::RenewRevoke(r) => {
+                        let channel_id_hex = r.channel_id.to_hex();
+
+                        tracing::info!(
+                            channel_id = %channel_id_hex,
+                            "Finished renew protocol"
+                        );
+
+                        let expiry_timestamp = self
+                            .inner
+                            .get_expiry_for_confirmed_dlc_channel(r.channel_id)?;
+
+                        let filled_order = order::handler::order_filled()
+                            .context("Cannot mark order as filled for confirmed DLC")?;
+
+                        position::handler::update_position_after_dlc_channel_creation_or_update(
+                            filled_order,
+                            expiry_timestamp,
+                        )
+                        .context("Failed to update position after DLC creation")?;
 
                         event::publish(&EventInternal::BackgroundNotification(
                             BackgroundTask::Rollover(TaskStatus::Success),
                         ));
                     }
-                    // ignoring all other channel events.
                     ChannelMessage::Sign(signed) => {
-                        let (accept_collateral, expiry_timestamp) = self
+                        let expiry_timestamp = self
                             .inner
-                            .get_collateral_and_expiry_for_confirmed_dlc_channel(
-                                signed.channel_id,
-                            )?;
+                            .get_expiry_for_confirmed_dlc_channel(signed.channel_id)?;
 
                         let filled_order = order::handler::order_filled()
                             .context("Cannot mark order as filled for confirmed DLC")?;
 
-                        let execution_price = filled_order
-                            .execution_price()
-                            .expect("filled order to have a price");
-                        let open_position_fee = order_matching_fee_taker(
-                            filled_order.quantity,
-                            Decimal::try_from(execution_price)?,
-                        );
-
-                        position::handler::update_position_after_dlc_creation(
+                        position::handler::update_position_after_dlc_channel_creation_or_update(
                             filled_order,
-                            accept_collateral - open_position_fee.to_sat(),
                             expiry_timestamp,
                         )
                         .context("Failed to update position after DLC creation")?;

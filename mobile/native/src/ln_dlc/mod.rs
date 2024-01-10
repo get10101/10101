@@ -67,6 +67,7 @@ use ln_dlc_node::lightning_invoice::Bolt11Invoice;
 use ln_dlc_node::node::event::NodeEventHandler;
 use ln_dlc_node::node::rust_dlc_manager::channel::signed_channel::SignedChannel;
 use ln_dlc_node::node::rust_dlc_manager::channel::ClosedChannel;
+use ln_dlc_node::node::rust_dlc_manager::contract::Contract;
 use ln_dlc_node::node::rust_dlc_manager::subchannel::LNChannelManager;
 use ln_dlc_node::node::rust_dlc_manager::DlcChannelId;
 use ln_dlc_node::node::rust_dlc_manager::Signer;
@@ -98,10 +99,9 @@ use tokio::sync::watch;
 use tokio::task::spawn_blocking;
 use trade::ContractSymbol;
 
+pub mod channel_status;
 mod lightning_subscriber;
 pub mod node;
-
-pub mod channel_status;
 
 const PROCESS_INCOMING_DLC_MESSAGES_INTERVAL: Duration = Duration::from_millis(200);
 const UPDATE_WALLET_HISTORY_INTERVAL: Duration = Duration::from_secs(5);
@@ -884,6 +884,35 @@ fn update_state_after_collab_revert(
         .map_err(|e| anyhow!("{e:#}"))
 }
 
+pub fn get_signed_dlc_channel() -> Result<Option<SignedChannel>> {
+    let node = state::get_node();
+
+    let signed_channels = node.inner.list_signed_dlc_channels()?;
+
+    // TODO: Can we assume that the first DLC channel is the one we care about? We assume that we
+    // can only have one DLC channel at a time (for now), but what if the previous DLC channel is
+    // still being closed on-chain?
+    Ok(signed_channels.first().cloned())
+}
+
+pub fn is_dlc_channel_confirmed(dlc_channel_id: &DlcChannelId) -> Result<bool> {
+    let node = state::get_node();
+
+    let is_contract_confirmed = match node.inner.get_contract_by_dlc_channel_id(dlc_channel_id) {
+        Ok(Contract::Confirmed { .. }) => true,
+        Err(e) => {
+            tracing::error!(
+                dlc_channel_id = %dlc_channel_id.to_hex(),
+                "Could not get contract for DLC channel: {e:#}"
+            );
+            false
+        }
+        _ => false,
+    };
+
+    Ok(is_contract_confirmed)
+}
+
 pub fn get_usable_channel_details() -> Result<Vec<ChannelDetails>> {
     let node = state::try_get_node().context("failed to get ln dlc node")?;
     let channels = node.inner.list_usable_channels();
@@ -1148,7 +1177,7 @@ pub async fn trade(trade_params: TradeParams) -> Result<(), (FailureReason, anyh
         .json(&trade_params)
         .send()
         .await
-        .context("Failed to register with coordinator")
+        .context("Failed to send trade request to coordinator")
         .map_err(|e| (FailureReason::TradeRequest, e))?;
 
     if !response.status().is_success() {
@@ -1161,7 +1190,7 @@ pub async fn trade(trade_params: TradeParams) -> Result<(), (FailureReason, anyh
         return Err((
             // TODO(bonomat): extract the error message
             FailureReason::TradeResponse(response_text.clone()),
-            anyhow!("Could not post trade to coordinator: {response_text}"),
+            anyhow!("Coordinator failed to handle our trade request: {response_text}"),
         ));
     }
 
