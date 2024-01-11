@@ -20,7 +20,7 @@ pub enum OrderType {
 }
 
 /// Internal type so we still have Copy on order
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum FailureReason {
     /// An error occurred when setting the Order to filling in our DB
     FailedToSetToFilling,
@@ -28,7 +28,7 @@ pub enum FailureReason {
     TradeRequest,
     /// A failure happened during the initial phase of the protocol. I.e. after sending the trade
     /// request
-    TradeResponse,
+    TradeResponse(String),
     /// The order failed due to collaboratively reverting the position
     CollabRevert,
     /// MVP scope: Can only close the order, not reduce or extend
@@ -48,7 +48,7 @@ pub enum InvalidSubchannelOffer {
     Unacceptable,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum OrderState {
     /// Not submitted to orderbook yet
     ///
@@ -136,7 +136,7 @@ impl From<commons::OrderReason> for OrderReason {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct Order {
     pub id: Uuid,
     pub leverage: f32,

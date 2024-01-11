@@ -105,9 +105,9 @@ pub async fn async_trade(order: commons::Order, filled_with: FilledWith) -> Resu
         failure_reason: None,
     };
 
-    db::insert_order(order)?;
+    db::insert_order(order.clone())?;
 
-    event::publish(&EventInternal::OrderUpdateNotification(order));
+    event::publish(&EventInternal::OrderUpdateNotification(order.clone()));
 
     let trade_params = TradeParams {
         pubkey: ln_dlc::get_node_pubkey(),

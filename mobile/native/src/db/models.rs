@@ -31,6 +31,8 @@ use ln_dlc_node::channel::UserChannelId;
 use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
+use serde::Deserialize;
+use serde::Serialize;
 use std::str::FromStr;
 use time::OffsetDateTime;
 use trade;
@@ -244,7 +246,12 @@ impl TryFrom<Order> for crate::trade::order::Order {
             contract_symbol: value.contract_symbol.into(),
             direction: value.direction.into(),
             order_type: (value.order_type, value.limit_price).try_into()?,
-            state: (value.state, value.execution_price, value.failure_reason).try_into()?,
+            state: (
+                value.state,
+                value.execution_price,
+                value.failure_reason.clone(),
+            )
+                .try_into()?,
             creation_timestamp: OffsetDateTime::from_unix_timestamp(value.creation_timestamp)
                 .expect("unix timestamp to fit in itself"),
             order_expiry_timestamp: OffsetDateTime::from_unix_timestamp(
@@ -628,12 +635,12 @@ impl TryFrom<(OrderState, Option<f32>, Option<FailureReason>)> for crate::trade:
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, FromSqlRow, AsExpression)]
+#[derive(Debug, Clone, PartialEq, FromSqlRow, AsExpression, Serialize, Deserialize)]
 #[diesel(sql_type = Text)]
 pub enum FailureReason {
     FailedToSetToFilling,
     TradeRequest,
-    TradeResponse,
+    TradeResponse(String),
     CollabRevert,
     OrderNotAcceptable,
     TimedOut,
@@ -647,7 +654,9 @@ impl From<FailureReason> for crate::trade::order::FailureReason {
     fn from(value: FailureReason) -> Self {
         match value {
             FailureReason::TradeRequest => crate::trade::order::FailureReason::TradeRequest,
-            FailureReason::TradeResponse => crate::trade::order::FailureReason::TradeResponse,
+            FailureReason::TradeResponse(details) => {
+                crate::trade::order::FailureReason::TradeResponse(details)
+            }
             FailureReason::CollabRevert => crate::trade::order::FailureReason::CollabRevert,
             FailureReason::FailedToSetToFilling => {
                 crate::trade::order::FailureReason::FailedToSetToFilling
@@ -680,7 +689,9 @@ impl From<crate::trade::order::FailureReason> for FailureReason {
     fn from(value: crate::trade::order::FailureReason) -> Self {
         match value {
             crate::trade::order::FailureReason::TradeRequest => FailureReason::TradeRequest,
-            crate::trade::order::FailureReason::TradeResponse => FailureReason::TradeResponse,
+            crate::trade::order::FailureReason::TradeResponse(details) => {
+                FailureReason::TradeResponse(details)
+            }
             crate::trade::order::FailureReason::CollabRevert => FailureReason::CollabRevert,
             crate::trade::order::FailureReason::FailedToSetToFilling => {
                 FailureReason::FailedToSetToFilling

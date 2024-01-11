@@ -1,16 +1,20 @@
+import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:get_10101/common/domain/background_task.dart';
 import 'package:get_10101/common/domain/model.dart';
+import 'package:get_10101/common/global_keys.dart';
+import 'package:get_10101/common/snack_bar.dart';
 import 'package:get_10101/common/task_status_dialog.dart';
 import 'package:get_10101/common/value_data_row.dart';
-import 'package:get_10101/features/trade/domain/order.dart';
 import 'package:get_10101/features/trade/domain/trade_values.dart';
 import 'package:get_10101/features/trade/submit_order_change_notifier.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:social_share/social_share.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class TradeDialog extends StatelessWidget {
   const TradeDialog({super.key});
@@ -33,7 +37,7 @@ class TradeDialog extends StatelessWidget {
       case PendingOrderState.orderFilled:
         return TaskStatusDialog(title: "Fill Order", status: TaskStatus.success, content: body);
       case PendingOrderState.orderFailed:
-        return TaskStatusDialog(title: "Fill Order", status: TaskStatus.failed, content: body);
+        return TaskStatusDialog(title: "Order", status: TaskStatus.failed, content: body);
     }
   }
 }
@@ -66,29 +70,30 @@ Widget createSubmitWidget(
 
   List<Widget> children = [];
   if (pendingOrder.failureReason != null) {
-    // If there is a failure reason, we don't show any other detail, just an error message
-    String text;
-    String reportText =
-        "\n\nPlease send your logs to office@10101.finance to help us debug this issue";
-    switch (pendingOrder.failureReason!) {
-      case FailureReason.protocolError:
-        text = "Failed executing the DLC protocol. $reportText";
-        break;
-      case FailureReason.failed:
-        text = "We failed processing the order. $reportText";
-        break;
-      case FailureReason.timeout:
-        text = "The order timed out before finding a match. $reportText";
-        break;
-      case FailureReason.rejected:
-        // TODO(bonomat): here we should add the reason
-        text = "The order was rejected. $reportText";
-        break;
-    }
     children.add(
       Padding(
         padding: const EdgeInsets.only(top: 20, left: 10, right: 10, bottom: 5),
-        child: Text(text, style: const TextStyle(fontSize: 15)),
+        child: Column(
+            crossAxisAlignment:
+                CrossAxisAlignment.start, // Set cross axis alignment to start (left-aligned)
+
+            children: [
+              const Text(
+                "Error details:",
+                style: TextStyle(fontSize: 15),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(0, 15.0, 0, 15.0),
+                child: Container(
+                  color: Colors.grey.shade300,
+                  child: Text(
+                    getPrettyJSONString(pendingOrder.failureReason?.details ?? ""),
+                    style: const TextStyle(fontSize: 15),
+                  ),
+                ),
+              ),
+              const ClickableHelpText()
+            ]),
       ),
     );
   } else {
@@ -155,5 +160,49 @@ Future<void> shareTweet(PositionAction action) async {
     await SocialShare.shareTwitter(shareText);
   } else {
     await Share.share(shareText);
+  }
+}
+
+class ClickableHelpText extends StatelessWidget {
+  const ClickableHelpText({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return RichText(
+      text: TextSpan(
+        text: 'Please help us fix this issue and join our telegram group: ',
+        style: DefaultTextStyle.of(context).style,
+        children: [
+          TextSpan(
+            text: 'https://t.me/get10101',
+            style: const TextStyle(
+              color: Colors.blue,
+              decoration: TextDecoration.underline,
+            ),
+            recognizer: TapGestureRecognizer()
+              ..onTap = () async {
+                final httpsUri = Uri(scheme: 'https', host: 't.me', path: 'get10101');
+                if (await canLaunchUrl(httpsUri)) {
+                  await launchUrl(httpsUri, mode: LaunchMode.externalApplication);
+                } else {
+                  showSnackBar(ScaffoldMessenger.of(rootNavigatorKey.currentContext!),
+                      "Failed to open link");
+                }
+              },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// Returns a formatted json string if the provided argument is json, else, returns the argument
+String getPrettyJSONString(String jsonObjectString) {
+  try {
+    var jsonObject = json.decode(jsonObjectString);
+    var encoder = const JsonEncoder.withIndent("     ");
+    return encoder.convert(jsonObject);
+  } catch (error) {
+    return jsonObjectString;
   }
 }

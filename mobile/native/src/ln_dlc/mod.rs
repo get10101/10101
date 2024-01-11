@@ -924,8 +924,8 @@ fn update_state_after_collab_revert(
                 stable: position.stable,
                 failure_reason: None,
             };
-            db::insert_order(order)?;
-            event::publish(&EventInternal::OrderUpdateNotification(order));
+            db::insert_order(order.clone())?;
+            event::publish(&EventInternal::OrderUpdateNotification(order.clone()));
             order
         }
     };
@@ -1230,7 +1230,7 @@ pub async fn trade(trade_params: TradeParams) -> Result<(), (FailureReason, Erro
         };
         return Err((
             // TODO(bonomat): extract the error message
-            FailureReason::TradeResponse,
+            FailureReason::TradeResponse(response_text.clone()),
             anyhow!("Could not post trade to coordinator: {response_text}"),
         ));
     }

@@ -45,30 +45,49 @@ enum OrderState {
   }
 }
 
-enum FailureReason {
+enum FailureReasonType {
   protocolError,
   failed,
   timeout,
   rejected;
+}
+
+class FailureReason {
+  final String? details;
+  final FailureReasonType failureType;
+
+  const FailureReason._({this.details, required this.failureType});
+
+  static const FailureReason standardProtocolError = FailureReason._(
+      failureType: FailureReasonType.protocolError, details: "Failed executing the DLC protocol.");
+  static const FailureReason failed = FailureReason._(
+      failureType: FailureReasonType.failed, details: "We failed processing the order.");
+  static const FailureReason timeout = FailureReason._(
+      failureType: FailureReasonType.timeout,
+      details: "The order timed out before finding a match");
+  static const FailureReason rejected =
+      FailureReason._(failureType: FailureReasonType.rejected, details: "The order was rejected.");
 
   static FailureReason? fromApi(bridge.FailureReason? failureReason) {
     if (failureReason == null) {
       return null;
     }
     switch (failureReason) {
-      case bridge.FailureReason.FailedToSetToFilling:
-      case bridge.FailureReason.TradeRequest:
-      case bridge.FailureReason.TradeResponse:
-      case bridge.FailureReason.NodeAccess:
-      case bridge.FailureReason.NoUsableChannel:
-      case bridge.FailureReason.OrderNotAcceptable:
-      case bridge.FailureReason.InvalidDlcOffer:
-      case bridge.FailureReason.CollabRevert:
-        return FailureReason.protocolError;
-      case bridge.FailureReason.TimedOut:
-        return FailureReason.timeout;
-      case bridge.FailureReason.OrderRejected:
-        return FailureReason.rejected;
+      case bridge.FailureReason_FailedToSetToFilling():
+      case bridge.FailureReason_TradeRequest():
+      case bridge.FailureReason_NodeAccess():
+      case bridge.FailureReason_NoUsableChannel():
+      case bridge.FailureReason_CollabRevert():
+      case bridge.FailureReason_OrderNotAcceptable():
+      case bridge.FailureReason_InvalidDlcOffer():
+        return standardProtocolError;
+      case bridge.FailureReason_TradeResponse():
+        return FailureReason._(
+            failureType: FailureReasonType.protocolError, details: failureReason.field0);
+      case bridge.FailureReason_TimedOut():
+        return timeout;
+      case bridge.FailureReason_OrderRejected():
+        return rejected;
     }
   }
 }

@@ -33,11 +33,11 @@ pub enum OrderReason {
 }
 
 #[frb]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum FailureReason {
     FailedToSetToFilling,
     TradeRequest,
-    TradeResponse,
+    TradeResponse(String),
     NodeAccess,
     NoUsableChannel,
     CollabRevert,
@@ -139,7 +139,7 @@ impl From<order::FailureReason> for FailureReason {
         match value {
             order::FailureReason::FailedToSetToFilling => FailureReason::FailedToSetToFilling,
             order::FailureReason::TradeRequest => FailureReason::TradeRequest,
-            order::FailureReason::TradeResponse => FailureReason::TradeResponse,
+            order::FailureReason::TradeResponse(details) => FailureReason::TradeResponse(details),
             order::FailureReason::OrderNotAcceptable => FailureReason::OrderNotAcceptable,
             order::FailureReason::TimedOut => FailureReason::TimedOut,
             order::FailureReason::InvalidDlcOffer(_) => FailureReason::InvalidDlcOffer,

@@ -141,18 +141,7 @@ impl FromSql<Text, Sqlite> for Direction {
 
 impl ToSql<Text, Sqlite> for FailureReason {
     fn to_sql(&self, out: &mut Output<Sqlite>) -> serialize::Result {
-        let text = match *self {
-            FailureReason::TradeRequest => "TradeRequest",
-            FailureReason::TradeResponse => "TradeResponse",
-            FailureReason::CollabRevert => "ProposeDlcChannel",
-            FailureReason::FailedToSetToFilling => "FailedToSetToFilling",
-            FailureReason::OrderNotAcceptable => "OrderNotAcceptable",
-            FailureReason::TimedOut => "TimedOut",
-            FailureReason::SubchannelOfferOutdated => "SubchannelOfferOutdated",
-            FailureReason::SubchannelOfferDateUndetermined => "SubchannelOfferDateUndetermined",
-            FailureReason::SubchannelOfferUnacceptable => "SubchannelOfferUnacceptable",
-            FailureReason::OrderRejected => "OrderRejected",
-        };
+        let text = serde_json::to_string(self)?;
         out.set_value(text);
         Ok(IsNull::No)
     }
@@ -161,21 +150,28 @@ impl ToSql<Text, Sqlite> for FailureReason {
 impl FromSql<Text, Sqlite> for FailureReason {
     fn from_sql(bytes: backend::RawValue<Sqlite>) -> deserialize::Result<Self> {
         let string = <String as FromSql<Text, Sqlite>>::from_sql(bytes)?;
-
-        return match string.as_str() {
-            "TradeRequest" => Ok(FailureReason::TradeRequest),
-            "TradeResponse" => Ok(FailureReason::TradeResponse),
-            "ProposeDlcChannel" => Ok(FailureReason::CollabRevert),
-            "CollabRevert" => Ok(FailureReason::CollabRevert),
-            "FailedToSetToFilling" => Ok(FailureReason::FailedToSetToFilling),
-            "OrderNotAcceptable" => Ok(FailureReason::OrderNotAcceptable),
-            "TimedOut" => Ok(FailureReason::TimedOut),
-            "SubchannelOfferOutdated" => Ok(FailureReason::SubchannelOfferOutdated),
-            "SubchannelOfferDateUndetermined" => Ok(FailureReason::SubchannelOfferDateUndetermined),
-            "SubchannelOfferUnacceptable" => Ok(FailureReason::SubchannelOfferUnacceptable),
-            "OrderRejected" => Ok(FailureReason::OrderRejected),
-            _ => Err("Unrecognized enum variant".into()),
-        };
+        match serde_json::from_str(string.as_str()) {
+            Ok(reason) => Ok(reason),
+            Err(_) => {
+                // backwards compatibility
+                match string.as_str() {
+                    "TradeRequest" => Ok(FailureReason::TradeRequest),
+                    "TradeResponse" => Ok(FailureReason::TradeResponse("unknown".to_string())),
+                    "ProposeDlcChannel" => Ok(FailureReason::CollabRevert),
+                    "CollabRevert" => Ok(FailureReason::CollabRevert),
+                    "FailedToSetToFilling" => Ok(FailureReason::FailedToSetToFilling),
+                    "OrderNotAcceptable" => Ok(FailureReason::OrderNotAcceptable),
+                    "TimedOut" => Ok(FailureReason::TimedOut),
+                    "SubchannelOfferOutdated" => Ok(FailureReason::SubchannelOfferOutdated),
+                    "SubchannelOfferDateUndetermined" => {
+                        Ok(FailureReason::SubchannelOfferDateUndetermined)
+                    }
+                    "SubchannelOfferUnacceptable" => Ok(FailureReason::SubchannelOfferUnacceptable),
+                    "OrderRejected" => Ok(FailureReason::OrderRejected),
+                    _ => Err("Unrecognized enum variant".into()),
+                }
+            }
+        }
     }
 }
 
