@@ -29,8 +29,6 @@ pub enum FailureReason {
     /// A failure happened during the initial phase of the protocol. I.e. after sending the trade
     /// request
     TradeResponse,
-    NodeAccess,
-    NoUsableChannel,
     /// The order failed due to collaboratively reverting the position
     CollabRevert,
     /// MVP scope: Can only close the order, not reduce or extend

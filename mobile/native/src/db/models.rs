@@ -633,8 +633,6 @@ pub enum FailureReason {
     FailedToSetToFilling,
     TradeRequest,
     TradeResponse,
-    NodeAccess,
-    NoUsableChannel,
     CollabRevert,
     OrderNotAcceptable,
     TimedOut,
@@ -648,8 +646,6 @@ impl From<FailureReason> for crate::trade::order::FailureReason {
         match value {
             FailureReason::TradeRequest => crate::trade::order::FailureReason::TradeRequest,
             FailureReason::TradeResponse => crate::trade::order::FailureReason::TradeResponse,
-            FailureReason::NodeAccess => crate::trade::order::FailureReason::NodeAccess,
-            FailureReason::NoUsableChannel => crate::trade::order::FailureReason::NoUsableChannel,
             FailureReason::CollabRevert => crate::trade::order::FailureReason::CollabRevert,
             FailureReason::FailedToSetToFilling => {
                 crate::trade::order::FailureReason::FailedToSetToFilling
@@ -682,8 +678,6 @@ impl From<crate::trade::order::FailureReason> for FailureReason {
         match value {
             crate::trade::order::FailureReason::TradeRequest => FailureReason::TradeRequest,
             crate::trade::order::FailureReason::TradeResponse => FailureReason::TradeResponse,
-            crate::trade::order::FailureReason::NodeAccess => FailureReason::NodeAccess,
-            crate::trade::order::FailureReason::NoUsableChannel => FailureReason::NoUsableChannel,
             crate::trade::order::FailureReason::CollabRevert => FailureReason::CollabRevert,
             crate::trade::order::FailureReason::FailedToSetToFilling => {
                 FailureReason::FailedToSetToFilling

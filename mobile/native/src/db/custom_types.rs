@@ -144,8 +144,6 @@ impl ToSql<Text, Sqlite> for FailureReason {
         let text = match *self {
             FailureReason::TradeRequest => "TradeRequest",
             FailureReason::TradeResponse => "TradeResponse",
-            FailureReason::NodeAccess => "NodeAccess",
-            FailureReason::NoUsableChannel => "NoUsableChannel",
             FailureReason::CollabRevert => "ProposeDlcChannel",
             FailureReason::FailedToSetToFilling => "FailedToSetToFilling",
             FailureReason::OrderNotAcceptable => "OrderNotAcceptable",
@@ -166,8 +164,6 @@ impl FromSql<Text, Sqlite> for FailureReason {
         return match string.as_str() {
             "TradeRequest" => Ok(FailureReason::TradeRequest),
             "TradeResponse" => Ok(FailureReason::TradeResponse),
-            "NodeAccess" => Ok(FailureReason::NodeAccess),
-            "NoUsableChannel" => Ok(FailureReason::NoUsableChannel),
             "ProposeDlcChannel" => Ok(FailureReason::CollabRevert),
             "CollabRevert" => Ok(FailureReason::CollabRevert),
             "FailedToSetToFilling" => Ok(FailureReason::FailedToSetToFilling),
