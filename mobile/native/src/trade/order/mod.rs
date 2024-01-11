@@ -22,14 +22,20 @@ pub enum OrderType {
 /// Internal type so we still have Copy on order
 #[derive(Debug, Clone, Copy)]
 pub enum FailureReason {
+    /// An error occurred when setting the Order to filling in our DB
     FailedToSetToFilling,
+    /// The order failed because we failed sending the trade request
     TradeRequest,
+    /// A failure happened during the initial phase of the protocol. I.e. after sending the trade
+    /// request
     TradeResponse,
     NodeAccess,
     NoUsableChannel,
-    ProposeDlcChannel,
+    /// The order failed due to collaboratively reverting the position
+    CollabRevert,
     /// MVP scope: Can only close the order, not reduce or extend
     OrderNotAcceptable,
+    /// The order timed out, i.e. we did not receive a match in time
     TimedOut,
     InvalidDlcOffer(InvalidSubchannelOffer),
 }

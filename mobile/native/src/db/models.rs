@@ -635,7 +635,7 @@ pub enum FailureReason {
     TradeResponse,
     NodeAccess,
     NoUsableChannel,
-    ProposeDlcChannel,
+    CollabRevert,
     OrderNotAcceptable,
     TimedOut,
     SubchannelOfferOutdated,
@@ -650,9 +650,7 @@ impl From<FailureReason> for crate::trade::order::FailureReason {
             FailureReason::TradeResponse => crate::trade::order::FailureReason::TradeResponse,
             FailureReason::NodeAccess => crate::trade::order::FailureReason::NodeAccess,
             FailureReason::NoUsableChannel => crate::trade::order::FailureReason::NoUsableChannel,
-            FailureReason::ProposeDlcChannel => {
-                crate::trade::order::FailureReason::ProposeDlcChannel
-            }
+            FailureReason::CollabRevert => crate::trade::order::FailureReason::CollabRevert,
             FailureReason::FailedToSetToFilling => {
                 crate::trade::order::FailureReason::FailedToSetToFilling
             }
@@ -686,9 +684,7 @@ impl From<crate::trade::order::FailureReason> for FailureReason {
             crate::trade::order::FailureReason::TradeResponse => FailureReason::TradeResponse,
             crate::trade::order::FailureReason::NodeAccess => FailureReason::NodeAccess,
             crate::trade::order::FailureReason::NoUsableChannel => FailureReason::NoUsableChannel,
-            crate::trade::order::FailureReason::ProposeDlcChannel => {
-                FailureReason::ProposeDlcChannel
-            }
+            crate::trade::order::FailureReason::CollabRevert => FailureReason::CollabRevert,
             crate::trade::order::FailureReason::FailedToSetToFilling => {
                 FailureReason::FailedToSetToFilling
             }

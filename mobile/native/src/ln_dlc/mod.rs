@@ -897,7 +897,7 @@ fn update_state_after_collab_revert(
             if let Some(order) = db::get_order_in_filling()? {
                 order::handler::order_failed(
                     Some(order.id),
-                    FailureReason::ProposeDlcChannel,
+                    FailureReason::CollabRevert,
                     anyhow!("Order failed due collab revert of the channel"),
                 )?;
             }
