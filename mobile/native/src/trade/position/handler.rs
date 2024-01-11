@@ -102,6 +102,7 @@ pub async fn async_trade(order: commons::Order, filled_with: FilledWith) -> Resu
         order_expiry_timestamp: order.expiry,
         reason: order.order_reason.into(),
         stable: order.stable,
+        failure_reason: None,
     };
 
     db::insert_order(order)?;

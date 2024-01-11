@@ -633,6 +633,7 @@ mod tests {
             order_expiry_timestamp: now,
             reason: OrderReason::Manual,
             stable: true,
+            failure_reason: None,
         };
 
         let (position, opening_trade) = Position::new_open(order, dlc_collateral, now);
@@ -693,6 +694,7 @@ mod tests {
             order_expiry_timestamp: now,
             reason: OrderReason::Manual,
             stable: false,
+            failure_reason: None,
         };
 
         // The DLC channel has been closed.
@@ -754,6 +756,7 @@ mod tests {
             order_expiry_timestamp: now,
             reason: OrderReason::Manual,
             stable: false,
+            failure_reason: None,
         };
 
         let dlc_collateral_after_resize = 20_578;
@@ -824,6 +827,7 @@ mod tests {
             order_expiry_timestamp: now,
             reason: OrderReason::Manual,
             stable: false,
+            failure_reason: None,
         };
 
         let dlc_collateral_after_resize = 6_855;
@@ -900,6 +904,7 @@ mod tests {
             order_expiry_timestamp: now,
             reason: OrderReason::Manual,
             stable: false,
+            failure_reason: None,
         };
 
         let dlc_collateral_after_resize = 13_736;

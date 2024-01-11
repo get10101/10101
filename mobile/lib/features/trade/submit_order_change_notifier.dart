@@ -30,6 +30,7 @@ class PendingOrder {
   final PositionAction positionAction;
   String? id;
   Amount? pnl;
+  FailureReason? failureReason;
 
   PendingOrder(this._tradeValues, this.positionAction, this.pnl);
 
@@ -81,6 +82,7 @@ class SubmitOrderChangeNotifier extends ChangeNotifier implements Subscriber {
             _pendingOrder!.state = PendingOrderState.orderFailed;
             break;
         }
+        _pendingOrder!.failureReason = order.failureReason;
 
         notifyListeners();
       }

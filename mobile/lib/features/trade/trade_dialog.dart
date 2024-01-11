@@ -5,6 +5,7 @@ import 'package:get_10101/common/domain/background_task.dart';
 import 'package:get_10101/common/domain/model.dart';
 import 'package:get_10101/common/task_status_dialog.dart';
 import 'package:get_10101/common/value_data_row.dart';
+import 'package:get_10101/features/trade/domain/order.dart';
 import 'package:get_10101/features/trade/domain/trade_values.dart';
 import 'package:get_10101/features/trade/submit_order_change_notifier.dart';
 import 'package:provider/provider.dart';
@@ -63,55 +64,86 @@ Widget createSubmitWidget(
       break;
   }
 
-  Column body = Column(
-    mainAxisSize: MainAxisSize.min,
-    children: [
-      SizedBox(
-        width: 200,
-        child: Wrap(
-          runSpacing: 10,
-          children: [
-            pendingOrder.positionAction == PositionAction.close
-                ? ValueDataRow(type: ValueType.amount, value: pendingOrder.pnl, label: pnlText)
-                : ValueDataRow(
-                    type: ValueType.amount, value: pendingOrderValues?.margin, label: "Margin"),
-            ValueDataRow(
-                type: ValueType.amount, value: pendingOrderValues?.fee ?? Amount(0), label: "Fee")
-          ],
-        ),
-      ),
+  List<Widget> children = [];
+  if (pendingOrder.failureReason != null) {
+    // If there is a failure reason, we don't show any other detail, just an error message
+    String text;
+    String reportText =
+        "\n\nPlease send your logs to office@10101.finance to help us debug this issue";
+    switch (pendingOrder.failureReason!) {
+      case FailureReason.protocolError:
+        text = "Failed executing the DLC protocol. $reportText";
+        break;
+      case FailureReason.failed:
+        text = "We failed processing the order. $reportText";
+        break;
+      case FailureReason.timeout:
+        text = "The order timed out before finding a match. $reportText";
+        break;
+      case FailureReason.rejected:
+        // TODO(bonomat): here we should add the reason
+        text = "The order was rejected. $reportText";
+        break;
+    }
+    children.add(
       Padding(
         padding: const EdgeInsets.only(top: 20, left: 10, right: 10, bottom: 5),
-        child: Text(bottomText, style: const TextStyle(fontSize: 15)),
-      ),
-    ],
-  );
-
-  // Add "Do not close the app" while order is pending
-  if (pendingOrder.state == PendingOrderState.submitting ||
-      pendingOrder.state == PendingOrderState.submittedSuccessfully) {
-    body.children.add(
-      const Padding(
-        padding: EdgeInsets.only(left: 10, right: 10, bottom: 5),
-        child: Text("Do not close the app!",
-            style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+        child: Text(text, style: const TextStyle(fontSize: 15)),
       ),
     );
+  } else {
+    children.addAll(
+      [
+        SizedBox(
+          width: 200,
+          child: Wrap(
+            runSpacing: 10,
+            children: [
+              pendingOrder.positionAction == PositionAction.close
+                  ? ValueDataRow(type: ValueType.amount, value: pendingOrder.pnl, label: pnlText)
+                  : ValueDataRow(
+                      type: ValueType.amount, value: pendingOrderValues?.margin, label: "Margin"),
+              ValueDataRow(
+                  type: ValueType.amount, value: pendingOrderValues?.fee ?? Amount(0), label: "Fee")
+            ],
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.only(top: 20, left: 10, right: 10, bottom: 5),
+          child: Text(bottomText, style: const TextStyle(fontSize: 15)),
+        ),
+      ],
+    );
+
+    // Add "Do not close the app" while order is pending
+    if (pendingOrder.state == PendingOrderState.submitting ||
+        pendingOrder.state == PendingOrderState.submittedSuccessfully) {
+      children.add(
+        const Padding(
+          padding: EdgeInsets.only(left: 10, right: 10, bottom: 5),
+          child: Text("Do not close the app!",
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+        ),
+      );
+    }
+
+    // Only display "share on twitter" when order is filled
+    if (pendingOrder.state == PendingOrderState.orderFilled) {
+      children.add(Padding(
+        padding: const EdgeInsets.only(top: 20, left: 10, right: 10, bottom: 5),
+        child: ElevatedButton(
+            onPressed: () async {
+              await shareTweet(pendingOrder.positionAction);
+            },
+            child: const Text("Share on Twitter")),
+      ));
+    }
   }
 
-  // Only display "share on twitter" when order is filled
-  if (pendingOrder.state == PendingOrderState.orderFilled) {
-    body.children.add(Padding(
-      padding: const EdgeInsets.only(top: 20, left: 10, right: 10, bottom: 5),
-      child: ElevatedButton(
-          onPressed: () async {
-            await shareTweet(pendingOrder.positionAction);
-          },
-          child: const Text("Share on Twitter")),
-    ));
-  }
-
-  return body;
+  return Column(
+    mainAxisSize: MainAxisSize.min,
+    children: children,
+  );
 }
 
 Future<void> shareTweet(PositionAction action) async {

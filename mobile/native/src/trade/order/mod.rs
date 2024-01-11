@@ -36,6 +36,8 @@ pub enum FailureReason {
     /// The order timed out, i.e. we did not receive a match in time
     TimedOut,
     InvalidDlcOffer(InvalidSubchannelOffer),
+    /// The order has been rejected by the orderbook
+    OrderRejected,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -147,6 +149,7 @@ pub struct Order {
     pub order_expiry_timestamp: OffsetDateTime,
     pub reason: OrderReason,
     pub stable: bool,
+    pub failure_reason: Option<FailureReason>,
 }
 
 impl Order {

@@ -42,7 +42,13 @@ pub async fn submit_order(order: Order) -> Result<Uuid> {
     if let Err(err) = orderbook_client.post_new_order(order.into()).await {
         let order_id = order.id.to_string();
         tracing::error!(order_id, "Failed to post new order. Error: {err:#}");
-        update_order_state_in_db_and_ui(order.id, OrderState::Rejected)?;
+        // TODO(bonomat): map error FailureReason
+        update_order_state_in_db_and_ui(
+            order.id,
+            OrderState::Failed {
+                reason: FailureReason::OrderRejected,
+            },
+        )?;
         if let Err(e) = position::handler::set_position_state(PositionState::Open) {
             bail!("Could not reset position to open because of {e:#}");
         }
@@ -82,6 +88,7 @@ pub(crate) fn order_filling(order_id: Uuid, execution_price: f32) -> Result<()> 
     Ok(())
 }
 
+/// Sets filling order to filled. Returns an error if no order in `Filling`
 pub(crate) fn order_filled() -> Result<Order> {
     let (order_being_filled, execution_price) = match get_order_in_filling()? {
         Some(

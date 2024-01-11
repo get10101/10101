@@ -253,6 +253,7 @@ impl TryFrom<Order> for crate::trade::order::Order {
             .expect("unix timestamp to fit in itself"),
             reason: value.reason.into(),
             stable: value.stable,
+            failure_reason: value.failure_reason.map(|reason| reason.into()),
         };
 
         Ok(order)
@@ -639,6 +640,7 @@ pub enum FailureReason {
     SubchannelOfferOutdated,
     SubchannelOfferDateUndetermined,
     SubchannelOfferUnacceptable,
+    OrderRejected,
 }
 
 impl From<FailureReason> for crate::trade::order::FailureReason {
@@ -669,6 +671,7 @@ impl From<FailureReason> for crate::trade::order::FailureReason {
                     InvalidSubchannelOffer::Unacceptable,
                 )
             }
+            FailureReason::OrderRejected => crate::trade::order::FailureReason::OrderRejected,
         }
     }
 }
@@ -693,6 +696,7 @@ impl From<crate::trade::order::FailureReason> for FailureReason {
                 }
                 InvalidSubchannelOffer::Unacceptable => FailureReason::SubchannelOfferUnacceptable,
             },
+            crate::trade::order::FailureReason::OrderRejected => FailureReason::OrderRejected,
         }
     }
 }
@@ -1493,6 +1497,7 @@ pub mod test {
                 order_expiry_timestamp: expiry_timestamp,
                 reason: crate::trade::order::OrderReason::Manual,
                 stable: false,
+                failure_reason: None,
             }
             .into(),
             &mut connection,
@@ -1513,6 +1518,7 @@ pub mod test {
                 order_expiry_timestamp: expiry_timestamp,
                 reason: crate::trade::order::OrderReason::Manual,
                 stable: false,
+                failure_reason: None,
             }
             .into(),
             &mut connection,
@@ -1582,6 +1588,7 @@ pub mod test {
                 order_expiry_timestamp,
                 reason: crate::trade::order::OrderReason::Manual,
                 stable: false,
+                failure_reason: None,
             }
             .into(),
             &mut connection,
@@ -1605,6 +1612,7 @@ pub mod test {
                 order_expiry_timestamp,
                 reason: crate::trade::order::OrderReason::Manual,
                 stable: false,
+                failure_reason: None,
             }
             .into(),
             &mut connection,

@@ -33,6 +33,21 @@ pub enum OrderReason {
 }
 
 #[frb]
+#[derive(Debug, Clone, Copy)]
+pub enum FailureReason {
+    FailedToSetToFilling,
+    TradeRequest,
+    TradeResponse,
+    NodeAccess,
+    NoUsableChannel,
+    CollabRevert,
+    OrderNotAcceptable,
+    TimedOut,
+    InvalidDlcOffer,
+    OrderRejected,
+}
+
+#[frb]
 #[derive(Debug, Clone)]
 pub struct NewOrder {
     #[frb(non_final)]
@@ -65,6 +80,7 @@ pub struct Order {
     pub creation_timestamp: i64,
     pub order_expiry_timestamp: i64,
     pub reason: OrderReason,
+    pub failure_reason: Option<FailureReason>,
 }
 
 impl From<order::OrderType> for OrderType {
@@ -95,6 +111,7 @@ impl From<order::Order> for Order {
             creation_timestamp: value.creation_timestamp.unix_timestamp(),
             order_expiry_timestamp: value.order_expiry_timestamp.unix_timestamp(),
             reason: value.reason.into(),
+            failure_reason: value.failure_reason.map(|reason| reason.into()),
         }
     }
 }
@@ -113,6 +130,21 @@ impl From<order::OrderReason> for OrderReason {
         match value {
             order::OrderReason::Manual => OrderReason::Manual,
             order::OrderReason::Expired => OrderReason::Expired,
+        }
+    }
+}
+
+impl From<order::FailureReason> for FailureReason {
+    fn from(value: order::FailureReason) -> Self {
+        match value {
+            order::FailureReason::FailedToSetToFilling => FailureReason::FailedToSetToFilling,
+            order::FailureReason::TradeRequest => FailureReason::TradeRequest,
+            order::FailureReason::TradeResponse => FailureReason::TradeResponse,
+            order::FailureReason::OrderNotAcceptable => FailureReason::OrderNotAcceptable,
+            order::FailureReason::TimedOut => FailureReason::TimedOut,
+            order::FailureReason::InvalidDlcOffer(_) => FailureReason::InvalidDlcOffer,
+            order::FailureReason::OrderRejected => FailureReason::OrderRejected,
+            order::FailureReason::CollabRevert => FailureReason::CollabRevert,
         }
     }
 }
@@ -156,6 +188,7 @@ impl From<NewOrder> for order::Order {
             order_expiry_timestamp: OffsetDateTime::now_utc() + time::Duration::minutes(1),
             reason: order::OrderReason::Manual,
             stable: value.stable,
+            failure_reason: None,
         }
     }
 }

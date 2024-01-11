@@ -45,6 +45,34 @@ enum OrderState {
   }
 }
 
+enum FailureReason {
+  protocolError,
+  failed,
+  timeout,
+  rejected;
+
+  static FailureReason? fromApi(bridge.FailureReason? failureReason) {
+    if (failureReason == null) {
+      return null;
+    }
+    switch (failureReason) {
+      case bridge.FailureReason.FailedToSetToFilling:
+      case bridge.FailureReason.TradeRequest:
+      case bridge.FailureReason.TradeResponse:
+      case bridge.FailureReason.NodeAccess:
+      case bridge.FailureReason.NoUsableChannel:
+      case bridge.FailureReason.OrderNotAcceptable:
+      case bridge.FailureReason.InvalidDlcOffer:
+      case bridge.FailureReason.CollabRevert:
+        return FailureReason.protocolError;
+      case bridge.FailureReason.TimedOut:
+        return FailureReason.timeout;
+      case bridge.FailureReason.OrderRejected:
+        return FailureReason.rejected;
+    }
+  }
+}
+
 enum OrderType {
   market;
 
@@ -68,6 +96,7 @@ class Order {
   final double? executionPrice;
   final DateTime creationTimestamp;
   final OrderReason reason;
+  final FailureReason? failureReason;
 
   Order(
       {required this.id,
@@ -79,7 +108,8 @@ class Order {
       required this.type,
       required this.creationTimestamp,
       this.executionPrice,
-      required this.reason});
+      required this.reason,
+      required this.failureReason});
 
   static Order fromApi(bridge.Order order) {
     return Order(
@@ -92,7 +122,8 @@ class Order {
         type: OrderType.fromApi(order.orderType),
         executionPrice: order.executionPrice,
         creationTimestamp: DateTime.fromMillisecondsSinceEpoch(order.creationTimestamp * 1000),
-        reason: OrderReason.fromApi(order.reason));
+        reason: OrderReason.fromApi(order.reason),
+        failureReason: FailureReason.fromApi(order.failureReason));
   }
 
   static bridge.Order apiDummy() {

@@ -922,6 +922,7 @@ fn update_state_after_collab_revert(
                 order_expiry_timestamp: OffsetDateTime::now_utc(),
                 reason: OrderReason::Expired,
                 stable: position.stable,
+                failure_reason: None,
             };
             db::insert_order(order)?;
             event::publish(&EventInternal::OrderUpdateNotification(order));
@@ -1228,6 +1229,7 @@ pub async fn trade(trade_params: TradeParams) -> Result<(), (FailureReason, Erro
             }
         };
         return Err((
+            // TODO(bonomat): extract the error message
             FailureReason::TradeResponse,
             anyhow!("Could not post trade to coordinator: {response_text}"),
         ));
