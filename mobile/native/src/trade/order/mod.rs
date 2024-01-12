@@ -38,6 +38,7 @@ pub enum FailureReason {
     InvalidDlcOffer(InvalidSubchannelOffer),
     /// The order has been rejected by the orderbook
     OrderRejected,
+    Unknown,
 }
 
 #[derive(Debug, Clone, Copy)]

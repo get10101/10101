@@ -49,7 +49,8 @@ enum FailureReasonType {
   protocolError,
   failed,
   timeout,
-  rejected;
+  rejected,
+  unknown;
 }
 
 class FailureReason {
@@ -67,6 +68,8 @@ class FailureReason {
       details: "The order timed out before finding a match");
   static const FailureReason rejected =
       FailureReason._(failureType: FailureReasonType.rejected, details: "The order was rejected.");
+  static const FailureReason unknown = FailureReason._(
+      failureType: FailureReasonType.unknown, details: "An unknown error occurred.");
 
   static FailureReason? fromApi(bridge.FailureReason? failureReason) {
     if (failureReason == null) {
@@ -88,6 +91,8 @@ class FailureReason {
         return timeout;
       case bridge.FailureReason_OrderRejected():
         return rejected;
+      case bridge.FailureReason_Unknown():
+        return unknown;
     }
   }
 }

@@ -45,6 +45,7 @@ pub enum FailureReason {
     TimedOut,
     InvalidDlcOffer,
     OrderRejected,
+    Unknown,
 }
 
 #[frb]
@@ -145,6 +146,7 @@ impl From<order::FailureReason> for FailureReason {
             order::FailureReason::InvalidDlcOffer(_) => FailureReason::InvalidDlcOffer,
             order::FailureReason::OrderRejected => FailureReason::OrderRejected,
             order::FailureReason::CollabRevert => FailureReason::CollabRevert,
+            order::FailureReason::Unknown => FailureReason::Unknown,
         }
     }
 }

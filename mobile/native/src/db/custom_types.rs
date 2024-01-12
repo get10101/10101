@@ -152,25 +152,7 @@ impl FromSql<Text, Sqlite> for FailureReason {
         let string = <String as FromSql<Text, Sqlite>>::from_sql(bytes)?;
         match serde_json::from_str(string.as_str()) {
             Ok(reason) => Ok(reason),
-            Err(_) => {
-                // backwards compatibility
-                match string.as_str() {
-                    "TradeRequest" => Ok(FailureReason::TradeRequest),
-                    "TradeResponse" => Ok(FailureReason::TradeResponse("unknown".to_string())),
-                    "ProposeDlcChannel" => Ok(FailureReason::CollabRevert),
-                    "CollabRevert" => Ok(FailureReason::CollabRevert),
-                    "FailedToSetToFilling" => Ok(FailureReason::FailedToSetToFilling),
-                    "OrderNotAcceptable" => Ok(FailureReason::OrderNotAcceptable),
-                    "TimedOut" => Ok(FailureReason::TimedOut),
-                    "SubchannelOfferOutdated" => Ok(FailureReason::SubchannelOfferOutdated),
-                    "SubchannelOfferDateUndetermined" => {
-                        Ok(FailureReason::SubchannelOfferDateUndetermined)
-                    }
-                    "SubchannelOfferUnacceptable" => Ok(FailureReason::SubchannelOfferUnacceptable),
-                    "OrderRejected" => Ok(FailureReason::OrderRejected),
-                    _ => Err("Unrecognized enum variant".into()),
-                }
-            }
+            Err(_) => Ok(FailureReason::Unknown),
         }
     }
 }
