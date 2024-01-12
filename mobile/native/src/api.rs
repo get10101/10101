@@ -444,7 +444,7 @@ pub fn channel_trade_constraints() -> Result<TradeConstraints> {
 
     // TODO(bonomat): retrieve these values from the coordinator. This can come from the liquidity
     // options.
-    let min_quantity = 1;
+    let min_quantity = 100;
 
     // TODO(bonomat): this logic should be removed once we have our liquidity options again and the
     // on-boarding logic. For now we take the highest liquidity option
