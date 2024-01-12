@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get_10101/common/domain/background_task.dart';
 import 'package:get_10101/common/domain/model.dart';
 import 'package:get_10101/common/global_keys.dart';
@@ -71,29 +72,8 @@ Widget createSubmitWidget(
   List<Widget> children = [];
   if (pendingOrder.failureReason != null) {
     children.add(
-      Padding(
-        padding: const EdgeInsets.only(top: 20, left: 10, right: 10, bottom: 5),
-        child: Column(
-            crossAxisAlignment:
-                CrossAxisAlignment.start, // Set cross axis alignment to start (left-aligned)
-
-            children: [
-              const Text(
-                "Error details:",
-                style: TextStyle(fontSize: 15),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(0, 15.0, 0, 15.0),
-                child: Container(
-                  color: Colors.grey.shade300,
-                  child: Text(
-                    getPrettyJSONString(pendingOrder.failureReason?.details ?? ""),
-                    style: const TextStyle(fontSize: 15),
-                  ),
-                ),
-              ),
-              const ClickableHelpText()
-            ]),
+      ErrorDetails(
+        details: pendingOrder.failureReason!.details ?? "unknown error",
       ),
     );
   } else {
@@ -204,5 +184,73 @@ String getPrettyJSONString(String jsonObjectString) {
     return encoder.convert(jsonObject);
   } catch (error) {
     return jsonObjectString;
+  }
+}
+
+class ErrorDetails extends StatelessWidget {
+  final String details;
+
+  const ErrorDetails({super.key, required this.details});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 20, left: 10, right: 10, bottom: 5),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            "Error details:",
+            style: TextStyle(fontSize: 15),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(5.0),
+            child: SizedBox.square(
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(5, 25, 5, 10.0),
+                color: Colors.grey.shade300,
+                child: Column(
+                  children: [
+                    Text(
+                      getPrettyJSONString(details),
+                      style: const TextStyle(fontSize: 15),
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        GestureDetector(
+                          child: const Icon(Icons.content_copy, size: 16),
+                          onTap: () {
+                            Clipboard.setData(ClipboardData(text: details)).then((_) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text("Copied to clipboard"),
+                                ),
+                              );
+                            });
+                          },
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.only(
+                            left: 8.0,
+                            right: 8.0,
+                          ),
+                          child: GestureDetector(
+                            child: const Icon(Icons.share, size: 16),
+                            onTap: () => Share.share(details),
+                          ),
+                        )
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          const ClickableHelpText(),
+        ],
+      ),
+    );
   }
 }
