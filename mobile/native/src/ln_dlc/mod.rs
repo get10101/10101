@@ -724,7 +724,7 @@ pub async fn close_channel(is_force_close: bool) -> Result<()> {
         .await
 }
 
-pub fn get_dlc_channel() -> Result<Vec<SignedChannel>> {
+pub fn get_dlc_channels() -> Result<Vec<SignedChannel>> {
     let node = state::try_get_node().context("failed to get ln dlc node")?;
     node.inner.list_dlc_channels()
 }
