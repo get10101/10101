@@ -17,6 +17,7 @@ use dlc_manager::channel::signed_channel::SignedChannelState;
 use dlc_manager::channel::Channel;
 use dlc_manager::contract::contract_input::ContractInput;
 use dlc_manager::contract::Contract;
+use dlc_manager::contract::ContractDescriptor;
 use dlc_manager::DlcChannelId;
 use dlc_manager::Oracle;
 use dlc_manager::Storage;
@@ -436,56 +437,144 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
         Ok(dlc_channels)
     }
 
-    /// Returns the usable balance in all DLC channels. Usable means, the amount currently locked up
-    /// in a position does not count to the balance
-    pub fn get_usable_dlc_channel_balance(&self) -> Result<Amount> {
-        let dlc_channels = self.list_signed_dlc_channels()?;
-        Ok(Amount::from_sat(
-            dlc_channels
-                .iter()
-                .map(|channel| match &channel.state {
-                    SignedChannelState::Settled { own_payout, .. } => {
-                        // we settled the position inside the dlc-channel
-                        *own_payout
-                    }
+    /// Return the usable balance for all the DLC channels.
+    pub fn get_dlc_channels_usable_balance(&self) -> Result<Amount> {
+        self.list_signed_dlc_channels()?
+            .iter()
+            .try_fold(Amount::ZERO, |acc, channel| {
+                let balance = self.get_dlc_channel_usable_balance(&channel.channel_id)?;
 
-                    SignedChannelState::SettledOffered { .. }
-                    | SignedChannelState::SettledReceived { .. }
-                    | SignedChannelState::SettledAccepted { .. }
-                    | SignedChannelState::SettledConfirmed { .. }
-                    | SignedChannelState::Established { .. } => {
-                        // if we are not yet settled or just established the channel, we have an
-                        // open position with the full amount being locked,
-                        // hence, the current balance is 0
-                        0
-                    }
-                    SignedChannelState::RenewOffered { counter_payout, .. } => {
-                        // we don't have a new position yet, but we are optimistic that it will go
-                        // through. Hence, the balance is the `total money locked` minus `what the
-                        // counterparty gets`
-                        channel.own_params.input_amount - counter_payout
-                    }
-                    SignedChannelState::RenewAccepted { own_payout, .. }
-                    | SignedChannelState::RenewConfirmed { own_payout, .. } => {
-                        // we are currently in the phase of settling off-chain, we assume this
-                        // works and take the new balance
-                        *own_payout
-                    }
-                    SignedChannelState::RenewFinalized { own_payout, .. } => {
-                        // we settled off-chain successfully
-                        *own_payout
-                    }
-                    SignedChannelState::Closing { .. } => {
-                        // the channel is almost gone, so no money left
-                        0
-                    }
-                    SignedChannelState::CollaborativeCloseOffered { counter_payout, .. } => {
-                        // the channel is not yet closed, hence, we keep showing the channel balance
-                        channel.own_params.input_amount - counter_payout
-                    }
-                })
-                .sum(),
-        ))
+                Ok(acc + balance)
+            })
+    }
+
+    /// Return the usable balance for the DLC channel.
+    ///
+    /// Usable balance excludes all balance which is being wagered in DLCs.
+    pub fn get_dlc_channel_usable_balance(&self, channel_id: &DlcChannelId) -> Result<Amount> {
+        let dlc_channel = self.get_dlc_channel_by_id(channel_id)?;
+
+        let usable_balance = match dlc_channel {
+            Channel::Signed(SignedChannel {
+                state: SignedChannelState::Settled { own_payout, .. },
+                ..
+            }) => {
+                // We settled the position inside the DLC channel.
+                Amount::from_sat(own_payout)
+            }
+            Channel::Signed(SignedChannel {
+                state: SignedChannelState::SettledOffered { counter_payout, .. },
+                own_params,
+                counter_params,
+                ..
+            })
+            | Channel::Signed(SignedChannel {
+                state: SignedChannelState::SettledReceived { counter_payout, .. },
+                own_params,
+                counter_params,
+                ..
+            })
+            | Channel::Signed(SignedChannel {
+                state: SignedChannelState::SettledAccepted { counter_payout, .. },
+                own_params,
+                counter_params,
+                ..
+            })
+            | Channel::Signed(SignedChannel {
+                state: SignedChannelState::SettledConfirmed { counter_payout, .. },
+                own_params,
+                counter_params,
+                ..
+            }) => {
+                // We haven't settled the DLC off-chain yet, but we are optimistic that the
+                // protocol will complete. Hence, the usable balance is the
+                // total collateral minus what the counterparty gets.
+                Amount::from_sat(own_params.collateral + counter_params.collateral - counter_payout)
+            }
+            Channel::Signed(SignedChannel {
+                state: SignedChannelState::CollaborativeCloseOffered { counter_payout, .. },
+                own_params,
+                counter_params,
+                ..
+            }) => {
+                // The channel is not yet closed. Hence, we keep showing the channel balance.
+                Amount::from_sat(own_params.collateral + counter_params.collateral - counter_payout)
+            }
+            // For all other cases we can rely on the `Contract`, since
+            // `SignedChannelState::get_contract_id` will return a `ContractId` for
+            // them.
+            _ => self.get_contract_usable_balance(&dlc_channel)?,
+        };
+
+        Ok(usable_balance)
+    }
+
+    fn get_contract_usable_balance(&self, dlc_channel: &Channel) -> Result<Amount> {
+        let contract_id = match dlc_channel.get_contract_id() {
+            Some(contract_id) => contract_id,
+            None => return Ok(Amount::ZERO),
+        };
+
+        let contract = self
+            .dlc_manager
+            .get_store()
+            .get_contract(&contract_id)
+            .context("Could not find contract associated with channel to compute usable balance")?
+            .context("Could not find contract associated with channel to compute usable balance")?;
+
+        // We are only including contracts that are actually established.
+        //
+        // TODO: Model other kinds of balance (e.g. pending incoming, pending outgoing)
+        // to avoid situations where money appears to be missing.
+        let signed_contract = match contract {
+            Contract::Signed(signed_contract) | Contract::Confirmed(signed_contract) => {
+                signed_contract
+            }
+            _ => return Ok(Amount::ZERO),
+        };
+
+        let is_offer_party = signed_contract
+            .accepted_contract
+            .offered_contract
+            .is_offer_party;
+
+        let offered_contract = signed_contract.accepted_contract.offered_contract;
+
+        let total_collateral = offered_contract.total_collateral;
+
+        let usable_balance = match &offered_contract.contract_info[0].contract_descriptor {
+            ContractDescriptor::Enum(_) => {
+                unreachable!("We are not using DLCs with enumerated outcomes");
+            }
+            ContractDescriptor::Numerical(descriptor) => {
+                let payouts = descriptor
+                    .get_payouts(total_collateral)
+                    .expect("valid payouts");
+
+                // The minimum payout for each party determines how many coins are _not_
+                // currently being wagered. Since they are
+                // not being wagered, they have the potential to be
+                // wagered (by renewing the channel, for example) and so they are
+                // usable.
+                let reserve = if is_offer_party {
+                    payouts
+                        .iter()
+                        .min_by(|a, b| a.offer.cmp(&b.offer))
+                        .expect("at least one")
+                        .offer
+                } else {
+                    payouts
+                        .iter()
+                        .min_by(|a, b| a.accept.cmp(&b.accept))
+                        .expect("at least one")
+                        .accept
+                };
+
+                Amount::from_sat(reserve)
+            }
+        };
+
+        Ok(usable_balance)
     }
 }
 
