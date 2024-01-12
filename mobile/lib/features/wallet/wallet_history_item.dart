@@ -287,7 +287,7 @@ class TransactionIdText extends StatelessWidget {
         Text(truncateWithEllipsis(10, txId)),
         IconButton(
             padding: EdgeInsets.zero,
-            onPressed: () => launchUrl(uri),
+            onPressed: () => launchUrl(uri, mode: LaunchMode.externalApplication),
             icon: const Icon(Icons.open_in_new, size: 18))
       ],
     );
