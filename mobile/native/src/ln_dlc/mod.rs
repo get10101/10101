@@ -34,6 +34,7 @@ use bdk::bitcoin::secp256k1::rand::RngCore;
 use bdk::bitcoin::secp256k1::SecretKey;
 use bdk::bitcoin::Txid;
 use bdk::bitcoin::XOnlyPublicKey;
+use bdk::Balance;
 use bdk::BlockTime;
 use bdk::FeeRate;
 use bdk::TransactionDetails;
@@ -106,6 +107,7 @@ pub mod channel_status;
 
 use crate::storage::TenTenOneNodeStorage;
 pub use channel_status::ChannelStatus;
+use ln_dlc_node::node::rust_dlc_manager::channel::signed_channel::SignedChannel;
 
 const PROCESS_INCOMING_DLC_MESSAGES_INTERVAL: Duration = Duration::from_millis(200);
 const UPDATE_WALLET_HISTORY_INTERVAL: Duration = Duration::from_secs(5);
@@ -720,6 +722,16 @@ pub async fn close_channel(is_force_close: bool) -> Result<()> {
     node.inner
         .close_dlc_channel(channel_details.channel_id, is_force_close)
         .await
+}
+
+pub fn get_dlc_channels() -> Result<Vec<SignedChannel>> {
+    let node = state::try_get_node().context("failed to get ln dlc node")?;
+    node.inner.list_dlc_channels()
+}
+
+pub fn get_onchain_balance() -> Result<Balance> {
+    let node = state::try_get_node().context("failed to get ln dlc node")?;
+    node.inner.get_on_chain_balance()
 }
 
 pub fn collaborative_revert_channel(

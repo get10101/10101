@@ -3,6 +3,7 @@ use crate::ln_dlc::node::Node;
 use crate::logger::LogEntry;
 use crate::storage::TenTenOneNodeStorage;
 use anyhow::Result;
+use commons::LspConfig;
 use commons::OrderbookRequest;
 use flutter_rust_bridge::StreamSink;
 use ln_dlc_node::seed::Bip39Seed;
@@ -24,6 +25,7 @@ static STORAGE: Storage<RwLock<TenTenOneNodeStorage>> = Storage::new();
 static RUNTIME: Storage<Runtime> = Storage::new();
 static WEBSOCKET: Storage<RwLock<Sender<OrderbookRequest>>> = Storage::new();
 static LOG_STREAM_SINK: Storage<RwLock<Arc<StreamSink<LogEntry>>>> = Storage::new();
+static LSP_CONFIG: Storage<RwLock<LspConfig>> = Storage::new();
 
 pub fn set_config(config: ConfigInternal) {
     match CONFIG.try_get() {
@@ -128,4 +130,19 @@ pub fn set_log_stream_sink(sink: Arc<StreamSink<LogEntry>>) {
 
 pub fn try_get_log_stream_sink() -> Option<Arc<StreamSink<LogEntry>>> {
     LOG_STREAM_SINK.try_get().map(|l| l.read().clone())
+}
+
+pub fn set_lsp_config(lsp_config: LspConfig) {
+    match LSP_CONFIG.try_get() {
+        None => {
+            LSP_CONFIG.set(RwLock::new(lsp_config));
+        }
+        Some(s) => {
+            *s.write() = lsp_config;
+        }
+    }
+}
+
+pub fn try_get_lsp_config() -> Option<LspConfig> {
+    LSP_CONFIG.try_get().map(|w| w.read().clone())
 }

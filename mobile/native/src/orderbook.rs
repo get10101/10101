@@ -5,6 +5,7 @@ use crate::event::EventInternal;
 use crate::event::TaskStatus;
 use crate::health::ServiceStatus;
 use crate::ln_dlc;
+use crate::state;
 use crate::trade::position;
 use anyhow::bail;
 use anyhow::Context;
@@ -209,6 +210,7 @@ async fn handle_orderbook_message(
     match msg {
         Message::Authenticated(lsp_config) => {
             tracing::info!("Successfully logged in to 10101 websocket api!");
+            state::set_lsp_config(lsp_config.clone());
             event::publish(&EventInternal::Authenticated(lsp_config));
         }
         Message::Rollover(contract_id) => {

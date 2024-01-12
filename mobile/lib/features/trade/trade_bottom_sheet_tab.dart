@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:get_10101/common/amount_text.dart';
@@ -7,9 +6,8 @@ import 'package:get_10101/common/amount_text_field.dart';
 import 'package:get_10101/common/amount_text_input_form_field.dart';
 import 'package:get_10101/common/application/channel_info_service.dart';
 import 'package:get_10101/common/application/lsp_change_notifier.dart';
-import 'package:get_10101/common/domain/channel.dart';
-import 'package:get_10101/common/domain/liquidity_option.dart';
 import 'package:get_10101/common/domain/model.dart';
+import 'package:get_10101/ffi.dart' as rust;
 import 'package:get_10101/common/modal_bottom_sheet_info.dart';
 import 'package:get_10101/common/value_data_row.dart';
 import 'package:get_10101/features/trade/domain/contract_symbol.dart';
@@ -23,8 +21,6 @@ import 'package:get_10101/features/trade/trade_bottom_sheet_confirmation.dart';
 import 'package:get_10101/features/trade/trade_dialog.dart';
 import 'package:get_10101/features/trade/trade_theme.dart';
 import 'package:get_10101/features/trade/trade_value_change_notifier.dart';
-import 'package:get_10101/features/wallet/domain/wallet_info.dart';
-import 'package:get_10101/features/wallet/wallet_change_notifier.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
@@ -61,30 +57,10 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
     super.initState();
   }
 
-  Future<(ChannelInfo?, Amount, Amount, double)> _getChannelInfo(
-      LspChangeNotifier lspChangeNotifier) async {
-    final channelInfoService = lspChangeNotifier.channelInfoService;
-    var channelInfo = await channelInfoService.getChannelInfo();
-
-    // fetching also inactive liquidity options as the user might use a liquidity option that isn't active anymore.
-    final options = lspChangeNotifier.getLiquidityOptions(false);
-
-    /// The max channel capacity of the existing channel. 0 if no channel exists.
-    var lspMaxChannelCapacity = await channelInfoService.getMaxCapacity();
-    var tradeReserve = await lspChangeNotifier.getTradeFeeReserve();
-
-    var completer = Completer<(ChannelInfo?, Amount, Amount, double)>();
-
-    if (channelInfo?.liquidityOptionId != null) {
-      final liquidityOption = options.singleWhere(
-          (LiquidityOption option) => option.liquidityOptionId == channelInfo?.liquidityOptionId);
-      completer.complete(
-          (channelInfo, lspMaxChannelCapacity, tradeReserve, liquidityOption.coordinatorLeverage));
-    } else {
-      // channels created before 1.3.1 do not have a liquidity option, hence we use the default value.
-      completer.complete((channelInfo, lspMaxChannelCapacity, tradeReserve, 1.0));
-    }
-
+  Future<rust.TradeConstraints> _getTradeConstraints() async {
+    var completer = Completer<rust.TradeConstraints>();
+    var channelTradeConstraints = rust.api.channelTradeConstraints();
+    completer.complete(channelTradeConstraints);
     return completer.future;
   }
 
@@ -101,8 +77,6 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
   Widget build(BuildContext context) {
     TradeTheme tradeTheme = Theme.of(context).extension<TradeTheme>()!;
 
-    WalletInfo walletInfo = context.watch<WalletChangeNotifier>().walletInfo;
-
     Direction direction = widget.direction;
     String label = direction == Direction.long ? "Buy" : "Sell";
     Color color = direction == Direction.long ? tradeTheme.buy : tradeTheme.sell;
@@ -114,55 +88,18 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
         crossAxisAlignment: CrossAxisAlignment.center,
         mainAxisSize: MainAxisSize.min,
         children: [
-          FutureBuilder<(ChannelInfo?, Amount, Amount, double)>(
-            future:
-                _getChannelInfo(lspChangeNotifier), // a previously-obtained Future<String> or null
-            builder: (BuildContext context,
-                AsyncSnapshot<(ChannelInfo?, Amount, Amount, double)> snapshot) {
+          FutureBuilder<rust.TradeConstraints>(
+            future: _getTradeConstraints(), // a previously-obtained Future<String> or null
+            builder: (BuildContext context, AsyncSnapshot<rust.TradeConstraints> snapshot) {
               List<Widget> children;
 
               final channelInfoService = lspChangeNotifier.channelInfoService;
 
               if (snapshot.hasData) {
-                var (channelInfo, lspMaxChannelCapacity, tradeFeeReserve, coordinatorLeverage) =
-                    snapshot.data!;
-                Amount minTradeMargin = channelInfoService.getMinTradeMargin();
-
-                Amount channelCapacity = lspMaxChannelCapacity;
-
-                Amount initialReserve = channelInfoService.getInitialReserve();
-
-                Amount channelReserve = channelInfo?.reserve ?? initialReserve;
-                int totalReserve = channelReserve.sats + tradeFeeReserve.sats;
-
-                // If there is an open position then we can use all those funds to resize the
-                // position in the _opposite_ direction.
-                int usableMarginInPosition =
-                    positionChangeNotifier.marginUsableForTrade(direction).sats;
-
-                int usableBalance = max(
-                    walletInfo.balances.offChain.sats + usableMarginInPosition - totalReserve, 0);
-
-                // The assumed balance of the counterparty based on the channel and our balance. This
-                // is needed to make sure that the counterparty can fulfil the trade.
-                int counterpartyUsableBalance = max(
-                    channelCapacity.sats - (walletInfo.balances.offChain.sats + totalReserve), 0);
-                int maxMargin = usableBalance;
+                var tradeConstraints = snapshot.data!;
 
                 children = <Widget>[
-                  buildChildren(
-                      usableBalance,
-                      totalReserve,
-                      channelReserve,
-                      tradeFeeReserve,
-                      direction,
-                      counterpartyUsableBalance,
-                      maxMargin,
-                      minTradeMargin,
-                      channelCapacity,
-                      coordinatorLeverage,
-                      context,
-                      channelInfoService),
+                  buildChildren(direction, tradeConstraints, context, channelInfoService, _formKey),
                 ];
               } else if (snapshot.hasError) {
                 children = <Widget>[
@@ -241,19 +178,8 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
     );
   }
 
-  Wrap buildChildren(
-      int usableBalance,
-      int totalReserve,
-      Amount channelReserve,
-      Amount tradeFeeReserve,
-      Direction direction,
-      int counterpartyUsableBalance,
-      int maxMargin,
-      Amount minTradeMargin,
-      Amount channelCapacity,
-      double coordinatorLeverage,
-      BuildContext context,
-      ChannelInfoService channelInfoService) {
+  Wrap buildChildren(Direction direction, rust.TradeConstraints channelTradeConstraints,
+      BuildContext context, ChannelInfoService channelInfoService, GlobalKey<FormState> formKey) {
     final tradeValues = context.read<TradeValuesChangeNotifier>().fromDirection(direction);
 
     bool hasPosition = positionChangeNotifier.positions.containsKey(contractSymbol);
@@ -262,6 +188,25 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
     if (hasPosition) {
       final position = context.read<PositionChangeNotifier>().positions[contractSymbol];
       positionLeverage = position!.leverage.leverage;
+    }
+
+    int usableBalance = channelTradeConstraints.maxLocalMarginSats;
+    bool isChannelBalance = channelTradeConstraints.isChannelBalance;
+
+    // We compute the max quantity based on the margin needed for the counterparty and how much he has available.
+    double price = tradeValues.price ?? 0.0;
+    double maxQuantity = (channelTradeConstraints.maxCounterpartyMarginSats / 100000000) *
+        price *
+        channelTradeConstraints.coordinatorLeverage;
+
+    String text =
+        "The usable balance of ${formatSats(Amount(usableBalance))} are your on-chain funds. If you need more, you can always deposit more into you wallet. "
+        "\nWith your current balance, the maximum you can trade is ${formatUsd(Usd(maxQuantity.toInt()))}";
+    if (isChannelBalance) {
+      text =
+          "The usable balance of ${formatSats(Amount(usableBalance))} are your off-chain funds. At the moment you can't add more than this as we do not support splicing. \n"
+          "If you want to trade more than this, you will need to close the channel and open a bigger one. "
+          "\nWith your current balance, the maximum you can trade is ${formatUsd(Usd(maxQuantity.toInt()))}";
     }
 
     return Wrap(
@@ -280,11 +225,7 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
               ModalBottomSheetInfo(
                 closeButtonText: "Back to order",
                 infoButtonPadding: const EdgeInsets.symmetric(horizontal: 8.0),
-                child: Text(
-                    "Your usable balance of ${formatSats(Amount(usableBalance))} sats takes a fixed reserve of ${formatSats(Amount(totalReserve))} sats into account. "
-                    "\n${formatSats(channelReserve)} is the minimum amount that has to stay in the Lightning channel. "
-                    "\n${formatSats(tradeFeeReserve)} is reserved for fees per trade that is needed for publishing on-chain transactions in a worst case scenario. This is needed for the self-custodial setup"
-                    "\n\nWe are working on optimizing the reserve and it might be subject to change after the beta."),
+                child: Text(text),
               )
             ],
           ),
@@ -321,50 +262,49 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
                 _formKey.currentState?.validate();
               },
               validator: (value) {
-                // TODO(bonomat): we need new checks here. For now, YOLO
-                // Amount quantity = Amount.parseAmount(value);
-                //
-                // // TODO(holzeis): fetch min amount to trade from coordinator
-                // if (quantity.toInt < 1) {
-                //   return "Min quantity to trade is 1";
-                // }
-                //
-                // Amount margin = tradeValues.margin!;
-                //
-                // int? optCounterPartyMargin =
-                //     provider.counterpartyMargin(direction, coordinatorLeverage);
-                // if (optCounterPartyMargin == null) {
-                //   return "Counterparty margin not available";
-                // }
-                // int counterpartyMargin = optCounterPartyMargin;
-                //
-                // int usableCounterpartyMarginInPosition = positionChangeNotifier
-                //     .coordinatorMarginUsableForTrade(Leverage(coordinatorLeverage), direction)
-                //     .sats;
-                //
-                // // This condition has to stay as the first thing to check, so we reset showing the info
-                // if (counterpartyMargin >
-                //     counterpartyUsableBalance + usableCounterpartyMarginInPosition) {
-                //   setState(() => showCapacityInfo = true);
-                //
-                //   return "Insufficient capacity";
-                // } else if (showCapacityInfo) {
-                //   setState(() => showCapacityInfo = true);
-                // }
-                //
-                // Amount fee = provider.orderMatchingFee(direction) ?? Amount.zero();
-                // if (usableBalance < margin.sats + fee.sats) {
-                //   return "Insufficient balance";
-                // }
-                //
-                // if (margin.sats > maxMargin) {
-                //   return "Max margin is $maxMargin";
-                // }
-                // if (margin.sats < minTradeMargin.sats) {
-                //   return "Min margin is ${minTradeMargin.sats}";
-                // }
+                Amount quantity = Amount.parseAmount(value);
 
-                showCapacityInfo = false;
+                if (quantity.toInt < channelTradeConstraints.minQuantity) {
+                  return "Min quantity is ${channelTradeConstraints.minQuantity}";
+                }
+
+                if (quantity.toInt > maxQuantity) {
+                  setState(() => showCapacityInfo = true);
+                  return "Max quantity is ${maxQuantity.toInt()}";
+                }
+
+                double coordinatorLeverage = channelTradeConstraints.coordinatorLeverage;
+
+                int? optCounterPartyMargin =
+                    provider.counterpartyMargin(direction, coordinatorLeverage);
+                if (optCounterPartyMargin == null) {
+                  return "Counterparty margin not available";
+                }
+                int neededCounterpartyMarginSats = optCounterPartyMargin;
+
+                // This condition has to stay as the first thing to check, so we reset showing the info
+                int maxCounterpartyMarginSats = channelTradeConstraints.maxCounterpartyMarginSats;
+                int maxLocalMarginSats = channelTradeConstraints.maxLocalMarginSats;
+
+                // First we check if we have enough money, then we check if counterparty would have enough money
+                Amount fee = provider.orderMatchingFee(direction) ?? Amount.zero();
+
+                Amount margin = tradeValues.margin!;
+                int neededLocalMarginSats = margin.sats + fee.sats;
+
+                if (neededLocalMarginSats > maxLocalMarginSats) {
+                  setState(() => showCapacityInfo = true);
+                  return "Insufficient balance";
+                }
+
+                if (neededCounterpartyMarginSats > maxCounterpartyMarginSats) {
+                  setState(() => showCapacityInfo = true);
+                  return "Counterparty has insufficient balance";
+                }
+
+                setState(() {
+                  showCapacityInfo = false;
+                });
                 return null;
               },
             )),
@@ -379,16 +319,17 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
                       return AmountTextField(
                         value: margin,
                         label: "Margin (sats)",
+                        suffixIcon: showCapacityInfo
+                            ? ModalBottomSheetInfo(
+                                closeButtonText: "Back to order",
+                                child: Text(
+                                    "The max amount you can trade depends on your balance, your counterparty's balance and your leverage: \n\n"
+                                    "- Your max margin is ${formatSats(Amount(usableBalance))}\n"
+                                    "- Counterparty max margin is ${formatSats(Amount(channelTradeConstraints.maxLocalMarginSats))}\n"
+                                    "- This results in a max amount of ${formatUsd(Usd(maxQuantity.toInt()))} with your current leverage of ${tradeValues.leverage.formatted()}"))
+                            : null,
                       );
                     })),
-            if (showCapacityInfo)
-              ModalBottomSheetInfo(
-                  closeButtonText: "Back to order",
-                  child: Text(
-                      "Your channel capacity is limited to ${formatSats(channelCapacity)} sats."
-                      "In order to trade with higher margin you have to reduce your balance or create a bigger channel."
-                      "\n\nYour current usable balance is ${formatSats(Amount(usableBalance))}.\n"
-                      "Leaving your counterparty a possible margin of ${formatSats(Amount(channelCapacity.sats - usableBalance))}"))
           ],
         ),
         LeverageSlider(
@@ -401,6 +342,8 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
             isActive: !hasPosition,
             onLeverageChanged: (value) {
               context.read<TradeValuesChangeNotifier>().updateLeverage(direction, Leverage(value));
+              // When the slider changes, we validate the whole form.
+              formKey.currentState!.validate();
             }),
         Row(
           children: [
