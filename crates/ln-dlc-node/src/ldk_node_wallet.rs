@@ -18,16 +18,20 @@ use bdk::SyncOptions;
 use bdk::TransactionDetails;
 use bitcoin::consensus::encode::serialize_hex;
 use bitcoin::psbt::PartiallySignedTransaction;
+use bitcoin::Address;
 use bitcoin::Amount;
 use bitcoin::BlockHash;
+use bitcoin::Network;
 use bitcoin::OutPoint;
 use bitcoin::Script;
 use bitcoin::Transaction;
 use bitcoin::Txid;
+use dlc_manager::Utxo;
 use lightning::chain::chaininterface::BroadcasterInterface;
 use lightning::chain::chaininterface::ConfirmationTarget;
 use parking_lot::Mutex;
 use parking_lot::MutexGuard;
+use rust_bitcoin_coin_selection::select_coins;
 use std::sync::Arc;
 use std::time::Instant;
 use tokio::sync::RwLock;
@@ -185,7 +189,7 @@ where
         Ok(transaction)
     }
 
-    pub(crate) fn get_last_unused_address(&self) -> Result<bitcoin::Address, Error> {
+    pub(crate) fn get_last_unused_address(&self) -> Result<Address, Error> {
         Ok(self
             .bdk_lock()
             .get_address(AddressIndex::LastUnused)?
@@ -205,7 +209,61 @@ where
         Ok(utxos)
     }
 
-    /// Build the PSBT for sending funds to a given address.
+    pub fn get_utxos_for_amount(
+        &self,
+        amount: u64,
+        lock_utxos: bool,
+        network: Network,
+    ) -> Result<Vec<Utxo>, Error> {
+        let utxos = self.get_utxos()?;
+        // get temporarily reserved utxo from in-memory storage
+        let mut reserved_outpoints = self.locked_outpoints.lock();
+
+        // filter reserved utxos from all known utxos to not accidentally double spend and those who
+        // have actually been spent already
+        let utxos = utxos
+            .iter()
+            .filter(|utxo| !reserved_outpoints.contains(&utxo.outpoint))
+            .filter(|utxo| !utxo.is_spent)
+            .collect::<Vec<_>>();
+
+        let mut utxos = utxos
+            .into_iter()
+            .map(|x| UtxoWrap {
+                utxo: Utxo {
+                    tx_out: x.txout.clone(),
+                    outpoint: x.outpoint,
+                    address: Address::from_script(&x.txout.script_pubkey, network)
+                        .expect("to be a valid address"),
+                    redeem_script: Default::default(),
+                    reserved: false,
+                },
+            })
+            .collect::<Vec<_>>();
+
+        // select enough utxos for our needs
+        let selected_local_utxos = select_coins(amount, 20, &mut utxos);
+        match selected_local_utxos {
+            None => Ok(vec![]),
+            Some(selected_local_utxos) => {
+                // update our temporarily reserved utxos with the selected once.
+                // note: this storage is only cleared up on a restart, meaning, if the protocol
+                // fails later on, the utxos will remain reserved
+                if lock_utxos {
+                    for utxo in selected_local_utxos.clone() {
+                        reserved_outpoints.push(utxo.utxo.outpoint);
+                    }
+                }
+
+                Ok(selected_local_utxos
+                    .into_iter()
+                    .map(|utxo| utxo.utxo)
+                    .collect())
+            }
+        }
+    }
+
+    /// Build the PSBT for sending funds to a given script and signs it
     fn build_psbt(
         &self,
         address: &bitcoin::Address,
@@ -258,7 +316,7 @@ where
     /// Estimate the fee for sending funds to a given address
     pub(crate) fn calculate_fee(
         &self,
-        address: &bitcoin::Address,
+        address: &Address,
         amount_sat_or_drain: u64,
         confirmation_target: ConfirmationTarget,
     ) -> Result<Amount> {
@@ -287,7 +345,7 @@ where
     /// will be spent.
     pub(crate) fn send_to_address(
         &self,
-        address: &bitcoin::Address,
+        address: &Address,
         amount_sat_or_drain: u64,
         fee: Fee,
     ) -> Result<Txid> {
@@ -367,6 +425,17 @@ where
                 );
             }
         }
+    }
+}
+
+#[derive(Clone, Debug)]
+struct UtxoWrap {
+    utxo: Utxo,
+}
+
+impl rust_bitcoin_coin_selection::Utxo for UtxoWrap {
+    fn get_value(&self) -> u64 {
+        self.utxo.tx_out.value
     }
 }
 
