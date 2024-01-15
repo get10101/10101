@@ -147,7 +147,7 @@ class _SendOnChainScreenState extends State<SendOnChainScreen> {
                             final fee = switch (_fee) {
                               PriorityFee() =>
                                 _feeEstimates?[(_fee as PriorityFee).priority]?.total.sats ?? 0,
-                              CustomFee() => (_fee as CustomFee).amount.sats,
+                              CustomFeeRate() => (_fee as CustomFeeRate).amount.sats,
                             };
 
                             if (amount.sats + fee > balance.sats) {

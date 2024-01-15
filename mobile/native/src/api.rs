@@ -26,6 +26,7 @@ use anyhow::anyhow;
 use anyhow::ensure;
 use anyhow::Context;
 use anyhow::Result;
+use bdk::FeeRate;
 use bitcoin::Amount;
 use commons::order_matching_fee_taker;
 use commons::OrderbookRequest;
@@ -543,15 +544,17 @@ pub enum SendPayment {
 pub enum Fee {
     /// A fee based on the priority of the payment
     Priority(ConfirmationTarget),
-    /// A custom fee
-    Custom { sats: u64 },
+    /// A custom fee rate in sats/vbyte
+    FeeRate { sats: u64 },
 }
 
 impl From<Fee> for ln_dlc_node::node::Fee {
     fn from(value: Fee) -> Self {
         match value {
             Fee::Priority(target) => ln_dlc_node::node::Fee::Priority(target.into()),
-            Fee::Custom { sats } => ln_dlc_node::node::Fee::Custom(Amount::from_sat(sats)),
+            Fee::FeeRate { sats } => {
+                ln_dlc_node::node::Fee::FeeRate(FeeRate::from_sat_per_vb(sats as f32))
+            }
         }
     }
 }

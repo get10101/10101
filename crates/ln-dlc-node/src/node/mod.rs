@@ -188,8 +188,8 @@ pub struct Node<S: TenTenOneStorage, N: Storage> {
 pub enum Fee {
     /// A fee given by the transaction's priority
     Priority(ConfirmationTarget),
-    /// A fee given by an absolute amount
-    Custom(Amount),
+    /// A fix defined sats/vbyte
+    FeeRate(FeeRate),
 }
 
 #[derive(Debug, Clone, Copy, Deserialize, Serialize)]

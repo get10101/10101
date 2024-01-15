@@ -18,16 +18,20 @@ use bdk::SyncOptions;
 use bdk::TransactionDetails;
 use bitcoin::consensus::encode::serialize_hex;
 use bitcoin::psbt::PartiallySignedTransaction;
+use bitcoin::Address;
 use bitcoin::Amount;
 use bitcoin::BlockHash;
+use bitcoin::Network;
 use bitcoin::OutPoint;
 use bitcoin::Script;
 use bitcoin::Transaction;
 use bitcoin::Txid;
+use dlc_manager::Utxo;
 use lightning::chain::chaininterface::BroadcasterInterface;
 use lightning::chain::chaininterface::ConfirmationTarget;
 use parking_lot::Mutex;
 use parking_lot::MutexGuard;
+use rust_bitcoin_coin_selection::select_coins;
 use std::sync::Arc;
 use std::time::Instant;
 use tokio::sync::RwLock;
@@ -136,41 +140,13 @@ where
         value_sats: u64,
         fee_rate: FeeRate,
     ) -> Result<Transaction, Error> {
-        let locked_wallet = self.bdk_lock();
-        let mut tx_builder = locked_wallet.build_tx();
-
-        tx_builder
-            .add_recipient(output_script, value_sats)
-            .fee_rate(fee_rate)
-            .enable_rbf();
-
-        let mut locked_outpoints = self.locked_outpoints.lock();
-        for outpoint in locked_outpoints.iter() {
-            tx_builder.add_unspendable(*outpoint);
-        }
-
-        let mut psbt = match tx_builder.finish() {
-            Ok((psbt, _)) => {
-                tracing::trace!("Created funding PSBT: {:?}", psbt);
-                psbt
-            }
-            Err(err) => {
-                tracing::error!("Failed to create funding transaction: {}", err);
-                return Err(err.into());
-            }
-        };
-
-        match locked_wallet.sign(&mut psbt, SignOptions::default()) {
-            Ok(finalized) => {
-                if !finalized {
-                    bail!("Onchain transaction failed");
-                }
-            }
-            Err(err) => {
-                tracing::error!("Failed to create funding transaction: {}", err);
-                return Err(err.into());
-            }
-        }
+        let mut locked_utxos = self.locked_outpoints.lock();
+        let psbt = self.build_psbt(
+            output_script,
+            value_sats,
+            Fee::FeeRate(fee_rate),
+            locked_utxos.clone(),
+        )?;
 
         let transaction = psbt.extract_tx();
 
@@ -180,12 +156,12 @@ where
             .map(|input| input.previous_output)
             .collect::<Vec<_>>();
 
-        locked_outpoints.extend(prev_outpoints);
+        locked_utxos.extend(prev_outpoints);
 
         Ok(transaction)
     }
 
-    pub(crate) fn get_last_unused_address(&self) -> Result<bitcoin::Address, Error> {
+    pub(crate) fn get_last_unused_address(&self) -> Result<Address, Error> {
         Ok(self
             .bdk_lock()
             .get_address(AddressIndex::LastUnused)?
@@ -205,30 +181,86 @@ where
         Ok(utxos)
     }
 
-    /// Build the PSBT for sending funds to a given address.
+    pub fn get_utxos_for_amount(
+        &self,
+        amount: u64,
+        lock_utxos: bool,
+        network: Network,
+    ) -> Result<Vec<Utxo>, Error> {
+        let utxos = self.get_utxos()?;
+        // get temporarily reserved utxo from in-memory storage
+        let mut reserved_outpoints = self.locked_outpoints.lock();
+
+        // filter reserved utxos from all known utxos to not accidentally double spend and those who
+        // have actually been spent already
+        let utxos = utxos
+            .iter()
+            .filter(|utxo| !reserved_outpoints.contains(&utxo.outpoint))
+            .filter(|utxo| !utxo.is_spent)
+            .collect::<Vec<_>>();
+
+        let mut utxos = utxos
+            .into_iter()
+            .map(|x| UtxoWrap {
+                utxo: Utxo {
+                    tx_out: x.txout.clone(),
+                    outpoint: x.outpoint,
+                    address: Address::from_script(&x.txout.script_pubkey, network)
+                        .expect("to be a valid address"),
+                    redeem_script: Default::default(),
+                    reserved: false,
+                },
+            })
+            .collect::<Vec<_>>();
+
+        // select enough utxos for our needs
+        let selected_local_utxos = select_coins(amount, 20, &mut utxos);
+        match selected_local_utxos {
+            None => Ok(vec![]),
+            Some(selected_local_utxos) => {
+                // update our temporarily reserved utxos with the selected once.
+                // note: this storage is only cleared up on a restart, meaning, if the protocol
+                // fails later on, the utxos will remain reserved
+                if lock_utxos {
+                    for utxo in selected_local_utxos.clone() {
+                        reserved_outpoints.push(utxo.utxo.outpoint);
+                    }
+                }
+
+                Ok(selected_local_utxos
+                    .into_iter()
+                    .map(|utxo| utxo.utxo)
+                    .collect())
+            }
+        }
+    }
+
+    /// Build the PSBT for sending funds to a given script and signs it
     fn build_psbt(
         &self,
-        address: &bitcoin::Address,
+        recipient: Script,
         amount_sat_or_drain: u64,
         fee: Fee,
+        locked_utxos: Vec<OutPoint>,
     ) -> Result<PartiallySignedTransaction> {
         let locked_wallet = self.bdk_lock();
         let mut tx_builder = locked_wallet.build_tx();
 
+        for outpoint in locked_utxos.iter() {
+            tx_builder.add_unspendable(*outpoint);
+        }
+
         if amount_sat_or_drain > 0 {
             tx_builder
-                .add_recipient(address.script_pubkey(), amount_sat_or_drain)
+                .add_recipient(recipient, amount_sat_or_drain)
                 .enable_rbf();
         } else {
-            tx_builder
-                .drain_wallet()
-                .drain_to(address.script_pubkey())
-                .enable_rbf();
+            tx_builder.drain_wallet().drain_to(recipient).enable_rbf();
         }
 
         match fee {
             Fee::Priority(target) => tx_builder.fee_rate(self.fee_rate_estimator.estimate(target)),
-            Fee::Custom(amt) => tx_builder.fee_absolute(amt.to_sat()),
+            Fee::FeeRate(fee_rate) => tx_builder.fee_rate(fee_rate),
         };
 
         let mut psbt = match tx_builder.finish() {
@@ -258,14 +290,16 @@ where
     /// Estimate the fee for sending funds to a given address
     pub(crate) fn calculate_fee(
         &self,
-        address: &bitcoin::Address,
+        address: &Address,
         amount_sat_or_drain: u64,
         confirmation_target: ConfirmationTarget,
     ) -> Result<Amount> {
+        let locked_utxos = self.locked_outpoints.lock();
         let psbt = self.build_psbt(
-            address,
+            address.script_pubkey(),
             amount_sat_or_drain,
             Fee::Priority(confirmation_target),
+            locked_utxos.clone(),
         );
 
         let fee_sat = match psbt {
@@ -287,13 +321,28 @@ where
     /// will be spent.
     pub(crate) fn send_to_address(
         &self,
-        address: &bitcoin::Address,
+        address: &Address,
         amount_sat_or_drain: u64,
         fee: Fee,
     ) -> Result<Txid> {
+        let mut locked_utxos = self.locked_outpoints.lock();
         let tx = self
-            .build_psbt(address, amount_sat_or_drain, fee)?
+            .build_psbt(
+                address.script_pubkey(),
+                amount_sat_or_drain,
+                fee,
+                locked_utxos.clone(),
+            )?
             .extract_tx();
+
+        let prev_outpoints = tx
+            .input
+            .iter()
+            .map(|input| input.previous_output)
+            .collect::<Vec<_>>();
+
+        locked_utxos.extend(prev_outpoints);
+
         let txid = self.broadcast_transaction(&tx)?;
 
         if amount_sat_or_drain > 0 {
@@ -367,6 +416,17 @@ where
                 );
             }
         }
+    }
+}
+
+#[derive(Clone, Debug)]
+struct UtxoWrap {
+    utxo: Utxo,
+}
+
+impl rust_bitcoin_coin_selection::Utxo for UtxoWrap {
+    fn get_value(&self) -> u64 {
+        self.utxo.tx_out.value
     }
 }
 

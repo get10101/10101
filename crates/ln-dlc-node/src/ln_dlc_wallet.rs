@@ -33,7 +33,6 @@ use lightning_transaction_sync::EsploraSyncClient;
 use ln_dlc_storage::DlcStorageProvider;
 use ln_dlc_storage::WalletStorage;
 use parking_lot::RwLock;
-use rust_bitcoin_coin_selection::select_coins;
 use std::sync::Arc;
 
 /// This is a wrapper type introduced to be able to implement traits from `rust-dlc` on the
@@ -277,53 +276,18 @@ impl<S: TenTenOneStorage, N: Storage> dlc_manager::Wallet for LnDlcWallet<S, N> 
         _: Option<u64>,
         lock_utxos: bool,
     ) -> Result<Vec<Utxo>, Error> {
-        // TODO(bonomat): this should not be necessary to store it in the db and then load again
         let utxos = self
-            .ln_wallet
-            .get_utxos()
-            .expect("To be able to receive utxo");
-        utxos
-            .iter()
-            .filter(|utxo| !utxo.is_spent)
-            .map(|utxo| Utxo {
-                tx_out: utxo.txout.clone(),
-                outpoint: utxo.outpoint,
-                address: Address::from_script(&utxo.txout.script_pubkey, self.network)
-                    .expect("to be valid address"),
-                redeem_script: Default::default(),
-                reserved: false,
-            })
-            .for_each(|utxo| {
-                self.dlc_storage
-                    .upsert_utxo(&utxo)
-                    .map_err(|e| Error::StorageError(format!("Failed to upsert utxo. {e:#}")))
-                    .expect("To work")
-            });
-
-        let mut utxos = self
-            .dlc_storage
-            .get_utxos()
-            .map_err(|e| Error::StorageError(format!("Failed to get utxos. {e:#}")))?
-            .into_iter()
-            .filter(|x| !x.reserved)
-            .map(|x| UtxoWrap { utxo: x })
-            .collect::<Vec<_>>();
-        let selection = select_coins(amount, 20, &mut utxos)
-            .ok_or_else(|| Error::InvalidState("Not enough fund in utxos".to_string()))?;
-        if lock_utxos {
-            for utxo in selection.clone() {
-                let updated = Utxo {
-                    reserved: true,
-                    ..utxo.utxo
-                };
-                self.dlc_storage
-                    .upsert_utxo(&updated)
-                    .map_err(|e| Error::StorageError(format!("Failed to upsert utxo. {e:#}")))?;
-            }
+            .ldk_wallet()
+            .get_utxos_for_amount(amount, lock_utxos, self.network)
+            .map_err(|error| {
+                Error::InvalidState(format!("Could not find utxos for mount {error:?}"))
+            })?;
+        if utxos.is_empty() {
+            return Err(Error::InvalidState(
+                "Not enough UTXOs for amount".to_string(),
+            ));
         }
-
-        tracing::debug!("Selected utxos: {:?}", selection);
-        Ok(selection.into_iter().map(|x| x.utxo).collect::<Vec<_>>())
+        Ok(utxos)
     }
 
     fn import_address(&self, _address: &Address) -> Result<(), Error> {
@@ -341,16 +305,5 @@ impl<S: TenTenOneStorage, N: Storage> BroadcasterInterface for LnDlcWallet<S, N>
                 );
             }
         }
-    }
-}
-
-#[derive(Clone, Debug)]
-struct UtxoWrap {
-    utxo: Utxo,
-}
-
-impl rust_bitcoin_coin_selection::Utxo for UtxoWrap {
-    fn get_value(&self) -> u64 {
-        self.utxo.tx_out.value
     }
 }

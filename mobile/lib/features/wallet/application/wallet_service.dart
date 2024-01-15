@@ -96,7 +96,7 @@ class WalletService {
       null ||
       PriorityFee() =>
         await rust.api.sendPreflightProbe(payment: _createPayment(destination, amount, fee: fee)),
-      CustomFee() => fee.amount.sats * 1000,
+      CustomFeeRate() => fee.amount.sats * 1000,
     };
   }
 
