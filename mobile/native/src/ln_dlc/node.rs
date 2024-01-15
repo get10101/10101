@@ -148,8 +148,8 @@ impl Node {
     /// - Any dlc channel message that has already been processed will be skipped.
     ///
     /// If an offer is received [`ChannelMessage::Offer`], [`ChannelMessage::SettleOffer`],
-    /// [`ChannelMessage::RenewOffer`] will get automatically accepted. Unless the maturity date of
-    /// the offer is already outdated.
+    /// [`ChannelMessage::CollaborativeCloseOffer`], [`ChannelMessage::RenewOffer`] will get
+    /// automatically accepted. Unless the maturity date of the offer is already outdated.
     ///
     /// FIXME(holzeis): This function manipulates different data objects in different data sources
     /// and should use a transaction to make all changes atomic. Not doing so risks of ending up in
@@ -322,6 +322,18 @@ impl Node {
                         event::publish(&EventInternal::BackgroundNotification(
                             BackgroundTask::RecoverDlc(TaskStatus::Success),
                         ));
+                    }
+                    ChannelMessage::CollaborativeCloseOffer(close_offer) => {
+                        let channel_id_hex_string = close_offer.channel_id.to_hex();
+                        tracing::info!(
+                            channel_id = channel_id_hex_string,
+                            node_id = node_id.to_string(),
+                            "Received an offer to collaboratively close a channel"
+                        );
+
+                        // TODO(bonomat): we should verify that the proposed amount is acceptable
+                        self.inner
+                            .accept_dlc_channel_collaborative_close(&close_offer.channel_id)?;
                     }
                     _ => (),
                 }
