@@ -81,10 +81,13 @@ pub(crate) mod invoice;
 pub(crate) mod sub_channel;
 
 pub mod dlc_channel;
+pub mod event;
 pub mod peer_manager;
 
+pub use crate::node::connection::TenTenOneOnionMessageHandler;
 pub use crate::node::dlc_manager::signed_channel_state_name;
 pub use crate::node::dlc_manager::DlcManager;
+use crate::node::event::NodeEventHandler;
 pub use crate::node::oracle::OracleInfo;
 pub use ::dlc_manager as rust_dlc_manager;
 pub use channel_manager::ChannelManager;
@@ -164,6 +167,8 @@ pub struct Node<S: TenTenOneStorage, N: Storage> {
 
     /// The oracle pubkey used for proposing dlc channels
     pub oracle_pubkey: XOnlyPublicKey,
+
+    pub event_handler: Arc<NodeEventHandler>,
 
     // storage
     // TODO(holzeis): The node storage should get extracted to the corresponding application
@@ -275,6 +280,7 @@ impl<S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 'static> Node<S, 
         wallet_settings: WalletSettings,
         oracle_clients: Vec<P2PDOracleClient>,
         oracle_pubkey: XOnlyPublicKey,
+        node_event_handler: Arc<NodeEventHandler>,
     ) -> Result<Self>
     where
         SC: Fn(&Path, Arc<NetworkGraph>, Arc<TracingLogger>) -> Scorer,
@@ -440,10 +446,14 @@ impl<S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 'static> Node<S, 
             }
         };
 
+        let onion_message_handler = Arc::new(TenTenOneOnionMessageHandler::new(
+            node_event_handler.clone(),
+        ));
+
         let lightning_msg_handler = MessageHandler {
             chan_handler: sub_channel_manager.clone(),
             route_handler,
-            onion_message_handler: Arc::new(IgnoringMessageHandler {}),
+            onion_message_handler,
             custom_message_handler: dlc_message_handler.clone(),
         };
 
@@ -498,6 +508,7 @@ impl<S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 'static> Node<S, 
             pending_channel_opening_fee_rates: Arc::new(parking_lot::Mutex::new(HashMap::new())),
             oracle_pubkey,
             probes: Probes::default(),
+            event_handler: node_event_handler,
         })
     }
 

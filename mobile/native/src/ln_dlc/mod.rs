@@ -106,6 +106,7 @@ pub mod channel_status;
 
 use crate::storage::TenTenOneNodeStorage;
 pub use channel_status::ChannelStatus;
+use ln_dlc_node::node::event::NodeEventHandler;
 use ln_dlc_node::node::rust_dlc_manager::channel::signed_channel::SignedChannel;
 
 const PROCESS_INCOMING_DLC_MESSAGES_INTERVAL: Duration = Duration::from_millis(200);
@@ -298,6 +299,7 @@ pub fn run(seed_dir: String, runtime: &Runtime) -> Result<()> {
 
         event::subscribe(DBBackupSubscriber::new(storage.clone().client));
 
+        let node_event_handler = Arc::new(NodeEventHandler::new());
         let node = ln_dlc_node::node::Node::new(
             app_config(),
             scorer::in_memory_scorer,
@@ -316,6 +318,7 @@ pub fn run(seed_dir: String, runtime: &Runtime) -> Result<()> {
             WalletSettings::default(),
             vec![config::get_oracle_info().into()],
             config::get_oracle_info().public_key,
+            node_event_handler.clone(),
         )?;
         let node = Arc::new(node);
 

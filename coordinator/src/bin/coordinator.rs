@@ -110,6 +110,7 @@ async fn main() -> Result<()> {
 
     let node_storage = Arc::new(NodeStorage::new(pool.clone()));
 
+    let node_event_handler = Arc::new(NodeEventHandler::new());
     let node = Arc::new(ln_dlc_node::node::Node::new(
         ln_dlc_node::config::coordinator_config(),
         scorer::persistent_scorer,
@@ -135,6 +136,7 @@ async fn main() -> Result<()> {
             .map(|o| o.into())
             .collect(),
         XOnlyPublicKey::from_str(&opts.oracle_pubkey).expect("valid public key"),
+        node_event_handler.clone(),
     )?);
 
     let event_handler = CoordinatorEventHandler::new(node.clone(), Some(node_event_sender));

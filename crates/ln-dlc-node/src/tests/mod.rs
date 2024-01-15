@@ -1,5 +1,6 @@
 use crate::config::app_config;
 use crate::config::coordinator_config;
+use crate::node::event::NodeEventHandler;
 use crate::node::peer_manager::alias_as_bytes;
 use crate::node::GossipSourceConfig;
 use crate::node::InMemoryStore;
@@ -222,6 +223,7 @@ impl Node<TenTenOneInMemoryStorage, InMemoryStore> {
             WalletSettings::default(),
             vec![oracle.into()],
             XOnlyPublicKey::from_str(ORACLE_PUBKEY)?,
+            Arc::new(NodeEventHandler::new()),
         )?;
         let node = Arc::new(node);
 

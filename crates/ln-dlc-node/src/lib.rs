@@ -1,5 +1,6 @@
 use crate::ln::TracingLogger;
 use crate::node::SubChannelManager;
+use crate::node::TenTenOneOnionMessageHandler;
 use bitcoin::hashes::hex::ToHex;
 use bitcoin::Txid;
 use dlc_custom_signer::CustomKeysManager;
@@ -9,7 +10,6 @@ use fee_rate_estimator::FeeRateEstimator;
 use lightning::chain::chainmonitor;
 use lightning::chain::Filter;
 use lightning::ln::msgs::RoutingMessageHandler;
-use lightning::ln::peer_handler::IgnoringMessageHandler;
 use lightning::ln::PaymentPreimage;
 use lightning::ln::PaymentSecret;
 use lightning::routing::gossip;
@@ -71,7 +71,7 @@ pub type PeerManager<S, N> = lightning::ln::peer_handler::PeerManager<
     SocketDescriptor,
     Arc<SubChannelManager<S, N>>,
     Arc<dyn RoutingMessageHandler + Send + Sync>,
-    Arc<IgnoringMessageHandler>,
+    Arc<TenTenOneOnionMessageHandler>,
     Arc<TracingLogger>,
     Arc<DlcMessageHandler>,
     Arc<CustomKeysManager<S, N>>,
