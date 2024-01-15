@@ -2,19 +2,21 @@ use crate::node::InMemoryStore;
 use crate::node::Node;
 use crate::storage::TenTenOneInMemoryStorage;
 use crate::tests::bitcoind::mine;
-use crate::tests::dummy_contract_input;
 use crate::tests::init_tracing;
 use crate::tests::wait_until;
+use crate::tests::{dummy_contract_input, fake_maker};
 use bitcoin::Amount;
 use dlc_manager::channel::signed_channel::SignedChannel;
 use dlc_manager::channel::signed_channel::SignedChannelStateType;
 use dlc_manager::contract::Contract;
 use dlc_manager::Storage;
+use reqwest::Url;
+use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
 
 #[tokio::test(flavor = "multi_thread")]
-#[ignore]
+// #[ignore]
 async fn can_open_and_collaboratively_close_channel() {
     init_tracing();
 
@@ -156,6 +158,10 @@ async fn setup_channel_with_position() -> (
     let (coordinator, _running_coord) = Node::start_test_coordinator("coordinator").unwrap();
 
     app.connect(coordinator.info).await.unwrap();
+
+    fake_maker(
+        Url::from_str("http://localhost:8000/api/orderbook/orders").expect("to be a correct url"),
+    );
 
     // Choosing large fund amounts compared to the DLC collateral to ensure that we have one input
     // per party. In the end, it doesn't seem to matter though.

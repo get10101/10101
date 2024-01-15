@@ -43,6 +43,10 @@ use rand::distributions::Alphanumeric;
 use rand::thread_rng;
 use rand::Rng;
 use rand::RngCore;
+use reqwest::{StatusCode, Url};
+use rust_decimal::Decimal;
+use rust_decimal_macros::dec;
+use serde::{Deserialize, Serialize};
 use std::env::temp_dir;
 use std::net::TcpListener;
 use std::path::PathBuf;
@@ -51,8 +55,11 @@ use std::string::ToString;
 use std::sync::Arc;
 use std::sync::Once;
 use std::time::Duration;
+use time::OffsetDateTime;
 use tokio::sync::watch;
+use tokio::task;
 use tokio::task::block_in_place;
+use uuid::Uuid;
 
 mod bitcoind;
 mod dlc_channel;
@@ -527,5 +534,66 @@ fn dummy_contract_input(
                 threshold: 1,
             },
         }],
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct NewOrder {
+    pub id: Uuid,
+    pub contract_symbol: String,
+    #[serde(with = "rust_decimal::serde::float")]
+    pub price: Decimal,
+    #[serde(with = "rust_decimal::serde::float")]
+    pub quantity: Decimal,
+    pub trader_id: PublicKey,
+    pub direction: String,
+    pub leverage: f32,
+    pub order_type: String,
+    pub expiry: OffsetDateTime,
+    pub stable: bool,
+}
+
+pub fn fake_maker(orderbook_url: Url) {
+    task::spawn(async move {
+        loop {
+            if let Err(err) = post_orders(orderbook_url.clone()).await {
+                tracing::error!("Error posting orders: {}", err);
+            }
+            // Just before the old expires we post again
+            tokio::time::sleep(std::time::Duration::from_secs(59)).await;
+        }
+    });
+}
+
+async fn post_orders(orderbook_url: Url) -> Result<()> {
+    let client = reqwest::Client::builder().build()?;
+    let order = dummy_order(dec!(40_000), "Long");
+    let response = client
+        .post(orderbook_url.clone())
+        .json(&order)
+        .send()
+        .await?;
+    debug_assert_eq!(response.status(), StatusCode::OK);
+    let order = dummy_order(dec!(40_000), "Short");
+    let response = client.post(orderbook_url).json(&order).send().await?;
+    debug_assert_eq!(response.status(), StatusCode::OK);
+    Ok(())
+}
+
+fn dummy_order(price: Decimal, direction: &str) -> NewOrder {
+    NewOrder {
+        id: Uuid::new_v4(),
+        contract_symbol: "BtcUsd".to_string(),
+        price,
+        quantity: Default::default(),
+        trader_id: PublicKey::from_str(
+            "0218845781f631c48f1c9709e23092067d06837f30aa0cd0544ac887fe91ddd166",
+        )
+        .unwrap(),
+        direction: direction.to_string(),
+        leverage: 2.0,
+        order_type: "Limit".to_string(),
+        expiry: OffsetDateTime::now_utc() + time::Duration::minutes(1),
+        stable: false,
     }
 }
