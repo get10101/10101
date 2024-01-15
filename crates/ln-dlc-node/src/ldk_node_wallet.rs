@@ -21,7 +21,6 @@ use bitcoin::psbt::PartiallySignedTransaction;
 use bitcoin::Address;
 use bitcoin::Amount;
 use bitcoin::BlockHash;
-use bitcoin::Network;
 use bitcoin::OutPoint;
 use bitcoin::Script;
 use bitcoin::Transaction;
@@ -53,7 +52,6 @@ where
     fee_rate_estimator: Arc<F>,
     locked_outpoints: Mutex<Vec<OutPoint>>,
     node_storage: Arc<N>,
-    network: Network,
 }
 
 #[derive(Clone, Debug)]
@@ -84,7 +82,6 @@ where
         fee_rate_estimator: Arc<F>,
         node_storage: Arc<N>,
         settings: WalletSettings,
-        network: Network,
     ) -> Self {
         let inner = Mutex::new(wallet);
         let settings = RwLock::new(settings);
@@ -96,7 +93,6 @@ where
             fee_rate_estimator,
             locked_outpoints: Mutex::new(vec![]),
             node_storage,
-            network,
         }
     }
 
@@ -143,10 +139,9 @@ where
         value_sats: u64,
         fee_rate: FeeRate,
     ) -> Result<Transaction, Error> {
-        let address = bitcoin::Address::from_script(&output_script, self.network)?;
         let mut locked_utxos = self.locked_outpoints.lock();
         let psbt = self.build_psbt(
-            &address,
+            output_script,
             value_sats,
             Fee::FeeRate(fee_rate),
             locked_utxos.clone(),
@@ -242,7 +237,7 @@ where
     /// Build the PSBT for sending funds to a given script and signs it
     fn build_psbt(
         &self,
-        address: &bitcoin::Address,
+        recipient: Script,
         amount_sat_or_drain: u64,
         fee: Fee,
         locked_utxos: Vec<OutPoint>,
@@ -256,13 +251,10 @@ where
 
         if amount_sat_or_drain > 0 {
             tx_builder
-                .add_recipient(address.script_pubkey(), amount_sat_or_drain)
+                .add_recipient(recipient, amount_sat_or_drain)
                 .enable_rbf();
         } else {
-            tx_builder
-                .drain_wallet()
-                .drain_to(address.script_pubkey())
-                .enable_rbf();
+            tx_builder.drain_wallet().drain_to(recipient).enable_rbf();
         }
 
         match fee {
@@ -304,7 +296,7 @@ where
     ) -> Result<Amount> {
         let locked_utxos = self.locked_outpoints.lock();
         let psbt = self.build_psbt(
-            address,
+            address.script_pubkey(),
             amount_sat_or_drain,
             Fee::Priority(confirmation_target),
             locked_utxos.clone(),
@@ -333,9 +325,14 @@ where
         amount_sat_or_drain: u64,
         fee: Fee,
     ) -> Result<Txid> {
-        let mut lcoked_utxos = self.locked_outpoints.lock();
+        let mut locked_utxos = self.locked_outpoints.lock();
         let tx = self
-            .build_psbt(address, amount_sat_or_drain, fee, lcoked_utxos.clone())?
+            .build_psbt(
+                address.script_pubkey(),
+                amount_sat_or_drain,
+                fee,
+                locked_utxos.clone(),
+            )?
             .extract_tx();
 
         let prev_outpoints = tx
@@ -344,7 +341,7 @@ where
             .map(|input| input.previous_output)
             .collect::<Vec<_>>();
 
-        lcoked_utxos.extend(prev_outpoints);
+        locked_utxos.extend(prev_outpoints);
 
         let txid = self.broadcast_transaction(&tx)?;
 
@@ -479,7 +476,6 @@ mod tests {
             Arc::new(DummyFeeRateEstimator),
             Arc::new(DummyNodeStorage),
             WalletSettings::default(),
-            Network::Bitcoin,
         );
 
         let fee_rate = FeeRate::from_sat_per_vb(10.0);

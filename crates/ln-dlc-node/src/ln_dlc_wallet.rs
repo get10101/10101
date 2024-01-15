@@ -74,7 +74,6 @@ impl<S: TenTenOneStorage, N: Storage> LnDlcWallet<S, N> {
             fee_rate_estimator,
             node_storage,
             settings,
-            network,
         ));
 
         let last_unused_address = wallet
