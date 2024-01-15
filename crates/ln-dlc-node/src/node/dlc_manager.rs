@@ -3,13 +3,12 @@ use crate::ln_dlc_wallet::LnDlcWallet;
 use crate::node::Node;
 use crate::node::Storage;
 use crate::storage::TenTenOneStorage;
-use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
+use bitcoin::hashes::hex::ToHex;
 use bitcoin::secp256k1::PublicKey;
 use dlc_manager::channel::signed_channel::SignedChannel;
 use dlc_manager::channel::signed_channel::SignedChannelState;
-use dlc_manager::channel::Channel;
 use dlc_manager::Storage as DlcStorage;
 use dlc_manager::SystemTimeProvider;
 use ln_dlc_storage::DlcStorageProvider;
@@ -84,20 +83,15 @@ pub fn signed_channel_state_name(signed_channel: &SignedChannel) -> String {
 
 impl<S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 'static> Node<S, N> {
     pub fn get_signed_channel_by_trader_id(&self, trader_id: PublicKey) -> Result<SignedChannel> {
-        let channel = self
-            .get_sub_channel_signed(&trader_id)?
-            .with_context(|| format!("Could not find signed DLC channel. trader_id={trader_id}"))?;
+        let dlc_channels = self.list_dlc_channels()?;
+        let signed_channel = dlc_channels
+            .iter()
+            .find(|channel| channel.counter_party == trader_id)
+            .context(format!(
+                "Could not find a signed dlc channel for trader {:}",
+                trader_id.to_hex()
+            ))?;
 
-        let dlc_channel_id = channel
-            .get_dlc_channel_id(0)
-            .expect("Expect to get dlc_channel id");
-
-        let channel = self.get_sub_channel_by_id(&dlc_channel_id)?;
-        let signed_channel = match channel {
-            Channel::Signed(signed_channel) => signed_channel,
-            _ => bail!("Couldn't find signed channel for trader_id={trader_id}"),
-        };
-
-        Ok(signed_channel)
+        Ok(signed_channel.clone())
     }
 }

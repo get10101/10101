@@ -177,7 +177,7 @@ impl Node {
 
             let (retry_rollover, contract_id) = match position.position_state {
                 PositionState::Rollover => {
-                    self.rollback_channel_if_needed(&mut conn, signed_channel)?
+                    self.rollback_channel_if_needed(&mut conn, &signed_channel)?
                 }
                 PositionState::Open => (false, signed_channel.get_contract_id()),
                 _ => bail!("Unexpected position state {:?}", position.position_state),
@@ -229,7 +229,7 @@ impl Node {
         // As the average entry price does not change with a rollover, we can simply use the traders
         // margin as payout here. The funding rate should be considered here once https://github.com/get10101/10101/issues/1069 gets implemented.
         self.inner
-            .propose_sub_channel_update(dlc_channel_id, rollover.margin_trader, contract_input)
+            .propose_dlc_channel_update(dlc_channel_id, rollover.margin_trader, contract_input)
             .await?;
 
         // Sets the position state to rollover indicating that a rollover is in progress.
@@ -261,14 +261,14 @@ impl Node {
     fn rollback_channel_if_needed(
         &self,
         connection: &mut PgConnection,
-        signed_channel: SignedChannel,
+        signed_channel: &SignedChannel,
     ) -> Result<(bool, Option<ContractId>)> {
-        if is_channel_in_intermediate_state(&signed_channel) {
+        if is_channel_in_intermediate_state(signed_channel) {
             let trader_id = signed_channel.counter_party;
-            let state = ln_dlc_node::node::signed_channel_state_name(&signed_channel);
+            let state = ln_dlc_node::node::signed_channel_state_name(signed_channel);
             tracing::warn!(%trader_id, state, "Found signed channel contract in an intermediate state. Trying to rollback channel to the last stable state!");
             self.inner
-                .rollback_channel(&signed_channel)
+                .rollback_channel(signed_channel)
                 .map_err(|e| anyhow!("{e:#}"))?;
 
             let contract = self
