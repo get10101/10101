@@ -190,6 +190,7 @@ pub enum Fee {
     Priority(ConfirmationTarget),
     /// A fee given by an absolute amount
     Custom(Amount),
+    FeeRate(FeeRate),
 }
 
 #[derive(Debug, Clone, Copy, Deserialize, Serialize)]

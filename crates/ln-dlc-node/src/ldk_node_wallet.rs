@@ -53,6 +53,7 @@ where
     fee_rate_estimator: Arc<F>,
     locked_outpoints: Mutex<Vec<OutPoint>>,
     node_storage: Arc<N>,
+    network: Network,
 }
 
 #[derive(Clone, Debug)]
@@ -83,6 +84,7 @@ where
         fee_rate_estimator: Arc<F>,
         node_storage: Arc<N>,
         settings: WalletSettings,
+        network: Network,
     ) -> Self {
         let inner = Mutex::new(wallet);
         let settings = RwLock::new(settings);
@@ -94,6 +96,7 @@ where
             fee_rate_estimator,
             locked_outpoints: Mutex::new(vec![]),
             node_storage,
+            network,
         }
     }
 
@@ -140,41 +143,14 @@ where
         value_sats: u64,
         fee_rate: FeeRate,
     ) -> Result<Transaction, Error> {
-        let locked_wallet = self.bdk_lock();
-        let mut tx_builder = locked_wallet.build_tx();
-
-        tx_builder
-            .add_recipient(output_script, value_sats)
-            .fee_rate(fee_rate)
-            .enable_rbf();
-
-        let mut locked_outpoints = self.locked_outpoints.lock();
-        for outpoint in locked_outpoints.iter() {
-            tx_builder.add_unspendable(*outpoint);
-        }
-
-        let mut psbt = match tx_builder.finish() {
-            Ok((psbt, _)) => {
-                tracing::trace!("Created funding PSBT: {:?}", psbt);
-                psbt
-            }
-            Err(err) => {
-                tracing::error!("Failed to create funding transaction: {}", err);
-                return Err(err.into());
-            }
-        };
-
-        match locked_wallet.sign(&mut psbt, SignOptions::default()) {
-            Ok(finalized) => {
-                if !finalized {
-                    bail!("Onchain transaction failed");
-                }
-            }
-            Err(err) => {
-                tracing::error!("Failed to create funding transaction: {}", err);
-                return Err(err.into());
-            }
-        }
+        let address = bitcoin::Address::from_script(&output_script, self.network)?;
+        let mut locked_utxos = self.locked_outpoints.lock();
+        let psbt = self.build_psbt(
+            &address,
+            value_sats,
+            Fee::FeeRate(fee_rate),
+            locked_utxos.clone(),
+        )?;
 
         let transaction = psbt.extract_tx();
 
@@ -184,7 +160,7 @@ where
             .map(|input| input.previous_output)
             .collect::<Vec<_>>();
 
-        locked_outpoints.extend(prev_outpoints);
+        locked_utxos.extend(prev_outpoints);
 
         Ok(transaction)
     }
@@ -269,9 +245,14 @@ where
         address: &bitcoin::Address,
         amount_sat_or_drain: u64,
         fee: Fee,
+        locked_utxos: Vec<OutPoint>,
     ) -> Result<PartiallySignedTransaction> {
         let locked_wallet = self.bdk_lock();
         let mut tx_builder = locked_wallet.build_tx();
+
+        for outpoint in locked_utxos.iter() {
+            tx_builder.add_unspendable(*outpoint);
+        }
 
         if amount_sat_or_drain > 0 {
             tx_builder
@@ -286,6 +267,7 @@ where
 
         match fee {
             Fee::Priority(target) => tx_builder.fee_rate(self.fee_rate_estimator.estimate(target)),
+            Fee::FeeRate(fee_rate) => tx_builder.fee_rate(fee_rate),
             Fee::Custom(amt) => tx_builder.fee_absolute(amt.to_sat()),
         };
 
@@ -320,10 +302,12 @@ where
         amount_sat_or_drain: u64,
         confirmation_target: ConfirmationTarget,
     ) -> Result<Amount> {
+        let locked_utxos = self.locked_outpoints.lock();
         let psbt = self.build_psbt(
             address,
             amount_sat_or_drain,
             Fee::Priority(confirmation_target),
+            locked_utxos.clone(),
         );
 
         let fee_sat = match psbt {
@@ -349,9 +333,19 @@ where
         amount_sat_or_drain: u64,
         fee: Fee,
     ) -> Result<Txid> {
+        let mut lcoked_utxos = self.locked_outpoints.lock();
         let tx = self
-            .build_psbt(address, amount_sat_or_drain, fee)?
+            .build_psbt(address, amount_sat_or_drain, fee, lcoked_utxos.clone())?
             .extract_tx();
+
+        let prev_outpoints = tx
+            .input
+            .iter()
+            .map(|input| input.previous_output)
+            .collect::<Vec<_>>();
+
+        lcoked_utxos.extend(prev_outpoints);
+
         let txid = self.broadcast_transaction(&tx)?;
 
         if amount_sat_or_drain > 0 {
@@ -485,6 +479,7 @@ mod tests {
             Arc::new(DummyFeeRateEstimator),
             Arc::new(DummyNodeStorage),
             WalletSettings::default(),
+            Network::Bitcoin,
         );
 
         let fee_rate = FeeRate::from_sat_per_vb(10.0);

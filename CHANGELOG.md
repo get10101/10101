@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Feat: show dlc-channel opening transaction in transaction history
 - Feat: allow force-close a DLC channel
 - Feat: made sure that rollover works with dlc-channels
+- Fix: correctly remember reserved utxos and don't accidentally double spend
 
 ## [1.7.4] - 2023-12-20
 
