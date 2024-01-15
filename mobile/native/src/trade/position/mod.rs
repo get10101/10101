@@ -633,9 +633,10 @@ mod tests {
             order_expiry_timestamp: now,
             reason: OrderReason::Manual,
             stable: true,
+            failure_reason: None,
         };
 
-        let (position, opening_trade) = Position::new_open(order, dlc_collateral, now);
+        let (position, opening_trade) = Position::new_open(order.clone(), dlc_collateral, now);
 
         assert_eq!(position.leverage, 1.0);
         assert_eq!(position.quantity, 25.0);
@@ -693,12 +694,13 @@ mod tests {
             order_expiry_timestamp: now,
             reason: OrderReason::Manual,
             stable: false,
+            failure_reason: None,
         };
 
         // The DLC channel has been closed.
         let dlc_collateral_after_resize = 0;
         let (updated_position, trades) = position
-            .apply_order(order, now, dlc_collateral_after_resize)
+            .apply_order(order.clone(), now, dlc_collateral_after_resize)
             .unwrap();
 
         assert!(updated_position.is_none());
@@ -754,12 +756,13 @@ mod tests {
             order_expiry_timestamp: now,
             reason: OrderReason::Manual,
             stable: false,
+            failure_reason: None,
         };
 
         let dlc_collateral_after_resize = 20_578;
         let (updated_position, trades) = position
             .clone()
-            .apply_order(order, now, dlc_collateral_after_resize)
+            .apply_order(order.clone(), now, dlc_collateral_after_resize)
             .unwrap();
         let updated_position = updated_position.unwrap();
 
@@ -824,12 +827,13 @@ mod tests {
             order_expiry_timestamp: now,
             reason: OrderReason::Manual,
             stable: false,
+            failure_reason: None,
         };
 
         let dlc_collateral_after_resize = 6_855;
         let (updated_position, trades) = position
             .clone()
-            .apply_order(order, now, dlc_collateral_after_resize)
+            .apply_order(order.clone(), now, dlc_collateral_after_resize)
             .unwrap();
         let updated_position = updated_position.unwrap();
 
@@ -900,12 +904,13 @@ mod tests {
             order_expiry_timestamp: now,
             reason: OrderReason::Manual,
             stable: false,
+            failure_reason: None,
         };
 
         let dlc_collateral_after_resize = 13_736;
         let (updated_position, trades) = position
             .clone()
-            .apply_order(order, now, dlc_collateral_after_resize)
+            .apply_order(order.clone(), now, dlc_collateral_after_resize)
             .unwrap();
         let updated_position = updated_position.unwrap();
 

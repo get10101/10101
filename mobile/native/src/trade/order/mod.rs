@@ -20,18 +20,25 @@ pub enum OrderType {
 }
 
 /// Internal type so we still have Copy on order
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum FailureReason {
+    /// An error occurred when setting the Order to filling in our DB
     FailedToSetToFilling,
+    /// The order failed because we failed sending the trade request
     TradeRequest,
-    TradeResponse,
-    NodeAccess,
-    NoUsableChannel,
-    ProposeDlcChannel,
+    /// A failure happened during the initial phase of the protocol. I.e. after sending the trade
+    /// request
+    TradeResponse(String),
+    /// The order failed due to collaboratively reverting the position
+    CollabRevert,
     /// MVP scope: Can only close the order, not reduce or extend
     OrderNotAcceptable,
+    /// The order timed out, i.e. we did not receive a match in time
     TimedOut,
     InvalidDlcOffer(InvalidSubchannelOffer),
+    /// The order has been rejected by the orderbook
+    OrderRejected,
+    Unknown,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -42,7 +49,7 @@ pub enum InvalidSubchannelOffer {
     Unacceptable,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum OrderState {
     /// Not submitted to orderbook yet
     ///
@@ -130,7 +137,7 @@ impl From<commons::OrderReason> for OrderReason {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct Order {
     pub id: Uuid,
     pub leverage: f32,
@@ -143,6 +150,7 @@ pub struct Order {
     pub order_expiry_timestamp: OffsetDateTime,
     pub reason: OrderReason,
     pub stable: bool,
+    pub failure_reason: Option<FailureReason>,
 }
 
 impl Order {

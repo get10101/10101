@@ -37,12 +37,18 @@ pub async fn submit_order(order: Order) -> Result<Uuid> {
     let url = format!("http://{}", config::get_http_endpoint());
     let orderbook_client = OrderbookClient::new(Url::parse(&url)?);
 
-    db::insert_order(order)?;
+    db::insert_order(order.clone())?;
 
-    if let Err(err) = orderbook_client.post_new_order(order.into()).await {
-        let order_id = order.id.to_string();
+    if let Err(err) = orderbook_client.post_new_order(order.clone().into()).await {
+        let order_id = order.id.clone().to_string();
         tracing::error!(order_id, "Failed to post new order. Error: {err:#}");
-        update_order_state_in_db_and_ui(order.id, OrderState::Rejected)?;
+        // TODO(bonomat): map error FailureReason
+        update_order_state_in_db_and_ui(
+            order.id,
+            OrderState::Failed {
+                reason: FailureReason::OrderRejected,
+            },
+        )?;
         if let Err(e) = position::handler::set_position_state(PositionState::Open) {
             bail!("Could not reset position to open because of {e:#}");
         }
@@ -82,8 +88,10 @@ pub(crate) fn order_filling(order_id: Uuid, execution_price: f32) -> Result<()> 
     Ok(())
 }
 
+/// Sets filling order to filled. Returns an error if no order in `Filling`
 pub(crate) fn order_filled() -> Result<Order> {
-    let (order_being_filled, execution_price) = match get_order_in_filling()? {
+    let maybe_order_filling = get_order_in_filling()?;
+    let (order_being_filled, execution_price) = match &maybe_order_filling {
         Some(
             order @ Order {
                 state: OrderState::Filling { execution_price },
@@ -96,7 +104,9 @@ pub(crate) fn order_filled() -> Result<Order> {
 
     let filled_order = update_order_state_in_db_and_ui(
         order_being_filled.id,
-        OrderState::Filled { execution_price },
+        OrderState::Filled {
+            execution_price: *execution_price,
+        },
     )?;
 
     tracing::debug!(order = ?filled_order, "Order filled");
@@ -168,10 +178,10 @@ pub fn check_open_orders() -> Result<()> {
 }
 
 fn update_order_state_in_db_and_ui(order_id: Uuid, state: OrderState) -> Result<Order> {
-    let order = db::update_order_state(order_id, state)
+    let order = db::update_order_state(order_id, state.clone())
         .with_context(|| format!("Failed to update order {order_id} with state {state:?}"))?;
 
-    ui_update(order);
+    ui_update(order.clone());
 
     Ok(order)
 }

@@ -31,6 +31,8 @@ use ln_dlc_node::channel::UserChannelId;
 use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
+use serde::Deserialize;
+use serde::Serialize;
 use std::str::FromStr;
 use time::OffsetDateTime;
 use trade;
@@ -244,7 +246,12 @@ impl TryFrom<Order> for crate::trade::order::Order {
             contract_symbol: value.contract_symbol.into(),
             direction: value.direction.into(),
             order_type: (value.order_type, value.limit_price).try_into()?,
-            state: (value.state, value.execution_price, value.failure_reason).try_into()?,
+            state: (
+                value.state,
+                value.execution_price,
+                value.failure_reason.clone(),
+            )
+                .try_into()?,
             creation_timestamp: OffsetDateTime::from_unix_timestamp(value.creation_timestamp)
                 .expect("unix timestamp to fit in itself"),
             order_expiry_timestamp: OffsetDateTime::from_unix_timestamp(
@@ -253,6 +260,7 @@ impl TryFrom<Order> for crate::trade::order::Order {
             .expect("unix timestamp to fit in itself"),
             reason: value.reason.into(),
             stable: value.stable,
+            failure_reason: value.failure_reason.map(|reason| reason.into()),
         };
 
         Ok(order)
@@ -627,32 +635,30 @@ impl TryFrom<(OrderState, Option<f32>, Option<FailureReason>)> for crate::trade:
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, FromSqlRow, AsExpression)]
+#[derive(Debug, Clone, PartialEq, FromSqlRow, AsExpression, Serialize, Deserialize)]
 #[diesel(sql_type = Text)]
 pub enum FailureReason {
     FailedToSetToFilling,
     TradeRequest,
-    TradeResponse,
-    NodeAccess,
-    NoUsableChannel,
-    ProposeDlcChannel,
+    TradeResponse(String),
+    CollabRevert,
     OrderNotAcceptable,
     TimedOut,
     SubchannelOfferOutdated,
     SubchannelOfferDateUndetermined,
     SubchannelOfferUnacceptable,
+    OrderRejected,
+    Unknown,
 }
 
 impl From<FailureReason> for crate::trade::order::FailureReason {
     fn from(value: FailureReason) -> Self {
         match value {
             FailureReason::TradeRequest => crate::trade::order::FailureReason::TradeRequest,
-            FailureReason::TradeResponse => crate::trade::order::FailureReason::TradeResponse,
-            FailureReason::NodeAccess => crate::trade::order::FailureReason::NodeAccess,
-            FailureReason::NoUsableChannel => crate::trade::order::FailureReason::NoUsableChannel,
-            FailureReason::ProposeDlcChannel => {
-                crate::trade::order::FailureReason::ProposeDlcChannel
+            FailureReason::TradeResponse(details) => {
+                crate::trade::order::FailureReason::TradeResponse(details)
             }
+            FailureReason::CollabRevert => crate::trade::order::FailureReason::CollabRevert,
             FailureReason::FailedToSetToFilling => {
                 crate::trade::order::FailureReason::FailedToSetToFilling
             }
@@ -675,6 +681,8 @@ impl From<FailureReason> for crate::trade::order::FailureReason {
                     InvalidSubchannelOffer::Unacceptable,
                 )
             }
+            FailureReason::OrderRejected => crate::trade::order::FailureReason::OrderRejected,
+            FailureReason::Unknown => crate::trade::order::FailureReason::Unknown,
         }
     }
 }
@@ -683,12 +691,10 @@ impl From<crate::trade::order::FailureReason> for FailureReason {
     fn from(value: crate::trade::order::FailureReason) -> Self {
         match value {
             crate::trade::order::FailureReason::TradeRequest => FailureReason::TradeRequest,
-            crate::trade::order::FailureReason::TradeResponse => FailureReason::TradeResponse,
-            crate::trade::order::FailureReason::NodeAccess => FailureReason::NodeAccess,
-            crate::trade::order::FailureReason::NoUsableChannel => FailureReason::NoUsableChannel,
-            crate::trade::order::FailureReason::ProposeDlcChannel => {
-                FailureReason::ProposeDlcChannel
+            crate::trade::order::FailureReason::TradeResponse(details) => {
+                FailureReason::TradeResponse(details)
             }
+            crate::trade::order::FailureReason::CollabRevert => FailureReason::CollabRevert,
             crate::trade::order::FailureReason::FailedToSetToFilling => {
                 FailureReason::FailedToSetToFilling
             }
@@ -703,6 +709,8 @@ impl From<crate::trade::order::FailureReason> for FailureReason {
                 }
                 InvalidSubchannelOffer::Unacceptable => FailureReason::SubchannelOfferUnacceptable,
             },
+            crate::trade::order::FailureReason::OrderRejected => FailureReason::OrderRejected,
+            crate::trade::order::FailureReason::Unknown => FailureReason::Unknown,
         }
     }
 }
@@ -1503,6 +1511,7 @@ pub mod test {
                 order_expiry_timestamp: expiry_timestamp,
                 reason: crate::trade::order::OrderReason::Manual,
                 stable: false,
+                failure_reason: None,
             }
             .into(),
             &mut connection,
@@ -1523,6 +1532,7 @@ pub mod test {
                 order_expiry_timestamp: expiry_timestamp,
                 reason: crate::trade::order::OrderReason::Manual,
                 stable: false,
+                failure_reason: None,
             }
             .into(),
             &mut connection,
@@ -1592,6 +1602,7 @@ pub mod test {
                 order_expiry_timestamp,
                 reason: crate::trade::order::OrderReason::Manual,
                 stable: false,
+                failure_reason: None,
             }
             .into(),
             &mut connection,
@@ -1615,6 +1626,7 @@ pub mod test {
                 order_expiry_timestamp,
                 reason: crate::trade::order::OrderReason::Manual,
                 stable: false,
+                failure_reason: None,
             }
             .into(),
             &mut connection,

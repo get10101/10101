@@ -897,7 +897,7 @@ fn update_state_after_collab_revert(
             if let Some(order) = db::get_order_in_filling()? {
                 order::handler::order_failed(
                     Some(order.id),
-                    FailureReason::ProposeDlcChannel,
+                    FailureReason::CollabRevert,
                     anyhow!("Order failed due collab revert of the channel"),
                 )?;
             }
@@ -922,9 +922,10 @@ fn update_state_after_collab_revert(
                 order_expiry_timestamp: OffsetDateTime::now_utc(),
                 reason: OrderReason::Expired,
                 stable: position.stable,
+                failure_reason: None,
             };
-            db::insert_order(order)?;
-            event::publish(&EventInternal::OrderUpdateNotification(order));
+            db::insert_order(order.clone())?;
+            event::publish(&EventInternal::OrderUpdateNotification(order.clone()));
             order
         }
     };
@@ -1228,7 +1229,8 @@ pub async fn trade(trade_params: TradeParams) -> Result<(), (FailureReason, Erro
             }
         };
         return Err((
-            FailureReason::TradeResponse,
+            // TODO(bonomat): extract the error message
+            FailureReason::TradeResponse(response_text.clone()),
             anyhow!("Could not post trade to coordinator: {response_text}"),
         ));
     }

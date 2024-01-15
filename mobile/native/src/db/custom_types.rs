@@ -141,19 +141,7 @@ impl FromSql<Text, Sqlite> for Direction {
 
 impl ToSql<Text, Sqlite> for FailureReason {
     fn to_sql(&self, out: &mut Output<Sqlite>) -> serialize::Result {
-        let text = match *self {
-            FailureReason::TradeRequest => "TradeRequest",
-            FailureReason::TradeResponse => "TradeResponse",
-            FailureReason::NodeAccess => "NodeAccess",
-            FailureReason::NoUsableChannel => "NoUsableChannel",
-            FailureReason::ProposeDlcChannel => "ProposeDlcChannel",
-            FailureReason::FailedToSetToFilling => "FailedToSetToFilling",
-            FailureReason::OrderNotAcceptable => "OrderNotAcceptable",
-            FailureReason::TimedOut => "TimedOut",
-            FailureReason::SubchannelOfferOutdated => "SubchannelOfferOutdated",
-            FailureReason::SubchannelOfferDateUndetermined => "SubchannelOfferDateUndetermined",
-            FailureReason::SubchannelOfferUnacceptable => "SubchannelOfferUnacceptable",
-        };
+        let text = serde_json::to_string(self)?;
         out.set_value(text);
         Ok(IsNull::No)
     }
@@ -162,21 +150,10 @@ impl ToSql<Text, Sqlite> for FailureReason {
 impl FromSql<Text, Sqlite> for FailureReason {
     fn from_sql(bytes: backend::RawValue<Sqlite>) -> deserialize::Result<Self> {
         let string = <String as FromSql<Text, Sqlite>>::from_sql(bytes)?;
-
-        return match string.as_str() {
-            "TradeRequest" => Ok(FailureReason::TradeRequest),
-            "TradeResponse" => Ok(FailureReason::TradeResponse),
-            "NodeAccess" => Ok(FailureReason::NodeAccess),
-            "NoUsableChannel" => Ok(FailureReason::NoUsableChannel),
-            "ProposeDlcChannel" => Ok(FailureReason::ProposeDlcChannel),
-            "FailedToSetToFilling" => Ok(FailureReason::FailedToSetToFilling),
-            "OrderNotAcceptable" => Ok(FailureReason::OrderNotAcceptable),
-            "TimedOut" => Ok(FailureReason::TimedOut),
-            "SubchannelOfferOutdated" => Ok(FailureReason::SubchannelOfferOutdated),
-            "SubchannelOfferDateUndetermined" => Ok(FailureReason::SubchannelOfferDateUndetermined),
-            "SubchannelOfferUnacceptable" => Ok(FailureReason::SubchannelOfferUnacceptable),
-            _ => Err("Unrecognized enum variant".into()),
-        };
+        match serde_json::from_str(string.as_str()) {
+            Ok(reason) => Ok(reason),
+            Err(_) => Ok(FailureReason::Unknown),
+        }
     }
 }
 
