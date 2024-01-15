@@ -102,7 +102,7 @@ impl TestSubscriber {
     }
 
     pub fn order(&self) -> Option<Order> {
-        self.order.borrow().as_ref().copied()
+        self.order.borrow().as_ref().cloned()
     }
 
     pub fn order_filled(&self) -> Option<Box<TradeParams>> {
@@ -170,7 +170,7 @@ impl Senders {
                 // Ignore log events for now
             }
             native::event::EventInternal::OrderUpdateNotification(order) => {
-                self.order.send(Some(*order))?;
+                self.order.send(Some(order.clone()))?;
             }
             native::event::EventInternal::WalletInfoUpdateNotification(wallet_info) => {
                 self.wallet_info.send(Some(wallet_info.clone()))?;
