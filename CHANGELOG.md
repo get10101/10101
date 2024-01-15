@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Chore: don't allow multiple dlc-channels per user
 - Feat: show dlc-channel opening transaction in transaction history
 - Feat: allow force-close a DLC channel
+- Feat: made sure that rollover works with dlc-channels
 
 ## [1.7.4] - 2023-12-20
 

@@ -64,7 +64,6 @@ use ln_dlc_node::channel::Channel;
 use ln_dlc_node::channel::UserChannelId;
 use ln_dlc_node::config::app_config;
 use ln_dlc_node::lightning_invoice::Bolt11Invoice;
-use ln_dlc_node::node::rust_dlc_manager;
 use ln_dlc_node::node::rust_dlc_manager::subchannel::LNChannelManager;
 use ln_dlc_node::node::rust_dlc_manager::subchannel::LnDlcChannelSigner;
 use ln_dlc_node::node::rust_dlc_manager::subchannel::LnDlcSignerProvider;
@@ -1242,43 +1241,24 @@ pub async fn trade(trade_params: TradeParams) -> Result<(), (FailureReason, Erro
 pub async fn rollover(contract_id: Option<String>) -> Result<()> {
     let node = state::get_node();
 
-    let dlc_channels = node.inner.dlc_manager.get_store().get_sub_channels()?;
+    let dlc_channels = node.inner.list_dlc_channels()?;
 
     let dlc_channel = dlc_channels
         .into_iter()
-        .find(|chan| {
-            chan.counter_party == config::get_coordinator_info().pubkey
-                && matches!(chan.state, SubChannelState::Signed(_))
-        })
+        .find(|chan| chan.counter_party == config::get_coordinator_info().pubkey)
         .context("Couldn't find dlc channel to rollover")?;
 
-    let dlc_channel_id = dlc_channel
-        .get_dlc_channel_id(0)
-        .context("Couldn't get dlc channel id")?;
+    let dlc_channel_id = dlc_channel.channel_id;
 
-    let channel = node
-        .inner
-        .dlc_manager
-        .get_store()
-        .get_channel(&dlc_channel_id)?;
+    let current_contract_id = dlc_channel.get_contract_id().map(hex::encode);
+    if current_contract_id != contract_id {
+        bail!("Rejecting to rollover a contract that we are not aware of. Expected: {current_contract_id:?}, Got: {contract_id:?}");
+    }
 
-    match channel {
-        Some(rust_dlc_manager::channel::Channel::Signed(signed_channel)) => {
-            let current_contract_id = signed_channel.get_contract_id().map(hex::encode);
-            if current_contract_id != contract_id {
-                bail!("Rejecting to rollover a contract that we are not aware of. Expected: {current_contract_id:?}, Got: {contract_id:?}");
-            }
-        }
-        Some(channel) => {
-            bail!("Found channel in unexpected state. Expected: Signed, Found: {channel:?}");
-        }
-        None => {
-            bail!(
-                "Couldn't find channel by dlc_channel_id: {}",
-                hex::encode(dlc_channel_id)
-            );
-        }
-    };
+    tracing::debug!(
+        channel_id = dlc_channel_id.to_hex(),
+        "Asking coordinator for rolling over DLC channel"
+    );
 
     let client = reqwest_client();
     let response = client

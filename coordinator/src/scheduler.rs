@@ -157,6 +157,10 @@ fn build_rollover_notification_job(
         match db::positions::Position::get_all_open_positions_with_expiry_before(&mut conn, expiry)
         {
             Ok(positions) => Box::pin({
+                tracing::debug!(
+                    nr_of_positions = positions.len(),
+                    "Found positions to rollover"
+                );
                 let notification = notification.clone();
                 let node = node.clone();
                 async move {
