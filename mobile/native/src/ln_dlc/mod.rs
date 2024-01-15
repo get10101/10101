@@ -10,6 +10,7 @@ use crate::commons::reqwest_client;
 use crate::config;
 use crate::config::get_rgs_server_url;
 use crate::db;
+use crate::dlc_handler;
 use crate::event;
 use crate::event::EventInternal;
 use crate::ln_dlc::channel_status::track_channel_status;
@@ -104,6 +105,7 @@ mod sync_position_to_subchannel;
 
 pub mod channel_status;
 
+use crate::dlc_handler::DlcHandler;
 use crate::storage::TenTenOneNodeStorage;
 pub use channel_status::ChannelStatus;
 use ln_dlc_node::node::event::NodeEventHandler;
@@ -321,6 +323,16 @@ pub fn run(seed_dir: String, runtime: &Runtime) -> Result<()> {
             node_event_handler.clone(),
         )?;
         let node = Arc::new(node);
+
+        let dlc_handler = DlcHandler::new(node.clone());
+        runtime.spawn(async move {
+            // this handles sending outbound dlc messages as well as keeping track of what
+            // dlc messages have already been processed and what was the last outbound dlc message
+            // so it can be resend on reconnect.
+            //
+            // this does not handle the incoming dlc messages!
+            dlc_handler::handle_dlc_messages(dlc_handler, node_event_handler.subscribe()).await
+        });
 
         let event_handler = AppEventHandler::new(node.clone(), Some(event_sender));
         let _running = node.start(event_handler, true)?;

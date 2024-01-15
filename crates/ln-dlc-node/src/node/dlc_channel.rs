@@ -1,3 +1,4 @@
+use crate::node::event::NodeEvent;
 use crate::node::Node;
 use crate::node::Storage as LnDlcStorage;
 use crate::storage::TenTenOneStorage;
@@ -57,8 +58,7 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
             let sub_channel_manager = self.sub_channel_manager.clone();
             let oracles = contract_input.contract_infos[0].oracles.clone();
             let event_id = oracles.event_id;
-            let dlc_message_handler = self.dlc_message_handler.clone();
-            let peer_manager = self.peer_manager.clone();
+            let event_handler = self.event_handler.clone();
             move || {
                 let announcements: Vec<_> = p2pd_oracles
                     .into_iter()
@@ -76,12 +76,13 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
                     .offer_channel(&contract_input, counterparty)?;
 
                 let temporary_contract_id = sub_channel_offer.temporary_contract_id;
-                send_dlc_message(
-                    &dlc_message_handler,
-                    &peer_manager,
-                    counterparty,
-                    Message::Channel(ChannelMessage::Offer(sub_channel_offer)),
-                );
+
+                if let Err(e) = event_handler.publish(NodeEvent::SendDlcMessage {
+                    peer: counterparty,
+                    msg: Message::Channel(ChannelMessage::Offer(sub_channel_offer)),
+                }) {
+                    tracing::error!("Failed to publish send dlc message node event! {e:#}");
+                }
 
                 Ok(temporary_contract_id)
             }
@@ -100,19 +101,17 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
         tracing::info!(channel_id = %hex::encode(dlc_channel_id), "Proposing a DLC channel update");
         spawn_blocking({
             let dlc_manager = self.dlc_manager.clone();
-            let dlc_message_handler = self.dlc_message_handler.clone();
-            let peer_manager = self.peer_manager.clone();
             let dlc_channel_id = *dlc_channel_id;
+            let event_handler = self.event_handler.clone();
             move || {
                 let (renew_offer, counterparty_pubkey) =
                     dlc_manager.renew_offer(&dlc_channel_id, payout_amount, &contract_input)?;
 
-                send_dlc_message(
-                    &dlc_message_handler,
-                    &peer_manager,
-                    counterparty_pubkey,
-                    Message::Channel(ChannelMessage::RenewOffer(renew_offer)),
-                );
+                event_handler.publish(NodeEvent::SendDlcMessage {
+                    peer: counterparty_pubkey,
+                    msg: Message::Channel(ChannelMessage::RenewOffer(renew_offer)),
+                })?;
+
                 Ok(())
             }
         })
@@ -148,12 +147,10 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
         let (msg, _channel_id, _contract_id, counter_party) =
             self.dlc_manager.accept_channel(channel_id)?;
 
-        send_dlc_message(
-            &self.dlc_message_handler,
-            &self.peer_manager,
-            counter_party,
-            Message::Channel(ChannelMessage::Accept(msg)),
-        );
+        self.event_handler.publish(NodeEvent::SendDlcMessage {
+            peer: counter_party,
+            msg: Message::Channel(ChannelMessage::Accept(msg)),
+        })?;
 
         Ok(())
     }
@@ -203,8 +200,7 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
             SignedChannelState::Settled { .. } | SignedChannelState::RenewFinalized { .. } => {
                 spawn_blocking({
                     let dlc_manager = self.dlc_manager.clone();
-                    let dlc_message_handler = self.dlc_message_handler.clone();
-                    let peer_manager = self.peer_manager.clone();
+                    let event_handler = self.event_handler.clone();
                     move || {
                         let settle_offer = dlc_manager
                             .offer_collaborative_close(
@@ -215,12 +211,12 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
                                 "Could not propose to collaboratively close the dlc channel.",
                             )?;
 
-                        send_dlc_message(
-                            &dlc_message_handler,
-                            &peer_manager,
-                            counterparty,
-                            Message::Channel(ChannelMessage::CollaborativeCloseOffer(settle_offer)),
-                        );
+                        event_handler.publish(NodeEvent::SendDlcMessage {
+                            peer: counterparty,
+                            msg: Message::Channel(ChannelMessage::CollaborativeCloseOffer(
+                                settle_offer,
+                            )),
+                        })?;
 
                         anyhow::Ok(())
                     }
@@ -252,18 +248,15 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
 
         spawn_blocking({
             let dlc_manager = self.dlc_manager.clone();
-            let dlc_message_handler = self.dlc_message_handler.clone();
-            let peer_manager = self.peer_manager.clone();
+            let event_handler = self.event_handler.clone();
             move || {
                 let (settle_offer, counterparty) =
                     dlc_manager.settle_offer(&channel_id, accept_settlement_amount)?;
 
-                send_dlc_message(
-                    &dlc_message_handler,
-                    &peer_manager,
-                    counterparty,
-                    Message::Channel(ChannelMessage::SettleOffer(settle_offer)),
-                );
+                event_handler.publish(NodeEvent::SendDlcMessage {
+                    peer: counterparty,
+                    msg: Message::Channel(ChannelMessage::SettleOffer(settle_offer)),
+                })?;
 
                 Ok(())
             }
@@ -291,16 +284,12 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
         tracing::info!(channel_id = %channel_id_hex, "Accepting DLC channel collaborative settlement");
 
         let dlc_manager = self.dlc_manager.clone();
-        let dlc_message_handler = self.dlc_message_handler.clone();
-        let peer_manager = self.peer_manager.clone();
         let (settle_offer, counterparty_pk) = dlc_manager.accept_settle_offer(&channel_id)?;
 
-        send_dlc_message(
-            &dlc_message_handler,
-            &peer_manager,
-            counterparty_pk,
-            Message::Channel(ChannelMessage::SettleAccept(settle_offer)),
-        );
+        self.event_handler.publish(NodeEvent::SendDlcMessage {
+            peer: counterparty_pk,
+            msg: Message::Channel(ChannelMessage::SettleAccept(settle_offer)),
+        })?;
 
         Ok(())
     }

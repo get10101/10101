@@ -8,6 +8,7 @@ use tokio::sync::broadcast::Receiver;
 #[derive(Clone, Debug)]
 pub enum NodeEvent {
     Connected { peer: PublicKey },
+    SendDlcMessage { peer: PublicKey, msg: Message },
 }
 
 #[derive(Clone)]

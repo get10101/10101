@@ -1,4 +1,6 @@
 use crate::db::channels::ChannelState;
+use crate::db::dlc_messages::MessageSubType;
+use crate::db::dlc_messages::MessageType;
 use crate::db::payments::HtlcStatus;
 use crate::db::payments::PaymentFlow;
 use crate::db::positions::ContractSymbol;
@@ -7,6 +9,8 @@ use crate::schema::sql_types::ChannelStateType;
 use crate::schema::sql_types::ContractSymbolType;
 use crate::schema::sql_types::DirectionType;
 use crate::schema::sql_types::HtlcStatusType;
+use crate::schema::sql_types::MessageSubTypeType;
+use crate::schema::sql_types::MessageTypeType;
 use crate::schema::sql_types::PaymentFlowType;
 use crate::schema::sql_types::PositionStateType;
 use diesel::deserialize;
@@ -155,6 +159,70 @@ impl FromSql<DirectionType, Pg> for Direction {
         match bytes.as_bytes() {
             b"Long" => Ok(Direction::Long),
             b"Short" => Ok(Direction::Short),
+            _ => Err("Unrecognized enum variant".into()),
+        }
+    }
+}
+
+impl ToSql<MessageTypeType, Pg> for MessageType {
+    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, Pg>) -> serialize::Result {
+        match *self {
+            MessageType::OnChain => out.write_all(b"OnChain")?,
+            MessageType::Channel => out.write_all(b"Channel")?,
+        }
+        Ok(IsNull::No)
+    }
+}
+
+impl FromSql<MessageTypeType, Pg> for MessageType {
+    fn from_sql(bytes: PgValue<'_>) -> deserialize::Result<Self> {
+        match bytes.as_bytes() {
+            b"OnChain" => Ok(MessageType::OnChain),
+            b"Channel" => Ok(MessageType::Channel),
+            _ => Err("Unrecognized enum variant".into()),
+        }
+    }
+}
+
+impl ToSql<MessageSubTypeType, Pg> for MessageSubType {
+    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, Pg>) -> serialize::Result {
+        match *self {
+            MessageSubType::Offer => out.write_all(b"Offer")?,
+            MessageSubType::Accept => out.write_all(b"Accept")?,
+            MessageSubType::Sign => out.write_all(b"Sign")?,
+            MessageSubType::SettleOffer => out.write_all(b"SettleOffer")?,
+            MessageSubType::SettleAccept => out.write_all(b"SettleAccept")?,
+            MessageSubType::SettleConfirm => out.write_all(b"SettleConfirm")?,
+            MessageSubType::SettleFinalize => out.write_all(b"SettleFinalize")?,
+            MessageSubType::RenewOffer => out.write_all(b"RenewOffer")?,
+            MessageSubType::RenewAccept => out.write_all(b"RenewAccept")?,
+            MessageSubType::RenewConfirm => out.write_all(b"RenewConfirm")?,
+            MessageSubType::RenewFinalize => out.write_all(b"RenewFinalize")?,
+            MessageSubType::RenewRevoke => out.write_all(b"RenewRevoke")?,
+            MessageSubType::CollaborativeCloseOffer => out.write_all(b"CollaborativeCloseOffer")?,
+            MessageSubType::Reject => out.write_all(b"Reject")?,
+        }
+        Ok(IsNull::No)
+    }
+}
+
+impl FromSql<MessageSubTypeType, Pg> for MessageSubType {
+    fn from_sql(bytes: PgValue<'_>) -> deserialize::Result<Self> {
+        match bytes.as_bytes() {
+            b"Offer" => Ok(MessageSubType::Offer),
+            b"Accept" => Ok(MessageSubType::Accept),
+            b"Sign" => Ok(MessageSubType::Sign),
+            b"SettleOffer" => Ok(MessageSubType::SettleOffer),
+            b"SettleAccept" => Ok(MessageSubType::SettleAccept),
+            b"SettleConfirm" => Ok(MessageSubType::SettleConfirm),
+            b"SettleFinalize" => Ok(MessageSubType::SettleFinalize),
+            b"RenewOffer" => Ok(MessageSubType::RenewOffer),
+            b"RenewAccept" => Ok(MessageSubType::RenewAccept),
+            b"RenewConfirm" => Ok(MessageSubType::RenewConfirm),
+            b"RenewFinalize" => Ok(MessageSubType::RenewFinalize),
+            b"RenewRevoke" => Ok(MessageSubType::RenewRevoke),
+            b"CollaborativeCloseOffer" => Ok(MessageSubType::CollaborativeCloseOffer),
+            b"Reject" => Ok(MessageSubType::Reject),
             _ => Err("Unrecognized enum variant".into()),
         }
     }

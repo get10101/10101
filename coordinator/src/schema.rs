@@ -22,6 +22,14 @@ pub mod sql_types {
     pub struct MatchStateType;
 
     #[derive(diesel::sql_types::SqlType)]
+    #[diesel(postgres_type(name = "Message_Sub_Type_Type"))]
+    pub struct MessageSubTypeType;
+
+    #[derive(diesel::sql_types::SqlType)]
+    #[diesel(postgres_type(name = "Message_Type_Type"))]
+    pub struct MessageTypeType;
+
+    #[derive(diesel::sql_types::SqlType)]
     #[diesel(postgres_type(name = "OrderReason_Type"))]
     pub struct OrderReasonType;
 
@@ -73,6 +81,30 @@ diesel::table! {
         timestamp -> Timestamptz,
         funding_txid -> Text,
         funding_vout -> Int4,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use super::sql_types::MessageTypeType;
+    use super::sql_types::MessageSubTypeType;
+
+    dlc_messages (message_hash) {
+        message_hash -> Text,
+        inbound -> Bool,
+        peer_id -> Text,
+        message_type -> MessageTypeType,
+        message_sub_type -> MessageSubTypeType,
+        timestamp -> Timestamptz,
+    }
+}
+
+diesel::table! {
+    last_outbound_dlc_messages (peer_id) {
+        peer_id -> Text,
+        message_hash -> Text,
+        message -> Text,
+        timestamp -> Timestamptz,
     }
 }
 
@@ -262,12 +294,15 @@ diesel::table! {
     }
 }
 
+diesel::joinable!(last_outbound_dlc_messages -> dlc_messages (message_hash));
 diesel::joinable!(liquidity_request_logs -> liquidity_options (liquidity_option));
 diesel::joinable!(trades -> positions (position_id));
 
 diesel::allow_tables_to_appear_in_same_query!(
     channels,
     collaborative_reverts,
+    dlc_messages,
+    last_outbound_dlc_messages,
     liquidity_options,
     liquidity_request_logs,
     matches,

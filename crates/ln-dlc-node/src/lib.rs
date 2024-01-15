@@ -34,6 +34,7 @@ mod shadow;
 
 pub mod channel;
 pub mod config;
+pub mod dlc_message;
 pub mod ln;
 pub mod node;
 pub mod scorer;

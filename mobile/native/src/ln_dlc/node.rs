@@ -1,4 +1,5 @@
 use crate::db;
+use crate::dlc_handler::DlcHandler;
 use crate::event;
 use crate::event::BackgroundTask;
 use crate::event::EventInternal;
@@ -150,16 +151,95 @@ impl Node {
         );
 
         let resp = match &msg {
-            Message::OnChain(_) => self
-                .inner
-                .dlc_manager
-                .on_dlc_message(&msg, node_id)
-                .with_context(|| {
-                    format!(
-                        "Failed to handle {} message from {node_id}",
-                        dlc_message_name(&msg)
-                    )
-                })?,
+            Message::OnChain(_) => {
+                let dlc_message_step = {
+                    let mut conn = db::connection()?;
+                    let dlc_message_step =
+                        DlcHandler::start_dlc_message_step(&mut conn, &msg, node_id)?;
+
+                    match dlc_message_step {
+                        Some(dlc_message_step) => dlc_message_step,
+                        None => {
+                            tracing::debug!(%node_id, kind=%dlc_message_name(&msg), "Received message that has already been processed, skipping.");
+                            return Ok(());
+                        }
+                    }
+                };
+
+                let resp = self
+                    .inner
+                    .dlc_manager
+                    .on_dlc_message(&msg, node_id)
+                    .with_context(|| {
+                        format!(
+                            "Failed to handle {} message from {node_id}",
+                            dlc_message_name(&msg)
+                        )
+                    })?;
+
+                {
+                    let mut conn = db::connection()?;
+                    dlc_message_step.finish(&mut conn, &resp)?;
+                }
+
+                resp
+            }
+            Message::Channel(channel_msg) => {
+                let dlc_message_step = {
+                    let mut conn = db::connection()?;
+                    let dlc_message_step =
+                        DlcHandler::start_dlc_message_step(&mut conn, &msg, node_id)?;
+
+                    match dlc_message_step {
+                        Some(dlc_message_step) => dlc_message_step,
+                        None => {
+                            tracing::debug!(%node_id, kind=%dlc_message_name(&msg), "Received message that has already been processed, skipping.");
+                            return Ok(());
+                        }
+                    }
+                };
+
+                let resp = self
+                    .inner
+                    .dlc_manager
+                    .on_dlc_message(&msg, node_id)
+                    .with_context(|| {
+                        format!(
+                            "Failed to handle {} message from {node_id}",
+                            dlc_message_name(&msg)
+                        )
+                    })?;
+
+                match channel_msg {
+                    ChannelMessage::Offer(offer) => {
+                        let action = decide_subchannel_offer_action(
+                            OffsetDateTime::from_unix_timestamp(
+                                offer.contract_info.get_closest_maturity_date() as i64,
+                            )
+                            .expect("A contract should always have a valid maturity timestamp."),
+                        );
+                        self.process_dlc_channel_offer(offer.temporary_channel_id, action)?;
+                    }
+                    ChannelMessage::SettleOffer(offer) => {
+                        self.inner
+                            .accept_dlc_channel_collaborative_settlement(offer.channel_id)
+                            .with_context(|| {
+                                format!(
+                                    "Failed to accept DLC channel close offer for channel {}",
+                                    hex::encode(offer.channel_id)
+                                )
+                            })?;
+                    }
+                    _ => (),
+                }
+
+                {
+                    let mut conn = db::connection()?;
+                    dlc_message_step.finish(&mut conn, &resp)?;
+                }
+
+                resp
+            }
             Message::SubChannel(ref msg) => {
                 let resp = self
                     .inner
@@ -204,42 +284,6 @@ impl Node {
                     _ => (),
                 };
 
-                resp
-            }
-            Message::Channel(channel_msg) => {
-                let resp = self
-                    .inner
-                    .dlc_manager
-                    .on_dlc_message(&msg, node_id)
-                    .with_context(|| {
-                        format!(
-                            "Failed to handle {} message from {node_id}",
-                            dlc_message_name(&msg)
-                        )
-                    })?;
-
-                match channel_msg {
-                    ChannelMessage::Offer(offer) => {
-                        let action = decide_subchannel_offer_action(
-                            OffsetDateTime::from_unix_timestamp(
-                                offer.contract_info.get_closest_maturity_date() as i64,
-                            )
-                            .expect("A contract should always have a valid maturity timestamp."),
-                        );
-                        self.process_dlc_channel_offer(offer.temporary_channel_id, action)?;
-                    }
-                    ChannelMessage::SettleOffer(offer) => {
-                        self.inner
-                            .accept_dlc_channel_collaborative_settlement(offer.channel_id)
-                            .with_context(|| {
-                                format!(
-                                    "Failed to accept DLC channel close offer for channel {}",
-                                    hex::encode(offer.channel_id)
-                                )
-                            })?;
-                    }
-                    _ => (),
-                }
                 resp
             }
         };

@@ -1,5 +1,7 @@
 use crate::config::app_config;
 use crate::config::coordinator_config;
+use crate::node::dlc_channel::send_dlc_message;
+use crate::node::event::NodeEvent;
 use crate::node::event::NodeEventHandler;
 use crate::node::peer_manager::alias_as_bytes;
 use crate::node::GossipSourceConfig;
@@ -205,6 +207,7 @@ impl Node<TenTenOneInMemoryStorage, InMemoryStore> {
 
         let storage = TenTenOneInMemoryStorage::new();
 
+        let event_handler = Arc::new(NodeEventHandler::new());
         let node = Node::new(
             ldk_config,
             scorer::in_memory_scorer,
@@ -223,9 +226,35 @@ impl Node<TenTenOneInMemoryStorage, InMemoryStore> {
             WalletSettings::default(),
             vec![oracle.into()],
             XOnlyPublicKey::from_str(ORACLE_PUBKEY)?,
-            Arc::new(NodeEventHandler::new()),
+            event_handler.clone(),
         )?;
         let node = Arc::new(node);
+
+        tokio::spawn({
+            let mut receiver = event_handler.subscribe();
+            let node = node.clone();
+            async move {
+                loop {
+                    match receiver.recv().await {
+                        Ok(NodeEvent::SendDlcMessage { peer, msg }) => {
+                            send_dlc_message(
+                                &node.dlc_message_handler,
+                                &node.peer_manager,
+                                peer,
+                                msg,
+                            );
+                        }
+                        Ok(NodeEvent::Connected { .. }) => {} // ignored
+                        Err(_) => {
+                            tracing::error!(
+                                "Failed to receive message from node even handler channel."
+                            );
+                            break;
+                        }
+                    }
+                }
+            }
+        });
 
         let event_handler = event_handler_factory(node.clone(), ldk_event_sender);
         let running = node.start(event_handler, false)?;

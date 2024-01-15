@@ -1,6 +1,7 @@
 use crate::compute_relative_contracts;
 use crate::db;
 use crate::decimal_from_f32;
+use crate::dlc_handler::DlcHandler;
 use crate::node::storage::NodeStorage;
 use crate::orderbook::db::matches;
 use crate::orderbook::db::orders;
@@ -599,16 +600,39 @@ impl Node {
         );
 
         let resp = match &msg {
-            Message::OnChain(_) | Message::Channel(_) => self
-                .inner
-                .dlc_manager
-                .on_dlc_message(&msg, node_id)
-                .with_context(|| {
-                    format!(
-                        "Failed to handle {} dlc message from {node_id}",
-                        dlc_message_name(&msg)
-                    )
-                })?,
+            Message::OnChain(_) | Message::Channel(_) => {
+                let dlc_message_step = {
+                    let mut conn = self.pool.get()?;
+                    let dlc_message_step =
+                        DlcHandler::start_dlc_message_step(&mut conn, &msg, node_id)?;
+
+                    match dlc_message_step {
+                        Some(dlc_message_step) => dlc_message_step,
+                        None => {
+                            tracing::debug!(%node_id, kind=%dlc_message_name(&msg), "Received message that has already been processed, skipping.");
+                            return Ok(());
+                        }
+                    }
+                };
+
+                let resp = self
+                    .inner
+                    .dlc_manager
+                    .on_dlc_message(&msg, node_id)
+                    .with_context(|| {
+                        format!(
+                            "Failed to handle {} dlc message from {node_id}",
+                            dlc_message_name(&msg)
+                        )
+                    })?;
+
+                {
+                    let mut conn = self.pool.get()?;
+                    dlc_message_step.finish(&mut conn, &resp)?;
+                }
+
+                resp
+            }
             Message::SubChannel(msg) => self
                 .inner
                 .sub_channel_manager
@@ -625,6 +649,7 @@ impl Node {
         // TODO(holzeis): It would be nice if dlc messages are also propagated via events, so the
         // receiver can decide what events to process and we can skip this component specific logic
         // here.
+        // Note: The NodeEventHandler could be used for that!
         if let Message::Channel(ChannelMessage::RenewFinalize(r)) = &msg {
             self.finalize_rollover(&r.channel_id)?;
         }

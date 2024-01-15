@@ -1,6 +1,8 @@
 pub mod channels;
 pub mod collaborative_reverts;
 pub mod custom_types;
+pub mod dlc_messages;
+pub mod last_outbound_dlc_message;
 pub mod liquidity;
 pub mod liquidity_options;
 pub mod payments;
