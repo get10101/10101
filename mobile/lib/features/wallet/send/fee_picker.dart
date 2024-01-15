@@ -96,8 +96,8 @@ class _FeePickerModalState extends State<_FeePickerModal> {
     super.initState();
     selected = widget.initialSelection;
 
-    if (selected is CustomFee) {
-      _controller.text = (selected as CustomFee).amount.formatted();
+    if (selected is CustomFeeRate) {
+      _controller.text = (selected as CustomFeeRate).amount.formatted();
     }
   }
 
@@ -140,7 +140,7 @@ class _FeePickerModalState extends State<_FeePickerModal> {
   void setCustomValue({String? val}) {
     val = val ?? _controller.text;
     if (validateCustomValue(val) == null) {
-      setValue(CustomFee(amount: Amount.parseAmount(val)));
+      setValue(CustomFeeRate(amount: Amount.parseAmount(val)));
     }
   }
 
@@ -172,7 +172,7 @@ class _FeePickerModalState extends State<_FeePickerModal> {
         const SizedBox(height: 25),
         const Padding(
           padding: EdgeInsets.only(left: 25, bottom: 10),
-          child: Text("Custom", style: TextStyle(color: Colors.grey)),
+          child: Text("Custom (sats/vbyte)", style: TextStyle(color: Colors.grey)),
         ),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 25),
@@ -196,7 +196,7 @@ class _FeePickerModalState extends State<_FeePickerModal> {
                     ),
                     errorMaxLines: 3,
                     suffix: const Text(
-                      "sats",
+                      "sats/vbyte",
                       style: TextStyle(fontSize: 16, color: Color(0xff878787)),
                     )),
                 value: Amount(1)),
@@ -227,6 +227,6 @@ Widget feeWidget(Map<ConfirmationTarget, FeeEstimation>? feeEstimates, Fee fee) 
         null => const SizedBox.square(dimension: 24, child: CircularProgressIndicator()),
         var fee => FeeText(fee: fee),
       },
-    CustomFee() => AmountAndFiatText(amount: (fee).amount),
+    CustomFeeRate() => AmountAndFiatText(amount: (fee).amount),
   };
 }

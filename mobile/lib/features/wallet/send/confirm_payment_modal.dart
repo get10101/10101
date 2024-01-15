@@ -144,7 +144,7 @@ class ConfirmPayment extends StatelessWidget {
                             if (fee != null && fee is PriorityFee)
                               Text("(${(fee as PriorityFee).priority})",
                                   style: const TextStyle(fontSize: 16))
-                            else if (fee != null && fee is CustomFee)
+                            else if (fee != null && fee is CustomFeeRate)
                               const Text("(Custom)", style: TextStyle(fontSize: 16))
                           ],
                         ),

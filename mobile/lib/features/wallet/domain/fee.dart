@@ -19,14 +19,14 @@ class PriorityFee implements Fee {
   rust.Fee toAPI() => rust.Fee_Priority(priority.toAPI());
 }
 
-class CustomFee implements Fee {
+class CustomFeeRate implements Fee {
   final Amount amount;
 
-  CustomFee({required this.amount});
+  CustomFeeRate({required this.amount});
 
   @override
-  String get name => "Custom";
+  String get name => "Custom (sats/vbyte)";
 
   @override
-  rust.Fee toAPI() => rust.Fee_Custom(sats: amount.sats);
+  rust.Fee toAPI() => rust.Fee_FeeRate(sats: amount.sats);
 }

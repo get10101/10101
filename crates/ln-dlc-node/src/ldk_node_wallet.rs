@@ -21,6 +21,7 @@ use bitcoin::psbt::PartiallySignedTransaction;
 use bitcoin::Address;
 use bitcoin::Amount;
 use bitcoin::BlockHash;
+use bitcoin::Network;
 use bitcoin::OutPoint;
 use bitcoin::Script;
 use bitcoin::Transaction;
@@ -260,7 +261,6 @@ where
         match fee {
             Fee::Priority(target) => tx_builder.fee_rate(self.fee_rate_estimator.estimate(target)),
             Fee::FeeRate(fee_rate) => tx_builder.fee_rate(fee_rate),
-            Fee::Custom(amt) => tx_builder.fee_absolute(amt.to_sat()),
         };
 
         let mut psbt = match tx_builder.finish() {

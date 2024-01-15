@@ -1202,7 +1202,7 @@ pub async fn estimate_payment_fee_msat(payment: SendPayment) -> Result<u64> {
                     .inner
                     .calculate_fee(&address, amount, target.into())?
                     .to_sat(),
-                Fee::Custom { sats } => sats,
+                Fee::FeeRate { sats } => sats,
             };
 
             Ok(fee * 1000)
