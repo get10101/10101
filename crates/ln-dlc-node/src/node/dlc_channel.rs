@@ -22,6 +22,7 @@ use dlc_manager::subchannel::SubChannel;
 use dlc_manager::DlcChannelId;
 use dlc_manager::Oracle;
 use dlc_manager::Storage;
+use dlc_messages::channel::Reject;
 use dlc_messages::ChannelMessage;
 use dlc_messages::Message;
 use time::OffsetDateTime;
@@ -122,19 +123,20 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
     pub fn reject_dlc_channel_offer(&self, channel_id: &DlcChannelId) -> Result<()> {
         let channel_id_hex = hex::encode(channel_id);
 
+        let channel = self
+            .dlc_manager
+            .get_store()
+            .get_channel(channel_id)?
+            .with_context(|| format!("Couldn't find channel by id. {}", channel_id.to_hex()))?;
+
         tracing::info!(channel_id = %channel_id_hex, "Rejecting DLC channel offer");
 
-        // TODO: implement reject dlc channel offer
-        // let (node_id, reject) = self
-        //     .sub_channel_manager.get_dlc_manager().rejec
-        //     .reject_sub_channel_offer(*channel_id)?;
-
-        // send_dlc_message(
-        //     &self.dlc_message_handler,
-        //     &self.peer_manager,
-        //     node_id,
-        //     Message::SubChannel(SubChannelMessage::Reject(reject)),
-        // );
+        self.event_handler.publish(NodeEvent::SendDlcMessage {
+            peer: channel.get_counter_party_id(),
+            msg: Message::Channel(ChannelMessage::Reject(Reject {
+                channel_id: channel.get_id(),
+            })),
+        })?;
 
         Ok(())
     }
