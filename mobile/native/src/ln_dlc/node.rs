@@ -193,6 +193,11 @@ impl Node {
                         )
                     })?;
 
+                {
+                    let mut conn = db::connection()?;
+                    db::dlc_messages::DlcMessage::insert(&mut conn, inbound_msg)?;
+                }
+
                 match channel_msg {
                     ChannelMessage::Offer(offer) => {
                         let action = decide_subchannel_offer_action(
@@ -296,11 +301,6 @@ impl Node {
                         ));
                     }
                     _ => (),
-                }
-
-                {
-                    let mut conn = db::connection()?;
-                    db::dlc_messages::DlcMessage::insert(&mut conn, inbound_msg)?;
                 }
 
                 resp
