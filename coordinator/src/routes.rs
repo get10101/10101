@@ -3,6 +3,7 @@ use crate::admin::collaborative_revert;
 use crate::admin::connect_to_peer;
 use crate::admin::expert_collaborative_revert;
 use crate::admin::get_balance;
+use crate::admin::get_utxos;
 use crate::admin::is_connected;
 use crate::admin::list_channels;
 use crate::admin::list_dlc_channels;
@@ -144,6 +145,7 @@ pub fn router(
         .route("/api/rollover/:dlc_channel_id", post(rollover))
         .route("/api/register", post(post_register))
         .route("/api/admin/wallet/balance", get(get_balance))
+        .route("/api/admin/wallet/utxos", get(get_utxos))
         .route("/api/admin/channels", get(list_channels).post(open_channel))
         .route("/api/admin/channels/:channel_id", delete(close_channel))
         .route("/api/admin/peers", get(list_peers))
