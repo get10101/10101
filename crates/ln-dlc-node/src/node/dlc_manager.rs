@@ -83,7 +83,7 @@ pub fn signed_channel_state_name(signed_channel: &SignedChannel) -> String {
 
 impl<S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 'static> Node<S, N> {
     pub fn get_signed_channel_by_trader_id(&self, trader_id: PublicKey) -> Result<SignedChannel> {
-        let dlc_channels = self.list_dlc_channels()?;
+        let dlc_channels = self.list_signed_dlc_channels()?;
         let signed_channel = dlc_channels
             .iter()
             .find(|channel| channel.counter_party == trader_id)

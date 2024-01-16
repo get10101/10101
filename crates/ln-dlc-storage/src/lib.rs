@@ -558,6 +558,15 @@ impl<K: DlcStoreProvider> dlc_manager::Storage for DlcStorageProvider<K> {
 
         Ok(res)
     }
+
+    fn get_channels(&self) -> Result<Vec<Channel>, Error> {
+        self.store
+            .read(CHANNEL, None)
+            .map_err(to_storage_error)?
+            .iter()
+            .map(|c| deserialize_channel(&c.value))
+            .collect()
+    }
 }
 
 impl<K: DlcStoreProvider> WalletStorage for DlcStorageProvider<K> {

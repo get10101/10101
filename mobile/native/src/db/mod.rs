@@ -42,6 +42,8 @@ use time::OffsetDateTime;
 use uuid::Uuid;
 
 mod custom_types;
+pub mod dlc_messages;
+pub mod last_outbound_dlc_messages;
 pub mod models;
 
 pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!();

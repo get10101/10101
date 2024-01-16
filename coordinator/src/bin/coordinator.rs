@@ -3,6 +3,8 @@ use anyhow::Result;
 use bitcoin::XOnlyPublicKey;
 use coordinator::backup::SledBackup;
 use coordinator::cli::Opts;
+use coordinator::dlc_handler;
+use coordinator::dlc_handler::DlcHandler;
 use coordinator::logger;
 use coordinator::message::spawn_delivering_messages_to_authenticated_users;
 use coordinator::message::NewUserMessage;
@@ -28,6 +30,7 @@ use diesel::r2d2;
 use diesel::r2d2::ConnectionManager;
 use diesel::PgConnection;
 use lightning::events::Event;
+use ln_dlc_node::node::event::NodeEventHandler;
 use ln_dlc_node::scorer;
 use ln_dlc_node::seed::Bip39Seed;
 use ln_dlc_node::CoordinatorEventHandler;
@@ -110,6 +113,7 @@ async fn main() -> Result<()> {
 
     let node_storage = Arc::new(NodeStorage::new(pool.clone()));
 
+    let node_event_handler = Arc::new(NodeEventHandler::new());
     let node = Arc::new(ln_dlc_node::node::Node::new(
         ln_dlc_node::config::coordinator_config(),
         scorer::persistent_scorer,
@@ -135,7 +139,12 @@ async fn main() -> Result<()> {
             .map(|o| o.into())
             .collect(),
         XOnlyPublicKey::from_str(&opts.oracle_pubkey).expect("valid public key"),
+        node_event_handler.clone(),
     )?);
+
+    let dlc_handler = DlcHandler::new(pool.clone(), node.clone());
+    let _handle =
+        dlc_handler::spawn_handling_dlc_messages(dlc_handler, node_event_handler.subscribe());
 
     let event_handler = CoordinatorEventHandler::new(node.clone(), Some(node_event_sender));
     let running = node.start(event_handler, false)?;

@@ -4,6 +4,7 @@ use bitcoin::Network;
 use diesel::r2d2;
 use diesel::r2d2::ConnectionManager;
 use diesel::PgConnection;
+use ln_dlc_node::node::event::NodeEventHandler;
 use ln_dlc_node::node::InMemoryStore;
 use ln_dlc_node::seed::Bip39Seed;
 use ln_dlc_node::WalletSettings;
@@ -103,6 +104,7 @@ async fn main() -> Result<()> {
         WalletSettings::default(),
         vec![opts.get_oracle_info().into()],
         opts.get_oracle_info().public_key,
+        Arc::new(NodeEventHandler::new()),
     )?);
 
     let event_handler = EventHandler::new(node.clone());

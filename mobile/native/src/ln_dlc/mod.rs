@@ -10,6 +10,7 @@ use crate::commons::reqwest_client;
 use crate::config;
 use crate::config::get_rgs_server_url;
 use crate::db;
+use crate::dlc_handler;
 use crate::event;
 use crate::event::EventInternal;
 use crate::ln_dlc::channel_status::track_channel_status;
@@ -104,8 +105,10 @@ mod sync_position_to_subchannel;
 
 pub mod channel_status;
 
+use crate::dlc_handler::DlcHandler;
 use crate::storage::TenTenOneNodeStorage;
 pub use channel_status::ChannelStatus;
+use ln_dlc_node::node::event::NodeEventHandler;
 use ln_dlc_node::node::rust_dlc_manager::channel::signed_channel::SignedChannel;
 
 const PROCESS_INCOMING_DLC_MESSAGES_INTERVAL: Duration = Duration::from_millis(200);
@@ -298,6 +301,7 @@ pub fn run(seed_dir: String, runtime: &Runtime) -> Result<()> {
 
         event::subscribe(DBBackupSubscriber::new(storage.clone().client));
 
+        let node_event_handler = Arc::new(NodeEventHandler::new());
         let node = ln_dlc_node::node::Node::new(
             app_config(),
             scorer::in_memory_scorer,
@@ -316,8 +320,19 @@ pub fn run(seed_dir: String, runtime: &Runtime) -> Result<()> {
             WalletSettings::default(),
             vec![config::get_oracle_info().into()],
             config::get_oracle_info().public_key,
+            node_event_handler.clone(),
         )?;
         let node = Arc::new(node);
+
+        let dlc_handler = DlcHandler::new(node.clone());
+        runtime.spawn(async move {
+            // this handles sending outbound dlc messages as well as keeping track of what
+            // dlc messages have already been processed and what was the last outbound dlc message
+            // so it can be resend on reconnect.
+            //
+            // this does not handle the incoming dlc messages!
+            dlc_handler::handle_dlc_messages(dlc_handler, node_event_handler.subscribe()).await
+        });
 
         let event_handler = AppEventHandler::new(node.clone(), Some(event_sender));
         let _running = node.start(event_handler, true)?;
@@ -490,7 +505,7 @@ fn keep_wallet_balance_and_history_up_to_date(node: &Node) -> Result<()> {
     // Get all channel related transactions (channel opening/closing). If we have seen a transaction
     // in the wallet it means the transaction has been published. If so, we remove it from
     // [`on_chain`] and add it as it's own WalletHistoryItem so that it can be displayed nicely.
-    let dlc_channels = node.inner.list_dlc_channels()?;
+    let dlc_channels = node.inner.list_signed_dlc_channels()?;
 
     let dlc_channel_funding_tx_details = on_chain.iter().filter_map(|details| {
         match dlc_channels
@@ -715,7 +730,7 @@ pub async fn close_channel(is_force_close: bool) -> Result<()> {
     tracing::info!(force = is_force_close, "Offering to close a channel");
     let node = state::try_get_node().context("failed to get ln dlc node")?;
 
-    let channels = node.inner.list_dlc_channels()?;
+    let channels = node.inner.list_signed_dlc_channels()?;
     let channel_details = channels.first().context("No channel to close")?;
 
     node.inner
@@ -723,9 +738,9 @@ pub async fn close_channel(is_force_close: bool) -> Result<()> {
         .await
 }
 
-pub fn get_dlc_channels() -> Result<Vec<SignedChannel>> {
+pub fn get_signed_dlc_channels() -> Result<Vec<SignedChannel>> {
     let node = state::try_get_node().context("failed to get ln dlc node")?;
-    node.inner.list_dlc_channels()
+    node.inner.list_signed_dlc_channels()
 }
 
 pub fn get_onchain_balance() -> Result<Balance> {
@@ -1243,7 +1258,7 @@ pub async fn trade(trade_params: TradeParams) -> Result<(), (FailureReason, Erro
 pub async fn rollover(contract_id: Option<String>) -> Result<()> {
     let node = state::get_node();
 
-    let dlc_channels = node.inner.list_dlc_channels()?;
+    let dlc_channels = node.inner.list_signed_dlc_channels()?;
 
     let dlc_channel = dlc_channels
         .into_iter()

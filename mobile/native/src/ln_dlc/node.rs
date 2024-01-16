@@ -17,11 +17,8 @@ use bdk::TransactionDetails;
 use bitcoin::hashes::hex::ToHex;
 use bitcoin::Txid;
 use commons::order_matching_fee_taker;
-use dlc_messages::sub_channel::SubChannelCloseFinalize;
-use dlc_messages::sub_channel::SubChannelRevoke;
 use dlc_messages::ChannelMessage;
 use dlc_messages::Message;
-use dlc_messages::SubChannelMessage;
 use lightning::chain::transaction::OutPoint;
 use lightning::ln::ChannelId;
 use lightning::ln::PaymentHash;
@@ -31,10 +28,12 @@ use lightning::sign::DelayedPaymentOutputDescriptor;
 use lightning::sign::SpendableOutputDescriptor;
 use lightning::sign::StaticPaymentOutputDescriptor;
 use ln_dlc_node::channel::Channel;
+use ln_dlc_node::dlc_message::DlcMessage;
+use ln_dlc_node::dlc_message::SerializedDlcMessage;
 use ln_dlc_node::node;
 use ln_dlc_node::node::dlc_message_name;
+use ln_dlc_node::node::event::NodeEvent;
 use ln_dlc_node::node::rust_dlc_manager::DlcChannelId;
-use ln_dlc_node::node::sub_channel_message_name;
 use ln_dlc_node::node::NodeInfo;
 use ln_dlc_node::node::PaymentDetails;
 use ln_dlc_node::node::RunningNode;
@@ -142,6 +141,21 @@ impl Node {
         }
     }
 
+    /// [`process_dlc_message`] processes incoming dlc channel messages and updates the 10101
+    /// position accordingly.
+    /// - Any other message will be ignored.
+    /// - Any dlc channel message that has already been processed will be skipped.
+    ///
+    /// If an offer is received [`ChannelMessage::Offer`], [`ChannelMessage::SettleOffer`],
+    /// [`ChannelMessage::RenewOffer`] will get automatically accepted. Unless the maturity date of
+    /// the offer is already outdated.
+    ///
+    /// FIXME(holzeis): This function manipulates different data objects in different data sources
+    /// and should use a transaction to make all changes atomic. Not doing so risks of ending up in
+    /// an inconsistent state. One way of fixing that could be to
+    /// (1) use a single data source for the 10101 data and the rust-dlc data.
+    /// (2) wrap the function into a db transaction which can be atomically rolled back on error or
+    /// committed on success.
     fn process_dlc_message(&self, node_id: PublicKey, msg: Message) -> Result<()> {
         tracing::info!(
             from = %node_id,
@@ -150,63 +164,24 @@ impl Node {
         );
 
         let resp = match &msg {
-            Message::OnChain(_) => self
-                .inner
-                .dlc_manager
-                .on_dlc_message(&msg, node_id)
-                .with_context(|| {
-                    format!(
-                        "Failed to handle {} message from {node_id}",
-                        dlc_message_name(&msg)
-                    )
-                })?,
-            Message::SubChannel(ref msg) => {
-                let resp = self
-                    .inner
-                    .sub_channel_manager
-                    .on_sub_channel_message(msg, &node_id)
-                    .with_context(|| {
-                        format!(
-                            "Failed to handle {} message from {node_id}",
-                            sub_channel_message_name(msg)
-                        )
-                    })?
-                    .map(Message::SubChannel);
-
-                // Some incoming messages require extra action from our part for the protocol to
-                // continue
-                match msg {
-                    SubChannelMessage::Offer(offer) => {
-                        // TODO: We should probably verify that: (1) the counterparty is the
-                        // coordinator and (2) the DLC channel offer is expected and correct.
-                        let action = decide_subchannel_offer_action(
-                            OffsetDateTime::from_unix_timestamp(
-                                offer.contract_info.get_closest_maturity_date() as i64,
-                            )
-                            .expect("A contract should always have a valid maturity timestamp."),
-                        );
-                        self.process_subchannel_offer(offer.channel_id, action)?;
-                    }
-                    SubChannelMessage::CloseOffer(offer) => {
-                        let channel_id = offer.channel_id;
-
-                        // TODO: We should probably verify that: (1) the counterparty is the
-                        // coordinator and (2) the DLC channel close offer is expected and correct.
-                        self.inner
-                            .accept_sub_channel_collaborative_settlement(&channel_id)
-                            .with_context(|| {
-                                format!(
-                                    "Failed to accept sub channel close offer for channel {}",
-                                    hex::encode(channel_id.0)
-                                )
-                            })?;
-                    }
-                    _ => (),
-                };
-
-                resp
+            Message::OnChain(_) | Message::SubChannel(_) => {
+                tracing::warn!("Ignoring unexpected dlc message.");
+                None
             }
             Message::Channel(channel_msg) => {
+                let inbound_msg = {
+                    let mut conn = db::connection()?;
+                    let serialized_inbound_message = SerializedDlcMessage::try_from(&msg)?;
+                    let inbound_msg = DlcMessage::new(node_id, serialized_inbound_message, true)?;
+                    match db::dlc_messages::DlcMessage::get(&mut conn, &inbound_msg.message_hash)? {
+                        Some(_) => {
+                            tracing::debug!(%node_id, kind=%dlc_message_name(&msg), "Received message that has already been processed, skipping.");
+                            return Ok(());
+                        }
+                        None => inbound_msg,
+                    }
+                };
+
                 let resp = self
                     .inner
                     .dlc_manager
@@ -238,129 +213,102 @@ impl Node {
                                 )
                             })?;
                     }
+                    ChannelMessage::RenewOffer(r) => {
+                        tracing::info!("Automatically accepting a rollover position");
+                        let (accept_renew_offer, counterparty_pubkey) =
+                            self.inner.dlc_manager.accept_renew_offer(&r.channel_id)?;
+
+                        self.send_dlc_message(
+                            counterparty_pubkey,
+                            Message::Channel(ChannelMessage::RenewAccept(accept_renew_offer)),
+                        )?;
+
+                        let expiry_timestamp = OffsetDateTime::from_unix_timestamp(
+                            r.contract_info.get_closest_maturity_date() as i64,
+                        )?;
+                        position::handler::rollover_position(expiry_timestamp)?;
+                    }
+                    ChannelMessage::RenewRevoke(_) => {
+                        tracing::info!("Finished rollover position");
+                        // After handling the `RenewRevoke` message, we need to do some
+                        // post-processing based on the fact that the DLC
+                        // channel has been updated.
+                        position::handler::set_position_state(PositionState::Open)?;
+
+                        event::publish(&EventInternal::BackgroundNotification(
+                            BackgroundTask::Rollover(TaskStatus::Success),
+                        ));
+                    }
+                    // ignoring all other channel events.
+                    ChannelMessage::Sign(signed) => {
+                        let (accept_collateral, expiry_timestamp) = self
+                            .inner
+                            .get_collateral_and_expiry_for_confirmed_dlc_channel(
+                                signed.channel_id,
+                            )?;
+
+                        let filled_order = order::handler::order_filled()
+                            .context("Cannot mark order as filled for confirmed DLC")?;
+
+                        let execution_price = filled_order
+                            .execution_price()
+                            .expect("filled order to have a price");
+                        let open_position_fee = order_matching_fee_taker(
+                            filled_order.quantity,
+                            Decimal::try_from(execution_price)?,
+                        );
+
+                        position::handler::update_position_after_dlc_creation(
+                            filled_order,
+                            accept_collateral - open_position_fee.to_sat(),
+                            expiry_timestamp,
+                        )
+                        .context("Failed to update position after DLC creation")?;
+
+                        // Sending always a recover dlc background notification success message here
+                        // as we do not know if we might have reached this
+                        // state after a restart. This event is only
+                        // received by the UI at the moment indicating that
+                        // the dialog can be closed. If the dialog is not
+                        // open, this event would be simply ignored by the UI.
+                        //
+                        // FIXME(holzeis): We should not require that event and align the UI
+                        // handling with waiting for an order execution in
+                        // the happy case with waiting for an order
+                        // execution after an in between restart. For now it
+                        // was the easiest to go parallel to
+                        // that implementation so that we don't have to touch it.
+                        event::publish(&EventInternal::BackgroundNotification(
+                            BackgroundTask::RecoverDlc(TaskStatus::Success),
+                        ));
+                    }
+                    ChannelMessage::SettleConfirm(_) => {
+                        tracing::debug!("Position based on DLC channel is being closed");
+
+                        let filled_order = order::handler::order_filled()?;
+
+                        position::handler::update_position_after_dlc_closure(Some(filled_order))
+                            .context("Failed to update position after DLC closure")?;
+
+                        // In case of a restart.
+                        event::publish(&EventInternal::BackgroundNotification(
+                            BackgroundTask::RecoverDlc(TaskStatus::Success),
+                        ));
+                    }
                     _ => (),
                 }
+
+                {
+                    let mut conn = db::connection()?;
+                    db::dlc_messages::DlcMessage::insert(&mut conn, inbound_msg)?;
+                }
+
                 resp
             }
         };
 
-        // TODO(holzeis): It would be nice if dlc messages are also propagated via events, so the
-        // receiver can decide what events to process and we can skip this component specific logic
-        // here.
-        if let Message::Channel(channel_message) = &msg {
-            match channel_message {
-                ChannelMessage::RenewOffer(r) => {
-                    tracing::info!("Automatically accepting a rollover position");
-                    let (accept_renew_offer, counterparty_pubkey) =
-                        self.inner.dlc_manager.accept_renew_offer(&r.channel_id)?;
-
-                    self.send_dlc_message(
-                        counterparty_pubkey,
-                        Message::Channel(ChannelMessage::RenewAccept(accept_renew_offer)),
-                    )?;
-
-                    let expiry_timestamp = OffsetDateTime::from_unix_timestamp(
-                        r.contract_info.get_closest_maturity_date() as i64,
-                    )?;
-                    position::handler::rollover_position(expiry_timestamp)?;
-                }
-                ChannelMessage::RenewRevoke(_) => {
-                    tracing::info!("Finished rollover position");
-                    // After handling the `RenewRevoke` message, we need to do some post-processing
-                    // based on the fact that the DLC channel has been updated.
-                    position::handler::set_position_state(PositionState::Open)?;
-
-                    event::publish(&EventInternal::BackgroundNotification(
-                        BackgroundTask::Rollover(TaskStatus::Success),
-                    ));
-                }
-                // ignoring all other channel events.
-                ChannelMessage::Sign(signed) => {
-                    let (accept_collateral, expiry_timestamp) = self
-                        .inner
-                        .get_collateral_and_expiry_for_confirmed_dlc_channel(signed.channel_id)?;
-
-                    let filled_order = order::handler::order_filled()
-                        .context("Cannot mark order as filled for confirmed DLC")?;
-
-                    let execution_price = filled_order
-                        .execution_price()
-                        .expect("filled order to have a price");
-                    let open_position_fee = order_matching_fee_taker(
-                        filled_order.quantity,
-                        Decimal::try_from(execution_price)?,
-                    );
-
-                    position::handler::update_position_after_dlc_creation(
-                        filled_order,
-                        accept_collateral - open_position_fee.to_sat(),
-                        expiry_timestamp,
-                    )
-                    .context("Failed to update position after DLC creation")?;
-
-                    // Sending always a recover dlc background notification success message here as
-                    // we do not know if we might have reached this state after
-                    // a restart. This event is only received by the UI at the
-                    // moment indicating that the dialog can be closed.
-                    // If the dialog is not open, this event would be simply ignored by the UI.
-                    //
-                    // FIXME(holzeis): We should not require that event and align the UI handling
-                    // with waiting for an order execution in the happy case
-                    // with waiting for an order execution after an in between
-                    // restart. For now it was the easiest to go parallel to
-                    // that implementation so that we don't have to touch it.
-                    event::publish(&EventInternal::BackgroundNotification(
-                        BackgroundTask::RecoverDlc(TaskStatus::Success),
-                    ));
-                }
-                _ => {}
-            }
-        }
-
-        // After handling the `Revoke` message, we need to do some post-processing based on the fact
-        // that the DLC channel has been established
-        if let Message::SubChannel(SubChannelMessage::Revoke(SubChannelRevoke {
-            channel_id, ..
-        })) = msg
-        {
-            let (accept_collateral, expiry_timestamp) = self
-                .inner
-                .get_collateral_and_expiry_for_confirmed_contract(channel_id)?;
-
-            let filled_order = order::handler::order_filled()
-                .context("Cannot mark order as filled for confirmed DLC")?;
-
-            let execution_price = filled_order
-                .execution_price()
-                .expect("filled order to have a price");
-            let open_position_fee = order_matching_fee_taker(
-                filled_order.quantity,
-                Decimal::try_from(execution_price)?,
-            );
-
-            position::handler::update_position_after_dlc_creation(
-                filled_order,
-                accept_collateral - open_position_fee.to_sat(),
-                expiry_timestamp,
-            )
-            .context("Failed to update position after DLC creation")?;
-
-            // Sending always a recover dlc background notification success message here as we do
-            // not know if we might have reached this state after a restart. This event is only
-            // received by the UI at the moment indicating that the dialog can be closed.
-            // If the dialog is not open, this event would be simply ignored by the UI.
-            //
-            // FIXME(holzeis): We should not require that event and align the UI handling with
-            // waiting for an order execution in the happy case with waiting for an
-            // order execution after an in between restart. For now it was the easiest
-            // to go parallel to that implementation so that we don't have to touch it.
-            event::publish(&EventInternal::BackgroundNotification(
-                BackgroundTask::RecoverDlc(TaskStatus::Success),
-            ));
-        }
-
         if let Some(msg) = resp {
-            self.send_dlc_message(node_id, msg)?;
+            self.send_dlc_message(node_id, msg.clone())?;
         }
 
         Ok(())
@@ -490,62 +438,11 @@ impl Node {
         );
 
         self.inner
-            .dlc_message_handler
-            .send_message(node_id, msg.clone());
-
-        if let Message::Channel(ChannelMessage::SettleFinalize(_)) = msg {
-            tracing::debug!("Position based on DLC channel is being closed");
-
-            let filled_order = order::handler::order_filled()?;
-
-            position::handler::update_position_after_dlc_closure(Some(filled_order))
-                .context("Failed to update position after DLC closure")?;
-
-            // In case of a restart.
-            event::publish(&EventInternal::BackgroundNotification(
-                BackgroundTask::RecoverDlc(TaskStatus::Success),
-            ));
-        }
-
-        // After sending the `CloseFinalize` message, we need to do some post-processing based on
-        // the fact that the DLC channel has been closed.
-        if let Message::SubChannel(SubChannelMessage::CloseFinalize(SubChannelCloseFinalize {
-            ..
-        })) = msg
-        {
-            tracing::debug!(
-                "Checking purpose of sending SubChannelCloseFinalize w.r.t. the position"
-            );
-
-            let positions = position::handler::get_positions()?;
-            let position = positions
-                .first()
-                .context("Cannot find position even though we just received a SubChannelMessage")?;
-
-            if position.position_state == PositionState::Resizing {
-                tracing::debug!("Position is being resized");
-            } else {
-                tracing::debug!("Position is being closed");
-
-                let filled_order = order::handler::order_filled()?;
-
-                position::handler::update_position_after_dlc_closure(Some(filled_order))
-                    .context("Failed to update position after DLC closure")?;
-            }
-
-            // Sending always a recover dlc background notification success message here as we do
-            // not know if we might have reached this state after a restart. This event is only
-            // received by the UI at the moment indicating that the dialog can be closed.
-            // If the dialog is not open, this event would be simply ignored by the UI.
-            //
-            // FIXME(holzeis): We should not require that event and align the UI handling with
-            // waiting for an order execution in the happy case with waiting for an
-            // order execution after an in between restart. For now it was the easiest
-            // to go parallel to that implementation so that we don't have to touch it.
-            event::publish(&EventInternal::BackgroundNotification(
-                BackgroundTask::RecoverDlc(TaskStatus::Success),
-            ));
-        };
+            .event_handler
+            .publish(NodeEvent::SendDlcMessage {
+                peer: node_id,
+                msg: msg.clone(),
+            })?;
 
         Ok(())
     }

@@ -18,6 +18,25 @@ diesel::table! {
 }
 
 diesel::table! {
+    dlc_messages (message_hash) {
+        message_hash -> Text,
+        inbound -> Bool,
+        peer_id -> Text,
+        message_type -> Text,
+        timestamp -> BigInt,
+    }
+}
+
+diesel::table! {
+    last_outbound_dlc_messages (peer_id) {
+        peer_id -> Text,
+        message_hash -> Text,
+        message -> Text,
+        timestamp -> BigInt,
+    }
+}
+
+diesel::table! {
     orders (id) {
         id -> Text,
         leverage -> Float,
@@ -104,8 +123,12 @@ diesel::table! {
     }
 }
 
+diesel::joinable!(last_outbound_dlc_messages -> dlc_messages (message_hash));
+
 diesel::allow_tables_to_appear_in_same_query!(
     channels,
+    dlc_messages,
+    last_outbound_dlc_messages,
     orders,
     payments,
     positions,

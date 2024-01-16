@@ -51,7 +51,7 @@ pub async fn fund_app_with_faucet(
 
     tracing::info!(%fund_amount, %fee_sats, "Successfully funded app with faucet");
     assert_eq!(
-        app.rx.wallet_info().unwrap().balances.lightning,
+        app.rx.wallet_info().unwrap().balances.off_chain,
         fund_amount - fee_sats
     );
 

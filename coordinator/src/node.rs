@@ -33,14 +33,14 @@ use dlc_manager::ContractId;
 use dlc_manager::DlcChannelId;
 use dlc_messages::ChannelMessage;
 use dlc_messages::Message;
-use dlc_messages::SubChannelMessage;
 use lightning::ln::channelmanager::ChannelDetails;
 use lightning::ln::ChannelId;
 use lightning::util::config::UserConfig;
+use ln_dlc_node::dlc_message::DlcMessage;
+use ln_dlc_node::dlc_message::SerializedDlcMessage;
 use ln_dlc_node::node;
 use ln_dlc_node::node::dlc_message_name;
-use ln_dlc_node::node::send_sub_channel_message;
-use ln_dlc_node::node::sub_channel_message_name;
+use ln_dlc_node::node::event::NodeEvent;
 use ln_dlc_node::node::RunningNode;
 use ln_dlc_node::WalletSettings;
 use rust_decimal::prelude::ToPrimitive;
@@ -591,6 +591,21 @@ impl Node {
         }
     }
 
+    /// [`process_dlc_message`] processes incoming dlc channel messages and updates the 10101
+    /// position accordingly.
+    /// - Any other message will be ignored.
+    /// - Any dlc channel message that has already been processed will be skipped.
+    ///
+    /// If an offer is received [`ChannelMessage::Offer`], [`ChannelMessage::SettleOffer`],
+    /// [`ChannelMessage::CollaborativeCloseOffer`] [`ChannelMessage::RenewOffer`] will get
+    /// automatically accepted. Unless the maturity date of the offer is already outdated.
+    ///
+    /// FIXME(holzeis): This function manipulates different data objects in different data sources
+    /// and should use a transaction to make all changes atomic. Not doing so risks of ending up in
+    /// an inconsistent state. One way of fixing that could be to
+    /// (1) use a single data source for the 10101 data and the rust-dlc data.
+    /// (2) wrap the function into a db transaction which can be atomically rolled back on error or
+    /// committed on success.
     fn process_dlc_message(&self, node_id: PublicKey, msg: Message) -> Result<()> {
         tracing::info!(
             from = %node_id,
@@ -599,177 +614,102 @@ impl Node {
         );
 
         let resp = match &msg {
-            Message::OnChain(_) | Message::Channel(_) => self
-                .inner
-                .dlc_manager
-                .on_dlc_message(&msg, node_id)
-                .with_context(|| {
-                    format!(
-                        "Failed to handle {} dlc message from {node_id}",
-                        dlc_message_name(&msg)
-                    )
-                })?,
-            Message::SubChannel(msg) => self
-                .inner
-                .sub_channel_manager
-                .on_sub_channel_message(msg, &node_id)
-                .with_context(|| {
-                    format!(
-                        "Failed to handle {} message from {node_id}",
-                        sub_channel_message_name(msg)
-                    )
-                })?
-                .map(Message::SubChannel),
-        };
-
-        // TODO(holzeis): It would be nice if dlc messages are also propagated via events, so the
-        // receiver can decide what events to process and we can skip this component specific logic
-        // here.
-        if let Message::Channel(ChannelMessage::RenewFinalize(r)) = &msg {
-            self.finalize_rollover(&r.channel_id)?;
-        }
-
-        if let Message::SubChannel(SubChannelMessage::Finalize(finalize)) = &msg {
-            let channel_id_hex_string = finalize.channel_id.to_hex();
-            tracing::info!(
-                channel_id = channel_id_hex_string,
-                node_id = node_id.to_string(),
-                "Subchannel open protocol was finalized"
-            );
-            let mut connection = self.pool.get()?;
-            db::positions::Position::update_proposed_position(
-                &mut connection,
-                node_id.to_string(),
-                PositionState::Open,
-            )?;
-        }
-
-        if let Some(Message::Channel(ChannelMessage::Sign(sign_channel))) = &resp {
-            let channel_id_hex_string = sign_channel.channel_id.to_hex();
-            tracing::info!(
-                channel_id = channel_id_hex_string,
-                node_id = node_id.to_string(),
-                "DLC channel open protocol was finalized"
-            );
-            let mut connection = self.pool.get()?;
-            db::positions::Position::update_proposed_position(
-                &mut connection,
-                node_id.to_string(),
-                PositionState::Open,
-            )?;
-        }
-
-        if let Message::Channel(ChannelMessage::SettleFinalize(settle_finalize)) = &msg {
-            let channel_id_hex_string = settle_finalize.channel_id.to_hex();
-            tracing::info!(
-                channel_id = channel_id_hex_string,
-                node_id = node_id.to_string(),
-                "DLC channel settle protocol was finalized"
-            );
-            let mut connection = self.pool.get()?;
-
-            match db::positions::Position::get_position_by_trader(
-                &mut connection,
-                node_id,
-                vec![
-                    // The price doesn't matter here.
-                    PositionState::Closing { closing_price: 0.0 },
-                ],
-            )? {
-                None => {
-                    tracing::error!(
-                        channel_id = channel_id_hex_string,
-                        "No position in Closing state found"
-                    );
-                }
-                Some(position) => {
-                    self.finalize_closing_position(&mut connection, position)?;
-                }
+            Message::OnChain(_) | Message::SubChannel(_) => {
+                tracing::warn!(from = %node_id, kind = %dlc_message_name(&msg),"Ignoring unexpected dlc message.");
+                None
             }
-        }
-
-        if let Message::Channel(ChannelMessage::CollaborativeCloseOffer(close_offer)) = &msg {
-            let channel_id_hex_string = close_offer.channel_id.to_hex();
-            tracing::info!(
-                channel_id = channel_id_hex_string,
-                node_id = node_id.to_string(),
-                "Received an offer to collaboratively close a channel"
-            );
-
-            // TODO(bonomat): we should verify that the proposed amount is acceptable
-            self.inner
-                .accept_dlc_channel_collaborative_close(close_offer.channel_id)?;
-        }
-
-        if let Message::SubChannel(SubChannelMessage::CloseFinalize(msg)) = &msg {
-            let mut connection = self.pool.get()?;
-            match db::positions::Position::get_position_by_trader(
-                &mut connection,
-                node_id,
-                vec![
-                    // the price doesn't matter here
-                    PositionState::Closing { closing_price: 0.0 },
-                    PositionState::Resizing,
-                ],
-            )? {
-                None => {
-                    tracing::warn!(
-                        channel_id = msg.channel_id.to_hex(),
-                        "No position found to finalize"
-                    );
-                }
-                Some(position) => match position.position_state {
-                    PositionState::Closing { .. } => {
-                        self.finalize_closing_position(&mut connection, position)?;
-                    }
-                    PositionState::Resizing => {
-                        self.continue_position_resizing(node_id, position)?;
-                    }
-                    state => {
-                        // this should never happen because we are only loading specific states
-                        tracing::error!(
-                            channel_id = msg.channel_id.to_hex(),
-                            position_id = position.id,
-                            position_state = ?state,
-                            "Position was in unexpected state when trying to finalize the subchannel"
-                        );
-                    }
-                },
-            }
-        }
-
-        if let Message::SubChannel(SubChannelMessage::Reject(reject)) = &msg {
-            let channel_id_hex = reject.channel_id.to_hex();
-            tracing::warn!(channel_id = channel_id_hex, "Subchannel offer was rejected");
-            let mut connection = self.pool.get()?;
-            match db::positions::Position::get_position_by_trader(
-                &mut connection,
-                node_id,
-                vec![
-                    PositionState::Proposed,
-                    PositionState::ResizeOpeningSubchannelProposed,
-                ],
-            )? {
-                None => {
-                    tracing::warn!("No position found to be updated")
-                }
-                Some(position) => {
-                    let updated_state = match position.position_state {
-                        PositionState::Proposed => PositionState::Failed,
-                        PositionState::ResizeOpeningSubchannelProposed => PositionState::Open,
-                        state => {
-                            // This should not happen because we only load these two states above
-                            bail!("Position was in unexpected state {state:?}.");
+            Message::Channel(channel_msg) => {
+                let inbound_msg = {
+                    let mut conn = self.pool.get()?;
+                    let serialized_inbound_message = SerializedDlcMessage::try_from(&msg)?;
+                    let inbound_msg = DlcMessage::new(node_id, serialized_inbound_message, true)?;
+                    match db::dlc_messages::get(&mut conn, &inbound_msg.message_hash)? {
+                        Some(_) => {
+                            tracing::debug!(%node_id, kind=%dlc_message_name(&msg), "Received message that has already been processed, skipping.");
+                            return Ok(());
                         }
-                    };
-                    db::positions::Position::update_proposed_position(
-                        &mut connection,
-                        node_id.to_string(),
-                        updated_state,
-                    )?;
+                        None => inbound_msg,
+                    }
+                };
+
+                let resp = self
+                    .inner
+                    .dlc_manager
+                    .on_dlc_message(&msg, node_id)
+                    .with_context(|| {
+                        format!(
+                            "Failed to handle {} dlc message from {node_id}",
+                            dlc_message_name(&msg)
+                        )
+                    })?;
+
+                {
+                    let mut conn = self.pool.get()?;
+                    db::dlc_messages::insert(&mut conn, inbound_msg)?;
                 }
+
+                match channel_msg {
+                    ChannelMessage::RenewFinalize(r) => self.finalize_rollover(&r.channel_id)?,
+                    ChannelMessage::SettleFinalize(settle_finalize) => {
+                        let channel_id_hex_string = settle_finalize.channel_id.to_hex();
+                        tracing::info!(
+                            channel_id = channel_id_hex_string,
+                            node_id = node_id.to_string(),
+                            "DLC channel settle protocol was finalized"
+                        );
+                        let mut connection = self.pool.get()?;
+
+                        match db::positions::Position::get_position_by_trader(
+                            &mut connection,
+                            node_id,
+                            vec![
+                                // The price doesn't matter here.
+                                PositionState::Closing { closing_price: 0.0 },
+                            ],
+                        )? {
+                            None => {
+                                tracing::error!(
+                                    channel_id = channel_id_hex_string,
+                                    "No position in Closing state found"
+                                );
+                            }
+                            Some(position) => {
+                                self.finalize_closing_position(&mut connection, position)?;
+                            }
+                        }
+                    }
+                    ChannelMessage::CollaborativeCloseOffer(close_offer) => {
+                        let channel_id_hex_string = close_offer.channel_id.to_hex();
+                        tracing::info!(
+                            channel_id = channel_id_hex_string,
+                            node_id = node_id.to_string(),
+                            "Received an offer to collaboratively close a channel"
+                        );
+
+                        // TODO(bonomat): we should verify that the proposed amount is acceptable
+                        self.inner
+                            .accept_dlc_channel_collaborative_close(close_offer.channel_id)?;
+                    }
+                    ChannelMessage::Accept(accept_channel) => {
+                        let channel_id_hex_string = accept_channel.temporary_channel_id.to_hex();
+                        tracing::info!(
+                            channel_id = channel_id_hex_string,
+                            node_id = node_id.to_string(),
+                            "DLC channel open protocol was accepted"
+                        );
+                        let mut connection = self.pool.get()?;
+                        db::positions::Position::update_proposed_position(
+                            &mut connection,
+                            node_id.to_string(),
+                            PositionState::Open,
+                        )?;
+                    }
+                    _ => {}
+                };
+
+                resp
             }
-        }
+        };
 
         if let Some(msg) = resp {
             tracing::info!(
@@ -778,12 +718,9 @@ impl Node {
                 "Sending message"
             );
 
-            send_sub_channel_message(
-                &self.inner.dlc_message_handler,
-                &self.inner.peer_manager,
-                node_id,
-                msg,
-            );
+            self.inner
+                .event_handler
+                .publish(NodeEvent::SendDlcMessage { peer: node_id, msg })?;
         }
 
         Ok(())

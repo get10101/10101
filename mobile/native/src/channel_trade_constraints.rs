@@ -21,7 +21,7 @@ pub fn channel_trade_constraints() -> Result<TradeConstraints> {
         .context("we need at least one liquidity option")?;
     let coordinator_leverage = option.coordinator_leverage;
 
-    let dlc_channels = ln_dlc::get_dlc_channels()?;
+    let dlc_channels = ln_dlc::get_signed_dlc_channels()?;
 
     let maybe_channel = dlc_channels.first();
 

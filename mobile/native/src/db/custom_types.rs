@@ -1,3 +1,4 @@
+use crate::db::dlc_messages::MessageType;
 use crate::db::models::ChannelState;
 use crate::db::models::ContractSymbol;
 use crate::db::models::Direction;
@@ -260,6 +261,53 @@ impl FromSql<Text, Sqlite> for ChannelState {
             "Closed" => Ok(ChannelState::Closed),
             "ForceClosedRemote" => Ok(ChannelState::ForceClosedRemote),
             "ForceClosedLocal" => Ok(ChannelState::ForceClosedLocal),
+            _ => Err("Unrecognized enum variant".into()),
+        };
+    }
+}
+
+impl ToSql<Text, Sqlite> for MessageType {
+    fn to_sql(&self, out: &mut Output<Sqlite>) -> serialize::Result {
+        let text = match *self {
+            MessageType::Offer => "Offer",
+            MessageType::Accept => "Accept",
+            MessageType::Sign => "Sign",
+            MessageType::SettleOffer => "SettleOffer",
+            MessageType::SettleAccept => "SettleAccept",
+            MessageType::SettleConfirm => "SettleConfirm",
+            MessageType::SettleFinalize => "SettleFinalize",
+            MessageType::RenewOffer => "RenewOffer",
+            MessageType::RenewAccept => "RenewAccept",
+            MessageType::RenewConfirm => "RenewConfirm",
+            MessageType::RenewFinalize => "RenewFinalize",
+            MessageType::RenewRevoke => "RenewRevoke",
+            MessageType::CollaborativeCloseOffer => "CollaborativeCloseOffer",
+            MessageType::Reject => "Reject",
+        };
+        out.set_value(text);
+        Ok(IsNull::No)
+    }
+}
+
+impl FromSql<Text, Sqlite> for MessageType {
+    fn from_sql(bytes: backend::RawValue<Sqlite>) -> deserialize::Result<Self> {
+        let string = <String as FromSql<Text, Sqlite>>::from_sql(bytes)?;
+
+        return match string.as_str() {
+            "Offer" => Ok(MessageType::Offer),
+            "Accept" => Ok(MessageType::Accept),
+            "Sign" => Ok(MessageType::Sign),
+            "SettleOffer" => Ok(MessageType::SettleOffer),
+            "SettleAccept" => Ok(MessageType::SettleAccept),
+            "SettleConfirm" => Ok(MessageType::SettleConfirm),
+            "SettleFinalize" => Ok(MessageType::SettleFinalize),
+            "RenewOffer" => Ok(MessageType::RenewOffer),
+            "RenewAccept" => Ok(MessageType::RenewAccept),
+            "RenewConfirm" => Ok(MessageType::RenewConfirm),
+            "RenewFinalize" => Ok(MessageType::RenewFinalize),
+            "RenewRevoke" => Ok(MessageType::RenewRevoke),
+            "CollaborativeCloseOffer" => Ok(MessageType::CollaborativeCloseOffer),
+            "Reject" => Ok(MessageType::Reject),
             _ => Err("Unrecognized enum variant".into()),
         };
     }
