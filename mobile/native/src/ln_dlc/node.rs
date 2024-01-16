@@ -205,7 +205,7 @@ impl Node {
                     }
                     ChannelMessage::SettleOffer(offer) => {
                         self.inner
-                            .accept_dlc_channel_collaborative_settlement(offer.channel_id)
+                            .accept_dlc_channel_collaborative_settlement(&offer.channel_id)
                             .with_context(|| {
                                 format!(
                                     "Failed to accept DLC channel close offer for channel {}",

@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Feat: made sure that rollover works with dlc-channels
 - Fix: correctly remember reserved utxos and don't accidentally double spend
 - Feat: Allow recovering from a stuck protocol state by resending last outbound dlc message on connect
+- Feat: Allow continuing from an offered dlc channel state (offered, settle offered and collab close offered)
 
 ## [1.7.4] - 2023-12-20
 

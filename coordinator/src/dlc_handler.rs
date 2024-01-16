@@ -6,6 +6,9 @@ use bitcoin::secp256k1::PublicKey;
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::Pool;
 use diesel::PgConnection;
+use dlc_manager::channel::signed_channel::SignedChannel;
+use dlc_manager::channel::signed_channel::SignedChannelState;
+use dlc_manager::channel::Channel;
 use dlc_messages::Message;
 use futures::future::RemoteHandle;
 use futures::FutureExt;
@@ -99,10 +102,24 @@ impl DlcHandler {
     }
 
     pub fn on_connect(&self, peer: PublicKey) -> Result<()> {
-        tracing::debug!(%peer, "Connected to peer, resending last dlc message!");
+        if let Some(Channel::Signed(SignedChannel {
+            channel_id,
+            state: SignedChannelState::CollaborativeCloseOffered { .. },
+            ..
+        })) = self.node.list_dlc_channels()?.first()
+        {
+            tracing::info!("Accepting pending dlc channel close offer.");
+            // Pending dlc channel close offer with the intend to close the dlc channel
+            // on-chain
+
+            // TODO(bonomat): we should verify that the proposed amount is acceptable
+            self.node
+                .accept_dlc_channel_collaborative_close(channel_id)?;
+
+            return Ok(());
+        }
 
         let mut conn = self.pool.get()?;
-
         let last_serialized_message = db::last_outbound_dlc_message::get(&mut conn, &peer)?;
 
         if let Some(last_serialized_message) = last_serialized_message {
