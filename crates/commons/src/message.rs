@@ -5,7 +5,6 @@ use crate::LiquidityOption;
 use anyhow::Result;
 use bitcoin::Address;
 use bitcoin::Amount;
-use bitcoin::OutPoint;
 use rust_decimal::Decimal;
 use secp256k1::PublicKey;
 use serde::Deserialize;
@@ -15,6 +14,7 @@ use tokio_tungstenite::tungstenite;
 use uuid::Uuid;
 
 pub type ChannelId = [u8; 32];
+pub type DlcChannelId = [u8; 32];
 
 #[derive(Serialize, Clone, Deserialize, Debug)]
 pub enum Message {
@@ -35,7 +35,7 @@ pub enum Message {
     },
     Rollover(Option<String>),
     CollaborativeRevert {
-        channel_id: ChannelId,
+        channel_id: DlcChannelId,
         coordinator_address: Address,
         #[serde(with = "bitcoin::util::amount::serde::as_sat")]
         coordinator_amount: Amount,
@@ -43,7 +43,6 @@ pub enum Message {
         trader_amount: Amount,
         #[serde(with = "rust_decimal::serde::float")]
         execution_price: Decimal,
-        funding_txo: OutPoint,
     },
 }
 

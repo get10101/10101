@@ -1,15 +1,13 @@
-use crate::parse_channel_id;
+use crate::parse_dlc_channel_id;
 use crate::position;
 use crate::schema::collaborative_reverts;
 use anyhow::ensure;
-use anyhow::Context;
 use anyhow::Result;
 use bitcoin::hashes::hex::ToHex;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::Address;
 use bitcoin::Amount;
 use bitcoin::Denomination;
-use bitcoin::Txid;
 use diesel::prelude::*;
 use diesel::AsChangeset;
 use diesel::Insertable;
@@ -17,7 +15,10 @@ use diesel::OptionalExtension;
 use diesel::PgConnection;
 use diesel::Queryable;
 use diesel::RunQueryDsl;
-use lightning::ln::ChannelId;
+use dlc_manager::DlcChannelId;
+use rust_decimal::prelude::FromPrimitive;
+use rust_decimal::prelude::ToPrimitive;
+use rust_decimal::Decimal;
 use std::str::FromStr;
 use time::OffsetDateTime;
 
@@ -32,8 +33,6 @@ pub(crate) struct CollaborativeRevert {
     coordinator_amount_sats: i64,
     trader_amount_sats: i64,
     timestamp: OffsetDateTime,
-    funding_txid: String,
-    funding_vout: i32,
 }
 
 #[derive(Insertable, Queryable, AsChangeset, Debug, Clone, PartialEq)]
@@ -46,8 +45,6 @@ pub(crate) struct NewCollaborativeRevert {
     coordinator_amount_sats: i64,
     trader_amount_sats: i64,
     timestamp: OffsetDateTime,
-    funding_txid: String,
-    funding_vout: i32,
 }
 
 pub(crate) fn by_trader_pubkey(
@@ -68,9 +65,9 @@ pub(crate) fn by_trader_pubkey(
 
 pub(crate) fn get_by_channel_id(
     conn: &mut PgConnection,
-    channel_id: &ChannelId,
+    channel_id: &DlcChannelId,
 ) -> Result<Option<position::models::CollaborativeRevert>> {
-    let channel_id = channel_id.0.to_hex();
+    let channel_id = channel_id.to_hex();
 
     collaborative_reverts::table
         .filter(collaborative_reverts::channel_id.eq(channel_id))
@@ -94,7 +91,7 @@ pub(crate) fn insert(
     Ok(())
 }
 
-pub(crate) fn delete(conn: &mut PgConnection, channel_id: ChannelId) -> Result<()> {
+pub(crate) fn delete(conn: &mut PgConnection, channel_id: DlcChannelId) -> Result<()> {
     diesel::delete(collaborative_reverts::table)
         .filter(collaborative_reverts::channel_id.eq(channel_id.to_hex()))
         .execute(conn)?;
@@ -105,15 +102,13 @@ pub(crate) fn delete(conn: &mut PgConnection, channel_id: ChannelId) -> Result<(
 impl From<position::models::CollaborativeRevert> for NewCollaborativeRevert {
     fn from(value: position::models::CollaborativeRevert) -> Self {
         NewCollaborativeRevert {
-            channel_id: value.channel_id.0.to_hex(),
+            channel_id: value.channel_id.to_hex(),
             trader_pubkey: value.trader_pubkey.to_string(),
-            price: value.price,
+            price: value.price.to_f32().expect("to be valid f32"),
             coordinator_address: value.coordinator_address.to_string(),
             coordinator_amount_sats: value.coordinator_amount_sats.to_sat() as i64,
             trader_amount_sats: value.trader_amount_sats.to_sat() as i64,
             timestamp: value.timestamp,
-            funding_txid: value.txid.to_string(),
-            funding_vout: value.vout as i32,
         }
     }
 }
@@ -123,9 +118,9 @@ impl TryFrom<CollaborativeRevert> for position::models::CollaborativeRevert {
 
     fn try_from(value: CollaborativeRevert) -> std::result::Result<Self, Self::Error> {
         Ok(position::models::CollaborativeRevert {
-            channel_id: parse_channel_id(value.channel_id.as_str())?,
+            channel_id: parse_dlc_channel_id(value.channel_id.as_str())?,
             trader_pubkey: PublicKey::from_str(value.trader_pubkey.as_str())?,
-            price: value.price,
+            price: Decimal::from_f32(value.price).expect("to be valid decimal"),
             coordinator_address: Address::from_str(value.coordinator_address.as_str())?,
             coordinator_amount_sats: Amount::from_str_in(
                 value.coordinator_amount_sats.to_string().as_str(),
@@ -136,8 +131,6 @@ impl TryFrom<CollaborativeRevert> for position::models::CollaborativeRevert {
                 Denomination::Satoshi,
             )?,
             timestamp: value.timestamp,
-            txid: Txid::from_str(&value.funding_txid).context("To have valid txid")?,
-            vout: value.funding_vout as u32,
         })
     }
 }

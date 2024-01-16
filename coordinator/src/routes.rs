@@ -27,7 +27,7 @@ use crate::orderbook::routes::post_order;
 use crate::orderbook::routes::put_order;
 use crate::orderbook::routes::websocket_handler;
 use crate::orderbook::trading::NewOrderMessage;
-use crate::parse_channel_id;
+use crate::parse_dlc_channel_id;
 use crate::settings::Settings;
 use crate::settings::SettingsFile;
 use crate::AppError;
@@ -508,7 +508,7 @@ pub async fn collaborative_revert_confirm(
     })?;
 
     let channel_id_string = revert_params.channel_id.clone();
-    let channel_id = parse_channel_id(channel_id_string.as_str()).map_err(|error| {
+    let channel_id = parse_dlc_channel_id(channel_id_string.as_str()).map_err(|error| {
         tracing::error!(
             channel_id = channel_id_string,
             "Invalid channel id provided. {error:#}"

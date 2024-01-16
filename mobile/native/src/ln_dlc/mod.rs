@@ -11,6 +11,7 @@ use crate::config;
 use crate::config::get_rgs_server_url;
 use crate::db;
 use crate::dlc_handler;
+use crate::dlc_handler::DlcHandler;
 use crate::event;
 use crate::event::EventInternal;
 use crate::ln_dlc::channel_status::track_channel_status;
@@ -18,6 +19,7 @@ use crate::ln_dlc::node::Node;
 use crate::ln_dlc::node::NodeStorage;
 use crate::ln_dlc::node::WalletHistories;
 use crate::state;
+use crate::storage::TenTenOneNodeStorage;
 use crate::trade::order;
 use crate::trade::order::FailureReason;
 use crate::trade::order::Order;
@@ -46,14 +48,12 @@ use bitcoin::secp256k1::SECP256K1;
 use bitcoin::Address;
 use bitcoin::Amount;
 use bitcoin::OutPoint;
-use bitcoin::PackedLockTime;
-use bitcoin::Transaction;
-use bitcoin::TxIn;
-use bitcoin::TxOut;
+pub use channel_status::ChannelStatus;
 use commons::CollaborativeRevertTraderResponse;
 use commons::OnboardingParam;
 use commons::RouteHintHop;
 use commons::TradeParams;
+use dlc::PartyParams;
 use itertools::chain;
 use itertools::Itertools;
 use lightning::chain::chaininterface::ConfirmationTarget;
@@ -65,11 +65,12 @@ use ln_dlc_node::channel::Channel;
 use ln_dlc_node::channel::UserChannelId;
 use ln_dlc_node::config::app_config;
 use ln_dlc_node::lightning_invoice::Bolt11Invoice;
+use ln_dlc_node::node::event::NodeEventHandler;
+use ln_dlc_node::node::rust_dlc_manager::channel::signed_channel::SignedChannel;
+use ln_dlc_node::node::rust_dlc_manager::channel::ClosedChannel;
 use ln_dlc_node::node::rust_dlc_manager::subchannel::LNChannelManager;
-use ln_dlc_node::node::rust_dlc_manager::subchannel::LnDlcChannelSigner;
-use ln_dlc_node::node::rust_dlc_manager::subchannel::LnDlcSignerProvider;
-use ln_dlc_node::node::rust_dlc_manager::subchannel::SubChannel;
-use ln_dlc_node::node::rust_dlc_manager::subchannel::SubChannelState;
+use ln_dlc_node::node::rust_dlc_manager::DlcChannelId;
+use ln_dlc_node::node::rust_dlc_manager::Signer;
 use ln_dlc_node::node::rust_dlc_manager::Storage as DlcStorage;
 use ln_dlc_node::node::GossipSourceConfig;
 use ln_dlc_node::node::LnDlcNodeSettings;
@@ -102,12 +103,6 @@ mod lightning_subscriber;
 pub mod node;
 
 pub mod channel_status;
-
-use crate::dlc_handler::DlcHandler;
-use crate::storage::TenTenOneNodeStorage;
-pub use channel_status::ChannelStatus;
-use ln_dlc_node::node::event::NodeEventHandler;
-use ln_dlc_node::node::rust_dlc_manager::channel::signed_channel::SignedChannel;
 
 const PROCESS_INCOMING_DLC_MESSAGES_INTERVAL: Duration = Duration::from_millis(200);
 const UPDATE_WALLET_HISTORY_INTERVAL: Duration = Duration::from_secs(5);
@@ -704,111 +699,73 @@ pub fn get_onchain_balance() -> Result<Balance> {
 }
 
 pub fn collaborative_revert_channel(
-    channel_id: ChannelId,
+    channel_id: DlcChannelId,
     coordinator_address: Address,
     coordinator_amount: Amount,
     trader_amount: Amount,
     execution_price: Decimal,
-    funding_txo: OutPoint,
 ) -> Result<()> {
     let node = state::try_get_node().context("Failed to get Node")?;
     let node = node.inner.clone();
 
-    let channel_id_hex = hex::encode(channel_id.0);
+    let channel_id_hex = hex::encode(channel_id);
+    let dlc_channels = node.list_signed_dlc_channels()?;
 
-    let subchannels = node.list_sub_channels()?;
-    let subchannel = subchannels
-        .iter()
+    let signed_channel = dlc_channels
+        .into_iter()
         .find(|c| c.channel_id == channel_id)
         .with_context(|| format!("Could not find subchannel {channel_id_hex}"))?;
 
-    let channel_keys_id = subchannel
-        .channel_keys_id
-        .or(node
-            .channel_manager
-            .get_channel_details(&subchannel.channel_id)
-            .map(|details| details.channel_keys_id))
-        .with_context(|| {
-            format!("Could not get channel keys ID for subchannel {channel_id_hex}")
-        })?;
+    let fund_output_value = signed_channel.fund_tx.output[signed_channel.fund_output_index].value;
 
-    let mut collab_revert_tx = Transaction {
-        version: 2,
-        lock_time: PackedLockTime::ZERO,
-        input: vec![TxIn {
-            previous_output: funding_txo,
-            script_sig: Default::default(),
-            sequence: Default::default(),
-            witness: Default::default(),
-        }],
-        output: Vec::new(),
-    };
+    tracing::debug!(
+        channel_id = channel_id_hex,
+        trader_amount_sats = %trader_amount.to_sat(),
+        coordinator_amount_sats = %coordinator_amount.to_sat(),
+        "Accepting collaborative revert request");
 
-    {
-        let coordinator_script_pubkey = coordinator_address.script_pubkey();
-        let dust_limit = coordinator_script_pubkey.dust_value();
+    let close_tx = dlc::channel::create_collaborative_close_transaction(
+        &PartyParams {
+            payout_script_pubkey: coordinator_address.script_pubkey(),
+            ..signed_channel.counter_params.clone()
+        },
+        coordinator_amount.to_sat(),
+        &signed_channel.own_params,
+        trader_amount.to_sat(),
+        OutPoint {
+            txid: signed_channel.fund_tx.txid(),
+            vout: signed_channel.fund_output_index as u32,
+        },
+        0, // argument is not being used
+    );
 
-        if coordinator_amount >= dust_limit {
-            let txo = TxOut {
-                value: coordinator_amount.to_sat(),
-                script_pubkey: coordinator_script_pubkey,
-            };
+    let own_fund_sk = node
+        .wallet()
+        .get_secret_key_for_pubkey(&signed_channel.own_params.fund_pubkey)?;
 
-            collab_revert_tx.output.push(txo);
-        } else {
-            tracing::info!(
-                %dust_limit,
-                "Skipping coordinator output for collaborative revert transaction because \
-                 it would be below the dust limit"
-            )
-        }
-    };
-
-    {
-        let trader_script_pubkey = node.get_unused_address().script_pubkey();
-        let dust_limit = trader_script_pubkey.dust_value();
-
-        if trader_amount >= dust_limit {
-            let txo = TxOut {
-                value: trader_amount.to_sat(),
-                script_pubkey: trader_script_pubkey,
-            };
-
-            collab_revert_tx.output.push(txo);
-        } else {
-            tracing::info!(
-                %dust_limit,
-                "Skipping trader output for collaborative revert transaction because \
-                 it would be below the dust limit"
-            )
-        }
-    };
-
-    let own_sig = {
-        let signer = node
-            .keys_manager
-            .derive_ln_dlc_channel_signer(subchannel.fund_value_satoshis, channel_keys_id);
-
-        signer
-            .get_holder_split_tx_signature(
-                &Secp256k1::new(),
-                &collab_revert_tx,
-                &subchannel.original_funding_redeemscript,
-                subchannel.fund_value_satoshis,
-            )
-            .context("Could not get own signature for collaborative revert transaction")?
-    };
+    let close_signature = dlc::util::get_raw_sig_for_tx_input(
+        &Secp256k1::new(),
+        &close_tx,
+        0,
+        &signed_channel.fund_script_pubkey,
+        fund_output_value,
+        &own_fund_sk,
+    )?;
+    tracing::debug!(
+        tx_id = close_tx.txid().to_string(),
+        "Signed collab revert transaction"
+    );
 
     let data = CollaborativeRevertTraderResponse {
         channel_id: channel_id_hex,
-        transaction: collab_revert_tx,
-        signature: own_sig,
+        transaction: close_tx,
+        signature: close_signature,
     };
 
     let client = reqwest_client();
     let runtime = state::get_or_create_tokio_runtime()?;
     runtime.spawn({
-        let subchannel = subchannel.clone();
+
         async move {
             match client
                 .post(format!(
@@ -826,7 +783,7 @@ pub fn collaborative_revert_channel(
                             "Received response from confirming reverting a channel"
                         );
                         if let Err(e) =
-                            update_state_after_collab_revert(subchannel, execution_price)
+                            update_state_after_collab_revert(&signed_channel, execution_price)
                         {
                             tracing::error!(
                                 "Failed to update state after collaborative revert confirmation: {e:#}"
@@ -850,7 +807,7 @@ pub fn collaborative_revert_channel(
 }
 
 fn update_state_after_collab_revert(
-    sub_channel: SubChannel,
+    signed_channel: &SignedChannel,
     execution_price: Decimal,
 ) -> Result<()> {
     let node = state::try_get_node().context("failed to get ln dlc node")?;
@@ -912,14 +869,19 @@ fn update_state_after_collab_revert(
         }
     }
 
-    let mut sub_channel = sub_channel;
-    sub_channel.state = SubChannelState::OnChainClosed;
-
     let node = node.inner.clone();
 
     node.dlc_manager
         .get_store()
-        .upsert_sub_channel(&sub_channel)
+        .upsert_channel(
+            dlc_manager::channel::Channel::CollaborativelyClosed(ClosedChannel {
+                counter_party: signed_channel.counter_party,
+                temporary_channel_id: signed_channel.temporary_channel_id,
+                channel_id: signed_channel.channel_id,
+            }),
+            // The contract doesn't matter anymore
+            None,
+        )
         .map_err(|e| anyhow!("{e:#}"))
 }
 
