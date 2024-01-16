@@ -1,4 +1,3 @@
-use crate::db::dlc_messages::MessageSubType;
 use crate::db::dlc_messages::MessageType;
 use crate::schema;
 use crate::schema::dlc_messages;
@@ -41,32 +40,16 @@ impl LastOutboundDlcMessage {
             .filter(last_outbound_dlc_messages::peer_id.eq(peer_id.to_string()))
             .select((
                 dlc_messages::message_type,
-                dlc_messages::message_sub_type,
                 last_outbound_dlc_messages::message,
             ))
-            .first::<(MessageType, MessageSubType, String)>(conn)
+            .first::<(MessageType, String)>(conn)
             .optional()?;
 
-        let serialized_dlc_message = match last_outbound_dlc_message {
-            Some((message_type, message_sub_type, message)) => {
-                let dlc_message_sub_type =
-                    ln_dlc_node::dlc_message::DlcMessageSubType::from(message_sub_type);
-                let message_type = match &message_type {
-                    MessageType::OnChain => {
-                        ln_dlc_node::dlc_message::DlcMessageType::OnChain(dlc_message_sub_type)
-                    }
-                    MessageType::Channel => {
-                        ln_dlc_node::dlc_message::DlcMessageType::Channel(dlc_message_sub_type)
-                    }
-                };
-
-                Some(SerializedDlcMessage {
-                    message,
-                    message_type,
-                })
-            }
-            None => None,
-        };
+        let serialized_dlc_message =
+            last_outbound_dlc_message.map(|(message_type, message)| SerializedDlcMessage {
+                message,
+                message_type: ln_dlc_node::dlc_message::DlcMessageType::from(message_type),
+            });
 
         Ok(serialized_dlc_message)
     }

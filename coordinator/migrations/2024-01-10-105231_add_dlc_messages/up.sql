@@ -1,9 +1,4 @@
 CREATE TYPE "Message_Type_Type" AS ENUM (
-    'OnChain',
-    'Channel'
-);
-
-CREATE TYPE "Message_Sub_Type_Type" AS ENUM (
     'Offer',
     'Accept',
     'Sign',
@@ -26,7 +21,6 @@ CREATE TABLE "dlc_messages" (
     inbound BOOLEAN NOT NULL,
     peer_id TEXT NOT NULL,
     message_type "Message_Type_Type" NOT NULL,
-    message_sub_type "Message_Sub_Type_Type" NOT NULL,
     timestamp TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 

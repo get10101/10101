@@ -3,7 +3,6 @@ use crate::ln_dlc::node::NodeStorage;
 use crate::storage::TenTenOneNodeStorage;
 use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
-use diesel::SqliteConnection;
 use dlc_messages::Message;
 use ln_dlc_node::dlc_message::DlcMessage;
 use ln_dlc_node::dlc_message::SerializedDlcMessage;
@@ -99,58 +98,6 @@ impl DlcHandler {
             );
         } else {
             tracing::debug!(%peer, "No last dlc message found. Nothing todo.");
-        }
-
-        Ok(())
-    }
-    // Returns either the dlc message step or return none, if the dlc message has already been
-    // processed.
-    pub fn start_dlc_message_step(
-        conn: &mut SqliteConnection,
-        msg: &Message,
-        peer_id: PublicKey,
-    ) -> Result<Option<DlcMessageStep>> {
-        let serialized_inbound_message = SerializedDlcMessage::try_from(msg)?;
-        let inbound_msg = DlcMessage::new(peer_id, serialized_inbound_message, true)?;
-
-        let dlc_message_step =
-            match db::dlc_messages::DlcMessage::get(conn, inbound_msg.message_hash)? {
-                Some(_) => None, // the dlc message has already been processed, no step necessary.
-                None => Some(DlcMessageStep {
-                    inbound_msg,
-                    peer_id,
-                }),
-            };
-
-        Ok(dlc_message_step)
-    }
-}
-
-pub struct DlcMessageStep {
-    pub peer_id: PublicKey,
-    pub inbound_msg: DlcMessage,
-}
-
-impl DlcMessageStep {
-    /// Finishes the current dlc step by storing the received inbound message as processed and
-    /// caching the last outbound dlc message (if any) into the database.
-    pub fn finish(&self, conn: &mut SqliteConnection, response: &Option<Message>) -> Result<()> {
-        tracing::debug!("Marking the received message as processed");
-
-        db::dlc_messages::DlcMessage::insert(conn, self.inbound_msg.clone())?;
-
-        if let Some(resp) = response {
-            tracing::debug!("Persisting last outbound dlc message");
-            let serialized_outbound_message = SerializedDlcMessage::try_from(resp)?;
-            let outbound_msg =
-                DlcMessage::new(self.peer_id, serialized_outbound_message.clone(), false)?;
-
-            db::dlc_messages::DlcMessage::insert(conn, outbound_msg)?;
-            db::last_outbound_dlc_messages::LastOutboundDlcMessage::upsert(
-                conn,
-                &self.peer_id,
-                serialized_outbound_message,
-            )?;
         }
 
         Ok(())

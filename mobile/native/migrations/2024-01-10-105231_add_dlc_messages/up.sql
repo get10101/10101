@@ -4,7 +4,6 @@ CREATE TABLE "dlc_messages" (
     inbound BOOLEAN NOT NULL,
     peer_id TEXT NOT NULL,
     message_type TEXT NOT NULL,
-    message_sub_type TEXT NOT NULL,
     timestamp BIGINT NOT NULL
 );
 

@@ -2,6 +2,5 @@
 DROP TABLE "last_outbound_dlc_messages";
 DROP TABLE "dlc_messages";
 
-DROP TYPE "Message_Sub_Type_Type";
 DROP TYPE "Message_Type_Type";
 

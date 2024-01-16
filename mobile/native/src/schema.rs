@@ -23,7 +23,6 @@ diesel::table! {
         inbound -> Bool,
         peer_id -> Text,
         message_type -> Text,
-        message_sub_type -> Text,
         timestamp -> BigInt,
     }
 }

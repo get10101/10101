@@ -1,6 +1,5 @@
 use crate::schema;
 use crate::schema::dlc_messages;
-use crate::schema::sql_types::MessageSubTypeType;
 use crate::schema::sql_types::MessageTypeType;
 use anyhow::ensure;
 use anyhow::Result;
@@ -25,22 +24,6 @@ use time::OffsetDateTime;
 #[derive(Debug, Clone, Copy, PartialEq, FromSqlRow, AsExpression)]
 #[diesel(sql_type = MessageTypeType)]
 pub(crate) enum MessageType {
-    OnChain,
-    Channel,
-}
-
-impl QueryId for MessageTypeType {
-    type QueryId = MessageTypeType;
-    const HAS_STATIC_QUERY_ID: bool = false;
-
-    fn query_id() -> Option<TypeId> {
-        None
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, FromSqlRow, AsExpression)]
-#[diesel(sql_type = MessageSubTypeType)]
-pub(crate) enum MessageSubType {
     Offer,
     Accept,
     Sign,
@@ -57,8 +40,8 @@ pub(crate) enum MessageSubType {
     Reject,
 }
 
-impl QueryId for MessageSubTypeType {
-    type QueryId = MessageSubTypeType;
+impl QueryId for MessageTypeType {
+    type QueryId = MessageTypeType;
     const HAS_STATIC_QUERY_ID: bool = false;
 
     fn query_id() -> Option<TypeId> {
@@ -73,7 +56,6 @@ pub(crate) struct DlcMessage {
     pub inbound: bool,
     pub peer_id: String,
     pub message_type: MessageType,
-    pub message_sub_type: MessageSubType,
     pub timestamp: OffsetDateTime,
 }
 
@@ -103,7 +85,6 @@ impl From<ln_dlc_node::dlc_message::DlcMessage> for DlcMessage {
             message_hash: value.message_hash.to_string(),
             peer_id: value.peer_id.to_string(),
             message_type: MessageType::from(value.clone().message_type),
-            message_sub_type: MessageSubType::from(value.message_type),
             timestamp: value.timestamp,
             inbound: value.inbound,
         }
@@ -113,97 +94,59 @@ impl From<ln_dlc_node::dlc_message::DlcMessage> for DlcMessage {
 impl From<ln_dlc_node::dlc_message::DlcMessageType> for MessageType {
     fn from(value: ln_dlc_node::dlc_message::DlcMessageType) -> Self {
         match value {
-            ln_dlc_node::dlc_message::DlcMessageType::OnChain(_) => Self::OnChain,
-            ln_dlc_node::dlc_message::DlcMessageType::Channel(_) => Self::Channel,
-        }
-    }
-}
-
-impl From<ln_dlc_node::dlc_message::DlcMessageType> for MessageSubType {
-    fn from(value: ln_dlc_node::dlc_message::DlcMessageType) -> Self {
-        let message_sub_type = match value {
-            ln_dlc_node::dlc_message::DlcMessageType::OnChain(message_sub_type) => message_sub_type,
-            ln_dlc_node::dlc_message::DlcMessageType::Channel(message_sub_type) => message_sub_type,
-        };
-        MessageSubType::from(message_sub_type)
-    }
-}
-
-impl From<ln_dlc_node::dlc_message::DlcMessageSubType> for MessageSubType {
-    fn from(value: ln_dlc_node::dlc_message::DlcMessageSubType) -> Self {
-        match value {
-            ln_dlc_node::dlc_message::DlcMessageSubType::Offer => Self::Offer,
-            ln_dlc_node::dlc_message::DlcMessageSubType::Accept => Self::Accept,
-            ln_dlc_node::dlc_message::DlcMessageSubType::Sign => Self::Sign,
-            ln_dlc_node::dlc_message::DlcMessageSubType::SettleOffer => Self::SettleOffer,
-            ln_dlc_node::dlc_message::DlcMessageSubType::SettleAccept => Self::SettleAccept,
-            ln_dlc_node::dlc_message::DlcMessageSubType::SettleConfirm => Self::SettleConfirm,
-            ln_dlc_node::dlc_message::DlcMessageSubType::SettleFinalize => Self::SettleFinalize,
-            ln_dlc_node::dlc_message::DlcMessageSubType::RenewOffer => Self::RenewOffer,
-            ln_dlc_node::dlc_message::DlcMessageSubType::RenewAccept => Self::RenewAccept,
-            ln_dlc_node::dlc_message::DlcMessageSubType::RenewConfirm => Self::RenewConfirm,
-            ln_dlc_node::dlc_message::DlcMessageSubType::RenewFinalize => Self::RenewFinalize,
-            ln_dlc_node::dlc_message::DlcMessageSubType::RenewRevoke => Self::RenewRevoke,
-            ln_dlc_node::dlc_message::DlcMessageSubType::CollaborativeCloseOffer => {
+            ln_dlc_node::dlc_message::DlcMessageType::Offer => Self::Offer,
+            ln_dlc_node::dlc_message::DlcMessageType::Accept => Self::Accept,
+            ln_dlc_node::dlc_message::DlcMessageType::Sign => Self::Sign,
+            ln_dlc_node::dlc_message::DlcMessageType::SettleOffer => Self::SettleOffer,
+            ln_dlc_node::dlc_message::DlcMessageType::SettleAccept => Self::SettleAccept,
+            ln_dlc_node::dlc_message::DlcMessageType::SettleConfirm => Self::SettleConfirm,
+            ln_dlc_node::dlc_message::DlcMessageType::SettleFinalize => Self::SettleFinalize,
+            ln_dlc_node::dlc_message::DlcMessageType::RenewOffer => Self::RenewOffer,
+            ln_dlc_node::dlc_message::DlcMessageType::RenewAccept => Self::RenewAccept,
+            ln_dlc_node::dlc_message::DlcMessageType::RenewConfirm => Self::RenewConfirm,
+            ln_dlc_node::dlc_message::DlcMessageType::RenewFinalize => Self::RenewFinalize,
+            ln_dlc_node::dlc_message::DlcMessageType::RenewRevoke => Self::RenewRevoke,
+            ln_dlc_node::dlc_message::DlcMessageType::CollaborativeCloseOffer => {
                 Self::CollaborativeCloseOffer
             }
-            ln_dlc_node::dlc_message::DlcMessageSubType::Reject => Self::Reject,
+            ln_dlc_node::dlc_message::DlcMessageType::Reject => Self::Reject,
         }
     }
 }
 
 impl From<DlcMessage> for ln_dlc_node::dlc_message::DlcMessage {
     fn from(value: DlcMessage) -> Self {
-        let dlc_message_sub_type =
-            ln_dlc_node::dlc_message::DlcMessageSubType::from(value.clone().message_sub_type);
-        let dlc_message_type = match &value.message_type {
-            MessageType::OnChain => {
-                ln_dlc_node::dlc_message::DlcMessageType::OnChain(dlc_message_sub_type)
-            }
-            MessageType::Channel => {
-                ln_dlc_node::dlc_message::DlcMessageType::Channel(dlc_message_sub_type)
-            }
-        };
-
         Self {
             message_hash: u64::from_str(&value.message_hash).expect("valid u64"),
             inbound: value.inbound,
-            message_type: dlc_message_type,
+            message_type: ln_dlc_node::dlc_message::DlcMessageType::from(
+                value.clone().message_type,
+            ),
             peer_id: PublicKey::from_str(&value.peer_id).expect("valid public key"),
             timestamp: value.timestamp,
         }
     }
 }
 
-impl From<MessageSubType> for ln_dlc_node::dlc_message::DlcMessageSubType {
-    fn from(value: MessageSubType) -> Self {
+impl From<MessageType> for ln_dlc_node::dlc_message::DlcMessageType {
+    fn from(value: MessageType) -> Self {
         match value {
-            MessageSubType::Offer => ln_dlc_node::dlc_message::DlcMessageSubType::Offer,
-            MessageSubType::Accept => ln_dlc_node::dlc_message::DlcMessageSubType::Accept,
-            MessageSubType::Sign => ln_dlc_node::dlc_message::DlcMessageSubType::Sign,
-            MessageSubType::SettleOffer => ln_dlc_node::dlc_message::DlcMessageSubType::SettleOffer,
-            MessageSubType::SettleAccept => {
-                ln_dlc_node::dlc_message::DlcMessageSubType::SettleAccept
+            MessageType::Offer => ln_dlc_node::dlc_message::DlcMessageType::Offer,
+            MessageType::Accept => ln_dlc_node::dlc_message::DlcMessageType::Accept,
+            MessageType::Sign => ln_dlc_node::dlc_message::DlcMessageType::Sign,
+            MessageType::SettleOffer => ln_dlc_node::dlc_message::DlcMessageType::SettleOffer,
+            MessageType::SettleAccept => ln_dlc_node::dlc_message::DlcMessageType::SettleAccept,
+            MessageType::SettleConfirm => ln_dlc_node::dlc_message::DlcMessageType::SettleConfirm,
+            MessageType::SettleFinalize => ln_dlc_node::dlc_message::DlcMessageType::SettleFinalize,
+            MessageType::RenewOffer => ln_dlc_node::dlc_message::DlcMessageType::RenewOffer,
+            MessageType::RenewAccept => ln_dlc_node::dlc_message::DlcMessageType::RenewAccept,
+            MessageType::RenewConfirm => ln_dlc_node::dlc_message::DlcMessageType::RenewConfirm,
+            MessageType::RenewFinalize => ln_dlc_node::dlc_message::DlcMessageType::RenewFinalize,
+            MessageType::RenewRevoke => ln_dlc_node::dlc_message::DlcMessageType::RenewRevoke,
+            MessageType::CollaborativeCloseOffer => {
+                ln_dlc_node::dlc_message::DlcMessageType::CollaborativeCloseOffer
             }
-            MessageSubType::SettleConfirm => {
-                ln_dlc_node::dlc_message::DlcMessageSubType::SettleConfirm
-            }
-            MessageSubType::SettleFinalize => {
-                ln_dlc_node::dlc_message::DlcMessageSubType::SettleFinalize
-            }
-            MessageSubType::RenewOffer => ln_dlc_node::dlc_message::DlcMessageSubType::RenewOffer,
-            MessageSubType::RenewAccept => ln_dlc_node::dlc_message::DlcMessageSubType::RenewAccept,
-            MessageSubType::RenewConfirm => {
-                ln_dlc_node::dlc_message::DlcMessageSubType::RenewConfirm
-            }
-            MessageSubType::RenewFinalize => {
-                ln_dlc_node::dlc_message::DlcMessageSubType::RenewFinalize
-            }
-            MessageSubType::RenewRevoke => ln_dlc_node::dlc_message::DlcMessageSubType::RenewRevoke,
-            MessageSubType::CollaborativeCloseOffer => {
-                ln_dlc_node::dlc_message::DlcMessageSubType::CollaborativeCloseOffer
-            }
-            MessageSubType::Reject => ln_dlc_node::dlc_message::DlcMessageSubType::Reject,
+            MessageType::Reject => ln_dlc_node::dlc_message::DlcMessageType::Reject,
         }
     }
 }

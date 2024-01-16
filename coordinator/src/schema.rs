@@ -22,10 +22,6 @@ pub mod sql_types {
     pub struct MatchStateType;
 
     #[derive(diesel::sql_types::SqlType)]
-    #[diesel(postgres_type(name = "Message_Sub_Type_Type"))]
-    pub struct MessageSubTypeType;
-
-    #[derive(diesel::sql_types::SqlType)]
     #[diesel(postgres_type(name = "Message_Type_Type"))]
     pub struct MessageTypeType;
 
@@ -87,14 +83,12 @@ diesel::table! {
 diesel::table! {
     use diesel::sql_types::*;
     use super::sql_types::MessageTypeType;
-    use super::sql_types::MessageSubTypeType;
 
     dlc_messages (message_hash) {
         message_hash -> Text,
         inbound -> Bool,
         peer_id -> Text,
         message_type -> MessageTypeType,
-        message_sub_type -> MessageSubTypeType,
         timestamp -> Timestamptz,
     }
 }
