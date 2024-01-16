@@ -1,4 +1,8 @@
 use crate::db;
+use crate::event;
+use crate::event::BackgroundTask;
+use crate::event::EventInternal;
+use crate::event::TaskStatus;
 use crate::ln_dlc::node::NodeStorage;
 use crate::storage::TenTenOneNodeStorage;
 use anyhow::Result;
@@ -94,10 +98,19 @@ impl DlcHandler {
                 }) => {
                     tracing::info!("Accepting pending dlc channel offer.");
                     // Pending dlc channel offer not yet confirmed on-chain
+
+                    event::publish(&EventInternal::BackgroundNotification(
+                        BackgroundTask::RecoverDlc(TaskStatus::Pending),
+                    ));
+
                     if let Err(e) = self.node.accept_dlc_channel_offer(temporary_channel_id) {
                         tracing::error!("Failed to accept pending dlc channel offer. {e:#}");
                         tracing::warn!("Rejecting pending dlc channel offer!");
                         self.node.reject_dlc_channel_offer(temporary_channel_id)?;
+
+                        event::publish(&EventInternal::BackgroundNotification(
+                            BackgroundTask::RecoverDlc(TaskStatus::Success),
+                        ));
                     }
 
                     return Ok(());
@@ -110,6 +123,11 @@ impl DlcHandler {
                     tracing::info!("Accepting pending dlc channel settle offer.");
                     // Pending dlc channel settle offer with a dlc channel already confirmed
                     // on-chain
+
+                    event::publish(&EventInternal::BackgroundNotification(
+                        BackgroundTask::RecoverDlc(TaskStatus::Pending),
+                    ));
+
                     self.node
                         .accept_dlc_channel_collaborative_settlement(channel_id)?;
 
@@ -142,8 +160,22 @@ impl DlcHandler {
 
                     return Ok(());
                 }
+                Channel::Signed(signed_channel) => {
+                    // If the signed channel state is anything else but `Established`, `Settled` or
+                    // `Closing` at reconnect. It means the protocol got interrupted.
+                    if !matches!(
+                        signed_channel.state,
+                        SignedChannelState::Established { .. }
+                            | SignedChannelState::Settled { .. }
+                            | SignedChannelState::Closing { .. }
+                    ) {
+                        event::publish(&EventInternal::BackgroundNotification(
+                            BackgroundTask::RecoverDlc(TaskStatus::Pending),
+                        ));
+                    }
+                }
                 _ => {}
-            }
+            };
         }
 
         let mut conn = db::connection()?;
