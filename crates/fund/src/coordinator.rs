@@ -104,7 +104,7 @@ impl Coordinator {
     }
 
     pub async fn get_balance(&self) -> Result<Balance> {
-        Ok(self.get("/api/admin/balance").await?.json().await?)
+        Ok(self.get("/api/admin/wallet/balance").await?.json().await?)
     }
 
     pub async fn get_node_info(&self) -> Result<NodeInfo> {

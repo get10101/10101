@@ -42,10 +42,13 @@ async fn fund_everything(faucet: &str, coordinator: &str) -> Result<()> {
 
     let bitcoind = bitcoind::Bitcoind::new(client, faucet.to_string() + "/bitcoin");
 
-    bitcoind
-        .fund(&coord_addr, Amount::ONE_BTC)
-        .await
-        .context("Could not fund the faucet's on-chain wallet")?;
+    for _ in 0..5 {
+        bitcoind
+            .fund(&coord_addr, Amount::ONE_BTC)
+            .await
+            .context("Could not fund the faucet's on-chain wallet")?;
+    }
+
     bitcoind.mine(10).await?;
 
     coordinator.sync_wallet().await?;

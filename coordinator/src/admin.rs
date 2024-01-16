@@ -10,6 +10,7 @@ use axum::extract::Query;
 use axum::extract::State;
 use axum::Json;
 use bdk::FeeRate;
+use bdk::LocalUtxo;
 use bdk::TransactionDetails;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::OutPoint;
@@ -62,6 +63,16 @@ pub async fn get_balance(State(state): State<Arc<AppState>>) -> Result<Json<Bala
     })
     .await
     .map_err(|e| AppError::InternalServerError(format!("Failed to get balance: {e:#}")))?
+}
+
+pub async fn get_utxos(
+    State(state): State<Arc<AppState>>,
+) -> Result<Json<Vec<LocalUtxo>>, AppError> {
+    let utxos = state.node.inner.ldk_wallet().get_utxos().map_err(|error| {
+        AppError::InternalServerError(format!("Failed to retrieve UTXOs {error}"))
+    })?;
+
+    Ok(Json(utxos))
 }
 
 #[derive(Serialize)]
