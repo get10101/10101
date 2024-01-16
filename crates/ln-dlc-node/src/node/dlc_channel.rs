@@ -448,6 +448,17 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
             })
     }
 
+    pub fn signed_dlc_channel_total_collateral(&self, channel_id: &DlcChannelId) -> Result<Amount> {
+        let channel = self.get_dlc_channel_by_id(channel_id)?;
+
+        match channel {
+            Channel::Signed(channel) => Ok(Amount::from_sat(
+                channel.own_params.collateral + channel.counter_params.collateral,
+            )),
+            _ => bail!("DLC channel {} not signed", channel_id.to_hex()),
+        }
+    }
+
     /// Return the usable balance for the DLC channel.
     ///
     /// Usable balance excludes all balance which is being wagered in DLCs.

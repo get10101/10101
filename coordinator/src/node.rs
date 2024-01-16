@@ -322,12 +322,13 @@ impl Node {
     async fn open_position(
         &self,
         conn: &mut PgConnection,
-        dlc_channel: SignedChannel,
+        dlc_channel_id: DlcChannelId,
         trade_params: &TradeParams,
+        coordinator_dlc_channel_collateral: u64,
+        trader_dlc_channel_collateral: u64,
         stable: bool,
     ) -> Result<()> {
         let peer_id = trade_params.pubkey;
-        let dlc_channel_id = dlc_channel.channel_id;
 
         tracing::info!(
             %peer_id,
@@ -337,9 +338,7 @@ impl Node {
             "Opening position"
         );
 
-        let coordinator_collateral = dlc_channel.own_params.collateral;
-        let trader_collateral = dlc_channel.counter_params.collateral;
-        let total_collateral = coordinator_collateral + trader_collateral;
+        let total_collateral = coordinator_dlc_channel_collateral + trader_dlc_channel_collateral;
 
         let initial_price = trade_params.filled_with.average_execution_price();
 
@@ -359,26 +358,27 @@ impl Node {
 
         // How many coins the coordinator will keep outside of the bet. They still go in the DLC
         // channel, but the payout will be at least this much for the coordinator.
-        let coordinator_collateral_reserve = (coordinator_collateral + order_matching_fee)
+        let coordinator_collateral_reserve = (coordinator_dlc_channel_collateral
+            + order_matching_fee)
             .checked_sub(margin_coordinator)
             .with_context(|| {
                 format!(
                     "Coordinator cannot trade with more than their total collateral in the \
                      DLC channel: margin ({}) > collateral ({}) + order_matching_fee ({})",
-                    margin_coordinator, coordinator_collateral, order_matching_fee
+                    margin_coordinator, coordinator_dlc_channel_collateral, order_matching_fee
                 )
             })?;
 
         // How many coins the trader will keep outside of the bet. They still go in the DLC channel,
         // but the payout will be at least this much for the coordinator.
-        let trader_collateral_reserve = trader_collateral
+        let trader_collateral_reserve = trader_dlc_channel_collateral
             .checked_sub(order_matching_fee)
             .and_then(|collateral| collateral.checked_sub(margin_trader))
             .with_context(|| {
                 format!(
                     "Trader cannot trade with more than their total collateral in the \
                      DLC channel: margin ({}) + order_matching_fee ({}) > collateral ({})",
-                    margin_trader, order_matching_fee, trader_collateral
+                    margin_trader, order_matching_fee, trader_dlc_channel_collateral
                 )
             })?;
 
@@ -414,8 +414,8 @@ impl Node {
         );
 
         let contract_input = ContractInput {
-            offer_collateral: coordinator_collateral,
-            accept_collateral: trader_collateral,
+            offer_collateral: coordinator_dlc_channel_collateral,
+            accept_collateral: trader_dlc_channel_collateral,
             fee_rate,
             contract_infos: vec![ContractInputInfo {
                 contract_descriptor,
@@ -504,19 +504,34 @@ impl Node {
         closing_price: Decimal,
         channel_id: DlcChannelId,
     ) -> Result<()> {
-        let accept_settlement_amount =
-            position.calculate_accept_settlement_amount(closing_price)?;
+        let position_settlement_amount_coordinator =
+            position.calculate_coordinator_settlement_amount(closing_price)?;
+
+        let collateral_reserve_coordinator =
+            self.inner.get_dlc_channel_usable_balance(&channel_id)?;
+        let dlc_channel_settlement_amount_coordinator =
+            position_settlement_amount_coordinator + collateral_reserve_coordinator.to_sat();
 
         tracing::info!(
             ?position,
             channel_id = %channel_id.to_hex(),
-            trader_settlement_amount = %accept_settlement_amount,
+            %position_settlement_amount_coordinator,
+            %dlc_channel_settlement_amount_coordinator,
             trader_peer_id = %position.trader,
-            "Closing position",
+            "Closing position by settling DLC channel off-chain",
         );
 
+        let total_collateral = self
+            .inner
+            .signed_dlc_channel_total_collateral(&channel_id)?;
+
+        let settlement_amount_trader = total_collateral
+            .to_sat()
+            .checked_sub(dlc_channel_settlement_amount_coordinator)
+            .unwrap_or_default();
+
         self.inner
-            .propose_dlc_channel_collaborative_settlement(channel_id, accept_settlement_amount)
+            .propose_dlc_channel_collaborative_settlement(channel_id, settlement_amount_trader)
             .await?;
 
         db::trades::insert(
@@ -627,20 +642,31 @@ impl Node {
                     .await
                     .context("Failed to open DLC channel")?;
             }
-            Some(
-                dlc_channel @ SignedChannel {
-                    state: SignedChannelState::Settled { .. },
-                    ..
-                },
-            ) => {
+            Some(SignedChannel {
+                channel_id,
+                state:
+                    SignedChannelState::Settled {
+                        own_payout,
+                        counter_payout,
+                        ..
+                    },
+                ..
+            }) => {
                 ensure!(
                     self.settings.read().await.allow_opening_positions,
                     "Opening positions is disabled"
                 );
 
-                self.open_position(conn, dlc_channel, trade_params, is_stable_order)
-                    .await
-                    .context("Failed at opening a new position")?;
+                self.open_position(
+                    conn,
+                    channel_id,
+                    trade_params,
+                    own_payout,
+                    counter_payout,
+                    is_stable_order,
+                )
+                .await
+                .context("Failed to open new position")?;
             }
             Some(SignedChannel {
                 state: SignedChannelState::Established { .. },
