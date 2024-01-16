@@ -143,7 +143,7 @@ pub fn router(
         .route("/api/trade", post(post_trade))
         .route("/api/rollover/:dlc_channel_id", post(rollover))
         .route("/api/register", post(post_register))
-        .route("/api/admin/balance", get(get_balance))
+        .route("/api/admin/wallet/balance", get(get_balance))
         .route("/api/admin/channels", get(list_channels).post(open_channel))
         .route("/api/admin/channels/:channel_id", delete(close_channel))
         .route("/api/admin/peers", get(list_peers))
