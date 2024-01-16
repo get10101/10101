@@ -50,7 +50,7 @@ async fn can_open_and_collaboratively_close_channel() {
 
     tracing::debug!("Accepting collaborative close offer");
 
-    app.accept_dlc_channel_collaborative_close(coordinator_signed_channel.channel_id)
+    app.accept_dlc_channel_collaborative_close(&coordinator_signed_channel.channel_id)
         .unwrap();
 
     wait_until(Duration::from_secs(10), || async {
@@ -312,7 +312,7 @@ async fn setup_channel_with_position() -> (
     .unwrap();
 
     tracing::debug!("Accepting settle offer and waiting for being settled...");
-    app.accept_dlc_channel_collaborative_settlement(app_signed_channel.channel_id)
+    app.accept_dlc_channel_collaborative_settlement(&app_signed_channel.channel_id)
         .unwrap();
 
     wait_until(Duration::from_secs(10), || async {

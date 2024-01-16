@@ -22,6 +22,7 @@ use dlc_manager::subchannel::SubChannel;
 use dlc_manager::DlcChannelId;
 use dlc_manager::Oracle;
 use dlc_manager::Storage;
+use dlc_messages::channel::Reject;
 use dlc_messages::ChannelMessage;
 use dlc_messages::Message;
 use time::OffsetDateTime;
@@ -122,19 +123,20 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
     pub fn reject_dlc_channel_offer(&self, channel_id: &DlcChannelId) -> Result<()> {
         let channel_id_hex = hex::encode(channel_id);
 
+        let channel = self
+            .dlc_manager
+            .get_store()
+            .get_channel(channel_id)?
+            .with_context(|| format!("Couldn't find channel by id. {}", channel_id.to_hex()))?;
+
         tracing::info!(channel_id = %channel_id_hex, "Rejecting DLC channel offer");
 
-        // TODO: implement reject dlc channel offer
-        // let (node_id, reject) = self
-        //     .sub_channel_manager.get_dlc_manager().rejec
-        //     .reject_sub_channel_offer(*channel_id)?;
-
-        // send_dlc_message(
-        //     &self.dlc_message_handler,
-        //     &self.peer_manager,
-        //     node_id,
-        //     Message::SubChannel(SubChannelMessage::Reject(reject)),
-        // );
+        self.event_handler.publish(NodeEvent::SendDlcMessage {
+            peer: channel.get_counter_party_id(),
+            msg: Message::Channel(ChannelMessage::Reject(Reject {
+                channel_id: channel.get_id(),
+            })),
+        })?;
 
         Ok(())
     }
@@ -264,27 +266,27 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
         .await?
     }
 
-    pub fn accept_dlc_channel_collaborative_close(&self, channel_id: DlcChannelId) -> Result<()> {
+    pub fn accept_dlc_channel_collaborative_close(&self, channel_id: &DlcChannelId) -> Result<()> {
         let channel_id_hex = hex::encode(channel_id);
 
         tracing::info!(channel_id = %channel_id_hex, "Accepting DLC channel collaborative close offer");
 
         let dlc_manager = self.dlc_manager.clone();
-        dlc_manager.accept_collaborative_close(&channel_id)?;
+        dlc_manager.accept_collaborative_close(channel_id)?;
 
         Ok(())
     }
 
     pub fn accept_dlc_channel_collaborative_settlement(
         &self,
-        channel_id: DlcChannelId,
+        channel_id: &DlcChannelId,
     ) -> Result<()> {
         let channel_id_hex = hex::encode(channel_id);
 
         tracing::info!(channel_id = %channel_id_hex, "Accepting DLC channel collaborative settlement");
 
         let dlc_manager = self.dlc_manager.clone();
-        let (settle_offer, counterparty_pk) = dlc_manager.accept_settle_offer(&channel_id)?;
+        let (settle_offer, counterparty_pk) = dlc_manager.accept_settle_offer(channel_id)?;
 
         self.event_handler.publish(NodeEvent::SendDlcMessage {
             peer: counterparty_pk,

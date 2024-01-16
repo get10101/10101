@@ -688,7 +688,7 @@ impl Node {
 
                         // TODO(bonomat): we should verify that the proposed amount is acceptable
                         self.inner
-                            .accept_dlc_channel_collaborative_close(close_offer.channel_id)?;
+                            .accept_dlc_channel_collaborative_close(&close_offer.channel_id)?;
                     }
                     ChannelMessage::Accept(accept_channel) => {
                         let channel_id_hex_string = accept_channel.temporary_channel_id.to_hex();

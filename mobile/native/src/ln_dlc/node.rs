@@ -193,6 +193,11 @@ impl Node {
                         )
                     })?;
 
+                {
+                    let mut conn = db::connection()?;
+                    db::dlc_messages::DlcMessage::insert(&mut conn, inbound_msg)?;
+                }
+
                 match channel_msg {
                     ChannelMessage::Offer(offer) => {
                         let action = decide_subchannel_offer_action(
@@ -205,7 +210,7 @@ impl Node {
                     }
                     ChannelMessage::SettleOffer(offer) => {
                         self.inner
-                            .accept_dlc_channel_collaborative_settlement(offer.channel_id)
+                            .accept_dlc_channel_collaborative_settlement(&offer.channel_id)
                             .with_context(|| {
                                 format!(
                                     "Failed to accept DLC channel close offer for channel {}",
@@ -296,11 +301,6 @@ impl Node {
                         ));
                     }
                     _ => (),
-                }
-
-                {
-                    let mut conn = db::connection()?;
-                    db::dlc_messages::DlcMessage::insert(&mut conn, inbound_msg)?;
                 }
 
                 resp

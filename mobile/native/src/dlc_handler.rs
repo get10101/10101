@@ -8,6 +8,10 @@ use ln_dlc_node::dlc_message::DlcMessage;
 use ln_dlc_node::dlc_message::SerializedDlcMessage;
 use ln_dlc_node::node::dlc_channel::send_dlc_message;
 use ln_dlc_node::node::event::NodeEvent;
+use ln_dlc_node::node::rust_dlc_manager::channel::offered_channel::OfferedChannel;
+use ln_dlc_node::node::rust_dlc_manager::channel::signed_channel::SignedChannel;
+use ln_dlc_node::node::rust_dlc_manager::channel::signed_channel::SignedChannelState;
+use ln_dlc_node::node::rust_dlc_manager::channel::Channel;
 use ln_dlc_node::node::Node;
 use std::sync::Arc;
 use tokio::sync::broadcast;
@@ -82,6 +86,66 @@ impl DlcHandler {
     }
 
     pub fn on_connect(&self, peer: PublicKey) -> Result<()> {
+        if let Some(channel) = self.node.list_dlc_channels()?.first() {
+            match channel {
+                Channel::Offered(OfferedChannel {
+                    temporary_channel_id,
+                    ..
+                }) => {
+                    tracing::info!("Accepting pending dlc channel offer.");
+                    // Pending dlc channel offer not yet confirmed on-chain
+                    if let Err(e) = self.node.accept_dlc_channel_offer(temporary_channel_id) {
+                        tracing::error!("Failed to accept pending dlc channel offer. {e:#}");
+                        tracing::warn!("Rejecting pending dlc channel offer!");
+                        self.node.reject_dlc_channel_offer(temporary_channel_id)?;
+                    }
+
+                    return Ok(());
+                }
+                Channel::Signed(SignedChannel {
+                    channel_id,
+                    state: SignedChannelState::SettledReceived { .. },
+                    ..
+                }) => {
+                    tracing::info!("Accepting pending dlc channel settle offer.");
+                    // Pending dlc channel settle offer with a dlc channel already confirmed
+                    // on-chain
+                    self.node
+                        .accept_dlc_channel_collaborative_settlement(channel_id)?;
+
+                    return Ok(());
+                }
+                Channel::Signed(SignedChannel {
+                    channel_id: _,
+                    state: SignedChannelState::RenewOffered { .. },
+                    ..
+                }) => {
+                    // Pending dlc channel renew (resize) offer with a dlc channel already confirmed
+                    // on-chain
+
+                    // TODO: implement with resizing a position.
+
+                    return Ok(());
+                }
+                Channel::Signed(SignedChannel {
+                    channel_id,
+                    state: SignedChannelState::CollaborativeCloseOffered { .. },
+                    ..
+                }) => {
+                    tracing::info!("Accepting pending dlc channel close offer.");
+                    // Pending dlc channel close offer with the intend to close the dlc channel
+                    // on-chain
+
+                    // TODO(bonomat): we should verify that the proposed amount is acceptable
+                    self.node
+                        .accept_dlc_channel_collaborative_close(channel_id)?;
+
+                    return Ok(());
+                }
+                _ => {}
+            }
+        }
+
         let mut conn = db::connection()?;
         let last_outbound_serialized_dlc_message =
             db::last_outbound_dlc_messages::LastOutboundDlcMessage::get(&mut conn, &peer)?;
