@@ -591,6 +591,21 @@ impl Node {
         }
     }
 
+    /// [`process_dlc_message`] processes incoming dlc channel messages and updates the 10101
+    /// position accordingly.
+    /// - Any other message will be ignored.
+    /// - Any dlc channel message that has already been processed will be skipped.
+    ///
+    /// If an offer is received [`ChannelMessage::Offer`], [`ChannelMessage::SettleOffer`],
+    /// [`ChannelMessage::CollaborativeCloseOffer`] [`ChannelMessage::RenewOffer`] will get
+    /// automatically accepted. Unless the maturity date of the offer is already outdated.
+    ///
+    /// FIXME(holzeis): This function manipulates different data objects in different data sources
+    /// and should use a transaction to make all changes atomic. Not doing so risks of ending up in
+    /// an inconsistent state. One way of fixing that could be to
+    /// (1) use a single data source for the 10101 data and the rust-dlc data.
+    /// (2) wrap the function into a db transaction which can be atomically rolled back on error or
+    /// committed on success.
     fn process_dlc_message(&self, node_id: PublicKey, msg: Message) -> Result<()> {
         tracing::info!(
             from = %node_id,
@@ -608,7 +623,7 @@ impl Node {
                     let mut conn = self.pool.get()?;
                     let serialized_inbound_message = SerializedDlcMessage::try_from(&msg)?;
                     let inbound_msg = DlcMessage::new(node_id, serialized_inbound_message, true)?;
-                    match db::dlc_messages::get(&mut conn, inbound_msg.message_hash)? {
+                    match db::dlc_messages::get(&mut conn, &inbound_msg.message_hash)? {
                         Some(_) => {
                             tracing::debug!(%node_id, kind=%dlc_message_name(&msg), "Received message that has already been processed, skipping.");
                             return Ok(());
@@ -675,27 +690,26 @@ impl Node {
                         self.inner
                             .accept_dlc_channel_collaborative_close(close_offer.channel_id)?;
                     }
+                    ChannelMessage::Accept(accept_channel) => {
+                        let channel_id_hex_string = accept_channel.temporary_channel_id.to_hex();
+                        tracing::info!(
+                            channel_id = channel_id_hex_string,
+                            node_id = node_id.to_string(),
+                            "DLC channel open protocol was accepted"
+                        );
+                        let mut connection = self.pool.get()?;
+                        db::positions::Position::update_proposed_position(
+                            &mut connection,
+                            node_id.to_string(),
+                            PositionState::Open,
+                        )?;
+                    }
                     _ => {}
                 };
 
                 resp
             }
         };
-
-        if let Some(Message::Channel(ChannelMessage::Sign(sign_channel))) = &resp {
-            let channel_id_hex_string = sign_channel.channel_id.to_hex();
-            tracing::info!(
-                channel_id = channel_id_hex_string,
-                node_id = node_id.to_string(),
-                "DLC channel open protocol was finalized"
-            );
-            let mut connection = self.pool.get()?;
-            db::positions::Position::update_proposed_position(
-                &mut connection,
-                node_id.to_string(),
-                PositionState::Open,
-            )?;
-        }
 
         if let Some(msg) = resp {
             tracing::info!(

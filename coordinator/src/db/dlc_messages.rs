@@ -59,7 +59,7 @@ pub(crate) struct DlcMessage {
     pub timestamp: OffsetDateTime,
 }
 
-pub(crate) fn get(conn: &mut PgConnection, message_hash: u64) -> QueryResult<Option<DlcMessage>> {
+pub(crate) fn get(conn: &mut PgConnection, message_hash: &str) -> QueryResult<Option<DlcMessage>> {
     dlc_messages::table
         .filter(dlc_messages::message_hash.eq(message_hash.to_string()))
         .first::<DlcMessage>(conn)
@@ -82,9 +82,9 @@ pub(crate) fn insert(
 impl From<ln_dlc_node::dlc_message::DlcMessage> for DlcMessage {
     fn from(value: ln_dlc_node::dlc_message::DlcMessage) -> Self {
         Self {
-            message_hash: value.message_hash.to_string(),
+            message_hash: value.message_hash,
             peer_id: value.peer_id.to_string(),
-            message_type: MessageType::from(value.clone().message_type),
+            message_type: MessageType::from(value.message_type),
             timestamp: value.timestamp,
             inbound: value.inbound,
         }
@@ -117,11 +117,9 @@ impl From<ln_dlc_node::dlc_message::DlcMessageType> for MessageType {
 impl From<DlcMessage> for ln_dlc_node::dlc_message::DlcMessage {
     fn from(value: DlcMessage) -> Self {
         Self {
-            message_hash: u64::from_str(&value.message_hash).expect("valid u64"),
+            message_hash: value.message_hash,
             inbound: value.inbound,
-            message_type: ln_dlc_node::dlc_message::DlcMessageType::from(
-                value.clone().message_type,
-            ),
+            message_type: ln_dlc_node::dlc_message::DlcMessageType::from(value.message_type),
             peer_id: PublicKey::from_str(&value.peer_id).expect("valid public key"),
             timestamp: value.timestamp,
         }

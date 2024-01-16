@@ -144,11 +144,6 @@ async fn main() -> Result<()> {
 
     let dlc_handler = DlcHandler::new(pool.clone(), node.clone());
     let _handle =
-        // this handles sending outbound dlc messages as well as keeping track of what
-        // dlc messages have already been processed and what was the last outbound dlc message
-        // so it can be resend on reconnect.
-        //
-        // this does not handle the incoming dlc messages!
         dlc_handler::spawn_handling_dlc_messages(dlc_handler, node_event_handler.subscribe());
 
     let event_handler = CoordinatorEventHandler::new(node.clone(), Some(node_event_sender));

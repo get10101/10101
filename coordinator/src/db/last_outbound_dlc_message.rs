@@ -61,7 +61,7 @@ pub(crate) fn upsert(
 ) -> Result<()> {
     let values = (
         last_outbound_dlc_messages::peer_id.eq(peer_id.to_string()),
-        last_outbound_dlc_messages::message_hash.eq(sdm.generate_hash().to_string()),
+        last_outbound_dlc_messages::message_hash.eq(sdm.generate_hash()),
         last_outbound_dlc_messages::message.eq(sdm.message),
     );
     let affected_rows = diesel::insert_into(last_outbound_dlc_messages::table)

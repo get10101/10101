@@ -16,7 +16,6 @@ CREATE TYPE "Message_Type_Type" AS ENUM (
 );
 
 CREATE TABLE "dlc_messages" (
-    -- We need to store the hash as TEXT as the BIGINT type overflows on some u64 values breaking the hash value.
     message_hash TEXT PRIMARY KEY NOT NULL,
     inbound BOOLEAN NOT NULL,
     peer_id TEXT NOT NULL,

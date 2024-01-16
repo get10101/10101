@@ -1,16 +1,17 @@
 use anyhow::Result;
+use bitcoin::hashes::hex::ToHex;
 use bitcoin::secp256k1::PublicKey;
 use dlc_messages::ChannelMessage;
 use dlc_messages::Message;
-use std::collections::hash_map::DefaultHasher;
-use std::hash::Hash;
-use std::hash::Hasher;
+use sha2::digest::FixedOutput;
+use sha2::Digest;
+use sha2::Sha256;
 use time::OffsetDateTime;
 use ureq::serde_json;
 
 #[derive(Clone)]
 pub struct DlcMessage {
-    pub message_hash: u64,
+    pub message_hash: String,
     pub inbound: bool,
     pub peer_id: PublicKey,
     pub message_type: DlcMessageType,
@@ -42,10 +43,10 @@ pub struct SerializedDlcMessage {
 }
 
 impl SerializedDlcMessage {
-    pub fn generate_hash(&self) -> u64 {
-        let mut hasher = DefaultHasher::new();
-        self.hash(&mut hasher);
-        hasher.finish()
+    pub fn generate_hash(&self) -> String {
+        let mut hasher = Sha256::new();
+        hasher.update(self.message.as_bytes());
+        hasher.finalize_fixed().to_hex()
     }
 }
 

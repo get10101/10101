@@ -247,7 +247,7 @@ impl Node<TenTenOneInMemoryStorage, InMemoryStore> {
                         Ok(NodeEvent::Connected { .. }) => {} // ignored
                         Err(_) => {
                             tracing::error!(
-                                "Failed to receive message from node even handler channel."
+                                "Failed to receive message from node event handler channel."
                             );
                             break;
                         }

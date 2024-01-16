@@ -141,6 +141,21 @@ impl Node {
         }
     }
 
+    /// [`process_dlc_message`] processes incoming dlc channel messages and updates the 10101
+    /// position accordingly.
+    /// - Any other message will be ignored.
+    /// - Any dlc channel message that has already been processed will be skipped.
+    ///
+    /// If an offer is received [`ChannelMessage::Offer`], [`ChannelMessage::SettleOffer`],
+    /// [`ChannelMessage::RenewOffer`] will get automatically accepted. Unless the maturity date of
+    /// the offer is already outdated.
+    ///
+    /// FIXME(holzeis): This function manipulates different data objects in different data sources
+    /// and should use a transaction to make all changes atomic. Not doing so risks of ending up in
+    /// an inconsistent state. One way of fixing that could be to
+    /// (1) use a single data source for the 10101 data and the rust-dlc data.
+    /// (2) wrap the function into a db transaction which can be atomically rolled back on error or
+    /// committed on success.
     fn process_dlc_message(&self, node_id: PublicKey, msg: Message) -> Result<()> {
         tracing::info!(
             from = %node_id,
@@ -152,13 +167,13 @@ impl Node {
             Message::OnChain(_) | Message::SubChannel(_) => {
                 tracing::warn!("Ignoring unexpected dlc message.");
                 None
-            },
+            }
             Message::Channel(channel_msg) => {
                 let inbound_msg = {
                     let mut conn = db::connection()?;
                     let serialized_inbound_message = SerializedDlcMessage::try_from(&msg)?;
                     let inbound_msg = DlcMessage::new(node_id, serialized_inbound_message, true)?;
-                    match db::dlc_messages::DlcMessage::get(&mut conn, inbound_msg.message_hash)? {
+                    match db::dlc_messages::DlcMessage::get(&mut conn, &inbound_msg.message_hash)? {
                         Some(_) => {
                             tracing::debug!(%node_id, kind=%dlc_message_name(&msg), "Received message that has already been processed, skipping.");
                             return Ok(());
@@ -267,6 +282,19 @@ impl Node {
                             BackgroundTask::RecoverDlc(TaskStatus::Success),
                         ));
                     }
+                    ChannelMessage::SettleConfirm(_) => {
+                        tracing::debug!("Position based on DLC channel is being closed");
+
+                        let filled_order = order::handler::order_filled()?;
+
+                        position::handler::update_position_after_dlc_closure(Some(filled_order))
+                            .context("Failed to update position after DLC closure")?;
+
+                        // In case of a restart.
+                        event::publish(&EventInternal::BackgroundNotification(
+                            BackgroundTask::RecoverDlc(TaskStatus::Success),
+                        ));
+                    }
                     _ => (),
                 }
 
@@ -281,20 +309,6 @@ impl Node {
 
         if let Some(msg) = resp {
             self.send_dlc_message(node_id, msg.clone())?;
-
-            if let Message::Channel(ChannelMessage::SettleFinalize(_)) = msg {
-                tracing::debug!("Position based on DLC channel is being closed");
-
-                let filled_order = order::handler::order_filled()?;
-
-                position::handler::update_position_after_dlc_closure(Some(filled_order))
-                    .context("Failed to update position after DLC closure")?;
-
-                // In case of a restart.
-                event::publish(&EventInternal::BackgroundNotification(
-                    BackgroundTask::RecoverDlc(TaskStatus::Success),
-                ));
-            }
         }
 
         Ok(())
