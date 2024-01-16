@@ -1,3 +1,5 @@
+#![allow(clippy::unwrap_used)]
+
 use anyhow::Context;
 use anyhow::Result;
 use bitcoin::Amount;
@@ -7,6 +9,7 @@ use dlc_manager::payout_curve::PolynomialPayoutCurvePiece;
 use dlc_manager::payout_curve::RoundingInterval;
 use dlc_manager::payout_curve::RoundingIntervals;
 use payout_curve::build_inverse_payout_function;
+use payout_curve::PartyParams;
 use payout_curve::PayoutPoint;
 use payout_curve::ROUNDING_PERCENT;
 use rust_decimal::prelude::FromPrimitive;
@@ -128,15 +131,15 @@ fn main() -> Result<()> {
     )?;
 
     computed_payout_curve(
-        party_params_offer.total_collateral(),
-        party_params_accept.total_collateral(),
+        party_params_offer,
+        party_params_accept,
         "./crates/payout_curve/examples/computed_payout_long.csv",
         payout_points_offer_long,
     )?;
 
     computed_payout_curve(
-        party_params_accept.total_collateral(),
-        party_params_offer.total_collateral(),
+        party_params_accept,
+        party_params_offer,
         "./crates/payout_curve/examples/computed_payout_short.csv",
         payout_points_offer_short,
     )?;
@@ -173,11 +176,14 @@ fn main() -> Result<()> {
 /// will be based on these points
 #[allow(clippy::too_many_arguments)]
 fn computed_payout_curve(
-    coordinator_collateral: u64,
-    trader_collateral: u64,
+    party_params_coordinator: PartyParams,
+    party_params_trader: PartyParams,
     csv_path: &str,
     payout_points: Vec<(PayoutPoint, PayoutPoint)>,
 ) -> Result<()> {
+    let long_liquidation_price = payout_points.first().unwrap().1.event_outcome;
+    let short_liquidation_price = payout_points.last().unwrap().0.event_outcome;
+
     let mut pieces = vec![];
     for (lower, upper) in payout_points {
         let lower_range = PolynomialPayoutCurvePiece::new(vec![
@@ -197,14 +203,26 @@ fn computed_payout_curve(
 
     let payout_function =
         PayoutFunction::new(pieces).context("could not create payout function")?;
-    let total_collateral = coordinator_collateral + trader_collateral;
+    let total_collateral =
+        party_params_coordinator.total_collateral() + party_params_trader.total_collateral();
+    let total_margin = party_params_coordinator.margin() + party_params_trader.margin();
     let range_payouts = payout_function.to_range_payouts(
         total_collateral,
         &RoundingIntervals {
-            intervals: vec![RoundingInterval {
-                begin_interval: 0,
-                rounding_mod: (total_collateral as f32 * ROUNDING_PERCENT) as u64,
-            }],
+            intervals: vec![
+                RoundingInterval {
+                    begin_interval: 0,
+                    rounding_mod: 1,
+                },
+                RoundingInterval {
+                    begin_interval: long_liquidation_price,
+                    rounding_mod: (total_margin as f32 * ROUNDING_PERCENT) as u64,
+                },
+                RoundingInterval {
+                    begin_interval: short_liquidation_price,
+                    rounding_mod: 1,
+                },
+            ],
         },
     )?;
 

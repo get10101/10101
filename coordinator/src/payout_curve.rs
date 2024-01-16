@@ -12,10 +12,12 @@ use dlc_manager::payout_curve::RoundingInterval;
 use dlc_manager::payout_curve::RoundingIntervals;
 use payout_curve::ROUNDING_PERCENT;
 use rust_decimal::prelude::FromPrimitive;
+use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use tracing::instrument;
 use trade::cfd::calculate_long_liquidation_price;
 use trade::cfd::calculate_short_liquidation_price;
+use trade::cfd::BTCUSD_MAX_PRICE;
 use trade::ContractSymbol;
 use trade::Direction;
 
@@ -33,7 +35,6 @@ pub fn build_contract_descriptor(
     coordinator_direction: Direction,
     coordinator_collateral_reserve: u64,
     trader_collateral_reserve: u64,
-    rounding_intervals: RoundingIntervals,
     quantity: f32,
     symbol: ContractSymbol,
 ) -> Result<ContractDescriptor> {
@@ -45,18 +46,20 @@ pub fn build_contract_descriptor(
 
     tracing::info!("Building contract descriptor");
 
+    let (payout_function, rounding_intervals) = build_inverse_payout_function(
+        coordinator_margin,
+        trader_margin,
+        initial_price,
+        leverage_trader,
+        leverage_coordinator,
+        coordinator_collateral_reserve,
+        trader_collateral_reserve,
+        coordinator_direction,
+        quantity,
+    )?;
+
     Ok(ContractDescriptor::Numerical(NumericalDescriptor {
-        payout_function: build_inverse_payout_function(
-            coordinator_margin,
-            trader_margin,
-            initial_price,
-            leverage_trader,
-            leverage_coordinator,
-            coordinator_collateral_reserve,
-            trader_collateral_reserve,
-            coordinator_direction,
-            quantity,
-        )?,
+        payout_function,
         rounding_intervals,
         difference_params: None,
         oracle_numeric_infos: dlc_trie::OracleNumericInfo {
@@ -68,6 +71,8 @@ pub fn build_contract_descriptor(
 
 /// Build a [`PayoutFunction`] for an inverse perpetual future e.g. BTCUSD. Perspective is always
 /// from the person who offers, i.e. in our case from the coordinator.
+///
+/// Additionally returns the [`RoundingIntervals`] to indicate how it should be discretized.
 #[allow(clippy::too_many_arguments)]
 fn build_inverse_payout_function(
     coordinator_margin: u64,
@@ -79,7 +84,7 @@ fn build_inverse_payout_function(
     trader_collateral_reserve: u64,
     coordinator_direction: Direction,
     quantity: f32,
-) -> Result<PayoutFunction> {
+) -> Result<(PayoutFunction, RoundingIntervals)> {
     let leverage_coordinator =
         Decimal::from_f32(leverage_coordinator).expect("to fit into decimal");
     let leverage_trader = Decimal::from_f32(leverage_trader).expect("to fit into decimal");
@@ -139,7 +144,17 @@ fn build_inverse_payout_function(
     let payout_function =
         PayoutFunction::new(pieces).context("could not create payout function")?;
 
-    Ok(payout_function)
+    let rounding_intervals = {
+        let total_margin = coordinator_margin + trader_margin;
+
+        create_rounding_intervals(
+            total_margin,
+            long_liquidation_price.to_u64().expect("to fit into u64"),
+            short_liquidation_price.to_u64().expect("to fit into u64"),
+        )
+    };
+
+    Ok((payout_function, rounding_intervals))
 }
 
 /// Returns the liquidation price for `(coordinator, maker)`
@@ -162,13 +177,32 @@ fn get_liquidation_prices(
     (coordinator_liquidation_price, trader_liquidation_price)
 }
 
-pub fn create_rounding_interval(total_collateral: u64) -> RoundingIntervals {
-    RoundingIntervals {
-        intervals: vec![RoundingInterval {
+pub fn create_rounding_intervals(
+    total_margin: u64,
+    long_liquidation_price: u64,
+    short_liquidation_price: u64,
+) -> RoundingIntervals {
+    let mut intervals = vec![
+        RoundingInterval {
             begin_interval: 0,
-            rounding_mod: (total_collateral as f32 * ROUNDING_PERCENT) as u64,
-        }],
+            // No rounding.
+            rounding_mod: 1,
+        },
+        RoundingInterval {
+            begin_interval: long_liquidation_price,
+            rounding_mod: (total_margin as f32 * ROUNDING_PERCENT) as u64,
+        },
+    ];
+
+    if short_liquidation_price < BTCUSD_MAX_PRICE {
+        intervals.push(RoundingInterval {
+            begin_interval: short_liquidation_price,
+            // No rounding.
+            rounding_mod: 1,
+        })
     }
+
+    RoundingIntervals { intervals }
 }
 
 #[cfg(test)]
@@ -195,7 +229,6 @@ mod tests {
         let trader_collateral_reserve = order_matching_fee_taker(quantity, initial_price).to_sat();
 
         let total_collateral = coordinator_margin + trader_margin;
-        let rounding_intervals = create_rounding_interval(total_collateral);
 
         let symbol = ContractSymbol::BtcUsd;
 
@@ -208,7 +241,6 @@ mod tests {
             coordinator_direction,
             coordinator_collateral_reserve,
             trader_collateral_reserve,
-            rounding_intervals,
             quantity,
             symbol,
         )
@@ -286,13 +318,6 @@ mod tests {
         let coordinator_collateral_reserve = 0;
         let trader_collateral_reserve = 0;
 
-        let rounding_intervals = RoundingIntervals {
-            intervals: vec![RoundingInterval {
-                begin_interval: 0,
-                rounding_mod: 457,
-            }],
-        };
-
         let symbol = ContractSymbol::BtcUsd;
 
         let _descriptor = build_contract_descriptor(
@@ -304,7 +329,6 @@ mod tests {
             coordinator_direction,
             coordinator_collateral_reserve,
             trader_collateral_reserve,
-            rounding_intervals,
             quantity,
             symbol,
         )

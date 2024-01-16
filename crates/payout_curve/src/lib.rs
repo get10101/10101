@@ -10,11 +10,14 @@ use trade::cfd::calculate_pnl;
 use trade::cfd::BTCUSD_MAX_PRICE;
 use trade::Direction;
 
-/// We use this variable to indicate the step interval for our payout function. It should be
-/// relative to the overall collateral so that we use the same amount of payouts for all intervals.
-/// This means, the higher the overall collateral, the bigger the steps.
+/// Factor by which we can multiply the total margin being wagered in order to get consistent
+/// rounding in the middle (non-constant) part of the payout function.
 ///
-/// 0.01 means 1%, i.e. we always have ~100 payouts.
+/// E.g. with a value of 0.01 and a total margin of 20_000 sats would get payout jumps of 200 sats,
+/// for a total of ~100 intervals.
+///
+/// TODO: We should not use the same rounding for all non-constant parts of the payout function,
+/// because not all intervals are equally as likely. That way we can avoid excessive CET generation.
 pub const ROUNDING_PERCENT: f32 = 0.01;
 
 /// Defines the steps to take in the payout curve for one point. A step of 2 means, that two points
@@ -48,6 +51,10 @@ impl PartyParams {
             margin: margin.to_sat(),
             collateral_reserve: collateral_reserve.to_sat(),
         }
+    }
+
+    pub fn margin(&self) -> u64 {
+        self.margin
     }
 
     /// The sum of all the coins that the party is wagering and reserving, in sats.

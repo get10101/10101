@@ -5,7 +5,6 @@ use crate::node::storage::NodeStorage;
 use crate::orderbook::db::matches;
 use crate::orderbook::db::orders;
 use crate::payout_curve;
-use crate::payout_curve::create_rounding_interval;
 use crate::position::models::NewPosition;
 use crate::position::models::Position;
 use crate::position::models::PositionState;
@@ -240,8 +239,6 @@ impl Node {
         )
         .to_sat();
 
-        let total_collateral = margin_coordinator + margin_trader + order_matching_fee;
-
         let initial_price = trade_params.filled_with.average_execution_price();
 
         let coordinator_direction = trade_params.direction.opposite();
@@ -256,7 +253,6 @@ impl Node {
             // The coordinator gets the `order_matching_fee` directly in the collateral reserve.
             order_matching_fee,
             0,
-            create_rounding_interval(total_collateral),
             trade_params.quantity,
             trade_params.contract_symbol,
         )
@@ -338,8 +334,6 @@ impl Node {
             "Opening position"
         );
 
-        let total_collateral = coordinator_dlc_channel_collateral + trader_dlc_channel_collateral;
-
         let initial_price = trade_params.filled_with.average_execution_price();
 
         let leverage_coordinator = self.coordinator_leverage_for_trade(&trade_params.pubkey)?;
@@ -391,7 +385,6 @@ impl Node {
             coordinator_direction,
             coordinator_collateral_reserve,
             trader_collateral_reserve,
-            create_rounding_interval(total_collateral),
             trade_params.quantity,
             trade_params.contract_symbol,
         )

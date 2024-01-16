@@ -504,10 +504,20 @@ fn dummy_contract_input(
                 ])
                 .unwrap(),
                 rounding_intervals: RoundingIntervals {
-                    intervals: vec![RoundingInterval {
-                        begin_interval: 0,
-                        rounding_mod,
-                    }],
+                    intervals: vec![
+                        RoundingInterval {
+                            begin_interval: 0,
+                            rounding_mod: 1,
+                        },
+                        RoundingInterval {
+                            begin_interval: 50_000,
+                            rounding_mod,
+                        },
+                        RoundingInterval {
+                            begin_interval: 60_000,
+                            rounding_mod: 1,
+                        },
+                    ],
                 },
                 difference_params: None,
                 oracle_numeric_infos: dlc_trie::OracleNumericInfo {
