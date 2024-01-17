@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix: correctly remember reserved utxos and don't accidentally double spend
 - Feat: Allow recovering from a stuck protocol state by resending last outbound dlc message on connect
 - Feat: Allow continuing from an offered dlc channel state (offered, settle offered and collab close offered)
+- Feat: add a new project `webapp`. Eventually this will have the same functionality as our app (and more) and can be run on a self-hosted server
 
 ## [1.7.4] - 2023-12-20
 
