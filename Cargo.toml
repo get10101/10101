@@ -1,5 +1,5 @@
 [workspace]
-members = ["coordinator", "maker", "mobile/native", "crates/*"]
+members = ["coordinator", "maker", "mobile/native", "crates/*", "webapp"]
 default-members = [
   "coordinator",
   "maker",
@@ -11,6 +11,7 @@ default-members = [
   "crates/orderbook-client",
   "crates/trade",
   "crates/payout_curve",
+  "webapp",
 ]
 
 resolver = "2"

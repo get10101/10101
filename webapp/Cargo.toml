@@ -1,0 +1,16 @@
+[package]
+name = "webapp"
+version = "0.1.0"
+build = "build.rs"
+edition = "2021"
+
+[dependencies]
+anyhow = "1"
+axum = { version = "0.7", features = ["tracing"] }
+mime_guess = "2.0.4"
+rust-embed = "8.2.0"
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+tower = { version = "0.4", features = ["util"] }
+tower-http = { version = "0.5", features = ["fs", "trace"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
