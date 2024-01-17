@@ -8,7 +8,6 @@ use diesel::r2d2::Pool;
 use diesel::PgConnection;
 use dlc_manager::channel::signed_channel::SignedChannel;
 use dlc_manager::channel::signed_channel::SignedChannelState;
-use dlc_manager::channel::Channel;
 use dlc_messages::Message;
 use futures::future::RemoteHandle;
 use futures::FutureExt;
@@ -102,11 +101,13 @@ impl DlcHandler {
     }
 
     pub fn on_connect(&self, peer: PublicKey) -> Result<()> {
-        if let Some(Channel::Signed(SignedChannel {
+        let signed_dlc_channels = self.node.list_signed_dlc_channels()?;
+
+        if let Some(SignedChannel {
             channel_id,
             state: SignedChannelState::CollaborativeCloseOffered { .. },
             ..
-        })) = self.node.list_dlc_channels()?.first()
+        }) = signed_dlc_channels.iter().find(|c| c.counter_party == peer)
         {
             tracing::info!("Accepting pending dlc channel close offer.");
             // Pending dlc channel close offer with the intend to close the dlc channel
