@@ -10,26 +10,20 @@ class NavigationDestinations {
 }
 
 const List<NavigationDestinations> destinations = <NavigationDestinations>[
-  NavigationDestinations(
-      'Trading', Icon(Icons.bar_chart_outlined), Icon(Icons.bar_chart)),
-  NavigationDestinations(
-      'Wallet', Icon(Icons.wallet_outlined), Icon(Icons.wallet)),
-  NavigationDestinations(
-      'Settings', Icon(Icons.settings_outlined), Icon(Icons.settings)),
+  NavigationDestinations('Trading', Icon(Icons.bar_chart_outlined), Icon(Icons.bar_chart)),
+  NavigationDestinations('Wallet', Icon(Icons.wallet_outlined), Icon(Icons.wallet)),
+  NavigationDestinations('Settings', Icon(Icons.settings_outlined), Icon(Icons.settings)),
 ];
-
 
 class ScaffoldWithNestedNavigation extends StatefulWidget {
   const ScaffoldWithNestedNavigation({
     Key? key,
     required this.navigationShell,
-  }) : super(
-      key: key ?? const ValueKey<String>('ScaffoldWithNestedNavigation'));
+  }) : super(key: key ?? const ValueKey<String>('ScaffoldWithNestedNavigation'));
   final StatefulNavigationShell navigationShell;
 
   @override
-  State<ScaffoldWithNestedNavigation> createState() =>
-      _ScaffoldWithNestedNavigation();
+  State<ScaffoldWithNestedNavigation> createState() => _ScaffoldWithNestedNavigation();
 }
 
 // Based on
@@ -60,7 +54,7 @@ class _ScaffoldWithNestedNavigation extends State<ScaffoldWithNestedNavigation> 
         body: navigationShell,
         selectedIndex: navigationShell.currentIndex,
         onDestinationSelected: _goBranch,
-          showAsDrawer: showAsDrawer,
+        showAsDrawer: showAsDrawer,
       );
     } else {
       return ScaffoldWithNavigationBar(
@@ -79,6 +73,7 @@ class ScaffoldWithNavigationBar extends StatelessWidget {
     required this.selectedIndex,
     required this.onDestinationSelected,
   });
+
   final Widget body;
   final int selectedIndex;
   final ValueChanged<int> onDestinationSelected;
@@ -108,6 +103,7 @@ class ScaffoldWithNavigationRail extends StatelessWidget {
     required this.onDestinationSelected,
     required this.showAsDrawer,
   });
+
   final Widget body;
   final int selectedIndex;
   final ValueChanged<int> onDestinationSelected;
@@ -122,14 +118,18 @@ class ScaffoldWithNavigationRail extends StatelessWidget {
             extended: showAsDrawer,
             selectedIndex: selectedIndex,
             onDestinationSelected: onDestinationSelected,
+            leading: showAsDrawer
+                ? Image.asset("10101_flat_logo.png", width: 200, height: 50)
+                : Image.asset("10101_logo_icon.png", width: 50, height: 50),
             labelType: showAsDrawer ? NavigationRailLabelType.none : NavigationRailLabelType.all,
-            destinations:
-            destinations.map((navigation) =>
-                NavigationRailDestination(
-                  label: Text(navigation.label),
-                  icon: navigation.icon,
-                  selectedIcon: navigation.selectedIcon
-                ),).toList(),
+            destinations: destinations
+                .map(
+                  (navigation) => NavigationRailDestination(
+                      label: Text(navigation.label),
+                      icon: navigation.icon,
+                      selectedIcon: navigation.selectedIcon),
+                )
+                .toList(),
           ),
           const VerticalDivider(thickness: 1, width: 1),
           // This is the main content.
@@ -141,4 +141,3 @@ class ScaffoldWithNavigationRail extends StatelessWidget {
     );
   }
 }
-
