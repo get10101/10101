@@ -12,7 +12,6 @@ use dlc_manager::payout_curve::RoundingInterval;
 use dlc_manager::payout_curve::RoundingIntervals;
 use payout_curve::ROUNDING_PERCENT;
 use rust_decimal::prelude::FromPrimitive;
-use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use tracing::instrument;
 use trade::cfd::calculate_long_liquidation_price;
@@ -124,6 +123,18 @@ fn build_inverse_payout_function(
         coordinator_direction,
     )?;
 
+    // The payout curve generation code tends to shift the liquidation prices slightly.
+    let adjusted_long_liquidation_price = payout_points
+        .first()
+        .context("Empty payout points")?
+        .1
+        .event_outcome;
+    let adjusted_short_liquidation_price = payout_points
+        .last()
+        .context("Empty payout points")?
+        .0
+        .event_outcome;
+
     let mut pieces = vec![];
     for (lower, upper) in payout_points {
         let lower_range = PolynomialPayoutCurvePiece::new(vec![
@@ -149,8 +160,8 @@ fn build_inverse_payout_function(
 
         create_rounding_intervals(
             total_margin,
-            long_liquidation_price.to_u64().expect("to fit into u64"),
-            short_liquidation_price.to_u64().expect("to fit into u64"),
+            adjusted_long_liquidation_price,
+            adjusted_short_liquidation_price,
         )
     };
 
@@ -182,19 +193,39 @@ pub fn create_rounding_intervals(
     long_liquidation_price: u64,
     short_liquidation_price: u64,
 ) -> RoundingIntervals {
+    let liquidation_diff = short_liquidation_price
+        .checked_sub(long_liquidation_price)
+        .expect("short liquidation to be higher than long liquidation");
+    let low_price = long_liquidation_price + liquidation_diff / 10;
+    let high_price = short_liquidation_price - liquidation_diff / 10;
+
     let mut intervals = vec![
         RoundingInterval {
             begin_interval: 0,
             // No rounding.
             rounding_mod: 1,
         },
+        // HACK: We decrease the rounding here to prevent `rust-dlc` from rounding under the long
+        // liquidation price _payout_.
         RoundingInterval {
             begin_interval: long_liquidation_price,
+            rounding_mod: (total_margin as f32 * ROUNDING_PERCENT * 0.1) as u64,
+        },
+        RoundingInterval {
+            begin_interval: low_price,
             rounding_mod: (total_margin as f32 * ROUNDING_PERCENT) as u64,
         },
     ];
 
     if short_liquidation_price < BTCUSD_MAX_PRICE {
+        intervals.push(
+            // HACK: We decrease the rounding here to prevent `rust-dlc` from rounding over the
+            // short liquidation price _payout_.
+            RoundingInterval {
+                begin_interval: high_price,
+                rounding_mod: (total_margin as f32 * ROUNDING_PERCENT * 0.1) as u64,
+            },
+        );
         intervals.push(RoundingInterval {
             begin_interval: short_liquidation_price,
             // No rounding.

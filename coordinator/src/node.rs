@@ -509,6 +509,7 @@ impl Node {
             ?position,
             channel_id = %channel_id.to_hex(),
             %position_settlement_amount_coordinator,
+            ?collateral_reserve_coordinator,
             %dlc_channel_settlement_amount_coordinator,
             trader_peer_id = %position.trader,
             "Closing position by settling DLC channel off-chain",

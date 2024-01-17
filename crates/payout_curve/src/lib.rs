@@ -25,7 +25,7 @@ pub const ROUNDING_PERCENT: f32 = 0.01;
 const PAYOUT_CURVE_DISCRETIZATION_STEPS: u64 = 20;
 
 /// A payout point representing a payout for a given outcome.
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct PayoutPoint {
     /// The event outcome.
     pub event_outcome: u64,
@@ -154,10 +154,9 @@ pub fn build_inverse_payout_function(
             price_params.long_liquidation_price,
             collateral_reserve_long,
         )?;
-
     pieces.push((
         long_liquidation_interval_start,
-        long_liquidation_interval_end.clone(),
+        long_liquidation_interval_end,
     ));
 
     let mid_range = calculate_mid_range_payouts(
@@ -175,11 +174,10 @@ pub fn build_inverse_payout_function(
 
     let (_, mid_range_interval_end_payout_point) = mid_range
         .last()
-        .context("didn't have at least a single element in the mid range")?
-        .clone();
+        .context("didn't have at least a single element in the mid range")?;
 
-    for (lower, upper) in mid_range {
-        pieces.push((lower, upper));
+    for (lower, upper) in mid_range.iter() {
+        pieces.push((*lower, *upper));
     }
 
     // If the last payout point of the mid range interval is already at [`BTCUSD_MAX_PRICE`], the
@@ -188,7 +186,7 @@ pub fn build_inverse_payout_function(
         let short_liquidation_payout_points = calculate_short_liquidation_interval_payouts(
             offer_party_direction,
             total_collateral,
-            mid_range_interval_end_payout_point,
+            *mid_range_interval_end_payout_point,
             collateral_reserve_short,
         )?;
 
@@ -253,7 +251,11 @@ fn calculate_long_liquidation_interval_payouts(
 /// `short_liquidation_price`.
 ///
 /// Returns tuples of payout points, first item is lower point, next item is higher point of two
-/// points on the payout curve
+/// points on the payout curve.
+///
+/// TODO: We should almost certainly define our own step function to avoid having to use the
+/// `rust-dlc` `RoundingIntervals`, which can cause problems on the boundaries between different
+/// `RoundingInterval`s.
 fn calculate_mid_range_payouts(
     offer_party: PartyParams,
     accept_party: PartyParams,
@@ -290,15 +292,16 @@ fn calculate_mid_range_payouts(
 
                 long_liquidation_interval_end_payout.outcome_payout as i64
             } else {
-                offer_party.total_collateral() as i64
-                    + calculate_pnl(
-                        initial_price,
-                        Decimal::from(interval_start_price),
-                        quantity,
-                        offer_direction,
-                        long_margin,
-                        short_margin,
-                    )?
+                let pnl = calculate_pnl(
+                    initial_price,
+                    Decimal::from(interval_start_price),
+                    quantity,
+                    offer_direction,
+                    long_margin,
+                    short_margin,
+                )?;
+
+                offer_party.total_collateral() as i64 + pnl
             };
 
             // Payout cannot be below min.
@@ -743,7 +746,7 @@ mod tests {
         let (lower, upper) = calculate_short_liquidation_interval_payouts(
             offer_direction,
             total_collateral,
-            last_mid_range_payout.clone(),
+            last_mid_range_payout,
             collateral_reserve_offer,
         )
         .unwrap();
@@ -782,7 +785,7 @@ mod tests {
         let (lower, upper) = calculate_short_liquidation_interval_payouts(
             offer_direction,
             total_collateral,
-            last_mid_range_payout.clone(),
+            last_mid_range_payout,
             collateral_reserve_accept,
         )
         .unwrap();
@@ -826,7 +829,7 @@ mod tests {
         let (lower, upper) = calculate_short_liquidation_interval_payouts(
             offer_direction,
             total_collateral,
-            last_mid_range_payout.clone(),
+            last_mid_range_payout,
             collateral_reserve_accept,
         )
         .unwrap();
@@ -921,7 +924,7 @@ mod tests {
             let offer_direction = Direction::Short;
 
             let (lower, upper) =
-                calculate_short_liquidation_interval_payouts(offer_direction, total_collateral, last_payout.clone(), collateral_reserve_short).unwrap();
+                calculate_short_liquidation_interval_payouts(offer_direction, total_collateral, last_payout, collateral_reserve_short).unwrap();
 
             // assert
             prop_assert_eq!(lower.event_outcome, last_payout.event_outcome);
@@ -947,7 +950,7 @@ mod tests {
             let offer_direction = Direction::Long;
 
             let (lower, upper) =
-                calculate_short_liquidation_interval_payouts(offer_direction, total_collateral, last_payout.clone(), collateral_reserve_short).unwrap();
+                calculate_short_liquidation_interval_payouts(offer_direction, total_collateral, last_payout, collateral_reserve_short).unwrap();
 
             // assert
             assert_eq!(lower.event_outcome, last_payout.event_outcome);

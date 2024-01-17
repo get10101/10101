@@ -562,11 +562,9 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
                     .get_payouts(total_collateral)
                     .expect("valid payouts");
 
-                // The minimum payout for each party determines how many coins are _not_
-                // currently being wagered. Since they are
-                // not being wagered, they have the potential to be
-                // wagered (by renewing the channel, for example) and so they are
-                // usable.
+                // The minimum payout for each party determines how many coins are _not_ currently
+                // being wagered. Since they are not being wagered, they have the potential to be
+                // wagered (by renewing the channel, for example) and so they are usable.
                 let reserve = if is_offer_party {
                     payouts
                         .iter()

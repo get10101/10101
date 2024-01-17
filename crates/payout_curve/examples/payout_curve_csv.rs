@@ -261,7 +261,7 @@ fn discretized_payouts_as_csv(
         ])?;
     }
     // need to add the last point because we ignored it explicitely above
-    let last_point = payout_points[payout_points.len() - 1].clone();
+    let last_point = payout_points[payout_points.len() - 1];
     wtr.write_record([
         last_point.1.event_outcome.to_string(),
         last_point.1.outcome_payout.to_string(),
