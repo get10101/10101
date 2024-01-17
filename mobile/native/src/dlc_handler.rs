@@ -90,7 +90,26 @@ impl DlcHandler {
     }
 
     pub fn on_connect(&self, peer: PublicKey) -> Result<()> {
-        if let Some(channel) = self.node.list_dlc_channels()?.first() {
+        let dlc_channels: Vec<Channel> = self
+            .node
+            .list_dlc_channels()?
+            .into_iter()
+            .filter(|c| {
+                // Filter all dlc channels that have reached a somewhat final state.
+                !matches!(
+                    c,
+                    Channel::Closed(_)
+                        | Channel::Closing(_)
+                        | Channel::CounterClosed(_)
+                        | Channel::ClosedPunished(_)
+                        | Channel::CollaborativelyClosed(_)
+                        | Channel::FailedAccept(_)
+                        | Channel::FailedSign(_)
+                )
+            })
+            .collect();
+
+        if let Some(channel) = dlc_channels.first() {
             match channel {
                 Channel::Offered(OfferedChannel {
                     temporary_channel_id,
