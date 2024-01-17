@@ -24,7 +24,7 @@ class TradeValuesChangeNotifier extends ChangeNotifier implements Subscriber {
   }
 
   TradeValues _initOrder(Direction direction) {
-    Amount defaultQuantity = Amount(10);
+    Amount defaultQuantity = Amount(100);
     Leverage defaultLeverage = Leverage(2);
 
     switch (direction) {
