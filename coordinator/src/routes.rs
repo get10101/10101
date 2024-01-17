@@ -1,7 +1,6 @@
 use crate::admin::close_channel;
 use crate::admin::collaborative_revert;
 use crate::admin::connect_to_peer;
-use crate::admin::expert_collaborative_revert;
 use crate::admin::get_balance;
 use crate::admin::get_utxos;
 use crate::admin::is_connected;
@@ -155,10 +154,6 @@ pub fn router(
         .route("/api/admin/sign/:msg", get(sign_message))
         .route("/api/admin/connect", post(connect_to_peer))
         .route("/api/admin/channels/revert", post(collaborative_revert))
-        .route(
-            "/api/admin/channels/revert-expert",
-            post(expert_collaborative_revert),
-        )
         .route(
             "/api/channels/revertconfirm",
             post(collaborative_revert_confirm),

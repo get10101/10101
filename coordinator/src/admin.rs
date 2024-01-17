@@ -12,7 +12,6 @@ use bdk::FeeRate;
 use bdk::LocalUtxo;
 use bdk::TransactionDetails;
 use bitcoin::secp256k1::PublicKey;
-use commons::CollaborativeRevertCoordinatorExpertRequest;
 use commons::CollaborativeRevertCoordinatorRequest;
 use dlc_manager::channel::Channel;
 use dlc_manager::contract::Contract;
@@ -339,14 +338,6 @@ pub async fn collaborative_revert(
     tracing::info!(channel_id = channel_id_hex, "Proposed collaborative revert");
 
     Ok(())
-}
-
-#[instrument(skip_all, err(Debug))]
-pub async fn expert_collaborative_revert(
-    State(_state): State<Arc<AppState>>,
-    _revert_params: Json<CollaborativeRevertCoordinatorExpertRequest>,
-) -> Result<(), AppError> {
-    unimplemented!("This needs to be reimplemented on top of dlc-channels");
 }
 
 #[instrument(skip_all, err(Debug))]
