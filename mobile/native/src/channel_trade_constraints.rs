@@ -41,7 +41,7 @@ pub fn channel_trade_constraints() -> Result<TradeConstraints> {
             }
         }
         Some(channel) => TradeConstraints {
-            max_local_margin_sats: channel.own_params.collateral,
+            max_local_margin_sats: ln_dlc::get_usable_dlc_channel_balance()?.to_sat(),
             max_counterparty_margin_sats: channel.counter_params.collateral,
             coordinator_leverage,
             min_quantity,

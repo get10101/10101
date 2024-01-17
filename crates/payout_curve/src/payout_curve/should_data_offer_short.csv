@@ -1,4 +1,4 @@
-start;payout_offer;payout_accept;fee
+start;payout_offer;payout_accept;collateral_reserve_offer
 0;200000000;0;300000
 20000;200000000;0;300000
 20001;199985001;14999;300000

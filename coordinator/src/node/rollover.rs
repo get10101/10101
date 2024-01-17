@@ -226,10 +226,8 @@ impl Node {
 
         let contract_input: ContractInput = rollover.clone().into();
 
-        // As the average entry price does not change with a rollover, we can simply use the traders
-        // margin as payout here. The funding rate should be considered here once https://github.com/get10101/10101/issues/1069 gets implemented.
         self.inner
-            .propose_dlc_channel_update(dlc_channel_id, rollover.margin_trader, contract_input)
+            .propose_dlc_channel_update(dlc_channel_id, contract_input)
             .await?;
 
         // Sets the position state to rollover indicating that a rollover is in progress.
@@ -239,6 +237,17 @@ impl Node {
             rollover.counterparty_pubkey.to_string(),
             &rollover.maturity_time(),
         )
+    }
+
+    pub fn is_in_rollover(&self, trader_id: PublicKey) -> Result<bool> {
+        let mut conn = self.pool.get()?;
+        let position = db::positions::Position::get_position_by_trader(
+            &mut conn,
+            trader_id,
+            vec![PositionState::Rollover],
+        )?;
+
+        Ok(position.is_some())
     }
 
     /// Finalizes the rollover protocol with the app setting the position to open.

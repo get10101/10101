@@ -38,10 +38,11 @@ pub struct Balance {
 pub async fn get_balance(State(state): State<Arc<AppState>>) -> Result<Json<Balance>, AppError> {
     spawn_blocking(move || {
         let lightning_balance = state.node.inner.get_ldk_balance();
+
         let dlc_channel = state
             .node
             .inner
-            .get_usable_dlc_channel_balance()
+            .get_dlc_channels_usable_balance()
             .map_err(|error| {
                 AppError::InternalServerError(format!(
                     "Failed getting dlc channel balance {error:#}"

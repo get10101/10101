@@ -4,7 +4,6 @@ use crate::node::Storage;
 use anyhow::anyhow;
 use anyhow::bail;
 use anyhow::Context;
-use anyhow::Error;
 use anyhow::Result;
 use bdk::blockchain::Blockchain;
 use bdk::blockchain::GetBlockHash;
@@ -139,7 +138,7 @@ where
         output_script: Script,
         value_sats: u64,
         fee_rate: FeeRate,
-    ) -> Result<Transaction, Error> {
+    ) -> Result<Transaction> {
         let mut locked_utxos = self.locked_outpoints.lock();
         let psbt = self.build_psbt(
             output_script,
@@ -161,22 +160,22 @@ where
         Ok(transaction)
     }
 
-    pub(crate) fn get_last_unused_address(&self) -> Result<Address, Error> {
+    pub(crate) fn get_last_unused_address(&self) -> Result<Address> {
         Ok(self
             .bdk_lock()
             .get_address(AddressIndex::LastUnused)?
             .address)
     }
 
-    pub fn is_mine(&self, script: &Script) -> Result<bool, Error> {
+    pub fn is_mine(&self, script: &Script) -> Result<bool> {
         Ok(self.bdk_lock().is_mine(script)?)
     }
 
-    pub(crate) fn get_balance(&self) -> Result<bdk::Balance, Error> {
+    pub(crate) fn get_balance(&self) -> Result<bdk::Balance> {
         Ok(self.bdk_lock().get_balance()?)
     }
 
-    pub fn get_utxos(&self) -> Result<Vec<bdk::LocalUtxo>, Error> {
+    pub fn get_utxos(&self) -> Result<Vec<bdk::LocalUtxo>> {
         let utxos = self.bdk_lock().list_unspent()?;
         Ok(utxos)
     }
@@ -186,7 +185,7 @@ where
         amount: u64,
         lock_utxos: bool,
         network: Network,
-    ) -> Result<Vec<Utxo>, Error> {
+    ) -> Result<Vec<Utxo>> {
         let utxos = self.get_utxos()?;
         // get temporarily reserved utxo from in-memory storage
         let mut reserved_outpoints = self.locked_outpoints.lock();

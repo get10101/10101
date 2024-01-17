@@ -30,7 +30,6 @@ use crate::trade::position;
 use anyhow::anyhow;
 use anyhow::bail;
 use anyhow::Context;
-use anyhow::Error;
 use anyhow::Result;
 use bdk::bitcoin::secp256k1::rand::thread_rng;
 use bdk::bitcoin::secp256k1::rand::RngCore;
@@ -68,6 +67,7 @@ use ln_dlc_node::lightning_invoice::Bolt11Invoice;
 use ln_dlc_node::node::event::NodeEventHandler;
 use ln_dlc_node::node::rust_dlc_manager::channel::signed_channel::SignedChannel;
 use ln_dlc_node::node::rust_dlc_manager::channel::ClosedChannel;
+use ln_dlc_node::node::rust_dlc_manager::contract::Contract;
 use ln_dlc_node::node::rust_dlc_manager::subchannel::LNChannelManager;
 use ln_dlc_node::node::rust_dlc_manager::DlcChannelId;
 use ln_dlc_node::node::rust_dlc_manager::Signer;
@@ -99,10 +99,9 @@ use tokio::sync::watch;
 use tokio::task::spawn_blocking;
 use trade::ContractSymbol;
 
+pub mod channel_status;
 mod lightning_subscriber;
 pub mod node;
-
-pub mod channel_status;
 
 const PROCESS_INCOMING_DLC_MESSAGES_INTERVAL: Duration = Duration::from_millis(200);
 const UPDATE_WALLET_HISTORY_INTERVAL: Duration = Duration::from_secs(5);
@@ -161,6 +160,24 @@ pub async fn refresh_wallet_info() -> Result<()> {
 
         anyhow::Ok(())
     });
+
+    Ok(())
+}
+
+pub async fn sync_dlc_channels() -> Result<()> {
+    let node = state::get_node();
+
+    let runtime = state::get_or_create_tokio_runtime()?;
+
+    runtime
+        .spawn_blocking(move || {
+            node.inner.dlc_manager.periodic_chain_monitor()?;
+            node.inner.dlc_manager.periodic_check()?;
+
+            anyhow::Ok(())
+        })
+        .await
+        .expect("task to complete")?;
 
     Ok(())
 }
@@ -697,6 +714,10 @@ pub fn get_onchain_balance() -> Result<Balance> {
     let node = state::try_get_node().context("failed to get ln dlc node")?;
     node.inner.get_on_chain_balance()
 }
+pub fn get_usable_dlc_channel_balance() -> Result<Amount> {
+    let node = state::try_get_node().context("failed to get ln dlc node")?;
+    node.inner.get_dlc_channels_usable_balance()
+}
 
 pub fn collaborative_revert_channel(
     channel_id: DlcChannelId,
@@ -883,6 +904,35 @@ fn update_state_after_collab_revert(
             None,
         )
         .map_err(|e| anyhow!("{e:#}"))
+}
+
+pub fn get_signed_dlc_channel() -> Result<Option<SignedChannel>> {
+    let node = state::get_node();
+
+    let signed_channels = node.inner.list_signed_dlc_channels()?;
+
+    // TODO: Can we assume that the first DLC channel is the one we care about? We assume that we
+    // can only have one DLC channel at a time (for now), but what if the previous DLC channel is
+    // still being closed on-chain?
+    Ok(signed_channels.first().cloned())
+}
+
+pub fn is_dlc_channel_confirmed(dlc_channel_id: &DlcChannelId) -> Result<bool> {
+    let node = state::get_node();
+
+    let is_contract_confirmed = match node.inner.get_contract_by_dlc_channel_id(dlc_channel_id) {
+        Ok(Contract::Confirmed { .. }) => true,
+        Err(e) => {
+            tracing::error!(
+                dlc_channel_id = %dlc_channel_id.to_hex(),
+                "Could not get contract for DLC channel: {e:#}"
+            );
+            false
+        }
+        _ => false,
+    };
+
+    Ok(is_contract_confirmed)
 }
 
 pub fn get_usable_channel_details() -> Result<Vec<ChannelDetails>> {
@@ -1142,14 +1192,14 @@ pub async fn estimate_payment_fee_msat(payment: SendPayment) -> Result<u64> {
     }
 }
 
-pub async fn trade(trade_params: TradeParams) -> Result<(), (FailureReason, Error)> {
+pub async fn trade(trade_params: TradeParams) -> Result<(), (FailureReason, anyhow::Error)> {
     let client = reqwest_client();
     let response = client
         .post(format!("http://{}/api/trade", config::get_http_endpoint()))
         .json(&trade_params)
         .send()
         .await
-        .context("Failed to register with coordinator")
+        .context("Failed to send trade request to coordinator")
         .map_err(|e| (FailureReason::TradeRequest, e))?;
 
     if !response.status().is_success() {
@@ -1162,7 +1212,7 @@ pub async fn trade(trade_params: TradeParams) -> Result<(), (FailureReason, Erro
         return Err((
             // TODO(bonomat): extract the error message
             FailureReason::TradeResponse(response_text.clone()),
-            anyhow!("Could not post trade to coordinator: {response_text}"),
+            anyhow!("Coordinator failed to handle our trade request: {response_text}"),
         ));
     }
 

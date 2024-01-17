@@ -9,7 +9,6 @@ use anyhow::anyhow;
 use anyhow::bail;
 use anyhow::ensure;
 use anyhow::Context;
-use anyhow::Error;
 use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::Amount;
@@ -18,7 +17,7 @@ use dlc_manager::channel::signed_channel::SignedChannelState;
 use dlc_manager::channel::Channel;
 use dlc_manager::contract::contract_input::ContractInput;
 use dlc_manager::contract::Contract;
-use dlc_manager::subchannel::SubChannel;
+use dlc_manager::contract::ContractDescriptor;
 use dlc_manager::DlcChannelId;
 use dlc_manager::Oracle;
 use dlc_manager::Storage;
@@ -33,7 +32,7 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
         &self,
         contract_input: ContractInput,
         counterparty: PublicKey,
-    ) -> std::result::Result<[u8; 32], Error> {
+    ) -> Result<[u8; 32]> {
         tracing::info!(
             trader_id = counterparty.to_hex(),
             oracles = ?contract_input.contract_infos[0].oracles,
@@ -49,14 +48,15 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
                 trader_id = %counterparty,
                 existing_channel_id = channel.channel_id.to_hex(),
                 existing_channel_state = %channel.state,
-                "We can't open a new channel because we still have an open dlc-channel");
+                "We can't open a new channel because we still have an open dlc-channel"
+            );
             bail!("Cant have more than one dlc channel.");
         }
 
         spawn_blocking({
             let p2pd_oracles = self.oracles.clone();
 
-            let sub_channel_manager = self.sub_channel_manager.clone();
+            let dlc_manager = self.dlc_manager.clone();
             let oracles = contract_input.contract_infos[0].oracles.clone();
             let event_id = oracles.event_id;
             let event_handler = self.event_handler.clone();
@@ -72,52 +72,19 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
                     format!("Can't propose dlc channel without oracles")
                 );
 
-                let sub_channel_offer = sub_channel_manager
-                    .get_dlc_manager()
-                    .offer_channel(&contract_input, counterparty)?;
+                let offer_channel = dlc_manager.offer_channel(&contract_input, counterparty)?;
 
-                let temporary_contract_id = sub_channel_offer.temporary_contract_id;
+                let temporary_contract_id = offer_channel.temporary_contract_id;
 
-                if let Err(e) = event_handler.publish(NodeEvent::SendDlcMessage {
+                event_handler.publish(NodeEvent::SendDlcMessage {
                     peer: counterparty,
-                    msg: Message::Channel(ChannelMessage::Offer(sub_channel_offer)),
-                }) {
-                    tracing::error!("Failed to publish send dlc message node event! {e:#}");
-                }
+                    msg: Message::Channel(ChannelMessage::Offer(offer_channel)),
+                })?;
 
                 Ok(temporary_contract_id)
             }
         })
         .await?
-    }
-
-    /// Proposes and update to the DLC channel based on the provided [`ContractInput`]. A
-    /// [`RenewOffer`] is sent to the counterparty, kickstarting the renew protocol.
-    pub async fn propose_dlc_channel_update(
-        &self,
-        dlc_channel_id: &DlcChannelId,
-        payout_amount: u64,
-        contract_input: ContractInput,
-    ) -> Result<()> {
-        tracing::info!(channel_id = %hex::encode(dlc_channel_id), "Proposing a DLC channel update");
-        spawn_blocking({
-            let dlc_manager = self.dlc_manager.clone();
-            let dlc_channel_id = *dlc_channel_id;
-            let event_handler = self.event_handler.clone();
-            move || {
-                let (renew_offer, counterparty_pubkey) =
-                    dlc_manager.renew_offer(&dlc_channel_id, payout_amount, &contract_input)?;
-
-                event_handler.publish(NodeEvent::SendDlcMessage {
-                    peer: counterparty_pubkey,
-                    msg: Message::Channel(ChannelMessage::RenewOffer(renew_offer)),
-                })?;
-
-                Ok(())
-            }
-        })
-        .await
-        .map_err(|e| anyhow!("{e:#}"))?
     }
 
     pub fn reject_dlc_channel_offer(&self, channel_id: &DlcChannelId) -> Result<()> {
@@ -296,23 +263,81 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
         Ok(())
     }
 
-    pub fn get_dlc_channel_offer(&self, pubkey: &PublicKey) -> Result<Option<SubChannel>> {
-        let dlc_channel = self
-            .dlc_manager
-            .get_store()
-            .get_offered_sub_channels()?
-            .into_iter()
-            .find(|dlc_channel| dlc_channel.counter_party == *pubkey);
+    /// Propose an update to the DLC channel based on the provided [`ContractInput`]. A
+    /// [`RenewOffer`] is sent to the counterparty, kickstarting the renew protocol.
+    pub async fn propose_dlc_channel_update(
+        &self,
+        dlc_channel_id: &DlcChannelId,
+        contract_input: ContractInput,
+    ) -> Result<[u8; 32]> {
+        tracing::info!(channel_id = %hex::encode(dlc_channel_id), "Proposing a DLC channel update");
+        spawn_blocking({
+            let dlc_manager = self.dlc_manager.clone();
+            let dlc_message_handler = self.dlc_message_handler.clone();
+            let peer_manager = self.peer_manager.clone();
+            let dlc_channel_id = *dlc_channel_id;
+            move || {
+                // Not actually needed. See https://github.com/p2pderivatives/rust-dlc/issues/149.
+                let counter_payout = 0;
 
-        Ok(dlc_channel)
+                let (renew_offer, counterparty_pubkey) =
+                    dlc_manager.renew_offer(&dlc_channel_id, counter_payout, &contract_input)?;
+
+                send_dlc_message(
+                    &dlc_message_handler,
+                    &peer_manager,
+                    counterparty_pubkey,
+                    Message::Channel(ChannelMessage::RenewOffer(renew_offer)),
+                );
+
+                let offered_contracts = dlc_manager.get_store().get_contract_offers()?;
+
+                // We assume that the first `OfferedContract` we find here is the one we just
+                // proposed when renewing the DLC channel.
+                //
+                // TODO: Change `renew_offer` API to return the `temporary_contract_id`, like
+                // `offer_channel` does.
+                let offered_contract = offered_contracts
+                    .iter()
+                    .find(|contract| contract.counter_party == counterparty_pubkey)
+                    .context("Cold not find offered contract after proposing DLC channel update")?;
+
+                Ok(offered_contract.id)
+            }
+        })
+        .await
+        .map_err(|e| anyhow!("{e:#}"))?
     }
 
-    /// Gets the collateral and expiry for a signed contract of that given channel_id. Will return
-    /// an error if the contract is not yet signed nor confirmed.
-    pub fn get_collateral_and_expiry_for_confirmed_dlc_channel(
+    #[cfg(test)]
+    /// Accept an update to the DLC channel. This can only succeed if we previously received a DLC
+    /// channel update offer from the the counterparty.
+    // The accept code has diverged on the app side (hence the #[cfg(test)]). Another hint that we
+    // should delete most of this crate soon.
+    pub fn accept_dlc_channel_update(&self, channel_id: &DlcChannelId) -> Result<()> {
+        let channel_id_hex = hex::encode(channel_id);
+
+        tracing::info!(channel_id = %channel_id_hex, "Accepting DLC channel update offer");
+
+        let (msg, counter_party) = self.dlc_manager.accept_renew_offer(channel_id)?;
+
+        send_dlc_message(
+            &self.dlc_message_handler,
+            &self.peer_manager,
+            counter_party,
+            Message::Channel(ChannelMessage::RenewAccept(msg)),
+        );
+
+        Ok(())
+    }
+
+    /// Get the expiry for the [`SignedContract`] corresponding to the given [`DlcChannelId`].
+    ///
+    /// Will return an error if the contract is not yet signed or confirmed on-chain.
+    pub fn get_expiry_for_confirmed_dlc_channel(
         &self,
         dlc_channel_id: DlcChannelId,
-    ) -> Result<(u64, OffsetDateTime)> {
+    ) -> Result<OffsetDateTime> {
         match self.get_contract_by_dlc_channel_id(&dlc_channel_id)? {
             Contract::Signed(contract) | Contract::Confirmed(contract) => {
                 let offered_contract = contract.accepted_contract.offered_contract;
@@ -329,10 +354,7 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
                     oracle_announcement.oracle_event.event_maturity_epoch as i64,
                 )?;
 
-                Ok((
-                    contract.accepted_contract.accept_params.collateral,
-                    expiry_timestamp,
-                ))
+                Ok(expiry_timestamp)
             }
             state => bail!(
                 "Confirmed contract not found for channel ID: {} which was in state {state:?}",
@@ -341,12 +363,11 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
         }
     }
 
-    /// Gets the dlc channel by the dlc channel id
+    /// Get the DLC [`Channel`] by its [`DlcChannelId`].
     pub fn get_dlc_channel_by_id(&self, dlc_channel_id: &DlcChannelId) -> Result<Channel> {
         self.dlc_manager
             .get_store()
-            .get_channel(dlc_channel_id)
-            .map_err(|e| anyhow!("{e:#}"))?
+            .get_channel(dlc_channel_id)?
             .with_context(|| {
                 format!(
                     "Couldn't find channel by id {}",
@@ -355,7 +376,16 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
             })
     }
 
-    /// Fetches the contract for a given dlc channel id
+    pub fn get_dlc_channel_by_counterparty(
+        &self,
+        counterparty_pk: &PublicKey,
+    ) -> Result<Option<SignedChannel>> {
+        self.get_signed_dlc_channel(|signed_channel| {
+            signed_channel.counter_party == *counterparty_pk
+        })
+    }
+
+    /// Fetch the [`Contract`] corresponding to the given [`DlcChannelId`].
     pub fn get_contract_by_dlc_channel_id(
         &self,
         dlc_channel_id: &DlcChannelId,
@@ -407,56 +437,153 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
         Ok(dlc_channels)
     }
 
-    /// Returns the usable balance in all DLC channels. Usable means, the amount currently locked up
-    /// in a position does not count to the balance
-    pub fn get_usable_dlc_channel_balance(&self) -> Result<Amount> {
-        let dlc_channels = self.list_signed_dlc_channels()?;
-        Ok(Amount::from_sat(
-            dlc_channels
-                .iter()
-                .map(|channel| match &channel.state {
-                    SignedChannelState::Settled { own_payout, .. } => {
-                        // we settled the position inside the dlc-channel
-                        *own_payout
-                    }
+    /// Return the usable balance for all the DLC channels.
+    pub fn get_dlc_channels_usable_balance(&self) -> Result<Amount> {
+        self.list_signed_dlc_channels()?
+            .iter()
+            .try_fold(Amount::ZERO, |acc, channel| {
+                let balance = self.get_dlc_channel_usable_balance(&channel.channel_id)?;
 
-                    SignedChannelState::SettledOffered { .. }
-                    | SignedChannelState::SettledReceived { .. }
-                    | SignedChannelState::SettledAccepted { .. }
-                    | SignedChannelState::SettledConfirmed { .. }
-                    | SignedChannelState::Established { .. } => {
-                        // if we are not yet settled or just established the channel, we have an
-                        // open position with the full amount being locked,
-                        // hence, the current balance is 0
-                        0
-                    }
-                    SignedChannelState::RenewOffered { counter_payout, .. } => {
-                        // we don't have a new position yet, but we are optimistic that it will go
-                        // through. Hence, the balance is the `total money locked` minus `what the
-                        // counterparty gets`
-                        channel.own_params.input_amount - counter_payout
-                    }
-                    SignedChannelState::RenewAccepted { own_payout, .. }
-                    | SignedChannelState::RenewConfirmed { own_payout, .. } => {
-                        // we are currently in the phase of settling off-chain, we assume this
-                        // works and take the new balance
-                        *own_payout
-                    }
-                    SignedChannelState::RenewFinalized { own_payout, .. } => {
-                        // we settled off-chain successfully
-                        *own_payout
-                    }
-                    SignedChannelState::Closing { .. } => {
-                        // the channel is almost gone, so no money left
-                        0
-                    }
-                    SignedChannelState::CollaborativeCloseOffered { counter_payout, .. } => {
-                        // the channel is not yet closed, hence, we keep showing the channel balance
-                        channel.own_params.input_amount - counter_payout
-                    }
-                })
-                .sum(),
-        ))
+                Ok(acc + balance)
+            })
+    }
+
+    pub fn signed_dlc_channel_total_collateral(&self, channel_id: &DlcChannelId) -> Result<Amount> {
+        let channel = self.get_dlc_channel_by_id(channel_id)?;
+
+        match channel {
+            Channel::Signed(channel) => Ok(Amount::from_sat(
+                channel.own_params.collateral + channel.counter_params.collateral,
+            )),
+            _ => bail!("DLC channel {} not signed", channel_id.to_hex()),
+        }
+    }
+
+    /// Return the usable balance for the DLC channel.
+    ///
+    /// Usable balance excludes all balance which is being wagered in DLCs.
+    pub fn get_dlc_channel_usable_balance(&self, channel_id: &DlcChannelId) -> Result<Amount> {
+        let dlc_channel = self.get_dlc_channel_by_id(channel_id)?;
+
+        let usable_balance = match dlc_channel {
+            Channel::Signed(SignedChannel {
+                state: SignedChannelState::Settled { own_payout, .. },
+                ..
+            }) => {
+                // We settled the position inside the DLC channel.
+                Amount::from_sat(own_payout)
+            }
+            Channel::Signed(SignedChannel {
+                state: SignedChannelState::SettledOffered { counter_payout, .. },
+                own_params,
+                counter_params,
+                ..
+            })
+            | Channel::Signed(SignedChannel {
+                state: SignedChannelState::SettledReceived { counter_payout, .. },
+                own_params,
+                counter_params,
+                ..
+            })
+            | Channel::Signed(SignedChannel {
+                state: SignedChannelState::SettledAccepted { counter_payout, .. },
+                own_params,
+                counter_params,
+                ..
+            })
+            | Channel::Signed(SignedChannel {
+                state: SignedChannelState::SettledConfirmed { counter_payout, .. },
+                own_params,
+                counter_params,
+                ..
+            }) => {
+                // We haven't settled the DLC off-chain yet, but we are optimistic that the
+                // protocol will complete. Hence, the usable balance is the
+                // total collateral minus what the counterparty gets.
+                Amount::from_sat(own_params.collateral + counter_params.collateral - counter_payout)
+            }
+            Channel::Signed(SignedChannel {
+                state: SignedChannelState::CollaborativeCloseOffered { counter_payout, .. },
+                own_params,
+                counter_params,
+                ..
+            }) => {
+                // The channel is not yet closed. Hence, we keep showing the channel balance.
+                Amount::from_sat(own_params.collateral + counter_params.collateral - counter_payout)
+            }
+            // For all other cases we can rely on the `Contract`, since
+            // `SignedChannelState::get_contract_id` will return a `ContractId` for
+            // them.
+            _ => self.get_contract_usable_balance(&dlc_channel)?,
+        };
+
+        Ok(usable_balance)
+    }
+
+    fn get_contract_usable_balance(&self, dlc_channel: &Channel) -> Result<Amount> {
+        let contract_id = match dlc_channel.get_contract_id() {
+            Some(contract_id) => contract_id,
+            None => return Ok(Amount::ZERO),
+        };
+
+        let contract = self
+            .dlc_manager
+            .get_store()
+            .get_contract(&contract_id)
+            .context("Could not find contract associated with channel to compute usable balance")?
+            .context("Could not find contract associated with channel to compute usable balance")?;
+
+        // We are only including contracts that are actually established.
+        //
+        // TODO: Model other kinds of balance (e.g. pending incoming, pending outgoing)
+        // to avoid situations where money appears to be missing.
+        let signed_contract = match contract {
+            Contract::Signed(signed_contract) | Contract::Confirmed(signed_contract) => {
+                signed_contract
+            }
+            _ => return Ok(Amount::ZERO),
+        };
+
+        let is_offer_party = signed_contract
+            .accepted_contract
+            .offered_contract
+            .is_offer_party;
+
+        let offered_contract = signed_contract.accepted_contract.offered_contract;
+
+        let total_collateral = offered_contract.total_collateral;
+
+        let usable_balance = match &offered_contract.contract_info[0].contract_descriptor {
+            ContractDescriptor::Enum(_) => {
+                unreachable!("We are not using DLCs with enumerated outcomes");
+            }
+            ContractDescriptor::Numerical(descriptor) => {
+                let payouts = descriptor
+                    .get_payouts(total_collateral)
+                    .expect("valid payouts");
+
+                // The minimum payout for each party determines how many coins are _not_ currently
+                // being wagered. Since they are not being wagered, they have the potential to be
+                // wagered (by renewing the channel, for example) and so they are usable.
+                let reserve = if is_offer_party {
+                    payouts
+                        .iter()
+                        .min_by(|a, b| a.offer.cmp(&b.offer))
+                        .expect("at least one")
+                        .offer
+                } else {
+                    payouts
+                        .iter()
+                        .min_by(|a, b| a.accept.cmp(&b.accept))
+                        .expect("at least one")
+                        .accept
+                };
+
+                Amount::from_sat(reserve)
+            }
+        };
+
+        Ok(usable_balance)
     }
 }
 

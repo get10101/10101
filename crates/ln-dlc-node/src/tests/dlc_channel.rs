@@ -15,6 +15,112 @@ use std::time::Duration;
 
 #[tokio::test(flavor = "multi_thread")]
 #[ignore]
+async fn can_open_and_settle_offchain() {
+    init_tracing();
+
+    // Arrange
+
+    let (app, coordinator, coordinator_signed_channel, app_signed_channel) =
+        setup_channel_with_position().await;
+
+    // Act
+
+    let oracle_pk = *coordinator.oracle_pk().first().unwrap();
+    let contract_input = dummy_contract_input(15_000, 5_000, oracle_pk);
+
+    coordinator
+        .propose_dlc_channel_update(&coordinator_signed_channel.channel_id, contract_input)
+        .await
+        .unwrap();
+
+    wait_until(Duration::from_secs(10), || async {
+        app.process_incoming_messages()?;
+
+        let dlc_channels = app
+            .dlc_manager
+            .get_store()
+            .get_signed_channels(Some(SignedChannelStateType::RenewOffered))?;
+
+        Ok(dlc_channels
+            .iter()
+            .find(|dlc_channel| dlc_channel.counter_party == coordinator.info.pubkey)
+            .cloned())
+    })
+    .await
+    .unwrap();
+
+    app.accept_dlc_channel_update(&app_signed_channel.channel_id)
+        .unwrap();
+
+    wait_until(Duration::from_secs(10), || async {
+        coordinator.process_incoming_messages()?;
+
+        let dlc_channels = coordinator
+            .dlc_manager
+            .get_store()
+            .get_signed_channels(Some(SignedChannelStateType::RenewConfirmed))?;
+
+        Ok(dlc_channels
+            .iter()
+            .find(|dlc_channel| dlc_channel.counter_party == app.info.pubkey)
+            .cloned())
+    })
+    .await
+    .unwrap();
+
+    wait_until(Duration::from_secs(10), || async {
+        app.process_incoming_messages()?;
+
+        let dlc_channels = app
+            .dlc_manager
+            .get_store()
+            .get_signed_channels(Some(SignedChannelStateType::RenewFinalized))?;
+
+        Ok(dlc_channels
+            .iter()
+            .find(|dlc_channel| dlc_channel.counter_party == coordinator.info.pubkey)
+            .cloned())
+    })
+    .await
+    .unwrap();
+
+    // Assert
+
+    wait_until(Duration::from_secs(10), || async {
+        coordinator.process_incoming_messages()?;
+
+        let dlc_channels = coordinator
+            .dlc_manager
+            .get_store()
+            .get_signed_channels(Some(SignedChannelStateType::Established))?;
+
+        Ok(dlc_channels
+            .iter()
+            .find(|dlc_channel| dlc_channel.counter_party == app.info.pubkey)
+            .cloned())
+    })
+    .await
+    .unwrap();
+
+    wait_until(Duration::from_secs(10), || async {
+        app.process_incoming_messages()?;
+
+        let dlc_channels = app
+            .dlc_manager
+            .get_store()
+            .get_signed_channels(Some(SignedChannelStateType::Established))?;
+
+        Ok(dlc_channels
+            .iter()
+            .find(|dlc_channel| dlc_channel.counter_party == coordinator.info.pubkey)
+            .cloned())
+    })
+    .await
+    .unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread")]
+#[ignore]
 async fn can_open_and_collaboratively_close_channel() {
     init_tracing();
 

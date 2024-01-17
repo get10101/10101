@@ -23,18 +23,19 @@ pub struct Coordinator {
 }
 
 #[derive(Deserialize)]
-pub struct DlcChannels {
+pub struct SubChannels {
     #[serde(flatten)]
-    pub channel_details: Vec<DlcChannel>,
+    pub channel_details: Vec<SubChannel>,
 }
 
 #[derive(Deserialize, Debug)]
-pub struct DlcChannel {
+pub struct SubChannel {
     pub channel_id: String,
     pub dlc_channel_id: Option<String>,
     pub counter_party: String,
     pub subchannel_state: SubChannelState,
 }
+
 #[derive(Deserialize, Debug)]
 pub struct Channel {
     pub channel_id: String,
@@ -139,12 +140,8 @@ impl Coordinator {
         Ok(status)
     }
 
-    pub async fn get_dlc_channels(&self) -> Result<Vec<DlcChannel>> {
-        Ok(self.get("/api/admin/dlc_channels").await?.json().await?)
-    }
-
-    pub async fn get_channels(&self) -> Result<Vec<Channel>> {
-        Ok(self.get("/api/admin/channels").await?.json().await?)
+    pub async fn get_sub_channels(&self) -> Result<Vec<SubChannel>> {
+        Ok(self.get("/api/admin/sub_channels").await?.json().await?)
     }
 
     pub async fn force_close_channel(&self, channel_id: &str) -> Result<reqwest::Response> {

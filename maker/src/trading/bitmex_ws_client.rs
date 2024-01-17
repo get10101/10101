@@ -1,5 +1,4 @@
 use anyhow::anyhow;
-use anyhow::Error;
 use anyhow::Result;
 use async_stream::stream;
 use bitmex_stream::Credentials;
@@ -15,7 +14,7 @@ use trade::ContractSymbol;
 pub async fn stream(
     network: Network,
     credentials: Option<Credentials>,
-) -> impl Stream<Item = Result<Event, Error>> + Unpin {
+) -> impl Stream<Item = Result<Event>> + Unpin {
     let stream = stream! {
         let mut stream = match credentials {
             Some(credentials) => {

@@ -3,6 +3,7 @@ use crate::test_subscriber::ThreadSafeSenders;
 use crate::wait_until;
 use native::api;
 use tempfile::TempDir;
+use tokio::task::block_in_place;
 
 pub struct AppHandle {
     pub rx: TestSubscriber,
@@ -61,6 +62,36 @@ pub async fn run_app(seed_phrase: Option<Vec<String>>) -> AppHandle {
     wait_until!(app.rx.init_msg() == Some("10101 is ready.".to_string()));
     wait_until!(app.rx.wallet_info().is_some()); // wait for initial wallet sync
     app
+}
+
+/// Refresh the app's wallet information.
+///
+/// To call this make sure that you are either outside of a runtime or in a multi-threaded runtime
+/// (i.e. use `flavor = "multi_thread"` in a `tokio::test`).
+pub fn refresh_wallet_info() {
+    // We must `block_in_place` because calling `refresh_wallet_info` starts a new runtime and that
+    // cannot happen within another runtime.
+    block_in_place(move || api::refresh_wallet_info().unwrap());
+}
+
+/// Run periodic checks on the DLC channels, including syncing them with the blockchain.
+///
+/// To call this make sure that you are either outside of a runtime or in a multi-threaded runtime
+/// (i.e. use `flavor = "multi_thread"` in a `tokio::test`).
+pub fn sync_dlc_channels() {
+    // We must `block_in_place` because calling `sync_dlc_channels` starts a new runtime and that
+    // cannot happen within another runtime.
+    block_in_place(move || api::sync_dlc_channels().unwrap());
+}
+
+/// Force close DLC channel.
+///
+/// To call this make sure that you are either outside of a runtime or in a multi-threaded runtime
+/// (i.e. use `flavor = "multi_thread"` in a `tokio::test`).
+pub fn force_close_dlc_channel() {
+    // We must `block_in_place` because calling `force_close_channel` starts a new runtime and that
+    // cannot happen within another runtime.
+    block_in_place(move || api::force_close_channel().unwrap());
 }
 
 // Values mostly taken from `environment.dart`

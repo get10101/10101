@@ -18,9 +18,9 @@ pub enum ChannelStatus {
     /// there was a previous channel nor does it imply that a previous channel was completely
     /// closed i.e. there might be pending transactions.
     NotOpen,
-    /// The DLC channel is open but without an active DLC DLC attached to it.  
+    /// The DLC channel is open but without an active DLC DLC attached to it.
     Open,
-    /// The DLC channel has an open DLC attached to it.  
+    /// The DLC channel has an open DLC attached to it.
     WithPosition,
     /// The DLC in the channel is currently being settled into the channel
     Settling,

@@ -4,6 +4,8 @@ use crate::db::get_order_in_filling;
 use crate::db::maybe_get_open_orders;
 use crate::event;
 use crate::event::EventInternal;
+use crate::ln_dlc::get_signed_dlc_channel;
+use crate::ln_dlc::is_dlc_channel_confirmed;
 use crate::trade::order::orderbook_client::OrderbookClient;
 use crate::trade::order::FailureReason;
 use crate::trade::order::Order;
@@ -15,6 +17,7 @@ use anyhow::anyhow;
 use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
+use ln_dlc_node::node::rust_dlc_manager::channel::signed_channel::SignedChannelState;
 use reqwest::Url;
 use time::Duration;
 use time::OffsetDateTime;
@@ -23,6 +26,24 @@ use uuid::Uuid;
 const ORDER_OUTDATED_AFTER: Duration = Duration::minutes(5);
 
 pub async fn submit_order(order: Order) -> Result<Uuid> {
+    // If we have an open position, We should not allow any further trading until the current DLC
+    // channel is confirmed on-chain. Otherwise we can run into pesky DLC protocol failures.
+    if position::handler::get_positions()?.first().is_some() {
+        if let Some(dlc_channel) = get_signed_dlc_channel()? {
+            // TODO: We could limit order submission if we find that the DLC channel is in an
+            // unfriendly state, in order to fail as early as possible.
+
+            // The same limitation needs to apply to `SignedChannelState::Settled`, but this is
+            // sufficient since we can only arrive at said state via
+            // `SignedChannelState::Established`.
+            if let SignedChannelState::Established { .. } = dlc_channel.state {
+                if !is_dlc_channel_confirmed(&dlc_channel.channel_id)? {
+                    bail!("Cannot submit new order when DLC channel is not yet confirmed");
+                }
+            }
+        }
+    }
+
     // Having an order in `Filling` should mean that the subchannel is in the midst of an update.
     // Since we currently only support one subchannel per app, it does not make sense to start
     // another update (by submitting a new order to the orderbook) until the current one is

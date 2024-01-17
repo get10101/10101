@@ -39,7 +39,7 @@ set grid xtics
 
 # Set the range for the x-axis to 100,000 max
 set xrange [-0.05:80000]
-set yrange [-0.05:1.1]
+set yrange [-0.05:1.5]
 
 set style line 1 linetype 1 linecolor rgb "blue" lw 5
 set style line 2 linetype 1 linecolor rgb "green" lw 5

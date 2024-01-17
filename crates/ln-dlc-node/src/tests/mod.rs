@@ -21,7 +21,6 @@ use crate::EventHandlerTrait;
 use crate::EventSender;
 use crate::WalletSettings;
 use anyhow::Result;
-use bitcoin::secp256k1::PublicKey;
 use bitcoin::Amount;
 use bitcoin::Network;
 use bitcoin::XOnlyPublicKey;
@@ -36,9 +35,7 @@ use dlc_manager::payout_curve::PayoutPoint;
 use dlc_manager::payout_curve::PolynomialPayoutCurvePiece;
 use dlc_manager::payout_curve::RoundingInterval;
 use dlc_manager::payout_curve::RoundingIntervals;
-use dlc_manager::subchannel::SubChannel;
 use dlc_manager::subchannel::SubChannelState;
-use dlc_manager::Storage;
 use futures::Future;
 use lightning::events::Event;
 use lightning::util::config::UserConfig;
@@ -59,9 +56,6 @@ use tokio::task::block_in_place;
 
 mod bitcoind;
 mod dlc_channel;
-
-#[cfg(feature = "load_tests")]
-mod load;
 
 const ESPLORA_ORIGIN: &str = "http://localhost:3000";
 const FAUCET_ORIGIN: &str = "http://localhost:8080";
@@ -88,37 +82,6 @@ fn init_tracing() {
             .with_test_writer()
             .init()
     })
-}
-
-#[cfg(test)]
-async fn wait_until_sub_channel_state(
-    timeout: Duration,
-    node: &Node<TenTenOneInMemoryStorage, InMemoryStore>,
-    counterparty_pk: PublicKey,
-    target_state: SubChannelStateName,
-) -> Result<SubChannel> {
-    wait_until(timeout, || async {
-        node.process_incoming_messages()?;
-
-        let dlc_channels = node.dlc_manager.get_store().get_sub_channels()?;
-
-        Ok(dlc_channels
-            .iter()
-            .find(|channel| {
-                let current_state = SubChannelStateName::from(&channel.state);
-
-                tracing::info!(
-                    node_id = %node.info.pubkey,
-                    target = ?target_state,
-                    current = ?current_state,
-                    "Waiting for DLC subchannel to reach state"
-                );
-
-                channel.counter_party == counterparty_pk && current_state == target_state
-            })
-            .cloned())
-    })
-    .await
 }
 
 impl Node<TenTenOneInMemoryStorage, InMemoryStore> {
@@ -541,10 +504,20 @@ fn dummy_contract_input(
                 ])
                 .unwrap(),
                 rounding_intervals: RoundingIntervals {
-                    intervals: vec![RoundingInterval {
-                        begin_interval: 0,
-                        rounding_mod,
-                    }],
+                    intervals: vec![
+                        RoundingInterval {
+                            begin_interval: 0,
+                            rounding_mod: 1,
+                        },
+                        RoundingInterval {
+                            begin_interval: 50_000,
+                            rounding_mod,
+                        },
+                        RoundingInterval {
+                            begin_interval: 60_000,
+                            rounding_mod: 1,
+                        },
+                    ],
                 },
                 difference_params: None,
                 oracle_numeric_infos: dlc_trie::OracleNumericInfo {

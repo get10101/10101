@@ -1,11 +1,15 @@
+#![allow(clippy::unwrap_used)]
+
 use anyhow::Context;
 use anyhow::Result;
+use bitcoin::Amount;
 use dlc_manager::payout_curve::PayoutFunction;
 use dlc_manager::payout_curve::PayoutFunctionPiece;
 use dlc_manager::payout_curve::PolynomialPayoutCurvePiece;
 use dlc_manager::payout_curve::RoundingInterval;
 use dlc_manager::payout_curve::RoundingIntervals;
 use payout_curve::build_inverse_payout_function;
+use payout_curve::PartyParams;
 use payout_curve::PayoutPoint;
 use payout_curve::ROUNDING_PERCENT;
 use rust_decimal::prelude::FromPrimitive;
@@ -29,104 +33,140 @@ fn main() -> Result<()> {
     let quantity = 30_000.0;
     let leverage_short = 2.0;
     let leverage_long = 2.0;
-    // fee is 0.3% * quantity/initial_price = 0.003 BTC = 300_000 sats. We compute it here so that
-    // we can easily adjust the example
-    let fee = dec!(0.003) * Decimal::from_f32(quantity).expect("to be able to parse into dec")
-        / initial_price;
-    let fee = fee
-        .mul(dec!(100_000_000))
-        .to_u64()
-        .expect("to fit into u64");
 
-    let margin_short = calculate_margin(initial_price, quantity, leverage_short);
-    let margin_long = calculate_margin(initial_price, quantity, leverage_long);
-
-    let payout_points_offerer_long = build_inverse_payout_function(
-        quantity,
-        margin_long,
-        margin_short,
-        initial_price,
-        calculate_long_liquidation_price(
-            Decimal::from_f32(leverage_long).expect("to be able to parse f32"),
-            initial_price,
-        ),
-        calculate_short_liquidation_price(
+    let price_params = {
+        let short_liquidation_price = calculate_short_liquidation_price(
             Decimal::from_f32(leverage_short).expect("to be able to parse f32"),
             initial_price,
+        );
+
+        let long_liquidation_price = calculate_long_liquidation_price(
+            Decimal::from_f32(leverage_long).expect("to be able to parse f32"),
+            initial_price,
+        );
+
+        payout_curve::PriceParams::new_btc_usd(
+            initial_price,
+            long_liquidation_price,
+            short_liquidation_price,
+        )?
+    };
+
+    // Fee is e.g. 0.3% * quantity / initial_price = 0.003 BTC = 300_000 sats.
+    //
+    // We compute it here so that can easily adjust the example.
+    let fee_offer = {
+        let fee = dec!(0.3) * Decimal::from_f32(quantity).expect("to be able to parse into dec")
+            / initial_price;
+
+        let fee = fee
+            .mul(dec!(100_000_000))
+            .to_u64()
+            .expect("to fit into u64");
+
+        Amount::from_sat(fee)
+    };
+
+    let margin_short = Amount::from_sat(calculate_margin(initial_price, quantity, leverage_short));
+    let margin_long = Amount::from_sat(calculate_margin(initial_price, quantity, leverage_long));
+
+    let direction_offer = Direction::Long;
+
+    let (party_params_offer, party_params_accept) = match direction_offer {
+        Direction::Long => (
+            payout_curve::PartyParams::new(margin_long, fee_offer),
+            payout_curve::PartyParams::new(margin_short, Amount::ZERO),
         ),
-        fee,
-        Direction::Long,
+        Direction::Short => (
+            payout_curve::PartyParams::new(margin_short, fee_offer),
+            payout_curve::PartyParams::new(margin_long, Amount::ZERO),
+        ),
+    };
+
+    let total_collateral =
+        party_params_offer.total_collateral() + party_params_accept.total_collateral();
+
+    let payout_points_offer_long = build_inverse_payout_function(
+        quantity,
+        party_params_offer,
+        party_params_accept,
+        price_params,
+        direction_offer,
     )?;
 
-    // offerer is long
-    let total_collateral = margin_long + margin_short;
     discretized_payouts_as_csv(
         "./crates/payout_curve/examples/discretized_long.csv",
-        payout_points_offerer_long.clone(),
+        payout_points_offer_long.clone(),
         total_collateral,
     )?;
 
-    let payout_points_offerer_short = build_inverse_payout_function(
+    let direction_offer = Direction::Short;
+
+    let (party_params_offer, party_params_accept) = match direction_offer {
+        Direction::Long => (
+            payout_curve::PartyParams::new(margin_long, fee_offer),
+            payout_curve::PartyParams::new(margin_short, Amount::ZERO),
+        ),
+        Direction::Short => (
+            payout_curve::PartyParams::new(margin_short, fee_offer),
+            payout_curve::PartyParams::new(margin_long, Amount::ZERO),
+        ),
+    };
+
+    let total_collateral =
+        party_params_offer.total_collateral() + party_params_accept.total_collateral();
+
+    let payout_points_offer_short = build_inverse_payout_function(
         quantity,
-        margin_short,
-        margin_long,
-        initial_price,
-        calculate_short_liquidation_price(
-            Decimal::from_f32(leverage_short).expect("to be able to parse f32"),
-            initial_price,
-        ),
-        calculate_long_liquidation_price(
-            Decimal::from_f32(leverage_long).expect("to be able to parse f32"),
-            initial_price,
-        ),
-        fee,
-        Direction::Short,
+        party_params_offer,
+        party_params_accept,
+        price_params,
+        direction_offer,
     )?;
 
-    // offerer is short
     discretized_payouts_as_csv(
         "./crates/payout_curve/examples/discretized_short.csv",
-        payout_points_offerer_short.clone(),
+        payout_points_offer_short.clone(),
         total_collateral,
     )?;
 
     computed_payout_curve(
-        margin_long,
-        margin_short,
+        party_params_offer,
+        party_params_accept,
         "./crates/payout_curve/examples/computed_payout_long.csv",
-        payout_points_offerer_long,
+        payout_points_offer_long,
     )?;
 
     computed_payout_curve(
-        margin_long,
-        margin_short,
+        party_params_accept,
+        party_params_offer,
         "./crates/payout_curve/examples/computed_payout_short.csv",
-        payout_points_offerer_short,
+        payout_points_offer_short,
     )?;
 
     let leverage_long = Decimal::from_f32(leverage_long).context("to be able to parse f32")?;
     let leverage_short = Decimal::from_f32(leverage_short).context("to be able to parse f32")?;
 
     should_payouts_as_csv_short(
-        margin_short,
-        margin_long,
+        margin_short.to_sat(),
+        total_collateral,
         leverage_long,
         leverage_short,
         quantity,
         initial_price,
         "./crates/payout_curve/examples/should_short.csv",
-        fee as i64,
+        fee_offer.to_sat() as i64,
     )?;
 
     should_payouts_as_csv_long(
-        margin_long,
-        margin_short,
+        margin_long.to_sat(),
+        total_collateral,
         leverage_short,
         leverage_long,
         quantity,
         initial_price,
         "./crates/payout_curve/examples/should_long.csv",
-        fee as i64,
+        fee_offer.to_sat() as i64,
     )?;
 
     Ok(())
@@ -136,11 +176,14 @@ fn main() -> Result<()> {
 /// will be based on these points
 #[allow(clippy::too_many_arguments)]
 fn computed_payout_curve(
-    coordinator_collateral: u64,
-    trader_collateral: u64,
+    party_params_coordinator: PartyParams,
+    party_params_trader: PartyParams,
     csv_path: &str,
     payout_points: Vec<(PayoutPoint, PayoutPoint)>,
 ) -> Result<()> {
+    let long_liquidation_price = payout_points.first().unwrap().1.event_outcome;
+    let short_liquidation_price = payout_points.last().unwrap().0.event_outcome;
+
     let mut pieces = vec![];
     for (lower, upper) in payout_points {
         let lower_range = PolynomialPayoutCurvePiece::new(vec![
@@ -160,14 +203,26 @@ fn computed_payout_curve(
 
     let payout_function =
         PayoutFunction::new(pieces).context("could not create payout function")?;
-    let total_collateral = coordinator_collateral + trader_collateral;
+    let total_collateral =
+        party_params_coordinator.total_collateral() + party_params_trader.total_collateral();
+    let total_margin = party_params_coordinator.margin() + party_params_trader.margin();
     let range_payouts = payout_function.to_range_payouts(
         total_collateral,
         &RoundingIntervals {
-            intervals: vec![RoundingInterval {
-                begin_interval: 0,
-                rounding_mod: (total_collateral as f32 * ROUNDING_PERCENT) as u64,
-            }],
+            intervals: vec![
+                RoundingInterval {
+                    begin_interval: 0,
+                    rounding_mod: 1,
+                },
+                RoundingInterval {
+                    begin_interval: long_liquidation_price,
+                    rounding_mod: (total_margin as f32 * ROUNDING_PERCENT) as u64,
+                },
+                RoundingInterval {
+                    begin_interval: short_liquidation_price,
+                    rounding_mod: 1,
+                },
+            ],
         },
     )?;
 
@@ -206,7 +261,7 @@ fn discretized_payouts_as_csv(
         ])?;
     }
     // need to add the last point because we ignored it explicitely above
-    let last_point = payout_points[payout_points.len() - 1].clone();
+    let last_point = payout_points[payout_points.len() - 1];
     wtr.write_record([
         last_point.1.event_outcome.to_string(),
         last_point.1.outcome_payout.to_string(),
@@ -218,17 +273,18 @@ fn discretized_payouts_as_csv(
 
 #[allow(clippy::too_many_arguments)]
 pub fn should_payouts_as_csv_short(
-    coordinator_collateral: u64,
-    trader_collateral: u64,
+    coordinator_margin: u64,
+    total_collateral: u64,
     leverage_long: Decimal,
     leverage_short: Decimal,
     quantity: f32,
     initial_price: Decimal,
     csv_path: &str,
-    fee: i64,
+    coordinator_collateral_reserve: i64,
 ) -> Result<()> {
     let coordinator_direction = Direction::Short;
-    let total_collateral = (coordinator_collateral + trader_collateral) as i64;
+
+    let total_collateral = total_collateral as i64;
 
     let file = File::create(csv_path)?;
     let mut wtr = csv::WriterBuilder::new().delimiter(b';').from_writer(file);
@@ -257,7 +313,7 @@ pub fn should_payouts_as_csv_short(
     let short_margin = calculate_margin(initial_price, quantity, leverage_short);
 
     for price in long_liquidation_price_i32..short_liquidation_price_i32 {
-        let coordinator_payout = (((coordinator_collateral as i64)
+        let coordinator_payout = (((coordinator_margin as i64)
             + calculate_pnl(
                 initial_price,
                 Decimal::from(price),
@@ -266,7 +322,7 @@ pub fn should_payouts_as_csv_short(
                 long_margin,
                 short_margin,
             )?)
-            + fee)
+            + coordinator_collateral_reserve)
             .min(total_collateral);
         let trader_payout = total_collateral - coordinator_payout;
         wtr.write_record(&[
@@ -277,7 +333,7 @@ pub fn should_payouts_as_csv_short(
     }
     {
         // upper liquidation range end
-        let coordinator_payout = (((coordinator_collateral as i64)
+        let coordinator_payout = (((coordinator_margin as i64)
             + calculate_pnl(
                 initial_price,
                 short_liquidation_price,
@@ -286,7 +342,7 @@ pub fn should_payouts_as_csv_short(
                 long_margin,
                 short_margin,
             )?)
-            + fee)
+            + coordinator_collateral_reserve)
             .min(total_collateral);
         let trader_payout = total_collateral - coordinator_payout;
         wtr.write_record(&[
@@ -298,7 +354,7 @@ pub fn should_payouts_as_csv_short(
 
     {
         // upper range end to get to 100k
-        let coordinator_payout = (((coordinator_collateral as i64)
+        let coordinator_payout = (((coordinator_margin as i64)
             + calculate_pnl(
                 initial_price,
                 Decimal::from(100_000),
@@ -307,7 +363,7 @@ pub fn should_payouts_as_csv_short(
                 long_margin,
                 short_margin,
             )?)
-            + fee)
+            + coordinator_collateral_reserve)
             .min(total_collateral);
         let trader_payout = total_collateral - coordinator_payout;
         wtr.write_record(&[
@@ -322,17 +378,18 @@ pub fn should_payouts_as_csv_short(
 
 #[allow(clippy::too_many_arguments)]
 pub fn should_payouts_as_csv_long(
-    coordinator_collateral: u64,
-    trader_collateral: u64,
+    coordinator_margin: u64,
+    total_collateral: u64,
     leverage_long: Decimal,
     leverage_short: Decimal,
     quantity: f32,
     initial_price: Decimal,
     csv_path: &str,
-    fee: i64,
+    coordinator_collateral_reserve: i64,
 ) -> Result<()> {
     let coordinator_direction = Direction::Long;
-    let total_collateral = (coordinator_collateral + trader_collateral) as i64;
+
+    let total_collateral = total_collateral as i64;
 
     let file = File::create(csv_path)?;
     let mut wtr = csv::WriterBuilder::new().delimiter(b';').from_writer(file);
@@ -343,13 +400,13 @@ pub fn should_payouts_as_csv_long(
     wtr.write_record(["price", "payout_offer", "trader"])?;
     wtr.write_record(&[
         0.to_string(),
-        fee.to_string(),
-        (total_collateral - fee).to_string(),
+        coordinator_collateral_reserve.to_string(),
+        (total_collateral - coordinator_collateral_reserve).to_string(),
     ])?;
     wtr.write_record(&[
         long_liquidation_price.to_string(),
-        fee.to_string(),
-        (total_collateral - fee).to_string(),
+        coordinator_collateral_reserve.to_string(),
+        (total_collateral - coordinator_collateral_reserve).to_string(),
     ])?;
 
     let long_liquidation_price_i32 = long_liquidation_price
@@ -365,7 +422,7 @@ pub fn should_payouts_as_csv_long(
     let short_margin = calculate_margin(initial_price, quantity, leverage_short);
 
     for price in long_liquidation_price_i32..short_liquidation_price_i32 {
-        let coordinator_payout = (((coordinator_collateral as i64)
+        let coordinator_payout = (((coordinator_margin as i64)
             + calculate_pnl(
                 initial_price,
                 Decimal::from(price),
@@ -374,7 +431,7 @@ pub fn should_payouts_as_csv_long(
                 long_margin,
                 short_margin,
             )?)
-            + fee)
+            + coordinator_collateral_reserve)
             .min(total_collateral);
 
         let trader_payout = total_collateral - coordinator_payout;
@@ -386,7 +443,7 @@ pub fn should_payouts_as_csv_long(
     }
     {
         // upper range end to upper liquidation point
-        let coordinator_payout = (((coordinator_collateral as i64)
+        let coordinator_payout = (((coordinator_margin as i64)
             + calculate_pnl(
                 initial_price,
                 short_liquidation_price,
@@ -395,7 +452,7 @@ pub fn should_payouts_as_csv_long(
                 long_margin,
                 short_margin,
             )?)
-            + fee)
+            + coordinator_collateral_reserve)
             .min(total_collateral);
         let trader_payout = (total_collateral - coordinator_payout).max(0);
         wtr.write_record(&[
@@ -406,7 +463,7 @@ pub fn should_payouts_as_csv_long(
     }
     {
         // upper range end to get to 100k
-        let coordinator_payout = (((coordinator_collateral as i64)
+        let coordinator_payout = (((coordinator_margin as i64)
             + calculate_pnl(
                 initial_price,
                 Decimal::from(100_000),
@@ -415,7 +472,7 @@ pub fn should_payouts_as_csv_long(
                 long_margin,
                 short_margin,
             )?)
-            + fee)
+            + coordinator_collateral_reserve)
             .min(total_collateral);
         let trader_payout = total_collateral - coordinator_payout;
         wtr.write_record(&[

@@ -141,9 +141,8 @@ impl Position {
         Ok(pnl)
     }
 
-    /// Calculate the settlement amount for the accept party (i.e. the trader) when closing the
-    /// _entire_ position.
-    pub fn calculate_accept_settlement_amount(&self, closing_price: Decimal) -> Result<u64> {
+    /// Calculate the settlement amount for the coordinator when closing the _entire_ position.
+    pub fn calculate_coordinator_settlement_amount(&self, closing_price: Decimal) -> Result<u64> {
         let opening_price = Decimal::try_from(self.average_entry_price)?;
 
         let leverage_long = leverage_long(
@@ -157,7 +156,7 @@ impl Position {
             self.coordinator_leverage,
         );
 
-        calculate_accept_settlement_amount(
+        calculate_coordinator_settlement_amount(
             opening_price,
             closing_price,
             self.quantity,
@@ -186,46 +185,55 @@ impl Position {
     }
 }
 
-/// Calculate the accept settlement amount based on the PNL.
-fn calculate_accept_settlement_amount(
+/// Calculate the settlement amount for the coordinator, based on the PNL and the order-matching
+/// closing fee.
+fn calculate_coordinator_settlement_amount(
     opening_price: Decimal,
     closing_price: Decimal,
     quantity: f32,
     long_leverage: f32,
     short_leverage: f32,
-    direction: Direction,
+    coordinator_direction: Direction,
 ) -> Result<u64> {
     let close_position_fee = order_matching_fee_taker(quantity, closing_price).to_sat() as i64;
 
     let long_margin = calculate_margin(opening_price, quantity, long_leverage);
     let short_margin = calculate_margin(opening_price, quantity, short_leverage);
+    let total_margin = long_margin + short_margin;
 
     let pnl = calculate_pnl(
         opening_price,
         closing_price,
         quantity,
-        direction,
+        coordinator_direction,
         long_margin,
         short_margin,
     )?;
 
-    let leverage = match direction {
-        Direction::Long => long_leverage,
-        Direction::Short => short_leverage,
+    let coordinator_margin = match coordinator_direction {
+        Direction::Long => long_margin,
+        Direction::Short => short_margin,
     };
 
-    let margin_trader_without_opening_fees = calculate_margin(opening_price, quantity, leverage);
+    let coordinator_settlement_amount = Decimal::from(coordinator_margin) + Decimal::from(pnl);
 
-    let accept_settlement_amount = Decimal::from(margin_trader_without_opening_fees)
-        + Decimal::from(pnl)
-        - Decimal::from(close_position_fee);
-    // the amount can only be positive, adding a safeguard here with the max comparison to
-    // ensure the i64 fits into u64
-    let accept_settlement_amount = accept_settlement_amount
-        .max(Decimal::ZERO)
+    // Double-checking that the coordinator's payout isn't negative, although `calculate_pnl` should
+    // guarantee this.
+    let coordinator_settlement_amount = coordinator_settlement_amount.max(Decimal::ZERO);
+
+    // The coordinator should always get at least the order-matching fee for closing the position.
+    let coordinator_settlement_amount =
+        coordinator_settlement_amount + Decimal::from(close_position_fee);
+
+    let coordinator_settlement_amount = coordinator_settlement_amount
         .to_u64()
         .expect("to fit into u64");
-    Ok(accept_settlement_amount)
+
+    // The coordinator's maximum settlement amount is capped by the total combined margin in the
+    // contract.
+    let coordinator_settlement_amount = coordinator_settlement_amount.min(total_margin);
+
+    Ok(coordinator_settlement_amount)
 }
 
 /// Calculate the settlement amount for the accept party (i.e. the trader) when closing the DLC
@@ -429,159 +437,198 @@ mod tests {
     use rust_decimal_macros::dec;
     use std::str::FromStr;
 
-    // some basic sanity tests, that in case the position goes the right or wrong way the settlement
-    // amount is moving correspondingly up or down.
+    // Basic sanity tests. Verify the effect of the price moving on the computed settlement amount.
 
     #[test]
-    fn given_a_long_position_and_a_larger_closing_price() {
+    fn given_long_coordinator_and_price_goes_up() {
+        let quantity: f32 = 1.0;
+
+        let leverage_coordinator = 1.0;
+
         let opening_price = Decimal::from(22000);
         let closing_price = Decimal::from(23000);
-        let quantity: f32 = 1.0;
-        let accept_settlement_amount = calculate_accept_settlement_amount(
+
+        let margin_coordinator = calculate_margin(opening_price, quantity, leverage_coordinator);
+
+        let settlement_coordinator = calculate_coordinator_settlement_amount(
             opening_price,
             closing_price,
             quantity,
-            1.0,
+            leverage_coordinator,
             1.0,
             Direction::Long,
         )
         .unwrap();
 
-        let margin_trader = calculate_margin(opening_price, quantity, 1.0);
-        assert!(accept_settlement_amount > margin_trader);
+        assert!(margin_coordinator < settlement_coordinator);
     }
 
     #[test]
-    fn given_a_short_position_and_a_larger_closing_price() {
+    fn given_short_coordinator_and_price_goes_up() {
+        let quantity: f32 = 1.0;
+
+        let leverage_coordinator = 1.0;
+
         let opening_price = Decimal::from(22000);
         let closing_price = Decimal::from(23000);
-        let quantity: f32 = 1.0;
-        let accept_settlement_amount = calculate_accept_settlement_amount(
+
+        let margin_coordinator = calculate_margin(opening_price, quantity, leverage_coordinator);
+
+        let settlement_coordinator = calculate_coordinator_settlement_amount(
             opening_price,
             closing_price,
             quantity,
             1.0,
-            1.0,
+            leverage_coordinator,
             Direction::Short,
         )
         .unwrap();
 
-        let margin_trader = calculate_margin(opening_price, quantity, 1.0);
-        assert!(accept_settlement_amount < margin_trader);
+        assert!(settlement_coordinator < margin_coordinator);
     }
 
     #[test]
-    fn given_a_long_position_and_a_smaller_closing_price() {
+    fn given_long_coordinator_and_price_goes_down() {
+        let quantity: f32 = 1.0;
+
+        let leverage_coordinator = 1.0;
+
         let opening_price = Decimal::from(23000);
         let closing_price = Decimal::from(22000);
-        let quantity: f32 = 1.0;
-        let accept_settlement_amount = calculate_accept_settlement_amount(
+
+        let margin_coordinator = calculate_margin(opening_price, quantity, leverage_coordinator);
+
+        let settlement_coordinator = calculate_coordinator_settlement_amount(
             opening_price,
             closing_price,
             quantity,
-            1.0,
+            leverage_coordinator,
             1.0,
             Direction::Long,
         )
         .unwrap();
 
-        let margin_trader = calculate_margin(opening_price, quantity, 1.0);
-        assert!(accept_settlement_amount < margin_trader);
+        assert!(settlement_coordinator < margin_coordinator);
     }
 
     #[test]
-    fn given_a_short_position_and_a_smaller_closing_price() {
+    fn given_short_coordinator_and_price_goes_down() {
+        let quantity: f32 = 1.0;
+
+        let leverage_coordinator = 1.0;
+
         let opening_price = Decimal::from(23000);
         let closing_price = Decimal::from(22000);
-        let quantity: f32 = 1.0;
-        let accept_settlement_amount = calculate_accept_settlement_amount(
+
+        let margin_coordinator = calculate_margin(opening_price, quantity, leverage_coordinator);
+
+        let settlement_coordinator = calculate_coordinator_settlement_amount(
             opening_price,
             closing_price,
             quantity,
             1.0,
-            1.0,
+            leverage_coordinator,
             Direction::Short,
         )
         .unwrap();
 
-        let margin_trader = calculate_margin(opening_price, quantity, 1.0);
-        assert!(accept_settlement_amount > margin_trader);
+        assert!(margin_coordinator < settlement_coordinator);
     }
 
     #[test]
-    fn given_a_long_position_and_a_larger_closing_price_different_leverages() {
+    fn given_long_coordinator_and_price_goes_up_different_leverages() {
+        let quantity: f32 = 1.0;
+
+        let leverage_coordinator = 1.0;
+
         let opening_price = Decimal::from(22000);
         let closing_price = Decimal::from(23000);
-        let quantity: f32 = 1.0;
-        let accept_settlement_amount = calculate_accept_settlement_amount(
+
+        let margin_coordinator = calculate_margin(opening_price, quantity, leverage_coordinator);
+
+        let settlement_coordinator = calculate_coordinator_settlement_amount(
             opening_price,
             closing_price,
             quantity,
-            1.0,
+            leverage_coordinator,
             2.0,
             Direction::Long,
         )
         .unwrap();
 
-        let margin_trader = calculate_margin(opening_price, quantity, 2.0);
-        assert!(accept_settlement_amount > margin_trader);
+        assert!(margin_coordinator < settlement_coordinator);
     }
 
     #[test]
-    fn given_a_short_position_and_a_larger_closing_price_different_leverages() {
+    fn given_short_coordinator_and_price_goes_up_different_leverages() {
+        let quantity: f32 = 1.0;
+
+        let leverage_coordinator = 1.0;
+
         let opening_price = Decimal::from(22000);
         let closing_price = Decimal::from(23000);
-        let quantity: f32 = 1.0;
-        let accept_settlement_amount = calculate_accept_settlement_amount(
+
+        let margin_coordinator = calculate_margin(opening_price, quantity, leverage_coordinator);
+
+        let settlement_coordinator = calculate_coordinator_settlement_amount(
             opening_price,
             closing_price,
             quantity,
             2.0,
-            1.0,
+            leverage_coordinator,
             Direction::Short,
         )
         .unwrap();
 
-        let margin_trader = calculate_margin(opening_price, quantity, 1.0);
-        assert!(accept_settlement_amount < margin_trader);
+        assert!(settlement_coordinator < margin_coordinator);
     }
 
     #[test]
-    fn given_a_long_position_and_a_smaller_closing_price_different_leverages() {
+    fn given_long_coordinator_and_price_goes_down_different_leverages() {
+        let quantity: f32 = 1.0;
+
+        let leverage_coordinator = 2.0;
+
         let opening_price = Decimal::from(23000);
         let closing_price = Decimal::from(22000);
-        let quantity: f32 = 1.0;
-        let accept_settlement_amount = calculate_accept_settlement_amount(
+
+        let margin_coordinator = calculate_margin(opening_price, quantity, leverage_coordinator);
+
+        let settlement_coordinator = calculate_coordinator_settlement_amount(
             opening_price,
             closing_price,
             quantity,
-            2.0,
+            leverage_coordinator,
             1.0,
             Direction::Long,
         )
         .unwrap();
 
-        let margin_trader = calculate_margin(opening_price, quantity, 2.0);
-        assert!(accept_settlement_amount < margin_trader);
+        assert!(settlement_coordinator < margin_coordinator);
     }
 
     #[test]
-    fn given_a_short_position_and_a_smaller_closing_price_different_leverages() {
+    fn given_short_coordinator_and_price_goes_down_different_leverages() {
+        let quantity: f32 = 1.0;
+
+        let leverage_coordinator = 2.0;
+
         let opening_price = Decimal::from(23000);
         let closing_price = Decimal::from(22000);
-        let quantity: f32 = 1.0;
-        let accept_settlement_amount = calculate_accept_settlement_amount(
+
+        let margin_coordinator = calculate_margin(opening_price, quantity, leverage_coordinator);
+
+        let settlement_coordinator = calculate_coordinator_settlement_amount(
             opening_price,
             closing_price,
             quantity,
             1.0,
-            2.0,
+            leverage_coordinator,
             Direction::Short,
         )
         .unwrap();
 
-        let margin_trader = calculate_margin(opening_price, quantity, 2.0);
-        assert!(accept_settlement_amount > margin_trader);
+        assert!(margin_coordinator < settlement_coordinator);
     }
 
     #[test]

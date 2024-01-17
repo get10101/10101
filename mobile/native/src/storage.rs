@@ -9,9 +9,6 @@ use anyhow::Result;
 use bitcoin::secp256k1::SecretKey;
 use bitcoin::Network;
 use lightning::util::persist::KVStore;
-use lightning::util::persist::CHANNEL_MANAGER_PERSISTENCE_KEY;
-use lightning::util::persist::CHANNEL_MANAGER_PERSISTENCE_PRIMARY_NAMESPACE;
-use lightning::util::persist::CHANNEL_MANAGER_PERSISTENCE_SECONDARY_NAMESPACE;
 use lightning_persister::fs_store::FilesystemStore;
 use ln_dlc_storage::sled::SledStorageProvider;
 use ln_dlc_storage::DlcStoreProvider;
@@ -77,14 +74,6 @@ impl TenTenOneNodeStorage {
             .backup(format!("{DB_BACKUP_KEY}/{DB_BACKUP_NAME}"), value);
         handles.push(handle);
 
-        for ln_backup in self.export()?.into_iter() {
-            let handle = self.client.backup(
-                [LN_BACKUP_KEY.to_string(), ln_backup.0].join("/"),
-                ln_backup.1,
-            );
-            handles.push(handle);
-        }
-
         for dlc_backup in self.dlc_storage.export().into_iter() {
             let key = [
                 DLC_BACKUP_KEY,
@@ -101,28 +90,6 @@ impl TenTenOneNodeStorage {
         tracing::info!("Successfully created a full backup!");
 
         Ok(())
-    }
-
-    fn export(&self) -> Result<Vec<(String, Vec<u8>)>> {
-        let mut export = vec![];
-        if let Ok(manager) = self.ln_storage.read(
-            CHANNEL_MANAGER_PERSISTENCE_PRIMARY_NAMESPACE,
-            CHANNEL_MANAGER_PERSISTENCE_SECONDARY_NAMESPACE,
-            CHANNEL_MANAGER_PERSISTENCE_KEY,
-        ) {
-            export.push(("ln/manager".to_string(), manager));
-        }
-
-        let path = &format!("{}/monitors", self.data_dir);
-        let monitors = fs::read_dir(path)?;
-        for monitor in monitors {
-            let monitor = monitor?;
-            let value = fs::read(monitor.path())?;
-            let key = monitor.file_name().to_string_lossy().to_string();
-            export.push((format!("ln/monitors/{key}"), value));
-        }
-
-        Ok(export)
     }
 }
 

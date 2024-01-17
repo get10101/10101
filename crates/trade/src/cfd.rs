@@ -10,7 +10,7 @@ use std::ops::Neg;
 
 pub const BTCUSD_MAX_PRICE: u64 = 1_048_575;
 
-/// Calculate the collateral in BTC.
+/// Calculate the collateral in sats.
 pub fn calculate_margin(open_price: Decimal, quantity: f32, leverage: f32) -> u64 {
     let quantity = Decimal::try_from(quantity).expect("quantity to fit into decimal");
     let leverage = Decimal::try_from(leverage).expect("leverage to fix into decimal");

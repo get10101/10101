@@ -5,7 +5,6 @@ use crate::node::storage::NodeStorage;
 use crate::orderbook::db::matches;
 use crate::orderbook::db::orders;
 use crate::payout_curve;
-use crate::payout_curve::create_rounding_interval;
 use crate::position::models::NewPosition;
 use crate::position::models::Position;
 use crate::position::models::PositionState;
@@ -26,6 +25,8 @@ use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::Pool;
 use diesel::Connection;
 use diesel::PgConnection;
+use dlc_manager::channel::signed_channel::SignedChannel;
+use dlc_manager::channel::signed_channel::SignedChannelState;
 use dlc_manager::contract::contract_input::ContractInput;
 use dlc_manager::contract::contract_input::ContractInputInfo;
 use dlc_manager::contract::contract_input::OracleInput;
@@ -33,7 +34,6 @@ use dlc_manager::ContractId;
 use dlc_manager::DlcChannelId;
 use dlc_messages::ChannelMessage;
 use dlc_messages::Message;
-use lightning::ln::channelmanager::ChannelDetails;
 use lightning::ln::ChannelId;
 use lightning::util::config::UserConfig;
 use ln_dlc_node::dlc_message::DlcMessage;
@@ -57,7 +57,6 @@ use uuid::Uuid;
 
 pub mod connection;
 pub mod expired_positions;
-pub mod resize;
 pub mod rollover;
 pub mod routing_fees;
 pub mod storage;
@@ -203,86 +202,43 @@ impl Node {
         let order_id = trade_params.filled_with.order_id.to_string();
         tracing::info!(trader_id, order_id, "Executing match");
 
-        match self.decide_trade_action(connection, trade_params)? {
-            TradeAction::Open => {
-                tracing::debug!(trader_id, order_id, "Opening a new position");
-
-                ensure!(
-                    self.settings.read().await.allow_opening_positions,
-                    "Opening positions is disabled"
-                );
-
-                let coordinator_leverage =
-                    self.coordinator_leverage_for_trade(&trade_params.pubkey)?;
-
-                self.open_position(connection, trade_params, coordinator_leverage, order.stable)
-                    .await
-                    .context("Failed at opening a new position")?;
-            }
-            TradeAction::Resize(channel_id) => {
-                tracing::debug!(trader_id, order_id, "Resizing existing position");
-                ensure!(
-                    self.settings.read().await.allow_opening_positions,
-                    "Resizing positions is disabled"
-                );
-
-                self.resize_position(connection, channel_id, trade_params)
-                    .await
-                    .context("Failed at resizing position")?
-            }
-            TradeAction::Close(channel_id) => {
-                let peer_id = trade_params.pubkey;
-
-                tracing::info!(
-                    ?trade_params,
-                    channel_id = %hex::encode(channel_id),
-                    %peer_id,
-                    "Closing position"
-                );
-
-                let closing_price = trade_params.average_execution_price();
-
-                let position = match db::positions::Position::get_position_by_trader(
-                    connection,
-                    trade_params.pubkey,
-                    vec![PositionState::Open],
-                )? {
-                    Some(position) => position,
-                    None => bail!("Failed to find open position : {}", trade_params.pubkey),
-                };
-
-                self.start_closing_position(connection, &position, closing_price, channel_id)
-                    .await
-                    .context(format!(
-                        "Failed at closing the position with id: {}",
-                        position.id
-                    ))?;
-            }
-        };
+        self.execute_trade_action(connection, trade_params, order.stable)
+            .await?;
 
         Ok(())
     }
 
-    async fn open_position(
+    // For now we assume that the first position has equal margin to the size of the DLC channel to
+    // be opened.
+    //
+    // TODO: Introduce separation between creating the DLC channel (reserving liquidity to trade)
+    // and opening the first position.
+    async fn open_dlc_channel(
         &self,
         conn: &mut PgConnection,
         trade_params: &TradeParams,
-        coordinator_leverage: f32,
         stable: bool,
     ) -> Result<()> {
         let peer_id = trade_params.pubkey;
-        tracing::info!(%peer_id, ?trade_params, "Opening position");
+
+        tracing::info!(
+            %peer_id,
+            order_id = %trade_params.filled_with.order_id,
+            ?trade_params, "Opening DLC channel and position"
+        );
+
+        let leverage_trader = trade_params.leverage;
+        let leverage_coordinator = self.coordinator_leverage_for_trade(&trade_params.pubkey)?;
 
         let margin_trader = margin_trader(trade_params);
-        let margin_coordinator = margin_coordinator(trade_params, coordinator_leverage);
-        let leverage_trader = trade_params.leverage;
-        let total_collateral = margin_coordinator + margin_trader;
+        let margin_coordinator = margin_coordinator(trade_params, leverage_coordinator);
 
-        let fee = order_matching_fee_taker(
+        let order_matching_fee = order_matching_fee_taker(
             trade_params.quantity,
             trade_params.average_execution_price(),
         )
         .to_sat();
+
         let initial_price = trade_params.filled_with.average_execution_price();
 
         let coordinator_direction = trade_params.direction.opposite();
@@ -291,11 +247,12 @@ impl Node {
             initial_price,
             margin_coordinator,
             margin_trader,
-            coordinator_leverage,
+            leverage_coordinator,
             leverage_trader,
             coordinator_direction,
-            fee,
-            create_rounding_interval(total_collateral),
+            // The coordinator gets the `order_matching_fee` directly in the collateral reserve.
+            order_matching_fee,
+            0,
             trade_params.quantity,
             trade_params.contract_symbol,
         )
@@ -308,13 +265,20 @@ impl Node {
         let fee_rate = self.settings.read().await.contract_tx_fee_rate;
 
         // The contract input to be used for setting up the trade between the trader and the
-        // coordinator
+        // coordinator.
         let event_id = format!("{contract_symbol}{maturity_time}");
-        tracing::debug!(event_id, oracle=%trade_params.filled_with.oracle_pk, "Proposing dlc channel");
+
+        tracing::debug!(
+            event_id,
+            oracle=%trade_params.filled_with.oracle_pk,
+            "Proposing DLC channel"
+        );
+
         let contract_input = ContractInput {
-            offer_collateral: margin_coordinator - fee,
-            // the accepting party has do bring in additional margin for the fees
-            accept_collateral: margin_trader + fee,
+            offer_collateral: margin_coordinator,
+            // The accept party has do bring additional collateral to pay for the
+            // `order_matching_fee`.
+            accept_collateral: margin_trader + order_matching_fee,
             fee_rate,
             contract_infos: vec![ContractInputInfo {
                 contract_descriptor,
@@ -330,20 +294,143 @@ impl Node {
             .inner
             .propose_dlc_channel(contract_input, trade_params.pubkey)
             .await
-            .context("Could not propose dlc channel")?;
+            .context("Could not propose DLC channel")?;
 
-        // After the dlc channel has been proposed the position can be created. Note, this
-        // fixes https://github.com/get10101/10101/issues/537, where the position was created
-        // before the dlc was successfully proposed. Although we may still run into
-        // inconsistencies e.g. if propose dlc succeeds, but inserting the position and trade
-        // into the database doesn't, it is more likely to succeed in the new order.
-        // FIXME: Note, we should not create a shadow representation (position) of the DLC struct,
-        // but rather imply the state from the DLC.
+        // After the DLC channel has been proposed the position can be created. This fixes
+        // https://github.com/get10101/10101/issues/537, where the position was created before the
+        // DLC was successfully proposed.
+        //
+        // Athough we can still run into inconsistencies (e.g. if `propose_dlc_channel` succeeds,
+        // but `persist_position_and_trade` doesn't), we are more likely to succeed with the new
+        // order.
+        //
+        // FIXME: We should not create a shadow representation (position) of the DLC struct, but
+        // rather imply the state from the DLC.
         self.persist_position_and_trade(
             conn,
             trade_params,
             temporary_contract_id,
-            coordinator_leverage,
+            leverage_coordinator,
+            stable,
+        )
+    }
+
+    async fn open_position(
+        &self,
+        conn: &mut PgConnection,
+        dlc_channel_id: DlcChannelId,
+        trade_params: &TradeParams,
+        coordinator_dlc_channel_collateral: u64,
+        trader_dlc_channel_collateral: u64,
+        stable: bool,
+    ) -> Result<()> {
+        let peer_id = trade_params.pubkey;
+
+        tracing::info!(
+            %peer_id,
+            order_id = %trade_params.filled_with.order_id,
+            channel_id = %dlc_channel_id.to_hex(),
+            ?trade_params,
+            "Opening position"
+        );
+
+        let initial_price = trade_params.filled_with.average_execution_price();
+
+        let leverage_coordinator = self.coordinator_leverage_for_trade(&trade_params.pubkey)?;
+        let leverage_trader = trade_params.leverage;
+
+        let margin_coordinator = margin_coordinator(trade_params, leverage_coordinator);
+        let margin_trader = margin_trader(trade_params);
+
+        let order_matching_fee = order_matching_fee_taker(
+            trade_params.quantity,
+            trade_params.average_execution_price(),
+        )
+        .to_sat();
+
+        let coordinator_direction = trade_params.direction.opposite();
+
+        // How many coins the coordinator will keep outside of the bet. They still go in the DLC
+        // channel, but the payout will be at least this much for the coordinator.
+        let coordinator_collateral_reserve = (coordinator_dlc_channel_collateral
+            + order_matching_fee)
+            .checked_sub(margin_coordinator)
+            .with_context(|| {
+                format!(
+                    "Coordinator cannot trade with more than their total collateral in the \
+                     DLC channel: margin ({}) > collateral ({}) + order_matching_fee ({})",
+                    margin_coordinator, coordinator_dlc_channel_collateral, order_matching_fee
+                )
+            })?;
+
+        // How many coins the trader will keep outside of the bet. They still go in the DLC channel,
+        // but the payout will be at least this much for the coordinator.
+        let trader_collateral_reserve = trader_dlc_channel_collateral
+            .checked_sub(order_matching_fee)
+            .and_then(|collateral| collateral.checked_sub(margin_trader))
+            .with_context(|| {
+                format!(
+                    "Trader cannot trade with more than their total collateral in the \
+                     DLC channel: margin ({}) + order_matching_fee ({}) > collateral ({})",
+                    margin_trader, order_matching_fee, trader_dlc_channel_collateral
+                )
+            })?;
+
+        let contract_descriptor = payout_curve::build_contract_descriptor(
+            initial_price,
+            margin_coordinator,
+            margin_trader,
+            leverage_coordinator,
+            leverage_trader,
+            coordinator_direction,
+            coordinator_collateral_reserve,
+            trader_collateral_reserve,
+            trade_params.quantity,
+            trade_params.contract_symbol,
+        )
+        .context("Could not build contract descriptor")?;
+
+        let contract_symbol = trade_params.contract_symbol.label();
+        let maturity_time = trade_params.filled_with.expiry_timestamp;
+        let maturity_time = maturity_time.unix_timestamp();
+
+        let fee_rate = self.settings.read().await.contract_tx_fee_rate;
+
+        // The contract input to be used for setting up the trade between the trader and the
+        // coordinator.
+        let event_id = format!("{contract_symbol}{maturity_time}");
+
+        tracing::debug!(
+            event_id,
+            oracle=%trade_params.filled_with.oracle_pk,
+            "Proposing DLC channel update"
+        );
+
+        let contract_input = ContractInput {
+            offer_collateral: coordinator_dlc_channel_collateral,
+            accept_collateral: trader_dlc_channel_collateral,
+            fee_rate,
+            contract_infos: vec![ContractInputInfo {
+                contract_descriptor,
+                oracles: OracleInput {
+                    public_keys: vec![trade_params.filled_with.oracle_pk],
+                    event_id,
+                    threshold: 1,
+                },
+            }],
+        };
+
+        let temporary_contract_id = self
+            .inner
+            .propose_dlc_channel_update(&dlc_channel_id, contract_input)
+            .await
+            .context("Could not propose DLC channel update")?;
+
+        self.persist_position_and_trade(
+            conn,
+            trade_params,
+            temporary_contract_id,
+            leverage_coordinator,
             stable,
         )
     }
@@ -410,19 +497,35 @@ impl Node {
         closing_price: Decimal,
         channel_id: DlcChannelId,
     ) -> Result<()> {
-        let accept_settlement_amount =
-            position.calculate_accept_settlement_amount(closing_price)?;
+        let position_settlement_amount_coordinator =
+            position.calculate_coordinator_settlement_amount(closing_price)?;
 
-        tracing::debug!(
+        let collateral_reserve_coordinator =
+            self.inner.get_dlc_channel_usable_balance(&channel_id)?;
+        let dlc_channel_settlement_amount_coordinator =
+            position_settlement_amount_coordinator + collateral_reserve_coordinator.to_sat();
+
+        tracing::info!(
             ?position,
-            channel_id = %hex::encode(channel_id),
-            %accept_settlement_amount,
-            "Closing position of {accept_settlement_amount} with {}",
-            position.trader.to_string()
+            channel_id = %channel_id.to_hex(),
+            %position_settlement_amount_coordinator,
+            ?collateral_reserve_coordinator,
+            %dlc_channel_settlement_amount_coordinator,
+            trader_peer_id = %position.trader,
+            "Closing position by settling DLC channel off-chain",
         );
 
+        let total_collateral = self
+            .inner
+            .signed_dlc_channel_total_collateral(&channel_id)?;
+
+        let settlement_amount_trader = total_collateral
+            .to_sat()
+            .checked_sub(dlc_channel_settlement_amount_coordinator)
+            .unwrap_or_default();
+
         self.inner
-            .propose_dlc_channel_collaborative_settlement(channel_id, accept_settlement_amount)
+            .propose_dlc_channel_collaborative_settlement(channel_id, settlement_amount_trader)
             .await?;
 
         db::trades::insert(
@@ -500,69 +603,127 @@ impl Node {
         Ok(())
     }
 
-    /// Decides what trade action should be performed according to the
-    /// coordinator's current trading status with the trader.
+    /// Execute a trade action according to the coordinator's current trading status with the
+    /// trader.
     ///
-    /// We look for a pre-existing position with the trader and
-    /// instruct accordingly:
+    /// We look for a pre-existing position with the trader and execute accordingly:
     ///
-    /// 1. If a position of equal quantity and opposite direction is
-    /// found, we direct the caller to close the position.
+    /// 0. If no DLC channel is found, we open a DLC channel (with the position included).
     ///
-    /// 2. If no position is found, we direct the caller to open a
-    /// position.
+    /// 1. If a position of equal quantity and opposite direction is found, we close the position.
     ///
-    /// 3. If a position of differing quantity is found, we direct the
-    /// caller to resize the position.
-    pub fn decide_trade_action(
+    /// 2. If no position is found, we open a position.
+    ///
+    /// 3. If a position of differing quantity is found, we resize the position.
+    pub async fn execute_trade_action(
         &self,
         conn: &mut PgConnection,
         trade_params: &TradeParams,
-    ) -> Result<TradeAction> {
+        is_stable_order: bool,
+    ) -> Result<()> {
         let trader_peer_id = trade_params.pubkey;
+        match self
+            .inner
+            .get_dlc_channel_by_counterparty(&trader_peer_id)?
+        {
+            None => {
+                ensure!(
+                    self.settings.read().await.allow_opening_positions,
+                    "Opening positions is disabled"
+                );
 
-        let subchannel = match self.inner.get_established_dlc_channel(&trader_peer_id)? {
-            None => return Ok(TradeAction::Open),
-            Some(subchannel) => subchannel,
+                self.open_dlc_channel(conn, trade_params, is_stable_order)
+                    .await
+                    .context("Failed to open DLC channel")?;
+            }
+            Some(SignedChannel {
+                channel_id,
+                state:
+                    SignedChannelState::Settled {
+                        own_payout,
+                        counter_payout,
+                        ..
+                    },
+                ..
+            }) => {
+                ensure!(
+                    self.settings.read().await.allow_opening_positions,
+                    "Opening positions is disabled"
+                );
+
+                self.open_position(
+                    conn,
+                    channel_id,
+                    trade_params,
+                    own_payout,
+                    counter_payout,
+                    is_stable_order,
+                )
+                .await
+                .context("Failed to open new position")?;
+            }
+            Some(SignedChannel {
+                state: SignedChannelState::Established { .. },
+                channel_id: dlc_channel_id,
+                ..
+            }) => {
+                let position = db::positions::Position::get_position_by_trader(
+                    conn,
+                    trader_peer_id,
+                    vec![PositionState::Open],
+                )?
+                .with_context(|| {
+                    format!("Failed to find open position with peer {trader_peer_id}")
+                })?;
+
+                let position_contracts = {
+                    let contracts = decimal_from_f32(position.quantity);
+
+                    compute_relative_contracts(contracts, &position.direction)
+                };
+
+                let trade_contracts = {
+                    let contracts = decimal_from_f32(trade_params.quantity);
+
+                    compute_relative_contracts(contracts, &trade_params.direction)
+                };
+
+                if position_contracts + trade_contracts == Decimal::ZERO {
+                    let closing_price = trade_params.average_execution_price();
+
+                    let position = match db::positions::Position::get_position_by_trader(
+                        conn,
+                        trade_params.pubkey,
+                        vec![PositionState::Open],
+                    )? {
+                        Some(position) => position,
+                        None => bail!("Failed to find open position: {}", trade_params.pubkey),
+                    };
+
+                    self.start_closing_position(conn, &position, closing_price, dlc_channel_id)
+                        .await
+                        .context(format!(
+                            "Failed at closing the position with id: {}",
+                            position.id
+                        ))?;
+                } else {
+                    ensure!(
+                        self.settings.read().await.allow_opening_positions,
+                        "Resizing positions is disabled"
+                    );
+
+                    bail!("Position resizing not yet possible");
+                }
+            }
+            Some(signed_channel) => {
+                bail!(
+                    "Cannot trade with counterparty {trader_peer_id} with DLC channel in state {:?}",
+                    signed_channel_state_name(signed_channel.state)
+                );
+            }
         };
 
-        let position = db::positions::Position::get_position_by_trader(
-            conn,
-            trader_peer_id,
-            vec![PositionState::Open],
-        )?
-        .with_context(|| format!("Failed to find open position with peer {trader_peer_id}"))?;
-
-        let position_contracts = {
-            let contracts = decimal_from_f32(position.quantity);
-
-            compute_relative_contracts(contracts, &position.direction)
-        };
-
-        let trade_contracts = {
-            let contracts = decimal_from_f32(trade_params.quantity);
-
-            compute_relative_contracts(contracts, &trade_params.direction)
-        };
-
-        let action = if position_contracts + trade_contracts == Decimal::ZERO {
-            TradeAction::Close(subchannel.channel_id)
-        } else {
-            // TODO(bonomat) implement channel resize on dlc-channels
-            // TradeAction::Resize(subchannel.channel_id)
-            unimplemented!()
-        };
-
-        Ok(action)
-    }
-
-    fn get_counterparty_channel(&self, trader_pubkey: PublicKey) -> Result<ChannelDetails> {
-        let channel_details = self.inner.list_usable_channels();
-        let channel_details = channel_details
-            .into_iter()
-            .find(|c| c.counterparty.node_id == trader_pubkey)
-            .context("Channel details not found")?;
-        Ok(channel_details)
+        Ok(())
     }
 
     pub fn process_incoming_dlc_messages(&self) {
@@ -591,21 +752,20 @@ impl Node {
         }
     }
 
-    /// [`process_dlc_message`] processes incoming dlc channel messages and updates the 10101
-    /// position accordingly.
-    /// - Any other message will be ignored.
-    /// - Any dlc channel message that has already been processed will be skipped.
+    /// Process an incoming [`Message::Channel`] and update the 10101 position accordingly.
     ///
-    /// If an offer is received [`ChannelMessage::Offer`], [`ChannelMessage::SettleOffer`],
-    /// [`ChannelMessage::CollaborativeCloseOffer`] [`ChannelMessage::RenewOffer`] will get
+    /// - Any other kind of message will be ignored.
+    /// - Any message that has already been processed will be skipped.
+    ///
+    /// Offers such as [`ChannelMessage::Offer`], [`ChannelMessage::SettleOffer`],
+    /// [`ChannelMessage::CollaborativeCloseOffer`] and [`ChannelMessage::RenewOffer`] are
     /// automatically accepted. Unless the maturity date of the offer is already outdated.
     ///
-    /// FIXME(holzeis): This function manipulates different data objects in different data sources
-    /// and should use a transaction to make all changes atomic. Not doing so risks of ending up in
-    /// an inconsistent state. One way of fixing that could be to
-    /// (1) use a single data source for the 10101 data and the rust-dlc data.
-    /// (2) wrap the function into a db transaction which can be atomically rolled back on error or
-    /// committed on success.
+    /// FIXME(holzeis): This function manipulates different data objects from different data sources
+    /// and should use a transaction to make all changes atomic. Not doing so risks ending up in an
+    /// inconsistent state. One way of fixing that could be to: (1) use a single data source for the
+    /// 10101 data and the `rust-dlc` data; (2) wrap the function into a DB transaction which can be
+    /// atomically rolled back on error or committed on success.
     fn process_dlc_message(&self, node_id: PublicKey, msg: Message) -> Result<()> {
         tracing::info!(
             from = %node_id,
@@ -649,7 +809,30 @@ impl Node {
                 }
 
                 match channel_msg {
-                    ChannelMessage::RenewFinalize(r) => self.finalize_rollover(&r.channel_id)?,
+                    ChannelMessage::RenewFinalize(r) => {
+                        // TODO: Receiving this message used to be specific to rolling over, but we
+                        // now use the renew protocol for all (non-closing)
+                        // trades beyond the first one.
+                        // self.finalize_rollover(&r.channel_id)?;
+
+                        let channel_id_hex_string = r.channel_id.to_hex();
+                        tracing::info!(
+                            channel_id = channel_id_hex_string,
+                            node_id = node_id.to_string(),
+                            "DLC channel renew protocol was finalized"
+                        );
+
+                        if self.is_in_rollover(node_id)? {
+                            self.finalize_rollover(&r.channel_id)?;
+                        } else {
+                            let mut connection = self.pool.get()?;
+                            db::positions::Position::update_proposed_position(
+                                &mut connection,
+                                node_id.to_string(),
+                                PositionState::Open,
+                            )?;
+                        }
+                    }
                     ChannelMessage::SettleFinalize(settle_finalize) => {
                         let channel_id_hex_string = settle_finalize.channel_id.to_hex();
                         tracing::info!(
@@ -695,7 +878,7 @@ impl Node {
                         tracing::info!(
                             channel_id = channel_id_hex_string,
                             node_id = node_id.to_string(),
-                            "DLC channel open protocol was accepted"
+                            "DLC channel open protocol was finalized"
                         );
                         let mut connection = self.pool.get()?;
                         db::positions::Position::update_proposed_position(
@@ -765,9 +948,10 @@ fn update_order_and_match(
 }
 
 pub enum TradeAction {
-    Open,
-    Close(DlcChannelId),
-    Resize(ChannelId),
+    OpenDlcChannel,
+    OpenPosition(DlcChannelId),
+    ClosePosition(DlcChannelId),
+    ResizePosition(ChannelId),
 }
 
 fn margin_trader(trade_params: &TradeParams) -> u64 {
@@ -796,4 +980,22 @@ fn liquidation_price(trade_params: &TradeParams) -> f32 {
     }
     .to_f32()
     .expect("to fit into f32")
+}
+
+fn signed_channel_state_name(state: SignedChannelState) -> &'static str {
+    use SignedChannelState::*;
+    match state {
+        Established { .. } => "Established",
+        SettledOffered { .. } => "SettledOffered",
+        SettledReceived { .. } => "SettledReceived",
+        SettledAccepted { .. } => "SettledAccepted",
+        SettledConfirmed { .. } => "SettledConfirmed",
+        Settled { .. } => "Settled",
+        RenewOffered { .. } => "RenewOffered",
+        RenewAccepted { .. } => "RenewAccepted",
+        RenewConfirmed { .. } => "RenewConfirmed",
+        RenewFinalized { .. } => "RenewFinalized",
+        Closing { .. } => "Closing",
+        CollaborativeCloseOffered { .. } => "CollaborativeCloseOffered",
+    }
 }
