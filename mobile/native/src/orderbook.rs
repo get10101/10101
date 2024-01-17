@@ -21,7 +21,6 @@ use commons::Prices;
 use commons::Signature;
 use futures::SinkExt;
 use futures::TryStreamExt;
-use lightning::ln::ChannelId;
 use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -307,7 +306,6 @@ async fn handle_orderbook_message(
             coordinator_amount,
             trader_amount,
             execution_price,
-            funding_txo,
         } => {
             tracing::debug!(
                 channel_id = %channel_id.to_hex(),
@@ -319,12 +317,11 @@ async fn handle_orderbook_message(
             ));
 
             if let Err(err) = ln_dlc::collaborative_revert_channel(
-                ChannelId(channel_id),
+                channel_id,
                 coordinator_address,
                 coordinator_amount,
                 trader_amount,
                 execution_price,
-                funding_txo,
             ) {
                 event::publish(&EventInternal::BackgroundNotification(
                     BackgroundTask::CollabRevert(TaskStatus::Failed),

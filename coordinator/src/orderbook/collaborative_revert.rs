@@ -5,14 +5,12 @@ use anyhow::bail;
 use anyhow::Result;
 use bitcoin::hashes::hex::ToHex;
 use bitcoin::secp256k1::PublicKey;
-use bitcoin::OutPoint;
 use commons::Message;
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::Pool;
 use diesel::PgConnection;
 use futures::future::RemoteHandle;
 use futures::FutureExt;
-use rust_decimal::Decimal;
 use tokio::sync::broadcast;
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::mpsc;
@@ -95,15 +93,11 @@ async fn process_pending_collaborative_revert(
             let msg = OrderbookMessage::TraderMessage {
                 trader_id,
                 message: Message::CollaborativeRevert {
-                    channel_id: revert.channel_id.0,
+                    channel_id: revert.channel_id,
                     coordinator_address: revert.coordinator_address,
                     coordinator_amount: revert.coordinator_amount_sats,
                     trader_amount: revert.trader_amount_sats,
-                    execution_price: Decimal::try_from(revert.price).expect("to fit into decimal"),
-                    funding_txo: OutPoint {
-                        txid: revert.txid,
-                        vout: revert.vout,
-                    },
+                    execution_price: revert.price,
                 },
                 notification: None,
             };

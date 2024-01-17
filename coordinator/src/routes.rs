@@ -1,7 +1,6 @@
 use crate::admin::close_channel;
 use crate::admin::collaborative_revert;
 use crate::admin::connect_to_peer;
-use crate::admin::expert_collaborative_revert;
 use crate::admin::get_balance;
 use crate::admin::get_utxos;
 use crate::admin::is_connected;
@@ -27,7 +26,7 @@ use crate::orderbook::routes::post_order;
 use crate::orderbook::routes::put_order;
 use crate::orderbook::routes::websocket_handler;
 use crate::orderbook::trading::NewOrderMessage;
-use crate::parse_channel_id;
+use crate::parse_dlc_channel_id;
 use crate::settings::Settings;
 use crate::settings::SettingsFile;
 use crate::AppError;
@@ -155,10 +154,6 @@ pub fn router(
         .route("/api/admin/sign/:msg", get(sign_message))
         .route("/api/admin/connect", post(connect_to_peer))
         .route("/api/admin/channels/revert", post(collaborative_revert))
-        .route(
-            "/api/admin/channels/revert-expert",
-            post(expert_collaborative_revert),
-        )
         .route(
             "/api/channels/revertconfirm",
             post(collaborative_revert_confirm),
@@ -508,7 +503,7 @@ pub async fn collaborative_revert_confirm(
     })?;
 
     let channel_id_string = revert_params.channel_id.clone();
-    let channel_id = parse_channel_id(channel_id_string.as_str()).map_err(|error| {
+    let channel_id = parse_dlc_channel_id(channel_id_string.as_str()).map_err(|error| {
         tracing::error!(
             channel_id = channel_id_string,
             "Invalid channel id provided. {error:#}"
