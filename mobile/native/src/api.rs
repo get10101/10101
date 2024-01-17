@@ -93,6 +93,13 @@ pub async fn refresh_wallet_info() -> Result<()> {
     Ok(())
 }
 
+#[tokio::main(flavor = "current_thread")]
+pub async fn sync_dlc_channels() -> Result<()> {
+    ln_dlc::sync_dlc_channels().await?;
+
+    Ok(())
+}
+
 pub fn refresh_lightning_wallet() -> Result<()> {
     ln_dlc::refresh_lightning_wallet()
 }

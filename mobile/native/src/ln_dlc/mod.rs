@@ -164,6 +164,24 @@ pub async fn refresh_wallet_info() -> Result<()> {
     Ok(())
 }
 
+pub async fn sync_dlc_channels() -> Result<()> {
+    let node = state::get_node();
+
+    let runtime = state::get_or_create_tokio_runtime()?;
+
+    runtime
+        .spawn_blocking(move || {
+            node.inner.dlc_manager.periodic_chain_monitor()?;
+            node.inner.dlc_manager.periodic_check()?;
+
+            anyhow::Ok(())
+        })
+        .await
+        .expect("task to complete")?;
+
+    Ok(())
+}
+
 pub fn get_seed_phrase() -> Vec<String> {
     state::get_seed().get_seed_phrase()
 }

@@ -1,8 +1,9 @@
+use crate::app::refresh_wallet_info;
 use crate::app::run_app;
+use crate::app::sync_dlc_channels;
 use crate::app::AppHandle;
 use crate::bitcoind::Bitcoind;
 use crate::coordinator::Coordinator;
-use crate::fund::fund_app_with_faucet;
 use crate::http::init_reqwest;
 use crate::logger::init_tracing;
 use crate::wait_until;
@@ -24,36 +25,61 @@ impl TestSetup {
     /// Start test with a running app and a funded wallet.
     pub async fn new_after_funding() -> Self {
         init_tracing();
+
         let client = init_reqwest();
-        let coordinator = Coordinator::new_local(client.clone());
-        assert!(coordinator.is_running().await);
-        // ensure coordinator has a free UTXO available
-        let address = coordinator.get_new_address().await.unwrap();
         let bitcoind = Bitcoind::new_local(client.clone());
+
+        // Coordinator setup
+
+        let coordinator = Coordinator::new_local(client.clone());
+
+        assert!(coordinator.is_running().await);
+
+        // Ensure that the coordinator has a free UTXO available.
+        let address = coordinator.get_new_address().await.unwrap();
+
         bitcoind
             .send_to_address(&address, Amount::ONE_BTC)
             .await
             .unwrap();
+
         bitcoind.mine(1).await.unwrap();
         coordinator.sync_wallet().await.unwrap();
+
+        // App setup
 
         let app = run_app(None).await;
 
         assert_eq!(
-            app.rx.wallet_info().unwrap().balances.off_chain,
+            app.rx.wallet_info().unwrap().balances.on_chain,
             0,
-            "App should start with empty wallet"
+            "App should start with empty on-chain wallet"
         );
 
-        let fund_amount = 50_000;
-        fund_app_with_faucet(&app, &client, fund_amount)
+        assert_eq!(
+            app.rx.wallet_info().unwrap().balances.off_chain,
+            0,
+            "App should start with empty off-chain wallet"
+        );
+
+        let fund_amount = Amount::ONE_BTC;
+
+        let address = api::get_unused_address();
+        let address = &address.0.parse().unwrap();
+
+        bitcoind
+            .send_to_address(address, Amount::ONE_BTC)
             .await
             .unwrap();
 
-        let ln_balance = app.rx.wallet_info().unwrap().balances.off_chain;
-        tracing::info!(%fund_amount, %ln_balance, "Successfully funded app with faucet");
+        bitcoind.mine(1).await.unwrap();
+        refresh_wallet_info();
 
-        assert!(ln_balance > 0, "App wallet should be funded");
+        wait_until!(app.rx.wallet_info().unwrap().balances.on_chain == fund_amount.to_sat());
+
+        let on_chain_balance = app.rx.wallet_info().unwrap().balances.on_chain;
+
+        tracing::info!(%fund_amount, %on_chain_balance, "Successfully funded app");
 
         Self {
             app,
@@ -84,6 +110,12 @@ impl TestSetup {
         // Wait for coordinator to open position.
         tokio::time::sleep(std::time::Duration::from_secs(10)).await;
 
+        setup.bitcoind.mine(6).await.unwrap();
+
+        tokio::time::sleep(std::time::Duration::from_secs(10)).await;
+
+        sync_dlc_channels();
+
         setup
     }
 }
@@ -93,7 +125,7 @@ pub fn dummy_order() -> NewOrder {
         leverage: 2.0,
         contract_symbol: ContractSymbol::BtcUsd,
         direction: api::Direction::Long,
-        quantity: 1.0,
+        quantity: 1000.0,
         order_type: Box::new(OrderType::Market),
         stable: false,
     }

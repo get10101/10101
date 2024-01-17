@@ -20,7 +20,7 @@ fn dummy_order() -> NewOrder {
     }
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 #[ignore = "need to be run with 'just e2e' command"]
 async fn can_open_position() {
     let test = TestSetup::new_after_funding().await;
