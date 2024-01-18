@@ -234,6 +234,7 @@ pub fn order_matching_fee(quantity: f32, price: f32) -> SyncReturn<u64> {
 pub async fn submit_order(order: NewOrder) -> Result<String> {
     order::handler::submit_order(order.into())
         .await
+        .map_err(anyhow::Error::new)
         .map(|id| id.to_string())
 }
 

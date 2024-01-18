@@ -920,19 +920,9 @@ pub fn get_signed_dlc_channel() -> Result<Option<SignedChannel>> {
 pub fn is_dlc_channel_confirmed(dlc_channel_id: &DlcChannelId) -> Result<bool> {
     let node = state::get_node();
 
-    let is_contract_confirmed = match node.inner.get_contract_by_dlc_channel_id(dlc_channel_id) {
-        Ok(Contract::Confirmed { .. }) => true,
-        Err(e) => {
-            tracing::error!(
-                dlc_channel_id = %dlc_channel_id.to_hex(),
-                "Could not get contract for DLC channel: {e:#}"
-            );
-            false
-        }
-        _ => false,
-    };
+    let contract = node.inner.get_contract_by_dlc_channel_id(dlc_channel_id)?;
 
-    Ok(is_contract_confirmed)
+    Ok(matches!(contract, Contract::Confirmed { .. }))
 }
 
 pub fn get_usable_channel_details() -> Result<Vec<ChannelDetails>> {
