@@ -1,4 +1,3 @@
-use crate::admin::close_channel;
 use crate::admin::collaborative_revert;
 use crate::admin::connect_to_peer;
 use crate::admin::expert_collaborative_revert;
@@ -11,6 +10,7 @@ use crate::admin::list_peers;
 use crate::admin::open_channel;
 use crate::admin::send_payment;
 use crate::admin::sign_message;
+use crate::admin::{close_channel, revert_everything_yolo};
 use crate::backup::SledBackup;
 use crate::collaborative_revert::confirm_collaborative_revert;
 use crate::db;
@@ -152,6 +152,7 @@ pub fn router(
         .route("/api/admin/transactions", get(list_on_chain_transactions))
         .route("/api/admin/sign/:msg", get(sign_message))
         .route("/api/admin/connect", post(connect_to_peer))
+        .route("/api/admin/channels/yolo", delete(revert_everything_yolo))
         .route("/api/admin/channels/revert", post(collaborative_revert))
         .route(
             "/api/admin/channels/revert-expert",
