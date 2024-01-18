@@ -30,6 +30,7 @@ use crate::parse_dlc_channel_id;
 use crate::settings::Settings;
 use crate::settings::SettingsFile;
 use crate::AppError;
+use axum::extract::DefaultBodyLimit;
 use axum::extract::Path;
 use axum::extract::Query;
 use axum::extract::State;
@@ -170,6 +171,8 @@ pub fn router(
         )
         .route("/metrics", get(get_metrics))
         .route("/health", get(get_health))
+        .layer(DefaultBodyLimit::disable())
+        .layer(DefaultBodyLimit::max(50 * 1024))
         .with_state(app_state)
 }
 

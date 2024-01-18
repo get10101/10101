@@ -1,18 +1,7 @@
 use anyhow::Context;
 use anyhow::Result;
 use bitcoin::Address;
-use bitcoin::Txid;
-use commons::CollaborativeRevertCoordinatorExpertRequest;
-use commons::CollaborativeRevertCoordinatorRequest;
-use coordinator::admin::Balance;
-use coordinator::routes::InvoiceParams;
-use ln_dlc_node::lightning_invoice;
-use ln_dlc_node::node::NodeInfo;
 use reqwest::Client;
-use rust_decimal::Decimal;
-use rust_decimal_macros::dec;
-use serde::Deserialize;
-use serde::Serialize;
 
 /// A wrapper over the coordinator HTTP API.
 ///
@@ -20,41 +9,6 @@ use serde::Serialize;
 pub struct Coordinator {
     client: Client,
     host: String,
-}
-
-#[derive(Deserialize)]
-pub struct SubChannels {
-    #[serde(flatten)]
-    pub channel_details: Vec<SubChannel>,
-}
-
-#[derive(Deserialize, Debug)]
-pub struct SubChannel {
-    pub channel_id: String,
-    pub dlc_channel_id: Option<String>,
-    pub counter_party: String,
-    pub subchannel_state: SubChannelState,
-}
-
-#[derive(Deserialize, Debug)]
-pub struct Channel {
-    pub channel_id: String,
-    pub counterparty: String,
-    pub funding_txo: Option<String>,
-    pub original_funding_txo: Option<String>,
-    pub outbound_capacity_msat: u64,
-}
-
-#[derive(Deserialize, Debug, PartialEq, Eq)]
-pub enum SubChannelState {
-    Signed,
-    Closing,
-    OnChainClosed,
-    CounterOnChainClosed,
-    CloseConfirmed,
-    // We don't care about other states for now
-    #[serde(other)]
-    Other,
 }
 
 impl Coordinator {
@@ -74,125 +28,13 @@ impl Coordinator {
         self.get("/health").await.is_ok()
     }
 
-    pub async fn is_node_connected(&self, node_id: &str) -> Result<bool> {
-        let result = self
-            .get(&format!("/api/admin/is_connected/{node_id}"))
-            .await?
-            .status()
-            .is_success();
-        Ok(result)
-    }
-
     pub async fn sync_wallet(&self) -> Result<()> {
         self.post("/api/admin/sync").await?;
         Ok(())
     }
 
-    pub async fn pay_invoice(&self, invoice: &str) -> Result<()> {
-        self.post(&format!("/api/admin/send_payment/{invoice}"))
-            .await?;
-        Ok(())
-    }
-
-    pub async fn create_invoice(
-        &self,
-        amount: Option<u64>,
-    ) -> Result<lightning_invoice::Bolt11Invoice> {
-        let invoice_params = InvoiceParams {
-            amount,
-            description: Some("Fee for tests".to_string()),
-            expiry: None,
-        };
-
-        let encoded_params = serde_urlencoded::to_string(&invoice_params)?;
-
-        let invoice = self
-            .get(&format!("/api/invoice?{encoded_params}"))
-            .await?
-            .text()
-            .await?
-            .parse()?;
-
-        Ok(invoice)
-    }
-
     pub async fn get_new_address(&self) -> Result<Address> {
         Ok(self.get("/api/newaddress").await?.text().await?.parse()?)
-    }
-
-    pub async fn get_balance(&self) -> Result<Balance> {
-        Ok(self.get("/api/admin/wallet/balance").await?.json().await?)
-    }
-
-    pub async fn get_node_info(&self) -> Result<NodeInfo> {
-        self.get("/api/node")
-            .await?
-            .json()
-            .await
-            .context("could not parse json")
-    }
-
-    pub async fn broadcast_node_announcement(&self) -> Result<reqwest::Response> {
-        let status = self
-            .post("/api/admin/broadcast_announcement")
-            .await?
-            .error_for_status()?;
-        Ok(status)
-    }
-
-    pub async fn get_sub_channels(&self) -> Result<Vec<SubChannel>> {
-        Ok(self.get("/api/admin/sub_channels").await?.json().await?)
-    }
-
-    pub async fn force_close_channel(&self, channel_id: &str) -> Result<reqwest::Response> {
-        self.delete(format!("/api/admin/channels/{channel_id}?force=true").as_str())
-            .await
-    }
-
-    pub async fn collaborative_revert_channel(
-        &self,
-        channel_id: &str,
-        txid: Txid,
-        vout: u32,
-    ) -> Result<reqwest::Response> {
-        self.post_with_body(
-            "/api/admin/channels/revert",
-            &CollaborativeRevertCoordinatorRequest {
-                channel_id: channel_id.to_string(),
-                price: dec!(30_000.0),
-                fee_rate_sats_vb: 4,
-                txid,
-                vout,
-            },
-        )
-        .await
-    }
-
-    pub async fn expert_collaborative_revert_channel(
-        &self,
-        channel_id: &str,
-        coordinator_amount: u64,
-        price: Decimal,
-        txid: Txid,
-        vout: u32,
-    ) -> Result<reqwest::Response> {
-        self.post_with_body(
-            "/api/admin/channels/revert-expert",
-            &CollaborativeRevertCoordinatorExpertRequest {
-                channel_id: channel_id.to_string(),
-                coordinator_amount,
-                txid,
-                vout,
-                fee_rate_sats_vb: 4,
-                price,
-            },
-        )
-        .await
-    }
-
-    pub async fn rollover(&self, dlc_channel_id: &str) -> Result<reqwest::Response> {
-        self.post(format!("/api/rollover/{dlc_channel_id}").as_str())
-            .await
     }
 
     async fn get(&self, path: &str) -> Result<reqwest::Response> {
@@ -211,31 +53,6 @@ impl Coordinator {
             .send()
             .await
             .context("Could not send POST request to coordinator")?
-            .error_for_status()
-            .context("Coordinator did not return 200 OK")
-    }
-
-    async fn post_with_body<T: Serialize + ?Sized>(
-        &self,
-        path: &str,
-        body: &T,
-    ) -> Result<reqwest::Response> {
-        self.client
-            .post(format!("{0}{path}", self.host))
-            .json(body)
-            .send()
-            .await
-            .context("Could not send POST request to coordinator")?
-            .error_for_status()
-            .context("Coordinator did not return 200 OK")
-    }
-
-    async fn delete(&self, path: &str) -> Result<reqwest::Response> {
-        self.client
-            .delete(format!("{0}{path}", self.host))
-            .send()
-            .await
-            .context("Could not send DELETE request to coordinator")?
             .error_for_status()
             .context("Coordinator did not return 200 OK")
     }
