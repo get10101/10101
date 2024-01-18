@@ -742,6 +742,7 @@ dependencies = [
  "payout_curve",
  "prometheus",
  "rand",
+ "reqwest",
  "rust_decimal",
  "rust_decimal_macros",
  "serde",

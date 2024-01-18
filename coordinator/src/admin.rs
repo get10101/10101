@@ -22,6 +22,7 @@ use dlc_manager::contract::Contract;
 use dlc_manager::subchannel::{SubChannel, SubChannelState};
 use lightning_invoice::Bolt11Invoice;
 use ln_dlc_node::node::NodeInfo;
+use reqwest::Client;
 use rust_decimal::Decimal;
 use serde::de;
 use serde::Deserialize;
@@ -30,9 +31,11 @@ use serde::Serialize;
 use std::fmt;
 use std::str::FromStr;
 use std::sync::Arc;
+use time::format_description::well_known::Rfc3339;
 use time::OffsetDateTime;
 use tokio::task::spawn_blocking;
 use tracing::instrument;
+use trade::bitmex_client::Quote;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Balance {
@@ -302,14 +305,7 @@ pub async fn revert_everything_yolo(
     for channel in
         lightning_channels_without_sub_channel_or_with_sub_channel_which_is_off_chain_closed
     {
-        if query_param.dry_run {
-            let channel_id = channel.channel_id.to_hex();
-            tracing::info!(
-                channel_id = channel_id,
-                "Would propose collab revert for channel"
-            );
-            continue;
-        }
+        let channel_id = channel.channel_id.to_hex();
 
         if let Err(err) = propose_collaborative_revert(
             state.node.inner.clone(),
@@ -322,10 +318,53 @@ pub async fn revert_everything_yolo(
                 txid: channel.funding_txo.expect("to have funding txo").txid,
                 vout: channel.funding_txo.expect("to have funding txo").index as u32,
             },
+            query_param.dry_run,
         )
         .await
         {
-            tracing::error!(channel_id = channel_id, "Could not yolo subchannel");
+            tracing::error!(channel_id = channel_id, "Could not yolo subchannel {err:#}");
+        }
+    }
+
+    let client = reqwest::Client::new();
+    for channel in lightning_channels_with_any_sub_channel_which_is_expired_but_not_offchain_closed
+    {
+        let channel_id = channel.channel_id.to_hex();
+
+        let position =
+            Position::get_position_by_trader(&mut connection, channel.counterparty.node_id, vec![])
+                .expect("to be able to get positions");
+        match position {
+            None => {
+                tracing::warn!(channel_id = channel_id, "Found channel without position");
+            }
+            Some(position) => {
+                let expiry_timestamp = position.expiry_timestamp;
+                let quote = get_quote_from_bitmex(&client, expiry_timestamp).await;
+                let mid_market = (quote.ask_price + quote.bid_price) / Decimal::from(2);
+
+                let funding_utxo = channel
+                    .original_funding_outpoint
+                    .unwrap_or(channel.funding_txo.expect("to have funding utxo"));
+
+                if let Err(err) = propose_collaborative_revert(
+                    state.node.inner.clone(),
+                    state.pool.clone(),
+                    state.auth_users_notifier.clone(),
+                    channel.channel_id,
+                    mid_market,
+                    query_param.fee_rate,
+                    OutPoint {
+                        txid: funding_utxo.txid,
+                        vout: funding_utxo.index as u32,
+                    },
+                    query_param.dry_run,
+                )
+                .await
+                {
+                    tracing::error!(channel_id = channel_id, "Could not yolo subchannel {err:#}");
+                }
+            }
         }
     }
 
@@ -358,6 +397,7 @@ pub async fn collaborative_revert(
         revert_params.price,
         revert_params.fee_rate_sats_vb,
         funding_txo,
+        false,
     )
     .await
     .map_err(|e| {
@@ -568,4 +608,36 @@ pub async fn is_connected(
         AppError::BadRequest(format!("Invalid public key {target_pubkey}. Error: {err}"))
     })?;
     Ok(Json(state.node.is_connected(&target)))
+}
+
+async fn get_quote_from_bitmex(client: &Client, expiry: OffsetDateTime) -> Quote {
+    let start = expiry.format(&Rfc3339).unwrap();
+
+    let end = OffsetDateTime::now_utc() + time::Duration::minutes(1);
+    let end = end.format(&Rfc3339).unwrap();
+
+    let url = format!("https://www.bitmex.com/api/v1/quote?symbol=XBTUSD&count=1&reverse=false&startTime={start}&endTime={end}");
+    let response = client.get(url.to_string()).send().await.unwrap();
+    // dbg!(response.text().await);
+    let quote: Vec<Quote> = response.json().await.unwrap();
+    quote
+        .first()
+        .expect("expect to have at least one quote")
+        .clone()
+}
+
+#[cfg(test)]
+pub mod tests {
+    use crate::admin::get_quote_from_bitmex;
+    use time::OffsetDateTime;
+
+    #[tokio::test]
+    pub async fn get_quote() {
+        let client = reqwest::Client::new();
+        let before = OffsetDateTime::now_utc() - time::Duration::minutes(2);
+
+        let quote = get_quote_from_bitmex(&client, before).await;
+
+        dbg!(quote);
+    }
 }

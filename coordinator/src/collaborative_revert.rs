@@ -60,6 +60,7 @@ pub async fn propose_collaborative_revert(
     settlement_price: Decimal,
     fee_rate_sats_vb: u64,
     funding_txo: OutPoint,
+    dry_run: bool,
 ) -> Result<()> {
     let channel_details = node
         .channel_manager
@@ -172,42 +173,44 @@ pub async fn propose_collaborative_revert(
         coordinator_address = %coordinator_address,
         coordinator_amount = coordinator_amount.to_sat(),
         trader_amount = trader_amount.to_sat(),
+        price = settlement_price.to_string(),
         "Proposing collaborative revert"
     );
 
-    db::collaborative_reverts::insert(
-        &mut conn,
-        position::models::CollaborativeRevert {
-            channel_id,
-            trader_pubkey: peer_id,
-            price: settlement_price.to_f32().expect("to fit into f32"),
-            coordinator_address: coordinator_address.clone(),
-            coordinator_amount_sats: coordinator_amount,
-            trader_amount_sats: trader_amount,
-            timestamp: OffsetDateTime::now_utc(),
-            txid: funding_txo.txid,
-            vout: funding_txo.vout,
-        },
-    )
-    .context("Could not insert new collaborative revert")?;
-
-    // Send collaborative revert proposal to the counterpary.
-    sender
-        .send(OrderbookMessage::TraderMessage {
-            trader_id: peer_id,
-            message: Message::CollaborativeRevert {
-                channel_id: channel_id.0,
-                coordinator_address,
-                coordinator_amount,
-                trader_amount,
-                execution_price: settlement_price,
-                funding_txo,
+    if !dry_run {
+        db::collaborative_reverts::insert(
+            &mut conn,
+            position::models::CollaborativeRevert {
+                channel_id,
+                trader_pubkey: peer_id,
+                price: settlement_price.to_f32().expect("to fit into f32"),
+                coordinator_address: coordinator_address.clone(),
+                coordinator_amount_sats: coordinator_amount,
+                trader_amount_sats: trader_amount,
+                timestamp: OffsetDateTime::now_utc(),
+                txid: funding_txo.txid,
+                vout: funding_txo.vout,
             },
-            notification: Some(NotificationKind::CollaborativeRevert),
-        })
-        .await
-        .map_err(|error| anyhow!("Could send message to notify user {error:#}"))?;
+        )
+        .context("Could not insert new collaborative revert")?;
 
+        // Send collaborative revert proposal to the counterpary.
+        sender
+            .send(OrderbookMessage::TraderMessage {
+                trader_id: peer_id,
+                message: Message::CollaborativeRevert {
+                    channel_id: channel_id.0,
+                    coordinator_address,
+                    coordinator_amount,
+                    trader_amount,
+                    execution_price: settlement_price,
+                    funding_txo,
+                },
+                notification: Some(NotificationKind::CollaborativeRevert),
+            })
+            .await
+            .map_err(|error| anyhow!("Could send message to notify user {error:#}"))?;
+    }
     Ok(())
 }
 

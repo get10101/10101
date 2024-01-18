@@ -25,6 +25,7 @@ serde = "1.0.147"
 serde_json = "1"
 sled = "0.34"
 thiserror = "1.0"
+reqwest = { version = "0.11", default-features = false, features = ["json"] }
 tokio-metrics = "0.2.2"
 toml = "0.8"
 tracing = "0.1.37"
