@@ -73,9 +73,11 @@ impl TestSetup {
             .unwrap();
 
         bitcoind.mine(1).await.unwrap();
-        refresh_wallet_info();
 
-        wait_until!(app.rx.wallet_info().unwrap().balances.on_chain == fund_amount.to_sat());
+        wait_until!({
+            refresh_wallet_info();
+            app.rx.wallet_info().unwrap().balances.on_chain == fund_amount.to_sat()
+        });
 
         let on_chain_balance = app.rx.wallet_info().unwrap().balances.on_chain;
 
