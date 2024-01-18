@@ -1,3 +1,4 @@
+import 'package:flutter_rust_bridge/flutter_rust_bridge.dart';
 import 'package:get_10101/logger/logger.dart';
 import 'package:flutter/material.dart';
 import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
@@ -31,6 +32,7 @@ class PendingOrder {
   String? id;
   Amount? pnl;
   FailureReason? failureReason;
+  String? submitOrderError;
 
   PendingOrder(this._tradeValues, this.positionAction, this.pnl);
 
@@ -55,9 +57,10 @@ class SubmitOrderChangeNotifier extends ChangeNotifier implements Subscriber {
       _pendingOrder!.id = await orderService.submitMarketOrder(tradeValues.leverage,
           tradeValues.quantity!, ContractSymbol.btcusd, tradeValues.direction, stable);
       _pendingOrder!.state = PendingOrderState.submittedSuccessfully;
-    } catch (exception) {
+    } on FfiException catch (exception) {
       logger.e("Failed to submit order: $exception");
       _pendingOrder!.state = PendingOrderState.submissionFailed;
+      _pendingOrder!.submitOrderError = exception.message;
     }
 
     // notify listeners about the status change of the pending order after submission

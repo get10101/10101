@@ -55,7 +55,7 @@ Widget createSubmitWidget(
       break;
     case PendingOrderState.orderFailed:
     case PendingOrderState.submissionFailed:
-      bottomText = "Sorry, we couldn't match your order. Please try again later.";
+      bottomText = "Submission failed: ${pendingOrder.submitOrderError}.";
       break;
     case PendingOrderState.orderFilled:
       if (pendingOrder.positionAction == PositionAction.close) {
