@@ -5,6 +5,7 @@ use anyhow::anyhow;
 use anyhow::Context;
 use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
+use dlc_manager::subchannel::SubChannelState;
 use lightning::ln::channelmanager::ChannelDetails;
 use lightning::ln::ChannelId;
 
@@ -106,6 +107,7 @@ impl<S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 'static> Node<S, 
         let has_dlc_channel = self
             .list_dlc_channels()?
             .iter()
+            .filter(|channel| channel.state != SubChannelState::OffChainClosed)
             .any(|channel| channel.channel_id == channel_id);
 
         if has_dlc_channel {
