@@ -373,13 +373,13 @@ pub async fn post_broadcast_announcement(
     Ok(())
 }
 
-/// Internal API for syncing the on-chain and Lightning wallets.
+/// Internal API for syncing the on-chain wallet and the DLC channels.
 #[instrument(skip_all, err(Debug))]
-
 pub async fn post_sync(State(state): State<Arc<AppState>>) -> Result<(), AppError> {
     spawn_blocking(move || {
         state.node.inner.sync_on_chain_wallet()?;
-        state.node.inner.sync_lightning_wallet()?;
+        state.node.inner.dlc_manager.periodic_chain_monitor()?;
+        state.node.inner.dlc_manager.periodic_check()?;
 
         anyhow::Ok(())
     })
