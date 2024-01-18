@@ -1147,7 +1147,7 @@ dependencies = [
 [[package]]
 name = "dlc"
 version = "0.4.0"
-source = "git+https://github.com/p2pderivatives/rust-dlc?rev=9735996802f64c0776a6969fa8ef24fba43f8630#9735996802f64c0776a6969fa8ef24fba43f8630"
+source = "git+https://github.com/p2pderivatives/rust-dlc?rev=69d63e1#69d63e113712cf9850c25643ed49816a283cb8a3"
 dependencies = [
  "bitcoin",
  "miniscript 8.0.2",
@@ -1159,7 +1159,7 @@ dependencies = [
 [[package]]
 name = "dlc-manager"
 version = "0.4.0"
-source = "git+https://github.com/p2pderivatives/rust-dlc?rev=9735996802f64c0776a6969fa8ef24fba43f8630#9735996802f64c0776a6969fa8ef24fba43f8630"
+source = "git+https://github.com/p2pderivatives/rust-dlc?rev=69d63e1#69d63e113712cf9850c25643ed49816a283cb8a3"
 dependencies = [
  "async-trait",
  "bitcoin",
@@ -1175,7 +1175,7 @@ dependencies = [
 [[package]]
 name = "dlc-messages"
 version = "0.4.0"
-source = "git+https://github.com/p2pderivatives/rust-dlc?rev=9735996802f64c0776a6969fa8ef24fba43f8630#9735996802f64c0776a6969fa8ef24fba43f8630"
+source = "git+https://github.com/p2pderivatives/rust-dlc?rev=69d63e1#69d63e113712cf9850c25643ed49816a283cb8a3"
 dependencies = [
  "bitcoin",
  "dlc",
@@ -1188,7 +1188,7 @@ dependencies = [
 [[package]]
 name = "dlc-trie"
 version = "0.4.0"
-source = "git+https://github.com/p2pderivatives/rust-dlc?rev=9735996802f64c0776a6969fa8ef24fba43f8630#9735996802f64c0776a6969fa8ef24fba43f8630"
+source = "git+https://github.com/p2pderivatives/rust-dlc?rev=69d63e1#69d63e113712cf9850c25643ed49816a283cb8a3"
 dependencies = [
  "bitcoin",
  "dlc",
@@ -2746,7 +2746,7 @@ checksum = "b15813163c1d831bf4a13c3610c05c0d03b39feb07f7e09fa234dac9b15aaf39"
 [[package]]
 name = "p2pd-oracle-client"
 version = "0.1.0"
-source = "git+https://github.com/p2pderivatives/rust-dlc?rev=9735996802f64c0776a6969fa8ef24fba43f8630#9735996802f64c0776a6969fa8ef24fba43f8630"
+source = "git+https://github.com/p2pderivatives/rust-dlc?rev=69d63e1#69d63e113712cf9850c25643ed49816a283cb8a3"
 dependencies = [
  "chrono",
  "dlc-manager",
