@@ -2,6 +2,7 @@ use crate::collaborative_revert;
 use crate::db;
 use crate::db::positions::Position;
 use crate::parse_channel_id;
+use crate::position::models::PositionState;
 use crate::routes::AppState;
 use crate::AppError;
 use anyhow::Context;
@@ -17,7 +18,6 @@ use commons::CollaborativeRevertCoordinatorExpertRequest;
 use commons::CollaborativeRevertCoordinatorRequest;
 use dlc_manager::contract::Contract;
 use dlc_manager::subchannel::{SubChannel, SubChannelState};
-use dlc_manager::Storage;
 use lightning_invoice::Bolt11Invoice;
 use ln_dlc_node::node::NodeInfo;
 use serde::de;
@@ -176,7 +176,7 @@ pub async fn list_dlc_channels(
 pub struct Details {
     lightning_channels: usize,
     lightning_channels_without_sub_channel_or_with_sub_channel_which_is_off_chain_closed: usize,
-    all_lightning_channels_with_any_sub_channel_which_is_expired_but_not_offchain_closed: usize,
+    lightning_channels_with_any_sub_channel_which_is_expired_but_not_offchain_closed: usize,
 }
 
 pub async fn revert_everything_yolo(
@@ -225,11 +225,11 @@ pub async fn revert_everything_yolo(
     );
 
     let mut connection = state.node.pool.get().unwrap();
-    let open_and_expired = Position::get_all_open_positions_with_expiry_before(
-        &mut connection,
-        OffsetDateTime::now_utc(),
-    )
-    .unwrap();
+    let open_and_expired = Position::get_all_positions(&mut connection, OffsetDateTime::now_utc())
+        .unwrap()
+        .iter()
+        .filter(|position| !matches!(position.position_state, PositionState::Closed { .. }))
+        .collect::<Vec<_>>();
 
     let open_and_expired_sub_channels = open_sub_channels
         .filter(|sub_channel| {
@@ -247,7 +247,7 @@ pub async fn revert_everything_yolo(
         })
         .collect::<Vec<_>>();
 
-    let all_lightning_channels_with_any_sub_channel_which_is_expired_but_not_offchain_closed =
+    let lightning_channels_with_any_sub_channel_which_is_expired_but_not_offchain_closed =
         lightning_channels_with_sub_channel_which_is_not_offchain_closed
             .iter()
             .filter_map(|channel| {
@@ -263,19 +263,31 @@ pub async fn revert_everything_yolo(
             .collect::<Vec<_>>();
 
     tracing::info!(
-        size = all_lightning_channels_with_any_sub_channel_which_is_expired_but_not_offchain_closed
-            .len(),
+        size =
+            lightning_channels_with_any_sub_channel_which_is_expired_but_not_offchain_closed.len(),
         "all_lightning_channels_with_any_sub_channel_which_is_expired_but_not_offchain_closed"
     );
 
+    let channels_without_sub_channel_or_with_sub_channel_which_is_off_chain_closed =
+        lightning_channels_without_sub_channel_or_with_sub_channel_which_is_off_chain_closed.len();
+    let lightning_channels_with_any_sub_channel_which_is_expired_but_not_offchain_closed =
+        lightning_channels_with_any_sub_channel_which_is_expired_but_not_offchain_closed.len();
+    let channels = lightning_channels.len();
+
+    if channels_without_sub_channel_or_with_sub_channel_which_is_off_chain_closed
+        + lightning_channels_with_any_sub_channel_which_is_expired_but_not_offchain_closed
+        > channels
+    {
+        return Err(AppError::InternalServerError(
+            "Some logic is flawed losers! :P ".to_string(),
+        ));
+    }
+
     Ok(Json(Details {
-        lightning_channels: lightning_channels.len(),
+        lightning_channels: channels,
         lightning_channels_without_sub_channel_or_with_sub_channel_which_is_off_chain_closed:
-            lightning_channels_without_sub_channel_or_with_sub_channel_which_is_off_chain_closed
-                .len(),
-        all_lightning_channels_with_any_sub_channel_which_is_expired_but_not_offchain_closed:
-            all_lightning_channels_with_any_sub_channel_which_is_expired_but_not_offchain_closed
-                .len(),
+            channels_without_sub_channel_or_with_sub_channel_which_is_off_chain_closed,
+        lightning_channels_with_any_sub_channel_which_is_expired_but_not_offchain_closed,
     }))
 }
 
