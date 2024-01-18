@@ -175,7 +175,13 @@ pub fn set_position_state(state: PositionState) -> Result<()> {
     Ok(())
 }
 
-pub fn rollover_position(expiry_timestamp: OffsetDateTime) -> Result<()> {
+/// A channel renewal could be triggered for:
+///
+/// - Rolling over (no offer associated).
+/// - Opening a new position.
+/// - Resizing a new position.
+pub fn handle_channel_renewal_offer(expiry_timestamp: OffsetDateTime) -> Result<()> {
+    // FIXME: This won't always be true once we reintroduce position resizing.
     if let Some(position) = db::get_positions()?.first() {
         tracing::debug!("Setting position to rollover");
         db::rollover_position(position.contract_symbol, expiry_timestamp)?;
@@ -184,7 +190,8 @@ pub fn rollover_position(expiry_timestamp: OffsetDateTime) -> Result<()> {
         position.expiry = expiry_timestamp;
         event::publish(&EventInternal::PositionUpdateNotification(position));
     } else {
-        bail!("Cannot rollover non-existing position");
+        // If we have no position we must be opening a new one.
+        tracing::info!("Received channel renewal proposal to open new position");
     }
 
     Ok(())

@@ -2,6 +2,7 @@ use anyhow::Context;
 use anyhow::Result;
 use bitcoin::Address;
 use reqwest::Client;
+use serde::Deserialize;
 
 /// A wrapper over the coordinator HTTP API.
 ///
@@ -37,6 +38,15 @@ impl Coordinator {
         Ok(self.get("/api/newaddress").await?.text().await?.parse()?)
     }
 
+    pub async fn get_dlc_channels(&self) -> Result<Vec<DlcChannelDetails>> {
+        Ok(self.get("/api/admin/dlc_channels").await?.json().await?)
+    }
+
+    pub async fn rollover(&self, dlc_channel_id: &str) -> Result<reqwest::Response> {
+        self.post(format!("/api/rollover/{dlc_channel_id}").as_str())
+            .await
+    }
+
     async fn get(&self, path: &str) -> Result<reqwest::Response> {
         self.client
             .get(format!("{0}{path}", self.host))
@@ -56,4 +66,49 @@ impl Coordinator {
             .error_for_status()
             .context("Coordinator did not return 200 OK")
     }
+}
+
+#[derive(Deserialize, Debug)]
+pub struct DlcChannels {
+    #[serde(flatten)]
+    pub channels: Vec<DlcChannelDetails>,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct DlcChannelDetails {
+    pub dlc_channel_id: Option<String>,
+    pub counter_party: String,
+    pub channel_state: ChannelState,
+    pub signed_channel_state: Option<SignedChannelState>,
+    pub update_idx: Option<u64>,
+}
+
+#[derive(Deserialize, Debug)]
+pub enum ChannelState {
+    Offered,
+    Accepted,
+    Signed,
+    Closing,
+    Closed,
+    CounterClosed,
+    ClosedPunished,
+    CollaborativelyClosed,
+    FailedAccept,
+    FailedSign,
+}
+
+#[derive(Deserialize, Debug)]
+pub enum SignedChannelState {
+    Established,
+    SettledOffered,
+    SettledReceived,
+    SettledAccepted,
+    SettledConfirmed,
+    Settled,
+    RenewOffered,
+    RenewAccepted,
+    RenewConfirmed,
+    RenewFinalized,
+    Closing,
+    CollaborativeCloseOffered,
 }

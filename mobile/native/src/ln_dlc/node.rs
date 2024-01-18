@@ -8,6 +8,9 @@ use crate::trade::order;
 use crate::trade::order::FailureReason;
 use crate::trade::order::InvalidSubchannelOffer;
 use crate::trade::position;
+use crate::trade::position::handler::update_position_after_dlc_channel_creation_or_update;
+use crate::trade::position::handler::update_position_after_dlc_closure;
+use crate::trade::position::PositionState;
 use anyhow::anyhow;
 use anyhow::Context;
 use anyhow::Result;
@@ -224,6 +227,9 @@ impl Node {
                             "Automatically accepting renew offer"
                         );
 
+                        // TODO: This is generally not safe. The coordinator will even send
+                        // `RenewOffer`s in order to roll over, and these will not even be triggered
+                        // by a user action.
                         let (accept_renew_offer, counterparty_pubkey) =
                             self.inner.dlc_manager.accept_renew_offer(&r.channel_id)?;
 
@@ -235,7 +241,7 @@ impl Node {
                         let expiry_timestamp = OffsetDateTime::from_unix_timestamp(
                             r.contract_info.get_closest_maturity_date() as i64,
                         )?;
-                        position::handler::rollover_position(expiry_timestamp)?;
+                        position::handler::handle_channel_renewal_offer(expiry_timestamp)?;
                     }
                     ChannelMessage::RenewRevoke(r) => {
                         let channel_id_hex = r.channel_id.to_hex();
@@ -249,18 +255,31 @@ impl Node {
                             .inner
                             .get_expiry_for_confirmed_dlc_channel(r.channel_id)?;
 
-                        let filled_order = order::handler::order_filled()
-                            .context("Cannot mark order as filled for confirmed DLC")?;
+                        match db::get_order_in_filling()? {
+                            Some(_) => {
+                                let filled_order = order::handler::order_filled()
+                                    .context("Cannot mark order as filled for confirmed DLC")?;
 
-                        position::handler::update_position_after_dlc_channel_creation_or_update(
-                            filled_order,
-                            expiry_timestamp,
-                        )
-                        .context("Failed to update position after DLC creation")?;
+                                update_position_after_dlc_channel_creation_or_update(
+                                    filled_order,
+                                    expiry_timestamp,
+                                )
+                                .context("Failed to update position after DLC creation")?;
+                            }
+                            // If there is no order in `Filling` we must be rolling over.
+                            None => {
+                                tracing::info!(
+                                    channel_id = %channel_id_hex,
+                                    "Finished rolling over position"
+                                );
 
-                        event::publish(&EventInternal::BackgroundNotification(
-                            BackgroundTask::Rollover(TaskStatus::Success),
-                        ));
+                                position::handler::set_position_state(PositionState::Open)?;
+
+                                event::publish(&EventInternal::BackgroundNotification(
+                                    BackgroundTask::Rollover(TaskStatus::Success),
+                                ));
+                            }
+                        };
                     }
                     ChannelMessage::Sign(signed) => {
                         let expiry_timestamp = self
@@ -270,25 +289,23 @@ impl Node {
                         let filled_order = order::handler::order_filled()
                             .context("Cannot mark order as filled for confirmed DLC")?;
 
-                        position::handler::update_position_after_dlc_channel_creation_or_update(
+                        update_position_after_dlc_channel_creation_or_update(
                             filled_order,
                             expiry_timestamp,
                         )
                         .context("Failed to update position after DLC creation")?;
 
                         // Sending always a recover dlc background notification success message here
-                        // as we do not know if we might have reached this
-                        // state after a restart. This event is only
-                        // received by the UI at the moment indicating that
-                        // the dialog can be closed. If the dialog is not
-                        // open, this event would be simply ignored by the UI.
+                        // as we do not know if we might have reached this state after a restart.
+                        // This event is only received by the UI at the moment indicating that the
+                        // dialog can be closed. If the dialog is not open, this event would be
+                        // simply ignored by the UI.
                         //
                         // FIXME(holzeis): We should not require that event and align the UI
-                        // handling with waiting for an order execution in
-                        // the happy case with waiting for an order
-                        // execution after an in between restart. For now it
-                        // was the easiest to go parallel to
-                        // that implementation so that we don't have to touch it.
+                        // handling with waiting for an order execution in the happy case with
+                        // waiting for an order execution after an in between restart. For now it
+                        // was the easiest to go parallel to that implementation so that we don't
+                        // have to touch it.
                         event::publish(&EventInternal::BackgroundNotification(
                             BackgroundTask::RecoverDlc(TaskStatus::Success),
                         ));
@@ -298,7 +315,7 @@ impl Node {
 
                         let filled_order = order::handler::order_filled()?;
 
-                        position::handler::update_position_after_dlc_closure(Some(filled_order))
+                        update_position_after_dlc_closure(Some(filled_order))
                             .context("Failed to update position after DLC closure")?;
 
                         // In case of a restart.
