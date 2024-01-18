@@ -64,7 +64,7 @@ pub async fn submit_order(order: Order) -> Result<Uuid, SubmitOrderError> {
             // sufficient since we can only arrive at said state via
             // `SignedChannelState::Established`.
             if let SignedChannelState::Established { .. } = dlc_channel.state {
-                if is_dlc_channel_confirmed(&dlc_channel.channel_id)
+                if !is_dlc_channel_confirmed(&dlc_channel.channel_id)
                     .map_err(SubmitOrderError::Storage)?
                 {
                     // TODO: Do not hard-code confirmations.
