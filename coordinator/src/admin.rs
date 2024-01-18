@@ -311,7 +311,7 @@ pub async fn revert_everything_yolo(
             continue;
         }
 
-        propose_collaborative_revert(
+        if let Err(err) = propose_collaborative_revert(
             state.node.inner.clone(),
             state.pool.clone(),
             state.auth_users_notifier.clone(),
@@ -324,7 +324,9 @@ pub async fn revert_everything_yolo(
             },
         )
         .await
-        .map_err(|error| AppError::InternalServerError(format!("Could not yolo {error:#}")))?
+        {
+            tracing::error!(channel_id = channel_id, "Could not yolo subchannel");
+        }
     }
 
     Ok(Json(Details {
