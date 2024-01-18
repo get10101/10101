@@ -225,8 +225,9 @@ pub async fn revert_everything_yolo(
     );
 
     let mut connection = state.node.pool.get().unwrap();
-    let open_and_expired = Position::get_all_positions(&mut connection, OffsetDateTime::now_utc())
-        .unwrap()
+    let positions =
+        Position::get_all_positions(&mut connection, OffsetDateTime::now_utc()).unwrap();
+    let open_and_expired = positions
         .iter()
         .filter(|position| !matches!(position.position_state, PositionState::Closed { .. }))
         .collect::<Vec<_>>();
