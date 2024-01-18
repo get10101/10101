@@ -172,7 +172,16 @@ pub async fn list_dlc_channels(
     Ok(Json(dlc_channels))
 }
 
-pub async fn revert_everything_yolo(State(state): State<Arc<AppState>>) -> Result<(), AppError> {
+#[derive(Serialize)]
+pub struct Details {
+    lightning_channels: usize,
+    lightning_channels_without_sub_channel_or_with_sub_channel_which_is_off_chain_closed: usize,
+    all_lightning_channels_with_any_sub_channel_which_is_expired_but_not_offchain_closed: usize,
+}
+
+pub async fn revert_everything_yolo(
+    State(state): State<Arc<AppState>>,
+) -> Result<Json<Details>, AppError> {
     let lightning_channels = state.node.inner.list_channels();
     let sub_channels = state.node.inner.list_dlc_channels().unwrap();
 
@@ -259,7 +268,15 @@ pub async fn revert_everything_yolo(State(state): State<Arc<AppState>>) -> Resul
         "all_lightning_channels_with_any_sub_channel_which_is_expired_but_not_offchain_closed"
     );
 
-    Ok(())
+    Ok(Json(Details {
+        lightning_channels: lightning_channels.len(),
+        lightning_channels_without_sub_channel_or_with_sub_channel_which_is_off_chain_closed:
+            lightning_channels_without_sub_channel_or_with_sub_channel_which_is_off_chain_closed
+                .len(),
+        all_lightning_channels_with_any_sub_channel_which_is_expired_but_not_offchain_closed:
+            all_lightning_channels_with_any_sub_channel_which_is_expired_but_not_offchain_closed
+                .len(),
+    }))
 }
 
 #[instrument(skip_all, err(Debug))]
