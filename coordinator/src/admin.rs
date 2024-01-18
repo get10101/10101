@@ -1,4 +1,5 @@
 use crate::collaborative_revert;
+use crate::collaborative_revert::propose_collaborative_revert;
 use crate::db;
 use crate::db::positions::Position;
 use crate::parse_channel_id;
@@ -12,6 +13,7 @@ use axum::extract::State;
 use axum::Json;
 use bdk::FeeRate;
 use bdk::TransactionDetails;
+use bitcoin::hashes::hex::ToHex;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::OutPoint;
 use commons::CollaborativeRevertCoordinatorExpertRequest;
@@ -20,6 +22,7 @@ use dlc_manager::contract::Contract;
 use dlc_manager::subchannel::{SubChannel, SubChannelState};
 use lightning_invoice::Bolt11Invoice;
 use ln_dlc_node::node::NodeInfo;
+use rust_decimal::Decimal;
 use serde::de;
 use serde::Deserialize;
 use serde::Deserializer;
@@ -179,11 +182,23 @@ pub struct Details {
     lightning_channels_with_any_sub_channel_which_is_expired_but_not_offchain_closed: usize,
 }
 
+#[derive(Deserialize)]
+pub struct YoloRevert {
+    fee_rate: u64,
+    dry_run: bool,
+}
+
+#[allow(clippy::unnecessary_filter_map)]
 pub async fn revert_everything_yolo(
     State(state): State<Arc<AppState>>,
+    query_param: Query<YoloRevert>,
 ) -> Result<Json<Details>, AppError> {
     let lightning_channels = state.node.inner.list_channels();
-    let sub_channels = state.node.inner.list_dlc_channels().unwrap();
+    let sub_channels = state
+        .node
+        .inner
+        .list_dlc_channels()
+        .expect("Could not fetch sub_channels");
 
     let lightning_channels = lightning_channels
         .iter()
@@ -209,7 +224,7 @@ pub async fn revert_everything_yolo(
                     None => Some(channel),
                     Some(sub_channel) => {
                         if sub_channel.state == SubChannelState::OffChainClosed {
-                            return Some(channel);
+                            Some(channel)
                         } else {
                             None
                         }
@@ -224,9 +239,9 @@ pub async fn revert_everything_yolo(
         "lightning_channels_without_sub_channel_or_with_sub_channel_which_is_off_chain_closed"
     );
 
-    let mut connection = state.node.pool.get().unwrap();
-    let positions =
-        Position::get_all_positions(&mut connection, OffsetDateTime::now_utc()).unwrap();
+    let mut connection = state.node.pool.get().expect("To be abel to get connection");
+    let positions = Position::get_all_positions(&mut connection, OffsetDateTime::now_utc())
+        .expect("to be able to read from db");
     let open_and_expired = positions
         .iter()
         .filter(|position| !matches!(position.position_state, PositionState::Closed { .. }))
@@ -266,17 +281,17 @@ pub async fn revert_everything_yolo(
     tracing::info!(
         size =
             lightning_channels_with_any_sub_channel_which_is_expired_but_not_offchain_closed.len(),
-        "all_lightning_channels_with_any_sub_channel_which_is_expired_but_not_offchain_closed"
+        "lightning_channels_with_any_sub_channel_which_is_expired_but_not_offchain_closed"
     );
 
-    let channels_without_sub_channel_or_with_sub_channel_which_is_off_chain_closed =
+    let lightning_channels_without_sub_channel_or_with_sub_channel_which_is_off_chain_closed_size =
         lightning_channels_without_sub_channel_or_with_sub_channel_which_is_off_chain_closed.len();
-    let lightning_channels_with_any_sub_channel_which_is_expired_but_not_offchain_closed =
+    let lightning_channels_with_any_sub_channel_which_is_expired_but_not_offchain_closed_size =
         lightning_channels_with_any_sub_channel_which_is_expired_but_not_offchain_closed.len();
     let channels = lightning_channels.len();
 
-    if channels_without_sub_channel_or_with_sub_channel_which_is_off_chain_closed
-        + lightning_channels_with_any_sub_channel_which_is_expired_but_not_offchain_closed
+    if lightning_channels_without_sub_channel_or_with_sub_channel_which_is_off_chain_closed_size
+        + lightning_channels_with_any_sub_channel_which_is_expired_but_not_offchain_closed_size
         > channels
     {
         return Err(AppError::InternalServerError(
@@ -284,11 +299,38 @@ pub async fn revert_everything_yolo(
         ));
     }
 
+    for channel in
+        lightning_channels_without_sub_channel_or_with_sub_channel_which_is_off_chain_closed
+    {
+        if query_param.dry_run {
+            let channel_id = channel.channel_id.to_hex();
+            tracing::info!(
+                channel_id = channel_id,
+                "Would propose collab revert for channel"
+            );
+            continue;
+        }
+
+        propose_collaborative_revert(
+            state.node.inner.clone(),
+            state.pool.clone(),
+            state.auth_users_notifier.clone(),
+            channel.channel_id,
+            Decimal::ONE,
+            query_param.fee_rate,
+            OutPoint {
+                txid: channel.funding_txo.expect("to have funding txo").txid,
+                vout: channel.funding_txo.expect("to have funding txo").index as u32,
+            },
+        )
+        .await
+        .map_err(|error| AppError::InternalServerError(format!("Could not yolo {error:#}")))?
+    }
+
     Ok(Json(Details {
         lightning_channels: channels,
-        lightning_channels_without_sub_channel_or_with_sub_channel_which_is_off_chain_closed:
-            channels_without_sub_channel_or_with_sub_channel_which_is_off_chain_closed,
-        lightning_channels_with_any_sub_channel_which_is_expired_but_not_offchain_closed,
+        lightning_channels_without_sub_channel_or_with_sub_channel_which_is_off_chain_closed: lightning_channels_without_sub_channel_or_with_sub_channel_which_is_off_chain_closed_size,
+        lightning_channels_with_any_sub_channel_which_is_expired_but_not_offchain_closed: lightning_channels_with_any_sub_channel_which_is_expired_but_not_offchain_closed_size,
     }))
 }
 
@@ -306,7 +348,7 @@ pub async fn collaborative_revert(
         vout: revert_params.vout,
     };
 
-    collaborative_revert::propose_collaborative_revert(
+    propose_collaborative_revert(
         state.node.inner.clone(),
         state.pool.clone(),
         state.auth_users_notifier.clone(),

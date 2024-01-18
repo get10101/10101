@@ -41,7 +41,7 @@ use tokio::sync::mpsc;
 ///
 /// If either party were to _not_ have an output, we would be overestimating the weight of the
 /// transaction and would end up paying higher fees than necessary.
-const COLLABORATIVE_REVERT_TX_WEIGHT: usize = 672;
+pub const COLLABORATIVE_REVERT_TX_WEIGHT: usize = 672;
 
 /// Propose collaboratively reverting the channel identified by `channel_id`.
 ///
