@@ -138,7 +138,9 @@ impl RemoteBackupClient {
     }
 
     pub fn backup(&self, key: String, value: Vec<u8>) -> RemoteHandle<()> {
-        tracing::trace!("Creating backup for {key}");
+        let size_mb = value.len() as f64 / (1024.0 * 1024.0);
+        tracing::trace!(%size_mb, "Creating backup for {key}");
+
         let (fut, remote_handle) = {
             let client = self.inner.clone();
             let cipher = self.cipher.clone();
