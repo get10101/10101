@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:get_10101/common/version_service.dart';
+
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 
 class NavigationDestinations {
   const NavigationDestinations(this.label, this.icon, this.selectedIcon);
@@ -32,6 +35,8 @@ class _ScaffoldWithNestedNavigation extends State<ScaffoldWithNestedNavigation> 
   late bool showNavigationDrawer;
   late bool showAsDrawer;
 
+  String version = "unknown";
+
   void _goBranch(int index) {
     widget.navigationShell.goBranch(
       index,
@@ -47,14 +52,22 @@ class _ScaffoldWithNestedNavigation extends State<ScaffoldWithNestedNavigation> 
   }
 
   @override
+  void initState() {
+    super.initState();
+    context.read<VersionService>().fetchVersion().then((v) => setState(() => version = v));
+  }
+
+  @override
   Widget build(BuildContext context) {
     final navigationShell = widget.navigationShell;
+
     if (showNavigationDrawer) {
       return ScaffoldWithNavigationRail(
         body: navigationShell,
         selectedIndex: navigationShell.currentIndex,
         onDestinationSelected: _goBranch,
         showAsDrawer: showAsDrawer,
+        version: version,
       );
     } else {
       return ScaffoldWithNavigationBar(
@@ -102,12 +115,14 @@ class ScaffoldWithNavigationRail extends StatelessWidget {
     required this.selectedIndex,
     required this.onDestinationSelected,
     required this.showAsDrawer,
+    required this.version,
   });
 
   final Widget body;
   final int selectedIndex;
   final ValueChanged<int> onDestinationSelected;
   final bool showAsDrawer;
+  final String version;
 
   @override
   Widget build(BuildContext context) {
@@ -118,6 +133,12 @@ class ScaffoldWithNavigationRail extends StatelessWidget {
             extended: showAsDrawer,
             selectedIndex: selectedIndex,
             onDestinationSelected: onDestinationSelected,
+            trailing: Expanded(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [Text("v$version"), const SizedBox(height: 50)],
+              ),
+            ),
             leading: showAsDrawer
                 ? Image.asset("assets/10101_flat_logo.png", width: 200, height: 50)
                 : Image.asset("assets/10101_logo_icon.png", width: 50, height: 50),

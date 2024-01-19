@@ -1,3 +1,6 @@
+mod api;
+
+use crate::api::version;
 use anyhow::Result;
 use axum::http::header;
 use axum::http::Request;
@@ -36,6 +39,7 @@ async fn main() -> Result<()> {
 fn using_serve_dir() -> Router {
     Router::new()
         .route("/", get(index_handler))
+        .route("/api/version", get(version))
         .route("/main.dart.js", get(main_dart_handler))
         .route("/flutter.js", get(flutter_js))
         .route("/index.html", get(index_handler))
