@@ -46,14 +46,12 @@ class WalletService {
     }
   }
 
-  Future<SharePaymentRequest?> createPaymentRequest(
-      Amount? amount, bool usdpInvoice, String description) async {
+  Future<SharePaymentRequest?> createPaymentRequest(Amount? amount, String description) async {
     try {
-      rust.PaymentRequest req = await rust.api.createPaymentRequest(
-          amountSats: amount?.sats, isUsdp: usdpInvoice, description: description);
+      rust.PaymentRequest req =
+          await rust.api.createPaymentRequest(amountSats: amount?.sats, description: description);
       logger.i("Successfully created payment request.");
-      return SharePaymentRequest(
-          lightningInvoice: req.lightning, bip21Uri: req.bip21, amount: amount);
+      return SharePaymentRequest(bip21Uri: req.bip21, amount: amount);
     } catch (error) {
       logger.e("Error: $error", error: error);
     }

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get_10101/common/amount_text.dart';
 import 'package:get_10101/common/fiat_text.dart';
-import 'package:get_10101/features/swap/swap_value_change_notifier.dart';
+import 'package:get_10101/features/trade/trade_value_change_notifier.dart';
 import 'package:get_10101/features/wallet/domain/fee_estimate.dart';
 import 'package:provider/provider.dart';
 
@@ -11,8 +11,13 @@ class FeeText extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Selector<SwapValuesChangeNotifier, double>(
-      selector: (_, provider) => provider.stableValues().price ?? 1.0,
+    return Selector<TradeValuesChangeNotifier, double>(
+      selector: (_, provider) {
+        var askPrice = provider.getPrice().ask ?? 0.0;
+        var bidPrice = provider.getPrice().bid ?? 0.0;
+        var midMarket = (askPrice + bidPrice) / 2;
+        return midMarket;
+      },
       builder: (BuildContext context, double price, Widget? child) =>
           Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
         Text("${formatSats(fee.perVbyte)}/vbyte", style: const TextStyle(fontSize: 17)),

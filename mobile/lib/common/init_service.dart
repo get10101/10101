@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get_10101/common/application/lsp_change_notifier.dart';
 import 'package:get_10101/common/domain/lsp_config.dart';
-import 'package:get_10101/features/swap/swap_trade_values_service.dart';
 import 'package:get_10101/features/trade/candlestick_change_notifier.dart';
 import 'package:get_10101/features/trade/order_change_notifier.dart';
 import 'package:get_10101/features/trade/position_change_notifier.dart';
@@ -9,7 +8,6 @@ import 'package:get_10101/common/amount_denomination_change_notifier.dart';
 import 'package:get_10101/common/collab_revert_change_notifier.dart';
 import 'package:get_10101/common/service_status_notifier.dart';
 import 'package:get_10101/common/recover_dlc_change_notifier.dart';
-import 'package:get_10101/features/swap/swap_value_change_notifier.dart';
 import 'package:get_10101/features/wallet/application/faucet_service.dart';
 import 'package:get_10101/features/trade/rollover_change_notifier.dart';
 import 'package:get_10101/features/trade/trade_value_change_notifier.dart';
@@ -43,14 +41,10 @@ List<SingleChildWidget> createProviders() {
 
   const ChannelInfoService channelInfoService = ChannelInfoService();
   var tradeValuesService = TradeValuesService();
-  var swapTradeValuesService = SwapTradeValuesService();
 
   var providers = [
     ChangeNotifierProvider(create: (context) {
       return TradeValuesChangeNotifier(tradeValuesService, channelInfoService);
-    }),
-    ChangeNotifierProvider(create: (context) {
-      return SwapValuesChangeNotifier(swapTradeValuesService, channelInfoService);
     }),
     ChangeNotifierProvider(create: (context) => AmountDenominationChangeNotifier()),
     ChangeNotifierProvider(create: (context) => SubmitOrderChangeNotifier(OrderService())),
@@ -64,8 +58,7 @@ List<SingleChildWidget> createProviders() {
     ChangeNotifierProvider(create: (context) => AsyncOrderChangeNotifier(OrderService())),
     ChangeNotifierProvider(create: (context) => RolloverChangeNotifier()),
     ChangeNotifierProvider(create: (context) => RecoverDlcChangeNotifier()),
-    ChangeNotifierProvider(
-        create: (context) => PaymentClaimedChangeNotifier(swapTradeValuesService)),
+    ChangeNotifierProvider(create: (context) => PaymentClaimedChangeNotifier()),
     ChangeNotifierProvider(create: (context) => PaymentChangeNotifier()),
     ChangeNotifierProvider(create: (context) => CollabRevertChangeNotifier()),
     ChangeNotifierProvider(create: (context) => LspChangeNotifier(channelInfoService)),
@@ -90,7 +83,6 @@ void subscribeToNotifiers(BuildContext context) {
   final submitOrderChangeNotifier = context.read<SubmitOrderChangeNotifier>();
   final serviceStatusNotifier = context.read<ServiceStatusNotifier>();
   final channelStatusNotifier = context.read<ChannelStatusNotifier>();
-  final stableValuesChangeNotifier = context.read<SwapValuesChangeNotifier>();
   final asyncOrderChangeNotifier = context.read<AsyncOrderChangeNotifier>();
   final rolloverChangeNotifier = context.read<RolloverChangeNotifier>();
   final recoverDlcChangeNotifier = context.read<RecoverDlcChangeNotifier>();
@@ -118,9 +110,6 @@ void subscribeToNotifiers(BuildContext context) {
 
   eventService.subscribe(
       tradeValuesChangeNotifier, bridge.Event.priceUpdateNotification(Price.apiDummy()));
-
-  eventService.subscribe(
-      stableValuesChangeNotifier, bridge.Event.priceUpdateNotification(Price.apiDummy()));
 
   eventService.subscribe(
       positionChangeNotifier, bridge.Event.priceUpdateNotification(Price.apiDummy()));

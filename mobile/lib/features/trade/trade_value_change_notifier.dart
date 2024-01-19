@@ -17,6 +17,7 @@ class TradeValuesChangeNotifier extends ChangeNotifier implements Subscriber {
   // The trade values are represented as Order domain, because that's essentially what they are
   late final TradeValues _buyTradeValues;
   late final TradeValues _sellTradeValues;
+  late final Price _price;
 
   TradeValuesChangeNotifier(this.tradeValuesService, this.channelInfoService) {
     _buyTradeValues = _initOrder(Direction.long);
@@ -98,10 +99,15 @@ class TradeValuesChangeNotifier extends ChangeNotifier implements Subscriber {
       _sellTradeValues.updatePriceAndMargin(price.bid);
       update = true;
     }
+    _price = price;
 
     if (update) {
       notifyListeners();
     }
+  }
+
+  Price getPrice() {
+    return _price;
   }
 
   TradeValues fromDirection(Direction direction) =>

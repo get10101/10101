@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:get_10101/common/channel_status_notifier.dart';
 import 'package:get_10101/common/secondary_action_button.dart';
-import 'package:get_10101/features/swap/swap_screen.dart';
 import 'package:get_10101/features/wallet/balance.dart';
 import 'package:get_10101/features/wallet/receive_screen.dart';
 import 'package:get_10101/features/wallet/scanner_screen.dart';
@@ -53,13 +52,6 @@ class WalletScreen extends StatelessWidget {
                         title: 'Receive',
                       ),
                     ),
-                    const SizedBox(width: 10.0),
-                    Expanded(
-                        child: SecondaryActionButton(
-                      onPressed: () => showSwapDrawer(context),
-                      icon: FontAwesomeIcons.rotate,
-                      title: 'Swap',
-                    )),
                     const SizedBox(width: 10.0),
                     Expanded(
                         child: SecondaryActionButton(

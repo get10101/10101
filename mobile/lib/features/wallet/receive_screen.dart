@@ -12,9 +12,6 @@ import 'package:get_10101/common/domain/model.dart';
 import 'package:get_10101/common/scrollable_safe_area.dart';
 import 'package:get_10101/common/secondary_action_button.dart';
 import 'package:get_10101/common/snack_bar.dart';
-import 'package:get_10101/features/swap/swap_trade_values.dart';
-import 'package:get_10101/features/swap/swap_value_change_notifier.dart';
-import 'package:get_10101/features/trade/domain/direction.dart';
 import 'package:get_10101/features/wallet/application/faucet_service.dart';
 import 'package:get_10101/features/wallet/domain/share_payment_request.dart';
 import 'package:get_10101/features/wallet/domain/wallet_type.dart';
@@ -42,7 +39,6 @@ class ReceiveScreen extends StatefulWidget {
 
 class _ReceiveScreenState extends State<ReceiveScreen> {
   Amount? amount;
-  Usd? usdAmount;
   String? description;
 
   bool _isPayInvoiceButtonDisabled = false;
@@ -53,7 +49,7 @@ class _ReceiveScreenState extends State<ReceiveScreen> {
   void initState() {
     super.initState();
     context.read<PaymentClaimedChangeNotifier>().waitForPayment();
-    _createPaymentRequest(amount, false, description)
+    _createPaymentRequest(amount, description)
         .then((paymentRequest) => setState(() => _paymentRequest = paymentRequest));
   }
 
@@ -68,15 +64,6 @@ class _ReceiveScreenState extends State<ReceiveScreen> {
   @override
   Widget build(BuildContext context) {
     final bridge.Config config = context.read<bridge.Config>();
-
-    final stableValuesChangeNotifier = context.watch<SwapValuesChangeNotifier>();
-    final tradeValues = stableValuesChangeNotifier.stableValues();
-    tradeValues.direction = Direction.short;
-
-    final maybePrice = tradeValues.price ?? 0;
-    final maybeAmountInBtc = amount?.btc ?? 0;
-
-    usdAmount ??= Usd((maybeAmountInBtc * maybePrice).ceil());
 
     if (_paymentRequest == null) {
       return Scaffold(
@@ -186,20 +173,13 @@ class _ReceiveScreenState extends State<ReceiveScreen> {
                                 amount: amount?.sats,
                                 description: description,
                                 isLightning: false,
-                                onConfirm: (amt, descr, isUsd) {
-                                  logger.i("Confirming amount $amt $isUsd");
-                                  final satsAmount =
-                                      isUsd ? computeMargin(amt, tradeValues) : Amount(amt);
-                                  _createPaymentRequest(satsAmount, isUsd, descr)
-                                      .then((paymentRequest) {
+                                onConfirm: (amt, descr) {
+                                  logger.i("Confirming amount $amt");
+                                  final satsAmount = Amount(amt);
+                                  _createPaymentRequest(satsAmount, descr).then((paymentRequest) {
                                     setState(() {
                                       _paymentRequest = paymentRequest;
                                       amount = satsAmount;
-                                      if (isUsd) {
-                                        usdAmount = Usd(amt);
-                                      } else {
-                                        usdAmount = null;
-                                      }
                                       description = descr;
                                     });
                                   });
@@ -239,23 +219,12 @@ class _ReceiveScreenState extends State<ReceiveScreen> {
     )));
   }
 
-  Amount computeMargin(int amt, SwapTradeValues tradeValues) {
-    logger.i("Is usd, need to compute margin for $amt, ${tradeValues.price}");
-    if (tradeValues.price == null) {
-      return Amount.zero();
-    } else {
-      return Amount.fromBtc(amt / tradeValues.price!);
-    }
-  }
-
-  Future<SharePaymentRequest> _createPaymentRequest(
-      Amount? amount, bool isUsdp, String? description) async {
+  Future<SharePaymentRequest> _createPaymentRequest(Amount? amount, String? description) async {
     final completer = Completer<SharePaymentRequest>();
 
     final walletService = context.read<WalletChangeNotifier>().service;
 
-    final paymentRequest =
-        await walletService.createPaymentRequest(amount, isUsdp, description ?? "");
+    final paymentRequest = await walletService.createPaymentRequest(amount, description ?? "");
     completer.complete(paymentRequest);
 
     return completer.future;
@@ -512,7 +481,7 @@ class SelectableButton extends StatelessWidget {
 class InvoiceDrawerScreen extends StatefulWidget {
   static const label = "swap";
   final bool isLightning;
-  final Function(int, String?, bool) onConfirm;
+  final Function(int, String?) onConfirm;
   final int? amount;
   final String? description;
   final bool isInUsd;
@@ -624,7 +593,7 @@ class _InvoiceDrawerScreen extends State<InvoiceDrawerScreen> {
                   padding: const EdgeInsets.only(top: 20.0, bottom: 20.0, left: 5.0, right: 5.0),
                   width: double.infinity,
                   child: OutlinedButton(
-                    onPressed: () => widget.onConfirm(_amount ?? 0, _description, _isInUsd),
+                    onPressed: () => widget.onConfirm(_amount ?? 0, _description),
                     style: ButtonStyle(
                       fixedSize: MaterialStateProperty.all(const Size(double.infinity, 50)),
                       iconSize: MaterialStateProperty.all<double>(20.0),
