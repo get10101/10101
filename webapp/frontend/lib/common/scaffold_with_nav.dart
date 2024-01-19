@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:get_10101/common/balance.dart';
 import 'package:get_10101/common/version_service.dart';
+import 'package:get_10101/wallet/wallet_service.dart';
 
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -36,6 +38,7 @@ class _ScaffoldWithNestedNavigation extends State<ScaffoldWithNestedNavigation> 
   late bool showAsDrawer;
 
   String version = "unknown";
+  Balance balance = Balance.zero();
 
   void _goBranch(int index) {
     widget.navigationShell.goBranch(
@@ -55,6 +58,7 @@ class _ScaffoldWithNestedNavigation extends State<ScaffoldWithNestedNavigation> 
   void initState() {
     super.initState();
     context.read<VersionService>().fetchVersion().then((v) => setState(() => version = v));
+    context.read<WalletService>().getBalance().then((b) => setState(() => balance = b));
   }
 
   @override
@@ -68,6 +72,7 @@ class _ScaffoldWithNestedNavigation extends State<ScaffoldWithNestedNavigation> 
         onDestinationSelected: _goBranch,
         showAsDrawer: showAsDrawer,
         version: version,
+        balance: balance,
       );
     } else {
       return ScaffoldWithNavigationBar(
@@ -116,6 +121,7 @@ class ScaffoldWithNavigationRail extends StatelessWidget {
     required this.onDestinationSelected,
     required this.showAsDrawer,
     required this.version,
+    required this.balance,
   });
 
   final Widget body;
@@ -123,6 +129,7 @@ class ScaffoldWithNavigationRail extends StatelessWidget {
   final ValueChanged<int> onDestinationSelected;
   final bool showAsDrawer;
   final String version;
+  final Balance balance;
 
   @override
   Widget build(BuildContext context) {
@@ -155,7 +162,46 @@ class ScaffoldWithNavigationRail extends StatelessWidget {
           const VerticalDivider(thickness: 1, width: 1),
           // This is the main content.
           Expanded(
-            child: body,
+            child: Column(
+              children: [
+                Container(
+                  decoration: const BoxDecoration(
+                      color: Colors.white,
+                      border: Border(bottom: BorderSide(width: 0.5, color: Colors.grey))),
+                  padding: const EdgeInsets.all(25),
+                  child: Row(
+                    children: [
+                      RichText(
+                        text: TextSpan(
+                            text: "Off-chain: ",
+                            style: const TextStyle(fontSize: 16, color: Colors.black),
+                            children: [
+                              TextSpan(
+                                  text: balance.offChain.formatted(),
+                                  style: const TextStyle(fontWeight: FontWeight.bold)),
+                              const TextSpan(text: " sats"),
+                            ]),
+                      ),
+                      const SizedBox(width: 30),
+                      RichText(
+                        text: TextSpan(
+                            text: "On-chain: ",
+                            style: const TextStyle(fontSize: 16, color: Colors.black),
+                            children: [
+                              TextSpan(
+                                  text: balance.onChain.formatted(),
+                                  style: const TextStyle(fontWeight: FontWeight.bold)),
+                              const TextSpan(text: " sats"),
+                            ]),
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: body,
+                ),
+              ],
+            ),
           ),
         ],
       ),
