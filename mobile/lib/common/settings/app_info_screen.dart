@@ -205,6 +205,19 @@ class _AppInfoScreenState extends State<AppInfoScreen> {
                             showSnackBar(messenger, "Failed to open link");
                           }
                         },
+                      ),
+                      IconButton(
+                        icon: const Icon(FontAwesomeIcons.question, size: 22),
+                        onPressed: () async {
+                          final messenger = ScaffoldMessenger.of(context);
+                          final httpsUri =
+                              Uri(scheme: "https", host: "10101.finance", path: "blog/faq");
+                          if (await canLaunchUrl(httpsUri)) {
+                            await launchUrl(httpsUri, mode: LaunchMode.externalApplication);
+                          } else {
+                            showSnackBar(messenger, "Failed to open link");
+                          }
+                        },
                       )
                     ],
                   ),
