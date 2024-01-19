@@ -82,12 +82,7 @@ async fn flutter_js() -> impl IntoResponse {
 // within our defined assets directory. This is the directory on our Asset
 // struct below, where folder = "examples/public/".
 async fn static_handler(uri: Uri) -> impl IntoResponse {
-    let mut path = uri.path().trim_start_matches('/').to_string();
-
-    if path.starts_with("assets/") {
-        path = path.replace("assets/", "");
-    }
-
+    let path = uri.path().trim_start_matches('/').to_string();
     StaticFile(path)
 }
 

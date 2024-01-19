@@ -119,8 +119,8 @@ class ScaffoldWithNavigationRail extends StatelessWidget {
             selectedIndex: selectedIndex,
             onDestinationSelected: onDestinationSelected,
             leading: showAsDrawer
-                ? Image.asset("10101_flat_logo.png", width: 200, height: 50)
-                : Image.asset("10101_logo_icon.png", width: 50, height: 50),
+                ? Image.asset("assets/10101_flat_logo.png", width: 200, height: 50)
+                : Image.asset("assets/10101_logo_icon.png", width: 50, height: 50),
             labelType: showAsDrawer ? NavigationRailLabelType.none : NavigationRailLabelType.all,
             destinations: destinations
                 .map(
