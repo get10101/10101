@@ -10,6 +10,7 @@ class TenTenOneTheme extends ThemeExtension<TenTenOneTheme> {
   static const Color red600 = Color(0xFFE53935);
 
   final Color disabled = Colors.grey;
+  static const Color grey300 = Color(0xFF939191);
 
   final Color buy;
   final Color sell;
@@ -22,12 +23,14 @@ class TenTenOneTheme extends ThemeExtension<TenTenOneTheme> {
   final Color leverageMinusButtonColor;
   final Color leverageInactiveSliderTrackColor;
   final Color leverageInactiveTicksColor;
+  final Color inactiveButtonColor;
 
   const TenTenOneTheme(
       {this.buy = green600,
       this.sell = red600,
       this.profit = Colors.green,
       this.loss = Colors.red,
+      this.inactiveButtonColor = Colors.grey,
       this.tabColor = tenTenOnePurple,
       this.leveragePlusButtonColor = tenTenOnePurple,
       this.leverageMinusButtonColor = tenTenOnePurple,

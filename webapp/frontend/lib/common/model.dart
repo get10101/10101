@@ -127,8 +127,8 @@ class Usd implements Formattable {
 class Price implements Formattable {
   Decimal _usd = Decimal.zero;
 
-  Price(int usd) {
-    _usd = Decimal.fromInt(usd);
+  Price(double usd) {
+    _usd = Decimal.parse(usd.toString());
   }
 
   int get usd => _usd.toBigInt().toInt();
@@ -190,4 +190,14 @@ class Leverage implements Formattable {
   String formatted() {
     return _leverage.toString();
   }
+}
+
+class Quote {
+  Price _bid;
+  Price _ask;
+
+  Price? get bid => _bid;
+  Price? get ask => _ask;
+
+  Quote(this._bid, this._ask);
 }
