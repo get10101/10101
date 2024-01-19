@@ -38,6 +38,10 @@ dependencies:
   go_router: ^9.0.0
   provider: ^6.0.5
   http: ^1.1.0
+  font_awesome_flutter: 10.6.0
+  qr_flutter: ^4.0.0
+  intl: ^0.18.0
+  decimal: ^2.3.2
 
 dev_dependencies:
   flutter_test:
