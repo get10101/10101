@@ -917,10 +917,17 @@ pub fn get_signed_dlc_channel() -> Result<Option<SignedChannel>> {
     Ok(signed_channels.first().cloned())
 }
 
-pub fn is_dlc_channel_confirmed(dlc_channel_id: &DlcChannelId) -> Result<bool> {
+pub fn is_dlc_channel_confirmed() -> Result<bool> {
     let node = state::get_node();
 
-    let contract = node.inner.get_contract_by_dlc_channel_id(dlc_channel_id)?;
+    let dlc_channel = match get_signed_dlc_channel()? {
+        Some(dlc_channel) => dlc_channel,
+        None => return Ok(false),
+    };
+
+    let contract = node
+        .inner
+        .get_contract_by_dlc_channel_id(&dlc_channel.channel_id)?;
 
     Ok(matches!(contract, Contract::Confirmed { .. }))
 }
