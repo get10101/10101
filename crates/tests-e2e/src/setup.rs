@@ -44,7 +44,7 @@ impl TestSetup {
             .unwrap();
 
         bitcoind.mine(1).await.unwrap();
-        coordinator.sync_wallet().await.unwrap();
+        coordinator.sync_node().await.unwrap();
 
         // App setup
 

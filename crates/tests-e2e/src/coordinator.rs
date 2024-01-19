@@ -29,7 +29,7 @@ impl Coordinator {
         self.get("/health").await.is_ok()
     }
 
-    pub async fn sync_wallet(&self) -> Result<()> {
+    pub async fn sync_node(&self) -> Result<()> {
         self.post("/api/admin/sync").await?;
         Ok(())
     }
