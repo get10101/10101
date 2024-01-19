@@ -25,12 +25,16 @@ class VersionService {
     const port = "3001";
     const host = "localhost";
 
-    final response = await http.get(Uri.http('$host:$port', '/api/version'));
+    try {
+      final response = await http.get(Uri.http('$host:$port', '/api/version'));
 
-    if (response.statusCode == 200) {
-      return Version.fromJson(jsonDecode(response.body) as Map<String, dynamic>).version;
-    } else {
-      return 'unknown';
+      if (response.statusCode == 200) {
+        return Version.fromJson(jsonDecode(response.body) as Map<String, dynamic>).version;
+      } else {
+        return 'unknown';
+      }
+    } catch (e) {
+      return "unknown";
     }
   }
 }
