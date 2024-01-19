@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:get_10101/common/global_keys.dart';
 import 'package:get_10101/common/scaffold_with_nav.dart';
 import 'package:get_10101/settings/settings_screen.dart';
@@ -21,7 +22,7 @@ final goRouter = GoRouter(
               GoRoute(
                 path: TradeScreen.route,
                 pageBuilder: (context, state) => NoTransitionPage(
-                  child: TradeScreen(),
+                  child: Scaffold(body: TradeScreen()),
                 ),
               ),
             ],
