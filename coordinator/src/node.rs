@@ -142,8 +142,10 @@ impl Node {
 
     pub async fn trade(&self, trade_params: &TradeParams) -> Result<()> {
         let mut connection = self.pool.get()?;
+
         let order_id = trade_params.filled_with.order_id;
         let trader_id = trade_params.pubkey;
+
         match self.trade_internal(trade_params, &mut connection).await {
             Ok(()) => {
                 tracing::info!(
@@ -161,19 +163,18 @@ impl Node {
                 Ok(())
             }
             Err(e) => {
-                tracing::error!(
-                    %trader_id,
-                    %order_id,
-                    "Failed to execute trade. Error: {e:#}"
-                );
-                update_order_and_match(
+                if let Err(e) = update_order_and_match(
                     &mut connection,
                     order_id,
                     MatchState::Failed,
                     OrderState::Failed,
-                )?;
+                ) {
+                    tracing::error!(%trader_id, %order_id, "Failed to update order and match: {e}");
+                };
 
-                Err(e)
+                Err(e).with_context(|| {
+                    format!("Failed to trade with peer {trader_id} for order {order_id}")
+                })
             }
         }
     }
@@ -185,9 +186,7 @@ impl Node {
     ) -> Result<()> {
         let order_id = trade_params.filled_with.order_id;
         let trader_id = trade_params.pubkey.to_string();
-        let order = orders::get_with_id(connection, order_id)?.with_context(|| {
-            format!("Could not find order with id {order_id}, trader_id={trader_id}.")
-        })?;
+        let order = orders::get_with_id(connection, order_id)?.context("Could not find order")?;
 
         ensure!(
             order.expiry > OffsetDateTime::now_utc(),
@@ -676,9 +675,7 @@ impl Node {
                     trader_peer_id,
                     vec![PositionState::Open],
                 )?
-                .with_context(|| {
-                    format!("Failed to find open position with peer {trader_peer_id}")
-                })?;
+                .context("Failed to find open position")?;
 
                 let position_contracts = {
                     let contracts = decimal_from_f32(position.quantity);
@@ -695,21 +692,9 @@ impl Node {
                 if position_contracts + trade_contracts == Decimal::ZERO {
                     let closing_price = trade_params.average_execution_price();
 
-                    let position = match db::positions::Position::get_position_by_trader(
-                        conn,
-                        trade_params.pubkey,
-                        vec![PositionState::Open],
-                    )? {
-                        Some(position) => position,
-                        None => bail!("Failed to find open position: {}", trade_params.pubkey),
-                    };
-
                     self.start_closing_position(conn, &position, closing_price, dlc_channel_id)
                         .await
-                        .context(format!(
-                            "Failed at closing the position with id: {}",
-                            position.id
-                        ))?;
+                        .with_context(|| format!("Failed at closing position {}", position.id))?;
                 } else {
                     ensure!(
                         self.settings.read().await.allow_opening_positions,
@@ -721,7 +706,7 @@ impl Node {
             }
             Some(signed_channel) => {
                 bail!(
-                    "Cannot trade with counterparty {trader_peer_id} with DLC channel in state {:?}",
+                    "Cannot trade with DLC channel in state {}",
                     signed_channel_state_name(signed_channel.state)
                 );
             }
