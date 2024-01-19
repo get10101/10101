@@ -1,6 +1,11 @@
 mod api;
+mod cli;
+mod logger;
 
+use crate::api::get_unused_address;
 use crate::api::version;
+use crate::cli::Opts;
+use anyhow::Context;
 use anyhow::Result;
 use axum::http::header;
 use axum::http::Request;
@@ -16,20 +21,54 @@ use std::net::SocketAddr;
 use std::time::Duration;
 use tower_http::classify::ServerErrorsFailureClass;
 use tower_http::trace::TraceLayer;
+use tracing::level_filters::LevelFilter;
 use tracing::Span;
-use tracing_subscriber::layer::SubscriberExt;
-use tracing_subscriber::util::SubscriberInitExt;
-use tracing_subscriber::EnvFilter;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    // TODO(bonomat): configure the logger properly
-    let filter = EnvFilter::new("").add_directive("debug".parse()?);
+    logger::init_tracing(LevelFilter::DEBUG, false, false)?;
 
-    tracing_subscriber::registry()
-        .with(filter)
-        .with(tracing_subscriber::fmt::layer())
-        .init();
+    let opts = Opts::read();
+    let network = opts.network();
+
+    let data_dir = opts.data_dir()?;
+    let data_dir = data_dir.join(network.to_string());
+    if !data_dir.exists() {
+        std::fs::create_dir_all(&data_dir)
+            .context(format!("Could not create data dir for {network}"))?;
+    }
+    let data_dir = data_dir.clone().to_string_lossy().to_string();
+    tracing::info!("Data-dir: {data_dir:?}");
+
+    let coordinator_endpoint = opts.coordinator_endpoint()?;
+    let coordinator_p2p_port = opts.coordinator_p2p_port()?;
+    let coordinator_pubkey = opts.coordinator_pubkey()?;
+    let oracle_endpoint = opts.oracle_endpoint()?;
+    let oracle_pubkey = opts.oracle_pubkey()?;
+    let coordinator_http_port = opts.coordinator_http_port;
+    let esplora_endpoint = opts.esplora;
+
+    let config = native::config::api::Config {
+        coordinator_pubkey,
+        esplora_endpoint,
+        host: coordinator_endpoint,
+        p2p_port: coordinator_p2p_port,
+        http_port: coordinator_http_port,
+        network: network.to_string(),
+        oracle_endpoint,
+        oracle_pubkey,
+        health_check_interval_secs: 60,
+        rgs_server_url: None,
+    };
+
+    let seed_dir = data_dir.clone();
+    native::api::set_config(config, data_dir.clone(), seed_dir.clone()).expect("to set config");
+
+    let _handle = tokio::task::spawn_blocking({
+        let seed_dir = seed_dir.clone();
+        move || native::api::run_in_test(seed_dir).expect("to start backend")
+    })
+    .await;
 
     serve(using_serve_dir(), 3001).await?;
 
@@ -40,6 +79,7 @@ fn using_serve_dir() -> Router {
     Router::new()
         .route("/", get(index_handler))
         .route("/api/version", get(version))
+        .route("/api/newaddress", get(get_unused_address))
         .route("/main.dart.js", get(main_dart_handler))
         .route("/flutter.js", get(flutter_js))
         .route("/index.html", get(index_handler))
