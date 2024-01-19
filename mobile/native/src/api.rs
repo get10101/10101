@@ -506,12 +506,10 @@ pub fn create_onboarding_invoice(
 
 pub struct PaymentRequest {
     pub bip21: String,
-    pub lightning: String,
 }
 
 pub fn create_payment_request(
     amount_sats: Option<u64>,
-    _is_usdp: bool,
     _description: String,
 ) -> Result<PaymentRequest> {
     let amount_query = amount_sats
@@ -519,16 +517,8 @@ pub fn create_payment_request(
         .unwrap_or_default();
     let addr = ln_dlc::get_unused_address();
 
-    // TODO(bonomat): this can be removed as we don't support LN for now
-    // let ln_invoice = if is_usdp {
-    //     ln_dlc::create_usdp_invoice(amount_sats, description)?
-    // } else {
-    //     ln_dlc::create_invoice(amount_sats, description)?
-    // };
-
     Ok(PaymentRequest {
         bip21: format!("bitcoin:{addr}{amount_query}"),
-        lightning: "TODO: remove this part".to_string(),
     })
 }
 
