@@ -263,6 +263,7 @@ dprint:
 # Flutter lacks a dprint plugin, use its own formatter
 flutter-format:
     cd mobile && dart format . --fix --line-length {{line_length}}
+    cd webapp && dart format . --fix --line-length {{line_length}}
 
 alias c := coordinator
 coordinator args="":
