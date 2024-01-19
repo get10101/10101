@@ -20,7 +20,7 @@ final goRouter = GoRouter(
             routes: [
               GoRoute(
                 path: TradeScreen.route,
-                pageBuilder: (context, state) => const NoTransitionPage(
+                pageBuilder: (context, state) => NoTransitionPage(
                   child: TradeScreen(),
                 ),
               ),
