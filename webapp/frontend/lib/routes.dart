@@ -23,7 +23,6 @@ final goRouter = GoRouter(
                 pageBuilder: (context, state) => const NoTransitionPage(
                   child: TradeScreen(),
                 ),
-                routes: [],
               ),
             ],
           ),
@@ -35,7 +34,6 @@ final goRouter = GoRouter(
                 pageBuilder: (context, state) => const NoTransitionPage(
                   child: WalletScreen(),
                 ),
-                routes: [],
               ),
             ],
           ),
@@ -47,7 +45,6 @@ final goRouter = GoRouter(
                 pageBuilder: (context, state) => const NoTransitionPage(
                   child: SettingsScreen(),
                 ),
-                routes: [],
               ),
             ],
           )

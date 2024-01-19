@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
+import 'package:get_10101/common/version_service.dart';
 import 'package:get_10101/routes.dart';
+import 'package:provider/provider.dart';
 
 import 'common/color.dart';
 import 'common/theme.dart';
 
 void main() {
-  runApp(const TenTenOneApp());
+  var providers = [
+    Provider(create: (context) => const VersionService()),
+  ];
+  runApp(MultiProvider(providers: providers, child: const TenTenOneApp()));
 }
 
 class TenTenOneApp extends StatefulWidget {
