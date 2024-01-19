@@ -9,7 +9,7 @@ class TradeScreen extends StatefulWidget {
   static const route = "/trade";
 
   // TODO: get price from service
-  final Quote quote = Quote(Price(41129.0), Price(41129.5));
+  final Quote quote = Quote(Price(41129.0), Price(41130.5));
 
   // for now just to avoid division by 0 errors, later we should introduce a maintenance margin
   final double maintenanceMargin = 0.001;
@@ -28,6 +28,7 @@ class _TradeScreenState extends State<TradeScreen> {
 
   final TextEditingController _marginController = TextEditingController();
   final TextEditingController _liquidationPriceController = TextEditingController();
+  final TextEditingController _latestPriceController = TextEditingController();
 
   @override
   void initState() {
@@ -85,6 +86,17 @@ class _TradeScreenState extends State<TradeScreen> {
                         child: const Text("Sell")),
                   ),
                 ],
+              ),
+              const SizedBox(height: 20),
+              Align(
+                alignment: AlignmentDirectional.centerEnd,
+                child: AmountInputField(
+                  enabled: false,
+                  label: isLong ? "Ask" : "Bid",
+                  textAlign: TextAlign.right,
+                  suffixIcon: const Icon(FontAwesomeIcons.dollarSign),
+                  controller: _latestPriceController,
+                ),
               ),
               const SizedBox(height: 20),
               Align(
@@ -150,6 +162,12 @@ class _TradeScreenState extends State<TradeScreen> {
       _liquidationPriceController.text = calculateLiquidationPrice(
               _quantity!, _quote!, _leverage, widget.maintenanceMargin, isLong)
           .formatted();
+    }
+
+    if (isLong && _quote != null && _quote!.ask != null) {
+      _latestPriceController.text = _quote!.ask!.formatted();
+    } else if (!isLong && _quote != null && _quote!.bid != null) {
+      _latestPriceController.text = _quote!.bid!.formatted();
     }
   }
 }

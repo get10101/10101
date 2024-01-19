@@ -1,4 +1,5 @@
 import 'package:decimal/decimal.dart';
+import 'package:decimal/intl.dart';
 import 'package:get_10101/common/amount_text.dart';
 import 'package:intl/intl.dart';
 
@@ -151,11 +152,11 @@ class Price implements Formattable {
 
     try {
       final f = NumberFormat("#,###");
-      int amount =
+      double amount =
           // remove any comma and dot from text formatting the users input.
-          int.parse(value.replaceAll(f.symbols.GROUP_SEP, ''));
+          double.parse(value.replaceAll(f.symbols.GROUP_SEP, ''));
 
-      _usd = Decimal.fromInt(amount);
+      _usd = Decimal.parse(value);
     } on Exception {
       _usd = Decimal.zero;
     }
@@ -163,8 +164,8 @@ class Price implements Formattable {
 
   @override
   String formatted() {
-    final formatter = NumberFormat("#,###,###,###,###", "en");
-    return formatter.format(_usd);
+    final formatter = NumberFormat("#,##0.00", "en_US");
+    return formatter.format(DecimalIntl(_usd));
   }
 
   @override
