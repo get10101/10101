@@ -437,6 +437,14 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
         Ok(dlc_channels)
     }
 
+    // TODO: This API could return the number of required confirmations + the number of current
+    // confirmations.
+    pub fn is_dlc_channel_confirmed(&self, dlc_channel_id: &DlcChannelId) -> Result<bool> {
+        let contract = self.get_contract_by_dlc_channel_id(dlc_channel_id)?;
+
+        Ok(matches!(contract, Contract::Confirmed { .. }))
+    }
+
     /// Return the usable balance for all the DLC channels.
     pub fn get_dlc_channels_usable_balance(&self) -> Result<Amount> {
         self.list_signed_dlc_channels()?

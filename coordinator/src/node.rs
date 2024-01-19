@@ -497,6 +497,10 @@ impl Node {
         closing_price: Decimal,
         channel_id: DlcChannelId,
     ) -> Result<()> {
+        if !self.inner.is_dlc_channel_confirmed(&channel_id)? {
+            bail!("Underlying DLC channel not yet confirmed");
+        }
+
         let position_settlement_amount_coordinator =
             position.calculate_coordinator_settlement_amount(closing_price)?;
 
