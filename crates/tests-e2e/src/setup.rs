@@ -44,7 +44,7 @@ impl TestSetup {
             .unwrap();
 
         bitcoind.mine(1).await.unwrap();
-        coordinator.sync_wallet().await.unwrap();
+        coordinator.sync_node().await.unwrap();
 
         // App setup
 
@@ -117,6 +117,7 @@ impl TestSetup {
         tokio::time::sleep(std::time::Duration::from_secs(10)).await;
 
         sync_dlc_channels();
+        setup.coordinator.sync_node().await.unwrap();
 
         setup
     }

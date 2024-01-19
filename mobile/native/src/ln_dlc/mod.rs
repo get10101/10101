@@ -67,7 +67,6 @@ use ln_dlc_node::lightning_invoice::Bolt11Invoice;
 use ln_dlc_node::node::event::NodeEventHandler;
 use ln_dlc_node::node::rust_dlc_manager::channel::signed_channel::SignedChannel;
 use ln_dlc_node::node::rust_dlc_manager::channel::ClosedChannel;
-use ln_dlc_node::node::rust_dlc_manager::contract::Contract;
 use ln_dlc_node::node::rust_dlc_manager::subchannel::LNChannelManager;
 use ln_dlc_node::node::rust_dlc_manager::DlcChannelId;
 use ln_dlc_node::node::rust_dlc_manager::Signer;
@@ -917,12 +916,15 @@ pub fn get_signed_dlc_channel() -> Result<Option<SignedChannel>> {
     Ok(signed_channels.first().cloned())
 }
 
-pub fn is_dlc_channel_confirmed(dlc_channel_id: &DlcChannelId) -> Result<bool> {
+pub fn is_dlc_channel_confirmed() -> Result<bool> {
     let node = state::get_node();
 
-    let contract = node.inner.get_contract_by_dlc_channel_id(dlc_channel_id)?;
+    let dlc_channel = match get_signed_dlc_channel()? {
+        Some(dlc_channel) => dlc_channel,
+        None => return Ok(false),
+    };
 
-    Ok(matches!(contract, Contract::Confirmed { .. }))
+    node.inner.is_dlc_channel_confirmed(&dlc_channel.channel_id)
 }
 
 pub fn get_usable_channel_details() -> Result<Vec<ChannelDetails>> {
