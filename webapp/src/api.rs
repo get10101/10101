@@ -1,10 +1,34 @@
 use crate::subscribers::AppSubscribers;
+use anyhow::Result;
 use axum::extract::State;
+use axum::http::StatusCode;
 use axum::response::IntoResponse;
+use axum::response::Response;
 use axum::Json;
 use native::api;
 use serde::Serialize;
 use std::sync::Arc;
+
+pub struct AppError(anyhow::Error);
+
+impl IntoResponse for AppError {
+    fn into_response(self) -> Response {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Something went wrong: {}", self.0),
+        )
+            .into_response()
+    }
+}
+
+impl<E> From<E> for AppError
+where
+    E: Into<anyhow::Error>,
+{
+    fn from(err: E) -> Self {
+        Self(err.into())
+    }
+}
 
 #[derive(Serialize)]
 pub struct Version {
@@ -27,7 +51,10 @@ pub struct Balance {
     off_chain: u64,
 }
 
-pub async fn get_balance(State(subscribers): State<Arc<AppSubscribers>>) -> impl IntoResponse {
+pub async fn get_balance(
+    State(subscribers): State<Arc<AppSubscribers>>,
+) -> Result<Json<Balance>, AppError> {
+    ln_dlc::refresh_wallet_info().await?;
     let balance = subscribers
         .wallet_info()
         .map(|wallet_info| Balance {
@@ -38,6 +65,6 @@ pub async fn get_balance(State(subscribers): State<Arc<AppSubscribers>>) -> impl
             on_chain: 0,
             off_chain: 0,
         });
-    
-    Json(balance)
+
+    Ok(Json(balance))
 }
