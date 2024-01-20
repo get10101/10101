@@ -5,6 +5,7 @@ mod subscribers;
 
 use crate::api::get_balance;
 use crate::api::get_unused_address;
+use crate::api::send_payment;
 use crate::api::version;
 use crate::cli::Opts;
 use crate::subscribers::AppSubscribers;
@@ -18,6 +19,7 @@ use axum::response::Html;
 use axum::response::IntoResponse;
 use axum::response::Response;
 use axum::routing::get;
+use axum::routing::post;
 use axum::Router;
 use rust_embed::RustEmbed;
 use std::net::SocketAddr;
@@ -88,6 +90,7 @@ fn using_serve_dir(subscribers: Arc<AppSubscribers>) -> Router {
         .route("/api/version", get(version))
         .route("/api/balance", get(get_balance))
         .route("/api/newaddress", get(get_unused_address))
+        .route("/api/sendpayment", post(send_payment))
         .route("/main.dart.js", get(main_dart_handler))
         .route("/flutter.js", get(flutter_js))
         .route("/index.html", get(index_handler))

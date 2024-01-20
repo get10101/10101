@@ -6,6 +6,10 @@ use axum::response::IntoResponse;
 use axum::response::Response;
 use axum::Json;
 use native::api;
+use native::api::Fee;
+use native::api::SendPayment;
+use native::ln_dlc;
+use serde::Deserialize;
 use serde::Serialize;
 use std::sync::Arc;
 
@@ -67,4 +71,22 @@ pub async fn get_balance(
         });
 
     Ok(Json(balance))
+}
+
+#[derive(Deserialize)]
+pub struct Payment {
+    address: String,
+    amount: u64,
+    fee: u64,
+}
+
+pub async fn send_payment(params: Json<Payment>) -> Result<(), AppError> {
+    ln_dlc::send_payment(SendPayment::OnChain {
+        address: params.0.address,
+        amount: params.0.amount,
+        fee: Fee::FeeRate { sats: params.0.fee },
+    })
+    .await?;
+
+    Ok(())
 }
