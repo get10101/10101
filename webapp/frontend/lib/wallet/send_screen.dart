@@ -17,7 +17,10 @@ class SendScreen extends StatefulWidget {
 
 class _SendScreenState extends State<SendScreen> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+
   final TextEditingController _addressController = TextEditingController();
+  final TextEditingController _amountController = TextEditingController();
+  final TextEditingController _feeController = TextEditingController();
 
   String? address;
   Amount? amount;
@@ -72,6 +75,7 @@ class _SendScreenState extends State<SendScreen> {
                 AmountInputField(
                   value: amount != null ? amount! : Amount.zero(),
                   label: "Amount in sats",
+                  controller: _amountController,
                   validator: (value) {
                     return null;
                   },
@@ -86,6 +90,7 @@ class _SendScreenState extends State<SendScreen> {
                 AmountInputField(
                   value: fee != null ? fee! : Amount.zero(),
                   label: "Sats/vb",
+                  controller: _feeController,
                   validator: (value) {
                     if (value == null || value == "0") {
                       return "The fee rate must be greater than 0";
@@ -111,6 +116,20 @@ class _SendScreenState extends State<SendScreen> {
                                   await context
                                       .read<WalletService>()
                                       .sendPayment(address!, amount!, fee!);
+
+                                  setState(() {
+                                    _formKey.currentState!.reset();
+                                    _addressController.clear();
+                                    address = null;
+                                    _amountController.clear();
+                                    amount = null;
+                                    _feeController.clear();
+                                    fee = null;
+
+                                    _formKey.currentState!.validate();
+                                  });
+
+                                  showSnackBar(messenger, "Payment has been sent.");
                                 } catch (e) {
                                   showSnackBar(messenger, "Failed to send payment. $e");
                                 }
@@ -150,8 +169,13 @@ class _SendScreenState extends State<SendScreen> {
       ],
     );
   }
-}
 
-/*
-,
- */
+  @override
+  void dispose() {
+    super.dispose();
+
+    _addressController.dispose();
+    _amountController.dispose();
+    _feeController.dispose();
+  }
+}
