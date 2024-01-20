@@ -18,7 +18,7 @@ class _WalletScreenState extends State<WalletScreen> with SingleTickerProviderSt
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return SizedBox(
       width: 500,
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,

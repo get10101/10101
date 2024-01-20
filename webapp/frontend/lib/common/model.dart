@@ -151,11 +151,6 @@ class Price implements Formattable {
     }
 
     try {
-      final f = NumberFormat("#,###");
-      double amount =
-          // remove any comma and dot from text formatting the users input.
-          double.parse(value.replaceAll(f.symbols.GROUP_SEP, ''));
-
       _usd = Decimal.parse(value);
     } on Exception {
       _usd = Decimal.zero;
@@ -194,10 +189,11 @@ class Leverage implements Formattable {
 }
 
 class Quote {
-  Price _bid;
-  Price _ask;
+  final Price _bid;
+  final Price _ask;
 
   Price? get bid => _bid;
+
   Price? get ask => _ask;
 
   Quote(this._bid, this._ask);
