@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:get_10101/common/model.dart';
 import 'package:get_10101/common/balance.dart';
@@ -7,8 +9,21 @@ class WalletService {
   const WalletService();
 
   Future<Balance> getBalance() async {
-    // todo: fetch balance from backend
-    return Balance(Amount(123454), Amount(124145214));
+    // TODO(holzeis): this should come from the config
+    const port = "3001";
+    const host = "localhost";
+
+    try {
+      final response = await http.get(Uri.http('$host:$port', '/api/balance'));
+
+      if (response.statusCode == 200) {
+        return Balance.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
+      } else {
+        throw FlutterError("Failed to fetch balance");
+      }
+    } catch (e) {
+      throw FlutterError("Failed to fetch balance. $e");
+    }
   }
 
   Future<String> getNewAddress() async {

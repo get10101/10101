@@ -1,10 +1,13 @@
 mod api;
 mod cli;
 mod logger;
+mod subscribers;
 
+use crate::api::get_balance;
 use crate::api::get_unused_address;
 use crate::api::version;
 use crate::cli::Opts;
+use crate::subscribers::AppSubscribers;
 use anyhow::Context;
 use anyhow::Result;
 use axum::http::header;
@@ -18,6 +21,7 @@ use axum::routing::get;
 use axum::Router;
 use rust_embed::RustEmbed;
 use std::net::SocketAddr;
+use std::sync::Arc;
 use std::time::Duration;
 use tower_http::classify::ServerErrorsFailureClass;
 use tower_http::trace::TraceLayer;
@@ -70,15 +74,19 @@ async fn main() -> Result<()> {
     })
     .await;
 
-    serve(using_serve_dir(), 3001).await?;
+    let (rx, tx) = AppSubscribers::new().await;
+    native::event::subscribe(tx);
+
+    serve(using_serve_dir(Arc::new(rx)), 3001).await?;
 
     Ok(())
 }
 
-fn using_serve_dir() -> Router {
+fn using_serve_dir(subscribers: Arc<AppSubscribers>) -> Router {
     Router::new()
         .route("/", get(index_handler))
         .route("/api/version", get(version))
+        .route("/api/balance", get(get_balance))
         .route("/api/newaddress", get(get_unused_address))
         .route("/main.dart.js", get(main_dart_handler))
         .route("/flutter.js", get(flutter_js))
@@ -103,6 +111,7 @@ fn using_serve_dir() -> Router {
                     },
                 ),
         )
+        .with_state(subscribers)
 }
 
 // We use static route matchers ("/" and "/index.html") to serve our home
