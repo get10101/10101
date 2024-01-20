@@ -44,6 +44,7 @@ dependencies:
   bitcoin_icons: ^0.0.4
   intl: ^0.18.0
   decimal: ^2.3.3
+  logger: ^2.0.2+1
   timeago: ^3.3.0
 
 dev_dependencies:
