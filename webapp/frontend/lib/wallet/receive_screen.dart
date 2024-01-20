@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get_10101/common/color.dart';
 import 'package:get_10101/common/snack_bar.dart';
 import 'package:get_10101/wallet/wallet_service.dart';
@@ -65,9 +66,17 @@ class _ReceiveScreenState extends State<ReceiveScreen> {
                   borderRadius: BorderRadius.circular(8)),
               child: address == null
                   ? const Center(child: CircularProgressIndicator())
-                  : Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [Text(address!), const Icon(Icons.copy, size: 20)]))
+                  : Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                      Text(address!),
+                      GestureDetector(
+                          child: const Icon(Icons.copy, size: 20),
+                          onTap: () async {
+                            Clipboard.setData(ClipboardData(text: address ?? "")).then((_) {
+                              showSnackBar(
+                                  ScaffoldMessenger.of(context), "Address copied to clipboard");
+                            });
+                          })
+                    ]))
         ],
       ),
     );
