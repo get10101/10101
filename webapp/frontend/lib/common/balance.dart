@@ -1,4 +1,4 @@
-import 'package:get_10101/common/amount.dart';
+import 'package:get_10101/common/model.dart';
 
 class Balance {
   final Amount offChain;

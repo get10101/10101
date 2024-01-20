@@ -18,50 +18,47 @@ class _WalletScreenState extends State<WalletScreen> with SingleTickerProviderSt
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Container(
-        padding: const EdgeInsets.all(25),
-        width: 500,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            TabBar(
-              unselectedLabelColor: Colors.black,
-              labelColor: tenTenOnePurple,
-              tabs: const [
-                Tab(
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(FontAwesomeIcons.arrowDown, size: 20),
-                      SizedBox(width: 10),
-                      Text("Receive")
-                    ],
-                  ),
+    return Container(
+      width: 500,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          TabBar(
+            unselectedLabelColor: Colors.black,
+            labelColor: tenTenOnePurple,
+            tabs: const [
+              Tab(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(FontAwesomeIcons.arrowDown, size: 20),
+                    SizedBox(width: 10),
+                    Text("Receive")
+                  ],
                 ),
-                Tab(
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(FontAwesomeIcons.arrowUp, size: 20),
-                      SizedBox(width: 10),
-                      Text("Withdraw")
-                    ],
-                  ),
-                )
-              ],
-              controller: _tabController,
-              indicatorSize: TabBarIndicatorSize.tab,
-            ),
-            Expanded(
-              child: TabBarView(
-                controller: _tabController,
-                children: const [ReceiveScreen(), SendScreen()],
               ),
+              Tab(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(FontAwesomeIcons.arrowUp, size: 20),
+                    SizedBox(width: 10),
+                    Text("Withdraw")
+                  ],
+                ),
+              )
+            ],
+            controller: _tabController,
+            indicatorSize: TabBarIndicatorSize.tab,
+          ),
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
+              children: const [ReceiveScreen(), SendScreen()],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

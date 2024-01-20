@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:get_10101/common/balance.dart';
 import 'package:get_10101/common/version_service.dart';
 import 'package:get_10101/wallet/wallet_service.dart';
-
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 

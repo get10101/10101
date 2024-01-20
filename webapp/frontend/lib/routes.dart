@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:get_10101/common/global_keys.dart';
 import 'package:get_10101/common/scaffold_with_nav.dart';
 import 'package:get_10101/settings/settings_screen.dart';
@@ -20,8 +21,8 @@ final goRouter = GoRouter(
             routes: [
               GoRoute(
                 path: TradeScreen.route,
-                pageBuilder: (context, state) => const NoTransitionPage(
-                  child: TradeScreen(),
+                pageBuilder: (context, state) => NoTransitionPage(
+                  child: routeChild(const TradeScreen()),
                 ),
               ),
             ],
@@ -31,8 +32,8 @@ final goRouter = GoRouter(
             routes: [
               GoRoute(
                 path: WalletScreen.route,
-                pageBuilder: (context, state) => const NoTransitionPage(
-                  child: WalletScreen(),
+                pageBuilder: (context, state) => NoTransitionPage(
+                  child: routeChild(const WalletScreen()),
                 ),
               ),
             ],
@@ -42,8 +43,8 @@ final goRouter = GoRouter(
             routes: [
               GoRoute(
                 path: SettingsScreen.route,
-                pageBuilder: (context, state) => const NoTransitionPage(
-                  child: SettingsScreen(),
+                pageBuilder: (context, state) => NoTransitionPage(
+                  child: routeChild(const SettingsScreen()),
                 ),
               ),
             ],
@@ -51,3 +52,7 @@ final goRouter = GoRouter(
         ],
       )
     ]);
+
+Scaffold routeChild(Widget child) {
+  return Scaffold(body: Container(padding: const EdgeInsets.all(25), child: Center(child: child)));
+}

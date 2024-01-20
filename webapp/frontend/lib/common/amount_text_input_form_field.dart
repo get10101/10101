@@ -1,31 +1,43 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:get_10101/common/amount.dart';
+import 'package:get_10101/common/color.dart';
+import 'package:get_10101/common/model.dart';
 import 'package:get_10101/common/numeric_text_formatter.dart';
 
 class AmountInputField extends StatelessWidget {
-  const AmountInputField(
-      {super.key,
-      this.enabled = true,
-      this.label = '',
-      this.hint = '',
-      this.onChanged,
-      required this.value,
-      this.controller,
-      this.validator,
-      this.decoration,
-      this.style,
-      this.onTap});
+  /// If `decoration` is passed, then `isLoading`, `hint`, `label`, `infoText`,
+  /// and `isLoading` are overriden.
+  const AmountInputField({
+    super.key,
+    this.enabled = true,
+    this.label = '',
+    this.hint = '',
+    this.onChanged,
+    this.value,
+    this.isLoading = false,
+    this.infoText,
+    this.controller,
+    this.validator,
+    this.decoration,
+    this.style,
+    this.onTap,
+    this.textAlign = TextAlign.left,
+    this.suffixIcon,
+  });
 
   final TextEditingController? controller;
   final TextStyle? style;
-  final Amount value;
+  final Formattable? value;
   final bool enabled;
   final String label;
   final String hint;
+  final String? infoText;
+  final bool isLoading;
   final Function(String)? onChanged;
   final Function()? onTap;
   final InputDecoration? decoration;
+  final TextAlign textAlign;
+  final Widget? suffixIcon;
 
   final String? Function(String?)? validator;
 
@@ -35,19 +47,25 @@ class AmountInputField extends StatelessWidget {
       style: style ?? const TextStyle(color: Colors.black87),
       enabled: enabled,
       controller: controller,
-      initialValue: controller != null ? null : value.formatted(),
+      textAlign: textAlign,
+      initialValue: controller != null
+          ? null
+          : value != null
+              ? value!.formatted()
+              : null,
       keyboardType: TextInputType.number,
       decoration: decoration ??
           InputDecoration(
             border: const OutlineInputBorder(),
             hintText: hint,
             labelText: label,
-            labelStyle: const TextStyle(color: Colors.black87),
+            labelStyle: const TextStyle(color: tenTenOnePurple),
             filled: true,
             fillColor: enabled ? Colors.white : Colors.grey[50],
             errorStyle: TextStyle(
               color: Colors.red[900],
             ),
+            suffixIcon: isLoading ? const CircularProgressIndicator() : suffixIcon,
           ),
       inputFormatters: <TextInputFormatter>[
         FilteringTextInputFormatter.digitsOnly,
