@@ -1,5 +1,7 @@
+import 'package:flutter/material.dart';
 import 'package:get_10101/common/model.dart';
 import 'package:get_10101/common/balance.dart';
+import 'package:http/http.dart' as http;
 
 class WalletService {
   const WalletService();
@@ -10,8 +12,21 @@ class WalletService {
   }
 
   Future<String> getNewAddress() async {
-    // todo: fetch new address from backend
-    return "bcrt1qumc7lskp8x7947kw4culw2weld6axgrgz3nqqf";
+    // TODO(holzeis): this should come from the config
+    const port = "3001";
+    const host = "localhost";
+
+    try {
+      final response = await http.get(Uri.http('$host:$port', '/api/newaddress'));
+
+      if (response.statusCode == 200) {
+        return response.body;
+      } else {
+        throw FlutterError("Failed to fetch new address");
+      }
+    } catch (e) {
+      throw FlutterError("Failed to fetch new address. $e");
+    }
   }
 
   Future<void> sendPayment(String address, Amount amount, Amount fee) async {

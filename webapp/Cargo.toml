@@ -6,13 +6,21 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1"
+atty = "0.2.14"
 axum = { version = "0.7", features = ["tracing"] }
+bitcoin = "0.29.2"
+clap = { version = "4", features = ["derive"] }
+commons = { path = "../crates/commons" }
+console-subscriber = "0.1.6"
 mime_guess = "2.0.4"
+native = { path = "../mobile/native" }
+parking_lot = { version = "0.12.1" }
 rust-embed = "8.2.0"
 serde = "1.0.147"
 serde_json = "1"
+time = "0.3"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 tower = { version = "0.4", features = ["util"] }
 tower-http = { version = "0.5", features = ["fs", "trace"] }
-tracing = "0.1"
+tracing = "0.1.37"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }

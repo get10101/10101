@@ -21,7 +21,7 @@ class _TradeScreenState extends State<TradeScreen> with SingleTickerProviderStat
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return SizedBox(
       width: 500,
       child: Column(
         mainAxisAlignment: MainAxisAlignment.start,
