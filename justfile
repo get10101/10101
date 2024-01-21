@@ -78,6 +78,10 @@ android args="":
 android-release:
     cd mobile/native && cargo ndk -t armeabi-v7a -t arm64-v8a -o ../android/app/src/main/jniLibs build --release --verbose
 
+# Build flutter webapp for cargo run --bin webapp
+web:
+    cd webapp/frontend && flutter build web
+
 # Build Rust library for iOS (debug mode)
 ios:
     cd mobile/native && CARGO_TARGET_DIR=../../target/ios_debug cargo lipo
