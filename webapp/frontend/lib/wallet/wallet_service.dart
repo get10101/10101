@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:get_10101/common/model.dart';
 import 'package:get_10101/common/balance.dart';
+import 'package:get_10101/common/payment.dart';
 import 'package:http/http.dart' as http;
 
 class WalletService {
@@ -64,12 +65,27 @@ class WalletService {
       throw FlutterError("Failed to send payment. $e");
     }
   }
-}
 
-class Payment {
-  final String address;
-  final int amount;
-  final int fee;
+  Future<List<OnChainPayment>> getOnChainPaymentHistory() async {
+    // TODO(holzeis): this should come from the config
+    const port = "3001";
+    const host = "localhost";
 
-  const Payment({required this.address, required this.amount, required this.fee});
+    try {
+      final response = await http.get(Uri.http('$host:$port', '/api/history'));
+
+      if (response.statusCode == 200) {
+        List<OnChainPayment> history = [];
+        Iterable list = json.decode(response.body);
+        for (int i = 0; i < list.length; i++) {
+          history.add(OnChainPayment.fromJson(list.elementAt(i)));
+        }
+        return history;
+      } else {
+        throw FlutterError("Failed to fetch onchain payment history");
+      }
+    } catch (e) {
+      throw FlutterError("Failed to fetch onchain payment history. $e");
+    }
+  }
 }
