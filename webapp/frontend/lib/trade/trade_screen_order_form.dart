@@ -3,7 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:get_10101/common/amount_text_input_form_field.dart';
 import 'package:get_10101/common/model.dart';
+import 'package:get_10101/common/snack_bar.dart';
 import 'package:get_10101/common/theme.dart';
+import 'package:get_10101/logger/logger.dart';
+import 'package:get_10101/trade/new_order_service.dart';
 
 class NewOrderForm extends StatefulWidget {
   final bool isLong;
@@ -116,7 +119,14 @@ class _NewOrderForm extends State<NewOrderForm> {
         Align(
           alignment: AlignmentDirectional.center,
           child: ElevatedButton(
-              onPressed: () {},
+              onPressed: () {
+                final messenger = ScaffoldMessenger.of(context);
+                NewOrderService.postNewOrder(_leverage, _quantity!, isBuy).then((orderId) {
+                  showSnackBar(messenger, "Order created $orderId.");
+                }).catchError((error) {
+                  showSnackBar(messenger, "Posting a new order failed $error");
+                });
+              },
               style: ElevatedButton.styleFrom(
                   backgroundColor: isBuy ? buyButtonColor : sellButtonColor,
                   minimumSize: const Size.fromHeight(50)),
