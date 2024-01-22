@@ -1,9 +1,8 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:get_10101/common/http_client.dart';
 import 'package:get_10101/common/model.dart';
-import 'package:get_10101/logger/logger.dart';
-import 'package:http/http.dart' as http;
 
 class OrderId {
   final String orderId;
@@ -25,11 +24,7 @@ class NewOrderService {
   const NewOrderService();
 
   static Future<String> postNewOrder(Leverage leverage, Usd quantity, bool isLong) async {
-    // TODO(holzeis): this should come from the config
-    const port = "3001";
-    const host = "localhost";
-
-    final response = await http.post(Uri.http('$host:$port', '/api/orders'),
+    final response = await HttpClientManager.instance.post(Uri(path: '/api/orders'),
         headers: <String, String>{
           'Content-Type': 'application/json; charset=UTF-8',
         },

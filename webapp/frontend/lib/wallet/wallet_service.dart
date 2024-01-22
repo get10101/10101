@@ -1,22 +1,20 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:get_10101/common/http_client.dart';
 import 'package:get_10101/common/model.dart';
 import 'package:get_10101/common/balance.dart';
 import 'package:get_10101/common/payment.dart';
-import 'package:http/http.dart' as http;
+import 'package:get_10101/logger/logger.dart';
 
 class WalletService {
   const WalletService();
 
   Future<Balance> getBalance() async {
-    // TODO(holzeis): this should come from the config
-    const port = "3001";
-    const host = "localhost";
-
-    final response = await http.get(Uri.http('$host:$port', '/api/balance'));
+    final response = await HttpClientManager.instance.get(Uri(path: '/api/balance'));
 
     if (response.statusCode == 200) {
+      logger.i("body ${response.body}");
       return Balance.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
     } else {
       throw FlutterError("Failed to fetch balance");
@@ -24,11 +22,7 @@ class WalletService {
   }
 
   Future<String> getNewAddress() async {
-    // TODO(holzeis): this should come from the config
-    const port = "3001";
-    const host = "localhost";
-
-    final response = await http.get(Uri.http('$host:$port', '/api/newaddress'));
+    final response = await HttpClientManager.instance.get(Uri(path: '/api/newaddress'));
 
     if (response.statusCode == 200) {
       return response.body;
@@ -38,11 +32,7 @@ class WalletService {
   }
 
   Future<void> sendPayment(String address, Amount amount, Amount fee) async {
-    // TODO(holzeis): this should come from the config
-    const port = "3001";
-    const host = "localhost";
-
-    final response = await http.post(Uri.http('$host:$port', '/api/sendpayment'),
+    final response = await HttpClientManager.instance.post(Uri(path: '/api/sendpayment'),
         headers: <String, String>{
           'Content-Type': 'application/json; charset=UTF-8',
         },
@@ -55,11 +45,7 @@ class WalletService {
   }
 
   Future<List<OnChainPayment>> getOnChainPaymentHistory() async {
-    // TODO(holzeis): this should come from the config
-    const port = "3001";
-    const host = "localhost";
-
-    final response = await http.get(Uri.http('$host:$port', '/api/history'));
+    final response = await HttpClientManager.instance.get(Uri(path: '/api/history'));
 
     if (response.statusCode == 200) {
       List<OnChainPayment> history = [];
