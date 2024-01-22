@@ -220,12 +220,6 @@ impl Node {
     ) -> Result<()> {
         let peer_id = trade_params.pubkey;
 
-        tracing::info!(
-            %peer_id,
-            order_id = %trade_params.filled_with.order_id,
-            ?trade_params, "Opening DLC channel and position"
-        );
-
         let leverage_trader = trade_params.leverage;
         let leverage_coordinator = self.coordinator_leverage_for_trade(&trade_params.pubkey)?;
 
@@ -241,6 +235,17 @@ impl Node {
         let initial_price = trade_params.filled_with.average_execution_price();
 
         let coordinator_direction = trade_params.direction.opposite();
+
+        tracing::info!(
+            %peer_id,
+            order_id = %trade_params.filled_with.order_id,
+            ?trade_params,
+            leverage_coordinator,
+            margin_coordinator_sat = %margin_coordinator,
+            margin_trader_sat = %margin_trader,
+            order_matching_fee_sat = %order_matching_fee,
+            "Opening DLC channel and position"
+        );
 
         let contract_descriptor = payout_curve::build_contract_descriptor(
             initial_price,
@@ -374,6 +379,18 @@ impl Node {
                     margin_trader, order_matching_fee, trader_dlc_channel_collateral
                 )
             })?;
+
+        tracing::debug!(
+            %peer_id,
+            order_id = %trade_params.filled_with.order_id,
+            leverage_coordinator,
+            margin_coordinator_sat = %margin_coordinator,
+            margin_trader_sat = %margin_trader,
+            coordinator_collateral_reserve_sat = %coordinator_collateral_reserve,
+            trader_collateral_reserve_sat = %trader_collateral_reserve,
+            order_matching_fee_sat = %order_matching_fee,
+            "DLC channel update parameters"
+        );
 
         let contract_descriptor = payout_curve::build_contract_descriptor(
             initial_price,
