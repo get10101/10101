@@ -1,17 +1,26 @@
 use crate::subscribers::AppSubscribers;
+use anyhow::Context;
 use anyhow::Result;
 use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::response::Response;
 use axum::Json;
+use native::api::ContractSymbol;
+use native::api::Direction;
 use native::api::Fee;
 use native::api::SendPayment;
 use native::api::WalletHistoryItemType;
 use native::ln_dlc;
+use native::trade::order::OrderState;
+use native::trade::order::OrderType;
+use rust_decimal::prelude::ToPrimitive;
+use rust_decimal::Decimal;
 use serde::Deserialize;
 use serde::Serialize;
 use std::sync::Arc;
+use time::OffsetDateTime;
+use uuid::Uuid;
 
 pub struct AppError(anyhow::Error);
 
@@ -130,4 +139,58 @@ pub async fn send_payment(params: Json<Payment>) -> Result<(), AppError> {
     .await?;
 
     Ok(())
+}
+
+#[derive(Serialize)]
+pub struct OrderId {
+    id: Uuid,
+}
+
+#[derive(Deserialize)]
+pub struct NewOrderParams {
+    #[serde(with = "rust_decimal::serde::float")]
+    pub leverage: Decimal,
+    #[serde(with = "rust_decimal::serde::float")]
+    pub quantity: Decimal,
+    pub direction: Direction,
+}
+
+impl TryFrom<NewOrderParams> for native::trade::order::Order {
+    type Error = anyhow::Error;
+    fn try_from(value: NewOrderParams) -> Result<Self> {
+        Ok(native::trade::order::Order {
+            id: Uuid::new_v4(),
+            leverage: value
+                .leverage
+                .to_f32()
+                .context("To be able to parse leverage into f32")?,
+            quantity: value
+                .quantity
+                .to_f32()
+                .context("To be able to parse leverage into f32")?,
+            contract_symbol: ContractSymbol::BtcUsd,
+            direction: Direction::Long,
+            // We only support market orders for now
+            order_type: OrderType::Market,
+            state: OrderState::Initial,
+            creation_timestamp: OffsetDateTime::now_utc(),
+            // We do not support setting order expiry from the frontend for now
+            order_expiry_timestamp: OffsetDateTime::now_utc() + time::Duration::minutes(1),
+            reason: native::trade::order::OrderReason::Manual,
+            stable: false,
+            failure_reason: None,
+        })
+    }
+}
+
+pub async fn post_new_order(params: Json<NewOrderParams>) -> Result<Json<OrderId>, AppError> {
+    let order_id = native::trade::order::handler::submit_order(
+        params
+            .0
+            .try_into()
+            .context("Could not parse order request")?,
+    )
+    .await?;
+
+    Ok(Json(OrderId { id: order_id }))
 }

@@ -1,6 +1,8 @@
 use crate::calculations::calculate_margin;
 use crate::ln_dlc;
 use rust_decimal::Decimal;
+use serde::Deserialize;
+use serde::Serialize;
 use time::OffsetDateTime;
 use trade::ContractSymbol;
 use trade::Direction;
@@ -13,7 +15,7 @@ mod orderbook_client;
 // When naming this the same as `api_model::order::OrderType` the generated code somehow uses
 // `trade::OrderType` and contains errors, hence different name is used.
 // This is likely a bug in frb.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum OrderType {
     Market,
     Limit { price: f32 },

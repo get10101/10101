@@ -4632,6 +4632,8 @@ dependencies = [
  "native",
  "parking_lot 0.12.1",
  "rust-embed",
+ "rust_decimal",
+ "rust_decimal_macros",
  "serde",
  "serde_json",
  "time",
@@ -4640,6 +4642,7 @@ dependencies = [
  "tower-http",
  "tracing",
  "tracing-subscriber",
+ "uuid",
 ]
 
 [[package]]
