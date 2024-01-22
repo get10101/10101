@@ -28,6 +28,7 @@ class _NewOrderForm extends State<NewOrderForm> {
   Usd? _quantity;
   Leverage _leverage = Leverage(1);
   bool isBuy = true;
+  bool _isLoading = false;
 
   final TextEditingController _marginController = TextEditingController();
   final TextEditingController _liquidationPriceController = TextEditingController();
@@ -39,6 +40,7 @@ class _NewOrderForm extends State<NewOrderForm> {
     _quote = widget.quote;
     _quantity = Usd(100);
     isBuy = widget.isLong;
+    _isLoading = false;
 
     updateOrderValues();
   }
@@ -119,18 +121,25 @@ class _NewOrderForm extends State<NewOrderForm> {
         Align(
           alignment: AlignmentDirectional.center,
           child: ElevatedButton(
-              onPressed: () {
-                final messenger = ScaffoldMessenger.of(context);
-                NewOrderService.postNewOrder(_leverage, _quantity!, isBuy).then((orderId) {
-                  showSnackBar(messenger, "Order created $orderId.");
-                }).catchError((error) {
-                  showSnackBar(messenger, "Posting a new order failed $error");
-                });
-              },
+              onPressed: _isLoading
+                  ? null
+                  : () {
+                      final messenger = ScaffoldMessenger.of(context);
+                      setState(() => _isLoading = true);
+                      NewOrderService.postNewOrder(_leverage, _quantity!, isBuy).then((orderId) {
+                        showSnackBar(messenger, "Order created $orderId.");
+                        setState(() => _isLoading = false);
+                      }).catchError((error) {
+                        showSnackBar(messenger, "Posting a new order failed $error");
+                        setState(() => _isLoading = false);
+                      });
+                    },
               style: ElevatedButton.styleFrom(
                   backgroundColor: isBuy ? buyButtonColor : sellButtonColor,
                   minimumSize: const Size.fromHeight(50)),
-              child: isBuy ? const Text("Buy") : const Text("Sell")),
+              child: _isLoading
+                  ? const CircularProgressIndicator()
+                  : (isBuy ? const Text("Buy") : const Text("Sell"))),
         ),
       ],
     );
