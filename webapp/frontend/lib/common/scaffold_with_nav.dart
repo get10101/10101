@@ -56,7 +56,7 @@ class _ScaffoldWithNestedNavigation extends State<ScaffoldWithNestedNavigation> 
   @override
   void initState() {
     super.initState();
-    context.read<VersionService>().fetchVersion().then((v) => setState(() => version = v));
+    context.read<VersionService>().fetchVersion().then((v) => setState(() => version = v.version));
     context.read<WalletService>().getBalance().then((b) => setState(() => balance = b));
   }
 

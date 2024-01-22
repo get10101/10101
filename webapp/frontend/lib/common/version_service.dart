@@ -1,17 +1,22 @@
+import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:get_10101/common/http_client.dart';
 
 class Version {
   final String version;
+  final String commitHash;
+  final String branch;
 
-  const Version({required this.version});
+  const Version({required this.version, required this.commitHash, required this.branch});
 
   factory Version.fromJson(Map<String, dynamic> json) {
     return switch (json) {
       {
         'version': String version,
+        'commit_hash': String commitHash,
+        'branch': String branch,
       } =>
-        Version(version: version),
+        Version(version: version, commitHash: commitHash, branch: branch),
       _ => throw const FormatException('Failed to load version.'),
     };
   }
@@ -20,17 +25,13 @@ class Version {
 class VersionService {
   const VersionService();
 
-  Future<String> fetchVersion() async {
-    try {
-      final response = await HttpClientManager.instance.get(Uri(path: '/api/version'));
+  Future<Version> fetchVersion() async {
+    final response = await HttpClientManager.instance.get(Uri(path: '/api/version'));
 
-      if (response.statusCode == 200) {
-        return Version.fromJson(jsonDecode(response.body) as Map<String, dynamic>).version;
-      } else {
-        return 'unknown';
-      }
-    } catch (e) {
-      return "unknown";
+    if (response.statusCode == 200) {
+      return Version.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
+    } else {
+      throw FlutterError("Failed to fetch version");
     }
   }
 }
