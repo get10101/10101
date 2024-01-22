@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Feat: update api to collaboratively revert a dlc-channel
 - Feat: Allow continuing from an offered dlc channel state (offered, settle offered and collab close offered)
 - Feat: add a new project `webapp`. Eventually this will have the same functionality as our app (and more) and can be run on a self-hosted server
+- Chore: In Webapp API allow requests from any origin (CORS)
 
 ## [1.7.4] - 2023-12-20
 

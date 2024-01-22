@@ -22,11 +22,13 @@ use axum::response::Response;
 use axum::routing::get;
 use axum::routing::post;
 use axum::Router;
+use bitcoin::Network;
 use rust_embed::RustEmbed;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
 use tower_http::classify::ServerErrorsFailureClass;
+use tower_http::cors::CorsLayer;
 use tower_http::trace::TraceLayer;
 use tracing::level_filters::LevelFilter;
 use tracing::Span;
@@ -80,13 +82,13 @@ async fn main() -> Result<()> {
     let (rx, tx) = AppSubscribers::new().await;
     native::event::subscribe(tx);
 
-    serve(using_serve_dir(Arc::new(rx)), 3001).await?;
+    serve(using_serve_dir(Arc::new(rx), network), 3001).await?;
 
     Ok(())
 }
 
-fn using_serve_dir(subscribers: Arc<AppSubscribers>) -> Router {
-    Router::new()
+fn using_serve_dir(subscribers: Arc<AppSubscribers>, network: Network) -> Router {
+    let router = Router::new()
         .route("/", get(index_handler))
         .route("/api/version", get(version))
         .route("/api/balance", get(get_balance))
@@ -116,7 +118,16 @@ fn using_serve_dir(subscribers: Arc<AppSubscribers>) -> Router {
                     },
                 ),
         )
-        .with_state(subscribers)
+        .with_state(subscribers);
+
+    if matches!(
+        network,
+        Network::Regtest | Network::Signet | Network::Testnet
+    ) {
+        router.layer(CorsLayer::permissive())
+    } else {
+        router
+    }
 }
 
 // We use static route matchers ("/" and "/index.html") to serve our home
