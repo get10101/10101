@@ -14,16 +14,12 @@ class WalletService {
     const port = "3001";
     const host = "localhost";
 
-    try {
-      final response = await http.get(Uri.http('$host:$port', '/api/balance'));
+    final response = await http.get(Uri.http('$host:$port', '/api/balance'));
 
-      if (response.statusCode == 200) {
-        return Balance.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
-      } else {
-        throw FlutterError("Failed to fetch balance");
-      }
-    } catch (e) {
-      throw FlutterError("Failed to fetch balance. $e");
+    if (response.statusCode == 200) {
+      return Balance.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
+    } else {
+      throw FlutterError("Failed to fetch balance");
     }
   }
 
@@ -32,16 +28,12 @@ class WalletService {
     const port = "3001";
     const host = "localhost";
 
-    try {
-      final response = await http.get(Uri.http('$host:$port', '/api/newaddress'));
+    final response = await http.get(Uri.http('$host:$port', '/api/newaddress'));
 
-      if (response.statusCode == 200) {
-        return response.body;
-      } else {
-        throw FlutterError("Failed to fetch new address");
-      }
-    } catch (e) {
-      throw FlutterError("Failed to fetch new address. $e");
+    if (response.statusCode == 200) {
+      return response.body;
+    } else {
+      throw FlutterError("Failed to fetch new address");
     }
   }
 
@@ -50,19 +42,15 @@ class WalletService {
     const port = "3001";
     const host = "localhost";
 
-    try {
-      final response = await http.post(Uri.http('$host:$port', '/api/sendpayment'),
-          headers: <String, String>{
-            'Content-Type': 'application/json; charset=UTF-8',
-          },
-          body: jsonEncode(
-              <String, dynamic>{'address': address, 'amount': amount.sats, 'fee': fee.sats}));
+    final response = await http.post(Uri.http('$host:$port', '/api/sendpayment'),
+        headers: <String, String>{
+          'Content-Type': 'application/json; charset=UTF-8',
+        },
+        body: jsonEncode(
+            <String, dynamic>{'address': address, 'amount': amount.sats, 'fee': fee.sats}));
 
-      if (response.statusCode != 200) {
-        throw FlutterError("Failed to send payment");
-      }
-    } catch (e) {
-      throw FlutterError("Failed to send payment. $e");
+    if (response.statusCode != 200) {
+      throw FlutterError("Failed to send payment");
     }
   }
 
@@ -71,21 +59,17 @@ class WalletService {
     const port = "3001";
     const host = "localhost";
 
-    try {
-      final response = await http.get(Uri.http('$host:$port', '/api/history'));
+    final response = await http.get(Uri.http('$host:$port', '/api/history'));
 
-      if (response.statusCode == 200) {
-        List<OnChainPayment> history = [];
-        Iterable list = json.decode(response.body);
-        for (int i = 0; i < list.length; i++) {
-          history.add(OnChainPayment.fromJson(list.elementAt(i)));
-        }
-        return history;
-      } else {
-        throw FlutterError("Failed to fetch onchain payment history");
+    if (response.statusCode == 200) {
+      List<OnChainPayment> history = [];
+      Iterable list = json.decode(response.body);
+      for (int i = 0; i < list.length; i++) {
+        history.add(OnChainPayment.fromJson(list.elementAt(i)));
       }
-    } catch (e) {
-      throw FlutterError("Failed to fetch onchain payment history. $e");
+      return history;
+    } else {
+      throw FlutterError("Failed to fetch onchain payment history");
     }
   }
 }
