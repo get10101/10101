@@ -20,7 +20,6 @@ use std::fs;
 use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::task::spawn_blocking;
 
 const BLACKLIST: [&str; 1] = ["ln/network_graph"];
 
@@ -40,15 +39,18 @@ impl DBBackupSubscriber {
     }
 
     pub fn back_up(&self) -> Result<()> {
-        let db_backup = db::back_up()?;
-        tracing::debug!("Successfully created backup of database! Uploading snapshot!");
-        let value = fs::read(db_backup)?;
-        spawn_blocking({
+        let runtime = crate::state::get_or_create_tokio_runtime()?;
+        runtime.spawn_blocking({
             let client = self.client.clone();
             move || {
+                let db_backup = db::back_up()?;
+                tracing::debug!("Successfully created backup of database! Uploading snapshot!");
+                let value = fs::read(db_backup)?;
                 client
                     .backup(format!("{DB_BACKUP_KEY}/{DB_BACKUP_NAME}"), value)
-                    .forget()
+                    .forget();
+
+                anyhow::Ok(())
             }
         });
 
