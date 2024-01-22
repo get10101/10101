@@ -156,13 +156,14 @@ impl Position {
             self.coordinator_leverage,
         );
 
+        let coordinator_direction = self.direction.opposite();
         calculate_coordinator_settlement_amount(
             opening_price,
             closing_price,
             self.quantity,
             leverage_long,
             leverage_short,
-            self.direction,
+            coordinator_direction,
         )
     }
 
@@ -436,6 +437,105 @@ mod tests {
     use super::*;
     use rust_decimal_macros::dec;
     use std::str::FromStr;
+
+    #[test]
+    fn position_calculate_coordinator_settlement_amount() {
+        let position = Position {
+            id: 0,
+            contract_symbol: ContractSymbol::BtcUsd,
+            trader_leverage: 2.0,
+            quantity: 100.0,
+            direction: Direction::Long,
+            average_entry_price: 40_000.0,
+            liquidation_price: 20_000.0,
+            position_state: PositionState::Open,
+            coordinator_margin: 125_000,
+            creation_timestamp: OffsetDateTime::now_utc(),
+            expiry_timestamp: OffsetDateTime::now_utc(),
+            update_timestamp: OffsetDateTime::now_utc(),
+            trader: PublicKey::from_str(
+                "02bd998ebd176715fe92b7467cf6b1df8023950a4dd911db4c94dfc89cc9f5a655",
+            )
+            .unwrap(),
+            coordinator_leverage: 2.0,
+            temporary_contract_id: None,
+            closing_price: None,
+            trader_margin: 125_000,
+            stable: false,
+        };
+
+        let coordinator_settlement_amount = position
+            .calculate_coordinator_settlement_amount(dec!(39_000))
+            .unwrap();
+
+        assert_eq!(coordinator_settlement_amount, 132_179);
+    }
+
+    #[test]
+    fn position_calculate_coordinator_settlement_amount_trader_leverage_3() {
+        let position = Position {
+            id: 0,
+            contract_symbol: ContractSymbol::BtcUsd,
+            trader_leverage: 3.0,
+            quantity: 100.0,
+            direction: Direction::Long,
+            average_entry_price: 40_000.0,
+            liquidation_price: 20_000.0,
+            position_state: PositionState::Open,
+            coordinator_margin: 125_000,
+            creation_timestamp: OffsetDateTime::now_utc(),
+            expiry_timestamp: OffsetDateTime::now_utc(),
+            update_timestamp: OffsetDateTime::now_utc(),
+            trader: PublicKey::from_str(
+                "02bd998ebd176715fe92b7467cf6b1df8023950a4dd911db4c94dfc89cc9f5a655",
+            )
+            .unwrap(),
+            coordinator_leverage: 2.0,
+            temporary_contract_id: None,
+            closing_price: None,
+            trader_margin: 125_000,
+            stable: false,
+        };
+
+        let coordinator_settlement_amount = position
+            .calculate_coordinator_settlement_amount(dec!(39_000))
+            .unwrap();
+
+        assert_eq!(coordinator_settlement_amount, 132_179);
+    }
+
+    #[test]
+    fn position_calculate_coordinator_settlement_amount_coordinator_leverage_3() {
+        let position = Position {
+            id: 0,
+            contract_symbol: ContractSymbol::BtcUsd,
+            trader_leverage: 2.0,
+            quantity: 100.0,
+            direction: Direction::Long,
+            average_entry_price: 40_000.0,
+            liquidation_price: 20_000.0,
+            position_state: PositionState::Open,
+            coordinator_margin: 125_000,
+            creation_timestamp: OffsetDateTime::now_utc(),
+            expiry_timestamp: OffsetDateTime::now_utc(),
+            update_timestamp: OffsetDateTime::now_utc(),
+            trader: PublicKey::from_str(
+                "02bd998ebd176715fe92b7467cf6b1df8023950a4dd911db4c94dfc89cc9f5a655",
+            )
+            .unwrap(),
+            coordinator_leverage: 3.0,
+            temporary_contract_id: None,
+            closing_price: None,
+            trader_margin: 125_000,
+            stable: false,
+        };
+
+        let coordinator_settlement_amount = position
+            .calculate_coordinator_settlement_amount(dec!(39_000))
+            .unwrap();
+
+        assert_eq!(coordinator_settlement_amount, 90_512);
+    }
 
     // Basic sanity tests. Verify the effect of the price moving on the computed settlement amount.
 
