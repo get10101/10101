@@ -5,9 +5,9 @@ use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::response::Response;
 use axum::Json;
-use native::api;
 use native::api::Fee;
 use native::api::SendPayment;
+use native::api::WalletHistoryItemType;
 use native::ln_dlc;
 use serde::Deserialize;
 use serde::Serialize;
@@ -46,7 +46,7 @@ pub async fn version() -> Json<Version> {
 }
 
 pub async fn get_unused_address() -> impl IntoResponse {
-    api::get_unused_address().0
+    ln_dlc::get_unused_address()
 }
 
 #[derive(Serialize)]
@@ -71,6 +71,47 @@ pub async fn get_balance(
         });
 
     Ok(Json(balance))
+}
+
+#[derive(Serialize)]
+pub struct OnChainPayment {
+    flow: String,
+    amount: u64,
+    timestamp: u64,
+    txid: String,
+    confirmations: u64,
+    fee: Option<u64>,
+}
+
+pub async fn get_onchain_payment_history(
+    State(subscribers): State<Arc<AppSubscribers>>,
+) -> Result<Json<Vec<OnChainPayment>>, AppError> {
+    ln_dlc::refresh_wallet_info().await?;
+
+    let history = match subscribers.wallet_info() {
+        Some(wallet_info) => wallet_info
+            .history
+            .into_iter()
+            .filter_map(|item| match item.wallet_type {
+                WalletHistoryItemType::OnChain {
+                    txid,
+                    fee_sats,
+                    confirmations,
+                } => Some(OnChainPayment {
+                    flow: item.flow.to_string(),
+                    amount: item.amount_sats,
+                    timestamp: item.timestamp,
+                    txid,
+                    confirmations,
+                    fee: fee_sats,
+                }),
+                _ => None,
+            })
+            .collect::<Vec<OnChainPayment>>(),
+        None => vec![],
+    };
+
+    Ok(Json(history))
 }
 
 #[derive(Deserialize)]

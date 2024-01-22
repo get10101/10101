@@ -42,6 +42,7 @@ use ln_dlc_node::channel::UserChannelId;
 use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::Decimal;
 use std::backtrace::Backtrace;
+use std::fmt;
 use std::path::PathBuf;
 use time::OffsetDateTime;
 use tokio::sync::broadcast;
@@ -152,6 +153,15 @@ pub enum PaymentFlow {
     #[default]
     Inbound,
     Outbound,
+}
+
+impl fmt::Display for PaymentFlow {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            PaymentFlow::Inbound => write!(f, "inbound"),
+            PaymentFlow::Outbound => write!(f, "outbound"),
+        }
+    }
 }
 
 #[derive(Clone, Debug, Default)]

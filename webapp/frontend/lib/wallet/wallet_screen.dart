@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:get_10101/common/color.dart';
+import 'package:get_10101/wallet/history_screen.dart';
 import 'package:get_10101/wallet/receive_screen.dart';
 import 'package:get_10101/wallet/send_screen.dart';
 
@@ -14,7 +15,7 @@ class WalletScreen extends StatefulWidget {
 }
 
 class _WalletScreenState extends State<WalletScreen> with SingleTickerProviderStateMixin {
-  late final _tabController = TabController(length: 2, vsync: this);
+  late final _tabController = TabController(length: 3, vsync: this);
 
   @override
   Widget build(BuildContext context) {
@@ -28,6 +29,15 @@ class _WalletScreenState extends State<WalletScreen> with SingleTickerProviderSt
             unselectedLabelColor: Colors.black,
             labelColor: tenTenOnePurple,
             tabs: const [
+              Tab(
+                  child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(FontAwesomeIcons.clockRotateLeft, size: 20),
+                  SizedBox(width: 10),
+                  Text("History")
+                ],
+              )),
               Tab(
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -55,7 +65,7 @@ class _WalletScreenState extends State<WalletScreen> with SingleTickerProviderSt
           Expanded(
             child: TabBarView(
               controller: _tabController,
-              children: const [ReceiveScreen(), SendScreen()],
+              children: const [HistoryScreen(), ReceiveScreen(), SendScreen()],
             ),
           ),
         ],
