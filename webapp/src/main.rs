@@ -1,19 +1,13 @@
 mod api;
+mod auth;
 mod cli;
 mod logger;
+mod session;
 mod subscribers;
 
-use crate::api::get_balance;
-use crate::api::get_best_quote;
-use crate::api::get_node_id;
-use crate::api::get_onchain_payment_history;
-use crate::api::get_positions;
-use crate::api::get_seed_phrase;
-use crate::api::get_unused_address;
-use crate::api::post_new_order;
-use crate::api::send_payment;
-use crate::api::version;
+use crate::auth::Backend;
 use crate::cli::Opts;
+use crate::session::InMemorySessionStore;
 use crate::subscribers::AppSubscribers;
 use anyhow::Context;
 use anyhow::Result;
@@ -25,8 +19,12 @@ use axum::response::Html;
 use axum::response::IntoResponse;
 use axum::response::Response;
 use axum::routing::get;
-use axum::routing::post;
 use axum::Router;
+use axum_login::login_required;
+use axum_login::tower_sessions::Expiry;
+use axum_login::tower_sessions::SessionManagerLayer;
+use axum_login::AuthManagerLayerBuilder;
+use axum_server::tls_rustls::RustlsConfig;
 use bitcoin::Network;
 use rust_embed::RustEmbed;
 use std::net::SocketAddr;
@@ -54,13 +52,18 @@ async fn main() -> Result<()> {
     let data_dir = data_dir.clone().to_string_lossy().to_string();
     tracing::info!("Data-dir: {data_dir:?}");
 
+    let cert_dir = opts.cert_dir()?;
+    tracing::info!("Cert-dir: {cert_dir:?}");
+
     let coordinator_endpoint = opts.coordinator_endpoint()?;
     let coordinator_p2p_port = opts.coordinator_p2p_port()?;
     let coordinator_pubkey = opts.coordinator_pubkey()?;
     let oracle_endpoint = opts.oracle_endpoint()?;
     let oracle_pubkey = opts.oracle_pubkey()?;
+    let password = opts.password();
     let coordinator_http_port = opts.coordinator_http_port;
     let esplora_endpoint = opts.esplora;
+    let secure = opts.secure;
 
     let config = native::config::api::Config {
         coordinator_pubkey,
@@ -87,24 +90,58 @@ async fn main() -> Result<()> {
     let (rx, tx) = AppSubscribers::new().await;
     native::event::subscribe(tx);
 
-    serve(using_serve_dir(Arc::new(rx), network), 3001).await?;
+    // configure certificate and private key used by https
+    let config =
+        RustlsConfig::from_pem_file(cert_dir.join("cert.pem"), cert_dir.join("key.pem")).await?;
+
+    let session_store = InMemorySessionStore::new();
+    let deletion_task = tokio::task::spawn(
+        session_store
+            .clone()
+            .continuously_delete_expired(Duration::from_secs(60)),
+    );
+
+    let session_layer = SessionManagerLayer::new(session_store.clone())
+        .with_secure(matches!(network, Network::Bitcoin))
+        .with_expiry(Expiry::OnInactivity(time::Duration::hours(1)));
+
+    let auth_layer = AuthManagerLayerBuilder::new(
+        Backend {
+            hashed_password: password,
+        },
+        session_layer,
+    )
+    .build();
+
+    let app = api::router(Arc::new(rx))
+        .route_layer(login_required!(Backend))
+        .merge(auth::router())
+        .merge(router(network))
+        .layer(auth_layer);
+
+    // run https server
+    let addr = SocketAddr::from(([0, 0, 0, 0], 3001));
+    tracing::debug!("listening on {}", addr);
+    match secure {
+        false => {
+            let listener = tokio::net::TcpListener::bind(addr).await?;
+            axum::serve(listener, app.into_make_service()).await
+        }
+        true => {
+            axum_server::bind_rustls(addr, config)
+                .serve(app.into_make_service())
+                .await
+        }
+    }?;
+
+    deletion_task.await??;
 
     Ok(())
 }
 
-fn using_serve_dir(subscribers: Arc<AppSubscribers>, network: Network) -> Router {
+fn router(network: Network) -> Router {
     let router = Router::new()
         .route("/", get(index_handler))
-        .route("/api/version", get(version))
-        .route("/api/balance", get(get_balance))
-        .route("/api/newaddress", get(get_unused_address))
-        .route("/api/sendpayment", post(send_payment))
-        .route("/api/history", get(get_onchain_payment_history))
-        .route("/api/orders", post(post_new_order))
-        .route("/api/positions", get(get_positions))
-        .route("/api/quotes/:contract_symbol", get(get_best_quote))
-        .route("/api/node", get(get_node_id))
-        .route("/api/seed", get(get_seed_phrase))
         .route("/main.dart.js", get(main_dart_handler))
         .route("/flutter.js", get(flutter_js))
         .route("/index.html", get(index_handler))
@@ -127,16 +164,12 @@ fn using_serve_dir(subscribers: Arc<AppSubscribers>, network: Network) -> Router
                         tracing::error!("something went wrong : {error:#}")
                     },
                 ),
-        )
-        .with_state(subscribers);
+        );
 
-    if matches!(
-        network,
-        Network::Regtest | Network::Signet | Network::Testnet
-    ) {
-        router.layer(CorsLayer::permissive())
-    } else {
+    if matches!(network, Network::Bitcoin) {
         router
+    } else {
+        router.layer(CorsLayer::very_permissive())
     }
 }
 
@@ -191,12 +224,4 @@ where
             None => (StatusCode::NOT_FOUND, "404 Not Found").into_response(),
         }
     }
-}
-
-async fn serve(app: Router, port: u16) -> Result<()> {
-    let addr = SocketAddr::from(([0, 0, 0, 0], port));
-    let listener = tokio::net::TcpListener::bind(addr).await?;
-    tracing::debug!("listening on {}", listener.local_addr()?);
-    axum::serve(listener, app).await?;
-    Ok(())
 }

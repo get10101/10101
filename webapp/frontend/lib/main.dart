@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:get_10101/auth/auth_service.dart';
 import 'package:get_10101/common/version_service.dart';
 import 'package:get_10101/logger/logger.dart';
 import 'package:get_10101/routes.dart';
@@ -19,7 +20,9 @@ void main() {
     Provider(create: (context) => const VersionService()),
     Provider(create: (context) => const WalletService()),
     Provider(create: (context) => const QuoteService()),
-    Provider(create: (context) => const SettingsService())
+    Provider(create: (context) => const SettingsService()),
+    Provider(create: (context) => const WalletService()),
+    Provider(create: (context) => AuthService())
   ];
   runApp(MultiProvider(providers: providers, child: const TenTenOneApp()));
 }
@@ -34,11 +37,6 @@ class TenTenOneApp extends StatefulWidget {
 class _TenTenOneAppState extends State<TenTenOneApp> {
   final GlobalKey<ScaffoldMessengerState> scaffoldMessengerKey =
       GlobalKey<ScaffoldMessengerState>();
-
-  @override
-  void initState() {
-    super.initState();
-  }
 
   @override
   Widget build(BuildContext context) {

@@ -5,7 +5,6 @@ import 'package:get_10101/common/amount_text_input_form_field.dart';
 import 'package:get_10101/common/model.dart';
 import 'package:get_10101/common/snack_bar.dart';
 import 'package:get_10101/common/theme.dart';
-import 'package:get_10101/logger/logger.dart';
 import 'package:get_10101/trade/new_order_service.dart';
 import 'package:get_10101/trade/orderbook_service.dart';
 import 'package:provider/provider.dart';

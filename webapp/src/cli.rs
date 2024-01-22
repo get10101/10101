@@ -1,6 +1,10 @@
 use anyhow::ensure;
 use anyhow::Result;
+use bitcoin::hashes::hex::ToHex;
 use clap::Parser;
+use sha2::digest::FixedOutput;
+use sha2::Digest;
+use sha2::Sha256;
 use std::env::current_dir;
 use std::path::PathBuf;
 use std::str::FromStr;
@@ -33,6 +37,16 @@ pub struct Opts {
         default_value = "16f88cf7d21e6c0f46bcbc983a4e3b19726c6c98858cc31c83551a88fde171c0@http://127.0.0.1:8081"
     )]
     oracle: String,
+
+    /// Where to find the cert and key pem files
+    #[clap(long)]
+    cert_dir: Option<PathBuf>,
+
+    #[clap(long, default_value = "satoshi")]
+    password: String,
+
+    #[clap(long)]
+    pub secure: bool,
 }
 
 #[derive(Debug, Clone, Copy, clap::ValueEnum)]
@@ -64,6 +78,12 @@ impl Opts {
         self.network.into()
     }
 
+    pub fn password(&self) -> String {
+        let mut hasher = Sha256::new();
+        hasher.update(self.password.as_bytes());
+        hasher.finalize_fixed().to_hex()
+    }
+
     pub fn data_dir(&self) -> Result<PathBuf> {
         let data_dir = match self.data_dir.clone() {
             None => current_dir()?.join("data"),
@@ -72,6 +92,15 @@ impl Opts {
         .join("webapp");
 
         Ok(data_dir)
+    }
+
+    pub fn cert_dir(&self) -> Result<PathBuf> {
+        let cert_dir = match self.cert_dir.clone() {
+            None => current_dir()?.join("webapp/certs"),
+            Some(path) => path,
+        };
+
+        Ok(cert_dir)
     }
 
     pub fn coordinator_pubkey(&self) -> Result<String> {

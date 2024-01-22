@@ -1,9 +1,6 @@
-import 'package:decimal/decimal.dart';
 import 'package:get_10101/common/http_client.dart';
 import 'package:get_10101/common/model.dart';
 import 'dart:convert';
-
-import 'package:get_10101/logger/logger.dart';
 
 class BestQuote {
   Price? bid;

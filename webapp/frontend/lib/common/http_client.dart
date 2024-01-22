@@ -1,13 +1,15 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
+import 'package:http/browser_client.dart';
 import 'package:http/http.dart';
 
 class HttpClientManager {
-  static final CustomHttpClient _httpClient = CustomHttpClient(Client(), true);
+  static final CustomHttpClient _httpClient = CustomHttpClient(Client(), kDebugMode);
 
   static CustomHttpClient get instance => _httpClient;
 }
 
-class CustomHttpClient extends BaseClient {
+class CustomHttpClient extends BrowserClient {
   // TODO: this should come from the settings
 
   // if this is true, we assume the website is running in dev mode and need to add _host:_port to be able to do http calls
@@ -18,8 +20,11 @@ class CustomHttpClient extends BaseClient {
 
   final Client _inner;
 
-  CustomHttpClient(this._inner, this._dev);
+  CustomHttpClient(this._inner, this._dev) {
+    super.withCredentials = true;
+  }
 
+  @override
   Future<StreamedResponse> send(BaseRequest request) {
     return _inner.send(request);
   }

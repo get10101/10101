@@ -82,53 +82,51 @@ class OpenPositionTable extends StatelessWidget {
   }
 
   Widget buildTable(List<Position> positions) {
-    return Container(
-      child: Table(
-        border: TableBorder.symmetric(inside: const BorderSide(width: 2, color: Colors.black)),
-        defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-        columnWidths: const {
-          0: MinColumnWidth(FixedColumnWidth(100.0), FractionColumnWidth(0.1)),
-          1: MinColumnWidth(FixedColumnWidth(100.0), FractionColumnWidth(0.1)),
-          2: MinColumnWidth(FixedColumnWidth(100.0), FractionColumnWidth(0.1)),
-          3: MinColumnWidth(FixedColumnWidth(150.0), FractionColumnWidth(0.1)),
-          4: MinColumnWidth(FixedColumnWidth(100.0), FractionColumnWidth(0.1)),
-          5: MinColumnWidth(FixedColumnWidth(100.0), FractionColumnWidth(0.1)),
-          6: MinColumnWidth(FixedColumnWidth(200.0), FractionColumnWidth(0.2)),
-        },
-        children: [
-          TableRow(
-            decoration: BoxDecoration(
-              color: tenTenOnePurple.shade300,
-              border: Border.all(
-                width: 1,
-              ),
-              borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(10), topRight: Radius.circular(10)),
+    return Table(
+      border: TableBorder.symmetric(inside: const BorderSide(width: 2, color: Colors.black)),
+      defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+      columnWidths: const {
+        0: MinColumnWidth(FixedColumnWidth(100.0), FractionColumnWidth(0.1)),
+        1: MinColumnWidth(FixedColumnWidth(100.0), FractionColumnWidth(0.1)),
+        2: MinColumnWidth(FixedColumnWidth(100.0), FractionColumnWidth(0.1)),
+        3: MinColumnWidth(FixedColumnWidth(150.0), FractionColumnWidth(0.1)),
+        4: MinColumnWidth(FixedColumnWidth(100.0), FractionColumnWidth(0.1)),
+        5: MinColumnWidth(FixedColumnWidth(100.0), FractionColumnWidth(0.1)),
+        6: MinColumnWidth(FixedColumnWidth(200.0), FractionColumnWidth(0.2)),
+      },
+      children: [
+        TableRow(
+          decoration: BoxDecoration(
+            color: tenTenOnePurple.shade300,
+            border: Border.all(
+              width: 1,
             ),
+            borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(10), topRight: Radius.circular(10)),
+          ),
+          children: [
+            buildHeaderCell('Quantity'),
+            buildHeaderCell('Entry Price'),
+            buildHeaderCell('Liquidation Price'),
+            buildHeaderCell('Margin'),
+            buildHeaderCell('Leverage'),
+            buildHeaderCell('Unrealized PnL'),
+            buildHeaderCell('Expiry'),
+          ],
+        ),
+        for (var position in positions)
+          TableRow(
             children: [
-              buildHeaderCell('Quantity'),
-              buildHeaderCell('Entry Price'),
-              buildHeaderCell('Liquidation Price'),
-              buildHeaderCell('Margin'),
-              buildHeaderCell('Leverage'),
-              buildHeaderCell('Unrealized PnL'),
-              buildHeaderCell('Expiry'),
+              buildTableCell(position.quantity.toString()),
+              buildTableCell(position.averageEntryPrice.toString()),
+              buildTableCell(position.liquidationPrice.toString()),
+              buildTableCell(position.collateral.toString()),
+              buildTableCell(position.leverage.formatted()),
+              buildTableCell(position.pnlSats.toString()),
+              buildTableCell("${DateFormat('dd-MM-yyyy – HH:mm').format(position.expiry)} CET"),
             ],
           ),
-          for (var position in positions)
-            TableRow(
-              children: [
-                buildTableCell(position.quantity.toString()),
-                buildTableCell(position.averageEntryPrice.toString()),
-                buildTableCell(position.liquidationPrice.toString()),
-                buildTableCell(position.collateral.toString()),
-                buildTableCell(position.leverage.formatted()),
-                buildTableCell(position.pnlSats.toString()),
-                buildTableCell("${DateFormat('dd-MM-yyyy – HH:mm').format(position.expiry)} CET"),
-              ],
-            ),
-        ],
-      ),
+      ],
     );
   }
 
