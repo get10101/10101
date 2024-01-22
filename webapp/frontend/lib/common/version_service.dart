@@ -1,5 +1,5 @@
-import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:get_10101/common/http_client.dart';
 
 class Version {
   final String version;
@@ -21,12 +21,8 @@ class VersionService {
   const VersionService();
 
   Future<String> fetchVersion() async {
-    // TODO(holzeis): this should come from the config
-    const port = "3001";
-    const host = "localhost";
-
     try {
-      final response = await http.get(Uri.http('$host:$port', '/api/version'));
+      final response = await HttpClientManager.instance.get(Uri(path: '/api/version'));
 
       if (response.statusCode == 200) {
         return Version.fromJson(jsonDecode(response.body) as Map<String, dynamic>).version;
