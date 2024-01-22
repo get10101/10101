@@ -21,8 +21,22 @@ class _TradeScreenState extends State<TradeScreen> with SingleTickerProviderStat
 
   @override
   Widget build(BuildContext context) {
+    return NewOrderWidget(tabController: _tabController);
+  }
+}
+
+class NewOrderWidget extends StatelessWidget {
+  const NewOrderWidget({
+    super.key,
+    required TabController tabController,
+  }) : _tabController = tabController;
+
+  final TabController _tabController;
+
+  @override
+  Widget build(BuildContext context) {
     return SizedBox(
-      width: 500,
+      width: 300,
       child: Column(
         mainAxisAlignment: MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.center,
