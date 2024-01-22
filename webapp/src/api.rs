@@ -14,6 +14,8 @@ use native::api::WalletHistoryItemType;
 use native::ln_dlc;
 use native::trade::order::OrderState;
 use native::trade::order::OrderType;
+use native::trade::position;
+use native::trade::position::Position;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use serde::Deserialize;
@@ -193,4 +195,12 @@ pub async fn post_new_order(params: Json<NewOrderParams>) -> Result<Json<OrderId
     .await?;
 
     Ok(Json(OrderId { id: order_id }))
+}
+
+pub async fn get_positions() -> Result<Json<Vec<Position>>, AppError> {
+    let positions = position::handler::get_positions()?
+        .into_iter()
+        .collect::<Vec<Position>>();
+
+    Ok(Json(positions))
 }

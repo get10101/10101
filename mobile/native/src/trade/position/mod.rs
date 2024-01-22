@@ -14,6 +14,7 @@ use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use rust_decimal::RoundingStrategy;
+use serde::Serialize;
 use time::OffsetDateTime;
 use trade::ContractSymbol;
 use trade::Direction;
@@ -21,7 +22,7 @@ use trade::Direction;
 pub mod api;
 pub mod handler;
 
-#[derive(Debug, Clone, PartialEq, Copy)]
+#[derive(Debug, Clone, PartialEq, Copy, Serialize)]
 pub enum PositionState {
     /// The position is open
     ///
@@ -57,7 +58,7 @@ pub enum PositionState {
     Resizing,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct Position {
     pub leverage: f32,
     pub quantity: f32,
@@ -67,8 +68,11 @@ pub struct Position {
     pub liquidation_price: f32,
     pub position_state: PositionState,
     pub collateral: u64,
+    #[serde(with = "time::serde::rfc3339")]
     pub expiry: OffsetDateTime,
+    #[serde(with = "time::serde::rfc3339")]
     pub updated: OffsetDateTime,
+    #[serde(with = "time::serde::rfc3339")]
     pub created: OffsetDateTime,
     pub stable: bool,
 }

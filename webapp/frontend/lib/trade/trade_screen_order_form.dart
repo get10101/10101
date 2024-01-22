@@ -5,7 +5,6 @@ import 'package:get_10101/common/amount_text_input_form_field.dart';
 import 'package:get_10101/common/model.dart';
 import 'package:get_10101/common/snack_bar.dart';
 import 'package:get_10101/common/theme.dart';
-import 'package:get_10101/logger/logger.dart';
 import 'package:get_10101/trade/new_order_service.dart';
 
 class NewOrderForm extends StatefulWidget {
@@ -78,7 +77,7 @@ class _NewOrderForm extends State<NewOrderForm> {
             label: "Leverage",
             textAlign: TextAlign.right,
             onChanged: (leverage) => setState(() {
-              _leverage = Leverage(int.parse(leverage));
+              _leverage = Leverage(double.parse(leverage));
               updateOrderValues();
             }),
           ),

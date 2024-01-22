@@ -79,8 +79,8 @@ class Amount implements Formattable {
 class Usd implements Formattable {
   Decimal _usd = Decimal.zero;
 
-  Usd(int usd) {
-    _usd = Decimal.fromInt(usd);
+  Usd(double usd) {
+    _usd = Decimal.parse(usd.toString());
   }
 
   int get usd => _usd.toBigInt().toInt();
@@ -170,15 +170,13 @@ class Price implements Formattable {
 }
 
 class Leverage implements Formattable {
-  int _leverage = 1;
+  double _leverage = 1;
 
-  Leverage.one() : _leverage = 1;
+  Leverage.one() : _leverage = 1.0;
 
-  int get toInt => _leverage;
+  double get asDouble => _leverage;
 
-  double get asDouble => _leverage as double;
-
-  Leverage(int leverage) {
+  Leverage(double leverage) {
     _leverage = leverage;
   }
 

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get_10101/common/color.dart';
+import 'package:get_10101/trade/order_and_position_table.dart';
 import 'package:get_10101/trade/trade_screen_order_form.dart';
 
 class TradeScreen extends StatefulWidget {
@@ -21,7 +22,9 @@ class _TradeScreenState extends State<TradeScreen> with SingleTickerProviderStat
 
   @override
   Widget build(BuildContext context) {
-    return NewOrderWidget(tabController: _tabController);
+    return ListView(
+      children: [NewOrderWidget(tabController: _tabController), OrderAndPositionTable()],
+    );
   }
 }
 
@@ -35,13 +38,13 @@ class NewOrderWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: 300,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.start,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: <Widget>[
-          TabBar(
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: <Widget>[
+        SizedBox(
+          width: 300,
+          child: TabBar(
             unselectedLabelColor: Colors.black,
             labelColor: tenTenOnePurple,
             controller: _tabController,
@@ -54,19 +57,21 @@ class NewOrderWidget extends StatelessWidget {
               ),
             ],
           ),
-          Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: <Widget>[
-                NewOrderForm(isLong: true),
-                NewOrderForm(
-                  isLong: false,
-                )
-              ],
-            ),
+        ),
+        SizedBox(
+          height: 400,
+          width: 300,
+          child: TabBarView(
+            controller: _tabController,
+            children: <Widget>[
+              NewOrderForm(isLong: true),
+              NewOrderForm(
+                isLong: false,
+              )
+            ],
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
