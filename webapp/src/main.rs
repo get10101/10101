@@ -22,6 +22,7 @@ use axum::response::Response;
 use axum::routing::get;
 use axum::routing::post;
 use axum::Router;
+use axum_server::tls_rustls::RustlsConfig;
 use bitcoin::Network;
 use rust_embed::RustEmbed;
 use std::net::SocketAddr;
@@ -48,6 +49,9 @@ async fn main() -> Result<()> {
     }
     let data_dir = data_dir.clone().to_string_lossy().to_string();
     tracing::info!("Data-dir: {data_dir:?}");
+
+    let cert_dir = opts.cert_dir()?;
+    tracing::info!("Cert-dir: {cert_dir:?}");
 
     let coordinator_endpoint = opts.coordinator_endpoint()?;
     let coordinator_p2p_port = opts.coordinator_p2p_port()?;
@@ -82,12 +86,23 @@ async fn main() -> Result<()> {
     let (rx, tx) = AppSubscribers::new().await;
     native::event::subscribe(tx);
 
-    serve(using_serve_dir(Arc::new(rx), network), 3001).await?;
+    // configure certificate and private key used by https
+    let config =
+        RustlsConfig::from_pem_file(cert_dir.join("cert.pem"), cert_dir.join("key.pem")).await?;
+
+    let app = router(Arc::new(rx), network);
+
+    // run https server
+    let addr = SocketAddr::from(([0, 0, 0, 0], 3001));
+    tracing::debug!("listening on {}", addr);
+    axum_server::bind_rustls(addr, config)
+        .serve(app.into_make_service())
+        .await?;
 
     Ok(())
 }
 
-fn using_serve_dir(subscribers: Arc<AppSubscribers>, network: Network) -> Router {
+fn router(subscribers: Arc<AppSubscribers>, network: Network) -> Router {
     let router = Router::new()
         .route("/", get(index_handler))
         .route("/api/version", get(version))
@@ -181,12 +196,4 @@ where
             None => (StatusCode::NOT_FOUND, "404 Not Found").into_response(),
         }
     }
-}
-
-async fn serve(app: Router, port: u16) -> Result<()> {
-    let addr = SocketAddr::from(([0, 0, 0, 0], port));
-    let listener = tokio::net::TcpListener::bind(addr).await?;
-    tracing::debug!("listening on {}", listener.local_addr()?);
-    axum::serve(listener, app).await?;
-    Ok(())
 }

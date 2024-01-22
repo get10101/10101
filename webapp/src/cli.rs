@@ -33,6 +33,10 @@ pub struct Opts {
         default_value = "16f88cf7d21e6c0f46bcbc983a4e3b19726c6c98858cc31c83551a88fde171c0@http://127.0.0.1:8081"
     )]
     oracle: String,
+
+    /// Where to find the cert and key pem files
+    #[clap(long)]
+    cert_dir: Option<PathBuf>,
 }
 
 #[derive(Debug, Clone, Copy, clap::ValueEnum)]
@@ -72,6 +76,15 @@ impl Opts {
         .join("webapp");
 
         Ok(data_dir)
+    }
+
+    pub fn cert_dir(&self) -> Result<PathBuf> {
+        let cert_dir = match self.cert_dir.clone() {
+            None => current_dir()?.join("webapp/certs"),
+            Some(path) => path,
+        };
+
+        Ok(cert_dir)
     }
 
     pub fn coordinator_pubkey(&self) -> Result<String> {

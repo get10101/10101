@@ -26,7 +26,7 @@ class VersionService {
     const host = "localhost";
 
     try {
-      final response = await http.get(Uri.http('$host:$port', '/api/version'));
+      final response = await http.get(Uri.https('$host:$port', '/api/version'));
 
       if (response.statusCode == 200) {
         return Version.fromJson(jsonDecode(response.body) as Map<String, dynamic>).version;

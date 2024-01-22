@@ -16,9 +16,9 @@ flutter build web
 ## Run the rust app
 
 ```bash
-cargo run
+cargo run - --cert-dir certs --data-dir ../data
 ```
 
-The webinterface will be reachable under `http://localhost:3001`
+The webinterface will be reachable under `https://localhost:3001`
 
 Note: if you can't see anything, you probably forgot to run `flutter build web` before

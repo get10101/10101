@@ -15,7 +15,7 @@ class WalletService {
     const host = "localhost";
 
     try {
-      final response = await http.get(Uri.http('$host:$port', '/api/balance'));
+      final response = await http.get(Uri.https('$host:$port', '/api/balance'));
 
       if (response.statusCode == 200) {
         return Balance.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
@@ -33,7 +33,7 @@ class WalletService {
     const host = "localhost";
 
     try {
-      final response = await http.get(Uri.http('$host:$port', '/api/newaddress'));
+      final response = await http.get(Uri.https('$host:$port', '/api/newaddress'));
 
       if (response.statusCode == 200) {
         return response.body;
@@ -51,7 +51,7 @@ class WalletService {
     const host = "localhost";
 
     try {
-      final response = await http.post(Uri.http('$host:$port', '/api/sendpayment'),
+      final response = await http.post(Uri.https('$host:$port', '/api/sendpayment'),
           headers: <String, String>{
             'Content-Type': 'application/json; charset=UTF-8',
           },
@@ -72,7 +72,7 @@ class WalletService {
     const host = "localhost";
 
     try {
-      final response = await http.get(Uri.http('$host:$port', '/api/history'));
+      final response = await http.get(Uri.https('$host:$port', '/api/history'));
 
       if (response.statusCode == 200) {
         List<OnChainPayment> history = [];
