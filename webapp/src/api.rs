@@ -5,7 +5,6 @@ use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::response::Response;
 use axum::Json;
-use native::api;
 use native::api::Fee;
 use native::api::SendPayment;
 use native::api::WalletHistoryItemType;
@@ -47,7 +46,7 @@ pub async fn version() -> Json<Version> {
 }
 
 pub async fn get_unused_address() -> impl IntoResponse {
-    api::get_unused_address().0
+    ln_dlc::get_unused_address()
 }
 
 #[derive(Serialize)]
