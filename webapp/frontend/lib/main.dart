@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get_10101/common/version_service.dart';
+import 'package:get_10101/logger/logger.dart';
 import 'package:get_10101/routes.dart';
 import 'package:get_10101/wallet/wallet_service.dart';
 import 'package:provider/provider.dart';
@@ -8,6 +9,10 @@ import 'common/color.dart';
 import 'common/theme.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  buildLogger(false);
+  logger.i("Logger initialized");
+
   var providers = [
     Provider(create: (context) => const VersionService()),
     Provider(create: (context) => const WalletService())
