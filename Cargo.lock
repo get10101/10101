@@ -463,7 +463,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_urlencoded",
- "time 0.3.20",
+ "time",
  "tokio",
  "uuid",
 ]
@@ -625,16 +625,15 @@ checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
 name = "chrono"
-version = "0.4.29"
+version = "0.4.31"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d87d9d13be47a5b7c3907137f1290b0459a7f80efb26be8c52afb11963bccb02"
+checksum = "7f2c685bad3eb3d45a01354cedb7d5faa66194d1d58ba6e267a8de788f79db38"
 dependencies = [
  "android-tzdata",
  "iana-time-zone",
  "js-sys",
  "num-traits",
  "serde",
- "time 0.1.45",
  "wasm-bindgen",
  "windows-targets 0.48.0",
 ]
@@ -711,7 +710,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
- "time 0.3.20",
+ "time",
  "tokio-tungstenite",
  "trade",
  "uuid",
@@ -806,7 +805,7 @@ dependencies = [
  "sled",
  "testcontainers",
  "thiserror",
- "time 0.3.20",
+ "time",
  "tokio",
  "tokio-cron-scheduler",
  "tokio-metrics",
@@ -1106,7 +1105,7 @@ dependencies = [
  "pq-sys",
  "r2d2",
  "serde_json",
- "time 0.3.20",
+ "time",
  "uuid",
 ]
 
@@ -1391,7 +1390,7 @@ dependencies = [
  "commons",
  "reqwest",
  "serde",
- "time 0.3.20",
+ "time",
  "tokio",
  "tracing",
  "tracing-subscriber",
@@ -1526,7 +1525,7 @@ checksum = "c05aeb6a22b8f62540c194aac980f2115af067bfe15a0734d7277a768d396b31"
 dependencies = [
  "cfg-if",
  "libc",
- "wasi 0.11.0+wasi-snapshot-preview1",
+ "wasi",
 ]
 
 [[package]]
@@ -2166,7 +2165,7 @@ dependencies = [
  "serde",
  "serde_with 3.2.0",
  "sha2",
- "time 0.3.20",
+ "time",
  "tokio",
  "tracing",
  "tracing-log",
@@ -2274,7 +2273,7 @@ dependencies = [
  "rust_decimal_macros",
  "serde",
  "serde_json",
- "time 0.3.20",
+ "time",
  "tokio",
  "tokio-tungstenite",
  "tracing",
@@ -2402,7 +2401,7 @@ checksum = "5b9d9a46eff5b4ff64b45a9e316a6d1e0bc719ef429cbec4dc630684212bfdf9"
 dependencies = [
  "libc",
  "log",
- "wasi 0.11.0+wasi-snapshot-preview1",
+ "wasi",
  "windows-sys 0.45.0",
 ]
 
@@ -2470,7 +2469,7 @@ dependencies = [
  "serde_json",
  "state",
  "thiserror",
- "time 0.3.20",
+ "time",
  "tokio",
  "tokio-tungstenite",
  "tokio-util",
@@ -3636,7 +3635,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_with_macros 3.2.0",
- "time 0.3.20",
+ "time",
 ]
 
 [[package]]
@@ -3899,7 +3898,7 @@ dependencies = [
  "serde_json",
  "serde_urlencoded",
  "tempfile",
- "time 0.3.20",
+ "time",
  "tokio",
  "tracing",
  "tracing-subscriber",
@@ -3942,17 +3941,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d050e60b33d41c19108b32cea32164033a9013fe3b46cbd4457559bfbf77afaa"
 dependencies = [
  "num_cpus",
-]
-
-[[package]]
-name = "time"
-version = "0.1.45"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1b797afad3f312d1c66a56d11d0316f916356d11bd158fbc6ca6389ff6bf805a"
-dependencies = [
- "libc",
- "wasi 0.10.0+wasi-snapshot-preview1",
- "winapi",
 ]
 
 [[package]]
@@ -4312,7 +4300,7 @@ dependencies = [
  "sharded-slab",
  "smallvec",
  "thread_local",
- "time 0.3.20",
+ "time",
  "tracing",
  "tracing-core",
  "tracing-log",
@@ -4329,7 +4317,7 @@ dependencies = [
  "rust_decimal",
  "rust_decimal_macros",
  "serde",
- "time 0.3.20",
+ "time",
 ]
 
 [[package]]
@@ -4536,12 +4524,6 @@ dependencies = [
 
 [[package]]
 name = "wasi"
-version = "0.10.0+wasi-snapshot-preview1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1a143597ca7c7793eff794def352d41792a93c481eb1042423ff7ff72ba2c31f"
-
-[[package]]
-name = "wasi"
 version = "0.11.0+wasi-snapshot-preview1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9c8d87e72b64a3b4db28d11ce29237c246188f4f51057d65a7eab63b7987e423"
@@ -4652,7 +4634,7 @@ dependencies = [
  "rust-embed",
  "serde",
  "serde_json",
- "time 0.3.20",
+ "time",
  "tokio",
  "tower",
  "tower-http",
