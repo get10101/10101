@@ -49,11 +49,14 @@ jobs:
           updateFile: true
 
       - name: Bump coordinator Cargo.toml version
-        uses: ciiiii/toml-editor@1.0.0
+        uses: stellar/binaries@v13
         with:
-          file: "coordinator/Cargo.toml"
-          key: "package.version"
-          value: ${{ github.event.inputs.version }}
+          name: cargo-edit
+          version: 0.11.6
+      - id: set-version
+        continue-on-error: true
+        run: |
+          cargo set-version --package coordinator ${{ github.event.inputs.version }}
 
       - name: Commit changelog and manifest files
         id: make-commit

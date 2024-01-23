@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.8.0] - 2024-01-23
+
 - Chore: move telegram link into toplevel of settings so that it can be found easier
 - Feat: update coordinator API to show more details on pending channel balance
 - Feat: show dlc-channel balance instead of ln-balance in app and in coordinator's API
@@ -263,7 +265,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Self-Custodial CFD Trading based on DLC and lightning
 
-[Unreleased]: https://github.com/get10101/10101/compare/1.7.4...HEAD
+[Unreleased]: https://github.com/get10101/10101/compare/1.8.0...HEAD
+[1.8.0]: https://github.com/get10101/10101/compare/1.7.4...1.8.0
 [1.7.4]: https://github.com/get10101/10101/compare/1.7.3...1.7.4
 [1.7.3]: https://github.com/get10101/10101/compare/1.7.2...1.7.3
 [1.7.2]: https://github.com/get10101/10101/compare/1.7.1...1.7.2
