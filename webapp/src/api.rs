@@ -6,7 +6,10 @@ use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::response::Response;
+use axum::routing::get;
+use axum::routing::post;
 use axum::Json;
+use axum::Router;
 use commons::Price;
 use native::api::ContractSymbol;
 use native::api::Direction;
@@ -26,6 +29,21 @@ use serde::Serialize;
 use std::sync::Arc;
 use time::OffsetDateTime;
 use uuid::Uuid;
+
+pub fn router(subscribers: Arc<AppSubscribers>) -> Router {
+    Router::new()
+        .route("/api/version", get(version))
+        .route("/api/balance", get(get_balance))
+        .route("/api/newaddress", get(get_unused_address))
+        .route("/api/sendpayment", post(send_payment))
+        .route("/api/history", get(get_onchain_payment_history))
+        .route("/api/orders", post(post_new_order))
+        .route("/api/positions", get(get_positions))
+        .route("/api/quotes/:contract_symbol", get(get_best_quote))
+        .route("/api/node", get(get_node_id))
+        .route("/api/seed", get(get_seed_phrase))
+        .with_state(subscribers)
+}
 
 pub struct AppError(anyhow::Error);
 

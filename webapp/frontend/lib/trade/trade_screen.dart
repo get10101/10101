@@ -191,12 +191,7 @@ class NewOrderWidget extends StatelessWidget {
           width: 300,
           child: TabBarView(
             controller: _tabController,
-            children: <Widget>[
-              NewOrderForm(isLong: true),
-              NewOrderForm(
-                isLong: false,
-              )
-            ],
+            children: const <Widget>[NewOrderForm(isLong: true), NewOrderForm(isLong: false)],
           ),
         ),
       ],

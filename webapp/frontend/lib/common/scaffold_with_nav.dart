@@ -1,5 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:get_10101/auth/auth_service.dart';
+import 'package:get_10101/auth/login_screen.dart';
 import 'package:get_10101/common/balance.dart';
+import 'package:get_10101/common/snack_bar.dart';
 import 'package:get_10101/common/version_service.dart';
 import 'package:get_10101/logger/logger.dart';
 import 'package:get_10101/trade/orderbook_service.dart';
@@ -42,6 +47,11 @@ class _ScaffoldWithNestedNavigation extends State<ScaffoldWithNestedNavigation> 
   Balance balance = Balance.zero();
   BestQuote? bestQuote;
 
+  Timer? _timeout;
+
+  // sets the timeout until the user will get automatically logged out after inactivity.
+  final _inactivityTimout = const Duration(minutes: 5);
+
   void _goBranch(int index) {
     widget.navigationShell.goBranch(
       index,
@@ -67,8 +77,23 @@ class _ScaffoldWithNestedNavigation extends State<ScaffoldWithNestedNavigation> 
   }
 
   @override
+  void dispose() {
+    super.dispose();
+    _timeout?.cancel();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final navigationShell = widget.navigationShell;
+
+    final authService = context.read<AuthService>();
+
+    if (_timeout != null) _timeout!.cancel();
+    _timeout = Timer(_inactivityTimout, () {
+      logger.i("Signing out due to inactivity");
+      authService.signOut();
+      GoRouter.of(context).go(LoginScreen.route);
+    });
 
     if (showNavigationDrawer) {
       return ScaffoldWithNavigationRail(
@@ -179,33 +204,53 @@ class ScaffoldWithNavigationRail extends StatelessWidget {
                   padding: const EdgeInsets.all(25),
                   child: Row(
                     children: [
-                      TopBarItem(label: 'Latest Bid: ', value: [
-                        TextSpan(
-                          text: bestQuote?.bid?.toString(),
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        )
-                      ]),
-                      const SizedBox(width: 30),
-                      TopBarItem(label: 'Latest Ask: ', value: [
-                        TextSpan(
-                          text: bestQuote?.ask?.toString(),
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        )
-                      ]),
-                      const SizedBox(width: 30),
-                      TopBarItem(label: 'Off-chain: ', value: [
-                        TextSpan(
-                            text: balance.offChain.formatted(),
-                            style: const TextStyle(fontWeight: FontWeight.bold)),
-                        const TextSpan(text: " sats"),
-                      ]),
-                      const SizedBox(width: 30),
-                      TopBarItem(label: 'On-chain: ', value: [
-                        TextSpan(
-                            text: balance.onChain.formatted(),
-                            style: const TextStyle(fontWeight: FontWeight.bold)),
-                        const TextSpan(text: " sats"),
-                      ]),
+                      Row(
+                        children: [
+                          TopBarItem(label: 'Latest Bid: ', value: [
+                            TextSpan(
+                              text: bestQuote?.bid?.toString(),
+                              style: const TextStyle(fontWeight: FontWeight.bold),
+                            )
+                          ]),
+                          const SizedBox(width: 30),
+                          TopBarItem(label: 'Latest Ask: ', value: [
+                            TextSpan(
+                              text: bestQuote?.ask?.toString(),
+                              style: const TextStyle(fontWeight: FontWeight.bold),
+                            )
+                          ]),
+                          const SizedBox(width: 30),
+                          TopBarItem(label: 'Off-chain: ', value: [
+                            TextSpan(
+                                text: balance.offChain.formatted(),
+                                style: const TextStyle(fontWeight: FontWeight.bold)),
+                            const TextSpan(text: " sats"),
+                          ]),
+                          const SizedBox(width: 30),
+                          TopBarItem(label: 'On-chain: ', value: [
+                            TextSpan(
+                                text: balance.onChain.formatted(),
+                                style: const TextStyle(fontWeight: FontWeight.bold)),
+                            const TextSpan(text: " sats"),
+                          ]),
+                        ],
+                      ),
+                      Expanded(
+                        child: Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+                          ElevatedButton(
+                              onPressed: () {
+                                context
+                                    .read<AuthService>()
+                                    .signOut()
+                                    .then((value) => GoRouter.of(context).go(LoginScreen.route))
+                                    .catchError((error) {
+                                  final messenger = ScaffoldMessenger.of(context);
+                                  showSnackBar(messenger, error);
+                                });
+                              },
+                              child: const Text("Sign out"))
+                        ]),
+                      ),
                     ],
                   ),
                 ),

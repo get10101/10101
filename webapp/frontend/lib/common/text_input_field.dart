@@ -7,11 +7,13 @@ class TextInputField extends StatelessWidget {
       this.label = '',
       this.hint = '',
       this.onChanged,
+      this.onSubmitted,
       required this.value,
       this.controller,
       this.validator,
       this.decoration,
       this.style,
+      this.obscureText = false,
       this.onTap});
 
   final TextEditingController? controller;
@@ -21,8 +23,10 @@ class TextInputField extends StatelessWidget {
   final String label;
   final String hint;
   final Function(String)? onChanged;
+  final Function(String)? onSubmitted;
   final Function()? onTap;
   final InputDecoration? decoration;
+  final bool obscureText;
 
   final String? Function(String?)? validator;
 
@@ -33,6 +37,7 @@ class TextInputField extends StatelessWidget {
       enabled: enabled,
       controller: controller,
       initialValue: controller != null ? null : value,
+      obscureText: obscureText,
       decoration: decoration ??
           InputDecoration(
             border: const OutlineInputBorder(),
@@ -47,6 +52,7 @@ class TextInputField extends StatelessWidget {
           ),
       onChanged: (value) => {if (onChanged != null) onChanged!(value)},
       onTap: onTap,
+      onFieldSubmitted: (value) => {if (onSubmitted != null) onSubmitted!(value)},
       validator: (value) {
         if (validator != null) {
           return validator!(value);

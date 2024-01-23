@@ -5,7 +5,6 @@ import 'package:get_10101/common/http_client.dart';
 import 'package:get_10101/common/model.dart';
 import 'package:get_10101/common/balance.dart';
 import 'package:get_10101/common/payment.dart';
-import 'package:get_10101/logger/logger.dart';
 
 class WalletService {
   const WalletService();
