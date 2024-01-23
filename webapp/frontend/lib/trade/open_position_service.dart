@@ -30,6 +30,7 @@ class Position {
   final DateTime expiry;
   final DateTime updated;
   final DateTime created;
+  final Amount pnlSats;
 
   Position({
     required this.leverage,
@@ -43,6 +44,7 @@ class Position {
     required this.expiry,
     required this.updated,
     required this.created,
+    required this.pnlSats,
   });
 
   factory Position.fromJson(Map<String, dynamic> json) {
@@ -58,6 +60,7 @@ class Position {
       expiry: DateTime.parse(json['expiry'] as String),
       updated: DateTime.parse(json['updated'] as String),
       created: DateTime.parse(json['created'] as String),
+      pnlSats: Amount(json['pnl_sats']),
     );
   }
 }

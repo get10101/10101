@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:get_10101/common/color.dart';
 import 'package:get_10101/logger/logger.dart';
 import 'package:get_10101/trade/open_position_service.dart';
+import 'package:get_10101/trade/orderbook_service.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 
 class OrderAndPositionTable extends StatefulWidget {
   const OrderAndPositionTable({super.key});
@@ -14,6 +16,15 @@ class OrderAndPositionTable extends StatefulWidget {
 class OrderAndPositionTableState extends State<OrderAndPositionTable>
     with SingleTickerProviderStateMixin {
   late final _tabController = TabController(length: 2, vsync: this);
+  BestQuote? bestQuote;
+
+  @override
+  void initState() {
+    super.initState();
+    context.read<QuoteService>().fetchQuote().then((q) => setState(() {
+          bestQuote = q;
+        }));
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -39,7 +50,7 @@ class OrderAndPositionTableState extends State<OrderAndPositionTable>
             child: TabBarView(
           controller: _tabController,
           children: const <Widget>[
-            SimpleTableWidget(),
+            OpenPositionTable(),
             Text("Pending"),
           ],
         ))
@@ -48,8 +59,8 @@ class OrderAndPositionTableState extends State<OrderAndPositionTable>
   }
 }
 
-class SimpleTableWidget extends StatelessWidget {
-  const SimpleTableWidget({super.key});
+class OpenPositionTable extends StatelessWidget {
+  const OpenPositionTable({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -79,7 +90,7 @@ class SimpleTableWidget extends StatelessWidget {
           0: MinColumnWidth(FixedColumnWidth(100.0), FractionColumnWidth(0.1)),
           1: MinColumnWidth(FixedColumnWidth(100.0), FractionColumnWidth(0.1)),
           2: MinColumnWidth(FixedColumnWidth(100.0), FractionColumnWidth(0.1)),
-          3: MinColumnWidth(FixedColumnWidth(100.0), FractionColumnWidth(0.1)),
+          3: MinColumnWidth(FixedColumnWidth(150.0), FractionColumnWidth(0.1)),
           4: MinColumnWidth(FixedColumnWidth(100.0), FractionColumnWidth(0.1)),
           5: MinColumnWidth(FixedColumnWidth(100.0), FractionColumnWidth(0.1)),
           6: MinColumnWidth(FixedColumnWidth(200.0), FractionColumnWidth(0.2)),
@@ -107,13 +118,12 @@ class SimpleTableWidget extends StatelessWidget {
           for (var position in positions)
             TableRow(
               children: [
-                buildTableCell(position.quantity.formatted()),
-                buildTableCell(position.averageEntryPrice.formatted()),
-                buildTableCell(position.liquidationPrice.formatted()),
-                buildTableCell(position.collateral.formatted()),
+                buildTableCell(position.quantity.toString()),
+                buildTableCell(position.averageEntryPrice.toString()),
+                buildTableCell(position.liquidationPrice.toString()),
+                buildTableCell(position.collateral.toString()),
                 buildTableCell(position.leverage.formatted()),
-                // TODO: we need to get the latest quote to be able to calculate this
-                buildTableCell("0.0"),
+                buildTableCell(position.pnlSats.toString()),
                 buildTableCell("${DateFormat('dd-MM-yyyy – HH:mm').format(position.expiry)} CET"),
               ],
             ),
