@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get_10101/common/balance.dart';
 import 'package:get_10101/common/version_service.dart';
+import 'package:get_10101/logger/logger.dart';
+import 'package:get_10101/trade/orderbook_service.dart';
 import 'package:get_10101/wallet/wallet_service.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -38,6 +40,7 @@ class _ScaffoldWithNestedNavigation extends State<ScaffoldWithNestedNavigation> 
 
   String version = "unknown";
   Balance balance = Balance.zero();
+  BestQuote? bestQuote;
 
   void _goBranch(int index) {
     widget.navigationShell.goBranch(
@@ -58,6 +61,9 @@ class _ScaffoldWithNestedNavigation extends State<ScaffoldWithNestedNavigation> 
     super.initState();
     context.read<VersionService>().fetchVersion().then((v) => setState(() => version = v.version));
     context.read<WalletService>().getBalance().then((b) => setState(() => balance = b));
+    context.read<QuoteService>().fetchQuote().then((q) => setState(() {
+          bestQuote = q;
+        }));
   }
 
   @override
@@ -72,6 +78,7 @@ class _ScaffoldWithNestedNavigation extends State<ScaffoldWithNestedNavigation> 
         showAsDrawer: showAsDrawer,
         version: version,
         balance: balance,
+        bestQuote: bestQuote,
       );
     } else {
       return ScaffoldWithNavigationBar(
@@ -121,6 +128,7 @@ class ScaffoldWithNavigationRail extends StatelessWidget {
     required this.showAsDrawer,
     required this.version,
     required this.balance,
+    required this.bestQuote,
   });
 
   final Widget body;
@@ -129,6 +137,7 @@ class ScaffoldWithNavigationRail extends StatelessWidget {
   final bool showAsDrawer;
   final String version;
   final Balance balance;
+  final BestQuote? bestQuote;
 
   @override
   Widget build(BuildContext context) {
@@ -170,29 +179,33 @@ class ScaffoldWithNavigationRail extends StatelessWidget {
                   padding: const EdgeInsets.all(25),
                   child: Row(
                     children: [
-                      RichText(
-                        text: TextSpan(
-                            text: "Off-chain: ",
-                            style: const TextStyle(fontSize: 16, color: Colors.black),
-                            children: [
-                              TextSpan(
-                                  text: balance.offChain.formatted(),
-                                  style: const TextStyle(fontWeight: FontWeight.bold)),
-                              const TextSpan(text: " sats"),
-                            ]),
-                      ),
+                      TopBarItem(label: 'Latest Bid: ', value: [
+                        TextSpan(
+                          text: bestQuote?.bid?.toString(),
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        )
+                      ]),
                       const SizedBox(width: 30),
-                      RichText(
-                        text: TextSpan(
-                            text: "On-chain: ",
-                            style: const TextStyle(fontSize: 16, color: Colors.black),
-                            children: [
-                              TextSpan(
-                                  text: balance.onChain.formatted(),
-                                  style: const TextStyle(fontWeight: FontWeight.bold)),
-                              const TextSpan(text: " sats"),
-                            ]),
-                      ),
+                      TopBarItem(label: 'Latest Ask: ', value: [
+                        TextSpan(
+                          text: bestQuote?.ask?.toString(),
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        )
+                      ]),
+                      const SizedBox(width: 30),
+                      TopBarItem(label: 'Off-chain: ', value: [
+                        TextSpan(
+                            text: balance.offChain.formatted(),
+                            style: const TextStyle(fontWeight: FontWeight.bold)),
+                        const TextSpan(text: " sats"),
+                      ]),
+                      const SizedBox(width: 30),
+                      TopBarItem(label: 'On-chain: ', value: [
+                        TextSpan(
+                            text: balance.onChain.formatted(),
+                            style: const TextStyle(fontWeight: FontWeight.bold)),
+                        const TextSpan(text: " sats"),
+                      ]),
                     ],
                   ),
                 ),
@@ -205,5 +218,39 @@ class ScaffoldWithNavigationRail extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+class TopBarItem extends StatelessWidget {
+  final String label;
+  final List<InlineSpan> value;
+
+  const TopBarItem({super.key, required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return value.isEmpty
+        ? Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: <Widget>[
+              Text(
+                label,
+                style: const TextStyle(color: Colors.black),
+              ),
+              const SizedBox(width: 10),
+              const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(),
+              ),
+            ],
+          )
+        : RichText(
+            text: TextSpan(
+              text: label,
+              style: const TextStyle(fontSize: 16, color: Colors.black),
+              children: value,
+            ),
+          );
   }
 }

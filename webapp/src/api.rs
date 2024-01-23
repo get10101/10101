@@ -1,21 +1,24 @@
 use crate::subscribers::AppSubscribers;
 use anyhow::Context;
 use anyhow::Result;
+use axum::extract::Path;
 use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::response::Response;
 use axum::Json;
+use commons::Price;
 use native::api::ContractSymbol;
 use native::api::Direction;
 use native::api::Fee;
 use native::api::SendPayment;
 use native::api::WalletHistoryItemType;
+use native::calculations::calculate_pnl;
 use native::ln_dlc;
 use native::trade::order::OrderState;
 use native::trade::order::OrderType;
 use native::trade::position;
-use native::trade::position::Position;
+use native::trade::position::PositionState;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use serde::Deserialize;
@@ -209,10 +212,87 @@ pub async fn post_new_order(params: Json<NewOrderParams>) -> Result<Json<OrderId
     Ok(Json(OrderId { id: order_id }))
 }
 
-pub async fn get_positions() -> Result<Json<Vec<Position>>, AppError> {
+#[derive(Debug, Clone, Serialize)]
+pub struct Position {
+    pub leverage: f32,
+    pub quantity: f32,
+    pub contract_symbol: ContractSymbol,
+    pub direction: Direction,
+    pub average_entry_price: f32,
+    pub liquidation_price: f32,
+    pub position_state: PositionState,
+    pub collateral: u64,
+    #[serde(with = "time::serde::rfc3339")]
+    pub expiry: OffsetDateTime,
+    #[serde(with = "time::serde::rfc3339")]
+    pub updated: OffsetDateTime,
+    #[serde(with = "time::serde::rfc3339")]
+    pub created: OffsetDateTime,
+    pub stable: bool,
+    pub pnl_sats: Option<i64>,
+}
+
+impl From<(native::trade::position::Position, Option<Price>)> for Position {
+    fn from((position, price): (native::trade::position::Position, Option<Price>)) -> Self {
+        let pnl_sats = price
+            .map(|price| match (price.ask, price.bid) {
+                (Some(ask), Some(bid)) => calculate_pnl(
+                    position.average_entry_price,
+                    trade::Price { bid, ask },
+                    position.quantity,
+                    position.leverage,
+                    position.direction,
+                )
+                .ok(),
+                _ => None,
+            })
+            .and_then(|pnl| pnl);
+
+        Position {
+            leverage: position.leverage,
+            quantity: position.quantity,
+            contract_symbol: position.contract_symbol,
+            direction: position.direction,
+            average_entry_price: position.average_entry_price,
+            liquidation_price: position.liquidation_price,
+            position_state: position.position_state,
+            collateral: position.collateral,
+            expiry: position.expiry,
+            updated: position.updated,
+            created: position.created,
+            stable: position.stable,
+            pnl_sats,
+        }
+    }
+}
+
+pub async fn get_positions(
+    State(subscribers): State<Arc<AppSubscribers>>,
+) -> Result<Json<Vec<Position>>, AppError> {
+    let orderbook_info = subscribers.orderbook_info();
+
     let positions = position::handler::get_positions()?
         .into_iter()
+        .map(|position| {
+            let quotes = orderbook_info
+                .clone()
+                .map(|prices| prices.get(&position.contract_symbol).cloned())
+                .and_then(|inner| inner);
+            (position, quotes).into()
+        })
         .collect::<Vec<Position>>();
 
     Ok(Json(positions))
+}
+
+pub async fn get_best_quote(
+    State(subscribers): State<Arc<AppSubscribers>>,
+    Path(contract_symbol): Path<ContractSymbol>,
+) -> Result<Json<Option<Price>>, AppError> {
+    let quotes = subscribers
+        .orderbook_info()
+        .map(|prices| prices.get(&contract_symbol).cloned())
+        .and_then(|inner| inner);
+
+    Ok(Json(quotes))
 }

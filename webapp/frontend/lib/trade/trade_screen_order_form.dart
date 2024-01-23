@@ -5,26 +5,26 @@ import 'package:get_10101/common/amount_text_input_form_field.dart';
 import 'package:get_10101/common/model.dart';
 import 'package:get_10101/common/snack_bar.dart';
 import 'package:get_10101/common/theme.dart';
+import 'package:get_10101/logger/logger.dart';
 import 'package:get_10101/trade/new_order_service.dart';
+import 'package:get_10101/trade/orderbook_service.dart';
+import 'package:provider/provider.dart';
 
 class NewOrderForm extends StatefulWidget {
   final bool isLong;
 
-  // TODO: get price from service
-  final Quote quote = Quote(Price(41129.0), Price(41130.5));
-
   // for now just to avoid division by 0 errors, later we should introduce a maintenance margin
   final double maintenanceMargin = 0.001;
 
-  NewOrderForm({super.key, required this.isLong});
+  const NewOrderForm({super.key, required this.isLong});
 
   @override
   State<NewOrderForm> createState() => _NewOrderForm();
 }
 
 class _NewOrderForm extends State<NewOrderForm> {
-  Quote? _quote;
-  Usd? _quantity;
+  BestQuote? _quote;
+  Usd? _quantity = Usd(100);
   Leverage _leverage = Leverage(1);
   bool isBuy = true;
   bool _isLoading = false;
@@ -36,12 +36,12 @@ class _NewOrderForm extends State<NewOrderForm> {
   @override
   void initState() {
     super.initState();
-    _quote = widget.quote;
-    _quantity = Usd(100);
     isBuy = widget.isLong;
-    _isLoading = false;
+    context.read<QuoteService>().fetchQuote().then((q) => setState(() {
+          _quote = q;
 
-    updateOrderValues();
+          updateOrderValues();
+        }));
   }
 
   @override
@@ -160,7 +160,7 @@ class _NewOrderForm extends State<NewOrderForm> {
   }
 }
 
-Amount calculateMargin(Usd quantity, Quote quote, Leverage leverage, bool isLong) {
+Amount calculateMargin(Usd quantity, BestQuote quote, Leverage leverage, bool isLong) {
   if (isLong && quote.ask != null) {
     return Amount.fromBtc(quantity.asDouble / (quote.ask!.asDouble * leverage.asDouble));
   } else if (!isLong && quote.bid != null) {
@@ -171,7 +171,7 @@ Amount calculateMargin(Usd quantity, Quote quote, Leverage leverage, bool isLong
 }
 
 Amount calculateLiquidationPrice(
-    Usd quantity, Quote quote, Leverage leverage, double maintenanceMargin, bool isLong) {
+    Usd quantity, BestQuote quote, Leverage leverage, double maintenanceMargin, bool isLong) {
   if (isLong && quote.ask != null) {
     return Amount((quote.bid!.asDouble * leverage.asDouble) ~/
         (leverage.asDouble + 1.0 + (maintenanceMargin * leverage.asDouble)));

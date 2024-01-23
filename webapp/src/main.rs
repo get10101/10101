@@ -4,6 +4,7 @@ mod logger;
 mod subscribers;
 
 use crate::api::get_balance;
+use crate::api::get_best_quote;
 use crate::api::get_node_id;
 use crate::api::get_onchain_payment_history;
 use crate::api::get_positions;
@@ -101,6 +102,7 @@ fn using_serve_dir(subscribers: Arc<AppSubscribers>, network: Network) -> Router
         .route("/api/history", get(get_onchain_payment_history))
         .route("/api/orders", post(post_new_order))
         .route("/api/positions", get(get_positions))
+        .route("/api/quotes/:contract_symbol", get(get_best_quote))
         .route("/api/node", get(get_node_id))
         .route("/api/seed", get(get_seed_phrase))
         .route("/main.dart.js", get(main_dart_handler))

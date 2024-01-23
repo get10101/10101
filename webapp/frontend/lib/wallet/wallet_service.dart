@@ -14,7 +14,6 @@ class WalletService {
     final response = await HttpClientManager.instance.get(Uri(path: '/api/balance'));
 
     if (response.statusCode == 200) {
-      logger.i("body ${response.body}");
       return Balance.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
     } else {
       throw FlutterError("Failed to fetch balance");
