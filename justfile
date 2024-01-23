@@ -82,6 +82,9 @@ android-release:
 web:
     cd webapp/frontend && flutter build web
 
+web-release:
+    cd webapp/frontend && flutter build web --release
+
 # Build Rust library for iOS (debug mode)
 ios:
     cd mobile/native && CARGO_TARGET_DIR=../../target/ios_debug cargo lipo
