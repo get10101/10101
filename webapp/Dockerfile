@@ -11,14 +11,13 @@ RUN apt-get update && \
     apt-get install ca-certificates openssl -y
 
 
-RUN mkdir cert
+RUN mkdir certs
 
-RUN cd cert && \
+RUN cd certs && \
     openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -sha256 -days 3650 -nodes -subj "/C=XX/ST=StateName/L=CityName/O=CompanyName/OU=CompanySectionName/CN=CommonNameOrHostname"
 
 USER 1000
 
 COPY $BINARY /usr/bin/webapp
 
-
-ENTRYPOINT ["/usr/bin/bash"]
+ENTRYPOINT ["/usr/bin/webapp"]
