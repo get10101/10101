@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get_10101/common/version_service.dart';
 import 'package:get_10101/logger/logger.dart';
 import 'package:get_10101/routes.dart';
+import 'package:get_10101/settings/settings_service.dart';
 import 'package:get_10101/wallet/wallet_service.dart';
 import 'package:provider/provider.dart';
 
@@ -15,7 +16,8 @@ void main() {
 
   var providers = [
     Provider(create: (context) => const VersionService()),
-    Provider(create: (context) => const WalletService())
+    Provider(create: (context) => const WalletService()),
+    Provider(create: (context) => const SettingsService())
   ];
   runApp(MultiProvider(providers: providers, child: const TenTenOneApp()));
 }
