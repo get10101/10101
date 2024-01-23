@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:get_10101/common/amount_text_input_form_field.dart';
 import 'package:get_10101/common/model.dart';
+import 'package:get_10101/common/snack_bar.dart';
 import 'package:get_10101/common/theme.dart';
+import 'package:get_10101/trade/new_order_service.dart';
 
 class NewOrderForm extends StatefulWidget {
   final bool isLong;
@@ -25,6 +27,7 @@ class _NewOrderForm extends State<NewOrderForm> {
   Usd? _quantity;
   Leverage _leverage = Leverage(1);
   bool isBuy = true;
+  bool _isLoading = false;
 
   final TextEditingController _marginController = TextEditingController();
   final TextEditingController _liquidationPriceController = TextEditingController();
@@ -36,6 +39,7 @@ class _NewOrderForm extends State<NewOrderForm> {
     _quote = widget.quote;
     _quantity = Usd(100);
     isBuy = widget.isLong;
+    _isLoading = false;
 
     updateOrderValues();
   }
@@ -73,7 +77,7 @@ class _NewOrderForm extends State<NewOrderForm> {
             label: "Leverage",
             textAlign: TextAlign.right,
             onChanged: (leverage) => setState(() {
-              _leverage = Leverage(int.parse(leverage));
+              _leverage = Leverage(double.parse(leverage));
               updateOrderValues();
             }),
           ),
@@ -116,11 +120,25 @@ class _NewOrderForm extends State<NewOrderForm> {
         Align(
           alignment: AlignmentDirectional.center,
           child: ElevatedButton(
-              onPressed: () {},
+              onPressed: _isLoading
+                  ? null
+                  : () {
+                      final messenger = ScaffoldMessenger.of(context);
+                      setState(() => _isLoading = true);
+                      NewOrderService.postNewOrder(_leverage, _quantity!, isBuy).then((orderId) {
+                        showSnackBar(messenger, "Order created $orderId.");
+                        setState(() => _isLoading = false);
+                      }).catchError((error) {
+                        showSnackBar(messenger, "Posting a new order failed $error");
+                        setState(() => _isLoading = false);
+                      });
+                    },
               style: ElevatedButton.styleFrom(
                   backgroundColor: isBuy ? buyButtonColor : sellButtonColor,
                   minimumSize: const Size.fromHeight(50)),
-              child: isBuy ? const Text("Buy") : const Text("Sell")),
+              child: _isLoading
+                  ? const CircularProgressIndicator()
+                  : (isBuy ? const Text("Buy") : const Text("Sell"))),
         ),
       ],
     );

@@ -110,3 +110,6 @@ Cargo.lock
 *.pdb
 
 # End of https://www.toptal.com/developers/gitignore/api/flutter,dart,rust
+
+# data directory for webapp
+data

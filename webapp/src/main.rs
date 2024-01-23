@@ -5,7 +5,9 @@ mod subscribers;
 
 use crate::api::get_balance;
 use crate::api::get_onchain_payment_history;
+use crate::api::get_positions;
 use crate::api::get_unused_address;
+use crate::api::post_new_order;
 use crate::api::send_payment;
 use crate::api::version;
 use crate::cli::Opts;
@@ -95,6 +97,8 @@ fn using_serve_dir(subscribers: Arc<AppSubscribers>, network: Network) -> Router
         .route("/api/newaddress", get(get_unused_address))
         .route("/api/sendpayment", post(send_payment))
         .route("/api/history", get(get_onchain_payment_history))
+        .route("/api/orders", post(post_new_order))
+        .route("/api/positions", get(get_positions))
         .route("/main.dart.js", get(main_dart_handler))
         .route("/flutter.js", get(flutter_js))
         .route("/index.html", get(index_handler))
