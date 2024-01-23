@@ -28,6 +28,10 @@ jobs:
             target: x86_64-unknown-linux-gnu
             os: ubuntu-latest
             docker_arch: amd64
+          - bin: webapp
+            target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            docker_arch: amd64
     defaults:
       run:
         shell: bash
@@ -52,6 +56,32 @@ jobs:
           # username: ${{ github.actor }}
           username: ${{ github.repository }}
           password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: extractions/setup-just@v1
+        if: matrix.bin == 'webapp'
+      - name: Install FFI bindings
+        if: matrix.bin == 'webapp'
+        run: just deps-gen
+
+      - uses: extractions/setup-just@v1
+        if: matrix.bin == 'webapp'
+
+      - uses: subosito/flutter-action@v2
+        if: matrix.bin == 'webapp'
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: "stable"
+          cache: true
+          cache-key: flutter-${{ env.FLUTTER_VERSION }}
+          cache-path: ${{ runner.tool_cache }}/flutter
+
+      - name: build flutter for webapp
+        if: matrix.bin == 'webapp'
+        run: just build-web --release
+
+      - name: Generate FFI bindings
+        if: matrix.bin == 'webapp'
+        run: just gen
 
       - name: Build ${{ matrix.bin }}
         run: cargo build --release --bin ${{matrix.bin}} --target-dir ./target --target=${{ matrix.target }}

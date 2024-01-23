@@ -79,10 +79,10 @@ android-release:
     cd mobile/native && cargo ndk -t armeabi-v7a -t arm64-v8a -o ../android/app/src/main/jniLibs build --release --verbose
 
 # Build flutter webapp for cargo run --bin webapp
-web:
-    cd webapp/frontend && flutter build web
+build-web args="":
+    cd webapp/frontend && flutter build web {{args}}
 
-web-release:
+build-web-release:
     cd webapp/frontend && flutter build web --release
 
 run-web:
