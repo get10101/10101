@@ -25,6 +25,7 @@ use tokio::task::spawn_blocking;
 const NOTIFICATION_BUFFER_SIZE: usize = 100;
 
 /// Message sent to users via the websocket.
+#[derive(Debug)]
 pub enum OrderbookMessage {
     TraderMessage {
         trader_id: PublicKey,
