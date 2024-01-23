@@ -52,8 +52,6 @@ pub async fn propose_collaborative_revert(
     trader_amount_sats: u64,
     closing_price: Decimal,
 ) -> Result<()> {
-    let mut conn = pool.get().context("Could not acquire DB lock")?;
-
     let channel_id_hex = channel_id.to_hex();
 
     let dlc_channels = node
@@ -104,21 +102,23 @@ pub async fn propose_collaborative_revert(
         "Proposing collaborative revert"
     );
 
-    db::collaborative_reverts::insert(
-        &mut conn,
-        position::models::CollaborativeRevert {
-            channel_id,
-            trader_pubkey: peer_id,
-            coordinator_address: coordinator_address.clone(),
-            coordinator_amount_sats: coordinator_amount,
-            trader_amount_sats: trader_amount,
-            timestamp: OffsetDateTime::now_utc(),
-            price: closing_price,
-        },
-    )
-    .context("Could not insert new collaborative revert")?;
+    {
+        let mut conn = pool.get().context("Could not acquire DB lock")?;
+        db::collaborative_reverts::insert(
+            &mut conn,
+            position::models::CollaborativeRevert {
+                channel_id,
+                trader_pubkey: peer_id,
+                coordinator_address: coordinator_address.clone(),
+                coordinator_amount_sats: coordinator_amount,
+                trader_amount_sats: trader_amount,
+                timestamp: OffsetDateTime::now_utc(),
+                price: closing_price,
+            },
+        )
+        .context("Could not insert new collaborative revert")?
+    };
 
-    // Send collaborative revert proposal to the counterpary.
     sender
         .send(OrderbookMessage::TraderMessage {
             trader_id: peer_id,
