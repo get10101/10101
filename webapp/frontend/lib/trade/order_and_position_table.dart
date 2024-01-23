@@ -114,7 +114,7 @@ class SimpleTableWidget extends StatelessWidget {
                 buildTableCell(position.leverage.formatted()),
                 // TODO: we need to get the latest quote to be able to calculate this
                 buildTableCell("0.0"),
-                buildTableCell("${DateFormat('dd-MM-yyyy – kk:mm').format(position.expiry)} CET"),
+                buildTableCell("${DateFormat('dd-MM-yyyy – HH:mm').format(position.expiry)} CET"),
               ],
             ),
         ],
