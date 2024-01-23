@@ -1,23 +1,28 @@
-import 'package:http/http.dart' as http;
+import 'dart:convert';
+
+import 'package:flutter/material.dart';
+import 'package:get_10101/common/http_client.dart';
 
 class SettingsService {
   const SettingsService();
 
   Future<String> getNodeId() async {
-    // TODO(holzeis): this should come from the config
-    const port = "3001";
-    const host = "localhost";
+    final response = await HttpClientManager.instance.get(Uri(path: '/api/node'));
 
-    try {
-      final response = await http.get(Uri.http('$host:$port', '/api/node'));
+    if (response.statusCode == 200) {
+      return response.body;
+    } else {
+      throw FlutterError("Failed to fetch node id");
+    }
+  }
 
-      if (response.statusCode == 200) {
-        return response.body;
-      } else {
-        return "unknown";
-      }
-    } catch (e) {
-      return "unknown";
+  Future<List<String>> getSeedPhrase() async {
+    final response = await HttpClientManager.instance.get(Uri(path: '/api/seed'));
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw FlutterError("Failed to fetch seed phrase");
     }
   }
 }
