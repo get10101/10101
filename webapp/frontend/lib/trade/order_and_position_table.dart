@@ -39,7 +39,7 @@ class OrderAndPositionTableState extends State<OrderAndPositionTable>
             child: TabBarView(
           controller: _tabController,
           children: const <Widget>[
-            SimpleTableWidget(),
+            OpenPositionTable(),
             Text("Pending"),
           ],
         ))
@@ -48,8 +48,8 @@ class OrderAndPositionTableState extends State<OrderAndPositionTable>
   }
 }
 
-class SimpleTableWidget extends StatelessWidget {
-  const SimpleTableWidget({super.key});
+class OpenPositionTable extends StatelessWidget {
+  const OpenPositionTable({super.key});
 
   @override
   Widget build(BuildContext context) {
