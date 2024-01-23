@@ -68,6 +68,7 @@ pub fn parse_network(network: &str) -> Network {
         "signet" => Network::Signet,
         "testnet" => Network::Testnet,
         "mainnet" => Network::Bitcoin,
+        "bitcoin" => Network::Bitcoin,
         _ => Network::Regtest,
     }
 }
