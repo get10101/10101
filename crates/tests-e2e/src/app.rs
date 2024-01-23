@@ -94,6 +94,14 @@ pub fn force_close_dlc_channel() {
     block_in_place(move || api::force_close_channel().unwrap());
 }
 
+/// Get the ID of the currently open DLC channel, if there is one.
+///
+/// To call this make sure that you are either outside of a runtime or in a multi-threaded runtime
+/// (i.e. use `flavor = "multi_thread"` in a `tokio::test`).
+pub fn get_dlc_channel_id() -> Option<String> {
+    block_in_place(move || api::get_dlc_channel_id().unwrap())
+}
+
 // Values mostly taken from `environment.dart`
 fn test_config() -> native::config::api::Config {
     native::config::api::Config {

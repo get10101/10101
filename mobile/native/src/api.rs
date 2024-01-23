@@ -27,6 +27,7 @@ use anyhow::ensure;
 use anyhow::Context;
 use anyhow::Result;
 use bdk::FeeRate;
+use bitcoin::hashes::hex::ToHex;
 use bitcoin::Amount;
 use commons::order_matching_fee_taker;
 use commons::OrderbookRequest;
@@ -706,4 +707,11 @@ pub fn get_channel_open_fee_estimate_sat() -> Result<u64> {
 pub fn get_expiry_timestamp(network: String) -> SyncReturn<i64> {
     let network = config::api::parse_network(&network);
     SyncReturn(commons::calculate_next_expiry(OffsetDateTime::now_utc(), network).unix_timestamp())
+}
+
+pub fn get_dlc_channel_id() -> Result<Option<String>> {
+    let dlc_channel_id =
+        ln_dlc::get_signed_dlc_channel()?.map(|channel| channel.channel_id.to_hex());
+
+    Ok(dlc_channel_id)
 }

@@ -2,7 +2,9 @@ use anyhow::Context;
 use anyhow::Result;
 use bitcoin::Address;
 use reqwest::Client;
+use rust_decimal::Decimal;
 use serde::Deserialize;
+use serde::Serialize;
 
 /// A wrapper over the coordinator HTTP API.
 ///
@@ -30,7 +32,7 @@ impl Coordinator {
     }
 
     pub async fn sync_node(&self) -> Result<()> {
-        self.post("/api/admin/sync").await?;
+        self.post::<()>("/api/admin/sync", None).await?;
         Ok(())
     }
 
@@ -43,8 +45,18 @@ impl Coordinator {
     }
 
     pub async fn rollover(&self, dlc_channel_id: &str) -> Result<reqwest::Response> {
-        self.post(format!("/api/rollover/{dlc_channel_id}").as_str())
+        self.post::<()>(format!("/api/rollover/{dlc_channel_id}").as_str(), None)
             .await
+    }
+
+    pub async fn collaborative_revert(
+        &self,
+        request: CollaborativeRevertCoordinatorRequest,
+    ) -> Result<()> {
+        self.post("/api/admin/channels/revert", Some(request))
+            .await?;
+
+        Ok(())
     }
 
     async fn get(&self, path: &str) -> Result<reqwest::Response> {
@@ -57,9 +69,20 @@ impl Coordinator {
             .context("Coordinator did not return 200 OK")
     }
 
-    async fn post(&self, path: &str) -> Result<reqwest::Response> {
-        self.client
-            .post(format!("{0}{path}", self.host))
+    async fn post<T: Serialize>(&self, path: &str, body: Option<T>) -> Result<reqwest::Response> {
+        let request = self.client.post(format!("{0}{path}", self.host));
+
+        let request = match body {
+            Some(ref body) => {
+                let body = serde_json::to_string(body)?;
+                request
+                    .header("Content-Type", "application/json")
+                    .body(body)
+            }
+            None => request,
+        };
+
+        request
             .send()
             .await
             .context("Could not send POST request to coordinator")?
@@ -111,4 +134,12 @@ pub enum SignedChannelState {
     RenewFinalized,
     Closing,
     CollaborativeCloseOffered,
+}
+
+#[derive(Serialize)]
+pub struct CollaborativeRevertCoordinatorRequest {
+    pub channel_id: String,
+    pub fee_rate_sats_vb: u64,
+    pub counter_payout: u64,
+    pub price: Decimal,
 }
