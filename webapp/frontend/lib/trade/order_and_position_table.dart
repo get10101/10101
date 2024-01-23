@@ -35,19 +35,14 @@ class OrderAndPositionTableState extends State<OrderAndPositionTable>
             ),
           ],
         ),
-        Container(
-          constraints: const BoxConstraints(
-            // Adding constraints to avoid unbounded height, 400 is a random number to avoid pixel overflow
-            maxHeight: 200,
-          ),
-          child: TabBarView(
-            controller: _tabController,
-            children: const <Widget>[
-              SimpleTableWidget(),
-              Text("Pending"),
-            ],
-          ),
-        ),
+        Expanded(
+            child: TabBarView(
+          controller: _tabController,
+          children: const <Widget>[
+            SimpleTableWidget(),
+            Text("Pending"),
+          ],
+        ))
       ],
     );
   }
@@ -77,12 +72,6 @@ class SimpleTableWidget extends StatelessWidget {
 
   Widget buildTable(List<Position> positions) {
     return Container(
-      decoration: BoxDecoration(
-        border: Border.all(
-          width: 1,
-        ),
-        borderRadius: const BorderRadius.all(Radius.circular(10)),
-      ),
       child: Table(
         border: TableBorder.symmetric(inside: const BorderSide(width: 2, color: Colors.black)),
         defaultVerticalAlignment: TableCellVerticalAlignment.middle,
