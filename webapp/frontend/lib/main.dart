@@ -3,6 +3,7 @@ import 'package:get_10101/auth/auth_service.dart';
 import 'package:get_10101/common/version_service.dart';
 import 'package:get_10101/logger/logger.dart';
 import 'package:get_10101/routes.dart';
+import 'package:get_10101/trade/quote_change_notifier.dart';
 import 'package:get_10101/trade/quote_service.dart';
 import 'package:get_10101/settings/settings_service.dart';
 import 'package:get_10101/wallet/wallet_change_notifier.dart';
@@ -20,7 +21,7 @@ void main() {
   var providers = [
     Provider(create: (context) => const VersionService()),
     ChangeNotifierProvider(create: (context) => WalletChangeNotifier(const WalletService())),
-    Provider(create: (context) => const QuoteService()),
+    ChangeNotifierProvider(create: (context) => QuoteChangeNotifier(const QuoteService())),
     Provider(create: (context) => const SettingsService()),
     Provider(create: (context) => AuthService())
   ];

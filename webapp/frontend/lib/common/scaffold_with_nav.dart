@@ -7,6 +7,7 @@ import 'package:get_10101/common/balance.dart';
 import 'package:get_10101/common/snack_bar.dart';
 import 'package:get_10101/common/version_service.dart';
 import 'package:get_10101/logger/logger.dart';
+import 'package:get_10101/trade/quote_change_notifier.dart';
 import 'package:get_10101/trade/quote_service.dart';
 import 'package:get_10101/wallet/wallet_change_notifier.dart';
 import 'package:go_router/go_router.dart';
@@ -44,8 +45,6 @@ class _ScaffoldWithNestedNavigation extends State<ScaffoldWithNestedNavigation> 
   late bool showAsDrawer;
 
   String version = "unknown";
-  BestQuote? bestQuote;
-
   Timer? _timeout;
 
   // sets the timeout until the user will get automatically logged out after inactivity.
@@ -69,9 +68,6 @@ class _ScaffoldWithNestedNavigation extends State<ScaffoldWithNestedNavigation> 
   void initState() {
     super.initState();
     context.read<VersionService>().fetchVersion().then((v) => setState(() => version = v.version));
-    context.read<QuoteService>().fetchQuote().then((q) => setState(() {
-          bestQuote = q;
-        }));
   }
 
   @override
@@ -85,6 +81,7 @@ class _ScaffoldWithNestedNavigation extends State<ScaffoldWithNestedNavigation> 
     final navigationShell = widget.navigationShell;
 
     final walletChangeNotifier = context.watch<WalletChangeNotifier>();
+    final quoteChangeNotifier = context.watch<QuoteChangeNotifier>();
 
     final authService = context.read<AuthService>();
 
@@ -103,7 +100,7 @@ class _ScaffoldWithNestedNavigation extends State<ScaffoldWithNestedNavigation> 
         showAsDrawer: showAsDrawer,
         version: version,
         balance: walletChangeNotifier.getBalance(),
-        bestQuote: bestQuote,
+        bestQuote: quoteChangeNotifier.getBestQuote(),
       );
     } else {
       return ScaffoldWithNavigationBar(

@@ -2,9 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get_10101/common/color.dart';
 import 'package:get_10101/logger/logger.dart';
 import 'package:get_10101/trade/open_position_service.dart';
-import 'package:get_10101/trade/quote_service.dart';
 import 'package:intl/intl.dart';
-import 'package:provider/provider.dart';
 
 class OrderAndPositionTable extends StatefulWidget {
   const OrderAndPositionTable({super.key});
@@ -16,15 +14,6 @@ class OrderAndPositionTable extends StatefulWidget {
 class OrderAndPositionTableState extends State<OrderAndPositionTable>
     with SingleTickerProviderStateMixin {
   late final _tabController = TabController(length: 2, vsync: this);
-  BestQuote? bestQuote;
-
-  @override
-  void initState() {
-    super.initState();
-    context.read<QuoteService>().fetchQuote().then((q) => setState(() {
-          bestQuote = q;
-        }));
-  }
 
   @override
   Widget build(BuildContext context) {
