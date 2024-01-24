@@ -5,7 +5,6 @@ use crate::node::storage::NodeStorage;
 use crate::notifications::NotificationKind;
 use crate::position;
 use crate::storage::CoordinatorTenTenOneStorage;
-use anyhow::anyhow;
 use anyhow::ensure;
 use anyhow::Context;
 use anyhow::Result;
@@ -37,12 +36,12 @@ use tokio::sync::mpsc;
 /// transaction and would end up paying higher fees than necessary.
 const COLLABORATIVE_REVERT_TX_WEIGHT: usize = 672;
 
-/// Propose collaboratively reverting the channel identified by `channel_id`.
+/// Propose to collaboratively revert the channel identified by `channel_id`.
 ///
 /// A collaborative revert involves signing a new transaction spending from the funding output
-/// directly. This can be used to circumvent bugs related to position and subchannel state.
+/// directly. This can be used to circumvent bugs related to position and DLC channel state.
 ///
-/// This API will only work if the DlcChannel is in state [`Channel::Signed`].
+/// This API will only work if the DLC [`Channel`] is in state [`Channel::Signed`].
 #[allow(clippy::too_many_arguments)]
 pub async fn propose_collaborative_revert(
     node: Arc<Node<CoordinatorTenTenOneStorage, NodeStorage>>,
@@ -53,8 +52,6 @@ pub async fn propose_collaborative_revert(
     trader_amount_sats: u64,
     closing_price: Decimal,
 ) -> Result<()> {
-    let mut conn = pool.get().context("Could not acquire DB lock")?;
-
     let channel_id_hex = channel_id.to_hex();
 
     let dlc_channels = node
@@ -64,7 +61,7 @@ pub async fn propose_collaborative_revert(
     let channel = dlc_channels
         .iter()
         .find(|c| c.channel_id == channel_id)
-        .context("DLC channel not found")?;
+        .context("Could not find signed DLC channel")?;
 
     let peer_id = channel.counter_party;
 
@@ -77,10 +74,10 @@ pub async fn propose_collaborative_revert(
     let coordinator_amount_sats = fund_tx_output
         .value
         .checked_sub(trader_amount_sats)
-        .context("could not substract trader amount from total value without overflow")?;
+        .context("Could not substract trader amount from total value without overflow")?;
 
     let fee = weight_to_fee(COLLABORATIVE_REVERT_TX_WEIGHT, fee_rate_sats_vb)
-        .expect("To be able to calculate constant fee rate");
+        .context("Could not calculate fee")?;
 
     let fee_half = fee.checked_div(2).context("Could not divide fee")?;
 
@@ -105,21 +102,23 @@ pub async fn propose_collaborative_revert(
         "Proposing collaborative revert"
     );
 
-    db::collaborative_reverts::insert(
-        &mut conn,
-        position::models::CollaborativeRevert {
-            channel_id,
-            trader_pubkey: peer_id,
-            coordinator_address: coordinator_address.clone(),
-            coordinator_amount_sats: coordinator_amount,
-            trader_amount_sats: trader_amount,
-            timestamp: OffsetDateTime::now_utc(),
-            price: closing_price,
-        },
-    )
-    .context("Could not insert new collaborative revert")?;
+    {
+        let mut conn = pool.get().context("Could not acquire DB lock")?;
+        db::collaborative_reverts::insert(
+            &mut conn,
+            position::models::CollaborativeRevert {
+                channel_id,
+                trader_pubkey: peer_id,
+                coordinator_address: coordinator_address.clone(),
+                coordinator_amount_sats: coordinator_amount,
+                trader_amount_sats: trader_amount,
+                timestamp: OffsetDateTime::now_utc(),
+                price: closing_price,
+            },
+        )
+        .context("Could not insert new collaborative revert")?
+    };
 
-    // Send collaborative revert proposal to the counterpary.
     sender
         .send(OrderbookMessage::TraderMessage {
             trader_id: peer_id,
@@ -133,7 +132,7 @@ pub async fn propose_collaborative_revert(
             notification: Some(NotificationKind::CollaborativeRevert),
         })
         .await
-        .map_err(|error| anyhow!("Could send message to notify user {error:#}"))?;
+        .context("Failed to notify user")?;
 
     Ok(())
 }
@@ -147,7 +146,7 @@ pub fn confirm_collaborative_revert(
     node: Arc<Node<CoordinatorTenTenOneStorage, NodeStorage>>,
     conn: &mut PooledConnection<ConnectionManager<PgConnection>>,
     channel_id: DlcChannelId,
-    revert_transaction: Transaction,
+    mut revert_transaction: Transaction,
     counterparty_signature: Signature,
 ) -> Result<Transaction> {
     let channel_id_hex = channel_id.to_hex();
@@ -183,10 +182,10 @@ pub fn confirm_collaborative_revert(
         "Proposed collaborative revert transaction doesn't pay the coordinator"
     );
 
-    let signed_channel = node
+    let signed_channels = node
         .list_signed_dlc_channels()
-        .context("Failed to list signed dlc channels")?;
-    let signed_channel = signed_channel
+        .context("Failed to list signed DLC channels")?;
+    let signed_channel = signed_channels
         .iter()
         .find(|c| c.channel_id == channel_id)
         .context("DLC channel to be reverted not found")?;
@@ -197,11 +196,9 @@ pub fn confirm_collaborative_revert(
         .wallet()
         .get_secret_key_for_pubkey(&signed_channel.own_params.fund_pubkey)?;
 
-    let mut close_tx = revert_transaction.clone();
-
     dlc::util::sign_multi_sig_input(
         &Secp256k1::new(),
-        &mut close_tx,
+        &mut revert_transaction,
         &counterparty_signature,
         &signed_channel.counter_params.fund_pubkey,
         &own_fund_sk,
@@ -211,11 +208,12 @@ pub fn confirm_collaborative_revert(
     )?;
 
     tracing::info!(
-        txid = close_tx.txid().to_string(),
+        txid = revert_transaction.txid().to_string(),
         "Broadcasting collaborative revert transaction"
     );
+
     node.ldk_wallet()
-        .broadcast_transaction(&close_tx)
+        .broadcast_transaction(&revert_transaction)
         .context("Could not broadcast transaction")?;
 
     // TODO: We should probably not modify the state until the transaction has been confirmed.
@@ -228,18 +226,15 @@ pub fn confirm_collaborative_revert(
 
     db::collaborative_reverts::delete(conn, channel_id)?;
 
-    node.dlc_manager
-        .get_store()
-        .upsert_channel(
-            dlc_manager::channel::Channel::CollaborativelyClosed(ClosedChannel {
-                counter_party: signed_channel.counter_party,
-                temporary_channel_id: signed_channel.temporary_channel_id,
-                channel_id: signed_channel.channel_id,
-            }),
-            // The contract doesn't matter anymore
-            None,
-        )
-        .map_err(|e| anyhow!("{e:#}"))?;
+    node.dlc_manager.get_store().upsert_channel(
+        dlc_manager::channel::Channel::CollaborativelyClosed(ClosedChannel {
+            counter_party: signed_channel.counter_party,
+            temporary_channel_id: signed_channel.temporary_channel_id,
+            channel_id: signed_channel.channel_id,
+        }),
+        // The contract doesn't matter anymore.
+        None,
+    )?;
 
     Ok(revert_transaction)
 }

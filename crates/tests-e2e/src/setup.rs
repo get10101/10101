@@ -117,6 +117,8 @@ impl TestSetup {
         tokio::time::sleep(std::time::Duration::from_secs(10)).await;
 
         sync_dlc_channels();
+        refresh_wallet_info();
+
         setup.coordinator.sync_node().await.unwrap();
 
         setup
