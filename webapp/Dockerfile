@@ -15,7 +15,7 @@ RUN mkdir -p webapp/certs
 RUN cd webapp/certs && \
     openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -sha256 -days 3650 -nodes -subj "/C=XX/ST=StateName/L=CityName/O=CompanyName/OU=CompanySectionName/CN=CommonNameOrHostname"
 
-RUN chown -R 1000:1000 webapp/certs
+RUN chmod a+r -R webapp/certs
 
 USER 1000
 
