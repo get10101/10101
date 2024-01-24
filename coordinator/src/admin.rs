@@ -15,8 +15,12 @@ use bitcoin::secp256k1::PublicKey;
 use commons::CollaborativeRevertCoordinatorRequest;
 use dlc_manager::channel::Channel;
 use dlc_manager::contract::Contract;
+use lightning::chain::chaininterface::ConfirmationTarget;
 use lightning_invoice::Bolt11Invoice;
 use ln_dlc_node::node::NodeInfo;
+use rust_decimal::prelude::FromPrimitive;
+use rust_decimal::prelude::ToPrimitive;
+use rust_decimal::Decimal;
 use serde::de;
 use serde::Deserialize;
 use serde::Deserializer;
@@ -71,6 +75,44 @@ pub async fn get_utxos(
     })?;
 
     Ok(Json(utxos))
+}
+
+#[derive(Serialize)]
+pub struct FeeRateEstimation(u32);
+
+pub async fn get_fee_rate_estimation(
+    State(state): State<Arc<AppState>>,
+    Path(target): Path<String>,
+) -> Result<Json<FeeRateEstimation>, AppError> {
+    let target = match target.as_str() {
+        "normal" => ConfirmationTarget::Normal,
+        "background" => ConfirmationTarget::Background,
+        "highpriority" => ConfirmationTarget::HighPriority,
+        "mempoolminimum" => ConfirmationTarget::MempoolMinimum,
+        _ => {
+            return Err(AppError::BadRequest(
+                "Unknown confirmation target".to_string(),
+            ));
+        }
+    };
+
+    let sats_per_vbyte = state
+        .node
+        .inner
+        .fee_rate_estimator
+        .get(target)
+        .as_sat_per_vb()
+        .floor();
+
+    let sats_per_vbyte = Decimal::from_f32(sats_per_vbyte)
+        .context("failed to convert f32 to u32")
+        .map_err(|e| AppError::InternalServerError(format!("{e:#}")))?;
+
+    let fee_rate = sats_per_vbyte
+        .to_u32()
+        .context("failed to convert to u32")
+        .map_err(|e| AppError::InternalServerError(format!("{e:#}")))?;
+    Ok(Json(FeeRateEstimation(fee_rate)))
 }
 
 #[derive(Serialize)]

@@ -34,6 +34,7 @@ use dlc_manager::ContractId;
 use dlc_manager::DlcChannelId;
 use dlc_messages::ChannelMessage;
 use dlc_messages::Message;
+use lightning::chain::chaininterface::ConfirmationTarget;
 use lightning::ln::ChannelId;
 use lightning::util::config::UserConfig;
 use ln_dlc_node::dlc_message::DlcMessage;
@@ -266,7 +267,16 @@ impl Node {
         let maturity_time = trade_params.filled_with.expiry_timestamp;
         let maturity_time = maturity_time.unix_timestamp();
 
-        let fee_rate = self.settings.read().await.contract_tx_fee_rate;
+        let sats_per_vbyte = self
+            .inner
+            .fee_rate_estimator
+            .get(ConfirmationTarget::Normal)
+            .as_sat_per_vb()
+            .round();
+        // This fee rate is used to construct the fund and CET transactions.
+        let fee_rate = Decimal::try_from(sats_per_vbyte)?
+            .to_u64()
+            .context("failed to convert to u64")?;
 
         // The contract input to be used for setting up the trade between the trader and the
         // coordinator.
@@ -410,7 +420,16 @@ impl Node {
         let maturity_time = trade_params.filled_with.expiry_timestamp;
         let maturity_time = maturity_time.unix_timestamp();
 
-        let fee_rate = self.settings.read().await.contract_tx_fee_rate;
+        let sats_per_vbyte = self
+            .inner
+            .fee_rate_estimator
+            .get(ConfirmationTarget::Normal)
+            .as_sat_per_vb()
+            .round();
+        // This fee rate is used to construct the CET transactions.
+        let fee_rate = Decimal::try_from(sats_per_vbyte)?
+            .to_u64()
+            .context("failed to convert to u64")?;
 
         // The contract input to be used for setting up the trade between the trader and the
         // coordinator.
