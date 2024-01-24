@@ -84,7 +84,7 @@ jobs:
         run: just gen
 
       - name: Build ${{ matrix.bin }}
-        run: cargo build --release --bin ${{matrix.bin}} --target-dir ./target --target=${{ matrix.target }}
+        run: cargo build --release --bin ${{ matrix.bin }} --target-dir ./target --target=${{ matrix.target }}
 
       - name: Install ssh keys
         run: |
