@@ -8,7 +8,7 @@ import 'package:get_10101/common/snack_bar.dart';
 import 'package:get_10101/common/version_service.dart';
 import 'package:get_10101/logger/logger.dart';
 import 'package:get_10101/trade/orderbook_service.dart';
-import 'package:get_10101/wallet/wallet_service.dart';
+import 'package:get_10101/wallet/wallet_change_notifier.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
@@ -44,7 +44,6 @@ class _ScaffoldWithNestedNavigation extends State<ScaffoldWithNestedNavigation> 
   late bool showAsDrawer;
 
   String version = "unknown";
-  Balance balance = Balance.zero();
   BestQuote? bestQuote;
 
   Timer? _timeout;
@@ -70,7 +69,6 @@ class _ScaffoldWithNestedNavigation extends State<ScaffoldWithNestedNavigation> 
   void initState() {
     super.initState();
     context.read<VersionService>().fetchVersion().then((v) => setState(() => version = v.version));
-    context.read<WalletService>().getBalance().then((b) => setState(() => balance = b));
     context.read<QuoteService>().fetchQuote().then((q) => setState(() {
           bestQuote = q;
         }));
@@ -85,6 +83,8 @@ class _ScaffoldWithNestedNavigation extends State<ScaffoldWithNestedNavigation> 
   @override
   Widget build(BuildContext context) {
     final navigationShell = widget.navigationShell;
+
+    final walletChangeNotifier = context.watch<WalletChangeNotifier>();
 
     final authService = context.read<AuthService>();
 
@@ -102,7 +102,7 @@ class _ScaffoldWithNestedNavigation extends State<ScaffoldWithNestedNavigation> 
         onDestinationSelected: _goBranch,
         showAsDrawer: showAsDrawer,
         version: version,
-        balance: balance,
+        balance: walletChangeNotifier.getBalance(),
         bestQuote: bestQuote,
       );
     } else {
@@ -161,7 +161,7 @@ class ScaffoldWithNavigationRail extends StatelessWidget {
   final ValueChanged<int> onDestinationSelected;
   final bool showAsDrawer;
   final String version;
-  final Balance balance;
+  final Balance? balance;
   final BestQuote? bestQuote;
 
   @override
@@ -206,33 +206,49 @@ class ScaffoldWithNavigationRail extends StatelessWidget {
                     children: [
                       Row(
                         children: [
-                          TopBarItem(label: 'Latest Bid: ', value: [
-                            TextSpan(
-                              text: bestQuote?.bid?.toString(),
-                              style: const TextStyle(fontWeight: FontWeight.bold),
-                            )
-                          ]),
+                          TopBarItem(
+                              label: 'Latest Bid: ',
+                              value: bestQuote?.bid == null
+                                  ? []
+                                  : [
+                                      TextSpan(
+                                        text: bestQuote?.bid?.toString(),
+                                        style: const TextStyle(fontWeight: FontWeight.bold),
+                                      )
+                                    ]),
                           const SizedBox(width: 30),
-                          TopBarItem(label: 'Latest Ask: ', value: [
-                            TextSpan(
-                              text: bestQuote?.ask?.toString(),
-                              style: const TextStyle(fontWeight: FontWeight.bold),
-                            )
-                          ]),
+                          TopBarItem(
+                              label: 'Latest Ask: ',
+                              value: bestQuote?.ask == null
+                                  ? []
+                                  : [
+                                      TextSpan(
+                                        text: bestQuote?.ask?.toString(),
+                                        style: const TextStyle(fontWeight: FontWeight.bold),
+                                      )
+                                    ]),
                           const SizedBox(width: 30),
-                          TopBarItem(label: 'Off-chain: ', value: [
-                            TextSpan(
-                                text: balance.offChain.formatted(),
-                                style: const TextStyle(fontWeight: FontWeight.bold)),
-                            const TextSpan(text: " sats"),
-                          ]),
+                          TopBarItem(
+                              label: 'Off-chain: ',
+                              value: balance == null
+                                  ? []
+                                  : [
+                                      TextSpan(
+                                          text: balance?.offChain.formatted(),
+                                          style: const TextStyle(fontWeight: FontWeight.bold)),
+                                      const TextSpan(text: " sats"),
+                                    ]),
                           const SizedBox(width: 30),
-                          TopBarItem(label: 'On-chain: ', value: [
-                            TextSpan(
-                                text: balance.onChain.formatted(),
-                                style: const TextStyle(fontWeight: FontWeight.bold)),
-                            const TextSpan(text: " sats"),
-                          ]),
+                          TopBarItem(
+                              label: 'On-chain: ',
+                              value: balance == null
+                                  ? []
+                                  : [
+                                      TextSpan(
+                                          text: balance?.onChain.formatted(),
+                                          style: const TextStyle(fontWeight: FontWeight.bold)),
+                                      const TextSpan(text: " sats"),
+                                    ]),
                         ],
                       ),
                       Expanded(
@@ -278,10 +294,7 @@ class TopBarItem extends StatelessWidget {
         ? Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: <Widget>[
-              Text(
-                label,
-                style: const TextStyle(color: Colors.black),
-              ),
+              Text(label, style: const TextStyle(color: Colors.black)),
               const SizedBox(width: 10),
               const SizedBox(
                 width: 20,

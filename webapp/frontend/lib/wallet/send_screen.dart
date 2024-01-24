@@ -5,7 +5,7 @@ import 'package:get_10101/common/amount_text_input_form_field.dart';
 import 'package:get_10101/common/color.dart';
 import 'package:get_10101/common/snack_bar.dart';
 import 'package:get_10101/common/text_input_field.dart';
-import 'package:get_10101/wallet/wallet_service.dart';
+import 'package:get_10101/wallet/wallet_change_notifier.dart';
 import 'package:provider/provider.dart';
 
 class SendScreen extends StatefulWidget {
@@ -114,7 +114,8 @@ class _SendScreenState extends State<SendScreen> {
                                 final messenger = ScaffoldMessenger.of(context);
                                 try {
                                   await context
-                                      .read<WalletService>()
+                                      .read<WalletChangeNotifier>()
+                                      .service
                                       .sendPayment(address!, amount!, fee!);
 
                                   setState(() {

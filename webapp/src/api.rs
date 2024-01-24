@@ -93,18 +93,11 @@ pub struct Balance {
 
 pub async fn get_balance(
     State(subscribers): State<Arc<AppSubscribers>>,
-) -> Result<Json<Balance>, AppError> {
-    ln_dlc::refresh_wallet_info().await?;
-    let balance = subscribers
-        .wallet_info()
-        .map(|wallet_info| Balance {
-            on_chain: wallet_info.balances.on_chain,
-            off_chain: wallet_info.balances.off_chain,
-        })
-        .unwrap_or(Balance {
-            on_chain: 0,
-            off_chain: 0,
-        });
+) -> Result<Json<Option<Balance>>, AppError> {
+    let balance = subscribers.wallet_info().map(|wallet_info| Balance {
+        on_chain: wallet_info.balances.on_chain,
+        off_chain: wallet_info.balances.off_chain,
+    });
 
     Ok(Json(balance))
 }
@@ -122,8 +115,6 @@ pub struct OnChainPayment {
 pub async fn get_onchain_payment_history(
     State(subscribers): State<Arc<AppSubscribers>>,
 ) -> Result<Json<Vec<OnChainPayment>>, AppError> {
-    ln_dlc::refresh_wallet_info().await?;
-
     let history = match subscribers.wallet_info() {
         Some(wallet_info) => wallet_info
             .history
@@ -165,6 +156,7 @@ pub async fn send_payment(params: Json<Payment>) -> Result<(), AppError> {
     })
     .await?;
 
+    ln_dlc::refresh_wallet_info().await?;
     Ok(())
 }
 
