@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get_10101/common/color.dart';
-import 'package:get_10101/logger/logger.dart';
-import 'package:get_10101/trade/open_position_service.dart';
-import 'package:get_10101/trade/orderbook_service.dart';
+import 'package:get_10101/trade/position_change_notifier.dart';
+import 'package:get_10101/trade/position_service.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
@@ -16,15 +15,6 @@ class OrderAndPositionTable extends StatefulWidget {
 class OrderAndPositionTableState extends State<OrderAndPositionTable>
     with SingleTickerProviderStateMixin {
   late final _tabController = TabController(length: 2, vsync: this);
-  BestQuote? bestQuote;
-
-  @override
-  void initState() {
-    super.initState();
-    context.read<QuoteService>().fetchQuote().then((q) => setState(() {
-          bestQuote = q;
-        }));
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -64,21 +54,18 @@ class OpenPositionTable extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<List<Position>>(
-      future: OpenPositionsService.fetchOpenPositions(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        } else if (snapshot.hasError) {
-          logger.i("received ${snapshot.error}");
-          return const Center(child: Text('Error loading data'));
-        } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          return const Center(child: Text('No data available'));
-        } else {
-          return buildTable(snapshot.data!);
-        }
-      },
-    );
+    final positionChangeNotifier = context.watch<PositionChangeNotifier>();
+    final positions = positionChangeNotifier.getPositions();
+
+    if (positions == null) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (positions.isEmpty) {
+      return const Center(child: Text('No data available'));
+    } else {
+      return buildTable(positions);
+    }
   }
 
   Widget buildTable(List<Position> positions) {

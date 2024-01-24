@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get_10101/common/color.dart';
 import 'package:get_10101/common/snack_bar.dart';
-import 'package:get_10101/wallet/wallet_service.dart';
+import 'package:get_10101/wallet/wallet_change_notifier.dart';
 import 'package:provider/provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
@@ -20,7 +20,11 @@ class _ReceiveScreenState extends State<ReceiveScreen> {
   void initState() {
     super.initState();
     try {
-      context.read<WalletService>().getNewAddress().then((a) => setState(() => address = a));
+      context
+          .read<WalletChangeNotifier>()
+          .service
+          .getNewAddress()
+          .then((a) => setState(() => address = a));
     } catch (e) {
       final messenger = ScaffoldMessenger.of(context);
       showSnackBar(messenger, e.toString());

@@ -3,10 +3,10 @@ import 'package:flutter/cupertino.dart';
 import 'package:get_10101/common/http_client.dart';
 import 'package:get_10101/common/model.dart';
 
-class OpenPositionsService {
-  const OpenPositionsService();
+class PositionService {
+  const PositionService();
 
-  static Future<List<Position>> fetchOpenPositions() async {
+  Future<List<Position>> fetchOpenPositions() async {
     final response = await HttpClientManager.instance.get(Uri(path: '/api/positions'));
 
     if (response.statusCode == 200) {

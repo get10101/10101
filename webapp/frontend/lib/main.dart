@@ -3,8 +3,12 @@ import 'package:get_10101/auth/auth_service.dart';
 import 'package:get_10101/common/version_service.dart';
 import 'package:get_10101/logger/logger.dart';
 import 'package:get_10101/routes.dart';
-import 'package:get_10101/trade/orderbook_service.dart';
+import 'package:get_10101/trade/position_change_notifier.dart';
+import 'package:get_10101/trade/position_service.dart';
+import 'package:get_10101/trade/quote_change_notifier.dart';
+import 'package:get_10101/trade/quote_service.dart';
 import 'package:get_10101/settings/settings_service.dart';
+import 'package:get_10101/wallet/wallet_change_notifier.dart';
 import 'package:get_10101/wallet/wallet_service.dart';
 import 'package:provider/provider.dart';
 
@@ -18,10 +22,10 @@ void main() {
 
   var providers = [
     Provider(create: (context) => const VersionService()),
-    Provider(create: (context) => const WalletService()),
-    Provider(create: (context) => const QuoteService()),
+    ChangeNotifierProvider(create: (context) => WalletChangeNotifier(const WalletService())),
+    ChangeNotifierProvider(create: (context) => QuoteChangeNotifier(const QuoteService())),
+    ChangeNotifierProvider(create: (context) => PositionChangeNotifier(const PositionService())),
     Provider(create: (context) => const SettingsService()),
-    Provider(create: (context) => const WalletService()),
     Provider(create: (context) => AuthService())
   ];
   runApp(MultiProvider(providers: providers, child: const TenTenOneApp()));

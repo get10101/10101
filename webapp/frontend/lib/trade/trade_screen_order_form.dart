@@ -6,7 +6,8 @@ import 'package:get_10101/common/model.dart';
 import 'package:get_10101/common/snack_bar.dart';
 import 'package:get_10101/common/theme.dart';
 import 'package:get_10101/trade/new_order_service.dart';
-import 'package:get_10101/trade/orderbook_service.dart';
+import 'package:get_10101/trade/quote_change_notifier.dart';
+import 'package:get_10101/trade/quote_service.dart';
 import 'package:provider/provider.dart';
 
 class NewOrderForm extends StatefulWidget {
@@ -36,11 +37,6 @@ class _NewOrderForm extends State<NewOrderForm> {
   void initState() {
     super.initState();
     isBuy = widget.isLong;
-    context.read<QuoteService>().fetchQuote().then((q) => setState(() {
-          _quote = q;
-
-          updateOrderValues();
-        }));
   }
 
   @override
@@ -48,6 +44,10 @@ class _NewOrderForm extends State<NewOrderForm> {
     TenTenOneTheme theme = Theme.of(context).extension<TenTenOneTheme>()!;
     Color buyButtonColor = isBuy ? theme.buy : theme.inactiveButtonColor;
     Color sellButtonColor = isBuy ? theme.inactiveButtonColor : theme.sell;
+
+    _quote = context.watch<QuoteChangeNotifier>().getBestQuote();
+
+    updateOrderValues();
 
     const spaceBetweenRows = SizedBox(height: 10);
     return Column(
