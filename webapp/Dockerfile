@@ -10,11 +10,12 @@ RUN apt-get update && \
     apt-get install sqlite3 -y && \
     apt-get install ca-certificates openssl -y
 
+RUN mkdir -p webapp/certs
 
-RUN mkdir certs
-
-RUN cd certs && \
+RUN cd webapp/certs && \
     openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -sha256 -days 3650 -nodes -subj "/C=XX/ST=StateName/L=CityName/O=CompanyName/OU=CompanySectionName/CN=CommonNameOrHostname"
+
+RUN chown -R 1000:1000 webapp/certs
 
 USER 1000
 
