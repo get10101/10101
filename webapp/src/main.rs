@@ -90,10 +90,6 @@ async fn main() -> Result<()> {
     let (rx, tx) = AppSubscribers::new().await;
     native::event::subscribe(tx);
 
-    // configure certificate and private key used by https
-    let config =
-        RustlsConfig::from_pem_file(cert_dir.join("cert.pem"), cert_dir.join("key.pem")).await?;
-
     let session_store = InMemorySessionStore::new();
     let deletion_task = tokio::task::spawn(
         session_store
@@ -128,6 +124,10 @@ async fn main() -> Result<()> {
             axum::serve(listener, app.into_make_service()).await
         }
         true => {
+            // configure certificate and private key used by https
+            let config =
+                RustlsConfig::from_pem_file(cert_dir.join("cert.pem"), cert_dir.join("key.pem"))
+                    .await?;
             axum_server::bind_rustls(addr, config)
                 .serve(app.into_make_service())
                 .await
