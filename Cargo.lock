@@ -2228,6 +2228,7 @@ dependencies = [
  "lightning-transaction-sync",
  "ln-dlc-storage",
  "log",
+ "mempool",
  "p2pd-oracle-client",
  "parking_lot 0.12.1",
  "rand",
@@ -2385,6 +2386,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5de893c32cde5f383baa4c04c5d6dbdd735cfd4a794b0debdb2bb1b421da5ff4"
 dependencies = [
  "autocfg",
+]
+
+[[package]]
+name = "mempool"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "reqwest",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

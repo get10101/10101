@@ -305,7 +305,7 @@ impl<S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 'static> Node<S, 
         let dlc_storage = Arc::new(DlcStorageProvider::new(storage.clone()));
         let ln_storage = Arc::new(storage);
 
-        let fee_rate_estimator = Arc::new(FeeRateEstimator::new(esplora_server_url.clone()));
+        let fee_rate_estimator = Arc::new(FeeRateEstimator::new(network));
         let ln_dlc_wallet = {
             Arc::new(LnDlcWallet::new(
                 esplora_client.clone(),
