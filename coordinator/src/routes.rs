@@ -2,6 +2,7 @@ use crate::admin::close_channel;
 use crate::admin::collaborative_revert;
 use crate::admin::connect_to_peer;
 use crate::admin::get_balance;
+use crate::admin::get_fee_rate_estimation;
 use crate::admin::get_utxos;
 use crate::admin::is_connected;
 use crate::admin::list_channels;
@@ -126,6 +127,10 @@ pub fn router(
     Router::new()
         .route("/", get(index))
         .route("/api/version", get(version))
+        .route(
+            "/api/fee_rate_estimate/:target",
+            get(get_fee_rate_estimation),
+        )
         .route("/api/backup/:node_id", post(back_up).delete(delete_backup))
         .route("/api/restore/:node_id", get(restore))
         .route(
