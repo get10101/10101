@@ -3,7 +3,7 @@ import 'package:get_10101/auth/auth_service.dart';
 import 'package:get_10101/common/version_service.dart';
 import 'package:get_10101/logger/logger.dart';
 import 'package:get_10101/routes.dart';
-import 'package:get_10101/trade/orderbook_service.dart';
+import 'package:get_10101/trade/quote_service.dart';
 import 'package:get_10101/settings/settings_service.dart';
 import 'package:get_10101/wallet/wallet_change_notifier.dart';
 import 'package:get_10101/wallet/wallet_service.dart';

@@ -7,7 +7,7 @@ import 'package:get_10101/common/balance.dart';
 import 'package:get_10101/common/snack_bar.dart';
 import 'package:get_10101/common/version_service.dart';
 import 'package:get_10101/logger/logger.dart';
-import 'package:get_10101/trade/orderbook_service.dart';
+import 'package:get_10101/trade/quote_service.dart';
 import 'package:get_10101/wallet/wallet_change_notifier.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';

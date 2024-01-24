@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get_10101/common/color.dart';
 import 'package:get_10101/logger/logger.dart';
 import 'package:get_10101/trade/open_position_service.dart';
-import 'package:get_10101/trade/orderbook_service.dart';
+import 'package:get_10101/trade/quote_service.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 

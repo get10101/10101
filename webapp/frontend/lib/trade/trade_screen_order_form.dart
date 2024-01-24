@@ -6,7 +6,7 @@ import 'package:get_10101/common/model.dart';
 import 'package:get_10101/common/snack_bar.dart';
 import 'package:get_10101/common/theme.dart';
 import 'package:get_10101/trade/new_order_service.dart';
-import 'package:get_10101/trade/orderbook_service.dart';
+import 'package:get_10101/trade/quote_service.dart';
 import 'package:provider/provider.dart';
 
 class NewOrderForm extends StatefulWidget {
