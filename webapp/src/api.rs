@@ -10,6 +10,8 @@ use axum::routing::get;
 use axum::routing::post;
 use axum::Json;
 use axum::Router;
+use bitcoin::Amount;
+use commons::order_matching_fee_taker;
 use commons::Price;
 use native::api::ContractSymbol;
 use native::api::Direction;
@@ -240,23 +242,40 @@ pub struct Position {
     pub created: OffsetDateTime,
     pub stable: bool,
     pub pnl_sats: Option<i64>,
+    #[serde(with = "bitcoin::util::amount::serde::as_sat::opt")]
+    pub closing_fee: Option<Amount>,
 }
 
 impl From<(native::trade::position::Position, Option<Price>)> for Position {
     fn from((position, price): (native::trade::position::Position, Option<Price>)) -> Self {
-        let pnl_sats = price
-            .map(|price| match (price.ask, price.bid) {
-                (Some(ask), Some(bid)) => calculate_pnl(
-                    position.average_entry_price,
-                    trade::Price { bid, ask },
-                    position.quantity,
-                    position.leverage,
-                    position.direction,
+        let res = price.map(|price| match (price.ask, price.bid) {
+            (Some(ask), Some(bid)) => {
+                let price = match position.direction {
+                    Direction::Long => price.bid,
+                    Direction::Short => price.ask,
+                };
+
+                (
+                    calculate_pnl(
+                        position.average_entry_price,
+                        trade::Price { bid, ask },
+                        position.quantity,
+                        position.leverage,
+                        position.direction,
+                    )
+                    .ok(),
+                    price
+                        .map(|price| Some(order_matching_fee_taker(position.quantity, price)))
+                        .and_then(|price| price),
                 )
-                .ok(),
-                _ => None,
-            })
-            .and_then(|pnl| pnl);
+            }
+            _ => (None, None),
+        });
+
+        let (pnl_sats, closing_fee) = match res {
+            None => (None, None),
+            Some((pnl_sats, closing_fee)) => (pnl_sats, closing_fee),
+        };
 
         Position {
             leverage: position.leverage,
@@ -272,6 +291,7 @@ impl From<(native::trade::position::Position, Option<Price>)> for Position {
             created: position.created,
             stable: position.stable,
             pnl_sats,
+            closing_fee,
         }
     }
 }
