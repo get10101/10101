@@ -76,7 +76,7 @@ impl FeeRateEstimator {
         }
     }
 
-    fn get(&self, target: ConfirmationTarget) -> FeeRate {
+    pub fn get(&self, target: ConfirmationTarget) -> FeeRate {
         self.fee_rate_cache
             .read()
             .get(&target)
