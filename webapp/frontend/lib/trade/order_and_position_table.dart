@@ -117,7 +117,9 @@ class OpenPositionTable extends StatelessWidget {
         for (var position in positions)
           TableRow(
             children: [
-              buildTableCell(Text(position.quantity.toString())),
+              buildTableCell(Text(position.direction == "short"
+                  ? "-${position.quantity}"
+                  : "+${position.quantity}")),
               buildTableCell(Text(position.averageEntryPrice.toString())),
               buildTableCell(Text(position.liquidationPrice.toString())),
               buildTableCell(Text(position.collateral.toString())),
@@ -140,7 +142,9 @@ class OpenPositionTable extends StatelessWidget {
                                 pnl: position.pnlSats,
                                 fee: position.closingFee,
                                 payout: position.closingFee != null
-                                    ? Amount(position.collateral.sats + position.closingFee!.sats)
+                                    ? Amount(position.collateral.sats +
+                                        (position.pnlSats?.sats ?? 0) -
+                                        (position.closingFee?.sats ?? 0))
                                     : null,
                                 leverage: position.leverage,
                                 quantity: position.quantity,
