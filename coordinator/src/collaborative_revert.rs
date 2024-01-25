@@ -159,6 +159,16 @@ pub async fn propose_collaborative_revert(
             - unspendable_punishment_reserve_sat as i64
     };
 
+    if coordinator_amount as u64 + 5000 > subchannel.fund_value_satoshis {
+        tracing::error!(
+            channel_id = channel_id_hex,
+            coordinator_amount = coordinator_amount.to_sat(),
+            sub_channel_value_satoshi = subchannel.fund_value_satoshis,
+            "Would put trader under dust - ignoring yolo"
+        );
+        return Ok(());
+    }
+
     let trader_amount = subchannel.fund_value_satoshis - coordinator_amount as u64;
 
     let fee = weight_to_fee(COLLABORATIVE_REVERT_TX_WEIGHT, fee_rate_sats_vb)
@@ -174,6 +184,12 @@ pub async fn propose_collaborative_revert(
         coordinator_amount = coordinator_amount.to_sat(),
         trader_amount = trader_amount.to_sat(),
         price = settlement_price.to_string(),
+        fee = fee.to_string(),
+        is_channel_split = is_channel_split.to_string(),
+        fund_txo_sat = fund_txo_sat.to_string(),
+        ln_inbound_liquidity_sat = ln_inbound_liquidity_sat.to_string(),
+        unspendable_punishment_reserve_sat = unspendable_punishment_reserve_sat.to_string(),
+        sub_channel_value_satoshi = subchannel.fund_value_satoshis,
         "Proposing collaborative revert"
     );
 
