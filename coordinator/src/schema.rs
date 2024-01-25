@@ -101,6 +101,21 @@ diesel::table! {
 }
 
 diesel::table! {
+    legacy_collaborative_reverts (id) {
+        id -> Int4,
+        channel_id -> Text,
+        trader_pubkey -> Text,
+        price -> Float4,
+        coordinator_address -> Text,
+        coordinator_amount_sats -> Int8,
+        trader_amount_sats -> Int8,
+        funding_txid -> Text,
+        funding_vout -> Int4,
+        timestamp -> Timestamptz,
+    }
+}
+
+diesel::table! {
     liquidity_options (id) {
         id -> Int4,
         rank -> Int2,
@@ -295,6 +310,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     collaborative_reverts,
     dlc_messages,
     last_outbound_dlc_messages,
+    legacy_collaborative_reverts,
     liquidity_options,
     liquidity_request_logs,
     matches,

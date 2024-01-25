@@ -92,7 +92,7 @@ async fn process_pending_collaborative_revert(
             // registered on the websocket. So we can assume that the user is still online.
             let msg = OrderbookMessage::TraderMessage {
                 trader_id,
-                message: Message::CollaborativeRevert {
+                message: Message::DlcChannelCollaborativeRevert {
                     channel_id: revert.channel_id,
                     coordinator_address: revert.coordinator_address,
                     coordinator_amount: revert.coordinator_amount_sats,

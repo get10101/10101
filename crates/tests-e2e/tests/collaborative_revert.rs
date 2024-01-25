@@ -26,7 +26,6 @@ async fn can_revert_channel() {
 
     let dlc_channel_id = get_dlc_channel_id().unwrap();
 
-    // let coordinator_balance_before = coordinator.get_balance().await.unwrap();
     let app_balance_before = app.rx.wallet_info().unwrap().balances.on_chain;
 
     app.rx.channel_status();
@@ -53,7 +52,15 @@ async fn can_revert_channel() {
         sync_dlc_channels();
         refresh_wallet_info();
 
-        app.rx.wallet_info().unwrap().balances.on_chain > app_balance_before
+        let app_balance = app.rx.wallet_info().unwrap().balances.on_chain;
+
+        tracing::debug!(
+            before = %app_balance_before,
+            now = %app_balance,
+            "Checking on-chain balance"
+        );
+
+        app_balance > app_balance_before
     });
 
     let wallet_info = app.rx.wallet_info().unwrap();
