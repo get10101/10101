@@ -18,8 +18,13 @@ class ChannelStatusNotifier extends ChangeNotifier implements Subscriber {
   }
 
   bool hasDlcChannel() {
-    return getChannelStatus() != ChannelStatus.Unknown ||
-        getChannelStatus() != ChannelStatus.NotOpen;
+    return getChannelStatus() != ChannelStatus.Unknown &&
+        getChannelStatus() != ChannelStatus.NotOpen &&
+        getChannelStatus() != ChannelStatus.Closing;
+  }
+
+  bool hasDlcChannelWithoutPosition() {
+    return hasDlcChannel() && getChannelStatus() != ChannelStatus.WithPosition;
   }
 
   bool canForceClose() {
