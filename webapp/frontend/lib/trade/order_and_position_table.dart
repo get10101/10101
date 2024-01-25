@@ -142,7 +142,9 @@ class OpenPositionTable extends StatelessWidget {
                                 pnl: position.pnlSats,
                                 fee: position.closingFee,
                                 payout: position.closingFee != null
-                                    ? Amount(position.collateral.sats + position.closingFee!.sats)
+                                    ? Amount(position.collateral.sats +
+                                        (position.pnlSats?.sats ?? 0) -
+                                        (position.closingFee?.sats ?? 0))
                                     : null,
                                 leverage: position.leverage,
                                 quantity: position.quantity,
