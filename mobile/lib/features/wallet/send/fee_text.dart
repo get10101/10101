@@ -7,14 +7,15 @@ import 'package:provider/provider.dart';
 
 class FeeText extends StatelessWidget {
   final FeeEstimation fee;
+
   const FeeText({super.key, required this.fee});
 
   @override
   Widget build(BuildContext context) {
     return Selector<TradeValuesChangeNotifier, double>(
       selector: (_, provider) {
-        var askPrice = provider.getPrice().ask ?? 0.0;
-        var bidPrice = provider.getPrice().bid ?? 0.0;
+        var askPrice = provider.getPrice()?.ask ?? 0.0;
+        var bidPrice = provider.getPrice()?.bid ?? 0.0;
         var midMarket = (askPrice + bidPrice) / 2;
         return midMarket;
       },
