@@ -98,9 +98,12 @@ class WalletService {
     };
   }
 
-  Future<void> sendPayment(Destination destination, Amount? amount, {Fee? fee}) async {
-    logger.i("Sending payment of $amount");
-    await rust.api.sendPayment(payment: _createPayment(destination, amount, fee: fee));
+  String sendOnChainPayment(Destination destination, Amount? amount, {Fee? fee}) {
+    var feeApi = fee!.toAPI();
+    var sats = amount!.sats;
+    var address = destination.raw;
+    logger.i("Sending payment of $amount to $address with fee $feeApi");
+    return rust.api.sendOnChainPayment(address: address, amount: sats, fee: feeApi);
   }
 
   String getUnusedAddress() {
