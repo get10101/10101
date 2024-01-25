@@ -613,7 +613,7 @@ pub async fn is_connected(
 async fn get_quote_from_bitmex(client: &Client, expiry: OffsetDateTime) -> Quote {
     let start = expiry.format(&Rfc3339).unwrap();
 
-    let end = OffsetDateTime::now_utc() + time::Duration::minutes(5);
+    let end = expiry + time::Duration::minutes(5);
     let end = end.format(&Rfc3339).unwrap();
 
     let url = format!("https://www.bitmex.com/api/v1/quote?symbol=XBTUSD&count=1&reverse=false&startTime={start}&endTime={end}");
