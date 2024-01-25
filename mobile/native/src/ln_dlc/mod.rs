@@ -909,10 +909,6 @@ pub fn get_signed_dlc_channel() -> Result<Option<SignedChannel>> {
     let node = state::get_node();
 
     let signed_channels = node.inner.list_signed_dlc_channels()?;
-
-    // TODO: Can we assume that the first DLC channel is the one we care about? We assume that we
-    // can only have one DLC channel at a time (for now), but what if the previous DLC channel is
-    // still being closed on-chain?
     Ok(signed_channels.first().cloned())
 }
 
