@@ -44,7 +44,7 @@ List<SingleChildWidget> createProviders() {
 
   var providers = [
     ChangeNotifierProvider(create: (context) {
-      return TradeValuesChangeNotifier(tradeValuesService, channelInfoService);
+      return TradeValuesChangeNotifier(tradeValuesService);
     }),
     ChangeNotifierProvider(create: (context) => AmountDenominationChangeNotifier()),
     ChangeNotifierProvider(create: (context) => SubmitOrderChangeNotifier(OrderService())),
