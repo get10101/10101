@@ -199,12 +199,14 @@ class ConfirmPayment extends StatelessWidget {
                     }
                     showExecuteUsdpPaymentModal(context, destination, amt, payWithUsdp);
                   } else {
-                    walletService.sendPayment(destination, amt, fee: fee).then((value) {
+                    try {
+                      var txid = walletService.sendOnChainPayment(destination, amt, fee: fee);
+                      showSnackBar(messenger, "Transaction broadcasted $txid");
                       GoRouter.of(context).pop();
-                    }).catchError((error) {
+                    } catch (error) {
                       logger.e("Failed to send payment: $error");
                       showSnackBar(messenger, error.toString());
-                    });
+                    }
                   }
                 }),
             const SizedBox(height: 24),

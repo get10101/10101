@@ -241,34 +241,51 @@ class BitcoinAddress extends StatelessWidget {
     var address = this.address.replaceAll("bitcoin:", '');
 
     return Container(
-      margin: const EdgeInsets.fromLTRB(0, 15, 0, 0),
-      decoration: BoxDecoration(
-          border: Border.all(color: Colors.grey.shade200),
-          borderRadius: BorderRadius.circular(10),
-          color: tenTenOnePurple.shade200.withOpacity(0.1)),
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        child: Opacity(
-            opacity: 1.0,
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [Text("Address", style: TextStyle(fontSize: 18))]),
-              const SizedBox(height: 5),
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      address,
-                      overflow: TextOverflow.ellipsis,
-                      maxLines: 1,
-                    ),
-                  ),
-                ],
-              )
-            ])),
-      ),
-    );
+        margin: const EdgeInsets.fromLTRB(0, 15, 0, 0),
+        decoration: BoxDecoration(
+            border: Border.all(color: Colors.grey.shade200),
+            borderRadius: BorderRadius.circular(10),
+            color: tenTenOnePurple.shade200.withOpacity(0.1)),
+        child: GestureDetector(
+          onTap: () {
+            Clipboard.setData(ClipboardData(text: address)).then((_) {
+              showSnackBar(ScaffoldMessenger.of(context), "Address copied to clipboard");
+            });
+          },
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            child: Opacity(
+                opacity: 1.0,
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                    const Text("Address", style: TextStyle(fontSize: 18)),
+                    IconButton(
+                        onPressed: () {
+                          Clipboard.setData(ClipboardData(text: address)).then((_) {
+                            showSnackBar(
+                                ScaffoldMessenger.of(context), "Address copied to clipboard");
+                          });
+                        },
+                        icon: const Icon(
+                          Icons.copy,
+                          size: 16,
+                        ))
+                  ]),
+                  const SizedBox(height: 5),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          address,
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
+                        ),
+                      ),
+                    ],
+                  )
+                ])),
+          ),
+        ));
   }
 }
 

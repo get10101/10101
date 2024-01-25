@@ -634,6 +634,10 @@ pub fn send_payment(payment: SendPayment) -> Result<()> {
     runtime.block_on(async { ln_dlc::send_payment(payment).await })
 }
 
+pub fn send_on_chain_payment(address: String, amount: u64, fee: Fee) -> Result<SyncReturn<String>> {
+    ln_dlc::send_on_chain_payment(address, amount, fee).map(|txid| SyncReturn(txid.to_string()))
+}
+
 pub fn send_preflight_probe(payment: SendPayment) -> Result<u64> {
     let runtime = crate::state::get_or_create_tokio_runtime()?;
     runtime.block_on(async { ln_dlc::estimate_payment_fee_msat(payment).await })

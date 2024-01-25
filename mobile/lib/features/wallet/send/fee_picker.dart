@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:get_10101/common/amount_and_fiat_text.dart';
-import 'package:get_10101/common/amount_text.dart';
 import 'package:get_10101/common/amount_text_input_form_field.dart';
 import 'package:get_10101/common/color.dart';
 import 'package:get_10101/common/domain/model.dart';
@@ -153,8 +152,8 @@ class _FeePickerModalState extends State<_FeePickerModal> {
 
     final amt = Amount.parseAmount(val);
 
-    if (minFee > amt.sats) {
-      return "The minimum fee to broadcast the transaction is ${formatSats(Amount(minFee))}.";
+    if (amt.sats < 1) {
+      return "The minimum fee to broadcast the transaction is 1 sat/vbyte)}.";
     }
 
     return null;

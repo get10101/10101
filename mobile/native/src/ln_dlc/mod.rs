@@ -1384,6 +1384,13 @@ pub async fn send_payment(payment: SendPayment) -> Result<()> {
     Ok(())
 }
 
+pub fn send_on_chain_payment(address: String, amount: u64, fee: Fee) -> Result<Txid> {
+    let address = Address::from_str(&address)?;
+    state::get_node()
+        .inner
+        .send_to_address(&address, amount, fee.into())
+}
+
 pub async fn estimate_payment_fee_msat(payment: SendPayment) -> Result<u64> {
     match payment {
         SendPayment::Lightning { invoice, amount } => {

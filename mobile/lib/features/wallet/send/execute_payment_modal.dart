@@ -80,10 +80,13 @@ class _ExecuteUsdpPaymentState extends State<ExecuteUsdpPayment> {
       if (widget.payWithUsdp) {
         logger.d("Order has been filled, attempting to send payment");
       }
-      walletService.sendPayment(widget.destination, widget.amount).catchError((error) {
+      try {
+        walletService.sendOnChainPayment(widget.destination, widget.amount);
+        setState(() => sent = true);
+      } catch (error) {
         logger.e("Failed to send payment: $error");
         context.read<PaymentChangeNotifier>().failPayment();
-      }).whenComplete(() => setState(() => sent = true));
+      }
     }
 
     switch (paymentChangeNotifier.getPaymentStatus()) {
