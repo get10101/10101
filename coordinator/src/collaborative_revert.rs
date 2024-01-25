@@ -162,7 +162,7 @@ pub async fn propose_collaborative_revert(
     if coordinator_amount as u64 + 5000 > subchannel.fund_value_satoshis {
         tracing::error!(
             channel_id = channel_id_hex,
-            coordinator_amount = coordinator_amount.to_sat(),
+            coordinator_amount = coordinator_amount,
             sub_channel_value_satoshi = subchannel.fund_value_satoshis,
             "Would put trader under dust - ignoring yolo"
         );
