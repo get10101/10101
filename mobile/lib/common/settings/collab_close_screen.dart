@@ -91,7 +91,7 @@ class _CollabCloseScreenState extends State<CollabCloseScreen> {
                       ),
                     )),
                 Visibility(
-                  visible: channelStatusNotifier.hasDlcChannel(),
+                  visible: channelStatusNotifier.hasDlcChannelWithoutPosition(),
                   child: Container(
                       margin: const EdgeInsets.all(10),
                       child: ConfirmationSlider(
