@@ -99,7 +99,7 @@ class _ChannelScreenState extends State<ChannelScreen> {
                                   style: TextStyle(fontWeight: FontWeight.bold)),
                               TextSpan(
                                   text:
-                                      "Your Lightning funds will return back to your on-chain wallet after some time. You will have to reopen the app at some point in the future so that your node can claim them back.\n\n"),
+                                      "Your off-chain funds will return back to your on-chain wallet after some time.\n\n"),
                               TextSpan(
                                   text:
                                       "If you had a position open your payout will arrive in your on-chain wallet soon after the expiry time. \n")
@@ -109,41 +109,6 @@ class _ChannelScreenState extends State<ChannelScreen> {
           )),
     );
   }
-}
-
-RichText getForceCloseChannelText(ChannelStatusNotifier channelStatusNotifier) {
-  if (!channelStatusNotifier.hasDlcChannel()) {
-    return RichText(
-        text: const TextSpan(
-      text:
-          "You do not have a channel! Go fund your wallet and create one! Then you can come back here and force-close it.",
-      style: TextStyle(fontSize: 18, color: Colors.black, letterSpacing: 0.4),
-    ));
-  }
-
-  return RichText(
-    text: const TextSpan(
-      style: TextStyle(fontSize: 18, color: Colors.black, letterSpacing: 0.4),
-      children: [
-        TextSpan(
-          text: "Warning",
-          style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600),
-        ),
-        TextSpan(
-          text:
-              ": Force-closing your channel should only be considered as a last resort if 10101 is not reachable.\n\n",
-        ),
-        TextSpan(
-            text:
-                "It's always better to collaboratively close as it will also save transaction fees.\n\n"),
-        TextSpan(text: "If you "),
-        TextSpan(
-            text: "force-close", style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600)),
-        TextSpan(text: ", you will have to pay the fees for going on-chain.\n\n"),
-        TextSpan(text: "Your funds can be claimed by your on-chain wallet after a while.\n\n"),
-      ],
-    ),
-  );
 }
 
 String channelStatusToString(ChannelStatus status) {
