@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
-import 'package:get_10101/common/application/channel_info_service.dart';
 import 'package:get_10101/common/application/event_service.dart';
 import 'package:get_10101/common/domain/model.dart';
 import 'package:get_10101/common/dummy_values.dart';
@@ -12,7 +11,6 @@ import 'package:get_10101/features/trade/domain/trade_values.dart';
 
 class TradeValuesChangeNotifier extends ChangeNotifier implements Subscriber {
   final TradeValuesService tradeValuesService;
-  final ChannelInfoService channelInfoService;
 
   // The trade values are represented as Order domain, because that's essentially what they are
   late final TradeValues _buyTradeValues;
@@ -20,7 +18,7 @@ class TradeValuesChangeNotifier extends ChangeNotifier implements Subscriber {
 
   Price? _price;
 
-  TradeValuesChangeNotifier(this.tradeValuesService, this.channelInfoService) {
+  TradeValuesChangeNotifier(this.tradeValuesService) {
     _buyTradeValues = _initOrder(Direction.long);
     _sellTradeValues = _initOrder(Direction.short);
   }

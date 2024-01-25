@@ -137,9 +137,7 @@ void main() {
     positionChangeNotifier.price = Price(bid: 30000.0, ask: 30000.0);
 
     await tester.pumpWidget(MultiProvider(providers: [
-      ChangeNotifierProvider(
-          create: (context) =>
-              TradeValuesChangeNotifier(tradeValueService, channelConstraintsService)),
+      ChangeNotifierProvider(create: (context) => TradeValuesChangeNotifier(tradeValueService)),
       ChangeNotifierProvider(create: (context) => submitOrderChangeNotifier),
       ChangeNotifierProvider(create: (context) => OrderChangeNotifier(orderService)),
       ChangeNotifierProvider(create: (context) => positionChangeNotifier),
