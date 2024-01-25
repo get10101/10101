@@ -6,10 +6,12 @@ use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::Address;
 use bitcoin::Amount;
+use bitcoin::Txid;
 use commons::order_matching_fee_taker;
 use commons::TradeParams;
 use dlc_manager::ContractId;
 use dlc_manager::DlcChannelId;
+use lightning::ln::ChannelId;
 use rust_decimal::prelude::Signed;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
@@ -383,6 +385,19 @@ pub struct CollaborativeRevert {
     pub coordinator_amount_sats: Amount,
     pub trader_amount_sats: Amount,
     pub timestamp: OffsetDateTime,
+}
+
+#[derive(Clone, Debug)]
+pub struct LegacyCollaborativeRevert {
+    pub channel_id: ChannelId,
+    pub trader_pubkey: PublicKey,
+    pub price: f32,
+    pub coordinator_address: Address,
+    pub coordinator_amount_sats: Amount,
+    pub trader_amount_sats: Amount,
+    pub timestamp: OffsetDateTime,
+    pub txid: Txid,
+    pub vout: u32,
 }
 
 impl std::fmt::Debug for NewPosition {

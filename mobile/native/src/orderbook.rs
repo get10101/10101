@@ -21,6 +21,7 @@ use commons::Prices;
 use commons::Signature;
 use futures::SinkExt;
 use futures::TryStreamExt;
+use lightning::ln::ChannelId;
 use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -300,7 +301,7 @@ async fn handle_orderbook_message(
 
             update_prices_if_needed(cached_best_price, &orders);
         }
-        Message::CollaborativeRevert {
+        Message::DlcChannelCollaborativeRevert {
             channel_id,
             coordinator_address,
             coordinator_amount,
@@ -327,6 +328,41 @@ async fn handle_orderbook_message(
                     BackgroundTask::CollabRevert(TaskStatus::Failed),
                 ));
                 tracing::error!("Could not collaboratively revert channel: {err:#}");
+            } else {
+                event::publish(&EventInternal::BackgroundNotification(
+                    BackgroundTask::CollabRevert(TaskStatus::Success),
+                ));
+            }
+        }
+        Message::CollaborativeRevert {
+            channel_id,
+            coordinator_address,
+            coordinator_amount,
+            trader_amount,
+            execution_price,
+            funding_txo,
+        } => {
+            tracing::debug!(
+                channel_id = %channel_id.to_hex(),
+                "Received request for legacy collaborative revert of LN-DLC channel"
+            );
+
+            event::publish(&EventInternal::BackgroundNotification(
+                BackgroundTask::CollabRevert(TaskStatus::Pending),
+            ));
+
+            if let Err(err) = ln_dlc::legacy_collaborative_revert_channel(
+                ChannelId(channel_id),
+                coordinator_address,
+                coordinator_amount,
+                trader_amount,
+                execution_price,
+                funding_txo,
+            ) {
+                event::publish(&EventInternal::BackgroundNotification(
+                    BackgroundTask::CollabRevert(TaskStatus::Failed),
+                ));
+                tracing::error!("Could not complete legacy collaborative revert: {err:#}");
             } else {
                 event::publish(&EventInternal::BackgroundNotification(
                     BackgroundTask::CollabRevert(TaskStatus::Success),

@@ -1,5 +1,6 @@
 use crate::collaborative_revert;
 use crate::db;
+use crate::parse_channel_id;
 use crate::parse_dlc_channel_id;
 use crate::routes::AppState;
 use crate::AppError;
@@ -12,7 +13,9 @@ use bdk::FeeRate;
 use bdk::LocalUtxo;
 use bdk::TransactionDetails;
 use bitcoin::secp256k1::PublicKey;
+use bitcoin::OutPoint;
 use commons::CollaborativeRevertCoordinatorRequest;
+use commons::LegacyCollaborativeRevertCoordinatorRequest;
 use dlc_manager::channel::Channel;
 use dlc_manager::contract::Contract;
 use lightning::chain::chaininterface::ConfirmationTarget;
@@ -379,6 +382,45 @@ pub async fn collaborative_revert(
     })?;
 
     tracing::info!(channel_id = channel_id_hex, "Proposed collaborative revert");
+
+    Ok(())
+}
+
+#[instrument(skip_all, err(Debug))]
+pub async fn legacy_collaborative_revert(
+    State(state): State<Arc<AppState>>,
+    revert_params: Json<LegacyCollaborativeRevertCoordinatorRequest>,
+) -> Result<(), AppError> {
+    let channel_id_hex = revert_params.channel_id.clone();
+    let channel_id = parse_channel_id(channel_id_hex.as_str())
+        .map_err(|e| AppError::BadRequest(format!("Invalid channel ID provided: {e:#}")))?;
+
+    let funding_txo = OutPoint {
+        txid: revert_params.txid,
+        vout: revert_params.vout,
+    };
+
+    collaborative_revert::propose_legacy_collaborative_revert(
+        state.node.inner.clone(),
+        state.pool.clone(),
+        state.auth_users_notifier.clone(),
+        channel_id,
+        funding_txo,
+        revert_params.coordinator_amount,
+        revert_params.fee_rate_sats_vb,
+        revert_params.price,
+    )
+    .await
+    .map_err(|e| {
+        AppError::InternalServerError(format!(
+            "Could not propose legacy collaborative revert: {e:#}"
+        ))
+    })?;
+
+    tracing::info!(
+        channel_id = channel_id_hex,
+        "Proposed legacy collaborative revert"
+    );
 
     Ok(())
 }

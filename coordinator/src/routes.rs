@@ -5,6 +5,7 @@ use crate::admin::get_balance;
 use crate::admin::get_fee_rate_estimation;
 use crate::admin::get_utxos;
 use crate::admin::is_connected;
+use crate::admin::legacy_collaborative_revert;
 use crate::admin::list_channels;
 use crate::admin::list_dlc_channels;
 use crate::admin::list_on_chain_transactions;
@@ -14,6 +15,7 @@ use crate::admin::send_payment;
 use crate::admin::sign_message;
 use crate::backup::SledBackup;
 use crate::collaborative_revert::confirm_collaborative_revert;
+use crate::collaborative_revert::confirm_legacy_collaborative_revert;
 use crate::db;
 use crate::db::liquidity::LiquidityRequestLog;
 use crate::db::user;
@@ -27,6 +29,7 @@ use crate::orderbook::routes::post_order;
 use crate::orderbook::routes::put_order;
 use crate::orderbook::routes::websocket_handler;
 use crate::orderbook::trading::NewOrderMessage;
+use crate::parse_channel_id;
 use crate::parse_dlc_channel_id;
 use crate::settings::Settings;
 use crate::settings::SettingsFile;
@@ -161,8 +164,17 @@ pub fn router(
         .route("/api/admin/connect", post(connect_to_peer))
         .route("/api/admin/channels/revert", post(collaborative_revert))
         .route(
-            "/api/channels/revertconfirm",
+            "/api/channels/confirm-collab-revert",
             post(collaborative_revert_confirm),
+        )
+        .route(
+            "/api/admin/channels/legacy-revert",
+            post(legacy_collaborative_revert),
+        )
+        // This route is backwards compatible with version 1.7.4 of the app.
+        .route(
+            "/api/channels/revertconfirm",
+            post(legacy_collaborative_revert_confirm),
         )
         .route("/api/admin/is_connected/:target_pubkey", get(is_connected))
         .route(
@@ -538,6 +550,47 @@ pub async fn collaborative_revert_confirm(
             "Could not confirm collaborative revert: {error:#}"
         );
         AppError::InternalServerError("Could not confirm collaborative revert".to_string())
+    })?;
+    Ok(Json(serialize_hex(&raw_tx)))
+}
+
+#[instrument(skip_all, err(Debug))]
+pub async fn legacy_collaborative_revert_confirm(
+    State(state): State<Arc<AppState>>,
+    revert_params: Json<CollaborativeRevertTraderResponse>,
+) -> Result<Json<String>, AppError> {
+    let mut conn = state.pool.clone().get().map_err(|error| {
+        AppError::InternalServerError(format!("Could not acquire db lock {error:#}"))
+    })?;
+
+    let channel_id_string = revert_params.channel_id.clone();
+    let channel_id = parse_channel_id(channel_id_string.as_str()).map_err(|error| {
+        tracing::error!(
+            channel_id = channel_id_string,
+            "Invalid channel id provided. {error:#}"
+        );
+        AppError::BadRequest("Invalid channel id provided".to_string())
+    })?;
+
+    tracing::info!(
+        channel_id = channel_id_string,
+        "Confirming legacy collaborative revert"
+    );
+    let inner_node = state.node.inner.clone();
+
+    let raw_tx = confirm_legacy_collaborative_revert(
+        inner_node,
+        &mut conn,
+        channel_id,
+        revert_params.transaction.clone(),
+        revert_params.signature,
+    )
+    .map_err(|error| {
+        tracing::error!(
+            channel_id = channel_id_string,
+            "Could not confirm legacy collaborative revert: {error:#}"
+        );
+        AppError::InternalServerError("Could not confirm legacy collaborative revert".to_string())
     })?;
     Ok(Json(serialize_hex(&raw_tx)))
 }

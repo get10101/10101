@@ -196,6 +196,7 @@ async fn process_message(
         | Message::Update(_)
         | Message::AsyncMatch { .. }
         | Message::Rollover { .. }
+        | Message::DlcChannelCollaborativeRevert { .. }
         | Message::CollaborativeRevert { .. } => {
             // Nothing to do.
         }
