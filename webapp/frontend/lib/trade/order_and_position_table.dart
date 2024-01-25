@@ -117,7 +117,9 @@ class OpenPositionTable extends StatelessWidget {
         for (var position in positions)
           TableRow(
             children: [
-              buildTableCell(Text(position.quantity.toString())),
+              buildTableCell(Text(position.direction == "short"
+                  ? "-${position.quantity}"
+                  : "+${position.quantity}")),
               buildTableCell(Text(position.averageEntryPrice.toString())),
               buildTableCell(Text(position.liquidationPrice.toString())),
               buildTableCell(Text(position.collateral.toString())),
