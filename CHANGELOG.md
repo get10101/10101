@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Chore: Enforce minimum quantity to 500 on dlc channel open
+
 ## [1.8.0] - 2024-01-23
 
 - Chore: move telegram link into toplevel of settings so that it can be found easier

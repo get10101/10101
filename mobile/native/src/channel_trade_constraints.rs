@@ -7,9 +7,11 @@ pub fn channel_trade_constraints() -> Result<TradeConstraints> {
     let lsp_config =
         crate::state::try_get_lsp_config().context("We can't trade without LSP config")?;
 
+    let signed_channel = ln_dlc::get_signed_dlc_channel()?;
+
     // TODO(bonomat): retrieve these values from the coordinator. This can come from the liquidity
     // options.
-    let min_quantity = 100;
+    let min_quantity = signed_channel.map(|_| 100).unwrap_or(500);
 
     // TODO(bonomat): this logic should be removed once we have our liquidity options again and the
     // on-boarding logic. For now we take the highest liquidity option
