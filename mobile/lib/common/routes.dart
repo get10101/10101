@@ -4,7 +4,6 @@ import 'package:get_10101/common/settings/channel_screen.dart';
 import 'package:get_10101/common/settings/delete_network_graph.dart';
 import 'package:get_10101/common/status_screen.dart';
 import 'package:get_10101/features/wallet/domain/destination.dart';
-import 'package:get_10101/features/wallet/send/send_lightning_screen.dart';
 import 'package:get_10101/features/wallet/send/send_onchain_screen.dart';
 import 'package:get_10101/features/welcome/loading_screen.dart';
 import 'package:get_10101/common/scaffold_with_nav_bar.dart';
@@ -163,14 +162,6 @@ GoRouter createRoutes() {
                   parentNavigatorKey: rootNavigatorKey,
                   builder: (BuildContext context, GoRouterState state) {
                     return SendOnChainScreen(destination: state.extra as OnChainAddress);
-                  },
-                ),
-                GoRoute(
-                  path: SendLightningScreen.subRouteName,
-                  // Use root navigator so the screen overlays the application shell
-                  parentNavigatorKey: rootNavigatorKey,
-                  builder: (BuildContext context, GoRouterState state) {
-                    return SendLightningScreen(destination: state.extra as LightningInvoice);
                   },
                 ),
                 GoRoute(

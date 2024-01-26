@@ -7,7 +7,6 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:get_10101/common/color.dart';
 import 'package:get_10101/features/wallet/domain/destination.dart';
 import 'package:get_10101/features/wallet/domain/wallet_type.dart';
-import 'package:get_10101/features/wallet/send/send_lightning_screen.dart';
 import 'package:get_10101/features/wallet/send/send_onchain_screen.dart';
 import 'package:get_10101/features/wallet/wallet_change_notifier.dart';
 import 'package:get_10101/features/wallet/wallet_screen.dart';
@@ -117,14 +116,10 @@ class _ScannerScreenState extends State<ScannerScreen> {
                               if (_formKey.currentState!.validate()) {
                                 switch (destination!.getWalletType()) {
                                   case WalletType.lightning:
-                                    GoRouter.of(context)
-                                        .go(SendLightningScreen.route, extra: destination);
+                                    _showNoLightningDialog(context);
                                   case WalletType.onChain:
                                     GoRouter.of(context)
                                         .go(SendOnChainScreen.route, extra: destination);
-                                  case WalletType.stable:
-                                    GoRouter.of(context)
-                                        .go(SendLightningScreen.route, extra: destination);
                                 }
                               }
                             });
@@ -195,14 +190,10 @@ class _ScannerScreenState extends State<ScannerScreen> {
                           if (_formKey.currentState!.validate()) {
                             switch (destination!.getWalletType()) {
                               case WalletType.lightning:
-                                GoRouter.of(context)
-                                    .go(SendLightningScreen.route, extra: destination);
+                                _showNoLightningDialog(context);
                               case WalletType.onChain:
                                 GoRouter.of(context)
                                     .go(SendOnChainScreen.route, extra: destination);
-                              case WalletType.stable:
-                                GoRouter.of(context)
-                                    .go(SendLightningScreen.route, extra: destination);
                             }
                           }
                         });
@@ -252,4 +243,32 @@ class _ScannerScreenState extends State<ScannerScreen> {
     controller?.dispose();
     super.dispose();
   }
+}
+
+Future<void> _showNoLightningDialog(BuildContext context) async {
+  return showDialog<void>(
+    context: context,
+    barrierDismissible: false,
+    builder: (BuildContext context) {
+      return AlertDialog(
+        title: const Text('Can\'t pay invoice'),
+        content: const SingleChildScrollView(
+          child: ListBody(
+            children: <Widget>[
+              Text('For the time being we have disabled paying Lightning invoices.'),
+              Text('Thank you for your understanding.'),
+            ],
+          ),
+        ),
+        actions: <Widget>[
+          TextButton(
+            child: const Text('Ok'),
+            onPressed: () {
+              Navigator.of(context).pop();
+            },
+          ),
+        ],
+      );
+    },
+  );
 }

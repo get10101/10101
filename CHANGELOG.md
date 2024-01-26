@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 - Chore: Enforce minimum quantity to 500 on dlc channel open
+- Chore(app): Remove paying lightning invoices
 
 ## [1.8.0] - 2024-01-23
 
