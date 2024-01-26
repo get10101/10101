@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:get_10101/common/domain/model.dart';
 
 class AmountTextField extends StatefulWidget {
-  const AmountTextField({super.key, required this.label, required this.value, this.suffixIcon});
+  const AmountTextField(
+      {super.key, required this.label, required this.value, this.suffixIcon, this.error});
 
   final Amount value;
   final String label;
   final Widget? suffixIcon;
+  final String? error;
 
   @override
   State<AmountTextField> createState() => _AmountTextState();
@@ -22,6 +24,10 @@ class _AmountTextState extends State<AmountTextField> {
         border: const OutlineInputBorder(),
         labelText: widget.label,
         labelStyle: const TextStyle(color: Colors.black87),
+        errorStyle: TextStyle(
+          color: Colors.red[900],
+        ),
+        errorText: widget.error,
         filled: true,
         suffixIcon: widget.suffixIcon,
         fillColor: Colors.grey[50],
