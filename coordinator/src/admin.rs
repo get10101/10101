@@ -558,6 +558,26 @@ pub async fn close_channel(
 }
 
 #[instrument(skip_all, err(Debug))]
+pub async fn force_close_ln_dlc_channel(
+    Path(channel_id_string): Path<String>,
+    State(state): State<Arc<AppState>>,
+) -> Result<(), AppError> {
+    let channel_id = parse_channel_id(&channel_id_string)
+        .map_err(|_| AppError::BadRequest("Provided channel ID was invalid".to_string()))?;
+
+    tracing::info!(channel_id = %channel_id_string, "Attempting to force-close Lightning channel");
+
+    let is_force_close = true;
+    state
+        .node
+        .inner
+        .close_channel(channel_id, is_force_close)
+        .map_err(|e| AppError::InternalServerError(format!("{e:#}")))?;
+
+    Ok(())
+}
+
+#[instrument(skip_all, err(Debug))]
 pub async fn sign_message(
     Path(msg): Path<String>,
     State(state): State<Arc<AppState>>,
