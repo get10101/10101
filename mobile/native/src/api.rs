@@ -457,11 +457,13 @@ pub struct TradeConstraints {
     /// has in the channel. In the future we can consider splice in and allow the user to use more
     /// than just his channel balance.
     pub is_channel_balance: bool,
+    /// Smallest allowed margin
+    pub min_margin: u64,
 }
 
-pub fn channel_trade_constraints() -> Result<TradeConstraints> {
+pub fn channel_trade_constraints() -> Result<SyncReturn<TradeConstraints>> {
     let trade_constraints = channel_trade_constraints::channel_trade_constraints()?;
-    Ok(trade_constraints)
+    Ok(SyncReturn(trade_constraints))
 }
 
 pub fn max_channel_value() -> Result<u64> {

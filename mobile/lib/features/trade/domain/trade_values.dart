@@ -2,7 +2,6 @@ import 'package:get_10101/common/domain/model.dart';
 import 'package:get_10101/features/trade/application/trade_values_service.dart';
 import 'package:get_10101/features/trade/domain/direction.dart';
 import 'package:get_10101/features/trade/domain/leverage.dart';
-import 'package:get_10101/ffi.dart' as rust;
 
 class TradeValues {
   Amount? margin;
@@ -47,7 +46,7 @@ class TradeValues {
             price: price, leverage: leverage, direction: direction)
         : null;
 
-    Amount? fee = orderMatchingFee(quantity, price);
+    Amount? fee = tradeValuesService.orderMatchingFee(quantity: quantity, price: price);
 
     DateTime expiry = tradeValuesService.getExpiryTimestamp();
 
@@ -78,7 +77,7 @@ class TradeValues {
             price: price, leverage: leverage, direction: direction)
         : null;
 
-    Amount? fee = orderMatchingFee(quantity, price);
+    Amount? fee = tradeValuesService.orderMatchingFee(quantity: quantity, price: price);
 
     DateTime expiry = tradeValuesService.getExpiryTimestamp();
 
@@ -146,12 +145,6 @@ class TradeValues {
   }
 
   _recalculateFee() {
-    fee = orderMatchingFee(quantity, price);
+    fee = tradeValuesService.orderMatchingFee(quantity: quantity, price: price);
   }
-}
-
-Amount? orderMatchingFee(Amount? quantity, double? price) {
-  return quantity != null && price != null
-      ? Amount(rust.api.orderMatchingFee(quantity: quantity.asDouble(), price: price))
-      : null;
 }

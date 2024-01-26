@@ -1,6 +1,7 @@
 import 'package:candlesticks/candlesticks.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
 import 'package:get_10101/common/amount_denomination_change_notifier.dart';
 @GenerateNiceMocks([MockSpec<ChannelInfoService>()])
 import 'package:get_10101/common/application/channel_info_service.dart';
@@ -96,6 +97,9 @@ void main() {
             price: anyNamed('price'), leverage: anyNamed('leverage'), margin: anyNamed('margin')))
         .thenReturn(Amount(1));
     when(tradeValueService.getExpiryTimestamp()).thenReturn(DateTime.now());
+    when(tradeValueService.orderMatchingFee(
+            quantity: anyNamed('quantity'), price: anyNamed('price')))
+        .thenReturn(Amount(42));
 
     // assuming this is an initial funding, no channel exists yet
     when(channelConstraintsService.getChannelInfo()).thenAnswer((_) async {
@@ -113,6 +117,15 @@ void main() {
     when(channelConstraintsService.getContractTxFeeRate()).thenAnswer((_) async {
       return 1;
     });
+
+    when(channelConstraintsService.getTradeConstraints()).thenAnswer((_) =>
+        const bridge.TradeConstraints(
+            maxLocalMarginSats: 20000000000,
+            maxCounterpartyMarginSats: 200000000000,
+            coordinatorLeverage: 2,
+            minQuantity: 1,
+            isChannelBalance: true,
+            minMargin: 1));
 
     when(candlestickService.fetchCandles(1000)).thenAnswer((_) async {
       return getDummyCandles(1000);
@@ -133,11 +146,15 @@ void main() {
 
     LspChangeNotifier lspChangeNotifier = LspChangeNotifier(channelConstraintsService);
 
+    final tradeValuesChangeNotifier = TradeValuesChangeNotifier(tradeValueService);
+
+    final price = Price(bid: 30000.0, ask: 30000.0);
     // We have to have current price, otherwise we can't take order
-    positionChangeNotifier.price = Price(bid: 30000.0, ask: 30000.0);
+    positionChangeNotifier.price = price;
+    tradeValuesChangeNotifier.updatePrice(price);
 
     await tester.pumpWidget(MultiProvider(providers: [
-      ChangeNotifierProvider(create: (context) => TradeValuesChangeNotifier(tradeValueService)),
+      ChangeNotifierProvider(create: (context) => tradeValuesChangeNotifier),
       ChangeNotifierProvider(create: (context) => submitOrderChangeNotifier),
       ChangeNotifierProvider(create: (context) => OrderChangeNotifier(orderService)),
       ChangeNotifierProvider(create: (context) => positionChangeNotifier),

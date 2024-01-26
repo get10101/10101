@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Chore: Set minimum quantity to 1 if dlc channel is open
+- Chore: Enforce minimum margin of 250k instead of min quantity
+
 ## [1.8.2] - 2024-01-26
 
 - Feat: Add endpoint to force close ln-dlc channels

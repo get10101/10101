@@ -41,6 +41,12 @@ class TradeValuesService {
     }
   }
 
+  Amount? orderMatchingFee({required Amount? quantity, required double? price}) {
+    return quantity != null && price != null
+        ? Amount(rust.api.orderMatchingFee(quantity: quantity.asDouble(), price: price))
+        : null;
+  }
+
   DateTime getExpiryTimestamp() {
     String network = const String.fromEnvironment('NETWORK', defaultValue: "regtest");
     return DateTime.fromMillisecondsSinceEpoch(
