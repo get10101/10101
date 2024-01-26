@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.8.3] - 2024-01-26
+
 - Chore: Set minimum quantity to 1 if dlc channel is open
 - Chore: Enforce minimum margin of 250k instead of min quantity
 
@@ -277,7 +279,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Self-Custodial CFD Trading based on DLC and lightning
 
-[Unreleased]: https://github.com/get10101/10101/compare/1.8.2...HEAD
+[Unreleased]: https://github.com/get10101/10101/compare/1.8.3...HEAD
+[1.8.3]: https://github.com/get10101/10101/compare/1.8.2...1.8.3
 [1.8.2]: https://github.com/get10101/10101/compare/1.8.1...1.8.2
 [1.8.1]: https://github.com/get10101/10101/compare/1.8.0...1.8.1
 [1.8.0]: https://github.com/get10101/10101/compare/1.7.4...1.8.0
