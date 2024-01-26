@@ -126,7 +126,7 @@ class OpenPositionTable extends StatelessWidget {
               buildTableCell(Text(position.leverage.formatted())),
               buildTableCell(Text(position.pnlSats.toString())),
               buildTableCell(
-                  Text("${DateFormat('dd-MM-yyyy – HH:mm').format(position.expiry)} CET")),
+                  Text("${DateFormat('dd-MM-yyyy – HH:mm').format(position.expiry)} UTC")),
               buildTableCell(Center(
                 child: SizedBox(
                   width: 100,
