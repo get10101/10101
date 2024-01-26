@@ -459,9 +459,9 @@ pub struct TradeConstraints {
     pub is_channel_balance: bool,
 }
 
-pub fn channel_trade_constraints() -> Result<TradeConstraints> {
+pub fn channel_trade_constraints() -> Result<SyncReturn<TradeConstraints>> {
     let trade_constraints = channel_trade_constraints::channel_trade_constraints()?;
-    Ok(trade_constraints)
+    Ok(SyncReturn(trade_constraints))
 }
 
 pub fn max_channel_value() -> Result<u64> {

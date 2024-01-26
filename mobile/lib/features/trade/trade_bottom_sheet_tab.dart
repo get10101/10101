@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:get_10101/common/amount_text.dart';
 import 'package:get_10101/common/amount_text_field.dart';
@@ -57,13 +55,6 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
     super.initState();
   }
 
-  Future<rust.TradeConstraints> _getTradeConstraints() async {
-    var completer = Completer<rust.TradeConstraints>();
-    var channelTradeConstraints = rust.api.channelTradeConstraints();
-    completer.complete(channelTradeConstraints);
-    return completer.future;
-  }
-
   @override
   void dispose() {
     marginController.dispose();
@@ -81,6 +72,9 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
     String label = direction == Direction.long ? "Buy" : "Sell";
     Color color = direction == Direction.long ? tradeTheme.buy : tradeTheme.sell;
 
+    final channelInfoService = lspChangeNotifier.channelInfoService;
+    final channelTradeConstraints = channelInfoService.getTradeConstraints();
+
     return Form(
       key: _formKey,
       child: Column(
@@ -88,52 +82,14 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
         crossAxisAlignment: CrossAxisAlignment.center,
         mainAxisSize: MainAxisSize.min,
         children: [
-          FutureBuilder<rust.TradeConstraints>(
-            future: _getTradeConstraints(), // a previously-obtained Future<String> or null
-            builder: (BuildContext context, AsyncSnapshot<rust.TradeConstraints> snapshot) {
-              List<Widget> children;
-
-              final channelInfoService = lspChangeNotifier.channelInfoService;
-
-              if (snapshot.hasData) {
-                var tradeConstraints = snapshot.data!;
-
-                children = <Widget>[
-                  buildChildren(direction, tradeConstraints, context, channelInfoService, _formKey),
-                ];
-              } else if (snapshot.hasError) {
-                children = <Widget>[
-                  const Icon(
-                    Icons.error_outline,
-                    color: Colors.red,
-                    size: 60,
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.only(top: 16),
-                    child:
-                        Text('Error: Could not load confirmation screen due to ${snapshot.error}'),
-                  ),
-                ];
-              } else {
-                children = const <Widget>[
-                  SizedBox(
-                    width: 60,
-                    height: 60,
-                    child: CircularProgressIndicator(),
-                  ),
-                  Padding(
-                    padding: EdgeInsets.only(top: 16),
-                    child: Text('Loading confirmation screen...'),
-                  ),
-                ];
-              }
-              return Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: children,
-                ),
-              );
-            },
+          Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: <Widget>[
+                buildChildren(
+                    direction, channelTradeConstraints, context, channelInfoService, _formKey)
+              ],
+            ),
           ),
           Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,

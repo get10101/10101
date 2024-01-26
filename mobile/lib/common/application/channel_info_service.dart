@@ -5,6 +5,10 @@ import 'package:get_10101/ffi.dart' as rust;
 class ChannelInfoService {
   const ChannelInfoService();
 
+  rust.TradeConstraints getTradeConstraints() {
+    return rust.api.channelTradeConstraints();
+  }
+
   Future<ChannelInfo?> getChannelInfo() async {
     rust.ChannelInfo? channelInfo = await rust.api.channelInfo();
     return channelInfo != null ? ChannelInfo.fromApi(channelInfo) : null;
