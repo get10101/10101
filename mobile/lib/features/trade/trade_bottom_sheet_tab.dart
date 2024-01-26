@@ -172,7 +172,7 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
           padding: const EdgeInsets.only(bottom: 10),
           child: Row(
             children: [
-              const Flexible(child: Text("Usable Balance:")),
+              const Flexible(child: Text("Balance:")),
               const SizedBox(width: 5),
               Flexible(child: AmountText(amount: Amount(usableBalance))),
               const SizedBox(
