@@ -11,7 +11,8 @@ pub fn channel_trade_constraints() -> Result<TradeConstraints> {
 
     // TODO(bonomat): retrieve these values from the coordinator. This can come from the liquidity
     // options.
-    let min_quantity = signed_channel.map(|_| 100).unwrap_or(500);
+    let min_quantity = 1;
+    let min_margin = signed_channel.map(|_| 1).unwrap_or(250_000);
 
     // TODO(bonomat): this logic should be removed once we have our liquidity options again and the
     // on-boarding logic. For now we take the highest liquidity option
@@ -40,6 +41,7 @@ pub fn channel_trade_constraints() -> Result<TradeConstraints> {
                 coordinator_leverage,
                 min_quantity,
                 is_channel_balance: false,
+                min_margin,
             }
         }
         Some(channel) => TradeConstraints {
@@ -48,6 +50,7 @@ pub fn channel_trade_constraints() -> Result<TradeConstraints> {
             coordinator_leverage,
             min_quantity,
             is_channel_balance: true,
+            min_margin,
         },
     };
     Ok(trade_constraints)

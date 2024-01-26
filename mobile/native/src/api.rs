@@ -457,6 +457,8 @@ pub struct TradeConstraints {
     /// has in the channel. In the future we can consider splice in and allow the user to use more
     /// than just his channel balance.
     pub is_channel_balance: bool,
+    /// Smallest allowed margin
+    pub min_margin: u64,
 }
 
 pub fn channel_trade_constraints() -> Result<SyncReturn<TradeConstraints>> {

@@ -20,6 +20,7 @@ import 'package:get_10101/features/trade/trade_dialog.dart';
 import 'package:get_10101/features/trade/trade_theme.dart';
 import 'package:get_10101/features/trade/trade_value_change_notifier.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 const contractSymbol = ContractSymbol.btcusd;
@@ -97,9 +98,10 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
               ElevatedButton(
                   key: widget.buttonKey,
                   onPressed: () {
-                    if (_formKey.currentState!.validate()) {
-                      TradeValues tradeValues =
-                          context.read<TradeValuesChangeNotifier>().fromDirection(direction);
+                    TradeValues tradeValues =
+                        context.read<TradeValuesChangeNotifier>().fromDirection(direction);
+                    if (_formKey.currentState!.validate() &&
+                        channelTradeConstraints.minMargin <= (tradeValues.margin?.sats ?? 0)) {
                       final submitOrderChangeNotifier = context.read<SubmitOrderChangeNotifier>();
                       tradeBottomSheetConfirmation(
                           context: context,
@@ -164,6 +166,8 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
           "If you want to trade more than this, you will need to close the channel and open a bigger one. "
           "\nWith your current balance, the maximum you can trade is ${formatUsd(Usd(maxQuantity.toInt()))}";
     }
+
+    var amountFormatter = NumberFormat.compact(locale: "en_UK");
 
     return Wrap(
       runSpacing: 12,
@@ -275,6 +279,9 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
                       return AmountTextField(
                         value: margin,
                         label: "Margin (sats)",
+                        error: channelTradeConstraints.minMargin > margin.sats
+                            ? "Min margin is ${amountFormatter.format(channelTradeConstraints.minMargin)} sats"
+                            : null,
                         suffixIcon: showCapacityInfo
                             ? ModalBottomSheetInfo(
                                 closeButtonText: "Back to order",
