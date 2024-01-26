@@ -117,7 +117,7 @@ class OpenPositionTable extends StatelessWidget {
         for (var position in positions)
           TableRow(
             children: [
-              buildTableCell(Text(position.direction == "short"
+              buildTableCell(Text(position.direction == "Short"
                   ? "-${position.quantity}"
                   : "+${position.quantity}")),
               buildTableCell(Text(position.averageEntryPrice.toString())),
@@ -126,7 +126,7 @@ class OpenPositionTable extends StatelessWidget {
               buildTableCell(Text(position.leverage.formatted())),
               buildTableCell(Text(position.pnlSats.toString())),
               buildTableCell(
-                  Text("${DateFormat('dd-MM-yyyy – HH:mm').format(position.expiry)} CET")),
+                  Text("${DateFormat('dd-MM-yyyy – HH:mm').format(position.expiry)} UTC")),
               buildTableCell(Center(
                 child: SizedBox(
                   width: 100,
