@@ -270,7 +270,7 @@ impl Node {
         let sats_per_vbyte = self
             .inner
             .fee_rate_estimator
-            .get(ConfirmationTarget::Normal)
+            .get(ConfirmationTarget::Background)
             .as_sat_per_vb()
             .round();
         // This fee rate is used to construct the fund and CET transactions.
@@ -423,7 +423,7 @@ impl Node {
         let sats_per_vbyte = self
             .inner
             .fee_rate_estimator
-            .get(ConfirmationTarget::Normal)
+            .get(ConfirmationTarget::Background)
             .as_sat_per_vb()
             .round();
         // This fee rate is used to construct the CET transactions.
