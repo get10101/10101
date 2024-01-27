@@ -1,6 +1,7 @@
 use crate::admin::close_channel;
 use crate::admin::collaborative_revert;
 use crate::admin::connect_to_peer;
+use crate::admin::delete_dlc_channels;
 use crate::admin::force_close_ln_dlc_channel;
 use crate::admin::get_balance;
 use crate::admin::get_fee_rate_estimation;
@@ -164,6 +165,10 @@ pub fn router(
         .route("/api/admin/peers", get(list_peers))
         .route("/api/admin/send_payment/:invoice", post(send_payment))
         .route("/api/admin/dlc_channels", get(list_dlc_channels))
+        .route(
+            "/api/admin/dlc_channels/:channel_id",
+            delete(delete_dlc_channels),
+        )
         .route("/api/admin/transactions", get(list_on_chain_transactions))
         .route("/api/admin/sign/:msg", get(sign_message))
         .route("/api/admin/connect", post(connect_to_peer))

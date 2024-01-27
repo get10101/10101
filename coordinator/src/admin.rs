@@ -18,6 +18,7 @@ use commons::CollaborativeRevertCoordinatorRequest;
 use commons::LegacyCollaborativeRevertCoordinatorRequest;
 use dlc_manager::channel::Channel;
 use dlc_manager::contract::Contract;
+use dlc_manager::Storage;
 use lightning::chain::chaininterface::ConfirmationTarget;
 use lightning_invoice::Bolt11Invoice;
 use ln_dlc_node::node::NodeInfo;
@@ -553,6 +554,49 @@ pub async fn close_channel(
         .close_dlc_channel(channel_id, params.force.unwrap_or_default())
         .await
         .map_err(|e| AppError::InternalServerError(format!("{e:#}")))?;
+
+    Ok(())
+}
+
+#[derive(Debug, Deserialize)]
+pub struct DeleteDlcChannel {
+    #[serde(default, deserialize_with = "empty_string_as_none")]
+    i_know_what_i_am_doing: Option<bool>,
+}
+
+/// This function deletes a DLC channel from our database irreversible!
+/// If you want to close a channel instead, use `close_channel`
+#[instrument(skip_all, err(Debug))]
+pub async fn delete_dlc_channels(
+    Path(channel_id_string): Path<String>,
+    State(state): State<Arc<AppState>>,
+    Query(params): Query<DeleteDlcChannel>,
+) -> Result<(), AppError> {
+    if !params.i_know_what_i_am_doing.unwrap_or_default() {
+        let error_message =
+            "Looks like you don't know what you are doing! Go and ask your supervisor for help!";
+        tracing::warn!(error_message);
+        return Err(AppError::BadRequest(error_message.to_string()));
+    }
+
+    let channel_id = parse_dlc_channel_id(&channel_id_string)
+        .map_err(|_| AppError::BadRequest("Provided channel ID was invalid".to_string()))?;
+
+    tracing::info!(channel_id = %channel_id_string, "Deleting dlc channel");
+
+    state
+        .node
+        .inner
+        .dlc_storage
+        .delete_channel(&channel_id)
+        .map_err(|e| {
+            AppError::InternalServerError(format!(
+                "Could not delete dlc_channel with id {} due to {:?}",
+                channel_id_string, e
+            ))
+        })?;
+
+    tracing::info!(channel_id = %channel_id_string, "Deleted dlc channel");
 
     Ok(())
 }
