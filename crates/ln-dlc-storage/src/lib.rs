@@ -247,7 +247,14 @@ impl<K: DlcStoreProvider> DlcStorageProvider<K> {
                     if let Some(c) = consume {
                         cursor.set_position(cursor.position() + c);
                     }
-                    Some(Ok(T::deserialize(&mut cursor).ok()?))
+
+                    match T::deserialize(&mut cursor) {
+                        Ok(deserialized) => Some(Ok(deserialized)),
+                        Err(e) => {
+                            tracing::error!("Failed to deserialize data: {e}");
+                            None
+                        }
+                    }
                 } else {
                     None
                 }
@@ -560,12 +567,19 @@ impl<K: DlcStoreProvider> dlc_manager::Storage for DlcStorageProvider<K> {
     }
 
     fn get_channels(&self) -> Result<Vec<Channel>, Error> {
-        self.store
+        Ok(self
+            .store
             .read(CHANNEL, None)
             .map_err(to_storage_error)?
             .iter()
-            .map(|c| deserialize_channel(&c.value))
-            .collect()
+            .filter_map(|x| match deserialize_channel(&x.value) {
+                Ok(channel) => Some(channel),
+                Err(e) => {
+                    tracing::error!("Failed to deserialize dlc channel: {e}");
+                    None
+                }
+            })
+            .collect::<Vec<Channel>>())
     }
 }
 
