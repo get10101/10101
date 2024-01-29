@@ -1,6 +1,7 @@
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:flutter/material.dart';
 import 'package:get_10101/common/color.dart';
+import 'package:get_10101/features/welcome/payout_chart.dart';
 import 'package:get_10101/features/welcome/seed_import_screen.dart';
 import 'package:get_10101/features/welcome/welcome_screen.dart';
 import 'package:go_router/go_router.dart';
@@ -10,59 +11,60 @@ final themeMode = ValueNotifier(2);
 class CarouselItem {
   final String title;
   final String description;
-  final String imagePath;
-  final double aspectRatio;
+  final Widget imageWidget;
 
-  CarouselItem(this.title, this.description, this.imagePath, this.aspectRatio);
+  CarouselItem(
+    this.title,
+    this.description,
+    this.imageWidget,
+  );
 }
 
 final List<CarouselItem> carouselItems = [
-  CarouselItem("Your keys, your control", "Stay in control of your funds at all time.",
-      "assets/carousel_1.jpg", 30 / 35),
-  CarouselItem("Bitcoin only & Lightning fast.",
-      "The highest level of security, at lightning speed.", "assets/carousel_2.jpg", 30 / 38),
   CarouselItem(
-      "Perpetual futures trading.",
-      "Experience P2P leveraged trading with no counterparty risk.",
-      "assets/carousel_3.jpg",
-      30 / 35),
+      "Welcome, Satoshi",
+      "10101 uses Discreet Log Contracts (DLCs) to ensure that every trade is collateralized and fully self-custodial. \n\nrYour first trade will open a DLC channel with on-chain funds. Every subsequent trade will happen off-chain until your channel is closed.",
+      Image.asset("assets/carousel_1.png")),
   CarouselItem(
-      "Hedging and synthetics",
-      "You can now send, receive and hold USDP natively on Lightning.",
-      "assets/carousel_4.jpg",
-      30 / 28),
+      "Perpetual Futures",
+      "In 10101 you can trade Perpetual Futures (CFDs) without counterparty risk. \n \nThe max amount you put at risk will depend on how much you lock up. At the same time, the amount you can win will depend on the amount your channel counterparty will lock up.",
+      const PnlLineChart()),
+  CarouselItem(
+      "It's the future",
+      "Once you have an open channel, you can trade instantly and without transaction fees. \n In the future you will be able to extend or reduce the channel size (splice-in/splice-out). ",
+      Image.asset("assets/carousel_3.png")),
 ];
 
 Widget carouselItemWidget(BuildContext context, CarouselItem item) {
-  final baseHeight = MediaQuery.of(context).size.height * 0.45;
-  final baseWidth = MediaQuery.of(context).size.width * 0.10;
-  return Stack(children: [
-    AspectRatio(
-        aspectRatio: item.aspectRatio,
-        child: Container(
-            decoration: BoxDecoration(
-                image: DecorationImage(
-          fit: BoxFit.fitWidth,
-          alignment: FractionalOffset.center,
-          image: AssetImage(item.imagePath),
-        )))),
-    Padding(
-      padding: EdgeInsets.only(left: baseWidth, right: baseWidth, top: baseHeight),
-      child: Text(
-        item.title,
-        style: const TextStyle(fontSize: 30, fontWeight: FontWeight.bold),
-        textAlign: TextAlign.center,
+  return Column(
+    children: [
+      Expanded(
+        child: Column(
+          children: [
+            Expanded(
+              child: FractionallySizedBox(heightFactor: 0.8, child: item.imageWidget),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(left: 20, right: 20, top: 0),
+              child: Text(
+                item.title,
+                style: const TextStyle(fontSize: 30, fontWeight: FontWeight.bold),
+                textAlign: TextAlign.left,
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(left: 20, right: 20, top: 10),
+              child: Text(
+                item.description,
+                style: const TextStyle(fontSize: 18, color: Colors.black54),
+                textAlign: TextAlign.justify,
+              ),
+            )
+          ],
+        ),
       ),
-    ),
-    Padding(
-      padding: EdgeInsets.only(left: baseWidth, right: baseWidth, top: baseHeight + 100),
-      child: Text(
-        item.description,
-        style: const TextStyle(fontSize: 18, color: Colors.black54),
-        textAlign: TextAlign.center,
-      ),
-    )
-  ]);
+    ],
+  );
 }
 
 class Onboarding extends StatefulWidget {
@@ -87,7 +89,6 @@ class _Onboarding extends State<Onboarding> {
       carouselItemWidget(context, carouselItems[0]),
       carouselItemWidget(context, carouselItems[1]),
       carouselItemWidget(context, carouselItems[2]),
-      carouselItemWidget(context, carouselItems[3])
     ];
 
     return Scaffold(
