@@ -62,21 +62,33 @@ impl TestSetup {
             "App should start with empty off-chain wallet"
         );
 
-        let fund_amount = Amount::ONE_BTC;
+        let fund_amount = Amount::from_sat(1_000) * 100;
 
         let address = api::get_unused_address();
         let address = &address.0.parse().unwrap();
 
-        bitcoind
-            .send_to_address(address, Amount::ONE_BTC)
-            .await
-            .unwrap();
+        tracing::info!("Sending sats");
 
-        bitcoind.mine(1).await.unwrap();
+        for _ in 0..200 {
+            bitcoind
+                .send_to_address(address, Amount::from_sat(1_000))
+                .await
+                .unwrap();
+
+            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+        }
+
+        for _ in 0..20 {
+            bitcoind.mine(1).await.unwrap();
+
+            tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+        }
+
+        tracing::info!("Sent all sats");
 
         wait_until!({
             refresh_wallet_info();
-            app.rx.wallet_info().unwrap().balances.on_chain == fund_amount.to_sat()
+            dbg!(app.rx.wallet_info().unwrap().balances.on_chain) >= fund_amount.to_sat()
         });
 
         let on_chain_balance = app.rx.wallet_info().unwrap().balances.on_chain;

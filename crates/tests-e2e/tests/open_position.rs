@@ -14,7 +14,7 @@ fn dummy_order() -> NewOrder {
         leverage: 2.0,
         contract_symbol: ContractSymbol::BtcUsd,
         direction: api::Direction::Long,
-        quantity: 1.0,
+        quantity: 100.0,
         order_type: Box::new(OrderType::Market),
         stable: false,
     }

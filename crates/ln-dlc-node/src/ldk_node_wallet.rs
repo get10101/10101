@@ -10,6 +10,8 @@ use bdk::blockchain::GetBlockHash;
 use bdk::blockchain::GetHeight;
 use bdk::database::BatchDatabase;
 use bdk::psbt::PsbtUtils;
+use bdk::wallet::coin_selection::BranchAndBoundCoinSelection;
+use bdk::wallet::coin_selection::CoinSelectionAlgorithm;
 use bdk::wallet::AddressIndex;
 use bdk::FeeRate;
 use bdk::SignOptions;
@@ -31,6 +33,7 @@ use lightning::chain::chaininterface::ConfirmationTarget;
 use parking_lot::Mutex;
 use parking_lot::MutexGuard;
 use rust_bitcoin_coin_selection::select_coins;
+use std::ops::Deref;
 use std::sync::Arc;
 use std::time::Instant;
 use tokio::sync::RwLock;
@@ -183,12 +186,32 @@ where
     pub fn get_utxos_for_amount(
         &self,
         amount: u64,
+        fee_rate: Option<u64>,
         lock_utxos: bool,
-        network: Network,
     ) -> Result<Vec<Utxo>> {
         let utxos = self.get_utxos()?;
         // get temporarily reserved utxo from in-memory storage
         let mut reserved_outpoints = self.locked_outpoints.lock();
+
+        // let coin_selection = {
+        //     let bdk_lock = self.bdk_lock();
+        //     let database = bdk_lock.database();
+
+        //     let dummy_change_address = self.get_last_unused_address()?;
+
+        //     BranchAndBoundCoinSelection::default().coin_select(
+        //         database.deref(),
+        //         Vec::new(),
+        //         Vec::new(),
+        //         // Arbitrary default fee rate of 10.
+        //         FeeRate::from_sat_per_vb(fee_rate.unwrap_or(10) as f32),
+        //         amount,
+        //         // The change output is handled by `rust-dlc`.
+        //         &dummy_change_address.script_pubkey(),
+        //     )?
+        // };
+
+        // dbg!(coin_selection);
 
         // filter reserved utxos from all known utxos to not accidentally double spend and those who
         // have actually been spent already
@@ -204,8 +227,11 @@ where
                 utxo: Utxo {
                     tx_out: x.txout.clone(),
                     outpoint: x.outpoint,
-                    address: Address::from_script(&x.txout.script_pubkey, network)
-                        .expect("to be a valid address"),
+                    address: Address::from_script(
+                        &x.txout.script_pubkey,
+                        self.bdk_lock().network(),
+                    )
+                    .expect("to be a valid address"),
                     redeem_script: Default::default(),
                     reserved: false,
                 },
@@ -213,25 +239,25 @@ where
             .collect::<Vec<_>>();
 
         // select enough utxos for our needs
-        let selected_local_utxos = select_coins(amount, 20, &mut utxos);
-        match selected_local_utxos {
-            None => Ok(vec![]),
-            Some(selected_local_utxos) => {
-                // update our temporarily reserved utxos with the selected once.
-                // note: this storage is only cleared up on a restart, meaning, if the protocol
-                // fails later on, the utxos will remain reserved
-                if lock_utxos {
-                    for utxo in selected_local_utxos.clone() {
-                        reserved_outpoints.push(utxo.utxo.outpoint);
-                    }
-                }
+        let selected_local_utxos = select_coins(amount, 20, &mut utxos).with_context(|| {
+            format!("Could not reach target of {amount} sats with given UTXO pool")
+        })?;
 
-                Ok(selected_local_utxos
-                    .into_iter()
-                    .map(|utxo| utxo.utxo)
-                    .collect())
+        dbg!(&selected_local_utxos);
+
+        // update our temporarily reserved utxos with the selected once.
+        // note: this storage is only cleared up on a restart, meaning, if the protocol
+        // fails later on, the utxos will remain reserved
+        if lock_utxos {
+            for utxo in selected_local_utxos.clone() {
+                reserved_outpoints.push(utxo.utxo.outpoint);
             }
         }
+
+        Ok(selected_local_utxos
+            .into_iter()
+            .map(|utxo| utxo.utxo)
+            .collect())
     }
 
     /// Build the PSBT for sending funds to a given script and signs it
