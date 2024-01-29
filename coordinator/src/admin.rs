@@ -602,16 +602,22 @@ pub async fn delete_dlc_channels(
 }
 
 #[instrument(skip_all, err(Debug))]
-pub async fn force_close_ln_dlc_channel(
+pub async fn close_ln_dlc_channel(
     Path(channel_id_string): Path<String>,
+    Query(params): Query<CloseChannelParams>,
     State(state): State<Arc<AppState>>,
 ) -> Result<(), AppError> {
     let channel_id = parse_channel_id(&channel_id_string)
         .map_err(|_| AppError::BadRequest("Provided channel ID was invalid".to_string()))?;
 
-    tracing::info!(channel_id = %channel_id_string, "Attempting to force-close Lightning channel");
+    let is_force_close = params.force.unwrap_or(false);
 
-    let is_force_close = true;
+    tracing::info!(
+        channel_id = %channel_id_string,
+        %is_force_close,
+        "Attempting to close an LN-DLC channel"
+    );
+
     state
         .node
         .inner
