@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Chore: Add funding txid to list dlc channels api
+
 ## [1.8.3] - 2024-01-26
 
 - Chore: Set minimum quantity to 1 if dlc channel is open
