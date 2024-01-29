@@ -80,16 +80,15 @@ impl From<Option<&SignedChannel>> for ChannelStatus {
             None => Self::NotOpen,
             Some(channel) => match channel.state {
                 SignedChannelState::Established { .. } => Self::WithPosition,
-                SignedChannelState::Settled { .. } | SignedChannelState::RenewFinalized { .. } => {
-                    Self::Open
-                }
+                SignedChannelState::Settled { .. } => Self::Open,
                 SignedChannelState::SettledOffered { .. }
                 | SignedChannelState::SettledReceived { .. }
                 | SignedChannelState::SettledAccepted { .. }
                 | SignedChannelState::SettledConfirmed { .. } => Self::Settling,
                 SignedChannelState::RenewOffered { .. }
                 | SignedChannelState::RenewAccepted { .. }
-                | SignedChannelState::RenewConfirmed { .. } => Self::Renewing,
+                | SignedChannelState::RenewConfirmed { .. }
+                | SignedChannelState::RenewFinalized { .. } => Self::Renewing,
                 SignedChannelState::Closing { .. }
                 | SignedChannelState::CollaborativeCloseOffered { .. } => Self::Closing,
             },
