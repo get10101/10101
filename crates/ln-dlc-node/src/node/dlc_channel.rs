@@ -333,9 +333,9 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
     /// Will return an error if the contract is not yet signed or confirmed on-chain.
     pub fn get_expiry_for_confirmed_dlc_channel(
         &self,
-        dlc_channel_id: DlcChannelId,
+        dlc_channel_id: &DlcChannelId,
     ) -> Result<OffsetDateTime> {
-        match self.get_contract_by_dlc_channel_id(&dlc_channel_id)? {
+        match self.get_contract_by_dlc_channel_id(dlc_channel_id)? {
             Contract::Signed(contract) | Contract::Confirmed(contract) => {
                 let offered_contract = contract.accepted_contract.offered_contract;
                 let contract_info = offered_contract

@@ -252,7 +252,7 @@ impl Node {
 
                         let expiry_timestamp = self
                             .inner
-                            .get_expiry_for_confirmed_dlc_channel(r.channel_id)?;
+                            .get_expiry_for_confirmed_dlc_channel(&r.channel_id)?;
 
                         match db::get_order_in_filling()? {
                             Some(_) => {
@@ -283,7 +283,7 @@ impl Node {
                     ChannelMessage::Sign(signed) => {
                         let expiry_timestamp = self
                             .inner
-                            .get_expiry_for_confirmed_dlc_channel(signed.channel_id)?;
+                            .get_expiry_for_confirmed_dlc_channel(&signed.channel_id)?;
 
                         let filled_order = order::handler::order_filled()
                             .context("Cannot mark order as filled for confirmed DLC")?;
