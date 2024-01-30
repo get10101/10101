@@ -273,9 +273,8 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
         tracing::info!(channel_id = %hex::encode(dlc_channel_id), "Proposing a DLC channel update");
         spawn_blocking({
             let dlc_manager = self.dlc_manager.clone();
-            let dlc_message_handler = self.dlc_message_handler.clone();
-            let peer_manager = self.peer_manager.clone();
             let dlc_channel_id = *dlc_channel_id;
+            let event_handler = self.event_handler.clone();
             move || {
                 // Not actually needed. See https://github.com/p2pderivatives/rust-dlc/issues/149.
                 let counter_payout = 0;
@@ -283,12 +282,10 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
                 let (renew_offer, counterparty_pubkey) =
                     dlc_manager.renew_offer(&dlc_channel_id, counter_payout, &contract_input)?;
 
-                send_dlc_message(
-                    &dlc_message_handler,
-                    &peer_manager,
-                    counterparty_pubkey,
-                    Message::Channel(ChannelMessage::RenewOffer(renew_offer)),
-                );
+                event_handler.publish(NodeEvent::SendDlcMessage {
+                    msg: Message::Channel(ChannelMessage::RenewOffer(renew_offer)),
+                    peer: counterparty_pubkey,
+                })?;
 
                 let offered_contracts = dlc_manager.get_store().get_contract_offers()?;
 
