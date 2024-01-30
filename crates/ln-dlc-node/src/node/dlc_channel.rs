@@ -373,7 +373,7 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
             })
     }
 
-    pub fn get_dlc_channel_by_counterparty(
+    pub fn get_signed_dlc_channel_by_counterparty(
         &self,
         counterparty_pk: &PublicKey,
     ) -> Result<Option<SignedChannel>> {

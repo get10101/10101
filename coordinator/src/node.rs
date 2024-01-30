@@ -663,7 +663,7 @@ impl Node {
         let trader_peer_id = trade_params.pubkey;
         match self
             .inner
-            .get_dlc_channel_by_counterparty(&trader_peer_id)?
+            .get_signed_dlc_channel_by_counterparty(&trader_peer_id)?
         {
             None => {
                 ensure!(
