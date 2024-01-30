@@ -20,7 +20,6 @@ use bitcoin::psbt::PartiallySignedTransaction;
 use bitcoin::Address;
 use bitcoin::Amount;
 use bitcoin::BlockHash;
-use bitcoin::Network;
 use bitcoin::OutPoint;
 use bitcoin::Script;
 use bitcoin::Transaction;
@@ -180,12 +179,7 @@ where
         Ok(utxos)
     }
 
-    pub fn get_utxos_for_amount(
-        &self,
-        amount: u64,
-        lock_utxos: bool,
-        network: Network,
-    ) -> Result<Vec<Utxo>> {
+    pub fn get_utxos_for_amount(&self, amount: u64, lock_utxos: bool) -> Result<Vec<Utxo>> {
         let utxos = self.get_utxos()?;
         // get temporarily reserved utxo from in-memory storage
         let mut reserved_outpoints = self.locked_outpoints.lock();
@@ -204,8 +198,11 @@ where
                 utxo: Utxo {
                     tx_out: x.txout.clone(),
                     outpoint: x.outpoint,
-                    address: Address::from_script(&x.txout.script_pubkey, network)
-                        .expect("to be a valid address"),
+                    address: Address::from_script(
+                        &x.txout.script_pubkey,
+                        self.bdk_lock().network(),
+                    )
+                    .expect("to be a valid address"),
                     redeem_script: Default::default(),
                     reserved: false,
                 },
