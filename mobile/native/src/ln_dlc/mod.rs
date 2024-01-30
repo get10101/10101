@@ -743,7 +743,7 @@ pub fn collaborative_revert_channel(
     let signed_channel = dlc_channels
         .into_iter()
         .find(|c| c.channel_id == channel_id)
-        .with_context(|| format!("Could not find subchannel {channel_id_hex}"))?;
+        .with_context(|| format!("Could not find signed channel {channel_id_hex}"))?;
 
     let fund_output_value = signed_channel.fund_tx.output[signed_channel.fund_output_index].value;
 
