@@ -2111,7 +2111,7 @@ dependencies = [
 [[package]]
 name = "lightning"
 version = "0.0.117"
-source = "git+https://github.com/p2pderivatives/rust-lightning/?rev=121bc324#121bc324fec54cfb8b0335ec013f596ffc9d6f9f"
+source = "git+https://github.com/bonomat/rust-lightning-p2p-derivatives?rev=e49030e#e49030e785408f0fd4da077f63f8101cc0b2436e"
 dependencies = [
  "bitcoin",
  "musig2",
@@ -2120,7 +2120,7 @@ dependencies = [
 [[package]]
 name = "lightning-background-processor"
 version = "0.0.117"
-source = "git+https://github.com/p2pderivatives/rust-lightning/?rev=121bc324#121bc324fec54cfb8b0335ec013f596ffc9d6f9f"
+source = "git+https://github.com/bonomat/rust-lightning-p2p-derivatives?rev=e49030e#e49030e785408f0fd4da077f63f8101cc0b2436e"
 dependencies = [
  "bitcoin",
  "lightning",
@@ -2144,7 +2144,7 @@ dependencies = [
 [[package]]
 name = "lightning-net-tokio"
 version = "0.0.117"
-source = "git+https://github.com/p2pderivatives/rust-lightning/?rev=121bc324#121bc324fec54cfb8b0335ec013f596ffc9d6f9f"
+source = "git+https://github.com/bonomat/rust-lightning-p2p-derivatives?rev=e49030e#e49030e785408f0fd4da077f63f8101cc0b2436e"
 dependencies = [
  "bitcoin",
  "lightning",
@@ -2154,7 +2154,7 @@ dependencies = [
 [[package]]
 name = "lightning-persister"
 version = "0.0.117"
-source = "git+https://github.com/p2pderivatives/rust-lightning/?rev=121bc324#121bc324fec54cfb8b0335ec013f596ffc9d6f9f"
+source = "git+https://github.com/bonomat/rust-lightning-p2p-derivatives?rev=e49030e#e49030e785408f0fd4da077f63f8101cc0b2436e"
 dependencies = [
  "bitcoin",
  "lightning",
@@ -2164,7 +2164,7 @@ dependencies = [
 [[package]]
 name = "lightning-rapid-gossip-sync"
 version = "0.0.117"
-source = "git+https://github.com/p2pderivatives/rust-lightning/?rev=121bc324#121bc324fec54cfb8b0335ec013f596ffc9d6f9f"
+source = "git+https://github.com/bonomat/rust-lightning-p2p-derivatives?rev=e49030e#e49030e785408f0fd4da077f63f8101cc0b2436e"
 dependencies = [
  "bitcoin",
  "lightning",
@@ -2173,7 +2173,7 @@ dependencies = [
 [[package]]
 name = "lightning-transaction-sync"
 version = "0.0.117"
-source = "git+https://github.com/p2pderivatives/rust-lightning/?rev=121bc324#121bc324fec54cfb8b0335ec013f596ffc9d6f9f"
+source = "git+https://github.com/bonomat/rust-lightning-p2p-derivatives?rev=e49030e#e49030e785408f0fd4da077f63f8101cc0b2436e"
 dependencies = [
  "bdk-macros",
  "bitcoin",
