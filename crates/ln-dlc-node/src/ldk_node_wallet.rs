@@ -210,25 +210,23 @@ where
             .collect::<Vec<_>>();
 
         // select enough utxos for our needs
-        let selected_local_utxos = select_coins(amount, 20, &mut utxos);
-        match selected_local_utxos {
-            None => Ok(vec![]),
-            Some(selected_local_utxos) => {
-                // update our temporarily reserved utxos with the selected once.
-                // note: this storage is only cleared up on a restart, meaning, if the protocol
-                // fails later on, the utxos will remain reserved
-                if lock_utxos {
-                    for utxo in selected_local_utxos.clone() {
-                        reserved_outpoints.push(utxo.utxo.outpoint);
-                    }
-                }
+        let selected_local_utxos = select_coins(amount, 20, &mut utxos).with_context(|| {
+            format!("Could not reach target of {amount} sats with given UTXO pool")
+        })?;
 
-                Ok(selected_local_utxos
-                    .into_iter()
-                    .map(|utxo| utxo.utxo)
-                    .collect())
+        // update our temporarily reserved utxos with the selected once.
+        // note: this storage is only cleared up on a restart, meaning, if the protocol
+        // fails later on, the utxos will remain reserved
+        if lock_utxos {
+            for utxo in selected_local_utxos.clone() {
+                reserved_outpoints.push(utxo.utxo.outpoint);
             }
         }
+
+        Ok(selected_local_utxos
+            .into_iter()
+            .map(|utxo| utxo.utxo)
+            .collect())
     }
 
     /// Build the PSBT for sending funds to a given script and signs it

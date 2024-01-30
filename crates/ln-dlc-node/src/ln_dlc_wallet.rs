@@ -282,11 +282,7 @@ impl<S: TenTenOneStorage, N: Storage> dlc_manager::Wallet for LnDlcWallet<S, N> 
             .map_err(|error| {
                 Error::InvalidState(format!("Could not find utxos for amount: {error:?}"))
             })?;
-        if utxos.is_empty() {
-            return Err(Error::InvalidState(
-                "Not enough UTXOs for amount".to_string(),
-            ));
-        }
+
         Ok(utxos)
     }
 
