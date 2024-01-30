@@ -102,6 +102,7 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
             peer: channel.get_counter_party_id(),
             msg: Message::Channel(ChannelMessage::Reject(Reject {
                 channel_id: channel.get_id(),
+                timestamp: OffsetDateTime::now_utc().unix_timestamp() as u64,
             })),
         })?;
 

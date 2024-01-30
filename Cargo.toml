@@ -24,11 +24,11 @@ resolver = "2"
 # `p2pderivatives/rust-dlc#feature/ln-dlc-channels`: 4e104b4. This patch ensures backwards
 # compatibility for 10101 through the `rust-lightning:0.0.116` upgrade. We will be able to drop it
 # once all users have been upgraded and traded once.
-dlc-manager = { git = "https://github.com/p2pderivatives/rust-dlc", rev = "69d63e1" }
-dlc-messages = { git = "https://github.com/p2pderivatives/rust-dlc", rev = "69d63e1" }
-dlc = { git = "https://github.com/p2pderivatives/rust-dlc", rev = "69d63e1" }
-p2pd-oracle-client = { git = "https://github.com/p2pderivatives/rust-dlc", rev = "69d63e1" }
-dlc-trie = { git = "https://github.com/p2pderivatives/rust-dlc", rev = "69d63e1" }
+dlc-manager = { git = "https://github.com/p2pderivatives/rust-dlc", rev = "785980c8ecc20a95e5b3c0b5fe262e1abff44cb5" }
+dlc-messages = { git = "https://github.com/p2pderivatives/rust-dlc", rev = "785980c8ecc20a95e5b3c0b5fe262e1abff44cb5" }
+dlc = { git = "https://github.com/p2pderivatives/rust-dlc", rev = "785980c8ecc20a95e5b3c0b5fe262e1abff44cb5" }
+p2pd-oracle-client = { git = "https://github.com/p2pderivatives/rust-dlc", rev = "785980c8ecc20a95e5b3c0b5fe262e1abff44cb5" }
+dlc-trie = { git = "https://github.com/p2pderivatives/rust-dlc", rev = "785980c8ecc20a95e5b3c0b5fe262e1abff44cb5" }
 
 # We should usually track the `p2pderivatives/split-tx-experiment[-10101]` branch. For now we depend on a special fork which removes a panic in rust-lightning
 lightning = { git = "https://github.com/bonomat/rust-lightning-p2p-derivatives", rev = "e49030e" }
