@@ -21,7 +21,6 @@ use bitcoin::Txid;
 use dlc_messages::ChannelMessage;
 use dlc_messages::Message;
 use lightning::chain::transaction::OutPoint;
-use lightning::ln::ChannelId;
 use lightning::ln::PaymentHash;
 use lightning::ln::PaymentPreimage;
 use lightning::ln::PaymentSecret;
@@ -392,64 +391,6 @@ impl Node {
                         format!(
                             "Failed to reject DLC channel offer for channel {}",
                             hex::encode(channel_id)
-                        )
-                    })?;
-
-                order::handler::order_failed(
-                    None,
-                    FailureReason::InvalidDlcOffer(invalid_offer_reason),
-                    anyhow!(invalid_offer_msg),
-                )
-                .context("Could not set order to failed")?;
-            }
-        }
-
-        Ok(())
-    }
-
-    #[instrument(fields(channel_id = channel_id.to_hex()),skip_all, err(Debug))]
-    pub fn process_subchannel_offer(
-        &self,
-        channel_id: ChannelId,
-        action: SubchannelOfferAction,
-    ) -> Result<()> {
-        OffsetDateTime::now_utc();
-
-        match &action {
-            SubchannelOfferAction::Accept => {
-                if let Err(error) = self
-                    .inner
-                    .accept_sub_channel_offer(&channel_id)
-                    .with_context(|| {
-                        format!(
-                            "Failed to accept DLC channel offer for channel {}",
-                            hex::encode(channel_id.0)
-                        )
-                    })
-                {
-                    tracing::error!(
-                        "Could not accept subchannel offer {error:#}. Continuing with rejecting it"
-                    );
-                    self.process_subchannel_offer(channel_id, SubchannelOfferAction::RejectError)?
-                }
-            }
-            SubchannelOfferAction::RejectOutdated | SubchannelOfferAction::RejectError => {
-                let (invalid_offer_reason, invalid_offer_msg) =
-                    if let SubchannelOfferAction::RejectOutdated = action {
-                        let invalid_offer_msg = "Offer outdated, rejecting subchannel offer";
-                        tracing::warn!(invalid_offer_msg);
-                        (InvalidSubchannelOffer::Outdated, invalid_offer_msg)
-                    } else {
-                        let invalid_offer_msg = "Offer is unacceptable, rejecting subchannel offer";
-                        tracing::warn!(invalid_offer_msg);
-                        (InvalidSubchannelOffer::Unacceptable, invalid_offer_msg)
-                    };
-                self.inner
-                    .reject_sub_channel_offer(&channel_id)
-                    .with_context(|| {
-                        format!(
-                            "Failed to reject DLC channel offer for channel {}",
-                            hex::encode(channel_id.0)
                         )
                     })?;
 
