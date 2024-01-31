@@ -518,6 +518,7 @@ pub fn create_onboarding_invoice(
 }
 
 pub struct PaymentRequest {
+    pub address: String,
     pub bip21: String,
 }
 
@@ -532,6 +533,7 @@ pub fn create_payment_request(
 
     Ok(PaymentRequest {
         bip21: format!("bitcoin:{addr}{amount_query}"),
+        address: addr,
     })
 }
 

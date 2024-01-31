@@ -51,7 +51,7 @@ class WalletService {
       rust.PaymentRequest req =
           await rust.api.createPaymentRequest(amountSats: amount?.sats, description: description);
       logger.i("Successfully created payment request.");
-      return SharePaymentRequest(bip21Uri: req.bip21, amount: amount);
+      return SharePaymentRequest(bip21Uri: req.bip21, address: req.address, amount: amount);
     } catch (error) {
       logger.e("Error: $error", error: error);
     }
