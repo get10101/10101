@@ -34,7 +34,7 @@ class OpenPositionTable extends StatelessWidget {
 
   Widget buildTable(List<Position> positions, BestQuote? bestQuote, BuildContext context) {
     return Table(
-      border: TableBorder.symmetric(inside: const BorderSide(width: 2, color: Colors.black)),
+      border: const TableBorder(verticalInside: BorderSide(width: 0.5, color: Colors.black)),
       defaultVerticalAlignment: TableCellVerticalAlignment.middle,
       columnWidths: const {
         0: MinColumnWidth(FixedColumnWidth(100.0), FractionColumnWidth(0.1)),
@@ -50,11 +50,7 @@ class OpenPositionTable extends StatelessWidget {
         TableRow(
           decoration: BoxDecoration(
             color: tenTenOnePurple.shade300,
-            border: Border.all(
-              width: 1,
-            ),
-            borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(10), topRight: Radius.circular(10)),
+            border: const Border(bottom: BorderSide(width: 0.5, color: Colors.black)),
           ),
           children: [
             buildHeaderCell('Quantity'),
@@ -120,7 +116,7 @@ class OpenPositionTable extends StatelessWidget {
             alignment: Alignment.center,
             child: Text(text,
                 textAlign: TextAlign.center,
-                style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white))));
+                style: const TextStyle(fontWeight: FontWeight.normal, color: Colors.white))));
   }
 
   TableCell buildTableCell(Widget child) => TableCell(

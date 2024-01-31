@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get_10101/common/color.dart';
-import 'package:get_10101/trade/order_and_position_table.dart';
+import 'package:get_10101/trade/order_history_table.dart';
+import 'package:get_10101/trade/position_table.dart';
 import 'package:get_10101/trade/trade_screen_order_form.dart';
 
 class TradeScreen extends StatefulWidget {
@@ -65,6 +66,8 @@ class _TradeScreenState extends State<TradeScreen> with SingleTickerProviderStat
           Expanded(
             flex: 2,
             child: Column(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Visibility(
                   visible: false,
@@ -84,24 +87,59 @@ class _TradeScreenState extends State<TradeScreen> with SingleTickerProviderStat
                     ),
                   ),
                 ),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.only(left: 8, right: 8),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(8),
-                        color: Colors.grey[100],
-                      ),
-                      child: const Row(
-                        children: [Expanded(child: OrderAndPositionTable())],
-                      ),
-                    ),
-                  ),
+                createTableWidget(const OpenPositionTable(), "Open Positions"),
+                const SizedBox(
+                  height: 10,
                 ),
+                createTableWidget(const OrderHistoryTable(), "Order History"),
               ],
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Expanded createTableWidget(Widget child, String title) {
+    return Expanded(
+      child: Padding(
+        padding: const EdgeInsets.only(left: 8, right: 8),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            color: Colors.grey[100],
+          ),
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Container(
+                        decoration: BoxDecoration(
+                          color: tenTenOnePurple.shade300,
+                          border: Border.all(
+                            width: 0.5,
+                          ),
+                          borderRadius: const BorderRadius.only(
+                              topLeft: Radius.circular(10), topRight: Radius.circular(10)),
+                        ),
+                        padding: const EdgeInsets.all(10),
+                        alignment: Alignment.center,
+                        child: Text(title,
+                            textAlign: TextAlign.center,
+                            style:
+                                const TextStyle(fontWeight: FontWeight.bold, color: Colors.white))),
+                  ),
+                ],
+              ),
+              Row(
+                children: [
+                  Expanded(child: child),
+                ],
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -126,30 +164,14 @@ class _TradeScreenState extends State<TradeScreen> with SingleTickerProviderStat
                         ),
                         child: NewOrderWidget(tabController: _tabController),
                       ),
-                      Expanded(
-                        child: Container(
-                          height: 120.0,
-                          alignment: Alignment.center,
-                          child: Column(
-                            children: [
-                              Expanded(
-                                child: Padding(
-                                  padding: const EdgeInsets.only(top: 8),
-                                  child: Container(
-                                    decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(8),
-                                      color: Colors.grey[100],
-                                    ),
-                                    child: const Row(
-                                      children: [Expanded(child: OrderAndPositionTable())],
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
+                      const SizedBox(
+                        height: 10,
                       ),
+                      createTableWidget(const OpenPositionTable(), "Open Positions"),
+                      const SizedBox(
+                        height: 10,
+                      ),
+                      createTableWidget(const OrderHistoryTable(), "Order History"),
                     ],
                   ),
                 ))));
