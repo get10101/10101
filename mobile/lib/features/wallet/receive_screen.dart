@@ -213,7 +213,7 @@ class _ReceiveScreenState extends State<ReceiveScreen> {
           ),
         ),
         BitcoinAddress(
-          address: _paymentRequest == null ? "" : _paymentRequest!.bip21Uri,
+          address: _paymentRequest == null ? "" : _paymentRequest!.address,
         ),
       ]),
     )));
@@ -238,8 +238,6 @@ class BitcoinAddress extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    var address = this.address.replaceAll("bitcoin:", '');
-
     return Container(
         margin: const EdgeInsets.fromLTRB(0, 15, 0, 0),
         decoration: BoxDecoration(
