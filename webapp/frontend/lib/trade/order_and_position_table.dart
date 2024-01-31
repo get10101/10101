@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get_10101/common/color.dart';
+import 'package:get_10101/trade/order_history_table.dart';
 import 'package:get_10101/trade/position_table.dart';
 
 class OrderAndPositionTable extends StatefulWidget {
@@ -38,7 +39,7 @@ class OrderAndPositionTableState extends State<OrderAndPositionTable>
           controller: _tabController,
           children: const <Widget>[
             OpenPositionTable(),
-            Text("Pending"),
+            OrderHistoryTable(),
           ],
         ))
       ],
