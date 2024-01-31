@@ -7,7 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.8.4] - 2024-01-31
+
 - Chore: Add funding txid to list dlc channels api
+- Fix(app): Panic during startup: in a situation where we fell behind in the protocol rust-lightning paniced to protect us from publishing an outdated commitment transaction. This was not an issue for us in most cases because the commitment transaction was not publishable anyways due to our dlc-ln channels.
 
 ## [1.8.3] - 2024-01-26
 
@@ -281,7 +284,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Self-Custodial CFD Trading based on DLC and lightning
 
-[Unreleased]: https://github.com/get10101/10101/compare/1.8.3...HEAD
+[Unreleased]: https://github.com/get10101/10101/compare/1.8.4...HEAD
+[1.8.4]: https://github.com/get10101/10101/compare/1.8.3...1.8.4
 [1.8.3]: https://github.com/get10101/10101/compare/1.8.2...1.8.3
 [1.8.2]: https://github.com/get10101/10101/compare/1.8.1...1.8.2
 [1.8.1]: https://github.com/get10101/10101/compare/1.8.0...1.8.1
