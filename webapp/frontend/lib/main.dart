@@ -3,6 +3,8 @@ import 'package:get_10101/auth/auth_service.dart';
 import 'package:get_10101/common/version_service.dart';
 import 'package:get_10101/logger/logger.dart';
 import 'package:get_10101/routes.dart';
+import 'package:get_10101/trade/order_change_notifier.dart';
+import 'package:get_10101/trade/order_service.dart';
 import 'package:get_10101/trade/position_change_notifier.dart';
 import 'package:get_10101/trade/position_service.dart';
 import 'package:get_10101/trade/quote_change_notifier.dart';
@@ -25,6 +27,7 @@ void main() {
     ChangeNotifierProvider(create: (context) => WalletChangeNotifier(const WalletService())),
     ChangeNotifierProvider(create: (context) => QuoteChangeNotifier(const QuoteService())),
     ChangeNotifierProvider(create: (context) => PositionChangeNotifier(const PositionService())),
+    ChangeNotifierProvider(create: (context) => OrderChangeNotifier(const OrderService())),
     Provider(create: (context) => const SettingsService()),
     Provider(create: (context) => AuthService())
   ];

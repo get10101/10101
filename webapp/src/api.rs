@@ -20,9 +20,9 @@ use native::api::SendPayment;
 use native::api::WalletHistoryItemType;
 use native::calculations::calculate_pnl;
 use native::ln_dlc;
-use native::trade::order::OrderState;
+use native::trade::order::FailureReason;
+use native::trade::order::InvalidSubchannelOffer;
 use native::trade::order::OrderType;
-use native::trade::position;
 use native::trade::position::PositionState;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
@@ -39,7 +39,7 @@ pub fn router(subscribers: Arc<AppSubscribers>) -> Router {
         .route("/api/newaddress", get(get_unused_address))
         .route("/api/sendpayment", post(send_payment))
         .route("/api/history", get(get_onchain_payment_history))
-        .route("/api/orders", post(post_new_order))
+        .route("/api/orders", get(get_orders).post(post_new_order))
         .route("/api/positions", get(get_positions))
         .route("/api/quotes/:contract_symbol", get(get_best_quote))
         .route("/api/node", get(get_node_id))
@@ -201,7 +201,7 @@ impl TryFrom<NewOrderParams> for native::trade::order::Order {
             direction: value.direction,
             // We only support market orders for now
             order_type: OrderType::Market,
-            state: OrderState::Initial,
+            state: native::trade::order::OrderState::Initial,
             creation_timestamp: OffsetDateTime::now_utc(),
             // We do not support setting order expiry from the frontend for now
             order_expiry_timestamp: OffsetDateTime::now_utc() + time::Duration::minutes(1),
@@ -301,7 +301,7 @@ pub async fn get_positions(
 ) -> Result<Json<Vec<Position>>, AppError> {
     let orderbook_info = subscribers.orderbook_info();
 
-    let positions = position::handler::get_positions()?
+    let positions = native::trade::position::handler::get_positions()?
         .into_iter()
         .map(|position| {
             let quotes = orderbook_info
@@ -313,6 +313,123 @@ pub async fn get_positions(
         .collect::<Vec<Position>>();
 
     Ok(Json(positions))
+}
+
+#[derive(Serialize, Debug)]
+pub struct Order {
+    pub id: Uuid,
+    pub leverage: f32,
+    pub quantity: f32,
+    /// An order only has a price if it either was filled or if it was a limit order (which is not
+    /// implemented yet).
+    pub price: Option<f32>,
+    pub contract_symbol: ContractSymbol,
+    pub direction: Direction,
+    pub order_type: OrderType,
+    pub state: OrderState,
+    #[serde(with = "time::serde::rfc3339")]
+    pub creation_timestamp: OffsetDateTime,
+    #[serde(with = "time::serde::rfc3339")]
+    pub order_expiry_timestamp: OffsetDateTime,
+    pub failure_reason: Option<String>,
+}
+
+#[derive(Serialize, Debug, Clone)]
+pub enum OrderState {
+    /// Not submitted to orderbook yet
+    Initial,
+
+    /// Rejected by the orderbook upon submission
+    Rejected,
+
+    /// Successfully submit to orderbook
+    Open,
+
+    /// The orderbook has matched the order and it is being filled
+    Filling,
+
+    /// The order failed to be filled
+    Failed,
+
+    /// Successfully set up trade
+    Filled,
+}
+
+impl From<native::trade::order::OrderState> for OrderState {
+    fn from(value: native::trade::order::OrderState) -> Self {
+        match value {
+            native::trade::order::OrderState::Initial => OrderState::Initial,
+            native::trade::order::OrderState::Rejected => OrderState::Rejected,
+            native::trade::order::OrderState::Open => OrderState::Open,
+            native::trade::order::OrderState::Filling { .. } => OrderState::Filling,
+            native::trade::order::OrderState::Failed { .. } => OrderState::Failed,
+            native::trade::order::OrderState::Filled { .. } => OrderState::Filled,
+        }
+    }
+}
+impl From<&native::trade::order::Order> for Order {
+    fn from(value: &native::trade::order::Order) -> Self {
+        let failure_reason = match &value.failure_reason {
+            None => None,
+            Some(reason) => {
+                let reason = match reason {
+                    FailureReason::FailedToSetToFilling => "FailedToSetToFilling",
+                    FailureReason::TradeRequest => "TradeRequestFailed",
+                    FailureReason::TradeResponse(error) => error.as_str(),
+                    FailureReason::CollabRevert => "CollabRevert",
+                    FailureReason::OrderNotAcceptable => "OrderNotAcceptable",
+                    FailureReason::TimedOut => "TimedOut",
+                    FailureReason::InvalidDlcOffer(error) => match error {
+                        InvalidSubchannelOffer::Outdated => "OfferOutdated",
+                        InvalidSubchannelOffer::UndeterminedMaturityDate => {
+                            "OfferUndeterminedMaturityDate"
+                        }
+                        InvalidSubchannelOffer::Unacceptable => "OfferUnacceptable",
+                    },
+                    FailureReason::OrderRejected => "OrderRejected",
+                    FailureReason::Unknown => "Unknown",
+                }
+                .to_string();
+                Some(reason)
+            }
+        };
+
+        let mut price = None;
+
+        if let OrderType::Limit { price: limit_price } = value.order_type {
+            price.replace(limit_price);
+        }
+
+        // Note: we might overwrite a limit price here but this is not an issue because if a limit
+        // order has been filled the limit price will be filled price and vice versa
+        if let native::trade::order::OrderState::Filled { execution_price } = value.state {
+            price.replace(execution_price);
+        }
+
+        Order {
+            id: value.id,
+            leverage: value.leverage,
+            quantity: value.quantity,
+            price,
+            contract_symbol: value.contract_symbol,
+            direction: value.direction,
+            order_type: value.order_type,
+            state: value.state.clone().into(),
+            creation_timestamp: value.creation_timestamp,
+            order_expiry_timestamp: value.order_expiry_timestamp,
+            failure_reason,
+        }
+    }
+}
+
+pub async fn get_orders() -> Result<Json<Vec<Order>>, AppError> {
+    let orders = native::trade::order::handler::get_orders_for_ui()
+        .await?
+        .iter()
+        .map(|order| order.into())
+        .collect();
+
+    Ok(Json(orders))
 }
 
 pub async fn get_best_quote(

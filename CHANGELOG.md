@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Feat(webapp): Show order history
+
 ## [1.8.4] - 2024-01-31
 
 - Chore: Add funding txid to list dlc channels api
