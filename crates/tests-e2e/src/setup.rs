@@ -22,8 +22,7 @@ pub struct TestSetup {
 }
 
 impl TestSetup {
-    /// Start test with a running app and a funded wallet.
-    pub async fn new_after_funding(fund_amount: Option<Amount>) -> Self {
+    pub async fn new() -> Self {
         init_tracing();
 
         let client = init_reqwest();
@@ -34,17 +33,6 @@ impl TestSetup {
         let coordinator = Coordinator::new_local(client.clone());
 
         assert!(coordinator.is_running().await);
-
-        // Ensure that the coordinator has a free UTXO available.
-        let address = coordinator.get_new_address().await.unwrap();
-
-        bitcoind
-            .send_to_address(&address, Amount::ONE_BTC)
-            .await
-            .unwrap();
-
-        bitcoind.mine(1).await.unwrap();
-        coordinator.sync_node().await.unwrap();
 
         // App setup
 
@@ -62,27 +50,6 @@ impl TestSetup {
             "App should start with empty off-chain wallet"
         );
 
-        let fund_amount = fund_amount.unwrap_or(Amount::ONE_BTC);
-
-        let address = api::get_unused_address();
-        let address = &address.0.parse().unwrap();
-
-        bitcoind
-            .send_to_address(address, fund_amount)
-            .await
-            .unwrap();
-
-        bitcoind.mine(1).await.unwrap();
-
-        wait_until!({
-            refresh_wallet_info();
-            app.rx.wallet_info().unwrap().balances.on_chain == fund_amount.to_sat()
-        });
-
-        let on_chain_balance = app.rx.wallet_info().unwrap().balances.on_chain;
-
-        tracing::info!(%fund_amount, %on_chain_balance, "Successfully funded app");
-
         Self {
             app,
             coordinator,
@@ -90,9 +57,57 @@ impl TestSetup {
         }
     }
 
+    pub async fn fund_coordinator(&self, amount: Amount) {
+        // Ensure that the coordinator has a free UTXO available.
+        let address = self.coordinator.get_new_address().await.unwrap();
+
+        self.bitcoind
+            .send_to_address(&address, amount)
+            .await
+            .unwrap();
+
+        self.bitcoind.mine(1).await.unwrap();
+        self.coordinator.sync_node().await.unwrap();
+
+        // TODO: Get coordinator balance to verify this claim.
+        tracing::info!("Successfully funded coordinator");
+    }
+
+    pub async fn fund_app(&self, fund_amount: Amount) {
+        let address = api::get_unused_address();
+        let address = &address.0.parse().unwrap();
+
+        self.bitcoind
+            .send_to_address(address, fund_amount)
+            .await
+            .unwrap();
+
+        self.bitcoind.mine(1).await.unwrap();
+
+        wait_until!({
+            refresh_wallet_info();
+            self.app.rx.wallet_info().unwrap().balances.on_chain >= fund_amount.to_sat()
+        });
+
+        let on_chain_balance = self.app.rx.wallet_info().unwrap().balances.on_chain;
+
+        tracing::info!(%fund_amount, %on_chain_balance, "Successfully funded app");
+    }
+
+    /// Start test with a running app and a funded wallet.
+    pub async fn new_after_funding() -> Self {
+        let setup = Self::new().await;
+
+        setup.fund_coordinator(Amount::ONE_BTC).await;
+
+        setup.fund_app(Amount::ONE_BTC).await;
+
+        setup
+    }
+
     /// Start test with a running app with a funded wallet and an open position.
     pub async fn new_with_open_position() -> Self {
-        let setup = Self::new_after_funding(None).await;
+        let setup = Self::new_after_funding().await;
         let rx = &setup.app.rx;
 
         tracing::info!("Opening a position");

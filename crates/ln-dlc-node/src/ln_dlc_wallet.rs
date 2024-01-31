@@ -122,6 +122,10 @@ impl<S: TenTenOneStorage, N: Storage> LnDlcWallet<S, N> {
         self.address_cache.read().clone()
     }
 
+    pub fn new_address(&self) -> Result<Address> {
+        self.ldk_wallet().get_new_address()
+    }
+
     pub fn is_mine(&self, script: &Script) -> Result<bool> {
         self.ldk_wallet().is_mine(script)
     }

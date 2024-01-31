@@ -9,24 +9,20 @@ use tests_e2e::setup::TestSetup;
 use tests_e2e::wait_until;
 use tokio::task::spawn_blocking;
 
-fn dummy_order() -> NewOrder {
-    NewOrder {
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "need to be run with 'just e2e' command"]
+async fn can_open_position() {
+    let test = TestSetup::new_after_funding().await;
+    let app = &test.app;
+
+    let order = NewOrder {
         leverage: 2.0,
         contract_symbol: ContractSymbol::BtcUsd,
         direction: api::Direction::Long,
         quantity: 1.0,
         order_type: Box::new(OrderType::Market),
         stable: false,
-    }
-}
-
-#[tokio::test(flavor = "multi_thread")]
-#[ignore = "need to be run with 'just e2e' command"]
-async fn can_open_position() {
-    let test = TestSetup::new_after_funding(None).await;
-    let app = &test.app;
-
-    let order = dummy_order();
+    };
     spawn_blocking({
         let order = order.clone();
         move || api::submit_order(order).unwrap()

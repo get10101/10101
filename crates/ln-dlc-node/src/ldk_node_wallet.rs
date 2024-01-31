@@ -166,6 +166,10 @@ where
             .address)
     }
 
+    pub(crate) fn get_new_address(&self) -> Result<Address> {
+        Ok(self.bdk_lock().get_address(AddressIndex::New)?.address)
+    }
+
     pub fn is_mine(&self, script: &Script) -> Result<bool> {
         Ok(self.bdk_lock().is_mine(script)?)
     }

@@ -14,7 +14,10 @@ use tokio::task::spawn_blocking;
 #[tokio::test(flavor = "multi_thread")]
 #[ignore = "need to be run with 'just e2e' command"]
 async fn reject_offer() {
-    let test = TestSetup::new_after_funding(Some(Amount::from_sat(250_000))).await;
+    let test = TestSetup::new().await;
+    test.fund_coordinator(Amount::ONE_BTC).await;
+    test.fund_app(Amount::from_sat(250_000)).await;
+
     let app = &test.app;
 
     let invalid_order = NewOrder {
