@@ -179,7 +179,11 @@ where
         Ok(utxos)
     }
 
-    pub fn get_utxos_for_amount(&self, amount: u64, lock_utxos: bool) -> Result<Vec<Utxo>> {
+    pub fn get_utxos_for_dlc_funding_transaction(
+        &self,
+        amount: u64,
+        lock_utxos: bool,
+    ) -> Result<Vec<Utxo>> {
         let utxos = self.get_utxos()?;
         // get temporarily reserved utxo from in-memory storage
         let mut reserved_outpoints = self.locked_outpoints.lock();
