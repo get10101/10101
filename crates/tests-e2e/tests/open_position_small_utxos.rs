@@ -14,7 +14,6 @@ use tokio::task::spawn_blocking;
 
 #[tokio::test(flavor = "multi_thread")]
 #[ignore = "need to be run with 'just e2e' command"]
-#[should_panic]
 async fn can_open_position_with_multiple_small_utxos() {
     // Arrange
 

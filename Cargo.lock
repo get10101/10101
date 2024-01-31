@@ -414,6 +414,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "bdk_coin_select"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cd50028fb9c48ce062859565fc59974cd1ee614f8db1c4bfc8c094ef1ffe6ff6"
+
+[[package]]
 name = "bech32"
 version = "0.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2209,6 +2215,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "bdk",
+ "bdk_coin_select",
  "bip39",
  "bitcoin",
  "dlc",

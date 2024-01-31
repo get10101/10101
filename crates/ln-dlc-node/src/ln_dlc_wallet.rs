@@ -278,12 +278,12 @@ impl<S: TenTenOneStorage, N: Storage> dlc_manager::Wallet for LnDlcWallet<S, N> 
     fn get_utxos_for_amount(
         &self,
         amount: u64,
-        _: Option<u64>,
+        fee_rate: Option<u64>,
         lock_utxos: bool,
     ) -> Result<Vec<Utxo>, Error> {
         let utxos = self
             .ldk_wallet()
-            .get_utxos_for_dlc_funding_transaction(amount, lock_utxos)
+            .get_utxos_for_dlc_funding_transaction(amount, fee_rate, lock_utxos)
             .map_err(|error| {
                 Error::InvalidState(format!("Could not find utxos for amount: {error:?}"))
             })?;

@@ -10,6 +10,7 @@ description = "A common interface for using Lightning and DLC channels side-by-s
 anyhow = { version = "1", features = ["backtrace"] }
 async-trait = "0.1.71"
 bdk = { version = "0.28.0", default-features = false, features = ["key-value-db", "use-esplora-blocking", "std"] }
+bdk_coin_select = "0.2.0"
 bip39 = { version = "2", features = ["rand_core"] }
 bitcoin = "0.29.2"
 dlc = { version = "0.4.0" }

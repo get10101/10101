@@ -15,6 +15,12 @@ use bdk::FeeRate;
 use bdk::SignOptions;
 use bdk::SyncOptions;
 use bdk::TransactionDetails;
+use bdk_coin_select::metrics::LowestFee;
+use bdk_coin_select::Candidate;
+use bdk_coin_select::ChangePolicy;
+use bdk_coin_select::CoinSelector;
+use bdk_coin_select::DrainWeights;
+use bdk_coin_select::Target;
 use bitcoin::consensus::encode::serialize_hex;
 use bitcoin::psbt::PartiallySignedTransaction;
 use bitcoin::Address;
@@ -23,13 +29,14 @@ use bitcoin::BlockHash;
 use bitcoin::OutPoint;
 use bitcoin::Script;
 use bitcoin::Transaction;
+use bitcoin::TxIn;
 use bitcoin::Txid;
+use bitcoin::VarInt;
 use dlc_manager::Utxo;
 use lightning::chain::chaininterface::BroadcasterInterface;
 use lightning::chain::chaininterface::ConfirmationTarget;
 use parking_lot::Mutex;
 use parking_lot::MutexGuard;
-use rust_bitcoin_coin_selection::select_coins;
 use std::sync::Arc;
 use std::time::Instant;
 use tokio::sync::RwLock;
@@ -49,6 +56,8 @@ where
     inner: Mutex<bdk::Wallet<D>>,
     settings: RwLock<WalletSettings>,
     fee_rate_estimator: Arc<F>,
+    // Only cleared upon restart. This means that if a locked outpoint ends up unspent, it will
+    // remain locked until the binary is restarted.
     locked_outpoints: Mutex<Vec<OutPoint>>,
     node_storage: Arc<N>,
 }
@@ -186,55 +195,118 @@ where
     pub fn get_utxos_for_dlc_funding_transaction(
         &self,
         amount: u64,
-        lock_utxos: bool,
+        fee_rate: Option<u64>,
+        should_lock_utxos: bool,
     ) -> Result<Vec<Utxo>> {
-        let utxos = self.get_utxos()?;
-        // get temporarily reserved utxo from in-memory storage
+        let network = {
+            let bdk = self.bdk_lock();
+            bdk.network()
+        };
+
+        let fee_rate = fee_rate.map(|fee_rate| fee_rate as f32).unwrap_or_else(|| {
+            self.get_fee_rate(ConfirmationTarget::Normal)
+                .as_sat_per_vb()
+        });
+
+        // Get temporarily reserved UTXOs from in-memory storage.
         let mut reserved_outpoints = self.locked_outpoints.lock();
 
-        // filter reserved utxos from all known utxos to not accidentally double spend and those who
-        // have actually been spent already
+        let utxos = self.get_utxos()?;
+
+        // Filter out reserved and spent UTXOs to prevent double-spending attempts.
         let utxos = utxos
             .iter()
             .filter(|utxo| !reserved_outpoints.contains(&utxo.outpoint))
             .filter(|utxo| !utxo.is_spent)
             .collect::<Vec<_>>();
 
-        let mut utxos = utxos
-            .into_iter()
-            .map(|x| UtxoWrap {
-                utxo: Utxo {
-                    tx_out: x.txout.clone(),
-                    outpoint: x.outpoint,
-                    address: Address::from_script(
-                        &x.txout.script_pubkey,
-                        self.bdk_lock().network(),
-                    )
-                    .expect("to be a valid address"),
-                    redeem_script: Default::default(),
-                    reserved: false,
-                },
+        let candidates = utxos
+            .iter()
+            .map(|utxo| {
+                let tx_in = TxIn {
+                    previous_output: utxo.outpoint,
+                    ..Default::default()
+                };
+
+                // Inspired by `rust-bitcoin:0.30.2`.
+                let segwit_weight = {
+                    let legacy_weight = {
+                        let script_sig_size = tx_in.script_sig.len();
+                        (36 + VarInt(script_sig_size as u64).len() + script_sig_size + 4) * 4
+                    };
+
+                    legacy_weight + tx_in.witness.serialized_len()
+                };
+
+                // The 10101 wallet always generates SegWit addresses.
+                //
+                // TODO: Rework this once we use Taproot.
+                let is_witness_program = true;
+
+                Candidate::new(utxo.txout.value, segwit_weight as u32, is_witness_program)
             })
             .collect::<Vec<_>>();
 
-        // select enough utxos for our needs
-        let selected_local_utxos = select_coins(amount, 20, &mut utxos).with_context(|| {
-            format!("Could not reach target of {amount} sats with given UTXO pool")
-        })?;
+        // This is a standard base weight (without inputs or change outputs) for on-chain DLCs. We
+        // assume that this value is still correct for DLC channels.
+        let funding_tx_base_weight = 212;
 
-        // update our temporarily reserved utxos with the selected once.
-        // note: this storage is only cleared up on a restart, meaning, if the protocol
-        // fails later on, the utxos will remain reserved
-        if lock_utxos {
-            for utxo in selected_local_utxos.clone() {
-                reserved_outpoints.push(utxo.utxo.outpoint);
+        let target = Target {
+            feerate: bdk_coin_select::FeeRate::from_sat_per_vb(fee_rate),
+            min_fee: 0,
+            value: amount,
+        };
+
+        let mut coin_selector = CoinSelector::new(&candidates, funding_tx_base_weight);
+
+        let dust_limit = 0;
+        let long_term_feerate = bdk_coin_select::FeeRate::default_min_relay_fee();
+
+        let change_policy = ChangePolicy::min_value_and_waste(
+            DrainWeights::default(),
+            dust_limit,
+            target.feerate,
+            long_term_feerate,
+        );
+
+        let metric = LowestFee {
+            target,
+            long_term_feerate,
+            change_policy,
+        };
+
+        coin_selector
+            .run_bnb(metric, 100_000)
+            .context("Failed to select coins")?;
+
+        debug_assert!(coin_selector.is_target_met(target));
+
+        let indices = coin_selector.selected_indices();
+
+        let mut selected_utxos: Vec<Utxo> = Vec::with_capacity(indices.len());
+        for index in indices {
+            let utxo = &utxos[*index];
+
+            let address = Address::from_script(&utxo.txout.script_pubkey, network)
+                .expect("to be a valid address");
+
+            let utxo = Utxo {
+                tx_out: utxo.txout.clone(),
+                outpoint: utxo.outpoint,
+                address,
+                redeem_script: Script::new(),
+                reserved: false,
+            };
+
+            if should_lock_utxos {
+                // Add selected UTXOs to reserve to prevent future double-spend attempts.
+                reserved_outpoints.push(utxo.outpoint);
             }
+
+            selected_utxos.push(utxo);
         }
 
-        Ok(selected_local_utxos
-            .into_iter()
-            .map(|utxo| utxo.utxo)
-            .collect())
+        Ok(selected_utxos)
     }
 
     /// Build the PSBT for sending funds to a given script and signs it
