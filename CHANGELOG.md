@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix: Add reject dlc channel, settle and renew offer
 - Chore: Change pending offer policy to reject on reconnect
 - Fix: Prevent proposing another dlc channel offer if there is already a pending one
+- Feat: upload APKs as artifact to GitHub
 
 ## [1.8.4] - 2024-01-31
 

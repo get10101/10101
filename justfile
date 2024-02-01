@@ -571,6 +571,39 @@ build-android-app-bundle:
       --dart-define="RGS_SERVER_URL=${RGS_SERVER_URL}" \
        "${flavor_arg[@]}"
 
+build-android-app-apk:
+    #!/usr/bin/env bash
+    BUILD_NAME=$(yq -r .version {{pubspec}})
+    BUILD_NUMBER=$(git rev-list HEAD --count)
+    echo "build name: ${BUILD_NAME}"
+    echo "build number: ${BUILD_NUMBER}"
+
+    flavor_arg=()
+    if [ "$NETWORK" = "regtest" ]; then
+      flavor_arg+=(--flavor demo)
+    else
+      flavor_arg+=(--flavor full)
+    fi
+
+    # Replacing package id using the env variable.
+    os={{os()}}
+    echo "building on '$os' for '$NETWORK'"
+
+    cd mobile && flutter build apk --split-per-abi \
+      --build-name=${BUILD_NAME} \
+      --build-number=${BUILD_NUMBER} \
+      --release \
+      --dart-define="ESPLORA_ENDPOINT=${ESPLORA_ENDPOINT}" \
+      --dart-define="COORDINATOR_P2P_ENDPOINT=${COORDINATOR_P2P_ENDPOINT}" \
+      --dart-define="NETWORK=${NETWORK}" \
+      --dart-define="COMMIT=$(git rev-parse HEAD)" \
+      --dart-define="BRANCH=$(git rev-parse --abbrev-ref HEAD)" \
+      --dart-define="COORDINATOR_PORT_HTTP=${COORDINATOR_PORT_HTTP}" \
+      --dart-define="ORACLE_ENDPOINT=${ORACLE_ENDPOINT}" \
+      --dart-define="ORACLE_PUBKEY=${ORACLE_PUBKEY}" \
+      --dart-define="RGS_SERVER_URL=${RGS_SERVER_URL}" \
+       "${flavor_arg[@]}"
+
 upload-app-bundle:
     #!/usr/bin/env bash
 
