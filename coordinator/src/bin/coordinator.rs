@@ -143,8 +143,10 @@ async fn main() -> Result<()> {
     )?);
 
     let dlc_handler = DlcHandler::new(pool.clone(), node.clone());
-    let _handle =
-        dlc_handler::spawn_handling_dlc_messages(dlc_handler, node_event_handler.subscribe());
+    let _handle = dlc_handler::spawn_handling_outbound_dlc_messages(
+        dlc_handler,
+        node_event_handler.subscribe(),
+    );
 
     let event_handler = CoordinatorEventHandler::new(node.clone(), Some(node_event_sender));
     let running = node.start(event_handler, false)?;

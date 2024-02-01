@@ -40,9 +40,7 @@ impl DlcHandler {
 /// Handles sending outbound dlc messages as well as keeping track of what
 /// dlc messages have already been processed and what was the last outbound dlc message
 /// so it can be resend on reconnect.
-///
-/// Does not handle the incoming dlc messages!
-pub async fn handle_dlc_messages(
+pub async fn handle_outbound_dlc_messages(
     dlc_handler: DlcHandler,
     mut receiver: broadcast::Receiver<NodeEvent>,
 ) {

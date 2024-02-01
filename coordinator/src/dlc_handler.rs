@@ -42,12 +42,10 @@ impl DlcHandler {
     }
 }
 
-/// [`spawn_handling_dlc_messages`] handles sending outbound dlc messages as well as keeping track
-/// of what dlc messages have already been processed and what was the last outbound dlc message
-/// so it can be resend on reconnect.
-///
-/// It does not handle the incoming dlc messages!
-pub fn spawn_handling_dlc_messages(
+/// [`spawn_handling_outbound_dlc_messages`] handles sending outbound dlc messages as well as
+/// keeping track of what dlc messages have already been processed and what was the last outbound
+/// dlc message so it can be resend on reconnect.
+pub fn spawn_handling_outbound_dlc_messages(
     dlc_handler: DlcHandler,
     mut receiver: broadcast::Receiver<NodeEvent>,
 ) -> RemoteHandle<()> {

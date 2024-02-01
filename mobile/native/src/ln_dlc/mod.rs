@@ -347,7 +347,8 @@ pub fn run(seed_dir: String, runtime: &Runtime) -> Result<()> {
 
         let dlc_handler = DlcHandler::new(node.clone());
         runtime.spawn(async move {
-            dlc_handler::handle_dlc_messages(dlc_handler, node_event_handler.subscribe()).await
+            dlc_handler::handle_outbound_dlc_messages(dlc_handler, node_event_handler.subscribe())
+                .await
         });
 
         // Refresh the wallet balance and history eagerly so that it can complete before the
