@@ -46,6 +46,7 @@ pub enum ChannelState {
     CollaborativelyClosed,
     FailedAccept,
     FailedSign,
+    Cancelled,
 }
 
 impl From<Channel> for DlcChannelDetails {
@@ -85,6 +86,7 @@ impl From<Channel> for ChannelState {
             Channel::CollaborativelyClosed(_) => ChannelState::CollaborativelyClosed,
             Channel::FailedAccept(_) => ChannelState::FailedAccept,
             Channel::FailedSign(_) => ChannelState::FailedSign,
+            Channel::Cancelled(_) => ChannelState::Cancelled,
         }
     }
 }

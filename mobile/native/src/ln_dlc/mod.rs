@@ -341,19 +341,14 @@ pub fn run(seed_dir: String, runtime: &Runtime) -> Result<()> {
         )?;
         let node = Arc::new(node);
 
-        let dlc_handler = DlcHandler::new(node.clone());
-        runtime.spawn(async move {
-            // this handles sending outbound dlc messages as well as keeping track of what
-            // dlc messages have already been processed and what was the last outbound dlc message
-            // so it can be resend on reconnect.
-            //
-            // this does not handle the incoming dlc messages!
-            dlc_handler::handle_dlc_messages(dlc_handler, node_event_handler.subscribe()).await
-        });
-
         let event_handler = AppEventHandler::new(node.clone(), Some(event_sender));
         let _running = node.start(event_handler, true)?;
         let node = Arc::new(Node::new(node, _running));
+
+        let dlc_handler = DlcHandler::new(node.clone());
+        runtime.spawn(async move {
+            dlc_handler::handle_dlc_messages(dlc_handler, node_event_handler.subscribe()).await
+        });
 
         // Refresh the wallet balance and history eagerly so that it can complete before the
         // triggering the first on-chain sync. This ensures that the UI appears ready as soon as

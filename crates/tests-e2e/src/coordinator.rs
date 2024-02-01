@@ -118,6 +118,7 @@ pub enum ChannelState {
     CollaborativelyClosed,
     FailedAccept,
     FailedSign,
+    Cancelled,
 }
 
 #[derive(Deserialize, Debug)]

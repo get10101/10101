@@ -200,47 +200,29 @@ impl Node {
 
                 match channel_msg {
                     ChannelMessage::Offer(offer) => {
-                        let action = decide_subchannel_offer_action(
-                            OffsetDateTime::from_unix_timestamp(
-                                offer.contract_info.get_closest_maturity_date() as i64,
-                            )
-                            .expect("A contract should always have a valid maturity timestamp."),
+                        tracing::info!(
+                            channel_id = offer.temporary_channel_id.to_hex(),
+                            "Automatically accepting dlc channel offer"
                         );
-                        self.process_dlc_channel_offer(offer.temporary_channel_id, action)?;
+                        self.process_dlc_channel_offer(&offer.temporary_channel_id)?;
                     }
                     ChannelMessage::SettleOffer(offer) => {
-                        self.inner
-                            .accept_dlc_channel_collaborative_settlement(&offer.channel_id)
-                            .with_context(|| {
-                                format!(
-                                    "Failed to accept DLC channel close offer for channel {}",
-                                    hex::encode(offer.channel_id)
-                                )
-                            })?;
+                        tracing::info!(
+                            channel_id = offer.channel_id.to_hex(),
+                            "Automatically accepting settle offer"
+                        );
+                        self.process_settle_offer(&offer.channel_id)?;
                     }
                     ChannelMessage::RenewOffer(r) => {
-                        let channel_id_hex = r.channel_id.to_hex();
-
                         tracing::info!(
-                            channel_id = %channel_id_hex,
+                            channel_id = r.channel_id.to_hex(),
                             "Automatically accepting renew offer"
                         );
-
-                        // TODO: This is generally not safe. The coordinator will even send
-                        // `RenewOffer`s in order to roll over, and these will not even be triggered
-                        // by a user action.
-                        let (accept_renew_offer, counterparty_pubkey) =
-                            self.inner.dlc_manager.accept_renew_offer(&r.channel_id)?;
-
-                        self.send_dlc_message(
-                            counterparty_pubkey,
-                            Message::Channel(ChannelMessage::RenewAccept(accept_renew_offer)),
-                        )?;
 
                         let expiry_timestamp = OffsetDateTime::from_unix_timestamp(
                             r.contract_info.get_closest_maturity_date() as i64,
                         )?;
-                        position::handler::handle_channel_renewal_offer(expiry_timestamp)?;
+                        self.process_renew_offer(&r.channel_id, expiry_timestamp)?;
                     }
                     ChannelMessage::RenewRevoke(r) => {
                         let channel_id_hex = r.channel_id.to_hex();
@@ -349,59 +331,126 @@ impl Node {
     }
 
     #[instrument(fields(channel_id = channel_id.to_hex()),skip_all, err(Debug))]
-    fn process_dlc_channel_offer(
-        &self,
-        channel_id: DlcChannelId,
-        action: SubchannelOfferAction,
-    ) -> Result<()> {
-        OffsetDateTime::now_utc();
+    pub fn reject_dlc_channel_offer(&self, channel_id: &DlcChannelId) -> Result<()> {
+        tracing::warn!("Rejecting dlc channel offer!");
 
-        match &action {
-            SubchannelOfferAction::Accept => {
-                if let Err(error) = self
-                    .inner
-                    .accept_dlc_channel_offer(&channel_id)
-                    .with_context(|| {
-                        format!(
-                            "Failed to accept DLC channel offer for channel {}",
-                            hex::encode(channel_id)
-                        )
-                    })
-                {
-                    tracing::error!(
-                        "Could not accept dlc channel offer {error:#}. Continuing with rejecting it"
-                    );
-                    self.process_dlc_channel_offer(channel_id, SubchannelOfferAction::RejectError)?
-                }
-            }
-            SubchannelOfferAction::RejectOutdated | SubchannelOfferAction::RejectError => {
-                let (invalid_offer_reason, invalid_offer_msg) =
-                    if let SubchannelOfferAction::RejectOutdated = action {
-                        let invalid_offer_msg = "Offer outdated, rejecting subchannel offer";
-                        tracing::warn!(invalid_offer_msg);
-                        (InvalidSubchannelOffer::Outdated, invalid_offer_msg)
-                    } else {
-                        let invalid_offer_msg = "Offer is unacceptable, rejecting subchannel offer";
-                        tracing::warn!(invalid_offer_msg);
-                        (InvalidSubchannelOffer::Unacceptable, invalid_offer_msg)
-                    };
-                self.inner
-                    .reject_dlc_channel_offer(&channel_id)
-                    .with_context(|| {
-                        format!(
-                            "Failed to reject DLC channel offer for channel {}",
-                            hex::encode(channel_id)
-                        )
-                    })?;
-
-                order::handler::order_failed(
-                    None,
-                    FailureReason::InvalidDlcOffer(invalid_offer_reason),
-                    anyhow!(invalid_offer_msg),
+        let (reject, counterparty) = self
+            .inner
+            .dlc_manager
+            .reject_channel(channel_id)
+            .with_context(|| {
+                format!(
+                    "Failed to reject DLC channel offer for channel {}",
+                    hex::encode(channel_id)
                 )
-                .context("Could not set order to failed")?;
+            })?;
+
+        order::handler::order_failed(
+            None,
+            FailureReason::InvalidDlcOffer(InvalidSubchannelOffer::Unacceptable),
+            anyhow!("Failed to accept dlc channel offer"),
+        )
+        .context("Could not set order to failed")?;
+
+        self.send_dlc_message(
+            counterparty,
+            Message::Channel(ChannelMessage::Reject(reject)),
+        )
+    }
+
+    #[instrument(fields(channel_id = channel_id.to_hex()),skip_all, err(Debug))]
+    pub fn process_dlc_channel_offer(&self, channel_id: &DlcChannelId) -> Result<()> {
+        // TODO(holzeis): We should check if the offered amounts are expected.
+
+        match self.inner.dlc_manager.accept_channel(channel_id) {
+            Ok((accept_channel, _, _, node_id)) => {
+                self.send_dlc_message(
+                    node_id,
+                    Message::Channel(ChannelMessage::Accept(accept_channel)),
+                )?;
+            }
+            Err(e) => {
+                tracing::error!("Failed to accept dlc channel offer. {e:#}");
+                self.reject_dlc_channel_offer(channel_id)?;
             }
         }
+
+        Ok(())
+    }
+
+    #[instrument(fields(channel_id = channel_id.to_hex()),skip_all, err(Debug))]
+    pub fn reject_settle_offer(&self, channel_id: &DlcChannelId) -> Result<()> {
+        tracing::warn!("Rejecting pending dlc channel collaborative settlement offer!");
+        let (reject, counterparty) = self.inner.dlc_manager.reject_settle_offer(channel_id)?;
+
+        order::handler::order_failed(
+            None,
+            FailureReason::InvalidDlcOffer(InvalidSubchannelOffer::Unacceptable),
+            anyhow!("Failed to accept settle offer"),
+        )?;
+
+        self.send_dlc_message(
+            counterparty,
+            Message::Channel(ChannelMessage::Reject(reject)),
+        )
+    }
+
+    #[instrument(fields(channel_id = channel_id.to_hex()),skip_all, err(Debug))]
+    pub fn process_settle_offer(&self, channel_id: &DlcChannelId) -> Result<()> {
+        // TODO(holzeis): We should check if the offered amounts are expected.
+
+        if let Err(e) = self
+            .inner
+            .accept_dlc_channel_collaborative_settlement(channel_id)
+        {
+            tracing::error!("Failed to accept dlc channel collaborative settlement offer. {e:#}");
+            self.reject_settle_offer(channel_id)?;
+        }
+
+        Ok(())
+    }
+
+    #[instrument(fields(channel_id = channel_id.to_hex()),skip_all, err(Debug))]
+    pub fn reject_renew_offer(&self, channel_id: &DlcChannelId) -> Result<()> {
+        tracing::warn!("Rejecting dlc channel renew offer!");
+
+        let (reject, counterparty) = self.inner.dlc_manager.reject_renew_offer(channel_id)?;
+
+        order::handler::order_failed(
+            None,
+            FailureReason::InvalidDlcOffer(InvalidSubchannelOffer::Unacceptable),
+            anyhow!("Failed to accept renew offer"),
+        )?;
+
+        self.send_dlc_message(
+            counterparty,
+            Message::Channel(ChannelMessage::Reject(reject)),
+        )
+    }
+
+    #[instrument(fields(channel_id = channel_id.to_hex()),skip_all, err(Debug))]
+    pub fn process_renew_offer(
+        &self,
+        channel_id: &DlcChannelId,
+        expiry_timestamp: OffsetDateTime,
+    ) -> Result<()> {
+        // TODO(holzeis): We should check if the offered amounts are expected.
+
+        match self.inner.dlc_manager.accept_renew_offer(channel_id) {
+            Ok((renew_accept, node_id)) => {
+                position::handler::handle_channel_renewal_offer(expiry_timestamp)?;
+
+                self.send_dlc_message(
+                    node_id,
+                    Message::Channel(ChannelMessage::RenewAccept(renew_accept)),
+                )?;
+            }
+            Err(e) => {
+                tracing::error!("Failed to accept dlc channel renew offer. {e:#}");
+
+                self.reject_renew_offer(channel_id)?;
+            }
+        };
 
         Ok(())
     }
@@ -450,26 +499,6 @@ impl Node {
             tokio::time::sleep(reconnect_interval).await;
         }
     }
-}
-
-pub(crate) fn decide_subchannel_offer_action(
-    maturity_timestamp: OffsetDateTime,
-) -> SubchannelOfferAction {
-    let mut action = SubchannelOfferAction::Accept;
-    if OffsetDateTime::now_utc().gt(&maturity_timestamp) {
-        action = SubchannelOfferAction::RejectOutdated;
-    }
-    action
-}
-
-pub enum SubchannelOfferAction {
-    Accept,
-    /// The offer was outdated, hence we need to reject the offer
-    RejectOutdated,
-    // /// The offer was invalid, hence we need to reject the offer
-    // RejectInvalid,
-    /// We had an error accepting, hence, we try to reject instead
-    RejectError,
 }
 
 #[derive(Clone)]

@@ -144,6 +144,29 @@ impl Position {
         Ok(())
     }
 
+    /// sets the status of the position in state `Closing` to a new state
+    pub fn update_closing_position(
+        conn: &mut PgConnection,
+        trader_pubkey: String,
+        state: crate::position::models::PositionState,
+    ) -> Result<()> {
+        let state = PositionState::from(state);
+        let affected_rows = diesel::update(positions::table)
+            .filter(positions::trader_pubkey.eq(trader_pubkey.clone()))
+            .filter(positions::position_state.eq(PositionState::Closing))
+            .set((
+                positions::position_state.eq(state),
+                positions::update_timestamp.eq(OffsetDateTime::now_utc()),
+            ))
+            .execute(conn)?;
+
+        if affected_rows == 0 {
+            bail!("Could not update position to {state:?} for {trader_pubkey}")
+        }
+
+        Ok(())
+    }
+
     /// sets the status of all open position to closing (note, we expect that number to be always
     /// exactly 1)
     pub fn set_open_position_to_closing(

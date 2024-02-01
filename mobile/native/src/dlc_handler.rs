@@ -3,8 +3,8 @@ use crate::event;
 use crate::event::BackgroundTask;
 use crate::event::EventInternal;
 use crate::event::TaskStatus;
-use crate::ln_dlc::node::NodeStorage;
-use crate::storage::TenTenOneNodeStorage;
+use crate::ln_dlc::node::Node;
+use anyhow::Context;
 use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
 use dlc_messages::Message;
@@ -16,7 +16,6 @@ use ln_dlc_node::node::rust_dlc_manager::channel::offered_channel::OfferedChanne
 use ln_dlc_node::node::rust_dlc_manager::channel::signed_channel::SignedChannel;
 use ln_dlc_node::node::rust_dlc_manager::channel::signed_channel::SignedChannelState;
 use ln_dlc_node::node::rust_dlc_manager::channel::Channel;
-use ln_dlc_node::node::Node;
 use std::sync::Arc;
 use tokio::sync::broadcast;
 use tokio::sync::broadcast::error::RecvError;
@@ -27,17 +26,22 @@ use tokio::sync::broadcast::error::RecvError;
 /// 1. Mark all received inbound messages as processed.
 /// 2. Save the last outbound dlc message, so it can be resend on the next reconnect.
 /// 3. Check if a receive message has already been processed and if so inform to skip the message.
-
 #[derive(Clone)]
 pub struct DlcHandler {
-    node: Arc<Node<TenTenOneNodeStorage, NodeStorage>>,
+    node: Arc<Node>,
 }
 
 impl DlcHandler {
-    pub fn new(node: Arc<Node<TenTenOneNodeStorage, NodeStorage>>) -> Self {
+    pub fn new(node: Arc<Node>) -> Self {
         DlcHandler { node }
     }
 }
+
+/// Handles sending outbound dlc messages as well as keeping track of what
+/// dlc messages have already been processed and what was the last outbound dlc message
+/// so it can be resend on reconnect.
+///
+/// Does not handle the incoming dlc messages!
 pub async fn handle_dlc_messages(
     dlc_handler: DlcHandler,
     mut receiver: broadcast::Receiver<NodeEvent>,
@@ -80,8 +84,8 @@ impl DlcHandler {
         )?;
 
         send_dlc_message(
-            &self.node.dlc_message_handler,
-            &self.node.peer_manager,
+            &self.node.inner.dlc_message_handler,
+            &self.node.inner.peer_manager,
             peer,
             msg,
         );
@@ -92,6 +96,7 @@ impl DlcHandler {
     pub fn on_connect(&self, peer: PublicKey) -> Result<()> {
         let dlc_channels: Vec<Channel> = self
             .node
+            .inner
             .list_dlc_channels()?
             .into_iter()
             .filter(|c| {
@@ -122,15 +127,13 @@ impl DlcHandler {
                         BackgroundTask::RecoverDlc(TaskStatus::Pending),
                     ));
 
-                    if let Err(e) = self.node.accept_dlc_channel_offer(temporary_channel_id) {
-                        tracing::error!("Failed to accept pending dlc channel offer. {e:#}");
-                        tracing::warn!("Rejecting pending dlc channel offer!");
-                        self.node.reject_dlc_channel_offer(temporary_channel_id)?;
+                    self.node
+                        .process_dlc_channel_offer(temporary_channel_id)
+                        .context("Failed to process pending dlc channel offer")?;
 
-                        event::publish(&EventInternal::BackgroundNotification(
-                            BackgroundTask::RecoverDlc(TaskStatus::Success),
-                        ));
-                    }
+                    event::publish(&EventInternal::BackgroundNotification(
+                        BackgroundTask::RecoverDlc(TaskStatus::Success),
+                    ));
 
                     return Ok(());
                 }
@@ -148,19 +151,39 @@ impl DlcHandler {
                     ));
 
                     self.node
-                        .accept_dlc_channel_collaborative_settlement(channel_id)?;
+                        .process_settle_offer(channel_id)
+                        .context("Failed to process pending settle offer")?;
+
+                    event::publish(&EventInternal::BackgroundNotification(
+                        BackgroundTask::RecoverDlc(TaskStatus::Success),
+                    ));
 
                     return Ok(());
                 }
                 Channel::Signed(SignedChannel {
-                    channel_id: _,
+                    channel_id,
                     state: SignedChannelState::RenewOffered { .. },
                     ..
                 }) => {
+                    tracing::info!("Accepting pending dlc channel renew offer.");
                     // Pending dlc channel renew (resize) offer with a dlc channel already confirmed
                     // on-chain
 
-                    // TODO: implement with resizing a position.
+                    event::publish(&EventInternal::BackgroundNotification(
+                        BackgroundTask::RecoverDlc(TaskStatus::Pending),
+                    ));
+
+                    let expiry_timestamp = self
+                        .node
+                        .inner
+                        .get_expiry_for_confirmed_dlc_channel(channel_id)?;
+                    self.node
+                        .process_renew_offer(channel_id, expiry_timestamp)
+                        .context("Failed to process pending renew offer")?;
+
+                    event::publish(&EventInternal::BackgroundNotification(
+                        BackgroundTask::RecoverDlc(TaskStatus::Success),
+                    ));
 
                     return Ok(());
                 }
@@ -175,6 +198,7 @@ impl DlcHandler {
 
                     // TODO(bonomat): we should verify that the proposed amount is acceptable
                     self.node
+                        .inner
                         .accept_dlc_channel_collaborative_close(channel_id)?;
 
                     return Ok(());
@@ -206,8 +230,8 @@ impl DlcHandler {
 
             let message = Message::try_from(&last_outbound_serialized_dlc_message)?;
             send_dlc_message(
-                &self.node.dlc_message_handler,
-                &self.node.peer_manager,
+                &self.node.inner.dlc_message_handler,
+                &self.node.inner.peer_manager,
                 peer,
                 message,
             );
