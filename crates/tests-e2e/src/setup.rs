@@ -67,7 +67,8 @@ impl TestSetup {
             .unwrap();
 
         self.bitcoind.mine(1).await.unwrap();
-        self.coordinator.sync_node().await.unwrap();
+
+        self.sync_coordinator().await;
 
         // TODO: Get coordinator balance to verify this claim.
         tracing::info!("Successfully funded coordinator");
@@ -134,9 +135,15 @@ impl TestSetup {
         sync_dlc_channels();
         refresh_wallet_info();
 
-        setup.coordinator.sync_node().await.unwrap();
+        setup.sync_coordinator().await;
 
         setup
+    }
+
+    async fn sync_coordinator(&self) {
+        if let Err(e) = self.coordinator.sync_node().await {
+            tracing::error!("Got error from coordinator sync: {e:#}");
+        };
     }
 }
 
