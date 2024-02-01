@@ -4,6 +4,7 @@ use flutter_rust_bridge::StreamSink;
 use std::collections::BTreeMap;
 use std::sync::Arc;
 use std::sync::Once;
+use tracing_log::LogTracer;
 use tracing_subscriber::filter::Directive;
 use tracing_subscriber::filter::LevelFilter;
 use tracing_subscriber::fmt::time;
@@ -167,6 +168,8 @@ pub fn init_tracing(level: LevelFilter, json_format: bool) -> Result<()> {
         .with(fmt_layer)
         .try_init()
         .context("Failed to init tracing")?;
+
+    LogTracer::init()?;
 
     tracing::info!("Initialized logger");
 
