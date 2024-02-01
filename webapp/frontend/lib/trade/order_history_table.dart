@@ -37,7 +37,7 @@ class OrderHistoryTable extends StatelessWidget {
     orders.sort((a, b) => b.creationTimestamp.compareTo(a.creationTimestamp));
 
     return Table(
-      border: TableBorder.symmetric(inside: const BorderSide(width: 2, color: Colors.black)),
+      border: const TableBorder(verticalInside: BorderSide(width: 0.5, color: Colors.black)),
       defaultVerticalAlignment: TableCellVerticalAlignment.middle,
       columnWidths: const {
         0: MinColumnWidth(FixedColumnWidth(100.0), FractionColumnWidth(0.1)),
@@ -50,11 +50,7 @@ class OrderHistoryTable extends StatelessWidget {
         TableRow(
           decoration: BoxDecoration(
             color: tenTenOnePurple.shade300,
-            border: Border.all(
-              width: 1,
-            ),
-            borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(10), topRight: Radius.circular(10)),
+            border: const Border(bottom: BorderSide(width: 0.5, color: Colors.black)),
           ),
           children: [
             buildHeaderCell('State'),
