@@ -21,7 +21,7 @@ pub enum OrderType {
 }
 
 /// Internal type so we still have Copy on order
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, PartialEq)]
 pub enum FailureReason {
     /// An error occurred when setting the Order to filling in our DB
     FailedToSetToFilling,
@@ -42,7 +42,7 @@ pub enum FailureReason {
     Unknown,
 }
 
-#[derive(Debug, Clone, Copy, Serialize)]
+#[derive(Debug, Clone, Copy, Serialize, PartialEq)]
 pub enum InvalidSubchannelOffer {
     /// Received offer was outdated
     Outdated,
@@ -50,7 +50,7 @@ pub enum InvalidSubchannelOffer {
     Unacceptable,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum OrderState {
     /// Not submitted to orderbook yet
     ///

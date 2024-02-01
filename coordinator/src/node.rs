@@ -27,6 +27,7 @@ use diesel::Connection;
 use diesel::PgConnection;
 use dlc_manager::channel::signed_channel::SignedChannel;
 use dlc_manager::channel::signed_channel::SignedChannelState;
+use dlc_manager::channel::Channel;
 use dlc_manager::contract::contract_input::ContractInput;
 use dlc_manager::contract::contract_input::ContractInputInfo;
 use dlc_manager::contract::contract_input::OracleInput;
@@ -663,7 +664,7 @@ impl Node {
         let trader_peer_id = trade_params.pubkey;
         match self
             .inner
-            .get_dlc_channel_by_counterparty(&trader_peer_id)?
+            .get_signed_dlc_channel_by_counterparty(&trader_peer_id)?
         {
             None => {
                 ensure!(
@@ -911,6 +912,68 @@ impl Node {
                             node_id.to_string(),
                             PositionState::Open,
                         )?;
+                    }
+                    ChannelMessage::Reject(reject) => {
+                        // TODO(holzeis): if an dlc channel gets rejected we have to deal with the
+                        // counterparty as well.
+
+                        let channel_id_hex_string = reject.channel_id.to_hex();
+
+                        let channel = self.inner.get_dlc_channel_by_id(&reject.channel_id)?;
+                        let mut connection = self.pool.get()?;
+
+                        match channel {
+                            Channel::Cancelled(_) => {
+                                tracing::info!(
+                                    channel_id = channel_id_hex_string,
+                                    node_id = node_id.to_string(),
+                                    "DLC Channel offer has been rejected. Setting position to failed."
+                                );
+
+                                db::positions::Position::update_proposed_position(
+                                    &mut connection,
+                                    node_id.to_string(),
+                                    PositionState::Failed,
+                                )?;
+                            }
+                            Channel::Signed(SignedChannel {
+                                state: SignedChannelState::Established { .. },
+                                ..
+                            }) => {
+                                // TODO(holzeis): Reverting the position state back from `Closing`
+                                // to `Open` only works as long as we do not support resizing. This
+                                // logic needs to be adapted when we implement resize.
+
+                                tracing::info!(
+                                    channel_id = channel_id_hex_string,
+                                    node_id = node_id.to_string(),
+                                    "DLC Channel settle offer has been rejected. Setting position to back to open."
+                                );
+
+                                db::positions::Position::update_closing_position(
+                                    &mut connection,
+                                    node_id.to_string(),
+                                    PositionState::Open,
+                                )?;
+                            }
+                            Channel::Signed(SignedChannel {
+                                state: SignedChannelState::Settled { .. },
+                                ..
+                            }) => {
+                                tracing::info!(
+                                    channel_id = channel_id_hex_string,
+                                    node_id = node_id.to_string(),
+                                    "DLC Channel renew offer has been rejected. Setting position to failed."
+                                );
+
+                                db::positions::Position::update_proposed_position(
+                                    &mut connection,
+                                    node_id.to_string(),
+                                    PositionState::Failed,
+                                )?;
+                            }
+                            _ => {}
+                        }
                     }
                     _ => {}
                 };

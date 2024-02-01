@@ -155,7 +155,8 @@ convertible_enum!(
         ClosedPunished,
         CollaborativelyClosed,
         FailedAccept,
-        FailedSign,;
+        FailedSign,
+        Cancelled,;
     },
     Channel
 );
@@ -767,6 +768,7 @@ fn serialize_channel(channel: &Channel) -> Result<Vec<u8>, ::std::io::Error> {
             c.serialize()
         }
         Channel::ClosedPunished(c) => c.serialize(),
+        Channel::Cancelled(o) => o.serialize(),
     };
     let mut serialized = serialized?;
     let mut res = Vec::with_capacity(serialized.len() + 1);
@@ -816,6 +818,9 @@ fn deserialize_channel(buff: &Vec<u8>) -> Result<Channel, Error> {
         ChannelPrefix::ClosedPunished => Channel::ClosedPunished(
             ClosedPunishedChannel::deserialize(&mut cursor).map_err(to_storage_error)?,
         ),
+        ChannelPrefix::Cancelled => {
+            Channel::Cancelled(OfferedChannel::deserialize(&mut cursor).map_err(to_storage_error)?)
+        }
     };
     Ok(channel)
 }

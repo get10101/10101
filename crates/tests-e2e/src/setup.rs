@@ -23,7 +23,7 @@ pub struct TestSetup {
 
 impl TestSetup {
     /// Start test with a running app and a funded wallet.
-    pub async fn new_after_funding() -> Self {
+    pub async fn new_after_funding(fund_amount: Option<Amount>) -> Self {
         init_tracing();
 
         let client = init_reqwest();
@@ -62,13 +62,13 @@ impl TestSetup {
             "App should start with empty off-chain wallet"
         );
 
-        let fund_amount = Amount::ONE_BTC;
+        let fund_amount = fund_amount.unwrap_or(Amount::ONE_BTC);
 
         let address = api::get_unused_address();
         let address = &address.0.parse().unwrap();
 
         bitcoind
-            .send_to_address(address, Amount::ONE_BTC)
+            .send_to_address(address, fund_amount)
             .await
             .unwrap();
 
@@ -92,7 +92,7 @@ impl TestSetup {
 
     /// Start test with a running app with a funded wallet and an open position.
     pub async fn new_with_open_position() -> Self {
-        let setup = Self::new_after_funding().await;
+        let setup = Self::new_after_funding(None).await;
         let rx = &setup.app.rx;
 
         tracing::info!("Opening a position");

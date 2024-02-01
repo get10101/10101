@@ -21,7 +21,6 @@ use dlc_manager::contract::ContractDescriptor;
 use dlc_manager::DlcChannelId;
 use dlc_manager::Oracle;
 use dlc_manager::Storage;
-use dlc_messages::channel::Reject;
 use dlc_messages::ChannelMessage;
 use dlc_messages::Message;
 use time::OffsetDateTime;
@@ -85,27 +84,6 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
             }
         })
         .await?
-    }
-
-    pub fn reject_dlc_channel_offer(&self, channel_id: &DlcChannelId) -> Result<()> {
-        let channel_id_hex = hex::encode(channel_id);
-
-        let channel = self
-            .dlc_manager
-            .get_store()
-            .get_channel(channel_id)?
-            .with_context(|| format!("Couldn't find channel by id. {}", channel_id.to_hex()))?;
-
-        tracing::info!(channel_id = %channel_id_hex, "Rejecting DLC channel offer");
-
-        self.event_handler.publish(NodeEvent::SendDlcMessage {
-            peer: channel.get_counter_party_id(),
-            msg: Message::Channel(ChannelMessage::Reject(Reject {
-                channel_id: channel.get_id(),
-            })),
-        })?;
-
-        Ok(())
     }
 
     pub fn accept_dlc_channel_offer(&self, channel_id: &DlcChannelId) -> Result<()> {
@@ -273,9 +251,8 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
         tracing::info!(channel_id = %hex::encode(dlc_channel_id), "Proposing a DLC channel update");
         spawn_blocking({
             let dlc_manager = self.dlc_manager.clone();
-            let dlc_message_handler = self.dlc_message_handler.clone();
-            let peer_manager = self.peer_manager.clone();
             let dlc_channel_id = *dlc_channel_id;
+            let event_handler = self.event_handler.clone();
             move || {
                 // Not actually needed. See https://github.com/p2pderivatives/rust-dlc/issues/149.
                 let counter_payout = 0;
@@ -283,12 +260,10 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
                 let (renew_offer, counterparty_pubkey) =
                     dlc_manager.renew_offer(&dlc_channel_id, counter_payout, &contract_input)?;
 
-                send_dlc_message(
-                    &dlc_message_handler,
-                    &peer_manager,
-                    counterparty_pubkey,
-                    Message::Channel(ChannelMessage::RenewOffer(renew_offer)),
-                );
+                event_handler.publish(NodeEvent::SendDlcMessage {
+                    msg: Message::Channel(ChannelMessage::RenewOffer(renew_offer)),
+                    peer: counterparty_pubkey,
+                })?;
 
                 let offered_contracts = dlc_manager.get_store().get_contract_offers()?;
 
@@ -336,9 +311,9 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
     /// Will return an error if the contract is not yet signed or confirmed on-chain.
     pub fn get_expiry_for_confirmed_dlc_channel(
         &self,
-        dlc_channel_id: DlcChannelId,
+        dlc_channel_id: &DlcChannelId,
     ) -> Result<OffsetDateTime> {
-        match self.get_contract_by_dlc_channel_id(&dlc_channel_id)? {
+        match self.get_contract_by_dlc_channel_id(dlc_channel_id)? {
             Contract::Signed(contract) | Contract::Confirmed(contract) => {
                 let offered_contract = contract.accepted_contract.offered_contract;
                 let contract_info = offered_contract
@@ -376,7 +351,7 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
             })
     }
 
-    pub fn get_dlc_channel_by_counterparty(
+    pub fn get_signed_dlc_channel_by_counterparty(
         &self,
         counterparty_pk: &PublicKey,
     ) -> Result<Option<SignedChannel>> {
