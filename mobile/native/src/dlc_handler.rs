@@ -120,7 +120,7 @@ impl DlcHandler {
                     temporary_channel_id,
                     ..
                 }) => {
-                    tracing::info!("Accepting pending dlc channel offer.");
+                    tracing::info!("Rejecting pending dlc channel offer.");
                     // Pending dlc channel offer not yet confirmed on-chain
 
                     event::publish(&EventInternal::BackgroundNotification(
@@ -128,8 +128,8 @@ impl DlcHandler {
                     ));
 
                     self.node
-                        .process_dlc_channel_offer(temporary_channel_id)
-                        .context("Failed to process pending dlc channel offer")?;
+                        .reject_dlc_channel_offer(temporary_channel_id)
+                        .context("Failed to reject pending dlc channel offer")?;
 
                     event::publish(&EventInternal::BackgroundNotification(
                         BackgroundTask::RecoverDlc(TaskStatus::Success),
@@ -142,7 +142,7 @@ impl DlcHandler {
                     state: SignedChannelState::SettledReceived { .. },
                     ..
                 }) => {
-                    tracing::info!("Accepting pending dlc channel settle offer.");
+                    tracing::info!("Rejecting pending dlc channel settle offer.");
                     // Pending dlc channel settle offer with a dlc channel already confirmed
                     // on-chain
 
@@ -151,8 +151,8 @@ impl DlcHandler {
                     ));
 
                     self.node
-                        .process_settle_offer(channel_id)
-                        .context("Failed to process pending settle offer")?;
+                        .reject_settle_offer(channel_id)
+                        .context("Failed to reject pending settle offer")?;
 
                     event::publish(&EventInternal::BackgroundNotification(
                         BackgroundTask::RecoverDlc(TaskStatus::Success),
@@ -165,7 +165,7 @@ impl DlcHandler {
                     state: SignedChannelState::RenewOffered { .. },
                     ..
                 }) => {
-                    tracing::info!("Accepting pending dlc channel renew offer.");
+                    tracing::info!("Rejecting pending dlc channel renew offer.");
                     // Pending dlc channel renew (resize) offer with a dlc channel already confirmed
                     // on-chain
 
@@ -173,13 +173,9 @@ impl DlcHandler {
                         BackgroundTask::RecoverDlc(TaskStatus::Pending),
                     ));
 
-                    let expiry_timestamp = self
-                        .node
-                        .inner
-                        .get_expiry_for_confirmed_dlc_channel(channel_id)?;
                     self.node
-                        .process_renew_offer(channel_id, expiry_timestamp)
-                        .context("Failed to process pending renew offer")?;
+                        .reject_renew_offer(channel_id)
+                        .context("Failed to reject pending renew offer")?;
 
                     event::publish(&EventInternal::BackgroundNotification(
                         BackgroundTask::RecoverDlc(TaskStatus::Success),

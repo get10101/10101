@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Feat(webapp): Show order history
 - Fix: Add reject dlc channel, settle and renew offer
+- Chore: Change pending offer policy to reject on reconnect
 
 ## [1.8.4] - 2024-01-31
 
