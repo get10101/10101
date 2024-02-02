@@ -662,6 +662,7 @@ impl Node {
         is_stable_order: bool,
     ) -> Result<()> {
         let trader_peer_id = trade_params.pubkey;
+
         match self
             .inner
             .get_signed_dlc_channel_by_counterparty(&trader_peer_id)?
@@ -670,6 +671,16 @@ impl Node {
                 ensure!(
                     self.settings.read().await.allow_opening_positions,
                     "Opening positions is disabled"
+                );
+
+                ensure!(
+                    !self
+                        .inner
+                        .list_dlc_channels()?
+                        .iter()
+                        .filter(|c| c.get_counter_party_id() == trader_peer_id)
+                        .any(|c| matches!(c, Channel::Offered(_) | Channel::Accepted(_))),
+                    "Previous DLC Channel offer still pending."
                 );
 
                 self.open_dlc_channel(conn, trade_params, is_stable_order)
