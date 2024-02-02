@@ -6,13 +6,13 @@ use crate::event::TaskStatus;
 use crate::ln_dlc::node::Node;
 use anyhow::Context;
 use anyhow::Result;
+use bitcoin::hashes::hex::ToHex;
 use bitcoin::secp256k1::PublicKey;
 use dlc_messages::Message;
 use ln_dlc_node::dlc_message::DlcMessage;
 use ln_dlc_node::dlc_message::SerializedDlcMessage;
 use ln_dlc_node::node::dlc_channel::send_dlc_message;
 use ln_dlc_node::node::event::NodeEvent;
-use ln_dlc_node::node::rust_dlc_manager::channel::offered_channel::OfferedChannel;
 use ln_dlc_node::node::rust_dlc_manager::channel::signed_channel::SignedChannel;
 use ln_dlc_node::node::rust_dlc_manager::channel::signed_channel::SignedChannelState;
 use ln_dlc_node::node::rust_dlc_manager::channel::Channel;
@@ -91,55 +91,56 @@ impl DlcHandler {
         Ok(())
     }
 
+    /// Rejects all pending dlc channel offers. This is important as there might be several
+    /// pending dlc channel offers due to a bug before we had fixed the reject handling properly,
+    /// leaving the positions in proposes on the coordinator side.
+    ///
+    /// By rejecting them we ensure that all hanging dlc channel offers and positions are dealt
+    /// with.
+    pub fn reject_pending_dlc_channel_offers(&self) -> Result<()> {
+        let dlc_channels = self.node.inner.list_dlc_channels()?;
+        let offered_channels = dlc_channels
+            .iter()
+            .filter(|c| matches!(c, Channel::Offered(_)))
+            .collect::<Vec<&Channel>>();
+
+        if offered_channels.is_empty() {
+            return Ok(());
+        }
+
+        event::publish(&EventInternal::BackgroundNotification(
+            BackgroundTask::RecoverDlc(TaskStatus::Pending),
+        ));
+
+        for offered_channel in offered_channels.iter() {
+            tracing::info!(
+                channel_id = offered_channel.get_id().to_hex(),
+                "Rejecting pending dlc channel offer."
+            );
+            // Pending dlc channel offer not yet confirmed on-chain
+
+            self.node
+                .reject_dlc_channel_offer(&offered_channel.get_temporary_id())
+                .context("Failed to reject pending dlc channel offer")?;
+        }
+
+        event::publish(&EventInternal::BackgroundNotification(
+            BackgroundTask::RecoverDlc(TaskStatus::Success),
+        ));
+
+        Ok(())
+    }
+
     pub fn on_connect(&self, peer: PublicKey) -> Result<()> {
-        let dlc_channels: Vec<Channel> = self
-            .node
-            .inner
-            .list_dlc_channels()?
-            .into_iter()
-            .filter(|c| {
-                // Filter all dlc channels that have reached a somewhat final state.
-                !matches!(
-                    c,
-                    Channel::Closed(_)
-                        | Channel::Closing(_)
-                        | Channel::CounterClosed(_)
-                        | Channel::ClosedPunished(_)
-                        | Channel::CollaborativelyClosed(_)
-                        | Channel::FailedAccept(_)
-                        | Channel::FailedSign(_)
-                )
-            })
-            .collect();
+        self.reject_pending_dlc_channel_offers()?;
 
-        if let Some(channel) = dlc_channels.first() {
+        if let Some(channel) = self.node.inner.list_signed_dlc_channels()?.first() {
             match channel {
-                Channel::Offered(OfferedChannel {
-                    temporary_channel_id,
-                    ..
-                }) => {
-                    tracing::info!("Rejecting pending dlc channel offer.");
-                    // Pending dlc channel offer not yet confirmed on-chain
-
-                    event::publish(&EventInternal::BackgroundNotification(
-                        BackgroundTask::RecoverDlc(TaskStatus::Pending),
-                    ));
-
-                    self.node
-                        .reject_dlc_channel_offer(temporary_channel_id)
-                        .context("Failed to reject pending dlc channel offer")?;
-
-                    event::publish(&EventInternal::BackgroundNotification(
-                        BackgroundTask::RecoverDlc(TaskStatus::Success),
-                    ));
-
-                    return Ok(());
-                }
-                Channel::Signed(SignedChannel {
+                SignedChannel {
                     channel_id,
                     state: SignedChannelState::SettledReceived { .. },
                     ..
-                }) => {
+                } => {
                     tracing::info!("Rejecting pending dlc channel settle offer.");
                     // Pending dlc channel settle offer with a dlc channel already confirmed
                     // on-chain
@@ -158,11 +159,11 @@ impl DlcHandler {
 
                     return Ok(());
                 }
-                Channel::Signed(SignedChannel {
+                SignedChannel {
                     channel_id,
                     state: SignedChannelState::RenewOffered { .. },
                     ..
-                }) => {
+                } => {
                     tracing::info!("Rejecting pending dlc channel renew offer.");
                     // Pending dlc channel renew (resize) offer with a dlc channel already confirmed
                     // on-chain
@@ -181,11 +182,11 @@ impl DlcHandler {
 
                     return Ok(());
                 }
-                Channel::Signed(SignedChannel {
+                SignedChannel {
                     channel_id,
                     state: SignedChannelState::CollaborativeCloseOffered { .. },
                     ..
-                }) => {
+                } => {
                     tracing::info!("Accepting pending dlc channel close offer.");
                     // Pending dlc channel close offer with the intend to close the dlc channel
                     // on-chain
@@ -197,7 +198,7 @@ impl DlcHandler {
 
                     return Ok(());
                 }
-                Channel::Signed(signed_channel) => {
+                signed_channel => {
                     // If the signed channel state is anything else but `Established`, `Settled` or
                     // `Closing` at reconnect. It means the protocol got interrupted.
                     if !matches!(
@@ -211,7 +212,6 @@ impl DlcHandler {
                         ));
                     }
                 }
-                _ => {}
             };
         }
 
