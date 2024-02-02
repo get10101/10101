@@ -122,6 +122,10 @@ impl<S: TenTenOneStorage, N: Storage> LnDlcWallet<S, N> {
         self.address_cache.read().clone()
     }
 
+    pub fn new_address(&self) -> Result<Address> {
+        self.ldk_wallet().get_new_address()
+    }
+
     pub fn is_mine(&self, script: &Script) -> Result<bool> {
         self.ldk_wallet().is_mine(script)
     }
@@ -270,23 +274,20 @@ impl<S: TenTenOneStorage, N: Storage> dlc_manager::Wallet for LnDlcWallet<S, N> 
         Ok(sk)
     }
 
+    // This is only used to create the funding transaction of a DLC or a DLC channel.
     fn get_utxos_for_amount(
         &self,
         amount: u64,
-        _: Option<u64>,
+        fee_rate: Option<u64>,
         lock_utxos: bool,
     ) -> Result<Vec<Utxo>, Error> {
         let utxos = self
             .ldk_wallet()
-            .get_utxos_for_amount(amount, lock_utxos, self.network)
+            .get_utxos_for_dlc_funding_transaction(amount, fee_rate, lock_utxos)
             .map_err(|error| {
-                Error::InvalidState(format!("Could not find utxos for mount {error:?}"))
+                Error::InvalidState(format!("Could not find utxos for amount: {error:?}"))
             })?;
-        if utxos.is_empty() {
-            return Err(Error::InvalidState(
-                "Not enough UTXOs for amount".to_string(),
-            ));
-        }
+
         Ok(utxos)
     }
 

@@ -59,6 +59,12 @@ impl<S: TenTenOneStorage, N: Storage> Node<S, N> {
         self.wallet.unused_address()
     }
 
+    pub fn get_new_address(&self) -> Result<Address> {
+        self.wallet
+            .new_address()
+            .context("Failed to get new address")
+    }
+
     pub fn get_blockchain_height(&self) -> Result<u64> {
         self.wallet
             .get_blockchain_height()

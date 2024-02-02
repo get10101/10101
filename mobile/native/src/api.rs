@@ -405,6 +405,10 @@ pub fn get_unused_address() -> SyncReturn<String> {
     SyncReturn(ln_dlc::get_unused_address())
 }
 
+pub fn get_new_address() -> Result<String> {
+    ln_dlc::get_new_address()
+}
+
 #[tokio::main(flavor = "current_thread")]
 pub async fn close_channel() -> Result<()> {
     ln_dlc::close_channel(false).await

@@ -697,6 +697,12 @@ pub fn get_unused_address() -> String {
     state::get_node().inner.get_unused_address().to_string()
 }
 
+pub fn get_new_address() -> Result<String> {
+    let address = state::get_node().inner.get_new_address()?;
+
+    Ok(address.to_string())
+}
+
 pub async fn close_channel(is_force_close: bool) -> Result<()> {
     tracing::info!(force = is_force_close, "Offering to close a channel");
     let node = state::try_get_node().context("failed to get ln dlc node")?;
