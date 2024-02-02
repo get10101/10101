@@ -119,8 +119,11 @@ where
 
         wallet_lock.sync(&self.blockchain, SyncOptions::default())?;
 
+        let height = self.blockchain.get_height()?;
+
         tracing::info!(
             duration = now.elapsed().as_millis(),
+            latest_height = height,
             "Finished on-chain sync",
         );
 
