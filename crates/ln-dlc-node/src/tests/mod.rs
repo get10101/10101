@@ -51,6 +51,7 @@ use std::string::ToString;
 use std::sync::Arc;
 use std::sync::Once;
 use std::time::Duration;
+use time::OffsetDateTime;
 use tokio::sync::watch;
 use tokio::task::block_in_place;
 
@@ -449,6 +450,9 @@ fn dummy_contract_input(
     let n_cets = 100;
     let rounding_mod = total_collateral / (n_cets + 1);
 
+    let maturity_time = OffsetDateTime::now_utc() + time::Duration::days(7);
+    let maturity_time = maturity_time.unix_timestamp() as u64;
+
     ContractInput {
         offer_collateral,
         accept_collateral,
@@ -527,7 +531,7 @@ fn dummy_contract_input(
             }),
             oracles: OracleInput {
                 public_keys: vec![oracle_pk],
-                event_id: "btcusd1706899460".to_string(),
+                event_id: format!("btcusd{maturity_time}"),
                 threshold: 1,
             },
         }],
