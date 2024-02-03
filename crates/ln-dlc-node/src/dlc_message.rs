@@ -50,36 +50,6 @@ impl SerializedDlcMessage {
     }
 }
 
-impl TryFrom<&SerializedDlcMessage> for Message {
-    type Error = anyhow::Error;
-
-    fn try_from(serialized_msg: &SerializedDlcMessage) -> Result<Self, Self::Error> {
-        let message: ChannelMessage = serde_json::from_str(&serialized_msg.message)?;
-        Ok(Message::Channel(message))
-    }
-}
-
-impl TryFrom<&Message> for SerializedDlcMessage {
-    type Error = anyhow::Error;
-
-    fn try_from(msg: &Message) -> Result<Self, Self::Error> {
-        let (message, message_type) = match msg {
-            Message::Channel(message) => {
-                let message_type = DlcMessageType::from(message);
-                let message = serde_json::to_string(&message)?;
-
-                (message, message_type)
-            }
-            _ => unreachable!(),
-        };
-
-        Ok(Self {
-            message,
-            message_type,
-        })
-    }
-}
-
 #[derive(Hash, Clone, Debug)]
 pub enum DlcMessageType {
     Offer,
@@ -98,23 +68,124 @@ pub enum DlcMessageType {
     Reject,
 }
 
-impl From<&ChannelMessage> for DlcMessageType {
-    fn from(value: &ChannelMessage) -> Self {
-        match value {
-            ChannelMessage::Offer(_) => DlcMessageType::Offer,
-            ChannelMessage::Accept(_) => DlcMessageType::Accept,
-            ChannelMessage::Sign(_) => DlcMessageType::Sign,
-            ChannelMessage::SettleOffer(_) => DlcMessageType::SettleOffer,
-            ChannelMessage::SettleAccept(_) => DlcMessageType::SettleAccept,
-            ChannelMessage::SettleConfirm(_) => DlcMessageType::SettleConfirm,
-            ChannelMessage::SettleFinalize(_) => DlcMessageType::SettleFinalize,
-            ChannelMessage::RenewOffer(_) => DlcMessageType::RenewOffer,
-            ChannelMessage::RenewAccept(_) => DlcMessageType::RenewAccept,
-            ChannelMessage::RenewConfirm(_) => DlcMessageType::RenewConfirm,
-            ChannelMessage::RenewFinalize(_) => DlcMessageType::RenewFinalize,
-            ChannelMessage::RenewRevoke(_) => DlcMessageType::RenewRevoke,
-            ChannelMessage::CollaborativeCloseOffer(_) => DlcMessageType::CollaborativeCloseOffer,
-            ChannelMessage::Reject(_) => DlcMessageType::Reject,
-        }
+impl TryFrom<&SerializedDlcMessage> for Message {
+    type Error = anyhow::Error;
+
+    fn try_from(serialized_msg: &SerializedDlcMessage) -> Result<Self, Self::Error> {
+        let message = match serialized_msg.clone().message_type {
+            DlcMessageType::Offer => Message::Channel(ChannelMessage::Offer(serde_json::from_str(
+                &serialized_msg.message,
+            )?)),
+            DlcMessageType::Accept => Message::Channel(ChannelMessage::Accept(
+                serde_json::from_str(&serialized_msg.message)?,
+            )),
+            DlcMessageType::Sign => Message::Channel(ChannelMessage::Sign(serde_json::from_str(
+                &serialized_msg.message,
+            )?)),
+            DlcMessageType::SettleOffer => Message::Channel(ChannelMessage::SettleOffer(
+                serde_json::from_str(&serialized_msg.message)?,
+            )),
+            DlcMessageType::SettleAccept => Message::Channel(ChannelMessage::SettleAccept(
+                serde_json::from_str(&serialized_msg.message)?,
+            )),
+            DlcMessageType::SettleConfirm => Message::Channel(ChannelMessage::SettleConfirm(
+                serde_json::from_str(&serialized_msg.message)?,
+            )),
+            DlcMessageType::SettleFinalize => Message::Channel(ChannelMessage::SettleFinalize(
+                serde_json::from_str(&serialized_msg.message)?,
+            )),
+            DlcMessageType::RenewOffer => Message::Channel(ChannelMessage::RenewOffer(
+                serde_json::from_str(&serialized_msg.message)?,
+            )),
+            DlcMessageType::RenewAccept => Message::Channel(ChannelMessage::RenewAccept(
+                serde_json::from_str(&serialized_msg.message)?,
+            )),
+            DlcMessageType::RenewConfirm => Message::Channel(ChannelMessage::RenewConfirm(
+                serde_json::from_str(&serialized_msg.message)?,
+            )),
+            DlcMessageType::RenewFinalize => Message::Channel(ChannelMessage::RenewFinalize(
+                serde_json::from_str(&serialized_msg.message)?,
+            )),
+            DlcMessageType::RenewRevoke => Message::Channel(ChannelMessage::RenewRevoke(
+                serde_json::from_str(&serialized_msg.message)?,
+            )),
+            DlcMessageType::CollaborativeCloseOffer => {
+                Message::Channel(ChannelMessage::CollaborativeCloseOffer(
+                    serde_json::from_str(&serialized_msg.message)?,
+                ))
+            }
+            DlcMessageType::Reject => Message::Channel(ChannelMessage::Reject(
+                serde_json::from_str(&serialized_msg.message)?,
+            )),
+        };
+
+        Ok(message)
+    }
+}
+
+impl TryFrom<&Message> for SerializedDlcMessage {
+    type Error = anyhow::Error;
+
+    fn try_from(msg: &Message) -> Result<Self, Self::Error> {
+        let (message, message_type) = match &msg {
+            Message::Channel(message) => match message {
+                ChannelMessage::Offer(offer) => {
+                    (serde_json::to_string(&offer)?, DlcMessageType::Offer)
+                }
+                ChannelMessage::Accept(accept) => {
+                    (serde_json::to_string(&accept)?, DlcMessageType::Accept)
+                }
+                ChannelMessage::Sign(sign) => (serde_json::to_string(&sign)?, DlcMessageType::Sign),
+                ChannelMessage::SettleOffer(settle_offer) => (
+                    serde_json::to_string(&settle_offer)?,
+                    DlcMessageType::SettleOffer,
+                ),
+                ChannelMessage::SettleAccept(settle_accept) => (
+                    serde_json::to_string(&settle_accept)?,
+                    DlcMessageType::SettleAccept,
+                ),
+                ChannelMessage::SettleConfirm(settle_confirm) => (
+                    serde_json::to_string(&settle_confirm)?,
+                    DlcMessageType::SettleConfirm,
+                ),
+                ChannelMessage::SettleFinalize(settle_finalize) => (
+                    serde_json::to_string(&settle_finalize)?,
+                    DlcMessageType::SettleFinalize,
+                ),
+                ChannelMessage::RenewOffer(renew_offer) => (
+                    serde_json::to_string(&renew_offer)?,
+                    DlcMessageType::RenewOffer,
+                ),
+                ChannelMessage::RenewAccept(renew_accept) => (
+                    serde_json::to_string(&renew_accept)?,
+                    DlcMessageType::RenewAccept,
+                ),
+                ChannelMessage::RenewConfirm(renew_confirm) => (
+                    serde_json::to_string(&renew_confirm)?,
+                    DlcMessageType::RenewConfirm,
+                ),
+                ChannelMessage::RenewFinalize(renew_finalize) => (
+                    serde_json::to_string(&renew_finalize)?,
+                    DlcMessageType::RenewFinalize,
+                ),
+                ChannelMessage::RenewRevoke(renew_revoke) => (
+                    serde_json::to_string(&renew_revoke)?,
+                    DlcMessageType::RenewRevoke,
+                ),
+                ChannelMessage::CollaborativeCloseOffer(collaborative_close_offer) => (
+                    serde_json::to_string(&collaborative_close_offer)?,
+                    DlcMessageType::CollaborativeCloseOffer,
+                ),
+                ChannelMessage::Reject(reject) => {
+                    (serde_json::to_string(&reject)?, DlcMessageType::Reject)
+                }
+            },
+            _ => unreachable!(),
+        };
+
+        Ok(Self {
+            message,
+            message_type,
+        })
     }
 }
