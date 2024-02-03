@@ -16,6 +16,7 @@ pub struct DlcChannelDetails {
     pub update_idx: Option<u64>,
     pub fee_rate_per_vb: Option<u64>,
     pub funding_txid: Option<String>,
+    pub funding_tx_vout: Option<usize>,
 }
 
 #[derive(Serialize, Debug)]
@@ -51,15 +52,17 @@ pub enum ChannelState {
 
 impl From<Channel> for DlcChannelDetails {
     fn from(channel: Channel) -> Self {
-        let (update_idx, state, fee_rate_per_vb, funding_txid) = match channel.clone() {
-            Channel::Signed(signed_channel) => (
-                Some(signed_channel.update_idx),
-                Some(SignedChannelState::from(signed_channel.state)),
-                Some(signed_channel.fee_rate_per_vb),
-                Some(signed_channel.fund_tx.txid().to_hex()),
-            ),
-            _ => (None, None, None, None),
-        };
+        let (update_idx, state, fee_rate_per_vb, funding_txid, funding_tx_vout) =
+            match channel.clone() {
+                Channel::Signed(signed_channel) => (
+                    Some(signed_channel.update_idx),
+                    Some(SignedChannelState::from(signed_channel.state)),
+                    Some(signed_channel.fee_rate_per_vb),
+                    Some(signed_channel.fund_tx.txid().to_hex()),
+                    Some(signed_channel.fund_output_index),
+                ),
+                _ => (None, None, None, None, None),
+            };
 
         DlcChannelDetails {
             dlc_channel_id: Some(channel.get_id()),
@@ -69,6 +72,7 @@ impl From<Channel> for DlcChannelDetails {
             update_idx,
             fee_rate_per_vb,
             funding_txid,
+            funding_tx_vout,
         }
     }
 }
