@@ -118,30 +118,13 @@ impl<S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 'static> Node<S, 
     }
 
     pub(crate) fn force_close_channel(&self, channel: &ChannelDetails) -> Result<()> {
-        let channel_id = channel.channel_id;
-        let channel_id_str = hex::encode(channel_id.0);
+        let channel_id_str = hex::encode(channel.channel_id.0);
         let peer = channel.counterparty.node_id;
 
-        let has_dlc_channel = self
-            .list_sub_channels()?
-            .iter()
-            .any(|channel| channel.channel_id == channel_id);
-
-        if has_dlc_channel {
-            tracing::info!(
-                channel_id = %hex::encode(channel_id.0),
-                %peer,
-                "Initiating force-closure of LN-DLC channel"
-            );
-            self.sub_channel_manager
-                .force_close_sub_channel(&channel_id)
-                .map_err(|e| anyhow!("Failed to initiate force-close: {e:#}"))?
-        } else {
-            tracing::info!(channel_id = %hex::encode(channel_id.0), %peer, "Force-closing LN channel");
-            self.channel_manager
-                .force_close_broadcasting_latest_txn(&channel_id, &peer)
-                .map_err(|e| anyhow!("Could not force-close channel {channel_id_str}: {e:?}"))?;
-        };
+        tracing::info!(channel_id = %channel_id_str, %peer, "Force-closing LN channel");
+        self.channel_manager
+            .force_close_broadcasting_latest_txn(&channel.channel_id, &peer)
+            .map_err(|e| anyhow!("Could not force-close channel {channel_id_str}: {e:?}"))?;
 
         Ok(())
     }
