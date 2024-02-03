@@ -83,6 +83,18 @@ impl Order {
         }
     }
 
+    /// Sets all filling orders to failed. Only be used for emergency recoveries!
+    pub fn set_all_filling_orders_to_failed(conn: &mut SqliteConnection) -> Result<()> {
+        let affected_rows = diesel::update(orders::table)
+            .filter(schema::orders::state.eq(OrderState::Filling))
+            .set(orders::state.eq(OrderState::Failed))
+            .execute(conn)?;
+
+        tracing::info!("Updated {affected_rows} orders from Filling to Failed");
+
+        Ok(())
+    }
+
     /// updates the status of the given order in the db
     pub fn update_state(
         order_id: String,

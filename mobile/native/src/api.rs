@@ -7,6 +7,7 @@ use crate::config::api::Config;
 use crate::config::api::Directories;
 use crate::config::get_network;
 use crate::db;
+use crate::db::connection;
 use crate::destination;
 use crate::event;
 use crate::event::api::FlutterSubscriber;
@@ -22,7 +23,6 @@ use crate::trade::order::api::Order;
 use crate::trade::position;
 use crate::trade::position::api::Position;
 use crate::trade::users;
-use anyhow::anyhow;
 use anyhow::ensure;
 use anyhow::Context;
 use anyhow::Result;
@@ -35,10 +35,6 @@ use flutter_rust_bridge::frb;
 use flutter_rust_bridge::StreamSink;
 use flutter_rust_bridge::SyncReturn;
 use lightning::chain::chaininterface::ConfirmationTarget as LnConfirmationTarget;
-use lightning::util::persist::KVStore;
-use lightning::util::persist::NETWORK_GRAPH_PERSISTENCE_KEY;
-use lightning::util::persist::NETWORK_GRAPH_PERSISTENCE_PRIMARY_NAMESPACE;
-use lightning::util::persist::NETWORK_GRAPH_PERSISTENCE_SECONDARY_NAMESPACE;
 use ln_dlc_node::channel::UserChannelId;
 use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::Decimal;
@@ -277,16 +273,11 @@ pub async fn get_positions() -> Result<Vec<Position>> {
     Ok(positions)
 }
 
-pub fn delete_network_graph() -> Result<()> {
-    crate::state::get_storage()
-        .ln_storage
-        .remove(
-            NETWORK_GRAPH_PERSISTENCE_PRIMARY_NAMESPACE,
-            NETWORK_GRAPH_PERSISTENCE_SECONDARY_NAMESPACE,
-            NETWORK_GRAPH_PERSISTENCE_KEY,
-            false,
-        )
-        .map_err(|e| anyhow!("{e:#}"))
+pub fn set_filling_orders_to_failed() -> Result<()> {
+    tracing::warn!("Executing emergency kit! Setting orders in state Filling to Failed!");
+
+    let mut conn = connection()?;
+    db::models::Order::set_all_filling_orders_to_failed(&mut conn)
 }
 
 pub fn subscribe(stream: StreamSink<event::api::Event>) {

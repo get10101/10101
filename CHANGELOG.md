@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Chore: Change pending offer policy to reject on reconnect
 - Fix: Prevent proposing another dlc channel offer if there is already a pending one
 - Feat: upload APKs as artifact to GitHub
+- Feat(settings): Add emergency kit screen to set orders in filling to failed
 
 ## [1.8.4] - 2024-01-31
 
