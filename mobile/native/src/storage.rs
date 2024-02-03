@@ -2,7 +2,6 @@ use crate::backup::RemoteBackupClient;
 use crate::backup::DB_BACKUP_KEY;
 use crate::backup::DB_BACKUP_NAME;
 use crate::backup::DLC_BACKUP_KEY;
-use crate::backup::LN_BACKUP_KEY;
 use crate::cipher::AesCipher;
 use crate::db;
 use anyhow::Result;
@@ -148,22 +147,6 @@ impl KVStore for TenTenOneNodeStorage {
     ) -> std::result::Result<(), Error> {
         self.ln_storage
             .write(primary_namespace, secondary_namespace, key, value)?;
-
-        let value = value.to_vec();
-        let key = [primary_namespace, secondary_namespace, key]
-            .into_iter()
-            .filter(|&k| !k.is_empty())
-            .collect::<Vec<&str>>()
-            .join("/");
-        tracing::trace!("Creating a backup of {:?}", key);
-
-        // Let the backup run asynchronously we don't really care if it is successful or not as the
-        // next persist will fix the issue. Note, if we want to handle failed backup attempts we
-        // would need to remember those remote handles and handle a failure accordingly.
-        self.client
-            .backup([LN_BACKUP_KEY, &key].join("/"), value)
-            .forget();
-
         Ok(())
     }
 
