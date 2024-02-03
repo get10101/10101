@@ -261,6 +261,7 @@ cargo-clippy:
 
 lint-flutter:
     cd mobile && flutter analyze --fatal-infos .
+    cd webapp/frontend && flutter analyze --fatal-infos .
 
 alias flutter-lint := lint-flutter
 

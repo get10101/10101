@@ -1,16 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/widgets.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:get_10101/common/color.dart';
 import 'package:get_10101/common/direction.dart';
-import 'package:get_10101/common/model.dart';
 import 'package:get_10101/trade/order_change_notifier.dart';
 import 'package:get_10101/trade/order_service.dart';
-import 'package:get_10101/trade/position_change_notifier.dart';
-import 'package:get_10101/trade/position_service.dart';
-import 'package:get_10101/trade/quote_change_notifier.dart';
-import 'package:get_10101/trade/quote_service.dart';
-import 'package:get_10101/trade/trade_confirmation_dialog.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
@@ -66,8 +59,9 @@ class OrderHistoryTable extends StatelessWidget {
               buildTableCell(Tooltip(message: order.state.asString, child: stateToIcon(order))),
               // buildTableCell(Text(order.id)),
               buildTableCell(Text(order.price != null ? order.price.toString() : "NaN")),
-              buildTableCell(
-                  Text(order.direction == "Short" ? "-${order.quantity}" : "+${order.quantity}")),
+              buildTableCell(Text(order.direction == Direction.short
+                  ? "-${order.quantity}"
+                  : "+${order.quantity}")),
               buildTableCell(Text("${order.leverage.formatted()}x")),
               buildTableCell(
                   Text("${DateFormat('dd-MM-yyyy – HH:mm').format(order.creationTimestamp)} UTC")),

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/widgets.dart';
 import 'package:get_10101/common/color.dart';
 import 'package:get_10101/common/direction.dart';
 import 'package:get_10101/common/model.dart';
