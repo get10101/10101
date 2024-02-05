@@ -172,7 +172,7 @@ jobs:
           echo "$upload_keystore_content" > "./mobile/android/key.properties"
 
       - name: Build Android Archive
-        id: build-android
+        id: build-android-archive
         run: |
           NETWORK=$NETWORK just build-android-app-bundle
         env:
@@ -185,7 +185,7 @@ jobs:
           RGS_SERVER_URL: ${{ inputs.rgs_server_url }}
 
       - name: Build Android APK
-        id: build-android
+        id: build-android-apk
         run: |
           NETWORK=$NETWORK just build-android-app-apk
         env:
