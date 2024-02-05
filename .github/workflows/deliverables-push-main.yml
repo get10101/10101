@@ -59,7 +59,7 @@ jobs:
     if: needs.changes.outputs.ios-app == 'true'
     permissions:
       packages: write
-      contents: read
+      contents: write
     uses: ./.github/workflows/android-fastlane.yml
     secrets: inherit
     with:
