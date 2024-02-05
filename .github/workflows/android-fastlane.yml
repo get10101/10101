@@ -200,16 +200,25 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: apks
-          path: build/app/outputs/flutter-apk/
+          path: mobile/build/app/outputs/flutter-apk/
 
-      - name: Attach apks to release
+      - name: Attach apks to tagged release
         uses: softprops/action-gh-release@v1
-        if: startsWith(github.ref, 'refs/tags/')
+        if: ${{ inputs.tag }} != 'main'
         with:
           tag_name: ${{ inputs.tag }}
           prerelease: ${{ inputs.tag }} == 'main'
           files: |
-            build/app/outputs/flutter-apk/
+            mobile/build/app/outputs/flutter-apk/*.apk
+
+      - name: Attach apks to latest release
+        uses: softprops/action-gh-release@v1
+        if: ${{ inputs.tag }} == 'main'
+        with:
+          tag_name: 'latest'
+          prerelease: ${{ inputs.tag }} == 'main'
+          files: |
+            mobile/build/app/outputs/flutter-apk/*.apk
 
       - name: Release to Google Play Store
         env:
