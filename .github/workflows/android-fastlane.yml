@@ -202,6 +202,15 @@ jobs:
           name: apks
           path: build/app/outputs/flutter-apk/
 
+      - name: Attach apks to release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          tag_name: ${{ inputs.tag }}
+          prerelease: ${{ inputs.tag }} == 'main'
+          files: |
+            build/app/outputs/flutter-apk/
+
       - name: Release to Google Play Store
         env:
           # secrets
