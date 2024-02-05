@@ -56,6 +56,8 @@ use commons::CollaborativeRevertTraderResponse;
 use commons::DeleteBackup;
 use commons::Message;
 use commons::OnboardingParam;
+use commons::Poll;
+use commons::PollAnswers;
 use commons::RegisterParams;
 use commons::Restore;
 use commons::RouteHintHop;
@@ -132,6 +134,7 @@ pub fn router(
     Router::new()
         .route("/", get(index))
         .route("/api/version", get(version))
+        .route("/api/polls", get(get_polls).post(post_poll_answer))
         .route(
             "/api/fee_rate_estimate/:target",
             get(get_fee_rate_estimation),
@@ -521,6 +524,37 @@ pub async fn version() -> Result<Json<Version>, AppError> {
         commit_hash: env!("COMMIT_HASH").to_string(),
         branch: env!("BRANCH_NAME").to_string(),
     }))
+}
+
+pub async fn get_polls(State(state): State<Arc<AppState>>) -> Result<Json<Vec<Poll>>, AppError> {
+    let mut connection = state
+        .pool
+        .get()
+        .map_err(|_| AppError::InternalServerError("Could not get db connection".to_string()))?;
+    let polls = db::polls::active(&mut connection).map_err(|error| {
+        AppError::InternalServerError(format!("Could not fetch new polls {error}"))
+    })?;
+    Ok(Json(polls))
+}
+pub async fn post_poll_answer(
+    State(state): State<Arc<AppState>>,
+    poll_answer: Json<PollAnswers>,
+) -> Result<(), AppError> {
+    tracing::trace!(
+            poll_id = poll_answer.poll_id,
+            trader_pk = poll_answer.trader_pk.to_string(),
+            answers = ?poll_answer.answers,
+        "Received new answer");
+    let mut connection = state
+        .pool
+        .get()
+        .map_err(|_| AppError::InternalServerError("Could not get db connection".to_string()))?;
+
+    db::polls::add_answer(&mut connection, poll_answer.0).map_err(|error| {
+        AppError::InternalServerError(format!("Could not save answer in db: {error:?}"))
+    })?;
+
+    Ok(())
 }
 
 #[instrument(skip_all, err(Debug))]

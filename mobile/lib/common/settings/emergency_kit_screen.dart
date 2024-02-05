@@ -120,6 +120,42 @@ class _EmergencyKitScreenState extends State<EmergencyKitScreen> {
                           Icon(FontAwesomeIcons.broom),
                           SizedBox(width: 10),
                           Text("Cleanup filling orders", style: TextStyle(fontSize: 16))
+                        ])),
+                    const SizedBox(
+                      height: 30,
+                    ),
+                    OutlinedButton(
+                        onPressed: () {
+                          final messenger = ScaffoldMessenger.of(context);
+                          try {
+                            rust.api.resetAllAnsweredPolls();
+                            showSnackBar(messenger,
+                                "Successfully reset answered polls - You can now answer them again");
+                          } catch (e) {
+                            showSnackBar(messenger, "Failed to reset answered polls: $e");
+                          }
+                        },
+                        style: ButtonStyle(
+                          fixedSize: MaterialStateProperty.all(const Size(double.infinity, 50)),
+                          iconSize: MaterialStateProperty.all<double>(20.0),
+                          elevation: MaterialStateProperty.all<double>(0),
+                          // this reduces the shade
+                          side: MaterialStateProperty.all(
+                              const BorderSide(width: 1.0, color: tenTenOnePurple)),
+                          padding: MaterialStateProperty.all<EdgeInsetsGeometry>(
+                            const EdgeInsets.fromLTRB(20, 12, 20, 12),
+                          ),
+                          shape: MaterialStateProperty.all<RoundedRectangleBorder>(
+                            RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8.0),
+                            ),
+                          ),
+                          backgroundColor: MaterialStateProperty.all<Color>(Colors.transparent),
+                        ),
+                        child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                          Icon(FontAwesomeIcons.broom),
+                          SizedBox(width: 10),
+                          Text("Reset answered poll cache", style: TextStyle(fontSize: 16))
                         ]))
                   ],
                 ),

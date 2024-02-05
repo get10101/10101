@@ -45,6 +45,7 @@ mod custom_types;
 pub mod dlc_messages;
 pub mod last_outbound_dlc_messages;
 pub mod models;
+pub mod polls;
 
 pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!();
 
@@ -577,5 +578,27 @@ pub fn insert_trade(trade: crate::trade::Trade) -> Result<()> {
 
     NewTrade::insert(&mut db, trade.into())?;
 
+    Ok(())
+}
+
+/// Returns a list of polls which have been answered or should be ignored
+pub fn load_ignored_or_answered_polls() -> Result<Vec<polls::AnsweredOrIgnored>> {
+    let mut db = connection()?;
+    let answered_polls = polls::get(&mut db)?;
+    for i in &answered_polls {
+        tracing::debug!(id = i.poll_id, "Ignored poll")
+    }
+    Ok(answered_polls)
+}
+
+/// A poll inserted into this table was either answered or should be ignored in the future.
+pub fn set_poll_to_ignored_or_answered(poll_id: i32) -> Result<()> {
+    let mut db = connection()?;
+    polls::insert(&mut db, poll_id)?;
+    Ok(())
+}
+pub fn delete_answered_poll_cache() -> Result<()> {
+    let mut db = connection()?;
+    polls::delete_all(&mut db)?;
     Ok(())
 }
