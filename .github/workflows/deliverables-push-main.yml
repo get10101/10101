@@ -56,7 +56,7 @@ jobs:
 
   build_and_release_regtest_android_app_for_latest_main:
     needs: changes
-    if: needs.changes.outputs.ios-app == 'true'
+#    if: needs.changes.outputs.ios-app == 'true'
     permissions:
       packages: write
       contents: write
