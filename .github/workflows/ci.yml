@@ -188,10 +188,11 @@ jobs:
         if: always()
         run: df -h
 
-  e2e-tests:
-    runs-on: ubuntu-latest
+  e2e_tests_prepare:
     needs: generate-ffi
-    timeout-minutes: 30
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
       - name: Free Disk Space (Ubuntu)
         uses: jlumbroso/free-disk-space@main
@@ -204,14 +205,42 @@ jobs:
       - uses: extractions/setup-just@v1
       - name: Setup rust toolchain
         run: rustup show
-      - uses: Swatinem/rust-cache@v2.2.0
+      - uses: actions/cache@v2
+        env:
+          cache-name: test-cache
+        with:
+          path: target/debug/deps
+          key: test-cache-${{ github.run_id }}-${{ github.run_number }}
       - name: Download RUST FFI bindings
         uses: actions/download-artifact@v2
         with:
           name: rust_bridge_generated
           path: mobile/native/src/bridge_generated
-      - name: Build Rust project
-        run: cargo build --examples
+      - name: build e2e tests only
+        run: cargo test -p tests-e2e --no-run
+      - name: set-matrix1
+        id: set-matrix1
+        run: echo "matrix=$(scripts/get_test_list.sh)}"
+      - name: set-matrix
+        id: set-matrix
+        run: echo "matrix=$(scripts/get_test_list.sh)}" >> $GITHUB_OUTPUT
+
+  e2e_tests:
+    name: e2e-tests
+    needs: e2e_tests_prepare
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        tests: ${{ fromJson(needs.e2e_tests_prepare.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/cache@v2
+        env:
+          cache-name: test-cache
+        with:
+          path: target/debug/deps
+          key: test-cache-${{ github.run_id }}-${{ github.run_number }}
+      - uses: extractions/setup-just@v1
       - name: Start containers
         run: |
           just docker
@@ -221,8 +250,10 @@ jobs:
       - name: Test containers are up
         run: |
           curl http://localhost:8080/bitcoin -d '{"jsonrpc": "1.0", "method": "sendtoaddress", "params": ["bcrt1qylgu6ffkp3p0m8tw8kp4tt2dmdh755f4r5dq7s", 0.1]}'
+      - name: Run coordinator, maker, etc
+        run: just services
       - name: Run e2e tests
-        run: just e2e --nocapture
+        run: RUST_BACKTRACE=1 ${{ matrix.tests }} --nocapture --ignored
       - name: Print maker logs on e2e tests error
         if: failure()
         run: cat data/maker/regtest.log
