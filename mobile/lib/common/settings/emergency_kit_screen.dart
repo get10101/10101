@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
 import 'package:get_10101/common/color.dart';
 import 'package:get_10101/common/custom_app_bar.dart';
 import 'package:get_10101/common/settings/settings_screen.dart';
@@ -22,6 +23,8 @@ class EmergencyKitScreen extends StatefulWidget {
 class _EmergencyKitScreenState extends State<EmergencyKitScreen> {
   @override
   Widget build(BuildContext context) {
+    final bridge.Config config = context.read<bridge.Config>();
+
     return Scaffold(
       body: SafeArea(
         child: Container(
@@ -124,39 +127,42 @@ class _EmergencyKitScreenState extends State<EmergencyKitScreen> {
                     const SizedBox(
                       height: 30,
                     ),
-                    OutlinedButton(
-                        onPressed: () {
-                          final messenger = ScaffoldMessenger.of(context);
-                          try {
-                            rust.api.resetAllAnsweredPolls();
-                            showSnackBar(messenger,
-                                "Successfully reset answered polls - You can now answer them again");
-                          } catch (e) {
-                            showSnackBar(messenger, "Failed to reset answered polls: $e");
-                          }
-                        },
-                        style: ButtonStyle(
-                          fixedSize: MaterialStateProperty.all(const Size(double.infinity, 50)),
-                          iconSize: MaterialStateProperty.all<double>(20.0),
-                          elevation: MaterialStateProperty.all<double>(0),
-                          // this reduces the shade
-                          side: MaterialStateProperty.all(
-                              const BorderSide(width: 1.0, color: tenTenOnePurple)),
-                          padding: MaterialStateProperty.all<EdgeInsetsGeometry>(
-                            const EdgeInsets.fromLTRB(20, 12, 20, 12),
-                          ),
-                          shape: MaterialStateProperty.all<RoundedRectangleBorder>(
-                            RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8.0),
+                    Visibility(
+                      visible: config.network == "regtest",
+                      child: OutlinedButton(
+                          onPressed: () {
+                            final messenger = ScaffoldMessenger.of(context);
+                            try {
+                              rust.api.resetAllAnsweredPolls();
+                              showSnackBar(messenger,
+                                  "Successfully reset answered polls - You can now answer them again");
+                            } catch (e) {
+                              showSnackBar(messenger, "Failed to reset answered polls: $e");
+                            }
+                          },
+                          style: ButtonStyle(
+                            fixedSize: MaterialStateProperty.all(const Size(double.infinity, 50)),
+                            iconSize: MaterialStateProperty.all<double>(20.0),
+                            elevation: MaterialStateProperty.all<double>(0),
+                            // this reduces the shade
+                            side: MaterialStateProperty.all(
+                                const BorderSide(width: 1.0, color: tenTenOnePurple)),
+                            padding: MaterialStateProperty.all<EdgeInsetsGeometry>(
+                              const EdgeInsets.fromLTRB(20, 12, 20, 12),
                             ),
+                            shape: MaterialStateProperty.all<RoundedRectangleBorder>(
+                              RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8.0),
+                              ),
+                            ),
+                            backgroundColor: MaterialStateProperty.all<Color>(Colors.transparent),
                           ),
-                          backgroundColor: MaterialStateProperty.all<Color>(Colors.transparent),
-                        ),
-                        child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                          Icon(FontAwesomeIcons.broom),
-                          SizedBox(width: 10),
-                          Text("Reset answered poll cache", style: TextStyle(fontSize: 16))
-                        ]))
+                          child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                            Icon(FontAwesomeIcons.broom),
+                            SizedBox(width: 10),
+                            Text("Reset answered poll cache", style: TextStyle(fontSize: 16))
+                          ])),
+                    )
                   ],
                 ),
               )
