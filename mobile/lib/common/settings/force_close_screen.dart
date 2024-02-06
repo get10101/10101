@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:get_10101/common/channel_status_notifier.dart';
+import 'package:get_10101/common/dlc_channel_change_notifier.dart';
 import 'package:get_10101/common/settings/settings_screen.dart';
 import 'package:get_10101/common/snack_bar.dart';
 import 'package:get_10101/features/wallet/wallet_screen.dart';
@@ -25,7 +25,7 @@ class _ForceCloseScreenState extends State<ForceCloseScreen> {
 
   @override
   Widget build(BuildContext context) {
-    ChannelStatusNotifier channelStatusNotifier = context.watch<ChannelStatusNotifier>();
+    DlcChannelChangeNotifier dlcChannelChangeNotifier = context.watch<DlcChannelChangeNotifier>();
 
     return Scaffold(
       body: Container(
@@ -73,10 +73,10 @@ class _ForceCloseScreenState extends State<ForceCloseScreen> {
                 ),
                 Container(
                     margin: const EdgeInsets.all(10),
-                    child: getForceCloseChannelText(channelStatusNotifier)),
+                    child: getForceCloseChannelText(dlcChannelChangeNotifier)),
                 Expanded(child: Container()),
                 Visibility(
-                  visible: channelStatusNotifier.canForceClose(),
+                  visible: dlcChannelChangeNotifier.canForceClose(),
                   child: Container(
                     margin: const EdgeInsets.all(10),
                     child: ConfirmationSlider(
@@ -111,8 +111,8 @@ class _ForceCloseScreenState extends State<ForceCloseScreen> {
   }
 }
 
-RichText getForceCloseChannelText(ChannelStatusNotifier channelStatusNotifier) {
-  if (channelStatusNotifier.hasDlcChannel()) {
+RichText getForceCloseChannelText(DlcChannelChangeNotifier dlcChannelChangeNotifier) {
+  if (dlcChannelChangeNotifier.hasDlcChannel()) {
     return RichText(
         text: const TextSpan(
       text:

@@ -1,7 +1,7 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import 'package:get_10101/common/channel_status_notifier.dart';
+import 'package:get_10101/common/dlc_channel_change_notifier.dart';
 import 'package:get_10101/common/poll_widget.dart';
 import 'package:get_10101/common/secondary_action_button.dart';
 import 'package:get_10101/features/wallet/balance.dart';
@@ -22,7 +22,7 @@ class WalletScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final pollChangeNotifier = context.watch<PollChangeNotifier>();
     final walletChangeNotifier = context.watch<WalletChangeNotifier>();
-    final hasChannel = context.watch<ChannelStatusNotifier>().hasDlcChannel();
+    final hasChannel = context.read<DlcChannelChangeNotifier>().hasDlcChannel();
 
     return Scaffold(
       body: RefreshIndicator(

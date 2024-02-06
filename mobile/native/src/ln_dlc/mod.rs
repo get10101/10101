@@ -14,7 +14,6 @@ use crate::dlc_handler;
 use crate::dlc_handler::DlcHandler;
 use crate::event;
 use crate::event::EventInternal;
-use crate::ln_dlc::channel_status::track_channel_status;
 use crate::ln_dlc::node::Node;
 use crate::ln_dlc::node::NodeStorage;
 use crate::ln_dlc::node::WalletHistories;
@@ -51,13 +50,13 @@ use bitcoin::PackedLockTime;
 use bitcoin::Transaction;
 use bitcoin::TxIn;
 use bitcoin::TxOut;
-pub use channel_status::ChannelStatus;
 use commons::CollaborativeRevertTraderResponse;
 use commons::LegacyCollaborativeRevertTraderResponse;
 use commons::OnboardingParam;
 use commons::RouteHintHop;
 use commons::TradeParams;
 use dlc::PartyParams;
+use dlc_manager::channel::Channel as DlcChannel;
 use dlc_manager::subchannel::LnDlcChannelSigner;
 use dlc_manager::subchannel::LnDlcSignerProvider;
 use itertools::chain;
@@ -107,7 +106,6 @@ use tokio::sync::watch;
 use tokio::task::spawn_blocking;
 use trade::ContractSymbol;
 
-pub mod channel_status;
 mod lightning_subscriber;
 pub mod node;
 
@@ -428,8 +426,6 @@ pub fn run(seed_dir: String, runtime: &Runtime) -> Result<()> {
                 tokio::time::sleep(CHECK_OPEN_ORDERS_INTERVAL).await;
             }
         });
-
-        runtime.spawn(track_channel_status(node.clone()));
 
         state::set_node(node);
 
@@ -1147,6 +1143,14 @@ pub fn get_signed_dlc_channel() -> Result<Option<SignedChannel>> {
 
     let signed_channels = node.inner.list_signed_dlc_channels()?;
     Ok(signed_channels.first().cloned())
+}
+
+pub fn list_dlc_channels() -> Result<Vec<DlcChannel>> {
+    let node = state::get_node();
+
+    let dlc_channels = node.inner.list_dlc_channels()?;
+
+    Ok(dlc_channels)
 }
 
 pub fn is_dlc_channel_confirmed() -> Result<bool> {

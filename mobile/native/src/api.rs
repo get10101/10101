@@ -9,6 +9,9 @@ use crate::config::get_network;
 use crate::db;
 use crate::db::connection;
 use crate::destination;
+pub use crate::dlc_channel::ChannelState;
+pub use crate::dlc_channel::DlcChannel;
+pub use crate::dlc_channel::SignedChannelState;
 use crate::event;
 use crate::event::api::FlutterSubscriber;
 use crate::health;
@@ -806,4 +809,12 @@ pub fn get_dlc_channel_id() -> Result<Option<String>> {
         ln_dlc::get_signed_dlc_channel()?.map(|channel| channel.channel_id.to_hex());
 
     Ok(dlc_channel_id)
+}
+
+pub fn list_dlc_channels() -> Result<Vec<DlcChannel>> {
+    let channels = ln_dlc::list_dlc_channels()?
+        .iter()
+        .map(DlcChannel::from)
+        .collect();
+    Ok(channels)
 }

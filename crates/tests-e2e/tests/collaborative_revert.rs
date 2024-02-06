@@ -28,8 +28,6 @@ async fn can_revert_channel() {
 
     let app_balance_before = app.rx.wallet_info().unwrap().balances.on_chain;
 
-    app.rx.channel_status();
-
     // Act
 
     let collaborative_revert_app_payout = app_margin / 2;

@@ -26,6 +26,7 @@ mod bridge_generated;
 mod channel_trade_constraints;
 mod cipher;
 mod destination;
+mod dlc_channel;
 mod dlc_handler;
 mod polls;
 mod storage;
