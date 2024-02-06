@@ -7,6 +7,7 @@ pub mod legacy_collaborative_reverts;
 pub mod liquidity;
 pub mod liquidity_options;
 pub mod payments;
+pub mod polls;
 pub mod positions;
 pub mod positions_helper;
 pub mod routing_fees;

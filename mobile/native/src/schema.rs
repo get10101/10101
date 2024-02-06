@@ -1,6 +1,14 @@
 // @generated automatically by Diesel CLI.
 
 diesel::table! {
+    answered_polls (id) {
+        id -> Integer,
+        poll_id -> Integer,
+        timestamp -> BigInt,
+    }
+}
+
+diesel::table! {
     channels (user_channel_id) {
         user_channel_id -> Text,
         channel_id -> Nullable<Text>,
@@ -23,6 +31,14 @@ diesel::table! {
         inbound -> Bool,
         peer_id -> Text,
         message_type -> Text,
+        timestamp -> BigInt,
+    }
+}
+
+diesel::table! {
+    ignored_polls (id) {
+        id -> Integer,
+        poll_id -> Integer,
         timestamp -> BigInt,
     }
 }
@@ -126,8 +142,10 @@ diesel::table! {
 diesel::joinable!(last_outbound_dlc_messages -> dlc_messages (message_hash));
 
 diesel::allow_tables_to_appear_in_same_query!(
+    answered_polls,
     channels,
     dlc_messages,
+    ignored_polls,
     last_outbound_dlc_messages,
     orders,
     payments,

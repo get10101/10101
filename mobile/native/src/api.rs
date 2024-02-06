@@ -17,6 +17,7 @@ use crate::ln_dlc::get_storage;
 use crate::ln_dlc::FUNDING_TX_WEIGHT_ESTIMATE;
 use crate::logger;
 use crate::orderbook;
+use crate::polls;
 use crate::trade::order;
 use crate::trade::order::api::NewOrder;
 use crate::trade::order::api::Order;
@@ -96,6 +97,94 @@ pub async fn sync_dlc_channels() -> Result<()> {
     ln_dlc::sync_dlc_channels().await?;
 
     Ok(())
+}
+
+#[derive(Debug, Clone)]
+pub struct Poll {
+    pub id: i32,
+    pub poll_type: PollType,
+    pub question: String,
+    pub choices: Vec<Choice>,
+}
+
+#[derive(Debug, Clone)]
+pub struct Choice {
+    pub id: i32,
+    pub value: String,
+}
+
+#[derive(Debug, Clone)]
+pub enum PollType {
+    SingleChoice,
+}
+
+impl From<commons::Poll> for Poll {
+    fn from(value: commons::Poll) -> Self {
+        Poll {
+            id: value.id,
+            poll_type: value.poll_type.into(),
+            question: value.question,
+            choices: value
+                .choices
+                .into_iter()
+                .map(|choice| choice.into())
+                .collect(),
+        }
+    }
+}
+
+impl From<commons::PollType> for PollType {
+    fn from(value: commons::PollType) -> Self {
+        match value {
+            commons::PollType::SingleChoice => PollType::SingleChoice,
+        }
+    }
+}
+
+impl From<commons::Choice> for Choice {
+    fn from(value: commons::Choice) -> Self {
+        Choice {
+            id: value.id,
+            value: value.value,
+        }
+    }
+}
+
+impl From<Choice> for commons::Choice {
+    fn from(value: Choice) -> Self {
+        commons::Choice {
+            id: value.id,
+            value: value.value,
+        }
+    }
+}
+
+#[tokio::main(flavor = "current_thread")]
+pub async fn fetch_poll() -> Result<Option<Poll>> {
+    let polls: Vec<Poll> = polls::get_new_polls()
+        .await?
+        .into_iter()
+        .map(|poll| poll.into())
+        .collect();
+    // For now we just return the first poll
+    Ok(polls.first().cloned())
+}
+
+#[tokio::main(flavor = "current_thread")]
+pub async fn post_selected_choice(selected_choice: Choice, poll_id: i32) -> Result<()> {
+    let trader_pk = ln_dlc::get_node_pubkey();
+    polls::answer_poll(selected_choice.into(), poll_id, trader_pk).await?;
+    Ok(())
+}
+
+pub fn reset_all_answered_polls() -> Result<SyncReturn<()>> {
+    db::delete_answered_poll_cache()?;
+    Ok(SyncReturn(()))
+}
+
+pub fn ignore_poll(poll_id: i32) -> Result<SyncReturn<()>> {
+    polls::ignore_poll(poll_id)?;
+    Ok(SyncReturn(()))
 }
 
 pub fn refresh_lightning_wallet() -> Result<()> {

@@ -2,6 +2,7 @@ use crate::db::channels::ChannelState;
 use crate::db::dlc_messages::MessageType;
 use crate::db::payments::HtlcStatus;
 use crate::db::payments::PaymentFlow;
+use crate::db::polls::PollType;
 use crate::db::positions::ContractSymbol;
 use crate::db::positions::PositionState;
 use crate::schema::sql_types::ChannelStateType;
@@ -10,6 +11,7 @@ use crate::schema::sql_types::DirectionType;
 use crate::schema::sql_types::HtlcStatusType;
 use crate::schema::sql_types::MessageTypeType;
 use crate::schema::sql_types::PaymentFlowType;
+use crate::schema::sql_types::PollTypeType;
 use crate::schema::sql_types::PositionStateType;
 use diesel::deserialize;
 use diesel::deserialize::FromSql;
@@ -202,6 +204,24 @@ impl FromSql<MessageTypeType, Pg> for MessageType {
             b"CollaborativeCloseOffer" => Ok(MessageType::CollaborativeCloseOffer),
             b"Reject" => Ok(MessageType::Reject),
             _ => Err("Unrecognized enum variant".into()),
+        }
+    }
+}
+
+impl ToSql<PollTypeType, Pg> for PollType {
+    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, Pg>) -> serialize::Result {
+        match *self {
+            PollType::SingleChoice => out.write_all(b"SingleChoice")?,
+        }
+        Ok(IsNull::No)
+    }
+}
+
+impl FromSql<PollTypeType, Pg> for PollType {
+    fn from_sql(bytes: PgValue<'_>) -> deserialize::Result<Self> {
+        match bytes.as_bytes() {
+            b"SingleChoice" => Ok(PollType::SingleChoice),
+            _ => Err("Unrecognized enum variant for PollType".into()),
         }
     }
 }

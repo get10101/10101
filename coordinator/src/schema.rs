@@ -42,8 +42,22 @@ pub mod sql_types {
     pub struct PaymentFlowType;
 
     #[derive(diesel::sql_types::SqlType)]
+    #[diesel(postgres_type(name = "Poll_Type_Type"))]
+    pub struct PollTypeType;
+
+    #[derive(diesel::sql_types::SqlType)]
     #[diesel(postgres_type(name = "PositionState_Type"))]
     pub struct PositionStateType;
+}
+
+diesel::table! {
+    answers (id) {
+        id -> Int4,
+        choice_id -> Int4,
+        trader_pubkey -> Text,
+        value -> Text,
+        creation_timestamp -> Timestamptz,
+    }
 }
 
 diesel::table! {
@@ -62,6 +76,14 @@ diesel::table! {
         updated_at -> Timestamptz,
         liquidity_option_id -> Nullable<Int4>,
         fee_sats -> Nullable<Int8>,
+    }
+}
+
+diesel::table! {
+    choices (id) {
+        id -> Int4,
+        poll_id -> Int4,
+        value -> Text,
     }
 }
 
@@ -211,6 +233,19 @@ diesel::table! {
 
 diesel::table! {
     use diesel::sql_types::*;
+    use super::sql_types::PollTypeType;
+
+    polls (id) {
+        id -> Int4,
+        poll_type -> PollTypeType,
+        question -> Text,
+        active -> Bool,
+        creation_timestamp -> Timestamptz,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
     use super::sql_types::ContractSymbolType;
     use super::sql_types::DirectionType;
     use super::sql_types::PositionStateType;
@@ -301,12 +336,16 @@ diesel::table! {
     }
 }
 
+diesel::joinable!(answers -> choices (choice_id));
+diesel::joinable!(choices -> polls (poll_id));
 diesel::joinable!(last_outbound_dlc_messages -> dlc_messages (message_hash));
 diesel::joinable!(liquidity_request_logs -> liquidity_options (liquidity_option));
 diesel::joinable!(trades -> positions (position_id));
 
 diesel::allow_tables_to_appear_in_same_query!(
+    answers,
     channels,
+    choices,
     collaborative_reverts,
     dlc_messages,
     last_outbound_dlc_messages,
@@ -316,6 +355,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     matches,
     orders,
     payments,
+    polls,
     positions,
     routing_fees,
     spendable_outputs,

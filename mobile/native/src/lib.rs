@@ -27,4 +27,5 @@ mod channel_trade_constraints;
 mod cipher;
 mod destination;
 mod dlc_handler;
+mod polls;
 mod storage;

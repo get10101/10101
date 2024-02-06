@@ -32,6 +32,8 @@ import 'package:get_10101/features/wallet/domain/wallet_info.dart';
 import 'package:get_10101/common/application/event_service.dart';
 import 'package:get_10101/logger/logger.dart';
 import 'package:get_10101/util/environment.dart';
+import 'package:get_10101/util/poll_change_notified.dart';
+import 'package:get_10101/util/poll_service.dart';
 import 'package:nested/nested.dart';
 import 'package:provider/provider.dart';
 import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
@@ -41,6 +43,7 @@ List<SingleChildWidget> createProviders() {
 
   const ChannelInfoService channelInfoService = ChannelInfoService();
   var tradeValuesService = TradeValuesService();
+  const pollService = PollService();
 
   var providers = [
     ChangeNotifierProvider(create: (context) {
@@ -62,8 +65,10 @@ List<SingleChildWidget> createProviders() {
     ChangeNotifierProvider(create: (context) => PaymentChangeNotifier()),
     ChangeNotifierProvider(create: (context) => CollabRevertChangeNotifier()),
     ChangeNotifierProvider(create: (context) => LspChangeNotifier(channelInfoService)),
+    ChangeNotifierProvider(create: (context) => PollChangeNotifier(pollService)),
     Provider(create: (context) => config),
-    Provider(create: (context) => channelInfoService)
+    Provider(create: (context) => channelInfoService),
+    Provider(create: (context) => pollService)
   ];
   if (config.network == "regtest") {
     providers.add(Provider(create: (context) => FaucetService()));
