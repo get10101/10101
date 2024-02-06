@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 
-enum ProgressIndicatorType { circular, linear }
-
 class TradingViewWidgetHtml extends StatefulWidget {
   const TradingViewWidgetHtml({
     required this.cryptoName,
@@ -17,13 +15,6 @@ class TradingViewWidgetHtml extends StatefulWidget {
 class _TradingViewWidgetHtmlState extends State<TradingViewWidgetHtml> {
   final GlobalKey webViewKey = GlobalKey();
   InAppWebViewController? webViewController;
-  double progress = 0;
-  ProgressIndicatorType type = ProgressIndicatorType.circular;
-
-  @override
-  void initState() {
-    super.initState();
-  }
 
   @override
   Widget build(BuildContext context) {
