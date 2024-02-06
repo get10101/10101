@@ -19,7 +19,7 @@ pub struct DlcChannelDetails {
     pub funding_tx_vout: Option<usize>,
 }
 
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Debug, Ord, PartialOrd, Eq, PartialEq)]
 pub enum SignedChannelState {
     Established,
     SettledOffered,
@@ -35,7 +35,7 @@ pub enum SignedChannelState {
     CollaborativeCloseOffered,
 }
 
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Debug, Eq, Ord, PartialOrd, PartialEq)]
 pub enum ChannelState {
     Offered,
     Accepted,

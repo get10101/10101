@@ -29,6 +29,7 @@ use serde::de;
 use serde::Deserialize;
 use serde::Deserializer;
 use serde::Serialize;
+use std::cmp::Ordering;
 use std::fmt;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -332,7 +333,7 @@ pub async fn list_dlc_channels(
         AppError::InternalServerError(format!("Failed to list DLC channels: {e:#}"))
     })?;
 
-    let dlc_channels = dlc_channels
+    let mut dlc_channels = dlc_channels
         .into_iter()
         .map(|dlc_channel| {
             let (email, registration_timestamp) =
@@ -355,6 +356,20 @@ pub async fn list_dlc_channels(
             DlcChannelDetails::from((dlc_channel, contract, email, registration_timestamp))
         })
         .collect::<Vec<_>>();
+
+    // Sort channels by state
+    dlc_channels.sort_by(|a, b| {
+        let ordering = a
+            .channel_details
+            .channel_state
+            .cmp(&b.channel_details.channel_state);
+        if ordering != Ordering::Equal {
+            return ordering;
+        }
+        a.channel_details
+            .signed_channel_state
+            .cmp(&b.channel_details.signed_channel_state)
+    });
 
     Ok(Json(dlc_channels))
 }
