@@ -35,9 +35,11 @@ use bitcoin::hashes::hex::ToHex;
 use bitcoin::Amount;
 use commons::order_matching_fee_taker;
 use commons::OrderbookRequest;
+use dlc_manager::DlcChannelId;
 use flutter_rust_bridge::frb;
 use flutter_rust_bridge::StreamSink;
 use flutter_rust_bridge::SyncReturn;
+use hex::FromHex;
 use lightning::chain::chaininterface::ConfirmationTarget as LnConfirmationTarget;
 use ln_dlc_node::channel::UserChannelId;
 use rust_decimal::prelude::FromPrimitive;
@@ -817,4 +819,9 @@ pub fn list_dlc_channels() -> Result<Vec<DlcChannel>> {
         .map(DlcChannel::from)
         .collect();
     Ok(channels)
+}
+
+pub fn delete_dlc_channel(dlc_channel_id: String) -> Result<()> {
+    let dlc_channel_id = DlcChannelId::from_hex(dlc_channel_id)?;
+    ln_dlc::delete_dlc_channel(&dlc_channel_id)
 }

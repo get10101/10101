@@ -9,4 +9,8 @@ class DlcChannelService {
 
     return apiDlcChannels.map((channel) => DlcChannel.fromApi(channel)).toList();
   }
+
+  Future<void> deleteDlcChannel(String dlcChannelId) async {
+    await rust.api.deleteDlcChannel(dlcChannelId: dlcChannelId);
+  }
 }

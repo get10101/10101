@@ -1153,6 +1153,16 @@ pub fn list_dlc_channels() -> Result<Vec<DlcChannel>> {
     Ok(dlc_channels)
 }
 
+pub fn delete_dlc_channel(dlc_channel_id: &DlcChannelId) -> Result<()> {
+    let node = state::get_node();
+    node.inner
+        .dlc_manager
+        .get_store()
+        .delete_channel(dlc_channel_id)?;
+
+    Ok(())
+}
+
 pub fn is_dlc_channel_confirmed() -> Result<bool> {
     let node = state::get_node();
 

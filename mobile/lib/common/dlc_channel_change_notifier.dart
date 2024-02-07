@@ -24,6 +24,11 @@ class DlcChannelChangeNotifier extends ChangeNotifier {
     super.notifyListeners();
   }
 
+  Future<void> deleteDlcChannel(String dlcChannelId) async {
+    await dlcChannelService.deleteDlcChannel(dlcChannelId);
+    await refreshDlcChannels();
+  }
+
   List<SignedDlcChannel> getAllSignedDlcChannels() {
     return channels
         .where((channel) => channel.state == ChannelState.signed)
