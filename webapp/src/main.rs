@@ -24,12 +24,24 @@ use axum_login::login_required;
 use axum_login::tower_sessions::Expiry;
 use axum_login::tower_sessions::SessionManagerLayer;
 use axum_login::AuthManagerLayerBuilder;
-use axum_server::tls_rustls::RustlsConfig;
 use bitcoin::Network;
+use hyper::body::Incoming;
+use hyper_util::rt::TokioExecutor;
+use hyper_util::rt::TokioIo;
 use rust_embed::RustEmbed;
+use rustls_pemfile::certs;
+use rustls_pemfile::pkcs8_private_keys;
+use std::fs::File;
+use std::io::BufReader;
 use std::net::SocketAddr;
+use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
+use tokio_rustls::rustls::Certificate;
+use tokio_rustls::rustls::PrivateKey;
+use tokio_rustls::rustls::ServerConfig;
+use tokio_rustls::TlsAcceptor;
+use tower::Service;
 use tower_http::classify::ServerErrorsFailureClass;
 use tower_http::cors::CorsLayer;
 use tower_http::trace::TraceLayer;
@@ -125,12 +137,53 @@ async fn main() -> Result<()> {
         }
         true => {
             // configure certificate and private key used by https
-            let config =
-                RustlsConfig::from_pem_file(cert_dir.join("cert.pem"), cert_dir.join("key.pem"))
-                    .await?;
-            axum_server::bind_rustls(addr, config)
-                .serve(app.into_make_service())
-                .await
+            let rustls_config =
+                rustls_server_config(cert_dir.join("key.pem"), cert_dir.join("cert.pem"))?;
+
+            let tls_acceptor = TlsAcceptor::from(rustls_config);
+
+            let listener = tokio::net::TcpListener::bind(addr).await?;
+
+            loop {
+                let tower_service = app.clone();
+                let tls_acceptor = tls_acceptor.clone();
+
+                // Wait for new tcp connection
+                let (cnx, addr) = listener.accept().await?;
+
+                tokio::spawn(async move {
+                    // Wait for tls handshake to happen
+                    let Ok(stream) = tls_acceptor.accept(cnx).await else {
+                        tracing::error!("error during tls handshake connection from {}", addr);
+                        return;
+                    };
+
+                    // Hyper has its own `AsyncRead` and `AsyncWrite` traits and doesn't use tokio.
+                    // `TokioIo` converts between them.
+                    let stream = TokioIo::new(stream);
+
+                    // Hyper also has its own `Service` trait and doesn't use tower. We can use
+                    // `hyper::service::service_fn` to create a hyper `Service` that calls our app
+                    // through `tower::Service::call`.
+                    let hyper_service =
+                        hyper::service::service_fn(move |request: Request<Incoming>| {
+                            // We have to clone `tower_service` because hyper's `Service` uses
+                            // `&self` whereas tower's `Service`
+                            // requires `&mut self`.
+                            //
+                            // We don't need to call `poll_ready` since `Router` is always ready.
+                            tower_service.clone().call(request)
+                        });
+
+                    let ret = hyper_util::server::conn::auto::Builder::new(TokioExecutor::new())
+                        .serve_connection_with_upgrades(stream, hyper_service)
+                        .await;
+
+                    if let Err(err) = ret {
+                        tracing::warn!("error serving connection from {}: {}", addr, err);
+                    }
+                });
+            }
         }
     }?;
 
@@ -224,4 +277,28 @@ where
             None => (StatusCode::NOT_FOUND, "404 Not Found").into_response(),
         }
     }
+}
+
+fn rustls_server_config(
+    key: impl AsRef<Path>,
+    cert: impl AsRef<Path>,
+) -> Result<Arc<ServerConfig>> {
+    let mut key_reader = BufReader::new(File::open(key)?);
+    let mut cert_reader = BufReader::new(File::open(cert)?);
+
+    let key = PrivateKey(pkcs8_private_keys(&mut key_reader)?.remove(0));
+    let certs = certs(&mut cert_reader)?
+        .into_iter()
+        .map(Certificate)
+        .collect();
+
+    let mut config = ServerConfig::builder()
+        .with_safe_defaults()
+        .with_no_client_auth()
+        .with_single_cert(certs, key)
+        .expect("bad certificate/key");
+
+    config.alpn_protocols = vec![b"h2".to_vec(), b"http/1.1".to_vec()];
+
+    Ok(Arc::new(config))
 }
