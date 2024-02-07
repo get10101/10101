@@ -14,7 +14,15 @@ pub mod schema;
 pub mod state;
 
 mod backup;
+mod channel_trade_constraints;
+mod cipher;
+mod destination;
+mod dlc_channel;
+mod dlc_handler;
+mod names;
 mod orderbook;
+mod polls;
+mod storage;
 
 #[allow(
     clippy::all,
@@ -23,11 +31,3 @@ mod orderbook;
     unused_qualifications
 )]
 mod bridge_generated;
-mod channel_trade_constraints;
-mod cipher;
-mod destination;
-mod dlc_channel;
-mod dlc_handler;
-mod names;
-mod polls;
-mod storage;

@@ -5,10 +5,10 @@ use native::api::ContractSymbol;
 use native::trade::order::api::NewOrder;
 use native::trade::order::api::OrderType;
 use native::trade::position::PositionState;
+use tests_e2e::app::submit_order;
 use tests_e2e::setup;
 use tests_e2e::setup::dummy_order;
 use tests_e2e::wait_until;
-use tokio::task::spawn_blocking;
 
 // Comments are based on a fixed price of 40_000.
 // TODO: Add assertions when the maker price can be fixed.
@@ -33,10 +33,7 @@ async fn can_open_close_open_close_position() {
 
     tracing::info!("Closing first position");
 
-    spawn_blocking(move || api::submit_order(closing_order).unwrap())
-        .await
-        .unwrap();
-
+    submit_order(closing_order.clone());
     wait_until!(test.app.rx.position_close().is_some());
 
     tokio::time::sleep(std::time::Duration::from_secs(10)).await;
@@ -57,12 +54,7 @@ async fn can_open_close_open_close_position() {
         stable: false,
     };
 
-    spawn_blocking({
-        let order = order.clone();
-        move || api::submit_order(order).unwrap()
-    })
-    .await
-    .unwrap();
+    submit_order(order.clone());
 
     wait_until!(test.app.rx.position().is_some());
     wait_until!(test.app.rx.position().unwrap().position_state == PositionState::Open);
@@ -83,9 +75,7 @@ async fn can_open_close_open_close_position() {
         ..order
     };
 
-    spawn_blocking(move || api::submit_order(closing_order).unwrap())
-        .await
-        .unwrap();
+    submit_order(closing_order);
 
     wait_until!(test.app.rx.position_close().is_some());
 

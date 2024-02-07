@@ -23,6 +23,7 @@ const _stable = "stable/";
 
 const _bottomSheet = "bottom_sheet/";
 const _confirmSheet = "confirm/";
+const _channelConfig = "channel_config/";
 
 // concrete selectors
 
@@ -30,6 +31,8 @@ const _buy = "buy";
 const _sell = "sell";
 const _positions = "positions";
 const _orders = "orders";
+const _configureChannel = "configure_channel";
+const _openChannel = "open_channel";
 
 const tradeScreenTabsOrders = Key(_trade + _tabs + _orders);
 const tradeScreenTabsPositions = Key(_trade + _tabs + _positions);
@@ -42,6 +45,12 @@ const tradeScreenBottomSheetTabsSell = Key(_trade + _bottomSheet + _tabs + _sell
 
 const tradeScreenBottomSheetButtonBuy = Key(_trade + _bottomSheet + _button + _buy);
 const tradeScreenBottomSheetButtonSell = Key(_trade + _bottomSheet + _button + _sell);
+
+const tradeScreenBottomSheetChannelConfigurationConfirmButton =
+    Key(_trade + _bottomSheet + _configureChannel + _configureChannel);
+
+const tradeScreenBottomSheetConfirmationConfigureChannelSlider =
+    Key(_trade + _bottomSheet + _confirmSheet + _channelConfig + _slider + _openChannel);
 
 const tradeScreenBottomSheetConfirmationSliderBuy =
     Key(_trade + _bottomSheet + _confirmSheet + _slider + _buy);

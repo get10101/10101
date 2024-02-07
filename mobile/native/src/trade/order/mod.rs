@@ -151,6 +151,7 @@ pub struct Order {
     pub order_expiry_timestamp: OffsetDateTime,
     pub reason: OrderReason,
     pub stable: bool,
+    // FIXME: Why is this failure_reason duplicated? It's also in the `order_state`?
     pub failure_reason: Option<FailureReason>,
 }
 

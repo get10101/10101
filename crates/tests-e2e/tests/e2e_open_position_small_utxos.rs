@@ -8,9 +8,9 @@ use native::trade::position::PositionState;
 use rust_decimal::prelude::ToPrimitive;
 use std::str::FromStr;
 use tests_e2e::app::refresh_wallet_info;
+use tests_e2e::app::submit_channel_opening_order;
 use tests_e2e::setup::TestSetup;
 use tests_e2e::wait_until;
-use tokio::task::spawn_blocking;
 
 #[tokio::test(flavor = "multi_thread")]
 #[ignore = "need to be run with 'just e2e' command"]
@@ -75,12 +75,7 @@ async fn can_open_position_with_multiple_small_utxos() {
 
     // Act
 
-    spawn_blocking({
-        let order = order.clone();
-        move || api::submit_order(order).unwrap()
-    })
-    .await
-    .unwrap();
+    submit_channel_opening_order(order.clone(), 0, 0);
 
     // Assert
 

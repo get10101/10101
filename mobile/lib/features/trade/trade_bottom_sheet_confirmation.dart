@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:get_10101/common/amount_text.dart';
 import 'package:get_10101/common/domain/model.dart';
 import 'package:get_10101/common/value_data_row.dart';
+import 'package:get_10101/features/trade/channel_configuration.dart';
 import 'package:get_10101/features/trade/contract_symbol_icon.dart';
+import 'package:get_10101/features/trade/domain/channel_opening_params.dart';
 import 'package:get_10101/features/trade/domain/contract_symbol.dart';
 import 'package:get_10101/features/trade/domain/direction.dart';
 import 'package:get_10101/features/trade/domain/trade_values.dart';
@@ -13,11 +15,18 @@ import 'package:get_10101/util/constants.dart';
 import 'package:provider/provider.dart';
 import 'package:slide_to_confirm/slide_to_confirm.dart';
 
+enum TradeAction {
+  openChannel,
+  trade,
+  closePosition,
+}
+
 tradeBottomSheetConfirmation(
     {required BuildContext context,
     required Direction direction,
+    required TradeAction tradeAction,
     required Function() onConfirmation,
-    bool close = false}) {
+    required ChannelOpeningParams? channelOpeningParams}) {
   final sliderKey = direction == Direction.long
       ? tradeScreenBottomSheetConfirmationSliderBuy
       : tradeScreenBottomSheetConfirmationSliderSell;
@@ -36,10 +45,11 @@ tradeBottomSheetConfirmation(
     isScrollControlled: true,
     useRootNavigator: true,
     context: context,
+    barrierColor: Colors.black.withOpacity(TradeAction.closePosition == tradeAction ? 0.4 : 0),
     builder: (BuildContext context) {
       return SafeArea(
-        child: Padding(
-          // padding: MediaQuery.of(context).viewInsets,
+        child: Container(
+          // decoration: BoxDecoration(border: Border.all(color: Colors.black)),
           padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
           // the GestureDetector ensures that we can close the keyboard by tapping into the modal
           child: GestureDetector(
@@ -52,13 +62,14 @@ tradeBottomSheetConfirmation(
             },
             child: SingleChildScrollView(
               child: SizedBox(
-                  height: 350,
+                  height: TradeAction.closePosition == tradeAction ? 320 : 450,
                   child: TradeBottomSheetConfirmation(
                     direction: direction,
                     sliderButtonKey: sliderButtonKey,
                     sliderKey: sliderKey,
                     onConfirmation: onConfirmation,
-                    close: close,
+                    tradeAction: tradeAction,
+                    traderCollateral: channelOpeningParams?.traderCollateral,
                   )),
             ),
           ),
@@ -68,12 +79,38 @@ tradeBottomSheetConfirmation(
   );
 }
 
+// TODO: Include slider/button too.
+RichText confirmationText(BuildContext context, TradeAction tradeAction, Amount total) {
+  switch (tradeAction) {
+    case TradeAction.closePosition:
+      return RichText(
+          text: TextSpan(
+              text:
+                  '\nBy confirming, a closing market order will be created. Once the order is matched, your position will be closed.',
+              style: DefaultTextStyle.of(context).style));
+    case TradeAction.openChannel:
+    case TradeAction.trade:
+      return RichText(
+        text: TextSpan(
+          text: '\nBy confirming, a new order will be created. Once the order is matched, ',
+          style: DefaultTextStyle.of(context).style,
+          children: <TextSpan>[
+            TextSpan(text: formatSats(total), style: const TextStyle(fontWeight: FontWeight.bold)),
+            const TextSpan(text: ' will be locked up in a DLC channel!'),
+          ],
+        ),
+      );
+  }
+}
+
 class TradeBottomSheetConfirmation extends StatelessWidget {
   final Direction direction;
   final Key sliderKey;
   final Key sliderButtonKey;
   final Function() onConfirmation;
-  final bool close;
+  final TradeAction tradeAction;
+
+  final Amount? traderCollateral;
 
   const TradeBottomSheetConfirmation(
       {required this.direction,
@@ -81,7 +118,8 @@ class TradeBottomSheetConfirmation extends StatelessWidget {
       required this.sliderButtonKey,
       required this.sliderKey,
       required this.onConfirmation,
-      required this.close});
+      required this.tradeAction,
+      this.traderCollateral});
 
   @override
   Widget build(BuildContext context) {
@@ -91,9 +129,20 @@ class TradeBottomSheetConfirmation extends StatelessWidget {
     TradeValues tradeValues =
         Provider.of<TradeValuesChangeNotifier>(context).fromDirection(direction);
 
+    bool isClose = tradeAction == TradeAction.closePosition;
+    bool isChannelOpen = tradeAction == TradeAction.openChannel;
+
+    final traderCollateral1 = traderCollateral ?? Amount.zero();
+
+    Amount reserve = isChannelOpen
+        ? (tradeValues.margin?.sats ?? 0) > traderCollateral1.sats
+            ? Amount.zero()
+            : traderCollateral1.sub(tradeValues.margin ?? Amount.zero())
+        : Amount.zero();
+
     // Fallback to 0 if we can't get the fee or the margin
     Amount total = tradeValues.fee != null && tradeValues.margin != null
-        ? Amount(tradeValues.fee!.sats + tradeValues.margin!.sats)
+        ? Amount(tradeValues.fee!.sats + tradeValues.margin!.sats).add(reserve)
         : Amount(0);
     Amount pnl = Amount(0);
     if (context.read<PositionChangeNotifier>().positions.containsKey(ContractSymbol.btcusd)) {
@@ -118,19 +167,19 @@ class TradeBottomSheetConfirmation extends StatelessWidget {
                     Wrap(
                       runSpacing: 10,
                       children: [
-                        if (!close)
+                        if (!isClose)
                           ValueDataRow(
                               type: ValueType.date,
                               value: tradeValues.expiry.toLocal(),
                               label: 'Expiry'),
-                        close
+                        isClose
                             ? ValueDataRow(
                                 type: ValueType.fiat,
                                 value: tradeValues.price ?? 0.0,
                                 label: 'Market Price')
                             : ValueDataRow(
                                 type: ValueType.amount, value: tradeValues.margin, label: 'Margin'),
-                        close
+                        isClose
                             ? ValueDataRow(
                                 type: ValueType.amount,
                                 value: pnl,
@@ -146,36 +195,30 @@ class TradeBottomSheetConfirmation extends StatelessWidget {
                         ValueDataRow(
                           type: ValueType.amount,
                           value: tradeValues.fee ?? Amount.zero(),
-                          label: "Fee estimate",
+                          label: "Order-matching fee",
                         ),
+                        isChannelOpen
+                            ? ValueDataRow(
+                                type: ValueType.amount, value: reserve, label: 'Channel reserve')
+                            : const SizedBox(height: 0),
+                        isChannelOpen
+                            ? ValueDataRow(
+                                type: ValueType.amount,
+                                value: openingFee,
+                                label: 'Channel-opening fee',
+                              )
+                            : const SizedBox(height: 0),
                       ],
                     ),
-                    !close ? const Divider() : const SizedBox(height: 0),
-                    !close
+                    !isClose ? const Divider() : const SizedBox(height: 0),
+                    !isClose
                         ? ValueDataRow(type: ValueType.amount, value: total, label: "Total")
                         : const SizedBox(height: 0),
                   ],
                 ),
               ),
             ),
-            close
-                ? RichText(
-                    text: TextSpan(
-                        text:
-                            '\nBy confirming, a closing market order will be created. Once the order is matched your position will be closed.',
-                        style: DefaultTextStyle.of(context).style))
-                : RichText(
-                    text: TextSpan(
-                      text: 'By confirming a new order will be created. Once the order is matched ',
-                      style: DefaultTextStyle.of(context).style,
-                      children: <TextSpan>[
-                        TextSpan(
-                            text: formatSats(total),
-                            style: const TextStyle(fontWeight: FontWeight.bold)),
-                        const TextSpan(text: ' will be locked up in a DLC channel!'),
-                      ],
-                    ),
-                  ),
+            confirmationText(context, tradeAction, total),
             const Spacer(),
             ConfirmationSlider(
               key: sliderKey,

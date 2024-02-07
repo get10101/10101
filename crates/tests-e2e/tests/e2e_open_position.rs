@@ -5,9 +5,9 @@ use native::health::ServiceStatus;
 use native::trade::order::api::NewOrder;
 use native::trade::order::api::OrderType;
 use native::trade::position::PositionState;
+use tests_e2e::app::submit_channel_opening_order;
 use tests_e2e::setup::TestSetup;
 use tests_e2e::wait_until;
-use tokio::task::spawn_blocking;
 
 #[tokio::test(flavor = "multi_thread")]
 #[ignore = "need to be run with 'just e2e' command"]
@@ -23,12 +23,7 @@ async fn can_open_position() {
         order_type: Box::new(OrderType::Market),
         stable: false,
     };
-    spawn_blocking({
-        let order = order.clone();
-        move || api::submit_order(order).unwrap()
-    })
-    .await
-    .unwrap();
+    submit_channel_opening_order(order.clone(), 10_000, 10_000);
 
     assert_eq!(app.rx.status(Service::Orderbook), ServiceStatus::Online);
     assert_eq!(app.rx.status(Service::Coordinator), ServiceStatus::Online);

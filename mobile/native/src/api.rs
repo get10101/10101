@@ -17,6 +17,7 @@ use crate::event::api::FlutterSubscriber;
 use crate::health;
 use crate::ln_dlc;
 use crate::ln_dlc::get_storage;
+use crate::ln_dlc::ChannelOpeningParams;
 use crate::ln_dlc::FUNDING_TX_WEIGHT_ESTIMATE;
 use crate::logger;
 use crate::orderbook;
@@ -333,10 +334,32 @@ pub fn order_matching_fee(quantity: f32, price: f32) -> SyncReturn<u64> {
 
 #[tokio::main(flavor = "current_thread")]
 pub async fn submit_order(order: NewOrder) -> Result<String> {
-    order::handler::submit_order(order.into())
+    order::handler::submit_order(order.into(), None)
         .await
         .map_err(anyhow::Error::new)
         .map(|id| id.to_string())
+}
+
+#[tokio::main(flavor = "current_thread")]
+pub async fn submit_channel_opening_order(
+    order: NewOrder,
+    coordinator_reserve: u64,
+    trader_reserve: u64,
+) -> Result<String> {
+    let order = crate::trade::order::Order::from(order);
+    let order_id = order.id;
+
+    order::handler::submit_order(
+        order,
+        Some(ChannelOpeningParams {
+            order_id,
+            coordinator_reserve: Amount::from_sat(coordinator_reserve),
+            trader_reserve: Amount::from_sat(trader_reserve),
+        }),
+    )
+    .await
+    .map_err(anyhow::Error::new)
+    .map(|id| id.to_string())
 }
 
 #[tokio::main(flavor = "current_thread")]

@@ -5,6 +5,7 @@ import 'package:get_10101/common/application/event_service.dart';
 import 'package:get_10101/common/domain/liquidity_option.dart';
 import 'package:get_10101/common/domain/model.dart';
 
+// TODO: Name seems wrong as we use this to get on-chain sats too.
 class LspChangeNotifier extends ChangeNotifier implements Subscriber {
   ChannelInfoService channelInfoService;
 

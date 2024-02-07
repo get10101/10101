@@ -20,6 +20,8 @@ use native::api::SendPayment;
 use native::api::WalletHistoryItemType;
 use native::calculations::calculate_pnl;
 use native::ln_dlc;
+use native::ln_dlc::is_dlc_channel_confirmed;
+use native::ln_dlc::ChannelOpeningParams;
 use native::trade::order::FailureReason;
 use native::trade::order::InvalidSubchannelOffer;
 use native::trade::order::OrderType;
@@ -212,13 +214,26 @@ impl TryFrom<NewOrderParams> for native::trade::order::Order {
 }
 
 pub async fn post_new_order(params: Json<NewOrderParams>) -> Result<Json<OrderId>, AppError> {
-    let order_id = native::trade::order::handler::submit_order(
-        params
-            .0
-            .try_into()
-            .context("Could not parse order request")?,
-    )
-    .await?;
+    let order: native::trade::order::Order = params
+        .0
+        .try_into()
+        .context("Could not parse order request")?;
+
+    let is_dlc_channel_confirmed = is_dlc_channel_confirmed()?;
+
+    let channel_opening_params = if is_dlc_channel_confirmed {
+        None
+    } else {
+        Some(ChannelOpeningParams {
+            order_id: order.id,
+            // TODO: Allow webapp to open a DLC channel with additional reserve.
+            coordinator_reserve: Amount::ZERO,
+            trader_reserve: Amount::ZERO,
+        })
+    };
+
+    let order_id =
+        native::trade::order::handler::submit_order(order, channel_opening_params).await?;
 
     Ok(Json(OrderId { id: order_id }))
 }

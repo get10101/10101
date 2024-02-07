@@ -6,6 +6,11 @@ import 'package:get_10101/common/amount_denomination_change_notifier.dart';
 @GenerateNiceMocks([MockSpec<ChannelInfoService>()])
 import 'package:get_10101/common/application/channel_info_service.dart';
 import 'package:get_10101/common/application/lsp_change_notifier.dart';
+@GenerateNiceMocks([MockSpec<DlcChannelService>()])
+import 'package:get_10101/common/dlc_channel_service.dart';
+import 'package:get_10101/common/dlc_channel_change_notifier.dart';
+import 'package:get_10101/common/domain/channel.dart';
+import 'package:get_10101/common/domain/dlc_channel.dart';
 import 'package:get_10101/common/domain/model.dart';
 @GenerateNiceMocks([MockSpec<CandlestickService>()])
 import 'package:get_10101/features/trade/application/candlestick_service.dart';
@@ -34,6 +39,7 @@ import 'package:go_router/go_router.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
 import 'package:provider/provider.dart';
+import 'package:slide_to_confirm/slide_to_confirm.dart';
 
 import 'trade_test.mocks.dart';
 
@@ -71,16 +77,18 @@ class TestWrapperWithTradeTheme extends StatelessWidget {
 }
 
 void main() {
-  testWidgets('Given trade screen when completing buy flow then market order is submitted',
-      (tester) async {
-    MockOrderService orderService = MockOrderService();
-    MockPositionService positionService = MockPositionService();
-    MockTradeValuesService tradeValueService = MockTradeValuesService();
-    MockChannelInfoService channelConstraintsService = MockChannelInfoService();
-    MockWalletService walletService = MockWalletService();
-    MockCandlestickService candlestickService = MockCandlestickService();
-    buildLogger(true);
+  buildTestLogger(true);
 
+  MockPositionService positionService = MockPositionService();
+  MockTradeValuesService tradeValueService = MockTradeValuesService();
+  MockChannelInfoService channelConstraintsService = MockChannelInfoService();
+  MockWalletService walletService = MockWalletService();
+  MockCandlestickService candlestickService = MockCandlestickService();
+  MockDlcChannelService dlcChannelService = MockDlcChannelService();
+  MockOrderService orderService = MockOrderService();
+
+  testWidgets('Given trade screen when completing first buy flow then market order is submitted',
+      (tester) async {
     // TODO: we could make this more resilient in the underlying components...
     // return dummies otherwise the fields won't be initialized correctly
     when(tradeValueService.calculateMargin(
@@ -146,6 +154,8 @@ void main() {
 
     LspChangeNotifier lspChangeNotifier = LspChangeNotifier(channelConstraintsService);
 
+    DlcChannelChangeNotifier dlcChannelChangeNotifier = DlcChannelChangeNotifier(dlcChannelService);
+
     final tradeValuesChangeNotifier = TradeValuesChangeNotifier(tradeValueService);
 
     final price = Price(bid: 30000.0, ask: 30000.0);
@@ -161,8 +171,139 @@ void main() {
       ChangeNotifierProvider(create: (context) => AmountDenominationChangeNotifier()),
       ChangeNotifierProvider(create: (context) => walletChangeNotifier),
       ChangeNotifierProvider(create: (context) => candlestickChangeNotifier),
-      ChangeNotifierProvider(create: (context) => lspChangeNotifier)
+      ChangeNotifierProvider(create: (context) => lspChangeNotifier),
+      ChangeNotifierProvider(create: (context) => dlcChannelChangeNotifier),
     ], child: const TestWrapperWithTradeTheme(child: TradeScreen())));
+
+    // We have to pretend that we have a balance, because otherwise the trade bottom sheet validation will not allow us to go to the confirmation screen
+    walletChangeNotifier.update(WalletInfo(
+        balances: WalletBalances(onChain: Amount(0), offChain: Amount(10000)), history: []));
+
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(tradeScreenButtonBuy), findsOneWidget);
+
+    // Open bottom sheet
+    await tester.tap(find.byKey(tradeScreenButtonBuy));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(tradeScreenBottomSheetButtonBuy), findsOneWidget);
+
+    // click buy button in bottom sheet
+    await tester.tap(find.byKey(tradeScreenBottomSheetButtonBuy));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(tradeScreenBottomSheetChannelConfigurationConfirmButton), findsOneWidget);
+
+    // click confirm button to go to confirmation screen
+    await tester.tap(find.byKey(tradeScreenBottomSheetChannelConfigurationConfirmButton));
+    await tester.pumpAndSettle();
+
+    // TODO: Use `find.byKey(tradeScreenBottomSheetConfirmationConfigureChannelSlider)`.
+    // For some reason the specific widget cannot be found.
+    expect(find.byType(ConfirmationSlider), findsOneWidget);
+
+    // Drag to confirm
+
+    // TODO: This is not optimal because if we re-style the component this test will likely break.
+    final Offset sliderLocation = tester.getBottomLeft(find.byType(ConfirmationSlider));
+    await tester.timedDragFrom(
+        sliderLocation + const Offset(10, -15), const Offset(280, 0), const Duration(seconds: 2),
+        pointer: 7);
+
+    verify(orderService.submitChannelOpeningMarketOrder(any, any, any, any, any, any, any))
+        .called(1);
+  });
+
+  testWidgets('Trade with open channel', (tester) async {
+    when(tradeValueService.calculateMargin(
+            price: anyNamed('price'),
+            quantity: anyNamed('quantity'),
+            leverage: anyNamed('leverage')))
+        .thenReturn(Amount(1000));
+    when(tradeValueService.calculateLiquidationPrice(
+            price: anyNamed('price'),
+            leverage: anyNamed('leverage'),
+            direction: anyNamed('direction')))
+        .thenReturn(10000);
+    when(tradeValueService.calculateQuantity(
+            price: anyNamed('price'), leverage: anyNamed('leverage'), margin: anyNamed('margin')))
+        .thenReturn(Amount(1));
+    when(tradeValueService.getExpiryTimestamp()).thenReturn(DateTime.now());
+    when(tradeValueService.orderMatchingFee(
+            quantity: anyNamed('quantity'), price: anyNamed('price')))
+        .thenReturn(Amount(42));
+
+    when(channelConstraintsService.getChannelInfo()).thenAnswer((_) async {
+      return ChannelInfo(Amount(100000), Amount(100000), null);
+    });
+
+    when(channelConstraintsService.getMaxCapacity()).thenAnswer((_) async {
+      return Amount(20000);
+    });
+
+    when(channelConstraintsService.getMinTradeMargin()).thenReturn(Amount(1000));
+
+    when(channelConstraintsService.getInitialReserve()).thenReturn(Amount(1000));
+
+    when(channelConstraintsService.getContractTxFeeRate()).thenAnswer((_) async {
+      return 1;
+    });
+
+    when(channelConstraintsService.getTradeConstraints()).thenAnswer((_) =>
+        const bridge.TradeConstraints(
+            maxLocalMarginSats: 20000000000,
+            maxCounterpartyMarginSats: 200000000000,
+            coordinatorLeverage: 2,
+            minQuantity: 1,
+            isChannelBalance: true,
+            minMargin: 1));
+
+    when(candlestickService.fetchCandles(1000)).thenAnswer((_) async {
+      return getDummyCandles(1000);
+    });
+    when(candlestickService.fetchCandles(1)).thenAnswer((_) async {
+      return getDummyCandles(1);
+    });
+
+    when(dlcChannelService.getDlcChannels()).thenAnswer((_) async {
+      return List.filled(1, DlcChannel(id: "foo", state: ChannelState.signed));
+    });
+
+    CandlestickChangeNotifier candlestickChangeNotifier =
+        CandlestickChangeNotifier(candlestickService);
+    candlestickChangeNotifier.initialize();
+
+    SubmitOrderChangeNotifier submitOrderChangeNotifier = SubmitOrderChangeNotifier(orderService);
+
+    WalletChangeNotifier walletChangeNotifier = WalletChangeNotifier(walletService);
+
+    PositionChangeNotifier positionChangeNotifier = PositionChangeNotifier(positionService);
+
+    LspChangeNotifier lspChangeNotifier = LspChangeNotifier(channelConstraintsService);
+
+    DlcChannelChangeNotifier dlcChannelChangeNotifier = DlcChannelChangeNotifier(dlcChannelService);
+
+    final tradeValuesChangeNotifier = TradeValuesChangeNotifier(tradeValueService);
+
+    final price = Price(bid: 30000.0, ask: 30000.0);
+    // We have to have current price, otherwise we can't take order
+    positionChangeNotifier.price = price;
+    tradeValuesChangeNotifier.updatePrice(price);
+
+    await tester.pumpWidget(MultiProvider(providers: [
+      ChangeNotifierProvider(create: (context) => tradeValuesChangeNotifier),
+      ChangeNotifierProvider(create: (context) => submitOrderChangeNotifier),
+      ChangeNotifierProvider(create: (context) => OrderChangeNotifier(orderService)),
+      ChangeNotifierProvider(create: (context) => positionChangeNotifier),
+      ChangeNotifierProvider(create: (context) => AmountDenominationChangeNotifier()),
+      ChangeNotifierProvider(create: (context) => walletChangeNotifier),
+      ChangeNotifierProvider(create: (context) => candlestickChangeNotifier),
+      ChangeNotifierProvider(create: (context) => lspChangeNotifier),
+      ChangeNotifierProvider(create: (context) => dlcChannelChangeNotifier),
+    ], child: const TestWrapperWithTradeTheme(child: TradeScreen())));
+
+    dlcChannelChangeNotifier.refreshDlcChannels();
 
     // We have to pretend that we have a balance, because otherwise the trade bottom sheet validation will not allow us to go to the confirmation screen
     walletChangeNotifier.update(WalletInfo(
@@ -184,8 +325,6 @@ void main() {
 
     expect(find.byKey(tradeScreenBottomSheetConfirmationSliderButtonBuy), findsOneWidget);
 
-    // TODO: This is not optimal because if we re-style the component this test will likely break.
-    // Drag to confirm
     await tester.timedDrag(find.byKey(tradeScreenBottomSheetConfirmationSliderButtonBuy),
         const Offset(275, 0), const Duration(seconds: 2),
         pointer: 7);

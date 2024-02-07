@@ -126,6 +126,12 @@ class TradeValues {
     _recalculateLiquidationPrice();
   }
 
+  // Can be used to calculate the counterparty's margin, based on their
+  // leverage.
+  calculateMargin(Leverage leverage) {
+    return tradeValuesService.calculateMargin(price: price, quantity: quantity, leverage: leverage);
+  }
+
   _recalculateMargin() {
     Amount? margin =
         tradeValuesService.calculateMargin(price: price, quantity: quantity, leverage: leverage);

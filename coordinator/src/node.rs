@@ -20,6 +20,7 @@ use bitcoin::secp256k1::PublicKey;
 use commons::order_matching_fee_taker;
 use commons::MatchState;
 use commons::OrderState;
+use commons::TradeAndChannelParams;
 use commons::TradeParams;
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::Pool;
@@ -144,13 +145,13 @@ impl Node {
         !usable_channels.is_empty()
     }
 
-    pub async fn trade(&self, trade_params: &TradeParams) -> Result<()> {
+    pub async fn trade(&self, params: &TradeAndChannelParams) -> Result<()> {
         let mut connection = self.pool.get()?;
 
-        let order_id = trade_params.filled_with.order_id;
-        let trader_id = trade_params.pubkey;
+        let order_id = params.trade_params.filled_with.order_id;
+        let trader_id = params.trade_params.pubkey;
 
-        match self.trade_internal(trade_params, &mut connection).await {
+        match self.trade_internal(params, &mut connection).await {
             Ok(()) => {
                 tracing::info!(
                     %trader_id,
@@ -185,11 +186,11 @@ impl Node {
 
     async fn trade_internal(
         &self,
-        trade_params: &TradeParams,
+        params: &TradeAndChannelParams,
         connection: &mut PgConnection,
     ) -> Result<()> {
-        let order_id = trade_params.filled_with.order_id;
-        let trader_id = trade_params.pubkey.to_string();
+        let order_id = params.trade_params.filled_with.order_id;
+        let trader_id = params.trade_params.pubkey.to_string();
         let order = orders::get_with_id(connection, order_id)?.context("Could not find order")?;
 
         ensure!(
@@ -202,24 +203,21 @@ impl Node {
             order.order_state
         );
 
-        let order_id = trade_params.filled_with.order_id.to_string();
+        let order_id = params.trade_params.filled_with.order_id.to_string();
         tracing::info!(trader_id, order_id, "Executing match");
 
-        self.execute_trade_action(connection, trade_params, order.stable)
+        self.execute_trade_action(connection, params, order.stable)
             .await?;
 
         Ok(())
     }
 
-    // For now we assume that the first position has equal margin to the size of the DLC channel to
-    // be opened.
-    //
-    // TODO: Introduce separation between creating the DLC channel (reserving liquidity to trade)
-    // and opening the first position.
     async fn open_dlc_channel(
         &self,
         conn: &mut PgConnection,
         trade_params: &TradeParams,
+        collateral_reserve_coordinator: bitcoin::Amount,
+        collateral_reserve_trader: bitcoin::Amount,
         stable: bool,
     ) -> Result<()> {
         let peer_id = trade_params.pubkey;
@@ -236,6 +234,11 @@ impl Node {
         )
         .to_sat();
 
+        // The coordinator gets the `order_matching_fee` directly in the collateral reserve.
+        let collateral_reserve_with_fee_coordinator =
+            collateral_reserve_coordinator.to_sat() + order_matching_fee;
+        let collateral_reserve_trader = collateral_reserve_trader.to_sat();
+
         let initial_price = trade_params.filled_with.average_execution_price();
 
         let coordinator_direction = trade_params.direction.opposite();
@@ -248,6 +251,8 @@ impl Node {
             margin_coordinator_sat = %margin_coordinator,
             margin_trader_sat = %margin_trader,
             order_matching_fee_sat = %order_matching_fee,
+            collateral_reserve_with_fee_coordinator = %collateral_reserve_with_fee_coordinator,
+            collateral_reserve_trader = %collateral_reserve_trader,
             "Opening DLC channel and position"
         );
 
@@ -258,9 +263,8 @@ impl Node {
             leverage_coordinator,
             leverage_trader,
             coordinator_direction,
-            // The coordinator gets the `order_matching_fee` directly in the collateral reserve.
-            order_matching_fee,
-            0,
+            collateral_reserve_with_fee_coordinator,
+            collateral_reserve_trader,
             trade_params.quantity,
             trade_params.contract_symbol,
         )
@@ -292,10 +296,10 @@ impl Node {
         );
 
         let contract_input = ContractInput {
-            offer_collateral: margin_coordinator,
+            offer_collateral: margin_coordinator + collateral_reserve_coordinator.to_sat(),
             // The accept party has do bring additional collateral to pay for the
             // `order_matching_fee`.
-            accept_collateral: margin_trader + order_matching_fee,
+            accept_collateral: margin_trader + collateral_reserve_trader + order_matching_fee,
             fee_rate,
             contract_infos: vec![ContractInputInfo {
                 contract_descriptor,
@@ -677,10 +681,10 @@ impl Node {
     pub async fn execute_trade_action(
         &self,
         conn: &mut PgConnection,
-        trade_params: &TradeParams,
+        params: &TradeAndChannelParams,
         is_stable_order: bool,
     ) -> Result<()> {
-        let trader_peer_id = trade_params.pubkey;
+        let trader_peer_id = params.trade_params.pubkey;
 
         match self
             .inner
@@ -702,9 +706,22 @@ impl Node {
                     "Previous DLC Channel offer still pending."
                 );
 
-                self.open_dlc_channel(conn, trade_params, is_stable_order)
-                    .await
-                    .context("Failed to open DLC channel")?;
+                let collateral_reserve_coordinator = params
+                    .coordinator_reserve
+                    .context("Missing coordinator collateral reserve")?;
+                let collateral_reserve_trader = params
+                    .trader_reserve
+                    .context("Missing trader collateral reserve")?;
+
+                self.open_dlc_channel(
+                    conn,
+                    &params.trade_params,
+                    collateral_reserve_coordinator,
+                    collateral_reserve_trader,
+                    is_stable_order,
+                )
+                .await
+                .context("Failed to open DLC channel")?;
             }
             Some(SignedChannel {
                 channel_id,
@@ -724,7 +741,7 @@ impl Node {
                 self.open_position(
                     conn,
                     channel_id,
-                    trade_params,
+                    &params.trade_params,
                     own_payout,
                     counter_payout,
                     is_stable_order,
@@ -737,6 +754,8 @@ impl Node {
                 channel_id: dlc_channel_id,
                 ..
             }) => {
+                let trade_params = &params.trade_params;
+
                 let position = db::positions::Position::get_position_by_trader(
                     conn,
                     trader_peer_id,

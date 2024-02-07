@@ -1,5 +1,6 @@
 use crate::app::refresh_wallet_info;
 use crate::app::run_app;
+use crate::app::submit_channel_opening_order;
 use crate::app::sync_dlc_channels;
 use crate::app::AppHandle;
 use crate::bitcoind::Bitcoind;
@@ -13,7 +14,6 @@ use native::api::ContractSymbol;
 use native::trade::order::api::NewOrder;
 use native::trade::order::api::OrderType;
 use native::trade::position::PositionState;
-use tokio::task::spawn_blocking;
 
 pub struct TestSetup {
     pub app: AppHandle,
@@ -119,12 +119,7 @@ impl TestSetup {
 
         tracing::info!("Opening a position");
         let order = dummy_order();
-        spawn_blocking({
-            let order = order.clone();
-            move || api::submit_order(order).unwrap()
-        })
-        .await
-        .unwrap();
+        submit_channel_opening_order(order.clone(), 0, 0);
 
         wait_until!(rx.order().is_some());
 

@@ -150,6 +150,7 @@ class TradeScreen extends StatelessWidget {
                             tradeBottomSheetConfirmation(
                                 context: context,
                                 direction: direction,
+                                channelOpeningParams: null,
                                 onConfirmation: () {
                                   submitOrderChangeNotifier.closePosition(
                                       position, tradeValues.price, tradeValues.fee);
@@ -167,7 +168,7 @@ class TradeScreen extends StatelessWidget {
                                         return const TradeDialog();
                                       });
                                 },
-                                close: true);
+                                tradeAction: TradeAction.closePosition);
                           },
                         );
                       },

@@ -22,3 +22,16 @@ void buildLogger(bool isLogLevelTrace) {
 
   AppLogger.instance = logger;
 }
+
+void buildTestLogger(bool isLogLevelTrace) {
+  final logger = Logger(
+      filter: ProductionFilter(),
+      level: isLogLevelTrace ? Level.trace : Level.debug,
+      printer: SimpleUTCPrinter(
+          // Colorful log messages
+          colors: false,
+          // Should each log print contain a timestamp
+          printTime: true));
+
+  AppLogger.instance = logger;
+}
