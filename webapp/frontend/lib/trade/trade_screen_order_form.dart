@@ -161,8 +161,14 @@ class _NewOrderForm extends State<NewOrderForm> {
 
 Amount calculateMargin(Usd quantity, BestQuote quote, Leverage leverage, bool isLong) {
   if (isLong && quote.ask != null) {
+    if (quote.ask!.asDouble == 0) {
+      return Amount.zero();
+    }
     return Amount.fromBtc(quantity.asDouble / (quote.ask!.asDouble * leverage.asDouble));
   } else if (!isLong && quote.bid != null) {
+    if (quote.bid!.asDouble == 0) {
+      return Amount.zero();
+    }
     return Amount.fromBtc(quantity.asDouble / (quote.bid!.asDouble * leverage.asDouble));
   } else {
     return Amount.zero();

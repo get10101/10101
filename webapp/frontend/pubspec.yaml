@@ -72,3 +72,4 @@ flutter:
   uses-material-design: true
   assets:
     - assets/
+    - assets/tradingview.html
