@@ -27,10 +27,10 @@ pub struct NewPosition {
     pub contract_symbol: ContractSymbol,
     pub trader_leverage: f32,
     pub quantity: f32,
-    pub direction: Direction,
+    pub trader_direction: Direction,
     pub trader: PublicKey,
     pub average_entry_price: f32,
-    pub liquidation_price: f32,
+    pub trader_liquidation_price: f32,
     pub coordinator_margin: i64,
     pub expiry_timestamp: OffsetDateTime,
     pub temporary_contract_id: ContractId,
@@ -75,10 +75,10 @@ pub struct Position {
     pub trader_leverage: f32,
     pub quantity: f32,
     /// the traders direction
-    pub direction: Direction,
+    pub trader_direction: Direction,
     pub average_entry_price: f32,
     /// the traders liquidation price
-    pub liquidation_price: f32,
+    pub trader_liquidation_price: f32,
     pub position_state: PositionState,
     pub coordinator_margin: i64,
     pub creation_timestamp: OffsetDateTime,
@@ -99,7 +99,7 @@ pub struct Position {
     pub closing_price: Option<f32>,
     pub trader_margin: i64,
     pub stable: bool,
-    pub realized_pnl_sat: Option<i64>,
+    pub trader_realized_pnl_sat: Option<i64>,
 }
 
 impl Position {
@@ -111,7 +111,7 @@ impl Position {
     /// Calculates the profit and loss for the coordinator in satoshis
     pub fn calculate_coordinator_pnl(&self, quote: Quote) -> Result<i64> {
         let closing_price = match self.closing_price {
-            None => quote.get_price_for_direction(self.direction.opposite()),
+            None => quote.get_price_for_direction(self.trader_direction.opposite()),
             Some(closing_price) => {
                 Decimal::try_from(closing_price).expect("f32 closing price to fit into decimal")
             }
@@ -120,13 +120,12 @@ impl Position {
         let average_entry_price = Decimal::try_from(self.average_entry_price)
             .context("Failed to convert average entry price to Decimal")?;
 
-        let (long_leverage, short_leverage) = match self.direction {
+        let (long_leverage, short_leverage) = match self.trader_direction {
             Direction::Long => (self.trader_leverage, self.coordinator_leverage),
             Direction::Short => (self.coordinator_leverage, self.trader_leverage),
         };
 
-        // the position in the database is the trader's position, our direction is opposite
-        let direction = self.direction.opposite();
+        let direction = self.trader_direction.opposite();
 
         let long_margin = calculate_margin(average_entry_price, self.quantity, long_leverage);
         let short_margin = calculate_margin(average_entry_price, self.quantity, short_leverage);
@@ -149,17 +148,17 @@ impl Position {
         let opening_price = Decimal::try_from(self.average_entry_price)?;
 
         let leverage_long = leverage_long(
-            self.direction,
+            self.trader_direction,
             self.trader_leverage,
             self.coordinator_leverage,
         );
         let leverage_short = leverage_short(
-            self.direction,
+            self.trader_direction,
             self.trader_leverage,
             self.coordinator_leverage,
         );
 
-        let coordinator_direction = self.direction.opposite();
+        let coordinator_direction = self.trader_direction.opposite();
         calculate_coordinator_settlement_amount(
             opening_price,
             closing_price,
@@ -178,7 +177,7 @@ impl Position {
     ) -> Result<Amount> {
         calculate_accept_settlement_amount_partial_close(
             self.quantity,
-            self.direction,
+            self.trader_direction,
             self.average_entry_price,
             self.trader_leverage,
             self.coordinator_leverage,
@@ -407,11 +406,11 @@ impl std::fmt::Debug for NewPosition {
             .field("contract_symbol", &self.contract_symbol)
             .field("trader_leverage", &self.trader_leverage)
             .field("quantity", &self.quantity)
-            .field("direction", &self.direction)
+            .field("trader_direction", &self.trader_direction)
             // Otherwise we end up printing the hex of the internal representation.
             .field("trader", &self.trader.to_string())
             .field("average_entry_price", &self.average_entry_price)
-            .field("liquidation_price", &self.liquidation_price)
+            .field("trader_liquidation_price", &self.trader_liquidation_price)
             .field("coordinator_margin", &self.coordinator_margin)
             .field("expiry_timestamp", &self.expiry_timestamp)
             .field("temporary_contract_id", &self.temporary_contract_id)
@@ -429,9 +428,9 @@ impl std::fmt::Debug for Position {
             .field("contract_symbol", &self.contract_symbol)
             .field("trader_leverage", &self.trader_leverage)
             .field("quantity", &self.quantity)
-            .field("direction", &self.direction)
+            .field("trader_direction", &self.trader_direction)
             .field("average_entry_price", &self.average_entry_price)
-            .field("liquidation_price", &self.liquidation_price)
+            .field("trader_liquidation_price", &self.trader_liquidation_price)
             .field("position_state", &self.position_state)
             .field("coordinator_margin", &self.coordinator_margin)
             .field("creation_timestamp", &self.creation_timestamp)
@@ -444,7 +443,7 @@ impl std::fmt::Debug for Position {
             .field("closing_price", &self.closing_price)
             .field("trader_margin", &self.trader_margin)
             .field("stable", &self.stable)
-            .field("realized_pnl", &self.realized_pnl_sat)
+            .field("trader_realized_pnl_sat", &self.trader_realized_pnl_sat)
             .finish()
     }
 }
@@ -462,9 +461,9 @@ mod tests {
             contract_symbol: ContractSymbol::BtcUsd,
             trader_leverage: 2.0,
             quantity: 100.0,
-            direction: Direction::Long,
+            trader_direction: Direction::Long,
             average_entry_price: 40_000.0,
-            liquidation_price: 20_000.0,
+            trader_liquidation_price: 20_000.0,
             position_state: PositionState::Open,
             coordinator_margin: 125_000,
             creation_timestamp: OffsetDateTime::now_utc(),
@@ -479,7 +478,7 @@ mod tests {
             closing_price: None,
             trader_margin: 125_000,
             stable: false,
-            realized_pnl_sat: None,
+            trader_realized_pnl_sat: None,
         };
 
         let coordinator_settlement_amount = position
@@ -496,9 +495,9 @@ mod tests {
             contract_symbol: ContractSymbol::BtcUsd,
             trader_leverage: 3.0,
             quantity: 100.0,
-            direction: Direction::Long,
+            trader_direction: Direction::Long,
             average_entry_price: 40_000.0,
-            liquidation_price: 20_000.0,
+            trader_liquidation_price: 20_000.0,
             position_state: PositionState::Open,
             coordinator_margin: 125_000,
             creation_timestamp: OffsetDateTime::now_utc(),
@@ -513,7 +512,7 @@ mod tests {
             closing_price: None,
             trader_margin: 125_000,
             stable: false,
-            realized_pnl_sat: None,
+            trader_realized_pnl_sat: None,
         };
 
         let coordinator_settlement_amount = position
@@ -530,9 +529,9 @@ mod tests {
             contract_symbol: ContractSymbol::BtcUsd,
             trader_leverage: 2.0,
             quantity: 100.0,
-            direction: Direction::Long,
+            trader_direction: Direction::Long,
             average_entry_price: 40_000.0,
-            liquidation_price: 20_000.0,
+            trader_liquidation_price: 20_000.0,
             position_state: PositionState::Open,
             coordinator_margin: 125_000,
             creation_timestamp: OffsetDateTime::now_utc(),
@@ -547,7 +546,7 @@ mod tests {
             closing_price: None,
             trader_margin: 125_000,
             stable: false,
-            realized_pnl_sat: None,
+            trader_realized_pnl_sat: None,
         };
 
         let coordinator_settlement_amount = position
@@ -971,9 +970,9 @@ mod tests {
                 contract_symbol: ContractSymbol::BtcUsd,
                 trader_leverage: 2.0,
                 quantity: 100.0,
-                direction: Direction::Long,
+                trader_direction: Direction::Long,
                 average_entry_price: 10000.0,
-                liquidation_price: 0.0,
+                trader_liquidation_price: 0.0,
                 position_state: PositionState::Open,
                 coordinator_margin: 1000,
                 creation_timestamp: OffsetDateTime::now_utc(),
@@ -988,7 +987,7 @@ mod tests {
                 coordinator_leverage: 2.0,
                 trader_margin: 1000,
                 stable: false,
-                realized_pnl_sat: None,
+                trader_realized_pnl_sat: None,
             }
         }
 
@@ -1008,7 +1007,7 @@ mod tests {
         }
 
         fn with_direction(mut self, direction: Direction) -> Self {
-            self.direction = direction;
+            self.trader_direction = direction;
             self
         }
     }

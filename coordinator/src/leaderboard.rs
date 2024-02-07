@@ -68,7 +68,7 @@ fn sort_leader_board(
             trader,
             pnl: positions
                 .iter()
-                .map(|p| Decimal::from(p.realized_pnl_sat.unwrap_or_default()))
+                .map(|p| Decimal::from(p.trader_realized_pnl_sat.unwrap_or_default()))
                 .sum(),
             volume: positions
                 .iter()
@@ -229,9 +229,9 @@ pub mod tests {
             contract_symbol: ContractSymbol::BtcUsd,
             trader_leverage: 0.0,
             quantity,
-            direction: Direction::Long,
+            trader_direction: Direction::Long,
             average_entry_price: 0.0,
-            liquidation_price: 0.0,
+            trader_liquidation_price: 0.0,
             position_state: PositionState::Closed { pnl: 0 },
             coordinator_margin: 0,
             creation_timestamp: OffsetDateTime::now_utc(),
@@ -243,7 +243,7 @@ pub mod tests {
             closing_price: None,
             trader_margin: 0,
             stable: false,
-            realized_pnl_sat: Some(pnl),
+            trader_realized_pnl_sat: Some(pnl),
         }
     }
 

@@ -157,7 +157,7 @@ fn position_metrics(cx: &Context, node: &Node) {
             position.contract_symbol == ContractSymbol::BtcUsd,
             "We should filter positions here by BTCUSD once we have multiple contract symbols"
         );
-        match position.direction {
+        match position.trader_direction {
             Direction::Long => {
                 // TODO: fix me: this was meant to be the traders margin
                 margin_long += position.coordinator_margin;
