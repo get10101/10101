@@ -99,6 +99,7 @@ pub struct Position {
     pub closing_price: Option<f32>,
     pub trader_margin: i64,
     pub stable: bool,
+    pub realized_pnl_sat: Option<i64>,
 }
 
 impl Position {
@@ -443,6 +444,7 @@ impl std::fmt::Debug for Position {
             .field("closing_price", &self.closing_price)
             .field("trader_margin", &self.trader_margin)
             .field("stable", &self.stable)
+            .field("realized_pnl", &self.realized_pnl_sat)
             .finish()
     }
 }
@@ -477,6 +479,7 @@ mod tests {
             closing_price: None,
             trader_margin: 125_000,
             stable: false,
+            realized_pnl_sat: None,
         };
 
         let coordinator_settlement_amount = position
@@ -510,6 +513,7 @@ mod tests {
             closing_price: None,
             trader_margin: 125_000,
             stable: false,
+            realized_pnl_sat: None,
         };
 
         let coordinator_settlement_amount = position
@@ -543,6 +547,7 @@ mod tests {
             closing_price: None,
             trader_margin: 125_000,
             stable: false,
+            realized_pnl_sat: None,
         };
 
         let coordinator_settlement_amount = position
@@ -983,6 +988,7 @@ mod tests {
                 coordinator_leverage: 2.0,
                 trader_margin: 1000,
                 stable: false,
+                realized_pnl_sat: None,
             }
         }
 

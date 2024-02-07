@@ -97,6 +97,20 @@ impl Position {
 
         Ok(positions)
     }
+    pub fn get_all_closed_positions(
+        conn: &mut PgConnection,
+    ) -> QueryResult<Vec<crate::position::models::Position>> {
+        let positions = positions::table
+            .filter(positions::position_state.eq(PositionState::Closed))
+            .load::<Position>(conn)?;
+
+        let positions = positions
+            .into_iter()
+            .map(crate::position::models::Position::from)
+            .collect();
+
+        Ok(positions)
+    }
 
     pub fn get_all_open_or_closing_positions(
         conn: &mut PgConnection,
@@ -407,6 +421,7 @@ impl From<Position> for crate::position::models::Position {
             coordinator_leverage: value.coordinator_leverage,
             trader_margin: value.trader_margin,
             stable: value.stable,
+            realized_pnl_sat: value.realized_pnl_sat,
         }
     }
 }
