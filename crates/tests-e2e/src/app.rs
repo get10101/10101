@@ -2,6 +2,7 @@ use crate::test_subscriber::TestSubscriber;
 use crate::test_subscriber::ThreadSafeSenders;
 use crate::wait_until;
 use native::api;
+use native::api::DlcChannel;
 use tempfile::TempDir;
 use tokio::task::block_in_place;
 
@@ -100,6 +101,10 @@ pub fn force_close_dlc_channel() {
 /// (i.e. use `flavor = "multi_thread"` in a `tokio::test`).
 pub fn get_dlc_channel_id() -> Option<String> {
     block_in_place(move || api::get_dlc_channel_id().unwrap())
+}
+
+pub fn get_dlc_channels() -> Vec<DlcChannel> {
+    block_in_place(move || api::list_dlc_channels().unwrap())
 }
 
 // Values mostly taken from `environment.dart`

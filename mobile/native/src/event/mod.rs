@@ -2,7 +2,6 @@ use crate::api::WalletInfo;
 use crate::event::event_hub::get;
 use crate::event::subscriber::Subscriber;
 use crate::health::ServiceUpdate;
-use crate::ln_dlc::ChannelStatus;
 use crate::trade::order::Order;
 use crate::trade::order::OrderReason;
 use crate::trade::position::Position;
@@ -43,7 +42,6 @@ pub enum EventInternal {
     PaymentSent,
     PaymentFailed,
     ServiceHealthUpdate(ServiceUpdate),
-    ChannelStatusUpdate(ChannelStatus),
     Authenticated(LspConfig),
     BackgroundNotification(BackgroundTask),
     SpendableOutputs,
@@ -80,7 +78,6 @@ impl fmt::Display for EventInternal {
             EventInternal::PaymentSent => "PaymentSent",
             EventInternal::PaymentFailed => "PaymentFailed",
             EventInternal::ServiceHealthUpdate(_) => "ServiceHealthUpdate",
-            EventInternal::ChannelStatusUpdate(_) => "ChannelStatusUpdate",
             EventInternal::BackgroundNotification(_) => "BackgroundNotification",
             EventInternal::SpendableOutputs => "SpendableOutputs",
             EventInternal::Authenticated(_) => "Authenticated",
@@ -107,7 +104,6 @@ impl From<EventInternal> for EventType {
             EventInternal::PaymentSent => EventType::PaymentSent,
             EventInternal::PaymentFailed => EventType::PaymentFailed,
             EventInternal::ServiceHealthUpdate(_) => EventType::ServiceHealthUpdate,
-            EventInternal::ChannelStatusUpdate(_) => EventType::ChannelStatusUpdate,
             EventInternal::BackgroundNotification(_) => EventType::BackgroundNotification,
             EventInternal::SpendableOutputs => EventType::SpendableOutputs,
             EventInternal::Authenticated(_) => EventType::Authenticated,

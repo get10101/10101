@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:get_10101/common/channel_status_notifier.dart';
 import 'package:get_10101/common/color.dart';
+import 'package:get_10101/common/dlc_channel_change_notifier.dart';
 import 'package:get_10101/common/settings/settings_screen.dart';
 import 'package:get_10101/common/snack_bar.dart';
 import 'package:get_10101/features/trade/trade_screen.dart';
@@ -27,7 +27,7 @@ class _CollabCloseScreenState extends State<CollabCloseScreen> {
 
   @override
   Widget build(BuildContext context) {
-    ChannelStatusNotifier channelStatusNotifier = context.watch<ChannelStatusNotifier>();
+    DlcChannelChangeNotifier dlcChannelChangeNotifier = context.watch<DlcChannelChangeNotifier>();
 
     return Scaffold(
       body: Container(
@@ -75,10 +75,10 @@ class _CollabCloseScreenState extends State<CollabCloseScreen> {
                 ),
                 Container(
                     margin: const EdgeInsets.all(10),
-                    child: getCloseChannelText(channelStatusNotifier)),
+                    child: getCloseChannelText(dlcChannelChangeNotifier)),
                 Expanded(child: Container()),
                 Visibility(
-                    visible: channelStatusNotifier.hasOpenPosition(),
+                    visible: dlcChannelChangeNotifier.hasOpenPosition(),
                     child: Container(
                       margin: const EdgeInsets.all(10),
                       child: Column(
@@ -91,7 +91,7 @@ class _CollabCloseScreenState extends State<CollabCloseScreen> {
                       ),
                     )),
                 Visibility(
-                  visible: channelStatusNotifier.hasDlcChannelWithoutPosition(),
+                  visible: dlcChannelChangeNotifier.hasDlcChannelWithoutPosition(),
                   child: Container(
                       margin: const EdgeInsets.all(10),
                       child: ConfirmationSlider(
@@ -124,8 +124,8 @@ class _CollabCloseScreenState extends State<CollabCloseScreen> {
   }
 }
 
-RichText getCloseChannelText(ChannelStatusNotifier channelStatusNotifier) {
-  if (channelStatusNotifier.hasOpenPosition()) {
+RichText getCloseChannelText(DlcChannelChangeNotifier dlcChannelChangeNotifier) {
+  if (dlcChannelChangeNotifier.hasOpenPosition()) {
     return RichText(
         text: const TextSpan(
       style: TextStyle(fontSize: 18, color: Colors.black, letterSpacing: 0.4),
@@ -139,7 +139,7 @@ RichText getCloseChannelText(ChannelStatusNotifier channelStatusNotifier) {
     ));
   }
 
-  if (channelStatusNotifier.hasDlcChannel()) {
+  if (dlcChannelChangeNotifier.hasDlcChannel()) {
     return RichText(
         text: const TextSpan(
       style: TextStyle(fontSize: 18, color: Colors.black, letterSpacing: 0.4),

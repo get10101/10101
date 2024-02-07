@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get_10101/common/application/lsp_change_notifier.dart';
+import 'package:get_10101/common/dlc_channel_change_notifier.dart';
+import 'package:get_10101/common/dlc_channel_service.dart';
 import 'package:get_10101/common/domain/lsp_config.dart';
 import 'package:get_10101/features/trade/candlestick_change_notifier.dart';
 import 'package:get_10101/features/trade/order_change_notifier.dart';
@@ -22,7 +24,6 @@ import 'package:get_10101/features/trade/application/position_service.dart';
 import 'package:get_10101/features/trade/application/trade_values_service.dart';
 import 'package:get_10101/features/trade/async_order_change_notifier.dart';
 import 'package:get_10101/common/application/channel_info_service.dart';
-import 'package:get_10101/common/channel_status_notifier.dart';
 import 'package:get_10101/common/domain/background_task.dart';
 import 'package:get_10101/common/domain/service_status.dart';
 import 'package:get_10101/features/trade/domain/order.dart';
@@ -57,7 +58,8 @@ List<SingleChildWidget> createProviders() {
     ChangeNotifierProvider(
         create: (context) => CandlestickChangeNotifier(const CandlestickService()).initialize()),
     ChangeNotifierProvider(create: (context) => ServiceStatusNotifier()),
-    ChangeNotifierProvider(create: (context) => ChannelStatusNotifier()),
+    ChangeNotifierProvider(
+        create: (context) => DlcChannelChangeNotifier(const DlcChannelService())),
     ChangeNotifierProvider(create: (context) => AsyncOrderChangeNotifier(OrderService())),
     ChangeNotifierProvider(create: (context) => RolloverChangeNotifier()),
     ChangeNotifierProvider(create: (context) => RecoverDlcChangeNotifier()),
@@ -87,7 +89,6 @@ void subscribeToNotifiers(BuildContext context) {
   final tradeValuesChangeNotifier = context.read<TradeValuesChangeNotifier>();
   final submitOrderChangeNotifier = context.read<SubmitOrderChangeNotifier>();
   final serviceStatusNotifier = context.read<ServiceStatusNotifier>();
-  final channelStatusNotifier = context.read<ChannelStatusNotifier>();
   final asyncOrderChangeNotifier = context.read<AsyncOrderChangeNotifier>();
   final rolloverChangeNotifier = context.read<RolloverChangeNotifier>();
   final recoverDlcChangeNotifier = context.read<RecoverDlcChangeNotifier>();
@@ -145,8 +146,6 @@ void subscribeToNotifiers(BuildContext context) {
       collabRevertChangeNotifier, bridge.Event.backgroundNotification(CollabRevert.apiDummy()));
 
   eventService.subscribe(lspConfigChangeNotifier, bridge.Event.authenticated(LspConfig.apiDummy()));
-
-  channelStatusNotifier.subscribe(eventService);
 
   eventService.subscribe(
       AnonSubscriber((event) => logger.i(event.field0)), const bridge.Event.log(""));

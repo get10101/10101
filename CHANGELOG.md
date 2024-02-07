@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Feat(webapp): show tradingview chart
 - Refactor(webapp): Replace axum-server with low lever rust-tls implementation
 - Feat(coordinator): Add endpoint to get a leadership board
+- Feat(settings): Show all dlc channels in settings
+- Feat(settings): Add emergency kit to delete dlc channel
 
 ## [1.8.5] - 2024-02-05
 

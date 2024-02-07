@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import 'package:get_10101/bridge_generated/bridge_definitions.dart';
-import 'package:get_10101/common/channel_status_notifier.dart';
 import 'package:get_10101/common/color.dart';
 import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
+import 'package:get_10101/common/dlc_channel_change_notifier.dart';
 import 'package:get_10101/common/service_status_notifier.dart';
 import 'package:get_10101/common/settings/app_info_screen.dart';
 import 'package:get_10101/common/settings/channel_screen.dart';
@@ -36,7 +35,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget build(BuildContext context) {
     final bridge.Config config = context.read<bridge.Config>();
 
-    ChannelStatusNotifier channelStatusNotifier = context.watch<ChannelStatusNotifier>();
+    DlcChannelChangeNotifier dlcChannelChangeNotifier = context.watch<DlcChannelChangeNotifier>();
     ServiceStatusNotifier serviceStatusNotifier = context.watch<ServiceStatusNotifier>();
 
     final overallStatus = serviceStatusNotifier.overall();
@@ -155,7 +154,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               SettingsClickable(
                                   icon: Icons.balance_outlined,
                                   title: "Channel",
-                                  isAlarm: channelStatusNotifier.isClosing(),
+                                  isAlarm: dlcChannelChangeNotifier.isClosing(),
                                   callBackFunc: () =>
                                       GoRouter.of(context).push(ChannelScreen.route)),
                               const Divider(
@@ -214,7 +213,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               SettingsClickable(
                                 icon: Icons.thermostat,
                                 title: "Status",
-                                isAlarm: overallStatus == ServiceStatus.Offline,
+                                isAlarm: overallStatus == bridge.ServiceStatus.Offline,
                                 callBackFunc: () => GoRouter.of(context).push(StatusScreen.route),
                               ),
                             ],

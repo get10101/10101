@@ -9,6 +9,9 @@ use crate::config::get_network;
 use crate::db;
 use crate::db::connection;
 use crate::destination;
+pub use crate::dlc_channel::ChannelState;
+pub use crate::dlc_channel::DlcChannel;
+pub use crate::dlc_channel::SignedChannelState;
 use crate::event;
 use crate::event::api::FlutterSubscriber;
 use crate::health;
@@ -32,9 +35,11 @@ use bitcoin::hashes::hex::ToHex;
 use bitcoin::Amount;
 use commons::order_matching_fee_taker;
 use commons::OrderbookRequest;
+use dlc_manager::DlcChannelId;
 use flutter_rust_bridge::frb;
 use flutter_rust_bridge::StreamSink;
 use flutter_rust_bridge::SyncReturn;
+use hex::FromHex;
 use lightning::chain::chaininterface::ConfirmationTarget as LnConfirmationTarget;
 use ln_dlc_node::channel::UserChannelId;
 use rust_decimal::prelude::FromPrimitive;
@@ -806,4 +811,17 @@ pub fn get_dlc_channel_id() -> Result<Option<String>> {
         ln_dlc::get_signed_dlc_channel()?.map(|channel| channel.channel_id.to_hex());
 
     Ok(dlc_channel_id)
+}
+
+pub fn list_dlc_channels() -> Result<Vec<DlcChannel>> {
+    let channels = ln_dlc::list_dlc_channels()?
+        .iter()
+        .map(DlcChannel::from)
+        .collect();
+    Ok(channels)
+}
+
+pub fn delete_dlc_channel(dlc_channel_id: String) -> Result<()> {
+    let dlc_channel_id = DlcChannelId::from_hex(dlc_channel_id)?;
+    ln_dlc::delete_dlc_channel(&dlc_channel_id)
 }

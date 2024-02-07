@@ -7,7 +7,6 @@ use native::event::EventType;
 use native::health::Service;
 use native::health::ServiceStatus;
 use native::health::ServiceUpdate;
-use native::ln_dlc::ChannelStatus;
 use native::trade::order::Order;
 use native::trade::position::Position;
 use parking_lot::Mutex;
@@ -25,7 +24,6 @@ pub struct Senders {
     prices: watch::Sender<Option<Prices>>,
     position_close: watch::Sender<Option<ContractSymbol>>,
     service: watch::Sender<Option<ServiceUpdate>>,
-    channel_status: watch::Sender<Option<ChannelStatus>>,
 }
 
 /// Subscribes to events destined for the frontend (typically Flutter app) and
@@ -39,7 +37,6 @@ pub struct TestSubscriber {
     prices: watch::Receiver<Option<Prices>>,
     position_close: watch::Receiver<Option<ContractSymbol>>,
     services: Arc<Mutex<HashMap<Service, ServiceStatus>>>,
-    channel_status: watch::Receiver<Option<ChannelStatus>>,
     _service_map_updater: tokio::task::JoinHandle<()>,
 }
 
@@ -53,7 +50,6 @@ impl TestSubscriber {
         let (prices_tx, prices_rx) = watch::channel(None);
         let (position_close_tx, position_close_rx) = watch::channel(None);
         let (service_tx, mut service_rx) = watch::channel(None);
-        let (channel_status_tx, channel_status_rx) = watch::channel(None);
 
         let senders = Senders {
             wallet_info: wallet_info_tx,
@@ -64,7 +60,6 @@ impl TestSubscriber {
             prices: prices_tx,
             position_close: position_close_tx,
             service: service_tx,
-            channel_status: channel_status_tx,
         };
 
         let services = Arc::new(Mutex::new(HashMap::new()));
@@ -91,7 +86,6 @@ impl TestSubscriber {
             prices: prices_rx,
             position_close: position_close_rx,
             services,
-            channel_status: channel_status_rx,
             _service_map_updater,
         };
         (subscriber, ThreadSafeSenders(Arc::new(Mutex::new(senders))))
@@ -131,10 +125,6 @@ impl TestSubscriber {
             .get(&service)
             .copied()
             .unwrap_or_default()
-    }
-
-    pub fn channel_status(&self) -> Option<ChannelStatus> {
-        self.channel_status.borrow().as_ref().cloned()
     }
 }
 
@@ -189,9 +179,6 @@ impl Senders {
             }
             native::event::EventInternal::ServiceHealthUpdate(update) => {
                 self.service.send(Some(update.clone()))?;
-            }
-            native::event::EventInternal::ChannelStatusUpdate(update) => {
-                self.channel_status.send(Some(*update))?;
             }
             native::event::EventInternal::ChannelReady(_channel_id) => {
                 unreachable!("ChannelReady event should not be sent to the subscriber");

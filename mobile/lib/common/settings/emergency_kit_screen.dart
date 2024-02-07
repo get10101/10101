@@ -3,6 +3,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
 import 'package:get_10101/common/color.dart';
 import 'package:get_10101/common/custom_app_bar.dart';
+import 'package:get_10101/common/dlc_channel_change_notifier.dart';
 import 'package:get_10101/common/settings/settings_screen.dart';
 import 'package:get_10101/common/snack_bar.dart';
 import 'package:get_10101/features/trade/order_change_notifier.dart';
@@ -21,9 +22,12 @@ class EmergencyKitScreen extends StatefulWidget {
 }
 
 class _EmergencyKitScreenState extends State<EmergencyKitScreen> {
+  String? _dlcChannelId;
+
   @override
   Widget build(BuildContext context) {
     final bridge.Config config = context.read<bridge.Config>();
+    final dlcChannelChangeNotifier = context.read<DlcChannelChangeNotifier>();
 
     return Scaffold(
       body: SafeArea(
@@ -34,9 +38,8 @@ class _EmergencyKitScreenState extends State<EmergencyKitScreen> {
             children: [
               const TenTenOneAppBar(title: "Emergency Kit"),
               Container(
-                margin: const EdgeInsets.all(10),
-                child: Column(
-                  children: [
+                  margin: const EdgeInsets.all(10),
+                  child: Column(children: [
                     const SizedBox(
                       height: 20,
                     ),
@@ -89,13 +92,14 @@ class _EmergencyKitScreenState extends State<EmergencyKitScreen> {
                                           try {
                                             await rust.api.setFillingOrdersToFailed();
                                             await orderChangeNotifier.initialize();
-                                            goRouter.pop();
                                             showSnackBar(messenger,
                                                 "Successfully set filling orders to failed");
                                           } catch (e) {
                                             showSnackBar(messenger,
                                                 "Failed to set filling orders to failed. Error: $e");
                                           }
+
+                                          goRouter.pop();
                                         },
                                         child: const Text('Yes'),
                                       ),
@@ -124,6 +128,64 @@ class _EmergencyKitScreenState extends State<EmergencyKitScreen> {
                           SizedBox(width: 10),
                           Text("Cleanup filling orders", style: TextStyle(fontSize: 16))
                         ])),
+                    const SizedBox(height: 30),
+                    Row(
+                      children: [
+                        Expanded(
+                            child: TextField(
+                          onChanged: (value) => _dlcChannelId = value,
+                          decoration: InputDecoration(
+                            border: const OutlineInputBorder(),
+                            hintText: "Copy from Settings > Channel",
+                            labelText: "Dlc Channel Id",
+                            labelStyle: const TextStyle(color: Colors.black87),
+                            filled: true,
+                            fillColor: Colors.white,
+                            errorStyle: TextStyle(
+                              color: Colors.red[900],
+                            ),
+                          ),
+                        )),
+                        IconButton(
+                            onPressed: () {
+                              showDialog(
+                                  context: context,
+                                  builder: (context) {
+                                    return AlertDialog(
+                                        title: const Text("Are you sure?"),
+                                        content: const Text(
+                                            "Performing that action may break your app state and should only get executed after consulting with the 10101 Team."),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () => GoRouter.of(context).pop(),
+                                            child: const Text('No'),
+                                          ),
+                                          TextButton(
+                                            onPressed: () async {
+                                              final messenger = ScaffoldMessenger.of(context);
+                                              final goRouter = GoRouter.of(context);
+
+                                              try {
+                                                await dlcChannelChangeNotifier
+                                                    .deleteDlcChannel(_dlcChannelId ?? "");
+                                                showSnackBar(messenger,
+                                                    "Successfully deleted dlc channel with id $_dlcChannelId");
+                                              } catch (error) {
+                                                showSnackBar(messenger, "$error");
+                                              }
+                                              goRouter.pop();
+                                            },
+                                            child: const Text('Yes'),
+                                          ),
+                                        ]);
+                                  });
+                            },
+                            icon: const Icon(
+                              Icons.delete,
+                              size: 32,
+                            ))
+                      ],
+                    ),
                     const SizedBox(
                       height: 30,
                     ),
@@ -163,9 +225,7 @@ class _EmergencyKitScreenState extends State<EmergencyKitScreen> {
                             Text("Reset answered poll cache", style: TextStyle(fontSize: 16))
                           ])),
                     )
-                  ],
-                ),
-              )
+                  ])),
             ],
           ),
         ),
