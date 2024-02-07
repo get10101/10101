@@ -3,6 +3,7 @@ import 'package:get_10101/common/color.dart';
 import 'package:get_10101/trade/order_history_table.dart';
 import 'package:get_10101/trade/position_table.dart';
 import 'package:get_10101/trade/trade_screen_order_form.dart';
+import 'package:get_10101/trade/tradingview/tradingview.dart';
 
 class TradeScreen extends StatefulWidget {
   static const route = "/trade";
@@ -25,90 +26,64 @@ class _TradeScreenState extends State<TradeScreen> with SingleTickerProviderStat
   Widget build(BuildContext context) {
     return LayoutBuilder(builder: (context, constraints) {
       if (constraints.maxWidth > 600) {
-        return _buildHorizontalWidget(constraints);
+        return SingleChildScrollView(child: _buildHorizontalWidget(constraints));
       } else {
-        return _buildHVerticalWidget(constraints, constraints);
+        return SingleChildScrollView(child: _buildHVerticalWidget(constraints, constraints));
       }
     });
   }
 
   Widget _buildHorizontalWidget(BoxConstraints constraints) {
     return Padding(
-      padding: const EdgeInsets.all(8.0),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            flex: 1,
-            child: Column(
-              children: [
-                ConstrainedBox(
-                  constraints: BoxConstraints(
-                    maxHeight: constraints.maxHeight - 16,
-                  ),
-                  child: Container(
-                    height: double.infinity,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(8),
-                      color: Colors.grey[100],
-                    ),
-                    child: Row(
-                      children: [
-                        Expanded(
-                            child: Center(child: NewOrderWidget(tabController: _tabController))),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Expanded(
-            flex: 2,
-            child: Column(
+        padding: const EdgeInsets.only(top: 8.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.start,
+          children: [
+            Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Visibility(
-                  visible: false,
-                  child: Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.only(left: 8, right: 8, bottom: 8),
-                      child: Container(
-                        height: double.infinity,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(8),
-                          color: Colors.grey[100],
-                        ),
-                        child: const Row(
-                          children: [Expanded(child: Center(child: Text("Chart")))],
-                        ),
-                      ),
-                    ),
-                  ),
+                SizedBox(
+                  height: 500,
+                  width: 350,
+                  child: NewOrderWidget(tabController: _tabController),
                 ),
-                createTableWidget(const OpenPositionTable(), "Open Positions"),
                 const SizedBox(
                   height: 10,
                 ),
-                createTableWidget(const OrderHistoryTable(), "Order History"),
+                const Expanded(
+                    child:
+                        SizedBox(height: 500, child: TradingViewWidgetHtml(cryptoName: "BTCUSD"))),
               ],
             ),
-          ),
-        ],
-      ),
-    );
+            const SizedBox(
+              height: 10,
+            ),
+            Column(
+              children: [
+                SizedBox(
+                    height: 120.0,
+                    child: createTableWidget(const OpenPositionTable(), "Open Positions")),
+                const SizedBox(
+                  height: 10,
+                ),
+                SizedBox(
+                    height: 320.0,
+                    child: createTableWidget(const OrderHistoryTable(), "Order History")),
+              ],
+            )
+          ],
+        ));
   }
 
-  Expanded createTableWidget(Widget child, String title) {
-    return Expanded(
-      child: Padding(
-        padding: const EdgeInsets.only(left: 8, right: 8),
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(8),
-            color: Colors.grey[100],
-          ),
+  Widget createTableWidget(Widget child, String title) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 8, right: 8),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(8),
+          color: Colors.grey[100],
+        ),
+        child: SingleChildScrollView(
           child: Column(
             children: [
               Row(
@@ -167,11 +142,20 @@ class _TradeScreenState extends State<TradeScreen> with SingleTickerProviderStat
                       const SizedBox(
                         height: 10,
                       ),
-                      createTableWidget(const OpenPositionTable(), "Open Positions"),
+                      const SizedBox(
+                          height: 500, child: TradingViewWidgetHtml(cryptoName: "BTCUSD")),
                       const SizedBox(
                         height: 10,
                       ),
-                      createTableWidget(const OrderHistoryTable(), "Order History"),
+                      SizedBox(
+                          height: 150,
+                          child: createTableWidget(const OpenPositionTable(), "Open Positions")),
+                      const SizedBox(
+                        height: 10,
+                      ),
+                      SizedBox(
+                          height: 300,
+                          child: createTableWidget(const OrderHistoryTable(), "Order History")),
                     ],
                   ),
                 ))));
