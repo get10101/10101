@@ -836,7 +836,7 @@ dependencies = [
  "serde_json",
  "sha2",
  "time",
- "tokio-tungstenite",
+ "tokio-tungstenite-wasm",
  "trade",
  "uuid",
 ]
@@ -2561,7 +2561,7 @@ dependencies = [
  "thiserror",
  "time",
  "tokio",
- "tokio-tungstenite",
+ "tokio-tungstenite-wasm",
  "tokio-util",
  "tracing",
  "tracing-log 0.2.0",
@@ -2815,7 +2815,7 @@ dependencies = [
  "serde_json",
  "sha2",
  "tokio",
- "tokio-tungstenite",
+ "tokio-tungstenite-wasm",
  "tracing",
  "tracing-subscriber",
  "url",
@@ -4246,6 +4246,24 @@ dependencies = [
  "tokio",
  "tokio-native-tls",
  "tungstenite",
+]
+
+[[package]]
+name = "tokio-tungstenite-wasm"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5ec8c7cf09b20184f946f114e3d8c0deca34368912c90100812861c14bb63b66"
+dependencies = [
+ "futures-channel",
+ "futures-util",
+ "http 1.0.0",
+ "httparse",
+ "js-sys",
+ "thiserror",
+ "tokio",
+ "tokio-tungstenite 0.21.0",
+ "wasm-bindgen",
+ "web-sys",
 ]
 
 [[package]]

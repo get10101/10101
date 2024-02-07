@@ -11,10 +11,8 @@ use futures::SinkExt;
 use futures::Stream;
 use futures::StreamExt;
 use secp256k1::Message;
-use tokio::net::TcpStream;
-use tokio_tungstenite::tungstenite;
-use tokio_tungstenite::MaybeTlsStream;
-use tokio_tungstenite::WebSocketStream;
+use tokio_tungstenite_wasm as tungstenite;
+use tokio_tungstenite_wasm::WebSocketStream;
 
 /// Connects to the 10101 orderbook WebSocket API.
 ///
@@ -22,7 +20,7 @@ use tokio_tungstenite::WebSocketStream;
 pub async fn subscribe(
     url: String,
 ) -> Result<(
-    SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, tungstenite::Message>,
+    SplitSink<WebSocketStream, tungstenite::Message>,
     impl Stream<Item = Result<String, anyhow::Error>> + Unpin,
 )> {
     subscribe_impl(None, url, None).await
@@ -36,7 +34,7 @@ pub async fn subscribe_with_authentication(
     authenticate: impl Fn(Message) -> Signature,
     fcm_token: Option<String>,
 ) -> Result<(
-    SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, tungstenite::Message>,
+    SplitSink<WebSocketStream, tungstenite::Message>,
     impl Stream<Item = Result<String, anyhow::Error>> + Unpin,
 )> {
     let signature = create_auth_message_signature(authenticate);
@@ -53,12 +51,12 @@ async fn subscribe_impl(
     url: String,
     fcm_token: Option<String>,
 ) -> Result<(
-    SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, tungstenite::Message>,
+    SplitSink<WebSocketStream, tungstenite::Message>,
     impl Stream<Item = Result<String>> + Unpin,
 )> {
     tracing::debug!("Connecting to orderbook API");
 
-    let (mut connection, _) = tokio_tungstenite::connect_async(url.clone())
+    let mut connection = tokio_tungstenite_wasm::connect(url.clone())
         .await
         .context("Could not connect to websocket")?;
 
@@ -95,7 +93,7 @@ async fn subscribe_impl(
                     };
 
                     match msg {
-                        tungstenite::Message::Pong(_) => {
+                        tungstenite::Message::Text(s) if s.eq_ignore_ascii_case("pong") => {
                             tracing::trace!("Received pong");
                             continue;
                         }

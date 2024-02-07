@@ -34,7 +34,7 @@ use tokio::runtime::Runtime;
 use tokio::sync::broadcast;
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::watch;
-use tokio_tungstenite::tungstenite;
+use tokio_tungstenite_wasm as tungstenite;
 use uuid::Uuid;
 
 /// FIXME(holzeis): There is an edge case where the app is still open while we move into the

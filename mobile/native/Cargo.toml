@@ -42,7 +42,7 @@ state = "0.5.3"
 thiserror = "1"
 time = { version = "0.3.20", features = ["formatting"] }
 tokio = { version = "1.25.0", features = ["macros", "rt", "rt-multi-thread", "sync", "time"] }
-tokio-tungstenite = { version = "0.20", features = ["native-tls"] }
+tokio-tungstenite-wasm = { version = "0.3.0", features = ["native-tls"] }
 tokio-util = { version = "0.7", features = ["io", "codec"] }
 tracing = "0.1.37"
 tracing-log = "0.2.0"
