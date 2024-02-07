@@ -23,9 +23,9 @@ pub struct Position {
     pub contract_symbol: ContractSymbol,
     pub trader_leverage: f32,
     pub quantity: f32,
-    pub direction: Direction,
+    pub trader_direction: Direction,
     pub average_entry_price: f32,
-    pub liquidation_price: f32,
+    pub trader_liquidation_price: f32,
     pub position_state: PositionState,
     pub coordinator_margin: i64,
     pub creation_timestamp: OffsetDateTime,
@@ -33,8 +33,8 @@ pub struct Position {
     pub update_timestamp: OffsetDateTime,
     pub trader_pubkey: String,
     pub temporary_contract_id: Option<String>,
-    pub realized_pnl_sat: Option<i64>,
-    pub unrealized_pnl_sat: Option<i64>,
+    pub trader_realized_pnl_sat: Option<i64>,
+    pub trader_unrealized_pnl_sat: Option<i64>,
     pub closing_price: Option<f32>,
     pub coordinator_leverage: f32,
     pub trader_margin: i64,
@@ -88,6 +88,20 @@ impl Position {
     ) -> QueryResult<Vec<crate::position::models::Position>> {
         let positions = positions::table
             .filter(positions::position_state.eq(PositionState::Open))
+            .load::<Position>(conn)?;
+
+        let positions = positions
+            .into_iter()
+            .map(crate::position::models::Position::from)
+            .collect();
+
+        Ok(positions)
+    }
+    pub fn get_all_closed_positions(
+        conn: &mut PgConnection,
+    ) -> QueryResult<Vec<crate::position::models::Position>> {
+        let positions = positions::table
+            .filter(positions::position_state.eq(PositionState::Closed))
             .load::<Position>(conn)?;
 
         let positions = positions
@@ -234,13 +248,13 @@ impl Position {
                 positions::position_state.eq(PositionState::ResizeProposed),
                 positions::update_timestamp.eq(OffsetDateTime::now_utc()),
                 positions::quantity.eq(quantity),
-                positions::direction.eq(direction),
+                positions::trader_direction.eq(direction),
                 positions::trader_leverage.eq(trader_leverage),
                 positions::coordinator_leverage.eq(coordinator_leverage),
                 positions::coordinator_margin.eq(coordinator_margin),
                 positions::trader_margin.eq(trader_margin),
                 positions::average_entry_price.eq(average_entry_price),
-                positions::liquidation_price.eq(liquidation_price),
+                positions::trader_liquidation_price.eq(liquidation_price),
                 positions::expiry_timestamp.eq(expiry_timestamp),
                 positions::temporary_contract_id.eq(temporary_contract_id.to_hex()),
             ))
@@ -262,7 +276,7 @@ impl Position {
             .filter(positions::id.eq(id))
             .set((
                 positions::position_state.eq(PositionState::Closed),
-                positions::realized_pnl_sat.eq(Some(pnl)),
+                positions::trader_realized_pnl_sat.eq(Some(pnl)),
                 positions::update_timestamp.eq(OffsetDateTime::now_utc()),
             ))
             .execute(conn)?;
@@ -318,7 +332,7 @@ impl Position {
         let affected_rows = diesel::update(positions::table)
             .filter(positions::id.eq(id))
             .set((
-                positions::unrealized_pnl_sat.eq(Some(pnl)),
+                positions::trader_unrealized_pnl_sat.eq(Some(pnl)),
                 positions::update_timestamp.eq(OffsetDateTime::now_utc()),
             ))
             .execute(conn)?;
@@ -387,12 +401,12 @@ impl From<Position> for crate::position::models::Position {
             contract_symbol: trade::ContractSymbol::from(value.contract_symbol),
             trader_leverage: value.trader_leverage,
             quantity: value.quantity,
-            direction: trade::Direction::from(value.direction),
+            trader_direction: trade::Direction::from(value.trader_direction),
             average_entry_price: value.average_entry_price,
-            liquidation_price: value.liquidation_price,
+            trader_liquidation_price: value.trader_liquidation_price,
             position_state: crate::position::models::PositionState::from((
                 value.position_state,
-                value.realized_pnl_sat,
+                value.trader_realized_pnl_sat,
                 value.closing_price,
             )),
             coordinator_margin: value.coordinator_margin,
@@ -407,6 +421,7 @@ impl From<Position> for crate::position::models::Position {
             coordinator_leverage: value.coordinator_leverage,
             trader_margin: value.trader_margin,
             stable: value.stable,
+            trader_realized_pnl_sat: value.trader_realized_pnl_sat,
         }
     }
 }
@@ -417,9 +432,9 @@ struct NewPosition {
     pub contract_symbol: ContractSymbol,
     pub trader_leverage: f32,
     pub quantity: f32,
-    pub direction: Direction,
+    pub trader_direction: Direction,
     pub average_entry_price: f32,
-    pub liquidation_price: f32,
+    pub trader_liquidation_price: f32,
     pub position_state: PositionState,
     pub coordinator_margin: i64,
     pub expiry_timestamp: OffsetDateTime,
@@ -436,9 +451,9 @@ impl From<crate::position::models::NewPosition> for NewPosition {
             contract_symbol: ContractSymbol::from(value.contract_symbol),
             trader_leverage: value.trader_leverage,
             quantity: value.quantity,
-            direction: Direction::from(value.direction),
+            trader_direction: Direction::from(value.trader_direction),
             average_entry_price: value.average_entry_price,
-            liquidation_price: value.liquidation_price,
+            trader_liquidation_price: value.trader_liquidation_price,
             position_state: PositionState::Proposed,
             coordinator_margin: value.coordinator_margin,
             expiry_timestamp: value.expiry_timestamp,

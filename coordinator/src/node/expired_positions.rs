@@ -86,7 +86,7 @@ pub async fn close(node: Node, trading_sender: mpsc::Sender<NewOrderMessage>) ->
             price: Decimal::ZERO,
             quantity: Decimal::try_from(position.quantity).expect("to fit into decimal"),
             trader_id: position.trader,
-            direction: position.direction.opposite(),
+            direction: position.trader_direction.opposite(),
             leverage: position.trader_leverage,
             order_type: OrderType::Market,
             // This order can basically not expire, but if the user does not come back online within

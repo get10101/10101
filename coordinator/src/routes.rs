@@ -22,6 +22,10 @@ use crate::db;
 use crate::db::liquidity::LiquidityRequestLog;
 use crate::db::user;
 use crate::is_liquidity_sufficient;
+use crate::leaderboard::generate_leader_board;
+use crate::leaderboard::LeaderBoard;
+use crate::leaderboard::LeaderBoardCategory;
+use crate::leaderboard::LeaderBoardQueryParams;
 use crate::message::NewUserMessage;
 use crate::message::OrderbookMessage;
 use crate::node::Node;
@@ -201,6 +205,7 @@ pub fn router(
         )
         .route("/metrics", get(get_metrics))
         .route("/health", get(get_health))
+        .route("/api/leaderboard", get(get_leaderboard))
         .layer(DefaultBodyLimit::disable())
         .layer(DefaultBodyLimit::max(50 * 1024))
         .with_state(app_state)
@@ -701,4 +706,26 @@ async fn restore(
         .map_err(|e| AppError::InternalServerError(format!("Failed to restore backup. {e:#}")))?;
 
     Ok(Json(backup))
+}
+
+pub async fn get_leaderboard(
+    State(state): State<Arc<AppState>>,
+    params: Query<LeaderBoardQueryParams>,
+) -> Result<Json<LeaderBoard>, AppError> {
+    let reverse = params.reverse.unwrap_or_default();
+    let top = params.top.unwrap_or(5);
+    let category = params.category.clone().unwrap_or(LeaderBoardCategory::Pnl);
+
+    let mut conn = state
+        .pool
+        .get()
+        .map_err(|_| AppError::InternalServerError("Could not access db".to_string()))?;
+    let leader_board =
+        generate_leader_board(&mut conn, top, category, reverse).map_err(|error| {
+            AppError::InternalServerError(format!("Could not build leaderboard {error}"))
+        })?;
+
+    Ok(Json(LeaderBoard {
+        entries: leader_board,
+    }))
 }

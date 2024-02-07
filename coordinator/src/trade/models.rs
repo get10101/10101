@@ -13,7 +13,7 @@ pub struct NewTrade {
     pub trader_leverage: f32,
     // TODO: Consider removing this since it doesn't make sense with all kinds of trades.
     pub coordinator_margin: i64,
-    pub direction: Direction,
+    pub trader_direction: Direction,
     pub average_price: f32,
     pub dlc_expiry_timestamp: Option<OffsetDateTime>,
 }

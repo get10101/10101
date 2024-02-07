@@ -89,7 +89,7 @@ impl From<crate::trade::models::NewTrade> for NewTrade {
             quantity: value.quantity,
             trader_leverage: value.trader_leverage,
             collateral: value.coordinator_margin,
-            direction: value.direction.into(),
+            direction: value.trader_direction.into(),
             average_price: value.average_price,
             dlc_expiry_timestamp: value.dlc_expiry_timestamp,
         }

@@ -34,8 +34,9 @@ fn sync_position(
     position: &Position,
     quote: Quote,
 ) -> Result<()> {
-    let pnl = position.calculate_coordinator_pnl(quote)?;
-    db::positions::Position::update_unrealized_pnl(conn, position.id, pnl)
+    let coordinator_pnl = position.calculate_coordinator_pnl(quote)?;
+    let trader_pnl = -coordinator_pnl;
+    db::positions::Position::update_unrealized_pnl(conn, position.id, trader_pnl)
         .context("Failed to update unrealized pnl in db")?;
 
     Ok(())

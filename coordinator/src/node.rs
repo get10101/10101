@@ -45,6 +45,7 @@ use ln_dlc_node::node::dlc_message_name;
 use ln_dlc_node::node::event::NodeEvent;
 use ln_dlc_node::node::RunningNode;
 use ln_dlc_node::WalletSettings;
+use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use std::sync::Arc;
@@ -53,6 +54,7 @@ use tokio::sync::RwLock;
 use tracing::instrument;
 use trade::cfd::calculate_long_liquidation_price;
 use trade::cfd::calculate_margin;
+use trade::cfd::calculate_pnl;
 use trade::cfd::calculate_short_liquidation_price;
 use trade::Direction;
 use uuid::Uuid;
@@ -493,10 +495,10 @@ impl Node {
             contract_symbol: trade_params.contract_symbol,
             trader_leverage: trade_params.leverage,
             quantity: trade_params.quantity,
-            direction: trade_params.direction,
+            trader_direction: trade_params.direction,
             trader: trade_params.pubkey,
             average_entry_price,
-            liquidation_price,
+            trader_liquidation_price: liquidation_price,
             coordinator_margin: margin_coordinator as i64,
             expiry_timestamp: trade_params.filled_with.expiry_timestamp,
             temporary_contract_id,
@@ -517,7 +519,7 @@ impl Node {
                 quantity: new_position.quantity,
                 trader_leverage: new_position.trader_leverage,
                 coordinator_margin: new_position.coordinator_margin,
-                direction: new_position.direction,
+                trader_direction: new_position.trader_direction,
                 average_price: average_entry_price,
                 dlc_expiry_timestamp: Some(trade_params.filled_with.expiry_timestamp),
             },
@@ -577,7 +579,7 @@ impl Node {
                 quantity: position.quantity,
                 trader_leverage: position.trader_leverage,
                 coordinator_margin: position.coordinator_margin,
-                direction: position.direction.opposite(),
+                trader_direction: position.trader_direction.opposite(),
                 average_price: closing_price.to_f32().expect("To fit into f32"),
                 // A closing trade does not require an expiry timestamp for the DLC, because the DLC
                 // is being _removed_.
@@ -624,16 +626,33 @@ impl Node {
             }
         };
 
+        let pnl = if let PositionState::Closing { closing_price } = position.position_state {
+            let (initial_margin_long, initial_margin_short) = match position.trader_direction {
+                Direction::Long => (position.trader_margin, position.coordinator_margin),
+                Direction::Short => (position.coordinator_margin, position.trader_margin),
+            };
+
+            calculate_pnl(
+                Decimal::from_f32(position.average_entry_price).expect("to fit into decimal"),
+                Decimal::from_f32(closing_price).expect("to fit into decimal"),
+                position.quantity,
+                position.trader_direction,
+                initial_margin_long as u64,
+                initial_margin_short as u64,
+            )?
+        } else {
+            -0
+        };
+
         tracing::debug!(
             ?position,
+            pnl = pnl,
             "Setting position to closed to match the contract state."
         );
 
-        if let Err(e) = db::positions::Position::set_position_to_closed_with_pnl(
-            conn,
-            position.id,
-            contract.pnl,
-        ) {
+        if let Err(e) =
+            db::positions::Position::set_position_to_closed_with_pnl(conn, position.id, pnl)
+        {
             tracing::error!(
                 temporary_contract_id=%temporary_contract_id.to_hex(),
                 pnl=contract.pnl,
@@ -728,7 +747,7 @@ impl Node {
                 let position_contracts = {
                     let contracts = decimal_from_f32(position.quantity);
 
-                    compute_relative_contracts(contracts, &position.direction)
+                    compute_relative_contracts(contracts, &position.trader_direction)
                 };
 
                 let trade_contracts = {
