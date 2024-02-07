@@ -45,6 +45,7 @@ use ln_dlc_node::node::dlc_message_name;
 use ln_dlc_node::node::event::NodeEvent;
 use ln_dlc_node::node::RunningNode;
 use ln_dlc_node::WalletSettings;
+use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use std::sync::Arc;
@@ -53,6 +54,7 @@ use tokio::sync::RwLock;
 use tracing::instrument;
 use trade::cfd::calculate_long_liquidation_price;
 use trade::cfd::calculate_margin;
+use trade::cfd::calculate_pnl;
 use trade::cfd::calculate_short_liquidation_price;
 use trade::Direction;
 use uuid::Uuid;
@@ -624,16 +626,33 @@ impl Node {
             }
         };
 
+        let pnl = if let PositionState::Closing { closing_price } = position.position_state {
+            let (initial_margin_long, initial_margin_short) = match position.direction {
+                Direction::Long => (position.trader_margin, position.coordinator_margin),
+                Direction::Short => (position.coordinator_margin, position.trader_margin),
+            };
+
+            calculate_pnl(
+                Decimal::from_f32(position.average_entry_price).expect("to fit into decimal"),
+                Decimal::from_f32(closing_price).expect("to fit into decimal"),
+                position.quantity,
+                position.direction,
+                initial_margin_long as u64,
+                initial_margin_short as u64,
+            )?
+        } else {
+            -0
+        };
+
         tracing::debug!(
             ?position,
+            pnl = pnl,
             "Setting position to closed to match the contract state."
         );
 
-        if let Err(e) = db::positions::Position::set_position_to_closed_with_pnl(
-            conn,
-            position.id,
-            contract.pnl,
-        ) {
+        if let Err(e) =
+            db::positions::Position::set_position_to_closed_with_pnl(conn, position.id, pnl)
+        {
             tracing::error!(
                 temporary_contract_id=%temporary_contract_id.to_hex(),
                 pnl=contract.pnl,
