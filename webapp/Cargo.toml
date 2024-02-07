@@ -9,22 +9,25 @@ anyhow = "1"
 atty = "0.2.14"
 axum = { version = "0.7", features = ["tracing"] }
 axum-login = "0.12.0"
-axum-server = { version = "0.6", features = ["tls-rustls"] }
 bitcoin = "0.29.2"
 clap = { version = "4", features = ["derive"] }
 commons = { path = "../crates/commons" }
 console-subscriber = "0.1.6"
+hyper = { version = "1.0.0", features = ["full"] }
+hyper-util = { version = "0.1" }
 mime_guess = "2.0.4"
 native = { path = "../mobile/native" }
 parking_lot = { version = "0.12.1" }
 rust-embed = "8.2.0"
 rust_decimal = { version = "1", features = ["serde-with-float"] }
 rust_decimal_macros = "1"
+rustls-pemfile = "1.0.4"
 serde = "1.0.147"
 serde_json = "1"
 sha2 = "0.10"
 time = "0.3"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+tokio-rustls = "0.24.1"
 tower = { version = "0.4", features = ["util"] }
 tower-http = { version = "0.5", features = ["fs", "trace", "cors"] }
 tracing = "0.1.37"
