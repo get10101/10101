@@ -23,7 +23,7 @@ class _TradingViewWidgetHtmlState extends State<TradingViewWidgetHtml> {
           child: Stack(children: [
         InAppWebView(
           key: webViewKey,
-          initialFile: "assets/tradingview.html",
+          initialFile: "assets/assets/tradingview.html",
           onWebViewCreated: (controller) {
             webViewController = controller;
           },
