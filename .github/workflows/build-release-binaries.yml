@@ -46,7 +46,7 @@ jobs:
   build_and_release_mainnet_android_app_for_latest_main:
     permissions:
       packages: write
-      contents: read
+      contents: write
     uses: ./.github/workflows/android-fastlane.yml
     secrets: inherit
     with:
