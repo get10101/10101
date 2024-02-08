@@ -107,26 +107,6 @@ services:
       vtto:
         ipv4_address: 10.5.0.5
 
-  lnd:
-    container_name: lnd
-    image: lightninglabs/lnd:v0.16.2-beta
-    depends_on:
-      - bitcoin
-    command:
-      - --configfile=/var/lib/lnd/lnd.conf
-    volumes:
-      - ./services/faucet/lnd.conf:/var/lib/lnd/lnd.conf
-      - lnd:/root/.lnd
-    restart: unless-stopped
-    stop_grace_period: 5m30s
-    ports:
-      - "9735:9735" # p2p
-      - "10009:10009" # grpc
-      - "18080:18080" # rest
-    networks:
-      vtto:
-        ipv4_address: 10.5.0.6
-
   faucet:
     image: nginx
     container_name: faucet
@@ -139,7 +119,6 @@ services:
       - ./services/faucet/btc-fee-estimates.json:/usr/share/nginx/html/fee/btc-fee-estimates.json
     depends_on:
       - bitcoin
-      - lnd
     restart: unless-stopped
     networks:
       vtto:
@@ -191,5 +170,4 @@ networks:
 volumes:
   bitcoin:
   postgres:
-  lnd:
   electrs:
