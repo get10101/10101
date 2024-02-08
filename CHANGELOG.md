@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.8.6] - 2024-02-08
+
 - Feat(mobile): Add in-app survey feature. The coordinator can trigger surveys which will be shown in the app.
 - Feat(webapp): show tradingview chart
 - Refactor(webapp): Replace axum-server with low lever rust-tls implementation
@@ -301,7 +303,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Self-Custodial CFD Trading based on DLC and lightning
 
-[Unreleased]: https://github.com/get10101/10101/compare/1.8.5...HEAD
+[Unreleased]: https://github.com/get10101/10101/compare/1.8.6...HEAD
+[1.8.6]: https://github.com/get10101/10101/compare/1.8.5...1.8.6
 [1.8.5]: https://github.com/get10101/10101/compare/1.8.4...1.8.5
 [1.8.4]: https://github.com/get10101/10101/compare/1.8.3...1.8.4
 [1.8.3]: https://github.com/get10101/10101/compare/1.8.2...1.8.3
