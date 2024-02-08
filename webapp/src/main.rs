@@ -5,6 +5,7 @@ mod logger;
 mod session;
 mod subscribers;
 
+use crate::api::version;
 use crate::auth::Backend;
 use crate::cli::Opts;
 use crate::session::InMemorySessionStore;
@@ -199,6 +200,7 @@ fn router(network: Network) -> Router {
         .route("/flutter.js", get(flutter_js))
         .route("/index.html", get(index_handler))
         .route("/assets/*file", get(static_handler))
+        .route("/api/version", get(version))
         .fallback_service(get(not_found))
         .layer(
             TraceLayer::new_for_http()

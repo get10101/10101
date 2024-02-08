@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get_10101/auth/auth_service.dart';
 import 'package:get_10101/common/snack_bar.dart';
 import 'package:get_10101/common/text_input_field.dart';
+import 'package:get_10101/common/version_service.dart';
 import 'package:get_10101/trade/trade_screen.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -20,10 +21,13 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final versionService = context.read<VersionService>();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.center,
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
+        const Spacer(),
         Image.asset('assets/10101_logo_icon.png', width: 350, height: 350),
         SizedBox(
             width: 500,
@@ -56,6 +60,16 @@ class _LoginScreenState extends State<LoginScreen> {
                             )))
                   ]),
             )),
+        const Spacer(),
+        FutureBuilder(
+            future: versionService.fetchVersion(),
+            builder: (context, snapshot) {
+              if (snapshot.hasData) {
+                return Text("Version: ${snapshot.data!.version}");
+              } else {
+                return const Text("Version: n/a");
+              }
+            }),
       ],
     );
   }
