@@ -34,7 +34,6 @@ use uuid::Uuid;
 
 pub fn router(subscribers: Arc<AppSubscribers>) -> Router {
     Router::new()
-        .route("/api/version", get(version))
         .route("/api/balance", get(get_balance))
         .route("/api/newaddress", get(get_unused_address))
         .route("/api/sendpayment", post(send_payment))

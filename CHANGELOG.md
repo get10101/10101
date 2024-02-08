@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Feat(coordinator): Add endpoint to get a leadership board
 - Feat(settings): Show all dlc channels in settings
 - Feat(settings): Add emergency kit to delete dlc channel
+- Feat(webapp): Show version on login screen
 
 ## [1.8.5] - 2024-02-05
 

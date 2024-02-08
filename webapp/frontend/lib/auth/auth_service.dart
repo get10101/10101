@@ -7,7 +7,7 @@ import 'package:get_10101/logger/logger.dart';
 class AuthService {
   Future<bool> isLoggedIn() async {
     try {
-      final response = await HttpClientManager.instance.get(Uri(path: '/api/version'));
+      final response = await HttpClientManager.instance.get(Uri(path: '/api/node'));
       return response.statusCode == 200;
     } catch (error) {
       return false;
