@@ -182,22 +182,6 @@ impl DlcHandler {
 
                     return Ok(());
                 }
-                SignedChannel {
-                    channel_id,
-                    state: SignedChannelState::CollaborativeCloseOffered { .. },
-                    ..
-                } => {
-                    tracing::info!("Accepting pending dlc channel close offer.");
-                    // Pending dlc channel close offer with the intend to close the dlc channel
-                    // on-chain
-
-                    // TODO(bonomat): we should verify that the proposed amount is acceptable
-                    self.node
-                        .inner
-                        .accept_dlc_channel_collaborative_close(channel_id)?;
-
-                    return Ok(());
-                }
                 signed_channel => {
                     // If the signed channel state is anything else but `Established`, `Settled` or
                     // `Closing` at reconnect. It means the protocol got interrupted.
