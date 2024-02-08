@@ -106,7 +106,7 @@ run args="":
       --dart-define="COMMIT=$(git rev-parse HEAD)" \
       --dart-define="BRANCH=$(git rev-parse --abbrev-ref HEAD)" \
       --dart-define="REGTEST_FAUCET=http://localhost:8080" \
-      --dart-define="REGTEST_MAKER_FAUCET=http://localhost:18000/api/pay-invoice" \
+      --dart-define="ESPLORA_ENDPOINT=http://localhost:3000" \
       --dart-define="HEALTH_CHECK_INTERVAL_SECONDS=2"
 
 # Run against our public regtest server
@@ -160,10 +160,8 @@ run-local-android args="":
       flutter run {{args}} \
         --dart-define="COMMIT=$(git rev-parse HEAD)" \
         --dart-define="BRANCH=$(git rev-parse --abbrev-ref HEAD)" \
-        --dart-define="ESPLORA_ENDPOINT=http://${LOCAL_IP}:3000" \
+        --dart-define="ESPLORA_ENDPOINT=http://${LOCAL_IP}:5050" \
         --dart-define="COORDINATOR_P2P_ENDPOINT=02dd6abec97f9a748bf76ad502b004ce05d1b2d1f43a9e76bd7d85e767ffb022c9@${LOCAL_IP}:9045" \
-        --dart-define="REGTEST_FAUCET=http://${LOCAL_IP}:8080" \
-        --dart-define="REGTEST_MAKER_FAUCET=http://${LOCAL_IP}:18000/api/pay-invoice" \
         --dart-define="COORDINATOR_PORT_HTTP=8000" \
         --dart-define="ORACLE_ENDPOINT=http://${LOCAL_IP}:8081" \
         --dart-define="ORACLE_PUBKEY=16f88cf7d21e6c0f46bcbc983a4e3b19726c6c98858cc31c83551a88fde171c0" \
@@ -314,7 +312,17 @@ ln-dlc-node-test args="": docker
 
 # Runs background Docker services
 docker:
+    #!/usr/bin/env bash
     docker-compose up -d
+
+    height=$(docker exec bitcoin bitcoin-cli --regtest -rpcuser=admin1 -rpcpassword=123 getblockcount)
+    height="${height%%[[:cntrl:]]}"
+    if [ $height -eq 0 ]; then
+        docker exec bitcoin bitcoin-cli --regtest -rpcuser=admin1 -rpcpassword=123 createwallet "test"
+        address=$(docker exec bitcoin bitcoin-cli --regtest -rpcuser=admin1 -rpcpassword=123 getnewaddress)
+        address="${address%%[[:cntrl:]]}"
+        docker exec bitcoin bitcoin-cli --regtest -rpcuser=admin1 -rpcpassword=123 generatetoaddress 101 $address
+    fi
 
 docker-logs:
     docker-compose logs
