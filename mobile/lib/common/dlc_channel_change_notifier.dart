@@ -121,15 +121,12 @@ class DlcChannelChangeNotifier extends ChangeNotifier {
   }
 
   bool hasDlcChannelWithoutPosition() {
-    return channels.any((channel) {
-      if (channel is SignedDlcChannel) {
-        return [
-          SignedChannelState.settled,
-          SignedChannelState.settledAccepted,
-          SignedChannelState.settledConfirmed
-        ].contains(channel.signedState);
-      }
-      return false;
+    return getAllSignedDlcChannels().any((channel) {
+      return [
+        SignedChannelState.settled,
+        SignedChannelState.settledAccepted,
+        SignedChannelState.settledConfirmed
+      ].contains(channel.signedState);
     });
   }
 
@@ -145,18 +142,15 @@ class DlcChannelChangeNotifier extends ChangeNotifier {
   }
 
   bool hasOpenPosition() {
-    return channels.any((channel) {
-      if (channel is SignedDlcChannel) {
-        return [
-          SignedChannelState.established,
-          SignedChannelState.renewAccepted,
-          SignedChannelState.renewConfirmed,
-          SignedChannelState.renewFinalized,
-          SignedChannelState.renewOffered,
-          SignedChannelState.settledOffered
-        ].contains(channel.signedState);
-      }
-      return false;
+    return getAllSignedDlcChannels().any((channel) {
+      return [
+        SignedChannelState.established,
+        SignedChannelState.renewAccepted,
+        SignedChannelState.renewConfirmed,
+        SignedChannelState.renewFinalized,
+        SignedChannelState.renewOffered,
+        SignedChannelState.settledOffered
+      ].contains(channel.signedState);
     });
   }
 }
