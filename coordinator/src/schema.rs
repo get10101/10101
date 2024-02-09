@@ -328,8 +328,7 @@ diesel::table! {
     users (id) {
         id -> Int4,
         pubkey -> Text,
-        email -> Text,
-        nostr -> Text,
+        contact -> Text,
         timestamp -> Timestamptz,
         fcm_token -> Text,
         last_login -> Timestamptz,

@@ -762,10 +762,29 @@ pub fn init_new_mnemonic(target_seed_file_path: String) -> Result<()> {
     ln_dlc::init_new_mnemonic(file_path.as_path())
 }
 
-/// Enroll a user in the beta program
+/// Enroll or update a user in the beta program
 #[tokio::main(flavor = "current_thread")]
-pub async fn register_beta(email: String) -> Result<()> {
-    users::register_beta(email).await
+pub async fn register_beta(contact: String) -> Result<()> {
+    users::register_beta(contact).await
+}
+
+pub struct User {
+    pub pubkey: String,
+    pub contact: Option<String>,
+}
+
+impl From<commons::User> for User {
+    fn from(value: commons::User) -> Self {
+        User {
+            pubkey: value.pubkey.to_string(),
+            contact: value.contact,
+        }
+    }
+}
+
+#[tokio::main(flavor = "current_thread")]
+pub async fn get_user_details() -> Result<User> {
+    users::get_user_details().await.map(|user| user.into())
 }
 
 pub enum Destination {

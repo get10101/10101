@@ -8,7 +8,7 @@ class Preferences {
 
   static final Preferences instance = Preferences._privateConstructor();
 
-  static const emailAddress = "emailAddress";
+  static const contactDetails = "emailAddress";
   static const openPosition = "openPosition";
   static const fullBackup = "fullBackup";
   static const logLevelTrace = "logLevelTrace";
@@ -53,18 +53,18 @@ class Preferences {
     preferences.remove(openPosition);
   }
 
-  Future<bool> setEmailAddress(String value) async {
+  Future<bool> setContactDetails(String value) async {
     SharedPreferences preferences = await SharedPreferences.getInstance();
-    return preferences.setString(emailAddress, value);
+    return preferences.setString(contactDetails, value);
   }
 
-  Future<String> getEmailAddress() async {
+  Future<String> getContactDetails() async {
     SharedPreferences preferences = await SharedPreferences.getInstance();
-    return preferences.getString(emailAddress) ?? "";
+    return preferences.getString(contactDetails) ?? "";
   }
 
-  Future<bool> hasEmailAddress() async {
-    var email = await getEmailAddress();
-    return email.isNotEmpty;
+  Future<bool> hasContactDetails() async {
+    var contact = await getContactDetails();
+    return contact.isNotEmpty;
   }
 }
