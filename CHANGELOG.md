@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Fix(mobile): Make disclaimer screen usable on smaller devices.
+
 ## [1.8.6] - 2024-02-08
 
 - Feat(mobile): Add in-app survey feature. The coordinator can trigger surveys which will be shown in the app.

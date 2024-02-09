@@ -90,8 +90,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                const SizedBox(
-                                  width: 250,
+                                const Expanded(
                                   child: Text(
                                       "10101 is still being tested and may contain defects.",
                                       softWrap: true),
@@ -111,8 +110,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                const SizedBox(
-                                  width: 250,
+                                const Expanded(
                                   child: Text(
                                       "If I lose my seed phrase and my device, my funds will be lost forever",
                                       softWrap: true),
