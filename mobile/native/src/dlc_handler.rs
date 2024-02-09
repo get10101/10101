@@ -184,7 +184,10 @@ impl DlcHandler {
                 }
                 SignedChannel {
                     channel_id,
-                    state: SignedChannelState::CollaborativeCloseOffered { .. },
+                    state:
+                        SignedChannelState::CollaborativeCloseOffered {
+                            is_offer: false, ..
+                        },
                     ..
                 } => {
                     tracing::info!("Accepting pending dlc channel close offer.");
@@ -206,6 +209,7 @@ impl DlcHandler {
                         SignedChannelState::Established { .. }
                             | SignedChannelState::Settled { .. }
                             | SignedChannelState::Closing { .. }
+                            | SignedChannelState::CollaborativeCloseOffered { .. }
                     ) {
                         event::publish(&EventInternal::BackgroundNotification(
                             BackgroundTask::RecoverDlc(TaskStatus::Pending),

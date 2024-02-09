@@ -103,7 +103,10 @@ impl DlcHandler {
 
         if let Some(SignedChannel {
             channel_id,
-            state: SignedChannelState::CollaborativeCloseOffered { .. },
+            state:
+                SignedChannelState::CollaborativeCloseOffered {
+                    is_offer: false, ..
+                },
             ..
         }) = signed_dlc_channels.iter().find(|c| c.counter_party == peer)
         {
