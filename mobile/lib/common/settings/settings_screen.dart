@@ -12,6 +12,7 @@ import 'package:get_10101/common/settings/emergency_kit_screen.dart';
 import 'package:get_10101/common/settings/force_close_screen.dart';
 import 'package:get_10101/common/settings/open_telegram.dart';
 import 'package:get_10101/common/settings/share_logs_screen.dart';
+import 'package:get_10101/common/settings/wallet_settings.dart';
 import 'package:get_10101/common/snack_bar.dart';
 import 'package:get_10101/common/status_screen.dart';
 import 'package:get_10101/common/settings/seed_screen.dart';
@@ -165,7 +166,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               SettingsClickable(
                                   icon: Icons.backup_outlined,
                                   title: "Backup",
-                                  callBackFunc: () => GoRouter.of(context).push(SeedScreen.route))
+                                  callBackFunc: () => GoRouter.of(context).push(SeedScreen.route)),
+                              const Divider(
+                                height: 0.5,
+                                thickness: 0.8,
+                                indent: 55,
+                              ),
+                              SettingsClickable(
+                                  icon: Icons.wallet_outlined,
+                                  title: "Wallet Settings",
+                                  callBackFunc: () =>
+                                      GoRouter.of(context).push(WalletSettings.route))
                             ],
                           ),
                         )

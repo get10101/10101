@@ -182,6 +182,10 @@ where
         Ok(self.bdk_lock().get_address(AddressIndex::New)?.address)
     }
 
+    pub(crate) fn update_lookahead(&self, gap: u32) -> Result<bool> {
+        Ok(self.bdk_lock().ensure_addresses_cached(gap)?)
+    }
+
     pub fn is_mine(&self, script: &Script) -> Result<bool> {
         Ok(self.bdk_lock().is_mine(script)?)
     }

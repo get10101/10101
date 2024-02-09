@@ -1539,3 +1539,7 @@ fn ln_dlc_node_settings() -> LnDlcNodeSettings {
         gossip_source_config,
     }
 }
+
+pub(crate) fn sync_for_addresses(gap: u32) -> Result<bool> {
+    state::get_node().inner.sync_for_addresses(gap)
+}

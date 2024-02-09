@@ -825,3 +825,7 @@ pub fn delete_dlc_channel(dlc_channel_id: String) -> Result<()> {
     let dlc_channel_id = DlcChannelId::from_hex(dlc_channel_id)?;
     ln_dlc::delete_dlc_channel(&dlc_channel_id)
 }
+
+pub fn sync_for_addresses(gap: u32) -> Result<bool> {
+    ln_dlc::sync_for_addresses(gap)
+}
