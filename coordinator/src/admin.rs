@@ -269,7 +269,7 @@ pub async fn list_channels(
         .map(|channel| {
             let user_email =
                 match db::user::by_id(&mut conn, channel.counterparty.node_id.to_string()) {
-                    Ok(Some(user)) => user.email,
+                    Ok(Some(user)) => user.contact,
                     _ => "unknown".to_string(),
                 };
             let balances = if let Some(funding_txo) = channel.funding_txo {
@@ -338,7 +338,7 @@ pub async fn list_dlc_channels(
         .map(|dlc_channel| {
             let (email, registration_timestamp) =
                 match db::user::by_id(&mut conn, dlc_channel.get_counter_party_id().to_string()) {
-                    Ok(Some(user)) => (user.email, Some(user.timestamp)),
+                    Ok(Some(user)) => (user.contact, Some(user.timestamp)),
                     _ => ("unknown".to_string(), None),
                 };
 

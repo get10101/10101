@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get_10101/common/global_keys.dart';
 import 'package:get_10101/common/settings/channel_screen.dart';
 import 'package:get_10101/common/settings/emergency_kit_screen.dart';
+import 'package:get_10101/common/settings/user_screen.dart';
 import 'package:get_10101/common/settings/wallet_settings.dart';
 import 'package:get_10101/common/status_screen.dart';
 import 'package:get_10101/features/wallet/domain/destination.dart';
@@ -108,6 +109,14 @@ GoRouter createRoutes() {
                 parentNavigatorKey: rootNavigatorKey,
                 builder: (BuildContext context, GoRouterState state) {
                   return const WalletSettings();
+                },
+              ),
+              GoRoute(
+                path: UserSettings.subRouteName,
+                // Use root navigator so the screen overlays the application shell
+                parentNavigatorKey: rootNavigatorKey,
+                builder: (BuildContext context, GoRouterState state) {
+                  return const UserSettings();
                 },
               ),
               GoRoute(

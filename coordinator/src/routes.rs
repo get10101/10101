@@ -21,6 +21,7 @@ use crate::collaborative_revert::confirm_legacy_collaborative_revert;
 use crate::db;
 use crate::db::liquidity::LiquidityRequestLog;
 use crate::db::user;
+use crate::db::user::User;
 use crate::is_liquidity_sufficient;
 use crate::leaderboard::generate_leader_board;
 use crate::leaderboard::LeaderBoard;
@@ -160,7 +161,11 @@ pub fn router(
         .route("/api/orderbook/websocket", get(websocket_handler))
         .route("/api/trade", post(post_trade))
         .route("/api/rollover/:dlc_channel_id", post(rollover))
+        // Deprecated: we just keep it for backwards compatbility as otherwise old apps won't
+        // pass registration
         .route("/api/register", post(post_register))
+        .route("/api/users", post(post_register))
+        .route("/api/users/:trader_pubkey", get(get_user))
         .route("/api/admin/wallet/balance", get(get_balance))
         .route("/api/admin/wallet/utxos", get(get_utxos))
         .route("/api/admin/channels", get(list_channels).post(open_channel))
@@ -438,14 +443,48 @@ pub async fn post_register(
         .get()
         .map_err(|e| AppError::InternalServerError(format!("Could not get connection: {e:#}")))?;
 
-    if let Some(email) = register_params.email {
-        user::upsert_email(&mut conn, register_params.pubkey, email)
+    if let Some(contact) = register_params.contact {
+        user::upsert_user(&mut conn, register_params.pubkey, contact)
             .map_err(|e| AppError::InternalServerError(format!("Could not upsert user: {e:#}")))?;
     } else {
         tracing::warn!(trader_id=%register_params.pubkey, "Did not receive an email during registration");
     }
 
     Ok(())
+}
+
+impl TryFrom<User> for commons::User {
+    type Error = AppError;
+    fn try_from(value: User) -> Result<Self, Self::Error> {
+        Ok(commons::User {
+            pubkey: PublicKey::from_str(&value.pubkey).map_err(|_| {
+                AppError::InternalServerError("Could not parse user pubkey".to_string())
+            })?,
+            contact: Some(value.contact).filter(|s| !s.is_empty()),
+        })
+    }
+}
+
+#[instrument(skip_all, err(Debug))]
+pub async fn get_user(
+    State(state): State<Arc<AppState>>,
+    Path(trader_pubkey): Path<String>,
+) -> Result<Json<commons::User>, AppError> {
+    let mut conn = state
+        .pool
+        .get()
+        .map_err(|e| AppError::InternalServerError(format!("Could not get connection: {e:#}")))?;
+
+    let trader_pubkey = PublicKey::from_str(trader_pubkey.as_str())
+        .map_err(|_| AppError::BadRequest("Invalid trader id provided".to_string()))?;
+
+    let option = user::get_user(&mut conn, trader_pubkey)
+        .map_err(|e| AppError::InternalServerError(format!("Could not load users: {e:#}")))?;
+
+    match option {
+        None => Err(AppError::NoMatchFound("No user found".to_string())),
+        Some(user) => Ok(Json(user.try_into()?)),
+    }
 }
 
 async fn get_settings(State(state): State<Arc<AppState>>) -> impl IntoResponse {

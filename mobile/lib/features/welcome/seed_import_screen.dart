@@ -148,7 +148,7 @@ class SeedPhraseImporterState extends State<SeedPhraseImporter> {
                                         ScaffoldMessenger.of(context),
                                         "Failed to import from seed. $error"));
                                 // TODO(holzeis): Backup preferences and restore email from there.
-                                Preferences.instance.setEmailAddress("restored");
+                                Preferences.instance.setContactDetails("restored");
                                 GoRouter.of(context).go(LoadingScreen.route, extra: restore);
                               }).catchError((e) {
                                 logger.e("Error restoring from seed phrase: $e");

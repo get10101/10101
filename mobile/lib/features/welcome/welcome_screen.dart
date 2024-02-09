@@ -22,16 +22,9 @@ class WelcomeScreen extends StatefulWidget {
 class _WelcomeScreenState extends State<WelcomeScreen> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
-  String _email = "";
+  String _contact = "";
   bool _betaDisclaimer = false;
   bool _loseDisclaimer = false;
-
-  /// TODO Convert to a flutter package that checks the email domain validity
-  /// (MX record, etc.)
-  bool isEmailValid(String email) {
-    return RegExp(r"^[a-zA-Z0-9.a-zA-Z0-9.!#$%&'*+-/=?^_`{|}~]+@[a-zA-Z0-9]+\.[a-zA-Z]+")
-        .hasMatch(email);
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -126,7 +119,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                             key: _formKey,
                             child: TextFormField(
                               keyboardType: TextInputType.emailAddress,
-                              initialValue: _email,
+                              initialValue: _contact,
                               decoration: InputDecoration(
                                   border:
                                       OutlineInputBorder(borderRadius: BorderRadius.circular(10.0)),
@@ -136,7 +129,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                                           color: tenTenOnePurple.shade300.withOpacity(0.2))),
                                   filled: true,
                                   fillColor: tenTenOnePurple.shade300.withOpacity(0.2),
-                                  labelText: 'Email (optional)',
+                                  labelText: 'Nostr Pubkey, Telegram or Email (optional)',
                                   labelStyle: const TextStyle(color: Colors.black87, fontSize: 14),
                                   hintText: 'Let us know how to reach you'),
                               validator: (value) {
@@ -144,13 +137,14 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                                   return null;
                                 }
 
-                                if (!isEmailValid(value)) {
-                                  return 'Please enter a valid email address';
+                                if (value.length > 64) {
+                                  return 'Contact details are too long.';
                                 }
+
                                 return null;
                               },
                               onSaved: (value) {
-                                _email = value ?? "";
+                                _contact = value ?? "";
                               },
                             ),
                           ),
@@ -209,19 +203,19 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
 
   Future<void> setupWallet() async {
     var seedPath = await getSeedFilePath();
-    await Preferences.instance.setEmailAddress(_email);
-    logger.i("Successfully stored the email address $_email .");
+    await Preferences.instance.setContactDetails(_contact);
+    logger.i("Successfully stored the contact: $_contact .");
     await api.initNewMnemonic(targetSeedFilePath: seedPath);
-    await api.registerBeta(email: _email);
+    await api.registerBeta(contact: _contact);
   }
 
   @override
   void initState() {
     super.initState();
 
-    Preferences.instance.getEmailAddress().then((value) => setState(() {
-          _email = value;
-          logger.i("retrieved stored email from the preferences: $_email.");
+    Preferences.instance.getContactDetails().then((value) => setState(() {
+          _contact = value;
+          logger.i("retrieved stored contact from the preferences: $_contact.");
         }));
   }
 }

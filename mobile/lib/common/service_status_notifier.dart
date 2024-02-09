@@ -20,7 +20,6 @@ class ServiceStatusNotifier extends ChangeNotifier implements Subscriber {
   @override
   void notify(bridge.Event event) {
     if (event is bridge.Event_ServiceHealthUpdate) {
-      logger.t("Received event: ${event.toString()}");
       var update = event.field0;
       services[update.service] = update.status;
 

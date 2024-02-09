@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Fix(mobile): Make disclaimer screen usable on smaller devices.
 - Feat(mobile): Allow to manually increase for how many derived addresses to sync for. This might be needed if you recovered a wallet and do not see any on-chain funds.
+- Feat(mobile): Allow users to register with Email, Nostr and Telegram handle and let them change these details later on.
 
 ## [1.8.6] - 2024-02-08
 

@@ -37,6 +37,11 @@ pub const AUTH_SIGN_MESSAGE: &[u8; 19] = b"Hello it's me Mario";
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RegisterParams {
     pub pubkey: PublicKey,
-    pub email: Option<String>,
-    pub nostr: Option<String>,
+    pub contact: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct User {
+    pub pubkey: PublicKey,
+    pub contact: Option<String>,
 }
