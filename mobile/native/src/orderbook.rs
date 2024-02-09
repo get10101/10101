@@ -205,7 +205,7 @@ async fn handle_orderbook_message(
     let msg =
         serde_json::from_str::<Message>(&msg).context("Could not deserialize orderbook message")?;
 
-    tracing::debug!(%msg, "New orderbook message");
+    tracing::trace!(%msg, "New orderbook message");
 
     match msg {
         Message::Authenticated(lsp_config) => {
