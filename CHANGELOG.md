@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 - Fix(mobile): Make disclaimer screen usable on smaller devices.
+- Feat(mobile): Allow to manually increase for how many derived addresses to sync for. This might be needed if you recovered a wallet and do not see any on-chain funds.
 
 ## [1.8.6] - 2024-02-08
 

@@ -59,6 +59,12 @@ impl<S: TenTenOneStorage, N: Storage> Node<S, N> {
         self.wallet.unused_address()
     }
 
+    pub fn sync_for_addresses(&self, gap: u32) -> Result<bool> {
+        let new_addresses_generated = self.wallet.update_lookahead(gap)?;
+        self.wallet.sync_and_update_address_cache()?;
+        Ok(new_addresses_generated)
+    }
+
     pub fn get_new_address(&self) -> Result<Address> {
         self.wallet
             .new_address()
