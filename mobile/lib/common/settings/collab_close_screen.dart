@@ -26,6 +26,12 @@ class _CollabCloseScreenState extends State<CollabCloseScreen> {
   bool isCloseChannelButtonDisabled = false;
 
   @override
+  void initState() {
+    super.initState();
+    context.read<DlcChannelChangeNotifier>().refreshDlcChannels();
+  }
+
+  @override
   Widget build(BuildContext context) {
     DlcChannelChangeNotifier dlcChannelChangeNotifier = context.watch<DlcChannelChangeNotifier>();
 
