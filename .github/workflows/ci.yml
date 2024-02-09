@@ -165,16 +165,13 @@ jobs:
       - uses: Swatinem/rust-cache@v2.2.0
       - name: Start containers
         run: |
-          docker-compose up -d
+          just docker
           sleep 10 # We need to give docker a bit of time to startup
       - name: Test containers are up
         run: |
-          curl -d '{"address":"bcrt1qylgu6ffkp3p0m8tw8kp4tt2dmdh755f4r5dq7s", "amount":"0.1"}' -H "Content-Type: application/json" -X POST http://localhost:3000/faucet
+          curl http://localhost:8080/bitcoin -d '{"jsonrpc": "1.0", "method": "sendtoaddress", "params": ["bcrt1qylgu6ffkp3p0m8tw8kp4tt2dmdh755f4r5dq7s", 0.1]}'
       - name: Run LN-DLC tests
         run: RUST_BACKTRACE=1 cargo test -p ln-dlc-node -- --ignored --nocapture --test-threads=1
-      - name: LND logs on e2e tests error
-        if: failure()
-        run: docker logs lnd
       - name: bitcoin logs on e2e tests error
         if: failure()
         run: docker logs bitcoin
@@ -217,13 +214,13 @@ jobs:
         run: cargo build --examples
       - name: Start containers
         run: |
-          docker-compose up -d
+          just docker
           sleep 10 # We need to give docker a bit of time to startup
       - name: show disk space before tests
         run: df -h
       - name: Test containers are up
         run: |
-          curl -d '{"address":"bcrt1qylgu6ffkp3p0m8tw8kp4tt2dmdh755f4r5dq7s", "amount":"0.1"}' -H "Content-Type: application/json" -X POST http://localhost:3000/faucet
+          curl http://localhost:8080/bitcoin -d '{"jsonrpc": "1.0", "method": "sendtoaddress", "params": ["bcrt1qylgu6ffkp3p0m8tw8kp4tt2dmdh755f4r5dq7s", 0.1]}'
       - name: Run e2e tests
         run: just e2e --nocapture
       - name: Print maker logs on e2e tests error
@@ -232,9 +229,6 @@ jobs:
       - name: Print coordinator logs on e2e tests error
         if: failure()
         run: cat data/coordinator/regtest.log
-      - name: LND logs on e2e tests error
-        if: failure()
-        run: docker logs lnd
       - name: bitcoin logs on e2e tests error
         if: failure()
         run: docker logs bitcoin

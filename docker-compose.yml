@@ -49,7 +49,7 @@ services:
       - --cookie
       - admin1:123
       - --http-addr
-      - 0.0.0.0:30000
+      - 0.0.0.0:3000
       - --electrum-rpc-addr
       - 0.0.0.0:50000
       - --cors
@@ -62,7 +62,7 @@ services:
       - bitcoin
     ports:
       - "50000:50000"
-      - "30000:30000"
+      - "3000:3000"
     restart: unless-stopped
     networks:
       vtto:
@@ -73,7 +73,7 @@ services:
     image: ghcr.io/vulpemventures/esplora:latest
     container_name: esplora
     depends_on:
-      - chopsticks
+      - electrs
     environment:
       API_URL: http://localhost:3000
     ports:
@@ -82,50 +82,6 @@ services:
     networks:
       vtto:
         ipv4_address: 10.5.0.4
-
-  # Chopsticks
-  chopsticks:
-    image: ghcr.io/vulpemventures/nigiri-chopsticks:latest
-    container_name: chopsticks
-    command:
-      - --use-faucet
-      - --use-mining
-      - --use-logger
-      - --rpc-addr
-      - 10.5.0.2:18443
-      - --electrs-addr
-      - 10.5.0.3:30000
-      - --addr
-      - 0.0.0.0:3000
-    depends_on:
-      - bitcoin
-      - electrs
-    ports:
-      - "3000:3000"
-    restart: unless-stopped
-    networks:
-      vtto:
-        ipv4_address: 10.5.0.5
-
-  lnd:
-    container_name: lnd
-    image: lightninglabs/lnd:v0.16.2-beta
-    depends_on:
-      - bitcoin
-    command:
-      - --configfile=/var/lib/lnd/lnd.conf
-    volumes:
-      - ./services/faucet/lnd.conf:/var/lib/lnd/lnd.conf
-      - lnd:/root/.lnd
-    restart: unless-stopped
-    stop_grace_period: 5m30s
-    ports:
-      - "9735:9735" # p2p
-      - "10009:10009" # grpc
-      - "18080:18080" # rest
-    networks:
-      vtto:
-        ipv4_address: 10.5.0.6
 
   faucet:
     image: nginx
@@ -139,7 +95,6 @@ services:
       - ./services/faucet/btc-fee-estimates.json:/usr/share/nginx/html/fee/btc-fee-estimates.json
     depends_on:
       - bitcoin
-      - lnd
     restart: unless-stopped
     networks:
       vtto:
@@ -191,5 +146,4 @@ networks:
 volumes:
   bitcoin:
   postgres:
-  lnd:
   electrs:
