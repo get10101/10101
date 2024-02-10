@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.8.7] - 2024-02-10
+
 - Fix(mobile): Make disclaimer screen usable on smaller devices.
 - Feat(mobile): Allow to manually increase for how many derived addresses to sync for. This might be needed if you recovered a wallet and do not see any on-chain funds.
 - Feat(mobile): Allow users to register with Email, Nostr and Telegram handle and let them change these details later on.
@@ -307,7 +309,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Self-Custodial CFD Trading based on DLC and lightning
 
-[Unreleased]: https://github.com/get10101/10101/compare/1.8.6...HEAD
+[Unreleased]: https://github.com/get10101/10101/compare/1.8.7...HEAD
+[1.8.7]: https://github.com/get10101/10101/compare/1.8.6...1.8.7
 [1.8.6]: https://github.com/get10101/10101/compare/1.8.5...1.8.6
 [1.8.5]: https://github.com/get10101/10101/compare/1.8.4...1.8.5
 [1.8.4]: https://github.com/get10101/10101/compare/1.8.3...1.8.4
