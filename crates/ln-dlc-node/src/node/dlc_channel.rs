@@ -144,16 +144,18 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
         let counterparty = channel.counter_party;
 
         match channel.state {
-            SignedChannelState::Settled { .. } | SignedChannelState::RenewFinalized { .. } => {
+            SignedChannelState::Settled { counter_payout, .. } => {
                 spawn_blocking({
                     let dlc_manager = self.dlc_manager.clone();
                     let event_handler = self.event_handler.clone();
                     move || {
+                        tracing::info!(
+                            counter_payout,
+                            channel_id = channel.channel_id.to_hex(),
+                            "Proposing collaborative close"
+                        );
                         let settle_offer = dlc_manager
-                            .offer_collaborative_close(
-                                &channel.channel_id,
-                                channel.counter_params.collateral,
-                            )
+                            .offer_collaborative_close(&channel.channel_id, counter_payout)
                             .context(
                                 "Could not propose to collaboratively close the dlc channel.",
                             )?;
@@ -171,8 +173,8 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
                 .await??;
             }
             _ => {
-                tracing::error!( state = %channel.state, "Can't collaboratively close a channel with an open position.");
-                bail!("Can't collaboratively close a channel with an open position");
+                tracing::error!( state = %channel.state, "Can't collaboratively close a channel which is not settled.");
+                bail!("Can't collaboratively close a channel which is not settled");
             }
         }
 
