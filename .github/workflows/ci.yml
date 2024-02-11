@@ -220,9 +220,6 @@ jobs:
         run: cargo test -p tests-e2e --no-run
       - name: build coordinator and maker
         run: cargo build --bin maker --bin coordinator
-      - name: set-matrix1
-        id: set-matrix1
-        run: echo "matrix=$(scripts/get_test_list.sh)}"
       - name: set-matrix
         id: set-matrix
         run: echo "matrix=$(scripts/get_test_list.sh)}" >> $GITHUB_OUTPUT
