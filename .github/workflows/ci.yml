@@ -205,7 +205,7 @@ jobs:
       - uses: extractions/setup-just@v1
       - name: Setup rust toolchain
         run: rustup show
-      - uses: actions/cache@v2
+      - uses: actions/cache@v4
         env:
           cache-name: test-cache
         with:
@@ -236,7 +236,7 @@ jobs:
         tests: ${{ fromJson(needs.e2e_tests_prepare.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v2
-      - uses: actions/cache@v2
+      - uses: actions/cache@v4
         env:
           cache-name: test-cache
         with:

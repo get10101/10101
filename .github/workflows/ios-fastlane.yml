@@ -111,15 +111,13 @@ jobs:
           cache: true
           cache-key: flutter-${{ env.FLUTTER_VERSION }}
           cache-path: ${{ runner.tool_cache }}/flutter
-
+      - uses: actions/cache@v4
       - name: Check cocoapods version
         run: /usr/local/bin/pod --version
       - name: Re-install cocoapods
         run: sudo gem install cocoapods
       - name: Check cocoapods version
         run: /usr/local/bin/pod --version
-
-      - uses: actions/cache@v3
         id: cache-deps
         with:
           path: |
