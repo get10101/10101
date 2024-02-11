@@ -218,6 +218,8 @@ jobs:
           path: mobile/native/src/bridge_generated
       - name: build e2e tests only
         run: cargo test -p tests-e2e --no-run
+      - name: build coordinator and maker
+        run: cargo build --bin maker --bin coordinator
       - name: set-matrix1
         id: set-matrix1
         run: echo "matrix=$(scripts/get_test_list.sh)}"
