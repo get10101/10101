@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get_10101/common/settings/settings_screen.dart';
 import 'package:get_10101/common/snack_bar.dart';
-import 'package:get_10101/logger/logger.dart';
 import 'package:go_router/go_router.dart';
 import 'package:get_10101/ffi.dart' as rust;
 
@@ -109,55 +108,18 @@ class _UserSettingsState extends State<UserSettings> {
                       ],
                     ),
                   ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 16),
-                    child: Stack(
-                      alignment: Alignment.centerRight,
-                      children: [
-                        TextFormField(
-                          enabled: contactFieldEnabled,
-                          controller: contactFieldController,
-                          decoration: const InputDecoration(
-                            border: UnderlineInputBorder(),
-                            labelText: 'Contact details',
-                          ),
-                        ),
-                        Visibility(
-                          replacement: IconButton(
-                            icon: const Icon(Icons.edit),
-                            onPressed: () {
-                              setState(() {
-                                contactFieldEnabled = true;
-                              });
-                            },
-                          ),
-                          visible: contactFieldEnabled,
-                          child: IconButton(
-                            icon: const Icon(
-                              Icons.check,
-                              color: Colors.green,
-                            ),
-                            onPressed: () async {
-                              final messenger = ScaffoldMessenger.of(context);
-                              try {
-                                var newContact = contactFieldController.value.text;
-                                logger.i("Successfully updated to $newContact");
-                                await rust.api.registerBeta(contact: newContact);
-                                showSnackBar(messenger, "Successfully updated to $newContact");
-                              } catch (exception) {
-                                showSnackBar(
-                                    messenger, "Error when updating contact details $exception");
-                              } finally {
-                                setState(() {
-                                  contactFieldEnabled = false;
-                                });
-                              }
-                            },
-                          ),
-                        )
-                      ],
-                    ),
-                  )
+                  CustomInputField(
+                    onConfirm: (value) async {
+                      final messenger = ScaffoldMessenger.of(context);
+                      try {
+                        await rust.api.registerBeta(contact: value);
+                        showSnackBar(messenger, "Successfully updated to $value");
+                      } catch (error) {
+                        showSnackBar(messenger, "Failed updating details due to $error");
+                      }
+                    },
+                    labelText: "Contact details",
+                  ),
                 ],
               ),
             ),
@@ -166,4 +128,81 @@ class _UserSettingsState extends State<UserSettings> {
       )),
     );
   }
+}
+
+class CustomInputField extends StatefulWidget {
+  final String labelText;
+  final Function onConfirm;
+
+
+  const CustomInputField({
+    super.key,
+    required this.onConfirm,
+    required this.labelText,
+  });
+
+  @override
+  State<CustomInputField> createState() => _CustomInputFieldState();
+}
+
+class _CustomInputFieldState extends State<CustomInputField> {
+  bool fieldEnabled = false;
+  late final String labelText;
+  late final Function onConfirm;
+  TextEditingController fieldController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    labelText = widget.labelText;
+    onConfirm = widget.onConfirm;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 16),
+      child: Stack(
+        alignment: Alignment.centerRight,
+        children: [
+          TextFormField(
+            enabled: fieldEnabled,
+            controller: fieldController,
+            decoration: InputDecoration(
+              border: const UnderlineInputBorder(),
+              labelText: labelText,
+            ),
+          ),
+          Visibility(
+            replacement: IconButton(
+              icon: const Icon(Icons.edit),
+              onPressed: () {
+                setState(() {
+                  fieldEnabled = true;
+                });
+              },
+            ),
+            visible: fieldEnabled,
+            child: IconButton(
+              icon: const Icon(
+                Icons.check,
+                color: Colors.green,
+              ),
+              onPressed: () async {
+                final newContact = fieldController.value.text;
+                try {
+                  await onConfirm(newContact);
+                } finally {
+                  setState(() {
+                    fieldEnabled = false;
+                  });
+                }
+              },
+            ),
+          )
+        ],
+      ),
+    );
+  }
+
 }
