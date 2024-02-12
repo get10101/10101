@@ -23,7 +23,7 @@ class CarouselItem {
 final List<CarouselItem> carouselItems = [
   CarouselItem(
       "Welcome, Satoshi",
-      "10101 uses Discreet Log Contracts (DLCs) to ensure that every trade is collateralized and fully self-custodial. \n\nrYour first trade will open a DLC channel with on-chain funds. Every subsequent trade will happen off-chain until your channel is closed.",
+      "10101 uses Discreet Log Contracts (DLCs) to ensure that every trade is collateralized and fully self-custodial. \n\nYour first trade will open a DLC channel with on-chain funds. Every subsequent trade will happen off-chain until your channel is closed.",
       Image.asset("assets/carousel_1.png")),
   CarouselItem(
       "Perpetual Futures",
