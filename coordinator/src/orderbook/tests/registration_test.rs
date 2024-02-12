@@ -20,9 +20,16 @@ async fn registered_user_is_stored_in_db() {
 
     let dummy_pubkey = dummy_public_key();
     let dummy_email = "dummy@user.com".to_string();
+    let nickname = "dummy_user".to_string();
     let fcm_token = "just_a_token".to_string();
 
-    let user = user::upsert_user(&mut conn, dummy_pubkey, dummy_email.clone()).unwrap();
+    let user = user::upsert_user(
+        &mut conn,
+        dummy_pubkey,
+        Some(dummy_email.clone()),
+        Some(nickname.clone()),
+    )
+    .unwrap();
     assert!(user.id.is_some(), "Id should be filled in by diesel");
     user::login_user(&mut conn, dummy_pubkey, fcm_token.clone()).unwrap();
 
@@ -31,6 +38,7 @@ async fn registered_user_is_stored_in_db() {
     // We started without the id, so we can't compare the whole user.
     assert_eq!(users.first().unwrap().pubkey, dummy_pubkey.to_string());
     assert_eq!(users.first().unwrap().contact, dummy_email);
+    assert_eq!(users.first().unwrap().nickname, nickname);
     assert_eq!(users.first().unwrap().fcm_token, fcm_token);
 }
 

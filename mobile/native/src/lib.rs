@@ -28,5 +28,6 @@ mod cipher;
 mod destination;
 mod dlc_channel;
 mod dlc_handler;
+mod names;
 mod polls;
 mod storage;

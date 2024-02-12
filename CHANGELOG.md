@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Feat(mobile): Let user add a name to their profile for the leaderboard
+
 ## [1.8.7] - 2024-02-10
 
 - Fix(mobile): Make disclaimer screen usable on smaller devices.

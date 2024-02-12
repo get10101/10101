@@ -50,6 +50,7 @@ use axum::response::IntoResponse;
 use axum::routing::delete;
 use axum::routing::get;
 use axum::routing::post;
+use axum::routing::put;
 use axum::Json;
 use axum::Router;
 use bitcoin::consensus::encode::serialize_hex;
@@ -67,6 +68,7 @@ use commons::RegisterParams;
 use commons::Restore;
 use commons::RouteHintHop;
 use commons::TradeParams;
+use commons::UpdateUsernameParams;
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::Pool;
 use diesel::PgConnection;
@@ -166,6 +168,7 @@ pub fn router(
         .route("/api/register", post(post_register))
         .route("/api/users", post(post_register))
         .route("/api/users/:trader_pubkey", get(get_user))
+        .route("/api/users/nickname", put(update_nickname))
         .route("/api/admin/wallet/balance", get(get_balance))
         .route("/api/admin/wallet/utxos", get(get_utxos))
         .route("/api/admin/channels", get(list_channels).post(open_channel))
@@ -443,12 +446,32 @@ pub async fn post_register(
         .get()
         .map_err(|e| AppError::InternalServerError(format!("Could not get connection: {e:#}")))?;
 
-    if let Some(contact) = register_params.contact {
-        user::upsert_user(&mut conn, register_params.pubkey, contact)
-            .map_err(|e| AppError::InternalServerError(format!("Could not upsert user: {e:#}")))?;
-    } else {
-        tracing::warn!(trader_id=%register_params.pubkey, "Did not receive an email during registration");
-    }
+    user::upsert_user(
+        &mut conn,
+        register_params.pubkey,
+        register_params.contact.clone(),
+        register_params.nickname.clone(),
+    )
+    .map_err(|e| AppError::InternalServerError(format!("Could not upsert user: {e:#}")))?;
+
+    Ok(())
+}
+
+#[instrument(skip_all, err(Debug))]
+pub async fn update_nickname(
+    State(state): State<Arc<AppState>>,
+    params: Json<UpdateUsernameParams>,
+) -> Result<(), AppError> {
+    let register_params = params.0;
+    tracing::info!(?register_params, "Updating user's nickname");
+
+    let mut conn = state
+        .pool
+        .get()
+        .map_err(|e| AppError::InternalServerError(format!("Could not get connection: {e:#}")))?;
+
+    user::update_nickname(&mut conn, register_params.pubkey, register_params.nickname)
+        .map_err(|e| AppError::InternalServerError(format!("Could not update nickname: {e:#}")))?;
 
     Ok(())
 }
@@ -461,6 +484,7 @@ impl TryFrom<User> for commons::User {
                 AppError::InternalServerError("Could not parse user pubkey".to_string())
             })?,
             contact: Some(value.contact).filter(|s| !s.is_empty()),
+            nickname: Some(value.nickname).filter(|s| !s.is_empty()),
         })
     }
 }
