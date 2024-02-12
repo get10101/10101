@@ -17,6 +17,11 @@ services:
       - -fallbackfee=0.00001
       - -zmqpubrawblock=tcp://0.0.0.0:28332
       - -zmqpubrawtx=tcp://0.0.0.0:28333
+      - -debug=net
+      - -debug=mempool
+      - -debug=rpc
+      - -debug=txindex
+      - -debug=blocks
     ports:
       - "18443:18443"
       - "18444:18444"
