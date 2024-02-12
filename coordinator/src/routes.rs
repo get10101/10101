@@ -89,6 +89,9 @@ use serde::Deserialize;
 use serde::Serialize;
 use std::str::FromStr;
 use std::sync::Arc;
+use time::macros::format_description;
+use time::Date;
+use time::OffsetDateTime;
 use tokio::sync::broadcast;
 use tokio::sync::mpsc;
 use tokio::sync::RwLock;
@@ -771,20 +774,49 @@ async fn restore(
     Ok(Json(backup))
 }
 
+fn parse_offset_datetime(date_str: String) -> anyhow::Result<Option<OffsetDateTime>> {
+    if date_str.is_empty() {
+        return Ok(None);
+    }
+    let format = format_description!("[year]-[month]-[day]");
+    let date = Date::parse(date_str.as_str(), &format)?;
+    let date_time = date.midnight().assume_utc();
+    Ok(Some(date_time))
+}
+
 pub async fn get_leaderboard(
     State(state): State<Arc<AppState>>,
     params: Query<LeaderBoardQueryParams>,
 ) -> Result<Json<LeaderBoard>, AppError> {
     let reverse = params.reverse.unwrap_or_default();
     let top = params.top.unwrap_or(5);
+
+    let start = params.start.clone().unwrap_or_default();
+    let start = parse_offset_datetime(start.clone())
+        .map_err(|err| {
+            AppError::BadRequest(format!(
+                "Invalid start date provided `{err}`. String provided {start}"
+            ))
+        })?
+        .unwrap_or(OffsetDateTime::UNIX_EPOCH);
+
+    let end = params.end.clone().unwrap_or_default();
+    let end = parse_offset_datetime(end.clone())
+        .map_err(|err| {
+            AppError::BadRequest(format!(
+                "Invalid start date provided `{err}`. String provided {end}"
+            ))
+        })?
+        .unwrap_or(OffsetDateTime::now_utc());
+
     let category = params.category.clone().unwrap_or(LeaderBoardCategory::Pnl);
 
     let mut conn = state
         .pool
         .get()
         .map_err(|_| AppError::InternalServerError("Could not access db".to_string()))?;
-    let leader_board =
-        generate_leader_board(&mut conn, top, category, reverse).map_err(|error| {
+    let leader_board = generate_leader_board(&mut conn, top, category, reverse, start, end)
+        .map_err(|error| {
             AppError::InternalServerError(format!("Could not build leaderboard {error}"))
         })?;
 

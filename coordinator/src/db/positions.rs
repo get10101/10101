@@ -97,6 +97,7 @@ impl Position {
 
         Ok(positions)
     }
+
     pub fn get_all_closed_positions(
         conn: &mut PgConnection,
     ) -> QueryResult<Vec<crate::position::models::Position>> {
