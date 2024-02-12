@@ -19,7 +19,7 @@ async fn can_open_position_with_multiple_small_utxos() {
 
     let setup = TestSetup::new().await;
 
-    setup.fund_coordinator(Amount::ONE_BTC).await;
+    setup.fund_coordinator(Amount::ONE_BTC, 2).await;
 
     let app = &setup.app;
 
