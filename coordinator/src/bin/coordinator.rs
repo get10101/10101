@@ -331,7 +331,7 @@ async fn main() -> Result<()> {
     tracing::debug!("Listening on http://{}", http_address);
 
     match axum::Server::bind(&http_address)
-        .serve(app.into_make_service())
+        .serve(app.into_make_service_with_connect_info::<SocketAddr>())
         .await
     {
         Ok(_) => {

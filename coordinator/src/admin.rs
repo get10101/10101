@@ -508,6 +508,7 @@ pub async fn open_channel(
         let peer = NodeInfo {
             pubkey,
             address: target_address,
+            is_ws: false,
         };
         state.node.inner.connect(peer).await.map_err(|e| {
             AppError::InternalServerError(format!("Could not connect to target node {e:#}"))

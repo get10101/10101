@@ -41,10 +41,12 @@ use crate::parse_dlc_channel_id;
 use crate::settings::Settings;
 use crate::settings::SettingsFile;
 use crate::AppError;
+use axum::extract::ConnectInfo;
 use axum::extract::DefaultBodyLimit;
 use axum::extract::Path;
 use axum::extract::Query;
 use axum::extract::State;
+use axum::extract::WebSocketUpgrade;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::routing::delete;
@@ -87,6 +89,7 @@ use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use serde::Deserialize;
 use serde::Serialize;
+use std::net::SocketAddr;
 use std::str::FromStr;
 use std::sync::Arc;
 use time::macros::format_description;
@@ -142,7 +145,7 @@ pub fn router(
     });
 
     Router::new()
-        .route("/", get(index))
+        .route("/", get(lightning_peer_ws_handler))
         .route("/api/version", get(version))
         .route("/api/polls", get(get_polls).post(post_poll_answer))
         .route(
@@ -221,16 +224,29 @@ pub fn router(
         .layer(DefaultBodyLimit::max(50 * 1024))
         .with_state(app_state)
 }
-
 #[derive(serde::Serialize)]
 struct HelloWorld {
     hello: String,
 }
 
-pub async fn index() -> impl IntoResponse {
-    Json(HelloWorld {
-        hello: "world".to_string(),
-    })
+pub async fn lightning_peer_ws_handler(
+    ws: Option<WebSocketUpgrade>,
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
+    State(state): State<Arc<AppState>>,
+) -> impl IntoResponse {
+    match ws {
+        Some(ws) => {
+            let peer_manager = state.node.inner.peer_manager.clone();
+            ws.on_upgrade(move |socket| {
+                ln_dlc_node::networking::axum::setup_inbound(peer_manager, socket, addr)
+            })
+            .into_response()
+        }
+        None => Json(HelloWorld {
+            hello: "world".to_string(),
+        })
+        .into_response(),
+    }
 }
 
 #[instrument(skip_all, err(Debug))]

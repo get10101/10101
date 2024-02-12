@@ -26,7 +26,7 @@ itertools = "0.10"
 lightning = { version = "0.0.117" }
 lightning-invoice = { version = "0.25" }
 lightning-persister = { version = "0.0.117" }
-ln-dlc-node = { path = "../../crates/ln-dlc-node" }
+ln-dlc-node = { path = "../../crates/ln-dlc-node", default-features = false }
 ln-dlc-storage = { path = "../../crates/ln-dlc-storage" }
 openssl = { version = "0.10.60", features = ["vendored"] }
 orderbook-client = { path = "../../crates/orderbook-client" }
@@ -54,3 +54,8 @@ uuid = { version = "1.3.0", features = ["v4", "fast-rng", "macro-diagnostics"] }
 dlc = { version = "0.4.0" }
 dlc-trie = "0.4.0"
 secp256k1-zkp = { version = "0.7.0", features = ["bitcoin_hashes", "rand", "rand-std"] }
+
+[features]
+default = ["native_tcp"]
+ws = ["ln-dlc-node/ln_net_ws"]
+native_tcp = ["ln-dlc-node/ln_net_tcp"]
