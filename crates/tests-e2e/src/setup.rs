@@ -57,14 +57,20 @@ impl TestSetup {
         }
     }
 
-    pub async fn fund_coordinator(&self, amount: Amount) {
+    /// Funds the coordinator with [`amount`/`n_utxos`] utxos
+    ///
+    /// E.g. if amount = 3 BTC, and n_utxos = 3, it would create 3 UTXOs a 1 BTC
+    pub async fn fund_coordinator(&self, amount: Amount, n_utxos: u64) {
         // Ensure that the coordinator has a free UTXO available.
         let address = self.coordinator.get_new_address().await.unwrap();
 
-        self.bitcoind
-            .send_to_address(&address, amount)
-            .await
-            .unwrap();
+        let sats_per_fund = amount.to_sat() / n_utxos;
+        for _ in 0..n_utxos {
+            self.bitcoind
+                .send_to_address(&address, Amount::from_sat(sats_per_fund))
+                .await
+                .unwrap();
+        }
 
         self.bitcoind.mine(1).await.unwrap();
 
@@ -99,7 +105,7 @@ impl TestSetup {
     pub async fn new_after_funding() -> Self {
         let setup = Self::new().await;
 
-        setup.fund_coordinator(Amount::ONE_BTC).await;
+        setup.fund_coordinator(Amount::ONE_BTC, 2).await;
 
         setup.fund_app(Amount::ONE_BTC).await;
 

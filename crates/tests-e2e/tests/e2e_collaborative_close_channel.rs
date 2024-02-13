@@ -43,6 +43,7 @@ async fn can_open_and_collab_close_channel() {
 
     // wait until there is no balance off-chain anymore
     wait_until!({
+        test.bitcoind.mine(1).await.unwrap();
         refresh_wallet_info();
         let app_balance = test.app.rx.wallet_info().unwrap().balances;
         tracing::info!(

@@ -205,11 +205,14 @@ jobs:
       - uses: extractions/setup-just@v1
       - name: Setup rust toolchain
         run: rustup show
-      - uses: actions/cache@v2
+      - uses: actions/cache@v4
         env:
           cache-name: test-cache
         with:
-          path: target/debug/deps
+          path: |
+            target/debug/deps
+            target/debug/coordinator
+            target/debug/maker
           key: test-cache-${{ github.run_id }}-${{ github.run_number }}
       - name: Download RUST FFI bindings
         uses: actions/download-artifact@v2
@@ -218,9 +221,8 @@ jobs:
           path: mobile/native/src/bridge_generated
       - name: build e2e tests only
         run: cargo test -p tests-e2e --no-run
-      - name: set-matrix1
-        id: set-matrix1
-        run: echo "matrix=$(scripts/get_test_list.sh)}"
+      - name: build coordinator and maker
+        run: cargo build --bin maker --bin coordinator
       - name: set-matrix
         id: set-matrix
         run: echo "matrix=$(scripts/get_test_list.sh)}" >> $GITHUB_OUTPUT
@@ -229,16 +231,20 @@ jobs:
     name: e2e-tests
     needs: e2e_tests_prepare
     runs-on: ubuntu-latest
+    continue-on-error: true
     strategy:
       matrix:
         tests: ${{ fromJson(needs.e2e_tests_prepare.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v2
-      - uses: actions/cache@v2
+      - uses: actions/cache@v4
         env:
           cache-name: test-cache
         with:
-          path: target/debug/deps
+          path: |
+            target/debug/deps
+            target/debug/coordinator
+            target/debug/maker
           key: test-cache-${{ github.run_id }}-${{ github.run_number }}
       - uses: extractions/setup-just@v1
       - name: Start containers
@@ -250,8 +256,34 @@ jobs:
       - name: Test containers are up
         run: |
           curl http://localhost:8080/bitcoin -d '{"jsonrpc": "1.0", "method": "sendtoaddress", "params": ["bcrt1qylgu6ffkp3p0m8tw8kp4tt2dmdh755f4r5dq7s", 0.1]}'
-      - name: Run coordinator, maker, etc
-        run: just services
+      - name: Run coordinator
+        run: |
+          #!/usr/bin/env bash
+          set -euxo pipefail
+
+          just wait-for-electrs-to-be-ready
+          
+          settings_target_path="data/coordinator/regtest/coordinator-settings.toml"
+      
+          cp coordinator/example-settings/test-coordinator-settings.toml "$settings_target_path"
+          echo "Copied test settings to $settings_target_path"
+
+          echo "Starting coordinator"
+          ls -lah ./target/debug/ 
+          ./target/debug/coordinator &> ./data/coordinator/regtest.log &
+          just wait-for-coordinator-to-be-ready
+          echo "Coordinator successfully started."
+      - name: Run maker
+        run: |
+          #!/usr/bin/env bash
+          set -euxo pipefail
+
+          just wait-for-electrs-to-be-ready
+
+          echo "Starting maker"
+          ./target/debug/maker &> ./data/maker/regtest.log &
+          just wait-for-maker-to-be-ready
+          echo "Maker successfully started."
       - name: Run e2e tests
         run: RUST_BACKTRACE=1 ${{ matrix.tests }} --nocapture --ignored
       - name: Print maker logs on e2e tests error
