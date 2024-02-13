@@ -34,7 +34,8 @@ class _SendOnChainScreenState extends State<SendOnChainScreen> {
 
   ChannelInfo? channelInfo;
 
-  Amount _amount = Amount.zero();
+  // null = max
+  Amount? _amount = Amount(1000);
   Fee _fee = PriorityFee(ConfirmationTarget.normal);
   Map<ConfirmationTarget, FeeEstimation>? _feeEstimates;
   late WalletService _walletService;
@@ -62,9 +63,18 @@ class _SendOnChainScreenState extends State<SendOnChainScreen> {
 
     setState(() {
       _feeEstimates = fees;
-      _amount = widget.destination.amount;
-      _controller.text = _amount.formatted();
+      Amount amt = widget.destination.amount;
+      amt = amt.sats == 0 ? Amount(1000) : amt;
+      _amount = amt;
+      _controller.text = amt.formatted();
     });
+  }
+
+  Amount currentFee() {
+    return switch (_fee) {
+      PriorityFee() => _feeEstimates?[(_fee as PriorityFee).priority]?.total ?? Amount(0),
+      CustomFeeRate() => (_fee as CustomFeeRate).amount,
+    };
   }
 
   @override
@@ -129,7 +139,7 @@ class _SendOnChainScreenState extends State<SendOnChainScreen> {
                     ),
                     const SizedBox(height: 25),
                     const Text(
-                      "Enter amount (0 to send the maximum)",
+                      "Enter amount",
                       textAlign: TextAlign.center,
                       style: TextStyle(fontSize: 14, color: Colors.grey),
                     ),
@@ -140,17 +150,19 @@ class _SendOnChainScreenState extends State<SendOnChainScreen> {
                           validator: (val) {
                             final amount = _amount;
 
+                            if (amount == null) {
+                              return null;
+                            }
+
+                            if (amount.sats == 0) {
+                              return "Enter an amount";
+                            }
+
                             if (amount.sats < 0) {
                               return "Amount cannot be negative";
                             }
 
-                            final fee = switch (_fee) {
-                              PriorityFee() =>
-                                _feeEstimates?[(_fee as PriorityFee).priority]?.total.sats ?? 0,
-                              CustomFeeRate() => (_fee as CustomFeeRate).amount.sats,
-                            };
-
-                            if (amount.sats + fee > balance.sats) {
+                            if (amount.sats + currentFee().sats > balance.sats) {
                               return "Not enough funds.";
                             }
 
@@ -163,7 +175,7 @@ class _SendOnChainScreenState extends State<SendOnChainScreen> {
                                   keyboardType: TextInputType.number,
                                   textAlign: TextAlign.center,
                                   decoration: const InputDecoration(
-                                      hintText: "0.00",
+                                      hintText: "1,000",
                                       hintStyle: TextStyle(fontSize: 40),
                                       enabledBorder: InputBorder.none,
                                       border: InputBorder.none,
@@ -174,24 +186,22 @@ class _SendOnChainScreenState extends State<SendOnChainScreen> {
                                       )),
                                   style: const TextStyle(fontSize: 40),
                                   textAlignVertical: TextAlignVertical.center,
-                                  enabled: widget.destination.amount.sats == 0,
+                                  enabled: widget.destination.amount.sats == 0 && _amount != null,
                                   controller: _controller,
                                   onChanged: (value) {
+                                    Amount amt = Amount.parseAmount(value);
                                     setState(() {
-                                      _amount = Amount.parseAmount(value);
-                                      _controller.text = _amount.formatted();
+                                      _amount = amt;
+                                      _controller.text = amt.formatted();
                                     });
 
                                     _walletService
-                                        .calculateFeesForOnChain(
-                                            widget.destination.address, _amount)
+                                        .calculateFeesForOnChain(widget.destination.address, amt)
                                         .then((fees) => setState(() => _feeEstimates = fees));
                                   },
                                 ),
                                 Visibility(
                                   visible: formFieldState.hasError,
-                                  replacement:
-                                      Container(margin: const EdgeInsets.only(top: 30, bottom: 10)),
                                   child: Container(
                                     decoration: BoxDecoration(
                                         color: Colors.redAccent.shade100.withOpacity(0.1),
@@ -218,6 +228,45 @@ class _SendOnChainScreenState extends State<SendOnChainScreen> {
                             );
                           },
                         )),
+                    const SizedBox(height: 8),
+                    Center(
+                      child: Padding(
+                        padding: const EdgeInsets.only(right: 32.0),
+                        child: Material(
+                          color: _amount == null ? tenTenOnePurple : null,
+                          borderRadius: BorderRadius.circular(16),
+                          child: InkWell(
+                            customBorder: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.all(10.0),
+                              child: Text("Max",
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    color: _amount == null ? Colors.white : tenTenOnePurple,
+                                  )),
+                            ),
+                            onTap: () {
+                              setState(() {
+                                if (_amount != null) {
+                                  _amount = null;
+                                  _controller.text = "Max";
+                                } else {
+                                  _amount = Amount(1000);
+                                  _controller.text = Amount(1000).formatted();
+                                }
+                              });
+
+                              _walletService
+                                  .calculateFeesForOnChain(
+                                      widget.destination.address, _amount ?? Amount.zero())
+                                  .then((fees) => setState(() => _feeEstimates = fees));
+                            },
+                          ),
+                        ),
+                      ),
+                    ),
                     Visibility(
                         visible: widget.destination.description != "",
                         child: Column(
@@ -277,8 +326,8 @@ class _SendOnChainScreenState extends State<SendOnChainScreen> {
                       width: MediaQuery.of(context).size.width * 0.9,
                       child: ElevatedButton(
                           onPressed: (_formKey.currentState?.validate() ?? false)
-                              ? () => showConfirmPaymentModal(
-                                  context, widget.destination, false, _amount, _amount, fee: _fee)
+                              ? () => showConfirmPaymentModal(context, widget.destination, false,
+                                  _amount ?? Amount.zero(), _amount ?? Amount.zero(), fee: _fee)
                               : null,
                           style: ButtonStyle(
                               padding:
