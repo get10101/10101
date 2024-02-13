@@ -579,7 +579,7 @@ build-android-app-bundle:
       --dart-define="RGS_SERVER_URL=${RGS_SERVER_URL}" \
        "${flavor_arg[@]}"
 
-build-android-app-apk:
+build-android-app-apk args="":
     #!/usr/bin/env bash
     BUILD_NAME=$(yq -r .version {{pubspec}})
     BUILD_NUMBER=$(git rev-list HEAD --count)
@@ -597,7 +597,7 @@ build-android-app-apk:
     os={{os()}}
     echo "building on '$os' for '$NETWORK'"
 
-    cd mobile && flutter build apk --split-per-abi \
+    cd mobile && flutter build apk {{args}} \
       --build-name=${BUILD_NAME} \
       --build-number=${BUILD_NUMBER} \
       --release \

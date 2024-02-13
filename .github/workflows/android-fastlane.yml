@@ -185,8 +185,10 @@ jobs:
           ORACLE_PUBKEY: ${{ inputs.oracle_pubkey }}
           RGS_SERVER_URL: ${{ inputs.rgs_server_url }}
 
-      - name: Build Android APK
-        id: build-android-apk
+      - name: Build Android APK for each platform
+        run: |
+          NETWORK=$NETWORK just build-android-app-apk --split-per-abi
+      - name: Build Android APK fat bundle
         run: |
           NETWORK=$NETWORK just build-android-app-apk
         env:
