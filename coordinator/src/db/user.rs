@@ -19,7 +19,7 @@ pub struct User {
     pub timestamp: OffsetDateTime,
     pub fcm_token: String,
     pub last_login: OffsetDateTime,
-    pub nickname: String,
+    pub nickname: Option<String>,
 }
 
 impl From<RegisterParams> for User {
@@ -28,7 +28,7 @@ impl From<RegisterParams> for User {
             id: None,
             pubkey: value.pubkey.to_string(),
             contact: value.contact.unwrap_or("".to_owned()),
-            nickname: value.nickname.unwrap_or("".to_owned()),
+            nickname: value.nickname,
             timestamp: OffsetDateTime::now_utc(),
             fcm_token: "".to_owned(),
             last_login: OffsetDateTime::now_utc(),
@@ -56,7 +56,6 @@ pub fn upsert_user(
 ) -> QueryResult<User> {
     // If no name or contact has been provided we default to empty string
     let contact = contact.unwrap_or_default();
-    let nickname = nickname.unwrap_or_default();
 
     let timestamp = OffsetDateTime::now_utc();
 
@@ -112,7 +111,7 @@ pub fn login_user(conn: &mut PgConnection, trader_id: PublicKey, token: String) 
             id: None,
             pubkey: trader_id.to_string(),
             contact: "".to_owned(),
-            nickname: "".to_string(),
+            nickname: None,
             timestamp: OffsetDateTime::now_utc(),
             fcm_token: token.clone(),
             last_login,

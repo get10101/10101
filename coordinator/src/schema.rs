@@ -332,7 +332,7 @@ diesel::table! {
         timestamp -> Timestamptz,
         fcm_token -> Text,
         last_login -> Timestamptz,
-        nickname -> Text,
+        nickname -> Nullable<Text>,
     }
 }
 

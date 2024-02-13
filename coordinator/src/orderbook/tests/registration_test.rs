@@ -20,14 +20,14 @@ async fn registered_user_is_stored_in_db() {
 
     let dummy_pubkey = dummy_public_key();
     let dummy_email = "dummy@user.com".to_string();
-    let nickname = "dummy_user".to_string();
+    let nickname = Some("dummy_user".to_string());
     let fcm_token = "just_a_token".to_string();
 
     let user = user::upsert_user(
         &mut conn,
         dummy_pubkey,
         Some(dummy_email.clone()),
-        Some(nickname.clone()),
+        nickname.clone(),
     )
     .unwrap();
     assert!(user.id.is_some(), "Id should be filled in by diesel");

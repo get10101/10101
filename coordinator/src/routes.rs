@@ -487,7 +487,7 @@ impl TryFrom<User> for commons::User {
                 AppError::InternalServerError("Could not parse user pubkey".to_string())
             })?,
             contact: Some(value.contact).filter(|s| !s.is_empty()),
-            nickname: Some(value.nickname).filter(|s| !s.is_empty()),
+            nickname: value.nickname,
         })
     }
 }
