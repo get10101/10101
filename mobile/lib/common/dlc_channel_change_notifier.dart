@@ -73,10 +73,6 @@ class DlcChannelChangeNotifier extends ChangeNotifier {
               ChannelState.collaborativelyClosed,
               ChannelState.failedAccept,
               ChannelState.failedSign,
-              ChannelState.closing,
-              ChannelState.offered,
-              ChannelState.accepted,
-              ChannelState.cancelled,
             ].contains(channel.state))
         .toList();
   }
