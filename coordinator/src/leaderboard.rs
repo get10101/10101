@@ -10,15 +10,17 @@ use rust_decimal::Decimal;
 use serde::Deserialize;
 use serde::Serialize;
 use std::collections::HashMap;
+use time::OffsetDateTime;
 
 #[derive(Serialize)]
 pub struct LeaderBoard {
     pub(crate) entries: Vec<LeaderBoardEntry>,
 }
 
-#[derive(Serialize, Clone, Copy)]
+#[derive(Serialize, Clone)]
 pub struct LeaderBoardEntry {
     pub trader: PublicKey,
+    pub nickname: String,
     pub pnl: Decimal,
     pub volume: Decimal,
     pub rank: usize,
@@ -29,6 +31,8 @@ pub struct LeaderBoardQueryParams {
     pub(crate) top: Option<usize>,
     pub(crate) reverse: Option<bool>,
     pub(crate) category: Option<LeaderBoardCategory>,
+    pub(crate) start: Option<String>,
+    pub(crate) end: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -48,10 +52,22 @@ pub(crate) fn generate_leader_board(
     top: usize,
     category: LeaderBoardCategory,
     reverse: bool,
+    start: OffsetDateTime,
+    end: OffsetDateTime,
 ) -> Result<Vec<LeaderBoardEntry>> {
-    let positions = load_positions(conn)?;
+    let positions = load_positions(conn, start, end)?;
 
     let leader_board = sort_leader_board(top, category, reverse, positions);
+    let leader_board = leader_board
+        .into_iter()
+        .map(|entry| {
+            let nickname = db::user::get_user(conn, entry.trader).unwrap_or_default();
+            LeaderBoardEntry {
+                nickname: nickname.and_then(|user| user.nickname).unwrap_or_default(),
+                ..entry
+            }
+        })
+        .collect();
 
     Ok(leader_board)
 }
@@ -64,18 +80,21 @@ fn sort_leader_board(
 ) -> Vec<LeaderBoardEntry> {
     let mut leader_board = positions
         .into_iter()
-        .map(|(trader, positions)| LeaderBoardEntry {
-            trader,
-            pnl: positions
-                .iter()
-                .map(|p| Decimal::from(p.trader_realized_pnl_sat.unwrap_or_default()))
-                .sum(),
-            volume: positions
-                .iter()
-                .map(|p| Decimal::from_f32(p.quantity).expect("to fit into decimal"))
-                .sum(),
-            // default all ranks are 0, this will be filled later
-            rank: 0,
+        .map(|(trader, positions)| {
+            LeaderBoardEntry {
+                trader,
+                nickname: "".to_string(),
+                pnl: positions
+                    .iter()
+                    .map(|p| Decimal::from(p.trader_realized_pnl_sat.unwrap_or_default()))
+                    .sum(),
+                volume: positions
+                    .iter()
+                    .map(|p| Decimal::from_f32(p.quantity).expect("to fit into decimal"))
+                    .sum(),
+                // default all ranks are 0, this will be filled later
+                rank: 0,
+            }
         })
         .collect::<Vec<LeaderBoardEntry>>();
 
@@ -109,8 +128,14 @@ fn sort_leader_board(
 
 fn load_positions(
     conn: &mut PooledConnection<ConnectionManager<PgConnection>>,
+    start: OffsetDateTime,
+    end: OffsetDateTime,
 ) -> Result<HashMap<PublicKey, Vec<Position>>> {
     let positions = db::positions::Position::get_all_closed_positions(conn)?;
+    let positions = positions
+        .into_iter()
+        .filter(|pos| pos.creation_timestamp > start && pos.creation_timestamp < end)
+        .collect::<Vec<_>>();
 
     let mut positions_by_trader = HashMap::new();
 

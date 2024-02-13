@@ -768,9 +768,11 @@ pub async fn register_beta(contact: String) -> Result<()> {
     users::register_beta(contact).await
 }
 
+#[derive(Debug)]
 pub struct User {
     pub pubkey: String,
     pub contact: Option<String>,
+    pub nickname: Option<String>,
 }
 
 impl From<commons::User> for User {
@@ -778,6 +780,7 @@ impl From<commons::User> for User {
         User {
             pubkey: value.pubkey.to_string(),
             contact: value.contact,
+            nickname: value.nickname,
         }
     }
 }
@@ -847,4 +850,13 @@ pub fn delete_dlc_channel(dlc_channel_id: String) -> Result<()> {
 
 pub fn sync_for_addresses(gap: u32) -> Result<bool> {
     ln_dlc::sync_for_addresses(gap)
+}
+
+pub fn get_new_random_name() -> SyncReturn<String> {
+    SyncReturn(crate::names::get_new_name())
+}
+
+#[tokio::main(flavor = "current_thread")]
+pub async fn update_nickname(nickname: String) -> Result<()> {
+    users::update_username(nickname).await
 }

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:get_10101/common/color.dart';
 import 'package:get_10101/common/settings/settings_screen.dart';
 import 'package:get_10101/common/snack_bar.dart';
-import 'package:get_10101/logger/logger.dart';
 import 'package:go_router/go_router.dart';
 import 'package:get_10101/ffi.dart' as rust;
 
@@ -16,17 +16,6 @@ class UserSettings extends StatefulWidget {
 }
 
 class _UserSettingsState extends State<UserSettings> {
-  var contactFieldController = TextEditingController();
-  bool contactFieldEnabled = false;
-
-  @override
-  void initState() {
-    super.initState();
-    rust.api
-        .getUserDetails()
-        .then((user) => contactFieldController.text = user.contact != null ? user.contact! : "");
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -72,98 +61,281 @@ class _UserSettingsState extends State<UserSettings> {
             const SizedBox(
               height: 20,
             ),
-            Expanded(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.start,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    "Contact details \n",
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  RichText(
-                    text: const TextSpan(
-                      text:
-                          '10101 will use these details to reach out to you in case of problems in the app. \n\n',
-                      style: TextStyle(fontSize: 16, color: Colors.black),
-                      children: <TextSpan>[
-                        TextSpan(
-                          text: 'This can be a ',
-                        ),
-                        TextSpan(
-                            text: 'Nostr Pubkey', style: TextStyle(fontWeight: FontWeight.bold)),
-                        TextSpan(
-                          text: ', a ',
-                        ),
-                        TextSpan(
-                            text: 'Telegram handle ',
-                            style: TextStyle(fontWeight: FontWeight.bold)),
-                        TextSpan(
-                          text: 'or an ',
-                        ),
-                        TextSpan(
-                            text: 'email address.', style: TextStyle(fontWeight: FontWeight.bold)),
-                        TextSpan(
-                            text:
-                                "\n\nIf you want to delete your contact details. Simply remove the details below.")
-                      ],
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 16),
-                    child: Stack(
-                      alignment: Alignment.centerRight,
-                      children: [
-                        TextFormField(
-                          enabled: contactFieldEnabled,
-                          controller: contactFieldController,
-                          decoration: const InputDecoration(
-                            border: UnderlineInputBorder(),
-                            labelText: 'Contact details',
+            FutureBuilder(
+                future: rust.api.getUserDetails(),
+                builder: (BuildContext context, AsyncSnapshot<rust.User> snapshot) {
+                  if (!snapshot.hasData) {
+                    return const CircularProgressIndicator();
+                  }
+
+                  final nickname = snapshot.data?.nickname;
+                  final contact = snapshot.data?.contact;
+
+                  return Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.start,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            "Contact details \n",
+                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                           ),
-                        ),
-                        Visibility(
-                          replacement: IconButton(
-                            icon: const Icon(Icons.edit),
-                            onPressed: () {
-                              setState(() {
-                                contactFieldEnabled = true;
-                              });
-                            },
-                          ),
-                          visible: contactFieldEnabled,
-                          child: IconButton(
-                            icon: const Icon(
-                              Icons.check,
-                              color: Colors.green,
+                          RichText(
+                            text: const TextSpan(
+                              text:
+                                  '10101 will use these details to reach out to you in case of problems in the app. \n\n',
+                              style: TextStyle(fontSize: 16, color: Colors.black),
+                              children: <TextSpan>[
+                                TextSpan(
+                                  text: 'This can be a ',
+                                ),
+                                TextSpan(
+                                    text: 'Nostr Pubkey',
+                                    style: TextStyle(fontWeight: FontWeight.bold)),
+                                TextSpan(
+                                  text: ', a ',
+                                ),
+                                TextSpan(
+                                    text: 'Telegram handle ',
+                                    style: TextStyle(fontWeight: FontWeight.bold)),
+                                TextSpan(
+                                  text: 'or an ',
+                                ),
+                                TextSpan(
+                                    text: 'email address.',
+                                    style: TextStyle(fontWeight: FontWeight.bold)),
+                                TextSpan(
+                                    text:
+                                        "\n\nIf you want to delete your contact details. Simply remove the details below.")
+                              ],
                             ),
-                            onPressed: () async {
+                          ),
+                          CustomInputField(
+                            onConfirm: (value) async {
                               final messenger = ScaffoldMessenger.of(context);
                               try {
-                                var newContact = contactFieldController.value.text;
-                                logger.i("Successfully updated to $newContact");
-                                await rust.api.registerBeta(contact: newContact);
-                                showSnackBar(messenger, "Successfully updated to $newContact");
-                              } catch (exception) {
-                                showSnackBar(
-                                    messenger, "Error when updating contact details $exception");
-                              } finally {
-                                setState(() {
-                                  contactFieldEnabled = false;
-                                });
+                                await rust.api.registerBeta(contact: value);
+                                showSnackBar(messenger, "Successfully updated to `$value`");
+                              } catch (error) {
+                                showSnackBar(messenger, "Failed updating details due to $error");
                               }
                             },
+                            labelText: "Contact details",
+                            initialValue: contact,
                           ),
-                        )
-                      ],
+                          const SizedBox(
+                            height: 20,
+                          ),
+                          const Text(
+                            "Nickname\n",
+                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                          ),
+                          RichText(
+                            text: const TextSpan(
+                              text:
+                                  'We extract a regular hall-of-fame leaderboard. If you want to be recognized, feel free to enter your prefered nickname or generate a random one.',
+                              style: TextStyle(fontSize: 16, color: Colors.black),
+                              children: [],
+                            ),
+                          ),
+                          NicknameWidget(
+                            initialValue: nickname,
+                            labelText: 'Nickname',
+                            onConfirm: (value) async {
+                              final messenger = ScaffoldMessenger.of(context);
+                              try {
+                                await rust.api.updateNickname(nickname: value);
+                                showSnackBar(messenger, "Successfully updated to `$value`");
+                              } catch (error) {
+                                showSnackBar(messenger, "Failed updating details due to $error");
+                              }
+                            },
+                          )
+                        ],
+                      ),
                     ),
-                  )
-                ],
-              ),
-            ),
+                  );
+                }),
           ],
         ),
       )),
+    );
+  }
+}
+
+class NicknameWidget extends StatefulWidget {
+  final String labelText;
+  final String? initialValue;
+  final Function onConfirm;
+
+  const NicknameWidget({
+    super.key,
+    required this.onConfirm,
+    required this.labelText,
+    this.initialValue,
+  });
+
+  @override
+  State<NicknameWidget> createState() => _NicknameWidgetState();
+}
+
+class _NicknameWidgetState extends State<NicknameWidget> {
+  bool fieldEnabled = false;
+  late final String labelText;
+  late final Function onConfirm;
+  TextEditingController fieldController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    labelText = widget.labelText;
+    onConfirm = widget.onConfirm;
+    if (widget.initialValue != null) {
+      fieldController.text = widget.initialValue!;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      alignment: Alignment.centerRight,
+      children: [
+        TextFormField(
+          enabled: fieldEnabled,
+          controller: fieldController,
+          decoration: InputDecoration(
+            border: const UnderlineInputBorder(),
+            labelText: labelText,
+          ),
+        ),
+        Visibility(
+          replacement: IconButton(
+            icon: const Icon(Icons.edit),
+            onPressed: () {
+              setState(() {
+                fieldEnabled = true;
+              });
+            },
+          ),
+          visible: fieldEnabled,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              IconButton(
+                icon: const Icon(
+                  Icons.refresh,
+                  color: tenTenOnePurple,
+                ),
+                onPressed: () {
+                  final newRandomName = rust.api.getNewRandomName();
+                  setState(() {
+                    fieldController.text = newRandomName;
+                  });
+                },
+              ),
+              IconButton(
+                icon: const Icon(
+                  Icons.check,
+                  color: Colors.green,
+                ),
+                onPressed: () async {
+                  final newContact = fieldController.value.text;
+                  try {
+                    await onConfirm(newContact);
+                  } finally {
+                    setState(() {
+                      fieldEnabled = false;
+                    });
+                  }
+                },
+              ),
+            ],
+          ),
+        )
+      ],
+    );
+  }
+
+  void showSnackBar(ScaffoldMessengerState messenger, String message) {
+    messenger.showSnackBar(SnackBar(content: Text(message)));
+  }
+}
+
+class CustomInputField extends StatefulWidget {
+  final String labelText;
+  final String? initialValue;
+  final Function onConfirm;
+
+  const CustomInputField({
+    super.key,
+    required this.onConfirm,
+    required this.labelText,
+    this.initialValue,
+  });
+
+  @override
+  State<CustomInputField> createState() => _CustomInputFieldState();
+}
+
+class _CustomInputFieldState extends State<CustomInputField> {
+  bool fieldEnabled = false;
+  late final String labelText;
+  late final Function onConfirm;
+  TextEditingController fieldController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    labelText = widget.labelText;
+    onConfirm = widget.onConfirm;
+    if (widget.initialValue != null) {
+      fieldController.text = widget.initialValue!;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      alignment: Alignment.centerRight,
+      children: [
+        TextFormField(
+          enabled: fieldEnabled,
+          controller: fieldController,
+          decoration: InputDecoration(
+            border: const UnderlineInputBorder(),
+            labelText: labelText,
+          ),
+        ),
+        Visibility(
+          replacement: IconButton(
+            icon: const Icon(Icons.edit),
+            onPressed: () {
+              setState(() {
+                fieldEnabled = true;
+              });
+            },
+          ),
+          visible: fieldEnabled,
+          child: IconButton(
+            icon: const Icon(
+              Icons.check,
+              color: Colors.green,
+            ),
+            onPressed: () async {
+              final newContact = fieldController.value.text;
+              try {
+                await onConfirm(newContact);
+              } finally {
+                setState(() {
+                  fieldEnabled = false;
+                });
+              }
+            },
+          ),
+        )
+      ],
     );
   }
 }

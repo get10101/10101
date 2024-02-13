@@ -127,7 +127,7 @@ pub async fn process_new_order(
     network: Network,
     oracle_pk: XOnlyPublicKey,
 ) -> Result<Order> {
-    tracing::info!(
+    tracing::trace!(
         trader_id = %new_order.trader_id,
         order_type = ?new_order.order_type,
         "Processing new order",

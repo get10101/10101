@@ -19,6 +19,7 @@ pub struct User {
     pub timestamp: OffsetDateTime,
     pub fcm_token: String,
     pub last_login: OffsetDateTime,
+    pub nickname: Option<String>,
 }
 
 impl From<RegisterParams> for User {
@@ -27,6 +28,7 @@ impl From<RegisterParams> for User {
             id: None,
             pubkey: value.pubkey.to_string(),
             contact: value.contact.unwrap_or("".to_owned()),
+            nickname: value.nickname,
             timestamp: OffsetDateTime::now_utc(),
             fcm_token: "".to_owned(),
             last_login: OffsetDateTime::now_utc(),
@@ -49,8 +51,12 @@ pub fn by_id(conn: &mut PgConnection, id: String) -> QueryResult<Option<User>> {
 pub fn upsert_user(
     conn: &mut PgConnection,
     trader_id: PublicKey,
-    contact: String,
+    contact: Option<String>,
+    nickname: Option<String>,
 ) -> QueryResult<User> {
+    // If no name or contact has been provided we default to empty string
+    let contact = contact.unwrap_or_default();
+
     let timestamp = OffsetDateTime::now_utc();
 
     let user: User = diesel::insert_into(users::table)
@@ -58,15 +64,43 @@ pub fn upsert_user(
             id: None,
             pubkey: trader_id.to_string(),
             contact: contact.clone(),
+            nickname: nickname.clone(),
             timestamp,
             fcm_token: "".to_owned(),
             last_login: timestamp,
         })
         .on_conflict(schema::users::pubkey)
         .do_update()
-        .set((users::contact.eq(&contact), users::last_login.eq(timestamp)))
+        .set((
+            users::contact.eq(&contact),
+            users::nickname.eq(&nickname),
+            users::last_login.eq(timestamp),
+        ))
         .get_result(conn)?;
     Ok(user)
+}
+
+pub fn update_nickname(
+    conn: &mut PgConnection,
+    trader_id: PublicKey,
+    nickname: Option<String>,
+) -> QueryResult<()> {
+    let nickname = nickname.unwrap_or_default();
+
+    let updated_rows = diesel::update(users::table)
+        .filter(users::pubkey.eq(trader_id.to_string()))
+        .set(users::nickname.eq(nickname.clone()))
+        .execute(conn)?;
+
+    if updated_rows == 0 {
+        tracing::warn!(
+            trader_id = trader_id.to_string(),
+            nickname,
+            "No username updated"
+        )
+    }
+
+    Ok(())
 }
 
 pub fn login_user(conn: &mut PgConnection, trader_id: PublicKey, token: String) -> Result<()> {
@@ -77,6 +111,7 @@ pub fn login_user(conn: &mut PgConnection, trader_id: PublicKey, token: String) 
             id: None,
             pubkey: trader_id.to_string(),
             contact: "".to_owned(),
+            nickname: None,
             timestamp: OffsetDateTime::now_utc(),
             fcm_token: token.clone(),
             last_login,
