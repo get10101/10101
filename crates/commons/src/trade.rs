@@ -1,3 +1,4 @@
+use bitcoin::Amount;
 use rust_decimal::Decimal;
 use secp256k1::PublicKey;
 use secp256k1::XOnlyPublicKey;
@@ -8,9 +9,19 @@ use trade::ContractSymbol;
 use trade::Direction;
 use uuid::Uuid;
 
-/// The trade parameters defining the trade execution
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TradeAndChannelParams {
+    pub trade_params: TradeParams,
+    #[serde(with = "bitcoin::util::amount::serde::as_sat::opt")]
+    pub trader_reserve: Option<Amount>,
+    #[serde(with = "bitcoin::util::amount::serde::as_sat::opt")]
+    pub coordinator_reserve: Option<Amount>,
+}
+
+/// The trade parameters defining the trade execution.
 ///
 /// Emitted by the orderbook when a match is found.
+///
 /// Both trading parties will receive trade params and then request trade execution with said trade
 /// parameters from the coordinator.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

@@ -4,7 +4,10 @@ import 'package:get_10101/common/amount_text_field.dart';
 import 'package:get_10101/common/amount_text_input_form_field.dart';
 import 'package:get_10101/common/application/channel_info_service.dart';
 import 'package:get_10101/common/application/lsp_change_notifier.dart';
+import 'package:get_10101/common/dlc_channel_change_notifier.dart';
 import 'package:get_10101/common/domain/model.dart';
+import 'package:get_10101/features/trade/channel_configuration.dart';
+import 'package:get_10101/features/trade/domain/channel_opening_params.dart';
 import 'package:get_10101/ffi.dart' as rust;
 import 'package:get_10101/common/modal_bottom_sheet_info.dart';
 import 'package:get_10101/common/value_data_row.dart';
@@ -20,7 +23,6 @@ import 'package:get_10101/features/trade/trade_dialog.dart';
 import 'package:get_10101/features/trade/trade_theme.dart';
 import 'package:get_10101/features/trade/trade_value_change_notifier.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 const contractSymbol = ContractSymbol.btcusd;
@@ -53,6 +55,8 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
     provider = context.read<TradeValuesChangeNotifier>();
     lspChangeNotifier = context.read<LspChangeNotifier>();
     positionChangeNotifier = context.read<PositionChangeNotifier>();
+
+    context.read<DlcChannelChangeNotifier>().refreshDlcChannels();
     super.initState();
   }
 
@@ -68,6 +72,7 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
   @override
   Widget build(BuildContext context) {
     TradeTheme tradeTheme = Theme.of(context).extension<TradeTheme>()!;
+    DlcChannelChangeNotifier dlcChannelChangeNotifier = context.watch<DlcChannelChangeNotifier>();
 
     Direction direction = widget.direction;
     String label = direction == Direction.long ? "Buy" : "Sell";
@@ -75,6 +80,8 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
 
     final channelInfoService = lspChangeNotifier.channelInfoService;
     final channelTradeConstraints = channelInfoService.getTradeConstraints();
+
+    final hasChannel = dlcChannelChangeNotifier.hasDlcChannel();
 
     return Form(
       key: _formKey,
@@ -100,30 +107,43 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
                   onPressed: () {
                     TradeValues tradeValues =
                         context.read<TradeValuesChangeNotifier>().fromDirection(direction);
-                    if (_formKey.currentState!.validate() &&
-                        channelTradeConstraints.minMargin <= (tradeValues.margin?.sats ?? 0)) {
+                    if (_formKey.currentState!.validate()) {
                       final submitOrderChangeNotifier = context.read<SubmitOrderChangeNotifier>();
-                      tradeBottomSheetConfirmation(
-                          context: context,
-                          direction: direction,
-                          onConfirmation: () {
-                            submitOrderChangeNotifier.submitPendingOrder(
-                                tradeValues, PositionAction.open);
 
-                            // Return to the trade screen before submitting the pending order so that the dialog is displayed under the correct context
-                            GoRouter.of(context).pop();
-                            GoRouter.of(context).pop();
+                      final tradeAction = hasChannel ? TradeAction.trade : TradeAction.openChannel;
 
-                            // Show immediately the pending dialog, when submitting a market order.
-                            // TODO(holzeis): We should only show the dialog once we've received a match.
-                            showDialog(
-                                context: context,
-                                useRootNavigator: true,
-                                barrierDismissible: false, // Prevent user from leaving
-                                builder: (BuildContext context) {
-                                  return const TradeDialog();
-                                });
-                          });
+                      switch (tradeAction) {
+                        case TradeAction.openChannel:
+                          {
+                            final tradeValues =
+                                context.read<TradeValuesChangeNotifier>().fromDirection(direction);
+                            channelConfiguration(
+                              context: context,
+                              tradeValues: tradeValues,
+                              onConfirmation: (ChannelOpeningParams channelOpeningParams) {
+                                tradeBottomSheetConfirmation(
+                                  context: context,
+                                  direction: direction,
+                                  tradeAction: tradeAction,
+                                  onConfirmation: () => onConfirmation(
+                                      submitOrderChangeNotifier, tradeValues, channelOpeningParams),
+                                  channelOpeningParams: channelOpeningParams,
+                                );
+                              },
+                            );
+                            break;
+                          }
+                        case TradeAction.trade:
+                        case TradeAction.closePosition:
+                          tradeBottomSheetConfirmation(
+                            context: context,
+                            direction: direction,
+                            tradeAction: tradeAction,
+                            onConfirmation: () =>
+                                onConfirmation(submitOrderChangeNotifier, tradeValues, null),
+                            channelOpeningParams: null,
+                          );
+                      }
                     }
                   },
                   style: ElevatedButton.styleFrom(
@@ -134,6 +154,26 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
         ],
       ),
     );
+  }
+
+  void onConfirmation(SubmitOrderChangeNotifier submitOrderChangeNotifier, TradeValues tradeValues,
+      ChannelOpeningParams? channelOpeningParams) {
+    submitOrderChangeNotifier.submitPendingOrder(tradeValues, PositionAction.open,
+        channelOpeningParams: channelOpeningParams);
+
+    // Return to the trade screen before submitting the pending order so that the dialog is displayed under the correct context
+    GoRouter.of(context).pop();
+    GoRouter.of(context).pop();
+
+    // Show immediately the pending dialog, when submitting a market order.
+    // TODO(holzeis): We should only show the dialog once we've received a match.
+    showDialog(
+        context: context,
+        useRootNavigator: true,
+        barrierDismissible: false, // Prevent user from leaving
+        builder: (BuildContext context) {
+          return const TradeDialog();
+        });
   }
 
   Wrap buildChildren(Direction direction, rust.TradeConstraints channelTradeConstraints,
@@ -166,8 +206,6 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
           "If you want to trade more than this, you will need to close the channel and open a bigger one. "
           "\nWith your current balance, the maximum you can trade is ${formatUsd(Usd(maxQuantity.toInt()))}";
     }
-
-    var amountFormatter = NumberFormat.compact(locale: "en_UK");
 
     return Wrap(
       runSpacing: 12,
@@ -279,9 +317,6 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
                       return AmountTextField(
                         value: margin,
                         label: "Margin (sats)",
-                        error: channelTradeConstraints.minMargin > margin.sats
-                            ? "Min margin is ${amountFormatter.format(channelTradeConstraints.minMargin)} sats"
-                            : null,
                         suffixIcon: showCapacityInfo
                             ? ModalBottomSheetInfo(
                                 closeButtonText: "Back to order",

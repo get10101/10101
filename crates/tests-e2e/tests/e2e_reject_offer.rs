@@ -7,9 +7,9 @@ use native::trade::order::api::NewOrder;
 use native::trade::order::api::OrderType;
 use native::trade::order::OrderState;
 use native::trade::position::PositionState;
+use tests_e2e::app::submit_channel_opening_order;
 use tests_e2e::setup::TestSetup;
 use tests_e2e::wait_until;
-use tokio::task::spawn_blocking;
 
 #[tokio::test(flavor = "multi_thread")]
 #[ignore = "need to be run with 'just e2e' command"]
@@ -31,12 +31,7 @@ async fn reject_offer() {
 
     // submit order for which the app does not have enough liquidity. will fail with `Failed to
     // accept dlc channel offer. Invalid state: Not enough UTXOs for amount`
-    spawn_blocking({
-        let order = invalid_order.clone();
-        move || api::submit_order(order).unwrap()
-    })
-    .await
-    .unwrap();
+    submit_channel_opening_order(invalid_order.clone(), 0, 0);
 
     assert_eq!(app.rx.status(Service::Orderbook), ServiceStatus::Online);
     assert_eq!(app.rx.status(Service::Coordinator), ServiceStatus::Online);
@@ -70,12 +65,7 @@ async fn reject_offer() {
         stable: false,
     };
 
-    spawn_blocking({
-        let order = order.clone();
-        move || api::submit_order(order).unwrap()
-    })
-    .await
-    .unwrap();
+    submit_channel_opening_order(order.clone(), 0, 0);
 
     // Assert that the order was posted
     wait_until!(app.rx.order().is_some());

@@ -1,6 +1,7 @@
 use native::api;
 use native::trade::position::PositionState;
 use tests_e2e::app::run_app;
+use tests_e2e::app::submit_order;
 use tests_e2e::logger::init_tracing;
 use tests_e2e::setup;
 use tests_e2e::setup::dummy_order;
@@ -43,9 +44,7 @@ async fn app_can_be_restored_from_a_backup() {
     };
 
     tracing::info!("Closing a position");
-    spawn_blocking(move || api::submit_order(closing_order).unwrap())
-        .await
-        .unwrap();
+    submit_order(closing_order);
 
     wait_until!(test.app.rx.position().unwrap().position_state == PositionState::Closing);
     wait_until!(test.app.rx.position_close().is_some());

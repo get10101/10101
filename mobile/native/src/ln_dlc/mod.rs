@@ -54,7 +54,7 @@ use commons::CollaborativeRevertTraderResponse;
 use commons::LegacyCollaborativeRevertTraderResponse;
 use commons::OnboardingParam;
 use commons::RouteHintHop;
-use commons::TradeParams;
+use commons::TradeAndChannelParams;
 use dlc::PartyParams;
 use dlc_manager::channel::Channel as DlcChannel;
 use dlc_manager::subchannel::LnDlcChannelSigner;
@@ -105,9 +105,11 @@ use tokio::runtime::Runtime;
 use tokio::sync::watch;
 use tokio::task::spawn_blocking;
 use trade::ContractSymbol;
+use uuid::Uuid;
+
+pub mod node;
 
 mod lightning_subscriber;
-pub mod node;
 
 const PROCESS_INCOMING_DLC_MESSAGES_INTERVAL: Duration = Duration::from_millis(200);
 const UPDATE_WALLET_HISTORY_INTERVAL: Duration = Duration::from_secs(5);
@@ -125,6 +127,17 @@ const NUMBER_OF_CONFIRMATION_FOR_BEING_CONFIRMED: u64 = 1;
 /// coordinator will use for the channel opening transaction. Only once the transaction is know the
 /// exact fee will be know.
 pub const FUNDING_TX_WEIGHT_ESTIMATE: u64 = 220;
+
+/// Extra information required to open a DLC channel, independent of the [`TradeParams`] associated
+/// with the filled order.
+///
+/// [`TradeParams`]: commons::TradeParams
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ChannelOpeningParams {
+    pub order_id: Uuid,
+    pub coordinator_reserve: Amount,
+    pub trader_reserve: Amount,
+}
 
 /// Triggers an update to the wallet balance and history, without an on-chain sync.
 pub fn refresh_lightning_wallet() -> Result<()> {
@@ -862,7 +875,7 @@ fn update_state_after_collab_revert(
         Ok(order) => order,
         Err(_) => {
             let order = Order {
-                id: uuid::Uuid::new_v4(),
+                id: Uuid::new_v4(),
                 leverage: position.leverage,
                 quantity: position.quantity,
                 contract_symbol: position.contract_symbol,
@@ -1093,7 +1106,7 @@ fn update_state_after_legacy_collab_revert(
         Ok(order) => order,
         Err(_) => {
             let order = Order {
-                id: uuid::Uuid::new_v4(),
+                id: Uuid::new_v4(),
                 leverage: position.leverage,
                 quantity: position.quantity,
                 contract_symbol: position.contract_symbol,
@@ -1438,7 +1451,9 @@ pub async fn estimate_payment_fee_msat(payment: SendPayment) -> Result<u64> {
     }
 }
 
-pub async fn trade(trade_params: TradeParams) -> Result<(), (FailureReason, anyhow::Error)> {
+pub async fn trade(
+    trade_params: TradeAndChannelParams,
+) -> Result<(), (FailureReason, anyhow::Error)> {
     let client = reqwest_client();
     let response = client
         .post(format!("http://{}/api/trade", config::get_http_endpoint()))

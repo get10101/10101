@@ -26,6 +26,7 @@ pub fn channel_trade_constraints() -> Result<TradeConstraints> {
 
     let dlc_channels = ln_dlc::get_signed_dlc_channels()?;
 
+    // FIXME: This doesn't work if the channel is in `Closing` and related states.
     let maybe_channel = dlc_channels.first();
 
     let trade_constraints = match maybe_channel {

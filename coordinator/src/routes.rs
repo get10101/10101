@@ -67,7 +67,7 @@ use commons::PollAnswers;
 use commons::RegisterParams;
 use commons::Restore;
 use commons::RouteHintHop;
-use commons::TradeParams;
+use commons::TradeAndChannelParams;
 use commons::UpdateUsernameParams;
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::Pool;
@@ -364,18 +364,16 @@ pub async fn get_invoice(
 // TODO: We might want to have our own ContractInput type here so we can potentially map fields if
 // the library changes?
 #[instrument(skip_all, err(Debug))]
-
 pub async fn post_trade(
     State(state): State<Arc<AppState>>,
-    trade_params: Json<TradeParams>,
+    params: Json<TradeAndChannelParams>,
 ) -> Result<(), AppError> {
-    state.node.trade(&trade_params.0).await.map_err(|e| {
+    state.node.trade(&params.0).await.map_err(|e| {
         AppError::InternalServerError(format!("Could not handle trade request: {e:#}"))
     })
 }
 
 #[instrument(skip_all, err(Debug))]
-
 pub async fn rollover(
     State(state): State<Arc<AppState>>,
     Path(dlc_channel_id): Path<String>,

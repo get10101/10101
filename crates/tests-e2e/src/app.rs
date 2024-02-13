@@ -3,6 +3,7 @@ use crate::test_subscriber::ThreadSafeSenders;
 use crate::wait_until;
 use native::api;
 use native::api::DlcChannel;
+use native::trade::order::api::NewOrder;
 use tempfile::TempDir;
 use tokio::task::block_in_place;
 
@@ -105,6 +106,20 @@ pub fn get_dlc_channel_id() -> Option<String> {
 
 pub fn get_dlc_channels() -> Vec<DlcChannel> {
     block_in_place(move || api::list_dlc_channels().unwrap())
+}
+
+pub fn submit_order(order: NewOrder) {
+    block_in_place(move || api::submit_order(order).unwrap());
+}
+
+pub fn submit_channel_opening_order(
+    order: NewOrder,
+    coordinator_reserve: u64,
+    trader_reserve: u64,
+) {
+    block_in_place(move || {
+        api::submit_channel_opening_order(order, coordinator_reserve, trader_reserve).unwrap()
+    });
 }
 
 // Values mostly taken from `environment.dart`

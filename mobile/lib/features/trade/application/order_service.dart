@@ -19,6 +19,28 @@ class OrderService {
     return await rust.api.submitOrder(order: order);
   }
 
+  Future<String> submitChannelOpeningMarketOrder(
+      Leverage leverage,
+      Amount quantity,
+      ContractSymbol contractSymbol,
+      Direction direction,
+      bool stable,
+      Amount coordinatorReserve,
+      Amount traderReserve) async {
+    rust.NewOrder order = rust.NewOrder(
+        leverage: leverage.leverage,
+        quantity: quantity.asDouble(),
+        contractSymbol: contractSymbol.toApi(),
+        direction: direction.toApi(),
+        orderType: const rust.OrderType.market(),
+        stable: stable);
+
+    return await rust.api.submitChannelOpeningOrder(
+        order: order,
+        coordinatorReserve: coordinatorReserve.sats,
+        traderReserve: traderReserve.sats);
+  }
+
   Future<List<Order>> fetchOrders() async {
     List<rust.Order> apiOrders = await rust.api.getOrders();
     List<Order> orders = apiOrders.map((order) => Order.fromApi(order)).toList();

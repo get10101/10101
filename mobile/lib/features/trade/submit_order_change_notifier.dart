@@ -1,4 +1,6 @@
 import 'package:flutter_rust_bridge/flutter_rust_bridge.dart';
+import 'package:get_10101/features/trade/domain/channel_opening_params.dart';
+import 'package:get_10101/features/trade/domain/leverage.dart';
 import 'package:get_10101/logger/logger.dart';
 import 'package:flutter/material.dart';
 import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
@@ -46,7 +48,7 @@ class SubmitOrderChangeNotifier extends ChangeNotifier implements Subscriber {
   SubmitOrderChangeNotifier(this.orderService);
 
   submitPendingOrder(TradeValues tradeValues, PositionAction positionAction,
-      {Amount? pnl, bool stable = false}) async {
+      {ChannelOpeningParams? channelOpeningParams, Amount? pnl, bool stable = false}) async {
     _pendingOrder = PendingOrder(tradeValues, positionAction, pnl);
 
     // notify listeners about pending order in state "pending"
@@ -54,8 +56,28 @@ class SubmitOrderChangeNotifier extends ChangeNotifier implements Subscriber {
 
     try {
       assert(tradeValues.quantity != null, 'Quantity cannot be null when submitting order');
-      _pendingOrder!.id = await orderService.submitMarketOrder(tradeValues.leverage,
-          tradeValues.quantity!, ContractSymbol.btcusd, tradeValues.direction, stable);
+
+      if (channelOpeningParams != null) {
+        // TODO(holzeis): The coordinator leverage should not be hard coded here.
+        final coordinatorCollateral = tradeValues.calculateMargin(Leverage(2.0));
+
+        final coordinatorReserve =
+            channelOpeningParams.coordinatorCollateral.sub(coordinatorCollateral);
+        final traderReserve = channelOpeningParams.traderCollateral.sub(tradeValues.margin!);
+
+        _pendingOrder!.id = await orderService.submitChannelOpeningMarketOrder(
+            tradeValues.leverage,
+            tradeValues.quantity!,
+            ContractSymbol.btcusd,
+            tradeValues.direction,
+            stable,
+            coordinatorReserve,
+            traderReserve);
+      } else {
+        _pendingOrder!.id = await orderService.submitMarketOrder(tradeValues.leverage,
+            tradeValues.quantity!, ContractSymbol.btcusd, tradeValues.direction, stable);
+      }
+
       _pendingOrder!.state = PendingOrderState.submittedSuccessfully;
     } on FfiException catch (exception) {
       logger.e("Failed to submit order: $exception");

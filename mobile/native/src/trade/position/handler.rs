@@ -15,21 +15,35 @@ use anyhow::Context;
 use anyhow::Result;
 use commons::FilledWith;
 use commons::Prices;
+use commons::TradeAndChannelParams;
 use commons::TradeParams;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use time::OffsetDateTime;
 use trade::ContractSymbol;
 
-/// Sets up a trade with the counterparty
+/// Sets up a trade with the counterparty.
 ///
-/// In a success scenario this results in creating, updating or deleting a position.
-/// The DLC that represents the position will be stored in the database.
-/// Errors are handled within the scope of this function.
+/// In a success scenario, this results in creating, updating or deleting a position.
 pub async fn trade(filled: FilledWith) -> Result<()> {
     let order = db::get_order(filled.order_id).context("Could not load order from db")?;
 
-    tracing::debug!(?order, ?filled, "Filling order with id: {}", order.id);
+    tracing::debug!(?order, ?filled, "Filling order");
+
+    let (coordinator_reserve, trader_reserve) =
+        match db::get_channel_opening_params_by_order_id(filled.order_id)
+            .context("Could not load channel-opening params from db")?
+        {
+            Some(channel_opening_params) => {
+                tracing::debug!(?channel_opening_params, "Found channel-opening parameters");
+
+                (
+                    Some(channel_opening_params.coordinator_reserve),
+                    Some(channel_opening_params.trader_reserve),
+                )
+            }
+            None => (None, None),
+        };
 
     let trade_params = TradeParams {
         pubkey: ln_dlc::get_node_pubkey(),
@@ -69,7 +83,13 @@ pub async fn trade(filled: FilledWith) -> Result<()> {
         }
     }
 
-    if let Err((reason, e)) = ln_dlc::trade(trade_params).await {
+    let params = TradeAndChannelParams {
+        trade_params,
+        coordinator_reserve,
+        trader_reserve,
+    };
+
+    if let Err((reason, e)) = ln_dlc::trade(params).await {
         order::handler::order_failed(Some(order.id), reason, e)
             .context("Could not set order to failed")?;
     }
@@ -119,7 +139,15 @@ pub async fn async_trade(order: commons::Order, filled_with: FilledWith) -> Resu
         filled_with,
     };
 
-    if let Err((reason, e)) = ln_dlc::trade(trade_params).await {
+    let params = TradeAndChannelParams {
+        trade_params,
+        // An "async" trade is only triggered to close and expired position. We don't need
+        // channel-opening parameters to close a position.
+        coordinator_reserve: None,
+        trader_reserve: None,
+    };
+
+    if let Err((reason, e)) = ln_dlc::trade(params).await {
         order::handler::order_failed(Some(order.id), reason, e)
             .context("Could not set order to failed")?;
     }

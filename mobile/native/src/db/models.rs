@@ -1,4 +1,5 @@
 use crate::schema;
+use crate::schema::channel_opening_params;
 use crate::schema::channels;
 use crate::schema::orders;
 use crate::schema::payments;
@@ -1463,6 +1464,61 @@ impl From<Trade> for crate::trade::Trade {
     }
 }
 
+#[derive(Queryable, QueryableByName, Insertable, Debug, Clone, PartialEq)]
+#[diesel(table_name = channel_opening_params)]
+pub struct ChannelOpeningParams {
+    order_id: String,
+    coordinator_reserve: i64,
+    trader_reserve: i64,
+    created_at: i64,
+}
+
+impl ChannelOpeningParams {
+    pub fn insert(
+        conn: &mut SqliteConnection,
+        channel_opening_params: ChannelOpeningParams,
+    ) -> Result<()> {
+        let affected_rows = diesel::insert_into(channel_opening_params::table)
+            .values(channel_opening_params)
+            .execute(conn)?;
+
+        ensure!(affected_rows > 0, "Could not insert channel-opening params");
+
+        Ok(())
+    }
+
+    pub fn get_by_order_id(
+        conn: &mut SqliteConnection,
+        order_id: Uuid,
+    ) -> QueryResult<Option<ChannelOpeningParams>> {
+        channel_opening_params::table
+            .filter(channel_opening_params::order_id.eq(order_id.to_string()))
+            .first(conn)
+            .optional()
+    }
+}
+
+impl From<crate::ln_dlc::ChannelOpeningParams> for ChannelOpeningParams {
+    fn from(value: crate::ln_dlc::ChannelOpeningParams) -> Self {
+        Self {
+            order_id: value.order_id.to_string(),
+            coordinator_reserve: value.coordinator_reserve.to_sat() as i64,
+            trader_reserve: value.trader_reserve.to_sat() as i64,
+            created_at: OffsetDateTime::now_utc().unix_timestamp(),
+        }
+    }
+}
+
+impl From<ChannelOpeningParams> for crate::ln_dlc::ChannelOpeningParams {
+    fn from(value: ChannelOpeningParams) -> Self {
+        Self {
+            order_id: Uuid::parse_str(value.order_id.as_str()).expect("valid UUID"),
+            coordinator_reserve: Amount::from_sat(value.coordinator_reserve as u64),
+            trader_reserve: Amount::from_sat(value.trader_reserve as u64),
+        }
+    }
+}
+
 #[cfg(test)]
 pub mod test {
     use super::*;
@@ -1969,5 +2025,24 @@ pub mod test {
         // Verify that we can load all transactions without fees
         let transactions = Transaction::get_all_without_fees(&mut connection).unwrap();
         assert_eq!(1, transactions.len())
+    }
+
+    #[test]
+    fn channel_opening_params_round_trip() {
+        let mut connection = SqliteConnection::establish(":memory:").unwrap();
+        connection.run_pending_migrations(MIGRATIONS).unwrap();
+
+        let params = crate::ln_dlc::ChannelOpeningParams {
+            order_id: Uuid::from_str("9b05e1d2-6895-4c6e-a929-ee2094a702c8").unwrap(),
+            coordinator_reserve: Amount::from_sat(10_000),
+            trader_reserve: Amount::from_sat(20_000),
+        };
+
+        ChannelOpeningParams::insert(&mut connection, params.into()).unwrap();
+
+        let loaded_params = ChannelOpeningParams::get_by_order_id(&mut connection, params.order_id)
+            .unwrap()
+            .unwrap();
+        assert_eq!(params, loaded_params.into());
     }
 }
