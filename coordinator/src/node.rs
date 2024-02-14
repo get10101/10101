@@ -1,23 +1,17 @@
 use crate::db;
 use crate::node::storage::NodeStorage;
-use crate::orderbook::db::matches;
-use crate::orderbook::db::orders;
 use crate::position::models::Position;
 use crate::position::models::PositionState;
 use crate::storage::CoordinatorTenTenOneStorage;
 use crate::trade::TradeExecutor;
-use anyhow::anyhow;
 use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
 use bitcoin::hashes::hex::ToHex;
 use bitcoin::secp256k1::PublicKey;
-use commons::MatchState;
-use commons::OrderState;
 use commons::TradeAndChannelParams;
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::Pool;
-use diesel::Connection;
 use diesel::PgConnection;
 use dlc_manager::channel::signed_channel::SignedChannel;
 use dlc_manager::channel::signed_channel::SignedChannelState;
@@ -39,7 +33,6 @@ use tokio::sync::RwLock;
 use tracing::instrument;
 use trade::cfd::calculate_pnl;
 use trade::Direction;
-use uuid::Uuid;
 
 pub mod connection;
 pub mod expired_positions;
@@ -126,45 +119,12 @@ impl Node {
         !usable_channels.is_empty()
     }
 
-    pub async fn trade(&self, params: &TradeAndChannelParams) -> Result<()> {
-        let mut connection = self.pool.get()?;
-
-        let order_id = params.trade_params.filled_with.order_id;
-        let trader_id = params.trade_params.pubkey;
-
+    pub async fn trade(&self, params: TradeAndChannelParams) -> Result<()> {
         let trade_executor =
             TradeExecutor::new(self.inner.clone(), self.pool.clone(), self.settings.clone());
-        match trade_executor.execute(params).await {
-            Ok(()) => {
-                tracing::info!(
-                    %trader_id,
-                    %order_id,
-                    "Successfully processed match, setting match to Filled"
-                );
+        trade_executor.execute(&params).await;
 
-                update_order_and_match(
-                    &mut connection,
-                    order_id,
-                    MatchState::Filled,
-                    OrderState::Taken,
-                )?;
-                Ok(())
-            }
-            Err(e) => {
-                if let Err(e) = update_order_and_match(
-                    &mut connection,
-                    order_id,
-                    MatchState::Failed,
-                    OrderState::Failed,
-                ) {
-                    tracing::error!(%trader_id, %order_id, "Failed to update order and match: {e}");
-                };
-
-                Err(e).with_context(|| {
-                    format!("Failed to trade with peer {trader_id} for order {order_id}")
-                })
-            }
-        }
+        Ok(())
     }
 
     #[instrument(fields(position_id = position.id, trader_id = position.trader.to_string()),skip(self, conn, position))]
@@ -477,21 +437,4 @@ impl Node {
 
         Ok(())
     }
-}
-
-fn update_order_and_match(
-    connection: &mut PgConnection,
-    order_id: Uuid,
-    match_state: MatchState,
-    order_state: OrderState,
-) -> Result<()> {
-    connection
-        .transaction(|connection| {
-            matches::set_match_state(connection, order_id, match_state)?;
-
-            orders::set_order_state(connection, order_id, order_state)?;
-
-            diesel::result::QueryResult::Ok(())
-        })
-        .map_err(|e| anyhow!("Failed to update order and match. Error: {e:#}"))
 }

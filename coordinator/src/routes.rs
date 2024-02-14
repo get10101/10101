@@ -368,7 +368,7 @@ pub async fn post_trade(
     State(state): State<Arc<AppState>>,
     params: Json<TradeAndChannelParams>,
 ) -> Result<(), AppError> {
-    state.node.trade(&params.0).await.map_err(|e| {
+    state.node.trade(params.0).await.map_err(|e| {
         AppError::InternalServerError(format!("Could not handle trade request: {e:#}"))
     })
 }

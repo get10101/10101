@@ -3,6 +3,7 @@ use crate::db;
 use crate::decimal_from_f32;
 use crate::node::storage::NodeStorage;
 use crate::node::NodeSettings;
+use crate::orderbook::db::matches;
 use crate::orderbook::db::orders;
 use crate::payout_curve;
 use crate::position::models::NewPosition;
@@ -10,6 +11,7 @@ use crate::position::models::Position;
 use crate::position::models::PositionState;
 use crate::storage::CoordinatorTenTenOneStorage;
 use crate::trade::models::NewTrade;
+use anyhow::anyhow;
 use anyhow::bail;
 use anyhow::ensure;
 use anyhow::Context;
@@ -17,11 +19,13 @@ use anyhow::Result;
 use bitcoin::hashes::hex::ToHex;
 use bitcoin::secp256k1::PublicKey;
 use commons::order_matching_fee_taker;
+use commons::MatchState;
 use commons::OrderState;
 use commons::TradeAndChannelParams;
 use commons::TradeParams;
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::Pool;
+use diesel::Connection;
 use diesel::PgConnection;
 use dlc_manager::channel::signed_channel::SignedChannel;
 use dlc_manager::channel::signed_channel::SignedChannelState;
@@ -43,6 +47,7 @@ use trade::cfd::calculate_long_liquidation_price;
 use trade::cfd::calculate_margin;
 use trade::cfd::calculate_short_liquidation_price;
 use trade::Direction;
+use uuid::Uuid;
 
 pub mod models;
 
@@ -80,6 +85,37 @@ impl TradeExecutor {
         }
     }
 
+    pub async fn execute(&self, params: &TradeAndChannelParams) {
+        let trader_id = params.trade_params.pubkey;
+        let order_id = params.trade_params.filled_with.order_id;
+
+        match self.execute_internal(params).await {
+            Ok(()) => {
+                tracing::info!(
+                    %trader_id,
+                    %order_id,
+                    "Successfully processed match, setting match to Filled"
+                );
+
+                if let Err(e) =
+                    self.update_order_and_match(order_id, MatchState::Filled, OrderState::Taken)
+                {
+                    tracing::error!(%trader_id,
+                        %order_id,"Failed to update order and match state. Error: {e:#}");
+                }
+            }
+            Err(e) => {
+                tracing::error!(%trader_id, %order_id,"Failed to execute trade. Error: {e:#}");
+
+                if let Err(e) =
+                    self.update_order_and_match(order_id, MatchState::Failed, OrderState::Failed)
+                {
+                    tracing::error!(%trader_id, %order_id, "Failed to update order and match: {e}");
+                };
+            }
+        };
+    }
+
     /// Execute a trade action according to the coordinator's current trading status with the
     /// trader.
     ///
@@ -92,7 +128,7 @@ impl TradeExecutor {
     /// 2. If no position is found, we open a position.
     ///
     /// 3. If a position of differing quantity is found, we resize the position.
-    pub async fn execute(&self, params: &TradeAndChannelParams) -> Result<()> {
+    async fn execute_internal(&self, params: &TradeAndChannelParams) -> Result<()> {
         let mut connection = self.pool.get()?;
 
         let order_id = params.trade_params.filled_with.order_id;
@@ -155,7 +191,6 @@ impl TradeExecutor {
                 .start_closing_position(&mut connection, &position, closing_price, channel_id)
                 .await
                 .with_context(|| format!("Failed at closing position {}", position.id))?,
-
             TradeAction::ResizePosition => unimplemented!(),
         };
 
@@ -546,6 +581,24 @@ impl TradeExecutor {
                 .to_f32()
                 .expect("Closing price to fit into f32"),
         )
+    }
+
+    fn update_order_and_match(
+        &self,
+        order_id: Uuid,
+        match_state: MatchState,
+        order_state: OrderState,
+    ) -> Result<()> {
+        let mut connection = self.pool.get()?;
+        connection
+            .transaction(|connection| {
+                matches::set_match_state(connection, order_id, match_state)?;
+
+                orders::set_order_state(connection, order_id, order_state)?;
+
+                diesel::result::QueryResult::Ok(())
+            })
+            .map_err(|e| anyhow!("Failed to update order and match. Error: {e:#}"))
     }
 
     fn coordinator_leverage_for_trade(&self, _counterparty_peer_id: &PublicKey) -> Result<f32> {
