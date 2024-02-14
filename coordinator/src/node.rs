@@ -1,4 +1,5 @@
 use crate::db;
+use crate::message::OrderbookMessage;
 use crate::node::storage::NodeStorage;
 use crate::position::models::Position;
 use crate::position::models::PositionState;
@@ -29,6 +30,7 @@ use ln_dlc_node::WalletSettings;
 use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::Decimal;
 use std::sync::Arc;
+use tokio::sync::mpsc;
 use tokio::sync::RwLock;
 use tracing::instrument;
 use trade::cfd::calculate_pnl;
@@ -119,10 +121,21 @@ impl Node {
         !usable_channels.is_empty()
     }
 
-    pub async fn trade(&self, params: TradeAndChannelParams) -> Result<()> {
-        let trade_executor =
-            TradeExecutor::new(self.inner.clone(), self.pool.clone(), self.settings.clone());
-        trade_executor.execute(&params).await;
+    pub async fn trade(
+        &self,
+        notifier: mpsc::Sender<OrderbookMessage>,
+        params: TradeAndChannelParams,
+    ) -> Result<()> {
+        let trade_executor = TradeExecutor::new(
+            self.inner.clone(),
+            self.pool.clone(),
+            self.settings.clone(),
+            notifier,
+        );
+
+        tokio::spawn(async move {
+            trade_executor.execute(&params).await;
+        });
 
         Ok(())
     }

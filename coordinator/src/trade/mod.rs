@@ -1,6 +1,7 @@
 use crate::compute_relative_contracts;
 use crate::db;
 use crate::decimal_from_f32;
+use crate::message::OrderbookMessage;
 use crate::node::storage::NodeStorage;
 use crate::node::NodeSettings;
 use crate::orderbook::db::matches;
@@ -20,6 +21,7 @@ use bitcoin::hashes::hex::ToHex;
 use bitcoin::secp256k1::PublicKey;
 use commons::order_matching_fee_taker;
 use commons::MatchState;
+use commons::Message;
 use commons::OrderState;
 use commons::TradeAndChannelParams;
 use commons::TradeParams;
@@ -42,6 +44,7 @@ use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use std::sync::Arc;
 use time::OffsetDateTime;
+use tokio::sync::mpsc;
 use tokio::sync::RwLock;
 use trade::cfd::calculate_long_liquidation_price;
 use trade::cfd::calculate_margin;
@@ -70,6 +73,7 @@ pub struct TradeExecutor {
     node: Arc<node::Node<CoordinatorTenTenOneStorage, NodeStorage>>,
     pool: Pool<ConnectionManager<PgConnection>>,
     settings: Arc<RwLock<NodeSettings>>,
+    notifier: mpsc::Sender<OrderbookMessage>,
 }
 
 impl TradeExecutor {
@@ -77,11 +81,13 @@ impl TradeExecutor {
         node: Arc<node::Node<CoordinatorTenTenOneStorage, NodeStorage>>,
         pool: Pool<ConnectionManager<PgConnection>>,
         settings: Arc<RwLock<NodeSettings>>,
+        notifier: mpsc::Sender<OrderbookMessage>,
     ) -> Self {
         Self {
             node,
             pool,
             settings,
+            notifier,
         }
     }
 
@@ -112,6 +118,18 @@ impl TradeExecutor {
                 {
                     tracing::error!(%trader_id, %order_id, "Failed to update order and match: {e}");
                 };
+
+                let message = OrderbookMessage::TraderMessage {
+                    trader_id,
+                    message: Message::TradeError {
+                        order_id,
+                        error: format!("{e:#}"),
+                    },
+                    notification: None,
+                };
+                if let Err(e) = self.notifier.send(message).await {
+                    tracing::debug!("Failed to notify trader. Error: {e:#}");
+                }
             }
         };
     }

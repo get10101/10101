@@ -6,7 +6,10 @@ use crate::event::TaskStatus;
 use crate::health::ServiceStatus;
 use crate::ln_dlc;
 use crate::state;
+use crate::trade::order;
+use crate::trade::order::FailureReason;
 use crate::trade::position;
+use anyhow::anyhow;
 use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
@@ -371,6 +374,14 @@ async fn handle_orderbook_message(
         }
         msg @ Message::LimitOrderFilledMatches { .. } | msg @ Message::InvalidAuthentication(_) => {
             tracing::debug!(?msg, "Skipping message from orderbook");
+        }
+        Message::TradeError { order_id, error } => {
+            order::handler::order_failed(
+                Some(order_id),
+                FailureReason::TradeResponse(error.clone()),
+                anyhow!("Coordinator failed to execute trade: {error}"),
+            )
+            .context("Could not set order to failed")?;
         }
     };
 
