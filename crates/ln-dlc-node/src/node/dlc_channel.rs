@@ -75,6 +75,8 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
 
                 let temporary_contract_id = offer_channel.temporary_contract_id;
 
+                // TODO(holzeis): We should send the dlc message last to make sure that we have
+                // finished updating the 10101 meta data before the app responds to the message.
                 event_handler.publish(NodeEvent::SendDlcMessage {
                     peer: counterparty,
                     msg: Message::Channel(ChannelMessage::Offer(offer_channel)),
@@ -202,6 +204,8 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
                 let (settle_offer, counterparty) =
                     dlc_manager.settle_offer(&channel_id, accept_settlement_amount)?;
 
+                // TODO(holzeis): We should send the dlc message last to make sure that we have
+                // finished updating the 10101 meta data before the app responds to the message.
                 event_handler.publish(NodeEvent::SendDlcMessage {
                     peer: counterparty,
                     msg: Message::Channel(ChannelMessage::SettleOffer(settle_offer)),
@@ -262,6 +266,8 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
                 let (renew_offer, counterparty_pubkey) =
                     dlc_manager.renew_offer(&dlc_channel_id, counter_payout, &contract_input)?;
 
+                // TODO(holzeis): We should send the dlc message last to make sure that we have
+                // finished updating the 10101 meta data before the app responds to the message.
                 event_handler.publish(NodeEvent::SendDlcMessage {
                     msg: Message::Channel(ChannelMessage::RenewOffer(renew_offer)),
                     peer: counterparty_pubkey,
