@@ -273,7 +273,7 @@ jobs:
           echo "Coordinator successfully started."
       - name: Run maker
         run: |
-          just run-maker-detached
+          docker run --pull always -d --name maker ghcr.io/get10101/aristides/aristides:main regtest --orderbook http://172.17.0.1:8000
           echo "Maker successfully started."
       - name: Run e2e tests
         run: RUST_BACKTRACE=1 ${{ matrix.tests }} --nocapture --ignored
