@@ -1,5 +1,6 @@
 use crate::node::InMemoryStore;
 use crate::node::Node;
+use crate::node::RunningNode;
 use crate::storage::TenTenOneInMemoryStorage;
 use crate::tests::bitcoind::mine;
 use crate::tests::dummy_contract_input;
@@ -18,15 +19,15 @@ use std::time::Duration;
 async fn can_open_and_settle_offchain() {
     init_tracing();
 
-    // Arrange
-
-    let (app, coordinator, coordinator_signed_channel, app_signed_channel) =
-        setup_channel_with_position().await;
-
-    // Act
+    let (
+        (app, _running_app),
+        (coordinator, _running_coordinator),
+        app_signed_channel,
+        coordinator_signed_channel,
+    ) = set_up_channel_with_position().await;
 
     let oracle_pk = *coordinator.oracle_pk().first().unwrap();
-    let contract_input = dummy_contract_input(15_000, 5_000, oracle_pk);
+    let contract_input = dummy_contract_input(15_000, 5_000, oracle_pk, None);
 
     coordinator
         .propose_dlc_channel_update(&coordinator_signed_channel.channel_id, contract_input)
@@ -84,8 +85,6 @@ async fn can_open_and_settle_offchain() {
     .await
     .unwrap();
 
-    // Assert
-
     wait_until(Duration::from_secs(10), || async {
         coordinator.process_incoming_messages()?;
 
@@ -124,9 +123,12 @@ async fn can_open_and_settle_offchain() {
 async fn can_open_and_collaboratively_close_channel() {
     init_tracing();
 
-    // Arrange
-    let (app, coordinator, coordinator_signed_channel, app_signed_channel) =
-        setup_channel_with_position().await;
+    let (
+        (app, _running_app),
+        (coordinator, _running_coordinator),
+        app_signed_channel,
+        coordinator_signed_channel,
+    ) = set_up_channel_with_position().await;
 
     let app_on_chain_balance_before_close = app.get_on_chain_balance().unwrap();
     let coordinator_on_chain_balance_before_close = coordinator.get_on_chain_balance().unwrap();
@@ -208,10 +210,10 @@ async fn can_open_and_collaboratively_close_channel() {
 async fn can_open_and_force_close_channel() {
     init_tracing();
 
-    // Arrange
-    let (app, coordinator, coordinator_signed_channel, _) = setup_channel_with_position().await;
+    let ((app, _running_app), (coordinator, _running_coordinator), _, coordinator_signed_channel) =
+        set_up_channel_with_position().await;
 
-    tracing::debug!("Force closing dlc channel");
+    tracing::debug!("Force-closing DLC channel");
 
     wait_until(Duration::from_secs(10), || async {
         mine(1).await.unwrap();
@@ -249,38 +251,87 @@ async fn can_open_and_force_close_channel() {
     // or similar
 }
 
-async fn setup_channel_with_position() -> (
+async fn start_and_fund_app(
+    amount: Amount,
+    n_utxos: u64,
+) -> (
     Arc<Node<TenTenOneInMemoryStorage, InMemoryStore>>,
+    RunningNode,
+) {
+    let (node, running_node) = Node::start_test_app("app").unwrap();
+
+    node.fund(amount, n_utxos).await.unwrap();
+
+    (node, running_node)
+}
+
+async fn start_and_fund_coordinator(
+    amount: Amount,
+    n_utxos: u64,
+) -> (
     Arc<Node<TenTenOneInMemoryStorage, InMemoryStore>>,
+    RunningNode,
+) {
+    let (node, running_node) = Node::start_test_coordinator("coordinator").unwrap();
+
+    node.fund(amount, n_utxos).await.unwrap();
+
+    (node, running_node)
+}
+
+async fn set_up_channel_with_position() -> (
+    (
+        Arc<Node<TenTenOneInMemoryStorage, InMemoryStore>>,
+        RunningNode,
+    ),
+    (
+        Arc<Node<TenTenOneInMemoryStorage, InMemoryStore>>,
+        RunningNode,
+    ),
     SignedChannel,
     SignedChannel,
 ) {
-    let app_dlc_collateral = 10_000;
-    let coordinator_dlc_collateral = 10_000;
+    let app_dlc_collateral = Amount::from_sat(10_000);
+    let coordinator_dlc_collateral = Amount::from_sat(10_000);
 
-    let (app, _running_app) = Node::start_test_app("app").unwrap();
-    let (coordinator, _running_coord) = Node::start_test_coordinator("coordinator").unwrap();
+    let (app, running_app) = start_and_fund_app(Amount::from_sat(10_000_000), 10).await;
+    let (coordinator, running_coordinator) =
+        start_and_fund_coordinator(Amount::from_sat(10_000_000), 10).await;
 
+    let (app_signed_channel, coordinator_signed_channel) = open_channel_and_position(
+        app.clone(),
+        coordinator.clone(),
+        app_dlc_collateral,
+        coordinator_dlc_collateral,
+    )
+    .await;
+
+    (
+        (app, running_app),
+        (coordinator, running_coordinator),
+        app_signed_channel,
+        coordinator_signed_channel,
+    )
+}
+
+async fn open_channel_and_position(
+    app: Arc<Node<TenTenOneInMemoryStorage, InMemoryStore>>,
+    coordinator: Arc<Node<TenTenOneInMemoryStorage, InMemoryStore>>,
+    app_dlc_collateral: Amount,
+    coordinator_dlc_collateral: Amount,
+) -> (SignedChannel, SignedChannel) {
     app.connect(coordinator.info).await.unwrap();
 
-    // Choosing large fund amounts compared to the DLC collateral to ensure that we have one input
-    // per party. In the end, it doesn't seem to matter though.
-
-    app.fund(Amount::from_sat(10_000_000)).await.unwrap();
-
-    coordinator
-        .fund(Amount::from_sat(10_000_000))
-        .await
-        .unwrap();
-
-    let app_balance_before = app.get_on_chain_balance().unwrap().confirmed;
-    let coordinator_balance_before = coordinator.get_on_chain_balance().unwrap().confirmed;
-
-    // Act
+    let app_balance_before_sat = app.get_on_chain_balance().unwrap().confirmed;
+    let coordinator_balance_before_sat = coordinator.get_on_chain_balance().unwrap().confirmed;
 
     let oracle_pk = *coordinator.oracle_pk().first().unwrap();
-    let contract_input =
-        dummy_contract_input(app_dlc_collateral, coordinator_dlc_collateral, oracle_pk);
+    let contract_input = dummy_contract_input(
+        app_dlc_collateral.to_sat(),
+        coordinator_dlc_collateral.to_sat(),
+        oracle_pk,
+        None,
+    );
 
     coordinator
         .propose_dlc_channel(contract_input, app.info.pubkey)
@@ -342,10 +393,13 @@ async fn setup_channel_with_position() -> (
     wait_until(Duration::from_secs(30), || async {
         app.sync_wallets().await.unwrap();
 
-        let app_balance_after_open = app.get_on_chain_balance().unwrap().confirmed;
+        let app_balance_after_open_sat = app.get_on_chain_balance().unwrap().confirmed;
 
         // We don't aim to account for transaction fees exactly.
-        Ok((app_balance_after_open <= app_balance_before - app_dlc_collateral).then_some(()))
+        Ok(
+            (app_balance_after_open_sat <= app_balance_before_sat - app_dlc_collateral.to_sat())
+                .then_some(()),
+        )
     })
     .await
     .unwrap();
@@ -353,12 +407,13 @@ async fn setup_channel_with_position() -> (
     wait_until(Duration::from_secs(30), || async {
         coordinator.sync_wallets().await.unwrap();
 
-        let coordinator_balance_after_open = coordinator.get_on_chain_balance().unwrap().confirmed;
+        let coordinator_balance_after_open_sat =
+            coordinator.get_on_chain_balance().unwrap().confirmed;
 
         // We don't aim to account for transaction fees exactly.
-        Ok((coordinator_balance_after_open
-            <= coordinator_balance_before - coordinator_dlc_collateral)
-            .then_some(()))
+        Ok((coordinator_balance_after_open_sat
+            <= coordinator_balance_before_sat - coordinator_dlc_collateral.to_sat())
+        .then_some(()))
     })
     .await
     .unwrap();
@@ -398,7 +453,7 @@ async fn setup_channel_with_position() -> (
     coordinator
         .propose_dlc_channel_collaborative_settlement(
             coordinator_signed_channel.channel_id,
-            coordinator_dlc_collateral / 2,
+            coordinator_dlc_collateral.to_sat() / 2,
         )
         .await
         .unwrap();
@@ -487,10 +542,6 @@ async fn setup_channel_with_position() -> (
     })
     .await
     .unwrap();
-    (
-        app,
-        coordinator,
-        coordinator_signed_channel,
-        app_signed_channel,
-    )
+
+    (app_signed_channel, coordinator_signed_channel)
 }
