@@ -178,7 +178,7 @@ class _ChannelConfiguration extends State<ChannelConfiguration> {
 
                                     if (maxCounterpartyCollateral.sats <
                                         counterpartyCollateral.sats) {
-                                      return "Over limit: $counterpartyCollateral";
+                                      return "Over limit: $maxCounterpartyCollateral";
                                     }
 
                                     return null;
