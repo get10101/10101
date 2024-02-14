@@ -244,16 +244,20 @@ impl Node<TenTenOneInMemoryStorage, InMemoryStore> {
         })
     }
 
-    async fn fund(&self, amount: Amount) -> Result<()> {
+    async fn fund(&self, amount: Amount, n_utxos: u64) -> Result<()> {
         let starting_balance = self.get_confirmed_balance().await?;
         let expected_balance = starting_balance + amount.to_sat();
 
         // we mine blocks so that the internal wallet in bitcoind has enough utxos to fund the
         // wallet
-        bitcoind::mine(11).await?;
-        for _ in 0..10 {
+        bitcoind::mine(n_utxos as u16 + 1).await?;
+        for _ in 0..n_utxos {
             let address = self.wallet.unused_address();
-            bitcoind::fund(address.to_string(), Amount::from_sat(amount.to_sat() / 10)).await?;
+            bitcoind::fund(
+                address.to_string(),
+                Amount::from_sat(amount.to_sat() / n_utxos),
+            )
+            .await?;
         }
         bitcoind::mine(1).await?;
 
@@ -444,6 +448,7 @@ fn dummy_contract_input(
     offer_collateral: u64,
     accept_collateral: u64,
     oracle_pk: XOnlyPublicKey,
+    fee_rate_sats_per_vbyte: Option<u64>,
 ) -> ContractInput {
     let total_collateral = offer_collateral + accept_collateral;
 
@@ -456,7 +461,7 @@ fn dummy_contract_input(
     ContractInput {
         offer_collateral,
         accept_collateral,
-        fee_rate: 2,
+        fee_rate: fee_rate_sats_per_vbyte.unwrap_or(2),
         contract_infos: vec![ContractInputInfo {
             contract_descriptor: ContractDescriptor::Numerical(NumericalDescriptor {
                 payout_function: PayoutFunction::new(vec![
