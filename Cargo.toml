@@ -1,8 +1,7 @@
 [workspace]
-members = ["coordinator", "maker", "mobile/native", "crates/*", "webapp"]
+members = ["coordinator", "mobile/native", "crates/*", "webapp"]
 default-members = [
   "coordinator",
-  "maker",
   "mobile/native",
   "crates/bitmex-client",
   "crates/bitmex-stream",
@@ -39,9 +38,6 @@ lightning-persister = { git = "https://github.com/bonomat/rust-lightning-p2p-der
 lightning-rapid-gossip-sync = { git = "https://github.com/bonomat/rust-lightning-p2p-derivatives", rev = "e49030e" }
 
 rust-bitcoin-coin-selection = { git = "https://github.com/p2pderivatives/rust-bitcoin-coin-selection" }
-
-# Waiting for the next release.
-xtra = { git = "https://github.com/Restioson/xtra/", rev = "d98393a" }
 
 [profile.test.package.proptest]
 opt-level = 3

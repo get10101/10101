@@ -291,7 +291,9 @@ coordinator args="":
     cargo run --bin coordinator -- {{args}}
 
 maker args="":
-    cargo run --bin maker -- {{args}}
+    # we always delete the old container first as otherwise we might get an error if the container still exists
+    docker rm -f maker || true
+    docker run --pull always --name maker ghcr.io/get10101/aristides/aristides:main regtest --orderbook http://host.docker.internal:8000
 
 flutter-test:
     cd mobile && flutter pub run build_runner build --delete-conflicting-outputs && flutter test
@@ -341,15 +343,9 @@ run-coordinator-detached:
 
 # Starts maker process in the background, piping logs to a file (used in other recipes)
 run-maker-detached:
-    #!/usr/bin/env bash
-    set -euxo pipefail
-
-    just wait-for-electrs-to-be-ready
-
-    echo "Starting (and building) maker"
-    cargo run --bin maker &> {{maker_log_file}} &
-    just wait-for-maker-to-be-ready
-    echo "Maker successfully started. You can inspect the logs at {{maker_log_file}}"
+    # we always delete the old container first as otherwise we might get an error if the container still exists
+    docker rm -f maker || true
+    docker run --pull always -d --name maker ghcr.io/get10101/aristides/aristides:main regtest --orderbook http://host.docker.internal:8000
 
 # Attach to the current coordinator logs
 coordinator-logs:
@@ -359,9 +355,7 @@ coordinator-logs:
 
 # Attach to the current maker logs
 maker-logs:
-    #!/usr/bin/env bash
-    set -euxo pipefail
-    less +F {{maker_log_file}}
+    docker logs -f maker
 
 # Run services in the background
 services: docker run-coordinator-detached run-maker-detached fund
@@ -435,39 +429,6 @@ wait-for-coordinator-to-be-ready:
       done
 
     echo "Max attempts reached. Coordinator is still not ready."
-    exit 1
-
-[private]
-wait-for-maker-to-be-ready:
-    #!/usr/bin/env bash
-    set +e
-
-    endpoint="http://localhost:18000/"
-    max_attempts=600
-    sleep_duration=1
-
-    check_endpoint() {
-      response=$(curl -s -o /dev/null -w "%{http_code}" "$endpoint")
-      if [ "$response" -eq 200 ]; then
-        echo "Maker is ready!"
-        exit 0
-        else
-        echo "Maker not ready yet. Retrying..."
-        return 1
-        fi
-        }
-
-    attempt=1
-    while [ "$attempt" -le "$max_attempts" ]; do
-      if check_endpoint; then
-        exit 0
-        fi
-
-      sleep "$sleep_duration"
-      attempt=$((attempt + 1))
-      done
-
-    echo "Max attempts reached. Maker is still not ready."
     exit 1
 
 build-ipa args="":

@@ -212,7 +212,6 @@ jobs:
           path: |
             target/debug/deps
             target/debug/coordinator
-            target/debug/maker
           key: test-cache-${{ github.run_id }}-${{ github.run_number }}
       - name: Download RUST FFI bindings
         uses: actions/download-artifact@v2
@@ -221,8 +220,8 @@ jobs:
           path: mobile/native/src/bridge_generated
       - name: build e2e tests only
         run: cargo test -p tests-e2e --no-run
-      - name: build coordinator and maker
-        run: cargo build --bin maker --bin coordinator
+      - name: build coordinator
+        run: cargo build --bin coordinator
       - name: set-matrix
         id: set-matrix
         run: echo "matrix=$(scripts/get_test_list.sh)}" >> $GITHUB_OUTPUT
@@ -244,7 +243,6 @@ jobs:
           path: |
             target/debug/deps
             target/debug/coordinator
-            target/debug/maker
           key: test-cache-${{ github.run_id }}-${{ github.run_number }}
       - uses: extractions/setup-just@v1
       - name: Start containers
@@ -275,20 +273,13 @@ jobs:
           echo "Coordinator successfully started."
       - name: Run maker
         run: |
-          #!/usr/bin/env bash
-          set -euxo pipefail
-
-          just wait-for-electrs-to-be-ready
-
-          echo "Starting maker"
-          ./target/debug/maker &> ./data/maker/regtest.log &
-          just wait-for-maker-to-be-ready
+          docker run --pull always -d --name maker ghcr.io/get10101/aristides/aristides:main regtest --orderbook http://172.17.0.1:8000
           echo "Maker successfully started."
       - name: Run e2e tests
         run: RUST_BACKTRACE=1 ${{ matrix.tests }} --nocapture --ignored
       - name: Print maker logs on e2e tests error
         if: failure()
-        run: cat data/maker/regtest.log
+        run: docker logs maker
       - name: Print coordinator logs on e2e tests error
         if: failure()
         run: cat data/coordinator/regtest.log
