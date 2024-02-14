@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Feat(webapp): Let user manually sync wallet history.
 - Feat(webapp): Allow to close or force-close a channel.
 - Feat(app): Count pending but trusted utxos to wallet balance.
+- Feat(mobile): Brag the bag: share your PnL as an image
 
 ## [1.8.11] - 2024-02-20
 

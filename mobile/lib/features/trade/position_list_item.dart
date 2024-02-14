@@ -1,7 +1,11 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:get_10101/common/color.dart';
+import 'package:get_10101/common/domain/model.dart';
 import 'package:get_10101/common/value_data_row.dart';
+import 'package:get_10101/features/brag/brag.dart';
 import 'package:get_10101/features/trade/domain/direction.dart';
 import 'package:get_10101/features/trade/domain/position.dart';
 import 'package:get_10101/features/trade/position_change_notifier.dart';
@@ -71,11 +75,11 @@ class _PositionListItemState extends State<PositionListItem> {
         padding: const EdgeInsets.fromLTRB(10.0, 10, 10, 0),
         child: Column(
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            Stack(
               children: [
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     const ContractSymbolIcon(),
                     const SizedBox(
@@ -92,6 +96,45 @@ class _PositionListItemState extends State<PositionListItem> {
                       notNullPosition.direction.keySuffix,
                       style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
+                    const Spacer(),
+                    ClipOval(
+                      child: Material(
+                        color: Colors.grey.shade100,
+                        child: InkWell(
+                          splashColor: tenTenOnePurple.shade200,
+                          onTap: () {
+                            showDialog(
+                              context: context,
+                              builder: (BuildContext context) {
+                                double unrealizedPnL = notNullPosition.unrealizedPnl?.sats == null
+                                    ? 0.0
+                                    : double.parse(notNullPosition.unrealizedPnl!.sats.toString());
+                                double pnlPercent =
+                                    (unrealizedPnL / notNullPosition.collateral.sats) * 100.0;
+                                return BragWidget(
+                                  title: 'Share as image',
+                                  onClose: () {
+                                    Navigator.of(context).pop();
+                                  },
+                                  direction: notNullPosition.direction,
+                                  leverage: notNullPosition.leverage,
+                                  pnl: notNullPosition.unrealizedPnl,
+                                  pnlPercent: double.parse(pnlPercent.toStringAsFixed(0)).toInt(),
+                                  entryPrice: Usd.fromDouble(notNullPosition.averageEntryPrice),
+                                );
+                              },
+                            );
+                          },
+                          child: const SizedBox(
+                              width: 32,
+                              height: 32,
+                              child: Icon(
+                                FontAwesomeIcons.shareNodes,
+                                size: 18,
+                              )),
+                        ),
+                      ),
+                    )
                   ],
                 ),
               ],
