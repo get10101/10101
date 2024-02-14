@@ -253,7 +253,6 @@ async fn can_open_and_force_close_channel() {
 
 #[tokio::test(flavor = "multi_thread")]
 #[ignore]
-#[should_panic]
 async fn can_open_channel_with_min_inputs() {
     init_tracing();
 
@@ -276,7 +275,7 @@ async fn can_open_channel_with_min_inputs() {
     let (coordinator, _running_coordinator) =
         start_and_fund_coordinator(coordinator_dlc_collateral + fee_cost_per_party, 1).await;
 
-    let _ = open_channel_and_position(
+    let (app_signed_channel, _) = open_channel_and_position(
         app.clone(),
         coordinator.clone(),
         app_dlc_collateral,
@@ -284,6 +283,9 @@ async fn can_open_channel_with_min_inputs() {
         Some(fee_rate_sats_per_vbyte),
     )
     .await;
+
+    // No change output means that the inputs were spent in full by the fund output.
+    assert!(app_signed_channel.fund_tx.output.len() == 1);
 }
 
 async fn start_and_fund_app(
