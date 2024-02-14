@@ -22,10 +22,8 @@ use diesel::PgConnection;
 use dlc_manager::channel::signed_channel::SignedChannel;
 use dlc_manager::channel::signed_channel::SignedChannelState;
 use dlc_manager::channel::Channel;
-use dlc_manager::DlcChannelId;
 use dlc_messages::ChannelMessage;
 use dlc_messages::Message;
-use lightning::ln::ChannelId;
 use lightning::util::config::UserConfig;
 use ln_dlc_node::dlc_message::DlcMessage;
 use ln_dlc_node::dlc_message::SerializedDlcMessage;
@@ -496,11 +494,4 @@ fn update_order_and_match(
             diesel::result::QueryResult::Ok(())
         })
         .map_err(|e| anyhow!("Failed to update order and match. Error: {e:#}"))
-}
-
-pub enum TradeAction {
-    OpenDlcChannel,
-    OpenPosition(DlcChannelId),
-    ClosePosition(DlcChannelId),
-    ResizePosition(ChannelId),
 }

@@ -46,6 +46,21 @@ use trade::Direction;
 
 pub mod models;
 
+pub enum TradeAction {
+    OpenDlcChannel,
+    OpenPosition {
+        channel_id: DlcChannelId,
+        own_payout: u64,
+        counter_payout: u64,
+    },
+    ClosePosition {
+        channel_id: DlcChannelId,
+        position: Box<Position>,
+        closing_price: Decimal,
+    },
+    ResizePosition,
+}
+
 pub struct TradeExecutor {
     node: Arc<node::Node<CoordinatorTenTenOneStorage, NodeStorage>>,
     pool: Pool<ConnectionManager<PgConnection>>,
@@ -98,26 +113,8 @@ impl TradeExecutor {
 
         tracing::info!(%trader_id, %order_id, "Executing match");
 
-        match self
-            .node
-            .get_signed_dlc_channel_by_counterparty(&trader_id)?
-        {
-            None => {
-                ensure!(
-                    self.settings.read().await.allow_opening_positions,
-                    "Opening positions is disabled"
-                );
-
-                ensure!(
-                    !self
-                        .node
-                        .list_dlc_channels()?
-                        .iter()
-                        .filter(|c| c.get_counter_party_id() == trader_id)
-                        .any(|c| matches!(c, Channel::Offered(_) | Channel::Accepted(_))),
-                    "Previous DLC Channel offer still pending."
-                );
-
+        match self.determine_trade_action(&mut connection, params).await? {
+            TradeAction::OpenDlcChannel => {
                 let collateral_reserve_coordinator = params
                     .coordinator_reserve
                     .context("Missing coordinator collateral reserve")?;
@@ -135,22 +132,12 @@ impl TradeExecutor {
                 .await
                 .context("Failed to open DLC channel")?;
             }
-            Some(SignedChannel {
+            TradeAction::OpenPosition {
                 channel_id,
-                state:
-                    SignedChannelState::Settled {
-                        own_payout,
-                        counter_payout,
-                        ..
-                    },
-                ..
-            }) => {
-                ensure!(
-                    self.settings.read().await.allow_opening_positions,
-                    "Opening positions is disabled"
-                );
-
-                self.open_position(
+                own_payout,
+                counter_payout,
+            } => self
+                .open_position(
                     &mut connection,
                     channel_id,
                     &params.trade_params,
@@ -159,60 +146,17 @@ impl TradeExecutor {
                     is_stable_order,
                 )
                 .await
-                .context("Failed to open new position")?;
-            }
-            Some(SignedChannel {
-                state: SignedChannelState::Established { .. },
-                channel_id: dlc_channel_id,
-                ..
-            }) => {
-                let trade_params = &params.trade_params;
+                .context("Failed to open new position")?,
+            TradeAction::ClosePosition {
+                channel_id,
+                position,
+                closing_price,
+            } => self
+                .start_closing_position(&mut connection, &position, closing_price, channel_id)
+                .await
+                .with_context(|| format!("Failed at closing position {}", position.id))?,
 
-                let position = db::positions::Position::get_position_by_trader(
-                    &mut connection,
-                    trader_id,
-                    vec![PositionState::Open],
-                )?
-                .context("Failed to find open position")?;
-
-                let position_contracts = {
-                    let contracts = decimal_from_f32(position.quantity);
-
-                    compute_relative_contracts(contracts, &position.trader_direction)
-                };
-
-                let trade_contracts = {
-                    let contracts = decimal_from_f32(trade_params.quantity);
-
-                    compute_relative_contracts(contracts, &trade_params.direction)
-                };
-
-                if position_contracts + trade_contracts == Decimal::ZERO {
-                    let closing_price = trade_params.average_execution_price();
-
-                    self.start_closing_position(
-                        &mut connection,
-                        &position,
-                        closing_price,
-                        dlc_channel_id,
-                    )
-                    .await
-                    .with_context(|| format!("Failed at closing position {}", position.id))?;
-                } else {
-                    ensure!(
-                        self.settings.read().await.allow_opening_positions,
-                        "Resizing positions is disabled"
-                    );
-
-                    bail!("Position resizing not yet possible");
-                }
-            }
-            Some(signed_channel) => {
-                bail!(
-                    "Cannot trade with DLC channel in state {}",
-                    signed_channel_state_name(&signed_channel)
-                );
-            }
+            TradeAction::ResizePosition => unimplemented!(),
         };
 
         Ok(())
@@ -622,6 +566,110 @@ impl TradeExecutor {
         let leverage_coordinator = 2.0;
 
         Ok(leverage_coordinator)
+    }
+
+    async fn determine_trade_action(
+        &self,
+        connection: &mut PgConnection,
+        params: &TradeAndChannelParams,
+    ) -> Result<TradeAction> {
+        let trader_id = params.trade_params.pubkey;
+
+        let trade_action = match self
+            .node
+            .get_signed_dlc_channel_by_counterparty(&trader_id)?
+        {
+            None => {
+                ensure!(
+                    self.settings.read().await.allow_opening_positions,
+                    "Opening positions is disabled"
+                );
+
+                ensure!(
+                    !self
+                        .node
+                        .list_dlc_channels()?
+                        .iter()
+                        .filter(|c| c.get_counter_party_id() == trader_id)
+                        .any(|c| matches!(c, Channel::Offered(_) | Channel::Accepted(_))),
+                    "Previous DLC Channel offer still pending."
+                );
+
+                TradeAction::OpenDlcChannel
+            }
+            Some(SignedChannel {
+                channel_id,
+                state:
+                    SignedChannelState::Settled {
+                        own_payout,
+                        counter_payout,
+                        ..
+                    },
+                ..
+            }) => {
+                ensure!(
+                    self.settings.read().await.allow_opening_positions,
+                    "Opening positions is disabled"
+                );
+
+                TradeAction::OpenPosition {
+                    channel_id,
+                    own_payout,
+                    counter_payout,
+                }
+            }
+            Some(SignedChannel {
+                state: SignedChannelState::Established { .. },
+                channel_id,
+                ..
+            }) => {
+                let trade_params = &params.trade_params;
+
+                let position = db::positions::Position::get_position_by_trader(
+                    connection,
+                    trader_id,
+                    vec![PositionState::Open],
+                )?
+                .context("Failed to find open position")?;
+
+                let position_contracts = {
+                    let contracts = decimal_from_f32(position.quantity);
+
+                    compute_relative_contracts(contracts, &position.trader_direction)
+                };
+
+                let trade_contracts = {
+                    let contracts = decimal_from_f32(trade_params.quantity);
+
+                    compute_relative_contracts(contracts, &trade_params.direction)
+                };
+
+                if position_contracts + trade_contracts == Decimal::ZERO {
+                    let closing_price = trade_params.average_execution_price();
+
+                    TradeAction::ClosePosition {
+                        channel_id,
+                        position: Box::new(position),
+                        closing_price,
+                    }
+                } else {
+                    ensure!(
+                        self.settings.read().await.allow_opening_positions,
+                        "Resizing positions is disabled"
+                    );
+
+                    bail!("Position resizing not yet possible");
+                }
+            }
+            Some(signed_channel) => {
+                bail!(
+                    "Cannot trade with DLC channel in state {}",
+                    signed_channel_state_name(&signed_channel)
+                );
+            }
+        };
+
+        Ok(trade_action)
     }
 }
 
