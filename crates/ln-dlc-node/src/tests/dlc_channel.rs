@@ -251,6 +251,41 @@ async fn can_open_and_force_close_channel() {
     // or similar
 }
 
+#[tokio::test(flavor = "multi_thread")]
+#[ignore]
+#[should_panic]
+async fn can_open_channel_with_min_inputs() {
+    init_tracing();
+
+    let app_dlc_collateral = Amount::from_sat(10_000);
+    let coordinator_dlc_collateral = Amount::from_sat(10_000);
+
+    // We must fix the fee rate so that we can predict how many sats `rust-dlc` will allocate
+    // for transaction fees.
+    let fee_rate_sats_per_vbyte = 2;
+    let expected_fund_tx_fee = 252 * fee_rate_sats_per_vbyte;
+
+    // This also depends on the fee rate, but the formula is a bit more involved.
+    let fee_reserve = 880;
+
+    // Fee costs are evenly split.
+    let fee_cost_per_party = (expected_fund_tx_fee + fee_reserve) / 2;
+    let fee_cost_per_party = Amount::from_sat(fee_cost_per_party);
+
+    let (app, _running_app) = start_and_fund_app(app_dlc_collateral + fee_cost_per_party, 1).await;
+    let (coordinator, _running_coordinator) =
+        start_and_fund_coordinator(coordinator_dlc_collateral + fee_cost_per_party, 1).await;
+
+    let _ = open_channel_and_position(
+        app.clone(),
+        coordinator.clone(),
+        app_dlc_collateral,
+        coordinator_dlc_collateral,
+        Some(fee_rate_sats_per_vbyte),
+    )
+    .await;
+}
+
 async fn start_and_fund_app(
     amount: Amount,
     n_utxos: u64,
@@ -303,6 +338,7 @@ async fn set_up_channel_with_position() -> (
         coordinator.clone(),
         app_dlc_collateral,
         coordinator_dlc_collateral,
+        None,
     )
     .await;
 
@@ -319,6 +355,7 @@ async fn open_channel_and_position(
     coordinator: Arc<Node<TenTenOneInMemoryStorage, InMemoryStore>>,
     app_dlc_collateral: Amount,
     coordinator_dlc_collateral: Amount,
+    fee_rate_sats_per_vbyte: Option<u64>,
 ) -> (SignedChannel, SignedChannel) {
     app.connect(coordinator.info).await.unwrap();
 
@@ -330,7 +367,7 @@ async fn open_channel_and_position(
         app_dlc_collateral.to_sat(),
         coordinator_dlc_collateral.to_sat(),
         oracle_pk,
-        None,
+        fee_rate_sats_per_vbyte,
     );
 
     coordinator
