@@ -65,33 +65,6 @@ impl TradeExecutor {
         }
     }
 
-    pub async fn execute(&self, params: &TradeAndChannelParams) -> Result<()> {
-        let mut connection = self.pool.get()?;
-
-        let order_id = params.trade_params.filled_with.order_id;
-        let trader_id = params.trade_params.pubkey.to_string();
-        let order =
-            orders::get_with_id(&mut connection, order_id)?.context("Could not find order")?;
-
-        ensure!(
-            order.expiry > OffsetDateTime::now_utc(),
-            "Can't execute a trade on an expired order"
-        );
-        ensure!(
-            order.order_state == OrderState::Matched,
-            "Can't execute trade with in invalid state {:?}",
-            order.order_state
-        );
-
-        let order_id = params.trade_params.filled_with.order_id.to_string();
-        tracing::info!(trader_id, order_id, "Executing match");
-
-        self.execute_trade_action(&mut connection, params, order.stable)
-            .await?;
-
-        Ok(())
-    }
-
     /// Execute a trade action according to the coordinator's current trading status with the
     /// trader.
     ///
@@ -104,17 +77,30 @@ impl TradeExecutor {
     /// 2. If no position is found, we open a position.
     ///
     /// 3. If a position of differing quantity is found, we resize the position.
-    pub async fn execute_trade_action(
-        &self,
-        conn: &mut PgConnection,
-        params: &TradeAndChannelParams,
-        is_stable_order: bool,
-    ) -> Result<()> {
-        let trader_peer_id = params.trade_params.pubkey;
+    pub async fn execute(&self, params: &TradeAndChannelParams) -> Result<()> {
+        let mut connection = self.pool.get()?;
+
+        let order_id = params.trade_params.filled_with.order_id;
+        let trader_id = params.trade_params.pubkey;
+        let order =
+            orders::get_with_id(&mut connection, order_id)?.context("Could not find order")?;
+        let is_stable_order = order.stable;
+
+        ensure!(
+            order.expiry > OffsetDateTime::now_utc(),
+            "Can't execute a trade on an expired order"
+        );
+        ensure!(
+            order.order_state == OrderState::Matched,
+            "Can't execute trade with in invalid state {:?}",
+            order.order_state
+        );
+
+        tracing::info!(%trader_id, %order_id, "Executing match");
 
         match self
             .node
-            .get_signed_dlc_channel_by_counterparty(&trader_peer_id)?
+            .get_signed_dlc_channel_by_counterparty(&trader_id)?
         {
             None => {
                 ensure!(
@@ -127,7 +113,7 @@ impl TradeExecutor {
                         .node
                         .list_dlc_channels()?
                         .iter()
-                        .filter(|c| c.get_counter_party_id() == trader_peer_id)
+                        .filter(|c| c.get_counter_party_id() == trader_id)
                         .any(|c| matches!(c, Channel::Offered(_) | Channel::Accepted(_))),
                     "Previous DLC Channel offer still pending."
                 );
@@ -140,7 +126,7 @@ impl TradeExecutor {
                     .context("Missing trader collateral reserve")?;
 
                 self.open_dlc_channel(
-                    conn,
+                    &mut connection,
                     &params.trade_params,
                     collateral_reserve_coordinator,
                     collateral_reserve_trader,
@@ -165,7 +151,7 @@ impl TradeExecutor {
                 );
 
                 self.open_position(
-                    conn,
+                    &mut connection,
                     channel_id,
                     &params.trade_params,
                     own_payout,
@@ -183,8 +169,8 @@ impl TradeExecutor {
                 let trade_params = &params.trade_params;
 
                 let position = db::positions::Position::get_position_by_trader(
-                    conn,
-                    trader_peer_id,
+                    &mut connection,
+                    trader_id,
                     vec![PositionState::Open],
                 )?
                 .context("Failed to find open position")?;
@@ -204,9 +190,14 @@ impl TradeExecutor {
                 if position_contracts + trade_contracts == Decimal::ZERO {
                     let closing_price = trade_params.average_execution_price();
 
-                    self.start_closing_position(conn, &position, closing_price, dlc_channel_id)
-                        .await
-                        .with_context(|| format!("Failed at closing position {}", position.id))?;
+                    self.start_closing_position(
+                        &mut connection,
+                        &position,
+                        closing_price,
+                        dlc_channel_id,
+                    )
+                    .await
+                    .with_context(|| format!("Failed at closing position {}", position.id))?;
                 } else {
                     ensure!(
                         self.settings.read().await.allow_opening_positions,
