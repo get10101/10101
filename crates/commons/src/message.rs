@@ -58,6 +58,10 @@ pub enum Message {
         #[serde(with = "rust_decimal::serde::float")]
         execution_price: Decimal,
     },
+    TradeError {
+        order_id: Uuid,
+        error: String,
+    },
 }
 
 #[derive(Serialize, Clone, Deserialize, Debug)]
@@ -126,6 +130,9 @@ impl Display for Message {
             }
             Message::CollaborativeRevert { .. } => {
                 write!(f, "LegacyCollaborativeRevert")
+            }
+            Message::TradeError { .. } => {
+                write!(f, "TradeError")
             }
         }
     }
