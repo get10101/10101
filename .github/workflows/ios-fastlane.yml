@@ -132,7 +132,7 @@ jobs:
 
       - name: Install just
         if: steps.cache-deps.outputs.cache-hit != 'true'
-        run: cargo install just
+        run: cargo install just --force
 
       - name: Install fastlane
         run: |
