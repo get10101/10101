@@ -199,6 +199,13 @@ where
         Ok(utxos)
     }
 
+    pub fn unreserve_utxos(&self, outpoints: &[OutPoint]) -> Result<()> {
+        self.locked_outpoints
+            .lock()
+            .retain(|lo| !outpoints.contains(lo));
+        Ok(())
+    }
+
     pub fn get_utxos_for_dlc_funding_transaction(
         &self,
         amount: u64,

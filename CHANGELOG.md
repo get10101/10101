@@ -9,7 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Fix(validation): Show correct max counterparty collateral in validation message.
 - Fix(mobile): Calculate counterparty balance correctly when checking the validity of trade parameters.
-- Fix(trade): Spawn dedicated tokio task when executing trade
+- Fix(trade): Spawn dedicated tokio task when executing trade.
+- Chore(wallet): Unreserve locked utxos if offer get rejected.
 
 ## [1.8.8] - 2024-02-14
 
