@@ -265,6 +265,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                   title: "Emergency Kit",
                                   callBackFunc: () =>
                                       GoRouter.of(context).push(EmergencyKitScreen.route)),
+                              const Divider(
+                                height: 0.5,
+                                thickness: 0.8,
+                                indent: 55,
+                              ),
                               SettingsClickable(
                                   icon: Icons.close,
                                   title: "Close Channel",
