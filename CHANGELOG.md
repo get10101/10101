@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Fix(mobile): Calculate counterparty balance correctly when checking the validity of trade parameters.
+
 ## [1.8.8] - 2024-02-14
 
 - Feat(mobile): Let user add a name to their profile for the leaderboard

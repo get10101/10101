@@ -433,6 +433,18 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
             })
     }
 
+    /// Return the usable counterparty balance for all the DLC channels.
+    pub fn get_dlc_channels_usable_balance_counterparty(&self) -> Result<Amount> {
+        self.list_signed_dlc_channels()?
+            .iter()
+            .try_fold(Amount::ZERO, |acc, channel| {
+                let balance =
+                    self.get_dlc_channel_usable_balance_counterparty(&channel.channel_id)?;
+
+                Ok(acc + balance)
+            })
+    }
+
     pub fn signed_dlc_channel_total_collateral(&self, channel_id: &DlcChannelId) -> Result<Amount> {
         let channel = self.get_dlc_channel_by_id(channel_id)?;
 
@@ -506,9 +518,66 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
         Ok(usable_balance)
     }
 
+    /// Return the usable balance for the DLC channel, for the counterparty.
+    ///
+    /// Usable balance excludes all balance which is being wagered in DLCs. It also excludes some
+    /// reserved funds to be used when the channel is closed on-chain.
+    pub fn get_dlc_channel_usable_balance_counterparty(
+        &self,
+        channel_id: &DlcChannelId,
+    ) -> Result<Amount> {
+        let dlc_channel = self.get_dlc_channel_by_id(channel_id)?;
+
+        let usable_balance = match dlc_channel {
+            Channel::Signed(SignedChannel {
+                state: SignedChannelState::Settled { counter_payout, .. },
+                ..
+            }) => {
+                // We settled the position inside the DLC channel.
+                Amount::from_sat(counter_payout)
+            }
+            Channel::Signed(SignedChannel {
+                state: SignedChannelState::SettledOffered { counter_payout, .. },
+                ..
+            })
+            | Channel::Signed(SignedChannel {
+                state: SignedChannelState::SettledReceived { counter_payout, .. },
+                ..
+            })
+            | Channel::Signed(SignedChannel {
+                state: SignedChannelState::SettledAccepted { counter_payout, .. },
+                ..
+            })
+            | Channel::Signed(SignedChannel {
+                state: SignedChannelState::SettledConfirmed { counter_payout, .. },
+                ..
+            }) => {
+                // We haven't settled the DLC off-chain yet, but we are optimistic that the
+                // protocol will complete.
+                Amount::from_sat(counter_payout)
+            }
+            Channel::Signed(SignedChannel {
+                state: SignedChannelState::CollaborativeCloseOffered { counter_payout, .. },
+                ..
+            }) => {
+                // The channel is not yet closed.
+                Amount::from_sat(counter_payout)
+            }
+            // For all other cases we can rely on the `Contract`, since
+            // `SignedChannelState::get_contract_id` will return a `ContractId` for
+            // them.
+            _ => self.get_contract_counterparty_usable_balance(&dlc_channel)?,
+        };
+
+        Ok(usable_balance)
+    }
 
     fn get_contract_own_usable_balance(&self, dlc_channel: &Channel) -> Result<Amount> {
         self.get_contract_usable_balance(dlc_channel, true)
+    }
+
+    fn get_contract_counterparty_usable_balance(&self, dlc_channel: &Channel) -> Result<Amount> {
+        self.get_contract_usable_balance(dlc_channel, false)
     }
 
     fn get_contract_usable_balance(
