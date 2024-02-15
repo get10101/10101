@@ -733,9 +733,15 @@ pub fn get_onchain_balance() -> Result<Balance> {
     let node = state::try_get_node().context("failed to get ln dlc node")?;
     node.inner.get_on_chain_balance()
 }
+
 pub fn get_usable_dlc_channel_balance() -> Result<Amount> {
     let node = state::try_get_node().context("failed to get ln dlc node")?;
     node.inner.get_dlc_channels_usable_balance()
+}
+
+pub fn get_usable_dlc_channel_balance_counterparty() -> Result<Amount> {
+    let node = state::try_get_node().context("failed to get ln dlc node")?;
+    node.inner.get_dlc_channels_usable_balance_counterparty()
 }
 
 pub fn collaborative_revert_channel(
