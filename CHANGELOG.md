@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Feat(mobile): Let user add a name to their profile for the leaderboard
 - Feat(coordinator): Allow to specify time range for leadership board
 - Fix: Prevent trade failures by ensuring that the funding transaction is not overpaying fees unexpectedly.
+- Fix(validation): Show correct max counterparty collateral in validation message.
 
 ## [1.8.7] - 2024-02-10
 
