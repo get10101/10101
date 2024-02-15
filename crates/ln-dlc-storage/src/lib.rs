@@ -1,6 +1,4 @@
 use anyhow::Result;
-use bitcoin::Address;
-use bitcoin::Txid;
 use dlc_manager::chain_monitor::ChainMonitor;
 use dlc_manager::channel::accepted_channel::AcceptedChannel;
 use dlc_manager::channel::offered_channel::OfferedChannel;
@@ -26,7 +24,6 @@ use dlc_manager::subchannel::SubChannel;
 use dlc_manager::subchannel::SubChannelState;
 use dlc_manager::ContractId;
 use dlc_manager::DlcChannelId;
-use dlc_manager::Utxo;
 use lightning::ln::ChannelId;
 use lightning::util::ser::Readable;
 use lightning::util::ser::Writeable;
@@ -46,26 +43,15 @@ pub mod sled;
 const CONTRACT: u8 = 1;
 const CHANNEL: u8 = 2;
 const CHAIN_MONITOR: u8 = 3;
-const UTXO: u8 = 5;
 const KEY_PAIR: u8 = 6;
 const SUB_CHANNEL: u8 = 7;
-const ADDRESS: u8 = 8;
 const ACTION: u8 = 9;
 
 const CHAIN_MONITOR_KEY: &str = "chain_monitor";
 
 pub trait WalletStorage {
-    fn upsert_address(&self, address: &Address, privkey: &SecretKey) -> Result<()>;
-    fn delete_address(&self, address: &Address) -> Result<()>;
-    fn get_addresses(&self) -> Result<Vec<Address>>;
-    fn get_priv_key_for_address(&self, address: &Address) -> Result<Option<SecretKey>>;
     fn upsert_key_pair(&self, public_key: &PublicKey, privkey: &SecretKey) -> Result<()>;
     fn get_priv_key_for_pubkey(&self, public_key: &PublicKey) -> Result<Option<SecretKey>>;
-    fn upsert_utxo(&self, utxo: &Utxo) -> Result<()>;
-    fn has_utxo(&self, utxo: &Utxo) -> Result<bool>;
-    fn delete_utxo(&self, utxo: &Utxo) -> Result<()>;
-    fn get_utxos(&self) -> Result<Vec<Utxo>>;
-    fn unreserve_utxo(&self, txid: &Txid, vout: u32) -> Result<()>;
 }
 
 pub struct KeyValue {
@@ -585,43 +571,6 @@ impl<K: DlcStoreProvider> dlc_manager::Storage for DlcStorageProvider<K> {
 }
 
 impl<K: DlcStoreProvider> WalletStorage for DlcStorageProvider<K> {
-    fn upsert_address(&self, address: &Address, privkey: &SecretKey) -> Result<()> {
-        self.store.write(
-            ADDRESS,
-            address.to_string().into_bytes(),
-            privkey.secret_bytes().to_vec(),
-        )
-    }
-
-    fn delete_address(&self, address: &Address) -> Result<()> {
-        self.store
-            .delete(ADDRESS, Some(address.to_string().into_bytes()))
-    }
-
-    fn get_addresses(&self) -> Result<Vec<Address>> {
-        self.store
-            .read(ADDRESS, None)?
-            .into_iter()
-            .map(|x| {
-                Ok(String::from_utf8(x.value)
-                    .map_err(|e| Error::InvalidState(format!("Could not read address key {e}")))?
-                    .parse()
-                    .expect("to have a valid address as key"))
-            })
-            .collect()
-    }
-
-    fn get_priv_key_for_address(&self, address: &Address) -> Result<Option<SecretKey>> {
-        let priv_keys = self
-            .store
-            .read(ADDRESS, Some(address.to_string().into_bytes()))?;
-        let raw_key = priv_keys
-            .first()
-            .map(|raw_key| SecretKey::from_slice(&raw_key.value).expect("a valid secret key"));
-
-        Ok(raw_key)
-    }
-
     fn upsert_key_pair(&self, public_key: &PublicKey, privkey: &SecretKey) -> Result<()> {
         self.store.write(
             KEY_PAIR,
@@ -647,55 +596,6 @@ impl<K: DlcStoreProvider> WalletStorage for DlcStorageProvider<K> {
             .cloned();
 
         Ok(priv_key)
-    }
-
-    fn upsert_utxo(&self, utxo: &Utxo) -> Result<()> {
-        let key = get_utxo_key(&utxo.outpoint.txid, utxo.outpoint.vout);
-
-        let mut buf = Vec::new();
-        utxo.write(&mut buf)?;
-        self.store.write(UTXO, key, buf)
-    }
-
-    fn has_utxo(&self, utxo: &Utxo) -> Result<bool> {
-        let key = get_utxo_key(&utxo.outpoint.txid, utxo.outpoint.vout);
-        let result = self.store.read(UTXO, None)?.iter().any(|x| x.key == key);
-
-        Ok(result)
-    }
-
-    fn delete_utxo(&self, utxo: &Utxo) -> Result<()> {
-        let key = get_utxo_key(&utxo.outpoint.txid, utxo.outpoint.vout);
-        self.store.delete(UTXO, Some(key))
-    }
-
-    fn get_utxos(&self) -> Result<Vec<Utxo>> {
-        let utxos = self.store.read(UTXO, None)?;
-
-        utxos
-            .iter()
-            .map(|x| {
-                let mut cursor = Cursor::new(&x.value);
-                let res =
-                    Utxo::read(&mut cursor).map_err(|x| Error::InvalidState(format!("{x}")))?;
-                Ok(res)
-            })
-            .collect::<Result<Vec<Utxo>>>()
-    }
-
-    fn unreserve_utxo(&self, txid: &Txid, vout: u32) -> Result<()> {
-        let key = get_utxo_key(txid, vout);
-        let mut utxo = match self.store.read(UTXO, Some(key.clone()))?.first() {
-            Some(res) => Utxo::read(&mut Cursor::new(&res.value))
-                .map_err(|_| Error::InvalidState("Could not read UTXO".to_string()))?,
-            None => return Err(Error::InvalidState(format!("No utxo for {txid} {vout}")))?,
-        };
-
-        utxo.reserved = false;
-        let mut buf = Vec::new();
-        utxo.write(&mut buf)?;
-
-        self.store.write(UTXO, key, buf)
     }
 }
 
@@ -823,13 +723,6 @@ fn deserialize_channel(buff: &Vec<u8>) -> Result<Channel, Error> {
         }
     };
     Ok(channel)
-}
-
-fn get_utxo_key(txid: &Txid, vout: u32) -> Vec<u8> {
-    let res: Result<Vec<_>, _> = txid.bytes().collect();
-    let mut key = res.expect("a valid txid");
-    key.extend_from_slice(&vout.to_be_bytes());
-    key
 }
 
 fn serialize_sub_channel(sub_channel: &SubChannel) -> Result<Vec<u8>, ::std::io::Error> {
