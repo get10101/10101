@@ -280,7 +280,7 @@ impl TradeExecutor {
         let sats_per_vbyte = self
             .node
             .fee_rate_estimator
-            .get(ConfirmationTarget::Background)
+            .get(ConfirmationTarget::Normal)
             .as_sat_per_vb()
             .round();
         // This fee rate is used to construct the fund and CET transactions.
@@ -433,7 +433,7 @@ impl TradeExecutor {
         let sats_per_vbyte = self
             .node
             .fee_rate_estimator
-            .get(ConfirmationTarget::Background)
+            .get(ConfirmationTarget::Normal)
             .as_sat_per_vb()
             .round();
         // This fee rate is used to construct the CET transactions.
