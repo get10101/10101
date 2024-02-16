@@ -188,6 +188,14 @@ jobs:
       - name: Build Android APK for each platform
         run: |
           NETWORK=$NETWORK just build-android-app-apk --split-per-abi
+        env:
+          ESPLORA_ENDPOINT: ${{ inputs.esplora_endpoint }}
+          COORDINATOR_P2P_ENDPOINT: ${{ inputs.coordinator_p2p_endpoint }}
+          NETWORK: ${{ inputs.network }}
+          COORDINATOR_PORT_HTTP: ${{ inputs.coordinator_port_http }}
+          ORACLE_ENDPOINT: ${{ inputs.oracle_endpoint }}
+          ORACLE_PUBKEY: ${{ inputs.oracle_pubkey }}
+          RGS_SERVER_URL: ${{ inputs.rgs_server_url }}
       - name: Build Android APK fat bundle
         run: |
           NETWORK=$NETWORK just build-android-app-apk
