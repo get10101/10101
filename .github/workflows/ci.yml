@@ -295,6 +295,9 @@ jobs:
       - name: esplora logs on e2e tests error
         if: failure()
         run: docker logs esplora
+      - name: database logs on e2e tests error
+        if: failure()
+        run: docker logs db
       - name: show disk space after tests
         if: always()
         run: df -h
