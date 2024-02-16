@@ -21,6 +21,7 @@ use bitcoin::Block;
 use bitcoin::BlockHash;
 use bitcoin::KeyPair;
 use bitcoin::Network;
+use bitcoin::OutPoint;
 use bitcoin::Script;
 use bitcoin::Transaction;
 use bitcoin::Txid;
@@ -296,6 +297,16 @@ impl<S: TenTenOneStorage, N: Storage> dlc_manager::Wallet for LnDlcWallet<S, N> 
     }
 
     fn import_address(&self, _address: &Address) -> Result<(), Error> {
+        Ok(())
+    }
+
+    fn unreserve_utxos(&self, outpoints: &[OutPoint]) -> Result<(), Error> {
+        self.ln_wallet.unreserve_utxos(outpoints).map_err(|error| {
+            Error::InvalidState(format!(
+                "Could not unreserve utxos {outpoints:?}: {error:?}"
+            ))
+        })?;
+
         Ok(())
     }
 }
