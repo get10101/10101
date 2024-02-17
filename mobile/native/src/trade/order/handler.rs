@@ -18,7 +18,6 @@ use anyhow::anyhow;
 use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
-use diesel::Connection;
 use reqwest::Url;
 use time::Duration;
 use time::OffsetDateTime;
@@ -84,40 +83,32 @@ pub async fn submit_order(
         });
     }
 
+    db::insert_order(order.clone()).map_err(SubmitOrderError::Storage)?;
+
+    if let Some(channel_opening_params) = channel_opening_params {
+        let runtime = get_or_create_tokio_runtime().expect("to be able to get runtime");
+        runtime
+            .spawn_blocking({
+                move || {
+                    let mut conn = db::connection()?;
+                    tracing::debug!(
+                        ?channel_opening_params,
+                        "Recording channel-opening parameters"
+                    );
+
+                    db::insert_channel_opening_params(&mut conn, channel_opening_params)
+                }
+            })
+            .await
+            .expect("task to complete")
+            .map_err(SubmitOrderError::Storage)?;
+    }
+
     let url = format!("http://{}", config::get_http_endpoint());
     let url = Url::parse(&url).expect("correct URL");
     let orderbook_client = OrderbookClient::new(url);
 
-    db::insert_order(order.clone()).map_err(SubmitOrderError::Storage)?;
-
-    let runtime = get_or_create_tokio_runtime().expect("to be ablet to get runtime");
-    if let Err(err) = runtime
-        .spawn_blocking({
-            let order = order.clone();
-            move || {
-                let mut db = db::connection()?;
-                // We need to ensure that the channel-opening parameters are inserted after the
-                // order has been posted, but before order has been match and we need them to open
-                // the DLC channel. Without this database transaction we can easily end up with a
-                // match before we insert them!
-                db.transaction(|conn| {
-                    if let Some(channel_opening_params) = channel_opening_params {
-                        tracing::debug!(
-                            ?channel_opening_params,
-                            "Recording channel-opening parameters"
-                        );
-
-                        db::insert_channel_opening_params(conn, channel_opening_params)
-                            .map_err(SubmitOrderError::Storage)?;
-                    }
-
-                    runtime.block_on(orderbook_client.post_new_order(order.into()))
-                })
-            }
-        })
-        .await
-        .expect("task to complete")
-    {
+    if let Err(err) = orderbook_client.post_new_order(order.clone().into()).await {
         let order_id = order.id.clone().to_string();
 
         tracing::error!(order_id, "Failed to post new order: {err:#}");

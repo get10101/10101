@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix(mobile): Calculate counterparty balance correctly when checking the validity of trade parameters.
 - Fix(trade): Spawn dedicated tokio task when executing trade.
 - Chore(wallet): Unreserve locked utxos if offer get rejected.
+- Fix(order): Insert channel-opening parameters before posting order to the coordinator. This prevents the app from running into a race condition between the completion of the HTTP request and the app being notified about the order being matched.
 
 ## [1.8.8] - 2024-02-14
 
