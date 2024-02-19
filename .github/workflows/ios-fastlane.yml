@@ -208,4 +208,4 @@ jobs:
 
       - name: Print fastlane gym logs
         if: always()
-        run: cat /Users/runner/Library/Logs/gym/10101-test.log
+        run: cat /Users/runner/Library/Logs/gym/10101*.log
