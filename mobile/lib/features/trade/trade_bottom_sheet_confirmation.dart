@@ -161,9 +161,8 @@ class TradeBottomSheetConfirmation extends StatelessWidget {
         : Amount.zero();
 
     // Fallback to 0 if we can't get the fee or the margin
-    Amount total = tradeValues.fee != null && tradeValues.margin != null
-        ? Amount(tradeValues.fee!.sats + tradeValues.margin!.sats).add(reserve)
-        : Amount(0);
+    Amount total =
+        tradeValues.margin != null ? Amount(tradeValues.margin!.sats).add(reserve) : Amount(0);
     Amount pnl = Amount(0);
     if (context.read<PositionChangeNotifier>().positions.containsKey(ContractSymbol.btcusd)) {
       final position = context.read<PositionChangeNotifier>().positions[ContractSymbol.btcusd];
