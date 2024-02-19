@@ -1,4 +1,5 @@
 use crate::bitcoin_conversion::to_secp_pk_29;
+use crate::node::dlc_channel::estimated_dlc_channel_fee_reserve;
 use crate::node::InMemoryStore;
 use crate::node::Node;
 use crate::node::RunningNode;
@@ -324,31 +325,7 @@ async fn dlc_channel_includes_expected_fee_reserve() {
     // for transaction fees.
     let fee_rate_sats_per_vb = 2;
 
-    let buffer_weight_wu = dlc::channel::BUFFER_TX_WEIGHT;
-
-    let cet_or_refund_weight_wu = {
-        let cet_or_refund_base_weight_wu = dlc::CET_BASE_WEIGHT;
-        // Because we are spending from a buffer transaction.
-        let cet_or_refund_extra_weight_wu = dlc::channel::CET_EXTRA_WEIGHT;
-
-        // This is the standard length of a P2WPKH script pubkey.
-        let cet_or_refund_output_spk_bytes = 22;
-
-        // Value = 8 bytes; var_int = 1 byte.
-        let cet_or_refund_output_weight_wu = (8 + 1 + cet_or_refund_output_spk_bytes) * 4;
-
-        cet_or_refund_base_weight_wu
-            + cet_or_refund_extra_weight_wu
-            // 1 output per party.
-            + (2 * cet_or_refund_output_weight_wu)
-    };
-
-    let total_fee_reserve = {
-        let total_weight_vb = (buffer_weight_wu + cet_or_refund_weight_wu) as f32 / 4.0;
-        let total_weight_vb = total_weight_vb.ceil() as u64;
-
-        Amount::from_sat(total_weight_vb * fee_rate_sats_per_vb)
-    };
+    let total_fee_reserve = estimated_dlc_channel_fee_reserve(fee_rate_sats_per_vb as f64);
 
     let expected_fund_output_amount =
         app_dlc_collateral + coordinator_dlc_collateral + total_fee_reserve;

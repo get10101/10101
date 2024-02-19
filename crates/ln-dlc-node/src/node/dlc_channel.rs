@@ -818,3 +818,41 @@ pub fn send_dlc_message<D: BdkStorage, S: TenTenOneStorage + 'static, N: LnDlcSt
     // enqueued message ASAP.
     peer_manager.process_events();
 }
+
+/// Give an estimate for the fee reserve of a DLC channel, given a fee rate.
+///
+/// Limitations:
+///
+/// - `rust-dlc` assumes that both parties will use P2WPKH script pubkeys for their CET outputs. If
+/// they don't then the reserved fee might be slightly over or under the target fee rate.
+///
+/// - Rounding errors can cause very slight differences between what we estimate here and what
+/// `rust-dlc` will end up reserving.
+pub fn estimated_dlc_channel_fee_reserve(fee_rate_sats_per_vb: f64) -> Amount {
+    let buffer_weight_wu = dlc::channel::BUFFER_TX_WEIGHT;
+
+    let cet_or_refund_weight_wu = {
+        let cet_or_refund_base_weight_wu = dlc::CET_BASE_WEIGHT;
+        // Because the CET spends from a buffer transaction, compared to a regular DLC that spends
+        // directly from the funding transaction.
+        let cet_or_refund_extra_weight_wu = dlc::channel::CET_EXTRA_WEIGHT;
+
+        // This is the standard length of a P2WPKH script pubkey.
+        let cet_or_refund_output_spk_bytes = 22;
+
+        // Value = 8 bytes; var_int = 1 byte.
+        let cet_or_refund_output_weight_wu = (8 + 1 + cet_or_refund_output_spk_bytes) * 4;
+
+        cet_or_refund_base_weight_wu
+            + cet_or_refund_extra_weight_wu
+            // 1 output per party.
+            + (2 * cet_or_refund_output_weight_wu)
+    };
+
+    let total_weight_vb = (buffer_weight_wu + cet_or_refund_weight_wu) as f64 / 4.0;
+
+    let total_fee_reserve = total_weight_vb * fee_rate_sats_per_vb;
+    let total_fee_reserve = total_fee_reserve.ceil() as u64;
+
+    Amount::from_sat(total_fee_reserve)
+}
