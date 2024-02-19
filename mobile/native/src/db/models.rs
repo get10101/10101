@@ -1477,14 +1477,16 @@ impl ChannelOpeningParams {
     pub fn insert(
         conn: &mut SqliteConnection,
         channel_opening_params: ChannelOpeningParams,
-    ) -> Result<()> {
+    ) -> QueryResult<()> {
         let affected_rows = diesel::insert_into(channel_opening_params::table)
             .values(channel_opening_params)
             .execute(conn)?;
 
-        ensure!(affected_rows > 0, "Could not insert channel-opening params");
+        if affected_rows == 0 {
+            return diesel::result::QueryResult::Err(diesel::result::Error::NotFound);
+        }
 
-        Ok(())
+        diesel::result::QueryResult::Ok(())
     }
 
     pub fn get_by_order_id(
