@@ -167,8 +167,15 @@ pub async fn get_node_id() -> impl IntoResponse {
     ln_dlc::get_node_pubkey().to_string()
 }
 
-pub async fn get_seed_phrase() -> Json<Vec<String>> {
-    Json(ln_dlc::get_seed_phrase())
+#[derive(Serialize)]
+pub struct Seed {
+    seed: Vec<String>,
+}
+
+pub async fn get_seed_phrase() -> Json<Seed> {
+    Json(Seed {
+        seed: ln_dlc::get_seed_phrase(),
+    })
 }
 
 #[derive(Serialize)]
