@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.8.9] - 2024-02-19
+
 - Fix(validation): Show correct max counterparty collateral in validation message.
 - Fix(mobile): Calculate counterparty balance correctly when checking the validity of trade parameters.
 - Fix(trade): Spawn dedicated tokio task when executing trade.
@@ -321,7 +323,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Self-Custodial CFD Trading based on DLC and lightning
 
-[Unreleased]: https://github.com/get10101/10101/compare/1.8.8...HEAD
+[Unreleased]: https://github.com/get10101/10101/compare/1.8.9...HEAD
+[1.8.9]: https://github.com/get10101/10101/compare/1.8.8...1.8.9
 [1.8.8]: https://github.com/get10101/10101/compare/1.8.7...1.8.8
 [1.8.7]: https://github.com/get10101/10101/compare/1.8.6...1.8.7
 [1.8.6]: https://github.com/get10101/10101/compare/1.8.5...1.8.6
