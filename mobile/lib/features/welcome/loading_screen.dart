@@ -79,7 +79,7 @@ class _LoadingScreenState extends State<LoadingScreen> {
       }
     }).catchError((error) {
       logger.e("Failed to start backend. $error");
-      showSnackBar(ScaffoldMessenger.of(context), "Failed to start 10101!");
+      showSnackBar(ScaffoldMessenger.of(context), "Failed to start 10101! $error");
     });
   }
 
