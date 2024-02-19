@@ -293,10 +293,19 @@ coordinator args="":
 
     cargo run --bin coordinator -- {{args}}
 
+run_maker_args := if os() == "linux" {
+  "--network=\"host\" --pull always --name maker ghcr.io/get10101/aristides/aristides:main regtest --orderbook http://localhost:8000"
+} else if os() == "macos" {
+  "--pull always --name maker ghcr.io/get10101/aristides/aristides:main regtest --orderbook http://host.docker.internal:8000"
+} else {
+  "echo 'Only linux and macos are supported';
+   exit"
+}
+
 maker args="":
     # we always delete the old container first as otherwise we might get an error if the container still exists
     docker rm -f maker || true
-    docker run --pull always --name maker ghcr.io/get10101/aristides/aristides:main regtest --orderbook http://host.docker.internal:8000
+    docker run {{run_maker_args}}
 
 flutter-test:
     cd mobile && flutter pub run build_runner build --delete-conflicting-outputs && flutter test
@@ -344,11 +353,20 @@ run-coordinator-detached:
     just wait-for-coordinator-to-be-ready
     echo "Coordinator successfully started. You can inspect the logs at {{coordinator_log_file}}"
 
+run_maker_detached_args := if os() == "linux" {
+  "--network=\"host\" --pull always -d --name maker ghcr.io/get10101/aristides/aristides:main regtest --orderbook http://localhost:8000"
+} else if os() == "macos" {
+  "--pull always -d --name maker ghcr.io/get10101/aristides/aristides:main regtest --orderbook http://host.docker.internal:8000"
+} else {
+  "echo 'Only linux and macos are supported';
+   exit"
+}
+
 # Starts maker process in the background, piping logs to a file (used in other recipes)
 run-maker-detached:
     # we always delete the old container first as otherwise we might get an error if the container still exists
     docker rm -f maker || true
-    docker run --pull always -d --name maker ghcr.io/get10101/aristides/aristides:main regtest --orderbook http://host.docker.internal:8000
+    docker run {{run_maker_detached_args}}
 
 # Attach to the current coordinator logs
 coordinator-logs:
