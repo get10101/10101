@@ -108,6 +108,10 @@ void main() {
             quantity: anyNamed('quantity'), price: anyNamed('price')))
         .thenReturn(Amount(42));
 
+    when(dlcChannelService.getEstimatedChannelFeeReserve()).thenReturn((Amount(500)));
+
+    when(dlcChannelService.getEstimatedFundingTxFee()).thenReturn((Amount(300)));
+
     when(channelConstraintsService.getTradeConstraints()).thenAnswer((_) =>
         const bridge.TradeConstraints(
             maxLocalMarginSats: 20000000000,
@@ -224,6 +228,10 @@ void main() {
             minQuantity: 1,
             isChannelBalance: true,
             minMargin: 1));
+
+    when(dlcChannelService.getEstimatedChannelFeeReserve()).thenReturn((Amount(500)));
+
+    when(dlcChannelService.getEstimatedFundingTxFee()).thenReturn((Amount(300)));
 
     when(candlestickService.fetchCandles(1000)).thenAnswer((_) async {
       return getDummyCandles(1000);

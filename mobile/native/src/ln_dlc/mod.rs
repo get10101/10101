@@ -59,6 +59,8 @@ use ln_dlc_node::bitcoin_conversion::to_tx_30;
 use ln_dlc_node::bitcoin_conversion::to_txid_29;
 use ln_dlc_node::bitcoin_conversion::to_txid_30;
 use ln_dlc_node::config::app_config;
+use ln_dlc_node::node::dlc_channel::estimated_dlc_channel_fee_reserve;
+use ln_dlc_node::node::dlc_channel::estimated_funding_transaction_fee;
 use ln_dlc_node::node::event::NodeEventHandler;
 use ln_dlc_node::node::rust_dlc_manager::channel::signed_channel::SignedChannel;
 use ln_dlc_node::node::rust_dlc_manager::channel::ClosedChannel;
@@ -856,6 +858,24 @@ pub fn get_fee_rate_for_target(target: ConfirmationTarget) -> FeeRate {
     node.inner.fee_rate_estimator.get(target)
 }
 
+pub fn estimated_fee_reserve() -> Result<Amount> {
+    let node = state::get_node();
+
+    // Here we assume that the coordinator will use the same confirmation target AND that their fee
+    // rate source agrees with ours.
+    let fee_rate = node
+        .inner
+        .fee_rate_estimator
+        .get(ConfirmationTarget::Normal);
+
+    let reserve = estimated_dlc_channel_fee_reserve(fee_rate.as_sat_per_vb() as f64);
+
+    // The reserve is split evenly between the two parties.
+    let reserve = reserve / 2;
+
+    Ok(reserve)
+}
+
 pub async fn send_payment(amount: u64, address: String, fee: Fee) -> Result<Txid> {
     let address = Address::from_str(&address)?;
 
@@ -865,6 +885,25 @@ pub async fn send_payment(amount: u64, address: String, fee: Fee) -> Result<Txid
         .await?;
 
     Ok(txid)
+}
+
+pub fn estimated_funding_tx_fee() -> Result<Amount> {
+    let node = state::get_node();
+
+    // Here we assume that the coordinator will use the same confirmation target AND that
+    // their fee rate source agrees with ours.
+    let fee_rate = node
+        .inner
+        .fee_rate_estimator
+        .get(ConfirmationTarget::Normal);
+
+    let fee = estimated_funding_transaction_fee(fee_rate.as_sat_per_vb() as f64);
+
+    // The estimated fee is split evenly between the two parties. In reality, each party will have
+    // to pay more or less depending on their inputs and change outputs.
+    let fee = fee / 2;
+
+    Ok(fee)
 }
 
 pub async fn estimate_payment_fee(amount: u64, address: &str, fee: Fee) -> Result<Amount> {

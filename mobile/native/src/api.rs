@@ -772,6 +772,18 @@ pub fn get_node_id() -> SyncReturn<String> {
     SyncReturn(ln_dlc::get_node_pubkey().to_string())
 }
 
+pub fn get_estimated_channel_fee_reserve() -> Result<SyncReturn<u64>> {
+    let reserve = ln_dlc::estimated_fee_reserve()?;
+
+    Ok(SyncReturn(reserve.to_sat()))
+}
+
+pub fn get_estimated_funding_tx_fee() -> Result<SyncReturn<u64>> {
+    let fee = ln_dlc::estimated_funding_tx_fee()?;
+
+    Ok(SyncReturn(fee.to_sat()))
+}
+
 pub fn get_expiry_timestamp(network: String) -> SyncReturn<i64> {
     let network = config::api::parse_network(&network);
     SyncReturn(commons::calculate_next_expiry(OffsetDateTime::now_utc(), network).unix_timestamp())

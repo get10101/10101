@@ -1,3 +1,5 @@
+import 'package:get_10101/common/dlc_channel_change_notifier.dart';
+import 'package:get_10101/common/dlc_channel_service.dart';
 import 'package:flutter/material.dart';
 import 'package:get_10101/common/amount_text_field.dart';
 import 'package:get_10101/common/amount_text_input_form_field.dart';
@@ -48,7 +50,7 @@ channelConfiguration({
                 },
                 child: SingleChildScrollView(
                   child: SizedBox(
-                    height: 450,
+                    height: 500,
                     child: ChannelConfiguration(
                       tradeValues: tradeValues,
                       onConfirmation: onConfirmation,
@@ -73,6 +75,7 @@ class ChannelConfiguration extends StatefulWidget {
 
 class _ChannelConfiguration extends State<ChannelConfiguration> {
   late final LspChangeNotifier lspChangeNotifier;
+  late final DlcChannelChangeNotifier dlcChannelChangeNotifier;
 
   Amount minMargin = Amount.zero();
   Amount counterpartyMargin = Amount.zero();
@@ -86,6 +89,10 @@ class _ChannelConfiguration extends State<ChannelConfiguration> {
 
   Amount orderMatchingFees = Amount.zero();
 
+  Amount channelFeeReserve = Amount.zero();
+
+  Amount fundingTxFee = Amount.zero();
+
   final _formKey = GlobalKey<FormState>();
 
   @override
@@ -94,6 +101,9 @@ class _ChannelConfiguration extends State<ChannelConfiguration> {
 
     lspChangeNotifier = context.read<LspChangeNotifier>();
     var tradeConstraints = lspChangeNotifier.channelInfoService.getTradeConstraints();
+
+    DlcChannelService dlcChannelService =
+        context.read<DlcChannelChangeNotifier>().dlcChannelService;
 
     maxCounterpartyCollateral = Amount(tradeConstraints.maxCounterpartyMarginSats);
 
@@ -111,6 +121,10 @@ class _ChannelConfiguration extends State<ChannelConfiguration> {
     orderMatchingFees = widget.tradeValues.fee ?? Amount.zero();
 
     updateCounterpartyCollateral();
+
+    channelFeeReserve = dlcChannelService.getEstimatedChannelFeeReserve();
+
+    fundingTxFee = dlcChannelService.getEstimatedFundingTxFee();
 
     // We add this so that the confirmation slider can be enabled immediately
     // _if_ the form is already valid. Otherwise we have to wait for the user to
@@ -210,12 +224,25 @@ class _ChannelConfiguration extends State<ChannelConfiguration> {
                             value: openingFee,
                             label: 'Channel-opening fee',
                           ),
+                          ValueDataRow(
+                            type: ValueType.amount,
+                            value: fundingTxFee,
+                            label: 'Transaction fee estimate',
+                          ),
+                          ValueDataRow(
+                            type: ValueType.amount,
+                            value: channelFeeReserve,
+                            label: 'Channel fee reserve',
+                          ),
                         ],
                       ),
                       const Divider(),
                       ValueDataRow(
                           type: ValueType.amount,
-                          value: ownTotalCollateral.add(openingFee),
+                          value: ownTotalCollateral
+                              .add(openingFee)
+                              .add(fundingTxFee)
+                              .add(channelFeeReserve),
                           label: "Total"),
                       const SizedBox(height: 17),
                       Column(

@@ -856,3 +856,30 @@ pub fn estimated_dlc_channel_fee_reserve(fee_rate_sats_per_vb: f64) -> Amount {
 
     Amount::from_sat(total_fee_reserve)
 }
+
+/// Give an estimate for the fee paid to publish a DLC channel funding transaction, given a fee
+/// rate.
+///
+/// This estimate is based on a funding transaction spending _two_ P2WPKH inputs (one per party) and
+/// including _two_ P2WPKH change outputs (also one per party).
+///
+/// Values taken from
+/// https://github.com/discreetlogcontracts/dlcspecs/blob/master/Transactions.md#fees.
+pub fn estimated_funding_transaction_fee(fee_rate_sats_per_vb: f64) -> Amount {
+    let base_weight_wu = dlc::FUND_TX_BASE_WEIGHT;
+
+    let input_script_pubkey_length = 22;
+    let max_witness_length = 108;
+    let input_weight_wu = 164 + (4 * input_script_pubkey_length) + max_witness_length;
+
+    let output_script_pubkey_length = 22;
+    let output_weight_wu = 36 + (4 * output_script_pubkey_length);
+
+    let total_weight_wu = base_weight_wu + (input_weight_wu * 2) + (output_weight_wu * 2);
+    let total_weight_vb = total_weight_wu as f64 / 4.0;
+
+    let fee = total_weight_vb * fee_rate_sats_per_vb;
+    let fee = fee.ceil() as u64;
+
+    Amount::from_sat(fee)
+}
