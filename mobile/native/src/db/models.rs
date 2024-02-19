@@ -47,8 +47,6 @@ pub enum Error {
     MissingPriceForLimitOrder,
     #[error("A filling or filled order has to have an execution price")]
     MissingExecutionPrice,
-    #[error("A failed order must have a reason")]
-    MissingFailureReason,
 }
 
 #[derive(Queryable, QueryableByName, Insertable, Debug, Clone, PartialEq)]
@@ -88,7 +86,10 @@ impl Order {
     pub fn set_all_filling_orders_to_failed(conn: &mut SqliteConnection) -> Result<()> {
         let affected_rows = diesel::update(orders::table)
             .filter(schema::orders::state.eq(OrderState::Filling))
-            .set(orders::state.eq(OrderState::Failed))
+            .set((
+                orders::state.eq(OrderState::Failed),
+                orders::failure_reason.eq(FailureReason::Unknown),
+            ))
             .execute(conn)?;
 
         tracing::info!("Updated {affected_rows} orders from Filling to Failed");
@@ -625,7 +626,9 @@ impl TryFrom<(OrderState, Option<f32>, Option<FailureReason>)> for crate::trade:
             OrderState::Rejected => crate::trade::order::OrderState::Rejected,
             OrderState::Open => crate::trade::order::OrderState::Open,
             OrderState::Failed => match value.2 {
-                None => return Err(Error::MissingFailureReason),
+                None => crate::trade::order::OrderState::Failed {
+                    reason: crate::trade::order::FailureReason::Unknown,
+                },
                 Some(reason) => crate::trade::order::OrderState::Failed {
                     reason: reason.into(),
                 },

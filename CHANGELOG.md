@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Fix(mobile): Fixed a bug where the app didn't load. This was because of some inconsistency in the db where a failed order didn't have a failure reason.
+
 ## [1.8.9] - 2024-02-19
 
 - Fix(validation): Show correct max counterparty collateral in validation message.
