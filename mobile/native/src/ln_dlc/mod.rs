@@ -479,9 +479,14 @@ fn keep_wallet_balance_and_history_up_to_date(node: &Node) -> Result<()> {
                     status,
                     wallet_type: WalletHistoryItemType::DlcChannelFunding {
                         funding_txid: details.transaction.txid().to_string(),
-                        // this is not 100% correct as fees are not exactly divided by 2. The fee a
-                        // user has to pay depends on his final address.
-                        reserved_fee_sats: details.fee.as_ref().map(|fee| (*fee / 2).to_sat()).ok(),
+                        // this is not 100% correct as fees are not exactly divided by 2. The share
+                        // of the funding transaction fee that the user has paid depends on their
+                        // inputs and change outputs.
+                        funding_tx_fee_sats: details
+                            .fee
+                            .as_ref()
+                            .map(|fee| (*fee / 2).to_sat())
+                            .ok(),
                         confirmations: details.confirmation_status.n_confirmations() as u64,
                         our_channel_input_amount_sats: channel.own_params.collateral,
                     },
