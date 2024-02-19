@@ -26,8 +26,6 @@ use bdk_coin_select::Target;
 use bitcoin::secp256k1::KeyPair;
 use bitcoin::Network;
 use bitcoin::TxIn;
-use bitcoin::VarInt;
-use lightning::chain::chaininterface::ConfirmationTarget;
 use ln_dlc_storage::DlcStorageProvider;
 use ln_dlc_storage::WalletStorage;
 use std::sync::Arc;
@@ -180,16 +178,12 @@ impl<D: BdkStorage, S: TenTenOneStorage, N> dlc_manager::Wallet for DlcWallet<D,
         &self,
         amount: u64,
         fee_rate: Option<u64>,
+        base_weight_wu: u64,
         lock_utxos: bool,
     ) -> Result<Vec<dlc_manager::Utxo>, dlc_manager::error::Error> {
         let network = self.on_chain_wallet.network();
 
-        let fee_rate = fee_rate.map(|fee_rate| fee_rate as f32).unwrap_or_else(|| {
-            self.on_chain_wallet
-                .fee_rate_estimator
-                .get(ConfirmationTarget::Normal)
-                .as_sat_per_vb()
-        });
+        let fee_rate = fee_rate.expect("always set by rust-dlc");
 
         // Get temporarily reserved UTXOs from in-memory storage.
         let mut reserved_outpoints = self.on_chain_wallet.locked_utxos.lock();
@@ -211,15 +205,7 @@ impl<D: BdkStorage, S: TenTenOneStorage, N> dlc_manager::Wallet for DlcWallet<D,
                     ..Default::default()
                 };
 
-                // Inspired by `rust-bitcoin:0.30.2`.
-                let segwit_weight = {
-                    let legacy_weight = {
-                        let script_sig_size = tx_in.script_sig.len();
-                        (36 + VarInt(script_sig_size as u64).len() + script_sig_size + 4) * 4
-                    };
-
-                    legacy_weight + tx_in.witness.serialized_len()
-                };
+                let segwit_weight = tx_in.segwit_weight();
 
                 // The 10101 wallet always generates SegWit addresses.
                 //
@@ -230,17 +216,13 @@ impl<D: BdkStorage, S: TenTenOneStorage, N> dlc_manager::Wallet for DlcWallet<D,
             })
             .collect::<Vec<_>>();
 
-        // This is a standard base weight (without inputs or change outputs) for on-chain DLCs. We
-        // assume that this value is still correct for DLC channels.
-        let funding_tx_base_weight = 212;
-
         let target = Target {
-            feerate: bdk_coin_select::FeeRate::from_sat_per_vb(fee_rate),
+            feerate: bdk_coin_select::FeeRate::from_sat_per_vb(fee_rate as f32),
             min_fee: 0,
             value: amount,
         };
 
-        let mut coin_selector = CoinSelector::new(&candidates, funding_tx_base_weight);
+        let mut coin_selector = CoinSelector::new(&candidates, base_weight_wu as u32);
 
         let dust_limit = 0;
         let long_term_feerate = bdk_coin_select::FeeRate::default_min_relay_fee();

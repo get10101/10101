@@ -314,7 +314,6 @@ async fn funding_transaction_pays_expected_fees() {
 
 #[tokio::test(flavor = "multi_thread")]
 #[ignore]
-#[should_panic]
 async fn dlc_channel_includes_expected_fee_reserve() {
     init_tracing();
 
