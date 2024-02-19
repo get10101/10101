@@ -260,39 +260,56 @@ async fn can_open_and_force_close_channel() {
 
 #[tokio::test(flavor = "multi_thread")]
 #[ignore]
-async fn can_open_channel_with_min_inputs() {
+async fn funding_transaction_pays_expected_fees() {
     init_tracing();
+
+    // Arrange
 
     let app_dlc_collateral = Amount::from_sat(10_000);
     let coordinator_dlc_collateral = Amount::from_sat(10_000);
 
-    // We must fix the fee rate so that we can predict how many sats `rust-dlc` will allocate
-    // for transaction fees.
-    let fee_rate_sats_per_vbyte = 2;
-    let expected_fund_tx_fee = 252 * fee_rate_sats_per_vbyte;
+    let fee_rate_sats_per_vb = 2;
 
-    // This also depends on the fee rate, but the formula is a bit more involved.
-    let fee_reserve = 880;
-
-    // Fee costs are evenly split.
-    let fee_cost_per_party = (expected_fund_tx_fee + fee_reserve) / 2;
-    let fee_cost_per_party = Amount::from_sat(fee_cost_per_party);
-
-    let (app, _running_app) = start_and_fund_app(app_dlc_collateral + fee_cost_per_party, 1).await;
+    // Give enough funds to app and coordinator so that each party can have their own change output.
+    // This is not currently enforced by `rust-dlc`, but it will be in the near future:
+    // https://github.com/p2pderivatives/rust-dlc/pull/152.
+    let (app, _running_app) = start_and_fund_app(app_dlc_collateral * 2, 1).await;
     let (coordinator, _running_coordinator) =
-        start_and_fund_coordinator(coordinator_dlc_collateral + fee_cost_per_party, 1).await;
+        start_and_fund_coordinator(app_dlc_collateral * 2, 1).await;
+
+    // Act
 
     let (app_signed_channel, _) = open_channel_and_position(
         app.clone(),
         coordinator.clone(),
         app_dlc_collateral,
         coordinator_dlc_collateral,
-        Some(fee_rate_sats_per_vbyte),
+        Some(fee_rate_sats_per_vb),
     )
     .await;
 
-    // No change output means that the inputs were spent in full by the fund output.
-    assert!(app_signed_channel.fund_tx.output.len() == 1);
+    // Assert
+
+    let fund_tx_outputs_amount = app_signed_channel
+        .fund_tx
+        .output
+        .iter()
+        .fold(Amount::ZERO, |acc, output| {
+            acc + Amount::from_sat(output.value)
+        });
+
+    let fund_tx_inputs_amount = Amount::from_sat(
+        app_signed_channel.own_params.input_amount + app_signed_channel.counter_params.input_amount,
+    );
+
+    let fund_tx_fee = fund_tx_inputs_amount - fund_tx_outputs_amount;
+
+    let fund_tx_weight_wu = app_signed_channel.fund_tx.weight();
+    let fund_tx_weight_vb = (fund_tx_weight_wu / 4) as u64;
+
+    let fund_tx_fee_rate_sats_per_vb = fund_tx_fee.to_sat() / fund_tx_weight_vb;
+
+    assert_eq!(fund_tx_fee_rate_sats_per_vb, fee_rate_sats_per_vb);
 }
 
 async fn start_and_fund_app(
