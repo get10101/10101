@@ -312,6 +312,75 @@ async fn funding_transaction_pays_expected_fees() {
     assert_eq!(fund_tx_fee_rate_sats_per_vb, fee_rate_sats_per_vb);
 }
 
+#[tokio::test(flavor = "multi_thread")]
+#[ignore]
+#[should_panic]
+async fn dlc_channel_includes_expected_fee_reserve() {
+    init_tracing();
+
+    let app_dlc_collateral = Amount::from_sat(10_000);
+    let coordinator_dlc_collateral = Amount::from_sat(10_000);
+
+    // We must fix the fee rate so that we can predict how many sats `rust-dlc` will allocate
+    // for transaction fees.
+    let fee_rate_sats_per_vb = 2;
+
+    let buffer_weight_wu = dlc::channel::BUFFER_TX_WEIGHT;
+
+    let cet_or_refund_weight_wu = {
+        let cet_or_refund_base_weight_wu = dlc::CET_BASE_WEIGHT;
+        // Because we are spending from a buffer transaction.
+        let cet_or_refund_extra_weight_wu = dlc::channel::CET_EXTRA_WEIGHT;
+
+        // This is the standard length of a P2WPKH script pubkey.
+        let cet_or_refund_output_spk_bytes = 22;
+
+        // Value = 8 bytes; var_int = 1 byte.
+        let cet_or_refund_output_weight_wu = (8 + 1 + cet_or_refund_output_spk_bytes) * 4;
+
+        cet_or_refund_base_weight_wu
+            + cet_or_refund_extra_weight_wu
+            // 1 output per party.
+            + (2 * cet_or_refund_output_weight_wu)
+    };
+
+    let total_fee_reserve = {
+        let total_weight_vb = (buffer_weight_wu + cet_or_refund_weight_wu) as f32 / 4.0;
+        let total_weight_vb = total_weight_vb.ceil() as u64;
+
+        Amount::from_sat(total_weight_vb * fee_rate_sats_per_vb)
+    };
+
+    let expected_fund_output_amount =
+        app_dlc_collateral + coordinator_dlc_collateral + total_fee_reserve;
+
+    let (app, _running_app) = start_and_fund_app(app_dlc_collateral * 2, 1).await;
+    let (coordinator, _running_coordinator) =
+        start_and_fund_coordinator(coordinator_dlc_collateral * 2, 1).await;
+
+    let (app_signed_channel, _) = open_channel_and_position(
+        app.clone(),
+        coordinator.clone(),
+        app_dlc_collateral,
+        coordinator_dlc_collateral,
+        Some(fee_rate_sats_per_vb),
+    )
+    .await;
+
+    let fund_output_vout = app_signed_channel.fund_output_index;
+    let fund_output_amount = &app_signed_channel.fund_tx.output[fund_output_vout].value;
+
+    // We cannot easily assert equality because both `rust-dlc` and us have to round in several
+    // spots.
+    let epsilon = *fund_output_amount as i64 - expected_fund_output_amount.to_sat() as i64;
+
+    assert!(
+        epsilon.abs() < 5,
+        "Error out of bounds: actual {fund_output_amount} != {}",
+        expected_fund_output_amount.to_sat()
+    );
+}
+
 async fn start_and_fund_app(
     amount: Amount,
     n_utxos: u64,
