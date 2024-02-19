@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.8.10] - 2024-02-19
+
 - Fix(mobile): Fixed a bug where the app didn't load. This was because of some inconsistency in the db where a failed order didn't have a failure reason.
 
 ## [1.8.9] - 2024-02-19
@@ -325,7 +327,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Self-Custodial CFD Trading based on DLC and lightning
 
-[Unreleased]: https://github.com/get10101/10101/compare/1.8.9...HEAD
+[Unreleased]: https://github.com/get10101/10101/compare/1.8.10...HEAD
+[1.8.10]: https://github.com/get10101/10101/compare/1.8.9...1.8.10
 [1.8.9]: https://github.com/get10101/10101/compare/1.8.8...1.8.9
 [1.8.8]: https://github.com/get10101/10101/compare/1.8.7...1.8.8
 [1.8.7]: https://github.com/get10101/10101/compare/1.8.6...1.8.7
