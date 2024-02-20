@@ -6,6 +6,7 @@ use crate::tests::bitcoind::mine;
 use crate::tests::dummy_contract_input;
 use crate::tests::init_tracing;
 use crate::tests::wait_until;
+use crate::util;
 use bitcoin::Amount;
 use dlc_manager::channel::signed_channel::SignedChannel;
 use dlc_manager::channel::signed_channel::SignedChannelStateType;
@@ -13,6 +14,7 @@ use dlc_manager::contract::Contract;
 use dlc_manager::Storage;
 use std::sync::Arc;
 use std::time::Duration;
+use uuid::Uuid;
 
 #[tokio::test(flavor = "multi_thread")]
 #[ignore]
@@ -29,8 +31,13 @@ async fn can_open_and_settle_offchain() {
     let oracle_pk = *coordinator.oracle_pk().first().unwrap();
     let contract_input = dummy_contract_input(15_000, 5_000, oracle_pk, None);
 
+    let protocol_id = util::parse_from_uuid(Uuid::new_v4());
     coordinator
-        .propose_dlc_channel_update(&coordinator_signed_channel.channel_id, contract_input)
+        .propose_dlc_channel_update(
+            &coordinator_signed_channel.channel_id,
+            contract_input,
+            protocol_id,
+        )
         .await
         .unwrap();
 
@@ -372,8 +379,9 @@ async fn open_channel_and_position(
         fee_rate_sats_per_vbyte,
     );
 
+    let protocol_id = util::parse_from_uuid(Uuid::new_v4());
     coordinator
-        .propose_dlc_channel(contract_input, app.info.pubkey)
+        .propose_dlc_channel(contract_input, app.info.pubkey, protocol_id)
         .await
         .unwrap();
 
@@ -489,10 +497,12 @@ async fn open_channel_and_position(
 
     tracing::info!("DLC channel is on-chain");
 
+    let protocol_id = util::parse_from_uuid(Uuid::new_v4());
     coordinator
         .propose_dlc_channel_collaborative_settlement(
-            coordinator_signed_channel.channel_id,
+            &coordinator_signed_channel.channel_id,
             coordinator_dlc_collateral.to_sat() / 2,
+            protocol_id,
         )
         .await
         .unwrap();

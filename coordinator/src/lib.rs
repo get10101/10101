@@ -25,6 +25,7 @@ pub mod backup;
 pub mod cli;
 pub mod db;
 pub mod dlc_handler;
+pub mod dlc_protocol;
 mod leaderboard;
 pub mod logger;
 pub mod message;

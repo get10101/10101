@@ -256,19 +256,14 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
         Ok(contract.get_temporary_id())
     }
 
-    pub fn get_closed_contract(
-        &self,
-        temporary_contract_id: ContractId,
-    ) -> Result<Option<ClosedContract>> {
+    pub fn get_closed_contract(&self, contract_id: ContractId) -> Result<Option<ClosedContract>> {
         let contract = self
             .dlc_manager
             .get_store()
             .get_contracts()?
             .into_iter()
             .find_map(|contract| match contract {
-                Contract::Closed(closed_contract)
-                    if closed_contract.temporary_contract_id == temporary_contract_id =>
-                {
+                Contract::Closed(closed_contract) if closed_contract.contract_id == contract_id => {
                     Some(closed_contract)
                 }
                 _ => None,

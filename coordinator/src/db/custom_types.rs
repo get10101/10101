@@ -1,5 +1,6 @@
 use crate::db::channels::ChannelState;
 use crate::db::dlc_messages::MessageType;
+use crate::db::dlc_protocols::DlcProtocolState;
 use crate::db::payments::HtlcStatus;
 use crate::db::payments::PaymentFlow;
 use crate::db::polls::PollType;
@@ -13,6 +14,7 @@ use crate::schema::sql_types::MessageTypeType;
 use crate::schema::sql_types::PaymentFlowType;
 use crate::schema::sql_types::PollTypeType;
 use crate::schema::sql_types::PositionStateType;
+use crate::schema::sql_types::ProtocolStateType;
 use diesel::deserialize;
 use diesel::deserialize::FromSql;
 use diesel::pg::Pg;
@@ -222,6 +224,28 @@ impl FromSql<PollTypeType, Pg> for PollType {
         match bytes.as_bytes() {
             b"SingleChoice" => Ok(PollType::SingleChoice),
             _ => Err("Unrecognized enum variant for PollType".into()),
+        }
+    }
+}
+
+impl ToSql<ProtocolStateType, Pg> for DlcProtocolState {
+    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, Pg>) -> serialize::Result {
+        match *self {
+            DlcProtocolState::Pending => out.write_all(b"Pending")?,
+            DlcProtocolState::Success => out.write_all(b"Success")?,
+            DlcProtocolState::Failed => out.write_all(b"Failed")?,
+        }
+        Ok(IsNull::No)
+    }
+}
+
+impl FromSql<ProtocolStateType, Pg> for DlcProtocolState {
+    fn from_sql(bytes: PgValue<'_>) -> deserialize::Result<Self> {
+        match bytes.as_bytes() {
+            b"Pending" => Ok(DlcProtocolState::Pending),
+            b"Success" => Ok(DlcProtocolState::Success),
+            b"Failed" => Ok(DlcProtocolState::Failed),
+            _ => Err("Unrecognized enum variant for ContractTransactionType".into()),
         }
     }
 }

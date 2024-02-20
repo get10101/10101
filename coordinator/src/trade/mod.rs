@@ -1,4 +1,5 @@
 use crate::compute_relative_contracts;
+use crate::dlc_protocol;
 use crate::db;
 use crate::decimal_from_f32;
 use crate::message::OrderbookMessage;
@@ -11,7 +12,6 @@ use crate::position::models::NewPosition;
 use crate::position::models::Position;
 use crate::position::models::PositionState;
 use crate::storage::CoordinatorTenTenOneStorage;
-use crate::trade::models::NewTrade;
 use anyhow::anyhow;
 use anyhow::bail;
 use anyhow::ensure;
@@ -40,6 +40,7 @@ use dlc_manager::DlcChannelId;
 use lightning::chain::chaininterface::ConfirmationTarget;
 use ln_dlc_node::node;
 use ln_dlc_node::node::signed_channel_state_name;
+use ln_dlc_node::util;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use std::sync::Arc;
@@ -64,7 +65,6 @@ pub enum TradeAction {
     ClosePosition {
         channel_id: DlcChannelId,
         position: Box<Position>,
-        closing_price: Decimal,
     },
     ResizePosition,
 }
@@ -204,9 +204,13 @@ impl TradeExecutor {
             TradeAction::ClosePosition {
                 channel_id,
                 position,
-                closing_price,
             } => self
-                .start_closing_position(&mut connection, &position, closing_price, channel_id)
+                .start_closing_position(
+                    &mut connection,
+                    &position,
+                    &params.trade_params,
+                    channel_id,
+                )
                 .await
                 .with_context(|| format!("Failed at closing position {}", position.id))?,
             TradeAction::ResizePosition => unimplemented!(),
@@ -226,7 +230,7 @@ impl TradeExecutor {
         let peer_id = trade_params.pubkey;
 
         let leverage_trader = trade_params.leverage;
-        let leverage_coordinator = self.coordinator_leverage_for_trade(&trade_params.pubkey)?;
+        let leverage_coordinator = coordinator_leverage_for_trade(&trade_params.pubkey)?;
 
         let margin_trader = margin_trader(trade_params);
         let margin_coordinator = margin_coordinator(trade_params, leverage_coordinator);
@@ -292,12 +296,6 @@ impl TradeExecutor {
         // coordinator.
         let event_id = format!("{contract_symbol}{maturity_time}");
 
-        tracing::debug!(
-            event_id,
-            oracle=%trade_params.filled_with.oracle_pk,
-            "Proposing DLC channel"
-        );
-
         let contract_input = ContractInput {
             offer_collateral: margin_coordinator + collateral_reserve_coordinator.to_sat(),
             // The accept party has do bring additional collateral to pay for the
@@ -308,17 +306,35 @@ impl TradeExecutor {
                 contract_descriptor,
                 oracles: OracleInput {
                     public_keys: vec![trade_params.filled_with.oracle_pk],
-                    event_id,
+                    event_id: event_id.clone(),
                     threshold: 1,
                 },
             }],
         };
 
-        let temporary_contract_id = self
+        let protocol_id = util::parse_from_uuid(Uuid::new_v4());
+
+        tracing::debug!(
+            protocol_id=util::stringify_reference_id(Some(protocol_id)),
+            event_id,
+            oracle=%trade_params.filled_with.oracle_pk,
+            "Proposing DLC channel"
+        );
+
+        let (temporary_contract_id, temporary_channel_id) = self
             .node
-            .propose_dlc_channel(contract_input, trade_params.pubkey)
+            .propose_dlc_channel(contract_input, trade_params.pubkey, protocol_id)
             .await
             .context("Could not propose DLC channel")?;
+
+        let contract_executor = dlc_protocol::DlcProtocolExecutor::new(self.pool.clone());
+        contract_executor.start_dlc_protocol(
+            protocol_id,
+            None,
+            temporary_contract_id,
+            temporary_channel_id,
+            trade_params,
+        )?;
 
         // After the DLC channel has been proposed the position can be created. This fixes
         // https://github.com/get10101/10101/issues/537, where the position was created before the
@@ -330,7 +346,10 @@ impl TradeExecutor {
         //
         // FIXME: We should not create a shadow representation (position) of the DLC struct, but
         // rather imply the state from the DLC.
-        self.persist_position_and_trade(
+        //
+        // TODO(holzeis): The position should only get created after the dlc protocol has finished
+        // successfully.
+        self.persist_position(
             conn,
             trade_params,
             temporary_contract_id,
@@ -360,7 +379,7 @@ impl TradeExecutor {
 
         let initial_price = trade_params.filled_with.average_execution_price();
 
-        let leverage_coordinator = self.coordinator_leverage_for_trade(&trade_params.pubkey)?;
+        let leverage_coordinator = coordinator_leverage_for_trade(&trade_params.pubkey)?;
         let leverage_trader = trade_params.leverage;
 
         let margin_coordinator = margin_coordinator(trade_params, leverage_coordinator);
@@ -465,13 +484,28 @@ impl TradeExecutor {
             }],
         };
 
+        let protocol_id = util::parse_from_uuid(Uuid::new_v4());
+        let channel = self.node.get_dlc_channel_by_id(&dlc_channel_id)?;
+        let previous_id = channel.get_reference_id();
+
         let temporary_contract_id = self
             .node
-            .propose_dlc_channel_update(&dlc_channel_id, contract_input)
+            .propose_dlc_channel_update(&dlc_channel_id, contract_input, protocol_id)
             .await
             .context("Could not propose DLC channel update")?;
 
-        self.persist_position_and_trade(
+        let contract_executor = dlc_protocol::DlcProtocolExecutor::new(self.pool.clone());
+        contract_executor.start_dlc_protocol(
+            protocol_id,
+            previous_id,
+            temporary_contract_id,
+            channel.get_id(),
+            trade_params,
+        )?;
+
+        // TODO(holzeis): The position should only get created after the dlc protocol has finished
+        // successfully.
+        self.persist_position(
             conn,
             trade_params,
             temporary_contract_id,
@@ -481,7 +515,7 @@ impl TradeExecutor {
     }
 
     // Creates a position and a trade from the trade params
-    fn persist_position_and_trade(
+    fn persist_position(
         &self,
         connection: &mut PgConnection,
         trade_params: &TradeParams,
@@ -515,22 +549,9 @@ impl TradeExecutor {
         };
         tracing::debug!(?new_position, "Inserting new position into db");
 
-        let position = db::positions::Position::insert(connection, new_position.clone())?;
-
-        db::trades::insert(
-            connection,
-            NewTrade {
-                position_id: position.id,
-                contract_symbol: new_position.contract_symbol,
-                trader_pubkey: new_position.trader,
-                quantity: new_position.quantity,
-                trader_leverage: new_position.trader_leverage,
-                coordinator_margin: new_position.coordinator_margin,
-                trader_direction: new_position.trader_direction,
-                average_price: average_entry_price,
-                dlc_expiry_timestamp: Some(trade_params.filled_with.expiry_timestamp),
-            },
-        )?;
+        // TODO(holzeis): We should only create the position once the dlc protocol finished
+        // successfully.
+        db::positions::Position::insert(connection, new_position.clone())?;
 
         Ok(())
     }
@@ -539,13 +560,14 @@ impl TradeExecutor {
         &self,
         conn: &mut PgConnection,
         position: &Position,
-        closing_price: Decimal,
+        trade_params: &TradeParams,
         channel_id: DlcChannelId,
     ) -> Result<()> {
         if !self.node.is_dlc_channel_confirmed(&channel_id)? {
             bail!("Underlying DLC channel not yet confirmed");
         }
 
+        let closing_price = trade_params.average_execution_price();
         let position_settlement_amount_coordinator =
             position.calculate_coordinator_settlement_amount(closing_price)?;
 
@@ -554,7 +576,9 @@ impl TradeExecutor {
         let dlc_channel_settlement_amount_coordinator =
             position_settlement_amount_coordinator + collateral_reserve_coordinator.to_sat();
 
+        let protocol_id = util::parse_from_uuid(Uuid::new_v4());
         tracing::info!(
+            protocol_id = util::stringify_reference_id(Some(protocol_id)),
             ?position,
             channel_id = %channel_id.to_hex(),
             %position_settlement_amount_coordinator,
@@ -571,25 +595,25 @@ impl TradeExecutor {
             .checked_sub(dlc_channel_settlement_amount_coordinator)
             .unwrap_or_default();
 
+        let channel = self.node.get_dlc_channel_by_id(&channel_id)?;
+        let contract_id = channel.get_contract_id().context("missing contract id")?;
+        let previous_id = channel.get_reference_id();
+
         self.node
-            .propose_dlc_channel_collaborative_settlement(channel_id, settlement_amount_trader)
+            .propose_dlc_channel_collaborative_settlement(
+                &channel_id,
+                settlement_amount_trader,
+                protocol_id,
+            )
             .await?;
 
-        db::trades::insert(
-            conn,
-            NewTrade {
-                position_id: position.id,
-                contract_symbol: position.contract_symbol,
-                trader_pubkey: position.trader,
-                quantity: position.quantity,
-                trader_leverage: position.trader_leverage,
-                coordinator_margin: position.coordinator_margin,
-                trader_direction: position.trader_direction.opposite(),
-                average_price: closing_price.to_f32().expect("To fit into f32"),
-                // A closing trade does not require an expiry timestamp for the DLC, because the DLC
-                // is being _removed_.
-                dlc_expiry_timestamp: None,
-            },
+        let contract_executor = dlc_protocol::DlcProtocolExecutor::new(self.pool.clone());
+        contract_executor.start_dlc_protocol(
+            protocol_id,
+            previous_id,
+            contract_id,
+            channel.get_id(),
+            trade_params,
         )?;
 
         db::positions::Position::set_open_position_to_closing(
@@ -617,26 +641,6 @@ impl TradeExecutor {
                 diesel::result::QueryResult::Ok(())
             })
             .map_err(|e| anyhow!("Failed to update order and match. Error: {e:#}"))
-    }
-
-    fn coordinator_leverage_for_trade(&self, _counterparty_peer_id: &PublicKey) -> Result<f32> {
-        // TODO(bonomat): we will need to configure the leverage on the coordinator differently now
-        // let channel_details = self.get_counterparty_channel(*counterparty_peer_id)?;
-        // let user_channel_id = Uuid::from_u128(channel_details.user_channel_id).to_string();
-        // let channel = db::channels::get(&user_channel_id, &mut conn)?.with_context(|| {
-        //     format!("Couldn't find shadow channel with user channel ID {user_channel_id}",)
-        // })?;
-        // let leverage_coordinator = match channel.liquidity_option_id {
-        //     Some(liquidity_option_id) => {
-        //         let liquidity_option = db::liquidity_options::get(&mut conn,
-        // liquidity_option_id)?;         liquidity_option.coordinator_leverage
-        //     }
-        //     None => 1.0,
-        // };
-
-        let leverage_coordinator = 2.0;
-
-        Ok(leverage_coordinator)
     }
 
     async fn determine_trade_action(
@@ -716,12 +720,9 @@ impl TradeExecutor {
                 };
 
                 if position_contracts + trade_contracts == Decimal::ZERO {
-                    let closing_price = trade_params.average_execution_price();
-
                     TradeAction::ClosePosition {
                         channel_id,
                         position: Box::new(position),
-                        closing_price,
                     }
                 } else {
                     ensure!(
@@ -770,4 +771,24 @@ fn liquidation_price(trade_params: &TradeParams) -> f32 {
     }
     .to_f32()
     .expect("to fit into f32")
+}
+
+pub fn coordinator_leverage_for_trade(_counterparty_peer_id: &PublicKey) -> Result<f32> {
+    // TODO(bonomat): we will need to configure the leverage on the coordinator differently now
+    // let channel_details = self.get_counterparty_channel(*counterparty_peer_id)?;
+    // let user_channel_id = Uuid::from_u128(channel_details.user_channel_id).to_string();
+    // let channel = db::channels::get(&user_channel_id, &mut conn)?.with_context(|| {
+    //     format!("Couldn't find shadow channel with user channel ID {user_channel_id}",)
+    // })?;
+    // let leverage_coordinator = match channel.liquidity_option_id {
+    //     Some(liquidity_option_id) => {
+    //         let liquidity_option = db::liquidity_options::get(&mut conn,
+    // liquidity_option_id)?;         liquidity_option.coordinator_leverage
+    //     }
+    //     None => 1.0,
+    // };
+
+    let leverage_coordinator = 2.0;
+
+    Ok(leverage_coordinator)
 }

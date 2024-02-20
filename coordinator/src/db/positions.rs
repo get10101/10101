@@ -137,9 +137,9 @@ impl Position {
         conn: &mut PgConnection,
         trader_pubkey: String,
         state: crate::position::models::PositionState,
-    ) -> Result<()> {
+    ) -> QueryResult<crate::position::models::Position> {
         let state = PositionState::from(state);
-        let affected_rows = diesel::update(positions::table)
+        let position: Position = diesel::update(positions::table)
             .filter(positions::trader_pubkey.eq(trader_pubkey.clone()))
             .filter(
                 positions::position_state
@@ -150,13 +150,9 @@ impl Position {
                 positions::position_state.eq(state),
                 positions::update_timestamp.eq(OffsetDateTime::now_utc()),
             ))
-            .execute(conn)?;
+            .get_result(conn)?;
 
-        if affected_rows == 0 {
-            bail!("Could not update position to {state:?} for {trader_pubkey}")
-        }
-
-        Ok(())
+        Ok(crate::position::models::Position::from(position))
     }
 
     /// sets the status of the position in state `Closing` to a new state
@@ -272,21 +268,17 @@ impl Position {
         conn: &mut PgConnection,
         id: i32,
         pnl: i64,
-    ) -> Result<()> {
-        let affected_rows = diesel::update(positions::table)
+    ) -> QueryResult<crate::position::models::Position> {
+        let position: Position = diesel::update(positions::table)
             .filter(positions::id.eq(id))
             .set((
                 positions::position_state.eq(PositionState::Closed),
                 positions::trader_realized_pnl_sat.eq(Some(pnl)),
                 positions::update_timestamp.eq(OffsetDateTime::now_utc()),
             ))
-            .execute(conn)?;
+            .get_result(conn)?;
 
-        if affected_rows == 0 {
-            bail!("Could not update position to Closed with realized pnl {pnl} for position {id}")
-        }
-
-        Ok(())
+        Ok(crate::position::models::Position::from(position))
     }
 
     pub fn set_position_to_closed(conn: &mut PgConnection, id: i32) -> Result<()> {

@@ -26,6 +26,7 @@ use dlc_manager::ContractId;
 use dlc_manager::DlcChannelId;
 use futures::future::RemoteHandle;
 use futures::FutureExt;
+use ln_dlc_node::util;
 use std::str::FromStr;
 use time::OffsetDateTime;
 use tokio::sync::broadcast;
@@ -33,6 +34,7 @@ use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::mpsc;
 use tokio::task::spawn_blocking;
 use trade::ContractSymbol;
+use uuid::Uuid;
 
 #[derive(Debug, Clone)]
 struct Rollover {
@@ -226,8 +228,9 @@ impl Node {
 
         let contract_input: ContractInput = rollover.clone().into();
 
+        let protocol_id = util::parse_from_uuid(Uuid::new_v4());
         self.inner
-            .propose_dlc_channel_update(dlc_channel_id, contract_input)
+            .propose_dlc_channel_update(dlc_channel_id, contract_input, protocol_id)
             .await?;
 
         // Sets the position state to rollover indicating that a rollover is in progress.
