@@ -42,6 +42,17 @@ class WalletService {
     }
   }
 
+  Future<void> sync() async {
+    final response =
+        await HttpClientManager.instance.post(Uri(path: '/api/sync'), headers: <String, String>{
+      'Content-Type': 'application/json; charset=UTF-8',
+    });
+
+    if (response.statusCode != 200) {
+      throw FlutterError("Failed to sync wallet");
+    }
+  }
+
   Future<List<OnChainPayment>> getOnChainPaymentHistory() async {
     final response = await HttpClientManager.instance.get(Uri(path: '/api/history'));
 

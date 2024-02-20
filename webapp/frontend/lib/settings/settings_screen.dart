@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:get_10101/common/color.dart';
 import 'package:get_10101/settings/app_info_screen.dart';
+import 'package:get_10101/settings/channel_screen.dart';
 import 'package:get_10101/settings/seed_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -64,7 +65,7 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
           Expanded(
             child: TabBarView(
               controller: _tabController,
-              children: const [AppInfoScreen(), Text("Channel"), SeedScreen()],
+              children: const [AppInfoScreen(), ChannelScreen(), SeedScreen()],
             ),
           ),
         ],

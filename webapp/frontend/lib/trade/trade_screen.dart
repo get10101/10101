@@ -61,7 +61,7 @@ class _TradeScreenState extends State<TradeScreen> with SingleTickerProviderStat
             Column(
               children: [
                 SizedBox(
-                    height: 120.0,
+                    height: 220.0,
                     child: createTableWidget(const OpenPositionTable(), "Open Positions")),
                 const SizedBox(
                   height: 10,

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:get_10101/common/color.dart';
 import 'package:get_10101/common/direction.dart';
 import 'package:get_10101/common/model.dart';
+import 'package:get_10101/settings/channel_change_notifier.dart';
+import 'package:get_10101/settings/dlc_channel.dart';
 import 'package:get_10101/trade/position_change_notifier.dart';
 import 'package:get_10101/trade/position_service.dart';
 import 'package:get_10101/trade/quote_change_notifier.dart';
@@ -9,12 +11,18 @@ import 'package:get_10101/trade/quote_service.dart';
 import 'package:get_10101/trade/trade_confirmation_dialog.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:collection/collection.dart';
 
 class OpenPositionTable extends StatelessWidget {
   const OpenPositionTable({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final ChannelChangeNotifier changeNotifier = context.watch<ChannelChangeNotifier>();
+    List<DlcChannel> channels = changeNotifier.getChannels() ?? [];
+    DlcChannel? channel =
+        channels.firstWhereOrNull((channel) => channel.channelState == ChannelState.signed);
+
     final positionChangeNotifier = context.watch<PositionChangeNotifier>();
     final positions = positionChangeNotifier.getPositions();
     final quoteChangeNotifier = context.watch<QuoteChangeNotifier>();
@@ -27,11 +35,13 @@ class OpenPositionTable extends StatelessWidget {
     if (positions.isEmpty) {
       return const Center(child: Text('No data available'));
     } else {
-      return buildTable(positions, quote, context);
+      return buildTable(positions, quote, context, channel);
     }
   }
 
-  Widget buildTable(List<Position> positions, BestQuote? bestQuote, BuildContext context) {
+  Widget buildTable(
+      List<Position> positions, BestQuote? bestQuote, BuildContext context, DlcChannel? channel) {
+    Widget actionReplacementLabel = createActionReplacementLabel(channel);
     return Table(
       border: const TableBorder(verticalInside: BorderSide(width: 0.5, color: Colors.black)),
       defaultVerticalAlignment: TableCellVerticalAlignment.middle,
@@ -78,34 +88,108 @@ class OpenPositionTable extends StatelessWidget {
               buildTableCell(Center(
                 child: SizedBox(
                   width: 100,
-                  child: ElevatedButton(
-                      onPressed: () {
-                        showDialog(
-                            context: context,
-                            builder: (BuildContext context) {
-                              return TradeConfirmationDialog(
-                                direction: Direction.fromString(position.direction),
-                                onConfirmation: () {},
-                                bestQuote: bestQuote,
-                                pnl: position.pnlSats,
-                                fee: position.closingFee,
-                                payout: position.closingFee != null
-                                    ? Amount(position.collateral.sats +
-                                        (position.pnlSats?.sats ?? 0) -
-                                        (position.closingFee?.sats ?? 0))
-                                    : null,
-                                leverage: position.leverage,
-                                quantity: position.quantity,
-                              );
-                            });
-                      },
-                      child: const Text("Close", style: TextStyle(fontSize: 16))),
+                  child: Visibility(
+                    visible:
+                        // don't show if the channel is already expired
+                        position.expiry.isAfter(DateTime.now()) &&
+                            channel != null &&
+                            channel.channelState == ChannelState.signed &&
+                            channel.subchannelState != null &&
+                            channel.subchannelState == SubchannelState.established,
+                    replacement: actionReplacementLabel,
+                    child: ElevatedButton(
+                        onPressed: () {
+                          showDialog(
+                              context: context,
+                              builder: (BuildContext context) {
+                                return TradeConfirmationDialog(
+                                  direction: Direction.fromString(position.direction),
+                                  onConfirmation: () {},
+                                  bestQuote: bestQuote,
+                                  pnl: position.pnlSats,
+                                  fee: position.closingFee,
+                                  payout: position.closingFee != null
+                                      ? Amount(position.collateral.sats +
+                                          (position.pnlSats?.sats ?? 0) -
+                                          (position.closingFee?.sats ?? 0))
+                                      : null,
+                                  leverage: position.leverage,
+                                  quantity: position.quantity,
+                                );
+                              });
+                        },
+                        child: const Text("Close", style: TextStyle(fontSize: 16))),
+                  ),
                 ),
               )),
             ],
           ),
       ],
     );
+  }
+
+  Widget createActionReplacementLabel(DlcChannel? channel) {
+    Widget actionReplacementLabel = const SizedBox.shrink();
+    if (channel != null && channel.subchannelState != null) {
+      switch (channel.subchannelState) {
+        case SubchannelState.established:
+          actionReplacementLabel = Container(
+              decoration: BoxDecoration(
+                  color: Colors.green.shade300, borderRadius: BorderRadius.circular(15)),
+              child: const Padding(
+                padding: EdgeInsets.all(8.0),
+                child: Center(
+                    child: Text(
+                  "Channel is active",
+                )),
+              ));
+          break;
+        case SubchannelState.settledOffered:
+        case SubchannelState.settledReceived:
+        case SubchannelState.settledAccepted:
+        case SubchannelState.settledConfirmed:
+        case SubchannelState.renewOffered:
+        case SubchannelState.renewAccepted:
+        case SubchannelState.renewConfirmed:
+        case SubchannelState.renewFinalized:
+          actionReplacementLabel = Container(
+              decoration: BoxDecoration(
+                  color: Colors.green.shade300, borderRadius: BorderRadius.circular(15)),
+              child: const Padding(
+                padding: EdgeInsets.all(8.0),
+                child: Center(
+                    child: Text(
+                  "Pending",
+                )),
+              ));
+          break;
+        case SubchannelState.settled:
+          actionReplacementLabel = Container(
+              decoration: BoxDecoration(
+                  color: Colors.green.shade300,
+                  border: const Border(bottom: BorderSide(width: 0.5))),
+              child: const Text(
+                "Channel is active",
+              ));
+          break;
+        case SubchannelState.closing:
+        case SubchannelState.collaborativeCloseOffered:
+          actionReplacementLabel = Container(
+              decoration: BoxDecoration(
+                  color: Colors.orange.shade300, borderRadius: BorderRadius.circular(15)),
+              child: const Padding(
+                padding: EdgeInsets.all(8.0),
+                child: Center(
+                    child: Text(
+                  "Closing",
+                )),
+              ));
+          break;
+        case null:
+        // nothing
+      }
+    }
+    return actionReplacementLabel;
   }
 
   TableCell buildHeaderCell(String text) {
@@ -119,7 +203,9 @@ class OpenPositionTable extends StatelessWidget {
   }
 
   TableCell buildTableCell(Widget child) => TableCell(
-      child: Center(
-          child: Container(
-              padding: const EdgeInsets.all(10), alignment: Alignment.center, child: child)));
+          child: SelectionArea(
+        child: Center(
+            child: Container(
+                padding: const EdgeInsets.all(10), alignment: Alignment.center, child: child)),
+      ));
 }

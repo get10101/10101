@@ -1,6 +1,6 @@
 [package]
 name = "webapp"
-version = "0.2.0"
+version = "0.3.0"
 build = "build.rs"
 edition = "2021"
 
@@ -13,6 +13,7 @@ bitcoin = "0.29.2"
 clap = { version = "4", features = ["derive"] }
 commons = { path = "../crates/commons" }
 console-subscriber = "0.1.6"
+dlc-manager = { version = "0.4.0" }
 hyper = { version = "1.0.0", features = ["full"] }
 hyper-util = { version = "0.1" }
 mime_guess = "2.0.4"
