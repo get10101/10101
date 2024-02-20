@@ -97,8 +97,12 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
             let peer_manager = self.peer_manager.clone();
             let dlc_channel_id = *dlc_channel_id;
             move || {
-                let (renew_offer, counterparty_pubkey) =
-                    dlc_manager.renew_offer(&dlc_channel_id, payout_amount, &contract_input)?;
+                let (renew_offer, counterparty_pubkey) = dlc_manager.renew_offer(
+                    &dlc_channel_id,
+                    payout_amount,
+                    &contract_input,
+                    None,
+                )?;
 
                 send_sub_channel_message(
                     &dlc_message_handler,

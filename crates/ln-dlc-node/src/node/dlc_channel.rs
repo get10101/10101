@@ -72,7 +72,8 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
                     format!("Can't propose dlc channel without oracles")
                 );
 
-                let offer_channel = dlc_manager.offer_channel(&contract_input, counterparty)?;
+                let offer_channel =
+                    dlc_manager.offer_channel(&contract_input, counterparty, None)?;
 
                 let temporary_contract_id = offer_channel.temporary_contract_id;
 
@@ -131,7 +132,7 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
             "Force closing DLC channel"
         );
 
-        self.dlc_manager.force_close_channel(channel_id)?;
+        self.dlc_manager.force_close_channel(channel_id, None)?;
         Ok(())
     }
 
@@ -158,7 +159,7 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
                             "Proposing collaborative close"
                         );
                         let settle_offer = dlc_manager
-                            .offer_collaborative_close(&channel.channel_id, counter_payout)
+                            .offer_collaborative_close(&channel.channel_id, counter_payout, None)
                             .context(
                                 "Could not propose to collaboratively close the dlc channel.",
                             )?;
@@ -203,7 +204,7 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
             let event_handler = self.event_handler.clone();
             move || {
                 let (settle_offer, counterparty) =
-                    dlc_manager.settle_offer(&channel_id, accept_settlement_amount)?;
+                    dlc_manager.settle_offer(&channel_id, accept_settlement_amount, None)?;
 
                 // TODO(holzeis): We should send the dlc message last to make sure that we have
                 // finished updating the 10101 meta data before the app responds to the message.
@@ -264,8 +265,12 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
                 // Not actually needed. See https://github.com/p2pderivatives/rust-dlc/issues/149.
                 let counter_payout = 0;
 
-                let (renew_offer, counterparty_pubkey) =
-                    dlc_manager.renew_offer(&dlc_channel_id, counter_payout, &contract_input)?;
+                let (renew_offer, counterparty_pubkey) = dlc_manager.renew_offer(
+                    &dlc_channel_id,
+                    counter_payout,
+                    &contract_input,
+                    None,
+                )?;
 
                 // TODO(holzeis): We should send the dlc message last to make sure that we have
                 // finished updating the 10101 meta data before the app responds to the message.
