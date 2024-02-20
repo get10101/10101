@@ -8,7 +8,7 @@ import 'package:get_10101/common/init_service.dart';
 import 'package:get_10101/common/routes.dart';
 import 'package:get_10101/features/trade/trade_theme.dart';
 import 'package:get_10101/features/wallet/wallet_theme.dart';
-import 'package:get_10101/util/notifications.dart';
+import 'package:get_10101/util/firebase.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:get_10101/logger/logger.dart';
