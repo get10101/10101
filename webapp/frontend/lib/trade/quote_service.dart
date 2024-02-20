@@ -23,9 +23,12 @@ class QuoteService {
     final response = await HttpClientManager.instance.get(Uri(path: '/api/quotes/BtcUsd'));
 
     if (response.statusCode == 200) {
-      var quote2 = BestQuote.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
-
-      return quote2;
+      var body = jsonDecode(response.body);
+      if (body == null) {
+        return BestQuote();
+      }
+      final Map<String, dynamic> jsonData = body;
+      return BestQuote.fromJson(jsonData);
     } else {
       return null;
     }
