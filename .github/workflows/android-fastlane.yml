@@ -6,7 +6,7 @@ on:
       coordinator_port_http:
         required: true
         type: string
-      esplora_endpoint:
+      electrs_endpoint:
         required: true
         type: string
       coordinator_p2p_endpoint:
@@ -37,9 +37,9 @@ on:
         required: true
         description: "The coordinator's http port"
         type: string
-      esplora_endpoint:
+      electrs_endpoint:
         required: true
-        description: "Esplora http url"
+        description: "Electrs http url"
         type: string
       coordinator_p2p_endpoint:
         required: true
@@ -177,7 +177,7 @@ jobs:
         run: |
           NETWORK=$NETWORK just build-android-app-bundle
         env:
-          ESPLORA_ENDPOINT: ${{ inputs.esplora_endpoint }}
+          ELECTRS_ENDPOINT: ${{ inputs.electrs_endpoint }}
           COORDINATOR_P2P_ENDPOINT: ${{ inputs.coordinator_p2p_endpoint }}
           NETWORK: ${{ inputs.network }}
           COORDINATOR_PORT_HTTP: ${{ inputs.coordinator_port_http }}
@@ -189,7 +189,7 @@ jobs:
         run: |
           NETWORK=$NETWORK just build-android-app-apk --split-per-abi
         env:
-          ESPLORA_ENDPOINT: ${{ inputs.esplora_endpoint }}
+          ELECTRS_ENDPOINT: ${{ inputs.electrs_endpoint }}
           COORDINATOR_P2P_ENDPOINT: ${{ inputs.coordinator_p2p_endpoint }}
           NETWORK: ${{ inputs.network }}
           COORDINATOR_PORT_HTTP: ${{ inputs.coordinator_port_http }}
@@ -200,7 +200,7 @@ jobs:
         run: |
           NETWORK=$NETWORK just build-android-app-apk
         env:
-          ESPLORA_ENDPOINT: ${{ inputs.esplora_endpoint }}
+          ELECTRS_ENDPOINT: ${{ inputs.electrs_endpoint }}
           COORDINATOR_P2P_ENDPOINT: ${{ inputs.coordinator_p2p_endpoint }}
           NETWORK: ${{ inputs.network }}
           COORDINATOR_PORT_HTTP: ${{ inputs.coordinator_port_http }}

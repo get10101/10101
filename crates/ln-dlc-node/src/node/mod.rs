@@ -183,7 +183,7 @@ pub struct Node<S: TenTenOneStorage, N: Storage> {
     pub(crate) alias: String,
     pub(crate) announcement_addresses: Vec<SocketAddress>,
     pub scorer: Arc<std::sync::RwLock<Scorer>>,
-    esplora_server_url: String,
+    electrs_server_url: String,
     esplora_client: Arc<NodeEsploraClient>,
     pub pending_channel_opening_fee_rates: Arc<parking_lot::Mutex<HashMap<PublicKey, FeeRate>>>,
     pub probes: Probes,
@@ -273,7 +273,7 @@ impl<S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 'static> Node<S, 
         announcement_address: SocketAddr,
         listen_address: SocketAddr,
         announcement_addresses: Vec<SocketAddress>,
-        esplora_server_url: String,
+        electrs_server_url: String,
         seed: Bip39Seed,
         ephemeral_randomness: [u8; 32],
         settings: LnDlcNodeSettings,
@@ -298,7 +298,7 @@ impl<S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 'static> Node<S, 
             OnChainWallet::new(on_chain_dir.as_path(), network, seed.wallet_seed())?;
 
         let esplora_client = Arc::new(EsploraSyncClient::new(
-            esplora_server_url.clone(),
+            electrs_server_url.clone(),
             logger.clone(),
         ));
 
@@ -503,7 +503,7 @@ impl<S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 'static> Node<S, 
             alias: alias.to_string(),
             announcement_addresses,
             scorer,
-            esplora_server_url,
+            electrs_server_url,
             esplora_client,
             pending_channel_opening_fee_rates: Arc::new(parking_lot::Mutex::new(HashMap::new())),
             oracle_pubkey,
@@ -580,7 +580,7 @@ impl<S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 'static> Node<S, 
         ));
 
         tokio::spawn(manage_spendable_outputs_task(
-            self.esplora_server_url.clone(),
+            self.electrs_server_url.clone(),
             self.node_storage.clone(),
             self.wallet.clone(),
             self.fee_rate_estimator.clone(),
@@ -891,14 +891,14 @@ async fn manage_spendable_outputs_task<
     S: TenTenOneStorage + 'static,
     N: Storage + Sync + Send + 'static,
 >(
-    esplora_server_url: String,
+    electrs_server_url: String,
     node_storage: Arc<N>,
     ln_dlc_wallet: Arc<LnDlcWallet<S, N>>,
     fee_rate_estimator: Arc<FeeRateEstimator>,
     keys_manager: Arc<CustomKeysManager<S, N>>,
 ) {
     let client = Arc::new(esplora_client::BlockingClient::from_agent(
-        esplora_server_url,
+        electrs_server_url,
         ureq::agent(),
     ));
     loop {

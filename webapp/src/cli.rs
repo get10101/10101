@@ -27,9 +27,9 @@ pub struct Opts {
     #[clap(value_enum, default_value = "regtest")]
     pub network: Network,
 
-    /// The address to connect esplora API to
+    /// The address to connect to the Electrs API.
     #[clap(long, default_value = "http://localhost:3000")]
-    pub esplora: String,
+    pub electrs: String,
 
     /// The endpoint of the p2p-derivatives oracle
     #[clap(

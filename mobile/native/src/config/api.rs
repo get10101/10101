@@ -8,7 +8,7 @@ use std::str::FromStr;
 #[derive(Debug, Clone)]
 pub struct Config {
     pub coordinator_pubkey: String,
-    pub esplora_endpoint: String,
+    pub electrs_endpoint: String,
     pub host: String,
     pub p2p_port: u16,
     pub http_port: u16,
@@ -42,7 +42,7 @@ impl From<(Config, Directories)> for ConfigInternal {
 
         Self {
             coordinator_pubkey: config.coordinator_pubkey.parse().expect("PK to be valid"),
-            esplora_endpoint: config.esplora_endpoint,
+            electrs_endpoint: config.electrs_endpoint,
             http_endpoint: format!("{}:{}", config.host, config.http_port)
                 .parse()
                 .expect("host and http_port to be valid"),

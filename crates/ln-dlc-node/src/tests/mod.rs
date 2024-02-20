@@ -58,7 +58,7 @@ use tokio::task::block_in_place;
 mod bitcoind;
 mod dlc_channel;
 
-const ESPLORA_ORIGIN: &str = "http://localhost:3000";
+const ELECTRS_ORIGIN: &str = "http://localhost:3000";
 const FAUCET_ORIGIN: &str = "http://localhost:8080";
 const ORACLE_ORIGIN: &str = "http://localhost:8081";
 const ORACLE_PUBKEY: &str = "16f88cf7d21e6c0f46bcbc983a4e3b19726c6c98858cc31c83551a88fde171c0";
@@ -95,7 +95,7 @@ impl Node<TenTenOneInMemoryStorage, InMemoryStore> {
             app_event_handler,
             name,
             app_config(),
-            ESPLORA_ORIGIN.to_string(),
+            ELECTRS_ORIGIN.to_string(),
             OracleInfo {
                 endpoint: ORACLE_ORIGIN.to_string(),
                 public_key: XOnlyPublicKey::from_str(ORACLE_PUBKEY)?,
@@ -129,7 +129,7 @@ impl Node<TenTenOneInMemoryStorage, InMemoryStore> {
             coordinator_event_handler,
             name,
             coordinator_config(),
-            ESPLORA_ORIGIN.to_string(),
+            ELECTRS_ORIGIN.to_string(),
             OracleInfo {
                 endpoint: ORACLE_ORIGIN.to_string(),
                 public_key: XOnlyPublicKey::from_str(ORACLE_PUBKEY)?,
@@ -145,7 +145,7 @@ impl Node<TenTenOneInMemoryStorage, InMemoryStore> {
         event_handler_factory: EH,
         name: &str,
         ldk_config: UserConfig,
-        esplora_origin: String,
+        electrs_origin: String,
         oracle: OracleInfo,
         node_storage: Arc<InMemoryStore>,
         settings: LnDlcNodeSettings,
@@ -183,7 +183,7 @@ impl Node<TenTenOneInMemoryStorage, InMemoryStore> {
             address,
             address,
             util::into_socket_addresses(address),
-            esplora_origin,
+            electrs_origin,
             seed,
             ephemeral_randomness,
             settings,
