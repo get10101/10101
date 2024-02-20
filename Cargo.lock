@@ -900,7 +900,7 @@ dependencies = [
 
 [[package]]
 name = "coordinator"
-version = "1.8.10"
+version = "1.8.11"
 dependencies = [
  "anyhow",
  "atty",
@@ -4873,6 +4873,7 @@ dependencies = [
  "clap 4.5.0",
  "commons",
  "console-subscriber",
+ "dlc-manager",
  "hyper 1.1.0",
  "hyper-util",
  "mime_guess",

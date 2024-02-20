@@ -3,6 +3,8 @@ import 'package:get_10101/auth/auth_service.dart';
 import 'package:get_10101/common/version_service.dart';
 import 'package:get_10101/logger/logger.dart';
 import 'package:get_10101/routes.dart';
+import 'package:get_10101/settings/channel_change_notifier.dart';
+import 'package:get_10101/settings/channel_service.dart';
 import 'package:get_10101/trade/order_change_notifier.dart';
 import 'package:get_10101/trade/order_service.dart';
 import 'package:get_10101/trade/position_change_notifier.dart';
@@ -21,15 +23,20 @@ void main() {
   WidgetsFlutterBinding.ensureInitialized();
   buildLogger(false);
   logger.i("Logger initialized");
+  const walletService = WalletService();
+  const channelService = ChannelService();
 
   var providers = [
     Provider(create: (context) => const VersionService()),
-    ChangeNotifierProvider(create: (context) => WalletChangeNotifier(const WalletService())),
+    ChangeNotifierProvider(create: (context) => WalletChangeNotifier(walletService)),
     ChangeNotifierProvider(create: (context) => QuoteChangeNotifier(const QuoteService())),
     ChangeNotifierProvider(create: (context) => PositionChangeNotifier(const PositionService())),
     ChangeNotifierProvider(create: (context) => OrderChangeNotifier(const OrderService())),
+    ChangeNotifierProvider(create: (context) => ChannelChangeNotifier(channelService)),
     Provider(create: (context) => const SettingsService()),
-    Provider(create: (context) => AuthService())
+    Provider(create: (context) => channelService),
+    Provider(create: (context) => AuthService()),
+    Provider(create: (context) => walletService)
   ];
   runApp(MultiProvider(providers: providers, child: const TenTenOneApp()));
 }

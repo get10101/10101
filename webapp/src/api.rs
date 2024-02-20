@@ -2,6 +2,7 @@ use crate::subscribers::AppSubscribers;
 use anyhow::Context;
 use anyhow::Result;
 use axum::extract::Path;
+use axum::extract::Query;
 use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
@@ -10,9 +11,11 @@ use axum::routing::get;
 use axum::routing::post;
 use axum::Json;
 use axum::Router;
+use bitcoin::hashes::hex::ToHex;
 use bitcoin::Amount;
 use commons::order_matching_fee_taker;
 use commons::Price;
+use dlc_manager::channel::signed_channel::SignedChannelState;
 use native::api::ContractSymbol;
 use native::api::Direction;
 use native::api::Fee;
@@ -28,8 +31,12 @@ use native::trade::order::OrderType;
 use native::trade::position::PositionState;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
+use serde::de;
 use serde::Deserialize;
+use serde::Deserializer;
 use serde::Serialize;
+use std::fmt;
+use std::str::FromStr;
 use std::sync::Arc;
 use time::OffsetDateTime;
 use uuid::Uuid;
@@ -44,7 +51,9 @@ pub fn router(subscribers: Arc<AppSubscribers>) -> Router {
         .route("/api/positions", get(get_positions))
         .route("/api/quotes/:contract_symbol", get(get_best_quote))
         .route("/api/node", get(get_node_id))
+        .route("/api/sync", post(post_sync))
         .route("/api/seed", get(get_seed_phrase))
+        .route("/api/channels", get(get_channels).delete(close_channel))
         .with_state(subscribers)
 }
 
@@ -443,6 +452,12 @@ impl From<&native::trade::order::Order> for Order {
     }
 }
 
+pub async fn post_sync() -> Result<(), AppError> {
+    ln_dlc::refresh_wallet_info().await?;
+
+    Ok(())
+}
+
 pub async fn get_orders() -> Result<Json<Vec<Order>>, AppError> {
     let orders = native::trade::order::handler::get_orders_for_ui()
         .await?
@@ -463,4 +478,230 @@ pub async fn get_best_quote(
         .and_then(|inner| inner);
 
     Ok(Json(quotes))
+}
+
+#[derive(Serialize, Default)]
+pub struct DlcChannel {
+    pub dlc_channel_id: Option<String>,
+    pub contract_id: Option<String>,
+    pub channel_state: Option<ChannelState>,
+    pub buffer_txid: Option<String>,
+    pub settle_txid: Option<String>,
+    pub close_txid: Option<String>,
+    pub punnish_txid: Option<String>,
+    pub fund_txid: Option<String>,
+    pub fund_txout: Option<usize>,
+    pub fee_rate: Option<u64>,
+    pub subchannel_state: Option<SubChannelState>,
+}
+
+#[derive(Serialize)]
+pub enum ChannelState {
+    Offered,
+    Accepted,
+    Signed,
+    Closing,
+    Closed,
+    CounterClosed,
+    ClosedPunished,
+    CollaborativelyClosed,
+    FailedAccept,
+    FailedSign,
+    Cancelled,
+}
+
+#[derive(Serialize)]
+pub enum SubChannelState {
+    Established,
+    SettledOffered,
+    SettledReceived,
+    SettledAccepted,
+    SettledConfirmed,
+    Settled,
+    RenewOffered,
+    RenewAccepted,
+    RenewConfirmed,
+    RenewFinalized,
+    Closing,
+    CollaborativeCloseOffered,
+}
+
+pub async fn get_channels() -> Result<Json<Vec<DlcChannel>>, AppError> {
+    let channels = ln_dlc::list_dlc_channels()?
+        .iter()
+        .map(DlcChannel::from)
+        .collect();
+    Ok(Json(channels))
+}
+
+impl From<&dlc_manager::channel::Channel> for DlcChannel {
+    fn from(value: &dlc_manager::channel::Channel) -> Self {
+        match value {
+            dlc_manager::channel::Channel::Offered(o) => DlcChannel {
+                contract_id: Some(o.offered_contract_id.to_hex()),
+                channel_state: Some(ChannelState::Offered),
+                ..DlcChannel::default()
+            },
+            dlc_manager::channel::Channel::Accepted(a) => DlcChannel {
+                dlc_channel_id: Some(a.channel_id.to_hex()),
+                contract_id: Some(a.accepted_contract_id.to_hex()),
+                channel_state: Some(ChannelState::Accepted),
+                ..DlcChannel::default()
+            },
+            dlc_manager::channel::Channel::Signed(s) => {
+                let (subchannel_state, settle_tx, buffer_tx, close_tx) = match &s.state {
+                    SignedChannelState::Established {
+                        buffer_transaction, ..
+                    } => (
+                        SubChannelState::Established,
+                        None,
+                        Some(buffer_transaction),
+                        None,
+                    ),
+                    SignedChannelState::SettledOffered { .. } => {
+                        (SubChannelState::SettledOffered, None, None, None)
+                    }
+                    SignedChannelState::SettledReceived { .. } => {
+                        (SubChannelState::SettledReceived, None, None, None)
+                    }
+                    SignedChannelState::SettledAccepted { settle_tx, .. } => (
+                        SubChannelState::SettledAccepted,
+                        Some(settle_tx),
+                        None,
+                        None,
+                    ),
+                    SignedChannelState::SettledConfirmed { settle_tx, .. } => (
+                        SubChannelState::SettledConfirmed,
+                        Some(settle_tx),
+                        None,
+                        None,
+                    ),
+                    SignedChannelState::Settled { settle_tx, .. } => {
+                        (SubChannelState::Settled, Some(settle_tx), None, None)
+                    }
+                    SignedChannelState::RenewOffered { .. } => {
+                        (SubChannelState::RenewOffered, None, None, None)
+                    }
+                    SignedChannelState::RenewAccepted {
+                        buffer_transaction, ..
+                    } => (
+                        SubChannelState::RenewAccepted,
+                        None,
+                        Some(buffer_transaction),
+                        None,
+                    ),
+                    SignedChannelState::RenewConfirmed {
+                        buffer_transaction, ..
+                    } => (
+                        SubChannelState::RenewConfirmed,
+                        None,
+                        Some(buffer_transaction),
+                        None,
+                    ),
+                    SignedChannelState::RenewFinalized {
+                        buffer_transaction, ..
+                    } => (
+                        SubChannelState::RenewFinalized,
+                        None,
+                        Some(buffer_transaction),
+                        None,
+                    ),
+                    SignedChannelState::Closing {
+                        buffer_transaction, ..
+                    } => (
+                        SubChannelState::Closing,
+                        None,
+                        Some(buffer_transaction),
+                        None,
+                    ),
+                    SignedChannelState::CollaborativeCloseOffered { close_tx, .. } => (
+                        SubChannelState::CollaborativeCloseOffered,
+                        None,
+                        None,
+                        Some(close_tx),
+                    ),
+                };
+                DlcChannel {
+                    dlc_channel_id: Some(s.channel_id.to_hex()),
+                    contract_id: s.get_contract_id().map(|c| c.to_hex()),
+                    channel_state: Some(ChannelState::Signed),
+                    fund_txid: Some(s.fund_tx.txid().to_hex()),
+                    fund_txout: Some(s.fund_output_index),
+                    fee_rate: Some(s.fee_rate_per_vb),
+                    buffer_txid: buffer_tx.map(|tx| tx.txid().to_hex()),
+                    settle_txid: settle_tx.map(|tx| tx.txid().to_hex()),
+                    close_txid: close_tx.map(|tx| tx.txid().to_hex()),
+                    subchannel_state: Some(subchannel_state),
+                    ..DlcChannel::default()
+                }
+            }
+            dlc_manager::channel::Channel::Closing(c) => DlcChannel {
+                dlc_channel_id: Some(c.channel_id.to_hex()),
+                contract_id: Some(c.contract_id.to_hex()),
+                channel_state: Some(ChannelState::Closing),
+                buffer_txid: Some(c.buffer_transaction.txid().to_hex()),
+                ..DlcChannel::default()
+            },
+            dlc_manager::channel::Channel::Closed(c) => DlcChannel {
+                dlc_channel_id: Some(c.channel_id.to_hex()),
+                channel_state: Some(ChannelState::Closed),
+                ..DlcChannel::default()
+            },
+            dlc_manager::channel::Channel::CounterClosed(c) => DlcChannel {
+                dlc_channel_id: Some(c.channel_id.to_hex()),
+                channel_state: Some(ChannelState::CounterClosed),
+                ..DlcChannel::default()
+            },
+            dlc_manager::channel::Channel::ClosedPunished(c) => DlcChannel {
+                dlc_channel_id: Some(c.channel_id.to_hex()),
+
+                channel_state: Some(ChannelState::ClosedPunished),
+                punnish_txid: Some(c.punish_txid.to_hex()),
+                ..DlcChannel::default()
+            },
+            dlc_manager::channel::Channel::CollaborativelyClosed(c) => DlcChannel {
+                dlc_channel_id: Some(c.channel_id.to_hex()),
+                channel_state: Some(ChannelState::CollaborativelyClosed),
+                ..DlcChannel::default()
+            },
+            dlc_manager::channel::Channel::FailedAccept(_) => DlcChannel {
+                channel_state: Some(ChannelState::FailedAccept),
+                ..DlcChannel::default()
+            },
+            dlc_manager::channel::Channel::FailedSign(c) => DlcChannel {
+                dlc_channel_id: Some(c.channel_id.to_hex()),
+                channel_state: Some(ChannelState::FailedSign),
+                ..DlcChannel::default()
+            },
+            dlc_manager::channel::Channel::Cancelled(o) => DlcChannel {
+                contract_id: Some(o.offered_contract_id.to_hex()),
+                channel_state: Some(ChannelState::Cancelled),
+                ..DlcChannel::default()
+            },
+        }
+    }
+}
+
+#[derive(Debug, Deserialize)]
+pub struct DeleteChannel {
+    #[serde(default, deserialize_with = "empty_string_as_none")]
+    force: Option<bool>,
+}
+
+pub async fn close_channel(Query(params): Query<DeleteChannel>) -> Result<(), AppError> {
+    ln_dlc::close_channel(params.force.unwrap_or_default()).await?;
+    Ok(())
+}
+
+fn empty_string_as_none<'de, D, T>(de: D) -> Result<Option<T>, D::Error>
+where
+    D: Deserializer<'de>,
+    T: FromStr,
+    T::Err: fmt::Display,
+{
+    let opt = Option::<String>::deserialize(de)?;
+    match opt.as_deref() {
+        None | Some("") => Ok(None),
+        Some(s) => FromStr::from_str(s).map_err(de::Error::custom).map(Some),
+    }
 }

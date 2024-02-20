@@ -38,4 +38,5 @@ class Seed {
   Seed({required this.seed});
 
   factory Seed.fromJson(Map<String, dynamic> json) => _$SeedFromJson(json);
+  Map<String, dynamic> toJson() => _$SeedToJson(this);
 }

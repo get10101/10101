@@ -127,13 +127,15 @@ class TradeConfirmationDialog extends StatelessWidget {
                               child: const Text('Cancel'),
                             ),
                             ElevatedButton(
-                              onPressed: () {
-                                NewOrderService.postNewOrder(
+                              onPressed: () async {
+                                await NewOrderService.postNewOrder(
                                         leverage, quantity, direction == Direction.long.opposite())
                                     .then((orderId) {
                                   showSnackBar(
                                       messenger, "Closing order created. Order id: $orderId.");
                                   Navigator.pop(context);
+                                }).catchError((error) {
+                                  showSnackBar(messenger, "Failed creating closing order: $error.");
                                 });
                               },
                               style: ElevatedButton.styleFrom(fixedSize: const Size(100, 20)),

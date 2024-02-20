@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 - Feat(webapp): Let user manually sync wallet history.
+- Feat(webapp): Allow to close or force-close a channel.
 
 ## [1.8.11] - 2024-02-20
 

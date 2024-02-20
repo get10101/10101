@@ -29,7 +29,11 @@ class VersionService {
     final response = await HttpClientManager.instance.get(Uri(path: '/api/version'));
 
     if (response.statusCode == 200) {
-      return Version.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
+      var jsonResponse = jsonDecode(response.body);
+      if (jsonResponse == null) {
+        throw FlutterError("Failed to fetch version");
+      }
+      return Version.fromJson(jsonResponse as Map<String, dynamic>);
     } else {
       throw FlutterError("Failed to fetch version");
     }
