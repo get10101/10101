@@ -9,7 +9,7 @@ pubspec := "$PWD/mobile/pubspec.yaml"
 
 # public regtest constants
 public_regtest_coordinator := "03507b924dae6595cfb78492489978127c5f1e3877848564de2015cd6d41375802@34.32.0.52:9045"
-public_regtest_esplora := "http://34.32.0.52:3000"
+public_regtest_electrs := "http://34.32.0.52:3000"
 public_coordinator_http_port := "80"
 public_regtest_oracle_endpoint := "http://34.32.0.52:8081"
 public_regtest_oracle_pk := "5d12d79f575b8d99523797c46441c0549eb0defb6195fe8a080000cbe3ab3859"
@@ -106,7 +106,7 @@ run args="":
       --dart-define="COMMIT=$(git rev-parse HEAD)" \
       --dart-define="BRANCH=$(git rev-parse --abbrev-ref HEAD)" \
       --dart-define="REGTEST_FAUCET=http://localhost:8080" \
-      --dart-define="ESPLORA_ENDPOINT=http://localhost:3000" \
+      --dart-define="ELECTRS_ENDPOINT=http://localhost:3000" \
       --dart-define="HEALTH_CHECK_INTERVAL_SECONDS=2"
 
 # Run against our public regtest server
@@ -116,7 +116,7 @@ run-regtest args="":
       flutter run {{args}} \
         --dart-define="COMMIT=$(git rev-parse HEAD)" \
         --dart-define="BRANCH=$(git rev-parse --abbrev-ref HEAD)" \
-        --dart-define="ESPLORA_ENDPOINT={{public_regtest_esplora}}" \
+        --dart-define="ELECTRS_ENDPOINT={{public_regtest_electrs}}" \
         --dart-define="COORDINATOR_P2P_ENDPOINT={{public_regtest_coordinator}}" \
         --dart-define="COORDINATOR_PORT_HTTP={{public_coordinator_http_port}}" \
         --dart-define="ORACLE_ENDPOINT={{public_regtest_oracle_endpoint}}" \
@@ -129,7 +129,7 @@ run-mainnet args="":
       flutter run {{args}} \
         --dart-define="COMMIT=$(git rev-parse HEAD)" \
         --dart-define="BRANCH=$(git rev-parse --abbrev-ref HEAD)" \
-        --dart-define="ESPLORA_ENDPOINT=http://api.10101.finance:3000" \
+        --dart-define="ELECTRS_ENDPOINT=http://api.10101.finance:3000" \
         --dart-define="COORDINATOR_P2P_ENDPOINT=022ae8dbec1caa4dac93f07f2ebf5ad7a5dd08d375b79f11095e81b065c2155156@46.17.98.29:9045" \
         --dart-define="COORDINATOR_PORT_HTTP=80" \
         --dart-define="ORACLE_ENDPOINT=http://oracle.10101.finance" \
@@ -144,7 +144,7 @@ run-regtest-android args="":
       flutter run {{args}} \
         --dart-define="COMMIT=$(git rev-parse HEAD)" \
         --dart-define="BRANCH=$(git rev-parse --abbrev-ref HEAD)" \
-        --dart-define="ESPLORA_ENDPOINT={{public_regtest_esplora}}" \
+        --dart-define="ELECTRS_ENDPOINT={{public_regtest_electrs}}" \
         --dart-define="COORDINATOR_P2P_ENDPOINT={{public_regtest_coordinator}}" \
         --dart-define="COORDINATOR_PORT_HTTP={{public_coordinator_http_port}}" \
         --dart-define="ORACLE_ENDPOINT={{public_regtest_oracle_endpoint}}" \
@@ -160,7 +160,7 @@ run-local-android args="":
       flutter run {{args}} \
         --dart-define="COMMIT=$(git rev-parse HEAD)" \
         --dart-define="BRANCH=$(git rev-parse --abbrev-ref HEAD)" \
-        --dart-define="ESPLORA_ENDPOINT=http://${LOCAL_IP}:5050" \
+        --dart-define="ELECTRS_ENDPOINT=http://${LOCAL_IP}:5050" \
         --dart-define="COORDINATOR_P2P_ENDPOINT=02dd6abec97f9a748bf76ad502b004ce05d1b2d1f43a9e76bd7d85e767ffb022c9@${LOCAL_IP}:9045" \
         --dart-define="COORDINATOR_PORT_HTTP=8000" \
         --dart-define="ORACLE_ENDPOINT=http://${LOCAL_IP}:8081" \
@@ -441,7 +441,7 @@ build-ipa args="":
     fi
 
     cd mobile && flutter build ipa "${args[@]}" \
-           --dart-define="ESPLORA_ENDPOINT=${ESPLORA_ENDPOINT}" \
+           --dart-define="ELECTRS_ENDPOINT=${ELECTRS_ENDPOINT}" \
            --dart-define="COORDINATOR_P2P_ENDPOINT=${COORDINATOR_P2P_ENDPOINT}" \
            --dart-define="NETWORK=${NETWORK}" \
            --dart-define="COMMIT=$(git rev-parse HEAD)" \
@@ -478,7 +478,7 @@ build-apk-regtest:
       --release \
       --dart-define="COMMIT=$(git rev-parse HEAD)" \
       --dart-define="BRANCH=$(git rev-parse --abbrev-ref HEAD)" \
-      --dart-define="ESPLORA_ENDPOINT={{public_regtest_esplora}}" \
+      --dart-define="ELECTRS_ENDPOINT={{public_regtest_electrs}}" \
       --dart-define="COORDINATOR_P2P_ENDPOINT={{public_regtest_coordinator}}" \
       --dart-define="COORDINATOR_PORT_HTTP={{public_coordinator_http_port}}" \
       --dart-define="ORACLE_ENDPOINT={{public_regtest_oracle_endpoint}}" \
@@ -499,7 +499,7 @@ build-app-bundle-regtest:
         --release \
         --dart-define="COMMIT=$(git rev-parse HEAD)" \
         --dart-define="BRANCH=$(git rev-parse --abbrev-ref HEAD)" \
-        --dart-define="ESPLORA_ENDPOINT={{public_regtest_esplora}}" \
+        --dart-define="ELECTRS_ENDPOINT={{public_regtest_electrs}}" \
         --dart-define="COORDINATOR_P2P_ENDPOINT={{public_regtest_coordinator}}" \
         --dart-define="COORDINATOR_PORT_HTTP={{public_coordinator_http_port}}" \
         --dart-define="ORACLE_ENDPOINT={{public_regtest_oracle_endpoint}}" \
@@ -529,7 +529,7 @@ build-android-app-bundle:
       --build-name=${BUILD_NAME} \
       --build-number=${BUILD_NUMBER} \
       --release \
-      --dart-define="ESPLORA_ENDPOINT=${ESPLORA_ENDPOINT}" \
+      --dart-define="ELECTRS_ENDPOINT=${ELECTRS_ENDPOINT}" \
       --dart-define="COORDINATOR_P2P_ENDPOINT=${COORDINATOR_P2P_ENDPOINT}" \
       --dart-define="NETWORK=${NETWORK}" \
       --dart-define="COMMIT=$(git rev-parse HEAD)" \
@@ -562,7 +562,7 @@ build-android-app-apk args="":
       --build-name=${BUILD_NAME} \
       --build-number=${BUILD_NUMBER} \
       --release \
-      --dart-define="ESPLORA_ENDPOINT=${ESPLORA_ENDPOINT}" \
+      --dart-define="ELECTRS_ENDPOINT=${ELECTRS_ENDPOINT}" \
       --dart-define="COORDINATOR_P2P_ENDPOINT=${COORDINATOR_P2P_ENDPOINT}" \
       --dart-define="NETWORK=${NETWORK}" \
       --dart-define="COMMIT=$(git rev-parse HEAD)" \

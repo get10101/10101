@@ -6,7 +6,7 @@ on:
       coordinator_port_http:
         required: true
         type: string
-      esplora_endpoint:
+      electrs_endpoint:
         required: true
         type: string
       coordinator_p2p_endpoint:
@@ -45,10 +45,10 @@ on:
         type: string
   workflow_dispatch:
     inputs:
-      esplora_endpoint:
+      electrs_endpoint:
         required: true
         type: string
-        description: "Esplora's endpoint"
+        description: "Electrs' endpoint"
       coordinator_port_http:
         required: true
         type: string
@@ -170,7 +170,7 @@ jobs:
         run: |
           NETWORK=$NETWORK just build-ipa-no-codesign
         env:
-          ESPLORA_ENDPOINT: ${{ inputs.esplora_endpoint }}
+          ELECTRS_ENDPOINT: ${{ inputs.electrs_endpoint }}
           COORDINATOR_P2P_ENDPOINT: ${{ inputs.coordinator_p2p_endpoint }}
           NETWORK: ${{ inputs.network }}
           COORDINATOR_PORT_HTTP: ${{ inputs.coordinator_port_http }}

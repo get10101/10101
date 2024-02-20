@@ -127,7 +127,7 @@ fn test_config() -> native::config::api::Config {
     native::config::api::Config {
         coordinator_pubkey: "02dd6abec97f9a748bf76ad502b004ce05d1b2d1f43a9e76bd7d85e767ffb022c9"
             .to_string(),
-        esplora_endpoint: "http://127.0.0.1:3000".to_string(),
+        electrs_endpoint: "http://127.0.0.1:3000".to_string(),
         host: "127.0.0.1".to_string(),
         p2p_port: 9045,
         http_port: 8000,

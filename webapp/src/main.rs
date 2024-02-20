@@ -75,12 +75,12 @@ async fn main() -> Result<()> {
     let oracle_pubkey = opts.oracle_pubkey()?;
     let password = opts.password();
     let coordinator_http_port = opts.coordinator_http_port;
-    let esplora_endpoint = opts.esplora;
+    let electrs_endpoint = opts.electrs;
     let secure = opts.secure;
 
     let config = native::config::api::Config {
         coordinator_pubkey,
-        esplora_endpoint,
+        electrs_endpoint,
         host: coordinator_endpoint,
         p2p_port: coordinator_p2p_port,
         http_port: coordinator_http_port,

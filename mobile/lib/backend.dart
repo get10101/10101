@@ -124,7 +124,7 @@ Future<void> _logAppSettings(bridge.Config config) async {
   logger.i("Build version: ${packageInfo.version}");
 
   logger.i("Network: ${config.network}");
-  logger.i("Esplora endpoint: ${config.esploraEndpoint}");
+  logger.i("Electrs endpoint: ${config.electrsEndpoint}");
   logger.i("Coordinator: ${config.coordinatorPubkey}@${config.host}:${config.p2PPort}");
   logger.i("Oracle endpoint: ${config.oracleEndpoint}");
   logger.i("Oracle PK: ${config.oraclePubkey}");

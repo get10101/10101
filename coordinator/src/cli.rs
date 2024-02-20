@@ -42,9 +42,9 @@ pub struct Opts {
     )]
     pub database: String,
 
-    /// The address to connect esplora API to
+    /// The address to connect to the Electrs API.
     #[clap(long, default_value = "http://localhost:3000")]
-    pub esplora: String,
+    pub electrs: String,
 
     /// If enabled, tokio runtime can be locally debugged with tokio_console
     #[clap(long)]

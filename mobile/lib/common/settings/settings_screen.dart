@@ -212,8 +212,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             children: [
                               SettingsClickable(
                                 icon: CustomIcon.linkSolid,
-                                title: "Esplora/Electrum",
-                                info: config.esploraEndpoint,
+                                title: "Electrs",
+                                info: config.electrsEndpoint,
                               ),
                               const Divider(
                                 height: 0.5,

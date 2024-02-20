@@ -12,7 +12,7 @@ use std::time::Duration;
 #[derive(Clone)]
 pub struct ConfigInternal {
     coordinator_pubkey: PublicKey,
-    esplora_endpoint: String,
+    electrs_endpoint: String,
     http_endpoint: SocketAddr,
     p2p_endpoint: SocketAddr,
     network: bitcoin::Network,
@@ -41,8 +41,8 @@ pub fn get_coordinator_info() -> NodeInfo {
     }
 }
 
-pub fn get_esplora_endpoint() -> String {
-    crate::state::get_config().esplora_endpoint
+pub fn get_electrs_endpoint() -> String {
+    crate::state::get_config().electrs_endpoint
 }
 
 pub fn get_oracle_info() -> OracleInfo {

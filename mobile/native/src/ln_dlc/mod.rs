@@ -341,7 +341,7 @@ pub fn run(seed_dir: String, runtime: &Runtime) -> Result<()> {
             address,
             SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), address.port()),
             util::into_socket_addresses(address),
-            config::get_esplora_endpoint(),
+            config::get_electrs_endpoint(),
             seed,
             ephemeral_randomness,
             ln_dlc_node_settings(),

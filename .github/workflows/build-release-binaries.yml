@@ -31,7 +31,7 @@ jobs:
     uses: ./.github/workflows/ios-fastlane.yml
     secrets: inherit
     with:
-      esplora_endpoint: http://api.10101.finance:3000
+      electrs_endpoint: http://api.10101.finance:3000
       coordinator_p2p_endpoint: 022ae8dbec1caa4dac93f07f2ebf5ad7a5dd08d375b79f11095e81b065c2155156@46.17.98.29:9045
       coordinator_port_http: 80
       network: mainnet
@@ -51,7 +51,7 @@ jobs:
     secrets: inherit
     with:
       tag: ${{ github.ref_name }}
-      esplora_endpoint: http://api.10101.finance:3000
+      electrs_endpoint: http://api.10101.finance:3000
       coordinator_p2p_endpoint: 022ae8dbec1caa4dac93f07f2ebf5ad7a5dd08d375b79f11095e81b065c2155156@46.17.98.29:9045
       coordinator_port_http: 80
       network: mainnet
