@@ -119,7 +119,9 @@ class OpenPositionTable extends StatelessWidget {
   }
 
   TableCell buildTableCell(Widget child) => TableCell(
-      child: Center(
-          child: Container(
-              padding: const EdgeInsets.all(10), alignment: Alignment.center, child: child)));
+          child: SelectionArea(
+        child: Center(
+            child: Container(
+                padding: const EdgeInsets.all(10), alignment: Alignment.center, child: child)),
+      ));
 }
