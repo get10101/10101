@@ -1,5 +1,7 @@
+import 'package:flutter/foundation.dart';
 import 'package:get_10101/logger/logger.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:get_10101/firebase_options.dart';
@@ -26,14 +28,37 @@ Future<void> initFirebase() async {
 
   try {
     logger.i("Initialising Firebase");
+
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions(env.network).currentPlatform,
     );
+  } catch (e) {
+    logger.e("Error initializing Firebase: ${e.toString()}");
+  }
+
+  try {
+    logger.i("Setting up Firebase notifications");
+
     await requestNotificationPermission();
     final flutterLocalNotificationsPlugin = initLocalNotifications();
     await configureFirebase(flutterLocalNotificationsPlugin);
   } catch (e) {
-    logger.e("Error setting up Firebase: ${e.toString()}");
+    logger.e("Error setting up Firebase notifications: ${e.toString()}");
+  }
+
+  try {
+    logger.i("Setting up Firebase Crashlytics");
+
+    FlutterError.onError = (errorDetails) {
+      FirebaseCrashlytics.instance.recordFlutterFatalError(errorDetails);
+    };
+    // Pass all uncaught asynchronous errors that aren't handled by the Flutter framework to Crashlytics
+    PlatformDispatcher.instance.onError = (error, stack) {
+      FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+      return true;
+    };
+  } catch (e) {
+    logger.e("Error setting up Firebase Crashlytics: ${e.toString()}");
   }
 }
 
