@@ -109,7 +109,7 @@ jobs:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: "stable"
           cache: true
-          cache-key: flutter-${{ env.FLUTTER_VERSION }}
+          cache-key: flutter-${{ env.FLUTTER_VERSION }}-macos-14
           cache-path: ${{ runner.tool_cache }}/flutter
 
       - name: Check cocoapods version
