@@ -183,7 +183,7 @@ clean:
     cd native && cargo clean
 
 # Wipes everything
-wipe: wipe-docker wipe-coordinator wipe-maker wipe-app
+wipe: wipe-docker wipe-coordinator wipe-maker wipe-app wipe-webapp
 
 wipe-docker:
     #!/usr/bin/env bash
@@ -194,6 +194,10 @@ wipe-coordinator:
     pkill -9 coordinator && echo "stopped coordinator" || echo "coordinator not running, skipped"
     rm -rf data/coordinator/regtest
     git checkout data/coordinator
+
+wipe-webapp:
+    pkill -9 webapp && echo "stopped webapp" || echo "webapp not running, skipped"
+    rm -rf data/webapp/regtest
 
 wipe-maker:
     #!/usr/bin/env bash
