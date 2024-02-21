@@ -2,8 +2,12 @@
 
 use bitcoin::Network;
 use native::api;
+use native::api::ChannelState;
+use native::api::SignedChannelState;
 use native::trade::position;
 use position::PositionState;
+use tests_e2e::app::force_close_dlc_channel;
+use tests_e2e::app::get_dlc_channels;
 use tests_e2e::app::AppHandle;
 use tests_e2e::setup;
 use tests_e2e::wait_until;
@@ -38,6 +42,19 @@ async fn can_rollover_position() {
         .position()
         .map(|p| PositionState::Open == p.position_state)
         .unwrap_or(false));
+
+    force_close_dlc_channel();
+
+    let channels = get_dlc_channels();
+    let channel = channels.first().unwrap();
+
+    wait_until!(matches!(
+        channel.channel_state,
+        ChannelState::Signed {
+            state: SignedChannelState::Closing { .. },
+            ..
+        }
+    ));
 }
 
 fn check_rollover_position(app: &AppHandle, new_expiry: OffsetDateTime) -> bool {
