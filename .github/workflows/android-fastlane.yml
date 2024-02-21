@@ -95,17 +95,10 @@ jobs:
       - uses: actions/cache@v4
         id: cache-deps
         with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            ./rust/target
           key: ${{ runner.os }}-cargo-build-release-android-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Install just
-        if: steps.cache-deps.outputs.cache-hit != 'true'
-        run: cargo install just
+        run: cargo install just --force
 
       - uses: actions/setup-java@v3
         with:
@@ -121,15 +114,13 @@ jobs:
           bundle info fastlane
 
       - name: Install FFI bindings
-        if: steps.cache-deps.outputs.cache-hit != 'true'
-        run: just deps-gen
+        run: just deps-gen --force
 
       - name: Add Rust targets
         run: rustup target add armv7-linux-androideabi aarch64-linux-android
 
       # #499, https://github.com/actions/virtual-environments/issues/5595
       - name: Configure ndk
-        if: steps.cache-deps.outputs.cache-hit != 'true'
         run: |
           ANDROID_HOME=$HOME/Library/Android/sdk
           SDKMANAGER=$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager
@@ -139,8 +130,7 @@ jobs:
           ln -sfn $ANDROID_HOME/ndk/21.4.7075529 $ANDROID_HOME/ndk-bundle
 
       - name: Install cargo ndk
-        if: steps.cache-deps.outputs.cache-hit != 'true'
-        run: cargo install cargo-ndk
+        run: cargo install cargo-ndk --force
 
       - name: Generate FFI bindings
         run: just gen

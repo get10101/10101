@@ -122,16 +122,9 @@ jobs:
 
       - uses: actions/cache@v4
         with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            ./rust/target
           key: ${{ runner.os }}-cargo-build-release-ios-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Install just
-        if: steps.cache-deps.outputs.cache-hit != 'true'
         run: cargo install just --force
 
       - name: Install fastlane
@@ -142,12 +135,10 @@ jobs:
           bundle info fastlane
 
       - name: Install FFI bindings
-        if: steps.cache-deps.outputs.cache-hit != 'true'
-        run: just deps-gen
+        run: just deps-gen --force
 
       - name: Install ios dependencies
-        if: steps.cache-deps.outputs.cache-hit != 'true'
-        run: cargo install cargo-lipo
+        run: cargo install cargo-lipo --force
 
       - name: Set rustup targets
         run: rustup target add aarch64-apple-ios x86_64-apple-ios
