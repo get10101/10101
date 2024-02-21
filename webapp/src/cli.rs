@@ -28,7 +28,7 @@ pub struct Opts {
     pub network: Network,
 
     /// The address to connect to the Electrs API.
-    #[clap(long, default_value = "http://localhost:3000")]
+    #[clap(long, default_value = "http://localhost:3000", aliases = ["esplora"])]
     pub electrs: String,
 
     /// The endpoint of the p2p-derivatives oracle

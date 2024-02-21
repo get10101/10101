@@ -43,7 +43,7 @@ pub struct Opts {
     pub database: String,
 
     /// The address to connect to the Electrs API.
-    #[clap(long, default_value = "http://localhost:3000")]
+    #[clap(long, default_value = "http://localhost:3000", aliases = ["esplora"])]
     pub electrs: String,
 
     /// If enabled, tokio runtime can be locally debugged with tokio_console
