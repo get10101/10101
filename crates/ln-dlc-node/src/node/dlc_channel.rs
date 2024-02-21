@@ -18,6 +18,7 @@ use dlc_manager::channel::Channel;
 use dlc_manager::contract::contract_input::ContractInput;
 use dlc_manager::contract::Contract;
 use dlc_manager::contract::ContractDescriptor;
+use dlc_manager::ContractId;
 use dlc_manager::DlcChannelId;
 use dlc_manager::Oracle;
 use dlc_manager::Storage;
@@ -368,6 +369,11 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
         })
     }
 
+    pub fn get_contract_by_id(&self, contract_id: &ContractId) -> Result<Option<Contract>> {
+        let contract = self.dlc_manager.get_store().get_contract(contract_id)?;
+        Ok(contract)
+    }
+
     /// Fetch the [`Contract`] corresponding to the given [`DlcChannelId`].
     pub fn get_contract_by_dlc_channel_id(
         &self,
@@ -423,9 +429,32 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
     // TODO: This API could return the number of required confirmations + the number of current
     // confirmations.
     pub fn is_dlc_channel_confirmed(&self, dlc_channel_id: &DlcChannelId) -> Result<bool> {
-        let contract = self.get_contract_by_dlc_channel_id(dlc_channel_id)?;
+        let channel = self.get_dlc_channel_by_id(dlc_channel_id)?;
+        let confirmed = match channel {
+            Channel::Signed(signed_channel) => match signed_channel.state {
+                SignedChannelState::Established {
+                    signed_contract_id, ..
+                } => {
+                    let contract = self.get_contract_by_id(&signed_contract_id)?.context(
+                        "Could not find contract for signed channel in state Established.",
+                    )?;
+                    matches!(contract, Contract::Confirmed { .. })
+                }
+                _ => true,
+            },
+            Channel::Offered(_)
+            | Channel::Accepted(_)
+            | Channel::FailedAccept(_)
+            | Channel::FailedSign(_)
+            | Channel::Cancelled(_) => false,
+            Channel::Closing(_)
+            | Channel::Closed(_)
+            | Channel::CounterClosed(_)
+            | Channel::ClosedPunished(_)
+            | Channel::CollaborativelyClosed(_) => true,
+        };
 
-        Ok(matches!(contract, Contract::Confirmed { .. }))
+        Ok(confirmed)
     }
 
     /// Return the usable balance for all the DLC channels.
