@@ -33,9 +33,7 @@ Future<T?> showEditModal<T>(
                         }
                       },
                       child: SingleChildScrollView(
-                        child: IntrinsicHeight(
-                          child: builder(context, (newVal) => val = newVal),
-                        ),
+                        child: builder(context, (newVal) => val = newVal),
                       ),
                     ))));
       }).then((res) => res ?? val);

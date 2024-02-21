@@ -74,6 +74,32 @@ class _TenTenOneAppState extends State<TenTenOneApp> with WidgetsBindingObserver
       scaffoldMessengerKey: scaffoldMessengerKey,
       theme: ThemeData(
         primarySwatch: swatch,
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ButtonStyle(
+            // this is the button background color
+            backgroundColor: MaterialStateProperty.all<Color>(tenTenOnePurple),
+            // this is the button text color
+            foregroundColor: MaterialStateProperty.all<Color>(Colors.white),
+            shape: MaterialStateProperty.all<RoundedRectangleBorder>(
+              RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(5.0),
+              ),
+            ),
+          ),
+        ),
+        inputDecorationTheme: InputDecorationTheme(
+          prefixIconColor: MaterialStateColor.resolveWith(
+            (Set<MaterialState> states) {
+              if (states.contains(MaterialState.focused)) {
+                return tenTenOnePurple;
+              }
+              if (states.contains(MaterialState.error)) {
+                return Colors.red;
+              }
+              return Colors.grey;
+            },
+          ),
+        ),
         iconTheme: IconThemeData(
           color: tenTenOnePurple.shade800,
           size: 32,

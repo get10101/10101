@@ -11,7 +11,7 @@ on:
 
 
 env:
-  FLUTTER_VERSION: "3.13.4"
+  FLUTTER_VERSION: "3.19.1"
   RUST_VERSION: "1.70.0"
 
 jobs:

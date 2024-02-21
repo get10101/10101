@@ -224,7 +224,10 @@ class TradeScreen extends StatelessWidget {
                         tradeBottomSheet(context: context, direction: Direction.long);
                       }
                     },
-                    label: const Text("Buy"),
+                    label: const Text(
+                      "Buy",
+                      style: TextStyle(color: Colors.white),
+                    ),
                     shape: tradeButtonShape,
                     backgroundColor: isBuyButtonEnabled ? tradeTheme.buy : tradeTheme.disabled,
                   )),
@@ -239,7 +242,10 @@ class TradeScreen extends StatelessWidget {
                         tradeBottomSheet(context: context, direction: Direction.short);
                       }
                     },
-                    label: const Text("Sell"),
+                    label: const Text(
+                      "Sell",
+                      style: TextStyle(color: Colors.white),
+                    ),
                     shape: tradeButtonShape,
                     backgroundColor: isBuyButtonEnabled ? tradeTheme.sell : tradeTheme.disabled,
                   )),

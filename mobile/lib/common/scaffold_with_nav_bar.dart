@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get_10101/common/app_bar_wrapper.dart';
+import 'package:get_10101/common/color.dart';
 import 'package:get_10101/features/trade/trade_screen.dart';
 import 'package:get_10101/features/wallet/wallet_screen.dart';
 import 'package:get_10101/util/constants.dart';
@@ -24,6 +25,8 @@ class ScaffoldWithNavBar extends StatelessWidget {
         appBar: const PreferredSize(
             preferredSize: Size.fromHeight(40), child: SafeArea(child: AppBarWrapper())),
         bottomNavigationBar: BottomNavigationBar(
+          selectedItemColor: tenTenOnePurple,
+          unselectedItemColor: Colors.grey,
           items: <BottomNavigationBarItem>[
             BottomNavigationBarItem(
               icon: Container(key: tabWallet, child: const Icon(Icons.wallet)),

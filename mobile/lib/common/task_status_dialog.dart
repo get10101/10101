@@ -130,7 +130,10 @@ class _TaskStatusDialog extends State<TaskStatusDialog> {
 
     // If pending, prevent use of back button
     if (isPending) {
-      return WillPopScope(child: dialog, onWillPop: () async => false);
+      return PopScope(
+        canPop: false,
+        child: dialog,
+      );
     } else {
       return dialog;
     }
