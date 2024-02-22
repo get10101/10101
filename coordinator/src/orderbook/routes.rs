@@ -13,7 +13,7 @@ use axum::response::IntoResponse;
 use axum::Json;
 use bitcoin::hashes::hex::ToHex;
 use commons::Message;
-use commons::NewOrder;
+use commons::NewOrderRequest;
 use commons::Order;
 use commons::OrderReason;
 use commons::OrderState;
@@ -67,8 +67,14 @@ pub async fn get_orders(State(state): State<Arc<AppState>>) -> Result<Json<Vec<O
 #[instrument(skip_all, err(Debug))]
 pub async fn post_order(
     State(state): State<Arc<AppState>>,
-    Json(new_order): Json<NewOrder>,
+    Json(new_order_request): Json<NewOrderRequest>,
 ) -> Result<Json<Order>, AppError> {
+    new_order_request
+        .verify()
+        .map_err(|_| AppError::Unauthorized)?;
+
+    let new_order = new_order_request.value;
+
     let settings = state.settings.read().await;
     if new_order.order_type == OrderType::Limit
         && !settings.whitelisted_makers.contains(&new_order.trader_id)
