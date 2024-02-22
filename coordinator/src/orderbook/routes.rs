@@ -77,6 +77,7 @@ pub async fn post_order(
 
     let settings = state.settings.read().await;
     if new_order.order_type == OrderType::Limit
+        && settings.whitelist_enabled
         && !settings.whitelisted_makers.contains(&new_order.trader_id)
     {
         tracing::warn!(
