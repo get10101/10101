@@ -26,7 +26,9 @@ use trade::ContractSymbol;
 ///
 /// In a success scenario, this results in creating, updating or deleting a position.
 pub async fn trade(filled: FilledWith) -> Result<()> {
-    let order = db::get_order(filled.order_id).context("Could not load order from db")?;
+    let order = db::get_order(filled.order_id)
+        .context("Could not load order from db")?
+        .with_context(|| format!("Could not find order with id: {}", filled.order_id))?;
 
     tracing::debug!(?order, ?filled, "Filling order");
 
@@ -107,26 +109,36 @@ pub async fn async_trade(order: commons::Order, filled_with: FilledWith) -> Resu
         },
     };
 
-    let execution_price = filled_with
-        .average_execution_price()
-        .to_f32()
-        .expect("to fit into f32");
-    let order = Order {
-        id: order.id,
-        leverage: order.leverage,
-        quantity: order.quantity.to_f32().expect("to fit into f32"),
-        contract_symbol: order.contract_symbol,
-        direction: order.direction,
-        order_type,
-        state: OrderState::Filling { execution_price },
-        creation_timestamp: order.timestamp,
-        order_expiry_timestamp: order.expiry,
-        reason: order.order_reason.into(),
-        stable: order.stable,
-        failure_reason: None,
-    };
+    let order = match db::get_order(order.id)? {
+        None => {
+            let execution_price = filled_with
+                .average_execution_price()
+                .to_f32()
+                .expect("to fit into f32");
+            let order = Order {
+                id: order.id,
+                leverage: order.leverage,
+                quantity: order.quantity.to_f32().expect("to fit into f32"),
+                contract_symbol: order.contract_symbol,
+                direction: order.direction,
+                order_type,
+                state: OrderState::Filling { execution_price },
+                creation_timestamp: order.timestamp,
+                order_expiry_timestamp: order.expiry,
+                reason: order.order_reason.into(),
+                stable: order.stable,
+                failure_reason: None,
+            };
 
-    db::insert_order(order.clone())?;
+            db::insert_order(order.clone())?
+        }
+        Some(order) => {
+            // the order has already been inserted to the database. Most likely because the async
+            // match has already been received. We still want to retry this order as the previous
+            // attempt seems to have failed.
+            order
+        }
+    };
 
     event::publish(&EventInternal::OrderUpdateNotification(order.clone()));
 
