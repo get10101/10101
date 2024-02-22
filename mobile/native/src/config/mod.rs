@@ -21,7 +21,6 @@ pub struct ConfigInternal {
     health_check_interval: Duration,
     data_dir: String,
     seed_dir: String,
-    rgs_server_url: Option<String>,
 }
 
 pub fn coordinator_health_endpoint() -> String {
@@ -75,8 +74,4 @@ pub fn get_backup_dir() -> String {
         .join("backup")
         .to_string_lossy()
         .to_string()
-}
-
-pub fn get_rgs_server_url() -> Option<String> {
-    crate::state::get_config().rgs_server_url
 }

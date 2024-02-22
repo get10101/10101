@@ -15,9 +15,6 @@ class Environment {
         const String.fromEnvironment("ORACLE_ENDPOINT", defaultValue: "http://127.0.0.1:8081");
     String oraclePubkey = const String.fromEnvironment("ORACLE_PUBKEY",
         defaultValue: "16f88cf7d21e6c0f46bcbc983a4e3b19726c6c98858cc31c83551a88fde171c0");
-    String? rgsServerUrl = const bool.hasEnvironment("RGS_SERVER_URL")
-        ? const String.fromEnvironment("RGS_SERVER_URL")
-        : null;
 
     String p2pEndpoint = const String.fromEnvironment('COORDINATOR_P2P_ENDPOINT');
     if (p2pEndpoint.contains("@")) {
@@ -33,15 +30,15 @@ class Environment {
         const int.fromEnvironment('HEALTH_CHECK_INTERVAL_SECONDS', defaultValue: 10);
 
     return Config(
-        host: host,
-        electrsEndpoint: electrsEndpoint,
-        coordinatorPubkey: coordinatorPublicKey,
-        p2PPort: lightningPort,
-        httpPort: httpPort,
-        network: network,
-        oracleEndpoint: oracleEndpoint,
-        oraclePubkey: oraclePubkey,
-        healthCheckIntervalSecs: healthCheckIntervalSeconds,
-        rgsServerUrl: rgsServerUrl);
+      host: host,
+      electrsEndpoint: electrsEndpoint,
+      coordinatorPubkey: coordinatorPublicKey,
+      p2PPort: lightningPort,
+      httpPort: httpPort,
+      network: network,
+      oracleEndpoint: oracleEndpoint,
+      oraclePubkey: oraclePubkey,
+      healthCheckIntervalSecs: healthCheckIntervalSeconds,
+    );
   }
 }

@@ -18,6 +18,3 @@ shadow_sync_interval = 600
 forwarding_fee_proportional_millionths = 1000
 bdk_client_stop_gap = 20
 bdk_client_concurrency = 4
-
-[ln_dlc.gossip_source_config.RapidGossipSync]
-server_url = "https://rapidsync.lightningdevkit.org/snapshot/"

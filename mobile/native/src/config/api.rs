@@ -16,7 +16,6 @@ pub struct Config {
     pub oracle_endpoint: String,
     pub oracle_pubkey: String,
     pub health_check_interval_secs: u64,
-    pub rgs_server_url: Option<String>,
 }
 
 pub struct Directories {
@@ -30,16 +29,6 @@ impl From<(Config, Directories)> for ConfigInternal {
         let dirs = value.1;
 
         tracing::debug!(?config, "Parsing config from flutter");
-
-        // Make sure that the `RGS_SERVER_URL` environment variable is not an empty string.
-        let rgs_server_url = {
-            match config.rgs_server_url {
-                Some(rgs_server_url) if rgs_server_url.is_empty() => None,
-                Some(rgs_server_url) => Some(rgs_server_url),
-                None => None,
-            }
-        };
-
         Self {
             coordinator_pubkey: config.coordinator_pubkey.parse().expect("PK to be valid"),
             electrs_endpoint: config.electrs_endpoint,
@@ -58,7 +47,6 @@ impl From<(Config, Directories)> for ConfigInternal {
             ),
             data_dir: dirs.app_dir,
             seed_dir: dirs.seed_dir,
-            rgs_server_url,
         }
     }
 }

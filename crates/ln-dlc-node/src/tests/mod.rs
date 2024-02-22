@@ -4,7 +4,6 @@ use crate::node::dlc_channel::send_dlc_message;
 use crate::node::event::NodeEvent;
 use crate::node::event::NodeEventHandler;
 use crate::node::peer_manager::alias_as_bytes;
-use crate::node::GossipSourceConfig;
 use crate::node::InMemoryStore;
 use crate::node::LnDlcNodeSettings;
 use crate::node::Node;
@@ -421,11 +420,10 @@ fn ln_dlc_node_settings_coordinator() -> LnDlcNodeSettings {
         fee_rate_sync_interval: Duration::from_secs(20),
         dlc_manager_periodic_check_interval: Duration::from_secs(30),
         sub_channel_manager_periodic_check_interval: Duration::from_secs(30),
-        shadow_sync_interval: Duration::from_secs(600),
         forwarding_fee_proportional_millionths: 50,
+        shadow_sync_interval: Duration::from_secs(600),
         bdk_client_stop_gap: 20,
         bdk_client_concurrency: 4,
-        gossip_source_config: GossipSourceConfig::P2pNetwork,
     }
 }
 
@@ -436,11 +434,10 @@ fn ln_dlc_node_settings_app() -> LnDlcNodeSettings {
         fee_rate_sync_interval: Duration::from_secs(20),
         dlc_manager_periodic_check_interval: Duration::from_secs(30),
         sub_channel_manager_periodic_check_interval: Duration::from_secs(30),
-        shadow_sync_interval: Duration::from_secs(600),
         forwarding_fee_proportional_millionths: 50,
+        shadow_sync_interval: Duration::from_secs(600),
         bdk_client_stop_gap: 20,
         bdk_client_concurrency: 4,
-        gossip_source_config: GossipSourceConfig::P2pNetwork,
     }
 }
 

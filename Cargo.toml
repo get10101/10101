@@ -33,7 +33,6 @@ lightning-background-processor = { git = "https://github.com/bonomat/rust-lightn
 lightning-transaction-sync = { git = "https://github.com/bonomat/rust-lightning-p2p-derivatives", rev = "e49030e" }
 lightning-net-tokio = { git = "https://github.com/bonomat/rust-lightning-p2p-derivatives", rev = "e49030e" }
 lightning-persister = { git = "https://github.com/bonomat/rust-lightning-p2p-derivatives", rev = "e49030e" }
-lightning-rapid-gossip-sync = { git = "https://github.com/bonomat/rust-lightning-p2p-derivatives", rev = "e49030e" }
 
 rust-bitcoin-coin-selection = { git = "https://github.com/p2pderivatives/rust-bitcoin-coin-selection" }
 
