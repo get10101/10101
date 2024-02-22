@@ -1,6 +1,7 @@
 use crate::node::NodeSettings;
 use anyhow::Context;
 use anyhow::Result;
+use bitcoin::secp256k1::PublicKey;
 use lightning::util::config::UserConfig;
 use ln_dlc_node::node::LnDlcNodeSettings;
 use serde::Deserialize;
@@ -61,6 +62,12 @@ pub struct Settings {
 
     // Location of the settings file in the file system.
     path: PathBuf,
+
+    /// If enabled, only makers in [`whitelisted_makers`] are allowed to post limit orders
+    pub whitelist_enabled: bool,
+
+    /// A list of makers who are allowed to post limit orders. This is to prevent spam.
+    pub whitelisted_makers: Vec<PublicKey>,
 }
 
 impl Settings {
@@ -134,6 +141,8 @@ impl Settings {
             close_expired_position_scheduler: file.close_expired_position_scheduler,
             min_liquidity_threshold_sats: file.min_liquidity_threshold_sats,
             path,
+            whitelist_enabled: file.whitelist_enabled,
+            whitelisted_makers: file.whitelisted_makers,
         }
     }
 }
@@ -157,6 +166,9 @@ pub struct SettingsFile {
     close_expired_position_scheduler: String,
 
     min_liquidity_threshold_sats: u64,
+
+    whitelist_enabled: bool,
+    whitelisted_makers: Vec<PublicKey>,
 }
 
 impl From<Settings> for SettingsFile {
@@ -174,6 +186,8 @@ impl From<Settings> for SettingsFile {
             rollover_window_close_scheduler: value.rollover_window_close_scheduler,
             close_expired_position_scheduler: value.close_expired_position_scheduler,
             min_liquidity_threshold_sats: value.min_liquidity_threshold_sats,
+            whitelist_enabled: false,
+            whitelisted_makers: value.whitelisted_makers,
         }
     }
 }
@@ -182,6 +196,7 @@ impl From<Settings> for SettingsFile {
 mod tests {
     use super::*;
     use ln_dlc_node::node::GossipSourceConfig;
+    use std::str::FromStr;
 
     #[test]
     fn toml_serde_roundtrip() {
@@ -210,6 +225,11 @@ mod tests {
             rollover_window_close_scheduler: "bar".to_string(),
             close_expired_position_scheduler: "baz".to_string(),
             min_liquidity_threshold_sats: 2,
+            whitelist_enabled: false,
+            whitelisted_makers: vec![PublicKey::from_str(
+                "0218845781f631c48f1c9709e23092067d06837f30aa0cd0544ac887fe91ddd166",
+            )
+            .unwrap()],
         };
 
         let serialized = toml::to_string_pretty(&original).unwrap();
