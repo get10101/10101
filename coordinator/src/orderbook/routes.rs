@@ -11,6 +11,7 @@ use axum::extract::Path;
 use axum::extract::State;
 use axum::response::IntoResponse;
 use axum::Json;
+use bitcoin::hashes::hex::ToHex;
 use commons::Message;
 use commons::NewOrder;
 use commons::Order;
@@ -68,6 +69,17 @@ pub async fn post_order(
     State(state): State<Arc<AppState>>,
     Json(new_order): Json<NewOrder>,
 ) -> Result<Json<Order>, AppError> {
+    let settings = state.settings.read().await;
+    if new_order.order_type == OrderType::Limit
+        && !settings.whitelisted_makers.contains(&new_order.trader_id)
+    {
+        tracing::warn!(
+            trader_id = new_order.trader_id.to_hex(),
+            "Trader tried to post limit order but was not whitelisted"
+        );
+        return Err(AppError::Unauthorized);
+    }
+
     let (sender, mut receiver) = mpsc::channel::<Result<Order>>(1);
 
     let message = NewOrderMessage {

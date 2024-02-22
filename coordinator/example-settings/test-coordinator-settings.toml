@@ -7,6 +7,8 @@ rollover_window_open_scheduler = "0 5 16 * * *"
 rollover_window_close_scheduler = "0 5 22 * * *"
 close_expired_position_scheduler = "0 0 12 * * *"
 min_liquidity_threshold_sats = 10000000
+# Default testnet maker
+whitelisted_makers = ["03f75f318471d32d39be3c86c622e2c51bd5731bf95f98aaa3ed5d6e1c0025927f"]
 
 [ln_dlc]
 off_chain_sync_interval = 5
