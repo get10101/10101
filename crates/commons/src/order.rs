@@ -107,6 +107,7 @@ pub enum OrderState {
     Matched,
     Taken,
     Failed,
+    Expired,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]

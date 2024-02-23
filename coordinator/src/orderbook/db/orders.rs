@@ -65,6 +65,7 @@ impl From<OrderState> for OrderBookOrderState {
             OrderState::Matched => OrderBookOrderState::Matched,
             OrderState::Taken => OrderBookOrderState::Taken,
             OrderState::Failed => OrderBookOrderState::Failed,
+            OrderState::Expired => OrderBookOrderState::Expired,
         }
     }
 }
@@ -76,6 +77,7 @@ impl From<OrderBookOrderState> for OrderState {
             OrderBookOrderState::Matched => OrderState::Matched,
             OrderBookOrderState::Taken => OrderState::Taken,
             OrderBookOrderState::Failed => OrderState::Failed,
+            OrderBookOrderState::Expired => OrderState::Expired,
         }
     }
 }
@@ -278,14 +280,14 @@ pub fn set_order_state(
     Ok(OrderbookOrder::from(order))
 }
 
-pub fn set_expired_limit_orders_to_failed(
+pub fn set_expired_limit_orders_to_expired(
     conn: &mut PgConnection,
 ) -> QueryResult<Vec<OrderbookOrder>> {
     let expired_limit_orders: Vec<Order> = diesel::update(orders::table)
         .filter(orders::order_state.eq(OrderState::Open))
         .filter(orders::order_type.eq(OrderType::Limit))
         .filter(orders::expiry.lt(OffsetDateTime::now_utc()))
-        .set(orders::order_state.eq(OrderState::Failed))
+        .set(orders::order_state.eq(OrderState::Expired))
         .get_results(conn)?;
 
     Ok(expired_limit_orders

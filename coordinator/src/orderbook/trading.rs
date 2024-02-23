@@ -148,7 +148,7 @@ pub async fn process_new_order(
     //
     // TODO(holzeis): Orders should probably not have an expiry, but should either be replaced or
     // deleted if not wanted anymore.
-    let expired_limit_orders = orders::set_expired_limit_orders_to_failed(&mut conn)?;
+    let expired_limit_orders = orders::set_expired_limit_orders_to_expired(&mut conn)?;
     for expired_limit_order in expired_limit_orders {
         tx_price_feed
             .send(Message::DeleteOrder(expired_limit_order.id))
