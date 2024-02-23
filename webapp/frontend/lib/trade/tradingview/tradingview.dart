@@ -18,17 +18,12 @@ class _TradingViewWidgetHtmlState extends State<TradingViewWidgetHtml> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(children: <Widget>[
-      Expanded(
-          child: Stack(children: [
-        InAppWebView(
-          key: webViewKey,
-          initialFile: "assets/assets/tradingview.html",
-          onWebViewCreated: (controller) {
-            webViewController = controller;
-          },
-        ),
-      ])),
-    ]);
+    return InAppWebView(
+      key: webViewKey,
+      initialFile: "assets/assets/tradingview.html",
+      onWebViewCreated: (controller) {
+        webViewController = controller;
+      },
+    );
   }
 }
