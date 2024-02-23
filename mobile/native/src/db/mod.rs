@@ -167,11 +167,16 @@ pub fn update_order_state(
     Ok(order.try_into()?)
 }
 
-pub fn get_order(order_id: Uuid) -> Result<trade::order::Order> {
+pub fn get_order(order_id: Uuid) -> Result<Option<trade::order::Order>> {
     let mut db = connection()?;
     let order = Order::get(order_id.to_string(), &mut db)?;
 
-    Ok(order.try_into()?)
+    let order = match order {
+        Some(order) => Some(trade::order::Order::try_from(order)?),
+        None => None,
+    };
+
+    Ok(order)
 }
 
 pub fn get_orders_for_ui() -> Result<Vec<trade::order::Order>> {

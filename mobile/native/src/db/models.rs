@@ -158,10 +158,11 @@ impl Order {
         })
     }
 
-    pub fn get(order_id: String, conn: &mut SqliteConnection) -> QueryResult<Order> {
+    pub fn get(order_id: String, conn: &mut SqliteConnection) -> QueryResult<Option<Order>> {
         orders::table
             .filter(schema::orders::id.eq(order_id))
             .first(conn)
+            .optional()
     }
 
     /// Fetch all orders that are not in initial and rejected state
@@ -1614,7 +1615,7 @@ pub mod test {
 
         // load the order to see if it was randomly changed
         let loaded_order = Order::get(uuid.to_string(), &mut connection).unwrap();
-        assert_eq!(order, loaded_order);
+        assert_eq!(order, loaded_order.unwrap());
 
         Order::update_state(
             uuid.to_string(),
@@ -1633,17 +1634,17 @@ pub mod test {
         };
 
         let loaded_order = Order::get(uuid.to_string(), &mut connection).unwrap();
-        assert_eq!(updated_order, loaded_order);
+        assert_eq!(updated_order, loaded_order.unwrap());
 
         // delete it
         let deleted_rows = Order::delete(uuid.to_string(), &mut connection).unwrap();
         assert_eq!(deleted_rows, 1);
 
         // check if it is really gone
-        match Order::get(uuid.to_string(), &mut connection) {
-            Err(Error::NotFound) => { // all good
+        match Order::get(uuid.to_string(), &mut connection).unwrap() {
+            None => { // all good
             }
-            _ => {
+            Some(_) => {
                 panic!("Expected to not being able to find said order")
             }
         }
