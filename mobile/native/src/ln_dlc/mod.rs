@@ -369,10 +369,14 @@ pub fn run(seed_dir: String, runtime: &Runtime) -> Result<()> {
         // TODO: This might not be necessary once we rewrite the on-chain wallet with bdk:1.0.0.
         spawn_blocking({
             let node = node.clone();
-            move || keep_wallet_balance_and_history_up_to_date(&node)
+            move || {
+                if let Err(e) = keep_wallet_balance_and_history_up_to_date(&node) {
+                    tracing::error!("Failed to sync balance and wallet history: {e:#}");
+                }
+            }
         })
         .await
-        .expect("task to complete")?;
+        .expect("task to complete");
 
         runtime.spawn({
             let node = node.clone();
