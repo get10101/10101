@@ -98,8 +98,10 @@ pub(crate) enum OrderState {
     Matched,
     /// The trade has been initiated for that order.
     Taken,
-    /// The order failed, e.g. expired or for some other technical reason.
+    /// The order failed.
     Failed,
+    /// The order expired.
+    Expired,
 }
 
 impl QueryId for OrderStateType {
@@ -118,6 +120,7 @@ impl ToSql<OrderStateType, Pg> for OrderState {
             OrderState::Matched => out.write_all(b"Matched")?,
             OrderState::Taken => out.write_all(b"Taken")?,
             OrderState::Failed => out.write_all(b"Failed")?,
+            OrderState::Expired => out.write_all(b"Expired")?,
         }
         Ok(IsNull::No)
     }
@@ -130,6 +133,7 @@ impl FromSql<OrderStateType, Pg> for OrderState {
             b"Matched" => Ok(OrderState::Matched),
             b"Taken" => Ok(OrderState::Taken),
             b"Failed" => Ok(OrderState::Failed),
+            b"Expired" => Ok(OrderState::Expired),
             _ => Err("Unrecognized enum variant".into()),
         }
     }
