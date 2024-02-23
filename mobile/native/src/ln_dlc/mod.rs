@@ -473,9 +473,7 @@ pub async fn restore_from_mnemonic(seed_words: &str, target_seed_file: &Path) ->
 }
 
 fn keep_wallet_balance_and_history_up_to_date(node: &Node) -> Result<()> {
-    let wallet_balances = node
-        .get_wallet_balances()
-        .context("Failed to get wallet balances")?;
+    let wallet_balances = node.get_wallet_balances();
 
     let WalletHistories {
         on_chain,
