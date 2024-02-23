@@ -95,7 +95,8 @@ impl Node {
     }
 
     pub fn get_wallet_balances(&self) -> Result<Balances> {
-        let on_chain = self.inner.get_on_chain_balance()?.confirmed;
+        let on_chain_balance = self.inner.get_on_chain_balance()?;
+        let on_chain = on_chain_balance.confirmed + on_chain_balance.trusted_pending;
 
         let off_chain = self.inner.get_dlc_channels_usable_balance()?;
 
