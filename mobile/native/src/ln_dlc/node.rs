@@ -71,8 +71,8 @@ impl Node {
 }
 
 pub struct Balances {
-    pub on_chain: u64,
-    pub off_chain: u64,
+    pub on_chain: Option<u64>,
+    pub off_chain: Option<u64>,
 }
 
 impl From<Balances> for crate::api::Balances {
@@ -96,18 +96,18 @@ impl Node {
 
     pub fn get_wallet_balances(&self) -> Balances {
         let on_chain = match self.inner.get_on_chain_balance() {
-            Ok(on_chain) => on_chain.confirmed + on_chain.trusted_pending,
+            Ok(on_chain) => Some(on_chain.confirmed + on_chain.trusted_pending),
             Err(e) => {
                 tracing::error!("Failed to get onchain balance. {e:#}");
-                0
+                None
             }
         };
 
         let off_chain = match self.inner.get_dlc_channels_usable_balance() {
-            Ok(off_chain) => off_chain.to_sat(),
+            Ok(off_chain) => Some(off_chain.to_sat()),
             Err(e) => {
                 tracing::error!("Failed to get dlc channels usable balance. {e:#}");
-                0
+                None
             }
         };
 

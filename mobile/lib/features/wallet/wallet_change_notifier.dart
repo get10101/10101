@@ -40,11 +40,11 @@ class WalletChangeNotifier extends ChangeNotifier implements Subscriber {
     await service.refreshWalletInfo();
   }
 
-  Amount total() => Amount(onChain().sats + offChain().sats);
+  Amount total() => Amount(onChain()?.sats ?? 0 + (offChain()?.sats ?? 0));
 
-  Amount onChain() => walletInfo.balances.onChain;
+  Amount? onChain() => walletInfo.balances.onChain;
 
-  Amount offChain() => walletInfo.balances.offChain;
+  Amount? offChain() => walletInfo.balances.offChain;
 
   @override
   void notify(bridge.Event event) {

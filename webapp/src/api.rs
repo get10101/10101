@@ -99,8 +99,8 @@ pub async fn get_unused_address() -> impl IntoResponse {
 
 #[derive(Serialize)]
 pub struct Balance {
-    on_chain: u64,
-    off_chain: u64,
+    on_chain: Option<u64>,
+    off_chain: Option<u64>,
 }
 
 pub async fn get_balance(

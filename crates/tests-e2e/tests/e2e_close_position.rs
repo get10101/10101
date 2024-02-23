@@ -22,7 +22,14 @@ async fn can_open_close_open_close_position() {
     // - Opening fee of 7_500 paid to coordinator collateral reserve from app on-chain balance.
     // - App off-chain balance is 0 (first trade uses full DLC channel collateral for now).
 
-    let app_off_chain_balance = test.app.rx.wallet_info().unwrap().balances.off_chain;
+    let app_off_chain_balance = test
+        .app
+        .rx
+        .wallet_info()
+        .unwrap()
+        .balances
+        .off_chain
+        .unwrap();
     tracing::info!(%app_off_chain_balance, "Opened first position");
 
     let closing_order = {
@@ -40,7 +47,14 @@ async fn can_open_close_open_close_position() {
 
     // - App off-chain balance is 1_242_500 sats (margin minus 7_500 fee).
 
-    let app_off_chain_balance = test.app.rx.wallet_info().unwrap().balances.off_chain;
+    let app_off_chain_balance = test
+        .app
+        .rx
+        .wallet_info()
+        .unwrap()
+        .balances
+        .off_chain
+        .unwrap();
     tracing::info!(%app_off_chain_balance, "Closed first position");
 
     tracing::info!("Opening second position");
@@ -65,7 +79,14 @@ async fn can_open_close_open_close_position() {
     // - Opening fee of 3_750 paid to coordinator collateral reserve from app off-chain balance.
     // - App off-chain balance is 613_750.
 
-    let app_off_chain_balance = test.app.rx.wallet_info().unwrap().balances.off_chain;
+    let app_off_chain_balance = test
+        .app
+        .rx
+        .wallet_info()
+        .unwrap()
+        .balances
+        .off_chain
+        .unwrap();
     tracing::info!(%app_off_chain_balance, "Opened second position");
 
     tracing::info!("Closing second position");
@@ -83,7 +104,14 @@ async fn can_open_close_open_close_position() {
 
     // - App off-chain balance is 1_235_000 sats (reserve + margin - 3_750 fee).
 
-    let app_off_chain_balance = test.app.rx.wallet_info().unwrap().balances.off_chain;
+    let app_off_chain_balance = test
+        .app
+        .rx
+        .wallet_info()
+        .unwrap()
+        .balances
+        .off_chain
+        .unwrap();
     tracing::info!(%app_off_chain_balance, "Closed second position");
 
     // TODO: Assert that the position is closed in the coordinator
