@@ -48,7 +48,7 @@ channelConfiguration({
                 },
                 child: SingleChildScrollView(
                   child: SizedBox(
-                    height: 500,
+                    height: 520,
                     child: ChannelConfiguration(
                       tradeValues: tradeValues,
                       onConfirmation: onConfirmation,

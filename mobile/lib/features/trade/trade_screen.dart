@@ -216,6 +216,7 @@ class TradeScreen extends StatelessWidget {
             children: <Widget>[
               SizedBox(
                   width: tradeButtonWidth,
+                  height: 50,
                   child: FloatingActionButton.extended(
                     key: tradeScreenButtonBuy,
                     heroTag: "btnBuy",
@@ -234,6 +235,7 @@ class TradeScreen extends StatelessWidget {
               const SizedBox(width: 20),
               SizedBox(
                   width: tradeButtonWidth,
+                  height: 50,
                   child: FloatingActionButton.extended(
                     key: tradeScreenButtonSell,
                     heroTag: "btnSell",
