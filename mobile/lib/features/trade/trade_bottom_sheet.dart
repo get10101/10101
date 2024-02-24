@@ -19,7 +19,6 @@ tradeBottomSheet({required BuildContext context, required Direction direction}) 
     builder: (BuildContext context) {
       return SafeArea(
         child: Padding(
-          // padding: MediaQuery.of(context).viewInsets,
           padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
           // the GestureDetector ensures that we can close the keyboard by tapping into the modal
           child: GestureDetector(
