@@ -80,6 +80,7 @@ class Usd {
 
   double asDouble() => _usd.toDouble();
 
+  Usd.fromDouble(double value) : _usd = Decimal.parse(value.toString());
   Usd.parse(dynamic value) : _usd = Decimal.parse(value);
 
   Usd.parseString(String? value) {

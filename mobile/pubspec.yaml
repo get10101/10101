@@ -45,6 +45,8 @@ dependencies:
   nested: ^1.0.0
   qr_code_scanner: ^1.0.1
   fl_chart: 0.64.0
+  card_swiper: ^3.0.1
+  screenshot: ^2.1.0
 dependency_overrides:
   intl: ^0.18.0
 dev_dependencies:

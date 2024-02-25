@@ -3,6 +3,7 @@ import 'package:get_10101/common/application/lsp_change_notifier.dart';
 import 'package:get_10101/common/dlc_channel_change_notifier.dart';
 import 'package:get_10101/common/dlc_channel_service.dart';
 import 'package:get_10101/common/domain/lsp_config.dart';
+import 'package:get_10101/features/brag/github_service.dart';
 import 'package:get_10101/features/trade/candlestick_change_notifier.dart';
 import 'package:get_10101/features/trade/order_change_notifier.dart';
 import 'package:get_10101/features/trade/position_change_notifier.dart';
@@ -45,6 +46,7 @@ List<SingleChildWidget> createProviders() {
   const ChannelInfoService channelInfoService = ChannelInfoService();
   var tradeValuesService = TradeValuesService();
   const pollService = PollService();
+  const githubService = GitHubService();
 
   var providers = [
     ChangeNotifierProvider(create: (context) {
@@ -70,7 +72,8 @@ List<SingleChildWidget> createProviders() {
     ChangeNotifierProvider(create: (context) => PollChangeNotifier(pollService)),
     Provider(create: (context) => config),
     Provider(create: (context) => channelInfoService),
-    Provider(create: (context) => pollService)
+    Provider(create: (context) => pollService),
+    Provider(create: (context) => githubService)
   ];
   if (config.network == "regtest") {
     providers.add(Provider(create: (context) => FaucetService()));
