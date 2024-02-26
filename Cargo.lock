@@ -1292,7 +1292,7 @@ dependencies = [
 [[package]]
 name = "dlc"
 version = "0.4.0"
-source = "git+https://github.com/get10101/rust-dlc?rev=aa487662a8af75174bf0e60f24e07e171820d0c3#aa487662a8af75174bf0e60f24e07e171820d0c3"
+source = "git+https://github.com/get10101/rust-dlc?rev=bc31c6167e304d7886c328da91e8c17dad1afce5#bc31c6167e304d7886c328da91e8c17dad1afce5"
 dependencies = [
  "bitcoin",
  "miniscript 8.0.2",
@@ -1304,7 +1304,7 @@ dependencies = [
 [[package]]
 name = "dlc-manager"
 version = "0.4.0"
-source = "git+https://github.com/get10101/rust-dlc?rev=aa487662a8af75174bf0e60f24e07e171820d0c3#aa487662a8af75174bf0e60f24e07e171820d0c3"
+source = "git+https://github.com/get10101/rust-dlc?rev=bc31c6167e304d7886c328da91e8c17dad1afce5#bc31c6167e304d7886c328da91e8c17dad1afce5"
 dependencies = [
  "async-trait",
  "bitcoin",
@@ -1320,7 +1320,7 @@ dependencies = [
 [[package]]
 name = "dlc-messages"
 version = "0.4.0"
-source = "git+https://github.com/get10101/rust-dlc?rev=aa487662a8af75174bf0e60f24e07e171820d0c3#aa487662a8af75174bf0e60f24e07e171820d0c3"
+source = "git+https://github.com/get10101/rust-dlc?rev=bc31c6167e304d7886c328da91e8c17dad1afce5#bc31c6167e304d7886c328da91e8c17dad1afce5"
 dependencies = [
  "bitcoin",
  "dlc",
@@ -1333,7 +1333,7 @@ dependencies = [
 [[package]]
 name = "dlc-trie"
 version = "0.4.0"
-source = "git+https://github.com/get10101/rust-dlc?rev=aa487662a8af75174bf0e60f24e07e171820d0c3#aa487662a8af75174bf0e60f24e07e171820d0c3"
+source = "git+https://github.com/get10101/rust-dlc?rev=bc31c6167e304d7886c328da91e8c17dad1afce5#bc31c6167e304d7886c328da91e8c17dad1afce5"
 dependencies = [
  "bitcoin",
  "dlc",
@@ -2039,9 +2039,9 @@ checksum = "b9e0384b61958566e926dc50660321d12159025e767c18e043daf26b70104c39"
 
 [[package]]
 name = "idna"
-version = "0.5.0"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "634d9b1461af396cad843f47fdba5597a4f9e6ddd4bfb6ff5d85028c25cb12f6"
+checksum = "7d20d6b07bfbc108882d88ed8e37d39636dcc260e15e30c45e6ba089610b917c"
 dependencies = [
  "unicode-bidi",
  "unicode-normalization",
@@ -2130,9 +2130,9 @@ checksum = "fad582f4b9e86b6caa621cabeb0963332d92eea04729ab12892c2533951e6440"
 
 [[package]]
 name = "js-sys"
-version = "0.3.68"
+version = "0.3.61"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "406cda4b368d531c842222cf9d2600a9a4acce8d29423695379c6868a143a9ee"
+checksum = "445dde2150c55e483f3d8416706b97ec8e8237c307e5b7b4b8dd15e6af2a0730"
 dependencies = [
  "wasm-bindgen",
 ]
@@ -2831,7 +2831,7 @@ checksum = "b15813163c1d831bf4a13c3610c05c0d03b39feb07f7e09fa234dac9b15aaf39"
 [[package]]
 name = "p2pd-oracle-client"
 version = "0.1.0"
-source = "git+https://github.com/get10101/rust-dlc?rev=aa487662a8af75174bf0e60f24e07e171820d0c3#aa487662a8af75174bf0e60f24e07e171820d0c3"
+source = "git+https://github.com/get10101/rust-dlc?rev=bc31c6167e304d7886c328da91e8c17dad1afce5#bc31c6167e304d7886c328da91e8c17dad1afce5"
 dependencies = [
  "chrono",
  "dlc-manager",
@@ -2909,9 +2909,9 @@ dependencies = [
 
 [[package]]
 name = "percent-encoding"
-version = "2.3.1"
+version = "2.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e3148f5046208a5d56bcfc03053e3ca6334e51da8dfb19b6cdc8b306fae3283e"
+checksum = "9b2a4787296e9989611394c33f193f676704af1686e70b8f8033ab5ba9a35a94"
 
 [[package]]
 name = "percent-encoding-rfc3986"
@@ -4717,9 +4717,9 @@ dependencies = [
 
 [[package]]
 name = "url"
-version = "2.5.0"
+version = "2.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "31e6302e3bb753d46e83516cae55ae196fc0c309407cf11ab35cc51a4c2a4633"
+checksum = "143b538f18257fac9cad154828a57c6bf5157e1aa604d4816b5995bf6de87ae5"
 dependencies = [
  "form_urlencoded",
  "idna",
@@ -4822,9 +4822,9 @@ checksum = "9c8d87e72b64a3b4db28d11ce29237c246188f4f51057d65a7eab63b7987e423"
 
 [[package]]
 name = "wasm-bindgen"
-version = "0.2.91"
+version = "0.2.84"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c1e124130aee3fb58c5bdd6b639a0509486b0338acaaae0c84a5124b0f588b7f"
+checksum = "31f8dcbc21f30d9b8f2ea926ecb58f6b91192c17e9d33594b3df58b2007ca53b"
 dependencies = [
  "cfg-if",
  "wasm-bindgen-macro",
@@ -4832,16 +4832,16 @@ dependencies = [
 
 [[package]]
 name = "wasm-bindgen-backend"
-version = "0.2.91"
+version = "0.2.84"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c9e7e1900c352b609c8488ad12639a311045f40a35491fb69ba8c12f758af70b"
+checksum = "95ce90fd5bcc06af55a641a86428ee4229e44e07033963a2290a8e241607ccb9"
 dependencies = [
  "bumpalo",
  "log",
  "once_cell",
  "proc-macro2",
  "quote",
- "syn 2.0.48",
+ "syn 1.0.109",
  "wasm-bindgen-shared",
 ]
 
@@ -4859,9 +4859,9 @@ dependencies = [
 
 [[package]]
 name = "wasm-bindgen-macro"
-version = "0.2.91"
+version = "0.2.84"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b30af9e2d358182b5c7449424f017eba305ed32a7010509ede96cdc4696c46ed"
+checksum = "4c21f77c0bedc37fd5dc21f897894a5ca01e7bb159884559461862ae90c0b4c5"
 dependencies = [
  "quote",
  "wasm-bindgen-macro-support",
@@ -4869,22 +4869,22 @@ dependencies = [
 
 [[package]]
 name = "wasm-bindgen-macro-support"
-version = "0.2.91"
+version = "0.2.84"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "642f325be6301eb8107a83d12a8ac6c1e1c54345a7ef1a9261962dfefda09e66"
+checksum = "2aff81306fcac3c7515ad4e177f521b5c9a15f2b08f4e32d823066102f35a5f6"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.48",
+ "syn 1.0.109",
  "wasm-bindgen-backend",
  "wasm-bindgen-shared",
 ]
 
 [[package]]
 name = "wasm-bindgen-shared"
-version = "0.2.91"
+version = "0.2.84"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4f186bd2dcf04330886ce82d6f33dd75a7bfcf69ecf5763b89fcde53b6ac9838"
+checksum = "0046fef7e28c3804e5e38bfa31ea2a0f73905319b677e57ebe37e49358989b5d"
 
 [[package]]
 name = "wasm-streams"
@@ -5230,3 +5230,8 @@ name = "zeroize"
 version = "1.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2a0956f1ba7c7909bfb66c2e9e4124ab6f6482560f6628b5aaeba39207c9aad9"
+
+[[patch.unused]]
+name = "lightning-net-tokio"
+version = "0.0.117"
+source = "git+https://github.com/bonomat/rust-lightning-p2p-derivatives?rev=e49030e#e49030e785408f0fd4da077f63f8101cc0b2436e"

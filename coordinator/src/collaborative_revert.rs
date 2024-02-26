@@ -240,6 +240,7 @@ pub fn confirm_collaborative_revert(
             temporary_channel_id: signed_channel.temporary_channel_id,
             channel_id: signed_channel.channel_id,
             reference_id: None,
+            closing_txid: revert_transaction.txid(),
         }),
         // The contract doesn't matter anymore.
         None,

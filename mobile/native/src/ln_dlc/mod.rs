@@ -806,7 +806,7 @@ pub fn collaborative_revert_channel(
 
     let data = CollaborativeRevertTraderResponse {
         channel_id: channel_id_hex,
-        transaction: close_tx,
+        transaction: close_tx.clone(),
         signature: close_signature,
     };
 
@@ -831,7 +831,7 @@ pub fn collaborative_revert_channel(
                             "Received response from confirming reverting a channel"
                         );
                         if let Err(e) =
-                            update_state_after_collab_revert(&signed_channel, execution_price)
+                            update_state_after_collab_revert(&signed_channel, execution_price, close_tx.txid())
                         {
                             tracing::error!(
                                 "Failed to update state after collaborative revert confirmation: {e:#}"
@@ -857,6 +857,7 @@ pub fn collaborative_revert_channel(
 fn update_state_after_collab_revert(
     signed_channel: &SignedChannel,
     execution_price: Decimal,
+    closing_txid: Txid,
 ) -> Result<()> {
     let node = state::try_get_node().context("failed to get ln dlc node")?;
     let positions = db::get_positions()?;
@@ -927,6 +928,7 @@ fn update_state_after_collab_revert(
                 temporary_channel_id: signed_channel.temporary_channel_id,
                 channel_id: signed_channel.channel_id,
                 reference_id: None,
+                closing_txid,
             }),
             // The contract doesn't matter anymore
             None,
