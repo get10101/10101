@@ -1,5 +1,6 @@
 use bitcoin::hashes::hex::ToHex;
 use bitcoin::secp256k1::PublicKey;
+use dlc_manager::channel::signed_channel::SignedChannel;
 use dlc_manager::channel::Channel;
 use dlc_manager::DlcChannelId;
 use serde::Serialize;
@@ -17,6 +18,7 @@ pub struct DlcChannelDetails {
     pub fee_rate_per_vb: Option<u64>,
     pub funding_txid: Option<String>,
     pub funding_tx_vout: Option<usize>,
+    pub closing_txid: Option<String>,
 }
 
 #[derive(Serialize, Debug, Ord, PartialOrd, Eq, PartialEq)]
@@ -52,16 +54,52 @@ pub enum ChannelState {
 
 impl From<Channel> for DlcChannelDetails {
     fn from(channel: Channel) -> Self {
-        let (update_idx, state, fee_rate_per_vb, funding_txid, funding_tx_vout) =
+        let (update_idx, state, fee_rate_per_vb, funding_txid, funding_tx_vout, closing_txid) =
             match channel.clone() {
+                Channel::Signed(SignedChannel {
+                    update_idx,
+                    fee_rate_per_vb,
+                    fund_tx,
+                    fund_output_index,
+                    state: dlc_manager::channel::signed_channel::SignedChannelState::CollaborativeCloseOffered {
+                        close_tx,
+                        ..
+                    },
+                    ..
+                }) => (
+                    Some(update_idx),
+                    Some(SignedChannelState::CollaborativeCloseOffered),
+                    Some(fee_rate_per_vb),
+                    Some(fund_tx.txid().to_string()),
+                    Some(fund_output_index),
+                    Some(close_tx.txid().to_string())),
                 Channel::Signed(signed_channel) => (
                     Some(signed_channel.update_idx),
                     Some(SignedChannelState::from(signed_channel.state)),
                     Some(signed_channel.fee_rate_per_vb),
-                    Some(signed_channel.fund_tx.txid().to_hex()),
+                    Some(signed_channel.fund_tx.txid().to_string()),
                     Some(signed_channel.fund_output_index),
+                    None,
                 ),
-                _ => (None, None, None, None, None),
+                Channel::CollaborativelyClosed(closed_channel)
+                | Channel::Closed(closed_channel)
+                | Channel::CounterClosed(closed_channel) => (
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    Some(closed_channel.closing_txid.to_string()),
+                ),
+                Channel::Closing(closing_channel) => (
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    Some(closing_channel.buffer_transaction.txid().to_string()),
+                ),
+                _ => (None, None, None, None, None, None),
             };
 
         DlcChannelDetails {
@@ -73,6 +111,7 @@ impl From<Channel> for DlcChannelDetails {
             fee_rate_per_vb,
             funding_txid,
             funding_tx_vout,
+            closing_txid,
         }
     }
 }
